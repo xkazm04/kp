@@ -812,6 +812,48 @@ const ROUTES: RouteSpec[] = [
     // and the limiter precedes the saveJd write as well as the spawn.
     servedBefore: "validateJdFields(body.title, body.body)",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-02 (org-workspace-settings), with the limiters themselves.
+  // The ORGANIZATION's two consequential doors carried none. Neither spends on a model,
+  // which is why an LLM-shaped scan kept missing them - what they spend is the company's
+  // own safety: one mints capability links into the tenant, the other serializes every
+  // candidate's PII into a single response. Both are capability-gated, and in open mode
+  // (KP_OPERATOR_PASSWORD unset) that gate is a documented no-op for the ENTIRE API, so
+  // each must self-limit.
+  {
+    // Every accepted call writes an invite row AND returns a live accept link that
+    // seats its holder in the org. 30/10min per IP is far above a human typing
+    // addresses into a form; a scripted loop is pinned at 3/min.
+    rel: "./org/invites/route.ts",
+    key: "`org-invite:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "INVITE_MINT_RATE_LIMIT",
+    optsDef: "const INVITE_MINT_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The mint itself. The bare name also appears in the import above the limiter,
+    // so the marker carries its opening argument.
+    expensive: "inviteMember({ orgId,",
+    // All three cheap refusals (bad address, role above the ceiling, already a
+    // member) keep their semantics ahead of the throttle, so an invite that was
+    // never going to be minted spends none of the window.
+    servedBefore: 'existing.orgId === orgId && existing.status === "active"',
+  },
+  {
+    // FULL PII for the whole organization - every candidate, contact and transcript -
+    // in one response, built by walking every org-scoped table into memory. An
+    // authorized administrator taking a backup does it occasionally and deliberately;
+    // 10/10min leaves that untouched and stops a loop. The limiter sits AFTER both
+    // gates so an unauthenticated or under-privileged probe can never spend an
+    // administrator's window.
+    rel: "./workspace/export/route.ts",
+    key: "`org-export:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "EXPORT_RATE_LIMIT",
+    optsDef: "const EXPORT_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "dumpOrg(orgId)",
+    servedBefore: 'await requireOrgCapability("org:manage")',
+  },
 ];
 
 for (const spec of ROUTES) {

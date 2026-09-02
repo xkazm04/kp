@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { assertFraction, assertScore, scoreTone, scoreToneColor } from "@/app/_lib/format";
 
 // A single capability bar that grows from 0 to its value on mount, so the row
@@ -11,6 +12,9 @@ import { assertFraction, assertScore, scoreTone, scoreToneColor } from "@/app/_l
 // (0..1) renders a muted % so the reviewer can see how each capability is weighted,
 // and `title` carries the rubric description as a hover tooltip.
 export function ScoreBar({ label, value, index, weight, title }: { label: string; value: number; index: number; weight?: number; title?: string }) {
+  // The bar's only screen-reader sentence. It was the whole accessible name of a
+  // capability score in a four-locale product.
+  const t = useTranslations("devcase.scoreBar");
   const [filled, setFilled] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setFilled(true));
@@ -35,7 +39,7 @@ export function ScoreBar({ label, value, index, weight, title }: { label: string
         aria-valuenow={score}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${label} score ${score} of 100${pct != null ? `, weighted ${pct}%` : ""}`}
+        aria-label={pct != null ? t("ariaWeighted", { label, score, weight: pct }) : t("aria", { label, score })}
         className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200"
       >
         <span

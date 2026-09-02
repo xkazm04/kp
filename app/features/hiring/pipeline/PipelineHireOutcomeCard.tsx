@@ -15,11 +15,11 @@
 // the route re-checks the LIVE stage before it will write). An unrated hire reads
 // as unrated: there is no default, no pre-selected value and no zero.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sprout } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 
 type HireOutcomeView = {
   entryId: string;
@@ -39,11 +39,19 @@ export function PipelineHireOutcomeCard({ entryId }: { entryId: string }) {
   // The localized refusal, not a boolean: the route answers 404/400/409 with a
   // machine code, and "why the rating was refused" is the useful half.
   const [failed, setFailed] = useState<string | null>(null);
+  // drawer-cards-hold-the-chip-law — the READ's own give-up, and the retry that
+  // makes it recoverable. a bare discarding catch used to swallow it, and since
+  // a null `view` returns null one screen down, a transient blip made the
+  // quality-of-hire card VANISH for a real hire with nothing to press: the surface
+  // that asks "did this hire work out?" silently claimed there was nothing to ask.
+  // This is the hole ConsentPanel's `loadFailed` closed one card over, so it is
+  // closed the same way — a stated failure with a way out, never a blank space.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
 
   // Its own small read, fired ONLY for a hire — the drawer's one-call bundle stays
   // one call for every other candidate, which is the deliberate property the bundle
-  // exists for. A failed load leaves the card silent rather than showing a control
-  // that cannot save.
+  // exists for.
   useEffect(() => {
     let live = true;
     fetch(`/api/pipeline/outcomes?entry=${encodeURIComponent(entryId)}`)
@@ -52,12 +60,20 @@ export function PipelineHireOutcomeCard({ entryId }: { entryId: string }) {
         if (!live) return;
         if (p.error) throw new Error(p.error);
         setView(p as HireOutcomeView);
+        // Clears a prior give-up on a retry — and on an entryId change, since this
+        // card is not remounted per candidate. Set from the resolved read, never
+        // synchronously in the effect body (that is a cascading render).
+        setLoadFailed(false);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // Not silent: a give-up the recruiter can see and re-run. The raw reason
+        // stays off the surface (it is a network/store accident, not a decision).
+        if (live) setLoadFailed(true);
+      });
     return () => {
       live = false;
     };
-  }, [entryId]);
+  }, [entryId, reloadTick]);
 
   const rate = useCallback(
     async (performance: number) => {
@@ -86,15 +102,45 @@ export function PipelineHireOutcomeCard({ entryId }: { entryId: string }) {
         setSaving(false);
       }
     },
-    [entryId]
+    // `errorMessage` and `t` are read inside, so they belong here: a deps array
+    // that names only `entryId` pins the FIRST render's locale bindings, and a
+    // reader who switches language keeps getting the previous language's refusal.
+    [entryId, errorMessage, t]
   );
+
+  // A day-formatter per card, not one per render: this component re-renders on
+  // every rating press and `Intl.DateTimeFormat` construction is the expensive
+  // half of the call.
+  const dayFormat = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }), [locale]);
+
+  // The read failed → say so, with the retry. Before `hired` is known, because a
+  // failed read knows nothing about this candidate; the drawer only mounts this
+  // card on the terminal-role stage, so the frame is honest either way.
+  if (loadFailed) {
+    return (
+      <div className="rounded-md border border-stone-200 bg-white p-3">
+        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+          <Sprout size={13} aria-hidden /> {t("title")}
+        </p>
+        <p className="mt-1 text-sm text-steel">{t("loadFailed")}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoadFailed(false);
+            setReloadTick((n) => n + 1);
+          }}
+          className={`${BTN_SECONDARY} mt-2 h-8 px-2.5 text-sm`}
+        >
+          {t("retry")}
+        </button>
+      </div>
+    );
+  }
 
   if (!view || !view.hired) return null;
 
   const levels = Array.from({ length: view.max - view.min + 1 }, (_, i) => view.min + i);
-  const recordedOn = view.recordedAt
-    ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(view.recordedAt))
-    : null;
+  const recordedOn = view.recordedAt ? dayFormat.format(new Date(view.recordedAt)) : null;
 
   return (
     <div className="rounded-md border border-stone-200 bg-white p-3">

@@ -61,12 +61,21 @@ export function WorkspaceTab() {
     callerCaps,
     loading,
     error,
+    partial,
     reload,
   } = useWorkspaceAdmin();
 
   const [view, setView] = useState<View>("workspace");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A PER-MEMBER lock, not the panel-wide `busy` above. A role change and a status
+  // toggle are one row's writes: locking the whole console for them would freeze
+  // four other rows an administrator is working through, and locking nothing at all
+  // (what happened before) let a double click send two PATCHes and left the row
+  // showing its old value until the reload landed, with no sign anything had
+  // happened. Held until the RELOAD returns, because that is when the row finally
+  // tells the truth.
+  const [pendingMembers, setPendingMembers] = useState<string[]>([]);
   const [editing, setEditing] = useState<{ member: OrgMemberDto; team: MemberTeam } | null>(null);
   const [confirmingLeave, setConfirmingLeave] = useState<{ member: OrgMemberDto; workspaceId: string; workspaceName: string } | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState<OrgMemberDto | null>(null);
@@ -166,17 +175,27 @@ export function WorkspaceTab() {
   }
 
   async function patchMember(userId: string, body: Record<string, unknown>) {
-    const r = await fetch(`/api/org/members/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch(() => null);
-    if (r && r.ok) {
-      await reload();
-      return;
+    if (pendingMembers.includes(userId)) return; // one write per row in flight
+    setPendingMembers((ids) => [...ids, userId]);
+    try {
+      const r = await fetch(`/api/org/members/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).catch(() => null);
+      if (r && r.ok) {
+        await reload();
+        // A receipt, because the row is the only other evidence and it changes
+        // one word in a select. Every OTHER mutation on this console already
+        // toasts; these two were the silent pair.
+        toast.success(body.role !== undefined ? tm("roleUpdated") : tm("statusUpdated"));
+        return;
+      }
+      const err = await readError(r);
+      toast.error(err === "last_owner" ? tm("lastOwner") : tm("updateFailed"));
+    } finally {
+      setPendingMembers((ids) => ids.filter((id) => id !== userId));
     }
-    const err = await readError(r);
-    toast.error(err === "last_owner" ? tm("lastOwner") : tm("updateFailed"));
   }
 
   async function removeMember(m: OrgMemberDto) {
@@ -204,9 +223,10 @@ export function WorkspaceTab() {
       await reload();
     } else {
       // The route's English `error` is never rendered (docs/architecture/localization.md).
-      // POST /api/org/invites still sends NO `code` on any of its three refusals, so
-      // the resolver lands on the localized fallback — see the Known gaps in
-      // docs/features/organization/README.md.
+      // All three of the mint's refusals now carry a code (INVITE_EMAIL_INVALID,
+      // INVITE_ROLE_ABOVE_PRIVILEGE, INVITE_ALREADY_MEMBER), so the resolver renders
+      // the real reason in the reader's language and the fallback is genuinely a
+      // fallback (a network drop, or the no-team server-state 409).
       const payload = r ? ((await r.json().catch(() => null)) as ApiErrorPayload | null) : null;
       toast.error(errMsg(payload, tm("inviteFailed")));
     }
@@ -228,8 +248,10 @@ export function WorkspaceTab() {
       await navigator.clipboard.writeText(url);
       toast.success(tm("linkCopied"));
     } catch {
+      // NOT logged: the token in that URL is a live capability link into the org,
+      // and a console is a shared surface (screen-share, a pasted bug report). The
+      // row it came from still shows the invite, so Copy can simply be retried.
       toast.error(tm("copyFailed"));
-      console.log("[invite link]", url);
     }
   }
 
@@ -283,8 +305,15 @@ export function WorkspaceTab() {
         ) : null}
       </div>
 
+      {partial && !loading && !error ? (
+        <p role="status" className="text-sm text-amber-700">{t("partialLoad")}</p>
+      ) : null}
+
+      {/* One tone for one meaning: a failed load is coral here, exactly as it is in
+          the two panels below. It used to be stone-500 on this line only, which
+          read as a quiet empty state rather than a failure. */}
       {error && !loading ? (
-        <p className="text-sm text-stone-500">{t("loadError")}</p>
+        <p role="alert" className="text-sm text-coral">{t("loadError")}</p>
       ) : view === "workspace" ? (
         <div className="grid gap-6 lg:grid-cols-3">
           <WorkspaceRail
@@ -313,6 +342,7 @@ export function WorkspaceTab() {
               loading={loading}
               error={error}
               busy={busy}
+              pendingMembers={pendingMembers}
               onSwitch={(id) => void switchTo(id)}
               onRename={(id, name) => void renameWorkspace(id, name)}
               onSeatMember={(userId, workspaceId, role) => void seatMember(userId, workspaceId, role)}
@@ -340,6 +370,7 @@ export function WorkspaceTab() {
             error={error}
             canManageMembers={canManageMembers}
             busy={busy}
+            pendingMembers={pendingMembers}
             onSeatMember={(userId, workspaceId, role) => void seatMember(userId, workspaceId, role)}
             onConfirmRemoveFromWorkspace={(member, workspaceId) =>
               setConfirmingLeave({ member, workspaceId, workspaceName: workspaceName(workspaceId) })

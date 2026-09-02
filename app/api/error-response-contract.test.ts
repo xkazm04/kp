@@ -227,11 +227,9 @@ const LEAK_CEILING = new Map<string, number>([
   // "DEVCASE_*_FAILED")` against the twelve codes added to STORE_ERRORS in the same
   // change, with four catalogue entries each. The entries are DELETED so the win is
   // locked and a regression reads as `undeclared` rather than as budget already
-  // granted. Four devcase leaks remain, each still ceilinged below:
-  // devcase/route.ts (2), devcase/source (1), devcase/submit (1).
+  // granted. Two devcase leaks remain in devcase/route.ts, still ceilinged below;
+  // source and submit burnt theirs down in wave 9 and their entries are gone.
   ["devcase/route.ts", 2],
-  ["devcase/source/route.ts", 1],
-  ["devcase/submit/route.ts", 1],
   ["extract-text/route.ts", 1],
   ["github-analysis/route.ts", 1],
   // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect

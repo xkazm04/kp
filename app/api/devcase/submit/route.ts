@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPosting, getPostingByToken } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
 
@@ -55,11 +55,16 @@ export async function POST(request: NextRequest) {
     // Event trigger: if an automated lifecycle is collecting for this posting, resume it.
     if (isNew) resumeCollectingLifecycle(postingId);
 
-    return NextResponse.json({ ok: true, submission });
+    // `isNew` is the difference between "we recorded your submission" and "we already
+    // had this one" — the intake absorbs a duplicate rather than filing a second row,
+    // and the form used to claim a fresh record either way.
+    return NextResponse.json({ ok: true, isNew, submission });
   } catch (error) {
     if (error instanceof PostingClosedError) {
       return jsonRefusal("POSTING_CLOSED", 410);
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Submit failed." }, { status: 500 });
+    // better-sqlite3 SQLITE_* codes, the absolute db path and the distribution
+    // adapter's upstream body all used to ride this message to the client.
+    return safeJsonError(error, "api:devcase/submit", "DEVCASE_SUBMIT_FAILED");
   }
 }

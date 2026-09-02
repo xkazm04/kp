@@ -67,7 +67,10 @@ export type RepoSnapshot = {
 export type SourceKind = "llm" | "partial" | "deterministic";
 // Presentation contract for a SourceKind, produced by `describeSource` (DevHelpers)
 // so the chip colour, label and degraded warning are decided in exactly one place.
-export type SourceDescriptor = { label: string; dotClass: string; textClass: string; isDegraded: boolean };
+// `labelKey` is a CATALOG KEY, never prose: the descriptor is computed in a plain
+// module with no translator in scope, so it names the string and the rendering
+// component resolves it in the reader's language (`devcase.provenance.source.*`).
+export type SourceDescriptor = { labelKey: SourceKind; dotClass: string; textClass: string; isDegraded: boolean };
 // `perStepSources` ({step: SourceKind}) comes from the uniform CLI provenance
 // envelope; the ProvenanceStrip renders it, falling back to `source` for bundles
 // saved before it existed. Per-step values are "llm" or "deterministic".

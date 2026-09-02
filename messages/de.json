@@ -1440,7 +1440,17 @@
     "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut.",
     "JD_FIELDS_REQUIRED": "Titel und Beschreibung sind beide erforderlich.",
     "JD_TITLE_TOO_LONG": "Der Titel darf höchstens 200 Zeichen lang sein.",
-    "JD_BODY_TOO_LONG": "Die Beschreibung darf höchstens 20.000 Zeichen lang sein."
+    "JD_BODY_TOO_LONG": "Die Beschreibung darf höchstens 20.000 Zeichen lang sein.",
+    "DEVCASE_SUBMIT_FAILED": "Diese Abgabe konnte nicht erfasst werden. Bitte erneut versuchen.",
+    "DEVCASE_SOURCE_FAILED": "Für diese Aufgabenstellung konnten keine Kandidaten gefunden werden. Bitte erneut versuchen.",
+    "RESTORE_FOREIGN_ORG": "Diese Sicherung gehört zu einer anderen Organisation. Eine Sicherung wird nur in die Organisation zurückgespielt, aus der sie stammt.",
+    "RESTORE_REPLACE_REQUIRED": "Das Wiederherstellen ersetzt die aktuellen Daten der Organisation. Bestätigen Sie das Ersetzen, um fortzufahren.",
+    "INVITE_ALREADY_MEMBER": "Diese Person ist bereits aktives Mitglied.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "Sie können niemanden in eine Rolle mit mehr Rechten einladen, als Sie selbst haben.",
+    "INVITE_EMAIL_INVALID": "Eine gültige E-Mail-Adresse ist erforderlich.",
+    "MEMBER_PERMISSIONS_CHANGED": "Die Berechtigungen dieses Mitglieds haben sich während Ihrer Bearbeitung geändert. Bitte neu laden und erneut versuchen.",
+    "ORG_SETTINGS_FORBIDDEN": "Nur eine Administratorin oder ein Administrator der Organisation kann deren Einstellungen ändern.",
+    "ORG_LANGUAGE_INVALID": "Das ist keine der Sprachen dieser App."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2693,7 +2703,9 @@
         "saving": "Wird gespeichert…",
         "saveFailed": "Bewertung konnte nicht gespeichert werden.",
         "purpose": "Halten Sie fest, wie sich diese Einstellung tatsächlich entwickelt hat. Sie ist die belastbare Grundlage für die Messung der Einstellungsqualität in Analytics.",
-        "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet."
+        "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet.",
+        "loadFailed": "Der Ergebniseintrag konnte nicht geladen werden.",
+        "retry": "Erneut versuchen"
       },
       "transfer": "Transfer"
     },
@@ -5584,7 +5596,6 @@
       "saving": "Wird gespeichert…",
       "saved": "Gespeichert",
       "saveFailed": "Speichern fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
-      "domainLabel": "Primäre Domain",
       "languageLabel": "App-Sprache",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
       "backup": {
@@ -5699,7 +5710,9 @@
         "body": "Die Einladung für <em>{email}</em> zurückziehen? Der bereits geteilte Link funktioniert dann nicht mehr.",
         "cancel": "Abbrechen",
         "confirm": "Einladung zurückziehen"
-      }
+      },
+      "roleUpdated": "Rolle aktualisiert.",
+      "statusUpdated": "Kontostatus aktualisiert."
     },
     "permissions": {
       "title": "Berechtigungen für {name}",
@@ -5731,7 +5744,8 @@
           "desc": "Kandidaten und Daten des Teams einsehen."
         }
       }
-    }
+    },
+    "partialLoad": "Ein Teil dieser Seite konnte nicht neu geladen werden. Einige Angaben sind möglicherweise nicht aktuell."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -7724,7 +7738,30 @@
         "source": "Kandidaten suchen"
       },
       "actionFailed": "{action} ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
-      "actionUnreachable": "{action} ist fehlgeschlagen, die Anfrage konnte nicht abgeschlossen werden."
+      "actionUnreachable": "{action} ist fehlgeschlagen, die Anfrage konnte nicht abgeschlossen werden.",
+      "need": {
+        "jdLabel": "Stellenbeschreibung *",
+        "noJds": "Keine Stellenbeschreibungen gespeichert. <link>Speichern Sie zuerst eine</link> in der Bibliothek: Rolle und Aufgabe werden daraus entworfen.",
+        "savedJdAria": "Gespeicherte Stellenbeschreibung",
+        "pickJd": "Gespeicherte Stellenbeschreibung wählen…",
+        "loadingJd": "Stellenbeschreibung wird geladen…",
+        "jdReadHint": "Rollentitel, Stack und Verantwortlichkeiten werden aus dieser Stellenbeschreibung gelesen.",
+        "jdRequired": "Für einen Lauf wird eine Stellenbeschreibung benötigt.",
+        "codebasesLabel": "Codebasen (GitHub, bis zu {max})",
+        "repoPlaceholder": "https://github.com/inhaber/repo",
+        "codebaseAria": "Codebasis {n}",
+        "removeCodebaseAria": "Codebasis {n} entfernen",
+        "unsupportedRepo": "Für die Verankerung wird nur GitHub unterstützt; diese Referenz wird übersprungen.",
+        "addCodebase": "Codebasis hinzufügen",
+        "seniorityLabel": "Ziel-Senioritätsstufe",
+        "seniorityAria": "Senioritätsstufe",
+        "lifecycleTitle": "Automatischer Ablauf: analysieren → entwerfen → Richtlinienprüfung → veröffentlichen → (bei Einreichungen) bewerten → ordnen → in Entscheidungen überführen",
+        "lifecycleRunning": "Ablauf läuft…",
+        "runLifecycle": "▶ Automatischen Ablauf starten",
+        "reflecting": "Wird durchdacht…",
+        "analyzeOnly": "Nur Bedarf analysieren",
+        "recent": "Zuletzt"
+      }
     },
     "lifecycle": {
       "sectionTitle": "Automatisierter Ablauf",
@@ -7785,7 +7822,8 @@
       "redesignTitle": "Nur den Entwurfsschritt mit dieser Notiz erneut ausführen. Kein kompletter Neustart des Ablaufs.",
       "redesigning": "Wird neu erstellt…",
       "redesign": "Mit Notiz neu generieren",
-      "redesignFailed": "Neugenerierung fehlgeschlagen."
+      "redesignFailed": "Neugenerierung fehlgeschlagen.",
+      "tasksRequired": "Eine Aufgabenstellung braucht mindestens eine Aufgabe. Stellen Sie eine wieder her oder lassen Sie sie über „Mit Notiz neu generieren“ neu schreiben."
     },
     "outbox": {
       "emptyTitle": "Noch keine Nachrichten",
@@ -8074,7 +8112,61 @@
       "received": "Eingegangen",
       "evaluated": "Bewertet"
     },
-    "eyebrow": "Tools · Aufgaben"
+    "eyebrow": "Tools · Aufgaben",
+    "skillProfile": {
+      "issue": "Dauerhaftes Skill-Profil ausstellen",
+      "reissue": "Dauerhaftes Skill-Profil neu ausstellen",
+      "issuing": "Wird ausgestellt…",
+      "view": "Nachweis ansehen / teilen ↗",
+      "failed": "Das Profil konnte nicht ausgestellt werden. Bitte erneut versuchen."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "Kandidat",
+      "repoPlaceholder": "Repo-URL der Abgabe",
+      "record": "Erfassen",
+      "recording": "…",
+      "failed": "Die Abgabe konnte nicht erfasst werden. Bitte erneut versuchen.",
+      "network": "Netzwerkfehler. Die Abgabe wurde nicht erfasst. Bitte erneut versuchen.",
+      "receiptRecorded": "Abgabe erfasst.",
+      "receiptDuplicate": "Bereits erfasst. Dieses Repo wurde für diesen Kandidaten schon eingereicht, es wurde nichts hinzugefügt."
+    },
+    "provenance": {
+      "chipTitle": "{step}: {source}",
+      "aria": "Herkunft: {detail}",
+      "ariaStep": "{step} über {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Teilweise (eingeschränkt)",
+        "deterministic": "Vorlage"
+      },
+      "step": {
+        "analyze": "Analyse",
+        "source": "Suche",
+        "role": "Rolle",
+        "case": "Aufgabe",
+        "reflect": "Reflexion",
+        "tooling": "Werkzeuge",
+        "evaluate": "Bewertung",
+        "transfer": "Transfer"
+      }
+    },
+    "followup": {
+      "listenFor": "Achten Sie auf: {note}",
+      "redFlag": "Warnsignal: {note}"
+    },
+    "scoreBar": {
+      "aria": "{label}: Wert {score} von 100",
+      "ariaWeighted": "{label}: Wert {score} von 100, gewichtet mit {weight} %"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "In Entscheidungen prüfen",
+      "recorded": "Ergebnis: {outcome} ✓",
+      "perfLabel": "Leistung im Job",
+      "perfAria": "Leistung im Job {n} von 5",
+      "skipPerf": "überspringen (nur Einstellung erfassen)",
+      "hint": "Speisen Sie die Kalibrierung der Promote-Schwelle mit dem, was wirklich passiert ist",
+      "label": "Ergebnis"
+    }
   },
   "rubric": {
     "ratingAnchor": {

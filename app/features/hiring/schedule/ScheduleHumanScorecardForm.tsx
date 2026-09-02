@@ -10,12 +10,7 @@ import { TextArea } from "@/app/_components/TextArea";
 import { RubricCoverageNote } from "@/app/_components/RubricCoverageNote";
 import type { LocalizedRubricCompetency, RubricCoverage } from "@/app/_lib/interview-rubric";
 import { INTERVIEW_RECOMMENDATIONS, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
-
-const REC_STYLE: Record<InterviewRecommendation, string> = {
-  advance: "bg-moss text-white",
-  hold: "bg-dial-amber text-ink",
-  reject: "bg-coral text-white",
-};
+import { RECOMMENDATION_CHIP_CLASS as REC_STYLE } from "@/app/_lib/status-tone";
 
 export function ScheduleHumanScorecardForm({
   rubric,

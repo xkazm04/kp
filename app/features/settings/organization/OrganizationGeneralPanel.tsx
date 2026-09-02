@@ -1,6 +1,5 @@
 "use client";
 
-import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { META_LABEL, PANEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
@@ -11,7 +10,7 @@ import { APP_LANGUAGES, type AppLanguage } from "@/app/features/shared/memberUi"
 export function OrganizationGeneralPanel({
   name,
   nameSave = "idle",
-  domain,
+  languageSave = "idle",
   language,
   onNameChange,
   onLanguageChange,
@@ -19,7 +18,10 @@ export function OrganizationGeneralPanel({
   name: string;
   /** Autosave state of the debounced org-name write, rendered beside the field. */
   nameSave?: "idle" | "saving" | "saved" | "error";
-  domain: string;
+  /** Same ticker for the language write, which is the more consequential of the
+   *  two: it re-languages background automation and candidate comms for everyone,
+   *  and it used to report nothing at all - the toggle simply moved. */
+  languageSave?: "idle" | "saving" | "saved" | "error";
   language: AppLanguage;
   onNameChange: (v: string) => void;
   onLanguageChange: (v: AppLanguage) => void;
@@ -45,11 +47,6 @@ export function OrganizationGeneralPanel({
         </p>
       ) : null}
 
-      <p className={`${META_LABEL} mt-4`}>{t("domainLabel")}</p>
-      <p className="mt-1 flex items-center gap-1.5 text-body text-steel">
-        <Lock size={13} aria-hidden /> {domain}
-      </p>
-
       <p className={`${META_LABEL} mt-4`}>{t("languageLabel")}</p>
       {/* flex-wrap because this group holds full endonyms, not locale codes: at
           four languages ("English · Čeština · Deutsch · Français") the row is
@@ -71,6 +68,11 @@ export function OrganizationGeneralPanel({
           );
         })}
       </div>
+      {languageSave !== "idle" ? (
+        <p role="status" aria-live="polite" className={`mt-1 text-sm ${languageSave === "error" ? "text-red-700" : "text-steel"}`}>
+          {languageSave === "saving" ? t("saving") : languageSave === "saved" ? t("saved") : t("saveFailed")}
+        </p>
+      ) : null}
     </div>
   );
 }

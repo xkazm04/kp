@@ -526,10 +526,43 @@ regex over JSX text nodes and literal `title`/`aria-label`/`placeholder`/`label`
 attributes -- a **ratchet, not a proof**: English arriving through a helper or a template
 expression can still get past it, which is why the catalog half exists.
 
-Still English, and still a gap: the define/outbox views (`DevTabDefineView`, `DevNeedForm`,
-`OutboxSection`), the evaluation panel (`DevEvalPanel*`), the lifecycle rows and
-`DevShared`'s "Listen for" / "Red flag" interviewer notes. `DevTabViews.ts` (the sub-tab
-labels and headings) remains the one piece of studio copy with no catalog behind it.
+Round 9 took the ratchet from twelve files to twenty. The **entrance** — `DevNeedForm`,
+which was English down to the two `aria-label`s that are a screen-reader user's only name
+for the JD and seniority pickers — now reads from `devcase.studio.need.*`, and the
+empty-library sentence is one rich message with one `<link>` inside it rather than three
+fragments a translator has to reassemble. So do the five surfaces that describe a
+submission: `DevSubmissionRowOutcome` (which also stopped hand-rolling six button class
+strings and now composes `BTN_SECONDARY`/`CHIP_QUIET`), `DevSubmissionForm`,
+`DevSubmissionRowSkillProfile`, `DevProvenanceStrip`, `DevProbeStrengthBanner` and
+`DevScoreBar`, whose `aria-label` was the only sentence a capability bar has.
+
+Three vocabularies moved out of prose in the process, because a word rendered two ways on
+two surfaces is the failure this module keeps having:
+
+- **Provenance.** `describeSource` returned English (`"Claude CLI"`, `"Partial
+  (degraded)"`, `"template"`) from a plain module with no translator in scope, and those
+  words were the chip labels, the `title` tooltips AND the strip's whole `aria-label`. The
+  descriptor now carries a `labelKey`; `ProvenanceStrip` resolves it. Step names resolve
+  through `devcase.provenance.step.*`, with the unknown-step fallback isolated in
+  `stepLabel(key, lookup)` (pure, tested: a step a newer engine invents renders
+  capitalised rather than as a hole), and the eight declared `PIPELINE_STEPS` are asserted
+  against the catalog in both directions.
+- **Probe kind.** `DevShared`'s `ProbeRow` and `DevProbeStrengthBanner` each did
+  `.replace(/_/g, " ")` on the raw enum while `DevEvalPanel` — the sibling panel — resolved
+  the same value through `useProbeKindLabel()`. Both now use the hook.
+- **Seniority and hire outcome.** The need form rendered `"junior"`/`"medior"` raw into its
+  picker while the JD ledger localized the identical four values; the outcome strip printed
+  `outcome: hired`. `DevLabels` gained `useSeniorityLabel` (`enums.seniority`) and
+  `useOutcomeLabel` (`control.outcomes.value` — the very ledger this row writes into, not a
+  second copy of three words).
+
+Still English, and still a gap: the outbox view (`OutboxSection`), the evaluation panel's
+own chrome (`DevEvalPanel*`), the lifecycle rows, and `caseToMarkdown`'s document
+scaffolding in `DevHelpers.ts` (`# Assignment`, `## Brief`, `## What you're handed`,
+`## Tasks`) — that one wants the injected-strings shape `devcase-interview-kit.ts` already
+uses, threaded through both callers, and is a change of its own. `DevTabViews.ts` (the
+sub-tab labels and headings) remains the one piece of studio copy with no catalog behind
+it.
 
 ### Small truths on the studio surface
 
@@ -574,7 +607,43 @@ Six places where the studio was quietly less honest than it looked, closed in on
   guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
   row it was clicked on: a click on a second row seeded the pipeline twice.
 
-The four behaviours with no DOM to test against are pinned as source shape in
+- **The Durable Skill Profile failure stopped asserting a cause.** One English sentence
+  ("needs an evaluated submission + `KP_SECRET`") stood for every failure, because
+  `useDevSubmissionRow` collapsed every throw into a code-less `status: "error"`. A 503, a
+  tenancy 404 and a dropped connection all told the recruiter to go and evaluate a
+  submission they had already evaluated — and named a server environment variable at them,
+  which is not a remedy anyone on that screen can act on. The hook now keeps
+  `{ status, code }`, `DevSubmissionRowSkillProfile` resolves the code through
+  `useErrorMessage()` and shows a neutral `devcase.skillProfile.failed` otherwise, and the
+  button composes `BTN_SECONDARY` so it carries the shared focus ring in both themes.
+- **The submission form tells a duplicate from a new row.** `intakeSubmission` is
+  idempotent per (posting, candidate, repo) and answers `isNew`; `POST /api/devcase/submit`
+  dropped it, so a recruiter retrying after a slow response was told a second submission
+  had been recorded and then went looking for it in a list that (correctly) still showed
+  one. `isNew` is now on the wire and the form renders two different `role="status"`
+  receipts.
+- **A full task-list clear is refused, not swallowed.** The review drawer built its PATCH
+  body from four inline `if`s, and the tasks branch was guarded with
+  `editedTasks.length > 0` — so emptying the textarea produced no `tasks` key at all: the
+  reviewer watched every task leave the candidate-safe preview, pressed Approve, and the
+  assignment shipped with the tasks still on it. The rule moved to `caseEdits(kase, draft)`
+  in `DevHelpers.ts` (pure, tested), which returns `{ edits, blocked }`; an assignment with
+  no tasks is not something we hand a candidate either, so a clear is REFUSED — Approve
+  disables and `devcase.review.tasksRequired` names the way out (restore a task, or
+  Regenerate with note) — rather than sent or silently dropped.
+- **`submit` and `source` answer with a code.** They were the last two dev-case rows on
+  `app/api/error-response-contract.test.ts`'s leak ceiling, forwarding
+  `error.message` — better-sqlite3 `SQLITE_*` detail, the absolute db path, the matching
+  spawn's stderr — straight to the client on a 500. Both now use
+  `safeJsonError(error, "api:devcase/<route>", "DEVCASE_{SUBMIT,SOURCE}_FAILED")`.
+- **`observedMean` is testable.** The voice-screen panel's "mean of the ratings that were
+  actually assessed" — the number a reviewer reads as the interview's verdict — lived as a
+  module-private function in a `"use client"` `.tsx`, which this runner cannot load. It
+  moved to `DevHelpers.ts` beside `isSupportedRepoRef`, and both are pinned in
+  `DevHelpers.test.ts` (not-assessed ratings excluded; a fully-unassessed scorecard is
+  null, never a middling 3).
+
+The behaviours with no DOM to test against are pinned as source shape in
 `devcase-studio-robustness.test.ts` — the same idiom as `DevTab.approve-error.test.ts`,
 and it says in the file that shape assertions are what they are.
 

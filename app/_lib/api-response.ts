@@ -127,6 +127,12 @@ export const STORE_ERRORS = {
   DEVCASE_OUTCOME_SAVE_FAILED: "Could not record that outcome. Please try again.",
   DEVCASE_POSTINGS_FAILED: "Could not load the assignment postings. Please try again.",
   DEVCASE_PROMOTE_FAILED: "Could not promote this submission. Please try again.",
+  // The last two dev-case leaks on the error-response contract's ceiling: the
+  // authenticated submission door (better-sqlite3 + the distribution adapter's
+  // acknowledgement send) and proactive sourcing (better-sqlite3 + the matching
+  // spawn). Both were forwarding the thrown message whole.
+  DEVCASE_SUBMIT_FAILED: "Could not record that submission. Please try again.",
+  DEVCASE_SOURCE_FAILED: "Could not source candidates for this assignment. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",
@@ -523,6 +529,41 @@ export const REFUSAL_ERRORS = {
    *  recruiter's twin of the candidate confirm-time re-check: only a DEFINITE busy
    *  refuses, an unknown (no calendar, failed lookup) proceeds. */
   SCHEDULE_CALENDAR_BUSY: "Your connected calendar is busy then. Pick another time.",
+  // ---- The ORGANIZATION's doors (docs/features/organization/README.md).
+  // Five refusals that were bare English `{ error }` with no code, so the console
+  // resolved every one of them to its own generic "couldn't do that" line — the
+  // Workspaces tab even carried a Known-gap comment saying so. Each of these is a
+  // DECISION whose reason is the whole remedy: which file to pick, that a replace
+  // has to be confirmed, that the person is already here.
+  /** The uploaded backup names a different organization (409). A dump is restored
+   *  into the org it came from — the ids in the file are that org's — so the remedy
+   *  is picking the right file, never retrying this one. */
+  RESTORE_FOREIGN_ORG: "This backup belongs to a different organization. A backup is restored into the organization it came from.",
+  /** `apply: true` on an org that still holds rows, without `replace: true` (409).
+   *  The row count rides alongside in `existingRows`, and the populated tables in
+   *  `populated`, so the confirm dialog can say what is about to go. */
+  RESTORE_REPLACE_REQUIRED: "Restoring replaces the organization's current data. Confirm replace to proceed.",
+  /** An invite addressed at somebody who already holds an active seat in this org
+   *  (409). They do not need a link; they need to sign in. */
+  INVITE_ALREADY_MEMBER: "That person is already an active member.",
+  /** An invite minted AT a role the actor could not assign directly (403). Inviting
+   *  at a role grants that role's capabilities, so the delegation ceiling is the
+   *  same one `canAssignRole` applies to a role change. */
+  INVITE_ROLE_ABOVE_PRIVILEGE: "You can't invite someone at a role above your own privileges.",
+  /** The invite form's address did not parse (400). */
+  INVITE_EMAIL_INVALID: "A valid email address is required.",
+  /** The membership moved while its permissions were being edited (409) — a second
+   *  administrator saved the same seat first. Nothing was written, so the remedy is
+   *  to reload the roster and decide against what it now says. */
+  MEMBER_PERMISSIONS_CHANGED: "This member's permissions changed while you were editing them. Reload and try again.",
+  /** An org-level setting (name, app language) changed by a caller without
+   *  `org:manage` (403). The organization's language drives background automation
+   *  and candidate comms for everyone, so it is an owner/admin setting. */
+  ORG_SETTINGS_FORBIDDEN: "Only an organization administrator can change the organization's settings.",
+  /** The app language submitted for the organization is not one of the four the
+   *  app ships (400). A bad argument, never a permission problem — kept apart from
+   *  ORG_SETTINGS_FORBIDDEN so the console cannot blame a recruiter's role for it. */
+  ORG_LANGUAGE_INVALID: "That isn't one of the app's languages.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

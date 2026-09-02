@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { runSourceForRole, seedPipelineFromMatches } from "@/app/_lib/devcase-run";
 
 
@@ -32,6 +33,8 @@ export async function POST(request: NextRequest) {
     // nobody matched — surfaced so the UI can be honest about an empty shortlist.
     return NextResponse.json({ ok: true, added, skipped, skippedReasons, candidates: matches });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
+    // The matching spawn's stderr and the store's SQLITE_* detail stay in the server
+    // log; the caller gets the code.
+    return safeJsonError(error, "api:devcase/source", "DEVCASE_SOURCE_FAILED");
   }
 }

@@ -1440,7 +1440,17 @@
     "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again.",
     "JD_FIELDS_REQUIRED": "A title and a description are both required.",
     "JD_TITLE_TOO_LONG": "The title must be 200 characters or fewer.",
-    "JD_BODY_TOO_LONG": "The description must be 20,000 characters or fewer."
+    "JD_BODY_TOO_LONG": "The description must be 20,000 characters or fewer.",
+    "DEVCASE_SUBMIT_FAILED": "Could not record that submission. Please try again.",
+    "DEVCASE_SOURCE_FAILED": "Could not source candidates for this assignment. Please try again.",
+    "RESTORE_FOREIGN_ORG": "This backup belongs to a different organization. A backup is restored into the organization it came from.",
+    "RESTORE_REPLACE_REQUIRED": "Restoring replaces the organization’s current data. Confirm replace to proceed.",
+    "INVITE_ALREADY_MEMBER": "That person is already an active member.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "You can’t invite someone at a role above your own privileges.",
+    "INVITE_EMAIL_INVALID": "A valid email address is required.",
+    "MEMBER_PERMISSIONS_CHANGED": "This member’s permissions changed while you were editing them. Reload and try again.",
+    "ORG_SETTINGS_FORBIDDEN": "Only an organization administrator can change the organization’s settings.",
+    "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2693,7 +2703,9 @@
         "saving": "Saving…",
         "saveFailed": "Couldn't save the rating.",
         "purpose": "Record how this hire actually worked out. It is the ground truth behind the quality-of-hire measurement in Analytics.",
-        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions."
+        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions.",
+        "loadFailed": "Couldn’t load the outcome record.",
+        "retry": "Try again"
       },
       "transfer": "transfer"
     },
@@ -5584,7 +5596,6 @@
       "saving": "Saving…",
       "saved": "Saved",
       "saveFailed": "Couldn't save. Check the connection and try again.",
-      "domainLabel": "Primary domain",
       "languageLabel": "App language",
       "previewOnboarding": "Preview onboarding flow",
       "backup": {
@@ -5699,7 +5710,9 @@
         "body": "Revoke the invitation for <em>{email}</em>? The link already shared with them will stop working.",
         "cancel": "Cancel",
         "confirm": "Revoke invitation"
-      }
+      },
+      "roleUpdated": "Role updated.",
+      "statusUpdated": "Account status updated."
     },
     "permissions": {
       "title": "Permissions for {name}",
@@ -5731,7 +5744,8 @@
           "desc": "See the team’s candidates and data."
         }
       }
-    }
+    },
+    "partialLoad": "Some of this page could not be refreshed. Parts of it may be out of date."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -7724,7 +7738,30 @@
         "source": "Source candidates"
       },
       "actionFailed": "{action} failed. Please try again.",
-      "actionUnreachable": "{action} failed because the request could not be completed."
+      "actionUnreachable": "{action} failed because the request could not be completed.",
+      "need": {
+        "jdLabel": "Job description *",
+        "noJds": "No JDs saved. <link>Save one</link> in the library first: the role and assignment are designed from it.",
+        "savedJdAria": "Saved job description",
+        "pickJd": "Pick a saved JD…",
+        "loadingJd": "Loading the JD…",
+        "jdReadHint": "Role title, stack and responsibilities are read from this JD.",
+        "jdRequired": "A job description is required to run.",
+        "codebasesLabel": "Codebases (GitHub, up to {max})",
+        "repoPlaceholder": "https://github.com/owner/repo",
+        "codebaseAria": "Codebase {n}",
+        "removeCodebaseAria": "Remove codebase {n}",
+        "unsupportedRepo": "Only GitHub is supported for grounding, so this ref will be skipped.",
+        "addCodebase": "Add codebase",
+        "seniorityLabel": "Seniority target",
+        "seniorityAria": "Seniority",
+        "lifecycleTitle": "Automated lifecycle: analyze → design → policy gate → publish → (on submissions) evaluate → rank → promote to Decisions",
+        "lifecycleRunning": "Lifecycle running…",
+        "runLifecycle": "▶ Run automated lifecycle",
+        "reflecting": "Reflecting…",
+        "analyzeOnly": "Analyze need only",
+        "recent": "Recent"
+      }
     },
     "lifecycle": {
       "sectionTitle": "Automated lifecycle",
@@ -7785,7 +7822,8 @@
       "redesignTitle": "Re-run only the design step with this note. No full lifecycle re-run.",
       "redesigning": "Redesigning…",
       "redesign": "Regenerate with note",
-      "redesignFailed": "Redesign failed."
+      "redesignFailed": "Redesign failed.",
+      "tasksRequired": "An assignment must keep at least one task. Restore one, or use Regenerate with note to have the engine rewrite them."
     },
     "outbox": {
       "emptyTitle": "No messages yet",
@@ -8074,7 +8112,61 @@
       "received": "Received",
       "evaluated": "Evaluated"
     },
-    "eyebrow": "Tools · Assignments"
+    "eyebrow": "Tools · Assignments",
+    "skillProfile": {
+      "issue": "Issue Durable Skill Profile",
+      "reissue": "Re-issue Durable Skill Profile",
+      "issuing": "Issuing…",
+      "view": "View / share credential ↗",
+      "failed": "Couldn't issue the profile. Please try again."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "candidate",
+      "repoPlaceholder": "submission repo URL",
+      "record": "Record",
+      "recording": "…",
+      "failed": "Couldn't record the submission. Please try again.",
+      "network": "Network error. The submission was not recorded. Please retry.",
+      "receiptRecorded": "Submission recorded.",
+      "receiptDuplicate": "Already recorded. This repo was submitted for this candidate before, so nothing was added."
+    },
+    "provenance": {
+      "chipTitle": "{step}: {source}",
+      "aria": "Provenance: {detail}",
+      "ariaStep": "{step} via {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Partial (degraded)",
+        "deterministic": "template"
+      },
+      "step": {
+        "analyze": "Analyze",
+        "source": "Source",
+        "role": "Role",
+        "case": "Assignment",
+        "reflect": "Reflect",
+        "tooling": "Tooling",
+        "evaluate": "Evaluate",
+        "transfer": "Transfer"
+      }
+    },
+    "followup": {
+      "listenFor": "Listen for: {note}",
+      "redFlag": "Red flag: {note}"
+    },
+    "scoreBar": {
+      "aria": "{label} score {score} of 100",
+      "ariaWeighted": "{label} score {score} of 100, weighted {weight}%"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "Review in Decisions",
+      "recorded": "outcome: {outcome} ✓",
+      "perfLabel": "On-the-job perf",
+      "perfAria": "On-the-job performance {n} of 5",
+      "skipPerf": "skip (record hire only)",
+      "hint": "Feed the promote-floor calibration with what actually happened",
+      "label": "Outcome"
+    }
   },
   "rubric": {
     "ratingAnchor": {

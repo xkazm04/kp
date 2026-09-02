@@ -17,7 +17,12 @@ inventing a second scoping dimension.
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
-  — company identity only: org name, app language, backup/restore.
+  — company identity only: org name, app language, backup/restore. There is **no
+  domain row**: `organizations.domain` exists in the schema but nothing in the app
+  ever writes it (`createOrganization` is called once, from `signup-service.ts`,
+  with no domain), so every install has it NULL and the panel was rendering a
+  hardcoded `"csas.cz"` behind a padlock — a demo string presented as a locked
+  company fact. It is gone until a surface actually sets the column.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
@@ -270,6 +275,19 @@ Request-scope wrappers live in `current-user.ts`:
 nothing) and `callerOrgCapabilities()` / `requireOrgCapability(cap)` for calls
 that target no single workspace, i.e. creating one.
 
+**The two org SETTINGS writes take `org:manage`, like every route beside them.**
+`setOrgName` / `setOrgLanguage` (`app/_lib/org-actions.ts`) are server actions,
+which are reachable by any signed-in member with a POST — and `setOrgLanguage`
+writes `workspaces.default_locale`, the shared row that decides the language of
+background automation passes and of every candidate email sent without a request
+cookie, so a recruiter could re-language the company's outbound comms. Both now
+call `requireOrgCapability("org:manage")` (the same helper the export route uses:
+resolved org-wide from live memberships, so an admin of one team is not an
+administrator here) and answer `{ ok: false, code }` rather than silently doing
+nothing — the console renders the code, and a refused save never ticks over to
+"Saved". Pinned by `app/_lib/org-actions.test.ts`. The org NAME's storage stays a
+per-browser cookie; the gate is about who may write it, not where it lives.
+
 **Entering** a team is separate from administering it:
 `POST /api/auth/switch-workspace` requires a real membership (plus an org match).
 An org admin can seat people on a team they don't belong to, but cannot park a
@@ -297,8 +315,9 @@ routes below. The switch route now refuses on the workspace the session came fro
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
+| Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min. Both pinned in `app/api/rate-limit-contract.test.ts` |
 | Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts` (`addMemberToWorkspace`, `removeMemberFromWorkspace`), `app/_lib/bulk-invite.ts` |
-| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin`, `workspaceAdminHelpers`) |
+| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin` + the pure `workspaceAdminLoad` fold, `workspaceAdminHelpers`) |
 | Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |
 | Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
@@ -324,6 +343,29 @@ way to put them on a second team.
 Removing somebody **from a workspace** and removing them **from the organization**
 are now distinct actions with distinct confirms: the first is reversible in two
 clicks, the second deletes the account. They used to be the same red X.
+
+**Every member write leaves a receipt, and locks the row it is writing.** A role
+change and a status toggle used to do neither: the PATCH went out, the reload came
+back, and the only evidence was one word changing inside a select — while every
+other mutation on this console toasted. Both now toast
+(`workspaceAdmin.members.roleUpdated` / `statusUpdated`) and hold a **per-member**
+lock (`pendingMembers` in `WorkspaceTab`, `aria-busy` on the row, the controls
+disabled) until the reload lands, so a double click cannot send two PATCHes and the
+row never sits silently on its old value. Per-member and not panel-wide on purpose:
+locking the whole console would freeze four other rows an administrator is working
+through. The permissions dialog and the language setting keep their own tickers
+(`saving` / `saved` / `saveFailed`).
+
+**A partial reload says so.** `foldWorkspaceAdminLoad`
+(`app/features/settings/workspace/workspaceAdminLoad.ts`, pinned by
+`workspaceAdminLoad.test.ts`) is the pure fold over the three parallel answers, and
+it separates three states the inline promise chain could not: a failed **members**
+request is the error state (coral, and the previous roster is kept rather than
+blanked — an emptied roster reads as "everybody is gone"); a failed **teams** or
+**invites** request for a caller who may read them is `partial`, which the console
+renders as an amber note over the previous reading; and a missing invites answer for
+a caller **without** `members:manage` is the complete answer, not a failure, because
+that endpoint refuses them by design.
 
 **Membership-scoped vs account-scoped controls ask different ownership
 questions.** Role, seat permissions and remove-from-team write one membership, so
@@ -398,6 +440,42 @@ direction LOOKS dangerous before any prose is read. The three scope facts (every
 the org, integration settings and provider keys excluded, restores back into this
 deployment) are three separate lines instead of subordinate clauses, and the internal
 codename is gone from user-facing copy.
+
+### Refusal codes
+
+Every deliberate 4xx on these doors carries a machine `code` from `REFUSAL_ERRORS`
+(`app/_lib/api-response.ts`), which the console resolves through `useErrorMessage()`
+in the reader's language — the server's English `error` is never rendered:
+
+| Code | Where | Status |
+|---|---|---|
+| `INVITE_EMAIL_INVALID` | `POST /api/org/invites` | 400 |
+| `INVITE_ROLE_ABOVE_PRIVILEGE` | `POST /api/org/invites` (delegation ceiling) | 403 |
+| `INVITE_ALREADY_MEMBER` | `POST /api/org/invites` | 409 |
+| `RESTORE_FOREIGN_ORG` | `POST /api/workspace/import` — the file names another org | 409 |
+| `RESTORE_REPLACE_REQUIRED` | `POST /api/workspace/import` — `apply` without `replace`; carries `existingRows` + `populated` | 409 |
+| `MEMBER_PERMISSIONS_CHANGED` | `PATCH /api/org/members/[userId]` — the seat moved under the editor | 409 |
+| `ORG_SETTINGS_FORBIDDEN` / `ORG_LANGUAGE_INVALID` | `setOrgName` / `setOrgLanguage` | — (action result) |
+| `TOO_MANY_REQUESTS` | the invite mint and the org export | 429 |
+
+Route tests: `app/api/org/org-routes.test.ts` (invites POST/GET/DELETE, the
+delegation ceiling, the permissions race) and
+`app/api/workspace/import/import-route.test.ts` (both 409 branches, plus the dry
+run and the applied restore).
+
+### Editing one seat's permissions is a compare-and-swap
+
+`PATCH /api/org/members/[userId]` with `capabilities` re-sends the WHOLE desired
+set, computed from what the editor loaded. Two administrators on one member
+therefore raced last-writer-wins, silently: the second save recomputed grants for
+capabilities its author never touched and erased the first's change with no error.
+`MemberPermissionsModal` now sends `expectedCapabilities` — the seat exactly as it
+rendered it — and the route re-reads the membership inside
+`db.transaction(...).immediate()`, comparing the live effective capability set
+against that snapshot (falling back to the row the request itself read when a
+caller sends none) and refusing with `MEMBER_PERMISSIONS_CHANGED` when it moved.
+Nothing is written on a refusal, and the console reloads the roster so the next
+decision is made against what the seat now says.
 
 ### The invite accept door (`/invite/[token]`)
 
@@ -559,12 +637,6 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - **No workspace deletion.** Rename exists; delete does not, deliberately — a
   team's candidates, decisions and audit chain outlive its label, and there is no
   reassign-or-purge story yet.
-- **`POST /api/org/invites` emits no error `code`.** All three of its refusals —
-  invalid address (400), inviting above your own privileges (403), and the
-  address already belonging to an active member (409) — return only a canonical
-  English `error`. The panel therefore routes the payload through
-  `useErrorMessage()` and always lands on the localized generic
-  (`workspaceAdmin.members.inviteFailed`), so the *specific* reason is lost in
-  every language, English included. Fixing it means giving the route real codes
-  plus matching `errors.*` catalog entries; no code is invented client-side in
-  the meantime.
+- *(closed 2026-09-02)* `POST /api/org/invites` used to emit no error `code` on
+  any of its three refusals, so the panel always painted the localized generic.
+  All three now answer through `jsonRefusal` — see **Refusal codes** below.

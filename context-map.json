@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-02T22:23:42.307Z",
+ "generated_at": "2026-09-02T22:57:43.343Z",
  "provenance": {
-  "git_commit": "a38451c7422b5ea3310d16fda879bb7bc8bf927d",
-  "git_commit_count": 2189,
+  "git_commit": "f5b9413d9d6750b5cce70b8b19aee96411dc561d",
+  "git_commit_count": 2200,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-02T22:23:42.307Z"
+  "generated_at": "2026-09-02T22:57:43.343Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2789,
+  "files": 2795,
   "groups": 17,
   "use_cases": 12
  },
@@ -4928,6 +4928,8 @@
     "app/features/hiring/pipeline/pipelineBoardRoles.test.ts",
     "app/features/hiring/pipeline/pipelineDrawerActions.test.ts",
     "app/features/hiring/pipeline/pipelineDrawerActions.ts",
+    "app/features/hiring/pipeline/pipelineFilterMenuKeys.test.ts",
+    "app/features/hiring/pipeline/pipelineFilterMenuKeys.ts",
     "app/features/hiring/pipeline/pipelineMovePath.test.ts"
    ],
    "group": "Hiring Pipeline",
@@ -4972,7 +4974,6 @@
     "app/features/hiring/pipeline/PipelineDrawerHeader.tsx",
     "app/features/hiring/pipeline/PipelineDrawerHistoryList.tsx",
     "app/features/hiring/pipeline/PipelineEmptyFirstCandidate.tsx",
-    "app/features/hiring/pipeline/PipelineFacetRow.tsx",
     "app/features/hiring/pipeline/PipelineFilterBar.test.ts",
     "app/features/hiring/pipeline/PipelineFilterBar.tsx",
     "app/features/hiring/pipeline/PipelineFilterMenu.tsx",
@@ -5366,6 +5367,7 @@
    "file_paths": [
     "app/_lib/bulk-invite.test.ts",
     "app/_lib/bulk-invite.ts",
+    "app/_lib/org-actions.test.ts",
     "app/_lib/org-actions.ts",
     "app/_lib/org-service.test.ts",
     "app/_lib/org-service.ts",
@@ -5379,7 +5381,8 @@
     "app/api/org/invites/route.ts",
     "app/api/org/members/[userId]/delegation-delta.test.ts",
     "app/api/org/members/[userId]/route.ts",
-    "app/api/org/members/route.ts"
+    "app/api/org/members/route.ts",
+    "app/api/org/org-routes.test.ts"
    ],
    "group": "Identity, Org & Compliance",
    "group_id": "5b114be9-9324-45af-a3c0-2211779f6c28",
@@ -5490,7 +5493,9 @@
     "app/features/settings/workspace/WorkspaceTab.tsx",
     "app/features/settings/workspace/useWorkspaceAdmin.ts",
     "app/features/settings/workspace/workspaceAdminHelpers.test.ts",
-    "app/features/settings/workspace/workspaceAdminHelpers.ts"
+    "app/features/settings/workspace/workspaceAdminHelpers.ts",
+    "app/features/settings/workspace/workspaceAdminLoad.test.ts",
+    "app/features/settings/workspace/workspaceAdminLoad.ts"
    ],
    "group": "Identity, Org & Compliance",
    "group_id": "5b114be9-9324-45af-a3c0-2211779f6c28",
@@ -7639,6 +7644,7 @@
     "app/api/search/route.ts",
     "app/api/workspace/export-guard.test.ts",
     "app/api/workspace/export/route.ts",
+    "app/api/workspace/import/import-route.test.ts",
     "app/api/workspace/import/route.ts",
     "app/api/workspaces/[id]/members/[userId]/route.ts",
     "app/api/workspaces/[id]/route.ts",

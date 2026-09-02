@@ -41,6 +41,7 @@
 // Pure by design — no React, no next-intl, no DB. The chip that renders these
 // lives in app/_components/StatusChip.tsx; the labels stay in the four catalogs.
 
+import type { InterviewRecommendation } from "./interview-recommendation";
 import { roleOf, type StageDef, type StageRole } from "./pipeline-stages";
 
 /** The five reading states, in legend order (nothing-yet → running → blocked →
@@ -157,6 +158,26 @@ export const SUBMISSION_STATUS_TONE: Record<SubmissionStatus, StatusTone> = {
   evaluated: "done",
 };
 
+// ---- The interview / screening VERDICT is NOT a tone axis ------------------
+//
+// A verdict is a judgement, not a lifecycle position. StatusChip's doctrine keeps
+// judgements red ("those are verdicts, not statuses"), and Badge already owns the
+// one shared verdict treatment (`interviewRecommendationToken`, used by Decisions,
+// the schedule docket, the eval preview and both scorecard sections). The drawer
+// cards render through that. What lived here as a five-tone mapping for the
+// verdict (wave 9) muted `reject`; it was removed the same day.
+
+/** The class table for the two verdict call sites that cannot take a Badge today: the schedule scorecard's verdict PICKER
+ *  (a pressed button, not a status read-out) and the jobs compare grid (whose
+ *  renderer is a cohort table outside the drawer). ONE table instead of four, so
+ *  the verdict cannot fork again while those surfaces migrate to the chip.
+ *  Tokens only — no raw shades — so both themes hold (design:check). */
+export const RECOMMENDATION_CHIP_CLASS: Record<InterviewRecommendation, string> = {
+  advance: "bg-moss/15 text-moss",
+  hold: "bg-dial-amber/20 text-ink",
+  reject: "bg-coral/10 text-coral",
+};
+
 // ---- Resolvers ---------------------------------------------------------------
 //
 // Each takes the raw stored string. `neutral` is the unknown-value answer; the
@@ -199,3 +220,8 @@ export function submissionStatusTone(status?: string | null): StatusTone {
   const v = (status ?? "").trim();
   return isKey(SUBMISSION_STATUS_TONE, v) ? SUBMISSION_STATUS_TONE[v] : "neutral";
 }
+
+/** An interview/screening verdict → tone. Takes the RAW stored/model-emitted
+ *  string on purpose (the same render-boundary rule Badge keeps): an off-taxonomy
+ *  verdict tones `neutral` and the caller shows the raw word, rather than being
+ *  coerced to `hold` and reading as a decision nobody made. */

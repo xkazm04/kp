@@ -1440,7 +1440,17 @@
     "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu.",
     "JD_FIELDS_REQUIRED": "Název i popis jsou povinné.",
     "JD_TITLE_TOO_LONG": "Název může mít nejvýše 200 znaků.",
-    "JD_BODY_TOO_LONG": "Popis může mít nejvýše 20 000 znaků."
+    "JD_BODY_TOO_LONG": "Popis může mít nejvýše 20 000 znaků.",
+    "DEVCASE_SUBMIT_FAILED": "Toto odevzdání se nepodařilo zaznamenat. Zkuste to prosím znovu.",
+    "DEVCASE_SOURCE_FAILED": "Pro toto zadání se nepodařilo vyhledat kandidáty. Zkuste to prosím znovu.",
+    "RESTORE_FOREIGN_ORG": "Tato záloha patří jiné organizaci. Zálohu lze obnovit jen do organizace, ze které pochází.",
+    "RESTORE_REPLACE_REQUIRED": "Obnovení nahradí současná data organizace. Pokračujte potvrzením náhrady.",
+    "INVITE_ALREADY_MEMBER": "Tento člověk už je aktivním členem.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "Nemůžete pozvat někoho do role s většími právy, než máte vy.",
+    "INVITE_EMAIL_INVALID": "Je potřeba platná e-mailová adresa.",
+    "MEMBER_PERMISSIONS_CHANGED": "Oprávnění tohoto člena se během vaší úpravy změnila. Načtěte stránku znovu a zkuste to ještě jednou.",
+    "ORG_SETTINGS_FORBIDDEN": "Nastavení organizace může měnit jen správce organizace.",
+    "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2693,7 +2703,9 @@
         "saving": "Ukládání…",
         "saveFailed": "Hodnocení se nepodařilo uložit.",
         "purpose": "Zaznamenejte, jak se tento nábor ve skutečnosti osvědčil. Je to skutečný výsledek, na kterém stojí měření kvality náboru v Analytice.",
-        "notAutomated": "Viditelné jen ve vašem pracovním prostoru. Kandidátovi se nikdy nezobrazí a nepoužívá se k automatickým rozhodnutím."
+        "notAutomated": "Viditelné jen ve vašem pracovním prostoru. Kandidátovi se nikdy nezobrazí a nepoužívá se k automatickým rozhodnutím.",
+        "loadFailed": "Záznam o výsledku se nepodařilo načíst.",
+        "retry": "Zkusit znovu"
       },
       "transfer": "přenos"
     },
@@ -5584,7 +5596,6 @@
       "saving": "Ukládání…",
       "saved": "Uloženo",
       "saveFailed": "Nepodařilo se uložit. Zkontrolujte připojení a zkuste to znovu.",
-      "domainLabel": "Primární doména",
       "languageLabel": "Jazyk aplikace",
       "previewOnboarding": "Náhled onboardingu",
       "backup": {
@@ -5699,7 +5710,9 @@
         "body": "Odvolat pozvánku pro <em>{email}</em>? Odkaz, který jste už sdíleli, přestane fungovat.",
         "cancel": "Zrušit",
         "confirm": "Odvolat pozvánku"
-      }
+      },
+      "roleUpdated": "Role upravena.",
+      "statusUpdated": "Stav účtu upraven."
     },
     "permissions": {
       "title": "Oprávnění pro {name}",
@@ -5731,7 +5744,8 @@
           "desc": "Vidět kandidáty a data týmu."
         }
       }
-    }
+    },
+    "partialLoad": "Část této stránky se nepodařilo znovu načíst. Některé údaje mohou být neaktuální."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -7724,7 +7738,30 @@
         "source": "Vyhledání kandidátů"
       },
       "actionFailed": "{action} se nezdařilo. Zkuste to prosím znovu.",
-      "actionUnreachable": "{action} se nezdařilo, požadavek se nepodařilo dokončit."
+      "actionUnreachable": "{action} se nezdařilo, požadavek se nepodařilo dokončit.",
+      "need": {
+        "jdLabel": "Popis pozice *",
+        "noJds": "Žádné uložené popisy pozic. Nejprve si <link>nějaký uložte</link> v knihovně: role i zadání se navrhují z něj.",
+        "savedJdAria": "Uložený popis pozice",
+        "pickJd": "Vyberte uložený popis pozice…",
+        "loadingJd": "Načítám popis pozice…",
+        "jdReadHint": "Název role, technologie a odpovědnosti se čtou z tohoto popisu pozice.",
+        "jdRequired": "Ke spuštění je potřeba popis pozice.",
+        "codebasesLabel": "Kódové základny (GitHub, nejvýše {max})",
+        "repoPlaceholder": "https://github.com/vlastnik/repozitar",
+        "codebaseAria": "Kódová základna {n}",
+        "removeCodebaseAria": "Odebrat kódovou základnu {n}",
+        "unsupportedRepo": "Pro ukotvení je podporován jen GitHub, tento odkaz bude přeskočen.",
+        "addCodebase": "Přidat kódovou základnu",
+        "seniorityLabel": "Cílová seniorita",
+        "seniorityAria": "Seniorita",
+        "lifecycleTitle": "Automatický průběh: analýza → návrh → kontrola pravidel → zveřejnění → (po odevzdání) vyhodnocení → pořadí → posun do Rozhodnutí",
+        "lifecycleRunning": "Průběh běží…",
+        "runLifecycle": "▶ Spustit automatický průběh",
+        "reflecting": "Přemýšlím…",
+        "analyzeOnly": "Jen analyzovat potřebu",
+        "recent": "Nedávné"
+      }
     },
     "lifecycle": {
       "sectionTitle": "Automatizovaný průběh",
@@ -7785,7 +7822,8 @@
       "redesignTitle": "Spustit znovu jen krok návrhu s touto poznámkou. Bez opakování celého průběhu.",
       "redesigning": "Přegenerování…",
       "redesign": "Přegenerovat s poznámkou",
-      "redesignFailed": "Přegenerování se nepodařilo."
+      "redesignFailed": "Přegenerování se nepodařilo.",
+      "tasksRequired": "Zadání musí mít alespoň jeden úkol. Vraťte jeden zpět, nebo použijte Přegenerovat s poznámkou a nechte engine úkoly přepsat."
     },
     "outbox": {
       "emptyTitle": "Zatím žádné zprávy",
@@ -8074,7 +8112,61 @@
       "received": "Přijato",
       "evaluated": "Vyhodnoceno"
     },
-    "eyebrow": "Nástroje · Zadání"
+    "eyebrow": "Nástroje · Zadání",
+    "skillProfile": {
+      "issue": "Vystavit trvalý profil dovedností",
+      "reissue": "Vystavit trvalý profil dovedností znovu",
+      "issuing": "Vystavuji…",
+      "view": "Zobrazit / sdílet doklad ↗",
+      "failed": "Profil se nepodařilo vystavit. Zkuste to prosím znovu."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "kandidát",
+      "repoPlaceholder": "URL repozitáře s odevzdáním",
+      "record": "Zaznamenat",
+      "recording": "…",
+      "failed": "Odevzdání se nepodařilo zaznamenat. Zkuste to prosím znovu.",
+      "network": "Chyba sítě. Odevzdání nebylo zaznamenáno. Zkuste to prosím znovu.",
+      "receiptRecorded": "Odevzdání zaznamenáno.",
+      "receiptDuplicate": "Už zaznamenáno. Tento repozitář byl pro tohoto kandidáta odevzdán dříve, nic se nepřidalo."
+    },
+    "provenance": {
+      "chipTitle": "{step}: {source}",
+      "aria": "Původ: {detail}",
+      "ariaStep": "{step} přes {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Částečně (omezeně)",
+        "deterministic": "šablona"
+      },
+      "step": {
+        "analyze": "Analýza",
+        "source": "Vyhledání",
+        "role": "Role",
+        "case": "Zadání",
+        "reflect": "Reflexe",
+        "tooling": "Nástroje",
+        "evaluate": "Vyhodnocení",
+        "transfer": "Přenos"
+      }
+    },
+    "followup": {
+      "listenFor": "Všímejte si: {note}",
+      "redFlag": "Varovný signál: {note}"
+    },
+    "scoreBar": {
+      "aria": "{label}: skóre {score} ze 100",
+      "ariaWeighted": "{label}: skóre {score} ze 100, váha {weight} %"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "Posoudit v Rozhodnutích",
+      "recorded": "výsledek: {outcome} ✓",
+      "perfLabel": "Výkon v praxi",
+      "perfAria": "Výkon v praxi {n} z 5",
+      "skipPerf": "přeskočit (zaznamenat jen nástup)",
+      "hint": "Doplňte kalibraci prahu pro posun tím, co se skutečně stalo",
+      "label": "Výsledek"
+    }
   },
   "rubric": {
     "ratingAnchor": {

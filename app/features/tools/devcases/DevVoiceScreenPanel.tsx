@@ -24,8 +24,9 @@ import { PipelineVoiceScreenPanel } from "@/app/features/hiring/pipeline/Pipelin
 import { StatusChip } from "@/app/_components/StatusChip";
 import { interviewStatusTone } from "@/app/_lib/status-tone";
 import { RATING_MAX } from "@/app/_lib/format";
-import { isNotAssessedRating, type Scorecard } from "@/app/_lib/interview-scorecard";
+import type { Scorecard } from "@/app/_lib/interview-scorecard";
 import { isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
+import { observedMean } from "./DevHelpers";
 
 /** The session shape this panel reads off `GET /api/interview/by-entry?submission=`.
  *  A deliberately narrow view of InterviewSession — everything else on that row is
@@ -51,19 +52,9 @@ const REC_TONE: Record<string, string> = {
   reject: "bg-coral/15 text-coral",
 };
 
-/** The mean of the ratings that were actually OBSERVED.
- *
- *  `isNotAssessedRating` is the read-side guard the rest of the app already applies:
- *  the AI synthesis rates an untouched competency 3/5 with "Not assessed…" evidence, so
- *  averaging raw ratings drags every partial interview toward a middling 3 that looks
- *  like a judgement and is not one. Null when nothing was assessed. */
-function observedMean(scorecard: Scorecard | null): number | null {
-  const rated = (scorecard?.ratings ?? []).filter(
-    (r) => typeof r.rating === "number" && !isNotAssessedRating(r.rating, r.evidence)
-  );
-  if (rated.length === 0) return null;
-  return rated.reduce((sum, r) => sum + r.rating, 0) / rated.length;
-}
+// `observedMean` moved to DevHelpers.ts: the number a reviewer reads as the
+// interview's verdict is worth a test, and a "use client" .tsx cannot carry one
+// under this runner (node:test + type stripping, no jsdom).
 
 export function DevVoiceScreenPanel({ submissionId }: { submissionId: string }) {
   const t = useTranslations("devcase.voiceScreen");

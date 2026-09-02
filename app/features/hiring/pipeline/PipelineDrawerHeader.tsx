@@ -4,6 +4,7 @@
 // line, the staleness chip, the canonical match score, and the cohort prev/next
 // nav. Split out of PipelineCandidateDrawer.tsx.
 
+import { useMemo } from "react";
 import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
@@ -52,6 +53,12 @@ export function PipelineDrawerHeader({
   const enumLabel = useEnumLabel();
   const locale = useLocale();
   const provenanceText = useScoreProvenanceText();
+  // ONE formatter per locale, not two per render. This header re-renders on every
+  // cohort step and every in-place refresh, and it was constructing an
+  // Intl.DateTimeFormat TWICE (the staleness chip's title and its label) each time
+  // — construction, not formatting, is the expensive half.
+  const dayFormat = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }), [locale]);
+  const staleOn = staleSince ? dayFormat.format(new Date(staleSince)) : null;
   const display = displayScoreOf(entry);
   const a = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
@@ -91,9 +98,9 @@ export function PipelineDrawerHeader({
         {staleSince ? (
           <span
             className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-800"
-            title={t("jdEditedTitle", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+            title={t("jdEditedTitle", { date: staleOn ?? "" })}
           >
-            <History size={11} aria-hidden /> {t("jdEditedBadge", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+            <History size={11} aria-hidden /> {t("jdEditedBadge", { date: staleOn ?? "" })}
           </span>
         ) : null}
       </div>

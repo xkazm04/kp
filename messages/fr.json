@@ -1440,7 +1440,17 @@
     "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez.",
     "JD_FIELDS_REQUIRED": "Le titre et la description sont tous deux obligatoires.",
     "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
-    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères."
+    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères.",
+    "DEVCASE_SUBMIT_FAILED": "Ce rendu n'a pas pu être enregistré. Veuillez réessayer.",
+    "DEVCASE_SOURCE_FAILED": "Impossible de rechercher des candidats pour cette épreuve. Veuillez réessayer.",
+    "RESTORE_FOREIGN_ORG": "Cette sauvegarde appartient à une autre organisation. Une sauvegarde se restaure uniquement dans l’organisation dont elle provient.",
+    "RESTORE_REPLACE_REQUIRED": "La restauration remplace les données actuelles de l’organisation. Confirmez le remplacement pour continuer.",
+    "INVITE_ALREADY_MEMBER": "Cette personne est déjà membre active.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "Vous ne pouvez pas inviter quelqu’un à un rôle supérieur à vos propres droits.",
+    "INVITE_EMAIL_INVALID": "Une adresse e-mail valide est requise.",
+    "MEMBER_PERMISSIONS_CHANGED": "Les autorisations de ce membre ont changé pendant votre modification. Rechargez la page, puis réessayez.",
+    "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
+    "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2693,7 +2703,9 @@
         "saving": "Enregistrement…",
         "saveFailed": "Impossible d’enregistrer l’évaluation.",
         "purpose": "Notez comment ce recrutement s’est réellement passé. C’est la donnée de référence derrière la mesure de la qualité des recrutements dans Analytique.",
-        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées."
+        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées.",
+        "loadFailed": "Impossible de charger la fiche de résultat.",
+        "retry": "Réessayer"
       },
       "transfer": "transfert"
     },
@@ -5584,7 +5596,6 @@
       "saving": "Enregistrement…",
       "saved": "Enregistré",
       "saveFailed": "Impossible d’enregistrer. Vérifiez la connexion et réessayez.",
-      "domainLabel": "Domaine principal",
       "languageLabel": "Langue de l’application",
       "previewOnboarding": "Aperçu du parcours d’intégration",
       "backup": {
@@ -5699,7 +5710,9 @@
         "body": "Révoquer l’invitation de <em>{email}</em> ? Le lien déjà partagé cessera de fonctionner.",
         "cancel": "Annuler",
         "confirm": "Révoquer l’invitation"
-      }
+      },
+      "roleUpdated": "Rôle mis à jour.",
+      "statusUpdated": "Statut du compte mis à jour."
     },
     "permissions": {
       "title": "Autorisations de {name}",
@@ -5731,7 +5744,8 @@
           "desc": "Voir les candidats et les données de l’équipe."
         }
       }
-    }
+    },
+    "partialLoad": "Une partie de cette page n’a pas pu être actualisée. Certaines informations peuvent être obsolètes."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -7724,7 +7738,30 @@
         "source": "La recherche de candidatures"
       },
       "actionFailed": "{action} a échoué. Veuillez réessayer.",
-      "actionUnreachable": "{action} a échoué, la requête n’a pas pu aboutir."
+      "actionUnreachable": "{action} a échoué, la requête n’a pas pu aboutir.",
+      "need": {
+        "jdLabel": "Fiche de poste *",
+        "noJds": "Aucune fiche de poste enregistrée. <link>Enregistrez-en une</link> dans la bibliothèque : le rôle et l'exercice en découlent.",
+        "savedJdAria": "Fiche de poste enregistrée",
+        "pickJd": "Choisir une fiche de poste enregistrée…",
+        "loadingJd": "Chargement de la fiche de poste…",
+        "jdReadHint": "L'intitulé du rôle, la stack et les responsabilités sont lus dans cette fiche de poste.",
+        "jdRequired": "Une fiche de poste est nécessaire pour lancer.",
+        "codebasesLabel": "Bases de code (GitHub, jusqu'à {max})",
+        "repoPlaceholder": "https://github.com/proprietaire/depot",
+        "codebaseAria": "Base de code {n}",
+        "removeCodebaseAria": "Retirer la base de code {n}",
+        "unsupportedRepo": "Seul GitHub est pris en charge pour l'ancrage ; cette référence sera ignorée.",
+        "addCodebase": "Ajouter une base de code",
+        "seniorityLabel": "Niveau visé",
+        "seniorityAria": "Niveau",
+        "lifecycleTitle": "Cycle automatisé : analyser → concevoir → contrôle des règles → publier → (aux rendus) évaluer → classer → promouvoir vers Décisions",
+        "lifecycleRunning": "Cycle en cours…",
+        "runLifecycle": "▶ Lancer le cycle automatisé",
+        "reflecting": "Réflexion…",
+        "analyzeOnly": "Analyser le besoin seulement",
+        "recent": "Récents"
+      }
     },
     "lifecycle": {
       "sectionTitle": "Cycle automatisé",
@@ -7785,7 +7822,8 @@
       "redesignTitle": "Relancer uniquement l’étape de conception avec cette note. Sans relancer tout le cycle.",
       "redesigning": "Régénération en cours…",
       "redesign": "Régénérer avec la note",
-      "redesignFailed": "Échec de la régénération."
+      "redesignFailed": "Échec de la régénération.",
+      "tasksRequired": "Une épreuve doit conserver au moins une tâche. Rétablissez-en une, ou utilisez Régénérer avec une note pour que le moteur les réécrive."
     },
     "outbox": {
       "emptyTitle": "Aucun message pour l’instant",
@@ -8074,7 +8112,61 @@
       "received": "Reçu",
       "evaluated": "Évalué"
     },
-    "eyebrow": "Outils · Exercices"
+    "eyebrow": "Outils · Exercices",
+    "skillProfile": {
+      "issue": "Émettre le profil de compétences durable",
+      "reissue": "Réémettre le profil de compétences durable",
+      "issuing": "Émission…",
+      "view": "Voir / partager l'attestation ↗",
+      "failed": "Le profil n'a pas pu être émis. Veuillez réessayer."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "candidat",
+      "repoPlaceholder": "URL du dépôt rendu",
+      "record": "Enregistrer",
+      "recording": "…",
+      "failed": "Le rendu n'a pas pu être enregistré. Veuillez réessayer.",
+      "network": "Erreur réseau. Le rendu n'a pas été enregistré. Veuillez réessayer.",
+      "receiptRecorded": "Rendu enregistré.",
+      "receiptDuplicate": "Déjà enregistré. Ce dépôt a déjà été rendu pour ce candidat, rien n'a été ajouté."
+    },
+    "provenance": {
+      "chipTitle": "{step} : {source}",
+      "aria": "Provenance : {detail}",
+      "ariaStep": "{step} via {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Partiel (dégradé)",
+        "deterministic": "modèle"
+      },
+      "step": {
+        "analyze": "Analyse",
+        "source": "Recherche",
+        "role": "Rôle",
+        "case": "Exercice",
+        "reflect": "Réflexion",
+        "tooling": "Outillage",
+        "evaluate": "Évaluation",
+        "transfer": "Transfert"
+      }
+    },
+    "followup": {
+      "listenFor": "À écouter : {note}",
+      "redFlag": "Signal d'alerte : {note}"
+    },
+    "scoreBar": {
+      "aria": "{label} : score {score} sur 100",
+      "ariaWeighted": "{label} : score {score} sur 100, pondéré à {weight} %"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "Examiner dans Décisions",
+      "recorded": "résultat : {outcome} ✓",
+      "perfLabel": "Performance en poste",
+      "perfAria": "Performance en poste {n} sur 5",
+      "skipPerf": "passer (n'enregistrer que l'embauche)",
+      "hint": "Alimentez le calibrage du seuil de promotion avec ce qui s'est réellement passé",
+      "label": "Résultat"
+    }
   },
   "rubric": {
     "ratingAnchor": {
