@@ -1440,7 +1440,9 @@
     "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu.",
     "JD_FIELDS_REQUIRED": "Název i popis jsou povinné.",
     "JD_TITLE_TOO_LONG": "Název může mít nejvýše 200 znaků.",
-    "JD_BODY_TOO_LONG": "Popis může mít nejvýše 20 000 znaků."
+    "JD_BODY_TOO_LONG": "Popis může mít nejvýše 20 000 znaků.",
+    "DEVCASE_SUBMIT_FAILED": "Toto odevzdání se nepodařilo zaznamenat. Zkuste to prosím znovu.",
+    "DEVCASE_SOURCE_FAILED": "Pro toto zadání se nepodařilo vyhledat kandidáty. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7787,7 +7789,8 @@
       "redesignTitle": "Spustit znovu jen krok návrhu s touto poznámkou. Bez opakování celého průběhu.",
       "redesigning": "Přegenerování…",
       "redesign": "Přegenerovat s poznámkou",
-      "redesignFailed": "Přegenerování se nepodařilo."
+      "redesignFailed": "Přegenerování se nepodařilo.",
+      "tasksRequired": "Zadání musí mít alespoň jeden úkol. Vraťte jeden zpět, nebo použijte Přegenerovat s poznámkou a nechte engine úkoly přepsat."
     },
     "outbox": {
       "emptyTitle": "Zatím žádné zprávy",
@@ -8076,7 +8079,24 @@
       "received": "Přijato",
       "evaluated": "Vyhodnoceno"
     },
-    "eyebrow": "Nástroje · Zadání"
+    "eyebrow": "Nástroje · Zadání",
+    "skillProfile": {
+      "issue": "Vystavit trvalý profil dovedností",
+      "reissue": "Vystavit trvalý profil dovedností znovu",
+      "issuing": "Vystavuji…",
+      "view": "Zobrazit / sdílet doklad ↗",
+      "failed": "Profil se nepodařilo vystavit. Zkuste to prosím znovu."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "kandidát",
+      "repoPlaceholder": "URL repozitáře s odevzdáním",
+      "record": "Zaznamenat",
+      "recording": "…",
+      "failed": "Odevzdání se nepodařilo zaznamenat. Zkuste to prosím znovu.",
+      "network": "Chyba sítě — odevzdání nebylo zaznamenáno. Zkuste to prosím znovu.",
+      "receiptRecorded": "Odevzdání zaznamenáno.",
+      "receiptDuplicate": "Už zaznamenáno — tento repozitář byl pro tohoto kandidáta odevzdán dříve, nic se nepřidalo."
+    }
   },
   "rubric": {
     "ratingAnchor": {

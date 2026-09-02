@@ -102,3 +102,67 @@ test("the review panel's probe-gate fallback keys off the code the gate really r
   // A passing gate raises nothing to fall back from.
   assert.equal(enforceProbeGate([{ kind: "k", where: "a.py", reveals: "r", decisionSpace: ["x", "y"] }], false).ok, true);
 });
+
+// ---- D2: the three helpers the review drawer, the voice panel and the need form
+// ---- decide with, extracted so they can be asserted instead of read.
+
+const { caseEdits, observedMean, isSupportedRepoRef } = await import("./DevHelpers.ts");
+
+test("caseEdits sends only what actually changed", () => {
+  const kase = { title: "T", brief: "B", tasks: ["a", "b"], timeboxHours: 2 };
+  const same = caseEdits(kase, { title: "T", brief: "B", tasks: ["a", "b"], timeboxHours: 2 });
+  assert.deepEqual(same.edits, {});
+  assert.equal(same.blocked, null);
+
+  const changed = caseEdits(kase, { title: " T2 ", brief: "B", tasks: ["a", "b", "c"], timeboxHours: 1 });
+  assert.deepEqual(changed.edits, { title: "T2", tasks: ["a", "b", "c"], timeboxHours: 1 });
+  assert.equal(changed.blocked, null);
+  // A blanked title/brief is not an edit: the field falls back to the stored value
+  // (the same rule the panel's live preview uses), so Approve never sends an empty one.
+  assert.deepEqual(caseEdits(kase, { title: "  ", brief: "  ", tasks: ["a", "b"], timeboxHours: 2 }).edits, {});
+});
+
+test("caseEdits REFUSES a full task-list clear instead of dropping it silently", () => {
+  // The four-branch diff this replaces guarded the tasks edit with
+  // `editedTasks.length > 0`, so emptying the textarea produced NO tasks key at all:
+  // the reviewer watched the candidate-safe preview lose every task, pressed Approve,
+  // and the assignment went out with the tasks still on it. An assignment with no
+  // tasks is not a thing we hand a candidate either, so the clear is REFUSED — named
+  // on screen — rather than sent.
+  const kase = { title: "T", brief: "B", tasks: ["a"], timeboxHours: 2 };
+  const cleared = caseEdits(kase, { title: "T", brief: "B", tasks: [], timeboxHours: 2 });
+  assert.equal(cleared.blocked, "tasksCleared");
+  assert.equal("tasks" in cleared.edits, false, "a refused clear must never reach the wire");
+  // A case that never had tasks is not "cleared" — nothing to refuse.
+  assert.equal(caseEdits({ title: "T" }, { title: "T", brief: "", tasks: [], timeboxHours: null }).blocked, null);
+});
+
+test("observedMean averages only the ratings that were really assessed", () => {
+  // The synthesis rates an untouched competency 3/5 with "Not assessed…" evidence.
+  // Averaging those drags a partial interview toward a middling 3 that looks like a
+  // judgement and is not one.
+  const sc = {
+    ratings: [
+      { competency: "a", rating: 5, evidence: "shipped the migration" },
+      { competency: "b", rating: 3, evidence: "Not assessed in this conversation." },
+      { competency: "c", rating: 4, evidence: "walked the failure path" },
+    ],
+  };
+  assert.equal(observedMean(sc as never), 4.5);
+  // Nothing assessed is null, never 3.
+  assert.equal(observedMean({ ratings: [{ competency: "a", rating: 3, evidence: "Not assessed." }] } as never), null);
+  assert.equal(observedMean({ ratings: [] } as never), null);
+  assert.equal(observedMean(null), null);
+});
+
+test("isSupportedRepoRef warns on exactly the refs the grounding cannot fetch", () => {
+  assert.equal(isSupportedRepoRef(""), true, "no codebase is a valid choice, not a warning");
+  assert.equal(isSupportedRepoRef("   "), true);
+  assert.equal(isSupportedRepoRef("https://github.com/owner/repo"), true);
+  assert.equal(isSupportedRepoRef("http://www.github.com/owner/repo.git"), true);
+  assert.equal(isSupportedRepoRef("owner/repo"), true, "a bare owner/repo is the documented short form");
+  assert.equal(isSupportedRepoRef("https://gitlab.com/owner/repo"), false);
+  assert.equal(isSupportedRepoRef("https://bitbucket.org/o/r"), false);
+  assert.equal(isSupportedRepoRef("owner/repo/extra"), false);
+  assert.equal(isSupportedRepoRef("not a url"), false);
+});

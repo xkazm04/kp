@@ -127,6 +127,12 @@ export const STORE_ERRORS = {
   DEVCASE_OUTCOME_SAVE_FAILED: "Could not record that outcome. Please try again.",
   DEVCASE_POSTINGS_FAILED: "Could not load the assignment postings. Please try again.",
   DEVCASE_PROMOTE_FAILED: "Could not promote this submission. Please try again.",
+  // The last two dev-case leaks on the error-response contract's ceiling: the
+  // authenticated submission door (better-sqlite3 + the distribution adapter's
+  // acknowledgement send) and proactive sourcing (better-sqlite3 + the matching
+  // spawn). Both were forwarding the thrown message whole.
+  DEVCASE_SUBMIT_FAILED: "Could not record that submission. Please try again.",
+  DEVCASE_SOURCE_FAILED: "Could not source candidates for this assignment. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",

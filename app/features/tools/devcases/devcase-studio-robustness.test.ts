@@ -85,3 +85,63 @@ test("every write action on the tab is single-flight", () => {
     assert.ok(src.includes(guard), `${what}() lost its single-flight guard (${guard})`);
   }
 });
+
+// ---- D2: the submission row and its two doors tell the truth about a failure ----
+
+test("the skill-profile failure is resolved from the code, never asserted", () => {
+  const btn = read("DevSubmissionRowSkillProfile.tsx");
+  // The failure mode: ONE English sentence — "needs an evaluated submission +
+  // KP_SECRET" — stood for every failure, so a 503, a tenancy 404 and a dropped
+  // connection all told the recruiter to evaluate a submission they had already
+  // evaluated. A 503 has no such cause and must not be given one.
+  assert.doesNotMatch(btn, /evaluated submission/i, "one asserted cause cannot stand for every failure");
+  assert.doesNotMatch(btn, /KP_SECRET|process\.env/, "a server environment variable is not a recruiter's remedy");
+  assert.match(btn, /useErrorMessage\(\)/, "the code resolves in the reader's language");
+  assert.match(btn, /errMsg\(\{ code: dsp\.code \}/, "the payload's code is what is shown");
+  assert.match(btn, /role="alert"/, "a failure must be announced, not only drawn");
+  assert.match(btn, /focus-ring/, "the share link and the button must both be visibly focusable");
+
+  // …and the hook has to CARRY a code for any of that to be reachable: it used to
+  // collapse every throw into a code-less `status: "error"`.
+  const hook = read("useDevSubmissionRow.ts");
+  assert.match(hook, /code: data\?\.code \?\? null/, "the server's code must survive the catch");
+});
+
+test("the submission form distinguishes an absorbed duplicate from a new row", () => {
+  // intakeSubmission is idempotent per (posting, candidate, repo) and answers `isNew`.
+  // The route dropped it and the form claimed a fresh record either way, so a retry
+  // after a slow response read as a second submission that does not exist.
+  const route = read("../../../api/devcase/submit/route.ts");
+  assert.match(route, /\{ ok: true, isNew, submission \}/, "the route must put `isNew` on the wire");
+  const form = read("DevSubmissionForm.tsx");
+  assert.match(form, /isNew === false \? "duplicate" : "recorded"/);
+  assert.match(form, /receiptDuplicate/);
+  assert.match(form, /receiptRecorded/);
+  assert.match(form, /role="status"/, "a receipt is announced");
+});
+
+test("the dev-case submit and source doors answer with a code, not the thrown message", () => {
+  for (const [file, code] of [
+    ["../../../api/devcase/submit/route.ts", "DEVCASE_SUBMIT_FAILED"],
+    ["../../../api/devcase/source/route.ts", "DEVCASE_SOURCE_FAILED"],
+  ]) {
+    const src = read(file);
+    assert.ok(src.includes(`, "${code}");`), `${file} must answer with ${code} through safeJsonError`);
+    assert.ok(src.includes("safeJsonError(error,"), `${file} must use safeJsonError`);
+    assert.ok(
+      !src.includes("error instanceof Error ? error.message"),
+      `${file} still forwards a thrown message — SQLITE_* detail, the db path or a spawn's stderr`
+    );
+  }
+});
+
+test("the review drawer refuses a full task-list clear instead of dropping it", () => {
+  const src = read("DevLifecycleReviewPanel.tsx");
+  // The rule itself is pure and tested in DevHelpers.test.ts; what this pins is that
+  // the panel HONORS it — an unenforced refusal is the silent drop with extra steps.
+  assert.match(src, /caseEdits\(kase, \{ title, brief, tasks: editedTasks, timeboxHours \}\)/);
+  assert.doesNotMatch(src, /editedTasks\.length > 0/, "the guard that swallowed the clear must be gone");
+  assert.match(src, /if \(busy \|\| blocked\) return;/, "approve() must not fire while blocked");
+  assert.match(src, /disabled=\{busy !== null \|\| blocked !== null\}/);
+  assert.match(src, /tasksRequired/, "the refusal must be named on screen");
+});

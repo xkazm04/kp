@@ -46,20 +46,32 @@ export function useDevSubmissionRow({
   // Durable Skill Profile (moonshot A): mint a signed, candidate-owned credential
   // from this graded submission. The button is recruiter-facing (dev studio);
   // the returned token links to the public, shareable score-card.
-  const [dsp, setDsp] = useState<{ status: "idle" | "issuing" | "done" | "error"; token: string | null }>({ status: "idle", token: null });
+  //
+  // The failure carries the server's machine `code` forward, because collapsing every
+  // throw into a bare `status: "error"` is what let the button assert one cause — "needs
+  // an evaluated submission + KP_SECRET" — for a 503, a tenancy 404 and a dropped
+  // connection alike. No code (a network drop, or a route that answers without one) is a
+  // null, and the button shows a neutral generic rather than guessing.
+  const [dsp, setDsp] = useState<{ status: "idle" | "issuing" | "done" | "error"; token: string | null; code: string | null }>(
+    { status: "idle", token: null, code: null }
+  );
   const issueProfile = async () => {
-    setDsp({ status: "issuing", token: null });
+    setDsp({ status: "issuing", token: null, code: null });
     try {
       const r = await fetch("/api/devcase/skill-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submissionId: submission.id }),
       });
-      const data = (await r.json()) as { token?: string };
-      if (!r.ok || !data.token) throw new Error("issue failed");
-      setDsp({ status: "done", token: data.token });
+      const data = (await r.json().catch(() => null)) as { token?: string; code?: string } | null;
+      if (!r.ok || !data?.token) {
+        setDsp({ status: "error", token: null, code: data?.code ?? null });
+        return;
+      }
+      setDsp({ status: "done", token: data.token, code: null });
     } catch {
-      setDsp({ status: "error", token: null });
+      // A transport failure has no code to resolve — the generic line is the honest one.
+      setDsp({ status: "error", token: null, code: null });
     }
   };
 

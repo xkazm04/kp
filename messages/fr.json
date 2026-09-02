@@ -1440,7 +1440,9 @@
     "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez.",
     "JD_FIELDS_REQUIRED": "Le titre et la description sont tous deux obligatoires.",
     "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
-    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères."
+    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères.",
+    "DEVCASE_SUBMIT_FAILED": "Ce rendu n'a pas pu être enregistré. Veuillez réessayer.",
+    "DEVCASE_SOURCE_FAILED": "Impossible de rechercher des candidats pour cette épreuve. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7787,7 +7789,8 @@
       "redesignTitle": "Relancer uniquement l’étape de conception avec cette note. Sans relancer tout le cycle.",
       "redesigning": "Régénération en cours…",
       "redesign": "Régénérer avec la note",
-      "redesignFailed": "Échec de la régénération."
+      "redesignFailed": "Échec de la régénération.",
+      "tasksRequired": "Une épreuve doit conserver au moins une tâche. Rétablissez-en une, ou utilisez Régénérer avec une note pour que le moteur les réécrive."
     },
     "outbox": {
       "emptyTitle": "Aucun message pour l’instant",
@@ -8076,7 +8079,24 @@
       "received": "Reçu",
       "evaluated": "Évalué"
     },
-    "eyebrow": "Outils · Exercices"
+    "eyebrow": "Outils · Exercices",
+    "skillProfile": {
+      "issue": "Émettre le profil de compétences durable",
+      "reissue": "Réémettre le profil de compétences durable",
+      "issuing": "Émission…",
+      "view": "Voir / partager l'attestation ↗",
+      "failed": "Le profil n'a pas pu être émis. Veuillez réessayer."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "candidat",
+      "repoPlaceholder": "URL du dépôt rendu",
+      "record": "Enregistrer",
+      "recording": "…",
+      "failed": "Le rendu n'a pas pu être enregistré. Veuillez réessayer.",
+      "network": "Erreur réseau — le rendu n'a pas été enregistré. Veuillez réessayer.",
+      "receiptRecorded": "Rendu enregistré.",
+      "receiptDuplicate": "Déjà enregistré — ce dépôt a déjà été rendu pour ce candidat, rien n'a été ajouté."
+    }
   },
   "rubric": {
     "ratingAnchor": {

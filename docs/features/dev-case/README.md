@@ -574,7 +574,43 @@ Six places where the studio was quietly less honest than it looked, closed in on
   guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
   row it was clicked on: a click on a second row seeded the pipeline twice.
 
-The four behaviours with no DOM to test against are pinned as source shape in
+- **The Durable Skill Profile failure stopped asserting a cause.** One English sentence
+  ("needs an evaluated submission + `KP_SECRET`") stood for every failure, because
+  `useDevSubmissionRow` collapsed every throw into a code-less `status: "error"`. A 503, a
+  tenancy 404 and a dropped connection all told the recruiter to go and evaluate a
+  submission they had already evaluated — and named a server environment variable at them,
+  which is not a remedy anyone on that screen can act on. The hook now keeps
+  `{ status, code }`, `DevSubmissionRowSkillProfile` resolves the code through
+  `useErrorMessage()` and shows a neutral `devcase.skillProfile.failed` otherwise, and the
+  button composes `BTN_SECONDARY` so it carries the shared focus ring in both themes.
+- **The submission form tells a duplicate from a new row.** `intakeSubmission` is
+  idempotent per (posting, candidate, repo) and answers `isNew`; `POST /api/devcase/submit`
+  dropped it, so a recruiter retrying after a slow response was told a second submission
+  had been recorded and then went looking for it in a list that (correctly) still showed
+  one. `isNew` is now on the wire and the form renders two different `role="status"`
+  receipts.
+- **A full task-list clear is refused, not swallowed.** The review drawer built its PATCH
+  body from four inline `if`s, and the tasks branch was guarded with
+  `editedTasks.length > 0` — so emptying the textarea produced no `tasks` key at all: the
+  reviewer watched every task leave the candidate-safe preview, pressed Approve, and the
+  assignment shipped with the tasks still on it. The rule moved to `caseEdits(kase, draft)`
+  in `DevHelpers.ts` (pure, tested), which returns `{ edits, blocked }`; an assignment with
+  no tasks is not something we hand a candidate either, so a clear is REFUSED — Approve
+  disables and `devcase.review.tasksRequired` names the way out (restore a task, or
+  Regenerate with note) — rather than sent or silently dropped.
+- **`submit` and `source` answer with a code.** They were the last two dev-case rows on
+  `app/api/error-response-contract.test.ts`'s leak ceiling, forwarding
+  `error.message` — better-sqlite3 `SQLITE_*` detail, the absolute db path, the matching
+  spawn's stderr — straight to the client on a 500. Both now use
+  `safeJsonError(error, "api:devcase/<route>", "DEVCASE_{SUBMIT,SOURCE}_FAILED")`.
+- **`observedMean` is testable.** The voice-screen panel's "mean of the ratings that were
+  actually assessed" — the number a reviewer reads as the interview's verdict — lived as a
+  module-private function in a `"use client"` `.tsx`, which this runner cannot load. It
+  moved to `DevHelpers.ts` beside `isSupportedRepoRef`, and both are pinned in
+  `DevHelpers.test.ts` (not-assessed ratings excluded; a fully-unassessed scorecard is
+  null, never a middling 3).
+
+The behaviours with no DOM to test against are pinned as source shape in
 `devcase-studio-robustness.test.ts` — the same idiom as `DevTab.approve-error.test.ts`,
 and it says in the file that shape assertions are what they are.
 

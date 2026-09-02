@@ -8,7 +8,7 @@ import { Lock, RefreshCw, ShieldCheck } from "lucide-react";
 import { clampTimeboxHours, timeboxClamp } from "@/app/_lib/devcase-timebox";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Markdown } from "@/app/_components/Markdown";
-import { approveFallbackFor, caseToMarkdown } from "./DevHelpers";
+import { approveFallbackFor, caseEdits, caseToMarkdown } from "./DevHelpers";
 import { ProbeRow } from "./DevShared";
 import { ProbeStrengthBanner } from "./DevProbeStrengthBanner";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
@@ -54,11 +54,11 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
   const timeboxRaw = timebox.trim();
   const timeboxHours = timeboxRaw ? clampTimeboxHours(timeboxRaw) : null;
   const clamped = timeboxRaw ? timeboxClamp(timeboxRaw) : null;
-  const edits: Record<string, unknown> = {};
-  if (title.trim() && title.trim() !== (kase.title ?? "")) edits.title = title.trim();
-  if (brief.trim() && brief.trim() !== (kase.brief ?? "")) edits.brief = brief.trim();
-  if (editedTasks.join("\n") !== (kase.tasks ?? []).join("\n") && editedTasks.length > 0) edits.tasks = editedTasks;
-  if (timeboxHours != null && timeboxHours !== kase.timeboxHours) edits.timeboxHours = timeboxHours;
+  // What would actually be SENT, decided by the pure rule in DevHelpers (and tested
+  // there) rather than by four `if`s in a render. `blocked` is the one draft this
+  // panel refuses: emptying the task list used to produce no `tasks` key at all, so
+  // the assignment shipped with the tasks the reviewer had just deleted.
+  const { edits, blocked } = caseEdits(kase, { title, brief, tasks: editedTasks, timeboxHours });
   const hasEdits = Object.keys(edits).length > 0;
 
   // Live candidate-safe preview: what the candidate would actually receive,
@@ -70,7 +70,7 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
   );
 
   const approve = async () => {
-    if (busy) return;
+    if (busy || blocked) return;
     setBusy("approve");
     setError(null);
     try {
@@ -145,8 +145,19 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
           </label>
           <label className="block text-micro font-semibold text-steel">
             {t("fieldTasks")}
-            <textarea value={tasksText} onChange={(e) => setTasksText(e.target.value)} rows={4} className={inputClass} />
+            <textarea
+              value={tasksText}
+              onChange={(e) => setTasksText(e.target.value)}
+              rows={4}
+              aria-invalid={blocked === "tasksCleared"}
+              className={inputClass}
+            />
           </label>
+          {/* The refusal, stated where the draft that caused it is. Silently keeping
+              the stored tasks is what this replaces. */}
+          {blocked === "tasksCleared" ? (
+            <p role="alert" className="text-micro text-coral">{t("tasksRequired")}</p>
+          ) : null}
           <label className="block text-micro font-semibold text-steel">
             {t("fieldTimebox")}
             <input value={timebox} onChange={(e) => setTimebox(e.target.value)} inputMode="numeric" className={inputClass} />
@@ -184,7 +195,7 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
         <button
           type="button"
           onClick={approve}
-          disabled={busy !== null}
+          disabled={busy !== null || blocked !== null}
           className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-moss px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
           <ShieldCheck size={12} /> {busy === "approve" ? t("approving") : hasEdits ? t("approveWithEdits") : t("approve")}
