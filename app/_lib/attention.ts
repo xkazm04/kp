@@ -84,7 +84,10 @@ export function attentionCounts(workspaceId?: string): AttentionCounts {
     // escapes the exclusion, and is counted as aging from day 0 forever, with no
     // board move that can clear it. Honor the contract instead of relying on the
     // coincidence. Byte-identical on the shipped axis.
-    const sla = slaForStage(e.stage);
+    // The threshold, too, is a ROLE question on this workspace's axis: a composed
+    // column ("Tech round", role interview) ages at the interview default, not on
+    // the flat legacy cut a name lookup fell through to.
+    const sla = slaForStage(e.stage, undefined, axis);
     return sla > 0 && (daysSince(e.stageChangedAt) ?? 0) >= sla;
   }).length;
   const schedule = countFutureConfirmedInvites(workspaceId);

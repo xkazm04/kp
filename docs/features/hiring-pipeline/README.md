@@ -227,6 +227,26 @@ columns both reading "Interview" cannot be told apart on the board).
 `retired` tombstone, so history and a stranded candidate can still be given its
 name. A step the draft only *added* just disappears — it was never stored.
 
+### Aging thresholds follow the role, not the name
+
+The board's amber "aging" dot, the `?quick=aging` filter, the header's Aging
+chip and the sidebar's Pipeline badge all read one threshold function,
+`slaForStage(stage, overrides, axis)` (`app/features/shared/pipelineTypes.ts`).
+The default is keyed by the **role** a column plays on this workspace's axis
+(`ROLE_SLA_DEFAULTS`: entry 14 d, screening 7 d, interview 5 d, scoring 5 d,
+offer 3 d, terminal never, `custom` the flat legacy 10 d), so a composed
+"Tech round" ages like an interview instead of falling through to the flat
+cut, and a renamed column keeps its threshold. Resolution order: the
+recruiter's per-column override (the board's "Aging SLAs" editor, localStorage,
+keyed by column id) → the role default → the shipped default for a retired
+canonical id that still has candidates standing on it → the flat cut for an id
+nothing knows. The SLA editor lists the axis's non-terminal columns under
+their workspace labels, placeholder = the default that is already firing. The
+shipped five are byte-identical to before (`STAGE_SLA_DEFAULTS` is now derived
+from the role table). The sidebar badge is computed server-side from the
+defaults only — a recruiter's local overrides are a per-browser concern it
+approximates.
+
 ### Nobody gets stranded silently
 
 Removing a column is the one settings change that can leave real people off the
