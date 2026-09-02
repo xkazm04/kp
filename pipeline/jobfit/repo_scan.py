@@ -34,6 +34,7 @@ neither could fill. A hole must read as a hole.
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import logging
 import os
@@ -41,6 +42,7 @@ import re
 import subprocess
 from collections import Counter
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any
 
 from .appmaster import (
@@ -118,6 +120,176 @@ def classify_fallback(reason: str | None) -> str:
     # A recognisable exception type with no matching message still says more than
     # nothing: everything the LLM path can raise came from a provider call.
     return "provider_error" if text else "unknown"
+
+
+# ---- Secret files are out of scope ------------------------------------------
+#
+# The in-repo session gets the repository root as its cwd with Read/Grep/Glob. Only
+# DIRECTORIES were ever skipped (:data:`SKIP_DIRS`), so `.env`, `*.pem`, `id_rsa`
+# and friends sat inside the model's reach — and the model's free-text answers land
+# verbatim in `dossier_json` and go out on the wire. The keyless walk is safe by
+# construction (it counts extensions and reads a fixed list of declaration files);
+# the refined path was not.
+#
+# ONE list, three consumers: the CLI deny rules, the heuristic walk, and the tests.
+# Basename globs, matched case-insensitively — a secret file is identified by its
+# name, and its directory is not the interesting part.
+SECRET_FILE_GLOBS: tuple[str, ...] = (
+    ".env",
+    ".env.*",
+    "*.env",
+    ".envrc",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "*.jks",
+    "*.keystore",
+    "*.kdbx",
+    "*.ppk",
+    "id_rsa",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+    ".htpasswd",
+    "credentials",
+    "credentials.json",
+    "service-account*.json",
+    "secrets.*",
+    "*.secrets",
+)
+
+
+def is_secret_file(name: str) -> bool:
+    """Is this file name one the scan must never open or name?
+
+    Takes a bare file name OR a path (the basename is what matters). Errs toward
+    exclusion: a `*.key` that turns out to be a keyboard layout is a file the
+    dossier is no poorer for missing, and the reverse mistake is a private key in
+    a JSON blob on the wire.
+    """
+    base = os.path.basename(str(name).replace("\\", "/")).lower()
+    return any(fnmatch.fnmatch(base, pattern) for pattern in SECRET_FILE_GLOBS)
+
+
+def claude_deny_rules() -> tuple[str, ...]:
+    """:data:`SECRET_FILE_GLOBS` as Claude CLI permission deny rules.
+
+    ``Read(...)`` ONLY, and that is not an oversight: asked for `Glob(./.env)` the
+    CLI answers, verbatim (v2.1.258, 2026-09-02) —
+
+        Permission deny rule … Glob(./.env) is not matched by file permission
+        checks — only Read(path) rules are. Use Read(./.env) instead (Read rules
+        cover all file-reading tools).
+
+    …so a Read rule already covers Grep and Glob, and emitting the others would
+    add a warning line to every scan for no additional protection. Verified live
+    on the same version: with these rules a session that is asked to read `.env`
+    and to grep it is refused both times.
+
+    Two rules per glob because CLI path rules are anchored: `./x` is the root copy,
+    `./**/x` everything below it.
+    """
+    rules: list[str] = []
+    for pattern in SECRET_FILE_GLOBS:
+        rules.append(f"Read(./{pattern})")
+        rules.append(f"Read(./**/{pattern})")
+    return tuple(rules)
+
+
+def repo_scan_settings_json() -> str:
+    """The ``--settings`` payload carrying those deny rules. Additive by
+    construction: it grants nothing, it only narrows what the session may read."""
+    return json.dumps({"permissions": {"deny": list(claude_deny_rules())}}, ensure_ascii=False)
+
+
+# ---- …and secret VALUES are redacted whatever the model says -----------------
+#
+# The deny rules are the fence; this is the backstop, and it exists because the
+# fence has assumptions in it (a CLI flag, a rule grammar, a version). A provider
+# that is not the Claude CLI has no fence at all — it answers from the grounding,
+# but the grounding is text and text can carry anything. So every refined free-text
+# field is swept for secret-SHAPED values before it can reach the wire.
+#
+# Deliberately narrow: shapes with a keyspace, not "anything with an equals sign".
+# A URL, a git sha and an ordinary sentence must survive untouched, and
+# `test_repo_scan.py` pins exactly that.
+REDACTED = "[redacted]"
+
+_SECRET_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # AWS access key id (AKIA/ASIA/AGPA/AIDA + 16 uppercase alnum).
+    re.compile(r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|ANPA)[0-9A-Z]{16}\b"),
+    # A PEM private key block, however much of it was quoted.
+    re.compile(r"-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END[A-Z ]*KEY-----|$)"),
+    # Provider-style keys: sk-…, ghp_…, gho_…, xoxb-…
+    re.compile(r"\b(?:sk|rk)-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}\b"),
+    # KEY=<20+ non-space chars> — an assignment with a keyspace on the right.
+    re.compile(r"\b[A-Z][A-Z0-9_]{2,}(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS)\s*[=:]\s*\S{20,}"),
+)
+
+
+def redact_secret_values(text: str) -> tuple[str, int]:
+    """``(masked text, hits)``. Never raises; a non-string is returned unchanged."""
+    if not isinstance(text, str) or not text:
+        return text, 0
+    hits = 0
+    out = text
+    for pattern in _SECRET_VALUE_PATTERNS:
+        out, n = pattern.subn(REDACTED, out)
+        hits += n
+    return out, hits
+
+
+def _redact_in_place(container: Any, keys: Sequence[str]) -> int:
+    hits = 0
+    if not isinstance(container, dict):
+        return 0
+    for key in keys:
+        value = container.get(key)
+        if isinstance(value, str):
+            masked, n = redact_secret_values(value)
+            if n:
+                container[key] = masked
+                hits += n
+    return hits
+
+
+def redact_dossier(dossier: Any) -> int:
+    """Mask secret-shaped values in every free-text field of a dossier dict.
+
+    Mutates in place and returns how many values were masked, so the caller can put
+    the count on the envelope: a redaction that nobody can see happened is a silent
+    edit of the operator's data, and the number is the disclosure.
+
+    Applied at the WIRE boundary (repo_scan_cli), not inside :func:`scan_repo`, so
+    it is the last thing that touches the payload no matter which path built it.
+    """
+    if not isinstance(dossier, dict):
+        return 0
+    hits = 0
+    for key in ("maintainerLoadEstimate",):
+        hits += _redact_in_place(dossier, [key])
+    for key in ("riskAreas", "hotSpots"):
+        for finding in dossier.get(key) or []:
+            hits += _redact_in_place(finding, ["ref", "rationale"])
+    for objective in dossier.get("candidateObjectives") or []:
+        hits += _redact_in_place(objective, ["label", "rationale", "unit"])
+    for key in ("existingKpis", "stack", "declaredGates"):
+        values = dossier.get(key)
+        if isinstance(values, list):
+            for i, value in enumerate(values):
+                if isinstance(value, str):
+                    masked, n = redact_secret_values(value)
+                    if n:
+                        values[i] = masked
+                        hits += n
+    return hits
+
 
 # Wall-clock budget for the in-repo agent. Bounded on purpose: the scan is an
 # intake step somebody is waiting on, and a repo big enough to need longer is a
@@ -268,6 +440,11 @@ def walk_files(root: Path) -> tuple[int, Counter[str]]:
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and not d.startswith(".git"))
         for name in filenames:
+            # A secret file is out of scope for the whole walk, not just for the
+            # model: its EXTENSION feeds the stack line, so counting `*.pem` would
+            # put "the repo has private keys" into the dossier by another door.
+            if is_secret_file(name):
+                continue
             total += 1
             ext = os.path.splitext(name)[1].lower()
             if ext:
@@ -404,7 +581,10 @@ def read_churn(root: Path, depth: int = 200) -> tuple[list[tuple[str, int]], int
                 authors.add(author)
             continue
         path = line.strip()
-        if path:
+        # git history is the one place a secret file surfaces without the walk
+        # ever touching the filesystem: a committed `.env` churns like any other
+        # file and would be published as a hot spot, path and all.
+        if path and not is_secret_file(path):
             counts[path] += 1
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:MAX_FINDINGS]
     return ranked, commits, len(authors)
@@ -433,6 +613,8 @@ def read_kpi_signals(root: Path) -> list[str]:
             if name.lower() in ("analytics", "kpi", "kpis", "metrics", "telemetry"):
                 hits.append(f"{rel_dir}/{name}".lstrip("/"))
         for name in filenames:
+            if is_secret_file(name):
+                continue
             lowered = name.lower()
             if "kpi" in lowered and os.path.splitext(lowered)[1] in (
                 *SOURCE_EXTENSIONS,
@@ -823,9 +1005,25 @@ def bind_provider_to_repo(provider: Any, root: str | Path) -> Any:
     why ``source`` stays honest either way.
     """
     binder = getattr(provider, "with_repo_access", None)
-    if callable(binder):
-        return binder(str(root), timeout=LLM_TIMEOUT_S)
-    return provider
+    if not callable(binder):
+        return provider
+    bound = binder(str(root), timeout=LLM_TIMEOUT_S)
+    # …and it may not read the repository's secrets. `with_repo_access` owns the
+    # read-only stance (which TOOLS); this owns the scope (which FILES), and it is
+    # appended here rather than folded into that door because the file list is a
+    # repo-scan concern and lives with the walk that shares it. Strictly narrowing:
+    # `--settings` here carries nothing but a deny list, so it can only take access
+    # away. A provider with no `extra_args` (a stub, a non-CLI adapter) is left
+    # exactly as it was — the redaction backstop covers that path.
+    extra = getattr(bound, "extra_args", None)
+    if extra is not None:
+        try:
+            bound.extra_args = tuple(extra) + ("--settings", repo_scan_settings_json())
+        except AttributeError:
+            # A frozen/read-only provider: the deny rules cannot be attached, and
+            # saying so beats scanning as if they had been.
+            _LOG.warning("repo_scan: could not attach secret-file deny rules to %s", type(bound).__name__)
+    return bound
 
 
 def scan_repo(
@@ -880,12 +1078,15 @@ def scan_repo(
 
 __all__ = [
     "FALLBACK_CLASSES",
+    "REDACTED",
+    "SECRET_FILE_GLOBS",
     "LLM_TIMEOUT_S",
     "REFINABLE_KEYS",
     "REPO_SCAN_PROMPT_VERSION",
     "SKIP_DIRS",
     "SOURCE_HEURISTIC",
     "bind_provider_to_repo",
+    "claude_deny_rules",
     "classify_fallback",
     "build_heuristic_dossier",
     "build_prompt",
@@ -894,6 +1095,10 @@ __all__ = [
     "read_churn",
     "read_context_map",
     "read_declared_gates",
+    "redact_dossier",
+    "redact_secret_values",
+    "repo_scan_settings_json",
+    "is_secret_file",
     "scan_repo",
     "walk_files",
 ]

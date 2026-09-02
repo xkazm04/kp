@@ -202,6 +202,39 @@ allowlist contains a write tool or a bare unscoped `Bash` — a bare `Bash` gran
 is a write grant with extra steps. `--add-dir` is deliberately unused: the
 session is confined to `cwd`.
 
+### …and secret files are out of scope
+
+Read-only is not the same as *may read everything*. The session was confined to
+`cwd` with `Read`/`Grep`/`Glob` and only DIRECTORIES were ever skipped, so
+`.env`, `.env.local`, `*.pem`, `id_rsa`, `.netrc` and their kind sat inside its
+reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
+`dossier_json` and go out on the wire. Three layers now, from one list
+(`SECRET_FILE_GLOBS`, `pipeline/jobfit/repo_scan.py`):
+
+1. **The CLI is told no.** `bind_provider_to_repo` appends
+   `--settings '{"permissions":{"deny":["Read(./.env)","Read(./**/*.pem)",…]}}'`
+   — two rules per glob, because CLI path rules are anchored. `Read(...)` rules
+   ONLY: asked for `Glob(./.env)` the CLI answers *"not matched by file
+   permission checks — only Read(path) rules are … Read rules cover all
+   file-reading tools"* (verified live on **v2.1.258, 2026-09-02**, where a
+   session given these rules was refused both a `Read` and a `Grep` of a real
+   `.env`). The payload grants nothing; it can only take access away.
+2. **The walk never touches them either.** `walk_files` does not count them (the
+   file EXTENSION feeds the stack line, so a counted `*.pem` publishes "this repo
+   keeps private keys" by another door), `read_kpi_signals` does not name them,
+   and `read_churn` drops them — git history is the one place a committed `.env`
+   surfaces without the filesystem walk ever opening it.
+3. **A deterministic backstop, whatever the provider.** Layer 1 is a fence with
+   assumptions in it (a flag, a rule grammar, a CLI version) and every non-Claude
+   adapter has no fence at all — it answers from the grounding, and text can carry
+   anything. So `redact_dossier` sweeps every refined free-text field at the WIRE
+   boundary (`repo_scan_cli`) for secret-SHAPED values — AWS key ids, PEM blocks,
+   `sk-`/`ghp_`/`xox…` tokens, `NAME_KEY=<20+ chars>` — masks them `[redacted]`
+   and puts the count on the envelope as `redactions`. A redaction nobody can see
+   is a silent edit of the operator's data. The pattern set is deliberately
+   narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
+   `test_repo_scan.RedactionTest` pins both directions.
+
 ### Where the local path is gated
 
 `rootPath` is **fail-closed** (`app/_lib/repo-scan-target.ts`). A server that
@@ -728,7 +761,8 @@ spec was composed, and it travels with the spec.
 | `createRepoScan` / `getRepoScanRecord` / `listRepoScans` / `markRepoScanRunning` / `completeRepoScan` / `failRepoScan` / `cancelQueuedRepoScan` | store | `app/_lib/db/repo-scans.ts` |
 | task kind `repo_scan`, dedupe `repo_scan:<scanId>` | task | `app/_lib/tasks.ts`, `app/_lib/task-dedupe.ts` |
 | `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` / `classify_fallback` / `FALLBACK_CLASSES` | Python | `pipeline/jobfit/repo_scan.py` |
-| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope |
+| `SECRET_FILE_GLOBS` / `is_secret_file` / `claude_deny_rules` / `repo_scan_settings_json` / `redact_secret_values` / `redact_dossier` | Python | same file — the one secret-file list and its three consumers |
+| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope, plus `fallbackClass` and a `redactions` count |
 | `ClaudeCliProvider.with_repo_access(cwd)` / `cli_args()` / `READ_ONLY_TOOLS` / `WRITE_TOOL_DENYLIST` / `READ_ONLY_PERMISSION_MODE` / `PERMISSION_MODES` | Python | `pipeline/jobfit/claude_cli.py` — the read-only repo binding |
 | `repo_scan` LLM use case | config | `pipeline/jobfit/llm/capabilities.py` (`{json}`, 6144 max tokens) + `LLM_USE_CASES` in `app/_lib/llm-config.ts` (Settings → Models, "roles" section) |
 

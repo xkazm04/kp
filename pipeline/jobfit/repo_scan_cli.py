@@ -12,7 +12,8 @@ that does not exist or is not a directory.
 
 Output: the uniform provenance envelope on stdout —
 {"result": <RepoDossier>, "source": "llm"|"heuristic",
- "perStepSources": {"repoScan": ...}[, "fallbackReason": {"repoScan": "<Type>: <msg>"}]}
+ "perStepSources": {"repoScan": ...}, "redactions": <int>
+ [, "fallbackReason": {"repoScan": "<Type>: <msg>"}, "fallbackClass": "<class>"]}
 — the same contract agentfit_cli / devcase_cli emit, so the TS runner's
 provenance handling applies unchanged. NOTE the source vocabulary: a dossier's
 non-LLM path is ``heuristic`` (RepoDossier.source's own literal), not
@@ -82,11 +83,26 @@ def main(argv: list[str] | None = None) -> int:
             # the heuristic traffic stays visible (no-op without KP_LLM_USAGE_LOG),
             # with the descent reason naming WHY the floor served (R6).
             emit_deterministic("repo_scan", reason=descent)
+        # The WIRE boundary, and therefore the last place a secret-shaped value can
+        # be stopped. The deny rules keep the in-repo session out of `.env` and its
+        # friends, but they are a fence with assumptions in them (a CLI flag, a rule
+        # grammar, a version) and every OTHER provider has no fence at all — it
+        # answers from the grounding, and text can carry anything. So every refined
+        # free-text field is swept here regardless of which path produced it, and
+        # the count rides on the envelope: a redaction nobody can see is a silent
+        # edit of the operator's data.
+        redactions = repo_scan.redact_dossier(result)
         envelope: dict[str, object] = {
             "result": result,
             "source": source,
             "perStepSources": {"repoScan": source},
+            "redactions": redactions,
         }
+        if redactions:
+            print(
+                f"repo_scan: masked {redactions} secret-shaped value(s) in the refined dossier",
+                file=sys.stderr,
+            )
         reasons = collect_fallback_reasons([("repoScan", result)], pop=True)
         if reasons:
             envelope["fallbackReason"] = reasons
