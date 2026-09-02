@@ -4267,7 +4267,9 @@
       "publishedButFailed": "Publikováno, ale sourcing selhal: {warning}",
       "sourced": "{count, plural, one {Do Pipeline přiveden # kandidát.} few {Do Pipeline přivedeni # kandidáti.} many {Do Pipeline přivedeno # kandidáta.} other {Do Pipeline přivedeno # kandidátů.}}",
       "quotaNote": "Dosáhli jste limitu aktivních pozic ve svém tarifu. Upgradujte nebo uzavřete pozici, abyste mohli publikovat další.",
-      "goToBilling": "Upgradovat ve Fakturaci"
+      "goToBilling": "Upgradovat ve Fakturaci",
+      "loadFailed": "Koncepty se nepodařilo načíst.",
+      "retry": "Zkusit znovu"
     },
     "posting": {
       "copied": "Zkopírováno",
@@ -4390,7 +4392,8 @@
       "warnNoSkills": "Žádné extrahované dovednosti, takže háčky se stackem jsme vynechali.",
       "applyUrlNote": "Výzva odkazuje na rychlou přihlášku:",
       "loadFailed": "Balíček kampaně se nepodařilo načíst.",
-      "generateFailed": "Balíček kampaně se nepodařilo vygenerovat."
+      "generateFailed": "Balíček kampaně se nepodařilo vygenerovat.",
+      "warnUnknown": "Údaj, který balíček neměl k dispozici ({code})."
     },
     "rediscover": {
       "loadFailed": "Znovuobjevení se nepodařilo spustit.",

@@ -4267,7 +4267,9 @@
       "publishedButFailed": "Published, but sourcing failed: {warning}",
       "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
       "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
-      "goToBilling": "Upgrade in Billing"
+      "goToBilling": "Upgrade in Billing",
+      "loadFailed": "Couldn't load your drafts.",
+      "retry": "Retry"
     },
     "posting": {
       "copied": "Copied",
@@ -4390,7 +4392,8 @@
       "warnNoSkills": "No extracted skills, so stack hooks were skipped.",
       "applyUrlNote": "CTA links to the quick-apply form:",
       "loadFailed": "Couldn't load the campaign pack.",
-      "generateFailed": "Couldn't generate the campaign pack."
+      "generateFailed": "Couldn't generate the campaign pack.",
+      "warnUnknown": "A fact the pack had to do without ({code})."
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",

@@ -4267,7 +4267,9 @@
       "publishedButFailed": "Publié, mais le sourcing a échoué : {warning}",
       "sourced": "{count, plural, one {# candidat sourcé dans le pipeline.} other {# candidats sourcés dans le pipeline.}}",
       "quotaNote": "Vous avez atteint la limite de postes actifs de votre forfait. Passez à un forfait supérieur ou fermez un poste pour en publier un autre.",
-      "goToBilling": "Mettre à niveau (Facturation)"
+      "goToBilling": "Mettre à niveau (Facturation)",
+      "loadFailed": "Impossible de charger les brouillons.",
+      "retry": "Réessayer"
     },
     "posting": {
       "copied": "Copié",
@@ -4390,7 +4392,8 @@
       "warnNoSkills": "Aucune compétence extraite, les accroches sur la stack ont donc été ignorées.",
       "applyUrlNote": "Le CTA renvoie au formulaire de candidature express :",
       "loadFailed": "Impossible de charger le pack de campagne.",
-      "generateFailed": "Impossible de générer le pack de campagne."
+      "generateFailed": "Impossible de générer le pack de campagne.",
+      "warnUnknown": "Une information dont le pack ne disposait pas ({code})."
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",

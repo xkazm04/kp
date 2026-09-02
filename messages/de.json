@@ -4267,7 +4267,9 @@
       "publishedButFailed": "Veröffentlicht, aber Sourcing fehlgeschlagen: {warning}",
       "sourced": "{count, plural, one {# Kandidat/in in die Pipeline gesourct.} other {# Kandidat/innen in die Pipeline gesourct.}}",
       "quotaNote": "Sie haben das Limit aktiver Stellen Ihres Tarifs erreicht. Führen Sie ein Upgrade durch oder schließen Sie eine Stelle, um eine weitere zu veröffentlichen.",
-      "goToBilling": "Upgrade in der Abrechnung"
+      "goToBilling": "Upgrade in der Abrechnung",
+      "loadFailed": "Entwürfe konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
     },
     "posting": {
       "copied": "Kopiert",
@@ -4390,7 +4392,8 @@
       "warnNoSkills": "Keine extrahierten Skills, deshalb wurden Stack-Hooks übersprungen.",
       "applyUrlNote": "CTA verlinkt das Schnellbewerbungsformular:",
       "loadFailed": "Kampagnenpaket konnte nicht geladen werden.",
-      "generateFailed": "Kampagnenpaket konnte nicht generiert werden."
+      "generateFailed": "Kampagnenpaket konnte nicht generiert werden.",
+      "warnUnknown": "Eine Angabe, die dem Paket fehlte ({code})."
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
