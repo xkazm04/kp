@@ -3,7 +3,7 @@ import { jobPostGate, recordMeterUsage } from "@/app/_lib/billing";
 import { ensureDb } from "@/app/_lib/db/core";
 import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
-import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { classifyPublish, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
@@ -48,23 +48,32 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // caller, and the role already live and unmetered. Pinned by
     // publish-atomicity.test.ts, which drives exactly this sequence.
     const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof jobPostGate> } => {
-      const prevStatus = getJobStatus(id);
-      const wasPublished = prevStatus === "published";
-      if (wasPublished) return { already: true, wasClosed: false, quota: null };
+      // ONE read of the row's lifecycle: is it already live, was it closed (a
+      // reopen), and has it EVER been to market (`published_at`)?
+      const transition = classifyPublish(id);
+      if (transition.already) return { already: true, wasClosed: false, quota: null };
       // Taking a role to market is one of the two things the customer actually pays
       // for, so the gate and the debit are the same transaction as the status flip:
       // a publish that is refused must not charge, and one that succeeds must not
-      // escape the meter. `published_at` is COALESCE-stamped inside setJobStatus, so
-      // this fires once per job EVER — closing and reopening a role never re-charges,
-      // which is why the debit sits under the `wasPublished` early-return above.
-      const quota = jobPostGate(new Date(), ws);
+      // escape the meter.
+      //
+      // The debit fires once per job EVER — closing and REOPENING a role does not
+      // re-charge. That is what this comment claimed before the rule was actually
+      // implemented: it pointed at the `published_at = COALESCE(...)` stamp inside
+      // setJobStatus, which guards the timestamp and nothing else, while the skip
+      // above tested only `prevStatus === "published"`. A closed→published reopen
+      // therefore took the gate AND the debit on every reopen. `published_at` is the
+      // record of "this role has been live before", so it is what the once-per-job
+      // rule reads (`classifyPublish().billable`). A never-stamped row — a draft, a
+      // seeded corpus role — is a first go-live and still bills.
+      const quota = transition.billable ? jobPostGate(new Date(), ws) : null;
       if (!quota) {
         setJobStatus(id, "published");
-        recordMeterUsage("job_posts", 1, new Date(), ws);
+        if (transition.billable) recordMeterUsage("job_posts", 1, new Date(), ws);
       }
       // A reopen is a closed→published transition; remember it so the entries this
       // role's close withdrew are restored explicitly below (not left to sourcing).
-      return { already: false, wasClosed: prevStatus === "closed", quota };
+      return { already: false, wasClosed: transition.wasClosed, quota };
     })();
     if (gate.quota) return NextResponse.json(gate.quota, { status: 402 });
     const already = gate.already;

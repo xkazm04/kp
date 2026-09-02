@@ -162,6 +162,26 @@ back, the route answered 500, and the role was already live and unmetered.
 of the boot DDL. `app/api/jobs/publish-atomicity.test.ts` drives the exact
 sequence against the real modules.
 
+### One opening, one charge — a reopen is free
+
+The `job_posts` debit fires **once per job ever**, not once per publish. The route
+reads the transition from `classifyPublish` (`app/_lib/job-ingest.ts`), which
+answers three questions off one row: is it already `published` (idempotent
+re-publish, nothing happens), was it `closed` (a reopen, so `reopenEntriesByJobId`
+restores the withdrawn entries), and does it carry a `published_at` stamp — the
+record that this role has been to market before. Only a role with **no** stamp is
+billable, so `jobPostGate` and `recordMeterUsage` run on the first go-live and on
+nothing else. Closing a filled role and reopening it a month later costs nothing
+and is admitted even when the period's allowance is spent.
+
+Until this was implemented the rule existed only as prose (here, in the route, and
+in `jobPostGate`'s own doc comment), justified by the `published_at =
+COALESCE(published_at, ?)` stamp inside `setJobStatus` — which guards the
+timestamp and never reaches the meter. The skip tested `prevStatus === "published"`
+alone, so every closed → published reopen took the gate and paid again.
+`app/api/jobs/jobs-publish-billing.test.ts` pins all four cases (first publish,
+idempotent re-publish, reopen, reopen on an exhausted meter).
+
 ## JD specificity lint (Erika gap E7)
 
 `app/_lib/jd-lint.ts` is a pure, LLM-free rules module that runs live on every
