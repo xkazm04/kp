@@ -518,6 +518,111 @@ const ROUTES: RouteSpec[] = [
     // this route's import and in the comment above the limiter, both before it.
     expensive: "await sweepRediscoveryAlerts({",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-02 (api-jobs), with the limiters themselves. Seven jobs
+  // routes spawned a child or spent on a model and NONE carried a limiter — the whole
+  // area was absent from this contract. Every one is session-gated, and open mode
+  // (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the entire API,
+  // so each must self-limit. Two budget families: the per-request spawns a reader
+  // triggers by navigating (candidates, winnability, rediscover) get 30/10min; the
+  // deliberate, once-per-role acts (ingest, campaign, publish, outreach) get budgets a
+  // legitimate operator never meets and a scripted loop always does.
+  {
+    rel: "./jobs/ingest/route.ts",
+    key: "`jobs-ingest:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its first argument: a bare `ingestJobAd(` also appears in the
+    // import above the limiter, so the generic marker would pass on the wrong occurrence.
+    expensive: "ingestJobAd(adText,",
+    // The too-short-ad 400 and the foreign-jobId 404 keep their semantics ahead of the
+    // throttle, so a rejected paste never consumes budget.
+    servedBefore: "canWriteJobLifecycle(explicitJobId, ws)",
+  },
+  {
+    rel: "./jobs/[id]/campaign/route.ts",
+    key: "`jobs-campaign:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // POST only. GET reads the stored pack and spends nothing.
+    expensive: "await runCampaign(",
+    servedBefore: "if (!visibleJob(id, ws))",
+  },
+  {
+    rel: "./jobs/[id]/candidates/route.ts",
+    key: "`jobs-candidates:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "rankPoolForJob<",
+    // The empty-pool short-circuit answers before the limiter: it spawns nothing, so it
+    // must neither consume nor mask the budget.
+    servedBefore: "entries.length === 0",
+  },
+  {
+    rel: "./jobs/[id]/winnability/route.ts",
+    key: "`jobs-winnability:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The module the child runs — the limiter must precede the workdir AND the spawn.
+    expensive: "pipeline.jobfit.winnability_cli",
+    servedBefore: "entries.length === 0",
+  },
+  {
+    rel: "./jobs/[id]/rediscover/route.ts",
+    key: "`jobs-rediscover:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL, not a bare `rediscoverForJob(`: that substring also appears in the
+    // import and in the header comment, both before the limiter.
+    expensive: "await rediscoverForJob(job, {",
+    servedBefore: "jobVisibleToWorkspace(id, ws)",
+  },
+  {
+    rel: "./jobs/[id]/publish/route.ts",
+    key: "`jobs-publish:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The go-live's FIRST spawning step; the rediscovery alert fan-out follows it. The
+    // limiter also precedes the billing transaction, so a throttled call cannot debit.
+    expensive: "await runSourceForRole(role, {",
+    // The 404 and the ownership gate keep their semantics ahead of the throttle.
+    servedBefore: "canWriteJobLifecycle(id, ws)",
+  },
+  {
+    rel: "./jobs/[id]/candidates/outreach/route.ts",
+    key: "`jobs-outreach:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its arguments: `runAutomationTask(` also appears in the import.
+    expensive: 'runAutomationTask(entry.id, "outreach"',
+    // The GDPR suppression 409 (and the 404/400 above it) run first, so a reach-out that
+    // was never going to send costs no budget — and the limiter precedes the first WRITE
+    // (createPipelineEntry) as well as the draft.
+    servedBefore: "candidateOutreachSuppression(body.candidateId)",
+  },
+  {
+    // ADDED /perfect 2026-09-02 (api-pipeline), with the limiter itself. `run policy`
+    // typed into the board's command bar reaches the SAME sweep POST
+    // /api/automation/run drives — a Python-spawning pass over every active entry
+    // that dispatches candidate outreach — and it was the one entry point to it with
+    // no throttle at all. Operator-gated, but open mode makes that gate a no-op for
+    // the whole API, so the limiter is the real bound. 6/10min per IP: a sweep runs
+    // for minutes, so six is far above any human pace, and the per-candidate commands
+    // on the same route (reject_below / advance_top) are deliberately NOT throttled —
+    // they are bounded by the previewed cohort and spawn nothing.
+    rel: "./pipeline/command/route.ts",
+    key: "`pipeline-command-policy:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    optsSrc: "RUN_POLICY_RATE_LIMIT",
+    optsDef: "const RUN_POLICY_RATE_LIMIT = { limit: 6, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL, not a bare `runAutomationPass(`: that substring also appears in this
+    // route's import and in the comments above the limiter, both before it.
+    expensive: "result = await runAutomationPass();",
+    // The operator gate keeps serving (refusing) freely ahead of the budget: a
+    // non-operator must never be able to spend another caller's window.
+    servedBefore: "const denied = await requireOperator();",
+  },
 ];
 
 for (const spec of ROUTES) {

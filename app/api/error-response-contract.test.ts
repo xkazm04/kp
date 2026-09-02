@@ -235,16 +235,11 @@ const LEAK_CEILING = new Map<string, number>([
   ["devcase/submit/route.ts", 1],
   ["extract-text/route.ts", 1],
   ["github-analysis/route.ts", 1],
-  ["jobs/[id]/assignments/route.ts", 1],
-  ["jobs/[id]/campaign/route.ts", 1],
-  ["jobs/[id]/candidates/route.ts", 1],
-  ["jobs/[id]/close/route.ts", 1],
-  ["jobs/[id]/publish/route.ts", 1],
-  ["jobs/[id]/rediscover/route.ts", 1],
-  ["jobs/[id]/route.ts", 1],
-  ["jobs/[id]/winnability/route.ts", 1],
-  ["jobs/ingest/route.ts", 1],
-  ["jobs/route.ts", 1],
+  // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect
+  // 2026-09-02, api-jobs): every one now answers `safeJsonError(error,
+  // "api:jobs/<route>", "JOB_*_FAILED")` against the JOB_* codes added to
+  // STORE_ERRORS in the same change. The entries are deleted so the win is locked and
+  // a regression reads as `undeclared` rather than as budget already granted.
   ["llm/activity/route.ts", 1],
   ["llm/keys/route.ts", 1],
   ["llm/keys/test/route.ts", 1],

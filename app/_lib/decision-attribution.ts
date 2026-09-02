@@ -79,6 +79,12 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // The generated rejection draft, sibling of offer_drafted (automation-run.ts).
   rejection_drafted: { auto: true, tone: "text-steel" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
+  // Its offer-side sibling (pipeline-entry-action.ts): the offer was drafted and an
+  // offer row minted, but the message did not go out, so the approval is left open
+  // and re-approving re-sends the SAME link. Marked auto like every other
+  // comms-failure marker: the delivery attempt the machine made is what failed, not
+  // the recruiter's decision, which stands and is sealed on its own.
+  offer_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
   // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
   // nudges + the fairness backstop's downgrade signal, written via

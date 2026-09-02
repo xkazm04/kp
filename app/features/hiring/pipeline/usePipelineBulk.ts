@@ -40,10 +40,21 @@ export function usePipelineBulk({
   const [bulkBusy, setBulkBusy] = useState(false);
   // `verb` selects the result label so the same status line reads correctly for a
   // stage move vs. a bulk accept/reject (bdc7fc01).
-  // `reason` carries the server's verbatim failure explanation (the 409 vs 422
-  // guidance) for a bulk action whose entries were refused, so a batch failure is
-  // no longer a bare count — the recruiter sees WHY, like the drag + drawer do.
-  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" | "drafted"; reason?: string | null } | null>(null);
+  // A bulk failure says WHY, not just how many — like the drag + drawer do. TWO
+  // channels, deliberately: `reason` is a message this CLIENT already localized (the
+  // whole-request refusal: the operator gate, a transport blip, an outreach task's
+  // own error), while `reasonCodes` are the SERVER's per-id refusal codes (the 409
+  // concurrency loss vs the 422 forbidden transition). The codes used to arrive as
+  // English prose and were painted verbatim, so a Czech, German or French board read
+  // its hottest refusals in English; the bar now resolves them through
+  // errors.<CODE> in the reader's language.
+  const [bulkResult, setBulkResult] = useState<{
+    ok: number;
+    failed: number;
+    verb: "moved" | "accepted" | "rejected" | "invited" | "drafted";
+    reason?: string | null;
+    reasonCodes?: string[];
+  } | null>(null);
   // Bulk outreach runs as a BACKGROUND task (N letters = N LLM calls), so unlike the
   // synchronous move/decide it can't resolve inline — we track the task id and apply
   // the failures-stay-selected grammar when it finishes. lastOutreachApplied guards
@@ -172,10 +183,10 @@ export function usePipelineBulk({
     // A whole-request refusal reason (operator gate / transport), distinct from the
     // per-id server reasons — it overrides the per-id line when the whole call fell.
     let requestReason: string | null = null;
-    // Distinct server reasons across the refused entries (a batch can mix a 409
-    // concurrency loss with a 422 forbidden transition) — deduped so the status
-    // line names WHY, not just how many.
-    const reasons = new Set<string>();
+    // Distinct server refusal CODES across the refused entries (a batch can mix a
+    // 409 concurrency loss with a 422 forbidden transition) — deduped so the status
+    // line names WHY, not just how many, and localized where it is rendered.
+    const reasonCodes = new Set<string>();
     // Build the batch: skip vanished entries; count an already-at-target card as
     // moved without a round trip (the server would no-op it anyway).
     const items: PipelineBatchItem[] = [];
@@ -195,7 +206,7 @@ export function usePipelineBulk({
           if (r.ok) moved += 1;
           else {
             failures.add(r.id);
-            if (r.reason) reasons.add(r.reason);
+            if (r.code) reasonCodes.add(r.code);
           }
         }
       } else {
@@ -210,7 +221,10 @@ export function usePipelineBulk({
       ok: moved,
       failed: failures.size,
       verb: "moved",
-      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+      // A whole-request refusal OVERRIDES the per-id codes: when the call itself
+      // fell, no per-id verdict was ever reached.
+      reason: requestReason,
+      reasonCodes: requestReason ? [] : [...reasonCodes],
     });
     setBulkBusy(false);
     await load();
@@ -240,9 +254,9 @@ export function usePipelineBulk({
     dispatchBulkConfirm({ type: "fired" });
     let ok = 0;
     const failed = new Set<string>();
-    // Same as bulkMove: surface the server's distinct reasons for refused decides
-    // (e.g. a 409 stage change that lost the CAS in the gap) rather than a count.
-    const reasons = new Set<string>();
+    // Same as bulkMove: surface the server's distinct refusal codes for refused
+    // decides (e.g. a 409 stage change that lost the CAS in the gap), not a count.
+    const reasonCodes = new Set<string>();
     let requestReason: string | null = null;
     const items: PipelineBatchItem[] = awaiting.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
     const res = await postPipelineBatch(items);
@@ -251,7 +265,7 @@ export function usePipelineBulk({
         if (r.ok) ok += 1;
         else {
           failed.add(r.id);
-          if (r.reason) reasons.add(r.reason);
+          if (r.code) reasonCodes.add(r.code);
         }
       }
     } else {
@@ -267,7 +281,8 @@ export function usePipelineBulk({
       ok,
       failed: failed.size,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+      reason: requestReason,
+      reasonCodes: requestReason ? [] : [...reasonCodes],
     });
     setBulkBusy(false);
     await load();

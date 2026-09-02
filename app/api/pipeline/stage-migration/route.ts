@@ -5,7 +5,7 @@ import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/deci
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // Apply a board-shape change AND the candidate moves it forces, as one operation.
 //
@@ -25,6 +25,15 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // The moves themselves ARE atomic with their audit events (migratePipelineStages
 // runs one IMMEDIATE transaction), so the partial state above is the only one
 // reachable, and it is benign.
+//
+// THE FAILURE MESSAGE SAYS SO. STAGE_MIGRATION_FAILED used to read "Nothing was
+// saved" — the opposite of what this order guarantees: a throw from
+// setDecisionConfig lands with the candidates ALREADY moved. It now tells the
+// operator that people may have moved and to re-open the step editor, which is the
+// only honest reading of the ordering above. Making the route atomic instead is not
+// available: the two stores are separate SQLite connections, so no transaction can
+// span them, and reversing the order trades a benign partial state for the exact
+// stranding this phase exists to prevent.
 
 type Body = { config?: unknown; migrate?: unknown };
 
@@ -34,7 +43,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => null)) as Body | null;
     const validated = validateDecisionConfig("pipelineStages", body?.config);
-    if (!validated.ok) return NextResponse.json({ error: validated.error, code: "invalid_axis" }, { status: 400 });
+    // The validator's own detail rides as DATA beside the code: it names a field,
+    // which the operator editing the axis needs, but it is English prose and must
+    // never be the thing the UI paints.
+    if (!validated.ok) return jsonRefusal("PIPELINE_AXIS_INVALID", 400, { detail: validated.error });
     const next = validated.config as PipelineStagesRule;
 
     const ws = await currentWorkspace();
@@ -47,7 +59,7 @@ export async function POST(request: NextRequest) {
     const migrations: StageMigration[] = [];
     for (const [fromStage, toStage] of Object.entries(raw)) {
       if (typeof toStage !== "string") {
-        return NextResponse.json({ error: `migrate["${fromStage}"] must be a stage id.`, code: "invalid_mapping" }, { status: 400 });
+        return jsonRefusal("PIPELINE_MIGRATION_MAPPING_INVALID", 400, { fromStage });
       }
       // A SOURCE must be a column the new axis no longer draws — one this edit
       // removes, or one already retired and still holding stranded candidates.
@@ -57,18 +69,12 @@ export async function POST(request: NextRequest) {
       // the server must not accept it — the same "the client's Save button is a
       // courtesy, this is the guarantee" posture as the occupancy recount below.
       if (nextIds.has(fromStage)) {
-        return NextResponse.json(
-          { error: `migrate["${fromStage}"] would move candidates off a step the new pipeline still contains.`, code: "invalid_mapping" },
-          { status: 400 }
-        );
+        return jsonRefusal("PIPELINE_MIGRATION_MAPPING_INVALID", 400, { fromStage, reason: "source_kept" });
       }
       // A destination must exist on the NEW axis. Mapping onto another column
       // this same edit removes would move candidates from one hole into another.
       if (!nextIds.has(toStage)) {
-        return NextResponse.json(
-          { error: `migrate["${fromStage}"] targets "${toStage}", which the new pipeline does not contain.`, code: "invalid_mapping" },
-          { status: 400 }
-        );
+        return jsonRefusal("PIPELINE_MIGRATION_MAPPING_INVALID", 400, { fromStage, toStage, reason: "target_missing" });
       }
       migrations.push({ fromStage, toStage });
     }
@@ -80,14 +86,9 @@ export async function POST(request: NextRequest) {
     const mapped = new Set(migrations.map((m) => m.fromStage));
     const unmapped = removed.filter((id) => (counts[id] ?? 0) > 0 && !mapped.has(id));
     if (unmapped.length > 0) {
-      return NextResponse.json(
-        {
-          error: `These steps still hold candidates and no destination was given: ${unmapped.join(", ")}.`,
-          code: "migration_required",
-          unmapped: unmapped.map((id) => ({ stage: id, count: counts[id] ?? 0 })),
-        },
-        { status: 409 }
-      );
+      return jsonRefusal("PIPELINE_MIGRATION_REQUIRED", 409, {
+        unmapped: unmapped.map((id) => ({ stage: id, count: counts[id] ?? 0 })),
+      });
     }
 
     const moved = migratePipelineStages(migrations, ws);

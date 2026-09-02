@@ -65,6 +65,19 @@ export const STORE_ERRORS = {
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",
   TEMPLATE_UPDATE_FAILED: "Could not update the template. Please try again.",
   TEMPLATE_DELETE_FAILED: "Could not delete the template. Please try again.",
+  // The jobs area (/perfect 2026-09-02, api-jobs). Ten handlers still forwarded the
+  // thrown message: better-sqlite3 constraint text, the absolute db path, and — on the
+  // three that spawn — Python tracebacks and CLI stderr straight off python-runner.
+  JOB_LIST_FAILED: "Could not load the job catalog. Please try again.",
+  JOB_LOAD_FAILED: "Could not load this role. Please try again.",
+  JOB_INGEST_FAILED: "Could not read that job ad. Please try again.",
+  JOB_PUBLISH_FAILED: "Could not take this role live. Please try again.",
+  JOB_CLOSE_FAILED: "Could not close this role. Please try again.",
+  JOB_CANDIDATES_FAILED: "Could not rank candidates for this role. Please try again.",
+  JOB_REDISCOVER_FAILED: "Could not look through past candidates for this role. Please try again.",
+  JOB_WINNABILITY_FAILED: "Could not grade this role against the candidate pool. Please try again.",
+  JOB_CAMPAIGN_FAILED: "Could not generate the campaign pack. Please try again.",
+  JOB_ASSIGNMENTS_FAILED: "Could not load the work samples for this role. Please try again.",
   // Voice-interview routes (idea-ab117371): their catch paths sit behind
   // better-sqlite3, the scorecard automation AND the provider adapters, whose
   // thrown errors embed upstream HTTP bodies — all internal detail.
@@ -76,7 +89,12 @@ export const STORE_ERRORS = {
   // Pipeline board routes (idea-66f52a3a): all sit directly on better-sqlite3.
   PIPELINE_LIST_FAILED: "Could not load the pipeline. Please try again.",
   STAGE_IMPACT_FAILED: "Could not check who is on each pipeline step. Please try again.",
-  STAGE_MIGRATION_FAILED: "Could not apply the pipeline change. Nothing was saved; please try again.",
+  // NOT "nothing was saved": the route moves candidates FIRST and writes the axis
+  // SECOND, deliberately (a failed axis write leaves people on a column that still
+  // exists; the reverse strands them on one the board no longer draws). So a
+  // failure here genuinely can land with the moves already applied and the shape
+  // unchanged, and the old message told the operator the opposite of the truth.
+  STAGE_MIGRATION_FAILED: "Could not finish the pipeline change. Candidates may already have been moved; re-open the step editor to see where things stand.",
   PIPELINE_CREATE_FAILED: "Could not add to the pipeline. Please try again.",
   PIPELINE_ACTION_FAILED: "Could not apply that action. Please try again.",
   PIPELINE_EVENTS_FAILED: "Could not load recent activity. Please try again.",
@@ -302,6 +320,64 @@ export const REFUSAL_ERRORS = {
    *  engine's declared ceiling (413). The engine's own `too_long`, given the same
    *  status as the byte cap because the remedy — split it — is the same one. */
   STT_TOO_LONG: "That recording is longer than this engine can transcribe in one go. Split it and try again.",
+  // ---- The pipeline BOARD's refusals (docs/features/pipeline/README.md). Every
+  // one of these was a bare English sentence with no code, on the surfaces a
+  // recruiter touches most: the per-card route, the shared move/decide helper, the
+  // batch route's per-id reasons and the step editor. The bulk action bar rendered
+  // that prose VERBATIM, so a Czech, German or French board answered a lost race in
+  // English — while the outcomes route two directories over already did it right.
+  /** The entry is not on this board (404): deleted, or another tenant's. */
+  PIPELINE_ENTRY_NOT_FOUND: "That candidate is no longer on this board.",
+  /** A move to a step this workspace's axis does not contain (400). The available
+   *  ids ride alongside in `stages` — a list, not a sentence, so it localizes. */
+  PIPELINE_STAGE_UNKNOWN: "That is not a step on this board.",
+  /** A manual set_stage straight onto the terminal column (422). */
+  PIPELINE_TERMINAL_NOT_MANUAL: "The final step is reached when the candidate accepts an offer, not by a manual move. Move them to the offer step and extend an offer.",
+  /** …and the same rule for an accept that would LAND there (422). Separate code:
+   *  the remedy differs — draft an offer, rather than move them to the offer step. */
+  PIPELINE_TERMINAL_NOT_ADVANCE: "The final step is reached when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead.",
+  /** A set_stage whose CAS lost, or whose entry is closed out (409). */
+  PIPELINE_MOVE_CONFLICT: "Couldn't move this candidate: they were just changed, or they are closed out. Refresh and try again.",
+  /** An accept/reject decided against a stage that has since moved (409). */
+  PIPELINE_STAGE_CHANGED: "This candidate's step changed since the view was opened. Refresh and decide again.",
+  /** A body naming an action this board does not have (400). */
+  PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
+  /** A GitHub evidence payload that did not clamp to the shared coercer (400). */
+  PIPELINE_GITHUB_EVIDENCE_INVALID: "That GitHub evidence is not in the expected shape.",
+  /** `notes` arrived as something other than text (400). */
+  PIPELINE_NOTES_INVALID: "A candidate note must be text.",
+  /** …or past the column's ceiling (400). The cap rides alongside in `max`. */
+  PIPELINE_NOTES_TOO_LONG: "That note is too long to save.",
+  /** Reinstate was asked of an entry that is not rejected (409) — already
+   *  reinstated, or closed a different way (the candidate declined, or was
+   *  rematched), which a reinstate must never quietly reverse. */
+  PIPELINE_NOT_REINSTATABLE: "There is no auto-rejection to reverse here — this candidate was already reinstated, or was closed a different way.",
+  /** resolve_intake on an entry carrying no degraded-intake flag (404). */
+  PIPELINE_INTAKE_NOT_DEGRADED: "There is no degraded-intake flag to resolve on this candidate.",
+  /** The offer was drafted and its link minted, but the message did not go out
+   *  (502). Deliberately NOT a fault code: the approval is left open on purpose and
+   *  approving again re-sends the SAME link, which is what the reader must know. */
+  OFFER_NOT_DISPATCHED: "The offer was drafted but couldn't be sent. Nothing was lost — approve again to re-send the same link.",
+  /** The offer DID go out, but the approval could not be cleared because the card
+   *  moved while it was sending (409). The candidate holds a live link. */
+  OFFER_SENT_APPROVAL_CHANGED: "The offer was sent, but this candidate's approval changed while it went out. Refresh before deciding again.",
+  /** A per-item row in a batch that carried no id or an unknown action (400). */
+  PIPELINE_BATCH_ITEM_MALFORMED: "That item was missing a candidate or named an action this board does not have.",
+  /** The batch POST body was not a non-empty array of items, or was over the
+   *  per-call cap (400). The cap rides alongside in `max`. */
+  PIPELINE_BATCH_PAYLOAD_INVALID: "That bulk request wasn't in the expected shape, or asked for too many candidates at once.",
+  /** A per-item row whose action threw. One entry's fault never aborts the batch,
+   *  and the reason it carries back must still be a code, not a raw message. */
+  PIPELINE_BATCH_ITEM_FAILED: "Something went wrong applying this one. The rest of the batch was unaffected.",
+  /** The proposed board shape did not validate (400). The validator's own detail
+   *  rides alongside in `detail` for the operator editing the axis. */
+  PIPELINE_AXIS_INVALID: "That pipeline shape isn't valid.",
+  /** A migrate mapping whose source is a step the new axis KEEPS, or whose
+   *  destination is one it does not contain (400). */
+  PIPELINE_MIGRATION_MAPPING_INVALID: "That step mapping doesn't work: candidates can only be moved OFF a step the new pipeline removes, and only ONTO one it keeps.",
+  /** Steps being removed still hold candidates and no destination was given (409).
+   *  The occupied steps and their counts ride alongside in `unmapped`. */
+  PIPELINE_MIGRATION_REQUIRED: "Some steps you removed still hold candidates. Say where each of them should go.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
@@ -309,8 +385,12 @@ export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
 /** Refusal envelope: the canonical English plus its code, at `status`. Unlike
  *  safeJsonError this logs nothing — a refusal is an expected outcome, not a
  *  fault, and logging every closed posting would be noise. */
-export function jsonRefusal(code: RefusalErrorCode, status: number): NextResponse {
-  return NextResponse.json({ error: REFUSAL_ERRORS[code], code }, { status });
+export function jsonRefusal(code: RefusalErrorCode, status: number, extra?: Record<string, unknown>): NextResponse {
+  // `extra` is DATA the reader's own sentence needs and English prose used to
+  // smuggle: the note cap, the step ids a board actually has, the occupied steps a
+  // migration left unmapped. It rides beside the code so the client can render a
+  // localized message WITH the numbers, instead of painting the server's string.
+  return NextResponse.json({ error: REFUSAL_ERRORS[code], code, ...extra }, { status });
 }
 
 export function safeJsonError(err: unknown, route: string, code: StoreErrorCode, status = 500): NextResponse {

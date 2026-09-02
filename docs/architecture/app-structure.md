@@ -248,13 +248,16 @@ carrying the awaiting-decisions beacon and the aiBusy pulse. Raised, it is a fix
 footer ROW of three parts: a bordered panel box in the middle, and one element
 outside each of its borders.
 
-- **Outside the borders** (`SimControlDockRail.tsx`) — the identity block on the
-  left (the Candi switch that lowers the deck, "Control center", and the mode
-  subtitle) and the ONE guided-demo button on the right. Neither ever hides,
-  because each is the only route to what it opens; they shed their TEXT instead
-  (brand at `lg`, guide label at `md`), leaving a 44px square that still hits the
-  touch target. The panel between them is `min-w-0 flex-1`, so it absorbs the
-  remaining width and wraps its own row rather than colliding with either side.
+- **Outside the borders** (`SimControlDockRail.tsx`) — the Candi power switch on
+  the left (`DockBrand`, the only control that lowers the deck, carrying the
+  aiBusy pulse) and the ONE guided-demo button on the right. Round 4 removed the
+  logo, the "Control center" wordmark and the mode subtitle that used to sit
+  beside the switch ("it does not bring value" — operator, 2026-08-24); the switch
+  is icon-only at every width. Neither element ever hides, because each is the
+  only route to what it opens; the guide button sheds its LABEL below `md`
+  instead, leaving a square that still hits the touch target. The panel between
+  them is `min-w-0 flex-1`, so it absorbs the remaining width and wraps its own
+  row rather than colliding with either side.
 - **Layer 1** (`SimControlDockToolbar.tsx`) — always visible inside the box: the
   "N need you" route into the decisions queue, and a compact `role="toolbar"` icon
   row of four controls. Roving tabindex: one tab stop, arrows/Home/End move FOCUS
@@ -269,6 +272,20 @@ outside each of its borders.
   keyed by a single `panel` state (`DockPanelId = "sim" | "ops" | "command" |
   "schedule" | "candi"`). Re-selecting the active control closes it
   (`toggleDockPanel()`); Escape closes it too, leaving the row in place.
+
+**Keyboard truth, and the two surfaces that share Escape.** The whole Escape
+decision is `dockEscapeAction()` in `simControlDockLayers.ts`, pure and pinned by
+tests. ONE press dismisses ONE surface: the companion window is stacked above the
+deck, listens on `document` (which propagation reaches before `window`, where the
+dock listens) and now marks its own key handled with `preventDefault()`, and the
+dock ignores an already-handled event. So Escape closes her first and the next
+press closes what she was covering. Focus never falls to the body: dismissing a
+panel returns focus to the control that opened it (`dockTabDomId`, which the guide
+button outside the border carries too), and lowering the deck moves focus to the
+orb that replaces it. There is no focus trap in either direction — the dock is
+chrome, not a modal. In window mode "Ask Candi" is a TOGGLE, because the row
+announces it with `aria-pressed` and that is a promise the second press undoes the
+first.
 
 | Control | Where | Opens |
 | --- | --- | --- |
@@ -324,9 +341,17 @@ the sim panel the moment a run begins, and names the deck in the layer-1 subtitl
 | `sim` | a guided run is `running`, `done`, or **failed** (`error !== null`), or the page arrived at the public `/?sim=auto` entry | Guided demo |
 | `ops` | otherwise | Automations |
 
-`--sim-bar-h` (the height the sim overlays anchor above) is republished on every
-panel open/close for free: `usePublishBarHeight()` observes the deck with a
-`ResizeObserver` rather than recomputing on a state change.
+`--sim-bar-h` (the height the sim overlays and the companion window anchor above)
+is republished on every panel open/close for free: `usePublishBarHeight()`
+observes the deck with a `ResizeObserver` rather than recomputing on a state
+change. It tracks BOTH deck states — the raised footer row and the collapsed orb,
+one call switching refs — and measures from the viewport's bottom edge rather than
+reading `offsetHeight`, because the orb is a small fixed element sitting above
+that edge and what the companion has to clear is the whole occupied strip. The
+fallback in `app/globals.css` applies only before the first measurement.
+
+The guided demo behind the console has its own feature doc:
+[`docs/features/simulation/README.md`](../features/simulation/README.md).
 
 `error` is part of the predicate on purpose: the walk's failure path patches
 `{ running: false, error, status: "Failed: …" }` in one `setState`, so without it

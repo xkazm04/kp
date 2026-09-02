@@ -7,6 +7,7 @@ import {
   setPipelineEntryStage,
   type PipelineAction,
 } from "@/app/_lib/db/pipeline";
+import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
@@ -106,9 +107,16 @@ function acceptWouldReachTerminal(stage: string, axis: readonly StageDef[]): boo
 }
 
 const ok = (body: Record<string, unknown>): EntryActionResult => ({ status: 200, body });
-const err = (status: number, error: string, extra: Record<string, unknown> = {}): EntryActionResult => ({
+
+/** Every refusal on this helper answers a CODE (api-contracts.md 1.1), never a
+ *  hand-written sentence: both callers put these straight on the wire — the single
+ *  route as the response body, the batch route as a per-id reason — and the board's
+ *  bulk action bar used to PAINT that prose, so a lost race read English on a Czech
+ *  board. The canonical English rides along for the log and for API consumers;
+ *  `extra` carries the data a localized sentence needs (the board's step ids). */
+const err = (status: number, code: RefusalErrorCode, extra: Record<string, unknown> = {}): EntryActionResult => ({
   status,
-  body: { error, ...extra },
+  body: { error: REFUSAL_ERRORS[code], code, ...extra },
 });
 
 // Gate for the offer: approving a drafted offer EXTENDS it to the candidate
@@ -167,13 +175,47 @@ export async function extendDraftedOffer(
   }
 
   const link = `${publicBaseUrl(origin)}/offer/${offer.token}`;
-  await dispatchOffer(entry, draft, link, {
-    expiresAt: offer.expiresAt,
-    startDate: typeof draft.startDate === "string" ? draft.startDate : null,
-  });
+  try {
+    await dispatchOffer(entry, draft, link, {
+      expiresAt: offer.expiresAt,
+      startDate: typeof draft.startDate === "string" ? draft.startDate : null,
+    });
+  } catch (dispatchError) {
+    // COMPENSATION (stated deliberately): the approval is LEFT IN PLACE and the
+    // offer row is left open. The token was minted but never reached the wire, and
+    // getOrCreateOpenOffer is idempotent — so the recruiter's retry re-sends THAT
+    // SAME link rather than minting a second one, and the un-sent token is pending,
+    // not orphaned. The alternative (clearing the approval here) is the one thing
+    // that must not happen: it would leave a live offer link nobody was ever sent,
+    // with no gate left on the card to notice.
+    console.error(`[pipeline:offer] offer dispatch failed for ${entry.id}`, dispatchError);
+    recordAutomationEvent(
+      entry.id,
+      "offer_comms_failed",
+      "The offer was drafted but the message did not go out. The approval is still open — approve again to re-send the same link.",
+      workspaceId
+    );
+    return err(502, "OFFER_NOT_DISPATCHED", {
+      entry: getPipelineEntry(entry.id, workspaceId),
+      offerExtended: false,
+    });
+  }
 
   // The offer is out — clear the recruiter approval; now awaiting the candidate.
-  setApproval(entry.id, null, "", workspaceId);
+  // GUARDED on the approval kind read BEFORE the dispatch above: that await is a
+  // comms round trip, and a bare UPDATE here overwrote whatever a human decided in
+  // the gap (raising a fresh gate, or resolving this one) with a stale NULL.
+  const cleared = setApproval(entry.id, null, "", workspaceId, { expectedApprovalKind: entry.approvalKind });
+  if (!cleared) {
+    // The offer DID go out; only the approval clear was refused because the card
+    // moved under us. Say so rather than reporting a clean extend: the candidate
+    // holds a live link and the card still shows a gate someone else just set.
+    return err(409, "OFFER_SENT_APPROVAL_CHANGED", {
+      entry: getPipelineEntry(entry.id, workspaceId),
+      offerExtended: true,
+      link,
+    });
+  }
   return ok({ entry: getPipelineEntry(entry.id, workspaceId), offerExtended: true, link });
 }
 
@@ -197,7 +239,8 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
     // renamed or added a column must be able to move candidates onto it.
     const axis = getPipelineAxis(workspaceId).stages;
     if (!axis.some((s) => s.id === to)) {
-      return err(400, `Unknown stage "${to}". Expected one of: ${axis.map((s) => s.id).join(", ")}.`);
+      // The board's real step ids ride as DATA, not inside an English sentence.
+      return err(400, "PIPELINE_STAGE_UNKNOWN", { stage: to, stages: axis.map((s) => s.id) });
     }
     // The TERMINAL stage is outcome-bearing: reachable only when the candidate
     // ACCEPTS an offer (/api/offer/[token]). A manual override straight to it
@@ -205,27 +248,20 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
     // Resolved by ROLE, not by the literal "Hired": a workspace that renamed its
     // final column must not suddenly be able to hand-set an outcome.
     if (stageHasRole(to, "terminal", axis)) {
-      return err(
-        422,
-        "The final stage is set when the candidate accepts an offer, not by a manual move. Move them to the offer stage and extend an offer."
-      );
+      return err(422, "PIPELINE_TERMINAL_NOT_MANUAL");
     }
     const moved = setPipelineEntryStage(id, to, { ...(expectedStage ? { expectedStage } : {}), actorRef: sealActor }, workspaceId);
     if (!moved) {
       const fresh = getPipelineEntry(id, workspaceId);
-      if (!fresh) return err(404, "Pipeline entry not found.");
+      if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
       // The CAS lost in the gap or the entry is closed out — the caller's view is stale.
-      return err(
-        409,
-        "Couldn't move this candidate — they were just changed or are closed out. Refresh and try again.",
-        { entry: fresh }
-      );
+      return err(409, "PIPELINE_MOVE_CONFLICT", { entry: fresh });
     }
     return ok({ entry: moved });
   }
 
   if (!GENERIC_ACTIONS.includes(action as PipelineAction)) {
-    return err(400, "Unknown action.");
+    return err(400, "PIPELINE_ACTION_UNKNOWN", { action });
   }
 
   // Optimistic-concurrency contract: a client deciding from a SNAPSHOT sends the
@@ -233,9 +269,9 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
   // entry — the recruiter re-decides against reality. Omitting expectedStage keeps
   // the prior act-on-current behavior.
   const staleResponse = (entry: PipelineEntry) =>
-    err(409, "This candidate's stage changed since the view was opened — refresh and decide again.", { entry });
+    err(409, "PIPELINE_STAGE_CHANGED", { entry });
   const current = getPipelineEntry(id, workspaceId);
-  if (!current) return err(404, "Pipeline entry not found.");
+  if (!current) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
   if (expectedStage && current.stage !== expectedStage) return staleResponse(current);
 
   // The OFFER-role stage, resolved for this workspace — the two guards below and
@@ -270,10 +306,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
   // — exactly the phantom hire the set_stage guard 422s. Byte-identical on the
   // shipped axis (there, "at Offer" and "the next stage is Hired" are the same set).
   if (action === "accept" && (atOfferStage || acceptWouldReachTerminal(current.stage, axis))) {
-    return err(
-      422,
-      "The final stage is set when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead."
-    );
+    return err(422, "PIPELINE_TERMINAL_NOT_ADVANCE");
   }
 
   // HYBRID HANDOFF (interviewPlan) — accepting an AI round's scorecard, when the
@@ -306,7 +339,15 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       // Stage stays put (they are still interviewing); the calendar gate re-arms
       // with the default proposed slot the screening accept uses, so the
       // candidate lands on the Schedule tab's human-round pending list.
-      setApproval(id, "calendar", "Tue 14:00", workspaceId);
+      // GUARDED on the approval kind read BEFORE the awaits above (humanActor() +
+      // the plan read): without the precondition this overwrote an approval a human
+      // resolved in that gap with a calendar gate they had already cleared.
+      const armed = setApproval(id, "calendar", "Tue 14:00", workspaceId, { expectedApprovalKind: current.approvalKind });
+      if (!armed) {
+        const fresh = getPipelineEntry(id, workspaceId);
+        if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+        return staleResponse(fresh);
+      }
       // Auditable in the candidate timeline + sealed in the decision chain: the
       // human ratified the AI verdict AND the plan chose the next gate.
       recordAutomationEvent(
@@ -351,7 +392,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
     // The pre-check passed but the guarded write refused — a concurrent actor moved
     // the stage in the gap (the CAS held) or the row vanished.
     const fresh = getPipelineEntry(id, workspaceId);
-    if (!fresh) return err(404, "Pipeline entry not found.");
+    if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
     return staleResponse(fresh);
   }
   // Seal the HUMAN accept/reject into the tamper-evident decision chain. A declared

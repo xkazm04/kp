@@ -162,6 +162,82 @@ back, the route answered 500, and the role was already live and unmetered.
 of the boot DDL. `app/api/jobs/publish-atomicity.test.ts` drives the exact
 sequence against the real modules.
 
+### One opening, one charge — a reopen is free
+
+The `job_posts` debit fires **once per job ever**, not once per publish. The route
+reads the transition from `classifyPublish` (`app/_lib/job-ingest.ts`), which
+answers three questions off one row: is it already `published` (idempotent
+re-publish, nothing happens), was it `closed` (a reopen, so `reopenEntriesByJobId`
+restores the withdrawn entries), and does it carry a `published_at` stamp — the
+record that this role has been to market before. Only a role with **no** stamp is
+billable, so `jobPostGate` and `recordMeterUsage` run on the first go-live and on
+nothing else. Closing a filled role and reopening it a month later costs nothing
+and is admitted even when the period's allowance is spent.
+
+Until this was implemented the rule existed only as prose (here, in the route, and
+in `jobPostGate`'s own doc comment), justified by the `published_at =
+COALESCE(published_at, ?)` stamp inside `setJobStatus` — which guards the
+timestamp and never reaches the meter. The skip tested `prevStatus === "published"`
+alone, so every closed → published reopen took the gate and paid again.
+`app/api/jobs/jobs-publish-billing.test.ts` pins all four cases (first publish,
+idempotent re-publish, reopen, reopen on an exhausted meter).
+
+### Failures answer with a code, never with the thrown message
+
+Ten handlers here forwarded `error instanceof Error ? error.message` straight into the
+response body — better-sqlite3 constraint text, the absolute database path, and on the
+three spawning routes the Python traceback and CLI stderr `python-runner.ts` re-throws.
+All ten now answer `safeJsonError(error, "api:jobs/<route>", "<CODE>")` against ten new
+`STORE_ERRORS` entries (`JOB_LIST_FAILED`, `JOB_LOAD_FAILED`, `JOB_INGEST_FAILED`,
+`JOB_PUBLISH_FAILED`, `JOB_CLOSE_FAILED`, `JOB_CANDIDATES_FAILED`,
+`JOB_REDISCOVER_FAILED`, `JOB_WINNABILITY_FAILED`, `JOB_CAMPAIGN_FAILED`,
+`JOB_ASSIGNMENTS_FAILED`), each with its four catalogue entries, so the reader sees the
+message in their own language via `useErrorMessage()`. The ten rows this area held in
+`app/api/error-response-contract.test.ts`'s ceiling are deleted rather than lowered: a
+new leak here now reads as `undeclared`. Refusals that carry real information keep their
+own shape — `CampaignError` and `PipelineError` still forward their client-safe message
+and status, and `AutomationError` does the same on outreach. Full rule:
+`docs/architecture/api-contracts.md` §1.1.
+
+`GET /api/jobs/status` answers `{ drafts }` and nothing else. It used to ship a second
+field, `statuses` — the whole workspace's jobId → status map — which no client ever
+read: `JobsDraftsPanel.tsx` is the only caller and takes `drafts`. `listJobStatuses`
+remains for server-side callers.
+
+### Every jobs route that spawns or spends is throttled
+
+Seven routes here reach a child process or a model on an accepted request, and
+until 2026-09-02 none carried a limiter — the whole area was missing from
+`app/api/rate-limit-contract.test.ts`. Each is session-gated, and open mode
+(`KP_OPERATOR_PASSWORD` unset) makes that gate a documented no-op for the entire
+API, so the routes self-limit. All are per-IP over the shared 10-minute window and
+refuse through `jsonRefusal("TOO_MANY_REQUESTS", 429)`, so the client renders the
+throttle in the reader's language.
+
+| Route | Key | Budget | What it buys |
+| --- | --- | --- | --- |
+| `POST /api/jobs/ingest` | `jobs-ingest:<ip>` | 20 | Claude CLI ad-parse |
+| `POST /api/jobs/[id]/campaign` | `jobs-campaign:<ip>` | 20 | uncached creative pass |
+| `GET /api/jobs/[id]/candidates` | `jobs-candidates:<ip>` | 30 | `recruiter_cli` ranking child |
+| `GET /api/jobs/[id]/winnability` | `jobs-winnability:<ip>` | 30 | `winnability_cli` child |
+| `GET /api/jobs/[id]/rediscover` | `jobs-rediscover:<ip>` | 30 | `recruiter_cli` ranking child |
+| `POST /api/jobs/[id]/publish` | `jobs-publish:<ip>` | 20 | metered debit + sourcing child + alert fan-out |
+| `POST /api/jobs/[id]/candidates/outreach` | `jobs-outreach:<ip>` | 60 | drafted first-touch + Outbox dispatch |
+
+Every limiter sits **after** the cheap refusals (visibility/ownership 404s, the
+validation 400s, the outreach GDPR 409, the empty-pool short-circuits) and
+**before** the spawn, the spend and — on publish — the billing transaction, so a
+request that was never going to do work consumes no budget. The contract test pins
+the key, the budget, the call site and that ordering for all seven.
+
+`/publish` also carries `maxDuration = 180`, matching every sibling that spawns
+(`jobs/ingest`, `candidates/outreach`, `rediscovery/alerts`): a go-live runs two
+spawning steps back to back and 60 was under the ad-parse provider timeout alone.
+`maxDuration` is serverless-only — a self-hosted `next start` never kills a
+handler, so the real bound is the per-child timeout in `python-runner.ts`; the
+value only stops a platform that enforces it from 504-ing a valid go-live and
+orphaning the children.
+
 ## JD specificity lint (Erika gap E7)
 
 `app/_lib/jd-lint.ts` is a pure, LLM-free rules module that runs live on every

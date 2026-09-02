@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listDevCasesForJob } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 // ONE THREAD — the assignments (dev cases) cut for one job.
 //
@@ -32,9 +33,6 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     }));
     return NextResponse.json({ assignments: cases });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to list assignments." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:jobs/assignments", "JOB_ASSIGNMENTS_FAILED");
   }
 }

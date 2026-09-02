@@ -12,6 +12,13 @@ type CommandResult =
       phase: "done";
       description: string;
       count?: number;
+      // Targets the command did NOT apply: the guarded write refused (someone
+      // moved or closed the candidate in the gap) or the action threw. Counted
+      // server-side so a bulk reject can never claim more than it did.
+      failed?: number;
+      // Of the rejections that DID apply, how many the candidate was not told
+      // about — the reject stands, the note has to go out by hand.
+      commsFailed?: number;
       // advance_top targets already at Offer, HELD instead of silently hired —
       // the recruiter is pointed at the offer flow for them.
       heldAtOffer?: number;
@@ -54,7 +61,16 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       if (p.error) {
         setResult({ phase: "info", description: p.error });
       } else if (confirm || p.executed) {
-        setResult({ phase: "done", description: p.description, count: p.count, heldAtOffer: p.heldAtOffer, droppedOut: p.droppedOut, summary: p.summary });
+        setResult({
+          phase: "done",
+          description: p.description,
+          count: p.count,
+          failed: p.failed,
+          commsFailed: p.commsFailed,
+          heldAtOffer: p.heldAtOffer,
+          droppedOut: p.droppedOut,
+          summary: p.summary,
+        });
         onExecuted();
       } else if (p.kind === "help" || p.kind === "unknown") {
         setResult({ phase: "info", description: p.description });
@@ -161,6 +177,11 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
               {t("dismiss")}
             </button>
           </div>
+          {/* The two truthful counts a bulk action owes the recruiter: who was NOT
+              actioned, and who was actioned but never told. Both are silent
+              otherwise — a lost CAS looks identical to a success from here. */}
+          {result.failed ? <p className="mt-1 text-meta text-coral">{t("doneFailed", { count: result.failed })}</p> : null}
+          {result.commsFailed ? <p className="mt-1 text-meta text-coral">{t("doneCommsFailed", { count: result.commsFailed })}</p> : null}
           {/* advance-top stops at Offer: say who was held and where the work continues,
               instead of silently swallowing part of the requested N. */}
           {result.heldAtOffer ? <p className="mt-1 text-meta text-steel">{t("doneHeldAtOffer", { count: result.heldAtOffer })}</p> : null}

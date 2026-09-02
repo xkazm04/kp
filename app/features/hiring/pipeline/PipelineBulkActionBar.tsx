@@ -14,8 +14,17 @@ import { bulkMoveTargetStages } from "./pipelineMoveTargets";
 import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
 import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
-type BulkResult = { ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" | "drafted"; reason?: string | null };
+type BulkResult = {
+  ok: number;
+  failed: number;
+  verb: "moved" | "accepted" | "rejected" | "invited" | "drafted";
+  /** Already localized by the hook (the whole-request refusal). */
+  reason?: string | null;
+  /** The SERVER's per-id refusal codes, resolved here through errors.<CODE>. */
+  reasonCodes?: string[];
+};
 
 export function PipelineBulkActionBar({
   t,
@@ -74,6 +83,9 @@ export function PipelineBulkActionBar({
   onBulkDecide: (action: "accept" | "reject") => void;
   confirmingBulkReject: boolean;
 }) {
+  // Per-id refusal codes are resolved HERE, at the render, so the recruiter reads
+  // them in their own language (api-contracts.md 1.1) instead of the server's English.
+  const errMsg = useErrorMessage();
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
       <span className="text-sm font-semibold text-ink" aria-live="polite">
@@ -184,10 +196,16 @@ export function PipelineBulkActionBar({
               {t(bulkResult.verb === "drafted" ? "bulkDraftFailed" : "bulkFailed", { count: bulkResult.failed })}
             </span>
           ) : null}
-          {/* The server's own reason for the refusals (409 concurrency vs
-              422 forbidden transition), verbatim — so a bulk failure says
-              WHY and what to do, not just a count. */}
+          {/* The server's own reason for the refusals (409 concurrency vs 422
+              forbidden transition) — so a bulk failure says WHY and what to do, not
+              just a count. Resolved from the CODE in the reader's language: this
+              line used to paint the server's English sentence onto every locale. */}
           {bulkResult.reason ? <span className="block text-steel">{bulkResult.reason}</span> : null}
+          {!bulkResult.reason && bulkResult.reasonCodes?.length ? (
+            <span className="block text-steel">
+              {bulkResult.reasonCodes.map((code) => errMsg({ code }, t("bulkRequestFailed"))).join(" · ")}
+            </span>
+          ) : null}
         </span>
       ) : null}
       {/* bdc7fc01 — accept/reject the awaiting cohort in one pass. Only the

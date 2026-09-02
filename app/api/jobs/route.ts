@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSeedHealth } from "@/app/_lib/db/core";
 import { countJobs, jobStats, listJobsPage, type JobFilter } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 
 const LIMIT_MIN = 1;
@@ -60,7 +61,6 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ jobs, stats, truncated, matching, limit });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to list jobs.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:jobs/list", "JOB_LIST_FAILED");
   }
 }
