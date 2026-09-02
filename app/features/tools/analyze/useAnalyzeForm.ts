@@ -189,7 +189,17 @@ export function useAnalyzeForm() {
     abortRef.current = null;
     const id = taskIdRef.current;
     taskIdRef.current = null;
-    if (id) void fetch(`/api/tasks/${id}`, { method: "DELETE" }).catch(() => {});
+    if (id) {
+      void fetch(`/api/tasks/${id}`, { method: "DELETE" })
+        .then((r) => {
+          // A cancel that the server refused leaves a Python child still burning
+          // an engine call while this UI shows an idle form — the one state in
+          // which "nothing happened" is a lie. Say what is actually true and point
+          // at the indicator that still tracks it.
+          if (!r.ok) setError(t("cancelFailed"));
+        })
+        .catch(() => setError(t("cancelFailed")));
+    }
     clearStoredTask();
     setIsLoading(false);
     setIsCompleting(false);

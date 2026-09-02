@@ -13,16 +13,27 @@ import type { AnalyzeFormState } from "./useAnalyzeForm";
 
 const REPORT_LANGS = LOCALES;
 
-export function AnalyzeFormFooter({ state, geminiMissing }: { state: AnalyzeFormState; geminiMissing: boolean }) {
+export function AnalyzeFormFooter({
+  state,
+  geminiMissing,
+  enginesUnknown = false,
+}: {
+  state: AnalyzeFormState;
+  geminiMissing: boolean;
+  /** The readiness probe failed, so nothing is known about the engines. Shown
+   *  INSTEAD of the keyless warning: a failed check used to withdraw the warning
+   *  entirely, which reads as reassurance the app has not earned. */
+  enginesUnknown?: boolean;
+}) {
   const t = useTranslations("analyze");
   const { inputs, setters, handlers, flags, result } = state;
   const { setReportLang, setBlind } = setters;
 
   return (
     <>
-      {geminiMissing ? (
+      {geminiMissing || enginesUnknown ? (
         <p role="status" className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-          {t("geminiMissing")}
+          {geminiMissing ? t("geminiMissing") : t("engineStatusUnknown")}
         </p>
       ) : null}
 

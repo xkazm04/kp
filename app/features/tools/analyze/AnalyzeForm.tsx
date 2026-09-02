@@ -2,7 +2,7 @@
 
 import { FileText, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEngineAvailability } from "@/app/features/shell/useEngineAvailability";
+import { useEngineAvailabilityRead } from "@/app/features/shell/useEngineAvailability";
 import { BTN_SECONDARY, CARD_PAD, PANEL } from "@/app/_components/ui/recipes";
 import { AnalyzeColumn } from "./AnalyzeColumn";
 import { AnalyzeProfileInput } from "./AnalyzeProfileInput";
@@ -15,7 +15,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
   const t = useTranslations("analyze");
   // DATA4 — preflight the Gemini engine so a doomed run is a fixable one-liner
   // BEFORE submit, not a cryptic task failure minutes later.
-  const engines = useEngineAvailability();
+  const { engines, unknown: enginesUnknown } = useEngineAvailabilityRead();
   const { inputs, handlers, flags, statuses } = state;
 
   return (
@@ -61,7 +61,11 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
         <AnalyzeFormOptionalColumns state={state} />
       </div>
 
-      <AnalyzeFormFooter state={state} geminiMissing={Boolean(engines && !engines.gemini)} />
+      <AnalyzeFormFooter
+        state={state}
+        geminiMissing={Boolean(engines && !engines.gemini)}
+        enginesUnknown={enginesUnknown}
+      />
     </section>
   );
 }

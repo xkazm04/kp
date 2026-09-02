@@ -165,12 +165,74 @@ export async function submitAnalysis(
 // multi-CV comparison shows real completion.
 export type VariantProgress = { done: number; total: number; msg: string | null };
 
+/**
+ * THE POLL CADENCE, stated rather than implied.
+ *
+ * Base 1500 ms, which is right for the first half-minute: the phases (reading →
+ * analyzing → saving) and the per-variant counter move early, and a recruiter
+ * watching the strip should see them promptly. But a keyless-fallback-free engine
+ * call runs 30–60 s, and a multi-variant comparison longer, during which every
+ * poll returns the SAME phase and the SAME counter — 40 identical round-trips per
+ * minute, each one a task-store read, for no new information.
+ *
+ * So: after QUIET_TICKS_BEFORE_BACKOFF consecutive polls that report nothing new,
+ * the interval doubles, capped at MAX_POLL_MS. Any observable change — a phase
+ * transition, the variant counter advancing, a terminal status — resets both the
+ * quiet count and the interval, so the strip never lags a real event by more than
+ * one base tick once things start moving again.
+ *
+ * And a HIDDEN tab does not poll at all: the loop parks on `visibilitychange`
+ * until the tab is shown. The task runs server-side and survives a refresh, so
+ * nothing is lost by not watching — where a background tab spinning a fetch every
+ * 1.5 s for a run the user cannot see is pure waste (browsers throttle timers in
+ * background tabs anyway, so this makes the real behaviour explicit rather than
+ * leaving it to the platform).
+ */
+const POLL_MS = 1500;
+const MAX_POLL_MS = 6000;
+const QUIET_TICKS_BEFORE_BACKOFF = 20; // ~30 s of no news at the base cadence
+
+/** The interval for the next poll given how many consecutive quiet ticks have
+ *  passed. Pure, so the backoff shape is testable without waiting for it. */
+export function nextPollDelay(quietTicks: number, base = POLL_MS, max = MAX_POLL_MS): number {
+  if (quietTicks < QUIET_TICKS_BEFORE_BACKOFF) return base;
+  const doublings = Math.floor((quietTicks - QUIET_TICKS_BEFORE_BACKOFF) / QUIET_TICKS_BEFORE_BACKOFF) + 1;
+  return Math.min(max, base * 2 ** doublings);
+}
+
+/** The environment seams the poll-contract test drives. Production passes none of
+ *  them — the defaults are the real clock and the real document. */
+export type WatchDeps = {
+  sleep?: (ms: number) => Promise<void>;
+  isHidden?: () => boolean;
+  /** Resolves when the tab becomes visible again. */
+  whenVisible?: () => Promise<void>;
+};
+
+const documentHidden = (): boolean => typeof document !== "undefined" && document.hidden;
+
+const untilVisible = (): Promise<void> =>
+  new Promise((resolve) => {
+    if (typeof document === "undefined") return resolve();
+    const onChange = () => {
+      if (!document.hidden) {
+        document.removeEventListener("visibilitychange", onChange);
+        resolve();
+      }
+    };
+    document.addEventListener("visibilitychange", onChange);
+  });
+
 export async function watchAnalysis(
   taskId: string,
   onProgress: ProgressEmitter,
   signal?: AbortSignal,
-  onVariantProgress?: (p: VariantProgress) => void
+  onVariantProgress?: (p: VariantProgress) => void,
+  deps: WatchDeps = {}
 ): Promise<Analysis> {
+  const sleep = deps.sleep ?? delay;
+  const isHidden = deps.isHidden ?? documentHidden;
+  const whenVisible = deps.whenVisible ?? untilVisible;
   // Seed the first observable phase immediately so the strip isn't blank for the
   // ~1.5s until the first poll returns; the real phases from the server take over.
   onProgress("reading", "active");
@@ -192,11 +254,25 @@ export async function watchAnalysis(
     }
   };
   const aborted = () => signal?.aborted ?? false;
+  // Consecutive polls that reported nothing new — drives the backoff above.
+  let quietTicks = 0;
+  // The last phase/counter we told the caller about, so "nothing new" is a
+  // comparison against what the UI already shows rather than a guess.
+  let lastSeen = "";
 
   while (true) {
     if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
-    await delay(1500);
+    await sleep(nextPollDelay(quietTicks));
     if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
+    // Park rather than poll while the tab is hidden. Checked AFTER the sleep so a
+    // tab hidden mid-wait still stops at the next boundary, and the abort is
+    // re-checked on the way out because parking can last minutes.
+    if (isHidden()) {
+      await whenVisible();
+      if (aborted()) throw new DOMException("Analysis watch aborted", "AbortError");
+      // Coming back is itself news worth a prompt poll.
+      quietTicks = 0;
+    }
     let r: Response;
     try {
       r = await fetch(`/api/tasks/${taskId}`, { signal });
@@ -219,6 +295,15 @@ export async function watchAnalysis(
       continue;
     }
     consecutiveErrors = 0;
+    // Did this poll carry anything the UI does not already show? The phase and the
+    // variant counter are the only observable signals, so their pair IS the
+    // change detector the backoff reads.
+    const seen = `${task.progressMsg ?? ""}|${task.progressDone ?? ""}/${task.progressTotal ?? ""}|${task.status ?? ""}`;
+    if (seen === lastSeen) quietTicks += 1;
+    else {
+      quietTicks = 0;
+      lastSeen = seen;
+    }
     // Direction 3 — advance the strip on the server's REAL phase. asAnalyzePhase
     // narrows the progress msg to a known stage id; applyStageEvent (via the
     // emitter) marks earlier phases done, so the strip only ever moves forward.

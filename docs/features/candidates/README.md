@@ -84,6 +84,27 @@ design. The saved-JD picker distinguishes an empty library from a failed load �
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
+**The poll is cheap when nothing is happening, and honest when it fails.**
+`watchAnalysis` (`AnalyzeApi.ts`) polls `/api/tasks/{id}` at 1500 ms while the
+run is moving; after 20 consecutive polls that report the same phase, the same
+per-variant counter and the same status it doubles the interval, capped at
+6000 ms, and any observable change resets both the quiet count and the cadence.
+A HIDDEN tab does not poll at all — the loop parks on `visibilitychange` (the
+task is server-side and survives a refresh, so nothing is lost). The whole
+contract is pinned by `AnalyzeApi.test.ts` against a fetch double: terminal 404,
+the ten-soft-failure ceiling shared by all three soft branches, phases forwarded
+verbatim, abort, the visibility park, and the backoff curve.
+Two silences also went: a cancel the server refuses now says the task may still
+be running (`analyze.cancelFailed`) instead of leaving an idle form beside a live
+Python child, and a failed `/api/health` probe says `analyze.engineStatusUnknown`
+rather than withdrawing the keyless warning — `useEngineAvailabilityRead`
+(`app/features/shell/useEngineAvailability.ts`) separates "not known yet" from
+"the probe failed", which the old `null`-only return could not.
+History rows carry `decision_note`: `listAnalyses` always selected it and
+`/api/analyses` always sent it, but the row type dropped it on arrival, so the
+recruiter's own reason for a pass or hold was fetched and discarded. It renders
+truncated under the disposition pill, full text in the cell title.
+
 **The Analyze surface composes the design system.** `AnalyzeForm`,
 `AnalyzeFormCollapsed`, `AnalyzeWorkspace` and `HistoryTab` apply `PANEL` /
 `CARD_PAD` (and the History header `EYEBROW` / `TITLE_DISPLAY` / `INTRO`) from
