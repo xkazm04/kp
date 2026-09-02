@@ -27,3 +27,20 @@ CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT
 );
+
+-- Replay guard. The signature scheme bounds a captured envelope to a +/-5 minute
+-- window (edge-crypto.ts EDGE_SIGNATURE_SKEW_MS); within that window a captured
+-- `POST /ack {upto}` could be replayed verbatim and DELETE queued events that the
+-- install never applied. So every authenticated call spends a nonce exactly once:
+-- the SHA-256 of its signature for the signed endpoints, the receipt's nonce for
+-- the relay callback. A second presentation is answered 409 and changes nothing.
+--
+-- Rows are garbage, not truth: they expire with the window that made them
+-- necessary and are pruned on the next claim. Nothing here is a credential -- a
+-- signature HASH cannot be replayed by whoever reads this table.
+CREATE TABLE IF NOT EXISTS nonces (
+  nonce      TEXT PRIMARY KEY,
+  expires_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_nonces_expiry ON nonces (expires_at);

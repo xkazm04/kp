@@ -356,7 +356,23 @@ good sequence and the operator gets a reason on the Channels card.
 Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
 `x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the
 body for a POST and the path+query for a GET. Both halves of that choice are
-pinned across the two runtimes by `edge-drain.test.ts`.
+pinned across the two runtimes by `edge-drain.test.ts`. **Inside** that window each
+signature is spent once: the Worker's `nonces` table (`edge/schema.sql`) records
+`sha256(signature)` on `/drain`, `/ack`, `/heartbeat` and `/pair`, and a second
+presentation is `409` — without it a captured `POST /ack {upto}` replayed for five
+minutes and deleted events the install had never applied.
+
+The edge's `POST /relay/callback` is held to the same four rules as the install's own
+callback (`app/api/comms/callback` + `callback-auth.ts`), because a receipt becomes a
+`bounced` outbox row either way: unset `KP_CALLBACK_SECRET` disables the route (503);
+`x-comms-secret` is compared in constant time from the HEADER only; `x-comms-timestamp`
+must be within ±5 minutes; and a nonce (`x-comms-nonce`, else derived) makes a replay a
+409 rather than a second bounce. It was previously open — anyone who learned the Worker
+URL could inject bounces. Malformed input is `400` everywhere and a storage failure is
+`503 {retryable:true}` with `Retry-After`, never a 4xx a sender would stop retrying.
+`edge/test/worker.test.ts` (`cd edge && npm test`, no wrangler and no network) drives
+these refusals; it is not part of `npm run test:unit`, whose globs are `app/**` and
+`packages/**`.
 
 **The nudge** — "your studio needs to run" — lives on the Worker's cron, not here,
 for the obvious reason: the machine that is switched off cannot be the machine

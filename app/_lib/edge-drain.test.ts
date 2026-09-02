@@ -15,6 +15,10 @@ import { mailToLead } from "./edge-drain.ts";
 
 const src = readFileSync(fileURLToPath(new URL("./edge-drain.ts", import.meta.url)), "utf8");
 const workerSrc = readFileSync(fileURLToPath(new URL("../../edge/src/index.ts", import.meta.url)), "utf8");
+const callbackAuthSrc = readFileSync(
+  fileURLToPath(new URL("../api/comms/callback/callback-auth.ts", import.meta.url)),
+  "utf8"
+);
 
 test("an inbound mail becomes a reachable lead built from headers alone", () => {
   assert.deepEqual(mailToLead({ from: "jana@example.cz", name: "Jana Nováková", subject: "Přihláška — Java dev" }), {
@@ -75,4 +79,56 @@ test("the Worker keeps mail HEADERS only — the promise the mail→lead mapping
 test("the edge deletes what it hands over — it is a queue, not a shadow pipeline", () => {
   const ack = workerSrc.slice(workerSrc.indexOf("async function handleAck"));
   assert.match(ack, /DELETE FROM events WHERE seq <= \?/, "an applied event is forgotten, not archived");
+});
+
+test("the edge's relay callback is held to the SAME rules as the install's own", () => {
+  // TWO DOORS, ONE CONTRACT. A delivery receipt becomes a `bounced` outbox row on
+  // either path, and a bounce is a recruiter-visible claim about a real candidate.
+  // The install's door (app/api/comms/callback) is hardened three ways; the Worker's
+  // twin was fully open, so anyone who learned the Worker URL could inject bounces.
+  // The two cannot import each other, so the mirror is pinned as text — the same
+  // device the signing contract above uses.
+  const receipt = workerSrc.slice(workerSrc.indexOf("async function handleReceipt"), workerSrc.indexOf("type DrainRow"));
+  assert.match(receipt, /KP_CALLBACK_SECRET/, "worker: the route is DISABLED until a secret is configured");
+  assert.match(receipt, /503/, "worker: unconfigured means 503, exactly as the install answers");
+  assert.match(receipt, /secretsMatch\(req\.headers\.get\("x-comms-secret"\)/, "worker: header only, never the URL");
+  assert.match(callbackAuthSrc, /export function secretsMatch/, "install: the same constant-time compare it mirrors");
+  assert.match(receipt, /timestampFresh\(timestamp, nowMs\)/, "worker: the freshness window bounds a capture");
+  assert.match(callbackAuthSrc, /export function isTimestampFresh/, "install: the rule being mirrored");
+  assert.match(receipt, /x-comms-nonce/, "worker: prefers the caller's nonce, as callbackNonce does");
+  assert.match(receipt, /409/, "worker: a replayed receipt is refused, not recorded twice");
+  // The window itself must be the same number on both sides, or a receipt that is
+  // fresh for one door is stale for the other.
+  assert.match(callbackAuthSrc, /CALLBACK_TIMESTAMP_WINDOW_MS = 5 \* 60 \* 1000/, "install: 5 minutes");
+  assert.match(workerSrc, /const SKEW_MS = 5 \* 60_000/, "worker: the same 5 minutes");
+});
+
+test("every authenticated edge door spends a nonce — the comment in edge-crypto.ts is TRUE", () => {
+  // edge-crypto.ts states "the edge additionally holds a nonce window". Until the
+  // nonces table existed that was a promise the Worker did not keep, and a captured
+  // signed `POST /ack {upto}` replayed for five minutes DELETING queued events.
+  assert.match(workerSrc, /CREATE TABLE|nonces/, "worker: a nonce store exists");
+  assert.match(workerSrc, /async function claimNonce/, "worker: nonces are spent, not merely recorded");
+  assert.match(workerSrc, /INSERT OR IGNORE INTO nonces/, "worker: the claim is atomic — insert-or-lose");
+  const authorize = workerSrc.slice(workerSrc.indexOf("async function authorize"));
+  const authorizeBody = authorize.slice(0, authorize.indexOf("return null;"));
+  assert.match(
+    authorizeBody,
+    /verify\(req, env, signed\)[\s\S]*claimNonce/,
+    "verify FIRST, then claim: an unverified caller must not be able to write nonce rows"
+  );
+  for (const handler of ["handleDrain", "handleAck", "handleHeartbeat", "handlePair"]) {
+    const body = workerSrc.slice(workerSrc.indexOf(`async function ${handler}`));
+    assert.match(body.slice(0, 900), /authorize\(req, env,/, `${handler} goes through the full door`);
+  }
+});
+
+test("a storage failure is answered 503, never 400 — a 4xx stops the sender retrying", () => {
+  assert.match(workerSrc, /function storageFailure/, "one place produces the answer");
+  assert.match(workerSrc, /status: 503/, "the class is 'try again', not 'you sent rubbish'");
+  assert.match(workerSrc, /"retry-after": "30"/, "and it says when");
+  // The thrown message may name internals; it goes to the log, never the wire.
+  const fn = workerSrc.slice(workerSrc.indexOf("function storageFailure"));
+  assert.match(fn.slice(0, 700), /console\.error/, "the diagnostic is logged");
+  assert.doesNotMatch(fn.slice(0, 700), /JSON\.stringify\(\{ error: `/, "and never interpolated into the response");
 });

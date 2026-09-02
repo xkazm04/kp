@@ -41,6 +41,12 @@ wrangler d1 execute kp-edge --remote --file=./schema.sql
 openssl rand -hex 32             # → copy this
 wrangler secret put KP_EDGE_SECRET
 
+# The delivery-receipt door. `POST /relay/callback` stays DISABLED (503) until this
+# is set: a receipt becomes a `bounced` row in your outbox, so an open door lets
+# anyone who learns the Worker URL mark your offers undeliverable. Use the SAME value
+# as your install's COMMS_CALLBACK_SECRET and one relay configuration serves both.
+wrangler secret put KP_CALLBACK_SECRET
+
 wrangler deploy                  # prints https://kp-edge.<your-subdomain>.workers.dev
 ```
 
@@ -66,7 +72,7 @@ under `KP_SECRET`; the env vars win when both are set, exactly like the comms re
 | --- | --- | --- |
 | Board / ad-platform webhook | `https://<worker>/in/<receiver-token>` | Instead of your laptop's URL. Same JSON body; answers **202 `{result:"held"}`** because the eligibility decision has not happened yet. |
 | Candidate email | Cloudflare **Email Routing** → this Worker | Route `<receiver-token>@your-domain` to the Worker. Headers only are kept (sender + subject), never the body or attachments. |
-| Relay delivery receipts | `https://<worker>/relay/callback` | Bounces recorded even if they arrive at 03:00. |
+| Relay delivery receipts | `https://<worker>/relay/callback` | Bounces recorded even if they arrive at 03:00. **Configure the relay exactly as you would for the install's own callback** - `x-comms-secret`, `x-comms-timestamp` and optionally `x-comms-nonce`; see below. |
 
 Receiver tokens come from Channels → Add receiver in the app; the same token works
 for both the direct URL and the edge URL, so you can move a source over and back.
@@ -94,15 +100,49 @@ relay and ATS webhook.
 | Route | Auth | Purpose |
 | --- | --- | --- |
 | `POST /in/<token>` | the receiver token itself | Accept a JSON lead → 202 held |
-| `POST /relay/callback` | open | Accept a delivery receipt → 202 held |
+| `POST /relay/callback` | `x-comms-secret` + freshness + nonce | Accept a delivery receipt → 202 held |
 | `GET /drain?since=&limit=` | signed | Events in sequence order + `pending` |
 | `POST /ack {upto}` | signed | Delete applied events; the install is now the record |
 | `POST /heartbeat {at,nudgeTarget}` | signed | "I am awake" — resets the nudge |
 | `POST /pair {publicJwk}` | signed | Publish the sealing key |
 | `GET /status` | open | Liveness + pending count. No candidate data. |
 
+**Every signed call spends its signature exactly once.** The `nonces` table
+(`schema.sql`) records `sha256(<signature>)` with the freshness window as its TTL, and
+a second presentation of the same signature is answered **409**. The timestamp alone
+only bounds how long a captured envelope stays valid - inside those five minutes a
+captured `POST /ack {upto}` would otherwise replay and DELETE queued events.
+
+### Configuring the relay callback
+
+The edge's `/relay/callback` is held to the same rules as the install's own
+(`app/api/comms/callback`), so one relay configuration points at either:
+
+| Step | Rule |
+| --- | --- |
+| `KP_CALLBACK_SECRET` unset | **503** - the route is not enabled and accepts nothing |
+| `x-comms-secret` header | the secret, compared in constant time and independent of length. Header ONLY - never a `?secret=` query, which leaks into access logs and Referer |
+| `x-comms-timestamp` header | ISO-8601 or epoch-ms, within ±5 minutes |
+| `x-comms-nonce` header | optional; a replay is **409**. Omitted, one is derived from the timestamp + body |
+
+A malformed body is **400** on every route. A storage failure is **503** with
+`Retry-After` and `{"retryable": true}` - never a 4xx, because a job board or a relay
+gives up on a 4xx and retries a 503, and the difference is a lost application.
+
 The mirror image lives in `../app/_lib/edge-drain.ts` and `../app/_lib/edge-crypto.ts`.
 A change to either side is a change to both.
+
+## Tests
+
+```bash
+cd edge && npm test
+```
+
+`test/worker.test.ts` drives `src/index.ts` against a small D1 + `Request` double -
+no wrangler, no Cloudflare account, no network. It pins the refusals: an unsigned or
+stale-signed drain, a replayed signature, the callback's four fail-closed steps, and
+the 400/503 split. It does NOT cover Cloudflare's runtime - sealing against a real
+WebCrypto RSA key, Email Routing and the cron trigger still need a live deploy.
 
 ## What it deliberately does not do
 
