@@ -3386,6 +3386,9 @@
     "reviewScorecard": "Review scorecard in Decisions",
     "loadFailed": "Failed to load.",
     "startFailed": "Couldn't start the interview.",
+    "slotSuggested": "suggested",
+    "slotConfirmed": "confirmed",
+    "candidateZone": "Candidate's timezone: {zone}",
     "bookFailed": "Couldn't book that time.",
     "declineFailed": "Couldn't decline this candidate. Nothing was recorded.",
     "interviewerTitle": "Interviewer: {name}",
@@ -3427,7 +3430,10 @@
       "bookedOffHourTitle": "{name} · already booked at {time}",
       "pagerPrev": "Previous week",
       "pagerNext": "Next week",
-      "weekOf": "Week of {range}"
+      "weekOf": "Week of {range}",
+      "timezoneNote": "All times in the interview timezone: {zone}.",
+      "suggested": "suggested time, not confirmed",
+      "chipSuggestedTitle": "{name} · suggested time, not confirmed yet"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",

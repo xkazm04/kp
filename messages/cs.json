@@ -3411,6 +3411,9 @@
       "confidence": "jistota: {level}"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
+    "slotSuggested": "návrh",
+    "slotConfirmed": "potvrzeno",
+    "candidateZone": "Časové pásmo kandidáta: {zone}",
     "bookFailed": "Termín se nepodařilo rezervovat.",
     "declineFailed": "Kandidáta se nepodařilo odmítnout. Nic se nezaznamenalo.",
     "interviewerTitle": "Tazatel: {name}",
@@ -3427,7 +3430,10 @@
       "bookedOffHourTitle": "{name} · už rezervováno v {time}",
       "pagerPrev": "Předchozí týden",
       "pagerNext": "Další týden",
-      "weekOf": "Týden {range}"
+      "weekOf": "Týden {range}",
+      "timezoneNote": "Všechny časy v časovém pásmu pohovorů: {zone}.",
+      "suggested": "navržený čas, není potvrzen",
+      "chipSuggestedTitle": "{name} · navržený čas, zatím nepotvrzeno"
     },
     "scorecard": {
       "editScorecard": "Upravit svou hodnoticí kartu",
@@ -4034,6 +4040,9 @@
       "generatingNote": "Spustí to několik kroků AI a trvá to ~1–2 minuty. Pokračuje, i když odejdete.",
       "genFailed": "Generování selhalo.",
       "startFailed": "Sestavení se nepodařilo spustit.",
+    "slotSuggested": "návrh",
+    "slotConfirmed": "potvrzeno",
+    "candidateZone": "Časové pásmo kandidáta: {zone}",
       "notPermitted": "K této akci nemáte oprávnění. Pokračujte přihlášením jako operátor.",
       "saveDraft": "Uložit jako koncept",
       "savingDraft": "Ukládání…",
@@ -4611,6 +4620,9 @@
     },
     "card": {
       "startFailed": "Analýzu vhodnosti se nepodařilo spustit.",
+    "slotSuggested": "návrh",
+    "slotConfirmed": "potvrzeno",
+    "candidateZone": "Časové pásmo kandidáta: {zone}",
       "noReasoning": "Nebylo vráceno žádné zdůvodnění.",
       "reasoningFailed": "Zdůvodnění selhalo.",
       "shortlistAria": "Vybrat {title} pro hromadné přidání",

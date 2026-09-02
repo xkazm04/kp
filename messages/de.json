@@ -3386,6 +3386,9 @@
     "reviewScorecard": "Scorecard in Entscheidungen prüfen",
     "loadFailed": "Laden fehlgeschlagen.",
     "startFailed": "Interview konnte nicht gestartet werden.",
+    "slotSuggested": "Vorschlag",
+    "slotConfirmed": "bestätigt",
+    "candidateZone": "Zeitzone der Person: {zone}",
     "bookFailed": "Diese Zeit konnte nicht gebucht werden.",
     "declineFailed": "Die Absage war nicht möglich. Es wurde nichts gespeichert.",
     "interviewerTitle": "Interviewer: {name}",
@@ -3427,7 +3430,10 @@
       "bookedOffHourTitle": "{name} · bereits um {time} gebucht",
       "pagerPrev": "Vorherige Woche",
       "pagerNext": "Nächste Woche",
-      "weekOf": "Woche {range}"
+      "weekOf": "Woche {range}",
+      "timezoneNote": "Alle Zeiten in der Interview-Zeitzone: {zone}.",
+      "suggested": "vorgeschlagene Zeit, nicht bestätigt",
+      "chipSuggestedTitle": "{name} · vorgeschlagene Zeit, noch nicht bestätigt"
     },
     "scorecard": {
       "editScorecard": "Ihre Scorecard bearbeiten",
@@ -4034,6 +4040,9 @@
       "generatingNote": "Dies durchläuft einige AI-Schritte und dauert ca. 1–2 Minuten. Der Vorgang läuft weiter, auch wenn Sie die Seite verlassen.",
       "genFailed": "Generierung fehlgeschlagen.",
       "startFailed": "Die Erstellung konnte nicht gestartet werden.",
+    "slotSuggested": "Vorschlag",
+    "slotConfirmed": "bestätigt",
+    "candidateZone": "Zeitzone der Person: {zone}",
       "notPermitted": "Sie haben keine Berechtigung für diese Aktion. Melden Sie sich als Operator an, um fortzufahren.",
       "saveDraft": "Als Entwurf speichern",
       "savingDraft": "Wird gespeichert…",
@@ -4611,6 +4620,9 @@
     },
     "card": {
       "startFailed": "Eignungsanalyse konnte nicht gestartet werden.",
+    "slotSuggested": "Vorschlag",
+    "slotConfirmed": "bestätigt",
+    "candidateZone": "Zeitzone der Person: {zone}",
       "noReasoning": "Keine Begründung erhalten.",
       "reasoningFailed": "Begründung fehlgeschlagen.",
       "shortlistAria": "{title} für das Sammel-Hinzufügen vormerken",

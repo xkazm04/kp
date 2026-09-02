@@ -3386,6 +3386,9 @@
     "reviewScorecard": "Examiner la scorecard dans Décisions",
     "loadFailed": "Échec du chargement.",
     "startFailed": "Impossible de démarrer l’entretien.",
+    "slotSuggested": "proposé",
+    "slotConfirmed": "confirmé",
+    "candidateZone": "Fuseau horaire du candidat : {zone}",
     "bookFailed": "Impossible de réserver ce créneau.",
     "declineFailed": "Impossible de refuser ce candidat. Rien n’a été enregistré.",
     "rounds": {
@@ -3427,7 +3430,10 @@
       "bookedOffHourTitle": "{name} · déjà réservé à {time}",
       "pagerPrev": "Semaine précédente",
       "pagerNext": "Semaine suivante",
-      "weekOf": "Semaine du {range}"
+      "weekOf": "Semaine du {range}",
+      "timezoneNote": "Toutes les heures dans le fuseau des entretiens : {zone}.",
+      "suggested": "horaire proposé, non confirmé",
+      "chipSuggestedTitle": "{name} · horaire proposé, pas encore confirmé"
     },
     "scorecard": {
       "editScorecard": "Modifier votre scorecard",
@@ -4034,6 +4040,9 @@
       "generatingNote": "Cela exécute quelques étapes AI et prend environ 1 à 2 minutes. Le processus continue même si vous quittez la page.",
       "genFailed": "Échec de la génération.",
       "startFailed": "Impossible de lancer la génération.",
+    "slotSuggested": "proposé",
+    "slotConfirmed": "confirmé",
+    "candidateZone": "Fuseau horaire du candidat : {zone}",
       "notPermitted": "Vous n’avez pas l’autorisation d’effectuer cette action. Connectez-vous en tant qu’opérateur pour continuer.",
       "saveDraft": "Enregistrer comme brouillon",
       "savingDraft": "Enregistrement…",
@@ -4611,6 +4620,9 @@
     },
     "card": {
       "startFailed": "Impossible de lancer l’analyse de correspondance.",
+    "slotSuggested": "proposé",
+    "slotConfirmed": "confirmé",
+    "candidateZone": "Fuseau horaire du candidat : {zone}",
       "noReasoning": "Aucun raisonnement renvoyé.",
       "reasoningFailed": "Échec du raisonnement.",
       "shortlistAria": "Retenir {title} pour l’ajout groupé",
