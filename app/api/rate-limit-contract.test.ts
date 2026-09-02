@@ -279,6 +279,10 @@ const ROUTES: RouteSpec[] = [
     key: "`match-reasoning:${clientIpFrom(request.headers)}`",
     limit: 60,
     expensive: "runReasoning(",
+    // Moved onto the refusal chokepoint (/perfect 2026-09-03, matrix-ui-2): the grid's
+    // popover resolves the code, so a throttled recruiter reads "you're going too fast"
+    // in their own language instead of the generic engine-failure sentence.
+    refusalCode: "TOO_MANY_REQUESTS",
   },
   {
     rel: "./github-analysis/route.ts",
