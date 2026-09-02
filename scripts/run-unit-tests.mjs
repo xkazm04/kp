@@ -36,7 +36,9 @@ for (const key of ["NODE_TEST_CONTEXT", "DATABASE_URL", "KP_DB_BACKEND", "KP_OFF
   delete process.env[key];
 }
 
-const DEFAULT_PATTERNS = ["app/**/*.test.ts", "packages/**/*.test.ts"];
+// edge/** is the Cloudflare Worker: its tests run on node:test with D1/fetch doubles
+// and no wrangler, so the same runner gates them (they were green-but-ungated once).
+const DEFAULT_PATTERNS = ["app/**/*.test.ts", "packages/**/*.test.ts", "edge/**/*.test.ts"];
 const patterns = process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_PATTERNS;
 
 const child = spawn(
