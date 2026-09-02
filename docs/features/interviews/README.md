@@ -498,11 +498,49 @@ free. `app/api/interview/interview-session-cost.test.ts` pins all three states, 
 use-case keying, the multi-attempt total, and that the join did not widen the
 tenant scope of the list it rides on.
 
-**Not shipped yet:** `failoverFrom` and `attempts` on the same summary. Both need a
-value the session row does not hold — the requested provider before a failover, and
-a per-link reconnect count — so both need a column on `interview_sessions`, i.e. a
-migration in `app/_lib/db/core.ts`. The connect route still records a failover as a
-`console.warn` only.
+`interviewedForJob` — the cohort behind the side-by-side compare view
+(`/api/interview/compare`) — carries the same `costUsd` on the same query shape, so
+the compare table and the docket can never disagree about what a screen cost. The
+compare grid itself lives in `app/features/library/jobs/` and does not render it yet.
+
+### …and how the call actually ran
+
+The same summary now also carries **`failoverFrom`** and **`attempts`**, backed by two
+additive columns on `interview_sessions` (`failover_from TEXT`, `attempts INTEGER NOT
+NULL DEFAULT 1`, migrated in the `app/_lib/db/core.ts` ALTER loop; no new table, so
+`app/_lib/tenancy.ts` is unchanged — the columns inherit the row's existing
+`workspace_id` scope).
+
+| Field | Written by | Honest null / floor |
+|---|---|---|
+| `failoverFrom` | `/api/interview/connect` when `connectWithFailover` had to use the other provider — `setInterviewSessionProvider(id, served, requested)`, `COALESCE`d so the FIRST fallen-from provider (the one the recruiter chose) wins | `null` = nothing fell back. Never a copy of `provider` |
+| `attempts` | `markInterviewStarted`, in the same guarded UPDATE: `+1` only when `started_at` is already set, so the first connect is the `1` the column defaults to and a refused connect on a completed session cannot inflate it | `1` for a link never opened and for the ordinary call. Never `0` |
+
+Both facts already existed and were both thrown away. `provider` is **overwritten in
+place** with whoever actually served (the completion ledger prices from it), so the
+requested provider survived only as a `console.warn`: a recruiter looking at a call
+billed on the other vendor had no way to learn that theirs was down. And
+`/api/interview/complete` already reasons about "the current attempt" when it bills
+(a `failed` session stays reconnectable by design, so the later of
+`started_at`/`updated_at` is when this attempt began) — but that reasoning lived
+inside one billing expression and left no trace, so a call billed for the third of
+three attempts read exactly like a clean first-time one.
+
+A failover on an entry-backed session ALSO writes an `interview_failover` pipeline
+event (`recordAutomationEvent`, actor `auto:interview-connect`, best-effort with a
+loud log on failure), so the swap is answerable from the candidate's timeline months
+later rather than from rotated server logs.
+
+The completed docket card renders the pair as a single amber line — `"2 attempts ·
+fell back from Openai"` — and **only when there is something to say**: an ordinary
+one-attempt call on the chosen provider stays quiet rather than carrying a "1 attempt"
+badge. Four locales.
+
+`app/_lib/db/interview-failover-attempts.test.ts` pins the columns on a fresh DB, the
+first-connect-does-not-increment rule, the refused-connect case, the COALESCE'd first
+failover, "a plain provider write invents no fallback", the cohort cost — and, in a
+child process, that a **pre-migration** `interview_sessions` table with a real row is
+carried forward across two boots with its transcript intact.
 
 ## Self-hosted voice
 

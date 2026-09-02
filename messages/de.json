@@ -3426,7 +3426,10 @@
       "costFree": "keine Minutenkosten",
       "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
       "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
-      "confidence": "Konfidenz: {level}"
+      "confidence": "Konfidenz: {level}",
+      "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+      "failedOverFrom": "gewechselt von {provider}",
+      "attemptsTitle": "Wie dieses Gespräch lief: erneute Verbindungen und ein Anbieterwechsel, falls der gewählte nicht verfügbar war"
     },
     "calendar": {
       "calendarAria": "Interview-Wochenkalender: Tage waagerecht, Zeiten senkrecht",

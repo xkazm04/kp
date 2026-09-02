@@ -766,6 +766,11 @@ export function ensureDb(): Database.Database {
       ended_at TEXT,
       transcript_json TEXT,
       scorecard_json TEXT,
+      -- The provider a failed-over call was originally asked to use (see the ALTER
+      -- below for why it is a column and not a log line). NULL = nothing fell back.
+      failover_from TEXT,
+      -- How many times this link was CONNECTED. 1 = the ordinary single-attempt call.
+      attempts INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -1586,6 +1591,25 @@ export function ensureDb(): Database.Database {
     // for the server log (it can quote provider output), the class is the closed
     // vocabulary the panel renders in the reader's language.
     "ALTER TABLE repo_scans ADD COLUMN fallback_class TEXT",
+    // Provider failover on a voice screen: WHICH provider the call was originally
+    // asked to serve, when /api/interview/connect had to fall back to the other one.
+    // `provider` is overwritten in place with whoever actually served (cost
+    // attribution and the completion ledger both read it), so before this column the
+    // requested provider survived ONLY as a console.warn on the server — the
+    // recruiter looking at a call whose cost came from the wrong provider had no way
+    // to learn that the one they picked was down. NULL on every row where nothing
+    // fell back, which is the overwhelming majority, and never a fabricated
+    // "same as provider".
+    "ALTER TABLE interview_sessions ADD COLUMN failover_from TEXT",
+    // How many times this link was CONNECTED. /complete already distinguishes
+    // attempts when it bills (a 'failed' session stays reconnectable by design, and
+    // the later of started_at/updated_at is when the CURRENT attempt began) — but
+    // that reasoning lived entirely inside one billing expression and left no trace,
+    // so a session billed for one attempt of three read exactly like a clean
+    // first-time call. NOT NULL DEFAULT 1: a legacy row, and a row that has not
+    // connected yet, both read as the ordinary single-attempt session rather than as
+    // a fabricated zero.
+    "ALTER TABLE interview_sessions ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

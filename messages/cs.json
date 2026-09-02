@@ -3419,7 +3419,10 @@
       "costFree": "bez minutových nákladů",
       "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
       "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
-      "confidence": "jistota: {level}"
+      "confidence": "jistota: {level}",
+      "attempts": "{count, plural, one {# pokus} few {# pokusy} other {# pokusů}}",
+      "failedOverFrom": "přepnuto z {provider}",
+      "attemptsTitle": "Jak hovor proběhl: opětovná připojení a případné přepnutí poskytovatele, když zvolený nebyl dostupný"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
     "slotSuggested": "návrh",

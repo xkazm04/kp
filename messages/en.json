@@ -3426,7 +3426,10 @@
       "costFree": "no per-minute cost",
       "costTitle": "Estimated cost of this call, from the usage ledger",
       "providerTitle": "The voice provider that served this call",
-      "confidence": "confidence: {level}"
+      "confidence": "confidence: {level}",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "failedOverFrom": "fell back from {provider}",
+      "attemptsTitle": "How this call ran: reconnects, and a provider swap if the chosen one was unavailable"
     },
     "calendar": {
       "calendarAria": "Interview week calendar: days across, times down",

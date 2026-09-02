@@ -3425,7 +3425,10 @@
       "costFree": "sans coût à la minute",
       "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
       "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
-      "confidence": "confiance : {level}"
+      "confidence": "confiance : {level}",
+      "attempts": "{count, plural, one {# tentative} other {# tentatives}}",
+      "failedOverFrom": "bascule depuis {provider}",
+      "attemptsTitle": "Déroulé de l'appel : reconnexions et bascule de fournisseur si celui choisi était indisponible"
     },
     "interviewerTitle": "Intervieweur : {name}",
     "calendar": {
