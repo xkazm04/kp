@@ -35,7 +35,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2699,
+  "files": 2704,
   "groups": 17,
   "use_cases": 12
  },
@@ -1655,6 +1655,7 @@
     "app/_lib/github/code-review.ts",
     "app/_lib/github/heuristics.ts",
     "app/_lib/github/skills.ts",
+    "app/_lib/github/usage.test.ts",
     "app/_lib/github/usage.ts",
     "app/api/github-analysis/route.pagination.test.ts",
     "app/api/github-analysis/route.test.ts",
@@ -8036,6 +8037,7 @@
     "app/_lib/db/companion.ts",
     "app/api/companion/[id]/message/route.ts",
     "app/api/companion/brain/route.ts",
+    "app/api/companion/companion-route-hygiene.test.ts",
     "app/api/companion/proposals/[id]/resolve/route.ts",
     "app/api/companion/threads/route.ts"
    ],
@@ -8101,6 +8103,7 @@
     "app/features/shell/companion/CompanionDock.tsx"
    ],
    "file_paths": [
+    "app/_lib/companion-dock-states.test.ts",
     "app/features/shell/companion/CompanionDock.tsx",
     "app/features/shell/companion/CompanionDockBody.tsx",
     "app/features/shell/companion/CompanionDockProvider.tsx",
@@ -8236,7 +8239,6 @@
     "app/_lib/db/repo-scans-store.test.ts",
     "app/_lib/db/repo-scans-tenancy.test.ts",
     "app/_lib/db/repo-scans.ts",
-    "app/_lib/github/usage.test.ts",
     "app/_lib/repo-scan-run.ts",
     "app/_lib/repo-scan-target.test.ts",
     "app/_lib/repo-scan-target.ts",
@@ -8318,6 +8320,9 @@
     "app/_lib/app-master/__fixtures__/generate.py",
     "app/_lib/app-master/backbone.test.ts",
     "app/_lib/app-master/backbone.ts",
+    "app/_lib/app-master/mandate-view.test.ts",
+    "app/_lib/app-master/mandate-view.ts",
+    "app/_lib/db/intake-app-master-cas.test.ts",
     "app/api/intake/[id]/attachments/attachment-limits.ts",
     "app/api/intake/[id]/compose-app-master/route.ts",
     "app/api/intake/[id]/dossier/route.ts",
