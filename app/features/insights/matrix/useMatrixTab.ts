@@ -10,7 +10,7 @@ import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import type { Cell } from "./MatrixShared";
+import type { Cell } from "./matrixCellClass";
 import { STRONG_THRESHOLD } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";

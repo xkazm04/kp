@@ -3,7 +3,7 @@
 // here, so it's a plain .ts file.
 import { normalizeArchetype } from "@/app/_lib/archetypes";
 import type { Reasoning } from "@/app/features/shared/matchTypes";
-import type { Cell } from "./MatrixShared";
+import type { Cell } from "./matrixCellClass";
 
 export type Candidate = { id: string; label: string; archetype: string | null };
 export type Position = { id: string; title: string; seniority: string; roleFamily: string };

@@ -3,13 +3,14 @@
 import { Check } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
-import { cellClass, ColumnStats } from "./MatrixShared";
+import { ColumnStats } from "./MatrixShared";
+import { cellClass } from "./matrixCellClass";
 import { Defer } from "@/app/_components/ui/Defer";
 import { STRONG_THRESHOLD } from "./matrixStats";
 import { archStyle, STAGE_INITIAL, type Candidate, type Matrix, type Position } from "./matrixTabTypes";
 import { MATRIX_HEADER_ROW } from "./matrixGridKeys";
 import { useMatrixGridKeys } from "./useMatrixGridKeys";
-import type { Cell } from "./MatrixShared";
+import type { Cell } from "./matrixCellClass";
 
 // The Fit Matrix's scrollable candidate × position grid: sortable column
 // headers with a per-role distribution strip, and per-cell score/select
@@ -18,6 +19,14 @@ import type { Cell } from "./MatrixShared";
 // Keyboard model: role="grid" + a roving tabindex (useMatrixGridKeys) — one Tab in,
 // arrows/Home/End/PageUp/PageDown between the sort headers and the cells. Reaching the
 // last of 200×N cells by Tab alone used to cost ~1,600 presses.
+//
+// Position announcement: the table declared role="grid" but nothing else, so the arrow
+// keys moved focus through a rectangle the reader could not locate themselves in — no
+// "row 14 of 63, column 3 of 9". The row/column indices below are 1-BASED and count the
+// header row and the sticky candidate column, per the WAI-ARIA grid pattern: header row
+// = aria-rowindex 1, data row r = r + 2; candidate column = aria-colindex 1, position
+// column ci = ci + 2. Pinned by matrixGridRoles.test.ts — the indices only mean anything
+// while aria-rowcount/aria-colcount agree with them.
 export function MatrixGrid({
   data,
   cols,
@@ -55,16 +64,23 @@ export function MatrixGrid({
   return (
     <>
       <div ref={scrollerRef} className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>
-        <table role="grid" className="border-collapse text-sm">
+        <table
+          role="grid"
+          aria-rowcount={rows.length + 1}
+          aria-colcount={cols.length + 1}
+          className="border-collapse text-sm"
+        >
           <thead>
-            <tr>
-              <th ref={cornerRef} scope="col" className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
+            <tr aria-rowindex={1}>
+              <th ref={cornerRef} scope="col" role="columnheader" aria-colindex={1} className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
                 {t("candidateHeader")}
               </th>
               {cols.map(({ p, i }, ci) => (
                 <th
                   key={p.id}
                   scope="col"
+                  role="columnheader"
+                  aria-colindex={ci + 2}
                   className={`sticky top-0 z-10 border-b bg-paper p-1.5 align-bottom ${sortCol === i ? "border-coral" : "border-stone-100"}`}
                 >
                   {/* Click a column to rank candidates by their fit for THAT role
@@ -96,8 +112,8 @@ export function MatrixGrid({
             {rows.map(({ cand, ri }, r) => {
               const a = archStyle(cand.archetype);
               return (
-                <tr key={cand.id} className="hover:bg-paper/40">
-                  <th scope="row" className="sticky left-0 z-10 border-b border-r border-stone-100 bg-white p-2 text-left font-normal">
+                <tr key={cand.id} aria-rowindex={r + 2} className="hover:bg-paper/40">
+                  <th scope="row" role="rowheader" aria-colindex={1} className="sticky left-0 z-10 border-b border-r border-stone-100 bg-white p-2 text-left font-normal">
                     <div className="flex items-center gap-1.5">
                       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.bg}`} title={enumLabel("archetype", a.id)} />
                       <span className="w-[120px] truncate font-medium text-ink">{cand.label}</span>
@@ -127,7 +143,7 @@ export function MatrixGrid({
                     const selectable = selectMode && !c.blocked && !ringed;
                     const isSel = selected.has(key);
                     return (
-                      <td key={p.id} className="border-b border-l border-stone-50 p-0">
+                      <td key={p.id} role="gridcell" aria-colindex={ci + 2} className="border-b border-l border-stone-50 p-0">
                         {/* `aria-disabled`, never `disabled`: a disabled cell drops out of
                             the tab order and takes its accessible name — the reason it
                             cannot be selected — with it. The click handler is already
