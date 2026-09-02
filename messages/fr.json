@@ -2215,7 +2215,11 @@
       "boardAria": "Tableau du pipeline, défilement horizontal",
       "showFewer": "Afficher moins",
       "moreCount": "+{count} de plus",
-      "movedAnnounce": "{name} déplacé vers {stage}"
+      "movedAnnounce": "{name} déplacé vers {stage}",
+      "gridAria": "Postes par étape",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {aucun candidat} one {# candidat} other {# candidats}}",
+      "cellEmpty": "Aucun candidat",
+      "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape."
     },
     "stageHelp": {
       "Accepted": "CV reçu : une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",

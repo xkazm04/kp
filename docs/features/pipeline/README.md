@@ -429,6 +429,41 @@ the actions the literal gates used to offer on the shipped board. Before the rol
 resolution a renamed axis matched nothing and the grid rendered **Draft outreach**
 alone — no error, nothing to notice.
 
+### The grid has a name
+
+Every drag on the board already had a keyboard twin (`moveTargetStages` behind the row
+menu) and every move was narrated into a polite live region. The structure those twins
+move THROUGH had no name: the lanes were a run of bare `<div>`s, so a screen reader read
+a flat list of candidates with no notion of which column any of them stood in.
+
+The roles are layered onto the elements that were already there, so no wrapper was added
+and the CSS grid tracks (and therefore the layout) are untouched:
+
+| Element | Role |
+|---|---|
+| the `minWidth` lane container | `grid`, named `board.gridAria`, with `aria-colcount` / `aria-rowcount` |
+| the stage-header strip and each position lane | `row` |
+| the position rail label and each stage-header button | `columnheader` |
+| a lane's position cell | `rowheader` |
+| `StageCell` | `gridcell`, named `board.cellAria` = position, stage, count |
+
+The cell's name uses the **rendered** stage label, not the stored id, so a workspace that
+renamed a column hears its own word — the same string the column header shows. What a drop
+DOES is one sr-only sentence (`board.dropHint`) referenced by every cell through
+`aria-describedby`, rendered only while dragging is possible: `aria-dropeffect` is
+deprecated and repeating the sentence into 5 x N labels would be noise. An empty cell used
+to be a bare middle dot, decorative to a sighted reader and read as a glyph by everyone
+else; the dot is now `aria-hidden` beside an sr-only `board.cellEmpty`.
+
+The toolbar's arrows disable at the scroll extremes. They were always enabled, so at either
+end a click did nothing and gave no reason — a keyboard user could not tell "this does
+nothing here" from "this is broken". `usePipelineBoardScroll` measures the extents with 1px
+of slack (a smooth scroll lands on a fractional `scrollLeft`) and re-measures on resize as
+well as on scroll, because the board's width also changes when the workspace adds or
+removes a column.
+
+Pinned by `pipelineBoardRoles.test.ts`.
+
 ### The board poll carries only what it draws
 
 `GET /api/pipeline` used to return `listPipeline()` verbatim, and `rowToEntry` fills

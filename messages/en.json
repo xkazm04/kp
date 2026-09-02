@@ -2215,7 +2215,11 @@
       "boardAria": "Pipeline board, scroll horizontally",
       "showFewer": "Show fewer",
       "moreCount": "+{count} more",
-      "movedAnnounce": "Moved {name} to {stage}"
+      "movedAnnounce": "Moved {name} to {stage}",
+      "gridAria": "Positions by stage",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {no candidates} =1 {1 candidate} other {# candidates}}",
+      "cellEmpty": "No candidates",
+      "dropHint": "Drop a candidate here to move them to this stage."
     },
     "stageHelp": {
       "Accepted": "CV received: an inbound application or a proactively-sourced candidate, waiting to be screened.",

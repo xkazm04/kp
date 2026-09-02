@@ -2215,7 +2215,11 @@
       "boardAria": "Pipeline-Board, horizontal scrollen",
       "showFewer": "Weniger anzeigen",
       "moreCount": "+{count} weitere",
-      "movedAnnounce": "{name} nach {stage} verschoben"
+      "movedAnnounce": "{name} nach {stage} verschoben",
+      "gridAria": "Positionen nach Phase",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {keine Kandidaten} one {# Kandidat} other {# Kandidaten}}",
+      "cellEmpty": "Keine Kandidaten",
+      "dropHint": "Ziehen Sie eine Karte hierher, um den Kandidaten in diese Phase zu verschieben."
     },
     "stageHelp": {
       "Accepted": "Lebenslauf erhalten: eine eingehende Bewerbung oder ein/e proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",

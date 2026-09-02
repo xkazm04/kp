@@ -2215,7 +2215,11 @@
       "boardAria": "Nástěnka náboru, posouvejte vodorovně",
       "showFewer": "Zobrazit méně",
       "moreCount": "+{count, plural, one {# další} few {# další} other {# dalších}}",
-      "movedAnnounce": "{name} přesunut/a do fáze {stage}"
+      "movedAnnounce": "{name} přesunut/a do fáze {stage}",
+      "gridAria": "Pozice podle fází",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {žádní kandidáti} one {# kandidát} few {# kandidáti} other {# kandidátů}}",
+      "cellEmpty": "Žádní kandidáti",
+      "dropHint": "Přetažením sem přesunete kandidáta do této fáze."
     },
     "stageHelp": {
       "Accepted": "Přijatý životopis: příchozí přihláška nebo aktivně vyhledaný kandidát čekající na prověření.",
