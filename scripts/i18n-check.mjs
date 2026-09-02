@@ -128,8 +128,45 @@ function flatten(obj, prefix = "", out = {}) {
   return out;
 }
 
+/** JSON.parse keeps the LAST of two identical keys and says nothing - so a key pasted
+ *  twice by two sessions splicing the same object (wave 7, 2026-09-02: five keys in all
+ *  four catalogs) is invisible to every check that runs on the parsed object. Walk the
+ *  text once and report a key that repeats inside one object, with its dotted path. */
+function duplicateKeys(text) {
+  const dups = [];
+  const scopes = [new Set()];
+  const path = [];
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      let key = "";
+      while (j < text.length && text[j] !== '"') {
+        if (text[j] === "\\") { key += text[j + 1]; j += 2; } else { key += text[j++]; }
+      }
+      let k = j + 1;
+      while (k < text.length && /\s/.test(text[k])) k++;
+      if (text[k] === ":") {
+        const scope = scopes[scopes.length - 1];
+        path[scopes.length - 1] = key;
+        if (scope.has(key)) dups.push(path.slice(0, scopes.length).join("."));
+        scope.add(key);
+      }
+      i = j + 1;
+      continue;
+    }
+    if (c === "{") scopes.push(new Set());
+    else if (c === "}") { scopes.pop(); path.length = scopes.length; }
+    i++;
+  }
+  return dups;
+}
+
 function loadCatalog(file) {
-  return flatten(JSON.parse(readFileSync(join(MESSAGES_DIR, file), "utf-8")));
+  const text = readFileSync(join(MESSAGES_DIR, file), "utf-8");
+  for (const key of duplicateKeys(text)) problems.push(`${file}: duplicate key ${key} (JSON.parse keeps the last silently)`);
+  return flatten(JSON.parse(text));
 }
 
 /** The argument + rich-tag names a message references — used to assert en and a
@@ -191,9 +228,9 @@ if (!files.includes(defaultFile)) {
   process.exit(1);
 }
 
+const problems = [];
 const base = loadCatalog(defaultFile);
 const baseKeys = Object.keys(base);
-const problems = [];
 
 // ---- The no-dash house rule (docs/i18n/contract.md §5) -----------------------
 // `—` (U+2014) is banned in catalog copy outright; `–` (U+2013) survives only

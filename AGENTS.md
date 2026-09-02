@@ -54,7 +54,7 @@ rather than a snapshot.
 | `npm run lint` | eslint, including the `no-restricted-syntax` ban on `await` inside `db.transaction()` |
 | `npm run lint:ts-ratchet` | an `eslint-disable`/`@ts-` suppression has no ceiling in `ts-debt.json`, or grew past it |
 | `npm run design:check` | `brand.ts` ↔ `app/globals.css` fell out of lockstep, or a shade utility has no dark value |
-| `npm run i18n:check` | a key is missing from one of the 4 catalogs, or a literal leaked into a shared primitive |
+| `npm run i18n:check` | a key is missing from one of the 4 catalogs, repeats inside one catalog object, or a literal leaked into a shared primitive |
 | `npm run docs:check` | an ADR's `sources:` path is gone, or the decision index drifted from the records |
 | `npm run guidance:check` | the guidance files, `.ai/manifest.yaml` and this table stopped agreeing |
 | `npm run deploy:check` | the Helm chart regressed a deployment invariant (`docs/architecture/self-hosting.md`) |
