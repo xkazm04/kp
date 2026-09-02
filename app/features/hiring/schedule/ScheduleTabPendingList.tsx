@@ -10,12 +10,15 @@ import { Check, ClipboardList, FileText, History, Phone, UserRound, X } from "lu
 import type { useTranslations } from "next-intl";
 import { CandidateCardHeader } from "./ScheduleCandidateCardHeader";
 import type { SchedEntry } from "./ScheduleTypes";
+import { isSuggested, type SlotSource } from "./scheduleGridSeeds";
 import type { IvStatus } from "./useScheduleTab";
 
 export function ScheduleTabPendingList({
   t,
   calendarEntries,
   picks,
+  pickSources,
+  candidateZones,
   slotLabel,
   selectedId,
   onSelect,
@@ -35,6 +38,10 @@ export function ScheduleTabPendingList({
   t: ReturnType<typeof useTranslations<"scheduleTab">>;
   calendarEntries: SchedEntry[];
   picks: Record<string, string>;
+  // entry id → where that card's time came from; anything but "booked" is a guess.
+  pickSources: Record<string, SlotSource>;
+  // entry id → the candidate's own IANA zone, captured when they booked.
+  candidateZones: Record<string, string>;
   slotLabel: (slot: string) => string;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -82,9 +89,30 @@ export function ScheduleTabPendingList({
               <button type="button" onClick={() => onSelect(e.id)} className="focus-ring flex w-full items-start gap-2 text-left">
                 <CandidateCardHeader
                   entry={e}
-                  trailing={<span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{slotLabel(picks[e.id] ?? "")}</span>}
+                  trailing={
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span className="rounded bg-paper px-1.5 py-0.5 text-sm font-semibold text-ink">{slotLabel(picks[e.id] ?? "")}</span>
+                      {/* Provenance, in words. A time seeded from the legacy detail —
+                          or from the flat "Tue 14:00" default — read exactly like one a
+                          candidate had confirmed through their own link. */}
+                      {isSuggested(pickSources[e.id]) ? (
+                        <span className="rounded border border-dashed border-stone-300 px-1 py-px text-meta text-steel">
+                          {t("slotSuggested")}
+                        </span>
+                      ) : (
+                        <span className="rounded bg-moss/10 px-1 py-px text-meta font-semibold text-moss">{t("slotConfirmed")}</span>
+                      )}
+                    </span>
+                  }
                 />
               </button>
+              {candidateZones[e.id] ? (
+                // Where the candidate actually is. Stored at confirm time since
+                // idea-b51106df and rendered only on the agenda row until now, so a
+                // recruiter reading this list could not see that this 14:00 is the
+                // middle of the candidate's night.
+                <p className="mt-1.5 truncate text-meta text-steel">{t("candidateZone", { zone: candidateZones[e.id]! })}</p>
+              ) : null}
               {prepared[e.id]?.interviewer ? (
                 <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
                   <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}

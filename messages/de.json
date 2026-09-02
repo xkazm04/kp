@@ -2226,6 +2226,10 @@
       "offer_reminder": "Angebotserinnerung"
     },
     "provenance": {
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "beobachtet",
       "professional": "beruflich",
       "internship": "Praktikum",
@@ -3415,6 +3419,10 @@
       "verdictNote": "Verdikte fließen als Scorecard-Reviews in die Entscheidungs-Queue. Dieses Board ist die Interview-Schleife, nicht die Entscheidung.",
       "fullTranscript": "Volles Transkript & Scorecard",
       "noScorecardHelp": "Für dieses Interview wurde keine Scorecard erzeugt. Öffnen Sie die Vollansicht, um das rohe Transkript zu lesen.",
+      "costUnknown": "Kosten unbekannt",
+      "costFree": "keine Minutenkosten",
+      "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
+      "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
       "confidence": "Konfidenz: {level}"
     },
     "calendar": {
@@ -4040,9 +4048,6 @@
       "generatingNote": "Dies durchläuft einige AI-Schritte und dauert ca. 1–2 Minuten. Der Vorgang läuft weiter, auch wenn Sie die Seite verlassen.",
       "genFailed": "Generierung fehlgeschlagen.",
       "startFailed": "Die Erstellung konnte nicht gestartet werden.",
-    "slotSuggested": "Vorschlag",
-    "slotConfirmed": "bestätigt",
-    "candidateZone": "Zeitzone der Person: {zone}",
       "notPermitted": "Sie haben keine Berechtigung für diese Aktion. Melden Sie sich als Operator an, um fortzufahren.",
       "saveDraft": "Als Entwurf speichern",
       "savingDraft": "Wird gespeichert…",
@@ -4620,9 +4625,6 @@
     },
     "card": {
       "startFailed": "Eignungsanalyse konnte nicht gestartet werden.",
-    "slotSuggested": "Vorschlag",
-    "slotConfirmed": "bestätigt",
-    "candidateZone": "Zeitzone der Person: {zone}",
       "noReasoning": "Keine Begründung erhalten.",
       "reasoningFailed": "Begründung fehlgeschlagen.",
       "shortlistAria": "{title} für das Sammel-Hinzufügen vormerken",

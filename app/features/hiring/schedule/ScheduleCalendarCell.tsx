@@ -13,11 +13,13 @@ import type { useTranslations } from "next-intl";
 import { styleFor, type SchedEntry } from "./ScheduleTypes";
 import { initials } from "@/app/_lib/initials";
 import { slotParts } from "./scheduleCalendarSlotParts";
+import { isSuggested, type SlotSource } from "./scheduleGridSeeds";
 
 export function ScheduleCalendarCell({
   dayIso,
   dayPast,
   here,
+  pickSources = {},
   booked,
   selectedId,
   onSelect,
@@ -28,6 +30,11 @@ export function ScheduleCalendarCell({
   dayIso: string;
   dayPast: boolean;
   here: SchedEntry[];
+  // entry id → where that chip's time came from. A chip whose time is a SUGGESTION
+  // (seeded from the legacy free-text detail, or from the flat default guess) is
+  // drawn with a dashed edge and says so in its tooltip: it used to be pixel-for-pixel
+  // identical to a slot a candidate had actually confirmed.
+  pickSources?: Record<string, SlotSource>;
   booked: { id: string; dateSlot: string; candidateLabel: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -49,6 +56,7 @@ export function ScheduleCalendarCell({
           {here.map((e) => {
             const s = styleFor(e.archetype);
             const selected = e.id === selectedId;
+            const suggested = isSuggested(pickSources[e.id]);
             return (
               <motion.button
                 key={e.id}
@@ -57,11 +65,17 @@ export function ScheduleCalendarCell({
                 type="button"
                 onClick={() => onSelect(e.id)}
                 aria-pressed={selected}
-                title={tCal("chipTitle", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? ` · ${e.jobTitle}` : "" })}
-                aria-label={tCal("chipAria", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? `, ${e.jobTitle}` : "" })}
-                className={`focus-ring pointer-events-auto flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium text-white transition-transform dark:hover:-rotate-1 ${s.bg} ${
-                  selected ? "ring-2 ring-coral ring-offset-1 dark:-rotate-2 dark:shadow-sticker-xs" : ""
+                title={
+                  suggested
+                    ? tCal("chipSuggestedTitle", { name: e.candidateLabel })
+                    : tCal("chipTitle", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? ` · ${e.jobTitle}` : "" })
+                }
+                aria-label={`${tCal("chipAria", { name: e.candidateLabel, archetype: enumLabel("archetype", e.archetype), job: e.jobTitle ? `, ${e.jobTitle}` : "" })}${
+                  suggested ? `, ${tCal("suggested")}` : ""
                 }`}
+                className={`focus-ring pointer-events-auto flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium text-white transition-transform dark:hover:-rotate-1 ${s.bg} ${
+                  suggested ? "border border-dashed border-white/70 opacity-90" : ""
+                } ${selected ? "ring-2 ring-coral ring-offset-1 dark:-rotate-2 dark:shadow-sticker-xs" : ""}`}
               >
                 <span
                   aria-hidden

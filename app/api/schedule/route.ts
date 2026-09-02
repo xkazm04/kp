@@ -17,7 +17,7 @@ import {
 // Slice, not the `./db` barrel — see the note in app/_lib/llm-config.ts.
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
-import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
+import { dateSlotToIso, gridSlotToIso, hourBucketKey, INTERVIEW_TZ, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -64,7 +64,12 @@ export async function GET(request: Request) {
         droppedForConflict: proposed.droppedForConflict,
       });
     }
-    return NextResponse.json({ invites: listScheduleInvites(200, ws) });
+    // The zone every time on this surface is expressed in. The recruiter grid
+    // renders wall-clock cells with no zone marker anywhere, and INTERVIEW_TZ is a
+    // SERVER env var (KP_INTERVIEW_TZ) — a client bundle reading it would silently
+    // report the "Europe/Prague" default on an install that configured something
+    // else, which is worse than saying nothing. So the server states it.
+    return NextResponse.json({ invites: listScheduleInvites(200, ws), interviewTz: INTERVIEW_TZ });
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }

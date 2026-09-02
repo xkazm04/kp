@@ -2226,6 +2226,10 @@
       "offer_reminder": "Rappel d’offre"
     },
     "provenance": {
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "observé",
       "professional": "pro",
       "internship": "stage",
@@ -3414,6 +3418,10 @@
       "verdictNote": "Les verdicts rejoignent la file Décisions comme revues de scorecard. Ce tableau est la boucle d’entretien, pas la décision.",
       "fullTranscript": "Transcription complète et scorecard",
       "noScorecardHelp": "Aucune scorecard n’a été produite pour cet entretien. Ouvrez la vue complète pour lire la transcription brute.",
+      "costUnknown": "coût inconnu",
+      "costFree": "sans coût à la minute",
+      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
+      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
       "confidence": "confiance : {level}"
     },
     "interviewerTitle": "Intervieweur : {name}",
@@ -4040,9 +4048,6 @@
       "generatingNote": "Cela exécute quelques étapes AI et prend environ 1 à 2 minutes. Le processus continue même si vous quittez la page.",
       "genFailed": "Échec de la génération.",
       "startFailed": "Impossible de lancer la génération.",
-    "slotSuggested": "proposé",
-    "slotConfirmed": "confirmé",
-    "candidateZone": "Fuseau horaire du candidat : {zone}",
       "notPermitted": "Vous n’avez pas l’autorisation d’effectuer cette action. Connectez-vous en tant qu’opérateur pour continuer.",
       "saveDraft": "Enregistrer comme brouillon",
       "savingDraft": "Enregistrement…",
@@ -4620,9 +4625,6 @@
     },
     "card": {
       "startFailed": "Impossible de lancer l’analyse de correspondance.",
-    "slotSuggested": "proposé",
-    "slotConfirmed": "confirmé",
-    "candidateZone": "Fuseau horaire du candidat : {zone}",
       "noReasoning": "Aucun raisonnement renvoyé.",
       "reasoningFailed": "Échec du raisonnement.",
       "shortlistAria": "Retenir {title} pour l’ajout groupé",

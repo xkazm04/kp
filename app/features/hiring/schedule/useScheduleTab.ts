@@ -15,6 +15,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // Type-only — no better-sqlite3 pulled into this client bundle.
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
+import { seedGrid, type SlotSource } from "./scheduleGridSeeds";
 
 export type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
 
@@ -64,6 +65,13 @@ export function useScheduleTab() {
   // (recruiter- or candidate-self-booked) seed where each candidate sits and appear as
   // read-only booked markers, so the grid and the invite store can't diverge.
   const [invites, setInvites] = useState<ScheduleInvite[]>([]);
+  // Where each seeded cell came from (booked invite / legacy detail / flat guess),
+  // so a guess can be drawn as a guess. See scheduleGridSeeds.ts.
+  const [pickSources, setPickSources] = useState<Record<string, SlotSource>>({});
+  // The zone every time on this surface is expressed in, stated by the server —
+  // KP_INTERVIEW_TZ is not readable from a client bundle, and a wrong zone label is
+  // worse than none.
+  const [interviewTz, setInterviewTz] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
@@ -91,7 +99,9 @@ export function useScheduleTab() {
       sharedGetJson<{ entries?: SchedEntry[]; error?: string }>("/api/pipeline", opts),
       // The invite store — the engine the grid now renders from. Best-effort: if it
       // fails, the grid still works off the legacy approvalDetail strings.
-      sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule", opts).catch(() => ({ invites: [] as ScheduleInvite[] })),
+      sharedGetJson<{ invites?: ScheduleInvite[]; interviewTz?: string }>("/api/schedule", opts).catch(
+        () => ({ invites: [] as ScheduleInvite[], interviewTz: undefined }) as { invites?: ScheduleInvite[]; interviewTz?: string }
+      ),
     ])
       .then(([p, s]) => {
         if (p.error) throw new Error(p.error);
@@ -109,30 +119,43 @@ export function useScheduleTab() {
         // free-text approvalDetail, which is the back-compat fallback for entries with
         // no invite yet. So a self-booked or recruiter-booked time shows in the right cell.
         const inviteByEntry = new Map(invs.filter((i) => i.entryId).map((i) => [i.entryId as string, i]));
-        setPicks(
-          Object.fromEntries(
-            sched
-              .filter((e) => e.approvalKind === "calendar")
-              .map((e) => {
-                const inv = inviteByEntry.get(e.id);
-                const fromInvite = inv?.slotAt ? isoToDateSlot(inv.slotAt) : null;
-                // Legacy approvalDetail is a weekday-relative string; resolve it to a
-                // concrete upcoming date so it lands in a real grid cell. DEFAULT is the
-                // last resort for an entry with neither an invite nor a parseable detail.
-                const fromLegacy = e.approvalDetail ? weekdayToDateSlot(e.approvalDetail) : null;
-                return [e.id, fromInvite || fromLegacy || weekdayToDateSlot(DEFAULT_SLOT) || DEFAULT_SLOT];
-              })
-          )
+        if (typeof s.interviewTz === "string" && s.interviewTz) setInterviewTz(s.interviewTz);
+        const seeded = seedGrid(
+          sched
+            .filter((e) => e.approvalKind === "calendar")
+            .map((e) => {
+              const inv = inviteByEntry.get(e.id);
+              // Only a CONFIRMED invite is a fact; a pending one carries no slot_at.
+              const fromInvite = inv?.status === "confirmed" && inv.slotAt ? isoToDateSlot(inv.slotAt) : null;
+              // Legacy approvalDetail is a weekday-relative string; resolve it to a
+              // concrete upcoming date so it lands in a real grid cell. DEFAULT is the
+              // last resort for an entry with neither an invite nor a parseable detail.
+              const fromLegacy = e.approvalDetail ? weekdayToDateSlot(e.approvalDetail) : null;
+              return {
+                id: e.id,
+                fromInvite,
+                fromLegacy,
+                fallback: weekdayToDateSlot(DEFAULT_SLOT) || DEFAULT_SLOT,
+              };
+            })
         );
+        setPicks(seeded.picks);
+        setPickSources(seeded.sources);
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("loadFailed")));
   useEffect(() => {
     load();
   }, []);
 
-  const pending = entries ?? [];
-  const entryIds = pending.map((e) => e.id).join(",");
-  const calendarEntries = pending.filter((e) => e.approvalKind === "calendar");
+  // MEMOIZED ON `entries`, not rebuilt per render. These three derived lists used to
+  // be fresh `.filter()` calls in the render body, which meant `calendarEntryIds` and
+  // `bookedMarkers` below — real useMemos — recomputed every single render because
+  // their input array was a new identity every time. The interview poll (every 6s)
+  // therefore re-rendered the whole week grid, chips and all, with byte-identical
+  // data. `entries` only changes when a load actually returns something new.
+  const pending = useMemo(() => entries ?? [], [entries]);
+  const entryIds = useMemo(() => pending.map((e) => e.id).join(","), [pending]);
+  const calendarEntries = useMemo(() => pending.filter((e) => e.approvalKind === "calendar"), [pending]);
   // Direction 3 — booked markers: confirmed invites shown as read-only occupied cells
   // on the grid, so a candidate who self-booked via their token (and has since advanced
   // out of the pending list) still occupies their slot and can't be double-booked.
@@ -150,11 +173,26 @@ export function useScheduleTab() {
   // recruiter-filled human scorecard — a human-led round has no transcript, but its
   // candidate must stay visible (and the prep modal reachable) after the verdict
   // gates the entry to scorecard_review (interview-prep-rubric #2).
-  const interviewedEntries = pending.filter(
-    (e) =>
-      e.approvalKind === "scorecard_review" &&
-      (interviews[e.id]?.hasTranscript || prepared[e.id]?.hasHumanScorecard)
+  const interviewedEntries = useMemo(
+    () =>
+      pending.filter(
+        (e) =>
+          e.approvalKind === "scorecard_review" &&
+          (interviews[e.id]?.hasTranscript || prepared[e.id]?.hasHumanScorecard)
+      ),
+    [pending, interviews, prepared]
   );
+  // entry id → the candidate's own IANA zone, captured when THEY booked
+  // (schedule-store `candidate_tz`). Stored since idea-b51106df and rendered only on
+  // the agenda row until now: the recruiter reading the pending list could not see
+  // that "14:00" is the middle of the night for this candidate.
+  const candidateZones = useMemo(() => {
+    const zones: Record<string, string> = {};
+    for (const inv of invites) {
+      if (inv.entryId && inv.candidateTz) zones[inv.entryId] = inv.candidateTz;
+    }
+    return zones;
+  }, [invites]);
   // Which candidates already have a generated interview-prep artifact (toggles
   // the button label). Re-checked when the prep modal closes (a fresh generate).
   useEffect(() => {
@@ -302,6 +340,9 @@ export function useScheduleTab() {
     error,
     actionError,
     picks,
+    pickSources,
+    candidateZones,
+    interviewTz,
     selectedId,
     setSelectedId,
     busy,

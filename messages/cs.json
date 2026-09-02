@@ -2226,6 +2226,10 @@
       "offer_reminder": "Připomenutí nabídky"
     },
     "provenance": {
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "pozorováno",
       "professional": "praxe",
       "internship": "stáž",
@@ -3408,6 +3412,10 @@
       "verdictNote": "Verdikty putují do fronty Rozhodnutí jako hodnoticí karty. Tento přehled je smyčka pohovorů, ne rozhodnutí.",
       "fullTranscript": "Celý přepis a hodnoticí karta",
       "noScorecardHelp": "K tomuto pohovoru nevznikla hodnoticí karta. Otevřete plné zobrazení a přečtěte si samotný přepis.",
+      "costUnknown": "cena neznámá",
+      "costFree": "bez minutových nákladů",
+      "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
+      "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
       "confidence": "jistota: {level}"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
@@ -4040,9 +4048,6 @@
       "generatingNote": "Spustí to několik kroků AI a trvá to ~1–2 minuty. Pokračuje, i když odejdete.",
       "genFailed": "Generování selhalo.",
       "startFailed": "Sestavení se nepodařilo spustit.",
-    "slotSuggested": "návrh",
-    "slotConfirmed": "potvrzeno",
-    "candidateZone": "Časové pásmo kandidáta: {zone}",
       "notPermitted": "K této akci nemáte oprávnění. Pokračujte přihlášením jako operátor.",
       "saveDraft": "Uložit jako koncept",
       "savingDraft": "Ukládání…",
@@ -4620,9 +4625,6 @@
     },
     "card": {
       "startFailed": "Analýzu vhodnosti se nepodařilo spustit.",
-    "slotSuggested": "návrh",
-    "slotConfirmed": "potvrzeno",
-    "candidateZone": "Časové pásmo kandidáta: {zone}",
       "noReasoning": "Nebylo vráceno žádné zdůvodnění.",
       "reasoningFailed": "Zdůvodnění selhalo.",
       "shortlistAria": "Vybrat {title} pro hromadné přidání",

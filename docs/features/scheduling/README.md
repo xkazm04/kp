@@ -258,6 +258,37 @@ changed `calendarEventState` — adopting only `meetingUrl` left the row asserti
 End-to-end coverage (real routes, stubbed Google edge):
 `app/api/schedule/calendar-writeback.test.ts`.
 
+## What the week grid says about a time
+
+The recruiter grid (`app/features/hiring/schedule/ScheduleCalendar.tsx`) renders
+wall-clock cells in the interview zone. Three things it now states, and used to
+leave to inference:
+
+- **Which zone.** A note under the pager reads "All times in the interview
+  timezone: Europe/Prague (GMT+2)". `INTERVIEW_TZ` is a *server* value
+  (`KP_INTERVIEW_TZ`), so `GET /api/schedule` returns it as `interviewTz` rather
+  than letting a client bundle guess — a bundle reading `process.env` would
+  silently report the `Europe/Prague` default on an install configured otherwise,
+  which is worse than saying nothing. The short label (`GMT+2`) is derived from a
+  real instant in the visible week, so it is DST-correct.
+- **Whether the time is agreed.** A cell is seeded from a **confirmed invite**,
+  else the legacy free-text `approvalDetail`, else a flat `Tue 14:00` guess — and
+  all three used to render identically. The provenance now rides with the pick
+  (`scheduleGridSeeds.ts`, pinned by `scheduleGridSeeds.test.ts`): a booked slot
+  shows a "confirmed" chip in the pending list and a solid grid chip; a guess
+  shows a "suggested" chip and a dashed grid chip whose tooltip says it is not
+  confirmed. Absence of provenance reads as *suggested*, never as booked.
+- **Where the candidate is.** `candidate_tz`, captured at confirm time and until
+  now rendered only on the agenda row, appears on the pending card, so "14:00" can
+  be read against the candidate's own night.
+
+Two mechanical notes on the same surface: the derived lists in `useScheduleTab.ts`
+are memoized on `entries` and `ScheduleCalendar` is wrapped in `memo`, so the
+6-second interview-status poll no longer re-renders the whole week grid with
+byte-identical data (the lists were rebuilt per render, so the memos below them
+could never hit); and the week pager's prev/next buttons are 44x44 rather than
+32x32.
+
 ## What the recruiter is told when a booking is refused
 
 `POST /api/schedule {action:"book"}` — the week grid's Confirm — answers every
@@ -293,7 +324,7 @@ to the generic fallback.
 | Surface | File | Notes |
 | --- | --- | --- |
 | Candidate read/book | `app/api/schedule/[token]/route.ts` | Public token route; `publicInviteView` is the leak boundary |
-| Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times |
+| Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times; the plain GET also returns `interviewTz` |
 | Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
 | Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 (overflow reported, not dropped), per-entry `delivery` |
 | Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
