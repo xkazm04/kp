@@ -40,6 +40,7 @@ export function JdsSavedLedgerPanel({
   sort,
   onSort,
   duplicating,
+  heldBuilds,
   onOpenRow,
   onDuplicate,
   onStartGenerate,
@@ -72,7 +73,8 @@ export function JdsSavedLedgerPanel({
   sort: SortState<JdSortCol>;
   onSort: (col: JdSortCol) => void;
   duplicating: string | null;
-  onOpenRow: (row: JdRow) => void;
+  heldBuilds: Set<string>;
+  onOpenRow: (row: JdRow, opts?: { history?: boolean }) => void;
   onDuplicate: (row: JdRow) => void;
   onStartGenerate: () => void;
   t: ReturnType<typeof useTranslations<"library.tab">>;
@@ -134,6 +136,7 @@ export function JdsSavedLedgerPanel({
             onDuplicate={onDuplicate}
             onIngested={(slug, jobId) => setIngested({ slug, jobId })}
             onStartGenerate={onStartGenerate}
+            heldBuilds={heldBuilds}
           />
         )}
         {rows && visible.length > 0 ? (

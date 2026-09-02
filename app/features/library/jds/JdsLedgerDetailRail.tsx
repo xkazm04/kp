@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Briefcase, Copy, ExternalLink, Loader2, Pencil, Sparkles } from "lucide-react";
 import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
-import { META_LABEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, STAT, STAT_LABEL } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { isUnlinked, shortDate, type JdRow } from "./jdsLibrary";
 import { JdCandidateList } from "./JdsCandidateList";
 import { AnalyzingChip, StatusBadge } from "./JdsLedgerBadges";
@@ -38,6 +39,11 @@ export function JdsLedgerDetailRail({
 }) {
   // The saved-on stamp follows the APP locale, not the browser/OS one (see shortDate).
   const locale = useLocale();
+  // A failed ingest used to be a coral icon and nothing else — a 429 rate-limit
+  // refusal, an operator gate and a parse failure all looked identical and none was
+  // announced. The machine `code` resolves in the reader's language; the route's
+  // English `error` is never shown (app/_lib/use-error-message.ts).
+  const errMsg = useErrorMessage();
   return (
     <aside className="space-y-4">
       <div className="space-y-2">
@@ -49,12 +55,12 @@ export function JdsLedgerDetailRail({
         )}
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-pop">
-          <p className={META_LABEL}>{t("colAnalyzed")}</p>
+        <div className={`${STAT} px-3 py-2`}>
+          <p className={STAT_LABEL}>{t("colAnalyzed")}</p>
           <p className="font-serif text-h2 leading-none text-ink nums">{row.analysisCount ?? 0}</p>
         </div>
-        <div className="rounded-lg border border-stone-200 bg-white px-3 py-2 shadow-pop">
-          <p className={META_LABEL}>{t("colSaved")}</p>
+        <div className={`${STAT} px-3 py-2`}>
+          <p className={STAT_LABEL}>{t("colSaved")}</p>
           <p className="mt-1 text-sm font-semibold text-ink">{shortDate(row.created_at, locale)}</p>
         </div>
       </div>
@@ -98,6 +104,11 @@ export function JdsLedgerDetailRail({
             {ing.state === "busy" ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Briefcase size={15} aria-hidden />}
             {ing.state === "error" ? t("ingestRetry") : t("ingestAsJob")}
           </button>
+        ) : null}
+        {ing.state === "error" ? (
+          <p role="alert" className="text-sm text-red-700">
+            {errMsg({ code: ing.code }, t("ingestFailed"))}
+          </p>
         ) : null}
         <Link href={`/jds/${encodeURIComponent(row.slug)}`} className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm font-semibold text-ink hover:border-coral/40">
           <ExternalLink size={15} aria-hidden /> {t("detailOpenPublic")}

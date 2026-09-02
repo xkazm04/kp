@@ -11,7 +11,8 @@ import { builderLintFindings, isUnlinked, jdMarketResearchAvailable, jdMustHaveC
 import { JdLintPanel } from "./JdsLintPanel";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
 import { BuildingPanel, CaseCard, FailedPanel, RepoGroundingCard, SalaryCard } from "./JdsLedgerDetailPanels";
-import { hasCaseContent, hasRepoGrounding, parseArtifacts, type CaseArtifact } from "./jdsLedgerArtifacts";
+import { hasCaseContent, hasRepoGrounding, parseArtifacts, readBuildIntent, type CaseArtifact } from "./jdsLedgerArtifacts";
+import { BuildHeldBand, BuildIntentLine } from "./JdsLedgerBuildProvenance";
 import { JdsLedgerDetailRail } from "./JdsLedgerDetailRail";
 
 const JdModalEditor = dynamic(() => import("./JdsModalEditor").then((m) => ({ default: m.JdModalEditor })), {
@@ -24,6 +25,8 @@ const JdModalEditor = dynamic(() => import("./JdsModalEditor").then((m) => ({ de
 export function LedgerDetailModal({
   row,
   stagedSuggestion,
+  held = false,
+  openHistory = false,
   onClose,
   onDuplicate,
   duplicating,
@@ -33,6 +36,12 @@ export function LedgerDetailModal({
   // winnability-apply — when this row was opened from a coach recommendation, the
   // staged edit to surface as a suggestion banner inside the editor. null otherwise.
   stagedSuggestion?: CoachEdit | null;
+  /** This build's markdown was filed as a revision instead of published — the row
+   *  reads "ready" either way, so the modal has to say it (see useHeldBuilds). */
+  held?: boolean;
+  /** Opened FROM the held-build chip: land in the editor with its history already
+   *  expanded, because the held draft is one of those revision rows. */
+  openHistory?: boolean;
   onClose: () => void;
   onDuplicate: (row: JdRow) => void;
   duplicating: boolean;
@@ -53,7 +62,10 @@ export function LedgerDetailModal({
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   // Direction 1 — in-place edit inside the modal (title + body → the existing PATCH).
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(openHistory);
+  // One-shot: the deep-open expands the history on the editor's FIRST mount only,
+  // so a later manual Edit in the same modal session opens clean.
+  const [historySpent, setHistorySpent] = useState(false);
   // winnability-apply — a coach handoff opens straight into edit mode. Latched off
   // once the recruiter exits the editor so the staged session can't re-open itself.
   const [stagedExited, setStagedExited] = useState(false);
@@ -68,6 +80,9 @@ export function LedgerDetailModal({
   // Structured artifacts (salary / case) the build stored beside the markdown body.
   // Parsed inline (the modal renders infrequently and the blob is small).
   const artifacts = parseArtifacts(jd?.analysis_json);
+  // What the build RAN with (template / output language / seniority). null for a
+  // draft save or a pre-migration row — the provenance line is simply not drawn.
+  const buildIntent = readBuildIntent(jd?.build_input_json);
   // Edit is offered only for a settled JD (never mid-build / failed) once the body
   // has loaded. A grounded market band feeds the lint's salary-suppression seam.
   const canEdit = Boolean(jd) && !analyzing && !failed && status === "ready";
@@ -83,9 +98,14 @@ export function LedgerDetailModal({
     setEditing(true);
     setStagedExited(false);
   };
+  const openHeldDraft = () => {
+    setHistorySpent(false);
+    enterEdit();
+  };
   const exitEdit = () => {
     setEditing(false);
     setStagedExited(true);
+    setHistorySpent(true);
   };
   const toggleEdit = () => (inEdit ? exitEdit() : enterEdit());
   const showStaged = stagedActive ? stagedSuggestion : null;
@@ -142,6 +162,7 @@ export function LedgerDetailModal({
               // it showed the Unlinked chip and an "Ingest as job" button.
               linked={!isUnlinked(effRow)}
               stagedSuggestion={showStaged}
+              initialHistoryOpen={openHistory && !historySpent}
               onDone={() => {
                 exitEdit();
                 refresh();
@@ -159,6 +180,8 @@ export function LedgerDetailModal({
             <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{t("detailLoadError")}</p>
           ) : (
             <div className="space-y-4">
+              {held ? <BuildHeldBand onOpenDraft={openHeldDraft} /> : null}
+              {buildIntent ? <BuildIntentLine intent={buildIntent} /> : null}
               {artifacts?.salary ? <SalaryCard salary={artifacts.salary} sources={artifacts.salarySources} source={artifacts.salarySource} /> : null}
               {hasRepoGrounding(artifacts?.snapshot) ? <RepoGroundingCard snapshot={artifacts.snapshot} /> : null}
               {jd.body.trim() ? (

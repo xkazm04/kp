@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { compareCells, useTableSort } from "@/app/_components/table/useTableSort";
-import { useJdLibrary } from "./jdsHooks";
+import { useHeldBuilds, useJdLibrary } from "./jdsHooks";
 import {
   coachHandoffBlock,
   facetCounts,
@@ -28,7 +28,7 @@ import {
 import { parseCoachEditParam, COACH_EDIT_PARAM, type CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
 import { duplicateToBuilder, type LedgerNavState } from "./jdsLedgerNav";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
-import { readIntentPrompt } from "./jdsLedgerArtifacts";
+import { readBuildIntent } from "./jdsLedgerArtifacts";
 
 export function useLedgerLogic() {
   const t = useTranslations("library.tab");
@@ -55,6 +55,18 @@ export function useLedgerLogic() {
   const [field, setField] = useState<string | null>(null);
   const [seniority, setSeniority] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<JdRow | null>(null);
+  // Which JD's detail modal should open straight into the edit history. Set by the
+  // "build held as a revision" chip: the held draft IS a revision row, so the
+  // one-click route to it is the history list the editor already renders. Cleared
+  // whenever a row is opened any other way, so the deep-open is one-shot.
+  const [openHistoryFor, setOpenHistoryFor] = useState<string | null>(null);
+  const openRowAt = useCallback((row: JdRow, opts?: { history?: boolean }) => {
+    setOpenHistoryFor(opts?.history ? row.slug : null);
+    setOpenRow(row);
+  }, []);
+  // The slugs whose generated body was filed as a revision instead of published
+  // (see useHeldBuilds) — the ledger row and the detail modal both chip off this.
+  const heldBuilds = useHeldBuilds(rows);
   const [ingested, setIngested] = useState<{ slug: string; jobId: string | null } | null>(null);
 
   // winnability-apply — one-shot handoff from the winnability coach: land here with
@@ -113,21 +125,31 @@ export function useLedgerLogic() {
     if (duplicating) return;
     setDuplicating(row.slug);
     let need = "";
+    let intent: ReturnType<typeof readBuildIntent> = null;
     try {
       const src = (await fetch(`/api/jds/${encodeURIComponent(row.slug)}?intent=1`).then((r) => r.json())) as
         | { body?: string; build_input_json?: string | null }
         | null;
-      const prompt = readIntentPrompt(src?.build_input_json);
-      need = prompt || (typeof src?.body === "string" ? src.body : row.preview ?? "");
+      intent = readBuildIntent(src?.build_input_json);
+      need = intent?.needText || (typeof src?.body === "string" ? src.body : row.preview ?? "");
     } catch {
       need = row.preview ?? "";
     }
     setPrefill({
+      // The row wins for the fields the LIST already carries (they reflect the JD as
+      // it stands, edits included); the stored intent supplies the build choices no
+      // column shows. Seniority and family fall back to the intent for a JD whose
+      // linked job never materialized — the row's copies come from that job, so an
+      // unlinked generated role had both columns empty and Duplicate reset them to
+      // the form defaults.
       title: row.title,
-      company: row.company ?? undefined,
-      seniority: row.seniority ?? undefined,
-      roleFamily: row.roleFamily ?? undefined,
+      company: row.company ?? intent?.company ?? undefined,
+      seniority: row.seniority ?? (intent?.seniority || undefined),
+      roleFamily: row.roleFamily ?? (intent?.roleFamily || undefined),
       need,
+      templateId: intent?.templateId || undefined,
+      lang: intent?.lang || undefined,
+      repoUrl: intent?.repoUrl || undefined,
     });
     setDuplicating(null);
     setOpenRow(null);
@@ -232,6 +254,9 @@ export function useLedgerLogic() {
     setSeniority,
     openRow,
     setOpenRow,
+    openRowAt,
+    openHistoryFor,
+    heldBuilds,
     ingested,
     setIngested,
     coachEdit,

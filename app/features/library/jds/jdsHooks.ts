@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
+import { heldAsRevision } from "./jdsLedgerArtifacts";
 import type { JdDetail, JdRow } from "./jdsLibrary";
 
 // Shared JD-list fetch for the two-level surface: same abort-on-unmount +
@@ -92,7 +94,12 @@ export function useJdDetail(slug: string | null) {
         setStatus("loading");
         setJd(null);
       }
-      fetch(`/api/jds/${encodeURIComponent(slug)}`)
+      // ?intent=1 — the detail modal states the template / output language /
+      // seniority this JD was BUILT with (build_input_json), which the plain
+      // payload deliberately strips as internal authoring material. This surface
+      // is the recruiter's own gated Ledger, the same caller the Duplicate flow
+      // already reads it as, so requesting it here exposes nothing new.
+      fetch(`/api/jds/${encodeURIComponent(slug)}?intent=1`)
         .then((r) => {
           if (!r.ok) throw new Error();
           return r.json();
@@ -130,17 +137,94 @@ export type ActionState = "idle" | "busy" | "error";
 // the (possibly pre-existing) job id up so the success band can deep-link to it.
 export function useIngestJob(slug: string, onDone: (jobId: string | null) => void) {
   const [state, setState] = useState<ActionState>("idle");
+  // The machine `code` from the failed response — the ONLY thing a caller may turn
+  // into a message (app/_lib/use-error-message.ts). Before this the response body
+  // was thrown away entirely and both callers painted a coral icon with one generic
+  // tooltip, so a rate-limit refusal (429 TOO_MANY_REQUESTS) and an operator gate
+  // (401) were indistinguishable from a parse failure — and nothing was announced.
+  // null when the failure carried no code (a dropped connection, an unparseable body).
+  const [code, setCode] = useState<string | null>(null);
   const run = useCallback(async () => {
     setState((s) => (s === "busy" ? s : "busy"));
+    setCode(null);
     try {
       const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/ingest-job`, { method: "POST" });
-      if (!r.ok) throw new Error();
-      const payload = (await r.json().catch(() => null)) as { jobId?: string } | null;
+      const payload = (await r.json().catch(() => null)) as { jobId?: string; code?: string } | null;
+      if (!r.ok) {
+        setCode(typeof payload?.code === "string" ? payload.code : null);
+        setState("error");
+        return;
+      }
       setState("idle");
       onDone(typeof payload?.jobId === "string" ? payload.jobId : null);
     } catch {
+      // A dropped connection carries no code; the caller's own localized fallback
+      // is the honest line there.
       setState("error");
     }
   }, [slug, onDone]);
-  return { state, run };
+  return { state, code, run };
+}
+
+/**
+ * Which JDs got their generated body HELD AS A REVISION rather than published.
+ *
+ * `bodyHeldAsRevision` is produced by runJdBuild and persisted NOWHERE on the JD
+ * row — the row flips to `ready` exactly as an ordinary build does, and the only
+ * record is the jd_build task's result. So the ledger joins each row to its
+ * `analysis_task_id` and reads that result.
+ *
+ * Cost control matters here: GET /api/tasks/[id] is one request per task and a
+ * library can hold hundreds of rows. Two bounds keep it cheap. (1) Only rows whose
+ * task is in the POLLED recent-task window are candidates — that window is small
+ * and bounded by the server, and a build old enough to have aged out is old enough
+ * that the recruiter has seen the outcome. (2) Every task id is fetched at most
+ * once per mount (`seen`), success or failure, so a 404 for a pruned task cannot
+ * re-fetch on every poll tick.
+ *
+ * Returns the set of SLUGS whose build was held. Empty until the fetches land —
+ * the chip simply appears a beat later, which is the honest shape for a fact that
+ * lives behind a second request.
+ */
+export function useHeldBuilds(rows: JdRow[] | null): Set<string> {
+  const { tasks, fetchTask } = useTasks();
+  const [heldTasks, setHeldTasks] = useState<Set<string>>(() => new Set());
+  const seen = useRef<Set<string>>(new Set());
+
+  // The rows whose build FINISHED and whose task is still in the polled window.
+  const pending = (rows ?? [])
+    .filter((r) => r.analysis_status !== "analyzing" && Boolean(r.analysis_task_id))
+    .map((r) => r.analysis_task_id as string)
+    .filter((id) => !seen.current.has(id) && tasks.some((t) => t.id === id && t.status === "succeeded"));
+  // A stable key so the effect re-runs when the candidate SET changes, not on
+  // every poll tick that re-creates the same array.
+  const pendingKey = pending.join(",");
+
+  useEffect(() => {
+    if (!pendingKey) return;
+    const ids = pendingKey.split(",");
+    ids.forEach((id) => seen.current.add(id));
+    let cancelled = false;
+    void Promise.all(ids.map((id) => fetchTask(id).then((task) => [id, heldAsRevision(task?.result)] as const))).then(
+      (pairs) => {
+        if (cancelled) return;
+        const held = pairs.filter(([, isHeld]) => isHeld).map(([id]) => id);
+        if (held.length === 0) return;
+        setHeldTasks((prev) => {
+          const next = new Set(prev);
+          held.forEach((id) => next.add(id));
+          return next;
+        });
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingKey, fetchTask]);
+
+  const slugs = new Set<string>();
+  for (const row of rows ?? []) {
+    if (row.analysis_task_id && heldTasks.has(row.analysis_task_id)) slugs.add(row.slug);
+  }
+  return slugs;
 }

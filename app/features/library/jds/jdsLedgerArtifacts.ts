@@ -58,15 +58,67 @@ export function caseTaskLabel(task: unknown): string {
   return "Task";
 }
 
+// ── The persisted build intent (jds.build_input_json) ─────────────────────────
+// What POST /api/jds/generate recorded BEFORE the build ran: the recruiter's raw
+// prompt plus the choices that shaped the output (template, output language,
+// seniority, role family, repo). Everything here is optional — a draft save and
+// every pre-migration row carry no intent at all.
+export type BuildIntent = {
+  needText: string;
+  company: string;
+  seniority: string;
+  roleFamily: string;
+  repoUrl: string;
+  lang: string;
+  templateId: string;
+};
+
+const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+/** Parse `build_input_json` into the whole intent, or null when there is none /
+ *  it does not parse. Duplicate re-seeds the builder from this (so a copy is
+ *  rebuilt with the SAME template and output language, not the app defaults), and
+ *  the detail modal states it back so the recruiter can see what produced the JD.
+ *  Every field normalizes to "" rather than undefined, so a caller can treat an
+ *  absent choice and an empty one identically. */
+export function readBuildIntent(json: string | null | undefined): BuildIntent | null {
+  if (!json) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const o = parsed as Record<string, unknown>;
+  return {
+    needText: str(o.needText),
+    company: str(o.company),
+    seniority: str(o.seniority),
+    roleFamily: str(o.roleFamily),
+    repoUrl: str(o.repoUrl),
+    lang: str(o.lang),
+    templateId: str(o.templateId),
+  };
+}
+
 // The recruiter's original "describe the need" prompt out of a JD's persisted build
 // intent (build_input_json), or "" when absent/legacy/malformed — so Duplicate can
 // prefer intent over the rendered body without the caller re-parsing JSON.
 export function readIntentPrompt(json: string | null | undefined): string {
-  if (!json) return "";
-  try {
-    const intent = JSON.parse(json) as { needText?: unknown };
-    return typeof intent.needText === "string" ? intent.needText.trim() : "";
-  } catch {
-    return "";
-  }
+  return readBuildIntent(json)?.needText ?? "";
+}
+
+/** Did this build's markdown NOT become the JD's body?
+ *
+ *  runJdBuild's `finishJdAnalysis` takes the generated body ONLY while the row is
+ *  still the untouched placeholder. An operator who edited the JD during the 1-2
+ *  minute build keeps their text and the build is filed as a REVISION — the run
+ *  returns `bodyHeldAsRevision: true` on its task result to say so. Nothing else
+ *  records it: the row itself flips to `ready` exactly as a normal build does, so
+ *  the task result is the only evidence, and this is the one reader of it.
+ *  Anything that is not the literal boolean `true` reads as "not held". */
+export function heldAsRevision(result: unknown): boolean {
+  if (!result || typeof result !== "object") return false;
+  return (result as Record<string, unknown>).bodyHeldAsRevision === true;
 }

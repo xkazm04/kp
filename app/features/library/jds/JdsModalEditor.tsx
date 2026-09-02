@@ -38,6 +38,7 @@ export function JdModalEditor({
   marketResearch,
   linked,
   stagedSuggestion,
+  initialHistoryOpen = false,
   onDone,
 }: {
   slug: string;
@@ -58,6 +59,10 @@ export function JdModalEditor({
   // Advisory only: the recruiter makes the wording change themselves and saves
   // through the existing PATCH/CAS path (which re-ingests the linked job).
   stagedSuggestion?: CoachEdit | null;
+  // Open with the edit history already expanded (and loading). Used by the
+  // "build held as a revision" chip, whose whole point is the revision row the
+  // build left behind — the history list IS the draft's only reader.
+  initialHistoryOpen?: boolean;
   // Refresh the detail + leave edit mode (used by a successful save AND the
   // conflict "Reload latest" recovery).
   onDone: () => void;
@@ -79,6 +84,7 @@ export function JdModalEditor({
       saveError: t("editSaveError"),
       revertError: t("editRevertError"),
     },
+    initialHistoryOpen,
     onSaved: onDone,
     onReverted: onDone,
   });
