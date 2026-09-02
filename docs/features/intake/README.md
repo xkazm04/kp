@@ -187,6 +187,24 @@ JD has ever had.
   defaults are always the safe end: an unreadable rung stays 2, an unreadable
   forbidden-class answer keeps all six, an undecided population stays `either` —
   and every assumption is recorded in `coercionNotes[]`.
+- **Every refusal on the two App-master routes carries a code.** They answered
+  bare English strings, so `JdsIntakeAppMasterCard` had one line — *"could not
+  compose the spec"* — for five different next actions: wait for the scan
+  (`INTAKE_SCAN_NOT_LANDED`, 409), answer the dialog (`INTAKE_BRIEF_EMPTY`,
+  400), start an App-master session (`INTAKE_NOT_APP_MASTER`, 400), wait out the
+  throttle (`TOO_MANY_REQUESTS`, 429), or nothing at all because the session is
+  frozen (`INTAKE_FROZEN`, 409). The dossier route adds
+  `INTAKE_NOT_FROM_SCAN` / `INTAKE_SCAN_MISMATCH` / `INTAKE_DOSSIER_INVALID`,
+  and both answer `INTAKE_NOT_FOUND` (404). All are `REFUSAL_ERRORS`
+  (`app/_lib/api-response.ts`, docs/architecture/api-contracts.md §1.1) with an
+  `errors.<CODE>` entry in each of the four catalogs; the card resolves them
+  through `useErrorMessage()`, the way the dispatch control already did.
+- **Compose is cancellable.** `runIntakeAppMasterSync` always accepted an
+  `AbortSignal`; both routes dropped `request.signal`, so a compose that can run
+  for three minutes kept a Python process (and possibly a paid `agent_fit` call)
+  alive for a screen nobody was watching. Both routes now thread it, the card
+  shows a **Cancel** beside "Composing…", and an aborted request answers 499
+  with no store-error log — a deliberate cancel is not an incident.
 - **Hire** — the human population promotes through the existing JD build
   (`/promote`, unchanged). The **agent population's dispatch to Personas is P4**:
   the card shows a disabled "Dispatch to Personas" control saying so. No fake
@@ -215,6 +233,8 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | App master: brief → spec (pure) | `app/_lib/intake-brief.ts::briefToAppMasterSpec` (`intake-brief.test.ts`) |
 | App master: scan watch + compose (client) | `app/features/library/jds/intake/jdsIntakeAppMaster.ts` |
 | App master: route trust boundaries | `app/api/intake/app-master-routes.test.ts` (source guard) |
+| App master: refusal codes | `REFUSAL_ERRORS` in `app/_lib/api-response.ts` (`INTAKE_NOT_FOUND`, `INTAKE_FROZEN`, `INTAKE_BRIEF_MOVED`, `INTAKE_NOT_FROM_SCAN`, `INTAKE_SCAN_MISMATCH`, `INTAKE_DOSSIER_INVALID`, `INTAKE_NOT_APP_MASTER`, `INTAKE_SCAN_NOT_LANDED`, `INTAKE_BRIEF_EMPTY`) + the shared `TOO_MANY_REQUESTS`; rendered via `useErrorMessage()` |
+| App master: write-path race guard | `app/_lib/db/intake-app-master-cas.test.ts` (behavioral, temp SQLite) |
 | Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
 | Export builder (pure) | `app/_lib/intake-export.ts` |
 | Close sentinel strip (pure) | `app/api/intake/reply-sentinel.ts` (`stripEndSentinel`, `voice-close-guard.test.ts`) |
@@ -563,3 +583,8 @@ workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
   stricter and should replace it once that store is a stable dependency. The
   population-fit thresholds (agent ≥ 0.75, human ≤ 0.25) are asserted, not
   calibrated. The App-master card has not had a browser pass in either theme.
+  `coercionNotes[]` is still built as ENGLISH prose server-side
+  (`app/_lib/intake-brief.ts`) and rendered verbatim, so the one part of the
+  spec card that explains the composer's assumptions does not translate — the
+  remaining English-on-the-wire leak in this surface now that every refusal
+  carries a code.

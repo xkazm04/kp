@@ -49,8 +49,15 @@ export function useAppMasterLogic(
   const { tasks } = useTasks();
   const [scanState, setScanState] = useState<ScanState>(null);
   const [composing, setComposing] = useState(false);
-  const [composeError, setComposeError] = useState<string | null>(null);
+  // The server's machine CODE, never its English `error` string — the card
+  // resolves it through the `errors` catalog in the reader's language, exactly
+  // as the dispatch control below already does. A single placeholder string used
+  // to collapse a throttle, "the scan has not landed" and "answer the dialog
+  // first" into one line that told the requestor nothing about what to do next.
+  const [composeError, setComposeError] = useState<{ code: string | null } | null>(null);
   const inFlight = useRef(false);
+  // The in-flight compose, so it can be cancelled (see composeAppMaster).
+  const composeAbort = useRef<AbortController | null>(null);
   // The scan whose dossier was already posted — a second POST would re-merge
   // the same facets and re-spend on the population fit for no new information.
   const posted = useRef<string | null>(null);
@@ -120,23 +127,45 @@ export function useAppMasterLogic(
 
   const composeAppMaster = useCallback(async () => {
     if (!intakeId || composing) return;
+    // The compose spawn can run for minutes. Holding its controller is what makes
+    // the Cancel below a real cancel rather than a UI lie: aborting the fetch
+    // aborts `request.signal` server-side, which the route threads into the
+    // Python spawn.
+    const controller = new AbortController();
+    composeAbort.current = controller;
     setComposing(true);
     setComposeError(null);
     try {
-      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/compose-app-master`, { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/compose-app-master`, {
+        method: "POST",
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { code?: string } | null;
+        setComposeError({ code: body?.code ?? null });
+        return;
+      }
       const data = (await res.json()) as AppMasterCompose & { brief: IntakeSession["brief"] };
       // applySession is identity-checked, like every other late response here.
       applySession(intakeId, {
         brief: data.brief,
         appMaster: { spec: data.spec, fit: data.fit, composedAt: data.composedAt },
       });
-    } catch {
-      setComposeError("compose");
+    } catch (err) {
+      // A cancel is not a failure and must not be reported as one; the button
+      // simply returns to idle.
+      if ((err as { name?: string } | null)?.name !== "AbortError") setComposeError({ code: null });
     } finally {
+      if (composeAbort.current === controller) composeAbort.current = null;
       setComposing(false);
     }
   }, [intakeId, composing, applySession]);
+
+  /** Abort an in-flight compose. Safe to call when nothing is running. */
+  const cancelCompose = useCallback(() => {
+    composeAbort.current?.abort();
+    composeAbort.current = null;
+  }, []);
 
   // ---- P4: dispatch the composed spec to Personas ---------------------------
 
@@ -174,6 +203,18 @@ export function useAppMasterLogic(
     setComposeError(null);
     setDispatchState({ status: "idle" });
   }
+
+  // A compose belongs to the session it was started from, so a session switch
+  // aborts it — the spawn behind it can run for minutes, and nobody is waiting
+  // for it any more. In an EFFECT's cleanup, not in the render-phase reset
+  // above: touching a ref during render is exactly what react-hooks/refs
+  // forbids, and the reset block runs during render.
+  useEffect(() => {
+    return () => {
+      composeAbort.current?.abort();
+      composeAbort.current = null;
+    };
+  }, [intakeId]);
 
   useEffect(() => {
     if (!isAppMaster || paired !== null) return;
@@ -218,5 +259,14 @@ export function useAppMasterLogic(
     }
   }, [intakeId, dispatchState.status]);
 
-  return { scanState, composeAppMaster, composing, composeError, paired, dispatchState, dispatchAppMaster };
+  return {
+    scanState,
+    composeAppMaster,
+    cancelCompose,
+    composing,
+    composeError,
+    paired,
+    dispatchState,
+    dispatchAppMaster,
+  };
 }

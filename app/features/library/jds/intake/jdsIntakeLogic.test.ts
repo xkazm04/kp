@@ -126,6 +126,30 @@ test("a repo-scan response is read through its { scan } wrapper, never flat", ()
 // note onto an unrelated session, and a `sent` dispatch state that disabled the
 // Dispatch button for a session nobody had dispatched. Asserted at the source: the
 // hook needs React to run, and the property is structural, not computational.
+// The compose failure is shown from the server's CODE, never from its English
+// `error` string, and a 180-second spawn is cancellable. Both are structural
+// properties of the hook's source (it needs React to run).
+test("useAppMasterLogic keeps the compose failure's code and can cancel the spawn", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+
+  assert.match(
+    src,
+    /useState<\{ code: string \| null \} \| null>\(null\)/,
+    "composeError must carry the code the card resolves, not a placeholder string"
+  );
+  assert.ok(!src.includes('setComposeError("compose")'), "the one-size-fits-all failure string is the old hole");
+  // The code comes off the response body, never the `error` message beside it.
+  assert.match(src, /setComposeError\(\{ code: body\?\.code \?\? null \}\)/);
+  assert.ok(!/setComposeError\(\{[^}]*error/.test(src), "the server's English string must not reach the card");
+
+  // Cancel: a controller is held, threaded into the fetch, and an abort is not
+  // reported as a failure.
+  assert.match(src, /const controller = new AbortController\(\)/);
+  assert.match(src, /signal: controller\.signal/);
+  assert.match(src, /!== "AbortError"/, "an aborted compose must not render as an error");
+  assert.match(src, /const cancelCompose = useCallback/);
+});
+
 test("useAppMasterLogic resets its per-session state when the intake changes", () => {
   const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
 

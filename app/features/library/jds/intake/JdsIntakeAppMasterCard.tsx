@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { AppMasterCompose, PopulationFit } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -53,6 +53,7 @@ export function JdsIntakeAppMasterCard({
   composing,
   composeError,
   onCompose,
+  onCancelCompose,
   frozen,
   paired,
   dispatchState,
@@ -65,8 +66,12 @@ export function JdsIntakeAppMasterCard({
   /** How many `objective:` facets the brief holds — the fit is judged over them. */
   objectiveCount: number;
   composing: boolean;
-  composeError: boolean;
+  /** The failed compose's machine CODE, resolved through the `errors` catalog in
+   *  the reader's language. `null` = nothing failed. */
+  composeError: { code: string | null } | null;
   onCompose?: () => void;
+  /** Abort an in-flight compose. The spawn behind it can run for minutes. */
+  onCancelCompose?: () => void;
   frozen?: boolean;
   /** Personas pairing: null = not read yet, false = dispatch cannot work. */
   paired: boolean | null;
@@ -155,12 +160,29 @@ export function JdsIntakeAppMasterCard({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className={META_LABEL}>{t("spec.title")}</div>
             {!frozen && onCompose ? (
-              <button type="button" className={`${BTN_SECONDARY} h-8 px-3 text-sm`} disabled={composing} onClick={onCompose}>
-                {composing ? t("composing") : spec ? t("recompose") : t("compose")}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={`${BTN_SECONDARY} h-8 px-3 text-sm`}
+                  disabled={composing}
+                  onClick={onCompose}
+                >
+                  {composing ? t("composing") : spec ? t("recompose") : t("compose")}
+                </button>
+                {/* The compose spawn runs for up to three minutes. A requestor who
+                    changed their mind gets a real cancel — the abort reaches the
+                    Python process — instead of a button they can only wait out. */}
+                {composing && onCancelCompose ? (
+                  <button type="button" className={`${BTN_GHOST} h-8 px-3 text-sm`} onClick={onCancelCompose}>
+                    {t("cancel")}
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
-          {composeError ? <p className="text-body text-red-700">{t("composeError")}</p> : null}
+          {composeError ? (
+            <p className="text-body text-red-700">{resolveError(composeError, t("composeError"))}</p>
+          ) : null}
           {spec ? (
             <div className="space-y-1.5">
               <Row label={t("spec.population")} value={t(`fit.verdict.${spec.role.population === "either" ? "unassessed" : spec.role.population}`)} />

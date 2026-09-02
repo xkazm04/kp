@@ -64,7 +64,44 @@ test("compose route composes the spec with the PURE function, never a model", ()
 test("both routes freeze a promoted session", () => {
   for (const [name, src] of [["dossier", dossier], ["compose", compose]] as const) {
     assert.match(src, /status === "promoted"/, `${name}: promoted sessions must be frozen`);
-    assert.match(src, /status: 409/, `${name}: freezing must answer 409`);
+    assert.match(src, /jsonRefusal\("INTAKE_FROZEN", 409\)/, `${name}: freezing must answer 409 with its code`);
+  }
+});
+
+// EVERY refusal carries a machine code (docs/architecture/api-contracts.md §1.1).
+// They were bare English strings, so the card could only render "compose failed"
+// — one line for a throttle, a scan that has not landed, a brief nobody has
+// filled in and a promoted session, in English, to every locale.
+test("no refusal on either route answers with a bare English string", () => {
+  for (const [name, src] of [["dossier", dossier], ["compose", compose]] as const) {
+    const bare = [...src.matchAll(/NextResponse\.json\(\{\s*error:/g)];
+    assert.equal(bare.length, 0, `${name}: ${bare.length} refusal(s) still answer without a code`);
+  }
+});
+
+test("each route's refusals map to the codes the card resolves", () => {
+  for (const code of ["INTAKE_NOT_FOUND", "INTAKE_FROZEN", "INTAKE_NOT_FROM_SCAN", "INTAKE_SCAN_MISMATCH", "INTAKE_DOSSIER_INVALID"]) {
+    assert.ok(dossier.includes(`jsonRefusal("${code}"`), `dossier: ${code} is not answered`);
+  }
+  for (const code of ["INTAKE_NOT_FOUND", "INTAKE_FROZEN", "INTAKE_NOT_APP_MASTER", "INTAKE_SCAN_NOT_LANDED", "INTAKE_BRIEF_EMPTY"]) {
+    assert.ok(compose.includes(`jsonRefusal("${code}"`), `compose: ${code} is not answered`);
+  }
+  // The throttle is the SHARED generic code, not a private one — the card must
+  // not need a per-route entry to say "too many requests".
+  for (const [name, src] of [["dossier", dossier], ["compose", compose]] as const) {
+    assert.match(src, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, `${name}: the 429 has no code`);
+  }
+});
+
+// A compose can hold a Python process for minutes. The runner already accepts an
+// AbortSignal; both routes dropped `request.signal`, so a requestor who cancelled
+// (or navigated away) left the spawn running and possibly spending.
+test("both routes thread the caller's abort signal into the spawn", () => {
+  for (const [name, src] of [["dossier", dossier], ["compose", compose]] as const) {
+    const call = src.slice(src.lastIndexOf("runIntakeAppMasterSync("));
+    assert.match(call, /request\.signal/, `${name}: the spawn cannot be cancelled`);
+    // …and an abort is not filed as a store fault.
+    assert.match(src, /request\.signal\.aborted/, `${name}: an abort must not be logged as a 500`);
   }
 });
 

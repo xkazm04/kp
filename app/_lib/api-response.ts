@@ -228,6 +228,30 @@ export const REFUSAL_ERRORS = {
    *  tells the operator to configure a token; conflating the two would answer a
    *  throttled companion turn with advice about GITHUB_TOKEN. */
   TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,
+  // ---- App-master intake refusals (docs/features/intake/README.md §"Shape
+  // app_master"). Both routes used to answer these as bare English strings with
+  // no code, so the card collapsed a throttle, "the scan has not landed" and
+  // "answer the dialog first" into one "compose failed" line — three different
+  // next actions, rendered identically, in English, to every locale.
+  /** The intake id does not resolve in this workspace (404). */
+  INTAKE_NOT_FOUND: "That intake session could not be found.",
+  /** The session was promoted: the JD exists and its grounding record is frozen (409). */
+  INTAKE_FROZEN: "This intake was promoted, so its grounding and its spec are frozen.",
+  /** A dossier was posted to a session that was never started from a repo scan (400). */
+  INTAKE_NOT_FROM_SCAN: "This intake was not started from a repository scan.",
+  /** The posted scanId is not the one THIS intake was created from (400) — the gate
+   *  that stops another session's scan output from landing on this brief. */
+  INTAKE_SCAN_MISMATCH: "That scan belongs to a different intake session.",
+  /** The posted body did not clamp to `repoDossierSchema` (400). */
+  INTAKE_DOSSIER_INVALID: "That codebase reading is not in the expected shape.",
+  /** Compose was asked of a session that is not an App-master one (400). */
+  INTAKE_NOT_APP_MASTER: "This is not an App master intake, so there is no spec to compose.",
+  /** Compose was asked before the repo scan finished (409). Ordinary timing, not
+   *  a fault: the scan lands on its own and the control becomes usable. */
+  INTAKE_SCAN_NOT_LANDED: "The repository scan has not landed yet. The spec composes once it does.",
+  /** Compose was asked with an empty brief (400) — nothing has been said yet for
+   *  the pure composer to turn into a mandate. */
+  INTAKE_BRIEF_EMPTY: "The brief is still empty. Answer the dialog first, then compose.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
