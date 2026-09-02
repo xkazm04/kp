@@ -515,6 +515,41 @@ may already have paid for its spawn and its answer is still worth caching
 server-side — it just must not reach the screen. Pinned by
 `matrixReasoningFetch.test.ts` and `focus/matchRunSequence.test.ts`.
 
+### The grid does not re-render while you scroll
+The popover follows its cell: `useMatrixTab` listens for `scroll` in the capture
+phase (so the grid's own `overflow-auto` scroller fires it too) plus `resize`,
+and re-anchors from the live trigger rect. Both fire at input rate, and each
+event used to call `setPopover({ ...cur, rect })` — a state update on the tab, so
+a trackpad flick re-rendered the entire grid subtree tens of times a second and
+every one of the up-to-200 × N cells rebuilt its `title` and `aria-label` through
+the translator, for a change no cell can see. Two changes:
+
+- **One measurement per frame, and no React in it.** `createFrameThrottle`
+  (`matrixAnchor.ts`, DOM- and React-free with `raf`/`caf` injected) coalesces a
+  burst into a single run, and that run writes `style.top` / `style.left` on the
+  popover element directly. `matrixAnchor.test.ts` drives fake frames and states
+  both numbers: a 40-event burst cost 40 full-grid renders before and costs 1
+  measurement with 0 grid renders now. `popover.rect` remains the open-time
+  anchor that a genuine re-render restores.
+- **The row is a memo boundary.** `MatrixGridRow.tsx` is `memo`'d and receives
+  per-row *signatures* (`selSig` / `addSig`) rather than the shared selection and
+  added `Set`s — a Set is a new object on every toggle, so passing it would
+  re-render all 200 rows when one cell changed — plus its own `rovingCol` rather
+  than the whole roving cell, so arrowing between cells re-renders two rows
+  instead of every row. That only holds while the functions crossing the boundary
+  keep stable identities, so `blockedLabel` / `fetchReasoning` / `openCell` /
+  `toggleCell` are `useCallback`s and `useMatrixGridKeys` returns a `useCallback`
+  `cellProps` keyed on `size`'s primitives. `matrixGridMemo.test.ts` pins each of
+  those, because a reverted `useCallback` makes the memo a silent no-op that
+  neither review nor runtime shows.
+
+No markup or layout changed, both themes are unaffected (the cell's classes are
+untouched), and the existing keyboard tests still pass. **Virtualization is
+deliberately not here**: the pool is capped at `MATRIX_POOL_CAP` = 200 rows and,
+with the memo, a full re-render only happens when the data or the filters
+actually change. Windowing becomes the next step if that cap rises past roughly
+500 rows, or if the grid ever renders an uncapped pool.
+
 ### The grid's controls describe the grid they actually produce
 
 - **Sort label.** A column sort only applies while that column is visible —

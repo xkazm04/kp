@@ -15,7 +15,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const grid = readFileSync(new URL("./MatrixGrid.tsx", import.meta.url), "utf8");
+// The grid's markup lives in two files since the memo split (grid-stays-still-while-you-
+// scroll): the table/header shell in MatrixGrid.tsx, one candidate row in MatrixGridRow.tsx.
+// The guard reads both as one surface — where the JSX sits is a refactor, the semantics are not.
+const grid =
+  readFileSync(new URL("./MatrixGrid.tsx", import.meta.url), "utf8") +
+  readFileSync(new URL("./MatrixGridRow.tsx", import.meta.url), "utf8");
 const chips = readFileSync(new URL("./focus/MatchCardSkillChips.tsx", import.meta.url), "utf8");
 const card = readFileSync(new URL("./focus/MatchCard.tsx", import.meta.url), "utf8");
 
@@ -27,7 +32,7 @@ test("cells and headers carry 1-based row/column indices, and the table declares
   assert.match(grid, /aria-rowcount=\{rows\.length \+ 1\}/, "data rows plus the header row");
   assert.match(grid, /aria-colcount=\{cols\.length \+ 1\}/, "position columns plus the candidate column");
   assert.match(grid, /<tr aria-rowindex=\{1\}>/, "the header row is row 1");
-  assert.match(grid, /<tr key=\{cand\.id\} aria-rowindex=\{r \+ 2\}/, "data row r is row r+2");
+  assert.match(grid, /<tr aria-rowindex=\{r \+ 2\}/, "data row r is row r+2");
   // The candidate column is column 1, so every position column is offset by two.
   assert.equal((grid.match(/aria-colindex=\{ci \+ 2\}/g) ?? []).length, 2, "the column header AND the cell");
   assert.equal((grid.match(/aria-colindex=\{1\}/g) ?? []).length, 2, "the corner header AND the row header");

@@ -14,6 +14,7 @@ import { STRONG_THRESHOLD } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition } from "./matrixPopover";
+import { createFrameThrottle } from "./matrixAnchor";
 import { fetchMatchReasoning } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
@@ -57,7 +58,10 @@ export function useMatrixTab() {
   // and "blocked: seniority" demand opposite recruiter actions (renegotiate vs
   // skip); the bare dash hid that. Localized by the stable KoReason.key; cells
   // from an older cached grid without koKeys fall back to the generic label.
-  const blockedLabel = (c: { koKeys?: string[] }) => {
+  // grid-stays-still-while-you-scroll: this and the three handlers below are
+  // `useCallback`s because MatrixGridRow is memoized on them — a fresh identity per
+  // render would make that memo a silent no-op.
+  const blockedLabel = useCallback((c: { koKeys?: string[] }) => {
     const keys = c.koKeys ?? [];
     if (keys.length === 0) return t("blockedKo");
     const reasons = keys
@@ -67,7 +71,7 @@ export function useMatrixTab() {
       })
       .join(", ");
     return t("blockedKoNamed", { reasons });
-  };
+  }, [t]);
   const router = useRouter();
   const search = useSearchParams();
   // When arriving from a Pipeline position ("Rank candidates"), scope the matrix
@@ -152,19 +156,34 @@ export function useMatrixTab() {
       }
     };
 
-    const reposition = () => {
+    // grid-stays-still-while-you-scroll. This used to be `setPopover({ ...cur, rect })`
+    // on EVERY scroll/resize event — a state update on the tab, so a trackpad flick
+    // re-rendered the whole grid subtree dozens of times a second and every one of the
+    // 200×N cells rebuilt its title and aria-label through the translator. Nothing in the
+    // grid depends on the anchor; only the popover element does. So the frame's work
+    // writes the two coordinates straight onto that element and React is not involved at
+    // all — a scroll burst now costs zero grid renders, not one per event.
+    //
+    // `popover.rect` stays the OPEN-time anchor (the first paint's position and what a
+    // re-render restores); these writes are the live correction on top of it.
+    const measure = () => {
       const el = triggerRef.current;
-      if (!el) return;
+      const node = dialogRef.current;
+      if (!el || !node || typeof el.getBoundingClientRect !== "function") return;
       const r = el.getBoundingClientRect();
       const rect = computePopoverPosition({ left: r.left, bottom: r.bottom }, { width: window.innerWidth, height: window.innerHeight });
-      setPopover((cur) => (cur ? { ...cur, rect } : cur));
+      node.style.top = `${rect.top}px`;
+      node.style.left = `${rect.left}px`;
     };
+    const anchor = createFrameThrottle(measure, (cb) => window.requestAnimationFrame(cb), (h) => window.cancelAnimationFrame(h));
+    const reposition = () => anchor.schedule();
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", reposition);
     // Capture phase so the grid's OWN inner scroll container (overflow-auto) also fires it.
     window.addEventListener("scroll", reposition, true);
     return () => {
+      anchor.cancel();
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
@@ -316,7 +335,7 @@ export function useMatrixTab() {
   // missing the prompt cache because neither had written it yet.
   const requestedReasoning = useRef<Set<string>>(new Set());
   // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
-  const fetchReasoning = (candId: string, posId: string) => {
+  const fetchReasoning = useCallback((candId: string, posId: string) => {
     const key = `${candId}|${posId}`;
     if (requestedReasoning.current.has(key)) return; // already loaded / in flight
     requestedReasoning.current.add(key);
@@ -353,12 +372,12 @@ export function useMatrixTab() {
         [key]: { data: p.reasoning, source: p.source, cached: p.cached, narrativeLang: p.narrativeLang },
       }));
     });
-  };
+  }, [errMsg, locale, t]);
 
   // Open the popover anchored under the clicked cell (viewport-fixed from its rect),
   // and kick off the reasoning fetch for a scored cell. A blocked cell shows its KO
   // reason instead — there's no fit rationale to fetch.
-  const openCell = (cand: Candidate, pos: Position, cell: Cell, ev: React.MouseEvent<HTMLButtonElement>) => {
+  const openCell = useCallback((cand: Candidate, pos: Position, cell: Cell, ev: React.MouseEvent<HTMLButtonElement>) => {
     const r = ev.currentTarget.getBoundingClientRect();
     // Remember the trigger so focus can be restored on close and the popover can be
     // re-anchored to the LIVE cell rect on resize/scroll (skill-matrix-coverage #5).
@@ -369,16 +388,16 @@ export function useMatrixTab() {
     );
     setPopover({ candId: cand.id, posId: pos.id, cand, pos, cell, rect });
     if (!cell.blocked) fetchReasoning(cand.id, pos.id);
-  };
+  }, [fetchReasoning]);
 
-  const toggleCell = (candId: string, posId: string) =>
+  const toggleCell = useCallback((candId: string, posId: string) =>
     setSelected((s) => {
       const k = matrixCellKey(candId, posId);
       const n = new Set(s);
       if (n.has(k)) n.delete(k);
       else n.add(k);
       return n;
-    });
+    }), []);
 
   // File every selected (candidate → position) into the pipeline at Screened, in
   // one pass — sequentially, reusing the canonical postPipelineAdd so this surface
