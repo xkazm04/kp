@@ -1354,7 +1354,10 @@
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas rejected this workspace's API key. The pairing key has expired or been revoked; re-pair in Settings → Integrations.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations.",
+    "EDGE_CONFIG_REJECTED": "That edge endpoint was refused. It must be a public https:// URL.",
+    "EDGE_PAIR_REFUSED": "Could not publish the sealing key to the edge. Check the pairing and try again.",
+    "EDGE_SAVE_FAILED": "Could not save the edge pairing. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4980,7 +4983,19 @@
       "sealedNow": "Sealing enabled. The edge can no longer read what it holds.",
       "sealFailed": "Couldn't publish the sealing key",
       "cursor": "Drained up to event {cursor}",
-      "lastError": "last error: {reason}"
+      "lastError": "last error: {reason}",
+      "lastDrain": "Last drain {time}",
+      "lastHeartbeat": "last beat {time}",
+      "neverDrained": "Never drained",
+      "pendingWaiting": "{pending} still waiting at the edge",
+      "pendingClear": "nothing waiting",
+      "pendingUnknown": "backlog not measured yet",
+      "statusSecretMissing": "Secret missing",
+      "secretMissingNote": "An endpoint is set but no shared secret is. An unsigned drain would accept events from anyone who learned the URL, so nothing is drained until you save the secret you set as KP_EDGE_SECRET.",
+      "drainFailedUnreachable": "Drain failed: the edge did not answer. Nothing was lost; the next tick retries.",
+      "drainFailedHeld": "Drain paused: an event could not be filed yet. It stays at the edge and is retried.",
+      "drainFailedAck": "Filed, but the edge was not told. It will offer those events again and they will not be filed twice.",
+      "drainFailedUnknown": "Drain failed. The reason is in this install's server log."
     },
     "tablist": "Integration",
     "waiting": "{count} waiting in the pipeline",

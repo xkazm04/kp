@@ -44,9 +44,46 @@ export type IntakeSession = {
   jdSlug: string | null;
 };
 
-/** What the scan is doing right now, for the line the chat shows under the
- *  opener. `null` = this is not an App-master session (or the dossier landed). */
-export type ScanState = "queued" | "running" | "complete" | "failed" | "unreachable" | null;
+/** What the scan is doing right now, for the line the chat shows under the opener
+ *  and the card shows under its title. `null` = this is not an App-master session
+ *  (or the dossier landed with nothing left to disclose).
+ *
+ *  Every member is ALSO a message key under `library.tab.intake.appMaster.scan.*` —
+ *  the panel renders it as `t(\`appMaster.scan.${state}\`)`, and next-intl keys are
+ *  typed, so a state with no catalog entry is a `tsc` error rather than a blank
+ *  line on somebody's screen.
+ *
+ *  The `failed*` and `fellBack*` members are why this is no longer a four-word
+ *  enum. "Failed" was the only thing a four-minute scan could say when it died,
+ *  and "complete" was the only thing it could say when the agent had fallen back
+ *  to the file-walk — two outcomes the operator would act on very differently,
+ *  rendered identically. */
+export type ScanState =
+  | "queued"
+  | "running"
+  | "complete"
+  | "unreachable"
+  // The failure classes (RepoScanErrorCode, app/_lib/db/repo-scans.ts). `failed` is
+  // the generic: an unclassified failure, and every row written before the column
+  // existed.
+  | "failed"
+  | "failedTargetRefused"
+  | "failedOfflineRefused"
+  | "failedGitMissing"
+  | "failedCloneFailed"
+  | "failedCloneTimeout"
+  | "failedCancelled"
+  | "failedEngineFailed"
+  // The dossier LANDED, but on the heuristic floor after the in-repo agent failed
+  // (RepoScanFallbackClass — Python's FALLBACK_CLASSES, mirrored in TS).
+  | "fellBackAgentNotInstalled"
+  | "fellBackAgentTimeout"
+  | "fellBackAgentUnparseable"
+  | "fellBackAgentRefused"
+  | "fellBackAgentOutputTooLarge"
+  | "fellBackProviderError"
+  | "fellBackUnknown"
+  | null;
 
 /** One repo scan as `GET /api/repo-scan/[id]` serves it (P2's contract). */
 export type RepoScanView = {
@@ -57,7 +94,53 @@ export type RepoScanView = {
   /** The row's resolved `rootPath` is withheld; this is the projection of it. */
   isLocal?: boolean;
   error?: string | null;
+  /** The failure CLASS. The route serves this so the reason survives translation;
+   *  `error` is the server's English diagnostic and is never rendered. */
+  errorCode?: string | null;
+  /** Set on a COMPLETE scan whose dossier came off the heuristic floor because the
+   *  agent failed. Absent on a keyless install — the floor is not a fallback there,
+   *  it is the design, and saying "the agent fell back" would invent a failure. */
+  fallbackClass?: string | null;
 };
+
+// Explicit maps, not template-built keys: next-intl keys are typed, so a state
+// assembled at runtime is a key TypeScript cannot check. An unrecognised code falls
+// to the generic member — the operator is told the scan failed, which is true,
+// instead of being shown a key that does not resolve.
+const FAILURE_STATE: Record<string, ScanState> = {
+  target_refused: "failedTargetRefused",
+  offline_refused: "failedOfflineRefused",
+  git_missing: "failedGitMissing",
+  clone_failed: "failedCloneFailed",
+  clone_timeout: "failedCloneTimeout",
+  cancelled: "failedCancelled",
+  engine_failed: "failedEngineFailed",
+};
+
+const FALLBACK_STATE: Record<string, ScanState> = {
+  agent_not_installed: "fellBackAgentNotInstalled",
+  agent_timeout: "fellBackAgentTimeout",
+  agent_unparseable: "fellBackAgentUnparseable",
+  agent_refused: "fellBackAgentRefused",
+  agent_output_too_large: "fellBackAgentOutputTooLarge",
+  provider_error: "fellBackProviderError",
+  unknown: "fellBackUnknown",
+};
+
+/**
+ * The one line the surfaces show for a scan, derived from the row.
+ *
+ * `null` for a clean completion: there is nothing left to say, and the card's own
+ * provenance chip already says which path read the repository. A completion WITH a
+ * fallback class is not clean — the dossier is real but thinner than it looks, and
+ * that is the one moment the operator can still decide to fix their agent and
+ * re-scan. Pure, so jdsIntakeLogic.test.ts pins it without React.
+ */
+export function scanStateFor(scan: RepoScanView): ScanState {
+  if (scan.status === "failed") return FAILURE_STATE[scan.errorCode ?? ""] ?? "failed";
+  if (scan.status === "complete") return scan.fallbackClass ? FALLBACK_STATE[scan.fallbackClass] ?? "fellBackUnknown" : null;
+  return scan.status;
+}
 
 /**
  * Read that response. The row is WRAPPED — the route answers `{ scan }`

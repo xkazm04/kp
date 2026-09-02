@@ -33,9 +33,11 @@ from pipeline.jobfit.claude_cli import (
     ClaudeCliProvider,
 )
 from pipeline.jobfit.repo_scan import (
+    FALLBACK_CLASSES,
     SOURCE_HEURISTIC,
     build_heuristic_dossier,
     build_prompt,
+    classify_fallback,
     coerce_repo_dossier,
     read_declared_gates,
     scan_repo,
@@ -381,6 +383,59 @@ class KpSelfScanTest(unittest.TestCase):
             "npm run build",
         ):
             self.assertIn(gate, dossier.declared_gates)
+
+
+class FallbackClassificationTest(unittest.TestCase):
+    """The fallback reason is a diagnostic; the CLASS is what the panel renders.
+
+    ``classify_fallback`` is the SINGLE definition of that closed vocabulary — the
+    TS mirror in app/_lib/repo-scan-run.ts is checked against this tuple by a
+    node:test that reads this file. The cases below are the real reason lines
+    ``devcase.provenance.describe_fallback`` produces for each way the in-repo
+    agent can fail, so a rewording of one of those messages fails here rather
+    than silently collapsing a nameable failure into "unknown".
+    """
+
+    # VERBATIM from claude_cli.py's raise sites, prefixed the way
+    # describe_fallback prefixes them ("<ExceptionType>: <message>"). Copied
+    # rather than imported on purpose: if one of those messages is reworded, this
+    # test is the thing that notices, instead of a nameable failure quietly
+    # becoming "provider_error" on the operator's screen.
+    CASES = (
+        ("ClaudeCliError: Claude CLI not found (command='claude'). Is it installed and on PATH?", "agent_not_installed"),
+        ("ClaudeCliError: Claude CLI timed out after 300s", "agent_timeout"),
+        ("ClaudeCliError: Claude did not return parseable JSON: '{oops'", "agent_unparseable"),
+        ("ClaudeCliError: Claude CLI produced no output (exit 1).", "agent_unparseable"),
+        ("ClaudeCliError: Claude CLI output was not JSON: 'hello'", "agent_unparseable"),
+        ("ClaudeCliError: Unexpected CLI envelope type: list", "agent_unparseable"),
+        ("ClaudeCliError: Claude CLI stdout exceeded the 8000000 byte cap (runaway output; a normal envelope is kilobytes)", "agent_output_too_large"),
+        ("ClaudeCliError: Claude CLI returned an error (subtype=error_max_turns): unknown", "agent_refused"),
+    )
+
+    def test_every_named_failure_gets_its_own_class(self) -> None:
+        for reason, expected in self.CASES:
+            with self.subTest(reason=reason):
+                self.assertEqual(classify_fallback(reason), expected)
+
+    def test_an_unrecognised_reason_is_a_provider_error_not_a_lie(self) -> None:
+        # Something happened and it came from the provider call — say that much
+        # rather than claiming a class the message does not support.
+        self.assertEqual(classify_fallback("ValueError: the model answered in Klingon"), "provider_error")
+
+    def test_no_reason_at_all_is_unknown(self) -> None:
+        self.assertEqual(classify_fallback(None), "unknown")
+        self.assertEqual(classify_fallback(""), "unknown")
+
+    def test_classification_is_case_insensitive(self) -> None:
+        self.assertEqual(classify_fallback("TimeoutError: The CLI TIMED OUT"), "agent_timeout")
+
+    def test_every_result_is_inside_the_declared_vocabulary(self) -> None:
+        # The UI renders `scan.fellBack<Class>` keys built from this tuple; a class
+        # outside it is a key that does not exist in any of the four catalogs.
+        for reason, _ in self.CASES:
+            self.assertIn(classify_fallback(reason), FALLBACK_CLASSES)
+        for odd in (None, "", "boom", "Exception: ", "not found"):
+            self.assertIn(classify_fallback(odd), FALLBACK_CLASSES)
 
 
 if __name__ == "__main__":

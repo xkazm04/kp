@@ -1354,7 +1354,10 @@
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas hat den API-Schlüssel dieses Workspace abgelehnt. Der Pairing-Schlüssel ist abgelaufen oder wurde widerrufen; koppeln Sie neu unter Einstellungen → Integrationen.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen.",
+    "EDGE_CONFIG_REJECTED": "Diese Edge-Adresse wurde abgelehnt. Sie muss eine öffentliche https://-URL sein.",
+    "EDGE_PAIR_REFUSED": "Der Siegel-Schlüssel konnte nicht am Edge veröffentlicht werden. Prüfen Sie die Kopplung und versuchen Sie es erneut.",
+    "EDGE_SAVE_FAILED": "Die Edge-Kopplung konnte nicht gespeichert werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4980,7 +4983,19 @@
       "sealedNow": "Versiegelung aktiv. Der Rand kann nicht mehr lesen, was er hält.",
       "sealFailed": "Versiegelungsschlüssel konnte nicht veröffentlicht werden",
       "cursor": "Abgerufen bis Ereignis {cursor}",
-      "lastError": "letzter Fehler: {reason}"
+      "lastError": "letzter Fehler: {reason}",
+      "lastDrain": "Letzter Abruf {time}",
+      "lastHeartbeat": "letztes Lebenszeichen {time}",
+      "neverDrained": "Noch nie abgerufen",
+      "pendingWaiting": "{pending} warten noch am Edge",
+      "pendingClear": "nichts wartet",
+      "pendingUnknown": "Rückstand noch nicht gemessen",
+      "statusSecretMissing": "Secret fehlt",
+      "secretMissingNote": "Eine Adresse ist gesetzt, aber kein gemeinsames Secret. Ein unsignierter Abruf würde Ereignisse von jedem annehmen, der die URL kennt - deshalb wird nichts abgerufen, bis Sie das als KP_EDGE_SECRET gesetzte Secret speichern.",
+      "drainFailedUnreachable": "Abruf fehlgeschlagen: der Edge hat nicht geantwortet. Nichts ging verloren, der nächste Durchlauf versucht es erneut.",
+      "drainFailedHeld": "Abruf angehalten: ein Ereignis konnte noch nicht abgelegt werden. Es bleibt am Edge und wird erneut versucht.",
+      "drainFailedAck": "Abgelegt, aber der Edge weiss es nicht. Er bietet diese Ereignisse erneut an, und sie werden nicht doppelt abgelegt.",
+      "drainFailedUnknown": "Abruf fehlgeschlagen. Der Grund steht im Server-Log dieser Installation."
     },
     "tablist": "Integration",
     "waiting": "{count} warten in der Pipeline",

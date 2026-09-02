@@ -1354,7 +1354,10 @@
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas a refusé la clé API de cet espace de travail. La clé d'appairage a expiré ou a été révoquée ; réappairez dans Paramètres → Intégrations.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations.",
+    "EDGE_CONFIG_REJECTED": "Cette adresse d'edge a été refusée. Ce doit être une URL https:// publique.",
+    "EDGE_PAIR_REFUSED": "Impossible de publier la clé de scellement sur l'edge. Vérifiez l'appairage et réessayez.",
+    "EDGE_SAVE_FAILED": "Impossible d'enregistrer l'appairage de l'edge. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4980,7 +4983,19 @@
       "sealedNow": "Scellement activé. Le relais ne peut plus lire ce qu'il conserve.",
       "sealFailed": "Impossible de publier la clé de scellement",
       "cursor": "Récupéré jusqu'à l'événement {cursor}",
-      "lastError": "dernière erreur : {reason}"
+      "lastError": "dernière erreur : {reason}",
+      "lastDrain": "Dernière collecte {time}",
+      "lastHeartbeat": "dernier signe de vie {time}",
+      "neverDrained": "Jamais collecté",
+      "pendingWaiting": "{pending} en attente sur l'edge",
+      "pendingClear": "rien en attente",
+      "pendingUnknown": "arriéré pas encore mesuré",
+      "statusSecretMissing": "Secret manquant",
+      "secretMissingNote": "Une adresse est configurée mais pas de secret partagé. Une collecte non signée accepterait les évènements de quiconque connaît l'URL : rien n'est donc collecté tant que vous n'enregistrez pas le secret défini comme KP_EDGE_SECRET.",
+      "drainFailedUnreachable": "Collecte échouée : l'edge n'a pas répondu. Rien n'est perdu, le prochain cycle réessaie.",
+      "drainFailedHeld": "Collecte suspendue : un évènement n'a pas pu être classé. Il reste sur l'edge et sera réessayé.",
+      "drainFailedAck": "Classé, mais l'edge ne le sait pas. Il proposera à nouveau ces évènements et rien ne sera classé deux fois.",
+      "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation."
     },
     "tablist": "Intégration",
     "waiting": "{count} en attente dans le pipeline",

@@ -1007,13 +1007,17 @@ export function ensureDb(): Database.Database {
       dossier_json TEXT,
       error TEXT,
       -- error_code is the CLASS of a failure (git missing / offline refusal /
-      -- clone timeout / cancelled / engine fault); `error` stays the diagnostic
-      -- line for the operator's log. The client renders the code in its own
-      -- language and never the English message. fallback_reason is the other
+      -- clone timeout / cancelled / engine fault); the error column stays the
+      -- diagnostic line for the operator's log. The client renders the code in its
+      -- own language and never the English message. fallback_reason is the other
       -- half of the same honesty: the dossier landed, but the agent fell back to
       -- the heuristic floor, and this is which class of thing went wrong.
+      -- fallback_class is that reason collapsed to the closed vocabulary the UI
+      -- can render (pipeline/jobfit/repo_scan.py FALLBACK_CLASSES); the raw
+      -- reason line stays server-side and never reaches the wire.
       error_code TEXT,
       fallback_reason TEXT,
+      fallback_class TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -1577,6 +1581,11 @@ export function ensureDb(): Database.Database {
     // this, and NULL reads as "no claim" on both — never as a green one.
     "ALTER TABLE repo_scans ADD COLUMN error_code TEXT",
     "ALTER TABLE repo_scans ADD COLUMN fallback_reason TEXT",
+    // …and the class that reason collapses to. Two columns rather than one
+    // because they have different audiences: the reason is an English diagnostic
+    // for the server log (it can quote provider output), the class is the closed
+    // vocabulary the panel renders in the reader's language.
+    "ALTER TABLE repo_scans ADD COLUMN fallback_class TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

@@ -12,6 +12,7 @@ import {
   foldVoiceExchange,
   foldVoiceSweep,
   readRepoScanResponse,
+  scanStateFor,
   type IntakeSession,
   type VoiceSweepResult,
 } from "./jdsIntakeLogic.ts";
@@ -165,4 +166,61 @@ test("useAppMasterLogic resets its per-session state when the intake changes", (
   // NON-VACUITY: `paired` is bridge-level, not per-session, and must NOT be in
   // the reset — clearing it re-fetches /api/agents/bridge on every switch.
   assert.ok(!block.includes("setPaired("), "the bridge pairing is not per-session state");
+});
+
+
+// ---- The scan's one line -------------------------------------------------------
+//
+// A four-minute scan could say exactly two things about how it ended: "failed" and
+// "complete". Both were true and neither was useful — "git is not installed" and
+// "the clone timed out" are different problems with different remedies, and a
+// "complete" dossier that came off the file-walk floor because the agent died looks
+// identical to one an agent actually read. scanStateFor is where the row stops
+// under-claiming.
+
+test("a failure is named by its class, and an unnamed one still says failed", () => {
+  const base = { id: "s1", source: null, dossier: null } as const;
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "git_missing" }), "failedGitMissing");
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "offline_refused" }), "failedOfflineRefused");
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "cancelled" }), "failedCancelled");
+  // Unclassified, absent (a row written before the column existed), and a code this
+  // build has never heard of all fall to the generic line rather than to a key that
+  // does not resolve.
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "unknown" }), "failed");
+  assert.equal(scanStateFor({ ...base, status: "failed" }), "failed");
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "the_vibes_were_off" }), "failed");
+});
+
+test("a completion says nothing when it is clean, and says so when it fell back", () => {
+  const base = { id: "s1", source: "llm", dossier: null } as const;
+  // Nothing left to disclose: the card's own provenance chip covers the rest.
+  assert.equal(scanStateFor({ ...base, status: "complete" }), null);
+  assert.equal(scanStateFor({ ...base, status: "complete", fallbackClass: null }), null);
+  assert.equal(scanStateFor({ ...base, status: "complete", fallbackClass: "agent_timeout" }), "fellBackAgentTimeout");
+  assert.equal(
+    scanStateFor({ ...base, status: "complete", fallbackClass: "agent_not_installed" }),
+    "fellBackAgentNotInstalled"
+  );
+  // A class from a newer Python than this build knows still discloses the fallback.
+  assert.equal(scanStateFor({ ...base, status: "complete", fallbackClass: "agent_ran_away" }), "fellBackUnknown");
+});
+
+test("an in-flight scan is reported as itself", () => {
+  const base = { id: "s1", source: null, dossier: null } as const;
+  assert.equal(scanStateFor({ ...base, status: "queued" }), "queued");
+  assert.equal(scanStateFor({ ...base, status: "running" }), "running");
+});
+
+test("the scan can be cancelled, and only while there is something to cancel", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+  // The cancel goes through the EXISTING task-cancel door (DELETE /api/tasks/[id]
+  // via the provider), not a new endpoint.
+  assert.match(src, /cancelTask\(scanTaskId\)/);
+  // …on the task that belongs to THIS scan. The polled list projects params out, so
+  // the full record is fetched and matched by scanId; cancelling by kind alone would
+  // stop somebody else's scan.
+  assert.match(src, /\)\?\.scanId === scanId/);
+  // Never offered once the dossier has landed or the scan has ended.
+  assert.match(src, /scanState === "queued" \|\| scanState === "running"/);
+  assert.match(src, /!hasDossier/);
 });

@@ -22,6 +22,7 @@ import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
 import { runRepoScan } from "./repo-scan-run";
+import { cancelQueuedRepoScan } from "./db/repo-scans";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { runCompanionDigestTask } from "./companion-digest-run";
@@ -68,6 +69,14 @@ export type TaskCtx = {
 type Spec = {
   run: (ctx: TaskCtx) => Promise<unknown>;
   label: (p: Record<string, unknown>) => string;
+  /** Called when a task is cancelled while it is STILL QUEUED — before `run` ever
+   *  started, so the handler's own catch never sees it. A handler that owns a
+   *  durable row (rather than only a task row) needs this hook: without it the
+   *  task goes `canceled` and its row sits at `queued` forever, and the surface
+   *  polling that row shows a scan that is neither running nor finished.
+   *
+   *  Synchronous, best-effort, and never allowed to block the cancel. */
+  onCancelQueued?: (params: Record<string, unknown>, workspaceId: string) => void;
 };
 
 // Free-text detail lifted off params for a label placeholder. Empty/absent
@@ -247,8 +256,18 @@ const HANDLERS: Record<string, Spec> = {
   // handler persists onto that row itself (success AND failure), so a reaped task
   // still leaves an honest `failed` row rather than one stuck at `running`.
   repo_scan: {
-    run: (ctx) => runRepoScan(ctx.params, ctx.signal, ctx.workspaceId, String(ctx.params.lang ?? "en")),
+    // ctx.progress is threaded so the task row names the phase (clone → walk →
+    // saving) instead of showing four undifferentiated minutes of "running".
+    run: (ctx) =>
+      runRepoScan(ctx.params, ctx.signal, ctx.workspaceId, String(ctx.params.lang ?? "en"), ctx.progress),
     label: (p) => encodeTaskLabel("repoScan", { repo: detail(p.repoUrl, p.rootPath, p.scanId) ?? "" }),
+    // Cancelling before the runner picks the scan up: the task disappears from the
+    // queue, so nothing else would ever move the repo_scans row off `queued` and
+    // the intake panel would poll a scan that is never going to run.
+    onCancelQueued: (params, workspaceId) => {
+      const scanId = typeof params.scanId === "string" ? params.scanId : "";
+      if (scanId) cancelQueuedRepoScan(scanId, "The scan was canceled before it started.", workspaceId);
+    },
   },
   // Campaign pack (background path of POST /api/jobs/[id]/campaign): the pack
   // persists in campaign_packs, so leaving mid-run loses nothing — the Campaign
@@ -399,6 +418,21 @@ export function cancelTask(id: string): boolean {
   const i = queue.indexOf(id);
   if (i >= 0) {
     queue.splice(i, 1);
+    // Let the handler close out whatever it owns OUTSIDE the queue first. A queued
+    // cancel is the one path where `run` never executes, so a handler's own
+    // catch/finally cannot speak for it.
+    const task = getTask(id);
+    const spec = task ? HANDLERS[task.kind] : undefined;
+    if (task && spec?.onCancelQueued) {
+      try {
+        spec.onCancelQueued((task.params ?? {}) as Record<string, unknown>, task.workspaceId);
+      } catch (error) {
+        // Best-effort by design: the cancel itself must still succeed. Logged
+        // rather than dropped — a row left mid-flight is something an operator
+        // would want to know about.
+        console.warn(`[tasks] ${id}: onCancelQueued(${task.kind}) failed`, error);
+      }
+    }
     finishTask(id, "canceled", {});
     return true;
   }

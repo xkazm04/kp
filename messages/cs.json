@@ -1354,7 +1354,10 @@
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas odmítla klíč API tohoto pracovního prostoru. Párovací klíč vypršel nebo byl odvolán; spárujte znovu v Nastavení → Integrace.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "Uložený klíč pro Personas už nelze přečíst. Od spárování se změnilo tajemství serveru; obnovte je, nebo spárujte znovu v Nastavení → Integrace."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "Uložený klíč pro Personas už nelze přečíst. Od spárování se změnilo tajemství serveru; obnovte je, nebo spárujte znovu v Nastavení → Integrace.",
+    "EDGE_CONFIG_REJECTED": "Adresa edge byla odmítnuta. Musí to být veřejná https:// adresa.",
+    "EDGE_PAIR_REFUSED": "Pečetící klíč se nepodařilo publikovat na edge. Zkontrolujte spárování a zkuste to znovu.",
+    "EDGE_SAVE_FAILED": "Spárování s edge se nepodařilo uložit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4980,7 +4983,19 @@
       "sealedNow": "Pečetění zapnuto. Okraj už nepřečte, co drží.",
       "sealFailed": "Pečetící klíč se nepodařilo zveřejnit",
       "cursor": "Staženo až po událost {cursor}",
-      "lastError": "poslední chyba: {reason}"
+      "lastError": "poslední chyba: {reason}",
+      "lastDrain": "Poslední stažení {time}",
+      "lastHeartbeat": "poslední ozvání {time}",
+      "neverDrained": "Zatím nikdy nestaženo",
+      "pendingWaiting": "{pending} stále čeká na edge",
+      "pendingClear": "nic nečeká",
+      "pendingUnknown": "fronta zatím nezměřena",
+      "statusSecretMissing": "Chybí tajný klíč",
+      "secretMissingNote": "Adresa je nastavená, ale sdílený tajný klíč ne. Nepodepsané stahování by přijalo události od kohokoli, kdo se dozví adresu, takže se nic nestahuje, dokud neuložíte klíč nastavený jako KP_EDGE_SECRET.",
+      "drainFailedUnreachable": "Stažení selhalo: edge neodpověděl. Nic se neztratilo, další cyklus to zkusí znovu.",
+      "drainFailedHeld": "Stahování pozastaveno: událost zatím nešlo založit. Zůstává na edge a bude zkoušena znovu.",
+      "drainFailedAck": "Založeno, ale edge o tom neví. Nabídne tyto události znovu a nezaloží se dvakrát.",
+      "drainFailedUnknown": "Stažení selhalo. Důvod najdete v serverovém logu této instalace."
     },
     "tablist": "Integrace",
     "waiting": "{count, plural, one {# čeká} few {# čekají} other {# čeká}} v pipeline",

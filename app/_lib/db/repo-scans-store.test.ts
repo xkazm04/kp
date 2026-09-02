@@ -44,7 +44,7 @@ test("lifecycle: a fresh scan is queued with no source and no dossier", () => {
 test("a failed scan carries its reason and never claims a source", () => {
   const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
   markRepoScanRunning(scan.id, "ws-a");
-  const failed = failRepoScan(scan.id, "Could not clone the repository (git exited 128).", "ws-a");
+  const failed = failRepoScan(scan.id, "Could not clone the repository (git exited 128).", "clone_failed", "ws-a");
   assert.equal(failed?.status, "failed");
   assert.equal(failed?.source, null, "an errored run produced a dossier by neither path");
   assert.match(failed?.error ?? "", /git exited 128/);
@@ -53,7 +53,7 @@ test("a failed scan carries its reason and never claims a source", () => {
 test("the failure reason is bounded so a runaway stderr cannot bloat the row", () => {
   const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
   markRepoScanRunning(scan.id, "ws-a");
-  const failed = failRepoScan(scan.id, "x".repeat(9000), "ws-a");
+  const failed = failRepoScan(scan.id, "x".repeat(9000), "engine_failed", "ws-a");
   assert.equal(failed?.error?.length, 2000);
 });
 
@@ -66,7 +66,7 @@ test("tenancy: reads, writes and the list are all scoped", () => {
   // A write with the wrong tenant is a no-op, not a cross-tenant mutation.
   completeRepoScan(mine.id, { dossier: DOSSIER, source: "llm" }, "ws-b");
   assert.equal(getRepoScanRecord(mine.id, "ws-a")?.status, "queued");
-  failRepoScan(mine.id, "nope", "ws-b");
+  failRepoScan(mine.id, "nope", "unknown", "ws-b");
   assert.equal(getRepoScanRecord(mine.id, "ws-a")?.status, "queued");
   markRepoScanRunning(mine.id, "ws-b");
   assert.equal(getRepoScanRecord(mine.id, "ws-a")?.status, "queued");
@@ -110,7 +110,7 @@ test("a finished scan is never flipped back to running", () => {
 
   const failed = createRepoScan({ rootPath: "/srv/apps/other" }, "ws-a");
   markRepoScanRunning(failed.id, "ws-a");
-  failRepoScan(failed.id, "git is not available on this machine.", "ws-a");
+  failRepoScan(failed.id, "git is not available on this machine.", "git_missing", "ws-a");
   assert.equal(markRepoScanRunning(failed.id, "ws-a"), false, "a late retry must not restart a failed scan");
   assert.equal(getRepoScanRecord(failed.id, "ws-a")?.status, "failed");
 });
@@ -125,7 +125,7 @@ test("a scan that never started can be neither completed nor failed", () => {
   const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
   assert.equal(completeRepoScan(scan.id, { dossier: DOSSIER, source: "llm" }, "ws-a"), null);
   assert.equal(getRepoScanRecord(scan.id, "ws-a")?.status, "queued", "a queued row is not a result");
-  assert.equal(failRepoScan(scan.id, "boom", "ws-a"), null);
+  assert.equal(failRepoScan(scan.id, "boom", "unknown", "ws-a"), null);
   assert.equal(getRepoScanRecord(scan.id, "ws-a")?.status, "queued");
 });
 
@@ -135,7 +135,7 @@ test("a completed scan cannot be re-completed or overwritten with a failure", ()
   completeRepoScan(scan.id, { dossier: DOSSIER, source: "heuristic" }, "ws-a");
 
   assert.equal(completeRepoScan(scan.id, { dossier: { size: {} }, source: "llm" }, "ws-a"), null);
-  assert.equal(failRepoScan(scan.id, "a late reaper", "ws-a"), null);
+  assert.equal(failRepoScan(scan.id, "a late reaper", "unknown", "ws-a"), null);
   const still = getRepoScanRecord(scan.id, "ws-a");
   assert.equal(still?.status, "complete");
   assert.equal(still?.source, "heuristic", "the first result stands");
@@ -153,4 +153,76 @@ test("a queued scan can be canceled before it ever runs", () => {
   markRepoScanRunning(live.id, "ws-a");
   assert.equal(cancelQueuedRepoScan(live.id, "nope", "ws-a"), null);
   assert.equal(getRepoScanRecord(live.id, "ws-a")?.status, "running");
+});
+
+// ---- The outcome columns -----------------------------------------------------
+//
+// "failed" and "complete" were the whole vocabulary a row could speak: a scan that
+// died because git is not installed and one that died because the clone timed out
+// were the same row, and a dossier that landed on the heuristic floor after the
+// agent fell back was indistinguishable from a keyless run that never had an agent.
+// Both halves are recorded now, and both are narrowed on the way out.
+
+test("a failure records its class, not only its English message", () => {
+  const scan = createRepoScan({ repoUrl: "https://github.com/o/r" }, "ws-a");
+  markRepoScanRunning(scan.id, "ws-a");
+  const failed = failRepoScan(scan.id, "git is not available on this machine.", "git_missing", "ws-a");
+  assert.equal(failed?.errorCode, "git_missing");
+  // The message is still there for the log; it is the CODE the panel renders.
+  assert.match(failed?.error ?? "", /git is not available/);
+});
+
+test("an unclassified failure is `unknown`, never a blank claim", () => {
+  const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
+  markRepoScanRunning(scan.id, "ws-a");
+  assert.equal(failRepoScan(scan.id, "something went sideways", "unknown", "ws-a")?.errorCode, "unknown");
+});
+
+test("cancelling a queued scan lands it failed with the cancelled code", () => {
+  const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
+  const canceled = cancelQueuedRepoScan(scan.id, "The scan was canceled before it started.", "ws-a");
+  assert.equal(canceled?.status, "failed");
+  assert.equal(canceled?.errorCode, "cancelled", "a cancel is not an engine fault and must not read as one");
+});
+
+test("a completed scan carries the agent fallback that produced it", () => {
+  const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
+  markRepoScanRunning(scan.id, "ws-a");
+  const done = completeRepoScan(
+    scan.id,
+    {
+      dossier: DOSSIER,
+      source: "heuristic",
+      fallbackReason: "ClaudeCliError: Claude CLI timed out after 300s",
+      fallbackClass: "agent_timeout",
+    },
+    "ws-a"
+  );
+  assert.equal(done?.fallbackClass, "agent_timeout");
+  assert.match(done?.fallbackReason ?? "", /timed out/);
+  assert.equal(done?.errorCode, null, "a completed scan has no failure to name");
+});
+
+test("a completed scan with no fallback claims none", () => {
+  // The keyless walk is the FLOOR, not a fallback: reporting it as "the agent fell
+  // back" would invent an agent failure on an install that never had an agent.
+  const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
+  markRepoScanRunning(scan.id, "ws-a");
+  const done = completeRepoScan(scan.id, { dossier: DOSSIER, source: "heuristic" }, "ws-a");
+  assert.equal(done?.fallbackClass, null);
+  assert.equal(done?.fallbackReason, null);
+});
+
+test("a class this build has no word for reads as no claim at all", () => {
+  // Written straight to the column, the way an older/newer build or a hand-edited
+  // DB would: the reader must not be shown a chip whose catalog key does not exist.
+  const scan = createRepoScan({ rootPath: "/srv/apps/thing" }, "ws-a");
+  markRepoScanRunning(scan.id, "ws-a");
+  completeRepoScan(scan.id, { dossier: DOSSIER, source: "llm" }, "ws-a");
+  ensureDb()
+    .prepare(`UPDATE repo_scans SET fallback_class = 'agent_took_a_nap', error_code = 'went_wrong' WHERE id = ?`)
+    .run(scan.id);
+  const read = getRepoScanRecord(scan.id, "ws-a");
+  assert.equal(read?.fallbackClass, null);
+  assert.equal(read?.errorCode, null);
 });
