@@ -29,6 +29,8 @@ export function PipelineBoard({
   selectedIds,
   onToggleSelect,
   onMove,
+  bouncedEntryId = null,
+  bouncedReason = null,
 }: {
   positions: Position[];
   entries: Entry[];
@@ -50,6 +52,12 @@ export function PipelineBoard({
   // cea12908 — when provided (and not in select mode), candidates can be dragged
   // between stage columns; the board calls this with the dragged entry + target stage.
   onMove?: (entry: Entry, toStage: string) => void;
+  /** board-actions-survive-a-renamed-axis — the card whose move the server REFUSED
+   *  (it has already been rolled back into this stage) and the localized reason. The
+   *  cell holding it renders the reason beneath the card, so the feedback lands where
+   *  the gesture ended instead of only in the banner at the top of the page. */
+  bouncedEntryId?: string | null;
+  bouncedReason?: string | null;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -204,6 +212,8 @@ export function PipelineBoard({
                       onDragStartEntry={setDragging}
                       onDragEndEntry={() => setDragging(null)}
                       onMoveEntry={handleMove}
+                      bouncedEntryId={bouncedEntryId}
+                      bouncedReason={bouncedReason}
                       onDropToStage={(toStage) => {
                         // Resolve the dragged entry from board state and funnel the
                         // drop through the SAME move+announce path the menu uses.

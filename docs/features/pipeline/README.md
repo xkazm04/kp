@@ -85,6 +85,7 @@ Every rule that used to read a stage NAME to ask a question about MEANING:
 | `application-status.ts` | name→status map only | role→status map when the caller can resolve one; the name map remains the shipped-axis fallback |
 | `analytics-momentum.ts`, `pipeline-command.ts`, `ats/field-map.ts` | literals | an injected terminal stage / axis / allowlist, defaulting to the shipped one |
 | `cv-intake.ts`, `lead-intake.ts` | filed at `"Accepted"` | filed at the axis's `entry` column |
+| `PipelineAiActionsGrid.tsx` — the drawer's AI actions | each action gated on literal stage names (`"Screened"`, `"Interview"`, `"Offer"`) | `pipelineDrawerActions.ts` resolves the gate from roles: screening columns for **Screen**, the pre-gate column + interview rounds for **Prep**, interview rounds for **Scorecard**, the offer column for **Draft offer**, every non-terminal column for **Rejection**, every non-terminal non-entry column for **Rematch** |
 
 `analytics-custom-axis.test.ts` is the proof: it stores a fully renamed six-column
 axis and asserts the funnel reports *those* columns, that candidates on renamed
@@ -421,6 +422,33 @@ Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject →
 saved view → confirm), `pipelineBulkConfirm.test.ts`, and `pipelineMoveTargets.test.ts`
 (which also pins that the drawer's "open full match" link is gated on `candidateId`
 like its "edit profile" sibling, instead of rendering and silently no-opping).
+
+`pipelineDrawerActions.test.ts` is the same proof for the drawer's action grid: it
+runs a fully renamed five-column axis and asserts each column still offers exactly
+the actions the literal gates used to offer on the shipped board. Before the role
+resolution a renamed axis matched nothing and the grid rendered **Draft outreach**
+alone — no error, nothing to notice.
+
+### A refused move says why, where it happened
+
+A drag whose `set_stage` is refused rolls the card back into the column it came
+from. Two things make that readable rather than a dropped gesture:
+
+- `pipelineActionReason` returns the refusal **payload** (`{ error, code }`), and
+  `usePipelineBoardData` resolves it through `useErrorMessage` — so
+  `PIPELINE_MOVE_CONFLICT` ("someone moved them while you were deciding") and
+  `PIPELINE_TERMINAL_NOT_MANUAL` ("route through the offer flow") read in the
+  reader's language. It used to return the server's `error` string, which painted
+  the route's canonical English on every localized board.
+- The board also names the bounced card (`moveErrorEntryId`), and `StageCell`
+  renders the reason directly beneath it. The page-level banner stays — it is the
+  `role="alert"` announcement and works when the card has scrolled out of view —
+  and one dismissal (`dismissMoveError`) clears both halves.
+
+The command bar's `post()` gained the `catch` it never had: a network-level failure
+now shows `pipeline.command.failed` instead of throwing an unhandled rejection and
+leaving a submitted command with no outcome. Its `p.error` branch resolves through
+`useErrorMessage` for the same reason as the board's.
 
 ## The activity feed speaks the recruiter's language
 

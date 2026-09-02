@@ -5768,6 +5768,7 @@
       "updateHeading": "Nouvelle de l’équipe",
       "restored": "Nous avons restauré votre travail non enregistré depuis cet appareil. Rien n’a été perdu.",
       "chatRateLimited": "Vous avez atteint la limite de l’assistant pour le moment. Votre travail et tout ce que vous avez écrit sont intacts. Continuez à travailler et réessayez dans quelques minutes.",
+      "chatDeterministicNote": "Cette réponse provient du substitut hors ligne, pas d’un modèle en direct. Considérez-la comme un texte provisoire et notez vos hypothèses dans le journal de décisions.",
       "syncBlocked": "Nous n’avons pas pu synchroniser cette session avec le serveur. Votre travail est enregistré sur cet appareil. Rechargez la page depuis votre lien d’origine pour vous reconnecter."
     },
     "eyebrow": "Exercice à domicile",

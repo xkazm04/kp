@@ -5768,6 +5768,7 @@
       "updateHeading": "Novinka od týmu",
       "restored": "Obnovili jsme vaši neuloženou práci z tohoto zařízení. O nic jste nepřišli.",
       "chatRateLimited": "Momentálně jste vyčerpali limit asistenta. Vaše práce i vše, co jste napsali, zůstává v pořádku. Pokračujte v práci a zkuste to za pár minut znovu.",
+      "chatDeterministicNote": "Tato odpověď pochází z offline náhrady, nikoli z živého modelu. Berte ji jako zástupný text a své předpoklady si poznamenejte do deníku rozhodnutí.",
       "syncBlocked": "Tuto relaci se nepodařilo synchronizovat se serverem. Vaše práce je uložená v tomto zařízení. Spojení obnovíte tak, že načtete stránku znovu z původního odkazu."
     },
     "eyebrow": "Domácí zadání",

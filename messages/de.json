@@ -5768,6 +5768,7 @@
       "updateHeading": "Update vom Team",
       "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt. Nichts ist verloren gegangen.",
       "chatRateLimited": "Sie haben das Limit für den Assistenten vorerst erreicht. Ihre Arbeit und alles, was Sie geschrieben haben, bleibt erhalten. Arbeiten Sie weiter und versuchen Sie es in ein paar Minuten erneut.",
+      "chatDeterministicNote": "Diese Antwort stammt aus dem Offline-Ersatz, nicht von einem Live-Modell. Behandeln Sie sie als Platzhalter und halten Sie Ihre Annahmen im Entscheidungsprotokoll fest.",
       "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen."
     },
     "eyebrow": "Take-Home-Aufgabe",

@@ -6,6 +6,7 @@
 // private to this module so the board array has exactly one mutator.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { boardSignature, eventsSignature } from "./pipelineRenderDiet";
@@ -37,7 +38,15 @@ export function usePipelineBoardData({
   // fetch must read as "couldn't load activity", never as a genuine empty feed.
   const [eventsError, setEventsError] = useState<string | null>(null);
   // Transient feedback when a drag-to-move fails (optimistic move rolled back).
+  // `moveErrorEntryId` names the card that BOUNCED, so the board can put the reason
+  // next to it: the page-level banner is far from a wide, scrolled board, and a card
+  // that silently slides back to where it started reads as a dropped gesture rather
+  // than a refusal. Cleared together — one refusal, one reason, one card.
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [moveErrorEntryId, setMoveErrorEntryId] = useState<string | null>(null);
+  // Codes, never messages: the route answers PIPELINE_MOVE_CONFLICT /
+  // PIPELINE_TERMINAL_NOT_MANUAL and the reader sees them in their own language.
+  const errorMessage = useErrorMessage();
 
   // load() fires from many triggers (mount, live refresh, batch-done, the pass,
   // the scheduler, the drawer), so it self-sequences: each call aborts the prior
@@ -184,27 +193,50 @@ export function usePipelineBoardData({
       setEntries((cur) => (cur ? cur.map((e) => (e.id === id ? { ...e, stage } : e)) : cur));
     restage(entry.id, toStage);
     setMoveError(null);
+    setMoveErrorEntryId(null);
     try {
       const r = await postPipelineAction(entry.id, { action: "set_stage", toStage, expectedStage: prevStage });
       // On any failure roll back AND tell the recruiter the SERVER's reason — the
       // 409 "changed since you opened it" (a concurrent actor moved them) vs the
-      // 422 "route through Offer → extend an offer" guidance, distinguished and
-      // verbatim, exactly like the drawer's moveStage. The blanket moveFailed hid
-      // the one sentence telling the recruiter what to do instead. A body with no
-      // reason (a network-level failure) falls back to the generic copy.
+      // 422 "route through the offer flow" guidance, distinguished and resolved from
+      // the refusal CODE so the sentence is in the reader's language. The blanket
+      // moveFailed hid the one line telling the recruiter what to do instead; the
+      // raw `error` string would have shipped English to every locale. A body with
+      // no reason at all (a network-level failure) falls back to the generic copy.
       if (!r.ok) {
         restage(entry.id, prevStage);
-        setMoveError((await pipelineActionReason(r)) ?? t("moveFailed"));
+        setMoveError(errorMessage(await pipelineActionReason(r), t("moveFailed")));
+        setMoveErrorEntryId(entry.id);
       }
     } catch {
       restage(entry.id, prevStage);
       setMoveError(t("moveFailed"));
+      setMoveErrorEntryId(entry.id);
     } finally {
       await load();
     }
   };
 
-  return { entries, axis, retiredStages, events, error, eventsError, load, moveError, setMoveError, moveEntry };
+  // One dismissal clears both halves of the refusal — the page banner and the chip
+  // on the bounced card are the same message in two places, never two states.
+  const dismissMoveError = useCallback(() => {
+    setMoveError(null);
+    setMoveErrorEntryId(null);
+  }, []);
+
+  return {
+    entries,
+    axis,
+    retiredStages,
+    events,
+    error,
+    eventsError,
+    load,
+    moveError,
+    moveErrorEntryId,
+    dismissMoveError,
+    moveEntry,
+  };
 }
 
 export type PipelineBoardData = ReturnType<typeof usePipelineBoardData>;

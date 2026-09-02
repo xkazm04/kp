@@ -5768,6 +5768,7 @@
       "updateHeading": "Update from the team",
       "restored": "We restored your unsaved work from this device. Nothing was lost.",
       "chatRateLimited": "You've reached the assistant limit for now. Your work and everything you've written are safe. Keep working and try again in a few minutes.",
+      "chatDeterministicNote": "This reply came from the offline stand-in, not a live model. Treat it as a placeholder and note your assumptions in the decision log.",
       "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device. Reload the page from your original link to reconnect."
     },
     "eyebrow": "Take-home assignment",

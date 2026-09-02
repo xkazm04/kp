@@ -43,7 +43,9 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
     setVoiceProvider, showLinks, showTranscript, staleSince, timelineErr, voice, voiceProvider,
   } = usePipelineCandidateDrawerState({ entry, onClose, onChanged, onOpenEntry, cohort });
   const showCohortNav = Boolean(onNavigate) && cohort != null && cohortIndex >= 0 && cohort.length > 1;
-  const actions = pipelineDrawerActionsFor(entry);
+  // Resolved against THIS workspace's columns: the grid's stage gates are roles, so a
+  // renamed axis keeps offering the same actions (board-actions-survive-a-renamed-axis).
+  const actions = pipelineDrawerActionsFor(entry, axis);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">

@@ -69,7 +69,7 @@ export function usePipelineTabState() {
     slaOverrides,
     drawerOpen: drawerEntry != null,
   });
-  const { entries, events, error, eventsError, load, moveError, setMoveError, moveEntry } = board;
+  const { entries, events, error, eventsError, load, moveError, moveErrorEntryId, dismissMoveError, moveEntry } = board;
   // The compound filters + their two-way URL sync, and the visible-scope signature
   // the bulk confirms are stamped with.
   const filters = usePipelineFilters();
@@ -203,7 +203,7 @@ export function usePipelineTabState() {
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
     axis: board.axis, retiredStages: board.retiredStages,
-    isStale, moveError, setMoveError, moveEntry,
+    isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
     openActions: nav.openActions, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,
     selectedAwaiting: bulk.selectedAwaiting, awaitingKinds: bulk.awaitingKinds, selectedActive: bulk.selectedActive,
