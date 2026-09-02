@@ -15,9 +15,9 @@ import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 // show conversational-dynamics signals per candidate. Best-effort + null-safe:
 // an entry-less lab session or an older scorecard simply yields null (no signal),
 // never an error — telemetry is descriptive enrichment, never a gate.
-function telemetryForEntry(entryId: string | null): InterviewTelemetry | null {
+function telemetryForEntry(entryId: string | null, workspaceId: string): InterviewTelemetry | null {
   if (!entryId) return null;
-  const sc = latestInterviewByEntry(entryId)?.scorecard as { telemetry?: InterviewTelemetry } | null;
+  const sc = latestInterviewByEntry(entryId, workspaceId)?.scorecard as { telemetry?: InterviewTelemetry } | null;
   return sc?.telemetry ?? null;
 }
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const voice = interviewedForJob(jobId, workspace).map((c) => ({
       ...c,
       humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
-      telemetry: telemetryForEntry(c.entryId),
+      telemetry: telemetryForEntry(c.entryId, workspace),
     }));
 
     // PREP1 (the W10/W14 deferral) — union in candidates whose round was

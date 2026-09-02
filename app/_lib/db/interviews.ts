@@ -369,12 +369,22 @@ export function revokeInterviewSession(id: string): boolean {
 }
 
 /** Revoke every open session for an entry — the reissue half (a fresh link
- *  kills prior ones) and the terminal-transition cleanup. Returns the count. */
-export function revokeOpenInterviewSessions(entryId: string): number {
+ *  kills prior ones) and the terminal-transition cleanup. Returns the count.
+ *
+ *  Tenant-scoped (direction 1). `entry_id` is globally unique, so the bare read
+ *  this replaces let an operator on ANY team pull another team's live interview
+ *  credential by id alone; a foreign entry now revokes nothing and the route
+ *  answers the same 404 its siblings do. The tenant is a DEFAULTED parameter on
+ *  purpose — that is the shape `route-tenancy-coverage.test.ts` derives, so a
+ *  route that forgets to thread it is a red build rather than a silent
+ *  default-team write. */
+export function revokeOpenInterviewSessions(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const res = db
-    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND status IN ('created','in_progress','failed')`)
-    .run(entryId);
+    .prepare(
+      `UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND workspace_id = ? AND status IN ('created','in_progress','failed')`
+    )
+    .run(entryId, workspaceId);
   return res.changes;
 }
 
@@ -413,25 +423,33 @@ export function interviewStatusByEntries(
 
 /** Most-recent interview session for one entry (for the transcript modal) —
  *  same transcript-first preference as interviewStatusByEntries, so the modal
- *  can never disagree with the card indicator it was opened from. */
-export function latestInterviewByEntry(entryId: string): InterviewSession | null {
+ *  can never disagree with the card indicator it was opened from.
+ *
+ *  Tenant-scoped (direction 1): this returns the transcript AND the scorecard,
+ *  the most sensitive pair in the product, and it was reachable by entry id
+ *  alone from any team. */
+export function latestInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
   const r = ensureDb()
     .prepare(
-      `SELECT * FROM interview_sessions WHERE entry_id = ?
+      `SELECT * FROM interview_sessions WHERE entry_id = ? AND workspace_id = ?
        ORDER BY (transcript_json IS NOT NULL AND transcript_json != '[]') DESC, created_at DESC LIMIT 1`
     )
-    .get(entryId) as InterviewRow | undefined;
+    .get(entryId, workspaceId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 
 /** The newest live-candidate (in_progress) session for an entry — /create's
  *  reissue-guard read. Deliberately NOT latestInterviewByEntry: that read
  *  prefers transcript-bearing sessions, which would hide an active call behind
- *  an older completed one. */
-export function liveInterviewByEntry(entryId: string): InterviewSession | null {
+ *  an older completed one.
+ *
+ *  Tenant-scoped (direction 1), like its two neighbours above. */
+export function liveInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
   const r = ensureDb()
-    .prepare(`SELECT * FROM interview_sessions WHERE entry_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`)
-    .get(entryId) as InterviewRow | undefined;
+    .prepare(
+      `SELECT * FROM interview_sessions WHERE entry_id = ? AND workspace_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(entryId, workspaceId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 

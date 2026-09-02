@@ -226,6 +226,38 @@ affordance, one endpoint, one set of semantics (billing gate, reissue guard, del
 truth) — the revoke control stays entry-scoped and is therefore not rendered there.
 Pinned in `app/_lib/devcase-interview-entry.test.ts`.
 
+## Tenant scope — the entry-keyed doors
+
+Three operator doors key on a **pipeline entry id and nothing else**: `POST
+/api/interview/create` (the reissue guard + revoke-first + the brief build),
+`POST /api/interview/revoke`, and `GET /api/interview/by-entry?entry=`. Entry ids
+are globally unique and not secret — several recruiter surfaces echo them — so
+until the store functions beneath took a workspace, an operator on one team
+holding a stranger's entry id could revoke another team's live interview link
+mid-call, read their candidate's verbatim transcript and AI scorecard, and mint a
+screen that emailed *their* candidate while `createInterviewSession` stamped the
+session with the **stranger's** workspace and the minutes gate had checked the
+caller's — gate and debit on two different tenants.
+
+`revokeOpenInterviewSessions`, `latestInterviewByEntry` and `liveInterviewByEntry`
+(`app/_lib/db/interviews.ts`) now take `workspaceId` in the defaulted-parameter
+shape `route-tenancy-coverage.test.ts` derives, and scope their SQL on it. The
+routes pass `await currentWorkspace()`; `buildGroundedInterview(entryId,
+workspace)` therefore resolves nothing for a foreign entry and `/create` answers
+the same **404** an unknown id gets. `/revoke` answers `{ ok: true, revoked: 0 }`
+and `/by-entry` `{ session: null }` — deliberately the same shapes an
+already-revoked / never-interviewed entry gets, because a distinct refusal would
+confirm which entry ids exist on other tenants.
+
+The `?entry=` read takes the **caller's** team, not `getEntryWorkspace(entry)`:
+resolving the tenant from the row about to be returned scoped the consent lookup
+to the stranger's tenant while still serving their transcript. Two callers outside
+the request layer pass the entry's own team instead (`candidate-timeline.ts`,
+`actOnPipelineEntry`'s reject-time revoke in `db/pipeline.ts`) — they already hold
+the authoritative entry. Pinned by
+`app/api/interview/interview-entry-tenancy.test.ts` (behavioural for the store
+predicate, source-level for the route contract).
+
 ## Surface
 
 | Path | Role |

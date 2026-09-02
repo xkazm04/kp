@@ -2461,7 +2461,7 @@ export function actOnPipelineEntry(
     // credential in their inbox. Best-effort; /connect's terminal-entry guard
     // is the backstop for paths that don't run through here (e.g. decline).
     try {
-      revokeOpenInterviewSessions(result.id);
+      revokeOpenInterviewSessions(result.id, result.workspaceId);
     } catch (error) {
       console.error("[pipeline:act] interview-link revoke failed", error);
     }

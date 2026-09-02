@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     // older than the recency window) fall through and may be reissued;
     // `force: true` is the explicit recruiter override.
     if (body.force !== true) {
-      const live = liveInterviewByEntry(entryId);
+      const live = liveInterviewByEntry(entryId, workspace);
       if (live && isInterviewSessionLive(live)) {
         return NextResponse.json(
           { error: "An interview is in progress for this candidate — wait for the call to finish before issuing a new link." },
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Build the run-of-show FIRST so its booked duration is known — and BEFORE the
     // revoke below, so a quota refusal or a build failure can never kill the
     // candidate's existing live link (revoke now happens only once we're committed).
-    const grounded = await buildGroundedInterview(entryId);
+    const grounded = await buildGroundedInterview(entryId, workspace);
 
     // AUTHORITATIVE billing reservation: refuse unless the meter can cover the WORST
     // CASE /complete can debit for THIS session — maxBillableInterviewMin(bookedMin) =
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     // latest-by-created_at read meant an old link completed after a reissue
     // wasn't even the surfaced session. Revoking first makes exactly one link
     // live per entry.
-    const revoked = revokeOpenInterviewSessions(entryId);
+    const revoked = revokeOpenInterviewSessions(entryId, workspace);
 
     const session = createInterviewSession({
       provider,
@@ -123,6 +123,10 @@ export async function POST(request: NextRequest) {
       runOfShow: grounded.runOfShow,
       durationMin: grounded.durationMin,
       language: coerceLanguage(body.language),
+      // The entry (resolved above under THIS caller's tenant) is authoritative and
+      // wins inside the store; stating the caller's team too keeps the gate above
+      // and the row below reading the same tenant on any path that loses the entry.
+      workspaceId: workspace,
     });
 
     // Deliver the link TO the candidate (the screen is candidate-mode — they take

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revokeOpenInterviewSessions } from "@/app/_lib/db/interviews";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -14,7 +15,13 @@ export async function POST(request: NextRequest) {
     if (!entryId || entryId.length > 120) {
       return NextResponse.json({ error: "entryId is required" }, { status: 400 });
     }
-    const revoked = revokeOpenInterviewSessions(entryId);
+    // Tenant-scoped (direction 1): `entry_id` is globally unique, so the bare
+    // revoke let an operator on any team kill another team's live interview
+    // credential mid-call by id alone. A foreign entry now revokes nothing and
+    // answers `{ ok: true, revoked: 0 }` — the same shape an already-revoked
+    // entry gets, which is deliberate: a distinct refusal would confirm which
+    // entry ids exist on other tenants.
+    const revoked = revokeOpenInterviewSessions(entryId, await currentWorkspace());
     return NextResponse.json({ ok: true, revoked });
   } catch (error) {
     return safeJsonError(error, "api:interview:revoke", "INTERVIEW_CREATE_FAILED");
