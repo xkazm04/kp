@@ -33,7 +33,12 @@ import {
   type ComposerRefresh,
 } from "./composerState";
 
-type ConfigPayload = { configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule } };
+type ConfigPayload = {
+  configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule };
+  /** Per-phase concurrency tokens - echoed on save so a draft built on a plan somebody
+   *  else has since replaced is DROPPED rather than merged over theirs. */
+  versions?: Record<string, string | null>;
+};
 type ImpactPayload = { counts?: Record<string, number> };
 
 export function useHiringComposer() {
@@ -57,10 +62,16 @@ export function useHiringComposer() {
   // reader looking at a page with no problems on it cannot act on "fix the
   // problems above".
   const [countsFailed, setCountsFailed] = useState(false);
+  // The versions the drafts were built on, and the flag saying a save was refused because
+  // they moved. A stale save is never retried automatically: the reader has to see the
+  // plan that is actually stored before deciding again.
+  const [versions, setVersions] = useState<Record<string, string | null>>({});
+  const [staleConflict, setStaleConflict] = useState(false);
   // The post-save re-reads failed. NOT a save failure — both writes are committed.
   const [refreshFailed, setRefreshFailed] = useState(false);
 
-  const adopt = useCallback((configs: NonNullable<ConfigPayload["configs"]>) => {
+  const adopt = useCallback((configs: NonNullable<ConfigPayload["configs"]>, v?: Record<string, string | null>) => {
+    if (v) setVersions(v);
     if (configs.pipelineStages) {
       setSavedAxis(configs.pipelineStages);
       setAxis(draftFromStored(configs.pipelineStages));
@@ -94,7 +105,7 @@ export function useHiringComposer() {
       .then((p: ConfigPayload) => {
         if (!alive) return;
         if (!p.configs?.interviewPlan || !p.configs?.pipelineStages) throw new Error();
-        adopt(p.configs);
+        adopt(p.configs, p.versions);
       })
       .catch(() => alive && setLoadFailed(true));
     // Off the synchronous effect body on purpose: the retry action and the first
@@ -119,7 +130,7 @@ export function useHiringComposer() {
   };
 
   const applyRefresh = (data: ComposerRefresh) => {
-    if (data.configs) adopt(data.configs);
+    if (data.configs) adopt(data.configs, data.versions);
     if (data.counts) {
       setCounts(data.counts);
       setCountsLoaded(true);
@@ -132,7 +143,23 @@ export function useHiringComposer() {
     // Occupancy changed if anybody moved; re-read so a follow-up edit is judged
     // against the new reality rather than the pre-migration counts.
     const impact = await readJson<ImpactPayload>(await fetch("/api/pipeline/stage-impact"));
-    return { configs: configs.configs, counts: impact.counts ?? {} };
+    return { configs: configs.configs, versions: configs.versions, counts: impact.counts ?? {} };
+  };
+
+  /** Drop the local drafts and adopt what is stored - the only honest answer to "somebody
+   *  saved a newer plan", since the draft's stage ids may not exist on that plan at all. */
+  const reloadPlan = async () => {
+    try {
+      const p = await readJson<ConfigPayload>(await fetch("/api/decisions/config"));
+      if (!p.configs) throw new Error("no configs");
+      adopt(p.configs, p.versions);
+      setMappingState({});
+      setStaleConflict(false);
+      await loadCounts();
+    } catch {
+      // The banner stays up rather than claiming a reload that did not happen.
+      setStaleConflict(true);
+    }
   };
 
   const retryRefresh = async () => {
@@ -155,22 +182,33 @@ export function useHiringComposer() {
         // ("remove this column, send its people there"), so they are the same
         // request. Splitting them would let a client perform half.
         applyAxis: () =>
-          applyAxis(draftToStored(axis, state.savedStages), migrateMapFor(state.stranded, mapping), errMsg, t("saveFailed")),
+          applyAxis(
+            draftToStored(axis, state.savedStages),
+            migrateMapFor(state.stranded, mapping),
+            versions.pipelineStages ?? null,
+            errMsg,
+            t("saveFailed")
+          ),
         // Sent in BOARD order. The editor appends a column's step on first touch,
         // so a step added and then moved earlier leaves the array disagreeing with
         // the board — and the validator numbers rounds by array position to decide
         // which one is the plan's first (and so carries no cohort reducer). Sorting
         // here is what stops a "Top 3" the composer legitimately offered from being
         // stripped by the save that reports success.
-        writePlan: () => writePhase("interviewPlan", sortPlanToAxis(plan, axis.stages), errMsg, t("saveFailed")),
+        writePlan: () =>
+          writePhase("interviewPlan", sortPlanToAxis(plan, axis.stages), versions.interviewPlan ?? null, errMsg, t("saveFailed")),
         refresh: refreshAfterSave,
       }
     );
     setSaving(false);
     if (outcome.kind === "write-failed") {
+      // A stale-plan refusal is not a retryable failure: it gets a standing banner with a
+      // reload, because the next thing to do is look at the plan that is actually stored.
+      if (outcome.error instanceof SaveError && STALE_CODES.has(outcome.error.code ?? "")) setStaleConflict(true);
       toast.error(outcome.error instanceof Error ? outcome.error.message : t("saveFailed"));
       return;
     }
+    setStaleConflict(false);
     setMappingState({});
     toast.success(t("savedToast"));
     if (outcome.refresh === "ok") {
@@ -201,9 +239,28 @@ export function useHiringComposer() {
     /** The save landed, the view behind it did not refresh. */
     refreshFailed,
     retryRefresh,
+    /** A save was refused because somebody stored a newer plan. */
+    staleConflict,
+    reloadPlan,
     discard,
     save,
   };
+}
+
+/** The two refusals that mean "the plan moved under you". */
+const STALE_CODES = new Set(["DECISION_CONFIG_STALE", "PIPELINE_AXIS_STALE"]);
+
+/** A failed write, carrying BOTH the already-localized message the toast shows and the
+ *  machine code the hook branches on - the message alone cannot be branched on without
+ *  matching English, which is exactly the trap useErrorMessage exists to close. */
+class SaveError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string
+  ) {
+    super(message);
+    this.name = "SaveError";
+  }
 }
 
 /** A JSON body from a response that must be OK. `r.json()` on a 500 HTML page
@@ -226,21 +283,23 @@ async function readJson<T>(r: Response): Promise<T> {
 async function applyAxis(
   config: unknown,
   migrate: Record<string, string>,
+  expectedUpdatedAt: string | null,
   errMsg: (payload: { code?: string | null; error?: string | null } | null, fallback: string) => string,
   fallback: string
 ): Promise<void> {
   const r = await fetch("/api/pipeline/stage-migration", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ config, migrate }),
+    body: JSON.stringify({ config, migrate, expectedUpdatedAt }),
   });
   const d = (await r.json().catch(() => ({}))) as { code?: string; error?: string };
-  if (!r.ok) throw new Error(errMsg(d, fallback));
+  if (!r.ok) throw new SaveError(errMsg(d, fallback), d.code);
 }
 
 async function writePhase(
   phase: "pipelineStages" | "interviewPlan",
   config: unknown,
+  expectedUpdatedAt: string | null,
   errMsg: (payload: { code?: string | null; error?: string | null } | null, fallback: string) => string,
   fallback: string
 ): Promise<void> {
@@ -248,8 +307,8 @@ async function writePhase(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // Team-tier override: this workspace's own pipeline, not the org baseline.
-    body: JSON.stringify({ phase, config, scope: "team" }),
+    body: JSON.stringify({ phase, config, scope: "team", expectedUpdatedAt }),
   });
   const d = (await r.json().catch(() => ({}))) as { code?: string; error?: string };
-  if (!r.ok) throw new Error(errMsg(d, fallback));
+  if (!r.ok) throw new SaveError(errMsg(d, fallback), d.code);
 }

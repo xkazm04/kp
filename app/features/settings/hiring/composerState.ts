@@ -117,7 +117,12 @@ export function restoreDrafts(
 
 // ---- the save, minus React -------------------------------------------------
 
-export type ComposerRefresh = { configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule }; counts?: Record<string, number> };
+export type ComposerRefresh = {
+  configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule };
+  /** The concurrency tokens the refreshed configs were read at. */
+  versions?: Record<string, string | null>;
+  counts?: Record<string, number>;
+};
 
 export type SaveIo = {
   /** Axis + the candidate moves it forces, as ONE request. */

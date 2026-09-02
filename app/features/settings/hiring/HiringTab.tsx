@@ -48,6 +48,23 @@ export function HiringTab() {
         <div className="reveal-quiet min-h-[28rem]" aria-hidden />
       ) : (
         <>
+          {/* Somebody stored a newer plan while this draft was being edited. The save
+              was refused BEFORE anything was written, so the honest move is to show
+              what is stored — merging a draft onto a pipeline whose columns may not
+              exist any more is how a lost update looks from the inside. */}
+          {c.staleConflict ? (
+            <p role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
+              {t("stale")}
+              <button
+                type="button"
+                onClick={() => void c.reloadPlan()}
+                className="focus-ring rounded-md px-2 py-0.5 text-sm font-semibold underline hover:bg-coral/10"
+              >
+                {t("staleReload")}
+              </button>
+            </p>
+          ) : null}
+
           {/* The occupancy read failed. Said out loud, with the retry: it is what
               refuses a column removal, and a reader shown "fix the problems
               above" over a page with no problems on it cannot act on that. */}

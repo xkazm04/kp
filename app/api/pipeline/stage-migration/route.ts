@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { countPipelineByStage, migratePipelineStages, type StageMigration } from "@/app/_lib/db/pipeline";
-import { setDecisionConfig } from "@/app/_lib/decision-config-store";
+import { getDecisionConfigVersion, setDecisionConfig } from "@/app/_lib/decision-config-store";
 import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Apply a board-shape change AND the candidate moves it forces, as one operation.
 //
@@ -35,7 +36,13 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // span them, and reversing the order trades a benign partial state for the exact
 // stranding this phase exists to prevent.
 
-type Body = { config?: unknown; migrate?: unknown };
+// This route MOVES CANDIDATES. 20 per 10 minutes per address is far above any real
+// editing session and well below "walk the board through repeated reshapes"; open mode
+// makes the operator gate above a no-op. Placed after every cheap refusal, so a bad
+// mapping or an unmapped removal costs no budget.
+const MIGRATION_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+
+type Body = { config?: unknown; migrate?: unknown; expectedUpdatedAt?: unknown };
 
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
@@ -50,6 +57,18 @@ export async function POST(request: NextRequest) {
     const next = validated.config as PipelineStagesRule;
 
     const ws = await currentWorkspace();
+    // OPTIMISTIC CONCURRENCY on the axis the client read. Removing "Screening" from the
+    // board someone else has already reshaped is not the edit the operator authored — the
+    // stage ids their mapping names may not even exist any more — so a stale axis is
+    // refused before anybody is moved. Opt-in: the first-run wizard writes the axis it
+    // composed from nothing and sends no token.
+    const expectedUpdatedAt =
+      typeof body?.expectedUpdatedAt === "string" || body?.expectedUpdatedAt === null
+        ? (body?.expectedUpdatedAt as string | null)
+        : undefined;
+    if (expectedUpdatedAt !== undefined && getDecisionConfigVersion("pipelineStages", ws) !== expectedUpdatedAt) {
+      return jsonRefusal("PIPELINE_AXIS_STALE", 409);
+    }
     const current = getPipelineAxis(ws);
     const nextIds = new Set(next.stages.map((s) => s.id));
     const removed = current.stages.filter((s) => !nextIds.has(s.id)).map((s) => s.id);
@@ -91,9 +110,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (!rateLimit(`stage-migration:${clientIpFrom(request.headers)}`, MIGRATION_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+
     const moved = migratePipelineStages(migrations, ws);
-    // Team-tier override: this workspace's own board, not the org baseline.
-    setDecisionConfig("pipelineStages", next as unknown as Record<string, unknown>, ws, "team");
+    // Team-tier override: this workspace's own board, not the org baseline. The token is
+    // re-asserted HERE too, under the store's write lock: a concurrent axis save between
+    // the check above and this write would otherwise be clobbered. It lands in the catch
+    // below, whose message already tells the operator candidates may have moved.
+    setDecisionConfig("pipelineStages", next as unknown as Record<string, unknown>, ws, "team", { expectedUpdatedAt });
     return NextResponse.json({ ok: true, moved, removed });
   } catch (error) {
     return safeJsonError(error, "api:pipeline/stage-migration", "STAGE_MIGRATION_FAILED");
