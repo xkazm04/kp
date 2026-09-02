@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Check, ShieldCheck, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { Skeleton } from "@/app/_components/Skeleton";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type DataView = {
@@ -16,6 +20,11 @@ type DataView = {
   // full known set for defensiveness if an older API omits it.
   held?: string[];
 };
+
+/** A load failure is one of two things, and the page must not confuse them: the
+ *  LINK is gone (404 — nothing to retry), or our side blinked (5xx, a dropped
+ *  connection — the erasure request is still available and a retry is the point). */
+type LoadFailure = "dead" | "retryable";
 
 /** Authoritative re-read after a failed erase POST. The erasure token is NULLed by
  *  anonymizeEntry, so a 404 here means the scrub already ran (in another tab, or on
@@ -47,7 +56,7 @@ export function DataClient() {
   // #4 — load failure and erase-action failure are DISTINCT states. A load error is
   // terminal (nothing to show); an erase error is a dismissible inline alert beside the
   // (re-enabled) button so the candidate can retry without losing the whole page.
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
   const [eraseError, setEraseError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -63,31 +72,45 @@ export function DataClient() {
   // and must never enter an effect's dependency list.
   const loadRetryMessage = errMsg({ code: "DATA_LOOKUP_FAILED" }, t("loadFailed"));
 
+  // The load is a callback so the retry button can re-run exactly it (the offer
+  // door's shape). Only the FAILURE KIND is stored here; the message is resolved
+  // at render, keeping `errMsg` out of every dependency list.
+  const load = useCallback(async (): Promise<{ failure: LoadFailure } | { view: DataView }> => {
+    if (!token) return { failure: "retryable" };
+    try {
+      const r = await fetch(`/api/data/${token}`);
+      const p = (await r.json().catch(() => ({}))) as Partial<DataView> & { error?: string };
+      // Only a 404 means the link itself is dead; everything else is transient.
+      if (r.status === 404) return { failure: "dead" };
+      if (!r.ok || p.error) return { failure: "retryable" };
+      return { view: p as DataView };
+    } catch {
+      return { failure: "retryable" };
+    }
+  }, [token]);
+
   useEffect(() => {
-    if (!token) return;
     let alive = true;
-    fetch(`/api/data/${token}`)
-      .then(async (r) => {
-        const p = (await r.json().catch(() => ({}))) as Partial<DataView> & { error?: string };
-        if (!alive) return;
-        // Only a 404 means the link itself is dead; everything else is transient.
-        if (r.status === 404) {
-          setLoadError(t("loadFailed"));
-          return;
-        }
-        if (!r.ok || p.error) {
-          setLoadError(loadRetryMessage);
-          return;
-        }
-        setView(p as DataView);
-      })
-      .catch(() => {
-        if (alive) setLoadError(loadRetryMessage);
-      });
+    void load().then((r) => {
+      if (!alive) return;
+      if ("view" in r) setView(r.view);
+      else setLoadFailure(r.failure);
+    });
     return () => {
       alive = false;
     };
-  }, [token, t, loadRetryMessage]);
+  }, [load]);
+
+  // Retry: clear the error and show the loading skeleton immediately (a synchronous
+  // set is fine in an event handler), then refetch. Offered ONLY for `retryable` —
+  // a retry button over a link that 404s is a loop with no exit.
+  const retryLoad = () => {
+    setLoadFailure(null);
+    void load().then((r) => {
+      if ("view" in r) setView(r.view);
+      else setLoadFailure(r.failure);
+    });
+  };
 
   const erase = async () => {
     if (!token) return;
@@ -131,6 +154,14 @@ export function DataClient() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      {/* The candidate's own escape hatch, mirroring the offer and status doors:
+          the "manage your data" link is ?lang=-pinned to the language of the LETTER
+          it rode on, but a forwarded link or a stale NEXT_LOCALE cookie can still
+          land them in a language they don't read — and an erasure explainer is a
+          legal affordance, the last page that should be unreadable. */}
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
         <ShieldCheck size={14} /> {t("eyebrow")}
       </p>
@@ -143,12 +174,35 @@ export function DataClient() {
         {view?.jobTitle ? t("forRole", { role: view.jobTitle }) : t("forRoleGeneric")}
       </h1>
 
-      {loadError ? (
-        <p role="alert" className="mt-4 rounded-lg border border-stone-200 bg-paper p-4 text-body text-steel">
-          {loadError}
-        </p>
+      {loadFailure ? (
+        <div role="alert" className="mt-4 rounded-lg border border-stone-200 bg-paper p-4">
+          <p className="text-body text-steel">{loadFailure === "dead" ? t("loadFailed") : loadRetryMessage}</p>
+          {/* Retryable only. The copy already promises a retry is worth making;
+              until now the page offered no way to make one. */}
+          {loadFailure === "retryable" ? (
+            <button type="button" onClick={retryLoad} className={`${BTN_SECONDARY} mt-3 h-11 px-4`}>
+              {tCommon("retry")}
+            </button>
+          ) : null}
+        </div>
       ) : !view ? (
-        <p className="mt-4 text-base text-steel">{tCommon("loading")}</p>
+        // Skeleton mirroring the loaded page's shape (the offer door's treatment)
+        // so the first paint reserves its height instead of a bare line that
+        // visibly reflows into a full page (CLS).
+        <div className="mt-6 space-y-6" aria-busy="true" aria-label={tCommon("loading")}>
+          <div className="space-y-2 rounded-lg border border-stone-200 bg-paper p-5">
+            <Skeleton className="h-3 w-1/3" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/5" />
+          </div>
+          <div className="space-y-3 rounded-lg border border-stone-200 bg-white p-5">
+            <Skeleton className="h-5 w-2/5" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+            <Skeleton className="h-11 w-48 rounded-md" />
+          </div>
+        </div>
       ) : erased || view.anonymized ? (
         <div role="status" className="mt-6 rounded-lg border border-moss/40 bg-moss/5 p-5">
           <p className="flex items-center gap-2 font-serif text-h3 text-ink">
@@ -183,29 +237,12 @@ export function DataClient() {
             <p className="font-serif text-h3 text-ink">{t("eraseTitle")}</p>
             <p className="mt-2 text-body text-steel">{t("eraseExplainer")}</p>
             {confirming ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={erase}
-                  disabled={busy}
-                  className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  <Trash2 size={15} /> {busy ? t("erasing") : t("eraseConfirm")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirming(false)}
-                  disabled={busy}
-                  className="focus-ring inline-flex h-10 items-center justify-center rounded-md border border-stone-200 px-4 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
-                >
-                  {t("cancel")}
-                </button>
-              </div>
+              <EraseConfirm busy={busy} onCancel={() => setConfirming(false)} onConfirm={erase} />
             ) : (
               <button
                 type="button"
                 onClick={() => setConfirming(true)}
-                className="focus-ring mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50"
+                className={`${BTN_SECONDARY} mt-4 h-11 px-4`}
               >
                 <Trash2 size={15} /> {t("eraseCta")}
               </button>
@@ -221,5 +258,53 @@ export function DataClient() {
         </>
       )}
     </main>
+  );
+}
+
+/**
+ * The erasure confirm. Erasure is IRREVERSIBLE and this is a public page a
+ * candidate reaches from an email footer, so it is a real `alertdialog`, not the
+ * plain `<div>` of two buttons it used to be:
+ *  - `useDialogA11y` (the same hook Modal and the drawers use) moves focus inside
+ *    on open, traps Tab, closes on Escape and restores focus to the trigger;
+ *  - Cancel is FIRST in the DOM, so the hook's "focus the first focusable" lands a
+ *    keyboard user on the safe option, and the destructive button is last — the
+ *    offer door's decline confirm, which had this right already;
+ *  - it is its own component so the hook mounts/unmounts with the dialog rather
+ *    than running for the life of the page.
+ */
+function EraseConfirm({ busy, onCancel, onConfirm }: { busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+  const t = useTranslations("data");
+  const ref = useRef<HTMLDivElement>(null);
+  // Escape must not close the dialog mid-write: the POST is already irreversible
+  // and a vanished dialog would leave no place for its result.
+  useDialogA11y(ref, () => {
+    if (!busy) onCancel();
+  });
+  return (
+    <div
+      ref={ref}
+      tabIndex={-1}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="erase-confirm-title"
+      aria-describedby="erase-confirm-desc"
+      className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-4"
+    >
+      <p id="erase-confirm-title" className="text-base font-semibold text-ink">
+        {t("confirmTitle")}
+      </p>
+      <p id="erase-confirm-desc" className="mt-0.5 text-body text-steel">
+        {t("confirmBody")}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={onCancel} disabled={busy} className={`${BTN_SECONDARY} h-11 px-4`}>
+          {t("cancel")}
+        </button>
+        <button type="button" onClick={onConfirm} disabled={busy} aria-busy={busy} className={`${BTN_PRIMARY} h-11 px-4`}>
+          <Trash2 size={15} /> {busy ? t("erasing") : t("eraseConfirm")}
+        </button>
+      </div>
+    </div>
   );
 }

@@ -1508,6 +1508,8 @@
     "eraseFailed": "Could not complete the erasure right now. Please try again.",
     "confirmTitle": "Erase your data for good?",
     "confirmBody": "This cannot be undone. Your name, contact details, CV and interview answers are removed immediately; only the de-identified assessment record stays.",
+    "confirmTitle": "Erase your data for good?",
+    "confirmBody": "This cannot be undone. Your name, contact details, CV and interview answers are removed immediately; only the de-identified assessment record stays.",
     "forRole": "Your application for {role}",
     "forRoleGeneric": "Your application",
     "heldTitle": "What we hold about you",

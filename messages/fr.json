@@ -1508,6 +1508,8 @@
     "eraseFailed": "Impossible d’effectuer l’effacement pour le moment. Veuillez réessayer.",
     "confirmTitle": "Effacer définitivement vos données ?",
     "confirmBody": "Cette action est irréversible. Votre nom, vos coordonnées, votre CV et vos réponses d’entretien sont supprimés immédiatement ; seul l’enregistrement anonymisé de l’évaluation subsiste.",
+    "confirmTitle": "Effacer définitivement vos données ?",
+    "confirmBody": "Cette action est irréversible. Votre nom, vos coordonnées, votre CV et vos réponses d’entretien sont supprimés immédiatement ; seul l’enregistrement anonymisé de l’évaluation subsiste.",
     "forRole": "Votre candidature au poste de {role}",
     "forRoleGeneric": "Votre candidature",
     "heldTitle": "Ce que nous détenons à votre sujet",
