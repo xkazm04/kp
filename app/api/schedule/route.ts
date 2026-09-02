@@ -17,13 +17,13 @@ import {
 // Slice, not the `./db` barrel — see the note in app/_lib/llm-config.ts.
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
-import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
-import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
+import { dateSlotToIso, gridSlotToIso, hourBucketKey, INTERVIEW_TZ, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
+import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 
@@ -64,7 +64,12 @@ export async function GET(request: Request) {
         droppedForConflict: proposed.droppedForConflict,
       });
     }
-    return NextResponse.json({ invites: listScheduleInvites(200, ws) });
+    // The zone every time on this surface is expressed in. The recruiter grid
+    // renders wall-clock cells with no zone marker anywhere, and INTERVIEW_TZ is a
+    // SERVER env var (KP_INTERVIEW_TZ) — a client bundle reading it would silently
+    // report the "Europe/Prague" default on an install that configured something
+    // else, which is worse than saying nothing. So the server states it.
+    return NextResponse.json({ invites: listScheduleInvites(200, ws), interviewTz: INTERVIEW_TZ });
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }
@@ -128,7 +133,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "entryId and dateSlot are required" }, { status: 400 });
       }
       const entry = getPipelineEntry(body.entryId, ws);
-      if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
+      // Reuses the board's own code: the tab renders "that candidate is no longer on
+      // this board", localized, instead of the generic failure line.
+      if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
       // Never book an interview for a candidate the pipeline has closed out. Both invite
       // routes already refuse a terminal entry ("a drawer left open while the candidate
       // was rejected in another tab" — /api/schedule/invite), but the week grid did not,
@@ -140,7 +147,7 @@ export async function POST(request: Request) {
       // throwing, so nothing raised needs_reconcile and the board showed no failure at all.
       // Hired keeps status 'active', so only genuinely closed-out entries are refused.
       if (entry.status !== "active") {
-        return NextResponse.json({ error: "That candidate is no longer active — nothing was booked." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_CANDIDATE_INACTIVE", 409);
       }
       // Prefer the DATED pick ("YYYY-MM-DD HH:MM", the concrete cell the recruiter clicked)
       // so a booking lands on the true calendar day, not the next matching weekday. The
@@ -152,7 +159,7 @@ export async function POST(request: Request) {
           })()
         : gridSlotToIso(body.gridSlot!);
       if (!resolved) {
-        return NextResponse.json({ error: "That grid slot couldn't be resolved to a time." }, { status: 400 });
+        return jsonRefusal("SCHEDULE_SLOT_UNRESOLVED", 400);
       }
       // Idempotent per entry: reuse the live invite (or mint one), then confirm/move it
       // to the resolved instant with recruiter authority (no candidate reschedule cap),
@@ -175,21 +182,41 @@ export async function POST(request: Request) {
         targetBucket &&
         bookedSlots(ws).some((iso) => iso !== invite.slotAt && hourBucketKey(iso) === targetBucket)
       ) {
-        return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+      }
+      // W1.4 PARITY (Direction 2): the CANDIDATE confirm re-asks the interviewer's
+      // connected calendar at the moment of booking (slotStillFree in the token
+      // route); the recruiter's grid never did. So the very hour a candidate was
+      // refused as a definite conflict was bookable from the other side of the same
+      // app, and the interviewer's calendar was the thing kp was supposed to be
+      // protecting. Same seam, same THREE-VALUED contract: only a definite `false`
+      // refuses; `null` (no calendar connected, or the lookup failed) proceeds
+      // exactly as it did before this check existed, because an outage must never
+      // block a booking. No override affordance: a recruiter who genuinely wants the
+      // hour clears it on their own calendar and books again.
+      //
+      // The entry's OWN confirmed booking at this instant is skipped: kp writes a
+      // real calendar event for it, so re-confirming the same cell would be refused
+      // by kp's own event.
+      if (!(invite.status === "confirmed" && invite.slotAt === resolved.value)) {
+        const calendarFree = await slotStillFree(resolved.value, ws, invite.durationMin ?? undefined);
+        if (calendarFree === false) {
+          return jsonRefusal("SCHEDULE_CALENDAR_BUSY", 409);
+        }
       }
       let bookedInvite: ScheduleInvite;
       if (invite.status === "confirmed") {
         const moved = rescheduleScheduleInvite(invite.token, resolved.label, resolved.value, null, { recruiter: true });
         if (!moved.ok) {
-          if (moved.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-          return NextResponse.json({ error: "Could not update that booking." }, { status: 409 });
+          if (moved.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+          return jsonRefusal("SCHEDULE_BOOK_FAILED", 409);
         }
         bookedInvite = moved.invite;
       } else {
         const booked = confirmScheduleInvite(invite.token, resolved.label, resolved.value);
         if (!booked.ok) {
-          if (booked.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-          return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+          if (booked.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+          return jsonRefusal("SCHEDULE_BOOK_FAILED", 409);
         }
         bookedInvite = booked.invite;
       }

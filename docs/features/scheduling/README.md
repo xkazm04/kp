@@ -157,6 +157,22 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
+**Both writers re-check, on the same rule.** `slotStillFree` runs on the
+candidate confirm (`app/api/schedule/[token]/route.ts`) *and* on the recruiter's
+week-grid book (`POST /api/schedule {action:"book"}`), which refuses a definite
+conflict with `SCHEDULE_CALENDAR_BUSY` (409). Until then a candidate could not
+book an hour the interviewer's calendar shows busy while a recruiter could, from
+the other side of the same app, for the same interviewer. The degradation
+contract is identical on both sides — no calendar connected, or a failed lookup,
+books exactly as it did before the integration — and there is **no override
+affordance**: a recruiter who wants the hour clears it on their own calendar.
+The one exception is an entry's own confirmed instant: kp writes a real event for
+each booking, so re-confirming the same cell would otherwise be refused by kp's
+own event. The recruiter-side *reschedule* and *accept-proposal* writes still do
+not re-check (their offered lists are filtered). Pinned by
+`app/api/schedule/schedule-book-refusals.test.ts` against the same Google double
+`calendar-conflict.test.ts` uses.
+
 A longer conflict window legitimately removes more slots, so a fully-conflicted
 horizon reaches the existing `noSlots` escalation more often — that path is
 unchanged and covered by `app/api/schedule/calendar-conflict.test.ts` (which also
@@ -242,12 +258,73 @@ changed `calendarEventState` — adopting only `meetingUrl` left the row asserti
 End-to-end coverage (real routes, stubbed Google edge):
 `app/api/schedule/calendar-writeback.test.ts`.
 
+## What the week grid says about a time
+
+The recruiter grid (`app/features/hiring/schedule/ScheduleCalendar.tsx`) renders
+wall-clock cells in the interview zone. Three things it now states, and used to
+leave to inference:
+
+- **Which zone.** A note under the pager reads "All times in the interview
+  timezone: Europe/Prague (GMT+2)". `INTERVIEW_TZ` is a *server* value
+  (`KP_INTERVIEW_TZ`), so `GET /api/schedule` returns it as `interviewTz` rather
+  than letting a client bundle guess — a bundle reading `process.env` would
+  silently report the `Europe/Prague` default on an install configured otherwise,
+  which is worse than saying nothing. The short label (`GMT+2`) is derived from a
+  real instant in the visible week, so it is DST-correct.
+- **Whether the time is agreed.** A cell is seeded from a **confirmed invite**,
+  else the legacy free-text `approvalDetail`, else a flat `Tue 14:00` guess — and
+  all three used to render identically. The provenance now rides with the pick
+  (`scheduleGridSeeds.ts`, pinned by `scheduleGridSeeds.test.ts`): a booked slot
+  shows a "confirmed" chip in the pending list and a solid grid chip; a guess
+  shows a "suggested" chip and a dashed grid chip whose tooltip says it is not
+  confirmed. Absence of provenance reads as *suggested*, never as booked.
+- **Where the candidate is.** `candidate_tz`, captured at confirm time and until
+  now rendered only on the agenda row, appears on the pending card, so "14:00" can
+  be read against the candidate's own night.
+
+Two mechanical notes on the same surface: the derived lists in `useScheduleTab.ts`
+are memoized on `entries` and `ScheduleCalendar` is wrapped in `memo`, so the
+6-second interview-status poll no longer re-renders the whole week grid with
+byte-identical data (the lists were rebuilt per render, so the memos below them
+could never hit); and the week pager's prev/next buttons are 44x44 rather than
+32x32.
+
+## What the recruiter is told when a booking is refused
+
+`POST /api/schedule {action:"book"}` — the week grid's Confirm — answers every
+refusal with a **code**, through `jsonRefusal` (`app/_lib/api-response.ts`):
+
+| Code | Status | Means |
+| --- | --- | --- |
+| `SCHEDULE_SLOT_TAKEN` | 409 | The hour is spoken for (a self-booking, or an accepted off-hour proposal inside it) |
+| `SCHEDULE_CANDIDATE_INACTIVE` | 409 | The linked entry is closed out — the grid's entry list is a client-side snapshot |
+| `SCHEDULE_BOOK_FAILED` | 409 | The collision-checked transaction refused for another reason; nothing was written |
+| `SCHEDULE_SLOT_UNRESOLVED` | 400 | The submitted cell did not resolve to an instant |
+| `SCHEDULE_CALENDAR_BUSY` | 409 | The interviewer's connected calendar shows that hour busy (see the free/busy section) |
+| `PIPELINE_ENTRY_NOT_FOUND` | 404 | The entry is not on this board (the board's own code, reused) |
+
+The Schedule tab keeps the code and resolves it through `useErrorMessage()`, so
+each refusal reads in the operator's own language. It renders **inline, under the
+card whose action failed** (`actionError` in `useScheduleTab.ts`, painted by
+`ScheduleTabPendingList.tsx`) rather than in the tab-level banner above the grid:
+a refusal is about one candidate and names the next action ("pick another"), so it
+belongs beside that candidate and must stay on screen while the recruiter takes
+it. Before this, all four refusals painted the LOAD banner's `loadFailed` copy —
+"Failed to load." — on an action that loaded nothing, and a failed decline set no
+error at all. A decline that fails now says so on the card, with the board's own
+`PIPELINE_*` code.
+
+Pinned by `app/api/schedule/schedule-book-refusals.test.ts`, which drives the real
+handler and also asserts that every code the route emits has an `errors.<CODE>`
+entry in all four catalogs — a code with no catalog entry silently degrades back
+to the generic fallback.
+
 ## API / lib surface
 
 | Surface | File | Notes |
 | --- | --- | --- |
 | Candidate read/book | `app/api/schedule/[token]/route.ts` | Public token route; `publicInviteView` is the leak boundary |
-| Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times |
+| Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times; the plain GET also returns `interviewTz` |
 | Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
 | Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 (overflow reported, not dropped), per-entry `delivery` |
 | Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
@@ -406,8 +483,9 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
 - The recruiter-side reschedule / accept-proposal **writes** do not re-check
-  free/busy at confirm time the way the candidate confirm does — the recruiter is
-  assumed to be looking at their own calendar. (Their offered list *is* filtered.)
+  free/busy at confirm time the way the candidate confirm and the week-grid book
+  do — the recruiter is assumed to be looking at their own calendar. (Their
+  offered list *is* filtered.)
 - **A first booking hides the "change time" button until the page is reloaded.**
   The GET on a *pending* invite necessarily answers `canReschedule: false`, and
   the first-confirm POST response carries no allowance flags, so the booked card

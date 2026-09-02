@@ -290,6 +290,72 @@ export const REFUSAL_ERRORS = {
    *  tells the operator to configure a token; conflating the two would answer a
    *  throttled companion turn with advice about GITHUB_TOKEN. */
   TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,
+  // ---- Voice-interview refusals (/perfect 2026-09-02, api-voice-interview).
+  // Every refusal on the two doors that SPEND — POST /api/interview/create (a
+  // model-backed grounding plus an email to the candidate) and POST
+  // /api/interview/connect (the provider credential mint) — used to be a bare
+  // English sentence with no code. /connect is a PUBLIC candidate surface reached
+  // from an emailed link in the candidate's own language, so its five lifecycle
+  // refusals were the worst placed of the lot: the portal painted the server's
+  // English at a Czech applicant who had just been told, in Czech, to click it.
+  /** The screen was asked for without naming a candidate — neither `entryId` nor
+   *  `submissionId` arrived in a usable shape (400). */
+  INTERVIEW_ENTRY_REQUIRED: "Say which candidate this interview is for.",
+  /** A dev-case submission id that resolves to nothing, or to another team's
+   *  submission (404). The two stay DELIBERATELY lumped: a distinct refusal would
+   *  confirm which submission ids exist on other tenants, and this door can write a
+   *  stranger's name and contact onto the caller's board. */
+  INTERVIEW_SUBMISSION_NOT_FOUND: "That submission could not be found.",
+  /** A submission with no evaluation behind it (400). There is nothing to promote
+   *  on, and the brief the screen would carry is built from the evaluation's own
+   *  minted follow-ups. */
+  INTERVIEW_SUBMISSION_NOT_EVALUATED: "Evaluate the submission before starting a voice screen.",
+  /** A reissue arrived while the candidate is mid-conversation (409). Revoking
+   *  would kill the live call and email them a second invite while they talk;
+   *  `force: true` is the explicit recruiter override. */
+  INTERVIEW_CALL_IN_PROGRESS: "This candidate is on the call right now. Wait for it to finish before issuing a new link.",
+  /** The presented interview token resolves to nothing (404) — a mistyped or
+   *  superseded link, never an invitation to open a lab session. */
+  INTERVIEW_LINK_NOT_FOUND: "This interview link isn't valid.",
+  /** The link was pulled by the recruiter, or its candidate is closed out (409). */
+  INTERVIEW_LINK_INACTIVE: "This interview link is no longer active.",
+  /** An untaken link past INTERVIEW_LINK_TTL_DAYS (409). An auto-emailed
+   *  credential must not stay valid forever. */
+  INTERVIEW_LINK_EXPIRED: "This interview link has expired. Ask the recruiter for a fresh one.",
+  /** The screen is finished (409). `completed` is single-use, enforced by the
+   *  status CAS in markInterviewStarted, so a retake mints no credentials. */
+  INTERVIEW_ALREADY_COMPLETED: "This interview has already been completed.",
+  /** A candidate-mode connect with no explicit consent (403). Consent is the legal
+   *  basis for an AI-conducted, transcribed interview, so it is enforced server-side
+   *  and not merely by the browser's disabled Start button. */
+  INTERVIEW_CONSENT_REQUIRED: "Recording consent is required before the interview can start.",
+  /** The requested provider is neither 'openai' nor 'elevenlabs' (400). */
+  INTERVIEW_PROVIDER_INVALID: "That voice provider isn't one this server knows.",
+  /** The chosen provider has no keys on this install (503). Which env vars are
+   *  missing rides alongside in `need` for the operator; the candidate reads only
+   *  this sentence. */
+  INTERVIEW_PROVIDER_UNCONFIGURED: "The voice provider isn't configured on this server, so the call can't start.",
+  /** A tokenless connect while the dev lab harness is off (403). */
+  INTERVIEW_LAB_DISABLED: "The interview lab is not enabled on this server.",
+  // ---- Document-upload refusals (app/_lib/upload-constraints.ts). The document
+  // twins of AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE: the gate that guards every
+  // CV / JD / company file answered hardcoded English on BOTH sides of the wire
+  // until this change, so a Czech recruiter dropping a 20 MB PNG read an English
+  // sentence the surface had painted from the server. The MB figure is written
+  // out here (as the audio pair does) rather than interpolated — the resolver
+  // useErrorMessage() passes no values — and upload-constraints.test.ts fails if
+  // MAX_FILE_MB and this copy ever say different numbers.
+  /** The file is not one of PDF / DOCX / TXT / MD (400, or the client gate). */
+  UPLOAD_UNSUPPORTED_TYPE: "Use a PDF, DOCX, TXT or MD file.",
+  /** The file is over MAX_FILE_BYTES (413, or the client gate). */
+  UPLOAD_TOO_LARGE: "That file is over the 8 MB upload limit.",
+  // ---- /api/analyze's own two form refusals. Both were bare English 400s that
+  // the client collapsed into one generic "analysis failed" line.
+  /** The submitted form carried no CV/profile file at all (400). */
+  ANALYZE_CV_REQUIRED: "Attach a CV or profile file to analyze.",
+  /** More CV variants than one run compares (400) — MAX_CV_VARIANTS, pinned to
+   *  this copy by upload-constraints.test.ts the same way the MB figure is. */
+  ANALYZE_TOO_MANY_VARIANTS: "Compare at most 3 CV variants in one run.",
   // ---- App-master intake refusals (docs/features/intake/README.md §"Shape
   // app_master"). Both routes used to answer these as bare English strings with
   // no code, so the card collapsed a throttle, "the scan has not landed" and
@@ -433,6 +499,30 @@ export const REFUSAL_ERRORS = {
   /** Steps being removed still hold candidates and no destination was given (409).
    *  The occupied steps and their counts ride alongside in `unmapped`. */
   PIPELINE_MIGRATION_REQUIRED: "Some steps you removed still hold candidates. Say where each of them should go.",
+  // ---- The RECRUITER book path's refusals (docs/features/scheduling/README.md).
+  // Every one of these was a bare English sentence with no code, so the Schedule
+  // tab funnelled all four into "Failed to load." — the load error's copy, on an
+  // action that loaded nothing. A recruiter who lost the hour to a candidate
+  // self-booking and one whose candidate was rejected in another tab read the same
+  // sentence, in English, in every locale.
+  /** The picked hour is spoken for — the candidate's own self-booking, or another
+   *  entry's accepted off-hour proposal inside it (409). The remedy is the whole
+   *  message: pick a different cell. */
+  SCHEDULE_SLOT_TAKEN: "That time is already booked — pick another.",
+  /** The linked entry is closed out (409). The grid's entry list is a client-side
+   *  snapshot, so a candidate rejected in another tab is still on this one. */
+  SCHEDULE_CANDIDATE_INACTIVE: "That candidate is no longer active — nothing was booked.",
+  /** The collision-checked transaction refused for any other reason: the invite
+   *  moved, or is no longer in a state that takes this slot (409). Nothing was
+   *  written, so re-picking after a refresh is safe. */
+  SCHEDULE_BOOK_FAILED: "Couldn't book that time. Refresh and pick again.",
+  /** The submitted grid cell did not resolve to a real instant (400) — a stale
+   *  week pager, or a slot grammar this server no longer parses. */
+  SCHEDULE_SLOT_UNRESOLVED: "That grid slot couldn't be resolved to a time.",
+  /** The interviewer's connected calendar says that hour is busy (409). The
+   *  recruiter's twin of the candidate confirm-time re-check: only a DEFINITE busy
+   *  refuses, an unknown (no calendar, failed lookup) proceeds. */
+  SCHEDULE_CALENDAR_BUSY: "Your connected calendar is busy then. Pick another time.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -241,7 +241,7 @@ function candidateTimelineForEntry(
     }
   }
 
-  const interview = latestInterviewByEntry(entry.id);
+  const interview = latestInterviewByEntry(entry.id, entry.workspaceId);
   if (interview) {
     items.push({ at: interview.createdAt, kind: "interview", status: "created" });
     if (interview.endedAt) items.push({ at: interview.endedAt, kind: "interview", status: "completed" });
@@ -316,7 +316,7 @@ function candidateComms(entryId: string, workspaceId: string): CandidateComm[] {
 function candidateInterviewOutcome(
   entry: NonNullable<ReturnType<typeof getPipelineEntry>>
 ): InterviewOutcome | null {
-  let session = latestInterviewByEntry(entry.id);
+  let session = latestInterviewByEntry(entry.id, entry.workspaceId);
   if (!session || session.status !== "completed") return null;
   if (
     consentWithholdsPii({ givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt })

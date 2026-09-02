@@ -35,7 +35,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2751,
+  "files": 2761,
   "groups": 17,
   "use_cases": 12
  },
@@ -1487,6 +1487,7 @@
     "app/features/tools/analyze/history/HistoryTab.tsx"
    ],
    "file_paths": [
+    "app/features/tools/analyze/AnalyzeApi.test.ts",
     "app/features/tools/analyze/AnalyzeApi.ts",
     "app/features/tools/analyze/AnalyzeColumn.tsx",
     "app/features/tools/analyze/AnalyzeFileDropZone.tsx",
@@ -1503,6 +1504,8 @@
     "app/features/tools/analyze/AnalyzeWorkspace.tsx",
     "app/features/tools/analyze/analyzeCollapse.test.ts",
     "app/features/tools/analyze/analyzeCollapse.ts",
+    "app/features/tools/analyze/analyzeDesignSurface.test.ts",
+    "app/features/tools/analyze/analyzeSurfaces.ts",
     "app/features/tools/analyze/history/HistoryFilterBar.tsx",
     "app/features/tools/analyze/history/HistoryTab.tsx",
     "app/features/tools/analyze/history/HistoryTable.tsx",
@@ -5622,6 +5625,7 @@
    "description": "[auto-seeded — pending sweep enrichment] Schedule UI 1: 20 source + 0 test file(s) under app/features/hiring/schedule.",
    "entry_points": [],
    "file_paths": [
+    "app/api/schedule/schedule-book-refusals.test.ts",
     "app/features/hiring/schedule/ScheduleAddToCalendar.tsx",
     "app/features/hiring/schedule/ScheduleAiDocket.tsx",
     "app/features/hiring/schedule/ScheduleAiEvalPreview.tsx",
@@ -5641,7 +5645,9 @@
     "app/features/hiring/schedule/ScheduleInterviewPrepModal.tsx",
     "app/features/hiring/schedule/ScheduleInterviewPrepNotes.tsx",
     "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx",
-    "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx"
+    "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx",
+    "app/features/hiring/schedule/scheduleGridSeeds.test.ts",
+    "app/features/hiring/schedule/scheduleGridSeeds.ts"
    ],
    "group": "Interview Scheduling",
    "group_id": "fe7fc1b8-4068-4ca9-afbd-c3fc47b2eb17",
@@ -7114,7 +7120,11 @@
     "app/api/interview/connect/connect-response-contract.test.ts",
     "app/api/interview/connect/route.ts",
     "app/api/interview/create/route.ts",
+    "app/api/interview/entry-id.ts",
     "app/api/interview/error-message-hygiene.test.ts",
+    "app/api/interview/interview-entry-tenancy.test.ts",
+    "app/api/interview/interview-session-cost.test.ts",
+    "app/api/interview/interview-spend-doors.test.ts",
     "app/api/interview/revoke/route.ts",
     "app/api/interview/sessions/route.ts",
     "app/api/interview/simulate/attach/route.ts",

@@ -15,10 +15,18 @@ import {
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import { buildCandidateSafeBrief, interviewAsrKeywords } from "@/app/_lib/interview-run";
-import { safeJsonError } from "@/app/_lib/api-response";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
-import { INTERVIEW_LAB_DISABLED_ERROR, isInterviewLabEnabled } from "@/app/_lib/interview-lab";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { rateLimit } from "@/app/_lib/rate-limit";
+import { isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
+import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
+
+// EVERY refusal on this route now carries a code (/perfect 2026-09-02).
+// /connect is a PUBLIC candidate surface reached from an emailed link rendered in
+// the applicant's own language (`?lang=`), and its five lifecycle refusals were
+// bare English sentences with no code - so the portal painted the server's English
+// at a Czech applicant who had just been told, in Czech, to click that link. The
+// canonical strings now live in REFUSAL_ERRORS beside every other refusal in the
+// product, and the reader resolves `errors.<CODE>` in their own language.
 
 
 // GET → which providers are configured (used by the UI to enable/disable the switcher).
@@ -51,10 +59,10 @@ export async function POST(request: NextRequest) {
     //  - a truly tokenless request is the lab path, which is a dev harness:
     //    enabled outside production, opt-in via INTERVIEW_LAB_ENABLED=1 in it.
     if (token && !session0) {
-      return NextResponse.json({ error: "interview link not found" }, { status: 404 });
+      return jsonRefusal("INTERVIEW_LINK_NOT_FOUND", 404);
     }
     if (!token && !isInterviewLabEnabled()) {
-      return NextResponse.json({ error: INTERVIEW_LAB_DISABLED_ERROR }, { status: 403 });
+      return jsonRefusal("INTERVIEW_LAB_DISABLED", 403);
     }
 
     // Single-use semantics, enforced server-side (idea-836e08d8): the portal
@@ -65,7 +73,7 @@ export async function POST(request: NextRequest) {
     // hold the line. A 'failed' session stays reconnectable on purpose: a
     // dropped call (provider hiccup, network blip) should be retryable.
     if (session0 && session0.status === "completed") {
-      return NextResponse.json({ error: "This interview has already been completed." }, { status: 409 });
+      return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409);
     }
     // W6-4 (VOX1) — the delivered link's lifecycle, enforced where the
     // credential is minted (the same hold-the-line stance as the completed
@@ -78,13 +86,10 @@ export async function POST(request: NextRequest) {
     //    still take (and be billed for) the AI screen. Revoke on sight. Hired
     //    keeps status 'active', so a hired candidate's pending screen survives.
     if (session0 && session0.status === "revoked") {
-      return NextResponse.json({ error: "This interview link is no longer active." }, { status: 409 });
+      return jsonRefusal("INTERVIEW_LINK_INACTIVE", 409);
     }
     if (session0 && isInterviewLinkExpired(session0)) {
-      return NextResponse.json(
-        { error: "This interview link has expired. Please ask the recruiter for a fresh one." },
-        { status: 409 }
-      );
+      return jsonRefusal("INTERVIEW_LINK_EXPIRED", 409);
     }
     if (session0?.entryId) {
       // Tenant from the ENTRY, not a session — this is a public token route and the
@@ -97,14 +102,14 @@ export async function POST(request: NextRequest) {
       const entry = getPipelineEntry(session0.entryId, getEntryWorkspace(session0.entryId));
       if (entry && isTerminalEntryStatus(entry.status)) {
         revokeInterviewSession(session0.id);
-        return NextResponse.json({ error: "This interview link is no longer active." }, { status: 409 });
+        return jsonRefusal("INTERVIEW_LINK_INACTIVE", 409);
       }
     }
 
     const requested = coerceProviderId(body.provider);
     const provider: VoiceProviderId | null = requested ?? session0?.provider ?? null;
     if (!provider) {
-      return NextResponse.json({ error: "provider must be 'openai' or 'elevenlabs'" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_PROVIDER_INVALID", 400);
     }
 
     // Per-token connect throttle (backlog #15): a valid, non-terminal token could
@@ -132,18 +137,17 @@ export async function POST(request: NextRequest) {
     // suite legitimately reconnects far more often than a human retrying a call.
     const connectLimit = isSelfHostedProvider(provider) ? 120 : 6;
     if (token && !rateLimit(`interview-connect:${token}`, { limit: connectLimit, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const adapter = getVoiceAdapter(provider);
     if (!adapter.available()) {
       // Ask the adapter which of its keys are missing rather than re-encoding
       // provider-specific var names here — the adapter owns that knowledge.
-      const need = missingVoiceEnv(adapter).join(" and ");
-      return NextResponse.json(
-        { error: `${provider} is not configured — set ${need} in .env.local and restart.`, provider },
-        { status: 503 }
-      );
+      // `need` and `provider` ride ALONGSIDE the code rather than inside an English
+      // sentence: the operator debugging a keyless install still gets the exact env
+      // vars, while the candidate reads one localized line.
+      return jsonRefusal("INTERVIEW_PROVIDER_UNCONFIGURED", 503, { provider, need: missingVoiceEnv(adapter) });
     }
 
     const instructions =
@@ -167,14 +171,14 @@ export async function POST(request: NextRequest) {
     // via the browser's disabled Start button. A candidate session without
     // explicit consent never mints credentials below nor flips to in_progress.
     if (!isConnectConsentSatisfied(session.mode, body.consent)) {
-      return NextResponse.json({ error: CONSENT_REQUIRED_ERROR }, { status: 403 });
+      return jsonRefusal("INTERVIEW_CONSENT_REQUIRED", 403);
     }
 
     // Atomic backstop for the check above: if a /complete landed between the
     // status read and here, the guarded UPDATE refuses to reopen the session —
     // and we must not mint credentials for it.
     if (!markInterviewStarted(session.id, body.consent === true)) {
-      return NextResponse.json({ error: "This interview has already been completed." }, { status: 409 });
+      return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409);
     }
 
     // THE INTERVIEWER BRIEF IS SERVER-SIDE ONLY (backlog #29 / TP-L2-VOICE-01).

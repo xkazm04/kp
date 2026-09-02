@@ -84,6 +84,58 @@ design. The saved-JD picker distinguishes an empty library from a failed load �
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
+**The poll is cheap when nothing is happening, and honest when it fails.**
+`watchAnalysis` (`AnalyzeApi.ts`) polls `/api/tasks/{id}` at 1500 ms while the
+run is moving; after 20 consecutive polls that report the same phase, the same
+per-variant counter and the same status it doubles the interval, capped at
+6000 ms, and any observable change resets both the quiet count and the cadence.
+A HIDDEN tab does not poll at all — the loop parks on `visibilitychange` (the
+task is server-side and survives a refresh, so nothing is lost). The whole
+contract is pinned by `AnalyzeApi.test.ts` against a fetch double: terminal 404,
+the ten-soft-failure ceiling shared by all three soft branches, phases forwarded
+verbatim, abort, the visibility park, and the backoff curve.
+Two silences also went: a cancel the server refuses now says the task may still
+be running (`analyze.cancelFailed`) instead of leaving an idle form beside a live
+Python child, and a failed `/api/health` probe says `analyze.engineStatusUnknown`
+rather than withdrawing the keyless warning — `useEngineAvailabilityRead`
+(`app/features/shell/useEngineAvailability.ts`) separates "not known yet" from
+"the probe failed", which the old `null`-only return could not.
+History rows carry `decision_note`: `listAnalyses` always selected it and
+`/api/analyses` always sent it, but the row type dropped it on arrival, so the
+recruiter's own reason for a pass or hold was fetched and discarded. It renders
+truncated under the disposition pill, full text in the cell title.
+
+**The Analyze surface composes the design system.** `AnalyzeForm`,
+`AnalyzeFormCollapsed`, `AnalyzeWorkspace` and `HistoryTab` apply `PANEL` /
+`CARD_PAD` (and the History header `EYEBROW` / `TITLE_DISPLAY` / `INTRO`) from
+`app/_components/ui/recipes.ts` instead of re-typing the card literal, so the
+Spark Dark sticker treatment reaches them. The two primary drop zones wrap an
+`sr-only` input in a label, so their ring lives on the label via
+`DROP_ZONE_FOCUS` (`analyzeSurfaces.ts`, the technique `FileInput.tsx` uses) —
+`focus-ring` on the clipped input painted nothing a keyboard user could see. The
+form footer puts the run-CONFIGURING controls (report language, blind screening)
+before the Analyze button in DOM order, and what blind mode redacts is the
+checkbox's visible hint rather than a `title` attribute. Pinned by
+`analyzeDesignSurface.test.ts`.
+
+**A refused upload answers a CODE, in the reader's language.** The document gate
+(`app/_lib/upload-constraints.ts`) returns `UPLOAD_UNSUPPORTED_TYPE` /
+`UPLOAD_TOO_LARGE` — the document twins of the audio gate's `AUDIO_*` pair — on
+BOTH sides of the wire: `acceptUpload` hands the code to `useFileAccept`, which
+resolves it through `useErrorMessage()`, and `validateUploadServer` puts the same
+code beside its English `error` (which stays, naming the offending field for the
+server log). `/api/analyze`'s own refusals are coded too — `ANALYZE_CV_REQUIRED`
+(400), `ANALYZE_TOO_MANY_VARIANTS` (400), `TOO_MANY_REQUESTS` (429 via
+`jsonRefusal`), the billing quota code (402) — and `submitAnalysis` keeps the
+status plus any `Retry-After` on the thrown `AnalyzeClientError`.
+`resolveAnalyzeErrorText` (`AnalyzeApi.ts`, pinned by `AnalyzeApi.test.ts`) is the
+one place the precedence lives: a throttle with a Retry-After first, then a code
+(app-wide `errors.*`, then the deep-dive's `results.github.errors.*`), then the
+engine's English, then the generic line. The size hint itself is
+`analyze.uploadHint` with `MAX_FILE_MB` interpolated, so the cap is data rather
+than copy; `upload-constraints.test.ts` fails if any locale's `UPLOAD_TOO_LARGE`
+stops naming the real cap.
+
 **Plain-text uploads carry a code page.** `pipeline/jobfit/extractors.py`
 (`_decode_text_document`) decodes a `.txt`/`.md` upload as `utf-8-sig` first — the
 `-sig` consumes a Windows BOM instead of gluing a U+FEFF to the first line, where

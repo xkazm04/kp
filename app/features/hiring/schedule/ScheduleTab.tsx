@@ -41,7 +41,11 @@ export function ScheduleTab() {
     t,
     entries,
     error,
+    actionError,
     picks,
+    pickSources,
+    candidateZones,
+    interviewTz,
     selectedId,
     setSelectedId,
     busy,
@@ -169,6 +173,8 @@ export function ScheduleTab() {
           <ScheduleCalendar
             entries={calendarEntries}
             picks={picks}
+            pickSources={pickSources}
+            interviewTz={interviewTz}
             bookedMarkers={bookedMarkers}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -179,6 +185,8 @@ export function ScheduleTab() {
               t={t}
               calendarEntries={calendarEntries}
               picks={picks}
+              pickSources={pickSources}
+              candidateZones={candidateZones}
               slotLabel={slotLabel}
               selectedId={selectedId}
               onSelect={setSelectedId}
@@ -186,6 +194,7 @@ export function ScheduleTab() {
               prepared={prepared}
               busy={busy}
               creatingIv={creatingIv}
+              actionError={actionError}
               lastDir={lastDir}
               reduced={reduced}
               cardExit={cardExit}

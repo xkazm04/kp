@@ -10,6 +10,11 @@ export type AnalysisRow = {
   seniority: string | null;
   created_at: string;
   disposition?: string | null;
+  // RES5 — the note the recruiter typed WITH that disposition. listAnalyses has
+  // always selected it and the route has always sent it; this row type dropped it,
+  // so the reason for a pass/hold was fetched over the wire and thrown away on
+  // arrival. Shown truncated beside the pill (full text in the cell's title).
+  decision_note?: string | null;
   // SCOR2 — warn-shaped sanity-check count stamped at save time; NULL on rows
   // saved before the column existed (no pill).
   review_flags?: number | null;

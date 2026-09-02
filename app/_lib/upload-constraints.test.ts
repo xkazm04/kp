@@ -15,6 +15,7 @@ import {
   fileTooLargeMessage,
   MAX_AUDIO_BYTES,
   MAX_AUDIO_MB,
+  MAX_CV_VARIANTS,
   MAX_FILE_BYTES,
   MAX_FILE_MB,
   validateAudioUploadServer,
@@ -33,7 +34,7 @@ test("rejects a 20 MB PNG (the headline drop-anywhere case) on extension", () =>
   // 20 MB never has to upload to learn it is the wrong type.
   const result = acceptUpload(fileOf("portfolio.png", 20 * 1024 * 1024, "image/png"));
   assert.equal(result.ok, false);
-  assert.equal(result.ok === false && result.error, "Use a PDF, DOCX, TXT, or MD file.");
+  assert.equal(result.ok === false && result.code, "UPLOAD_UNSUPPORTED_TYPE");
 });
 
 test("rejects any non-CV extension regardless of size", () => {
@@ -43,10 +44,59 @@ test("rejects any non-CV extension regardless of size", () => {
   }
 });
 
-test("rejects a valid type that exceeds the size limit", () => {
+test("rejects a valid type that exceeds the size limit, carrying the cap as data", () => {
   const result = acceptUpload(fileOf("huge.pdf", MAX_FILE_BYTES + 1, "application/pdf"));
   assert.equal(result.ok, false);
-  assert.equal(result.ok === false && result.error, `File exceeds the ${MAX_FILE_MB} MB limit.`);
+  assert.equal(result.ok === false && result.code, "UPLOAD_TOO_LARGE");
+  // The cap rides along as a NUMBER so a surface can render "up to 8 MB" without
+  // parsing it back out of a sentence.
+  assert.equal(result.ok === false && result.maxMb, MAX_FILE_MB);
+});
+
+// ── The code table, end to end ───────────────────────────────────────────────
+// The gate answers codes on BOTH sides of the wire, and the catalogs answer those
+// codes in four languages. These pin the join: same code for the same meaning
+// client-side and server-side, and a message in every locale that still states the
+// real cap. Without the last one, raising MAX_FILE_MB leaves four catalogs quietly
+// promising 8 MB.
+test("client and server gates answer the SAME code for the same refusal", () => {
+  const clientCode = (file: File): string | null => {
+    const result = acceptUpload(file);
+    return result.ok ? null : result.code;
+  };
+
+  const tooBig = fileOf("huge.pdf", MAX_FILE_BYTES + 1, "application/pdf");
+  assert.equal(clientCode(tooBig), "UPLOAD_TOO_LARGE");
+  assert.equal(validateUploadServer(tooBig, "profile")?.code, "UPLOAD_TOO_LARGE");
+
+  const wrongKind = fileOf("portfolio.png", 1024, "image/png");
+  assert.equal(clientCode(wrongKind), "UPLOAD_UNSUPPORTED_TYPE");
+  assert.equal(validateUploadServer(wrongKind, "profile")?.code, "UPLOAD_UNSUPPORTED_TYPE");
+});
+
+test("every locale's UPLOAD_TOO_LARGE states the real cap", async () => {
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const catalog = (await import(`../../messages/${locale}.json`, { with: { type: "json" } })).default as {
+      errors: Record<string, string>;
+      analyze: Record<string, string>;
+    };
+    assert.match(
+      catalog.errors.UPLOAD_TOO_LARGE,
+      new RegExp(String(MAX_FILE_MB)),
+      `${locale}: errors.UPLOAD_TOO_LARGE no longer names MAX_FILE_MB`
+    );
+    assert.equal(typeof catalog.errors.UPLOAD_UNSUPPORTED_TYPE, "string", `${locale}: missing UPLOAD_UNSUPPORTED_TYPE`);
+    assert.equal(typeof catalog.errors.ANALYZE_CV_REQUIRED, "string", `${locale}: missing ANALYZE_CV_REQUIRED`);
+    // The variant cap is copy in the catalogs the same way the MB figure is.
+    assert.match(
+      catalog.errors.ANALYZE_TOO_MANY_VARIANTS,
+      new RegExp(String(MAX_CV_VARIANTS)),
+      `${locale}: errors.ANALYZE_TOO_MANY_VARIANTS no longer names MAX_CV_VARIANTS`
+    );
+    // The hint takes the cap as DATA, so it must keep its placeholder rather than
+    // a translator's typed-in number.
+    assert.match(catalog.analyze.uploadHint, /\{max\}/, `${locale}: analyze.uploadHint lost its {max} placeholder`);
+  }
 });
 
 test("accepts each supported extension at or under the size limit", () => {
@@ -76,12 +126,20 @@ test("fileTooLargeMessage names the input and the one shared limit", () => {
 // so the two routes can't drift on accepted types or the size cap.
 test("validateUploadServer rejects a wrong MIME type as a 400 naming the input", () => {
   const rejection = validateUploadServer(fileOf("portfolio.png", 1024, "image/png"), "profile");
-  assert.deepEqual(rejection, { status: 400, error: "Use PDF, DOCX, TXT, or MD for the profile." });
+  assert.deepEqual(rejection, {
+    status: 400,
+    error: "Use PDF, DOCX, TXT, or MD for the profile.",
+    code: "UPLOAD_UNSUPPORTED_TYPE",
+  });
 });
 
 test("validateUploadServer rejects an over-limit file as a 413 with the shared message", () => {
   const rejection = validateUploadServer(fileOf("huge.pdf", MAX_FILE_BYTES + 1, "application/pdf"), "job description");
-  assert.deepEqual(rejection, { status: FILE_TOO_LARGE_STATUS, error: fileTooLargeMessage("job description") });
+  assert.deepEqual(rejection, {
+    status: FILE_TOO_LARGE_STATUS,
+    error: fileTooLargeMessage("job description"),
+    code: "UPLOAD_TOO_LARGE",
+  });
 });
 
 test("validateUploadServer accepts each supported MIME type at or under the limit", () => {
@@ -120,7 +178,7 @@ test("validateUploadServer rejects an empty-MIME upload whose filename has no va
     const rejection = validateUploadServer(fileOf(name, 1024, ""), "profile");
     assert.deepEqual(
       rejection,
-      { status: 400, error: "Use PDF, DOCX, TXT, or MD for the profile." },
+      { status: 400, error: "Use PDF, DOCX, TXT, or MD for the profile.", code: "UPLOAD_UNSUPPORTED_TYPE" },
       `empty MIME + ${name} must be rejected as a wrong type`,
     );
   }
@@ -139,7 +197,11 @@ test("validateOptionalUploadServer treats a missing or empty field as accepted",
 
 test("validateOptionalUploadServer validates a present file like validateUploadServer", () => {
   const rejection = validateOptionalUploadServer(fileOf("scan.jpg", 1024, "image/jpeg"), "company overview");
-  assert.deepEqual(rejection, { status: 400, error: "Use PDF, DOCX, TXT, or MD for the company overview." });
+  assert.deepEqual(rejection, {
+    status: 400,
+    error: "Use PDF, DOCX, TXT, or MD for the company overview.",
+    code: "UPLOAD_UNSUPPORTED_TYPE",
+  });
 });
 
 // ── The audio contract (voice-stt package, /api/stt) ─────────────────────────

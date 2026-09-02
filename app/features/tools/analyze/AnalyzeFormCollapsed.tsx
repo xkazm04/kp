@@ -3,6 +3,7 @@
 import { ChevronDown, FileText, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ScanAnimationCompact } from "@/app/_components/ScanAnimation";
+import { PANEL } from "@/app/_components/ui/recipes";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
 export function AnalyzeFormCollapsed({
@@ -27,7 +28,7 @@ export function AnalyzeFormCollapsed({
   });
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
+    <section className={`${PANEL} p-3`}>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex shrink-0 items-center gap-2">
           {isAnalyzing ? (

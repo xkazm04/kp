@@ -23,7 +23,13 @@ type ProgressStatus = Parameters<typeof applyStageEvent>[2];
 // never leaking an internal message into the toast.
 function toErrorInfo(caught: unknown, fallback: AnalyzeErrorCode): AnalyzeErrorInfo {
   if (caught instanceof AnalyzeClientError)
-    return { code: caught.code, apiCode: caught.apiCode, serverText: caught.serverText };
+    return {
+      code: caught.code,
+      apiCode: caught.apiCode,
+      serverText: caught.serverText,
+      status: caught.status,
+      retryAfterSeconds: caught.retryAfterSeconds,
+    };
   return { code: fallback };
 }
 

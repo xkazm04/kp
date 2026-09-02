@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { UploadCloud } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
+import { ACCEPT_EXTENSIONS, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
 import { ownedDropZoneProps } from "./analyzeDropRouting";
 import { useFileAccept } from "./useAnalyzeFileAccept";
 import { useGlobalFileDrag } from "./useAnalyzeGlobalFileDrag";
 import { useDropZoneHighlight } from "./useAnalyzeDropZoneHighlight";
 import { AnalyzeProfileInputFileList } from "./AnalyzeProfileInputFileList";
+import { DROP_ZONE_FOCUS } from "./analyzeSurfaces";
 
 export function AnalyzeProfileInput({
   files,
@@ -134,7 +135,7 @@ export function AnalyzeProfileInput({
             dragProps.onDragLeave(event);
             addFiles(dropped);
           }}
-          className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border px-3 text-center transition-colors ${
+          className={`${DROP_ZONE_FOCUS} flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border px-3 text-center transition-colors ${
             isActive
               ? "border-solid border-coral bg-coral/5"
               : "border-dashed border-stone-300 bg-white hover:border-coral"
@@ -144,7 +145,7 @@ export function AnalyzeProfileInput({
           <span className="mt-1 max-w-full truncate text-sm font-semibold text-ink">
             {isActive ? t("dropCvHere") : t("dropCvOrClick")}
           </span>
-          <span className="text-sm text-steel">{MAX_FILE_HINT}</span>
+          <span className="text-sm text-steel">{t("uploadHint", { max: MAX_FILE_MB })}</span>
         </label>
         {errorRow}
         <input

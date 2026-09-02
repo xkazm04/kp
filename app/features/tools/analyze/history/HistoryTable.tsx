@@ -66,13 +66,24 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
               </Td>
               <Td>
                 {row.disposition ? (
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-sm font-semibold capitalize ${
-                      DISPOSITION_STYLE[row.disposition] ?? "bg-stone-100 text-steel"
-                    }`}
-                  >
-                    {dispLabel(row.disposition)}
-                  </span>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-sm font-semibold capitalize ${
+                        DISPOSITION_STYLE[row.disposition] ?? "bg-stone-100 text-steel"
+                      }`}
+                    >
+                      {dispLabel(row.disposition)}
+                    </span>
+                    {/* The recruiter's own words for WHY. A pill says "pass"; the
+                        note says "no Kubernetes exposure" — and that is the half
+                        that makes a six-week-old decision re-readable. Truncated
+                        to keep the row height, full text on hover/focus. */}
+                    {row.decision_note?.trim() ? (
+                      <span className="line-clamp-2 max-w-[16rem] text-sm text-steel" title={row.decision_note}>
+                        {row.decision_note}
+                      </span>
+                    ) : null}
+                  </div>
                 ) : (
                   "—"
                 )}

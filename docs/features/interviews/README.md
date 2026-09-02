@@ -226,6 +226,38 @@ affordance, one endpoint, one set of semantics (billing gate, reissue guard, del
 truth) — the revoke control stays entry-scoped and is therefore not rendered there.
 Pinned in `app/_lib/devcase-interview-entry.test.ts`.
 
+## Tenant scope — the entry-keyed doors
+
+Three operator doors key on a **pipeline entry id and nothing else**: `POST
+/api/interview/create` (the reissue guard + revoke-first + the brief build),
+`POST /api/interview/revoke`, and `GET /api/interview/by-entry?entry=`. Entry ids
+are globally unique and not secret — several recruiter surfaces echo them — so
+until the store functions beneath took a workspace, an operator on one team
+holding a stranger's entry id could revoke another team's live interview link
+mid-call, read their candidate's verbatim transcript and AI scorecard, and mint a
+screen that emailed *their* candidate while `createInterviewSession` stamped the
+session with the **stranger's** workspace and the minutes gate had checked the
+caller's — gate and debit on two different tenants.
+
+`revokeOpenInterviewSessions`, `latestInterviewByEntry` and `liveInterviewByEntry`
+(`app/_lib/db/interviews.ts`) now take `workspaceId` in the defaulted-parameter
+shape `route-tenancy-coverage.test.ts` derives, and scope their SQL on it. The
+routes pass `await currentWorkspace()`; `buildGroundedInterview(entryId,
+workspace)` therefore resolves nothing for a foreign entry and `/create` answers
+the same **404** an unknown id gets. `/revoke` answers `{ ok: true, revoked: 0 }`
+and `/by-entry` `{ session: null }` — deliberately the same shapes an
+already-revoked / never-interviewed entry gets, because a distinct refusal would
+confirm which entry ids exist on other tenants.
+
+The `?entry=` read takes the **caller's** team, not `getEntryWorkspace(entry)`:
+resolving the tenant from the row about to be returned scoped the consent lookup
+to the stranger's tenant while still serving their transcript. Two callers outside
+the request layer pass the entry's own team instead (`candidate-timeline.ts`,
+`actOnPipelineEntry`'s reject-time revoke in `db/pipeline.ts`) — they already hold
+the authoritative entry. Pinned by
+`app/api/interview/interview-entry-tenancy.test.ts` (behavioural for the store
+predicate, source-level for the route contract).
+
 ## Surface
 
 | Path | Role |
@@ -358,6 +390,120 @@ archetype × family combination's version hash). Guards:
 `rubricCoverage` stamp — the field is optional and consumers must treat it as
 absent there.
 
+## Spend doors, throttles and refusal codes
+
+Three doors in this feature cost real money on an accepted call, and until this pass
+only one of them was throttled.
+
+| Door | Budget | Guards |
+|---|---|---|
+| `POST /api/interview/create` | 20 / 10 min per IP (`CREATE_RATE_LIMIT`) | A model-backed run-of-show build **and** an email to the candidate, per call |
+| `POST /api/interview/simulate` | 20 / 10 min per IP (`SIMULATE_RATE_LIMIT`) | Mints a real billable session; on a self-hosted install it skips `meterGate`, so the limiter is the only bound |
+| `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
+
+Every route here is operator-gated, and open mode (`KP_OPERATOR_PASSWORD` unset) makes
+that gate a documented no-op for the whole API — so the limiter is the real bound, the
+same reasoning `app/api/rate-limit-contract.test.ts` already records for the JD
+library's four spend doors. All three are pinned there: key, budget, window, the
+expensive work each must precede, and the cheap refusal each must follow.
+
+`/create`'s five decisions run in a fixed order, and the order is the contract: the
+cheap 402 pre-gate and the "no candidate named" 400 serve free → the throttle →
+`buildGroundedInterview` (whose booked length sizes the next step) → the
+**authoritative** reservation of `maxBillableInterviewMin(bookedMin)` → the reissue
+revoke → the mint. The reservation before the revoke is load-bearing: refusing after
+killing the candidate's live link is the worst of both. Pinned by
+`app/api/interview/interview-spend-doors.test.ts`.
+
+### Refusals answer with a code
+
+Every refusal on `/create` and `/connect` now goes through `jsonRefusal` with an
+`INTERVIEW_*` code from `REFUSAL_ERRORS`, so `useErrorMessage()` resolves
+`errors.<CODE>` in the reader's language (four catalogs, pinned by
+`npm run i18n:check`). `/connect` mattered most: it is a **public** surface opened
+from an invite deliberately rendered in the applicant's own language (`?lang=`), and
+it answered five different lifecycle refusals — not found, revoked, expired, already
+completed, consent missing — in hardcoded English.
+
+`INTERVIEW_ENTRY_REQUIRED`, `INTERVIEW_SUBMISSION_NOT_FOUND`,
+`INTERVIEW_SUBMISSION_NOT_EVALUATED`, `INTERVIEW_CALL_IN_PROGRESS`,
+`INTERVIEW_LINK_NOT_FOUND`, `INTERVIEW_LINK_INACTIVE`, `INTERVIEW_LINK_EXPIRED`,
+`INTERVIEW_ALREADY_COMPLETED`, `INTERVIEW_CONSENT_REQUIRED`,
+`INTERVIEW_PROVIDER_INVALID`, `INTERVIEW_PROVIDER_UNCONFIGURED`,
+`INTERVIEW_LAB_DISABLED`, plus the shared `TOO_MANY_REQUESTS` and
+`PIPELINE_ENTRY_NOT_FOUND`. Diagnostic detail rides **alongside** the code rather
+than inside a sentence: the unconfigured 503 still names the missing env vars in
+`need`, where an operator can read them and a candidate never sees them.
+
+The id narrowing behind all of it lives once, in `app/api/interview/entry-id.ts`
+(`readEntityId`, `MAX_ID_LEN`) — four doors had re-typed the same "string, trimmed,
+non-empty, ≤ 120 chars" clause inline.
+
+### When the invite does not go out
+
+`POST /api/interview/create` returns `delivery` (the truthful outbox claim:
+`sent` / `queued` / `failed`) **and** `deliveryError`, a code saying *why* when it is
+not `sent`:
+
+- `INVITE_PROVIDER_UNCONFIGURED` — the provider has no keys on this server, so no
+  invite was attempted at all;
+- `INVITE_DISPATCH_FAILED` — the dispatch threw or dead-lettered.
+
+The remedy is the same for both (the link is in the response; hand it over), but the
+recruiter no longer has to guess which happened. Both are `errors.*` catalog keys in
+all four locales.
+
+### Two best-effort catches that now say what was lost
+
+`/api/interview/complete` runs the usage-ledger write and the scorecard synthesis
+after the transcript is durable, and both stay **best-effort** — neither may fail a
+completion whose transcript is already saved. What changed is that neither is silent
+any more, and the choice was a **log, not a status column**:
+
+- the ledger row is the only record of what a call **cost** (the meter counts
+  quantity, not money), so a dropped write logs the session id, the billed minutes
+  and the provider;
+- a failed synthesis is already visible as an absent scorecard — the drawer offers
+  the transcript with no verdict and the Interview→Offer gate stays unapproved — so
+  the missing half was the *reason*, which only a log can carry. No
+  `scorecardStatus` column was added: it would state a fact the row already states.
+
+## What a call cost reaches the recruiter
+
+`/api/interview/complete` has written every completed call's cost to the usage
+ledger since tiger F1 — `llm_usage.request_id` **is** the session id, use case
+`interview_realtime`, provider + model + a duration-derived estimate from
+`app/_lib/voice/minute-prices.ts`. Voice minutes are the one meter with a real
+per-unit cost, and the two providers differ by roughly 60% per minute, yet that
+number had **no reader** outside the aggregate Models usage panel: the recruiter
+deciding whether to run another screen could not see what the last one cost.
+
+`InterviewSessionSummary` now carries `costUsd`, read in the same query that builds
+the AI-round docket (a correlated `SUM(cost_usd)` over `llm_usage` keyed by request
+id **and** use case — no extra round trip, and the left side is already
+workspace-scoped). The completed card in `ScheduleAiDocket` renders it beside the
+provider that served the call, in all four locales.
+
+The answer has **three** states and the third is the one that had no way to be said
+before:
+
+| `costUsd` | Means | Rendered |
+|---|---|---|
+| a number > 0 | The ledger priced this call | The amount, in the reader's locale |
+| `0` | A **self-hosted** provider served it, so no per-minute credits were spent | "no per-minute cost" |
+| `null` | Unknown: no ledger row yet (not completed), or an unpriced provider whose row carries `cost_usd` NULL by design | "cost unknown" |
+
+Collapsing `null` to `0` would tell a recruiter the priciest meter in the product is
+free. `app/api/interview/interview-session-cost.test.ts` pins all three states, the
+use-case keying, the multi-attempt total, and that the join did not widen the
+tenant scope of the list it rides on.
+
+**Not shipped yet:** `failoverFrom` and `attempts` on the same summary. Both need a
+value the session row does not hold — the requested provider before a failover, and
+a per-link reconnect count — so both need a column on `interview_sessions`, i.e. a
+migration in `app/_lib/db/core.ts`. The connect route still records a failover as a
+`console.warn` only.
+
 ## Self-hosted voice
 
 The ElevenLabs adapter can point at a service you run yourself
@@ -413,43 +559,25 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
 
 ## Known gaps
 
-- **Failover can cross the free→paid boundary with no reservation behind it.**
-  `app/api/interview/simulate/route.ts` deliberately skips the
-  `interview_minutes` gate when the ElevenLabs base URL is a self-hosted
-  (loopback/private) service, and `/api/interview/connect` raises the per-token
-  connect throttle to 120/10 min on the same premise — but it reads
-  `isSelfHostedVoice()` (an env fact) *before* the session's provider is
-  resolved, so an **OpenAI** session on an install that also runs a local voice
-  service gets the 120/10 min budget on a fully paid credential mint. The check
-  it wants is `isSelfHostedProvider(provider)`, which requires moving the
-  throttle below provider resolution. If the local service is
-  down, `connectWithFailover` retries on **OpenAI Realtime** — real money — and
-  `setInterviewSessionProvider` flips the session, so `/complete` debits the
-  meter and stamps the paid per-minute cost for a call no gate ever checked.
-  The seam already reports the crossing (`FailoverResult.provider` is the
-  provider that actually served, plus `failedOver`); the decision belongs in
-  the route — e.g. pass `availability: { ...voiceAvailability(), openai: false }`
-  when the preferred provider is the self-hosted one, or run the skipped
-  `meterGate` before accepting the paid alternate.
-- **Self-hosted minutes are gate-skipped but still debited.** `/simulate` skips
-  `meterGate` for a self-hosted provider ("metering a free simulation would make
-  a self-hosted install run out of a budget it is not consuming"), but
-  `/api/interview/complete` calls `recordMeterUsage("interview_minutes", …)`
-  unconditionally — so the quota is consumed without ever being reserved, and a
-  self-hosted install burns prepaid minutes on calls that cost nothing.
-  `voiceMinuteCostUsd` already returns `0` for those sessions; the meter debit
-  needs the symmetric `isSelfHostedProvider(session.provider)` check.
-- **The same env/session conflation, unconditionally wrong, in the intake voice
-  route.** `app/api/intake/[id]/voice-connect/route.ts` sizes its throttle with
-  `isSelfHostedVoice() ? 120 : 6` — but that route mints
-  `getVoiceAdapter("openai")` credentials and nothing else, so
-  `isSelfHostedProvider("openai")` is **always** false and the raise is never
-  earned: on any install with a loopback `ELEVENLABS_BASE_URL`, an authenticated
-  operator holding an open intake id mints 120 paid OpenAI Realtime credentials
-  per 10 minutes instead of 6. Unlike the `/api/interview/connect` case there is
-  no session provider to resolve — the limit is simply `6`. Both fixes must
-  update the pinned literals in `app/api/rate-limit-contract.test.ts`
-  (`limitDef`) in the same change.
+- **The free→paid boundary is now closed on all three seams that once crossed it.**
+  This section used to list three open gaps here; all three ship fixed, and the
+  code that fixed them is where the reasoning lives:
+  - `/api/interview/connect` sizes its per-token throttle from
+    `isSelfHostedProvider(provider)` — the SESSION fact — decided *after* provider
+    resolution, so an OpenAI session on an install that also runs a local voice
+    service gets the paid budget of 6/10 min, not the free 120. It also passes
+    `availability: { ...voiceAvailability(), openai: false }` when the preferred
+    provider is the self-hosted one, so a failover can no longer rescue a
+    gate-skipped session onto a paid provider.
+  - `/api/interview/complete` guards its `recordMeterUsage("interview_minutes", …)`
+    with the symmetric `isSelfHostedProvider(session.provider)`, so a self-hosted
+    install no longer burns prepaid minutes on calls that cost nothing. The
+    `llm_usage` row stays unconditional on purpose: `voiceMinuteCostUsd` prices
+    those at 0, and a $0 ledger row is the truthful record that a call happened.
+  - `app/api/intake/[id]/voice-connect/route.ts` mints `getVoiceAdapter("openai")`
+    and nothing else, so its limit is simply `6` — the raise was never earned there.
+
+  All three limits are pinned in `app/api/rate-limit-contract.test.ts`.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
   damage" failure — a spoken skill can be silently substituted for another
   before the scorecard scores it). Two biases now push against it: the

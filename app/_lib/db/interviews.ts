@@ -194,6 +194,21 @@ export type InterviewSessionSummary = {
   hasTranscript: boolean;
   recommendation: InterviewRecommendation | null;
   ratingsCount: number;
+  /** What this call COST, in USD, read from the usage ledger the completion wrote
+   *  (`llm_usage.request_id` IS the session id, use case `interview_realtime`).
+   *
+   *  `null` is UNKNOWN and never a stand-in for free: a session that has not
+   *  completed has no ledger row yet, and an unpriced provider writes the row with
+   *  `cost_usd` NULL by design (minute-prices.ts mirrors base.py's convention -
+   *  metered by quantity, unpriced in money). `0` is a real, asserted zero: a call
+   *  a SELF-HOSTED provider served costs no per-minute credits, and saying so is
+   *  the whole point of running the voice service yourself.
+   *
+   *  Voice minutes are the one meter with real per-unit cost and the two providers
+   *  differ by ~60% per minute, yet this number had ZERO readers outside the
+   *  aggregate Models panel: a recruiter could not see what any single interview
+   *  cost, on the surface where they decide whether to run another. */
+  costUsd: number | null;
 };
 
 export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 100): InterviewSessionSummary[] {
@@ -205,12 +220,21 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       // bare IS NOT NULL kept reporting a transcript for an erased candidate:
       // their card indicator read "absent" while this ledger's docket card stayed
       // clickable into an evaluation with nothing behind it. One fact, one answer.
-      `SELECT id, entry_id, candidate_label, job_id, job_title, provider, status,
-              started_at, ended_at, created_at,
-              (transcript_json IS NOT NULL AND transcript_json != '[]') AS has_transcript, scorecard_json
-         FROM interview_sessions
-        WHERE mode = 'candidate' AND workspace_id = ?
-        ORDER BY created_at DESC
+      // The cost join, not a second round trip per row: llm_usage.request_id IS the
+      // session id, so the ledger row a completion wrote hangs directly off this
+      // read. SUM (not the bare column) because a reconnect that completes twice
+      // would leave two rows and the honest answer is what the call cost in total;
+      // SUM over an empty set is NULL, which is exactly the "unknown" this field
+      // means. llm_usage carries no workspace_id - it does not need one here, since
+      // the join's left side is already scoped and the request id is a session id.
+      `SELECT s.id, s.entry_id, s.candidate_label, s.job_id, s.job_title, s.provider, s.status,
+              s.started_at, s.ended_at, s.created_at,
+              (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_transcript, s.scorecard_json,
+              (SELECT SUM(u.cost_usd) FROM llm_usage u
+                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime') AS cost_usd
+         FROM interview_sessions s
+        WHERE s.mode = 'candidate' AND s.workspace_id = ?
+        ORDER BY s.created_at DESC
         LIMIT ?`
     )
     .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as {
@@ -226,6 +250,7 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
     created_at: string;
     has_transcript: number;
     scorecard_json: string | null;
+    cost_usd: number | null;
   }[];
   return rows.map((r) => {
     const sc = safeRowParse<{ recommendation?: string; ratings?: unknown[] }>(r.scorecard_json, "interview.summary", r.id);
@@ -243,6 +268,10 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       hasTranscript: Boolean(r.has_transcript),
       recommendation: sc?.recommendation != null ? coerceInterviewRecommendation(sc.recommendation) : null,
       ratingsCount: Array.isArray(sc?.ratings) ? sc.ratings.length : 0,
+      // Number.isFinite, not `?? null`: SQLite hands back NULL for "no ledger row"
+      // AND for "a row whose cost_usd is NULL", and both mean unknown. A real 0
+      // (a self-hosted call) is finite and survives.
+      costUsd: Number.isFinite(r.cost_usd) ? (r.cost_usd as number) : null,
     };
   });
 }
@@ -369,12 +398,22 @@ export function revokeInterviewSession(id: string): boolean {
 }
 
 /** Revoke every open session for an entry — the reissue half (a fresh link
- *  kills prior ones) and the terminal-transition cleanup. Returns the count. */
-export function revokeOpenInterviewSessions(entryId: string): number {
+ *  kills prior ones) and the terminal-transition cleanup. Returns the count.
+ *
+ *  Tenant-scoped (direction 1). `entry_id` is globally unique, so the bare read
+ *  this replaces let an operator on ANY team pull another team's live interview
+ *  credential by id alone; a foreign entry now revokes nothing and the route
+ *  answers the same 404 its siblings do. The tenant is a DEFAULTED parameter on
+ *  purpose — that is the shape `route-tenancy-coverage.test.ts` derives, so a
+ *  route that forgets to thread it is a red build rather than a silent
+ *  default-team write. */
+export function revokeOpenInterviewSessions(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const res = db
-    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND status IN ('created','in_progress','failed')`)
-    .run(entryId);
+    .prepare(
+      `UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND workspace_id = ? AND status IN ('created','in_progress','failed')`
+    )
+    .run(entryId, workspaceId);
   return res.changes;
 }
 
@@ -413,25 +452,33 @@ export function interviewStatusByEntries(
 
 /** Most-recent interview session for one entry (for the transcript modal) —
  *  same transcript-first preference as interviewStatusByEntries, so the modal
- *  can never disagree with the card indicator it was opened from. */
-export function latestInterviewByEntry(entryId: string): InterviewSession | null {
+ *  can never disagree with the card indicator it was opened from.
+ *
+ *  Tenant-scoped (direction 1): this returns the transcript AND the scorecard,
+ *  the most sensitive pair in the product, and it was reachable by entry id
+ *  alone from any team. */
+export function latestInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
   const r = ensureDb()
     .prepare(
-      `SELECT * FROM interview_sessions WHERE entry_id = ?
+      `SELECT * FROM interview_sessions WHERE entry_id = ? AND workspace_id = ?
        ORDER BY (transcript_json IS NOT NULL AND transcript_json != '[]') DESC, created_at DESC LIMIT 1`
     )
-    .get(entryId) as InterviewRow | undefined;
+    .get(entryId, workspaceId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 
 /** The newest live-candidate (in_progress) session for an entry — /create's
  *  reissue-guard read. Deliberately NOT latestInterviewByEntry: that read
  *  prefers transcript-bearing sessions, which would hide an active call behind
- *  an older completed one. */
-export function liveInterviewByEntry(entryId: string): InterviewSession | null {
+ *  an older completed one.
+ *
+ *  Tenant-scoped (direction 1), like its two neighbours above. */
+export function liveInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
   const r = ensureDb()
-    .prepare(`SELECT * FROM interview_sessions WHERE entry_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`)
-    .get(entryId) as InterviewRow | undefined;
+    .prepare(
+      `SELECT * FROM interview_sessions WHERE entry_id = ? AND workspace_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(entryId, workspaceId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 
