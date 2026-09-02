@@ -4,7 +4,7 @@ import path from "node:path";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
   cleanupWorkdir,
@@ -75,8 +75,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const payload = parsePythonJson<Record<string, unknown>>(stdout, stderr);
     return NextResponse.json(payload);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to assess winnability.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:jobs/winnability", "JOB_WINNABILITY_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

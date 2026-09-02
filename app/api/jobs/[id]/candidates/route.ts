@@ -5,7 +5,7 @@ import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
 import { PipelineError } from "@/app/_lib/python-runner";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
@@ -97,7 +97,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (error instanceof PipelineError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    const message = error instanceof Error ? error.message : "Failed to rank candidates.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");
   }
 }

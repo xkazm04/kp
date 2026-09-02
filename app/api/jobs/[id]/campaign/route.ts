@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCampaignPack } from "@/app/_lib/db/campaign";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { CampaignError, runCampaign } from "@/app/_lib/campaign-run";
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { CampaignError, resolveLang, runCampaign } from "@/app/_lib/campaign-run";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
@@ -15,11 +14,6 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // kind "campaign" (tracked, dedup'd, refresh-safe); both share runCampaign.
 // No prompt cache on purpose: the pack is a durable recruiter artifact
 // (campaign_packs table) and "Regenerate" must mean a fresh creative pass.
-
-function resolveLang(value: unknown): Locale {
-  const v = String(value ?? "");
-  return isLocale(v) ? v : DEFAULT_LOCALE;
-}
 
 // Visibility gate, both verbs (mirrors GET /api/jobs/[id]): getJob is a by-id point
 // read over a globally-unique PK, so without this the route answers for ANY tenant's
@@ -73,9 +67,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (error instanceof CampaignError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Campaign generation failed." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:jobs/campaign", "JOB_CAMPAIGN_FAILED");
   }
 }

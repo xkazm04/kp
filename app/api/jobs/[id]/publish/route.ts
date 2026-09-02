@@ -8,7 +8,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/library/jobs/JobsTypes";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // 180, matching every sibling that spawns a child on this surface (jobs/ingest,
@@ -187,6 +187,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // a misleading "sourced 0" success.
     return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished: already, reopened });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
+    return safeJsonError(error, "api:jobs/publish", "JOB_PUBLISH_FAILED");
   }
 }

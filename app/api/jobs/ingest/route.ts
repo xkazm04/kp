@@ -3,7 +3,7 @@ import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
 import { canWriteJobLifecycle } from "@/app/_lib/db/jobs";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The parser this route spawns builds ClaudeCliProvider(timeout=120) for the LLM
@@ -66,9 +66,6 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ jobId: id, created, source, title: job.title });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Job ingestion failed." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:jobs/ingest", "JOB_INGEST_FAILED");
   }
 }

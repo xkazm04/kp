@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
@@ -49,9 +49,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       more,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Rediscovery failed." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:jobs/rediscover", "JOB_REDISCOVER_FAILED");
   }
 }

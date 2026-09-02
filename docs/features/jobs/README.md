@@ -182,6 +182,28 @@ alone, so every closed → published reopen took the gate and paid again.
 `app/api/jobs/jobs-publish-billing.test.ts` pins all four cases (first publish,
 idempotent re-publish, reopen, reopen on an exhausted meter).
 
+### Failures answer with a code, never with the thrown message
+
+Ten handlers here forwarded `error instanceof Error ? error.message` straight into the
+response body — better-sqlite3 constraint text, the absolute database path, and on the
+three spawning routes the Python traceback and CLI stderr `python-runner.ts` re-throws.
+All ten now answer `safeJsonError(error, "api:jobs/<route>", "<CODE>")` against ten new
+`STORE_ERRORS` entries (`JOB_LIST_FAILED`, `JOB_LOAD_FAILED`, `JOB_INGEST_FAILED`,
+`JOB_PUBLISH_FAILED`, `JOB_CLOSE_FAILED`, `JOB_CANDIDATES_FAILED`,
+`JOB_REDISCOVER_FAILED`, `JOB_WINNABILITY_FAILED`, `JOB_CAMPAIGN_FAILED`,
+`JOB_ASSIGNMENTS_FAILED`), each with its four catalogue entries, so the reader sees the
+message in their own language via `useErrorMessage()`. The ten rows this area held in
+`app/api/error-response-contract.test.ts`'s ceiling are deleted rather than lowered: a
+new leak here now reads as `undeclared`. Refusals that carry real information keep their
+own shape — `CampaignError` and `PipelineError` still forward their client-safe message
+and status, and `AutomationError` does the same on outreach. Full rule:
+`docs/architecture/api-contracts.md` §1.1.
+
+`GET /api/jobs/status` answers `{ drafts }` and nothing else. It used to ship a second
+field, `statuses` — the whole workspace's jobId → status map — which no client ever
+read: `JobsDraftsPanel.tsx` is the only caller and takes `drafts`. `listJobStatuses`
+remains for server-side callers.
+
 ### Every jobs route that spawns or spends is throttled
 
 Seven routes here reach a child process or a model on an accepted request, and

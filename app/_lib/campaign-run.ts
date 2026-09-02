@@ -31,7 +31,11 @@ export type CampaignParams = {
   origin: string;
 };
 
-function resolveLang(value: unknown): Locale {
+/** The pack's language, from an untrusted value. ONE definition: the route
+ *  (app/api/jobs/[id]/campaign/route.ts) used to carry a byte-identical copy for its
+ *  `?lang=` and body reads, so the two could drift on what an unknown locale falls
+ *  back to while both claimed to speak for the same pack. */
+export function resolveLang(value: unknown): Locale {
   const v = String(value ?? "");
   return isLocale(v) ? v : DEFAULT_LOCALE;
 }

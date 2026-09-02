@@ -65,6 +65,19 @@ export const STORE_ERRORS = {
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",
   TEMPLATE_UPDATE_FAILED: "Could not update the template. Please try again.",
   TEMPLATE_DELETE_FAILED: "Could not delete the template. Please try again.",
+  // The jobs area (/perfect 2026-09-02, api-jobs). Ten handlers still forwarded the
+  // thrown message: better-sqlite3 constraint text, the absolute db path, and — on the
+  // three that spawn — Python tracebacks and CLI stderr straight off python-runner.
+  JOB_LIST_FAILED: "Could not load the job catalog. Please try again.",
+  JOB_LOAD_FAILED: "Could not load this role. Please try again.",
+  JOB_INGEST_FAILED: "Could not read that job ad. Please try again.",
+  JOB_PUBLISH_FAILED: "Could not take this role live. Please try again.",
+  JOB_CLOSE_FAILED: "Could not close this role. Please try again.",
+  JOB_CANDIDATES_FAILED: "Could not rank candidates for this role. Please try again.",
+  JOB_REDISCOVER_FAILED: "Could not look through past candidates for this role. Please try again.",
+  JOB_WINNABILITY_FAILED: "Could not grade this role against the candidate pool. Please try again.",
+  JOB_CAMPAIGN_FAILED: "Could not generate the campaign pack. Please try again.",
+  JOB_ASSIGNMENTS_FAILED: "Could not load the work samples for this role. Please try again.",
   // Voice-interview routes (idea-ab117371): their catch paths sit behind
   // better-sqlite3, the scorecard automation AND the provider adapters, whose
   // thrown errors embed upstream HTTP bodies — all internal detail.
