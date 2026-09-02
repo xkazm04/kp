@@ -60,10 +60,20 @@ export function dockPanelSlot({
   /** WINDOW mode only: the row's one control that is not a panel. It empties the
    *  slot and raises the left window instead. Null when the mode makes her a
    *  panel, or when there is no companion at all — so the caller renders a
-   *  toggle, an action, or nothing, and never a button that cannot work. */
+   *  toggle, an action, or nothing, and never a button that cannot work.
+   *
+   *  A TOGGLE, not a one-way raise. The row announces this control with
+   *  `aria-pressed={companionOpen}` (SimControlDockToolbar), and `aria-pressed`
+   *  is a promise that the second press undoes the first. It used to raise her
+   *  unconditionally, so a screen reader read "pressed" over a button that then
+   *  did nothing — every other member of this row toggles, and this one now says
+   *  the same thing it does. Lowering her leaves the slot alone: it is already
+   *  empty (raising her emptied it), and the panel the operator had before is
+   *  not something a close should guess at. */
   const askCandi =
     candi === "action" && companion
       ? () => {
+          if (companion.open) return companion.closeDock();
           setPanel(null);
           companion.openDock();
         }

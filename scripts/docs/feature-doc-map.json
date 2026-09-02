@@ -371,6 +371,12 @@
       ]
     },
     {
+      "doc": "docs/features/simulation/README.md",
+      "sourceGlobs": [
+        "app/features/shell/simulation/**"
+      ]
+    },
+    {
       "doc": "docs/architecture/app-structure.md",
       "sourceGlobs": [
         "app/features/shell/**",

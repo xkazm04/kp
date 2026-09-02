@@ -146,9 +146,20 @@ export function useAutomationPass(onCommitted?: () => void) {
   return { busy, preview, entries, committed, error, dryRun, commit, dismiss };
 }
 
-/** Publish the bar's live height to `--sim-bar-h` so the sim overlays (offer frame,
- *  explain drawer — DOM siblings that can't inherit it) anchor just above whatever
- *  the active variant docks at the bottom. No-ops until `active` and the ref mounts. */
+/** Publish the deck's live height to `--sim-bar-h` so the surfaces that have to
+ *  clear it (the sim offer frame and explain drawer — DOM siblings that cannot
+ *  inherit it — and the companion window, which floats at `--sim-bar-h + 8px`)
+ *  anchor just above whatever the deck currently is. No-ops until `active` and
+ *  the ref mounts, and removes the property so the CSS fallback takes over.
+ *
+ *  MEASURED FROM THE VIEWPORT'S BOTTOM EDGE, not `offsetHeight`. The raised deck
+ *  is a full-bleed `bottom-0` frame, where the two are the same number — but the
+ *  COLLAPSED orb is a small fixed element sitting 1.25rem above the edge, and
+ *  what the companion has to clear is the whole occupied strip, not the orb's own
+ *  56px. Before this the collapsed dock published nothing at all and the 60px
+ *  fallback in globals.css (sized for the raised bar) let the window land on top
+ *  of the orb. `resize` is listened for as well as the element: `innerHeight`
+ *  changes without the element resizing. */
 export function usePublishBarHeight(ref: RefObject<HTMLElement | null>, active: boolean) {
   useEffect(() => {
     const el = ref.current;
@@ -157,12 +168,18 @@ export function usePublishBarHeight(ref: RefObject<HTMLElement | null>, active: 
       root.style.removeProperty("--sim-bar-h");
       return;
     }
-    const publish = () => root.style.setProperty("--sim-bar-h", `${el.offsetHeight}px`);
+    const publish = () => {
+      const top = el.getBoundingClientRect().top;
+      const h = Math.max(0, Math.round(window.innerHeight - top));
+      root.style.setProperty("--sim-bar-h", `${h}px`);
+    };
     publish();
     const ro = new ResizeObserver(publish);
     ro.observe(el);
+    window.addEventListener("resize", publish);
     return () => {
       ro.disconnect();
+      window.removeEventListener("resize", publish);
       root.style.removeProperty("--sim-bar-h");
     };
   }, [ref, active]);

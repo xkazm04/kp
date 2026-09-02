@@ -92,6 +92,13 @@ export function CompanionDock() {
     if (!open || settingsOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
+      // Marked handled so the surface UNDER this one — the footer control dock,
+      // listening on `window`, which propagation reaches after `document` — does
+      // not close its panel on the same press. She is stacked above the deck and
+      // is the more recent intent, so one Escape dismisses her and the next one
+      // dismisses what it uncovers. Reading defaultPrevented (above) is only half
+      // the contract; writing it is the other half.
+      event.preventDefault();
       close();
     };
     document.addEventListener("keydown", onKey);
