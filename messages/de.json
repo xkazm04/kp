@@ -6690,7 +6690,8 @@
     "modeLabel": "Matrix-Ansicht",
     "modeGrid": "Raster",
     "modeFocus": "Kandidatenfokus",
-    "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist."
+    "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist.",
+    "servedFromCache": "Aus dem zwischengespeicherten Bewertungslauf angezeigt."
   },
   "analyze": {
     "modeNew": "Neue Analyse",

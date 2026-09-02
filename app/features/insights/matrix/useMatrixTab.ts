@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
-import type { Reasoning } from "@/app/features/shared/matchTypes";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -15,6 +14,7 @@ import { STRONG_THRESHOLD } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition } from "./matrixPopover";
+import { fetchMatchReasoning } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
 export function useMatrixTab() {
@@ -37,12 +37,22 @@ export function useMatrixTab() {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // Close the popover AND return focus to the cell that opened it — the missing half of
   // the dialog contract (a bare setPopover(null) left focus nowhere).
+  // grid-narrative-says-what-it-is: the in-flight reasoning request for the OPEN cell.
+  // /api/match/reasoning spawns Python and, on a cache miss, spends an LLM call — leaving
+  // it running after the reader closed the popover pays for an answer nobody will see.
+  const reasoningAbort = useRef<AbortController | null>(null);
+  const abortReasoning = useCallback(() => {
+    const ac = reasoningAbort.current;
+    reasoningAbort.current = null;
+    if (ac) ac.abort();
+  }, []);
   const closePopover = useCallback(() => {
+    abortReasoning();
     setPopover(null);
     const el = triggerRef.current;
     triggerRef.current = null;
     if (el && typeof el.focus === "function") el.focus();
-  }, []);
+  }, [abortReasoning]);
   // MAT2 — name the hard gate(s) behind a blocked cell. "Blocked: language"
   // and "blocked: seniority" demand opposite recruiter actions (renegotiate vs
   // skip); the bare dash hid that. Localized by the stable KoReason.key; cells
@@ -290,6 +300,9 @@ export function useMatrixTab() {
   // cell (that's what closePopover does); just clear the ref and close.
   const viewFullMatchAndClose = (candId: string, posId: string) => {
     open(candId, posId);
+    // Focus mode re-fetches the rationale for the pair it lands on, so the grid's
+    // in-flight request is money spent on a card that is being unmounted.
+    abortReasoning();
     triggerRef.current = null;
     setPopover(null);
   };
@@ -307,24 +320,39 @@ export function useMatrixTab() {
     const key = `${candId}|${posId}`;
     if (requestedReasoning.current.has(key)) return; // already loaded / in flight
     requestedReasoning.current.add(key);
+    const ac = new AbortController();
+    reasoningAbort.current = ac;
     setReasoning((cur) => ({ ...cur, [key]: { loading: true } }));
-    void fetch("/api/match/reasoning", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId: candId, jobId: posId, lang: locale }),
-    })
-      .then(async (r) => {
-        const p = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(errMsg(p, t("reasoningFailed")));
-        return p as { reasoning?: Reasoning; source?: string; cached?: boolean };
-      })
-      .then((p) => setReasoning((s) => ({ ...s, [key]: { data: p.reasoning, source: p.source, cached: p.cached } })))
-      .catch((e) => {
+    void fetchMatchReasoning({ profileId: candId, jobId: posId, lang: locale }, { signal: ac.signal }).then((out) => {
+      if (reasoningAbort.current === ac) reasoningAbort.current = null;
+      if (out.status === "aborted") {
+        // A deliberate close, not a failure: drop the loading state and release the
+        // de-dupe key so re-opening the same cell asks again. Rendering an error here
+        // would blame the user's own click.
+        requestedReasoning.current.delete(key);
+        setReasoning((cur) => {
+          if (!(key in cur)) return cur;
+          const next = { ...cur };
+          delete next[key];
+          return next;
+        });
+        return;
+      }
+      if (out.status === "failed") {
         // Release the key so re-opening the cell can retry — the old guard allowed that
         // too (it only skipped keys holding `data` or `loading`).
         requestedReasoning.current.delete(key);
-        setReasoning((s) => ({ ...s, [key]: { error: e instanceof Error ? e.message : t("reasoningFailed") } }));
-      });
+        setReasoning((cur) => ({ ...cur, [key]: { error: errMsg(out.body, t("reasoningFailed")) } }));
+        return;
+      }
+      const p = out.payload;
+      setReasoning((cur) => ({
+        ...cur,
+        // `narrativeLang` used to be dropped on the floor here, which is why the grid's
+        // popover could not say "shown in English" the way focus mode does.
+        [key]: { data: p.reasoning, source: p.source, cached: p.cached, narrativeLang: p.narrativeLang },
+      }));
+    });
   };
 
   // Open the popover anchored under the clicked cell (viewport-fixed from its rect),

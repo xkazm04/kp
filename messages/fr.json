@@ -6690,7 +6690,8 @@
     "modeLabel": "Vue matrice",
     "modeGrid": "Grille",
     "modeFocus": "Focus candidat",
-    "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir."
+    "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir.",
+    "servedFromCache": "Affiché depuis le calcul de scoring mis en cache."
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",

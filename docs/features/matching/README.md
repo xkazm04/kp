@@ -479,6 +479,42 @@ column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
 `matrixGridRoles.test.ts` — indices only mean anything while the counts agree
 with them.
 
+### The narrative says what it is, on both surfaces
+`/api/match/reasoning` reports three things about an answer besides the answer:
+`source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —
+the language the engine actually wrote in, which is only ever `en` or `cs`.
+Candidate focus (`app/features/shared/MatchReasoningPanel.tsx`) has rendered all
+three; the grid's cell popover rendered the same sentences with none of them, and
+`useMatrixTab` dropped `narrativeLang` on the floor entirely. A de or fr reader
+therefore read English text in the grid with nothing saying so, and could not tell
+a cached rule-based summary from a fresh LLM one.
+`MatrixReasoningPopover.tsx` now carries the same strip, reusing
+`match.shared.sourceLlm` / `sourceRuleBased` / `cachedSuffix` /
+`narrativeInLanguage` **key for key** rather than re-wording them — the bespoke
+`matrix.reasoningDeterministic` footnote it replaces said half of it in a second
+vocabulary. The grid itself gained the matching disclosure: `/api/matrix` has
+always returned `cached` (`route.ts::respond`, set when the scored-grid cache
+key hits), and `MatrixDataNotices` now renders it as `matrix.servedFromCache`.
+Placements are re-read fresh on every response, so a cached grid legitimately
+sits under live pipeline rings — which is exactly why the state has to be
+readable.
+
+### A cell you stopped reading stops costing money
+The reasoning call spawns Python and, on a miss, spends an LLM call.
+`fetchMatchReasoning` (`matrixReasoningFetch.ts`, split out of the hook so it can
+be driven by a fetch double) takes an `AbortSignal`, and `closePopover` /
+"View full match" abort it. An abort is a third outcome, not a failure: it leaves
+no error card and releases the de-dupe key so re-opening the cell asks again.
+On the focus side the symmetric bug was ordering — `runMatchFor` fires from the
+candidate picker, the weights panel and the deep-link auto-run, and a slow
+earlier run could `setResult` after a fast later one, showing one candidate's
+name over another's ranking. `createRunSequence` (`focus/matchRunSequence.ts`) is
+a last-write-wins ticket; superseded runs drop their result, their error and
+their `loading` reset. A counter rather than an abort on purpose: the older run
+may already have paid for its spawn and its answer is still worth caching
+server-side — it just must not reach the screen. Pinned by
+`matrixReasoningFetch.test.ts` and `focus/matchRunSequence.test.ts`.
+
 ### The grid's controls describe the grid they actually produce
 
 - **Sort label.** A column sort only applies while that column is visible —

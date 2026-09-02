@@ -6690,7 +6690,8 @@
     "modeLabel": "Zobrazení matice",
     "modeGrid": "Mřížka",
     "modeFocus": "Detail kandidáta",
-    "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo."
+    "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo.",
+    "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení."
   },
   "analyze": {
     "modeNew": "Nová analýza",

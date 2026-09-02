@@ -6690,7 +6690,8 @@
     "modeLabel": "Matrix view",
     "modeGrid": "Grid",
     "modeFocus": "Candidate focus",
-    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for."
+    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for.",
+    "servedFromCache": "Served from the cached scoring pass."
   },
   "analyze": {
     "modeNew": "New analysis",
