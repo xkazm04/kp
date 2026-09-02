@@ -205,6 +205,34 @@ JD has ever had.
   defaults are always the safe end: an unreadable rung stays 2, an unreadable
   forbidden-class answer keeps all six, an undecided population stays `either` —
   and every assumption is recorded in `coercionNotes[]`.
+- **Every refusal on this surface carries a code — all nine dialog routes, not
+  just the App-master pair.** The dialog half answered English prose with no
+  code at all (`"Intake not found."` on six routes, plus a closed session, an
+  attachment limit, an index, "text is required", "JD not found." and "nothing
+  to extract yet"), and `jdsIntakeLogic` threw every one of them away into a
+  single `setError("send")` that the panel rendered as one red *"send failed"*.
+  So "you already hold five attachments", "that JD is not in this library" and
+  "slow down" were the same sentence, in English, to a Czech, German or French
+  reader. Each now answers `jsonRefusal` with its own code, the client keeps the
+  code (`IntakeError { kind, code }`) and `JdsIntakePanel` resolves it through
+  `useErrorMessage()`; the per-affordance string is only the fallback for a
+  failure that carries no code at all (an offline fetch). Pinned by
+  `app/api/intake/intake-refusal-guard.test.ts`, which fails on any hand-rolled
+  `{ error }` envelope at a 4xx/5xx status in these modules.
+- **The dialog writes carry the version they were computed from.** `/message`
+  and `/voice-turn` spend a model call between the read that feeds the engine and
+  the write that replaces transcript AND brief wholesale, so a brief edit typed
+  into the panel — or a turn on the other plane — was silently reverted by
+  whatever the spawn returned. Both now pass `expectedUpdatedAt` through
+  `casUpdate` and answer `INTAKE_BRIEF_MOVED` (409) instead of clobbering; the
+  client re-reads the session rather than painting its stale copy back. `PATCH
+  /brief` re-asserts its own read for the same vocabulary. The extraction sweep
+  is the deliberate exception — it appends instead of refusing, because a refusal
+  there would drop the hang-up recovery turns it carries.
+- **The three spawning dialog routes are cancellable.** `request.signal` reaches
+  `runIntakeExchange`, `runIntakeVoiceTurn` and `runIntakeTranscriptExtract`, and
+  an aborted request answers 499 with no store-error log — the same treatment the
+  App-master pair already had.
 - **Every refusal on the two App-master routes carries a code.** They answered
   bare English strings, so `JdsIntakeAppMasterCard` had one line — *"could not
   compose the spec"* — for five different next actions: wait for the scan
@@ -267,6 +295,9 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | App master: route trust boundaries | `app/api/intake/app-master-routes.test.ts` (source guard) |
 | App master: refusal codes | `REFUSAL_ERRORS` in `app/_lib/api-response.ts` (`INTAKE_NOT_FOUND`, `INTAKE_FROZEN`, `INTAKE_BRIEF_MOVED`, `INTAKE_NOT_FROM_SCAN`, `INTAKE_SCAN_MISMATCH`, `INTAKE_DOSSIER_INVALID`, `INTAKE_NOT_APP_MASTER`, `INTAKE_SCAN_NOT_LANDED`, `INTAKE_BRIEF_EMPTY`) + the shared `TOO_MANY_REQUESTS`; rendered via `useErrorMessage()` |
 | App master: write-path race guard | `app/_lib/db/intake-app-master-cas.test.ts` (behavioral, temp SQLite) |
+| Dialog refusal codes | `REFUSAL_ERRORS` (`INTAKE_CLOSED`, `INTAKE_TEXT_REQUIRED`, `INTAKE_BRIEF_INVALID`, `INTAKE_BRIEF_NOT_READY`, `INTAKE_ALREADY_OPEN`, `INTAKE_ATTACHMENT_LIMIT`, `INTAKE_ATTACHMENT_INDEX`, `INTAKE_JD_NOT_FOUND`, `INTAKE_NOTHING_TO_EXTRACT`, `INTAKE_VOICE_NOT_CONFIGURED`) + the shared `INTAKE_NOT_FOUND` / `INTAKE_FROZEN` / `INTAKE_BRIEF_MOVED` / `TOO_MANY_REQUESTS` |
+| Dialog refusal + cancel guard | `app/api/intake/intake-refusal-guard.test.ts` (source guard over all nine routes) |
+| Dialog write-path race guard | `app/_lib/db/intake-dialog-cas.test.ts`, `app/_lib/db/intake-voice-sweep.test.ts` (behavioral, temp SQLite) |
 | App master: mandate section model (pure) | `app/_lib/app-master/mandate-view.ts::mandateSections` (`mandate-view.test.ts`) |
 | Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
 | Export builder (pure) | `app/_lib/intake-export.ts` |

@@ -296,6 +296,43 @@ export const REFUSAL_ERRORS = {
   /** Compose was asked with an empty brief (400) — nothing has been said yet for
    *  the pure composer to turn into a mandate. */
   INTAKE_BRIEF_EMPTY: "The brief is still empty. Answer the dialog first, then compose.",
+  // ---- The role-intake DIALOG's own refusals (docs/features/intake/README.md).
+  // Nine routes answered nine kinds of English prose with NO code, and the client
+  // funnelled every one of them into a single "send failed" line — so "you have
+  // five attachments already", "that JD is not in your library" and "the session
+  // is closed" were one indistinguishable red sentence, in English, to every
+  // locale. The two App-master siblings above already did it right; this is the
+  // rest of the surface catching up.
+  /** A message/utterance arrived for a session that is not open (409). Distinct
+   *  from INTAKE_FROZEN on purpose: a `complete` session can be RE-OPENED and that
+   *  is the reader's next action, where a promoted one is final. */
+  INTAKE_CLOSED: "This intake session is closed. Re-open it to keep talking.",
+  /** An empty message, spoken utterance or attachment note (400). */
+  INTAKE_TEXT_REQUIRED: "There is nothing to send. Write or say something first.",
+  /** A brief edit whose payload did not resolve to a brief at all (400). Not
+   *  INTAKE_BRIEF_EMPTY: that one is about the SESSION's brief having nothing in
+   *  it yet, this one is about the request body. */
+  INTAKE_BRIEF_INVALID: "That brief edit was not in the expected shape.",
+  /** Promote was asked of a brief that has not captured enough to become a JD
+   *  (400). The message names what is missing — that IS the next action. */
+  INTAKE_BRIEF_NOT_READY: "The brief needs a role title plus one dealbreaker or 90-day outcome before it can become a JD.",
+  /** Re-open was asked of a session that is already open (409). */
+  INTAKE_ALREADY_OPEN: "This session is already open.",
+  /** The per-session reference-material ceiling is spent (400). The cap rides
+   *  alongside in `max` — a number, not a sentence, so it localizes. */
+  INTAKE_ATTACHMENT_LIMIT: "This session already holds as much reference material as it can.",
+  /** A remove naming a position the list does not have (400) — a stale pane. */
+  INTAKE_ATTACHMENT_INDEX: "That piece of reference material is no longer on this session.",
+  /** The attached JD slug does not resolve in this workspace (404). Separate from
+   *  INTAKE_NOT_FOUND: the session is fine, the JD is the thing that is missing. */
+  INTAKE_JD_NOT_FOUND: "That JD is not in this workspace's library.",
+  /** An extraction sweep on a session with no transcript and no posted turns
+   *  (400) — the ordinary "the call produced nothing yet", not a fault. */
+  INTAKE_NOTHING_TO_EXTRACT: "There is nothing to extract yet.",
+  /** The voice transport is not configured on this install (503). The env vars an
+   *  operator must set ride alongside in `need`: DATA the reader's own sentence
+   *  needs, rather than English prose with the variables baked in. */
+  INTAKE_VOICE_NOT_CONFIGURED: "Voice is not configured on this install.",
   /** The edge pairing was refused before anything was written (400): the endpoint is
    *  not an allowed public https URL, or a field was the wrong type. A DECISION, so
    *  the reader is told what to change rather than "something went wrong". */

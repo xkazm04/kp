@@ -65,7 +65,9 @@ test("voice-complete: a just-closed session still gets its final sweep; only pro
   );
   // The refusal that remains is the promoted freeze (the JD exists).
   const guardAt = voiceComplete.indexOf('intake.status !== "open" && intake.status !== "complete"');
-  assert.match(voiceComplete.slice(guardAt, guardAt + 300), /status:\s*409/);
+  // Answered through the refusal chokepoint (a CODE, not prose) since the
+  // nine-route sweep — the status rides in the jsonRefusal call.
+  assert.match(voiceComplete.slice(guardAt, guardAt + 300), /jsonRefusal\("INTAKE_FROZEN", 409\)/);
   // Nothing in this route may CLOSE a session — the close travels through
   // /voice-turn (spoken confirm) or the text plane.
   assert.ok(!/status:\s*"complete"\s*as const/.test(voiceComplete));

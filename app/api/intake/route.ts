@@ -4,8 +4,8 @@ import { runIntakeOpening } from "@/app/_lib/intake-run";
 import { updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // Role-intake dialogs (docs/concepts/role-intake-dialog.md, Phase 1).
 // POST — start a session: create the row and seed the agent's deterministic
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     // this comment was rewritten, in the comment itself, both above the limiter, so
     // a generic marker fails on prose instead of on ordering.
     if (!rateLimit(`intake-create:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const ws = await currentWorkspace();

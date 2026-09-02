@@ -6,8 +6,8 @@ import { jdJobId } from "@/app/_lib/jd-limits";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/intake/[id]/promote — turn a captured RoleBrief into a JD + a
 // matchable Job through the EXISTING backgrounded build (the same
@@ -22,16 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
-    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    if (intake.status === "promoted") {
-      return NextResponse.json({ error: "This intake was already promoted.", jdSlug: intake.jdSlug }, { status: 409 });
-    }
-    if (!briefReadyToPromote(intake.brief)) {
-      return NextResponse.json(
-        { error: "The brief needs at least a role title plus one dealbreaker or 90-day outcome before it can become a JD." },
-        { status: 400 }
-      );
-    }
+    // Codes (docs/architecture/api-contracts.md §1.1). The not-ready refusal is
+    // the one that matters most here: it NAMES what the brief still needs, and
+    // the panel used to replace it with "promote failed" — the reader lost the
+    // only sentence that told them what to do next.
+    if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    // The produced JD rides alongside as DATA, so the panel can link to it.
+    if (intake.status === "promoted") return jsonRefusal("INTAKE_FROZEN", 409, { jdSlug: intake.jdSlug });
+    if (!briefReadyToPromote(intake.brief)) return jsonRefusal("INTAKE_BRIEF_NOT_READY", 400);
     // THROTTLE: promotion is the most expensive single operation this feature
     // has — it starts a full backgrounded jd_build (description + market
     // research + optionally a designed work-sample case), all paid. The route
@@ -47,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // `expensive` marker is the INSERT CALL below including its opening brace, not
     // the bare function name - the name also appears in prose above the limiter.
     if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const body = (await request.json().catch(() => ({}))) as {

@@ -385,6 +385,10 @@ const ROUTES: RouteSpec[] = [
     // refusals run first so a rejected call never consumes budget.
     key: "`intake-message:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     // KP_BENCH_MODE=1 (server env, local app-master bench only — see
     // scripts/app-master-bench) raises the budget to 600 so a scripted sweep
     // is not throttled at human pace. The contract pins BOTH budgets and the
@@ -404,6 +408,10 @@ const ROUTES: RouteSpec[] = [
     rel: "./intake/route.ts",
     key: "`intake-create:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     // The CALL SITE, not a bare `runIntakeOpening(`: that substring also appears in
     // this route's IMPORT and in the comment above the limiter, both of which
     // precede it — so the generic marker would fail on prose, not on ordering.
@@ -415,6 +423,10 @@ const ROUTES: RouteSpec[] = [
     rel: "./intake/[id]/promote/route.ts",
     key: "`intake-promote:${clientIpFrom(request.headers)}`",
     limit: 20,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     // The limiter sits AFTER the cheap 404/409/400 refusals, so a request that was
     // never going to promote costs no budget.
     // Same reason: `insertAnalyzingJd(` appears in this route's own comment above
@@ -434,6 +446,10 @@ const ROUTES: RouteSpec[] = [
     // ephemeral credentials per 10 minutes. Value pinned via the defining line.
     key: "`intake-voice-connect:${id}`",
     limit: 6,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     limitSrc: "voiceConnectLimit",
     limitDef: "const voiceConnectLimit = 6;",
     expensive: "adapter.connect(",
@@ -447,6 +463,10 @@ const ROUTES: RouteSpec[] = [
     // (operator retries share the office NAT).
     key: "`intake-voice-turn:${id}`",
     limit: 60,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runIntakeVoiceTurn(",
     servedBefore: 'intake.status !== "open"',
   },
@@ -457,6 +477,10 @@ const ROUTES: RouteSpec[] = [
     // double digits) plus the hang-up recovery; a scripted loop stays pinned.
     key: "`intake-voice-complete:${clientIpFrom(request.headers)}`",
     limit: 20,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runIntakeTranscriptExtract(",
     servedBefore: 'intake.status !== "open"',
   },

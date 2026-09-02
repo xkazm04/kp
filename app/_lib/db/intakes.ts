@@ -242,6 +242,16 @@ export function listIntakes(workspaceId: string = DEFAULT_WORKSPACE_ID): IntakeS
 // brief (and the detected shape / evolving title) atomically. IMMEDIATE so the
 // read→compute→write of two racing messages on the same intake serializes
 // (the later write wins whole-row, never a spliced transcript).
+//
+// `expectedUpdatedAt` is what a caller that spent MINUTES in a spawn between its
+// read and this write must pass (`/message`, `/voice-turn`): `.immediate()` alone
+// buys nothing there, because the write lock is taken long after the read it is
+// meant to protect, and the write replaces transcript AND brief wholesale — so a
+// human brief edit, or the other plane's turn, landing during the spawn was
+// silently reverted by whatever the spawn eventually returned. With it, the write
+// re-asserts the version it was computed from and answers `moved` instead
+// (intake-dialog-cas.test.ts). Omit it and the write keeps its unconditional
+// shape, for the opener — which writes into a row it created microseconds ago.
 export function updateIntakeDialog(
   id: string,
   patch: {
@@ -250,31 +260,39 @@ export function updateIntakeDialog(
     shape?: IntakeShape;
     title?: string;
     status?: IntakeStatus;
+    expectedUpdatedAt?: string | null;
   },
   workspaceId: string = DEFAULT_WORKSPACE_ID
-): boolean {
-  const d = db();
-  const run = d.transaction(() => {
-    const existing = d
-      .prepare(`SELECT id FROM role_intakes WHERE id = ? AND workspace_id = ?`)
-      .get(id, workspaceId) as { id: string } | undefined;
-    if (!existing) return false;
-    d.prepare(
-      `UPDATE role_intakes
-       SET transcript_json = ?, brief_json = ?, shape = COALESCE(?, shape),
-           title = COALESCE(?, title), status = COALESCE(?, status), updated_at = ?
-       WHERE id = ? AND workspace_id = ?`
-    ).run(
-      JSON.stringify(patch.transcript),
-      patch.brief ? JSON.stringify(patch.brief) : null,
-      patch.shape ?? null,
-      patch.title?.trim() ? patch.title.trim().slice(0, 200) : null,
-      patch.status ?? null,
-      new Date().toISOString(),
+): IntakeCasResult {
+  const params = [
+    JSON.stringify(patch.transcript),
+    patch.brief ? JSON.stringify(patch.brief) : null,
+    patch.shape ?? null,
+    patch.title?.trim() ? patch.title.trim().slice(0, 200) : null,
+    patch.status ?? null,
+    new Date().toISOString(),
+    id,
+    workspaceId,
+  ];
+  const set = `SET transcript_json = ?, brief_json = ?, shape = COALESCE(?, shape),
+           title = COALESCE(?, title), status = COALESCE(?, status), updated_at = ?`;
+  if (patch.expectedUpdatedAt !== undefined) {
+    return casUpdate(
+      `UPDATE role_intakes ${set}
+       WHERE id = ? AND workspace_id = ? AND status != 'promoted' AND updated_at IS ?`,
+      [...params, patch.expectedUpdatedAt],
       id,
       workspaceId
     );
-    return true;
+  }
+  const d = db();
+  const run = d.transaction((): IntakeCasResult => {
+    const existing = d
+      .prepare(`SELECT id FROM role_intakes WHERE id = ? AND workspace_id = ?`)
+      .get(id, workspaceId) as { id: string } | undefined;
+    if (!existing) return "missing";
+    d.prepare(`UPDATE role_intakes ${set} WHERE id = ? AND workspace_id = ?`).run(...(params as never[]));
+    return "ok";
   });
   return run.immediate();
 }
@@ -453,24 +471,44 @@ export function updateIntakeVoiceSweep(
 // A human edit of the brief (UAT drain §2.1) — brief_json only; the transcript
 // is untouched (the dialog record stays honest). Refuses promoted sessions at
 // the store level too (the JD exists; the brief behind it is frozen).
+//
+// `expectedUpdatedAt` is the version the route read to build the merge basis, and
+// it is re-asserted in the WHERE so the edit lands on the row it was merged
+// against or not at all. In THIS process that window is empty by construction
+// (the route parses the body before the read, so nothing awaits between the read
+// and this call) — what it actually guards is a second writer on the same SQLite
+// file, and it makes every intake write in this module report the same
+// ok/moved/missing vocabulary. The window it does NOT close is a stale TAB: the
+// client does not carry a row version, so an edit typed against a session loaded
+// ten minutes ago still merges against whatever is stored now (feature doc,
+// Known gaps).
 export function updateIntakeBrief(
   id: string,
   brief: RoleBrief,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
-): boolean {
-  const res = db()
-    .prepare(
-      `UPDATE role_intakes SET brief_json = ?, title = COALESCE(NULLIF(?, ''), title), updated_at = ?
-       WHERE id = ? AND workspace_id = ? AND status != 'promoted'`
-    )
-    .run(
-      JSON.stringify(brief),
-      typeof brief.title === "string" ? brief.title.trim().slice(0, 200) : "",
-      new Date().toISOString(),
-      id,
-      workspaceId
-    );
-  return res.changes > 0;
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  cas?: { expectedUpdatedAt: string | null }
+): IntakeCasResult {
+  const params = [
+    JSON.stringify(brief),
+    typeof brief.title === "string" ? brief.title.trim().slice(0, 200) : "",
+    new Date().toISOString(),
+    id,
+    workspaceId,
+  ];
+  const set = `SET brief_json = ?, title = COALESCE(NULLIF(?, ''), title), updated_at = ?`;
+  if (!cas) {
+    const res = db()
+      .prepare(`UPDATE role_intakes ${set} WHERE id = ? AND workspace_id = ? AND status != 'promoted'`)
+      .run(...(params as never[]));
+    return res.changes > 0 ? "ok" : "missing";
+  }
+  return casUpdate(
+    `UPDATE role_intakes ${set}
+     WHERE id = ? AND workspace_id = ? AND status != 'promoted' AND updated_at IS ?`,
+    [...params, cas.expectedUpdatedAt],
+    id,
+    workspaceId
+  );
 }
 
 // Replace the session's attachment list (add/remove both route through the

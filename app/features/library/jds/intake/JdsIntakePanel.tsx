@@ -6,6 +6,7 @@ import { briefPromoteBlockers } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
 import { JdsIntakeAppMasterCard } from "./JdsIntakeAppMasterCard";
 import { JdsIntakeAppMasterStart } from "./JdsIntakeAppMasterStart";
@@ -23,6 +24,10 @@ import { useIntakeLogic } from "./jdsIntakeLogic";
 // RoleBrief filling in on the right, and Promote → the existing backgrounded
 // JD build. Ledger of past sessions when none is open.
 
+// One class string for every refusal line on this surface (recipes.ts holds the
+// shared surfaces; this is local enough to stay here).
+const RED = "text-body text-red-700";
+
 const SHAPE_KEY = {
   power_unit: "shape.powerUnit",
   story: "shape.story",
@@ -32,6 +37,9 @@ const SHAPE_KEY = {
 export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const t = useTranslations("library.tab.intake");
   const locale = useLocale();
+  // An API failure is shown from its machine `code`, never from the server's
+  // English `error` string (docs/architecture/api-contracts.md §1.1).
+  const resolveError = useErrorMessage();
   const {
     sessions,
     active,
@@ -100,7 +108,9 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           onStart={(repo) => startAppMaster(locale === "cs" ? "cs" : "en", repo)}
         />
         {error ? (
-          <p className="mt-3 text-body text-red-700">{t(error === "appMaster" ? "appMaster.startError" : "error")}</p>
+          <p className="mt-3 text-body text-red-700">
+            {resolveError(error, t(error.kind === "appMaster" ? "appMaster.startError" : "error"))}
+          </p>
         ) : null}
         <div className="mt-4 space-y-2">
           {sessions === null ? (
@@ -212,11 +222,14 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
         {[
           degraded ? { key: "degraded", cls: "text-meta text-steel", text: t("degradedNote") } : null,
           voiceNote === "stored" ? { key: "voiceStored", cls: "text-meta text-steel", text: t("voice.storedNote") } : null,
-          error === "send" ? { key: "send", cls: "text-body text-red-700", text: t("sendError") } : null,
-          error === "promote" ? { key: "promote", cls: "text-body text-red-700", text: t("promoteError") } : null,
-          error === "saveBrief" ? { key: "saveBrief", cls: "text-body text-red-700", text: t("edit.saveError") } : null,
-          error === "reopen" ? { key: "reopen", cls: "text-body text-red-700", text: t("reopen.error") } : null,
-          error === "attachment" ? { key: "attachment", cls: "text-body text-red-700", text: t("attachments.error") } : null,
+          // The server's refusal CODE decides the sentence; the per-affordance
+          // string below is only the fallback for a failure that carries none (an
+          // offline fetch). Five different refusals used to share one line each.
+          error?.kind === "send" ? { key: "send", cls: RED, text: resolveError(error, t("sendError")) } : null,
+          error?.kind === "promote" ? { key: "promote", cls: RED, text: resolveError(error, t("promoteError")) } : null,
+          error?.kind === "saveBrief" ? { key: "saveBrief", cls: RED, text: resolveError(error, t("edit.saveError")) } : null,
+          error?.kind === "reopen" ? { key: "reopen", cls: RED, text: resolveError(error, t("reopen.error")) } : null,
+          error?.kind === "attachment" ? { key: "attachment", cls: RED, text: resolveError(error, t("attachments.error")) } : null,
         ]
           .filter((n): n is { key: string; cls: string; text: string } => n !== null)
           .map((n) => (

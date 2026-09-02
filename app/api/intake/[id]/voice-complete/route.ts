@@ -4,8 +4,8 @@ import { runIntakeTranscriptExtract } from "@/app/_lib/intake-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/intake/[id]/voice-complete — the PERIODIC EXTRACTION THREAD of the
 // two-thread voice design (docs/architecture/voice-conversation-plane.md) and
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id } = await params;
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
-    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
+    if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
     // A CLOSED (`complete`) session still accepts this call — it is the only
     // route that can. /voice-turn flips the session to `complete` on a
     // confirmed spoken read-back BEFORE the client's closing sweep fires
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Only `promoted` stays frozen (the JD exists — same rule as brief and
     // attachments), and this route still never CLOSES a session itself.
     if (intake.status !== "open" && intake.status !== "complete") {
-      return NextResponse.json({ error: "This session was promoted — its record is frozen." }, { status: 409 });
+      return jsonRefusal("INTAKE_FROZEN", 409);
     }
     const body = (await request.json().catch(() => ({}))) as { turns?: unknown };
     const rawTurns = Array.isArray(body.turns) ? body.turns.slice(0, MAX_VOICE_TURNS) : [];
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .filter((t) => t.text.trim().length > 0);
     const { turns } = capTranscriptTurns(clamped);
     if (turns.length === 0 && intake.transcript.length === 0) {
-      return NextResponse.json({ error: "nothing to extract yet" }, { status: 400 });
+      return jsonRefusal("INTAKE_NOTHING_TO_EXTRACT", 400);
     }
 
     // THROTTLE (rate-limit-contract.test.ts): each accepted call runs one paid
@@ -66,14 +66,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // double digits), while a scripted loop stays pinned. After the cheap
     // refusals, before the DB write + model call.
     if (!rateLimit(`intake-voice-complete:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const lang = intake.lang === "cs" ? "cs" : "en";
     const transcript = [...intake.transcript, ...turns];
     // Attachments ride along: the fast voice thread sees titles only, so this
     // extraction sweep is where attached bodies actually reach the model.
-    const result = await runIntakeTranscriptExtract({ transcript, brief: intake.brief, lang, attachments: intake.attachments });
+    const result = await runIntakeTranscriptExtract(
+      { transcript, brief: intake.brief, lang, attachments: intake.attachments },
+      request.signal
+    );
     const briefTitle = typeof result.brief?.title === "string" ? result.brief.title : "";
     // The extraction above takes SECONDS, and the client fires this sweep and the
     // next spoken turn from the same `finally` block — so by now /voice-turn may
@@ -97,9 +100,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
       ws
     );
-    if (write.result === "missing") {
-      return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    }
+    if (write.result === "missing") return jsonRefusal("INTAKE_NOT_FOUND", 404);
     return NextResponse.json({
       // The STORED transcript, not the pre-spawn one: the panel adopts this
       // wholesale (foldVoiceSweep), so answering with the stale copy would put
@@ -112,6 +113,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ...(result.fallbackReason ? { fallbackReason: result.fallbackReason } : {}),
     });
   } catch (error) {
+    // A hang-up during the sweep is a decision, not a fault.
+    if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     return safeJsonError(error, "api:intake/voice-complete", "INTAKE_VOICE_COMPLETE_FAILED");
   }
 }
