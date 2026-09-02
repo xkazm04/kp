@@ -49,6 +49,16 @@ export function useScheduleTab() {
   };
   const [entries, setEntries] = useState<SchedEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A REFUSAL of one card's action, carried beside that card rather than in the
+  // tab-level banner. The banner sits above the whole grid, ~26rem from the aside
+  // where the recruiter clicked, and every book refusal used to render there as
+  // t("loadFailed") — "Failed to load.", the copy of a fetch that never happened.
+  // A refusal is about ONE candidate ("that hour is taken", "they were rejected
+  // in another tab"), so it renders inline under that candidate's actions, where
+  // the eye already is. Not the AI round's toast: a toast is right for a
+  // transient success ("link copied") but a refusal here names the next action
+  // (pick another cell) and must stay on screen while the recruiter takes it.
+  const [actionError, setActionError] = useState<{ entryId: string; message: string } | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
   // Direction 3 — the grid renders from the ONE scheduling engine. Confirmed invites
   // (recruiter- or candidate-self-booked) seed where each candidate sits and appear as
@@ -212,6 +222,7 @@ export function useScheduleTab() {
 
   const act = async (e: SchedEntry, action: "approve_event" | "reject") => {
     setBusy(e.id);
+    setActionError(null);
     try {
       if (action === "approve_event") {
         // Route the grid confirm through the ONE scheduling engine: produce/update a
@@ -228,8 +239,17 @@ export function useScheduleTab() {
         });
         const bd = await bookRes.json().catch(() => ({}));
         if (!bookRes.ok) {
-          setError(errMsg(bd, t("loadFailed")));
+          // The server answers a REFUSAL code (SCHEDULE_SLOT_TAKEN,
+          // SCHEDULE_CANDIDATE_INACTIVE, SCHEDULE_BOOK_FAILED,
+          // SCHEDULE_SLOT_UNRESOLVED, PIPELINE_ENTRY_NOT_FOUND); useErrorMessage
+          // resolves it in the reader's language. The fallback is the ACTION's own
+          // copy, never the load banner's.
+          setActionError({ entryId: e.id, message: errMsg(bd, t("bookFailed")) });
           setBusy(null);
+          // The refusal is usually about state that moved (a slot taken, a
+          // candidate rejected elsewhere) — resync so the grid shows the world
+          // the server just described.
+          load({ refresh: true });
           return;
         }
       } else {
@@ -239,7 +259,16 @@ export function useScheduleTab() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action, detail: undefined }),
         });
-        if (!r.ok) throw new Error();
+        if (!r.ok) {
+          // Previously `throw new Error()` into a catch that only re-loaded: the
+          // card silently reappeared and NOTHING said the rejection had not been
+          // recorded. The board's own PIPELINE_* codes localize here.
+          const d = await r.json().catch(() => ({}));
+          setActionError({ entryId: e.id, message: errMsg(d, t("declineFailed")) });
+          setBusy(null);
+          load({ refresh: true });
+          return;
+        }
       }
       // Record the direction, then drop the card. AnimatePresence resolves the
       // leaving card's exit variant from its `custom` (below) at removal time, so
@@ -271,6 +300,7 @@ export function useScheduleTab() {
     t,
     entries,
     error,
+    actionError,
     picks,
     selectedId,
     setSelectedId,

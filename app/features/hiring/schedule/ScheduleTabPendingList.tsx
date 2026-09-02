@@ -23,6 +23,7 @@ export function ScheduleTabPendingList({
   prepared,
   busy,
   creatingIv,
+  actionError,
   lastDir,
   reduced,
   cardExit,
@@ -41,6 +42,10 @@ export function ScheduleTabPendingList({
   prepared: Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean; stale: boolean }>;
   busy: string | null;
   creatingIv: string | null;
+  // A refusal of THIS card's confirm/decline, rendered under its own actions —
+  // see the note on `actionError` in useScheduleTab.ts for why it lives here
+  // rather than in the tab-level banner or a toast.
+  actionError: { entryId: string; message: string } | null;
   lastDir: "confirm" | "decline";
   reduced: boolean;
   cardExit: (dir: "confirm" | "decline") => TargetAndTransition;
@@ -159,6 +164,11 @@ export function ScheduleTabPendingList({
                   <X size={14} aria-hidden />
                 </button>
               </div>
+              {actionError?.entryId === e.id ? (
+                <p role="alert" className="mt-1.5 rounded bg-red-50 px-1.5 py-1 text-meta font-semibold text-red-700">
+                  {actionError.message}
+                </p>
+              ) : null}
             </motion.div>
           );
         })}

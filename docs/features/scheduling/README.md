@@ -242,6 +242,35 @@ changed `calendarEventState` — adopting only `meetingUrl` left the row asserti
 End-to-end coverage (real routes, stubbed Google edge):
 `app/api/schedule/calendar-writeback.test.ts`.
 
+## What the recruiter is told when a booking is refused
+
+`POST /api/schedule {action:"book"}` — the week grid's Confirm — answers every
+refusal with a **code**, through `jsonRefusal` (`app/_lib/api-response.ts`):
+
+| Code | Status | Means |
+| --- | --- | --- |
+| `SCHEDULE_SLOT_TAKEN` | 409 | The hour is spoken for (a self-booking, or an accepted off-hour proposal inside it) |
+| `SCHEDULE_CANDIDATE_INACTIVE` | 409 | The linked entry is closed out — the grid's entry list is a client-side snapshot |
+| `SCHEDULE_BOOK_FAILED` | 409 | The collision-checked transaction refused for another reason; nothing was written |
+| `SCHEDULE_SLOT_UNRESOLVED` | 400 | The submitted cell did not resolve to an instant |
+| `PIPELINE_ENTRY_NOT_FOUND` | 404 | The entry is not on this board (the board's own code, reused) |
+
+The Schedule tab keeps the code and resolves it through `useErrorMessage()`, so
+each refusal reads in the operator's own language. It renders **inline, under the
+card whose action failed** (`actionError` in `useScheduleTab.ts`, painted by
+`ScheduleTabPendingList.tsx`) rather than in the tab-level banner above the grid:
+a refusal is about one candidate and names the next action ("pick another"), so it
+belongs beside that candidate and must stay on screen while the recruiter takes
+it. Before this, all four refusals painted the LOAD banner's `loadFailed` copy —
+"Failed to load." — on an action that loaded nothing, and a failed decline set no
+error at all. A decline that fails now says so on the card, with the board's own
+`PIPELINE_*` code.
+
+Pinned by `app/api/schedule/schedule-book-refusals.test.ts`, which drives the real
+handler and also asserts that every code the route emits has an `errors.<CODE>`
+entry in all four catalogs — a code with no catalog entry silently degrades back
+to the generic fallback.
+
 ## API / lib surface
 
 | Surface | File | Notes |

@@ -41,6 +41,7 @@ export function ScheduleTab() {
     t,
     entries,
     error,
+    actionError,
     picks,
     selectedId,
     setSelectedId,
@@ -186,6 +187,7 @@ export function ScheduleTab() {
               prepared={prepared}
               busy={busy}
               creatingIv={creatingIv}
+              actionError={actionError}
               lastDir={lastDir}
               reduced={reduced}
               cardExit={cardExit}

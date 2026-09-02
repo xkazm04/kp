@@ -23,7 +23,7 @@ import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/ev
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 
@@ -128,7 +128,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "entryId and dateSlot are required" }, { status: 400 });
       }
       const entry = getPipelineEntry(body.entryId, ws);
-      if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
+      // Reuses the board's own code: the tab renders "that candidate is no longer on
+      // this board", localized, instead of the generic failure line.
+      if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
       // Never book an interview for a candidate the pipeline has closed out. Both invite
       // routes already refuse a terminal entry ("a drawer left open while the candidate
       // was rejected in another tab" — /api/schedule/invite), but the week grid did not,
@@ -140,7 +142,7 @@ export async function POST(request: Request) {
       // throwing, so nothing raised needs_reconcile and the board showed no failure at all.
       // Hired keeps status 'active', so only genuinely closed-out entries are refused.
       if (entry.status !== "active") {
-        return NextResponse.json({ error: "That candidate is no longer active — nothing was booked." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_CANDIDATE_INACTIVE", 409);
       }
       // Prefer the DATED pick ("YYYY-MM-DD HH:MM", the concrete cell the recruiter clicked)
       // so a booking lands on the true calendar day, not the next matching weekday. The
@@ -152,7 +154,7 @@ export async function POST(request: Request) {
           })()
         : gridSlotToIso(body.gridSlot!);
       if (!resolved) {
-        return NextResponse.json({ error: "That grid slot couldn't be resolved to a time." }, { status: 400 });
+        return jsonRefusal("SCHEDULE_SLOT_UNRESOLVED", 400);
       }
       // Idempotent per entry: reuse the live invite (or mint one), then confirm/move it
       // to the resolved instant with recruiter authority (no candidate reschedule cap),
@@ -175,21 +177,21 @@ export async function POST(request: Request) {
         targetBucket &&
         bookedSlots(ws).some((iso) => iso !== invite.slotAt && hourBucketKey(iso) === targetBucket)
       ) {
-        return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
       }
       let bookedInvite: ScheduleInvite;
       if (invite.status === "confirmed") {
         const moved = rescheduleScheduleInvite(invite.token, resolved.label, resolved.value, null, { recruiter: true });
         if (!moved.ok) {
-          if (moved.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-          return NextResponse.json({ error: "Could not update that booking." }, { status: 409 });
+          if (moved.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+          return jsonRefusal("SCHEDULE_BOOK_FAILED", 409);
         }
         bookedInvite = moved.invite;
       } else {
         const booked = confirmScheduleInvite(invite.token, resolved.label, resolved.value);
         if (!booked.ok) {
-          if (booked.reason === "taken") return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-          return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+          if (booked.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+          return jsonRefusal("SCHEDULE_BOOK_FAILED", 409);
         }
         bookedInvite = booked.invite;
       }
