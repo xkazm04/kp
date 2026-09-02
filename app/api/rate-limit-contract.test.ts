@@ -251,6 +251,21 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "60_000",
   },
   {
+    // ADDED 2026-09-02 (perfect: token-doors-get-an-axe-pass). The offer POST has
+    // been throttled since idea-3e49abaf, but it was the ONE public token verb the
+    // contract never pinned — so the budget on the most consequential candidate
+    // action in the product (accept hires and fires the ATS handoff; decline closes
+    // the entry, irreversibly) was a line of code nothing defended. Keyed per
+    // client AND token like its GET sibling; 10/min is generous for a decision a
+    // candidate makes once.
+    rel: "./offer/[token]/route.ts",
+    key: "`offer:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    expensive: "respondToOffer(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
     // ADDED scan-sweep 2026-08-24. The SYNCHRONOUS twin of ./tasks/route.ts kind
     // "reasoning" — same runReasoning, same LLM spend, but reachable directly and
     // unlimited until now. 60/10min is below the batch path's 120 because a matrix
