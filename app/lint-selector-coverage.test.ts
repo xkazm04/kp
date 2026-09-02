@@ -5,9 +5,10 @@
 // better-sqlite3 transaction law, the db-barrel cost law, "nobody imports a route
 // handler", "the ui layer does not value-import a store", "packages/ does not
 // import app/". Flat config does NOT merge a rule's options: the LAST block
-// matching a file replaces them wholesale. So every group has to be restated into
-// every later block that matches the same files, and the config says so at length
-// beside TRANSACTION_SELECTORS ("Spread them into both").
+// matching a file replaces them wholesale. So every group has to be carried into
+// every later block that matches the same files — which is why eslint.config.mjs
+// builds every block's options through `restrict()` from declared selector sets
+// instead of hand-listing them (see the header note there).
 //
 // The four DESIGN selectors were never restated. From the moment the second
 // `no-restricted-syntax` block landed they applied to nothing, and `npm run lint`
@@ -89,9 +90,13 @@ const EXPECTATIONS: { file: string; must: Group[]; mustNot: Group[]; why: string
   },
   {
     file: "app/landing/page.tsx",
-    must: [...TRANSACTION, "db_barrel", "no_route_import", "ui_no_db"],
-    mustNot: DESIGN,
-    why: "the one stated exemption from the design law — and it must keep every OTHER selector",
+    // No `ui_no_db` here: app/landing/ is a route directory, not app/features
+    // or app/_components, and UI_NO_DB_VALUE_IMPORT's own message names
+    // `app/<route>/page.tsx` as the place a store value-import belongs. The
+    // exemption drops the design law and nothing else the route layer carries.
+    must: [...TRANSACTION, "db_barrel", "no_route_import"],
+    mustNot: [...DESIGN, "ui_no_db"],
+    why: "the one stated exemption from the design law — and it must keep every OTHER selector of its layer",
   },
   {
     file: "app/_lib/brand.ts",
@@ -156,9 +161,9 @@ for (const { file, must, mustNot, why } of EXPECTATIONS) {
       assert.ok(
         messages.some((m) => m.includes(GROUP[g])),
         `${file} is missing the "${g}" selector group.\n` +
-          `Flat config REPLACES a rule's options — a later block matching this file listed only its own ` +
-          `selectors and switched this group off. Spread the group into that block in eslint.config.mjs ` +
-          `(see the note beside TRANSACTION_SELECTORS). Resolved messages:\n  ` +
+          `Flat config REPLACES a rule's options — a later block matching this file was built without ` +
+          `this group and switched it off. Add the group to that block's restrict(...) call in ` +
+          `eslint.config.mjs (see the header note there). Resolved messages:\n  ` +
           messages.map((m) => m.slice(0, 70)).join("\n  "),
       );
     }
