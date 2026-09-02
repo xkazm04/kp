@@ -231,7 +231,13 @@ test("malformed JSON is 400 on EVERY door, never a 500", async () => {
   const bad = "{not json";
   assert.equal((await worker.fetch(call("/in/tok", { method: "POST", body: bad }), env(db))).status, 400);
   for (const path of ["/ack", "/heartbeat", "/pair"]) {
-    const res = await worker.fetch(call(path, { method: "POST", body: bad, headers: signedHeaders(bad) }), env(db));
+    // A DISTINCT malformed body per door. The signature covers `ts.body`, not the
+    // path, so one body signed three times inside the same millisecond is one
+    // signature presented three times - and the nonce guard correctly answers the
+    // second and third with 409. That is the replay rule working, not a 400 bug;
+    // this test is about the JSON door, so it must not trip the other one.
+    const body = `${bad} ${path}`;
+    const res = await worker.fetch(call(path, { method: "POST", body, headers: signedHeaders(body) }), env(db));
     assert.equal(res.status, 400, `${path} answered ${res.status} to a malformed body`);
   }
   const e = env(db, { KP_CALLBACK_SECRET: CALLBACK_SECRET });
