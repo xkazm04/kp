@@ -6,6 +6,8 @@ import { getJobsByIds } from "@/app/_lib/db/jobs";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 
 
 // koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
@@ -111,15 +113,22 @@ export async function GET(request: NextRequest) {
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      // matrix-answers-with-codes-and-retries: the runner's machine code, not its
+      // message. matrix_cli's stderr carries the temp workdir path and a Python
+      // traceback; the grid needs a code it can localize, not that.
+      const answer = matrixEngineAnswer(err, MATRIX_GRID_SURFACE);
+      return answer.kind === "refusal"
+        ? jsonRefusal(answer.code, err.status)
+        : safeJsonError(new Error(err.message), "api:matrix", answer.code, err.status);
     }
 
     const matrix = parsePythonJson<MatrixOut>(stdout, stderr);
     matrixCache = { key, matrix };
     return respond(matrix, false);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Matrix build failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // better-sqlite3, fs and the spawn itself all throw with internal detail in
+    // `.message` (the db path, the temp workdir) — logged, never forwarded.
+    return safeJsonError(error, "api:matrix", "MATRIX_BUILD_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

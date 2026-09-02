@@ -15,7 +15,7 @@ import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition } from "./matrixPopover";
 import { createFrameThrottle } from "./matrixAnchor";
-import { fetchMatchReasoning } from "./matrixReasoningFetch";
+import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
 export function useMatrixTab() {
@@ -99,24 +99,43 @@ export function useMatrixTab() {
   // announce stays for screen readers; sighted users got nothing before).
   const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number } | null>(null);
 
+  // matrix-answers-with-codes-and-retries (b). Bumping this re-runs the fetch effect;
+  // it is the retry button's whole mechanism, so a failed load is recoverable without
+  // a page reload (the error state used to be terminal).
+  const [reloadAt, setReloadAt] = useState(0);
+  const retryLoad = useCallback(() => {
+    setError(null);
+    setData(null);
+    setReloadAt((n) => n + 1);
+  }, []);
+
   useEffect(() => {
+    // /api/matrix spawns the Python scorer over the whole pool. Leaving the tab (or
+    // pressing retry) used to leave that request running with a `setData` waiting at
+    // the end of it — a state write into an unmounted tree, and on retry a race where
+    // the FIRST response could land after the second and overwrite it. The controller
+    // is both the cleanup and the ordering guarantee.
+    const ac = new AbortController();
     (async () => {
       try {
-        const r = await fetch("/api/matrix");
-        // The route returns a structured { error, code } body (from
-        // parseStderrError) on failure — resolve its machine `code` so the real
-        // cause reaches the screen in the reader's language instead of an opaque
-        // status code (or the server's English `error`).
+        const r = await fetch("/api/matrix", { signal: ac.signal });
+        // The route returns a structured { error, code } body — resolve its machine
+        // `code` so the real cause reaches the screen in the reader's language instead
+        // of an opaque status code (or the server's English `error`).
         const body = await r.json().catch(() => ({}));
+        if (ac.signal.aborted) return;
         if (!r.ok) throw new Error(errMsg(body, t("loadFailedStatus", { status: r.status })));
         if (body.error) throw new Error(errMsg(body, t("loadFailed")));
         setData(body as Matrix);
       } catch (e) {
+        // An abort is the reader leaving or retrying, never a failure to report.
+        if (ac.signal.aborted || isAbortError(e)) return;
         setError(e instanceof Error ? e.message : t("loadFailed"));
       }
     })();
+    return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reloadAt]);
 
   // deec915c popover a11y + layout tracking (bug-ui-scan-2026-07-09 (skill-matrix-coverage
   // #5)). Runs once per OPENED cell (keyed by candId|posId, NOT the rect) so scroll/resize
@@ -485,6 +504,7 @@ export function useMatrixTab() {
     blockedLabel,
     data,
     error,
+    retryLoad,
     sortByFit,
     setSortByFit,
     family,

@@ -515,6 +515,37 @@ may already have paid for its spawn and its answer is still worth caching
 server-side — it just must not reach the screen. Pinned by
 `matrixReasoningFetch.test.ts` and `focus/matchRunSequence.test.ts`.
 
+### Both matrix routes answer with a code, and the grid offers a way back
+`GET /api/matrix` and `POST /api/match/reasoning` both spawn Python behind
+`parseStderrError`, which already produces a machine `code` beside the message
+and status — and both threw it away, answering a bare `{ error: err.message }`.
+Two things followed on screen: `useErrorMessage` had no code to resolve, so every
+failure on the grid and in the popover rendered as the same generic sentence; and
+the reasoning route's 429 — the one failure whose remedy is simply to wait — was
+indistinguishable from an engine crash, so a rate-limited recruiter was never
+told to slow down.
+
+`matrixEngineAnswer` (`app/api/matrix/matrix-error-code.ts`, pure and unit-tested
+because a route handler needs a request scope the unit runner cannot give it)
+decides: a 429 is `TOO_MANY_REQUESTS`; a runner code that names a registered
+refusal is forwarded as that refusal; any other 4xx becomes the surface's own
+refusal (`MATRIX_INPUT_INVALID` / `MATCH_REASONING_UNAVAILABLE`); a 5xx is a
+store error (`MATRIX_BUILD_FAILED` / `MATCH_REASONING_FAILED`) whose real
+message — a traceback, the temp workdir path, provider stderr — is logged and
+withheld. Both routes' rows are gone from `error-response-contract.test.ts`'s
+ceiling rather than lowered.
+
+The grid's own fetch was also a dead end: no `AbortController`, so leaving the
+tab left a `setData` waiting for an unmounted tree, and the error state was a
+bare red line with nothing to press. It now aborts on unmount, and the error
+panel renders the resolved code plus a retry that re-runs the fetch
+(`retryLoad`). Two decisions the tab had been making inline in JSX moved into the
+tested `matrixTabState.ts`: `deriveMatrixMode` (the override-expiry stamp that
+makes a second "View full match" work after the reader toggled back to the grid)
+and `pickGridState` (the six-way branch whose ORDER is the contract — an error
+outranks a stale `?job=`, which outranks an empty pool, which outranks a pool
+filtered to nothing).
+
 ### The grid does not re-render while you scroll
 The popover follows its cell: `useMatrixTab` listens for `scroll` in the capture
 phase (so the grid's own `overflow-auto` scroller fires it too) plus `resize`,
