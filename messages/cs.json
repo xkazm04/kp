@@ -2226,14 +2226,10 @@
       "offer_reminder": "Připomenutí nabídky"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "pozorováno",
       "professional": "praxe",
       "internship": "stáž",
@@ -3420,10 +3416,6 @@
       "costFree": "bez minutových nákladů",
       "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
       "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
-      "costUnknown": "cena neznámá",
-      "costFree": "bez minutových nákladů",
-      "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
-      "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
       "confidence": "jistota: {level}"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
@@ -3962,26 +3954,26 @@
           "recompose": "Sestavit znovu",
           "composing": "Sestavuji…",
           "composeError": "Specifikaci se nepodařilo sestavit. Zkuste to prosím znovu.",
-            "moreCount": "{count, plural, =1 {+1 další} other {+# dalších}}",
-            "showLess": "Zobrazit méně",
-            "mandate": {
-              "title": "Mandát",
-              "gates": "Schvalovací brány",
-              "objectives": "Výsledky a jejich laťky",
-              "direction": {
-                "gte": "alespoň",
-                "lte": "nejvýše"
-              },
-              "windowValue": "{days, plural, one {okno # dne} few {okno # dnů} other {okno # dnů}}",
-              "reviewCadence": "Frekvence revizí",
-              "reviewCadenceValue": "{days, plural, one {každý # den} few {každé # dny} other {každých # dnů}}",
-              "retire": "Ukončit, když",
-              "reservation": "Rezervace rozpočtu",
-              "reservationValue": {
-                "estimate": "odhad na každý běh",
-                "fixed": "rezervováno předem"
-              }
+          "moreCount": "{count, plural, =1 {+1 další} other {+# dalších}}",
+          "showLess": "Zobrazit méně",
+          "mandate": {
+            "title": "Mandát",
+            "gates": "Schvalovací brány",
+            "objectives": "Výsledky a jejich laťky",
+            "direction": {
+              "gte": "alespoň",
+              "lte": "nejvýše"
             },
+            "windowValue": "{days, plural, one {okno # dne} few {okno # dnů} other {okno # dnů}}",
+            "reviewCadence": "Frekvence revizí",
+            "reviewCadenceValue": "{days, plural, one {každý # den} few {každé # dny} other {každých # dnů}}",
+            "retire": "Ukončit, když",
+            "reservation": "Rezervace rozpočtu",
+            "reservationValue": {
+              "estimate": "odhad na každý běh",
+              "fixed": "rezervováno předem"
+            }
+          },
           "spec": {
             "title": "Specifikace správce aplikace",
             "empty": "Specifikaci sestavte, jakmile budou zachyceny výsledky a mandát.",
@@ -4011,7 +4003,17 @@
           "dispatchHuman": "Tato specifikace je složena pro lidského držitele role. Povyšte ji místo toho na JD.",
           "dispatchNeedsPairing": "Před vysláním spárujte Kandi s Personas v Nastavení → Integrace."
         }
-      }
+      },
+      "buildHeldChip": "Výstup uložen jako revize",
+      "buildHeldBody": "Během generování jste tuto nabídku upravili, takže váš text zůstal zachován a vygenerovaný návrh se uložil do historie úprav.",
+      "buildHeldHint": "Otevřít vygenerovaný návrh v historii úprav této nabídky.",
+      "buildHeldOpenDraft": "Otevřít návrh",
+      "buildIntentLabel": "Sestaveno pomocí",
+      "buildIntentTemplate": "Šablona",
+      "buildIntentLanguage": "Jazyk",
+      "buildIntentSeniority": "Seniorita",
+      "buildIntentAiDefault": "Výchozí formát AI",
+      "caseTaskFallback": "Úkol"
     },
     "form": {
       "saveAjd": "Uložit popis pozice",

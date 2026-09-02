@@ -151,7 +151,7 @@ export function CaseCard({ kase }: { kase: CaseArtifact }) {
       {tasks.length ? (
         <ul className="mt-3 space-y-1">
           {tasks.map((task, i) => (
-            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task)}</li>
+            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task, t("caseTaskFallback"))}</li>
           ))}
         </ul>
       ) : null}

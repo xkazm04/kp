@@ -2226,14 +2226,10 @@
       "offer_reminder": "Rappel d’offre"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "observé",
       "professional": "pro",
       "internship": "stage",
@@ -3426,10 +3422,6 @@
       "costFree": "sans coût à la minute",
       "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
       "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
-      "costUnknown": "coût inconnu",
-      "costFree": "sans coût à la minute",
-      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
-      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
       "confidence": "confiance : {level}"
     },
     "interviewerTitle": "Intervieweur : {name}",
@@ -3962,26 +3954,26 @@
           "recompose": "Recomposer",
           "composing": "Composition…",
           "composeError": "Impossible de composer la spécification. Veuillez réessayer.",
-            "moreCount": "{count, plural, =1 {+1 de plus} other {+# de plus}}",
-            "showLess": "Afficher moins",
-            "mandate": {
-              "title": "Le mandat",
-              "gates": "Points de validation",
-              "objectives": "Résultats et leurs seuils",
-              "direction": {
-                "gte": "au moins",
-                "lte": "au plus"
-              },
-              "windowValue": "{days, plural, one {fenêtre de # jour} other {fenêtre de # jours}}",
-              "reviewCadence": "Rythme de revue",
-              "reviewCadenceValue": "{days, plural, one {tous les # jour} other {tous les # jours}}",
-              "retire": "Retirer lorsque",
-              "reservation": "Réservation du budget",
-              "reservationValue": {
-                "estimate": "estimée à chaque exécution",
-                "fixed": "réservée à l'avance"
-              }
+          "moreCount": "{count, plural, =1 {+1 de plus} other {+# de plus}}",
+          "showLess": "Afficher moins",
+          "mandate": {
+            "title": "Le mandat",
+            "gates": "Points de validation",
+            "objectives": "Résultats et leurs seuils",
+            "direction": {
+              "gte": "au moins",
+              "lte": "au plus"
             },
+            "windowValue": "{days, plural, one {fenêtre de # jour} other {fenêtre de # jours}}",
+            "reviewCadence": "Rythme de revue",
+            "reviewCadenceValue": "{days, plural, one {tous les # jour} other {tous les # jours}}",
+            "retire": "Retirer lorsque",
+            "reservation": "Réservation du budget",
+            "reservationValue": {
+              "estimate": "estimée à chaque exécution",
+              "fixed": "réservée à l'avance"
+            }
+          },
           "spec": {
             "title": "Spécification du maître d'application",
             "empty": "Composez la spécification une fois les résultats et le mandat saisis.",
@@ -4011,7 +4003,17 @@
           "dispatchHuman": "Cette spécification est composée pour un titulaire humain. Promouvez-la plutôt en fiche de poste.",
           "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer."
         }
-      }
+      },
+      "buildHeldChip": "Résultat conservé en révision",
+      "buildHeldBody": "Vous avez modifié cette fiche pendant la génération : votre texte a été conservé et le brouillon généré a été classé dans l'historique des modifications.",
+      "buildHeldHint": "Ouvrir le brouillon généré dans l'historique des modifications de cette fiche.",
+      "buildHeldOpenDraft": "Ouvrir ce brouillon",
+      "buildIntentLabel": "Généré avec",
+      "buildIntentTemplate": "Modèle",
+      "buildIntentLanguage": "Langue",
+      "buildIntentSeniority": "Séniorité",
+      "buildIntentAiDefault": "Format par défaut de l'IA",
+      "caseTaskFallback": "Tâche"
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",

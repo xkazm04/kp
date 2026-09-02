@@ -49,13 +49,22 @@ export function hasCaseContent(kase: CaseArtifact | null | undefined): kase is C
   return !!kase && (Boolean(kase.title) || Boolean(kase.brief) || (Array.isArray(kase.tasks) && kase.tasks.length > 0));
 }
 
-export function caseTaskLabel(task: unknown): string {
-  if (typeof task === "string") return task;
+/** One case task's display label. The AI's case designer emits either a bare
+ *  string or an object under one of four field names, and neither shape is
+ *  guaranteed — so the caller supplies the LOCALIZED fallback for a task that
+ *  carries no readable label at all. It used to be a hardcoded English "Task",
+ *  rendered verbatim to cs/de/fr recruiters in an otherwise fully localized
+ *  panel, and the eslint i18n rule reads JSX text nodes so it could never see a
+ *  literal arriving through this helper. */
+export function caseTaskLabel(task: unknown, fallback: string): string {
+  if (typeof task === "string" && task.trim()) return task;
   if (task && typeof task === "object") {
     const o = task as Record<string, unknown>;
-    return String(o.title ?? o.prompt ?? o.name ?? o.description ?? "Task");
+    for (const key of ["title", "prompt", "name", "description"] as const) {
+      if (typeof o[key] === "string" && (o[key] as string).trim()) return o[key] as string;
+    }
   }
-  return "Task";
+  return fallback;
 }
 
 // ── The persisted build intent (jds.build_input_json) ─────────────────────────
@@ -89,7 +98,10 @@ export function readBuildIntent(json: string | null | undefined): BuildIntent | 
   } catch {
     return null;
   }
-  if (!parsed || typeof parsed !== "object") return null;
+  // An array parses as an object and would yield an all-empty intent — which the
+  // detail modal would then draw as a real provenance line about a build we know
+  // nothing about. Only a JSON object is an intent.
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const o = parsed as Record<string, unknown>;
   return {
     needText: str(o.needText),

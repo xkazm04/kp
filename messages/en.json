@@ -2226,14 +2226,10 @@
       "offer_reminder": "Offer reminder"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "observed",
       "professional": "prod",
       "internship": "intern",
@@ -3427,10 +3423,6 @@
       "costFree": "no per-minute cost",
       "costTitle": "Estimated cost of this call, from the usage ledger",
       "providerTitle": "The voice provider that served this call",
-      "costUnknown": "cost unknown",
-      "costFree": "no per-minute cost",
-      "costTitle": "Estimated cost of this call, from the usage ledger",
-      "providerTitle": "The voice provider that served this call",
       "confidence": "confidence: {level}"
     },
     "calendar": {
@@ -3962,26 +3954,26 @@
           "recompose": "Re-compose",
           "composing": "Composing…",
           "composeError": "Could not compose the spec. Please try again.",
-            "moreCount": "{count, plural, =1 {+1 more} other {+# more}}",
-            "showLess": "Show less",
-            "mandate": {
-              "title": "The mandate",
-              "gates": "Approval gates",
-              "objectives": "Outcomes and their bars",
-              "direction": {
-                "gte": "at least",
-                "lte": "at most"
-              },
-              "windowValue": "{days, plural, one {# day window} other {# day window}}",
-              "reviewCadence": "Review cadence",
-              "reviewCadenceValue": "{days, plural, one {every # day} other {every # days}}",
-              "retire": "Retire when",
-              "reservation": "Budget reservation",
-              "reservationValue": {
-                "estimate": "estimated per run",
-                "fixed": "reserved up front"
-              }
+          "moreCount": "{count, plural, =1 {+1 more} other {+# more}}",
+          "showLess": "Show less",
+          "mandate": {
+            "title": "The mandate",
+            "gates": "Approval gates",
+            "objectives": "Outcomes and their bars",
+            "direction": {
+              "gte": "at least",
+              "lte": "at most"
             },
+            "windowValue": "{days, plural, one {# day window} other {# day window}}",
+            "reviewCadence": "Review cadence",
+            "reviewCadenceValue": "{days, plural, one {every # day} other {every # days}}",
+            "retire": "Retire when",
+            "reservation": "Budget reservation",
+            "reservationValue": {
+              "estimate": "estimated per run",
+              "fixed": "reserved up front"
+            }
+          },
           "spec": {
             "title": "App master spec",
             "empty": "Compose the spec once the outcomes and the mandate are captured.",
@@ -4011,7 +4003,17 @@
           "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
           "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
         }
-      }
+      },
+      "buildHeldChip": "Build held as a revision",
+      "buildHeldBody": "You edited this JD while the build was running, so your own text was kept and the generated draft was filed in the edit history.",
+      "buildHeldHint": "Open the generated draft in this JD's edit history.",
+      "buildHeldOpenDraft": "Open that draft",
+      "buildIntentLabel": "Built with",
+      "buildIntentTemplate": "Template",
+      "buildIntentLanguage": "Language",
+      "buildIntentSeniority": "Seniority",
+      "buildIntentAiDefault": "AI default format",
+      "caseTaskFallback": "Task"
     },
     "form": {
       "saveAjd": "Save a JD",
