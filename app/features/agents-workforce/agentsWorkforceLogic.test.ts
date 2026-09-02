@@ -258,6 +258,7 @@ function rosterRow(partial: Partial<AgentRosterEntry> = {}): AgentRosterEntry {
     budgetUsd: 120,
     createdAt: "2026-07-21T00:00:00.000Z",
     updatedAt: null,
+    lastReportAt: null,
     aggregates: agg(),
     backbone: null,
     kpiDeltas: null,

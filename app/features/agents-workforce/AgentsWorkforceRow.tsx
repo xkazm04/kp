@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { BTN_SECONDARY, CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { buildUrl } from "@/app/features/shell/tabs";
 import {
   BACKBONE_MARK,
@@ -56,6 +57,7 @@ export function AgentsWorkforceRow({
   const router = useRouter();
   const search = useSearchParams();
   const errorMessage = useErrorMessage();
+  const relativeTime = useRelativeTime();
   const [refreshing, setRefreshing] = useState(false);
   const [outcome, setOutcome] = useState<{ tone: "ok" | "quiet" | "bad"; text: string } | null>(null);
 
@@ -203,7 +205,17 @@ export function AgentsWorkforceRow({
               {successPct != null ? <span className="block text-sm text-steel">{t("successRate", { rate: successPct })}</span> : null}
             </>
           ) : (
-            <span className="text-steel">{t("noRuns")}</span>
+            // A row with no runs is the one place the operator reads SILENCE, so
+            // it is the one place the liveness receipt belongs: "never heard from"
+            // (check the bridge) reads differently from "heard 4 minutes ago"
+            // (kp is receiving and rejecting, or the agent is idle). Anything the
+            // report route touched stamps this, accepted or not.
+            <>
+              <span className="text-steel">{t("noRuns")}</span>
+              <span className="block text-sm text-steel">
+                {agent.lastReportAt ? t("heardFrom", { when: relativeTime(agent.lastReportAt) }) : t("neverHeardFrom")}
+              </span>
+            </>
           )}
         </td>
         <td className="px-4 py-3">

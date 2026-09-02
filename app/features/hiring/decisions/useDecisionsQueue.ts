@@ -17,6 +17,7 @@ import type { GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
 import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
 import { selectionCacheKey } from "./groupEval/cache-key";
+import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
@@ -77,7 +78,20 @@ export function useDecisionsQueue() {
   const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
   // Governance mode for the next group evaluation (P1-3). "recommendation" keeps the
   // AI-picks-a-lead default; "committee" / "eligibility_list" make the AI advisory.
-  const [evalMode, setEvalMode] = useState<"recommendation" | "committee" | "eligibility_list">("recommendation");
+  const [evalMode, applyEvalMode] = useState<"recommendation" | "committee" | "eligibility_list">("recommendation");
+  // Did the RECRUITER pick the mode showing in the control, or is it the unpersisted
+  // per-mount default (or a mode a cache hit snapped up)? The cache-hit sync needs the
+  // difference: only a deliberate choice is protected from being overwritten.
+  const evalModeChosen = useRef(false);
+  // The exported setter is the SELECTOR's - the only caller is the governance control
+  // in DecisionsHeader, and operating it is what "the recruiter chose this" means.
+  const setEvalMode = (mode: "recommendation" | "committee" | "eligibility_list") => {
+    evalModeChosen.current = true;
+    applyEvalMode(mode);
+  };
+  // Set when a served CACHED evaluation was produced under a different governance mode
+  // than the control now shows; the modal discloses it. Cleared on every open.
+  const [evalGovernanceMismatch, setEvalGovernanceMismatch] = useState<GovernanceCacheMismatch | null>(null);
   const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
   const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
   const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
@@ -524,6 +538,9 @@ export function useDecisionsQueue() {
     setEvalCreatedAt(null);
     setEvalTaskId(null);
     setEvalError(null);
+    // A mismatch belongs to ONE served payload; it must never outlive the open that
+    // produced it, or the next role inherits a disclosure about a different comparison.
+    setEvalGovernanceMismatch(null);
     const hasSelection = Array.isArray(selection) && selection.length > 0;
     const cohortCands = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
     // Selection: send the chosen subset as `candidates` and the FULL cohort as
@@ -563,9 +580,18 @@ export function useDecisionsQueue() {
         // evalMode is unpersisted per-mount state that defaults to "recommendation", so
         // without this a rerun of a committee/eligibility role could re-send
         // "recommendation" and (were the server to trust it) silently auto-seal an AI lead.
-        // The server also enforces this, but syncing the control keeps the UI honest and a
-        // subsequent rerun sends the correct mode.
-        if (payload.governanceMode) setEvalMode(payload.governanceMode);
+        // That anti-DOWNGRADE half is why this sync exists and it still runs.
+        //
+        // What it must NOT do is the other direction. group-eval-governance.ts states the
+        // rule its own server enforces: "a user may always escalate
+        // recommendation->governed; only the silent governed->recommendation downgrade is
+        // blocked." Overwriting in both directions erased a committee mode the recruiter
+        // had just chosen AND served them the saved recommendation-mode comparison as the
+        // answer - two silent losses on one click. syncGovernanceOnCacheHit arbitrates
+        // through the SERVER's ordering, and hands back the disclosure it owes the reader.
+        const sync = syncGovernanceOnCacheHit(payload.governanceMode, evalMode, evalModeChosen.current);
+        applyEvalMode(sync.mode);
+        setEvalGovernanceMismatch(sync.mismatch);
         return;
       }
     }
@@ -639,6 +665,7 @@ export function useDecisionsQueue() {
     waveRole, setWaveRole,
     evalRole, setEvalRole,
     evalMode, setEvalMode,
+    evalGovernanceMismatch,
     evalData, setEvalData,
     evalCreatedAt, setEvalCreatedAt,
     evalTaskId, setEvalTaskId,

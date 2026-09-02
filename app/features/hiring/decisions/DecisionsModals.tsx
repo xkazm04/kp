@@ -12,6 +12,7 @@ import { toast } from "@/app/_components/toast-store";
 import { DecisionRulesModal } from "./DecisionsRulesModal";
 import { DecisionsGroupEvalRejectModal } from "./DecisionsGroupEvalRejectModal";
 import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
+import type { GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { Group } from "./decisionsQueueTypes";
 
@@ -27,6 +28,7 @@ export function DecisionsModals({
   summaryEntry, setSummaryEntry, decide,
   evalRole, setEvalRole, evalData, setEvalData, evalCreatedAt, setEvalCreatedAt,
   evalTaskId, setEvalTaskId, evalError, setEvalError, evalGroup, evalDrift,
+  evalGovernanceMismatch,
   openGroupEval, act,
   rulesOpen, setRulesOpen,
   waveRole, setWaveRole, load, setWaveCommsFailed,
@@ -46,6 +48,7 @@ export function DecisionsModals({
   setEvalError: (v: string | null) => void;
   evalGroup: Group | null;
   evalDrift: number;
+  evalGovernanceMismatch?: GovernanceCacheMismatch | null;
   openGroupEval: (g: Group, rerun?: boolean, selection?: string[]) => void;
   act: (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => void;
   rulesOpen: boolean;
@@ -90,6 +93,7 @@ export function DecisionsModals({
           error={evalError}
           createdAt={evalCreatedAt}
           poolDrift={evalDrift}
+          governanceMismatch={evalGovernanceMismatch}
           onClose={() => {
             setEvalRole(null);
             setEvalData(null);

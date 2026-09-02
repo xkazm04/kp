@@ -272,6 +272,27 @@ Three tables (all tenancy-scoped by `workspace_id`; see `app/_lib/db/agents.ts`)
 Plus the single-row **`personas_bridge`** config (base URL + AES-256-GCM-encrypted `pk_`
 key; `PERSONAS_BRIDGE_URL`/`PERSONAS_BRIDGE_KEY` env vars beat the stored row).
 
+### Reading the silence: `hired_agents.last_report_at`
+
+`hired_agents.last_report_at` is the **liveness receipt** — stamped by
+`recordAgentReportReceipt` as soon as a live token resolves on
+`POST /api/agents/report/[token]`, *before* the body is read or parsed. It is the inbound
+twin of the channels receiver's `recordChannelWebhookReceipt`, and it exists because three
+different clocks were being read as one:
+
+| Signal | Answers | Moves when |
+|---|---|---|
+| `last_report_at` | did Personas reach kp? | any authenticated POST on the report route, **accepted or rejected** |
+| aggregates' `lastActivityAt` | did Personas report real work? | an **accepted** execution/rollup/lifecycle event |
+| `personas_bridge.last_ok_at` | can kp reach Personas? | an **outbound** dispatch/catalog/claim succeeds |
+
+What it means: a hire showing no runs but a recent `last_report_at` is being heard from —
+so a silent roster is the agent's own idleness or a payload kp is rejecting (check the
+route's 400s), not a broken callback. What it does **not** mean: it is not proof any work
+happened, and it never moves for an unknown or retired token, so a hire whose token was
+rotated stays at "never heard from" exactly like one that was never contacted. The roster
+renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
+
 ## Gating & keyless behavior
 
 - **Nav gating**: the Agents tab is visible when `NODE_ENV !== "production"` **or**
