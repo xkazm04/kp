@@ -305,11 +305,26 @@ const worker = {
     if (lastSeen && Date.now() - Date.parse(lastSeen) < quietMin * 60_000) return;
     // ntfy.sh (or any endpoint that accepts a POST body) — free, self-hostable, and
     // no account needed on either side.
-    await fetch(target, {
-      method: "POST",
-      headers: { title: "KP has mail", tags: "inbox_tray" },
-      body: `${pending.n} inbound event${pending.n === 1 ? "" : "s"} waiting. Start your KP studio to file them.`,
-    }).catch(() => {});
+    //
+    // STAMPED ONLY ON A 2xx. `nudged_at` means "the operator has been told", and the
+    // only thing that clears it is a heartbeat — so stamping it after a failed POST
+    // suppressed every retry until the install woke up on its own, which is the one
+    // thing the nudge exists to stop it having to do. A failure is logged with its
+    // status (never the target URL — an ntfy topic is a capability) and left unstamped,
+    // so the next cron tick tries again.
+    let delivered = false;
+    try {
+      const res = await fetch(target, {
+        method: "POST",
+        headers: { title: "KP has mail", tags: "inbox_tray" },
+        body: `${pending.n} inbound event${pending.n === 1 ? "" : "s"} waiting. Start your KP studio to file them.`,
+      });
+      delivered = res.ok;
+      if (!delivered) console.error(`kp-edge: nudge rejected with HTTP ${res.status}; retrying next tick`);
+    } catch (e) {
+      console.error(`kp-edge: nudge could not be sent (${e instanceof Error ? e.name : "unknown"}); retrying next tick`);
+    }
+    if (!delivered) return;
     await setMeta(env, "nudged_at", new Date().toISOString());
   },
 };

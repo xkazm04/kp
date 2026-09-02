@@ -186,28 +186,41 @@ function validateUrl(raw: unknown): string | null {
  */
 export function setEdgeConfig(input: { url?: unknown; secret?: unknown; nudgeTarget?: unknown }): EdgePublicConfig {
   const url = validateUrl(input.url);
-  const row = readRow();
-  let storedSecret: string | null = row?.edge_secret ?? null;
+  // Validate and ENCRYPT before the transaction opens: better-sqlite3 transactions
+  // are synchronous and must stay short, and a throw inside one would roll the write
+  // back anyway. `undefined` here means "keep what is stored" (ats-config contract).
+  let nextSecret: string | null | undefined;
   if (input.secret !== undefined) {
     if (typeof input.secret !== "string") throw new EdgeConfigError("secret must be a string.");
-    if (input.secret === "") storedSecret = null;
+    if (input.secret === "") nextSecret = null;
     else {
       try {
-        storedSecret = encryptAtsSecret(input.secret);
+        nextSecret = encryptAtsSecret(input.secret);
       } catch (e) {
         throw new EdgeConfigError(e instanceof Error ? e.message : "Cannot store the edge secret.");
       }
     }
   }
-  let nudgeTarget: string | null = row?.nudge_target ?? null;
+  let nextNudge: string | null | undefined;
   if (input.nudgeTarget !== undefined) {
-    if (input.nudgeTarget === null || input.nudgeTarget === "") nudgeTarget = null;
+    if (input.nudgeTarget === null || input.nudgeTarget === "") nextNudge = null;
     else if (typeof input.nudgeTarget !== "string") throw new EdgeConfigError("nudgeTarget must be a string.");
-    else nudgeTarget = validateUrl(input.nudgeTarget);
+    else nextNudge = validateUrl(input.nudgeTarget);
   }
+  const now = new Date().toISOString();
+  // READ→COMPUTE→WRITE, so it LOCKS. "Keep the stored secret" is computed from a row
+  // read here; a plain sequence of two statements lets a concurrent save land between
+  // them and this write then carries the OTHER save's secret forward as if it were
+  // ours. IMMEDIATE takes the write lock at BEGIN, which is the repo's first strategy
+  // for exactly this shape (see actOnPipelineEntry).
   db()
-    .prepare(
-      `INSERT INTO edge_config (id, edge_url, edge_secret, nudge_target, cursor, last_error, updated_at)
+    .transaction(() => {
+      const row = readRow();
+      const storedSecret = nextSecret === undefined ? (row?.edge_secret ?? null) : nextSecret;
+      const nudgeTarget = nextNudge === undefined ? (row?.nudge_target ?? null) : nextNudge;
+      db()
+        .prepare(
+          `INSERT INTO edge_config (id, edge_url, edge_secret, nudge_target, cursor, last_error, updated_at)
        VALUES (1, ?, ?, ?, COALESCE((SELECT cursor FROM edge_config WHERE id = 1), 0), NULL, ?)
        ON CONFLICT(id) DO UPDATE SET
          edge_url = excluded.edge_url,
@@ -216,25 +229,47 @@ export function setEdgeConfig(input: { url?: unknown; secret?: unknown; nudgeTar
          cursor = CASE WHEN excluded.edge_url IS NULL THEN 0 ELSE edge_config.cursor END,
          last_error = NULL,
          updated_at = excluded.updated_at`
-    )
-    .run(url, url ? storedSecret : null, nudgeTarget, new Date().toISOString());
+        )
+        .run(url, url ? storedSecret : null, nudgeTarget, now);
+    })
+    .immediate();
   return getEdgeConfig();
 }
 
 /** Mint this install's sealing keypair if it has none, and return the PUBLIC half
  *  to hand to the edge. Idempotent: an existing keypair is reused, because rotating
- *  it would make every event already sealed to the old key unreadable. */
+ *  it would make every event already sealed to the old key unreadable.
+ *
+ *  MINTS ONCE, even under concurrent callers. Key generation is ASYNC (RSA-2048 via
+ *  WebCrypto), so it cannot happen inside a better-sqlite3 transaction — an `await`
+ *  between BEGIN and COMMIT silently drops the atomicity. The bridge is therefore the
+ *  repo's other legal strategy for a read→compute→write: a compensating precondition
+ *  in the UPDATE (`public_jwk IS NULL`) plus a `changes === 0` re-read. Two clicks on
+ *  "Enable sealing" now publish ONE key instead of two, the second call returning the
+ *  winner — the alternative was a second keypair orphaning everything sealed to the
+ *  first, unrecoverably. */
 export async function ensureEdgeKeypair(): Promise<string> {
   const row = readRow();
   if (row?.public_jwk && row?.private_jwk) return row.public_jwk;
   const { publicJwk, privateJwk } = await generateEdgeKeypair();
-  db()
+  const sealedPrivate = encryptAtsSecret(privateJwk);
+  const res = db()
     .prepare(
       `INSERT INTO edge_config (id, public_jwk, private_jwk, cursor, updated_at)
        VALUES (1, ?, ?, 0, ?)
-       ON CONFLICT(id) DO UPDATE SET public_jwk = excluded.public_jwk, private_jwk = excluded.private_jwk, updated_at = excluded.updated_at`
+       ON CONFLICT(id) DO UPDATE SET
+         public_jwk = excluded.public_jwk,
+         private_jwk = excluded.private_jwk,
+         updated_at = excluded.updated_at
+       WHERE edge_config.public_jwk IS NULL OR edge_config.private_jwk IS NULL`
     )
-    .run(publicJwk, encryptAtsSecret(privateJwk), new Date().toISOString());
+    .run(publicJwk, sealedPrivate, new Date().toISOString());
+  if (res.changes === 0) {
+    // Somebody else minted while we were generating. Theirs is the published one.
+    const winner = readRow();
+    if (winner?.public_jwk) return winner.public_jwk;
+    throw new EdgeConfigError("Could not store the sealing keypair.");
+  }
   return publicJwk;
 }
 
