@@ -32,7 +32,12 @@ import { fileURLToPath } from "node:url";
 import { rateLimit } from "../_lib/rate-limit.ts";
 
 function read(rel: string): string {
-  return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+  // Line endings normalised: a checkout with core.autocrlf=true carries CRLF, and
+  // a marker that ends in a newline (the repo-scan call site, chosen so the
+  // import line does not match) then never matches - the test went red on
+  // Windows for an ordering the route had right all along. The contract is
+  // about ORDER in the source, never about the byte that ends a line.
+  return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8").replace(/\r\n/g, "\n");
 }
 
 // The default fixed window; a spec may override it (the devcase chat aggregate is daily).
