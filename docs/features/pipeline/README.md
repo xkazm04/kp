@@ -805,6 +805,22 @@ Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
   producer is paired against the rating itself — nothing yet validates the
   `confidence ≥ 80` auto-advance band against how a hire actually worked out.
   Deliberate: the corpus accrues first.
+- **The market salary band in the drawer is role-FAMILY only, never per level.**
+  `SalaryBenchmarkHint` (`app/features/hiring/pipeline/PipelineSalaryBenchmarkHint.tsx`)
+  accepts a `seniority` and forwards it to `/api/benchmarks/salary`, which bands by
+  it — but the drawer's caller (`PipelineCandidateResultView`) can only pass
+  `roleFamily`, so a junior and a staff offer are set against the SAME corpus band.
+  The data path is the blocker, not the component: `pipeline_entries` has no
+  seniority column (`role_family` is the only denormalized job attribute on it), the
+  job's `jobs.seniority` is never joined into `listPipeline` / `getPipelineEntry`,
+  and the drawer bundle (`app/_lib/candidate-timeline.ts`) does not carry it either.
+  Closing it means one job JOIN plus a new field on the board-entry allowlist
+  (`BOARD_ENTRY_FIELDS`), the `Entry` client contract in
+  `app/features/shared/pipelineTypes.ts`, and the drawer's `Pick` — a projection
+  change across three contracts, deliberately not smuggled in behind a hint line.
+  The candidate's own analyzed seniority is NOT a substitute: it describes the
+  person, and the band describes the role.
+
 - **No free-text note on the recruiting rating, and no way to clear one.**
   `dev_outcomes.note` records fixed provenance ("on-the-job rating recorded in the
   pipeline drawer"); a sentence about a named employee's performance is a different

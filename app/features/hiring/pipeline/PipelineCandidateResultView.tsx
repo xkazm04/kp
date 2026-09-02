@@ -4,6 +4,7 @@ import { CircleDollarSign } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { APPLIED_LABEL, type Result } from "./PipelineCandidateDrawerTypes";
 import { SalaryBenchmarkHint } from "./PipelineSalaryBenchmarkHint";
@@ -22,6 +23,13 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
   const t = useTranslations("pipeline.result");
   const tApplied = useTranslations("pipeline.applied");
   const enumLabel = useEnumLabel();
+  // salary-hint-knows-the-level — every figure in this card reads in the READER's
+  // locale. `Number(x).toLocaleString()` is the RUNTIME's locale (the browser's, or
+  // the server's on an SSR pass), so a Czech reader of an English-default install
+  // got "65,000" beside the market band's "65 000" one line below — two number
+  // grammars in one paragraph. format.ts's number-locale contract is what the
+  // benchmark hint already keeps; the candidate's own band now keeps it too.
+  const { grouped } = useNumberFormat();
   const d = result.data as Record<string, unknown>;
   // Localized applied-outcome label, falling back to the English source for any
   // key not yet in the catalog.
@@ -114,7 +122,7 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
             </span>
           ) : (
             <div className="flex items-baseline gap-2">
-              <span className="font-serif text-2xl text-ink">{Number(d.recommended).toLocaleString()}</span>
+              <span className="font-serif text-2xl text-ink">{grouped(Number(d.recommended))}</span>
               {/* The server deliberately refuses to fabricate a currency (draft_offer
                   labels the offer in the ACTIVE market's currency), so this must not
                   default to "CZK" — that mislabels every non-CZK market. Absent
@@ -139,8 +147,8 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
               </div>
               <p className="text-sm text-steel">
                 {t("band", {
-                  min: Number(d.salaryMin).toLocaleString(),
-                  max: Number(d.salaryMax).toLocaleString(),
+                  min: grouped(Number(d.salaryMin)),
+                  max: grouped(Number(d.salaryMax)),
                   currency: String(d.currency ?? ""),
                 })}
               </p>
