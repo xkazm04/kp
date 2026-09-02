@@ -3817,7 +3817,9 @@
           "processing": "Anruf wird ausgewertet…",
           "unavailable": "Sprache ist auf diesem Server nicht eingerichtet. Bitte im Text fortfahren.",
           "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",
-          "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren."
+          "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren.",
+          "checkFailed": "Ob Sprache verfügbar ist, ließ sich nicht prüfen. Versuchen Sie es erneut oder schreiben Sie weiter.",
+          "recheck": "Erneut prüfen"
         },
         "edit": {
           "start": "Briefing bearbeiten",

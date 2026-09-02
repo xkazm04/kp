@@ -3817,7 +3817,9 @@
           "processing": "Zapisuje se hovor…",
           "unavailable": "Hlas není na tomto serveru nastavený. Pokračujte textem.",
           "failed": "Hovor se nepodařilo spustit. Pokračujte textem.",
-          "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem."
+          "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem.",
+          "checkFailed": "Nepodařilo se zjistit, zda je hlas k dispozici. Zkuste to znovu, nebo pokračujte v textu.",
+          "recheck": "Zkusit znovu"
         },
         "edit": {
           "start": "Upravit zadání",

@@ -460,15 +460,18 @@ them) and `detect_shape` judges the same list, so a sliced sweep would
 misattribute every citation it produces. What the deferral removes is the
 redundant concurrency, not the O(n) per sweep.
 
-Client pieces: `JdsIntakeVoice.tsx` (thin driver) over the pure orchestrator
-`voiceOrchestration.ts` (serializes fast turns, coalesces utterances spoken
-mid-turn, extraction cadence, barge-in via `cancelSpeech`) and the shared
+Client pieces: `JdsIntakeVoice.tsx` (thin driver) over two pure, unit-pinned
+modules — `voiceOrchestration.ts` (the CONVERSATION: serializes fast turns,
+coalesces utterances spoken mid-turn, extraction cadence, barge-in via
+`cancelSpeech`) and `voicePhase.ts` (what the requestor SEES: the
+idle→connecting→live→processing machine, the failure it is showing, the mic /
+blocked-audio cues, and the cancellable post-close hang-up) — over the shared
 transport (`app/_components/voice/transport/openai.ts` — `speakText` /
 `cancelSpeech` are the relay additions). On connect the agent SPEAKS the
 pending question from the text thread (`spokenOpener`) — voice continues the
 same conversation.
 
-Two rules the client half enforces, both unit-pinned:
+Three rules the client half enforces, all unit-pinned:
 
 - **Nothing spoken is thrown away.** Only a DELIVERED utterance is persisted
   server-side, so when a `/voice-turn` POST is refused (429) or blips, the
@@ -479,6 +482,19 @@ Two rules the client half enforces, both unit-pinned:
   — a rate-limited turn must not become a retry loop against a paid endpoint.
   A close keeps the queue for the same reason (recovery), it just stops
   dispatching.
+- **A failure says WHICH failure.** The voice plane resolves failures exactly
+  like the text plane: a non-ok route answer becomes `{code, status}` and is
+  rendered through `useErrorMessage`, so a 429 says "slow down", a keyless
+  install says so, and a provider fault says that (`apiFailure`). The one
+  failure the requestor can fix themselves — a browser microphone denial — is
+  classified apart from a provider outage by the shared `micErrorText` and
+  carries the allow-the-microphone recovery line (`interview.voice.errMicDenied`
+  / `errMicNotFound` / `errMicBusy`, reused verbatim from the candidate voice
+  screen). A `/voice-turn` failure leaves the call UP (the orchestrator requeues
+  the words); only a connect failure ends it. The availability probe
+  distinguishes an install that answered "no provider" from a probe that did not
+  land at all (`readAvailability` → `unconfigured` vs `unknown`) — the second
+  offers a re-check instead of claiming the server is keyless.
 - **A voice result belongs to ONE session.** Both threads resolve long after
   they were fired (an extraction sweep is a model call), by which time the
   requestor may have gone Back and opened another intake — so `onExchange` /
@@ -493,7 +509,8 @@ audio-transits-provider exposure is a Terms-of-Service disclosure item (line
 in the architecture doc), not an architecture dependency.
 
 Keyless/voiceless behavior: no voice key → quiet "not configured" note, text
-untouched. No LLM mid-call → the scripted slot engine IS the fast thread
+untouched (a probe that could not be read says *that* instead, with a re-check —
+`voice.checkFailed` / `voice.recheck`). No LLM mid-call → the scripted slot engine IS the fast thread
 (deterministic, milliseconds, extracts inline). No LLM at extraction → the
 transcript is stored, the brief stays **unchanged**, the UI says so
 (`voice.storedNote`). Rate limits (all pinned in

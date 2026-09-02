@@ -3817,7 +3817,9 @@
           "processing": "Writing up the call…",
           "unavailable": "Voice isn't configured on this server. Continue in text.",
           "failed": "The call didn't go through. Continue in text.",
-          "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text."
+          "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text.",
+          "checkFailed": "Couldn't check whether voice is available. Try again, or continue in text.",
+          "recheck": "Check again"
         },
         "edit": {
           "start": "Edit brief",

@@ -3817,7 +3817,9 @@
           "processing": "Rédaction de l’appel…",
           "unavailable": "La voix n’est pas configurée sur ce serveur. Continuez par écrit.",
           "failed": "L’appel n’a pas abouti. Continuez par écrit.",
-          "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit."
+          "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit.",
+          "checkFailed": "Impossible de vérifier si la voix est disponible. Réessayez ou continuez par écrit.",
+          "recheck": "Vérifier à nouveau"
         },
         "edit": {
           "start": "Modifier le brief",
