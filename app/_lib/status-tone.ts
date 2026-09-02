@@ -41,6 +41,7 @@
 // Pure by design — no React, no next-intl, no DB. The chip that renders these
 // lives in app/_components/StatusChip.tsx; the labels stay in the four catalogs.
 
+import { isInterviewRecommendation, type InterviewRecommendation } from "./interview-recommendation";
 import { roleOf, type StageDef, type StageRole } from "./pipeline-stages";
 
 /** The five reading states, in legend order (nothing-yet → running → blocked →
@@ -157,6 +158,46 @@ export const SUBMISSION_STATUS_TONE: Record<SubmissionStatus, StatusTone> = {
   evaluated: "done",
 };
 
+// ---- Axis 6: the interview / screening VERDICT ------------------------------
+//
+// The one axis that is a JUDGEMENT rather than a lifecycle position, and the last
+// one still painting itself: `advance/hold/reject` had a private `REC_STYLE`
+// class map copy-pasted into FOUR files (the drawer's interview-outcome card, the
+// drawer's human scorecard, the schedule scorecard form, the jobs compare grid).
+// Two of those copies had already drifted in weight, so the same verdict was a
+// different pill twenty pixels apart inside one drawer.
+//
+// It reads through the SAME five tones as every other axis, because the reader's
+// question is the same one: where did this thread get to?
+//   advance → done     it cleared the round
+//   hold    → waiting  a PERSON decides next (this is also the fallback verdict,
+//                      see interview-recommendation.ts — "route to the human gate")
+//   reject  → stopped  it ended without clearing
+//
+// TRADE-OFF, stated: `stopped` renders muted, not red (StatusChip's "STOPPED IS
+// NOT RED" rule). A reject verdict therefore loses the coral it used to carry.
+// That is the price of one legend instead of five palettes, and the chip still
+// SAYS "reject" — colour was never the thing carrying that word. Badge's
+// `interviewRecommendationToken` keeps the red treatment for the surfaces that
+// render a verdict as a standalone badge rather than as a point on the thread.
+export const RECOMMENDATION_TONE: Record<InterviewRecommendation, StatusTone> = {
+  advance: "done",
+  hold: "waiting",
+  reject: "stopped",
+};
+
+/** The pixel echo of {@link RECOMMENDATION_TONE} for the two call sites that
+ *  cannot render a `StatusChip` today: the schedule scorecard's verdict PICKER
+ *  (a pressed button, not a status read-out) and the jobs compare grid (whose
+ *  renderer is a cohort table outside the drawer). ONE table instead of four, so
+ *  the verdict cannot fork again while those surfaces migrate to the chip.
+ *  Tokens only — no raw shades — so both themes hold (design:check). */
+export const RECOMMENDATION_CHIP_CLASS: Record<InterviewRecommendation, string> = {
+  advance: "bg-moss/15 text-moss",
+  hold: "bg-dial-amber/20 text-ink",
+  reject: "bg-coral/10 text-coral",
+};
+
 // ---- Resolvers ---------------------------------------------------------------
 //
 // Each takes the raw stored string. `neutral` is the unknown-value answer; the
@@ -198,4 +239,13 @@ export function interviewStatusTone(status?: string | null): StatusTone {
 export function submissionStatusTone(status?: string | null): StatusTone {
   const v = (status ?? "").trim();
   return isKey(SUBMISSION_STATUS_TONE, v) ? SUBMISSION_STATUS_TONE[v] : "neutral";
+}
+
+/** An interview/screening verdict → tone. Takes the RAW stored/model-emitted
+ *  string on purpose (the same render-boundary rule Badge keeps): an off-taxonomy
+ *  verdict tones `neutral` and the caller shows the raw word, rather than being
+ *  coerced to `hold` and reading as a decision nobody made. */
+export function recommendationTone(recommendation?: string | null): StatusTone {
+  const v = (recommendation ?? "").trim().toLowerCase();
+  return isInterviewRecommendation(v) ? RECOMMENDATION_TONE[v as InterviewRecommendation] : "neutral";
 }

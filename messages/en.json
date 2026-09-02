@@ -2693,7 +2693,9 @@
         "saving": "Saving…",
         "saveFailed": "Couldn't save the rating.",
         "purpose": "Record how this hire actually worked out. It is the ground truth behind the quality-of-hire measurement in Analytics.",
-        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions."
+        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions.",
+        "loadFailed": "Couldn’t load the outcome record.",
+        "retry": "Try again"
       },
       "transfer": "transfer"
     },

@@ -7,18 +7,14 @@
 import { FileText, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { recommendationTone } from "@/app/_lib/status-tone";
 import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
 import { rubricAnchorLine } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { RATING_MAX } from "@/app/_lib/format";
 import { PipelineInterviewTelemetryStrip } from "./PipelineInterviewTelemetryStrip";
 import type { InterviewOutcome } from "./usePipelineCandidateDrawerState";
-
-const REC_STYLE: Record<string, string> = {
-  advance: "bg-moss/15 text-moss",
-  hold: "bg-dial-amber/20 text-ink",
-  reject: "bg-coral/10 text-coral",
-};
 
 export function PipelineInterviewOutcomeCard({
   ivOutcome,
@@ -39,10 +35,14 @@ export function PipelineInterviewOutcomeCard({
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
           <Phone size={13} /> {t("interviewOutcome")}
         </p>
+        {/* ONE THREAD (gap 8) — the verdict is a point on the same thread as the
+            stage chip twenty pixels above it, so it renders through the same chip
+            and the same five-tone legend, instead of a private verdict palette. */}
         {ivOutcome.recommendation ? (
-          <span className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[ivOutcome.recommendation] ?? "bg-stone-100 text-steel"}`}>
-            {enumLabel("recommendation", ivOutcome.recommendation)}
-          </span>
+          <StatusChip
+            tone={recommendationTone(ivOutcome.recommendation)}
+            label={enumLabel("recommendation", ivOutcome.recommendation)}
+          />
         ) : null}
       </div>
       {/* Honest coverage caveat — only when head+tail sampling meant the

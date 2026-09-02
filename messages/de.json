@@ -2693,7 +2693,9 @@
         "saving": "Wird gespeichert…",
         "saveFailed": "Bewertung konnte nicht gespeichert werden.",
         "purpose": "Halten Sie fest, wie sich diese Einstellung tatsächlich entwickelt hat. Sie ist die belastbare Grundlage für die Messung der Einstellungsqualität in Analytics.",
-        "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet."
+        "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet.",
+        "loadFailed": "Der Ergebniseintrag konnte nicht geladen werden.",
+        "retry": "Erneut versuchen"
       },
       "transfer": "Transfer"
     },

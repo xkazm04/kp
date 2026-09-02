@@ -304,8 +304,9 @@ always-visible facet chips underneath (~15 pills, most of them off). Everything
 about the OUTCOME of filtering moved to row two, so row one is a stable line of
 controls whatever the filter state.
 
-The facets are now `PipelineFilterMenu` dropdowns (replacing `PipelineFacetRow`,
-whose chip-grid the bar no longer imports): a closed trigger says only the
+The facets are now `PipelineFilterMenu` dropdowns (they replaced
+`PipelineFacetRow`, whose chip-grid file has since been deleted — it had no
+importers left): a closed trigger says only the
 dimension and what is currently on (`State · Interview +1`), the vocabulary opens
 on click. State/Score/Source are multi-select (menu stays open, coral when
 anything is on); Sort is single-select (commits and closes, and stays neutral —

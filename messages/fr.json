@@ -2693,7 +2693,9 @@
         "saving": "Enregistrement…",
         "saveFailed": "Impossible d’enregistrer l’évaluation.",
         "purpose": "Notez comment ce recrutement s’est réellement passé. C’est la donnée de référence derrière la mesure de la qualité des recrutements dans Analytique.",
-        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées."
+        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées.",
+        "loadFailed": "Impossible de charger la fiche de résultat.",
+        "retry": "Réessayer"
       },
       "transfer": "transfert"
     },

@@ -2,7 +2,8 @@
 
 // One board facet, as a dropdown — State / Score / Source / Sort.
 //
-// These were four labelled rows of always-visible chips (PipelineFacetRow): every
+// These were four labelled rows of always-visible chips (the `PipelineFacetRow`
+// chip grid, deleted once this replaced it): every
 // possible value of every dimension on screen at all times, roughly fifteen pills
 // stacked under the search box, most of them off. The board they filter got what
 // was left. A facet only needs to say TWO things at rest — which dimension it is

@@ -2693,7 +2693,9 @@
         "saving": "Ukládání…",
         "saveFailed": "Hodnocení se nepodařilo uložit.",
         "purpose": "Zaznamenejte, jak se tento nábor ve skutečnosti osvědčil. Je to skutečný výsledek, na kterém stojí měření kvality náboru v Analytice.",
-        "notAutomated": "Viditelné jen ve vašem pracovním prostoru. Kandidátovi se nikdy nezobrazí a nepoužívá se k automatickým rozhodnutím."
+        "notAutomated": "Viditelné jen ve vašem pracovním prostoru. Kandidátovi se nikdy nezobrazí a nepoužívá se k automatickým rozhodnutím.",
+        "loadFailed": "Záznam o výsledku se nepodařilo načíst.",
+        "retry": "Zkusit znovu"
       },
       "transfer": "přenos"
     },
