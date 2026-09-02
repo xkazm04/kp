@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPosting, getSubmission, recordOutbox } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { buildFeedbackBrief } from "@/app/_lib/devcase-feedback";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 
 // d142462d — queue a kind, non-adverse strengths/growth feedback brief for a
@@ -54,6 +55,8 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ ok: true, outboxId: entry.id });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Couldn't queue feedback." }, { status: 500 });
+    // better-sqlite3 + buildFeedbackBrief's model call: provider stderr and store
+    // internals both land in `.message`. Log it, answer a code.
+    return safeJsonError(error, "api:devcase/feedback", "DEVCASE_FEEDBACK_FAILED");
   }
 }

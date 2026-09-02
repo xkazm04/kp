@@ -73,7 +73,7 @@ rather than a snapshot.
 | `npm run test:security` | fixtures for the credential table: every pattern fires, and the real tracked tree is clean |
 | `npm run hooks:check` | `.githooks/*` points at an npm script or a file that no longer exists |
 | `npm run test:bench-driver` | fixtures for the App-master bench driver and its committed baseline |
-| `npm run test:unit` | the node:test suite over `app/**/*.test.ts` and `packages/**/*.test.ts` |
+| `npm run test:unit` | the node:test suite over `app/**/*.test.ts`, `packages/**/*.test.ts` and `edge/**/*.test.ts` |
 | `npm run build` | `next build`, after `schemas:gen` |
 | `npm run lint:ruff-ratchet` | a `ruff.toml` ignore has no ceiling, is over it, or now suppresses nothing |
 | `npm run test:python:gate` | the gated Python suite, or its skip count exceeded `KP_SKIP_BASELINE` |

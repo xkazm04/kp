@@ -6,6 +6,7 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
+    "test": "node --experimental-transform-types --disable-warning=ExperimentalWarning --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "schema": "wrangler d1 execute kp-edge --remote --file=./schema.sql"
   },

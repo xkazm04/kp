@@ -202,6 +202,39 @@ allowlist contains a write tool or a bare unscoped `Bash` — a bare `Bash` gran
 is a write grant with extra steps. `--add-dir` is deliberately unused: the
 session is confined to `cwd`.
 
+### …and secret files are out of scope
+
+Read-only is not the same as *may read everything*. The session was confined to
+`cwd` with `Read`/`Grep`/`Glob` and only DIRECTORIES were ever skipped, so
+`.env`, `.env.local`, `*.pem`, `id_rsa`, `.netrc` and their kind sat inside its
+reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
+`dossier_json` and go out on the wire. Three layers now, from one list
+(`SECRET_FILE_GLOBS`, `pipeline/jobfit/repo_scan.py`):
+
+1. **The CLI is told no.** `bind_provider_to_repo` appends
+   `--settings '{"permissions":{"deny":["Read(./.env)","Read(./**/*.pem)",…]}}'`
+   — two rules per glob, because CLI path rules are anchored. `Read(...)` rules
+   ONLY: asked for `Glob(./.env)` the CLI answers *"not matched by file
+   permission checks — only Read(path) rules are … Read rules cover all
+   file-reading tools"* (verified live on **v2.1.258, 2026-09-02**, where a
+   session given these rules was refused both a `Read` and a `Grep` of a real
+   `.env`). The payload grants nothing; it can only take access away.
+2. **The walk never touches them either.** `walk_files` does not count them (the
+   file EXTENSION feeds the stack line, so a counted `*.pem` publishes "this repo
+   keeps private keys" by another door), `read_kpi_signals` does not name them,
+   and `read_churn` drops them — git history is the one place a committed `.env`
+   surfaces without the filesystem walk ever opening it.
+3. **A deterministic backstop, whatever the provider.** Layer 1 is a fence with
+   assumptions in it (a flag, a rule grammar, a CLI version) and every non-Claude
+   adapter has no fence at all — it answers from the grounding, and text can carry
+   anything. So `redact_dossier` sweeps every refined free-text field at the WIRE
+   boundary (`repo_scan_cli`) for secret-SHAPED values — AWS key ids, PEM blocks,
+   `sk-`/`ghp_`/`xox…` tokens, `NAME_KEY=<20+ chars>` — masks them `[redacted]`
+   and puts the count on the envelope as `redactions`. A redaction nobody can see
+   is a silent edit of the operator's data. The pattern set is deliberately
+   narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
+   `test_repo_scan.RedactionTest` pins both directions.
+
 ### Where the local path is gated
 
 `rootPath` is **fail-closed** (`app/_lib/repo-scan-target.ts`). A server that
@@ -244,8 +277,47 @@ queued scan must not outlive the permission that admitted it — then spawns
 outcome onto the row itself, success *and* failure, so a reaped task leaves an
 honest `failed` row rather than one stuck at `running`.
 
-`GET /api/repo-scan/[id]` returns the row with one field withheld: the resolved
-`rootPath`, replaced by `isLocal: true`. That is the *server's* filesystem after
+**The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
+of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
+now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
+`clone_failed`, `clone_timeout`, `cancelled`, `engine_failed`, `unknown` — set at
+the throw site that observed it (`RepoScanFailure`), never reconstructed later by
+matching English; `error` stays the diagnostic line for the server log. An
+aborted run classifies as `cancelled` **first**, whatever the killed step raised,
+so a Cancel is never reported as an engine fault.
+
+`repo_scans.fallback_class` is the other half: a dossier can *complete* on the
+heuristic floor because the in-repo agent failed, and that read identically to a
+dossier an agent produced. The class is assigned in Python
+(`repo_scan.classify_fallback`, the single definition of `FALLBACK_CLASSES`),
+travels on the CLI envelope as `fallbackClass`, and is mirrored in TS
+(`REPO_SCAN_FALLBACK_CLASSES`) under a set-equality test that reads the Python
+tuple out of the source. The raw reason line is stored beside it and stays
+server-side. A keyless install is **not** a fallback — no agent ran, so nothing
+fell back, and the column stays `null`.
+
+**Phases.** The runner reports `ctx.progress` at `clone` → `walk` → `saving`
+(`REPO_SCAN_PHASE`), so the task row names the live phase instead of showing
+minutes of undifferentiated "running". There is deliberately no `model` phase:
+the agent session runs inside the Python child, which speaks once, at the end, so
+that boundary is not observable from the runner and a guessed one would be the
+cosmetic timeline this replaced.
+
+**Cancel.** The intake card offers "Stop the scan" while a scan is queued or
+running; it goes through the existing `DELETE /api/tasks/[id]` door, matched to
+*this* scan by fetching the full task record and comparing `params.scanId` (the
+polled list projects `params` out). A running scan ends through the abort signal
+the runner already threads into the clone and the Python child; a **queued** one
+is closed by the `repo_scan` handler's `onCancelQueued` hook
+(`cancelQueuedRepoScan`), so it can never sit at `queued` after its task is gone.
+Either way the row lands `failed` / `cancelled`.
+
+`GET /api/repo-scan/[id]` returns the row with TWO fields withheld: the resolved
+`rootPath`, replaced by `isLocal: true`, and `fallbackReason` — the raw
+`"<ExceptionType>: <message>"` line, which is English, unbounded and can quote
+provider output. `errorCode` and `fallbackClass` go out instead, and the intake
+renders them per locale (`library.tab.intake.appMaster.scan.*`); the client never
+renders the server's `error` string. That is the *server's* filesystem after
 symlink resolution, which can differ from what the operator typed. The dossier's
 own `repo.rootPath` still carries it — that is the binding an `AppMasterSpec`
 needs — so this is a projection choice, not a redaction claim.
@@ -682,12 +754,15 @@ spec was composed, and it travels with the spec.
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
 | `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |
-| `runRepoScan(params, signal, workspaceId, lang)` | function | `app/_lib/repo-scan-run.ts` — the `repo_scan` task body |
+| `runRepoScan(params, signal, workspaceId, lang, onProgress, deps)` | function | `app/_lib/repo-scan-run.ts` — the `repo_scan` task body. `deps` injects clone/spawn for the unit test; production passes neither |
 | `shallowClone` / `toRepoScanEnvelope` / `scratchDirFor` / `CLONE_DEPTH` / `CLONE_TIMEOUT_MS` | function / const | the URL path and the envelope contract |
-| `createRepoScan` / `getRepoScanRecord` / `listRepoScans` / `markRepoScanRunning` / `completeRepoScan` / `failRepoScan` | store | `app/_lib/db/repo-scans.ts` |
+| `RepoScanFailure` / `classifyRepoScanError` / `REPO_SCAN_PHASE` | class / function / const | the failure class recorded at the throw site, and the observable phases |
+| `REPO_SCAN_ERROR_CODES` / `REPO_SCAN_FALLBACK_CLASSES` | const | the two closed vocabularies the row stores; the second mirrors `FALLBACK_CLASSES` in `repo_scan.py` |
+| `createRepoScan` / `getRepoScanRecord` / `listRepoScans` / `markRepoScanRunning` / `completeRepoScan` / `failRepoScan` / `cancelQueuedRepoScan` | store | `app/_lib/db/repo-scans.ts` |
 | task kind `repo_scan`, dedupe `repo_scan:<scanId>` | task | `app/_lib/tasks.ts`, `app/_lib/task-dedupe.ts` |
-| `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` | Python | `pipeline/jobfit/repo_scan.py` |
-| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope |
+| `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` / `classify_fallback` / `FALLBACK_CLASSES` | Python | `pipeline/jobfit/repo_scan.py` |
+| `SECRET_FILE_GLOBS` / `is_secret_file` / `claude_deny_rules` / `repo_scan_settings_json` / `redact_secret_values` / `redact_dossier` | Python | same file — the one secret-file list and its three consumers |
+| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope, plus `fallbackClass` and a `redactions` count |
 | `ClaudeCliProvider.with_repo_access(cwd)` / `cli_args()` / `READ_ONLY_TOOLS` / `WRITE_TOOL_DENYLIST` / `READ_ONLY_PERMISSION_MODE` / `PERMISSION_MODES` | Python | `pipeline/jobfit/claude_cli.py` — the read-only repo binding |
 | `repo_scan` LLM use case | config | `pipeline/jobfit/llm/capabilities.py` (`{json}`, 6144 max tokens) + `LLM_USE_CASES` in `app/_lib/llm-config.ts` (Settings → Models, "roles" section) |
 

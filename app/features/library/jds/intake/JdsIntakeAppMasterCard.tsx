@@ -204,6 +204,7 @@ export function JdsIntakeAppMasterCard({
   composeError,
   onCompose,
   onCancelCompose,
+  onCancelScan,
   frozen,
   paired,
   dispatchState,
@@ -222,6 +223,11 @@ export function JdsIntakeAppMasterCard({
   onCompose?: () => void;
   /** Abort an in-flight compose. The spawn behind it can run for minutes. */
   onCancelCompose?: () => void;
+  /** Stop the repo SCAN that is still running (a different, longer thing than the
+   *  compose above: a clone plus an in-repo agent session, minutes of it). Absent
+   *  when there is nothing to cancel — the control is then not rendered, never
+   *  rendered dead. */
+  onCancelScan?: () => void;
   frozen?: boolean;
   /** Personas pairing: null = not read yet, false = dispatch cannot work. */
   paired: boolean | null;
@@ -243,7 +249,18 @@ export function JdsIntakeAppMasterCard({
       </div>
 
       {!dossier ? (
-        <p className="text-body text-steel">{scanNote ?? t("dossier.pending")}</p>
+        <div className="space-y-2">
+          {/* The scan line is the ONLY thing on this card until a dossier lands, so
+              it is also where the way out belongs: a scan pointed at the wrong
+              repository used to be a four-minute wait with no exit, even though the
+              engine has threaded the abort signal end to end the whole time. */}
+          <p className="text-body text-steel">{scanNote ?? t("dossier.pending")}</p>
+          {onCancelScan ? (
+            <button type="button" className={`${BTN_GHOST} h-8 px-3 text-sm`} onClick={onCancelScan}>
+              {t("cancelScan")}
+            </button>
+          ) : null}
+        </div>
       ) : (
         <div className="space-y-1.5">
           <ListRow label={t("dossier.stack")} items={dossier.stack} cap={10} />

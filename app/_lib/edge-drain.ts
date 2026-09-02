@@ -26,14 +26,36 @@
 // skipping past it. Deterministic refusals — an unknown token, a closed role, a lead
 // with no email — are HANDLED: they will never succeed on a retry, so they advance.
 
-import { getEdgeConfig, recordDrain, recordHeartbeat, resolveEdge, type ResolvedEdge } from "./edge-config";
+import {
+  getEdgeConfig,
+  recordDrain,
+  recordHeartbeat,
+  resolveEdge,
+  type EdgeErrorKind,
+  type ResolvedEdge,
+} from "./edge-config";
 import { isSealedBody, signEdgePayload, unsealBody } from "./edge-crypto";
 import { ingestInboundLeadByToken, inboundHandled } from "./inbound-lead";
 import { recordDeliveryReceipt } from "./comms-receipt";
 import { publicBaseUrl } from "./public-base-url";
 
-/** Events applied per drain. Bounds one tick's work; the rest arrives next tick. */
+/** Events applied per PAGE. The edge caps its own answer at 200; 50 keeps one HTTP
+ *  round-trip small and the unseal/apply work per response bounded. */
 const MAX_EVENTS_PER_DRAIN = 50;
+
+/** Pages per tick. The drain used to fetch ONE page and stop, discarding the
+ *  `pending` count the edge had just given it — so a 500-event backlog (a weekend of
+ *  applications after a job ad went out) needed TEN clock ticks to clear, and the
+ *  card showed a cursor creeping while nothing said how much was left. It now keeps
+ *  going while the edge says there is more.
+ *
+ *  Bounded at 5 (=250 events) and not unbounded, deliberately: the drain runs on the
+ *  clock beside every other tick job, each applied event is a real intake write plus
+ *  possibly an acknowledgement email, and an edge that reports a `pending` which
+ *  never falls would otherwise spin this loop forever. What is left after the bound
+ *  is not lost — `pending` is now PERSISTED, the card says so, and the next tick
+ *  continues from the cursor. Pinned in edge-drain.test.ts. */
+const MAX_PAGES_PER_DRAIN = 5;
 const DRAIN_TIMEOUT_MS = 20_000;
 const MAX_DRAIN_BYTES = 4 * 1024 * 1024;
 
@@ -64,7 +86,13 @@ export type DrainSummary = {
   cursor: number;
   /** Events still waiting at the edge after this drain, when the edge reports it. */
   pending: number | null;
+  /** Pages fetched this tick. `pages === MAX_PAGES_PER_DRAIN` with `pending > 0` is
+   *  the honest "there is more, and we stopped on purpose" state. */
+  pages: number;
+  /** The diagnostic, for the server log. NEVER rendered to a reader — see errorKind. */
   error: string | null;
+  /** The CLASS of the failure, which is what the card can say in four languages. */
+  errorKind: EdgeErrorKind | null;
 };
 
 async function edgeFetch(
@@ -168,61 +196,95 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
  */
 export async function drainEdge(): Promise<DrainSummary> {
   const edge = resolveEdge();
-  const summary: DrainSummary = { configured: !!edge, fetched: 0, applied: 0, skipped: 0, cursor: 0, pending: null, error: null };
+  const summary: DrainSummary = {
+    configured: !!edge,
+    fetched: 0,
+    applied: 0,
+    skipped: 0,
+    cursor: 0,
+    pending: null,
+    pages: 0,
+    error: null,
+    errorKind: null,
+  };
   if (!edge) return summary;
   summary.cursor = edge.cursor;
-
-  let events: EdgeEvent[] = [];
-  try {
-    const res = await edgeFetch(edge, `/drain?since=${edge.cursor}&limit=${MAX_EVENTS_PER_DRAIN}`, { method: "GET" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    if (text.length > MAX_DRAIN_BYTES) throw new Error("Drain response too large.");
-    const parsed = JSON.parse(text) as { events?: EdgeEvent[]; pending?: number };
-    events = Array.isArray(parsed.events) ? parsed.events.slice(0, MAX_EVENTS_PER_DRAIN) : [];
-    summary.pending = typeof parsed.pending === "number" ? parsed.pending : null;
-  } catch (e) {
-    summary.error = e instanceof Error ? e.message : "Drain failed.";
-    recordDrain({ cursor: edge.cursor, error: summary.error });
-    return summary;
-  }
-
-  summary.fetched = events.length;
-  const origin = publicBaseUrl(""); // no request here — see pull-pass.ts
   let cursor = edge.cursor;
-  for (const event of events.sort((a, b) => a.seq - b.seq)) {
-    if (typeof event.seq !== "number" || event.seq <= cursor) continue; // already applied
-    let outcome: ApplyOutcome;
+  const origin = publicBaseUrl(""); // no request here — see pull-pass.ts
+
+  // CATCH UP, page by page, while the edge says there is more. Every page is applied
+  // and acked before the next is asked for, so the invariants below still hold one
+  // page at a time; the loop only removes the "one page per tick" ceiling.
+  for (let page = 0; page < MAX_PAGES_PER_DRAIN; page++) {
+    let events: EdgeEvent[] = [];
     try {
-      outcome = await applyEvent(event, edge.privateJwk, origin);
+      const res = await edgeFetch(edge, `/drain?since=${cursor}&limit=${MAX_EVENTS_PER_DRAIN}`, { method: "GET" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      if (text.length > MAX_DRAIN_BYTES) throw new Error("Drain response too large.");
+      const parsed = JSON.parse(text) as { events?: EdgeEvent[]; pending?: number };
+      events = Array.isArray(parsed.events) ? parsed.events.slice(0, MAX_EVENTS_PER_DRAIN) : [];
+      summary.pending = typeof parsed.pending === "number" ? parsed.pending : null;
+      summary.pages = page + 1;
     } catch (e) {
-      // Unsealing or a store write blew up: HOLD. The event stays at the edge and
-      // the operator gets a reason instead of a silently missing candidate.
-      summary.error = e instanceof Error ? e.message : "Event apply failed.";
+      summary.error = e instanceof Error ? e.message : "Drain failed.";
+      summary.errorKind = "unreachable";
       break;
     }
-    if (outcome === "hold") {
-      summary.error = `event ${event.seq} could not be applied yet`;
-      break;
+    if (events.length === 0) break;
+
+    summary.fetched += events.length;
+    const pageStart = cursor;
+    let held = false;
+    for (const event of events.sort((a, b) => a.seq - b.seq)) {
+      if (typeof event.seq !== "number" || event.seq <= cursor) continue; // already applied
+      let outcome: ApplyOutcome;
+      try {
+        outcome = await applyEvent(event, edge.privateJwk, origin);
+      } catch (e) {
+        // Unsealing or a store write blew up: HOLD. The event stays at the edge and
+        // the operator gets a reason instead of a silently missing candidate.
+        summary.error = e instanceof Error ? e.message : "Event apply failed.";
+        summary.errorKind = "held";
+        held = true;
+        break;
+      }
+      if (outcome === "hold") {
+        summary.error = `event ${event.seq} could not be applied yet`;
+        summary.errorKind = "held";
+        held = true;
+        break;
+      }
+      if (outcome === "applied") summary.applied += 1;
+      else summary.skipped += 1;
+      cursor = event.seq;
     }
-    if (outcome === "applied") summary.applied += 1;
-    else summary.skipped += 1;
-    cursor = event.seq;
+
+    // Ack ONLY what was applied. A failed ack is not fatal — the edge re-serves those
+    // events next tick and the idempotency key collides — so it is recorded, not raised.
+    if (cursor > pageStart) {
+      try {
+        const body = JSON.stringify({ upto: cursor });
+        const res = await edgeFetch(edge, `/ack`, { method: "POST", body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // The page we just acked is no longer waiting, whatever the last `pending`
+        // said — that number was measured BEFORE these events were applied.
+        if (typeof summary.pending === "number") summary.pending = Math.max(0, summary.pending - (cursor - pageStart));
+      } catch (e) {
+        summary.error = summary.error ?? `ack failed: ${e instanceof Error ? e.message : "unknown"}`;
+        summary.errorKind = summary.errorKind ?? "ack";
+        // An un-acked page would be re-served forever, so stop asking for more.
+        held = true;
+      }
+    }
+    // A hold means the queue is blocked at this sequence; another page cannot help.
+    if (held) break;
+    if (summary.pending !== null && summary.pending <= 0) break;
+    if (events.length < MAX_EVENTS_PER_DRAIN) break; // a short page IS the end
   }
 
-  // Ack ONLY what was applied. A failed ack is not fatal — the edge re-serves those
-  // events next tick and the idempotency key collides — so it is recorded, not raised.
-  if (cursor > edge.cursor) {
-    try {
-      const body = JSON.stringify({ upto: cursor });
-      const res = await edgeFetch(edge, `/ack`, { method: "POST", body });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (e) {
-      summary.error = summary.error ?? `ack failed: ${e instanceof Error ? e.message : "unknown"}`;
-    }
-  }
   summary.cursor = cursor;
-  recordDrain({ cursor, error: summary.error });
+  recordDrain({ cursor, error: summary.error, errorKind: summary.errorKind, pending: summary.pending });
   return summary;
 }
 

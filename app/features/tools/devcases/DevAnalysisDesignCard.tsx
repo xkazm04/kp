@@ -3,6 +3,7 @@
 // D3 — the designed role + assignment (human gate), split out of
 // DevAnalysisView.tsx.
 import { Check, ClipboardList, Lock, ShieldCheck } from "lucide-react";
+import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
 import { ProvenanceStrip } from "./DevProvenanceStrip";
 import { MiniList, ProbeRow, RubricChip } from "./DevShared";
 import type { Design } from "./DevTypes";
@@ -37,7 +38,7 @@ export function DevAnalysisDesignCard({
         <div className="mb-2 flex items-center gap-2">
           <ClipboardList size={14} className="text-steel" />
           <span className="text-meta uppercase tracking-wide text-steel">Assignment</span>
-          <span className="ml-auto text-micro text-steel">~{design.case?.timeboxHours ?? 4}h</span>
+          <span className="ml-auto text-micro text-steel">~{timeboxHoursForDisplay(design.case?.timeboxHours)}h</span>
         </div>
         <p className="font-semibold text-ink">{design.case?.title}</p>
         <p className="mt-1 text-base text-ink">{design.case?.brief}</p>

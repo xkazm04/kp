@@ -33,12 +33,24 @@ from pipeline.jobfit.claude_cli import (
     ClaudeCliProvider,
 )
 from pipeline.jobfit.repo_scan import (
+    FALLBACK_CLASSES,
+    REDACTED,
+    SECRET_FILE_GLOBS,
     SOURCE_HEURISTIC,
     build_heuristic_dossier,
+    bind_provider_to_repo,
     build_prompt,
+    claude_deny_rules,
+    classify_fallback,
     coerce_repo_dossier,
+    is_secret_file,
+    read_churn,
     read_declared_gates,
+    redact_dossier,
+    redact_secret_values,
+    repo_scan_settings_json,
     scan_repo,
+    walk_files,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -91,6 +103,13 @@ def _make_fixture_repo(root: Path) -> None:
     # The noise a walk must NOT count.
     _write(root / "node_modules/left-pad/index.js", "module.exports = 1;\n")
     _write(root / ".next/cache/blob", "x")
+    # ...and the files it must never open, name or count. Real content on purpose:
+    # a test whose ".env" is empty proves nothing about what leaks.
+    _write(root / ".env", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nDB_PASSWORD=hunter2\n")
+    _write(root / ".env.local", "OPENAI_API_KEY=sk-livekeylivekeylivekeylivekey\n")
+    _write(root / "deploy/server.pem", "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n-----END RSA PRIVATE KEY-----\n")
+    _write(root / "deploy/id_rsa", "-----BEGIN OPENSSH PRIVATE KEY-----\nb3Blb\n-----END OPENSSH PRIVATE KEY-----\n")
+    _write(root / "src/analytics/kpi.key", "not a real key, but named like one")
 
 
 class HeuristicWalkTest(unittest.TestCase):
@@ -382,6 +401,250 @@ class KpSelfScanTest(unittest.TestCase):
         ):
             self.assertIn(gate, dossier.declared_gates)
 
+
+class FallbackClassificationTest(unittest.TestCase):
+    """The fallback reason is a diagnostic; the CLASS is what the panel renders.
+
+    ``classify_fallback`` is the SINGLE definition of that closed vocabulary — the
+    TS mirror in app/_lib/repo-scan-run.ts is checked against this tuple by a
+    node:test that reads this file. The cases below are the real reason lines
+    ``devcase.provenance.describe_fallback`` produces for each way the in-repo
+    agent can fail, so a rewording of one of those messages fails here rather
+    than silently collapsing a nameable failure into "unknown".
+    """
+
+    # VERBATIM from claude_cli.py's raise sites, prefixed the way
+    # describe_fallback prefixes them ("<ExceptionType>: <message>"). Copied
+    # rather than imported on purpose: if one of those messages is reworded, this
+    # test is the thing that notices, instead of a nameable failure quietly
+    # becoming "provider_error" on the operator's screen.
+    CASES = (
+        ("ClaudeCliError: Claude CLI not found (command='claude'). Is it installed and on PATH?", "agent_not_installed"),
+        ("ClaudeCliError: Claude CLI timed out after 300s", "agent_timeout"),
+        ("ClaudeCliError: Claude did not return parseable JSON: '{oops'", "agent_unparseable"),
+        ("ClaudeCliError: Claude CLI produced no output (exit 1).", "agent_unparseable"),
+        ("ClaudeCliError: Claude CLI output was not JSON: 'hello'", "agent_unparseable"),
+        ("ClaudeCliError: Unexpected CLI envelope type: list", "agent_unparseable"),
+        ("ClaudeCliError: Claude CLI stdout exceeded the 8000000 byte cap (runaway output; a normal envelope is kilobytes)", "agent_output_too_large"),
+        ("ClaudeCliError: Claude CLI returned an error (subtype=error_max_turns): unknown", "agent_refused"),
+    )
+
+    def test_every_named_failure_gets_its_own_class(self) -> None:
+        for reason, expected in self.CASES:
+            with self.subTest(reason=reason):
+                self.assertEqual(classify_fallback(reason), expected)
+
+    def test_an_unrecognised_reason_is_a_provider_error_not_a_lie(self) -> None:
+        # Something happened and it came from the provider call — say that much
+        # rather than claiming a class the message does not support.
+        self.assertEqual(classify_fallback("ValueError: the model answered in Klingon"), "provider_error")
+
+    def test_no_reason_at_all_is_unknown(self) -> None:
+        self.assertEqual(classify_fallback(None), "unknown")
+        self.assertEqual(classify_fallback(""), "unknown")
+
+    def test_classification_is_case_insensitive(self) -> None:
+        self.assertEqual(classify_fallback("TimeoutError: The CLI TIMED OUT"), "agent_timeout")
+
+    def test_every_result_is_inside_the_declared_vocabulary(self) -> None:
+        # The UI renders `scan.fellBack<Class>` keys built from this tuple; a class
+        # outside it is a key that does not exist in any of the four catalogs.
+        for reason, _ in self.CASES:
+            self.assertIn(classify_fallback(reason), FALLBACK_CLASSES)
+        for odd in (None, "", "boom", "Exception: ", "not found"):
+            self.assertIn(classify_fallback(odd), FALLBACK_CLASSES)
+
+
+class SecretFileScopeTest(unittest.TestCase):
+    """`.env` and friends are out of scope — for the model AND for the walk.
+
+    Before this, only DIRECTORIES were skipped: the in-repo session was handed the
+    repository root with Read/Grep/Glob and nothing stopped it opening `.env`,
+    `*.pem` or `id_rsa`, and its free-text answers land verbatim in `dossier_json`
+    and go out on the wire. The fence (CLI deny rules) and the floor (the walk
+    never touching them) are pinned here; the redaction backstop is the next class.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "fixture"
+        self.root.mkdir()
+        _make_fixture_repo(self.root)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_the_name_test_is_by_basename_and_case_insensitive(self) -> None:
+        for name in (
+            ".env",
+            ".env.local",
+            ".ENV",
+            "deploy/server.pem",
+            "deploy/id_rsa",
+            "a/b/c/ID_ED25519",
+            "x/.netrc",
+            "config/credentials.json",
+            "secrets.yml",
+            "service-account-prod.json",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(is_secret_file(name), name)
+        for name in ("README.md", "src/billing.ts", "environment.ts", "keyboard.tsx", "package.json"):
+            with self.subTest(name=name):
+                self.assertFalse(is_secret_file(name), name)
+
+    def test_the_walk_never_counts_a_secret_file(self) -> None:
+        # Counting is not innocent: the EXTENSION feeds the stack line, so a
+        # counted `*.pem` publishes "this repo keeps private keys" by another door.
+        total, by_ext = walk_files(self.root)
+        self.assertNotIn(".pem", by_ext)
+        self.assertNotIn(".key", by_ext)
+        dossier = build_heuristic_dossier(self.root, generated_at="2026-01-01T00:00:00+00:00")
+        blob = json.dumps(dossier.model_dump(by_alias=True), ensure_ascii=False)
+        for forbidden in (".env", "server.pem", "id_rsa", "AKIAIOSFODNN7EXAMPLE", "hunter2", "sk-livekey"):
+            self.assertNotIn(forbidden, blob, f"{forbidden} reached the dossier")
+        # NON-VACUITY: the walk still found the repo it was pointed at.
+        self.assertGreater(total, 5)
+        self.assertIn(".ts", by_ext)
+
+    def test_a_committed_secret_never_becomes_a_hot_spot(self) -> None:
+        # git history is the one door the filesystem walk does not guard: a
+        # committed `.env` churns like any other file.
+        if subprocess.run(["git", "--version"], capture_output=True).returncode != 0:
+            self.skipTest("git is not available")
+        env = {
+            **os.environ,
+            "GIT_AUTHOR_NAME": "T",
+            "GIT_AUTHOR_EMAIL": "t@example.com",
+            "GIT_COMMITTER_NAME": "T",
+            "GIT_COMMITTER_EMAIL": "t@example.com",
+        }
+        for args in (["init", "-q"], ["add", "-A", "-f"], ["commit", "-q", "-m", "seed"]):
+            subprocess.run(["git", *args], cwd=self.root, env=env, capture_output=True, check=False)
+        ranked, commits, _authors = read_churn(self.root, depth=50)
+        if commits == 0:
+            self.skipTest("the fixture commit did not take in this environment")
+        paths = [p for p, _ in ranked]
+        self.assertTrue(paths, "the churn read found no paths at all")
+        for path in paths:
+            self.assertFalse(is_secret_file(path), f"{path} was published as a hot spot")
+
+    def test_the_deny_rules_cover_every_glob_at_the_root_and_below(self) -> None:
+        rules = claude_deny_rules()
+        for pattern in SECRET_FILE_GLOBS:
+            self.assertIn(f"Read(./{pattern})", rules)
+            self.assertIn(f"Read(./**/{pattern})", rules)
+        # Read rules ONLY: the CLI (v2.1.258) refuses to match Grep/Glob path rules
+        # and says so on stderr, and a Read rule already covers every file-reading
+        # tool. Emitting the others would add a warning line to every scan.
+        for rule in rules:
+            self.assertTrue(rule.startswith("Read("), rule)
+
+    def test_the_settings_payload_only_ever_takes_access_away(self) -> None:
+        payload = json.loads(repo_scan_settings_json())
+        self.assertEqual(set(payload), {"permissions"})
+        self.assertEqual(set(payload["permissions"]), {"deny"})
+        self.assertIn("Read(./.env)", payload["permissions"]["deny"])
+
+    def test_a_repo_bound_provider_carries_the_deny_rules(self) -> None:
+        provider = ClaudeCliProvider(command=__file__)
+        bound = bind_provider_to_repo(provider, "/repo")
+        args = bound.cli_args()
+        self.assertIn("--settings", args)
+        deny = json.loads(args[args.index("--settings") + 1])["permissions"]["deny"]
+        self.assertIn("Read(./.env)", deny)
+        self.assertIn("Read(./**/*.pem)", deny)
+        # The read-only stance is still the one with_repo_access validated.
+        self.assertEqual(args[args.index("--permission-mode") + 1], READ_ONLY_PERMISSION_MODE)
+        # ...and the shared provider did not inherit any of it.
+        self.assertEqual(provider.extra_args, ())
+
+
+class RedactionTest(unittest.TestCase):
+    """The backstop. The deny rules are a fence with assumptions in them (a flag, a
+    rule grammar, a CLI version), and every non-Claude adapter has no fence at all,
+    so every refined free-text field is swept for secret-SHAPED values on the way
+    out. Narrow on purpose: the negatives below must survive untouched."""
+
+    POSITIVES = (
+        ("AKIAIOSFODNN7EXAMPLE", "an AWS access key id"),
+        ("aws key AKIAIOSFODNN7EXAMPLE in config", "embedded in a sentence"),
+        ("-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n-----END RSA PRIVATE KEY-----", "a PEM block"),
+        ("OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz", "an assignment with a keyspace"),
+        ("sk-abcdefghijklmnopqrstuvwxyz012345", "a provider key on its own"),
+        ("ghp_abcdefghijklmnopqrstuvwxyz0123", "a GitHub token"),
+        ("DB_PASSWORD: correcthorsebatterystapler", "a colon assignment"),
+    )
+
+    NEGATIVES = (
+        "https://github.com/acme/widget/blob/main/src/pay.ts",
+        "deadbeefcafebabe1234567890abcdef12345678",
+        "The billing module is the riskiest area: three owners, no tests.",
+        "app/_lib/db/core.ts",
+        "npm run test:unit",
+        "KEY=short",
+        "Set OPENAI_API_KEY in your environment before running.",
+    )
+
+    def test_every_secret_shape_is_masked_and_counted(self) -> None:
+        for text, why in self.POSITIVES:
+            with self.subTest(why=why):
+                masked, hits = redact_secret_values(text)
+                self.assertGreaterEqual(hits, 1, why)
+                self.assertIn(REDACTED, masked)
+                # The secret itself is gone, not merely annotated.
+                for token in (
+                    "AKIAIOSFODNN7EXAMPLE",
+                    "MIIEow",
+                    "sk-abcdefghij",
+                    "ghp_abcdefghij",
+                    "correcthorsebatterystapler",
+                ):
+                    if token in text:
+                        self.assertNotIn(token, masked)
+
+    def test_ordinary_text_survives_untouched(self) -> None:
+        for text in self.NEGATIVES:
+            with self.subTest(text=text):
+                masked, hits = redact_secret_values(text)
+                self.assertEqual(hits, 0, text)
+                self.assertEqual(masked, text)
+
+    def test_the_sweep_reaches_every_free_text_field_and_returns_the_count(self) -> None:
+        dossier = {
+            "maintainerLoadEstimate": "one maintainer; deploy key AKIAIOSFODNN7EXAMPLE is shared",
+            "riskAreas": [{"ref": "src/pay.ts", "rationale": "hardcoded sk-abcdefghijklmnopqrstuvwxyz"}],
+            "hotSpots": [{"ref": "src/billing.ts", "rationale": "changes weekly"}],
+            "candidateObjectives": [
+                {"label": "cut GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0 usage", "rationale": None}
+            ],
+            "existingKpis": ["src/analytics/kpi.ts", "note: DB_PASSWORD=correcthorsebatterystapler"],
+            "contexts": [{"name": "billing"}],
+        }
+        hits = redact_dossier(dossier)
+        self.assertEqual(hits, 4)
+        blob = json.dumps(dossier, ensure_ascii=False)
+        for token in ("AKIAIOSFODNN7EXAMPLE", "sk-abcdefghij", "ghp_abcdefghij", "correcthorsebatterystapler"):
+            self.assertNotIn(token, blob)
+        # Untouched fields stay byte-identical; a sweep must not rewrite the dossier.
+        self.assertEqual(dossier["hotSpots"][0]["rationale"], "changes weekly")
+        self.assertEqual(dossier["contexts"], [{"name": "billing"}])
+
+    def test_a_clean_dossier_reports_zero_and_is_unchanged(self) -> None:
+        clean = {
+            "maintainerLoadEstimate": "two maintainers, steady cadence",
+            "riskAreas": [{"ref": "src/pay.ts", "rationale": "no tests"}],
+            "hotSpots": [],
+            "candidateObjectives": [],
+            "existingKpis": ["src/analytics/kpi.ts"],
+        }
+        before = json.dumps(clean, sort_keys=True)
+        self.assertEqual(redact_dossier(clean), 0)
+        self.assertEqual(json.dumps(clean, sort_keys=True), before)
+
+    def test_a_non_dossier_is_survived_not_raised_on(self) -> None:
+        for odd in (None, [], "text", 7):
+            self.assertEqual(redact_dossier(odd), 0)
 
 if __name__ == "__main__":
     unittest.main()

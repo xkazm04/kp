@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
+import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft } from "./liveWorkDraft";
 
@@ -70,6 +71,14 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // Server-side refusal of this session id for this apply link (403). Never silent:
   // the candidate is told their work is held on this device and how to reconnect.
   const [syncBlocked, setSyncBlocked] = useState(false);
+  // Why the SERVER refused, in the candidate's language. The mint used to fail
+  // silently — `ensureSession` answered null and nothing reached the screen — so a
+  // candidate whose apply link had closed, or whose link had spent its day of
+  // sessions, kept typing into a surface that was recording nothing and learnt about
+  // it only when Submit failed with the generic line. The refusals now carry codes
+  // (REFUSAL_ERRORS), and this is where they are read.
+  const [refusal, setRefusal] = useState<ApiErrorPayload | null>(null);
+  const errMsg = useErrorMessage();
   const persistDraft = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
@@ -126,7 +135,15 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
         });
-        if (!r.ok) return null;
+        if (!r.ok) {
+          // A refusal, not a fault: 404 (this link is not taking work) and 429 (this
+          // link has spent its day of sessions) are both terminal-ish and both have a
+          // code. Show it; retrying into a wall silently is the failure being fixed.
+          const payload = (await r.json().catch(() => null)) as ApiErrorPayload | null;
+          setRefusal(payload?.code ? payload : { code: null, error: null });
+          return null;
+        }
+        setRefusal(null);
         const data = (await r.json()) as { sessionId?: string; watermark?: string };
         sessionIdRef.current = data.sessionId ?? null;
         // Session watermark (LLM-era controls #4): stamp the session reference into
@@ -302,6 +319,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         const payload = (await r.json().catch(() => null)) as { submissionId?: string } | null;
         setSubmissionRef(typeof payload?.submissionId === "string" ? payload.submissionId : null);
       } else {
+        // The 410 is still what makes this terminal, but the reason now rides a code
+        // the catalog can render — the response body used to carry an English sentence
+        // hand-copied from REFUSAL_ERRORS.POSTING_CLOSED and no code at all.
+        const payload = (await r?.json().catch(() => null)) as ApiErrorPayload | null;
+        setRefusal(payload?.code ? payload : null);
         setErrorKind(r?.status === 410 ? "closed" : "generic");
       }
       setStatus(ok ? "submitted" : "error");
@@ -402,6 +424,11 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       {syncBlocked ? (
         <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" role="status">
           {t("syncBlocked")}
+        </p>
+      ) : null}
+      {refusal && status !== "error" ? (
+        <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-800" role="alert">
+          {errMsg(refusal, t("error"))}
         </p>
       ) : null}
 
@@ -544,7 +571,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           {status === "submitting" ? t("submitting") : t("submit")}
         </button>
         {status === "error" ? (
-          <span className="text-sm text-red-700">{t(errorKind === "closed" ? "errorClosed" : "error")}</span>
+          <span className="text-sm text-red-700">
+            {errMsg(refusal, t(errorKind === "closed" ? "errorClosed" : "error"))}
+          </span>
         ) : null}
       </div>
     </section>

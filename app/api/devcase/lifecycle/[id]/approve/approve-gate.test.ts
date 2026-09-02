@@ -31,8 +31,14 @@ test("off-gate reviewer edits are rejected with 409, not silently dropped", () =
 // in the audit reason the reviewer reads.
 test("the approve gate clamps a reviewer-edited timebox to the shared cap", () => {
   assert.doesNotMatch(src, /timeboxHours\s*<=\s*80/, "the 80h ceiling must be gone");
-  assert.match(src, /clampTimeboxHours/, "the timebox must go through the shared clamp");
+  assert.match(src, /timeboxClamp/, "the timebox must go through the shared clamp");
   assert.match(src, /from "@\/app\/_lib\/devcase-timebox"/, "the bound must be imported, not re-typed");
   assert.match(src, /timeboxClamped/, "a clamped edit must be distinguishable from an accepted one");
-  assert.match(src, /timebox clamped to the/, "the clamp must reach the reviewer's audit trail");
+  // The audit note is STRUCTURED, not an English sentence: `timebox_clamped from=<n> to=<n>`,
+  // produced from the same { code, from, to } the review panel renders per locale. A raw
+  // prose note is unqueryable and only readable in one language.
+  assert.match(src, /timeboxClamped\.code/, "the clamp's machine code must reach the audit trail");
+  assert.match(src, /from=\$\{/, "the audit note must carry the number the reviewer typed");
+  assert.match(src, /to=\$\{/, "the audit note must carry the number the candidate gets");
+  assert.doesNotMatch(src, /timebox clamped to the/, "the clamp note must not be English prose");
 });

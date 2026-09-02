@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { clampTimeboxHours, timeboxClamp } from "@/app/_lib/devcase-timebox";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Markdown } from "@/app/_components/Markdown";
 import { approveFallbackFor, caseToMarkdown } from "./DevHelpers";
@@ -44,19 +45,27 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
   const [error, setError] = useState<string | null>(null);
 
   const editedTasks = tasksText.split("\n").map((t) => t.trim()).filter(Boolean);
-  const timeboxNum = Number(timebox);
+  // The timebox is POLICY, and the server clamps it to the 2h cap on a candidate's
+  // unpaid work. The panel used to send the raw typed number and preview it verbatim,
+  // so a reviewer typed 8, saw "~8h" in the candidate-safe preview, approved, and the
+  // candidate received 2h with no notice on either screen. Clamp HERE too, with the
+  // same shared rule the route uses (never a second copy of the bound), and show the
+  // rewrite inline as it happens rather than burying it in the audit trail.
+  const timeboxRaw = timebox.trim();
+  const timeboxHours = timeboxRaw ? clampTimeboxHours(timeboxRaw) : null;
+  const clamped = timeboxRaw ? timeboxClamp(timeboxRaw) : null;
   const edits: Record<string, unknown> = {};
   if (title.trim() && title.trim() !== (kase.title ?? "")) edits.title = title.trim();
   if (brief.trim() && brief.trim() !== (kase.brief ?? "")) edits.brief = brief.trim();
   if (editedTasks.join("\n") !== (kase.tasks ?? []).join("\n") && editedTasks.length > 0) edits.tasks = editedTasks;
-  if (timebox.trim() && Number.isFinite(timeboxNum) && timeboxNum > 0 && timeboxNum !== kase.timeboxHours) edits.timeboxHours = timeboxNum;
+  if (timeboxHours != null && timeboxHours !== kase.timeboxHours) edits.timeboxHours = timeboxHours;
   const hasEdits = Object.keys(edits).length > 0;
 
   // Live candidate-safe preview: what the candidate would actually receive,
   // including the reviewer's in-flight edits. caseToMarkdown excludes probes
   // by construction.
   const preview = caseToMarkdown(
-    { ...kase, title: title.trim() || kase.title, brief: brief.trim() || kase.brief, tasks: editedTasks.length ? editedTasks : kase.tasks, timeboxHours: Number.isFinite(timeboxNum) && timeboxNum > 0 ? timeboxNum : kase.timeboxHours },
+    { ...kase, title: title.trim() || kase.title, brief: brief.trim() || kase.brief, tasks: editedTasks.length ? editedTasks : kase.tasks, timeboxHours: timeboxHours ?? kase.timeboxHours },
     lc.role ?? null
   );
 
@@ -142,6 +151,9 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
             {t("fieldTimebox")}
             <input value={timebox} onChange={(e) => setTimebox(e.target.value)} inputMode="numeric" className={inputClass} />
           </label>
+          {clamped ? (
+            <p className="text-micro text-amber-700">{t("timeboxClamped", { from: clamped.from, to: clamped.to })}</p>
+          ) : null}
           {probes.length > 0 ? (
             <div className="rounded border border-stone-200 bg-paper/50 p-2">
               <p className="flex items-center gap-1 text-micro font-semibold uppercase tracking-wide text-steel">

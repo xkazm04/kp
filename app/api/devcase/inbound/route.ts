@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
     // submission nobody will process ("queued, never ghosts" cuts both ways:
     // a false ack IS a ghost with extra steps).
     if (posting.status === "closed") {
-      return NextResponse.json(
-        { error: "This role's intake has closed and is no longer accepting submissions." },
-        { status: 410 }
-      );
+      // Same refusal, same code as the catch below and as the live-session finalize —
+      // three doors onto one intake must not disagree about what they say, and the
+      // English sentence was hand-copied into two of them.
+      return jsonRefusal("POSTING_CLOSED", 410);
     }
     const postingId = posting.id;
     if (!body.candidate || !body.repoRef) {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
-import { readRepoScanResponse, type IntakeSession, type RepoScanView, type ScanState } from "./jdsIntakeLogic";
+import { readRepoScanResponse, scanStateFor, type IntakeSession, type RepoScanView, type ScanState } from "./jdsIntakeLogic";
 
 // App master (docs/features/app-master/README.md): the client half of the third
 // intake shape. Two jobs, both split out of jdsIntakeLogic so that file stays
@@ -46,7 +46,7 @@ export function useAppMasterLogic(
   /** The identity-checked session updater from useIntakeLogic. */
   applySession: (intakeId: string, patch: Partial<IntakeSession>) => void
 ) {
-  const { tasks } = useTasks();
+  const { tasks, fetchTask, cancelTask } = useTasks();
   const [scanState, setScanState] = useState<ScanState>(null);
   const [composing, setComposing] = useState(false);
   // The server's machine CODE, never its English `error` string — the card
@@ -81,7 +81,10 @@ export function useAppMasterLogic(
         const scan = readRepoScanResponse(await res.json());
         if (!scan) throw new Error("unrecognized /api/repo-scan payload");
         if (cancelled) return;
-        setScanState(scan.status);
+        // The row's own honest reading of itself: which failure, or which agent
+        // fallback is hiding behind a "complete". Not `scan.status`, which
+        // collapsed both to one word.
+        setScanState(scanStateFor(scan));
         if (scan.status !== "complete" || !scan.dossier) return;
         posted.current = scanId;
         const post = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/dossier`, {
@@ -108,7 +111,10 @@ export function useAppMasterLogic(
         };
         if (cancelled) return;
         applySession(intakeId, { brief: payload.brief, shape: payload.shape, dossier: payload.dossier });
-        setScanState(null);
+        // A clean completion has nothing left to say; a completion that fell back
+        // keeps saying so, because the dossier is thinner than the card looks and
+        // this is the moment the requestor can still fix the agent and re-scan.
+        setScanState(scanStateFor(scan));
       } catch {
         // The queue or the scan route did not answer. `tasks` is stale rather
         // than empty, so say "unreachable" instead of rendering silence as done.
@@ -124,6 +130,53 @@ export function useAppMasterLogic(
       window.clearTimeout(timer);
     };
   }, [tasks, scanId, intakeId, hasDossier, applySession]);
+
+  // ---- Cancelling the scan --------------------------------------------------
+  //
+  // The engine already threads the abort signal end to end (runRepoScan → the git
+  // clone and the Python child both take it), and DELETE /api/tasks/[id] is the door
+  // to it — but no surface ever knocked, so a four-minute scan of the wrong
+  // repository could only be waited out.
+  //
+  // Finding WHICH task is this scan's is the one awkward part: the polled task list
+  // projects `params` out (they can be multi-MB), so the scanId is not on it. The
+  // active `repo_scan` rows are few — at most the two runner slots plus a queue — so
+  // the full record is fetched for those and matched by params.scanId. Resolved once
+  // per session and cached; a wrong guess here would cancel somebody else's scan.
+  const [scanTaskId, setScanTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!scanId || scanTaskId || hasDossier) return;
+    const candidates = tasks.filter((t) => t.kind === "repo_scan" && (t.status === "queued" || t.status === "running"));
+    if (candidates.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const candidate of candidates) {
+        const full = await fetchTask(candidate.id);
+        if (cancelled) return;
+        if ((full?.params as { scanId?: unknown } | null)?.scanId === scanId) {
+          setScanTaskId(candidate.id);
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks, scanId, scanTaskId, hasDossier, fetchTask]);
+
+  /** `null` when there is nothing to cancel — the control is then not rendered at
+   *  all, rather than rendered dead. A queued scan cancels as truly as a running
+   *  one: the `repo_scan` handler's `onCancelQueued` hook moves the row to
+   *  `failed`/`cancelled` so it cannot sit at `queued` forever. */
+  const cancellable =
+    scanTaskId !== null &&
+    (scanState === "queued" || scanState === "running") &&
+    !hasDossier;
+  const cancelScan = useCallback(() => {
+    if (!scanTaskId) return;
+    void cancelTask(scanTaskId);
+  }, [scanTaskId, cancelTask]);
 
   const composeAppMaster = useCallback(async () => {
     if (!intakeId || composing) return;
@@ -202,6 +255,10 @@ export function useAppMasterLogic(
     setScanState(null);
     setComposeError(null);
     setDispatchState({ status: "idle" });
+    // …and the task this session's scan resolved to. Cancelling the PREVIOUS
+    // session's scan from the new session's button is exactly the class of bug the
+    // reset block exists to prevent.
+    setScanTaskId(null);
   }
 
   // A compose belongs to the session it was started from, so a session switch
@@ -261,6 +318,8 @@ export function useAppMasterLogic(
 
   return {
     scanState,
+    /** Cancel this session's scan, or `null` when there is nothing to cancel. */
+    cancelScan: cancellable ? cancelScan : null,
     composeAppMaster,
     cancelCompose,
     composing,

@@ -333,7 +333,9 @@ power is "may talk to this queue". Once the install publishes a sealing key
 (Channels → Edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
 stores either: bodies are AES-256-GCM sealed under a key wrapped to the install's
 public RSA key (`app/_lib/edge-crypto.ts`), and the private half never leaves the
-machine. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
+machine. The keypair is minted **once**: two "Enable sealing" clicks publish one
+key, the loser re-reading the winner, because a second keypair would orphan
+everything already sealed to the first. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
 same reason `comms_relay_config` is; the leads it produces are filed into the
 workspace of the RECEIVER TOKEN they were addressed to, by the core.
 
@@ -351,15 +353,50 @@ this version does not understand) is **handled** and advances the cursor — a r
 would only reproduce it. Anything 5xx-class **holds**: the page stops at the last
 good sequence and the operator gets a reason on the Channels card.
 
+The drain **catches up across pages**: while the edge reports events still waiting it
+fetches the next page, up to `MAX_PAGES_PER_DRAIN = 5` (250 events) per tick. Bounded
+rather than unbounded because each applied event is a real intake write, and an edge
+whose `pending` never falls would otherwise spin the loop; what is left over is not
+lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
+stops the run rather than asking for another page, because events are ordered.
+
+The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
+backlog still at the edge, last heartbeat — each with a relative time in the reader's
+locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
+distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
+and the drain then does nothing forever. Failures are shown by CLASS
+(`unreachable` / `held` / `ack` / `unknown`, `EDGE_ERROR_KINDS` in `edge-config.ts`),
+never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
+`EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
+
 Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
 `x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the
 body for a POST and the path+query for a GET. Both halves of that choice are
-pinned across the two runtimes by `edge-drain.test.ts`.
+pinned across the two runtimes by `edge-drain.test.ts`. **Inside** that window each
+signature is spent once: the Worker's `nonces` table (`edge/schema.sql`) records
+`sha256(signature)` on `/drain`, `/ack`, `/heartbeat` and `/pair`, and a second
+presentation is `409` — without it a captured `POST /ack {upto}` replayed for five
+minutes and deleted events the install had never applied.
+
+The edge's `POST /relay/callback` is held to the same four rules as the install's own
+callback (`app/api/comms/callback` + `callback-auth.ts`), because a receipt becomes a
+`bounced` outbox row either way: unset `KP_CALLBACK_SECRET` disables the route (503);
+`x-comms-secret` is compared in constant time from the HEADER only; `x-comms-timestamp`
+must be within ±5 minutes; and a nonce (`x-comms-nonce`, else derived) makes a replay a
+409 rather than a second bounce. It was previously open — anyone who learned the Worker
+URL could inject bounces. Malformed input is `400` everywhere and a storage failure is
+`503 {retryable:true}` with `Retry-After`, never a 4xx a sender would stop retrying.
+`edge/test/worker.test.ts` (`cd edge && npm test`, no wrangler and no network) drives
+these refusals; it is not part of `npm run test:unit`, whose globs are `app/**` and
+`packages/**`.
 
 **The nudge** — "your studio needs to run" — lives on the Worker's cron, not here,
 for the obvious reason: the machine that is switched off cannot be the machine
 that notices it is switched off. One nudge per quiet period (`nudged_at` is
-cleared by the next heartbeat), carrying COUNTS, never names.
+cleared by the next heartbeat), carrying COUNTS, never names. `nudged_at` is
+stamped **only after a 2xx** from the nudge target: a failed POST is logged with
+its status and left unstamped, so the next cron tick tries again instead of the
+backlog going quiet until the install happens to wake on its own.
 
 **Mail is stored as headers only** (sender + subject). An emailed CV therefore
 arrives as a *lead* whose acknowledgement carries the enrichment link, not as a

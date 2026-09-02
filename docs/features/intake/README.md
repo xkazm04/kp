@@ -108,6 +108,24 @@ JD has ever had.
   **shared TasksProvider poll** — no second poller: its `tasks` array is
   referentially stable across no-op polls, so `useAppMasterLogic`'s effect fires
   exactly when a task's state moves.
+- **…and it can be stopped.** The App-master card offers "Stop the scan" for as
+  long as the scan is `queued` or `running`, through the existing task-cancel
+  door (`DELETE /api/tasks/[id]`) on the task whose `params.scanId` matches this
+  session's — resolved once with `fetchTask`, because the polled list projects
+  `params` out. The row lands `failed` / `cancelled`, queued or running alike.
+- **The scan line says what actually happened.** `scanStateFor`
+  (`jdsIntakeLogic.ts`, pure + unit-tested) maps the row to one `ScanState`, and
+  every member of that union is a message key under
+  `library.tab.intake.appMaster.scan.*`, so a state with no catalog entry is a
+  `tsc` error rather than a blank line. Two families were added to what used to
+  be a four-word enum: `failed*` (the row's `errorCode` — "git is not installed
+  here", "offline mode refuses remote clones", "the scan was stopped") and
+  `fellBack*` (a scan that COMPLETED, but on the file-walk floor because the
+  in-repo agent died — the dossier is real and thinner than it looks, and this is
+  the moment the requestor can still fix the agent and re-scan). An unrecognised
+  code falls to the generic line; a keyless install shows no fallback at all,
+  because nothing fell back. Details in
+  [`docs/features/app-master/README.md`](../app-master/README.md) §Lifecycle.
 - **The poll reads through the route's wrapper.** `GET /api/repo-scan/[id]`
   answers `{ scan }`, and `readRepoScanResponse` (`jdsIntakeLogic.ts`, pure +
   unit-tested) is the one place that unwraps it. It used to be read flat, so
@@ -564,8 +582,8 @@ the requestor goes Back and opens a different intake. The async half of this was
 already handled: every late voice/compose result is folded through the
 identity-checked `applySession`, "so a result must name the session it belongs to."
 `useAppMasterLogic`'s **synchronous** state now follows the same rule. `scanState`,
-`composeError` and `dispatchState` are cleared in a render-phase guard keyed on the
-intake id (the `jobsTabDeepLink.ts` shape — an effect would let one frame render the
+`composeError`, `dispatchState` and the resolved scan `taskId` are cleared in a
+render-phase guard keyed on the intake id (the `jobsTabDeepLink.ts` shape — an effect would let one frame render the
 previous session's claims). `paired` is not reset: the Personas bridge is
 workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
 
