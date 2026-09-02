@@ -154,7 +154,13 @@ export async function runRepoScan(
   const scan = getRepoScanRecord(scanId, workspaceId);
   if (!scan) throw new Error(`repo scan not found: ${scanId}`);
 
-  markRepoScanRunning(scanId, workspaceId);
+  // A skipped transition is a fact about the RUN, not a failure of the scan: the row
+  // already reached a terminal state (a reaped task the queue handed out again). Say
+  // so once and carry on — the terminal writes below are guarded the same way, so
+  // this run cannot overwrite the result that already stands.
+  if (!markRepoScanRunning(scanId, workspaceId)) {
+    console.warn(`[repo-scan] ${scanId}: skipped the running transition (row is already ${scan.status}).`);
+  }
   let scratch: string | null = null;
   try {
     // Re-validate the target INSIDE the runner rather than trusting the row. The
@@ -189,13 +195,22 @@ export async function runRepoScan(
     const envelope = toRepoScanEnvelope(parsePythonJson<unknown>(stdout, stderr));
 
     const record = completeRepoScan(scanId, { dossier: envelope.result, source: envelope.source }, workspaceId);
-    if (!record) throw new Error(`repo scan disappeared while running: ${scanId}`);
-    return { record, source: envelope.source, fallbackReason: envelope.fallbackReason };
+    if (record) return { record, source: envelope.source, fallbackReason: envelope.fallbackReason };
+
+    // The complete did not apply. Either the row moved to a terminal state while this
+    // run was working (cancelled, reaped-and-rerun) — in which case the row that
+    // stands is the answer and this result is dropped — or it is genuinely gone.
+    const current = getRepoScanRecord(scanId, workspaceId);
+    if (!current) throw new Error(`repo scan disappeared while running: ${scanId}`);
+    console.warn(`[repo-scan] ${scanId}: skipped the complete transition (row is already ${current.status}).`);
+    return { record: current, source: envelope.source, fallbackReason: envelope.fallbackReason };
   } catch (error) {
     // The row is the thing the operator polls, so a failure has to land ON it — not
     // only on the task. `failed` with a reason beats a row stuck at `running`.
     const message = error instanceof Error ? error.message : "The repository scan failed.";
-    failRepoScan(scanId, message, workspaceId);
+    if (!failRepoScan(scanId, message, workspaceId)) {
+      console.warn(`[repo-scan] ${scanId}: skipped the failed transition (the row is no longer running).`);
+    }
     throw error;
   } finally {
     if (scratch) {

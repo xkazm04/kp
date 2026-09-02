@@ -114,46 +114,84 @@ export function listRepoScans(workspaceId: string = DEFAULT_WORKSPACE_ID, limit 
   return rows.map(rowToScan);
 }
 
-export function markRepoScanRunning(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+/** Move a scan into `running`. Returns whether the transition applied.
+ *
+ *  Every status writer below re-asserts the status it expects, because these are
+ *  the write half of a read→compute→write whose compute is MINUTES long (a clone
+ *  plus an in-repo agent session) and whose writers are not unique: the task
+ *  runner can reap a run and the queue can hand the same scan out again. Without
+ *  the predicate a late writer flipped a row that had already finished back to
+ *  `running`, and the operator watched a finished scan restart. `queued|running`
+ *  here so an idempotent retry of the SAME run is not an error. */
+export function markRepoScanRunning(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const db = ensureDb();
-  db.prepare(`UPDATE repo_scans SET status = 'running', updated_at = ? WHERE id = ? AND workspace_id = ?`).run(
-    new Date().toISOString(),
-    id,
-    workspaceId
-  );
+  const res = db
+    .prepare(
+      `UPDATE repo_scans SET status = 'running', updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND status IN ('queued', 'running')`
+    )
+    .run(new Date().toISOString(), id, workspaceId);
+  return res.changes > 0;
 }
 
 /** Finish a scan with its dossier. `source` is the provenance the Python envelope
  *  reported — stored as given, because "which path produced this" is the fact the
- *  intake panel discloses to the operator. */
+ *  intake panel discloses to the operator.
+ *
+ *  Only a `running` scan can complete, and `null` means the transition was SKIPPED
+ *  (already terminal, or gone, or another tenant's) — never "the row vanished".
+ *  The caller logs a skipped transition; it does not retry and it does not throw. */
 export function completeRepoScan(
   id: string,
   input: { dossier: unknown; source: Exclude<RepoScanSource, null> },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): RepoScanRecord | null {
   const db = ensureDb();
-  db.prepare(
-    `UPDATE repo_scans
-        SET status = 'complete', source = ?, dossier_json = ?, error = NULL, updated_at = ?
-      WHERE id = ? AND workspace_id = ?`
-  ).run(input.source, JSON.stringify(input.dossier ?? null), new Date().toISOString(), id, workspaceId);
-  return getRepoScanRecord(id, workspaceId);
+  const res = db
+    .prepare(
+      `UPDATE repo_scans
+          SET status = 'complete', source = ?, dossier_json = ?, error = NULL, updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND status = 'running'`
+    )
+    .run(input.source, JSON.stringify(input.dossier ?? null), new Date().toISOString(), id, workspaceId);
+  return res.changes > 0 ? getRepoScanRecord(id, workspaceId) : null;
 }
 
 /** Fail a scan with a reason. A failed scan keeps whatever dossier a previous run
  *  wrote (there is none in practice — a scan is one-shot) and NEVER claims a
- *  source: an errored run did not produce a dossier by either path. */
+ *  source: an errored run did not produce a dossier by either path.
+ *
+ *  Only a `running` scan can fail — a queued one has no runner to speak for it, so
+ *  cancelling it before it starts goes through `cancelQueuedRepoScan`. `null` means
+ *  the transition was skipped. */
 export function failRepoScan(
   id: string,
   error: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): RepoScanRecord | null {
   const db = ensureDb();
-  db.prepare(`UPDATE repo_scans SET status = 'failed', error = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`).run(
-    error.slice(0, 2000),
-    new Date().toISOString(),
-    id,
-    workspaceId
-  );
-  return getRepoScanRecord(id, workspaceId);
+  const res = db
+    .prepare(
+      `UPDATE repo_scans SET status = 'failed', error = ?, updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND status = 'running'`
+    )
+    .run(error.slice(0, 2000), new Date().toISOString(), id, workspaceId);
+  return res.changes > 0 ? getRepoScanRecord(id, workspaceId) : null;
+}
+/** Fail a scan that was cancelled before the runner ever picked it up. Guarded on
+ *  `queued` precisely so it cannot race the runner: once a run is live, the runner's
+ *  abort signal is what ends it and `failRepoScan` records the reason. */
+export function cancelQueuedRepoScan(
+  id: string,
+  error: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): RepoScanRecord | null {
+  const db = ensureDb();
+  const res = db
+    .prepare(
+      `UPDATE repo_scans SET status = 'failed', error = ?, updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND status = 'queued'`
+    )
+    .run(error.slice(0, 2000), new Date().toISOString(), id, workspaceId);
+  return res.changes > 0 ? getRepoScanRecord(id, workspaceId) : null;
 }
