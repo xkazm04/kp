@@ -11,12 +11,19 @@
 // unit-db.ts must stay the first project import (isolated throwaway DB).
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
+import { register, registerHooks } from "node:module";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 
 // `next/headers` needs a Next request scope. Resolve it to a virtual module whose
 // cookie jar this file drives — and whose `set` RECORDS instead of writing, so the
 // assertions can tell "refused before touching the jar" from "wrote".
+// `currentSession()` awaits next/server's `connection()`, which throws outside a Next
+// request scope and silently degrades every caller to "no session". Point next/server
+// at the shared shim BEFORE the dynamic imports below - without it these tests pass
+// only where a module-resolution accident makes `connection()` a no-op (the wave
+// worktree) and fail on a plain checkout.
+register(new URL("./testing/next-server-hooks.mjs", import.meta.url));
+
 const VIRTUAL_HEADERS = "kp-test:next-headers";
 const SESSION_COOKIE = "__Host-kp_session";
 let cookieValue: string | null = null;
