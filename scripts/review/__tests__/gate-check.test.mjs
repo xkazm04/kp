@@ -32,8 +32,10 @@ import {
   PIN_ALLOWLIST,
   checkoutRefs,
   checkoutSteps,
+  envBindings,
   hasTopLevelPermissions,
   isPinned,
+  isQuotedAt,
   isTrustedInRun,
   jobPermissions,
   loadAllowlist,
@@ -42,7 +44,9 @@ import {
   runChecks as runActionChecks,
   runScriptLines,
   triggersIn,
+  unquotedUntrustedEnv,
   untrustedCheckoutRefs,
+  untrustedEnvNames,
   untrustedRunRefs,
   untrustedScriptRefs,
   usesIn,
@@ -353,6 +357,180 @@ check('no workflow in this tree substitutes an expression into a shell', () => {
   for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
     const refs = untrustedRunRefs(fs.readFileSync(path.join(dir, file), 'utf8'));
     assert.deepEqual(refs, [], `${file} interpolates ${JSON.stringify(refs)} into a run: script`);
+  }
+});
+
+// --- …and `env:` is necessary, not sufficient ---------------------------------
+//
+// `run-injection` proves an untrusted value never became CODE. Every workflow
+// here passes such values through `env:` and reads them back — and an UNQUOTED
+// expansion is re-split and glob-expanded by bash, so `$TITLE` bare is however
+// many arguments the title's whitespace makes of it, one of which can be an
+// option. Until this rule existed, that second half of the argument was a
+// sentence in a header rather than something a build could answer.
+
+check('an `env:` binding is read at every level, and only untrusted values are tracked', () => {
+  const text = [
+    'env:',
+    '  WORKFLOW_LEVEL: ${{ github.event.issue.title }}',
+    'jobs:',
+    '  a:',
+    '    env:',
+    '      JOB_LEVEL: ${{ github.actor }}',
+    '      SAFE: ${{ github.repository }}',
+    '      LITERAL: "5"',
+    '    steps:',
+    '      - run: echo hi',
+    '        env:',
+    '          # a comment is not a binding',
+    '          STEP_LEVEL: ${{ steps.x.outputs.y }}',
+  ].join('\n');
+  assert.deepEqual(
+    envBindings(text).map((b) => b.name),
+    ['WORKFLOW_LEVEL', 'JOB_LEVEL', 'SAFE', 'LITERAL', 'STEP_LEVEL'],
+  );
+  assert.deepEqual(
+    [...untrustedEnvNames(text).keys()],
+    ['WORKFLOW_LEVEL', 'JOB_LEVEL', 'STEP_LEVEL'],
+    'a fixed-shape repo-controlled value and a literal are not somebody else’s input',
+  );
+});
+
+check('the quote reader follows bash, including a quote inside the other quote', () => {
+  const line = `echo "$ACTOR has '$LEVEL' permission" $BARE`;
+  assert.equal(isQuotedAt(line, line.indexOf('$ACTOR')), true);
+  assert.equal(isQuotedAt(line, line.indexOf('$LEVEL')), true, "a ' inside \"…\" is a character, not a quote");
+  assert.equal(isQuotedAt(line, line.indexOf('$BARE')), false);
+  // A backslash-escaped character inside double quotes must not desynchronise
+  // the scan — this tree writes `\`` inside "…" in several report steps.
+  const escaped = 'echo "there is no \\`TOKEN\\` secret: $NAME"';
+  assert.equal(isQuotedAt(escaped, escaped.indexOf('$NAME')), true);
+});
+
+check('an untrusted env value read back unquoted is blocking; quoted is clean', () => {
+  const wf = (read) =>
+    [
+      'permissions:',
+      '  contents: read',
+      'jobs:',
+      '  a:',
+      '    steps:',
+      '      - env:',
+      '          TITLE: ${{ github.event.issue.title }}',
+      `        run: ${read}`,
+    ].join('\n');
+
+  const f = runActionChecks([{ file: 'w.yml', text: wf('gh issue comment $TITLE') }], []);
+  assert.ok(has(f, 'unquoted-untrusted-env'));
+  assert.equal(blocking(f).length, 1, 'the expansion is the finding — nothing was interpolated');
+  assert.match(f.find((x) => x.rule === 'unquoted-untrusted-env').message, /github\.event\.issue\.title/);
+
+  assert.deepEqual(unquotedUntrustedEnv(wf('gh issue comment "$TITLE"')), []);
+  assert.deepEqual(unquotedUntrustedEnv(wf('gh issue comment "${TITLE}"')), []);
+  assert.deepEqual(unquotedUntrustedEnv(wf("gh issue comment '$TITLE'")), [], 'single quotes expand nothing at all');
+  assert.deepEqual(unquotedUntrustedEnv(wf('BRANCH=$TITLE')), [], 'an assignment does not word-split');
+  assert.deepEqual(unquotedUntrustedEnv(wf('# $TITLE is described here')), [], 'a shell comment expands nothing');
+  assert.deepEqual(unquotedUntrustedEnv(wf('echo $TITLE_SUFFIX')), [], 'a different variable is a different variable');
+});
+
+check('${VAR#prefix} and friends are still the variable', () => {
+  const text = [
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - env:',
+    '          REF: ${{ github.event.pull_request.head.ref }}',
+    '        run: git push origin ${REF#refs/heads/}',
+  ].join('\n');
+  assert.deepEqual(unquotedUntrustedEnv(text).map((u) => u.name), ['REF']);
+});
+
+check('no workflow in this tree lets a shell re-split an untrusted value', () => {
+  const dir = path.join(REPO_ROOT, '.github/workflows');
+  for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    const bad = unquotedUntrustedEnv(fs.readFileSync(path.join(dir, file), 'utf8'));
+    assert.deepEqual(bad, [], `${file} expands ${JSON.stringify(bad.map((u) => u.name))} without quotes`);
+  }
+});
+
+// THE TWO FILES A SCANNER FLAGS, ANSWERED BY A BUILD.
+//
+// `agent-dispatch.yml` and `autofix.yml` both act on content somebody else wrote
+// and both hold a token that writes, so "untrusted input reaches a `run:` step"
+// is the highest-consequence thing that can be claimed about this repository.
+// The claim is TRUE of the input and FALSE of the hazard, and until these two
+// cases existed the difference was argued in a comment. Each mutation below
+// reintroduces the real bug into the real file and requires the checks to go red
+// — which is the only way to know they are not merely passing.
+
+const MUTATIONS = [
+  {
+    file: 'agent-dispatch.yml',
+    what: 'the issue body interpolated into the propose step',
+    from: '          set +e\n',
+    to: '          echo "${{ github.event.issue.body }}"\n          set +e\n',
+    rule: 'run-injection',
+  },
+  {
+    file: 'agent-dispatch.yml',
+    what: 'the issue number read back unquoted',
+    from: '--issue "$ISSUE"',
+    to: '--issue $ISSUE',
+    rule: 'unquoted-untrusted-env',
+  },
+  {
+    file: 'autofix.yml',
+    what: 'the pull request number read back unquoted',
+    from: 'gh pr comment "$PR_NUMBER" --body "Applied',
+    to: 'gh pr comment $PR_NUMBER --body "Applied',
+    rule: 'unquoted-untrusted-env',
+  },
+];
+
+check('reintroducing the bug into either write-path workflow turns the check red', () => {
+  for (const m of MUTATIONS) {
+    const p = path.join(REPO_ROOT, '.github/workflows', m.file);
+    const text = fs.readFileSync(p, 'utf8');
+    const mutated = text.split(m.from).join(m.to);
+    assert.notEqual(
+      mutated,
+      text,
+      `${m.file}: the mutation matched nothing, so this case proves nothing. The file was edited — ` +
+        `re-point "${m.from}" at what replaced it rather than deleting the case.`,
+    );
+    const f = runActionChecks([{ file: m.file, text: mutated }], PIN_ALLOWLIST);
+    assert.ok(has(f, m.rule), `${m.file}: ${m.what} was not caught as ${m.rule}`);
+  }
+});
+
+check('every attacker-controlled context in those two files reaches the shell only through `env:`', () => {
+  // The positive statement, named rather than implied: these are the contexts a
+  // stranger on a public repository actually controls, and this is where each of
+  // them is allowed to appear.
+  const ATTACKER_CONTROLLED = [
+    'github.event.issue.title',
+    'github.event.issue.body',
+    'github.event.comment.body',
+    'github.actor',
+    'github.event.pull_request.head.ref',
+  ];
+  for (const file of ['agent-dispatch.yml', 'autofix.yml']) {
+    const text = fs.readFileSync(path.join(REPO_ROOT, '.github/workflows', file), 'utf8');
+    const bound = new Set([...untrustedEnvNames(text).values()].map((v) => v.ref));
+    // Every position that hands a value to something which reads it: a shell, the
+    // github-script interpreter, and a checkout that would fetch it as a ref.
+    const interpreted = new Set(
+      [...untrustedRunRefs(text), ...untrustedScriptRefs(text), ...untrustedCheckoutRefs(text)].map((r) => r.ref),
+    );
+    let seen = 0;
+    for (const ref of ATTACKER_CONTROLLED) {
+      if (!text.includes(ref)) continue;
+      seen += 1;
+      assert.equal(interpreted.has(ref), false, `${file}: ${ref} reaches an interpreter directly`);
+      assert.ok(bound.has(ref), `${file}: ${ref} is used but never arrives as an env: binding — where does it go?`);
+    }
+    assert.ok(seen > 0, `${file} no longer references any attacker-controlled context — has the workflow moved?`);
+    assert.deepEqual(unquotedUntrustedEnv(text), [], `${file}: a bound value is expanded without quotes`);
   }
 });
 

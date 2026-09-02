@@ -55,6 +55,25 @@
 // whose values are produced by earlier steps and are therefore only as trusted
 // as whatever wrote them.
 //
+// …AND THEN THE HALF OF THAT ARGUMENT NOTHING USED TO CHECK. `run-injection`
+// proves an untrusted value did not become CODE. It says nothing about the value
+// that correctly went through `env:` and is then read back by the script, which
+// is what every workflow here does — so a scanner reading `agent-dispatch.yml`
+// and `autofix.yml` sees attacker-controlled input reaching a `run:` step and is
+// answered only by a comment saying "it travels through `env:`". `env:` is
+// necessary and it is not sufficient: bash re-splits and glob-expands an
+// UNQUOTED expansion, so `$AGENT_TASK_TITLE` bare is a value that becomes
+// several arguments — and one of them can be an option. `unquoted-untrusted-env`
+// below is the missing half:
+//
+//   env:  TITLE: ${{ github.event.issue.title }}
+//   run:  gh issue comment $TITLE      # blocking — bash splits this
+//   run:  gh issue comment "$TITLE"    # fine — one argument, whatever is in it
+//
+// Together the two rules say the whole thing mechanically: an untrusted value
+// reaches a shell in this repository ONLY as an `env:` binding, and ONLY as a
+// quoted expansion. That is a build answering the scanner rather than a comment.
+//
 // TWO MORE SINKS REACH CODE WITHOUT GOING THROUGH `run:`, and each is blocking:
 //
 //   script-injection    `actions/github-script` evaluates its `script:` input as
@@ -91,8 +110,9 @@
 //
 // EXIT CODES: 0 clean · 1 an unpinned ref outside the allowlist, a workflow with
 // no `permissions:` block, an expression interpolated into a `run:` or a
-// `script:`, a privileged trigger checking out an event-derived ref, or a PAT
-// left persisted in a checkout's `.git/config`.
+// `script:`, an untrusted `env:` value read back unquoted by a shell, a
+// privileged trigger checking out an event-derived ref, or a PAT left persisted
+// in a checkout's `.git/config`.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -348,6 +368,114 @@ export const untrustedRunRefs = (text) => untrustedIn(runScriptLines(text));
 /** The same, for the JavaScript `actions/github-script` would evaluate. */
 export const untrustedScriptRefs = (text) => untrustedIn(githubScriptLines(text));
 
+// --- the value that DID go through `env:`, and what the shell does with it ------
+
+/**
+ * `[{ name, value, line }]` — every `env:` binding in the file, at any level
+ * (workflow, job or step).
+ *
+ * Deliberately not scoped to the step that owns it. A scope-aware reader would
+ * have to model YAML nesting from a line reader, and getting that wrong fails in
+ * the direction that matters: a binding attributed to the wrong step is one this
+ * check stops watching. Over-approximating costs a false positive somebody can
+ * read; under-approximating costs silence.
+ */
+export function envBindings(text) {
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    // `- env:` is legal when `env:` is a step's first key, and the dash counts
+    // toward the indentation its children have to beat — the same arithmetic
+    // `blockScalarLines` does for `- run:`.
+    const head = /^(\s*)(-\s+)?env:[ \t]*(#.*)?$/.exec(lines[i]);
+    if (!head) continue;
+    const indent = head[1].length + (head[2] ? head[2].length : 0);
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() === '') continue;
+      if (/^\s*/.exec(lines[j])[0].length <= indent) break;
+      if (/^\s*#/.test(lines[j])) continue;
+      const kv = /^\s*([A-Za-z_][A-Za-z0-9_]*):[ \t]*(.*)$/.exec(lines[j]);
+      if (kv) out.push({ name: kv[1], value: kv[2].trim(), line: j + 1 });
+    }
+  }
+  return out;
+}
+
+/** `Map<NAME, {ref, line}>` — the bindings carrying a value nobody here controls. */
+export function untrustedEnvNames(text) {
+  const out = new Map();
+  for (const { name, value, line } of envBindings(text)) {
+    if (out.has(name)) continue;
+    for (const [, body] of value.matchAll(EXPRESSION_RE)) {
+      for (const ref of contextRefs(body)) {
+        if (!isTrustedInRun(ref) && !out.has(name)) out.set(name, { ref, line });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Is the character at `index` inside a quoted string?
+ *
+ * Bash's rules, and only the two that matter: a `'` opens a literal run unless a
+ * double quote is already open, and a `"` opens an expanding run unless a single
+ * quote is already open. Inside double quotes a backslash escapes the next
+ * character (this tree's shell writes `\`` inside `"…"`), which would otherwise
+ * desynchronise the scan.
+ *
+ * Per LINE, deliberately: a string spanning two lines of a block scalar would
+ * defeat this, and a check that guesses across lines is one whose findings a
+ * human cannot verify by looking at the line it names.
+ */
+export function isQuotedAt(line, index) {
+  let single = false;
+  let dbl = false;
+  for (let i = 0; i < index; i++) {
+    const c = line[i];
+    if (c === '\\' && dbl) {
+      i += 1;
+      continue;
+    }
+    if (c === "'" && !dbl) single = !single;
+    else if (c === '"' && !single) dbl = !dbl;
+  }
+  return single || dbl;
+}
+
+/**
+ * `X=$Y` does not word-split — assignment is one of the few unquoted contexts
+ * bash leaves alone — so flagging it would train people to work around the rule
+ * rather than to read it.
+ */
+const ASSIGNMENT_RHS = /(?:^|[\s;&|(])[A-Za-z_][A-Za-z0-9_]*=$/;
+
+/**
+ * `[{ name, ref, line }]` — an untrusted `env:` value expanded by a shell WITHOUT
+ * quotes.
+ *
+ * This is the second half of the `run-injection` argument. That rule proves the
+ * value never became code; this one proves that what bash receives is one
+ * argument rather than however many the value's whitespace and globs make of it.
+ */
+export function unquotedUntrustedEnv(text) {
+  const names = untrustedEnvNames(text);
+  if (names.size === 0) return [];
+  const out = [];
+  for (const { line, text: script } of runScriptLines(text)) {
+    if (/^\s*#/.test(script)) continue; // a shell comment expands nothing
+    for (const [name, origin] of names) {
+      const re = new RegExp(`\\$(?:\\{${name}(?![A-Za-z0-9_])|${name}(?![A-Za-z0-9_]))`, 'g');
+      for (const m of script.matchAll(re)) {
+        if (isQuotedAt(script, m.index)) continue;
+        if (ASSIGNMENT_RHS.test(script.slice(0, m.index))) continue;
+        out.push({ name, ref: origin.ref, line });
+      }
+    }
+  }
+  return out;
+}
+
 // --- pull_request_target: the privileged trigger -------------------------------
 
 /**
@@ -550,6 +678,22 @@ export function runChecks(files, allowlist = PIN_ALLOWLIST) {
       );
     }
 
+    for (const { name, ref, line } of unquotedUntrustedEnv(text)) {
+      out.push(
+        finding(
+          'blocking',
+          'unquoted-untrusted-env',
+          file,
+          line,
+          `\`$${name}\` holds \`\${{ ${ref} }}\` and is expanded here without quotes.`,
+          'Moving the value to `env:` stops it being CODE; it does not stop bash word-splitting and ' +
+            `glob-expanding it. Write \`"$${name}"\`. A title of \`--force x\` is otherwise two arguments, and ` +
+            'one of them is an option to whatever command this is. (An assignment, `X=$Y`, is exempt — bash ' +
+            'does not split there.)',
+        ),
+      );
+    }
+
     for (const { token, line } of persistedCredentials(text)) {
       out.push(
         finding(
@@ -693,8 +837,9 @@ export function render(findings) {
   if (findings.length === 0)
     return (
       'check-actions: every action is pinned, every workflow scopes its token, no expression reaches an ' +
-      'interpreter, no privileged trigger checks out an event-derived ref, and no checkout leaves a PAT ' +
-      'behind in the workspace.'
+      'interpreter, every untrusted value a shell reads arrives through `env:` and is quoted where it is ' +
+      'read, no privileged trigger checks out an event-derived ref, and no checkout leaves a PAT behind ' +
+      'in the workspace.'
     );
   const lines = findings.map(
     (f) => `${f.severity === 'blocking' ? 'BLOCK' : ' note'}  ${f.file}:${f.line}  [${f.rule}] ${f.message}\n        ${f.fix}`,

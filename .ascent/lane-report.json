@@ -2,28 +2,56 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "e1b8456e-4ac4-4886-a2a6-18255f14c92d",
+      "recommendationId": "8e432f39-aea2-4743-9509-cbff03d945e8",
       "verdict": "resolved",
-      "reason": "Added an operating committed-credential gate — `npm run security:secrets` reads every file git tracks against a 13-shape table (was 5, diff-only), wired as a blocking step in ci.yml's node-quality job on every push and PR, with `npm run test:security` fixtures that fire each pattern and scan the real tree; the same table now backs the constitution lens's `secret` rule, which a `Gate-exemption:` trailer can no longer waive. NOT closed, and it is a scanner false positive rather than work left undone: the 'dangerous workflow 0/10' sub-finding against agent-dispatch.yml and autofix.yml — neither has a single `${{ }}` inside any `run:` or `script:` body (every event value is passed through `env:`), neither uses pull_request_target or workflow_run, and `npm run security:actions` already blocks all three shapes on every push with fixtures in gate-check.test.mjs.",
+      "reason": "The `run:`-interpolation half was already mechanical (check-actions' run-injection rule plus a whole-tree fixture); the residual half — an untrusted value correctly passed through `env:` and then expanded UNQUOTED by the shell — was not, so I added the `unquoted-untrusted-env` blocking rule and mutation fixtures that reintroduce the real bug into both write-path workflows and require the check to go red.",
       "files": [
-        "scripts/security/secret-scan.mjs",
-        "scripts/security/__tests__/secret-scan.test.mjs",
-        "scripts/review/constitution-check.mjs",
-        "scripts/review/__tests__/constitution-check.test.mjs",
-        "scripts/agent/__tests__/dispatch.test.mjs",
-        ".github/workflows/ci.yml",
-        "package.json",
-        ".ai/manifest.yaml",
-        "AGENTS.md",
-        "SECURITY.md",
+        "scripts/security/check-actions.mjs",
+        "scripts/review/__tests__/gate-check.test.mjs",
         "docs/development/change-review.md"
+      ]
+    },
+    {
+      "recommendationId": "833defd4-64ec-4b77-a59d-8eccff72a625",
+      "verdict": "resolved",
+      "reason": "Extracted the ratchet protocol (verdict ladder, report, flags, exit codes, the no-op --tighten rule) into scripts/lint/ratchet.mjs, rebuilt both ratchets on it so each keeps only its debt format and its measurement, and pinned in a fixture that the two diverge in exactly one place (`zero` = `dead` for ruff, `burnt-down` for TypeScript).",
+      "files": [
+        "scripts/lint/ratchet.mjs",
+        "scripts/lint/ruff-ratchet.mjs",
+        "scripts/lint/ts-ratchet.mjs",
+        "scripts/lint/__tests__/ratchet.test.mjs",
+        "ruff.toml",
+        "package.json",
+        "docs/development/change-review.md"
+      ]
+    },
+    {
+      "recommendationId": "6a5a8df2-1d88-492f-bdf0-8be6547853db",
+      "verdict": "resolved",
+      "reason": "Added a keyless deterministic injection eval: 13 hostile issue bodies each paired with the plan an OBEDIENT model would return, asserting the guard refuses it by name before anything is written; building it found and fixed two real weaknesses (the untrusted-input label rode in round 1 only, and the fence around the issue text was one the issue text could close).",
+      "files": [
+        "scripts/agent/__tests__/injection.test.mjs",
+        "scripts/agent/dispatch.mjs",
+        "package.json",
+        "docs/development/change-review.md"
+      ]
+    },
+    {
+      "recommendationId": "db3fbda6-12be-440a-8ba4-7f68524fd6be",
+      "verdict": "resolved",
+      "reason": "The first cold-clone failure (typecheck -> schemas:gen -> Python) now diagnoses itself through scripts/schemas-gen.mjs instead of dying as a generic npm error, AGENTS.md states the prerequisite, and a nightly cold-clone workflow runs the three documented commands from an empty checkout with no caches and opens an issue when they fail; I could not execute that run from this session, so the workflow's first real verdict comes from CI.",
+      "files": [
+        "scripts/schemas-gen.mjs",
+        ".github/workflows/cold-clone.yml",
+        "AGENTS.md",
+        "package.json"
       ]
     }
   ],
   "lessons": [
-    "Adding a CI step to this repo is a four-file change, not one: .github/workflows/ci.yml, the `guidance.gates` list in .ai/manifest.yaml, a row in the AGENTS.md gate table, and the package.json script. `npm run guidance:check` compares all four in both directions and fails as `gate-unlisted` / `gate-stale` if any is missed.",
-    "This repository's escape hatches are commit trailers (`Gate-exemption:`, `Doc-sync:`, `Commit-convention-exemption:`) rather than per-line suppressions — good, but a trailer is written by whoever wrote the change, so a hatch that covers ALL blocking findings covers the ones an agent has a motive to waive. Ask of any new blanket waiver which specific findings it must not reach.",
-    "Before adding a pattern to a detector here, check it against the tree first: a rule whose first act is to fail the build on an existing fixture gets deleted rather than obeyed. Polar's `polar_whs_…` shape was left out of the credential table for exactly that reason and recorded as a named gap instead of quietly dropped.",
-    "Ascent's 'untrusted input in a run step' heuristic reports a step whose `env:` block carries `github.event.*` — which is the CORRECT fix for run-injection, not the bug. A repo that already has a stricter, fixture-backed check for the same class will keep scoring 0/10 on it; check the repo's own gate before treating that sub-score as work."
+    "This repository answers scanner findings in file headers rather than in checks, and the headers are usually right — so the useful work is rarely 'fix the finding', it is 'find the half of the argument the header asserts and no gate covers'. Here that was `env:` passing being treated as sufficient when quoting at the read site is the other half.",
+    "A safety property argued in a comment is worth converting into a MUTATION test, not just a passing assertion: reintroduce the real bug into the real file and require the check to go red, with a loud failure when the mutation stops matching. A tree-wide 'no findings' assertion passes identically whether the detector works or is broken.",
+    "When two scripts implement one concept twice, the shared part is usually the verdict ladder and the CLI, not the parsing — and the one place they legitimately disagree is worth naming after the MEASUREMENT rather than the verdict, so each side can map it to its own answer without a flag.",
+    "Writing an adversarial fixture is a cheap way to find real hardening: simulating an obedient model against a hostile prompt surfaced that the untrusted-input label only rode in the round that reads, not the round that writes code."
   ]
 }

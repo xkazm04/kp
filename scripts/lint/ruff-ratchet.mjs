@@ -21,23 +21,21 @@
 //     # ratchet: F401 <= 5
 //     "F401",
 //
-// THE FOUR RULES, and which direction each one forces:
+// THE RULES ARE THE SHARED ONES. `scripts/lint/ratchet.mjs` defines what a
+// ratchet is in this repository — the verdict ladder (`undeclared`, `grew`,
+// `slack`, `met`, and the measurement `zero`), the report, the flags, the exit
+// codes and the "refuses to guess" rule — once, for both this and
+// `ts-ratchet.mjs`. Read that file for the protocol; this one is the ruff half:
+// the TOML `ignore = [` list, and a `ruff check` with the ignores lifted.
 //
-//   undeclared  an ignore with no `# ratchet:` marker. Adding an entry now costs
-//               you a number, which is the moment somebody has to look at how big
-//               the debt actually is. BLOCKING.
-//   grew        more violations than the ceiling. The list cannot absorb new
-//               debt under an old entry — the failure mode where "5x unused
-//               imports" quietly becomes fifty. BLOCKING.
-//   dead        ZERO violations. The ignore has stopped meaning anything, so it
-//               must go: this is `ruff.toml`'s own one-command procedure for
-//               retiring `F821`, run by CI instead of by whoever remembers.
-//               BLOCKING — and `--tighten` performs the deletion.
-//   slack       fewer violations than the ceiling. A NOTE, not a block: making
-//               every burnt-down violation a red build would tax the fix rather
-//               than the debt. `--tighten` lowers the ceilings, and autofix.yml
-//               runs it on every pull request, so the recorded numbers follow the
-//               tree down without anyone typing anything.
+// THE ONE VERDICT THAT IS THIS RATCHET'S OWN, and the reason the shared ladder
+// reports a measurement (`zero`) rather than a verdict:
+//
+//   dead        ZERO violations. Here the entry IS the suppression, so an ignore
+//               that excuses nothing is rot that still reads as policy — it must
+//               go. BLOCKING, and `--tighten` performs the deletion. (On the
+//               TypeScript side the entry is a CEILING on a suppression, so the
+//               same measurement is a win worth locking at 0 rather than a fault.)
 //
 // WHY IT REFUSES TO GUESS: if ruff cannot be run, or answers with something that
 // is not a JSON array, this exits 1 saying so. The one thing it must never do is
@@ -54,6 +52,10 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { BLOCKING, NOTE, classify, finding as makeFinding, main, parseArgs, renderFindings } from './ratchet.mjs';
+
+export { parseArgs };
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const RUFF_CONFIG_PATH = 'ruff.toml';
@@ -128,66 +130,75 @@ export function countByCode(diagnostics) {
   return counts;
 }
 
-const finding = (severity, rule, line, message, fix) => ({ severity, rule, file: RUFF_CONFIG_PATH, line, message, fix });
+const finding = (severity, rule, line, message, fix) =>
+  makeFinding(severity, rule, RUFF_CONFIG_PATH, message, fix, { line });
 
-/** Pure. `counts` is a `Map<code, count>` measured with the ignores lifted. */
+/**
+ * Pure. `counts` is a `Map<code, count>` measured with the ignores lifted.
+ *
+ * The ladder is `classify()` in ratchet.mjs; this maps each kind to the sentence
+ * a reader of THIS debt file needs. `met` says nothing, which is the whole point
+ * of a ratchet that has caught up with its tree.
+ */
 export function runChecks(entries, counts) {
   const out = [];
   for (const e of entries) {
     const actual = counts.get(e.code) ?? 0;
-    if (e.ceiling === null) {
-      out.push(
-        finding(
-          'blocking',
-          'undeclared',
-          e.line,
-          `\`${e.code}\` is ignored with no ceiling declared.`,
-          `Put \`# ratchet: ${e.code} <= ${actual}\` in the comment block above it, with a sentence saying what ` +
-            'the debt is. An ignore that names no number cannot be shown to be shrinking, which is the only ' +
-            'thing that makes it debt rather than policy.',
-        ),
-      );
-      continue;
-    }
-    if (actual === 0) {
-      out.push(
-        finding(
-          'blocking',
-          'dead',
-          e.line,
-          `\`${e.code}\` is ignored and violated nowhere in ${TARGET} — the entry suppresses nothing.`,
-          `Delete the \`"${e.code}",\` line and its comment block from ${RUFF_CONFIG_PATH}. This is the check ` +
-            "ruff.toml's header asks a human to run by hand; an ignore with no known violation is a gate that " +
-            'has stopped meaning anything. `npm run lint:ruff-ratchet -- --tighten` does the deletion.',
-        ),
-      );
-      continue;
-    }
-    if (actual > e.ceiling) {
-      out.push(
-        finding(
-          'blocking',
-          'grew',
-          e.line,
-          `\`${e.code}\` is violated ${actual} time(s) in ${TARGET}, above its declared ceiling of ${e.ceiling}.`,
-          `Fix the ${actual - e.ceiling} new one(s): \`ruff check ${TARGET} --config 'lint.ignore = []' --select ${e.code}\` ` +
-            'lists them. Raising the ceiling instead is adding an entry to make a red build green, which ' +
-            `${RUFF_CONFIG_PATH} forbids without recording why.`,
-        ),
-      );
-      continue;
-    }
-    if (actual < e.ceiling) {
-      out.push(
-        finding(
-          'note',
-          'slack',
-          e.line,
-          `\`${e.code}\`: ${actual} violation(s) left, ceiling still says ${e.ceiling}.`,
-          'Run `npm run lint:ruff-ratchet -- --tighten` to record the ground gained (autofix.yml does this on ' +
-            'every pull request). Until then the entry would let the debt grow back to the old number.',
-        ),
-      );
+    switch (classify({ ceiling: e.ceiling, actual })) {
+      case 'undeclared':
+      case 'unexplained':
+        out.push(
+          finding(
+            BLOCKING,
+            'undeclared',
+            e.line,
+            `\`${e.code}\` is ignored with no ceiling declared.`,
+            `Put \`# ratchet: ${e.code} <= ${actual}\` in the comment block above it, with a sentence saying what ` +
+              'the debt is. An ignore that names no number cannot be shown to be shrinking, which is the only ' +
+              'thing that makes it debt rather than policy.',
+          ),
+        );
+        break;
+      case 'zero':
+        out.push(
+          finding(
+            BLOCKING,
+            'dead',
+            e.line,
+            `\`${e.code}\` is ignored and violated nowhere in ${TARGET} — the entry suppresses nothing.`,
+            `Delete the \`"${e.code}",\` line and its comment block from ${RUFF_CONFIG_PATH}. This is the check ` +
+              "ruff.toml's header asks a human to run by hand; an ignore with no known violation is a gate that " +
+              'has stopped meaning anything. `npm run lint:ruff-ratchet -- --tighten` does the deletion.',
+          ),
+        );
+        break;
+      case 'grew':
+        out.push(
+          finding(
+            BLOCKING,
+            'grew',
+            e.line,
+            `\`${e.code}\` is violated ${actual} time(s) in ${TARGET}, above its declared ceiling of ${e.ceiling}.`,
+            `Fix the ${actual - e.ceiling} new one(s): \`ruff check ${TARGET} --config 'lint.ignore = []' --select ${e.code}\` ` +
+              'lists them. Raising the ceiling instead is adding an entry to make a red build green, which ' +
+              `${RUFF_CONFIG_PATH} forbids without recording why.`,
+          ),
+        );
+        break;
+      case 'slack':
+        out.push(
+          finding(
+            NOTE,
+            'slack',
+            e.line,
+            `\`${e.code}\`: ${actual} violation(s) left, ceiling still says ${e.ceiling}.`,
+            'Run `npm run lint:ruff-ratchet -- --tighten` to record the ground gained (autofix.yml does this on ' +
+              'every pull request). Until then the entry would let the debt grow back to the old number.',
+          ),
+        );
+        break;
+      default:
+        break; // `met` — exactly at the ceiling, and nothing to say about it
     }
   }
   return out;
@@ -284,63 +295,49 @@ export function pruneEntries(text, codes) {
 }
 
 // --- CLI ----------------------------------------------------------------------
+//
+// The flags, the report, the exit codes and the "a no-op --tighten writes
+// nothing" rule are `runRatchetCli`'s, shared with ts-ratchet. What is ruff's
+// own is named here: which file to read, how to measure, and what to say.
 
-export function parseArgs(argv) {
-  return { tighten: argv.includes('--tighten'), json: argv.includes('--json') };
+export const NAME = 'ruff-ratchet';
+
+export const CLEAN = `${NAME}: every ignore in ${RUFF_CONFIG_PATH} declares a ceiling, still suppresses something, and suppresses no more than it did.`;
+
+export const render = (findings) => renderFindings(findings, CLEAN);
+
+/** The whole spec of this ratchet, exported so a fixture can drive it. */
+export function spec(argv, { root = REPO_ROOT, read = fs.readFileSync, write = fs.writeFileSync, counts = null } = {}) {
+  const file = path.join(root, RUFF_CONFIG_PATH);
+  return {
+    name: NAME,
+    argv,
+    load: () => {
+      const text = read(file, 'utf8');
+      const entries = parseIgnores(text);
+      return entries === null ? null : { text, entries };
+    },
+    unreadable: `no \`ignore = [\` list found in ${RUFF_CONFIG_PATH}. The gate reads that file; if it moved, this check is not checking anything.`,
+    measure: () => counts ?? ruffCounts({ root }),
+    check: ({ entries, counts: c }) => runChecks(entries, c),
+    tighten: ({ text, entries, counts: c }) => {
+      const dead = entries.filter((e) => (c.get(e.code) ?? 0) === 0).map((e) => e.code);
+      const next = pruneEntries(tightenCeilings(text, entries, c), dead);
+      const log = [];
+      for (const e of entries) {
+        const actual = c.get(e.code) ?? 0;
+        if (actual === 0) log.push(`  ${RUFF_CONFIG_PATH}: ${e.code} suppressed nothing — entry deleted.`);
+        else if (e.ceiling !== null && actual < e.ceiling) log.push(`  ${RUFF_CONFIG_PATH}: ${e.code} ${e.ceiling} -> ${actual}.`);
+      }
+      return { text: next, log };
+    },
+    write: (text) => write(file, text, 'utf8'),
+    tightenMessages: {
+      none: 'nothing to tighten — every ceiling already matches the tree.',
+      done: 'rewrote the ignore list. Re-run without --tighten to confirm.',
+    },
+    clean: CLEAN,
+  };
 }
 
-export function render(findings) {
-  if (findings.length === 0)
-    return `ruff-ratchet: every ignore in ${RUFF_CONFIG_PATH} declares a ceiling, still suppresses something, and suppresses no more than it did.`;
-  const lines = findings.map(
-    (f) => `${f.severity === 'blocking' ? 'BLOCK' : ' note'}  ${f.file}:${f.line}  [${f.rule}] ${f.message}\n        ${f.fix}`,
-  );
-  const blocking = findings.filter((f) => f.severity === 'blocking').length;
-  lines.push('', `${blocking} blocking, ${findings.length - blocking} note(s).`);
-  return lines.join('\n');
-}
-
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const file = path.join(REPO_ROOT, RUFF_CONFIG_PATH);
-  const text = fs.readFileSync(file, 'utf8');
-  const entries = parseIgnores(text);
-  if (entries === null) {
-    console.error(`ruff-ratchet: no \`ignore = [\` list found in ${RUFF_CONFIG_PATH}. The gate reads that file; if it moved, this check is not checking anything.`);
-    process.exit(1);
-  }
-
-  const counts = ruffCounts();
-
-  if (args.tighten) {
-    const dead = entries.filter((e) => (counts.get(e.code) ?? 0) === 0).map((e) => e.code);
-    let next = tightenCeilings(text, entries, counts);
-    next = pruneEntries(next, dead);
-    if (next === text) {
-      console.log('ruff-ratchet: nothing to tighten — every ceiling already matches the tree.');
-      return;
-    }
-    fs.writeFileSync(file, next, 'utf8');
-    for (const e of entries) {
-      const actual = counts.get(e.code) ?? 0;
-      if (actual === 0) console.log(`  ${RUFF_CONFIG_PATH}: ${e.code} suppressed nothing — entry deleted.`);
-      else if (e.ceiling !== null && actual < e.ceiling) console.log(`  ${RUFF_CONFIG_PATH}: ${e.code} ${e.ceiling} -> ${actual}.`);
-    }
-    console.log('ruff-ratchet: rewrote the ignore list. Re-run without --tighten to confirm.');
-    return;
-  }
-
-  const findings = runChecks(entries, counts);
-  if (args.json) console.log(JSON.stringify(findings, null, 2));
-  else console.log(render(findings));
-  process.exit(findings.some((f) => f.severity === 'blocking') ? 1 : 0);
-}
-
-if (process.argv[1]?.endsWith('ruff-ratchet.mjs')) {
-  try {
-    main();
-  } catch (err) {
-    console.error(`ruff-ratchet: ${err.message}`);
-    process.exit(1);
-  }
-}
+if (process.argv[1]?.endsWith('ruff-ratchet.mjs')) main(spec(process.argv.slice(2)));

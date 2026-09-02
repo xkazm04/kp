@@ -23,6 +23,34 @@ npm run test:unit
 npm run lint
 ```
 
+### What those three need on a machine that has never built this repo
+
+`git clone && npm ci` is not enough for the first of them, and the reason is not
+visible in its name: `typecheck` runs `schemas:gen` before `tsc`, `schemas:gen`
+runs the Python codegen, and the codegen imports the pipeline package. So:
+
+```bash
+# Python 3.12 — the version .github/workflows/ci.yml pins
+pip install -r requirements.txt
+npm ci
+```
+
+`npm run build` needs the same. Nothing else on the list does — `test:unit` and
+`lint` are Node-only.
+
+If the interpreter is somewhere unusual, `KP_PYTHON=/path/to/python` picks it;
+otherwise `scripts/schemas-gen.mjs` tries `python`, `python3` and `py -3` in that
+order and, when none of them works, says which prerequisite is missing instead of
+failing as a generic error inside a command called "typecheck".
+
+**This is checked, not asserted.** `.github/workflows/cold-clone.yml` runs the
+three commands nightly from an empty checkout with no caches, in the order this
+section names, and opens an issue when they do not succeed. It is deliberately
+not a required check — it re-runs the documented path against a moving world
+(runner images, point releases), so it can go red for reasons unrelated to any
+one commit. If it fails, either the tree broke or this section is wrong, and
+deciding which is the whole point.
+
 Everything else — commit rules for this shared checkout (pathspec-only
 staging), the design-token and locale-parity gates, keyless e2e setup,
 doc-sync obligations — is stated once in `.claude/CLAUDE.md`; follow it as
@@ -62,9 +90,9 @@ rather than a snapshot.
 | `npm run test:release` | fixtures for the release scripts — prepare, commit-msg, sbom, provenance |
 | `npm run sbom` | the bill of materials cannot be built from the lockfile + the pip environment |
 | `npm run test:docs` | fixtures for the doc-sync hook, the ADR gate and the guidance check |
-| `npm run test:review` | fixtures for the review lenses (constitution, gate-check) |
-| `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written |
-| `npm run test:lint-ratchet` | fixtures for the ruff and ts ignore ratchets |
+| `npm run test:review` | fixtures for the review lenses (constitution, gate-check) — including that an untrusted value reaches a shell only as a quoted `env:` binding, mutation-tested against the two write-path workflows |
+| `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written, and that an OBEDIENT model is refused everything a hostile issue asks it for |
+| `npm run test:lint-ratchet` | fixtures for the shared ratchet protocol and for the ruff and ts ignore ratchets built on it |
 | `npm run test:perf` | fixtures for the CI wall-clock budget, including "every job has a ceiling" |
 | `npm run test:deploy` | fixtures for the chart policy |
 | `npm run review:gate` | a required check in `.github/rulesets/main.json` no longer matches a job name |

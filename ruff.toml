@@ -12,18 +12,23 @@
 # paragraph ratchets when somebody remembers. `npm run lint:ruff-ratchet`
 # (scripts/lint/ruff-ratchet.mjs, run by ci.yml's python-gate) re-runs ruff with
 # these ignores LIFTED — the gate above cannot see them, by construction — and
-# holds each entry to the `# ratchet: <CODE> <= <N>` ceiling declared beside it:
+# holds each entry to the ceiling declared beside it in the comment block:
 #
-#   no ceiling    blocking. Adding an entry costs you a number, which is the
-#                 moment somebody has to look at how big the debt really is.
-#   over ceiling  blocking. The list cannot absorb new debt under an old entry.
-#   ZERO          blocking. The ignore suppresses nothing and must be deleted —
-#                 the one-command verification this header used to ask a human
-#                 for, performed on every push instead.
-#   under ceiling a note. `npm run lint:ruff-ratchet -- --tighten` lowers the
-#                 numbers and deletes dead entries, and autofix.yml runs it on
-#                 every pull request, so the ceilings follow the tree down
-#                 without anyone typing anything.
+#     # ratchet: F401 <= 5
+#     "F401",
+#
+# WHAT A CEILING MEANS is not defined here. It is defined once, for every ratchet
+# in this repository, in scripts/lint/ratchet.mjs — the verdict ladder (no
+# ceiling, over, under, exactly at, and "suppresses nothing"), which of those
+# block a build, what `--tighten` does, and why a measurement that fails must
+# never be read as "nothing found". This file used to be the only place any of
+# that was written down, which made it the ruff config AND the manual for the
+# TypeScript ratchet it never mentions. Read the protocol there; the one verdict
+# specific to THIS list is in ruff-ratchet.mjs's header (`dead`: an ignore that
+# excuses nothing is rot, so it is blocking here and a win on the TS side).
+#
+# autofix.yml runs `--tighten` on every pull request, so these numbers follow the
+# tree down without anyone typing anything.
 [lint]
 # Ruff's default set (pycodestyle errors + pyflakes), pinned explicitly so a
 # future ruff release changing its defaults can't silently widen or narrow CI.
