@@ -600,6 +600,29 @@ const ROUTES: RouteSpec[] = [
     // (createPipelineEntry) as well as the draft.
     servedBefore: "candidateOutreachSuppression(body.candidateId)",
   },
+  {
+    // ADDED /perfect 2026-09-02 (api-pipeline), with the limiter itself. `run policy`
+    // typed into the board's command bar reaches the SAME sweep POST
+    // /api/automation/run drives — a Python-spawning pass over every active entry
+    // that dispatches candidate outreach — and it was the one entry point to it with
+    // no throttle at all. Operator-gated, but open mode makes that gate a no-op for
+    // the whole API, so the limiter is the real bound. 6/10min per IP: a sweep runs
+    // for minutes, so six is far above any human pace, and the per-candidate commands
+    // on the same route (reject_below / advance_top) are deliberately NOT throttled —
+    // they are bounded by the previewed cohort and spawn nothing.
+    rel: "./pipeline/command/route.ts",
+    key: "`pipeline-command-policy:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    optsSrc: "RUN_POLICY_RATE_LIMIT",
+    optsDef: "const RUN_POLICY_RATE_LIMIT = { limit: 6, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL, not a bare `runAutomationPass(`: that substring also appears in this
+    // route's import and in the comments above the limiter, both before it.
+    expensive: "result = await runAutomationPass();",
+    // The operator gate keeps serving (refusing) freely ahead of the budget: a
+    // non-operator must never be able to spend another caller's window.
+    servedBefore: "const denied = await requireOperator();",
+  },
 ];
 
 for (const spec of ROUTES) {

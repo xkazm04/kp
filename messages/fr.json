@@ -2304,6 +2304,8 @@
       "doneCount": "Terminé. {count, plural, =1 {1 candidat traité} other {# candidats traités}}.",
       "doneHeldAtOffer": "{count, plural, =1 {1 candidat à l’étape Offre attend} other {# candidats à l’étape Offre attendent}} le processus d’offre. Envoyez l’offre. Faire avancer ne recrute jamais.",
       "doneDroppedOut": "{count, plural, =1 {1 candidat de l’aperçu a été ignoré} other {# candidats de l’aperçu ont été ignorés}}. Au moment de la confirmation, le score n’était plus sous le seuil, donc aucun rejet n’a eu lieu.",
+      "doneFailed": "{count, plural, =1 {1 candidat n’a pas été traité} other {# candidats n’ont pas été traités}}. Ils ont été modifiés ou clôturés pendant la commande, donc rien ne leur a été appliqué. Actualisez et réessayez.",
+      "doneCommsFailed": "{count, plural, =1 {1 candidat rejeté n’a pas été notifié} other {# candidats rejetés n’ont pas été notifiés}}. Le rejet reste valable ; envoyez le message manuellement depuis sa fiche.",
       "doneSummary": "Passe de règles terminée : {advanced} avancé, {rejected} rejeté, {held} en attente.",
       "dismiss": "Ignorer"
     },

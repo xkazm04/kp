@@ -2304,6 +2304,8 @@
       "doneCount": "Fertig. {count, plural, =1 {1 Kandidat/in} other {# Kandidat/innen}} bearbeitet.",
       "doneHeldAtOffer": "{count, plural, =1 {1 Kandidat/in in der Angebotsphase wartet} other {# Kandidat/innen in der Angebotsphase warten}} auf den Angebotsprozess. Unterbreiten Sie das Angebot. Weiterleiten stellt niemanden ein.",
       "doneDroppedOut": "{count, plural, =1 {1 in der Vorschau gezeigte/r Kandidat/in wurde übersprungen} other {# in der Vorschau gezeigte Kandidat/innen wurden übersprungen}}. Beim Bestätigen war die Schwelle nicht mehr unterschritten, daher wurde niemand abgelehnt.",
+      "doneFailed": "{count, plural, =1 {1 Kandidat/in wurde nicht bearbeitet} other {# Kandidat/innen wurden nicht bearbeitet}}. Sie wurden während des Befehls geändert oder abgeschlossen, daher wurde nichts angewendet. Aktualisieren Sie und versuchen Sie es erneut.",
+      "doneCommsFailed": "{count, plural, =1 {1 abgelehnte/r Kandidat/in wurde nicht benachrichtigt} other {# abgelehnte Kandidat/innen wurden nicht benachrichtigt}}. Die Ablehnung gilt; senden Sie die Nachricht manuell von der Karte aus.",
       "doneSummary": "Richtlinien-Durchlauf abgeschlossen: {advanced} weitergeleitet, {rejected} abgelehnt, {held} zurückgehalten.",
       "dismiss": "Ausblenden"
     },

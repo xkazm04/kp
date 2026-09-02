@@ -76,12 +76,19 @@ test("the command route threads the caller's workspace into preview AND every mu
     assert.match(call, /affected\(cmd,\s*listPipeline\(ws\),\s*axis\)/, `affected() must be fed the workspace-scoped board AND its axis: ${call}`);
   }
   assert.match(src, /const axis = getPipelineAxis\(ws\)\.stages/, "the axis must be THIS workspace's board, not the shipped literal");
-  // ...and passes it to BOTH mutating actOnPipelineEntry calls (a bare call falls to DEFAULT again).
-  const actCalls = src.match(/actOnPipelineEntry\([^\n]*\)/g) ?? [];
+  // ...and hands it to the execute loop. UPDATED DELIBERATELY (not relaxed): the
+  // per-target loop moved to ./execute.ts so its count/failed/commsFailed arithmetic
+  // is testable with a store double, so the tenancy contract now spans two files —
+  // the route must give the loop THIS workspace, and every store call inside the
+  // loop must carry it. A bare call still falls back to DEFAULT.
+  assert.match(src, /executeCommandTargets\(\s*\{[^}]*workspaceId: ws/s, "the execute loop must be given the caller's workspace");
+  const exec = readFileSync(path.join(dir, "execute.ts"), "utf8");
+  const actCalls = exec.match(/deps\.actOn\([^\n]*\)/g) ?? [];
   assert.ok(actCalls.length >= 2, "both reject + advance mutations are present");
   for (const call of actCalls) {
-    assert.match(call, /,\s*ws\s*\)/, `actOnPipelineEntry must be workspace-scoped: ${call.slice(0, 60)}…`);
+    assert.match(call, /,\s*ws\s*\)/, `the store action must be workspace-scoped: ${call.slice(0, 60)}…`);
   }
+  assert.match(exec, /deps\.recordEvent\([\s\S]{0,200}?\bws\b/, "the comms-failure marker is workspace-scoped too");
   // ...and re-verifies the operator session (defense in depth).
   assert.match(src, /requireOperator\(\)/, "the route must re-verify the operator session");
 });

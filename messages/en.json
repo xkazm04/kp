@@ -2304,6 +2304,8 @@
       "doneCount": "Done. {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
       "doneHeldAtOffer": "{count, plural, =1 {1 candidate at Offer awaits} other {# candidates at Offer await}} the offer flow. Extend the offer. Advancing never hires.",
       "doneDroppedOut": "{count, plural, =1 {1 previewed candidate was skipped} other {# previewed candidates were skipped}}. The score was no longer below the threshold when you confirmed, so nothing was rejected.",
+      "doneFailed": "{count, plural, =1 {1 candidate was not actioned} other {# candidates were not actioned}}. They were changed or closed out while the command ran, so nothing was applied to them. Refresh and try again.",
+      "doneCommsFailed": "{count, plural, =1 {1 rejected candidate was not notified} other {# rejected candidates were not notified}}. The rejection stands; send the note manually from their card.",
       "doneSummary": "Policy pass done: {advanced} advanced, {rejected} rejected, {held} held.",
       "dismiss": "Dismiss"
     },

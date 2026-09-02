@@ -2304,6 +2304,8 @@
       "doneCount": "Hotovo. {count, plural, =1 {Zpracován 1 kandidát} few {Zpracováni # kandidáti} other {Zpracováno # kandidátů}}.",
       "doneHeldAtOffer": "{count, plural, =1 {1 kandidát ve fázi Nabídka čeká} few {# kandidáti ve fázi Nabídka čekají} other {# kandidátů ve fázi Nabídka čeká}} na nabídkový proces. Odešlete nabídku. Posunem dál se nikdo nepřijme.",
       "doneDroppedOut": "{count, plural, =1 {1 kandidát z náhledu byl přeskočen} few {# kandidáti z náhledu byli přeskočeni} other {# kandidátů z náhledu bylo přeskočeno}}. Při potvrzení už skóre nebylo pod prahem, takže k zamítnutí nedošlo.",
+      "doneFailed": "{count, plural, =1 {1 kandidát nebyl zpracován} few {# kandidáti nebyli zpracováni} other {# kandidátů nebylo zpracováno}}. Během příkazu se změnili nebo byli uzavřeni, takže se na ně nic neuplatnilo. Obnovte a zkuste to znovu.",
+      "doneCommsFailed": "{count, plural, =1 {1 zamítnutý kandidát nebyl informován} few {# zamítnutí kandidáti nebyli informováni} other {# zamítnutých kandidátů nebylo informováno}}. Zamítnutí platí; zprávu odešlete ručně z jejich karty.",
       "doneSummary": "Průchod pravidel dokončen: {advanced} postoupilo, {rejected} zamítnuto, {held} pozdrženo.",
       "dismiss": "Zavřít"
     },
