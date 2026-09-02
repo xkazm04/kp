@@ -1464,7 +1464,7 @@
     "MATRIX_BUILD_FAILED": "Matici vhodnosti se nepodařilo sestavit. Zkuste to prosím znovu.",
     "MATCH_REASONING_FAILED": "Tuto shodu se nepodařilo vysvětlit. Zkuste to prosím znovu.",
     "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
-    "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit — kandidát nebo pozice za ní už neexistuje."
+    "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit. Kandidát nebo pozice za ní už neexistuje."
   },
   "resilience": {
     "notFoundEyebrow": "404",

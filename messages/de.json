@@ -1464,7 +1464,7 @@
     "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
     "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
     "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
-    "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären — die zugehörige Person oder Rolle existiert nicht mehr."
+    "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären. Die zugehörige Person oder Rolle existiert nicht mehr."
   },
   "resilience": {
     "notFoundEyebrow": "404",

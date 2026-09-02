@@ -1464,7 +1464,7 @@
     "MATRIX_BUILD_FAILED": "Could not build the fit matrix. Please try again.",
     "MATCH_REASONING_FAILED": "Could not explain that match. Please try again.",
     "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
-    "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained — the candidate or role behind it is gone."
+    "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained: the candidate or role behind it is gone."
   },
   "resilience": {
     "notFoundEyebrow": "404",
