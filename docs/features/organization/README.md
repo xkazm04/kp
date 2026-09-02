@@ -399,6 +399,41 @@ the org, integration settings and provider keys excluded, restores back into thi
 deployment) are three separate lines instead of subordinate clauses, and the internal
 codename is gone from user-facing copy.
 
+### The invite accept door (`/invite/[token]`)
+
+The one surface in this feature an outsider sees, and the only one reached without
+a session: a colleague opens the emailed link, `AcceptForm.tsx` previews the invite
+through `GET /api/invite/[token]`, and the redeem `POST` sets the password, adds the
+membership and signs them in.
+
+Both verbs are classified through **`app/invite/[token]/invite-result.ts`**
+(`classifyInviteResult`, pinned by `invite-result.test.ts`) — the same extraction,
+for the same reason, as `app/login/login-result.ts`. Before it, the form had two
+endings: every non-ok preview response *and* every fetch-level failure became
+`{ valid: false }`, which renders "This link is invalid, already used, or expired.
+Ask an admin to send a new one." So the door's own 10/min limiter (429), a 5xx and a
+dropped connection all told a colleague their invitation was dead and sent them to
+ask for a replacement that would behave identically. The classifier splits them:
+
+| Outcome | From | The form shows |
+| --- | --- | --- |
+| `dead` | 404 (no redeemable invite) · 410 (consumed / lapsed on redeem) | The unavailable panel. No retry: a retry over a consumed invite is a loop with no exit. |
+| `rateLimited` | 429 | "Too many attempts", the invitation stated to be still valid, plus a retry. |
+| `retry` | 5xx · network drop · the 15 s abort | "Couldn't load your invitation", plus a retry. |
+| `weakPassword` / `emailTaken` / `alreadyActive` | 400 / 409 with the reason code | The existing inline field messages. |
+
+Two consequences worth naming. A redeem that answers **410** now swaps the whole
+surface to the dead ending rather than leaving a generic line under a form that can
+never succeed again. And both fetches run under a 15 s `AbortController` budget
+(`INVITE_TIMEOUT_MS`), mirroring `LOGIN_TIMEOUT_MS`, so a stalled request cannot
+strand the invitee on a spinner or a dead "Setting up…" button.
+
+`GET /api/invite/[token]` answers **`orgName: null`** for an org with no name,
+where it used to answer the English literal `"your organization"` — a server-side
+string spliced into a four-locale eyebrow by code that has no idea who is reading.
+The fallback is now the catalog's (`invite.orgNameFallback`), resolved in the
+invitee's language.
+
 ## Copy & localization
 
 The console is fully localized in all four locales from the **`workspaceAdmin`**

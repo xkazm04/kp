@@ -33,7 +33,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     valid: true,
     email: invite.email,
     role: invite.role,
-    orgName: org?.name ?? "your organization",
+    // The client renders a LOCALIZED fallback (invite.orgNameFallback) when this is
+    // null. It used to be the English literal "your organization", spliced into a
+    // four-locale eyebrow by the server, which had no idea who was reading.
+    orgName: org?.name ?? null,
     needsName: !existing?.name, // a brand-new invitee supplies their name; a re-invite keeps it
     minPasswordLength: MIN_PASSWORD_LENGTH,
   });
