@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
+import { readJdBuildOptions } from "@/app/_lib/jd-build-run";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -23,17 +24,6 @@ const GENERATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // shows in the Ledger immediately and completes even if the user navigates away.
 // The handler (runJdBuild) owns writing the body/artifacts back onto the row.
 
-// Which AI steps to run — the recruiter's pre-generation checklist. Independent
-// toggles; ≥1 required. Mirrors JdBuildOptions in jd-build-run.ts.
-function readOptions(raw: unknown): { description: boolean; marketResearch: boolean; caseDesign: boolean } {
-  const o = (raw ?? {}) as Record<string, unknown>;
-  return {
-    description: o.description === true,
-    marketResearch: o.marketResearch === true,
-    caseDesign: o.caseDesign === true,
-  };
-}
-
 export async function POST(request: Request) {
   // A Generate spawns a 1–2 minute PAID AI build the moment it's accepted, so the
   // gate must run before any body read or DB write — a demo/non-operator session
@@ -53,7 +43,9 @@ export async function POST(request: Request) {
   const record = body as Record<string, unknown>;
   const title = typeof record.title === "string" ? record.title : "";
   const needText = typeof record.needText === "string" ? record.needText : "";
-  const options = readOptions(record.options);
+  // The recruiter's ticked checklist, read by the ONE reader the build handler
+  // also declares — the two used to be independent literals in two files.
+  const options = readJdBuildOptions(record.options);
 
   if (!options.description && !options.marketResearch && !options.caseDesign) {
     return NextResponse.json({ error: "Select at least one thing to generate." }, { status: 400 });

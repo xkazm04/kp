@@ -3609,6 +3609,8 @@
       "salaryUnavailable": "Salary unavailable",
       "repoGrounding": "Repo grounding",
       "repoLoc": "{loc} lines of code",
+      "repoGrounding": "Repo grounding",
+      "repoLoc": "{loc} lines of code",
       "sourcesLabel": "Sources:",
       "interviewCase": "Work-sample assignment",
       "timebox": "Timebox: ~{hours}h",

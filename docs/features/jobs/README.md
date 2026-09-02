@@ -678,6 +678,38 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### The builder's own contract, now under test
+
+`app/_lib/jd-build-run.ts` is the largest and most expensive file in the JD area and
+had no test at all. `app/_lib/jd-build-run.test.ts` drives its pure halves directly
+and its FAILURE persistence through the real handler (the min-need contract refuses
+before anything spawns, so the test reaches `failJdAnalysis` without paying for a
+build); the success half is covered against the store by `jd-build-cas.test.ts`.
+
+Three things changed to make that possible, and each closed a real seam:
+
+- **One declaration of each option default.** `JD_BUILD_DEFAULT_OPTIONS` (what a
+  caller who sends NO options gets: description + market research) and
+  `JD_BUILD_NO_OPTIONS` + `readJdBuildOptions` (how a recruiter's EXPLICIT checklist
+  is read: an absent box is unticked) both live in `jd-build-run.ts`.
+  `POST /api/jds/generate` imports the reader instead of re-typing it; the two
+  answers are different questions and the test pins them as such.
+- **`composeJdBody`** isolates the template-vs-default branch, so both paths (and a
+  blank template, which must fall back rather than persist an empty body after a
+  1–2 minute build) are testable without a spawn.
+- **`normalizeMarketSalaryPayload`** is the market-salary trust boundary as a pure
+  function, drivable with the garbage the CLI can actually print.
+
+**The repo snapshot is now read.** `runJdBuild` has persisted a `snapshot`
+(`ref`, `languages`, `inferredStack`, `loc`) into `analysis_json` since repo
+grounding shipped and nothing rendered it, so a JD grounded in a real codebase looked
+identical to one written from a paragraph of prose — the recruiter could not tell
+whether the must-haves came from the code or from the model's prior. The Ledger
+detail now draws it beside the salary card (`RepoGroundingCard` in
+`JdsLedgerDetailPanels.tsx`, gated by `hasRepoGrounding`), with the ref linked only
+when it is a safe http(s) URL and `library.tab.repoGrounding` / `repoLoc` in all four
+locales.
+
 ### The JD build has one door, and four throttled entrances
 
 Four callers used to hand-roll the three-step start sequence (placeholder row →

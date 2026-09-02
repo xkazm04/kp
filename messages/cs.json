@@ -3609,6 +3609,8 @@
       "salaryUnavailable": "Mzda není k dispozici",
       "repoGrounding": "Podklad z repozitáře",
       "repoLoc": "{loc} řádků kódu",
+      "repoGrounding": "Podklad z repozitáře",
+      "repoLoc": "{loc} řádků kódu",
       "sourcesLabel": "Zdroje:",
       "interviewCase": "Praktické zadání",
       "timebox": "Časový rámec: ~{hours} h",

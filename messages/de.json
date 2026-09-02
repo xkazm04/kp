@@ -3609,6 +3609,8 @@
       "salaryUnavailable": "Gehalt nicht verfügbar",
       "repoGrounding": "Repository-Grundlage",
       "repoLoc": "{loc} Codezeilen",
+      "repoGrounding": "Repository-Grundlage",
+      "repoLoc": "{loc} Codezeilen",
       "sourcesLabel": "Quellen:",
       "interviewCase": "Aufgabe als Arbeitsprobe",
       "timebox": "Zeitrahmen: ~{hours} Std.",

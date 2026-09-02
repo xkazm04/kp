@@ -3609,6 +3609,8 @@
       "salaryUnavailable": "Salaire indisponible",
       "repoGrounding": "Ancrage dans le dépôt",
       "repoLoc": "{loc} lignes de code",
+      "repoGrounding": "Ancrage dans le dépôt",
+      "repoLoc": "{loc} lignes de code",
       "sourcesLabel": "Sources :",
       "interviewCase": "Exercice pratique",
       "timebox": "Durée : ~{hours} h",

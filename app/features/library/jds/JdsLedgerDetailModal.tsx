@@ -10,8 +10,8 @@ import { useIngestJob, useJdDetail } from "./jdsHooks";
 import { builderLintFindings, isUnlinked, jdMarketResearchAvailable, jdMustHaveCount, LINT_MIN_BODY_CHARS, type JdRow } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
-import { BuildingPanel, CaseCard, FailedPanel, SalaryCard } from "./JdsLedgerDetailPanels";
-import { hasCaseContent, parseArtifacts, type CaseArtifact } from "./jdsLedgerArtifacts";
+import { BuildingPanel, CaseCard, FailedPanel, RepoGroundingCard, SalaryCard } from "./JdsLedgerDetailPanels";
+import { hasCaseContent, hasRepoGrounding, parseArtifacts, type CaseArtifact } from "./jdsLedgerArtifacts";
 import { JdsLedgerDetailRail } from "./JdsLedgerDetailRail";
 
 const JdModalEditor = dynamic(() => import("./JdsModalEditor").then((m) => ({ default: m.JdModalEditor })), {
@@ -160,6 +160,7 @@ export function LedgerDetailModal({
           ) : (
             <div className="space-y-4">
               {artifacts?.salary ? <SalaryCard salary={artifacts.salary} sources={artifacts.salarySources} source={artifacts.salarySource} /> : null}
+              {hasRepoGrounding(artifacts?.snapshot) ? <RepoGroundingCard snapshot={artifacts.snapshot} /> : null}
               {jd.body.trim() ? (
                 <>
                   <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">

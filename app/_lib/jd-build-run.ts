@@ -10,7 +10,7 @@ import { parseRoleSpec, type RoleBrief, type RoleSpec } from "./rolespec";
 import { briefMustSkills, briefStatedRequirements, needTextFromBrief } from "./intake-brief";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
-import { renderTemplate } from "@/app/features/shared/renderTemplate";
+import { renderTemplate, type TemplateTokens } from "@/app/features/shared/renderTemplate";
 import { jdTemplateTokens } from "./jd-template-tokens";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
@@ -59,13 +59,39 @@ export type JdBuildInput = {
   options?: Partial<JdBuildOptions>;
 };
 
-// Per-field defaults so a legacy caller with no options gets description + market
-// research (case off), and a partial object still resolves every field.
-function resolveBuildOptions(raw: Partial<JdBuildOptions> | undefined): JdBuildOptions {
+// ONE source for the checklist's two default sets. They are different questions and
+// both used to be written as literals in two files — the handler's here, the route's
+// in app/api/jds/generate/route.ts — with nothing keeping them honest.
+//
+//  - JD_BUILD_DEFAULT_OPTIONS answers "a caller sent NO options at all" (a simulation
+//    deep link, a programmatic caller): today's effective output, description + market
+//    research, case off, so a legacy caller is unchanged but no longer pays for a
+//    discarded case call.
+//  - JD_BUILD_NO_OPTIONS is the starting point for reading a recruiter's EXPLICIT
+//    checklist: an unticked box is off, and all-off is refused by the caller rather
+//    than silently promoted to the defaults above.
+export const JD_BUILD_DEFAULT_OPTIONS: JdBuildOptions = { description: true, marketResearch: true, caseDesign: false };
+export const JD_BUILD_NO_OPTIONS: JdBuildOptions = { description: false, marketResearch: false, caseDesign: false };
+
+/** Read a recruiter's ticked checklist off an untrusted request body. Only an explicit
+ *  `true` ticks a box — the request states the whole checklist, so a missing field is
+ *  an unticked box, NOT an invitation to spend on the defaults. */
+export function readJdBuildOptions(raw: unknown): JdBuildOptions {
+  const o = (raw ?? {}) as Record<string, unknown>;
   return {
-    description: raw?.description ?? true,
-    marketResearch: raw?.marketResearch ?? true,
-    caseDesign: raw?.caseDesign ?? false,
+    description: o.description === true,
+    marketResearch: o.marketResearch === true,
+    caseDesign: o.caseDesign === true,
+  };
+}
+
+/** Per-field resolution for the HANDLER: a caller with no options at all gets
+ *  JD_BUILD_DEFAULT_OPTIONS, and a partial object still resolves every field. */
+export function resolveBuildOptions(raw: Partial<JdBuildOptions> | undefined): JdBuildOptions {
+  return {
+    description: raw?.description ?? JD_BUILD_DEFAULT_OPTIONS.description,
+    marketResearch: raw?.marketResearch ?? JD_BUILD_DEFAULT_OPTIONS.marketResearch,
+    caseDesign: raw?.caseDesign ?? JD_BUILD_DEFAULT_OPTIONS.caseDesign,
   };
 }
 
@@ -111,6 +137,24 @@ const JD_MARKDOWN_STRINGS: Record<"en" | "cs", JdMarkdownStrings> = {
 // import it from this module.
 export type { MarketSalary };
 
+/** The trust boundary itself, as a pure function so it can be driven with the
+ *  garbage the CLI can actually print (a partial band, a 0-0 taxonomy miss, a
+ *  `sources` that is a string, a missing `source`) without spawning anything.
+ *  Everything here is defensive on purpose: an un-normalized band white-screens the
+ *  result panel after a 1-2 minute build, or bakes a literal `undefined` into the
+ *  saved JD body. */
+export function normalizeMarketSalaryPayload(parsed: { result?: unknown; sources?: unknown; source?: unknown }): {
+  result: MarketSalary;
+  sources: string[];
+  source: string;
+} {
+  return {
+    result: normalizeMarketSalary(parsed.result),
+    sources: Array.isArray(parsed.sources) ? parsed.sources.filter((s): s is string => typeof s === "string") : [],
+    source: typeof parsed.source === "string" ? parsed.source : "deterministic",
+  };
+}
+
 export async function runMarketSalary(input: {
   title: string;
   seniority: string;
@@ -137,12 +181,9 @@ export async function runMarketSalary(input: {
     // CLI's 0–0 taxonomy miss) becomes a render-safe `available: false` shape
     // instead of a `suggestedMaximum` that white-screens the result panel after a
     // 1–2 minute build, or a literal `undefined` baked into the saved JD body.
-    const parsed = parsePythonJson<{ result?: unknown; sources?: unknown; source?: unknown }>(stdout, stderr);
-    return {
-      result: normalizeMarketSalary(parsed.result),
-      sources: Array.isArray(parsed.sources) ? parsed.sources.filter((s): s is string => typeof s === "string") : [],
-      source: typeof parsed.source === "string" ? parsed.source : "deterministic",
-    };
+    return normalizeMarketSalaryPayload(
+      parsePythonJson<{ result?: unknown; sources?: unknown; source?: unknown }>(stdout, stderr)
+    );
   } finally {
     await cleanupWorkdir(workdir);
   }
@@ -155,7 +196,7 @@ export async function runMarketSalary(input: {
 // importers that resolve it from this module.
 export type { RoleSpec } from "./rolespec";
 
-function composeMarkdown(
+export function composeMarkdown(
   role: RoleSpec,
   opts: { company?: string; location?: string; salary: MarketSalary; lang?: string }
 ): string {
@@ -192,6 +233,50 @@ function composeMarkdown(
   section(str.niceToHave, role.niceToHaves);
   section(str.languages, role.languages);
   return lines.join("\n");
+}
+
+/** The description branch, isolated: a chosen company template wins, otherwise the
+ *  AI-default layout. Both paths are localized by `lang` — the template's structural
+ *  scaffolding through `tokens` (the seeded default's heading/filler slots, resolved
+ *  from the catalog by jdTemplateTokens), composeMarkdown's headings by its own
+ *  table — so a localized build is never localized content under English headings.
+ *  An empty/blank templateBody is NOT a template: it falls back rather than
+ *  persisting an empty body after a 1-2 minute build. */
+export function composeJdBody(
+  spec: RoleSpec,
+  opts: {
+    templateBody?: string;
+    title: string;
+    company?: string;
+    location?: string;
+    seniority?: string;
+    salary: MarketSalary;
+    lang: "en" | "cs";
+    /** REQUIRED, like renderTemplate's own `localized`: an omitted map would ship a
+     *  raw `{{heading_about}}` onto a public posting. */
+    tokens: TemplateTokens;
+  }
+): string {
+  const templateBody = (opts.templateBody ?? "").trim();
+  if (!templateBody) {
+    return composeMarkdown(spec, { company: opts.company, location: opts.location, salary: opts.salary, lang: opts.lang });
+  }
+  // Same data the client preview fed renderTemplate: the salary slot gets the market
+  // label, placeholders the role's fields; unfilled sections collapse per
+  // renderTemplate's rules.
+  return renderTemplate(
+    templateBody,
+    {
+      title: opts.title,
+      company: opts.company?.trim(),
+      seniority: opts.seniority || spec.seniority || "medior",
+      salary: marketSalaryLabel(opts.salary, opts.lang),
+      responsibilities: spec.responsibilities ?? [],
+      mustHaves: spec.mustHaves ?? [],
+      niceToHaves: spec.niceToHaves ?? [],
+    },
+    opts.tokens
+  );
 }
 
 type Progress = (done: number, total: number, msg?: string) => void;
@@ -297,28 +382,18 @@ export async function runJdBuild(
     const templateBody = typeof input.templateBody === "string" ? input.templateBody.trim() : "";
     let markdown = "";
     if (options.description && spec) {
-      markdown = templateBody
-        ? // Render through the chosen company template (same data the client preview
-          // fed renderTemplate): the salary slot gets the market label, placeholders
-          // the role's fields; unfilled sections collapse per renderTemplate's rules.
-          // `lang` localizes the template's structural scaffolding (the seeded default's
-          // heading/filler tokens, resolved from the catalog by jdTemplateTokens) so a
-          // localized build isn't localized content under English headings — matching
-          // composeMarkdown's localized headings on the other path.
-          renderTemplate(
-            templateBody,
-            {
-              title,
-              company: input.company?.trim(),
-              seniority: input.seniority || spec.seniority || "medior",
-              salary: marketSalaryLabel(salaryBand, lang),
-              responsibilities: spec.responsibilities ?? [],
-              mustHaves: spec.mustHaves ?? [],
-              niceToHaves: spec.niceToHaves ?? [],
-            },
-            await jdTemplateTokens(lang)
-          )
-        : composeMarkdown(spec, { company: input.company, location: input.location, salary: salaryBand, lang });
+      // The catalog read stays HERE (it is async, and the branch below must not be),
+      // so the choice itself is a pure function the tests can drive both ways.
+      markdown = composeJdBody(spec, {
+        templateBody,
+        title,
+        company: input.company,
+        location: input.location,
+        seniority: input.seniority,
+        salary: salaryBand,
+        lang,
+        tokens: await jdTemplateTokens(lang),
+      });
     }
 
     // The structured artifacts stored beside the markdown body (analysis_json) and
