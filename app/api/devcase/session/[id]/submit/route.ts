@@ -30,10 +30,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // an intake the recruiter has closed. Re-read via the session token and 410 when
     // the posting has closed, matching the public path so the two intakes agree.
     if (posting.status === "closed") {
-      return NextResponse.json(
-        { error: "This role's intake has closed and is no longer accepting submissions." },
-        { status: 410 }
-      );
+      // The English here was a hand-copy of REFUSAL_ERRORS.POSTING_CLOSED, on a public
+      // candidate surface — so the one sentence existed twice and only one copy was
+      // localizable. One producer now, and the client reads the code.
+      return jsonRefusal("POSTING_CLOSED", 410);
     }
     const submission = submitDevSession(id, posting.id, {
       candidate: typeof body.candidate === "string" ? body.candidate : null,

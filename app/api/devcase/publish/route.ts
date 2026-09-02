@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getAdapter } from "@/app/_lib/distribution";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 
 // OUT: publish an approved role+case through a distribution channel (local stub by default).
@@ -22,6 +23,8 @@ export async function POST(request: NextRequest) {
     const posting = await getAdapter(body.channel ?? "local").publish(devCase);
     return NextResponse.json({ posting });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Publish failed." }, { status: 500 });
+    // better-sqlite3 + a distribution adapter: the thrown message carries SQLITE_*
+    // codes, the absolute db path, or an adapter's upstream body. Log it, answer a code.
+    return safeJsonError(error, "api:devcase/publish", "DEVCASE_PUBLISH_FAILED");
   }
 }

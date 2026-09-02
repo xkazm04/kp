@@ -85,6 +85,12 @@ export const STORE_ERRORS = {
   // Sourcing "reach out" (idea JOB3): sits on createPipelineEntry + the outreach
   // automation subprocess (Claude CLI), whose thrown errors embed internal detail.
   OUTREACH_FAILED: "Could not reach out to that candidate. Please try again.",
+  // Dev-case publish + candidate-feedback drafting. Both sit on better-sqlite3 AND a
+  // spawn: publish goes through a distribution adapter, feedback through
+  // buildFeedbackBrief's model call — so a thrown message here carries SQLITE_* codes,
+  // the absolute db path or provider stderr, and both routes were forwarding it whole.
+  DEVCASE_PUBLISH_FAILED: "Could not publish this case. Please try again.",
+  DEVCASE_FEEDBACK_FAILED: "Could not draft the candidate feedback. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",
@@ -198,6 +204,16 @@ export const REFUSAL_ERRORS = {
   OFFER_NOT_FOUND: "Offer not found.",
   /** A work-session id presented without, or with the wrong, apply token (403). */
   SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
+  /** The apply link does not resolve to a posting that is taking work (404). The two
+   *  causes stay DELIBERATELY lumped: telling a caller "no such token" apart from
+   *  "that one closed" turns the mint endpoint into an oracle for guessing tokens, and
+   *  the candidate's next action is identical either way. */
+  DEVCASE_SESSION_UNAVAILABLE: "This case is not accepting submissions.",
+  /** The per-token/day session quota is spent (429). Distinct from TOO_MANY_REQUESTS:
+   *  that is the shared per-IP throttle refusing a burst, this is one apply link having
+   *  minted its day's worth of sessions, and the candidate's remedy ("come back later",
+   *  not "slow down") differs. */
+  DEVCASE_SESSION_QUOTA: "Too many sessions started for this case. Try again later.",
   /** An on-the-job rating was posted for an entry that is not on the board (404). */
   HIRE_RATING_ENTRY_NOT_FOUND: "That candidate is not on this board.",
   /** …or for someone who never took the job (409). The stage is re-read server-side,

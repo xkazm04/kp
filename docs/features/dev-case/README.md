@@ -438,6 +438,42 @@ invisible to tsc, lint and `design:check` alike. **Enforcement is still out of s
 the timebox remains advisory at runtime (see Known gaps); this change makes it honest,
 not binding.
 
+**The candidate surfaces answer in codes, and the candidate reads them.** The apply
+surface renders in en/cs/de/fr, but three of its server refusals were bare
+`{ error: "<English sentence>" }` with no code. The closed-intake sentence was
+hand-copied verbatim into `session/[id]/submit/route.ts` and `inbound/route.ts` while
+`REFUSAL_ERRORS.POSTING_CLOSED` — the localizable original — sat a few lines below in the
+second of them; both doors now answer `jsonRefusal("POSTING_CLOSED", 410)`, the same code
+the inbound catch already used. The session mint's two refusals are new codes,
+`DEVCASE_SESSION_UNAVAILABLE` (404) and `DEVCASE_SESSION_QUOTA` (429) — kept distinct
+from the shared `TOO_MANY_REQUESTS` because the remedy differs ("come back later" for a
+link that has spent its day of sessions, not "slow down"), and the 404 keeps *no such
+token* and *that one closed* deliberately lumped so the mint is not an oracle for
+guessing apply tokens.
+
+The client half mattered more than the wire half: `LiveWorkSurface.ensureSession` used to
+drop a failed mint on the floor and answer `null`, so a candidate whose link had closed or
+whose quota was spent kept typing into a surface that recorded nothing and learned about
+it only when Submit failed with the generic line. It now reads the code through
+`useErrorMessage` and shows it as an alert beside the sync banner; the submit path resolves
+its code the same way, with the existing `errorClosed`/`error` strings as fallback so a
+future code with no catalog entry still degrades to a sentence. Statuses are unchanged —
+`session-intake-guards.test.ts` and `inbound/route.test.ts` still pin 404/410/429 against
+the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins the
+source: no route may re-type the closed-intake sentence, and the work surface may never
+use the inverted `body.error ?? t(...)` chain.
+
+Two store-backed writes stopped forwarding their thrown message in the same pass:
+`publish/route.ts` (better-sqlite3 + a distribution adapter) and `feedback/route.ts`
+(better-sqlite3 + `buildFeedbackBrief`'s model call) now answer
+`safeJsonError(..., "DEVCASE_PUBLISH_FAILED" / "DEVCASE_FEEDBACK_FAILED")`, and both files
+are **off** the `error-response-contract.test.ts` ceiling list rather than lowered on it.
+The other 17 raw-message catches under `app/api/devcase/**` remain, each still ceilinged
+there: `comms` (1), `control` (2), `inbound` (1), `lifecycle` + its `[id]/approve`,
+`[id]/close`, `[id]/redesign` (5), `outcomes` (2), `postings` (1), `promote` (1),
+`devcase/route.ts` (2), `source` (1), `submit` (1). They are recruiter-side, not candidate
+-facing, which is why these two went first.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
