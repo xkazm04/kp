@@ -3,7 +3,8 @@
 // move/decide contract: per-id CAS is preserved (a mismatched expectedStage is a
 // per-id 409, not a batch abort), atomicity is PER ID (one item's refusal never
 // stops the others), and the response reports each id's outcome — ok, or failed +
-// the server's OWN verbatim reason.
+// the server's OWN refusal CODE (which the bar localizes), with the canonical
+// English beside it.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
@@ -35,9 +36,12 @@ function entryFixture(overrides: Partial<Parameters<typeof createPipelineEntry>[
   return entry;
 }
 
-const outcome = (results: { id: string; ok: boolean; reason?: string }[], id: string) =>
+const outcome = (results: { id: string; ok: boolean; code?: string; reason?: string }[], id: string) =>
   results.find((r) => r.id === id)!;
-const reasonOf = (results: { id: string; ok: boolean; reason?: string }[], id: string) => String(outcome(results, id).reason);
+const reasonOf = (results: { id: string; ok: boolean; code?: string; reason?: string }[], id: string) => String(outcome(results, id).reason);
+// api-contracts.md 1.1 — the client renders the CODE, never the prose, so the code
+// is what these assertions pin.
+const codeOf = (results: { id: string; ok: boolean; code?: string; reason?: string }[], id: string) => outcome(results, id).code;
 
 test("a mixed move batch: a clean move succeeds while a CAS conflict fails per-id (both reported), atomicity is per id", async () => {
   const clean = entryFixture({ stage: "Accepted" });
@@ -62,7 +66,8 @@ test("a mixed move batch: a clean move succeeds while a CAS conflict fails per-i
   assert.equal(outcome(body.results, alsoClean.id).ok, true);
   const conflictOut = outcome(body.results, conflict.id);
   assert.equal(conflictOut.ok, false);
-  assert.match(reasonOf(body.results, conflict.id), /changed|refresh/i, "the server's own 409 reason rides through, not a bare code");
+  assert.equal(codeOf(body.results, conflict.id), "PIPELINE_MOVE_CONFLICT", "the server's own 409 refusal rides through as a code the board can localize");
+  assert.match(reasonOf(body.results, conflict.id), /changed|refresh/i, "…with the canonical English beside it");
 
   // DB reflects exactly the two successful moves; the conflict is untouched.
   assert.equal(getPipelineEntry(clean.id)!.stage, "Screened");
@@ -86,7 +91,8 @@ test("a batch decide: accept advances an active entry; a bare accept at Offer is
   assert.equal(outcome(body.results, advance.id).ok, true);
   const heldOut = outcome(body.results, atOffer.id);
   assert.equal(heldOut.ok, false);
-  assert.match(reasonOf(body.results, atOffer.id), /accepts an offer/, "the Hired-is-outcome-bearing 422 reason is surfaced verbatim");
+  assert.equal(codeOf(body.results, atOffer.id), "PIPELINE_TERMINAL_NOT_ADVANCE", "the Hired-is-outcome-bearing 422 is surfaced as its own code");
+  assert.match(reasonOf(body.results, atOffer.id), /accepts an offer/, "…with the canonical English beside it");
 
   assert.equal(getPipelineEntry(advance.id)!.stage, "Interview");
   assert.equal(getPipelineEntry(atOffer.id)!.stage, "Offer", "no phantom hire");
@@ -119,7 +125,11 @@ test("malformed and unknown-action items fail without aborting the valid ones", 
   assert.equal(outcome(body.results, good.id).ok, true);
   assert.equal(outcome(body.results, "nope").ok, false);
   assert.equal(outcome(body.results, "ghost").ok, false);
-  assert.match(reasonOf(body.results, "ghost"), /not found/i);
+  assert.equal(codeOf(body.results, "ghost"), "PIPELINE_ENTRY_NOT_FOUND");
+  // An unknown action never reaches the shared helper: the batch's own coercer
+  // rejects the ROW, which is a different refusal from "this board has no such
+  // action" and says so.
+  assert.equal(codeOf(body.results, "nope"), "PIPELINE_BATCH_ITEM_MALFORMED");
   assert.equal(getPipelineEntry(good.id)!.stage, "Screened");
 });
 

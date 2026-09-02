@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clearIntakeDegraded, getPipelineEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -44,7 +44,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     const ws = await currentWorkspace();
     const entry = getPipelineEntry(id, ws);
-    if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+    if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0] });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:entry", "PIPELINE_LIST_FAILED");
@@ -68,10 +68,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (body.action === "set_github") {
       const summary = coerceGithubEvidenceSummary(body.github);
       if (!summary) {
-        return NextResponse.json({ error: "Invalid GitHub evidence payload." }, { status: 400 });
+        return jsonRefusal("PIPELINE_GITHUB_EVIDENCE_INVALID", 400);
       }
       const updated = setEntryGithubEvidence(id, JSON.stringify(summary), ws);
-      if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+      if (!updated) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
       return NextResponse.json({ entry: updated });
     }
 
@@ -82,17 +82,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // recruiter-owned prose, not AI-attached evidence — no fill-only guard).
     if (body.action === "set_notes") {
       if (typeof body.notes !== "string") {
-        return NextResponse.json({ error: `Field "notes" must be a string.` }, { status: 400 });
+        return jsonRefusal("PIPELINE_NOTES_INVALID", 400);
       }
       const trimmed = body.notes.trim();
       if (trimmed.length > MAX_NOTES_LENGTH) {
-        return NextResponse.json(
-          { error: `Note is too long (${trimmed.length} characters; max ${MAX_NOTES_LENGTH}).` },
-          { status: 400 }
-        );
+        // The cap rides as DATA beside the code — a number the reader's own
+        // sentence can carry, instead of an English sentence with a number in it.
+        return jsonRefusal("PIPELINE_NOTES_TOO_LONG", 400, { max: MAX_NOTES_LENGTH, length: trimmed.length });
       }
       const updated = setEntryNotes(id, trimmed === "" ? null : trimmed, ws);
-      if (!updated) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+      if (!updated) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
       return NextResponse.json({ entry: updated });
     }
 
@@ -112,10 +111,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const actor = await humanActor();
       const restored = reinstatePipelineEntry(id, ws, actor);
       if (!restored) {
-        return NextResponse.json(
-          { error: "Couldn't reinstate — this candidate isn't in a rejected state (already reinstated, or closed differently)." },
-          { status: 409 }
-        );
+        return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
       }
       // Seal the REVERSAL into the tamper-evident decision chain too. The auto-reject
       // is sealed by screen-wave; recording only a pipeline event for the reinstate
@@ -139,7 +135,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (body.action === "resolve_intake") {
       const cleared = clearIntakeDegraded(id, ws);
       if (!cleared) {
-        return NextResponse.json({ error: "No degraded-intake flag to resolve." }, { status: 404 });
+        return jsonRefusal("PIPELINE_INTAKE_NOT_DEGRADED", 404);
       }
       return NextResponse.json({ entry: cleared });
     }

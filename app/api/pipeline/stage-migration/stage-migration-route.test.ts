@@ -56,7 +56,7 @@ const at = (stage: string) => countPipelineByStage()[stage] ?? 0;
 test("a malformed axis is refused before anything is touched", async () => {
   const res = await post({ config: { stages: [{ id: "Only", label: "Only", role: "entry" }], retired: [] } });
   assert.equal(res.status, 400);
-  assert.equal((await res.json()).code, "invalid_axis");
+  assert.equal((await res.json()).code, "PIPELINE_AXIS_INVALID");
 });
 
 test("removing an OCCUPIED step with no mapping is refused, and names who is on it", async () => {
@@ -67,7 +67,7 @@ test("removing an OCCUPIED step with no mapping is refused, and names who is on 
   const res = await post({ config: without("Interview"), migrate: {} });
   assert.equal(res.status, 409, "a conflict, not a validation error — the axis is fine, the timing is not");
   const body = (await res.json()) as { code: string; unmapped: { stage: string; count: number }[] };
-  assert.equal(body.code, "migration_required");
+  assert.equal(body.code, "PIPELINE_MIGRATION_REQUIRED");
   assert.deepEqual(body.unmapped, [{ stage: "Interview", count: occupants }]);
 
   // Refused means REFUSED: the axis is untouched and nobody moved.
@@ -79,11 +79,11 @@ test("removing an OCCUPIED step with no mapping is refused, and names who is on 
 test("a destination the same edit removes is refused — no moving out of one hole into another", async () => {
   const res = await post({ config: without("Interview"), migrate: { Interview: "Interview" } });
   assert.equal(res.status, 400);
-  assert.equal((await res.json()).code, "invalid_mapping");
+  assert.equal((await res.json()).code, "PIPELINE_MIGRATION_MAPPING_INVALID");
 
   const other = await post({ config: without("Interview"), migrate: { Interview: "Nowhere" } });
   assert.equal(other.status, 400);
-  assert.equal((await other.json()).code, "invalid_mapping");
+  assert.equal((await other.json()).code, "PIPELINE_MIGRATION_MAPPING_INVALID");
 });
 
 test("a mapping that would empty a step the new axis KEEPS is refused", async () => {
@@ -97,7 +97,7 @@ test("a mapping that would empty a step the new axis KEEPS is refused", async ()
 
   const res = await post({ config: { stages: SHIPPED, retired: [] }, migrate: { Interview: "Screened" } });
   assert.equal(res.status, 400);
-  assert.equal((await res.json()).code, "invalid_mapping");
+  assert.equal((await res.json()).code, "PIPELINE_MIGRATION_MAPPING_INVALID");
   assert.equal(at("Interview"), before, "refused means refused — nobody moved");
   assert.ok(stranded);
 

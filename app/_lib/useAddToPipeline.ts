@@ -120,7 +120,10 @@ export function postPipelineAction(id: string, body: PipelineActionBody): Promis
 export type PipelineBatchItem =
   | { id: string; action: "set_stage"; toStage: string; expectedStage: string }
   | { id: string; action: "accept" | "reject"; expectedStage: string };
-export type PipelineBatchOutcome = { id: string; ok: boolean; reason?: string };
+/** `code` is the machine refusal the UI renders (errors.<CODE>, in the reader's
+ *  language); `reason` is the canonical English beside it, kept for the log and
+ *  as a last-resort fallback. The bar must never paint `reason`. */
+export type PipelineBatchOutcome = { id: string; ok: boolean; code?: string; reason?: string };
 export type PipelineBatchResult =
   | { ok: true; results: PipelineBatchOutcome[] }
   | { ok: false; status?: number };
