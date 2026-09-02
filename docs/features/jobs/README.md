@@ -147,6 +147,50 @@ two produced the row.
 > Read `published` as **"Live (sourced)"**, never as external job-board
 > publishing.
 
+### Publishing tells the whole story
+
+`POST /api/jobs/[id]/publish` answers six facts —
+`{ sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished, reopened }`
+— and both publish surfaces read two of them. The result was not merely thin, it
+was wrong in the case that matters: an idempotent re-publish **skips sourcing
+entirely** (`if (!already)`), so its `sourced: 0` was rendered as "Sourced 0
+candidates into the Pipeline." — a fresh go-live that matched nobody, which is a
+very different and much more alarming event. A reopen looked like a first
+publish, and the rediscovery alerts a genuine go-live raises were never mentioned.
+
+`jobsPublishResult.ts` now selects one sentence per fact (pinned by
+`jobsPublishResult.test.ts`): the lead states the transition (went live / reopened
+with the count restored / already live and nothing re-sourced), then the sourcing
+count, the unreadable-profile count, and the rediscovery flags — each only when it
+has something to say. A `sourcingWarning` is amber and **replaces** the sourced
+claim, and its text (an Error message, sometimes a Python traceback) never reaches
+the screen: it selects a localized sentence. `JobsPublishNote.tsx` renders the
+list, so the Drafts panel and the modal footer tell the same story from the same
+call.
+
+**The wait is narrated and escapable.** Publishing runs a sourcing child plus the
+rediscovery fan-out and can take minutes; the only signal was a disabled button.
+There is now a live region under it naming the wait and a **Stop waiting** action
+backed by an `AbortController`. The copy is careful about what leaving does: the
+route threads the request's `AbortSignal` into the sourcing child, so aborting
+genuinely stops the sweep, but the go-live transaction commits *before* sourcing
+starts — so the sentence says the role is probably live and the sweep was
+cancelled, rather than guessing either way. The route itself is unchanged.
+
+This stayed a synchronous call rather than moving to a background task
+(`TasksProvider`) deliberately: registering a new task kind means touching the
+task registry and its handler, which is a different area from this one. Instead
+the result gets a memory of its own — a module-scope map in `jobsPublishResult.ts`
+keyed by job id — so closing the modal mid-publish no longer throws the answer
+away. Reopening the role shows it labelled **Last publish**, never as a fresh
+result, and it is deliberately not storage-backed: a week-old sentence restored
+after a reload would be a worse lie than silence.
+
+Finally, `JobLifecycleStrip` takes a `refreshToken` the modal bumps on every
+transition. Its effect keyed on `[jobId]` alone, so the strip a recruiter had just
+watched go live kept showing the pre-publish funnel, channels and decision counts
+until the modal was closed and reopened.
+
 ### The go-live is one transaction, on one connection
 
 `/publish` runs the billing gate (`jobPostGate`), the status flip

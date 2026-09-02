@@ -63,7 +63,7 @@ export function JobPostingModal({
   // button was tabbable and no arrow key did anything, so reaching "Agent fit"
   // from "Posting" cost six Tab presses through a widget whose ARIA said otherwise.
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const { t, tab, setTab, postingLang, setPostingLang, markdown, statusSuffix, confirmingClose, setConfirmingClose, closeRole } = logic;
+  const { t, tab, setTab, postingLang, setPostingLang, markdown, statusSuffix, confirmingClose, setConfirmingClose, closeRole, lifecycleToken } = logic;
   return (
     <Modal
       title={job.title}
@@ -74,7 +74,7 @@ export function JobPostingModal({
     >
       {/* c91ec8b1 — the role's lifecycle at a glance, each segment linking to
           the tab that owns it (JD → channels → board → decisions → offers). */}
-      <JobLifecycleStrip jobId={job.id} jobTitle={job.title} />
+      <JobLifecycleStrip jobId={job.id} jobTitle={job.title} refreshToken={lifecycleToken} />
 
       {/* Seven tabs do not fit a phone or a narrow split: the strip scrolls
           horizontally instead of squeezing the labels off the modal's edge. */}

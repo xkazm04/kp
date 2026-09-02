@@ -4279,6 +4279,17 @@
       "quotaNote": "Sie haben das Limit aktiver Stellen Ihres Tarifs erreicht. Führen Sie ein Upgrade durch oder schließen Sie eine Stelle, um eine weitere zu veröffentlichen.",
       "goToBilling": "Upgrade in der Abrechnung",
       "loadFailed": "Entwürfe konnten nicht geladen werden.",
+      "publishWentLive": "Die Stelle ist live.",
+      "publishReopened": "{count, plural, one {Wieder geöffnet: # zurückgezogene Kandidatin bzw. Kandidat ist wieder in der Pipeline.} other {Wieder geöffnet: # zurückgezogene Kandidatinnen und Kandidaten sind wieder in der Pipeline.}}",
+      "publishAlreadyLive": "War bereits live. Es wurde nicht erneut gesucht.",
+      "publishSourced": "{count, plural, =0 {Bisher passt keine gespeicherte Person zu dieser Stelle.} one {# Person in die Pipeline übernommen.} other {# Personen in die Pipeline übernommen.}}",
+      "publishSkipped": "{count, plural, one {# gespeicherte Person konnte nicht gelesen und daher nicht bewertet werden.} other {# gespeicherte Personen konnten nicht gelesen und daher nicht bewertet werden.}}",
+      "publishSilver": "{count, plural, one {# frühere Person wurde für die Wiederentdeckung markiert.} other {# frühere Personen wurden für die Wiederentdeckung markiert.}}",
+      "publishSourcingFailed": "Die Suche ist fehlgeschlagen, deshalb wurde niemand übernommen. Das heißt nicht, dass niemand passt.",
+      "publishInFlight": "Stelle wird veröffentlicht und Kandidaten werden gesucht. Das kann einige Minuten dauern.",
+      "publishStopWaiting": "Nicht weiter warten",
+      "publishAbandoned": "Warten beendet. Die Stelle ist wahrscheinlich bereits live, die Kandidatensuche wurde jedoch abgebrochen. Öffnen Sie die Stelle erneut, um nachzusehen.",
+      "publishLastResult": "Letzte Veröffentlichung",
       "retry": "Erneut versuchen"
     },
     "posting": {

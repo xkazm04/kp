@@ -33,7 +33,20 @@ type PipelineEntryLite = {
   approvalKind: string | null;
 };
 
-export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+export function JobLifecycleStrip({
+  jobId,
+  jobTitle,
+  // Bumped by the modal after every lifecycle transition (publish / close /
+  // reopen). Without it the effect keyed on [jobId] alone, so the strip a
+  // recruiter had just watched go live still showed the pre-publish funnel,
+  // channels and decision counts until the modal was closed and reopened —
+  // mission control reporting the state of the world one action ago.
+  refreshToken = 0,
+}: {
+  jobId: string;
+  jobTitle: string;
+  refreshToken?: number;
+}) {
   const t = useTranslations("jobs.posting.lifecycle");
   const router = useRouter();
   const search = useSearchParams();
@@ -86,7 +99,7 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
     return () => {
       alive = false;
     };
-  }, [jobId]);
+  }, [jobId, refreshToken]);
 
   if (entries === null && hooks === null && assignments === null) return null;
 

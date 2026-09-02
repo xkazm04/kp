@@ -4279,6 +4279,17 @@
       "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
       "goToBilling": "Upgrade in Billing",
       "loadFailed": "Couldn't load your drafts.",
+      "publishWentLive": "The role is live.",
+      "publishReopened": "{count, plural, one {Reopened: # withdrawn candidate is back in the pipeline.} other {Reopened: # withdrawn candidates are back in the pipeline.}}",
+      "publishAlreadyLive": "Already live. Nothing was re-sourced.",
+      "publishSourced": "{count, plural, =0 {No saved candidate matched this role yet.} one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
+      "publishSkipped": "{count, plural, one {# saved candidate could not be read, so it was never scored.} other {# saved candidates could not be read, so they were never scored.}}",
+      "publishSilver": "{count, plural, one {# past candidate was flagged for rediscovery.} other {# past candidates were flagged for rediscovery.}}",
+      "publishSourcingFailed": "Sourcing broke, so nobody was pulled in. That is not the same as nobody matching.",
+      "publishInFlight": "Going live and sourcing candidates. This can take a few minutes.",
+      "publishStopWaiting": "Stop waiting",
+      "publishAbandoned": "Stopped waiting. The role may already be live, but the candidate sweep was cancelled. Reopen this role to check.",
+      "publishLastResult": "Last publish",
       "retry": "Retry"
     },
     "posting": {

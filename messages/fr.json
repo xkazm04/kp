@@ -4279,6 +4279,17 @@
       "quotaNote": "Vous avez atteint la limite de postes actifs de votre forfait. Passez à un forfait supérieur ou fermez un poste pour en publier un autre.",
       "goToBilling": "Mettre à niveau (Facturation)",
       "loadFailed": "Impossible de charger les brouillons.",
+      "publishWentLive": "Le poste est en ligne.",
+      "publishReopened": "{count, plural, one {Rouvert : # candidature retirée est de retour dans le pipeline.} other {Rouvert : # candidatures retirées sont de retour dans le pipeline.}}",
+      "publishAlreadyLive": "Déjà en ligne. Aucune nouvelle recherche n’a été lancée.",
+      "publishSourced": "{count, plural, =0 {Aucun profil enregistré ne correspond encore à ce poste.} one {# profil ajouté au pipeline.} other {# profils ajoutés au pipeline.}}",
+      "publishSkipped": "{count, plural, one {# profil enregistré n’a pas pu être lu, il n’a donc pas été évalué.} other {# profils enregistrés n’ont pas pu être lus, ils n’ont donc pas été évalués.}}",
+      "publishSilver": "{count, plural, one {# ancien profil a été signalé pour redécouverte.} other {# anciens profils ont été signalés pour redécouverte.}}",
+      "publishSourcingFailed": "La recherche a échoué, personne n’a donc été ajouté. Cela ne veut pas dire qu’aucun profil ne correspond.",
+      "publishInFlight": "Mise en ligne et recherche de profils. Cela peut prendre quelques minutes.",
+      "publishStopWaiting": "Arrêter d’attendre",
+      "publishAbandoned": "Attente interrompue. Le poste est probablement déjà en ligne, mais la recherche de profils a été annulée. Rouvrez le poste pour vérifier.",
+      "publishLastResult": "Dernière mise en ligne",
       "retry": "Réessayer"
     },
     "posting": {

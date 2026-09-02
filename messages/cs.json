@@ -4279,6 +4279,17 @@
       "quotaNote": "Dosáhli jste limitu aktivních pozic ve svém tarifu. Upgradujte nebo uzavřete pozici, abyste mohli publikovat další.",
       "goToBilling": "Upgradovat ve Fakturaci",
       "loadFailed": "Koncepty se nepodařilo načíst.",
+      "publishWentLive": "Pozice je zveřejněná.",
+      "publishReopened": "{count, plural, one {Znovu otevřeno: # stažený kandidát je zpět v pipeline.} few {Znovu otevřeno: # stažení kandidáti jsou zpět v pipeline.} other {Znovu otevřeno: # stažených kandidátů je zpět v pipeline.}}",
+      "publishAlreadyLive": "Už byla zveřejněná. Nic se nevyhledávalo znovu.",
+      "publishSourced": "{count, plural, =0 {Zatím neodpovídá žádný uložený kandidát.} one {Do pipeline přidán # kandidát.} few {Do pipeline přidáni # kandidáti.} other {Do pipeline přidáno # kandidátů.}}",
+      "publishSkipped": "{count, plural, one {# uloženého kandidáta nešlo načíst, takže nebyl vyhodnocen.} few {# uložené kandidáty nešlo načíst, takže nebyli vyhodnoceni.} other {# uložených kandidátů nešlo načíst, takže nebyli vyhodnoceni.}}",
+      "publishSilver": "{count, plural, one {# dřívější kandidát byl označen k opětovnému oslovení.} few {# dřívější kandidáti byli označeni k opětovnému oslovení.} other {# dřívějších kandidátů bylo označeno k opětovnému oslovení.}}",
+      "publishSourcingFailed": "Vyhledávání selhalo, takže nikdo nebyl přidán. Neznamená to, že nikdo neodpovídá.",
+      "publishInFlight": "Zveřejňujeme a hledáme kandidáty. Může to trvat několik minut.",
+      "publishStopWaiting": "Přestat čekat",
+      "publishAbandoned": "Čekání ukončeno. Pozice už nejspíš je zveřejněná, ale vyhledávání kandidátů bylo zrušeno. Otevřete ji znovu a zkontrolujte to.",
+      "publishLastResult": "Poslední zveřejnění",
       "retry": "Zkusit znovu"
     },
     "posting": {
