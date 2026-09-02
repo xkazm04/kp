@@ -138,6 +138,10 @@ export function PipelinePopulatedBoard({
               selectedIds={s.selectedIds}
               onToggleSelect={s.toggleSelected}
               onMove={s.moveEntry}
+              // The refused move, shown ON the card that bounced back (the page-level
+              // banner sits above a board that is usually scrolled away from it).
+              bouncedEntryId={s.moveErrorEntryId}
+              bouncedReason={s.moveError}
             />
           </div>
         )}

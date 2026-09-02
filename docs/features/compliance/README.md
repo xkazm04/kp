@@ -94,6 +94,37 @@ error, and treats a consumed token or an `anonymized` entry as **erased**.
 Telling a candidate their erasure failed on data that is already gone would be
 the one lie this surface must never tell.
 
+The page was brought up to the offer door's standard on 2026-09-02, that door
+being the reference for every public tokenized surface here. Four gaps closed:
+
+- **The retryable branch now HAS a retry.** Its copy had promised one since the
+  dead-link/fault split above landed; the only way to act on it was a manual
+  reload, on a page reached from an email footer. `retryLoad` re-runs the same
+  `load` callback, and the button renders ONLY for the retryable kind: a retry
+  over a `404` is a loop with no exit.
+- **A `Skeleton` loading state** shaped like the loaded page, replacing a bare
+  line of text that reflowed into a full page on arrival (CLS).
+- **A `LanguageSwitcher`**, mirroring the offer and status doors. The footer link
+  is `?lang=`-pinned to the language of the LETTER it rode on, but a forwarded
+  link or a stale `NEXT_LOCALE` cookie can still land a reader on this page in a
+  language they do not read, and an erasure explainer is a legal affordance with
+  no other chrome to escape through.
+- **The erase confirm is a real `role="alertdialog"`** on the shared
+  `useDialogA11y` hook (focus move in, Tab trap, Escape, focus restored to the
+  trigger), with **Cancel first in the DOM** so the hook's "focus the first
+  focusable" lands a keyboard user on the safe option and the destructive button
+  sits last. It had been a plain `<div>` holding two buttons, destructive first,
+  with no focus handling at all — for an irreversible action. Escape is ignored
+  while the POST is in flight: the write is already irreversible and a vanished
+  dialog would leave its result nowhere to land.
+
+Every control on the page is now composed from `app/_components/ui/recipes.ts`
+and sized `h-11` (44px, WCAG 2.5.8 AA) — as are the invite accept form and the
+sign-in form, the other two doors opened from a link on a phone.
+`app/data/[token]/token-doors-surface.test.ts` is the source guard for all
+three: recipe use, the touch-target floor, the alertdialog wiring and the
+Cancel-before-destructive DOM order.
+
 **Decision sealing + candidate explanation.** Every automated or human
 adverse action is sealed into a per-tenant, hash-chained record
 (`app/_lib/decision-record-store.ts`: `sealDecisionRecord`,

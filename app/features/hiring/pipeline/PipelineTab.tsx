@@ -93,7 +93,7 @@ export function PipelineTab() {
           <span>{s.moveError}</span>
           <button
             type="button"
-            onClick={() => s.setMoveError(null)}
+            onClick={s.dismissMoveError}
             aria-label={s.t("moveErrorDismiss")}
             className="focus-ring shrink-0 rounded p-0.5 transition-opacity hover:opacity-70"
           >

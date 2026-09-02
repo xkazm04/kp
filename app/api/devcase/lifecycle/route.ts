@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { createLifecycle, listLifecycles } from "@/app/_lib/db/devcase";
 import { startTask } from "@/app/_lib/tasks";
@@ -14,7 +15,7 @@ export async function GET() {
   try {
     return NextResponse.json({ lifecycles: listLifecycles(50, await currentWorkspace()) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list." }, { status: 500 });
+    return safeJsonError(error, "api:devcase/lifecycle", "DEVCASE_LIFECYCLE_LIST_FAILED");
   }
 }
 
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
     const task = startTask("lifecycle", { lifecycleId: lc.id, title: lc.title }, workspace);
     return NextResponse.json({ lifecycle: lc, task });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to start lifecycle." }, { status: 500 });
+    // The POST spawns the lifecycle runner on top of the store, so the thrown message
+    // can carry child stderr as well as SQLITE_* detail.
+    return safeJsonError(error, "api:devcase/lifecycle", "DEVCASE_LIFECYCLE_START_FAILED");
   }
 }

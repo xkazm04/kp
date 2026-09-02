@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { boardEntryView, createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { knownStageIds } from "@/app/_lib/pipeline-axis";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
@@ -22,7 +22,12 @@ export async function GET() {
     // ONE THREAD (gap 2): the work-sample transfer score rides out BESIDE the match
     // score, never inside it — `displayScoreOf` picks which one a surface shows and
     // labels the kind, while every ranking read stays on the match half.
-    const entries = withTransferScores(withCanonicalScoresCached(listPipeline(ws), ws), ws);
+    // board-poll-carries-only-what-it-draws: the stamped rows are projected through
+    // the BOARD_ENTRY_FIELDS allowlist before they go on the wire. The store row used
+    // to ride out verbatim, which put the candidate's `contact`, `locale`, the consent
+    // columns, `anonymizedAt`, `workspaceId` and the two devcase ids on every 30s poll
+    // although no consumer of this payload reads any of them.
+    const entries = withTransferScores(withCanonicalScoresCached(listPipeline(ws), ws), ws).map(boardEntryView);
     // The board's columns ride out WITH the entries, resolved for this workspace.
     // They used to be the compile-time PIPELINE_STAGES name list, which the board
     // ignored in favour of importing the same constant — so the payload field

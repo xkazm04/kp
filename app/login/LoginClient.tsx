@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
+import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { classifyLoginResult, safeNextPath, type LoginFetchResult } from "./login-result";
 
@@ -135,7 +136,10 @@ export function LoginClient() {
         <button
           type="submit"
           disabled={status === "submitting" || !password}
-          className="w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
+          // The shared primary recipe (both themes, focus ring, press-down) instead of a
+          // hand-rolled stone-900 pill, at the 44px touch-target floor: this form is
+          // typed on a phone as often as on a desk.
+          className={`${BTN_PRIMARY} h-11 w-full justify-center text-sm`}
         >
           {status === "submitting" ? t("submitting") : t("submit")}
         </button>

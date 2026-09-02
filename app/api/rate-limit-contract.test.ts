@@ -251,6 +251,21 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "60_000",
   },
   {
+    // ADDED 2026-09-02 (perfect: token-doors-get-an-axe-pass). The offer POST has
+    // been throttled since idea-3e49abaf, but it was the ONE public token verb the
+    // contract never pinned — so the budget on the most consequential candidate
+    // action in the product (accept hires and fires the ATS handoff; decline closes
+    // the entry, irreversibly) was a line of code nothing defended. Keyed per
+    // client AND token like its GET sibling; 10/min is generous for a decision a
+    // candidate makes once.
+    rel: "./offer/[token]/route.ts",
+    key: "`offer:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    expensive: "respondToOffer(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
     // ADDED scan-sweep 2026-08-24. The SYNCHRONOUS twin of ./tasks/route.ts kind
     // "reasoning" — same runReasoning, same LLM spend, but reachable directly and
     // unlimited until now. 60/10min is below the batch path's 120 because a matrix
@@ -522,6 +537,42 @@ const ROUTES: RouteSpec[] = [
     windowMs: 24 * 60 * 60_000,
     windowSrc: "24 * 60 * 60_000",
     expensive: "runSessionChat(",
+    servedBefore: 'session.status !== "active"',
+  },
+  {
+    // ADDED /perfect 2026-09-02 (api-devcase-1), with the limiter itself. The FLUSH is
+    // the chat route's unthrottled twin on the same public prefix: it appends observed-
+    // process rows and OVERWRITES the session's file tree, admitting 50 x 256 KB =
+    // 12.8 MB per call, and carried no bound at all. Per-SESSION burst, 200/10min:
+    // LiveWorkSurface flushes on an 8s interval (75 per 10 minutes) plus a submit flush
+    // and the odd retry, so 200 is ~2.6x the client's own cadence and a candidate never
+    // meets it, while a scripted loop is pinned to 20/min.
+    rel: "./devcase/session/[id]/route.ts",
+    key: "`devcase-flush:${id}`",
+    limit: 200,
+    // The first WRITE the limiter guards (the bare name also appears in the import).
+    expensive: "appendDevSessionEvents(id, events)",
+    // The 404/409 lifecycle refusals and the 403 token check keep their semantics ahead
+    // of the throttle, so a rejected flush never consumes budget.
+    servedBefore: 'session.status !== "active"',
+  },
+  {
+    // The flush's per-apply-TOKEN daily aggregate — same collective budget shape as the
+    // chat sibling (a dev-case token is per-POSTING, shared by every applicant).
+    // Session-start caps a posting at 50 sessions/day, so 60,000 leaves 1,200 flushes per
+    // session: about 2.7 hours of continuous 8s flushing each, longer than any timeboxed
+    // case runs. The count is not the whole bound — 60,000 x 12.8 MB is ~768 GB of body
+    // per link per day — so the route additionally charges a stated BYTE budget through
+    // `chargeFlushBytes` (session-limits.ts), pinned by devcase-flush-guards.test.ts.
+    rel: "./devcase/session/[id]/route.ts",
+    key: "`devcase-flush-token:${session.token}`",
+    limit: 60000,
+    // The source writes the digit-separated form; the contract pins that text and the
+    // behavioral drive below uses the value.
+    limitSrc: "60_000",
+    windowMs: 24 * 60 * 60_000,
+    windowSrc: "24 * 60 * 60_000",
+    expensive: "appendDevSessionEvents(id, events)",
     servedBefore: 'session.status !== "active"',
   },
   {

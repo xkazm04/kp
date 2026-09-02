@@ -468,11 +468,20 @@ Two store-backed writes stopped forwarding their thrown message in the same pass
 (better-sqlite3 + `buildFeedbackBrief`'s model call) now answer
 `safeJsonError(..., "DEVCASE_PUBLISH_FAILED" / "DEVCASE_FEEDBACK_FAILED")`, and both files
 are **off** the `error-response-contract.test.ts` ceiling list rather than lowered on it.
-The other 17 raw-message catches under `app/api/devcase/**` remain, each still ceilinged
-there: `comms` (1), `control` (2), `inbound` (1), `lifecycle` + its `[id]/approve`,
-`[id]/close`, `[id]/redesign` (5), `outcomes` (2), `postings` (1), `promote` (1),
-`devcase/route.ts` (2), `source` (1), `submit` (1). They are recruiter-side, not candidate
--facing, which is why these two went first.
+Thirteen of the other seventeen followed (/perfect 2026-09-02): `comms` (1), `control` (2),
+`inbound` (1), `lifecycle` + its `[id]/approve`, `[id]/close`, `[id]/redesign` (5),
+`outcomes` (2), `postings` (1) and `promote` (1) now answer
+`safeJsonError(error, "api:devcase/<route>", "DEVCASE_*_FAILED")` against twelve new
+`STORE_ERRORS` codes — `DEVCASE_OUTBOX_FAILED`, `DEVCASE_CONTROL_FAILED` (both control
+handlers share it), `DEVCASE_INTAKE_FAILED`, `DEVCASE_LIFECYCLE_LIST_FAILED`,
+`DEVCASE_LIFECYCLE_START_FAILED`, `DEVCASE_APPROVE_FAILED`, `DEVCASE_CLOSE_FAILED`,
+`DEVCASE_REDESIGN_FAILED`, `DEVCASE_OUTCOMES_FAILED`, `DEVCASE_OUTCOME_SAVE_FAILED`,
+`DEVCASE_POSTINGS_FAILED`, `DEVCASE_PROMOTE_FAILED` — each with its four catalogue
+entries. `/api/devcase/inbound` is the one of the thirteen that is candidate-facing: its
+500 previously handed an applicant a `SQLITE_*` code or the absolute db path. All ten
+files are **off** the `error-response-contract.test.ts` ceiling rather than lowered on it.
+Four raw-message catches remain under `app/api/devcase/**`, each still ceilinged there:
+`devcase/route.ts` (2), `source` (1), `submit` (1).
 
 ### The Assignments studio reads in four languages
 
@@ -605,9 +614,12 @@ credential. These rules keep that honest, all sized so a real candidate never me
   apply token that minted the session, via `sessionTokenMatches` in
   `app/_lib/devcase-session-auth.ts`; the client sends `token` in each body. A mismatch is
   **403** — deliberately not 404/409, which tell `LiveWorkSurface` the session is dead and
-  to re-mint, spinning the per-token/day session quota. Sessions with `token: null`
-  (fixtures/dev seeds, never reachable from the product) skip the check, mirroring
-  `interview-connect`'s tokenless-lab carve-out.
+  to re-mint, spinning the per-token/day session quota. A session with `token: null`
+  (fixtures/dev seeds, never reachable from the product — the public mint always carries a
+  token) is **refused on all three doors**: the flush and chat used to carve it out with
+  `session.token && …`, which also carried it past the per-token daily budgets keyed on
+  that same column, so a `Math.random` session id was full authority over such a row.
+  There is no tokenless-lab carve-out here.
 - **Throttling.** `[id]/chat` makes a real LLM call per message, so it is limited by the
   shared limiter (`app/_lib/rate-limit.ts`) on two windows — **30 per 10 min per session**
   (one candidate's burst) and **3,000 per 24 h per apply token** (the collective aggregate;
@@ -618,6 +630,23 @@ credential. These rules keep that honest, all sized so a real candidate never me
   timed assessment legitimately share a NAT. Both refusals are the shared 429 envelope and
   the surface renders `devApply.workSurface.chatRateLimited` — a stated limit, never a
   silent failure that reads as lost work; the unsent message is handed back to the input.
+  The **flush** (`POST /api/devcase/session/[id]`) carries the same two-window shape —
+  **200 per 10 min per session** (`LiveWorkSurface` flushes on an 8s interval, 75 per
+  10 min, so this is ~2.6× the client's own cadence) and **60,000 per 24 h per apply
+  token** (1,200 flushes per session at the 50-sessions/day quota, ~2.7 h of continuous
+  flushing each). Counts alone are not the bound that matters on this route: it accepts
+  50 files × 256KB = 12.8MB per call, so it additionally charges a stated **byte budget of
+  4 GiB per apply token per 24 h** (`chargeFlushBytes` in
+  `app/api/devcase/session/session-limits.ts`) — ~80MB per session, roughly 1,200 full
+  resends of a 64KB working tree, against a previous ceiling of ~768GB. All three refusals
+  are the shared 429 envelope.
+- **The candidate is told when a reply is not a model.** `[id]/chat` returns `source`
+  (`"llm"` | `"deterministic"`) alongside `reply`, and the surface prints
+  `devApply.workSurface.chatDeterministicNote` under a deterministic bubble. Degrading
+  keyless is a product property here; letting a candidate mistake the offline stand-in for
+  their stakeholder — and spend an hour of a timed case on its answer — is not. The route
+  also forwards `request.signal` into `runSessionChat`, so an abandoned generation does not
+  leave a Python child running for the rest of its timeout.
 - **Durable submit.** The final flush is the only thing that puts the candidate's last
   edits and process events on the server — `saveDevSessionFiles` is a no-op once a session
   is `submitted`, so sealing after a failed flush would grade them on a stale tree *and*
@@ -676,10 +705,13 @@ either exposes a credential or kills a link a candidate already gave an employer
 
 ## Recruiter-door ownership (multi-team deployments)
 
-The recruiter routes that act on an entity **by id** take that id from the request body,
-and `getDevCase` / `getSubmission` are unscoped point reads on globally-unique ids — so
-each such door compares the row's own `workspaceId` against `currentWorkspace()` and 404s
-a foreign entity. `/api/devcase/source` and `/api/devcase/promote` have always done this;
+The recruiter routes that act on an entity **by id** take that id from the request body
+or the path, and `getDevCase` / `getSubmission` / `getLifecycle` are unscoped point reads
+on globally-unique ids — so each such door compares the row's own `workspaceId` against
+`currentWorkspace()` and 404s a foreign entity. That comparison has **one producer**:
+`ownedLifecycle` / `ownedSubmission` / `ownedDevCase` in
+`app/api/devcase/devcase-owned-lifecycle.ts` (a sibling module, because a route file may
+export only handlers). `/api/devcase/source` and `/api/devcase/promote` have always done this;
 `/api/devcase/publish`, `/api/devcase/feedback`, `/api/devcase/submit` and
 `/api/devcase/skill-profile` now do too. Unguarded, publish inherited the *case's*
 workspace and handed back that team's live apply token (or minted one inside their studio),
@@ -701,13 +733,33 @@ carried the same hole:
   breaking `/skill` links the candidate had already shared.
 
 Both refuse with the same 404 body a genuinely-unknown id gets, so neither is an existence
-oracle. Pinned by `app/_lib/devcase-source-promote-tenancy.test.ts`,
+oracle. Pinned by `app/api/devcase/devcase-lifecycle-tenancy.test.ts`,
+`app/_lib/devcase-source-promote-tenancy.test.ts`,
 `app/api/devcase/publish/route.test.ts`, `app/api/devcase/feedback/route.test.ts`,
 `app/api/devcase/submit/route.test.ts` and `app/api/devcase/skill-profile/route.test.ts`.
 
-The lifecycle transitions derive their tenant from the **lifecycle row**, not the session
-(`[id]/close`, `[id]/approve`), and both write-after-await paths re-check their gate before
-writing: close claims the terminal stage with a compare-and-swap (`claimLifecycleClose`)
+### The three lifecycle doors that did not check
+
+`[id]/approve`, `[id]/close` and `[id]/redesign` loaded a lifecycle by id with **no
+workspace comparison at all** while feedback, promote and publish checked — so a known
+lifecycle id was enough to approve another studio's designed case into a live one, to
+close their lifecycle (which dispatches a wrap-up **rejection** to every one of their
+non-promoted candidates), or to redesign their brief *while debiting the caller's
+`case_designs` meter*. All three now call `ownedLifecycle(id, ws)` first and answer the
+same 404 a nonexistent id gets. Pinned behaviorally, per door, in
+`app/api/devcase/devcase-lifecycle-tenancy.test.ts` — cross-tenant refusal plus a control
+proving the guard is not over-broad. The control-room global kill switch is deliberately
+unchanged; it is an operator-wide switch, not a by-id door.
+
+One consequence for tests: a handler driven directly has no cookie jar, so
+`currentWorkspace()` falls back to the default workspace. `close-tenancy.test.ts`
+therefore proves the close *behaviour* in the default workspace and pins the
+`listPostings(lc.workspaceId)` argument-threading (the half a default-tenant behavioral
+test can no longer see) with a source guard in the same file.
+
+The lifecycle transitions still derive the tenant of their **work** from the lifecycle row
+rather than the session — the ownership guard decides only whether the caller may act on
+the row — and both write-after-await paths re-check their gate before writing: close claims the terminal stage with a compare-and-swap (`claimLifecycleClose`)
 before the first `sendComm`, and `[id]/redesign` re-reads the lifecycle after its ~60 s
 design call and **409**s rather than overwriting a case another reviewer already approved
 and published.
@@ -975,7 +1027,9 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
 
 - The reviewer CAN now open the candidate's **chat transcript** and **submitted
   file tree**: `DevSessionEvidencePanel` (mounted by `DevSubmissionRow` beside
-  `EvalPanel`) calls the workspace-authed `GET /api/devcase/session/[id]`, which
+  `EvalPanel`) calls the operator-gated `GET /api/devcase/session/[id]` (it calls
+  `requireOperator()` before touching the store, and then still compares the row's
+  workspace to `currentWorkspace()`), which
   had existed and been pinned by `session-read.test.ts` since the Live Work
   Surface shipped with **zero callers**. It is gated on the submission being an
   in-product session — `sessionIdFromRepoRef` reads the `session:<id>` encoding

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
 import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
@@ -16,7 +17,7 @@ export async function GET() {
     const ws = await currentWorkspace();
     return NextResponse.json({ outcomes: listOutcomes(80, ws), calibration: calibrate(activeFloor(), ws), activeFloor: activeFloor() });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    return safeJsonError(error, "api:devcase/outcomes", "DEVCASE_OUTCOMES_FAILED");
   }
 }
 
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
     recordAudit({ actor: "human", action: "outcome_recorded", reason: `${outcome.candidateRef ?? "candidate"}: ${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}` });
     return NextResponse.json({ ok: true, calibration: calibrate(activeFloor(), ws) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    // The POST records an outcome and re-runs calibration over the store.
+    return safeJsonError(error, "api:devcase/outcomes", "DEVCASE_OUTCOME_SAVE_FAILED");
   }
 }

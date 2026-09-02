@@ -220,16 +220,15 @@ const LEAK_CEILING = new Map<string, number>([
   ["decisions/config/route.ts", 1],
   ["decisions/group-eval/route.ts", 1],
   ["decisions/screen-wave/route.ts", 1],
-  ["devcase/comms/route.ts", 1],
-  ["devcase/control/route.ts", 2],
-  ["devcase/inbound/route.ts", 1],
-  ["devcase/lifecycle/[id]/approve/route.ts", 1],
-  ["devcase/lifecycle/[id]/close/route.ts", 1],
-  ["devcase/lifecycle/[id]/redesign/route.ts", 1],
-  ["devcase/lifecycle/route.ts", 2],
-  ["devcase/outcomes/route.ts", 2],
-  ["devcase/postings/route.ts", 1],
-  ["devcase/promote/route.ts", 1],
+  // The ten devcase rows that stood here (thirteen leaks across comms, control,
+  // inbound, lifecycle + its [id]/approve, [id]/close, [id]/redesign, outcomes,
+  // postings and promote) were FIXED, not ceilinged (/perfect 2026-09-02,
+  // api-devcase-1): every one now answers `safeJsonError(error, "api:devcase/<route>",
+  // "DEVCASE_*_FAILED")` against the twelve codes added to STORE_ERRORS in the same
+  // change, with four catalogue entries each. The entries are DELETED so the win is
+  // locked and a regression reads as `undeclared` rather than as budget already
+  // granted. Four devcase leaks remain, each still ceilinged below:
+  // devcase/route.ts (2), devcase/source (1), devcase/submit (1).
   ["devcase/route.ts", 2],
   ["devcase/source/route.ts", 1],
   ["devcase/submit/route.ts", 1],

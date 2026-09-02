@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
@@ -29,6 +29,8 @@ export function PipelineBoard({
   selectedIds,
   onToggleSelect,
   onMove,
+  bouncedEntryId = null,
+  bouncedReason = null,
 }: {
   positions: Position[];
   entries: Entry[];
@@ -50,6 +52,12 @@ export function PipelineBoard({
   // cea12908 — when provided (and not in select mode), candidates can be dragged
   // between stage columns; the board calls this with the dragged entry + target stage.
   onMove?: (entry: Entry, toStage: string) => void;
+  /** board-actions-survive-a-renamed-axis — the card whose move the server REFUSED
+   *  (it has already been rolled back into this stage) and the localized reason. The
+   *  cell holding it renders the reason beneath the card, so the feedback lands where
+   *  the gesture ended instead of only in the banner at the top of the page. */
+  bouncedEntryId?: string | null;
+  bouncedReason?: string | null;
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -69,7 +77,11 @@ export function PipelineBoard({
   // drop can resolve the source row regardless of which column started the drag.
   const [dragging, setDragging] = useState<Entry | null>(null);
   const dragEnabled = !!onMove && !selectMode;
-  const { scrollRef, centerColumn, scrollByColumn, onBoardDragOver, stopAutoScroll } = usePipelineBoardScroll(dragEnabled);
+  const { scrollRef, centerColumn, scrollByColumn, onBoardDragOver, stopAutoScroll, canScrollLeft, canScrollRight } =
+    usePipelineBoardScroll(dragEnabled);
+  // One description shared by every drop target — the sentence is the same for all of
+  // them, so it is written once and referenced, not repeated into 5 x N aria-labels.
+  const dropHintId = useId();
   // bug-ui pipeline #1 — the polite live-region text narrating a stage change so a
   // screen-reader user hears the outcome of a keyboard (or drag) move even though
   // the moved card silently re-renders into another column.
@@ -111,7 +123,21 @@ export function PipelineBoard({
       <div aria-live="polite" className="sr-only">
         {announce}
       </div>
-      <PipelineBoardToolbar t={t} dragEnabled={dragEnabled} onScrollByColumn={scrollByColumn} />
+      <PipelineBoardToolbar
+        t={t}
+        dragEnabled={dragEnabled}
+        onScrollByColumn={scrollByColumn}
+        canScrollLeft={canScrollLeft}
+        canScrollRight={canScrollRight}
+      />
+      {/* board-grid-has-a-name — what a drop DOES, said once and referenced by every
+          cell through aria-describedby (aria-dropeffect is deprecated and was never
+          implemented usefully). Rendered only while dragging is actually possible. */}
+      {dragEnabled ? (
+        <p id={dropHintId} className="sr-only">
+          {t("board.dropHint")}
+        </p>
+      ) : null}
       <div
         ref={scrollRef}
         tabIndex={0}
@@ -129,13 +155,25 @@ export function PipelineBoard({
         }}
         className="focus-ring overflow-x-auto bg-white"
       >
-        <div style={minWidth}>
-          <div className="grid border-b border-stone-200 bg-paper" style={grid}>
-            <div className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">{t("board.position")}</div>
+        {/* board-grid-has-a-name — the lanes ARE a grid (positions down, stages across)
+            and used to be a run of bare divs, so a screen reader read a flat list of
+            names with no notion of which column any of them stood in. The roles are
+            layered onto the existing elements: no wrapper was added, so the CSS grid
+            tracks (and therefore the layout) are untouched. */}
+        <div
+          style={minWidth}
+          role="grid"
+          aria-label={t("board.gridAria")}
+          aria-colcount={columns.length + 1}
+          aria-rowcount={positions.length + 1}
+        >
+          <div className="grid border-b border-stone-200 bg-paper" style={grid} role="row">
+            <div role="columnheader" className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">{t("board.position")}</div>
             {axis.map((stage, i) => (
               <button
                 key={stage.id}
                 type="button"
+                role="columnheader"
                 data-stage-header
                 onClick={centerColumn}
                 title={stageHelp(stage.id)}
@@ -157,8 +195,8 @@ export function PipelineBoard({
             // no lane). Empty per-stage arrays fall back if the lane somehow vanished.
             const laneCells = cellsByLane.get(pos.id) ?? columns.map(() => [] as Entry[]);
             return (
-              <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={grid}>
-                <div className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
+              <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={grid} role="row">
+                <div role="rowheader" className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
                   <button
                     type="button"
                     onClick={() => openJob(pos.id)}
@@ -189,6 +227,12 @@ export function PipelineBoard({
                     <StageCell
                       key={stage}
                       stage={stage}
+                      // The cell's accessible name: position, stage, how many stand there.
+                      // The stage LABEL (not the id) so a renamed column reads as the
+                      // recruiter named it, exactly as the header above does.
+                      laneLabel={pos.title}
+                      stageLabel={stageColumnLabel(axis[i])}
+                      dropHintId={dragEnabled ? dropHintId : undefined}
                       entries={cellEntries}
                       // The row's "Move to…" menu is the keyboard twin of the drop,
                       // so it has to resolve against the SAME axis handleMove does.
@@ -204,6 +248,8 @@ export function PipelineBoard({
                       onDragStartEntry={setDragging}
                       onDragEndEntry={() => setDragging(null)}
                       onMoveEntry={handleMove}
+                      bouncedEntryId={bouncedEntryId}
+                      bouncedReason={bouncedReason}
                       onDropToStage={(toStage) => {
                         // Resolve the dragged entry from board state and funnel the
                         // drop through the SAME move+announce path the menu uses.

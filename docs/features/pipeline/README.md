@@ -85,6 +85,7 @@ Every rule that used to read a stage NAME to ask a question about MEANING:
 | `application-status.ts` | name→status map only | role→status map when the caller can resolve one; the name map remains the shipped-axis fallback |
 | `analytics-momentum.ts`, `pipeline-command.ts`, `ats/field-map.ts` | literals | an injected terminal stage / axis / allowlist, defaulting to the shipped one |
 | `cv-intake.ts`, `lead-intake.ts` | filed at `"Accepted"` | filed at the axis's `entry` column |
+| `PipelineAiActionsGrid.tsx` — the drawer's AI actions | each action gated on literal stage names (`"Screened"`, `"Interview"`, `"Offer"`) | `pipelineDrawerActions.ts` resolves the gate from roles: screening columns for **Screen**, the pre-gate column + interview rounds for **Prep**, interview rounds for **Scorecard**, the offer column for **Draft offer**, every non-terminal column for **Rejection**, every non-terminal non-entry column for **Rematch** |
 
 `analytics-custom-axis.test.ts` is the proof: it stores a fully renamed six-column
 axis and asserts the funnel reports *those* columns, that candidates on renamed
@@ -421,6 +422,111 @@ Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject →
 saved view → confirm), `pipelineBulkConfirm.test.ts`, and `pipelineMoveTargets.test.ts`
 (which also pins that the drawer's "open full match" link is gated on `candidateId`
 like its "edit profile" sibling, instead of rendering and silently no-opping).
+
+`pipelineDrawerActions.test.ts` is the same proof for the drawer's action grid: it
+runs a fully renamed five-column axis and asserts each column still offers exactly
+the actions the literal gates used to offer on the shipped board. Before the role
+resolution a renamed axis matched nothing and the grid rendered **Draft outreach**
+alone — no error, nothing to notice.
+
+### The grid has a name
+
+Every drag on the board already had a keyboard twin (`moveTargetStages` behind the row
+menu) and every move was narrated into a polite live region. The structure those twins
+move THROUGH had no name: the lanes were a run of bare `<div>`s, so a screen reader read
+a flat list of candidates with no notion of which column any of them stood in.
+
+The roles are layered onto the elements that were already there, so no wrapper was added
+and the CSS grid tracks (and therefore the layout) are untouched:
+
+| Element | Role |
+|---|---|
+| the `minWidth` lane container | `grid`, named `board.gridAria`, with `aria-colcount` / `aria-rowcount` |
+| the stage-header strip and each position lane | `row` |
+| the position rail label and each stage-header button | `columnheader` |
+| a lane's position cell | `rowheader` |
+| `StageCell` | `gridcell`, named `board.cellAria` = position, stage, count |
+
+The cell's name uses the **rendered** stage label, not the stored id, so a workspace that
+renamed a column hears its own word — the same string the column header shows. What a drop
+DOES is one sr-only sentence (`board.dropHint`) referenced by every cell through
+`aria-describedby`, rendered only while dragging is possible: `aria-dropeffect` is
+deprecated and repeating the sentence into 5 x N labels would be noise. An empty cell used
+to be a bare middle dot, decorative to a sighted reader and read as a glyph by everyone
+else; the dot is now `aria-hidden` beside an sr-only `board.cellEmpty`.
+
+The toolbar's arrows disable at the scroll extremes. They were always enabled, so at either
+end a click did nothing and gave no reason — a keyboard user could not tell "this does
+nothing here" from "this is broken". `usePipelineBoardScroll` measures the extents with 1px
+of slack (a smooth scroll lands on a fractional `scrollLeft`) and re-measures on resize as
+well as on scroll, because the board's width also changes when the workspace adds or
+removes a column.
+
+Pinned by `pipelineBoardRoles.test.ts`.
+
+### The board poll carries only what it draws
+
+`GET /api/pipeline` used to return `listPipeline()` verbatim, and `rowToEntry` fills
+every `PipelineEntry` field whether or not the SELECT asked for the column. So each
+30 s poll shipped nine fields **no consumer of this payload reads**: `contact` (the
+candidate's email/phone), `locale`, the four consent columns, `anonymizedAt`,
+`workspaceId`, and the two devcase ids. Every consumer was checked one at a time —
+the board (`pipelineTypes.Entry`), the drawer (`PipelineCandidateDrawerTypes`), the
+bulk bar, the off-axis strip, the Decisions queue, the Schedule grid, the Channels
+tab, the simulation engine, the jobs lifecycle strip and the interview attach dialog
+— and none of them names one of the nine.
+
+`BOARD_ENTRY_FIELDS` in `app/_lib/db/pipeline.ts` is now that allowlist, `PipelineEntryView`
+is `Pick<>`ed from it plus the three stamped scores, and the route maps every stamped
+row through `boardEntryView`. Direction matters more than bytes here: before this, a
+column added to `pipeline_entries` reached the browser **by default**. `contact` was
+null on the wire only because `listPipeline`'s SELECT omits the column — an accident
+of the query, not a contract.
+
+The expensive fields **stay**, because they have readers: `notes` and `githubEvidence`
+hydrate the drawer's scratchpad and evidence card from the board-opened entry, and both
+the Decisions queue and the Schedule grid parse `approvalDetail`. Trimming them would
+have been a saving paid for with a broken read.
+
+Measured on the seeded demo corpus (83 active entries): **70.5 KiB → 55.5 KiB per poll,
+21.2 % smaller**. On a real corpus the gap is larger — the demo rows carry no notes,
+no GitHub evidence and no source attribution, so most of what was dropped there was key
+names rather than values.
+
+The second half is the drag-move. It used to `await load()` in a `finally`, paying for a
+full board re-read on top of the optimistic write to learn the one thing it already knew.
+The route answers `set_stage` with the moved row, so the success path applies **that** —
+taking only the fields a move can change (`stage`, `stageChangedAt`, `status`,
+`approvalKind`, `approvalDetail`), because the response is the raw store row rather than
+the score-stamped projection and a whole-object swap would blank the card's badge. The
+activity feed still hears about the move through `load({ eventsOnly: true })`, one small
+`?since=` delta. A **refusal** still reconciles with a full `load()`: a lost CAS means
+somebody else moved the row, so the board's own view is the suspect one.
+
+Pinned by `pipelineBoardProjection.test.ts` (the allowlist and the nine omissions by
+name) and `pipelineMovePath.test.ts` (the success branch applies the returned row, the
+refusal branch reconciles, the route projects).
+
+### A refused move says why, where it happened
+
+A drag whose `set_stage` is refused rolls the card back into the column it came
+from. Two things make that readable rather than a dropped gesture:
+
+- `pipelineActionReason` returns the refusal **payload** (`{ error, code }`), and
+  `usePipelineBoardData` resolves it through `useErrorMessage` — so
+  `PIPELINE_MOVE_CONFLICT` ("someone moved them while you were deciding") and
+  `PIPELINE_TERMINAL_NOT_MANUAL` ("route through the offer flow") read in the
+  reader's language. It used to return the server's `error` string, which painted
+  the route's canonical English on every localized board.
+- The board also names the bounced card (`moveErrorEntryId`), and `StageCell`
+  renders the reason directly beneath it. The page-level banner stays — it is the
+  `role="alert"` announcement and works when the card has scrolled out of view —
+  and one dismissal (`dismissMoveError`) clears both halves.
+
+The command bar's `post()` gained the `catch` it never had: a network-level failure
+now shows `pipeline.command.failed` instead of throwing an unhandled rejection and
+leaving a submitted command with no outcome. Its `p.error` branch resolves through
+`useErrorMessage` for the same reason as the board's.
 
 ## The activity feed speaks the recruiter's language
 

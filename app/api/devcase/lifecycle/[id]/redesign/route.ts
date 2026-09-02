@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
-import { getLifecycle, updateLifecycle } from "@/app/_lib/db/devcase";
+import { updateLifecycle } from "@/app/_lib/db/devcase";
+// The shared by-id owner guard (sibling module - a route file may export only handlers).
+import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { runDesignArtifacts } from "@/app/_lib/devcase-run";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
@@ -25,7 +28,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const feedback = typeof body.feedback === "string" ? body.feedback.trim().slice(0, MAX_FEEDBACK_CHARS) : "";
     if (!feedback) return NextResponse.json({ error: "feedback is required." }, { status: 400 });
 
-    const lc = getLifecycle(id);
+    // OWNERSHIP, resolved once and reused by the billing gate below. This route used to
+    // load the lifecycle by id with no comparison at all and then debit the CALLER's
+    // `case_designs` meter for a design pass that rewrote another studio's brief - the
+    // cross-tenant write and the misbilling were the same bug. A cross-tenant id now
+    // answers the same 404 a nonexistent one does.
+    const workspace = await currentWorkspace();
+    const lc = ownedLifecycle(id, workspace);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
     if (!isAtReviewGate(lc.stage)) {
       return NextResponse.json({ error: `lifecycle is at '${lc.stage}', not awaiting review.` }, { status: 409 });
@@ -34,8 +43,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "lifecycle is missing its need/analysis artifacts." }, { status: 409 });
     }
     // Billing: a redesign is a fresh design generation — gate + debit like one.
-    // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant.
-    const workspace = await currentWorkspace();
+    // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant - the very
+    // one the ownership guard above already proved owns this lifecycle.
     const quota = meterGate("case_designs", { workspace });
     if (quota) return NextResponse.json(quota, { status: 402 });
     recordMeterUsage("case_designs", 1, new Date(), workspace);
@@ -51,7 +60,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // awaits approval. Refuse instead, with the same 409-plus-current-stage shape the
     // approve route uses for off-gate edits. Nothing awaits between this read and the
     // write below, so the re-check cannot itself go stale.
-    const current = getLifecycle(id);
+    // Re-read through the SAME owner guard: ownership cannot change mid-request, and
+    // routing every read of this row through one producer is the point of the helper.
+    const current = ownedLifecycle(id, workspace);
     if (!current || !isAtReviewGate(current.stage)) {
       recordAudit({
         lifecycleId: id,
@@ -80,6 +91,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     });
     return NextResponse.json({ ok: true, role: designed.role, case: designed.case, source: designed.source });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Redesign failed." }, { status: 500 });
+    // runDesignArtifacts spawns the devcase CLI: the thrown message carries Python
+    // tracebacks and provider stderr as well as SQLITE_* store detail.
+    return safeJsonError(error, "api:devcase/lifecycle/redesign", "DEVCASE_REDESIGN_FAILED");
   }
 }

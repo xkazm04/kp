@@ -35,7 +35,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2739,
+  "files": 2751,
   "groups": 17,
   "use_cases": 12
  },
@@ -2354,8 +2354,11 @@
     "app/data/[token]/DataClient.tsx",
     "app/data/[token]/loading.tsx",
     "app/data/[token]/page.tsx",
+    "app/data/[token]/token-doors-surface.test.ts",
     "app/invite/[token]/AcceptForm.tsx",
     "app/invite/[token]/error.tsx",
+    "app/invite/[token]/invite-result.test.ts",
+    "app/invite/[token]/invite-result.ts",
     "app/invite/[token]/loading.tsx",
     "app/invite/[token]/page.tsx",
     "app/login/LoginClient.tsx",
@@ -2364,7 +2367,8 @@
     "app/login/login-result.ts",
     "app/login/page.tsx",
     "app/offer/[token]/OfferClient.tsx",
-    "app/offer/[token]/error.tsx"
+    "app/offer/[token]/error.tsx",
+    "e2e/token-doors-axe.spec.ts"
    ],
    "group": "Candidate Public Surfaces",
    "group_id": "06166ab3-41d5-4adc-a298-3d0390a492fc",
@@ -3728,6 +3732,8 @@
    "file_paths": [
     "app/api/devcase/comms/route.ts",
     "app/api/devcase/control/route.ts",
+    "app/api/devcase/devcase-lifecycle-tenancy.test.ts",
+    "app/api/devcase/devcase-owned-lifecycle.ts",
     "app/api/devcase/feedback/route.ts",
     "app/api/devcase/inbound/route.ts",
     "app/api/devcase/lifecycle/[id]/approve/approve-gate.test.ts",
@@ -3744,6 +3750,7 @@
     "app/api/devcase/session/[id]/chat/route.ts",
     "app/api/devcase/session/[id]/route.ts",
     "app/api/devcase/session/[id]/submit/route.ts",
+    "app/api/devcase/session/devcase-flush-guards.test.ts",
     "app/api/devcase/session/route.ts",
     "app/api/devcase/session/session-intake-guards.test.ts"
    ],
@@ -4900,7 +4907,12 @@
     "app/features/hiring/pipeline/PipelineCandidateNoteField.tsx",
     "app/features/hiring/pipeline/PipelineCandidateResultView.tsx",
     "app/features/hiring/pipeline/PipelineCandidateRow.tsx",
-    "app/features/hiring/pipeline/PipelineCommsList.tsx"
+    "app/features/hiring/pipeline/PipelineCommsList.tsx",
+    "app/features/hiring/pipeline/pipelineBoardProjection.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardRoles.test.ts",
+    "app/features/hiring/pipeline/pipelineDrawerActions.test.ts",
+    "app/features/hiring/pipeline/pipelineDrawerActions.ts",
+    "app/features/hiring/pipeline/pipelineMovePath.test.ts"
    ],
    "group": "Hiring Pipeline",
    "group_id": "e3cd8c46-b5e7-4fac-ad70-6bcbe21bcfaa",

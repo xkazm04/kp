@@ -346,7 +346,12 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // Captured chat channels (LLM-era controls #2/#5): assistant + stakeholder.
   // Everything flows through the platform — the dialogue is part of the submission.
   const [chatChannel, setChatChannel] = useState<"assistant" | "stakeholder">("assistant");
-  const [chatMessages, setChatMessages] = useState<{ channel: string; role: "user" | "model"; text: string }[]>([]);
+  // `deterministic` marks a reply produced by the keyless fallback rather than a model.
+  // Degrading without keys is a product property here; letting the candidate believe a
+  // stub was their stakeholder is not, so the bubble says so.
+  const [chatMessages, setChatMessages] = useState<
+    { channel: string; role: "user" | "model"; text: string; deterministic?: boolean }[]
+  >([]);
   const [chatInput, setChatInput] = useState("");
   // "limited" is a distinct terminal state from "error": the budget is a stated
   // product limit, not a fault, and it must never read as "your work was lost".
@@ -383,8 +388,12 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         return;
       }
       if (!r.ok) throw new Error("chat failed");
-      const data = (await r.json()) as { reply?: string };
-      if (data.reply) setChatMessages((prev) => [...prev, { channel: chatChannel, role: "model", text: data.reply! }]);
+      const data = (await r.json()) as { reply?: string; source?: string };
+      if (data.reply)
+        setChatMessages((prev) => [
+          ...prev,
+          { channel: chatChannel, role: "model", text: data.reply!, deterministic: data.source !== "llm" },
+        ]);
       setChatState("idle");
     } catch {
       setChatState("error");
@@ -509,6 +518,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
                 }`}
               >
                 {m.text}
+                {m.role === "model" && m.deterministic ? (
+                  <span className="mt-1 block text-xs text-steel">{t("chatDeterministicNote")}</span>
+                ) : null}
               </li>
             ))}
           </ul>

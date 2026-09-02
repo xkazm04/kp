@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, CornerDownLeft, Terminal, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
 type CommandResult =
@@ -35,6 +36,10 @@ type CommandResult =
 // convenience, not a new privilege. `onExecuted` refreshes the board after a run.
 export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
   const t = useTranslations("pipeline.command");
+  // Codes, never messages: the command route answers TOO_MANY_REQUESTS /
+  // COMMAND_FAILED, and painting `p.error` shipped its canonical English to every
+  // locale.
+  const errorMessage = useErrorMessage();
   const [text, setText] = useState("");
   const [result, setResult] = useState<CommandResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +64,7 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       });
       const p = await r.json();
       if (p.error) {
-        setResult({ phase: "info", description: p.error });
+        setResult({ phase: "info", description: errorMessage(p, t("failed")) });
       } else if (confirm || p.executed) {
         setResult({
           phase: "done",
@@ -77,6 +82,13 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       } else {
         setResult({ phase: "preview", kind: p.kind, description: p.description, mutating: p.mutating, preview: p.preview ?? [], total: p.total, matchedIds: p.matchedIds ?? [] });
       }
+    } catch {
+      // A network-level failure (offline, the dev server restarting, an unparseable
+      // body) threw straight out of an un-awaited promise: the bar just went quiet
+      // and the browser logged an unhandled rejection. There is no code to resolve
+      // here — nothing reached the route — so say the generic line and let the
+      // recruiter retry rather than leaving a submitted command with no outcome.
+      setResult({ phase: "info", description: t("failed") });
     } finally {
       setBusy(false);
     }
