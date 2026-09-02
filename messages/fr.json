@@ -1442,7 +1442,15 @@
     "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
     "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères.",
     "DEVCASE_SUBMIT_FAILED": "Ce rendu n'a pas pu être enregistré. Veuillez réessayer.",
-    "DEVCASE_SOURCE_FAILED": "Impossible de rechercher des candidats pour cette épreuve. Veuillez réessayer."
+    "DEVCASE_SOURCE_FAILED": "Impossible de rechercher des candidats pour cette épreuve. Veuillez réessayer.",
+    "RESTORE_FOREIGN_ORG": "Cette sauvegarde appartient à une autre organisation. Une sauvegarde se restaure uniquement dans l’organisation dont elle provient.",
+    "RESTORE_REPLACE_REQUIRED": "La restauration remplace les données actuelles de l’organisation. Confirmez le remplacement pour continuer.",
+    "INVITE_ALREADY_MEMBER": "Cette personne est déjà membre active.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "Vous ne pouvez pas inviter quelqu’un à un rôle supérieur à vos propres droits.",
+    "INVITE_EMAIL_INVALID": "Une adresse e-mail valide est requise.",
+    "MEMBER_PERMISSIONS_CHANGED": "Les autorisations de ce membre ont changé pendant votre modification. Rechargez la page, puis réessayez.",
+    "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
+    "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -204,9 +204,10 @@ export function WorkspaceTab() {
       await reload();
     } else {
       // The route's English `error` is never rendered (docs/architecture/localization.md).
-      // POST /api/org/invites still sends NO `code` on any of its three refusals, so
-      // the resolver lands on the localized fallback — see the Known gaps in
-      // docs/features/organization/README.md.
+      // All three of the mint's refusals now carry a code (INVITE_EMAIL_INVALID,
+      // INVITE_ROLE_ABOVE_PRIVILEGE, INVITE_ALREADY_MEMBER), so the resolver renders
+      // the real reason in the reader's language and the fallback is genuinely a
+      // fallback (a network drop, or the no-team server-state 409).
       const payload = r ? ((await r.json().catch(() => null)) as ApiErrorPayload | null) : null;
       toast.error(errMsg(payload, tm("inviteFailed")));
     }

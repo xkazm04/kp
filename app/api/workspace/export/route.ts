@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { dumpOrg } from "@/app/_lib/db-portability";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
@@ -24,7 +26,16 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 //
 // SECURITY: this exports FULL PII (candidates, contacts, transcripts) for the whole
 // org, so it is gated twice — a valid non-demo session, AND org:manage.
-export async function GET() {
+//
+// And bounded: an authorized administrator is still one HTTP call away from a full-PII
+// dump of every candidate in the company, and nothing stopped a script from taking
+// that dump on a loop - each one walks every org-scoped table and serializes the
+// result into memory. 10/10min per IP is an order of magnitude above the honest use
+// (a backup is an occasional, deliberate act), and the limiter sits AFTER both gates
+// so an unauthenticated or under-privileged probe can never spend an admin's window.
+const EXPORT_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
+
+export async function GET(request: NextRequest) {
   // 401 for unauthenticated and for the anonymous demo session (which the proxy
   // would otherwise accept).
   const denied = await requireOperator();
@@ -35,6 +46,9 @@ export async function GET() {
   // resolved org-wide from live memberships rather than from the session's team.
   const underPrivileged = await requireOrgCapability("org:manage");
   if (underPrivileged) return underPrivileged;
+  if (!rateLimit(`org-export:${clientIpFrom(request.headers)}`, EXPORT_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
     const orgId = (await currentUser()).orgId ?? DEFAULT_ORG_ID;
     const payload = dumpOrg(orgId);

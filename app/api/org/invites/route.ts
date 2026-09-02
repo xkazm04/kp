@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireCapability, currentUser, callerCapabilities } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
@@ -15,6 +17,15 @@ export async function GET() {
   return NextResponse.json({ invites: listInvitesForOrg(orgId, "pending") });
 }
 
+// Minting an invite writes a row AND hands back a capability link that seats its
+// holder in this org. members:manage gates WHO may mint; nothing bounded HOW MANY,
+// and in open mode (KP_OPERATOR_PASSWORD unset) that gate is a documented no-op for
+// the entire API - so a loop could paper the org with live accept links faster than
+// anyone could revoke them. 30/10min per IP sits far above a human typing addresses
+// into a form, and the limiter runs AFTER the cheap refusals so an invite that was
+// never going to be minted spends none of the window.
+const INVITE_MINT_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
+
 // Invite a member (P0). members:manage. Returns the tokenized accept link so the
 // UI can copy/share it (no email relay is configured in this app).
 export async function POST(request: NextRequest) {
@@ -24,19 +35,22 @@ export async function POST(request: NextRequest) {
   const orgId = actor.orgId ?? DEFAULT_ORG_ID;
   const body = (await request.json().catch(() => ({}))) as { email?: unknown; role?: unknown; workspaceId?: unknown };
   const email = typeof body.email === "string" ? body.email.trim() : "";
-  if (!email || !email.includes("@")) return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
+  if (!email || !email.includes("@")) return jsonRefusal("INVITE_EMAIL_INVALID", 400);
   const role = isMemberRole(body.role) ? body.role : "recruiter";
   // Same delegation rule as changing a member's role: inviting someone AT a role grants
   // that role's capabilities, so an admin cannot mint an `owner` invite and accept it.
   if (!canAssignRole(await callerCapabilities(), role)) {
-    return NextResponse.json({ error: "Cannot invite at a role above your own privileges" }, { status: 403 });
+    return jsonRefusal("INVITE_ROLE_ABOVE_PRIVILEGE", 403);
   }
   const workspaceId = typeof body.workspaceId === "string" && body.workspaceId ? body.workspaceId : undefined;
 
   // Guard against re-inviting an already-active member of this org.
   const existing = getUserByEmail(email);
   if (existing && existing.orgId === orgId && existing.status === "active") {
-    return NextResponse.json({ error: "That person is already an active member." }, { status: 409 });
+    return jsonRefusal("INVITE_ALREADY_MEMBER", 409);
+  }
+  if (!rateLimit(`org-invite:${clientIpFrom(request.headers)}`, INVITE_MINT_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   const result = inviteMember({ orgId, email, role, workspaceId, invitedBy: actor.userId });
   if (!result.ok) {

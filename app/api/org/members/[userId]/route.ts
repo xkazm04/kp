@@ -1,11 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { ensureDb } from "@/app/_lib/db/core";
 import { requireCapability, currentUser, callerCapabilities } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { getUserById } from "@/app/_lib/db/users";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { changeMemberRole, setMemberPermissions, setMemberStatus, removeMember, type MemberOpResult } from "@/app/_lib/org-service";
-import { isMemberRole, isCapability, overrideFromDesired, canAssignRole, type Capability } from "@/app/_lib/auth/roles";
+import { isMemberRole, isCapability, overrideFromDesired, canAssignRole, resolveCapabilities, type Capability } from "@/app/_lib/auth/roles";
+
+/** A membership's EFFECTIVE capability set as one comparable string: sorted, so two
+ *  readings of the same seat always agree, and role-inclusive, because a role change
+ *  moves the defaults under an override the editor never saw. */
+function seatFingerprint(role: Parameters<typeof resolveCapabilities>[0], overrides: Parameters<typeof resolveCapabilities>[1]): string {
+  return [...resolveCapabilities(role, overrides)].sort().join(",");
+}
 
 // HTTP status for a service guard outcome: 409 for the last-owner backstop, 404
 // for a missing user/membership, 400 otherwise.
@@ -31,6 +40,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     role?: unknown;
     status?: unknown;
     capabilities?: unknown;
+    expectedCapabilities?: unknown;
   };
   const workspaceId = typeof body.workspaceId === "string" && body.workspaceId ? body.workspaceId : DEFAULT_WORKSPACE_ID;
 
@@ -55,6 +65,15 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     const membership = getMembership(userId, workspaceId);
     if (!membership) return NextResponse.json({ error: "not_member" }, { status: 404 });
     const desired: Capability[] = (body.capabilities as unknown[]).filter(isCapability);
+    // The seat as the EDITOR saw it when the dialog opened. The permissions modal
+    // re-sends the WHOLE desired set, so two administrators editing one member both
+    // send a complete picture computed from what each of them loaded: whoever saved
+    // second silently erased the first's change with no error and no trace. Optional
+    // on the wire (an API caller may not have read the seat first), and when present
+    // it is re-asserted against the LIVE row under the write lock below.
+    const expected = Array.isArray(body.expectedCapabilities)
+      ? [...new Set((body.expectedCapabilities as unknown[]).filter(isCapability))].sort().join(",")
+      : null;
     // The override the desired set implies vs the member's (possibly just-changed) role.
     const override = overrideFromDesired(membership.role, desired);
     // Delegation: the actor may only GRANT capabilities they hold themselves
@@ -71,8 +90,27 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
       ? { grant: override.grant.filter((c) => actorCaps.has(c) || preExistingGrants.has(c)), revoke: override.revoke }
       : null;
     const effective = filtered && (filtered.grant.length || filtered.revoke.length) ? filtered : null;
-    const r = setMemberPermissions(userId, workspaceId, effective);
-    if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason) });
+    // READ -> COMPUTE -> WRITE, and everything above this line is the compute: two
+    // awaits (the body parse, the caller's capabilities) sit between the SELECT that
+    // produced `membership` and the UPDATE, so the row is unguarded for as long as
+    // those take. The write therefore re-reads the seat under an IMMEDIATE write lock
+    // and refuses if it moved - the `actOnPipelineEntry` shape (app/_lib/db/pipeline.ts),
+    // applied to the one org write that two administrators legitimately race.
+    // Synchronous by construction: an await between BEGIN and COMMIT would give the
+    // atomicity away silently (.claude/CLAUDE.md).
+    const before = seatFingerprint(membership.role, membership.overrides);
+    const r = ensureDb().transaction((): MemberOpResult | { ok: false; reason: "changed" } => {
+      const live = getMembership(userId, workspaceId);
+      if (!live) return { ok: false, reason: "not_member" };
+      const now = seatFingerprint(live.role, live.overrides);
+      // Against the editor's own snapshot when they sent one, else against the row
+      // THIS request read a few milliseconds ago. Either way the comparison is over
+      // effective capabilities, so a no-op re-save of an unchanged seat is allowed.
+      if (now !== (expected ?? before)) return { ok: false, reason: "changed" };
+      return setMemberPermissions(userId, workspaceId, effective);
+    }).immediate();
+    if (!r.ok && r.reason === "changed") return jsonRefusal("MEMBER_PERMISSIONS_CHANGED", 409);
+    if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason as MemberOpResult["reason"]) });
   }
   return NextResponse.json({ ok: true });
 }

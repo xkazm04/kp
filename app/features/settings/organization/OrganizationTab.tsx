@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Rocket } from "lucide-react";
 import { isLocale } from "@/i18n/locales";
+import { toast } from "@/app/_components/toast-store";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { readClientOrgName } from "@/app/_lib/org-settings";
 import { Defer } from "@/app/_components/ui/Defer";
@@ -37,6 +39,7 @@ export function OrganizationTab() {
   const router = useRouter();
   const t = useTranslations("workspaceAdmin.org");
   const appLocale = useLocale();
+  const errMsg = useErrorMessage();
   const [, startTransition] = useTransition();
   const [onboarding, setOnboarding] = useState(false);
   const [name, setName] = useState<string>(() => readClientOrgName());
@@ -66,8 +69,11 @@ export function OrganizationTab() {
     const id = setTimeout(async () => {
       setNameSave("saving");
       try {
-        await setOrgName(name);
-        setNameSave("saved");
+        // The action now ANSWERS: a caller without org:manage is refused, and a
+        // refusal that still ticked over to "Saved" would be the green lie the
+        // house rules name explicitly.
+        const res = await setOrgName(name);
+        setNameSave(res.ok ? "saved" : "error");
       } catch {
         setNameSave("error");
       }
@@ -81,7 +87,14 @@ export function OrganizationTab() {
   function onLanguageChange(next: AppLanguage) {
     if (!isLocale(next) || next === language) return;
     startTransition(async () => {
-      await setOrgLanguage(next);
+      const res = await setOrgLanguage(next);
+      if (!res.ok) {
+        // Refusing and then refreshing anyway would repaint the OLD language with no
+        // explanation - the toggle would simply spring back. Say why instead, from
+        // the code, in the reader's language.
+        toast.error(errMsg({ code: res.code }, t("saveFailed")));
+        return;
+      }
       router.refresh();
     });
   }

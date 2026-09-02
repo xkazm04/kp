@@ -1442,7 +1442,15 @@
     "JD_TITLE_TOO_LONG": "The title must be 200 characters or fewer.",
     "JD_BODY_TOO_LONG": "The description must be 20,000 characters or fewer.",
     "DEVCASE_SUBMIT_FAILED": "Could not record that submission. Please try again.",
-    "DEVCASE_SOURCE_FAILED": "Could not source candidates for this assignment. Please try again."
+    "DEVCASE_SOURCE_FAILED": "Could not source candidates for this assignment. Please try again.",
+    "RESTORE_FOREIGN_ORG": "This backup belongs to a different organization. A backup is restored into the organization it came from.",
+    "RESTORE_REPLACE_REQUIRED": "Restoring replaces the organization’s current data. Confirm replace to proceed.",
+    "INVITE_ALREADY_MEMBER": "That person is already an active member.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "You can’t invite someone at a role above your own privileges.",
+    "INVITE_EMAIL_INVALID": "A valid email address is required.",
+    "MEMBER_PERMISSIONS_CHANGED": "This member’s permissions changed while you were editing them. Reload and try again.",
+    "ORG_SETTINGS_FORBIDDEN": "Only an organization administrator can change the organization’s settings.",
+    "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages."
   },
   "resilience": {
     "notFoundEyebrow": "404",

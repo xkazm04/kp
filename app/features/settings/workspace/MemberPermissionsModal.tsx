@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { toast } from "@/app/_components/toast-store";
 import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { roleCapabilities, type Capability } from "@/app/_lib/auth/roles";
 import { capabilityMeta, roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberTeam, OrgMemberDto } from "./useWorkspaceAdmin";
@@ -28,6 +29,7 @@ export function MemberPermissionsModal({
 }) {
   const t = useTranslations("workspaceAdmin.permissions");
   const tm = useTranslations("workspaceAdmin.members");
+  const errMsg = useErrorMessage();
   const roleDefaults = roleCapabilities(team.role);
   const actorCaps = new Set(callerCaps);
   const [desired, setDesired] = useState<Set<Capability>>(() => new Set(team.capabilities));
@@ -48,16 +50,25 @@ export function MemberPermissionsModal({
     const r = await fetch(`/api/org/members/${member.user.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId: team.workspaceId, capabilities: [...desired] }),
+      // `expectedCapabilities` is the seat AS THIS DIALOG RENDERED IT. The save
+      // re-sends the whole desired set, so without it a second administrator who
+      // saved the same member while this dialog was open is silently overwritten:
+      // the server re-asserts this snapshot under a write lock and answers
+      // MEMBER_PERMISSIONS_CHANGED instead (409).
+      body: JSON.stringify({ workspaceId: team.workspaceId, capabilities: [...desired], expectedCapabilities: team.capabilities }),
     }).catch(() => null);
     setSaving(false);
     if (r && r.ok) {
       toast.success(t("updated"));
       onSaved();
       onClose();
-    } else {
-      toast.error(t("updateFailed"));
+      return;
     }
+    const payload = r ? ((await r.json().catch(() => null)) as ApiErrorPayload | null) : null;
+    toast.error(errMsg(payload, t("updateFailed")));
+    // A lost race is not a failed save to retry blindly: pull the roster back so the
+    // next decision is made against what the seat now actually says.
+    if (payload?.code === "MEMBER_PERMISSIONS_CHANGED") onSaved();
   }
 
   return (
