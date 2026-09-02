@@ -21,9 +21,24 @@ export type OrchestratorState = {
   exchanges: number;
   // The engine closed the session (spoken confirmed read-back) — no more turns.
   ended: boolean;
+  // A sweep came due while a turn was going out, and is owed at the next idle
+  // moment. The two threads used to be fired from the same `finally` block —
+  // `if (extract) void sweep(); if (next) void dispatch(next);` — so a batch
+  // extraction ran concurrently with a paid fast turn, each spending on the
+  // other's shoulder and racing over the same row. (The STORE is what makes
+  // that race safe now — updateIntakeVoiceSweep re-reads the transcript inside
+  // its write — because the client cannot serialize an utterance the requestor
+  // simply speaks mid-sweep. This only removes the self-inflicted overlap.)
+  pendingExtract: boolean;
 };
 
-export const initialOrchestratorState: OrchestratorState = { busy: false, queue: [], exchanges: 0, ended: false };
+export const initialOrchestratorState: OrchestratorState = {
+  busy: false,
+  queue: [],
+  exchanges: 0,
+  ended: false,
+  pendingExtract: false,
+};
 
 /** A transcribed utterance arrived. Returns the message to dispatch NOW (when
  *  idle) or null (queued behind the in-flight turn / session ended). */
@@ -59,17 +74,31 @@ export function completeTurn(
 ): { state: OrchestratorState; next: string | null; extract: boolean } {
   const exchanges = state.exchanges + 1;
   const ended = state.ended || done;
-  const extract = ended || exchanges % EXTRACT_EVERY === 0;
   const lost = failed?.trim() ?? "";
   const pending = lost ? [lost, ...state.queue] : state.queue;
+  // Due now, or owed from a cadence tick that was deferred behind a dispatch.
+  // Every completed exchange adds turns, so a due sweep always has something new
+  // to read — the only sweep that can be redundant is the one `finish()` posts
+  // after a close, and that one is the hang-up RECOVERY post, not this cadence.
+  const due = ended || exchanges % EXTRACT_EVERY === 0 || state.pendingExtract;
   // A close keeps `pending` rather than clearing it: nothing more may be
   // dispatched, but the hang-up recovery (finish → /voice-complete `turns`) is
   // the last chance for words that never reached the server.
   if (ended || lost || pending.length === 0) {
-    return { state: { busy: false, queue: pending, exchanges, ended }, next: null, extract };
+    return {
+      state: { busy: false, queue: pending, exchanges, ended, pendingExtract: false },
+      next: null,
+      extract: due,
+    };
   }
+  // A turn is going out RIGHT NOW: the sweep waits for the next idle moment
+  // rather than running beside it.
   const next = pending.join(" ");
-  return { state: { busy: true, queue: [], exchanges, ended }, next, extract };
+  return {
+    state: { busy: true, queue: [], exchanges, ended, pendingExtract: due },
+    next,
+    extract: false,
+  };
 }
 
 /** What the agent should SAY when the call opens: the pending question from the

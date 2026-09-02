@@ -403,6 +403,32 @@ infrastructure). Conversation direction is OURS, in two LLM threads:
   lost the last exchanges; only `promoted` is frozen, and this route still
   never closes a session itself (`voice-close-guard.test.ts`).
 
+The two threads run CONCURRENTLY — the client fires the sweep and the next
+spoken turn from the same place — so the sweep's write is shaped for that:
+`updateIntakeVoiceSweep` (`app/_lib/db/intakes.ts`) carries only the turns THIS
+request brought and re-reads the stored transcript inside its own write
+transaction. It used to write `[...transcriptReadBeforeTheSpawn, ...turns]`
+through `updateIntakeDialog`, which erased any `/voice-turn` pair that landed
+during the seconds-long extraction — words spoken into a live call, gone from
+the only record a call has (`app/_lib/db/intake-voice-sweep.test.ts`). The
+row version read before the spawn still rides along, so the write REPORTS a
+concurrent turn (`moved`); nothing is refused, because refusing would drop the
+hang-up recovery turns the payload carries. The response answers with the
+STORED transcript, since the panel adopts it wholesale. Client-side,
+`completeTurn` now holds a due sweep until no fast turn is dispatching
+(`pendingExtract`) — that removes the self-inflicted overlap and one
+concurrent paid call, but not an utterance the requestor simply speaks
+mid-sweep, which is why the store is where the guarantee lives.
+
+Extraction cost, stated plainly: every sweep re-reads the WHOLE transcript
+(`extract_transcript` is given the full turn list), so a 20-exchange call runs
+~10 batch extractions over a growing transcript. Slicing to "only turns since
+the last sweep" is not a free win and is NOT done: the model assigns
+`sourceTurn` indices over the turns it is handed (the click-to-turn chips read
+them) and `detect_shape` judges the same list, so a sliced sweep would
+misattribute every citation it produces. What the deferral removes is the
+redundant concurrency, not the O(n) per sweep.
+
 Client pieces: `JdsIntakeVoice.tsx` (thin driver) over the pure orchestrator
 `voiceOrchestration.ts` (serializes fast turns, coalesces utterances spoken
 mid-turn, extraction cadence, barge-in via `cancelSpeech`) and the shared

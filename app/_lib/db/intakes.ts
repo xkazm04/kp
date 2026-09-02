@@ -385,6 +385,71 @@ export function updateIntakeAppMaster(
   );
 }
 
+// The periodic voice EXTRACTION SWEEP's write (/voice-complete).
+//
+// The defect this shape exists for: the sweep read the transcript, spent SECONDS
+// in a batch extraction, then wrote `[...preReadTranscript, ...itsOwnTurns]` —
+// so a /voice-turn pair that landed during that window was erased, and the
+// requestor's spoken words existed nowhere. The client fires both threads from
+// the same `finally` block, so this is the ordinary case, not a rare one.
+//
+// The fix is structural rather than a compare-and-swap refusal: the sweep never
+// carries a transcript in, only its OWN turns (the hang-up recovery payload),
+// and the CURRENT stored transcript is re-read INSIDE the write transaction and
+// appended to. There is therefore no window in which a concurrent turn can be
+// lost, and — unlike the App-master writes, whose refusal protects a STATED
+// value — a refusal here would throw away the recovery turns the payload is
+// carrying, which is the very loss being fixed.
+//
+// `expectedUpdatedAt` is still passed and still reported (`moved`), because the
+// caller and its tests need to know a turn landed mid-sweep; the brief is
+// written anyway on `moved` and that is deliberate: the fast voice thread's LLM
+// path leaves the stored brief untouched (extraction is THIS thread's job), and
+// on the deterministic path this sweep declines to extract at all (`brief: null`
+// below) — so the sweep's brief is never staler than the one it replaces. The
+// transcript, which is the server truth a later sweep can re-extract from, is
+// preserved either way.
+//
+// `brief: null` means "leave the stored brief alone" — the honest keyless
+// outcome (extracted: false), not an empty brief.
+export function updateIntakeVoiceSweep(
+  id: string,
+  patch: {
+    turns: VoiceTurn[];
+    brief: RoleBrief | null;
+    shape?: IntakeShape;
+    title?: string;
+    expectedUpdatedAt: string | null;
+  },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { result: IntakeCasResult; transcript: VoiceTurn[] } {
+  const d = db();
+  const run = d.transaction((): { result: IntakeCasResult; transcript: VoiceTurn[] } => {
+    const row = d
+      .prepare(`SELECT * FROM role_intakes WHERE id = ? AND workspace_id = ? AND status != 'promoted'`)
+      .get(id, workspaceId) as IntakeRow | undefined;
+    if (!row) return { result: "missing", transcript: [] };
+    const moved = (row.updated_at ?? null) !== (patch.expectedUpdatedAt ?? null);
+    const transcript = [...fromRow(row).transcript, ...patch.turns];
+    d.prepare(
+      `UPDATE role_intakes
+       SET transcript_json = ?, brief_json = COALESCE(?, brief_json), shape = COALESCE(?, shape),
+           title = COALESCE(?, title), updated_at = ?
+       WHERE id = ? AND workspace_id = ?`
+    ).run(
+      JSON.stringify(transcript),
+      patch.brief ? JSON.stringify(patch.brief) : null,
+      patch.shape ?? null,
+      patch.title?.trim() ? patch.title.trim().slice(0, 200) : null,
+      new Date().toISOString(),
+      id,
+      workspaceId
+    );
+    return { result: moved ? "moved" : "ok", transcript };
+  });
+  return run.immediate();
+}
+
 // A human edit of the brief (UAT drain §2.1) — brief_json only; the transcript
 // is untouched (the dialog record stays honest). Refuses promoted sessions at
 // the store level too (the JD exists; the brief behind it is frozen).

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
+import { getIntake, updateIntakeVoiceSweep } from "@/app/_lib/db/intakes";
 import { runIntakeTranscriptExtract } from "@/app/_lib/intake-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -75,18 +75,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // extraction sweep is where attached bodies actually reach the model.
     const result = await runIntakeTranscriptExtract({ transcript, brief: intake.brief, lang, attachments: intake.attachments });
     const briefTitle = typeof result.brief?.title === "string" ? result.brief.title : "";
-    updateIntakeDialog(
+    // The extraction above takes SECONDS, and the client fires this sweep and the
+    // next spoken turn from the same `finally` block — so by now /voice-turn may
+    // have persisted a pair that `transcript` (read before the spawn) does not
+    // contain. Writing `transcript` back would erase it, and a spoken word erased
+    // from the store exists nowhere else. So the write carries only the turns
+    // THIS request brought (the hang-up recovery payload) and the store re-reads
+    // the current transcript inside its own transaction
+    // (updateIntakeVoiceSweep, intake-voice-sweep.test.ts). `expectedUpdatedAt`
+    // is passed so the outcome still REPORTS a concurrent turn (`moved`) even
+    // though nothing is refused — refusing here would drop the recovery turns,
+    // which is the loss being fixed.
+    const write = updateIntakeVoiceSweep(
       id,
       {
-        transcript,
-        brief: result.extracted ? result.brief : intake.brief,
+        turns,
+        brief: result.extracted ? result.brief : null,
         shape: result.shape,
         ...(briefTitle && result.extracted ? { title: briefTitle } : {}),
+        expectedUpdatedAt: intake.updatedAt,
       },
       ws
     );
+    if (write.result === "missing") {
+      return NextResponse.json({ error: "Intake not found." }, { status: 404 });
+    }
     return NextResponse.json({
-      transcript,
+      // The STORED transcript, not the pre-spawn one: the panel adopts this
+      // wholesale (foldVoiceSweep), so answering with the stale copy would put
+      // the erasure back on the requestor's screen even though the row is right.
+      transcript: write.transcript,
       brief: result.extracted ? result.brief : intake.brief,
       shape: result.shape,
       extracted: result.extracted,
