@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Briefcase, Copy, ExternalLink, Loader2, Pencil, Sparkles } from "lucide-react";
 import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
-import { META_LABEL, STAT, STAT_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, DIVIDER, META_LABEL, STAT, STAT_LABEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { isUnlinked, shortDate, type JdRow } from "./jdsLibrary";
 import { JdCandidateList } from "./JdsCandidateList";
@@ -64,14 +64,14 @@ export function JdsLedgerDetailRail({
           <p className="mt-1 text-sm font-semibold text-ink">{shortDate(row.created_at, locale)}</p>
         </div>
       </div>
-      <div className="space-y-2 border-t border-stone-200 pt-4">
+      <div className={`space-y-2 ${DIVIDER} pt-4`}>
         {canEdit ? (
           <button
             type="button"
             onClick={toggleEdit}
             aria-pressed={inEdit}
             aria-label={t("editJdAria")}
-            className={`focus-ring flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:border-coral/40 ${inEdit ? "border-coral/40 bg-coral/5 text-coral" : "border-stone-200 text-ink"}`}
+            className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold ${inEdit ? "border-coral/40 bg-coral/5 text-coral" : ""}`}
           >
             <Pencil size={15} aria-hidden /> {inEdit ? t("editCancel") : t("editJd")}
           </button>
@@ -80,7 +80,7 @@ export function JdsLedgerDetailRail({
           type="button"
           onClick={() => onDuplicate(row)}
           disabled={duplicating || analyzing}
-          className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+          className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold`}
         >
           {duplicating ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Copy size={15} aria-hidden />}
           {t("duplicate")}
@@ -99,7 +99,7 @@ export function JdsLedgerDetailRail({
             type="button"
             onClick={ing.run}
             disabled={ing.state === "busy"}
-            className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+            className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/5`}
           >
             {ing.state === "busy" ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Briefcase size={15} aria-hidden />}
             {ing.state === "error" ? t("ingestRetry") : t("ingestAsJob")}
@@ -110,14 +110,14 @@ export function JdsLedgerDetailRail({
             {errMsg({ code: ing.code }, t("ingestFailed"))}
           </p>
         ) : null}
-        <Link href={`/jds/${encodeURIComponent(row.slug)}`} className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 px-3 py-2 text-sm font-semibold text-ink hover:border-coral/40">
+        <Link href={`/jds/${encodeURIComponent(row.slug)}`} className={`${BTN_SECONDARY} w-full gap-2 px-3 py-2 text-sm font-semibold`}>
           <ExternalLink size={15} aria-hidden /> {t("detailOpenPublic")}
         </Link>
-        <Link href={`/?tab=analyze&jd=${encodeURIComponent(row.slug)}`} className="focus-ring flex w-full items-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-steel">
+        <Link href={`/?tab=analyze&jd=${encodeURIComponent(row.slug)}`} className={`${BTN_PRIMARY} w-full gap-2 bg-ink px-3 py-2 text-sm font-semibold hover:bg-steel`}>
           <Sparkles size={15} aria-hidden /> {t("detailAnalyzeCv")}
         </Link>
       </div>
-      <div className="space-y-2 border-t border-stone-200 pt-4">
+      <div className={`space-y-2 ${DIVIDER} pt-4`}>
         <p className={META_LABEL}>{t("candidatesToggle", { count: row.analysisCount ?? 0 })}</p>
         <JdCandidateList slug={row.slug} count={row.analysisCount ?? 0} />
       </div>

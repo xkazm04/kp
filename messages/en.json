@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Attach a recording to transcribe.",
     "AUDIO_UNSUPPORTED_TYPE": "Use WAV, MP3, M4A, WebM, OGG or FLAC for the recording.",
     "AUDIO_TOO_LARGE": "That recording is over the 25 MB upload limit.",
-    "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again."
+    "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again.",
+    "JD_FIELDS_REQUIRED": "A title and a description are both required.",
+    "JD_TITLE_TOO_LONG": "The title must be 200 characters or fewer.",
+    "JD_BODY_TOO_LONG": "The description must be 20,000 characters or fewer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3714,7 +3717,7 @@
       "shelfRecordLabel": "The record you're about to create",
       "shelfWriteCta": "Write the first spec",
       "shelfDraftCta": "Have the builder draft it",
-      "shelfCtaNote": "Both open the Generate panel. Save a draft as-is, or let the AI build the description, a market salary band and a work-sample assignment.",
+      "shelfCtaNote": "The Generate panel takes it from here: save what you type as a draft, or hand it to the AI to build the description, a market salary band and a work-sample assignment.",
       "shelfReuseLabel": "One sheet is reusable for",
       "shelfReuseAnalyze": "Score CVs against it",
       "shelfReuseIngest": "Ingest it as an open role",
@@ -4013,7 +4016,12 @@
       "buildIntentLanguage": "Language",
       "buildIntentSeniority": "Seniority",
       "buildIntentAiDefault": "AI default format",
-      "caseTaskFallback": "Task"
+      "caseTaskFallback": "Task",
+      "pollStalledNote": "Still analyzing. Nothing has reported on this build for a while — the Tasks drawer has its live status.",
+      "unsavedTitle": "Discard your unsaved changes?",
+      "unsavedBody": "This JD has edits you haven't saved yet. Leaving the editor discards them.",
+      "unsavedDiscard": "Discard changes",
+      "unsavedKeep": "Keep editing"
     },
     "form": {
       "saveAjd": "Save a JD",

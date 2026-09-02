@@ -1,9 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
+import { useAnalyzingPoll } from "./jdsBuildPoll";
 import { Modal } from "@/app/_components/Modal";
+import { BTN_PRIMARY, BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { Markdown } from "@/app/_components/Markdown";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useIngestJob, useJdDetail } from "./jdsHooks";
@@ -69,13 +72,25 @@ export function LedgerDetailModal({
   // winnability-apply — a coach handoff opens straight into edit mode. Latched off
   // once the recruiter exits the editor so the staged session can't re-open itself.
   const [stagedExited, setStagedExited] = useState(false);
+  // Does the editor hold typing that has not been saved? Reported up by the editor,
+  // because two of the three ways out of it are this modal's (the header X /
+  // Escape / backdrop, and the rail's Edit toggle) and both used to discard silently.
+  const [dirty, setDirty] = useState(false);
+  const onDirtyChange = useCallback((next: boolean) => setDirty(next), []);
+  // The exit the recruiter asked for, held while we ask whether to discard. null =
+  // nothing pending. Confirming runs it; "keep editing" drops it and changes nothing.
+  const [pendingExit, setPendingExit] = useState<null | "close" | "toggle">(null);
 
-  // While the build runs, poll the detail so it flips to the result in place.
-  useEffect(() => {
-    if (!analyzing) return;
-    const id = setInterval(refresh, 3500);
-    return () => clearInterval(id);
-  }, [analyzing, refresh]);
+  // While the build runs, poll the detail so it flips to the result in place —
+  // through the shared, visibility-gated, backing-off, bounded helper both readers
+  // use (jdsBuildPoll.ts). `stalled` is the poll giving up, and it is SAID.
+  const stalled = useAnalyzingPoll(analyzing, refresh);
+  // The owning jd_build task's live progress line. The polled task list carries
+  // progressMsg for free, so this is a lookup, not a request: `analysis_task_id`
+  // has ridden the JD row since the build was backgrounded and nothing read it.
+  const { tasks } = useTasks();
+  const taskId = jd?.analysis_task_id ?? row.analysis_task_id ?? null;
+  const buildProgress = taskId ? tasks.find((task) => task.id === taskId)?.progressMsg ?? null : null;
 
   // Structured artifacts (salary / case) the build stored beside the markdown body.
   // Parsed inline (the modal renders infrequently and the blob is small).
@@ -108,6 +123,23 @@ export function LedgerDetailModal({
     setHistorySpent(true);
   };
   const toggleEdit = () => (inEdit ? exitEdit() : enterEdit());
+  // The guard. An exit with no unsaved draft behaves exactly as before — the
+  // confirmation only appears when there is something real to lose.
+  const guardedExit = (exit: "close" | "toggle") => {
+    if (inEdit && dirty) {
+      setPendingExit(exit);
+      return;
+    }
+    if (exit === "close") onClose();
+    else toggleEdit();
+  };
+  const discardAndExit = () => {
+    const exit = pendingExit;
+    setPendingExit(null);
+    setDirty(false);
+    if (exit === "close") onClose();
+    else exitEdit();
+  };
   const showStaged = stagedActive ? stagedSuggestion : null;
 
   const retry = async () => {
@@ -131,7 +163,7 @@ export function LedgerDetailModal({
   };
 
   return (
-    <Modal title={row.title} subtitle={row.slug} onClose={onClose} size="4xl">
+    <Modal title={row.title} subtitle={row.slug} onClose={() => guardedExit("close")} size="4xl">
       <div className="grid gap-6 md:grid-cols-[16rem_1fr]">
         {/* Metadata rail */}
         <JdsLedgerDetailRail
@@ -140,7 +172,7 @@ export function LedgerDetailModal({
           analyzing={analyzing}
           canEdit={canEdit}
           inEdit={inEdit}
-          toggleEdit={toggleEdit}
+          toggleEdit={() => guardedExit("toggle")}
           onDuplicate={onDuplicate}
           duplicating={duplicating}
           ing={ing}
@@ -163,13 +195,15 @@ export function LedgerDetailModal({
               linked={!isUnlinked(effRow)}
               stagedSuggestion={showStaged}
               initialHistoryOpen={openHistory && !historySpent}
+              onDirtyChange={onDirtyChange}
+              onCancel={() => guardedExit("toggle")}
               onDone={() => {
                 exitEdit();
                 refresh();
               }}
             />
           ) : analyzing ? (
-            <BuildingPanel />
+            <BuildingPanel progress={buildProgress} stalled={stalled} />
           ) : failed ? (
             <FailedPanel error={jd?.analysis_error ?? null} retrying={retrying} retryError={retryError} onRetry={retry} />
           ) : status === "loading" ? (
@@ -186,7 +220,7 @@ export function LedgerDetailModal({
               {hasRepoGrounding(artifacts?.snapshot) ? <RepoGroundingCard snapshot={artifacts.snapshot} /> : null}
               {jd.body.trim() ? (
                 <>
-                  <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+                  <article className={`${PANEL} p-5`}>
                     <Markdown content={jd.body} />
                   </article>
                   {/* lint-the-artifact — a Generated JD publishes UNLINTED (JdBuilder lints
@@ -214,6 +248,27 @@ export function LedgerDetailModal({
           )}
         </section>
       </div>
+      {/* Stacked over the detail modal — the shared Modal's dialog stack keeps
+          Escape and the focus trap acting on THIS one while it is open. */}
+      {pendingExit ? (
+        <Modal
+          title={t("unsavedTitle")}
+          onClose={() => setPendingExit(null)}
+          size="md"
+          footer={
+            <>
+              <button type="button" onClick={() => setPendingExit(null)} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+                {t("unsavedKeep")}
+              </button>
+              <button type="button" onClick={discardAndExit} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
+                {t("unsavedDiscard")}
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-steel">{t("unsavedBody")}</p>
+        </Modal>
+      ) : null}
     </Modal>
   );
 }

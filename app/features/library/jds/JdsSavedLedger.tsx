@@ -68,6 +68,7 @@ export function LibrarySavedJdsLedger() {
     openRowAt,
     openHistoryFor,
     heldBuilds,
+    pollStalled,
     ingested,
     setIngested,
     coachEdit,
@@ -157,6 +158,7 @@ export function LibrarySavedJdsLedger() {
         onSort={onSort}
         duplicating={duplicating}
         heldBuilds={heldBuilds}
+        pollStalled={pollStalled}
         onOpenRow={openRowAt}
         onDuplicate={startDuplicate}
         onStartGenerate={() => {

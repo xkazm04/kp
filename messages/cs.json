@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Přiložte nahrávku k přepisu.",
     "AUDIO_UNSUPPORTED_TYPE": "Pro nahrávku použijte WAV, MP3, M4A, WebM, OGG nebo FLAC.",
     "AUDIO_TOO_LARGE": "Tato nahrávka překračuje limit 25 MB pro nahrání.",
-    "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu."
+    "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu.",
+    "JD_FIELDS_REQUIRED": "Název i popis jsou povinné.",
+    "JD_TITLE_TOO_LONG": "Název může mít nejvýše 200 znaků.",
+    "JD_BODY_TOO_LONG": "Popis může mít nejvýše 20 000 znaků."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3714,7 +3717,7 @@
       "shelfRecordLabel": "Záznam, který se chystáte vytvořit",
       "shelfWriteCta": "Napsat první popis",
       "shelfDraftCta": "Nechat návrh na AI",
-      "shelfCtaNote": "Obojí otevře panel Generovat. Uložte koncept tak, jak je, nebo nechte AI vytvořit popis, tržní mzdové rozpětí a praktické zadání.",
+      "shelfCtaNote": "Panel Generovat převezme štafetu: uložte, co napíšete, jako koncept, nebo to předejte AI, ať sestaví popis, tržní mzdové rozpětí a pracovní zadání.",
       "shelfReuseLabel": "Jeden list využijete pro",
       "shelfReuseAnalyze": "Hodnocení CV proti němu",
       "shelfReuseIngest": "Převod na otevřenou pozici",
@@ -4013,7 +4016,12 @@
       "buildIntentLanguage": "Jazyk",
       "buildIntentSeniority": "Seniorita",
       "buildIntentAiDefault": "Výchozí formát AI",
-      "caseTaskFallback": "Úkol"
+      "caseTaskFallback": "Úkol",
+      "pollStalledNote": "Stále se analyzuje. O tomto sestavení už chvíli nic nepřišlo — živý stav najdete v zásuvce Úlohy.",
+      "unsavedTitle": "Zahodit neuložené změny?",
+      "unsavedBody": "Tato nabídka má úpravy, které jste zatím neuložili. Opuštěním editoru o ně přijdete.",
+      "unsavedDiscard": "Zahodit změny",
+      "unsavedKeep": "Pokračovat v úpravách"
     },
     "form": {
       "saveAjd": "Uložit popis pozice",

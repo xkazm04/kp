@@ -2,6 +2,7 @@
 
 import type { useTranslations } from "next-intl";
 import { CompletionCta } from "@/app/_components/CompletionCta";
+import { BTN_SECONDARY, DIVIDER, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { SortState } from "@/app/_components/table/useTableSort";
 import type { CoachHandoffBlock, JdRow, JdSortCol, StatusFilter } from "./jdsLibrary";
 import { CoachHandoffTrace } from "./JdsLedgerCoachTrace";
@@ -41,6 +42,7 @@ export function JdsSavedLedgerPanel({
   onSort,
   duplicating,
   heldBuilds,
+  pollStalled,
   onOpenRow,
   onDuplicate,
   onStartGenerate,
@@ -74,6 +76,8 @@ export function JdsSavedLedgerPanel({
   onSort: (col: JdSortCol) => void;
   duplicating: string | null;
   heldBuilds: Set<string>;
+  /** The analyzing-row poll gave up (jdsBuildPoll). Stated, never silent. */
+  pollStalled: boolean;
   onOpenRow: (row: JdRow, opts?: { history?: boolean }) => void;
   onDuplicate: (row: JdRow) => void;
   onStartGenerate: () => void;
@@ -100,11 +104,17 @@ export function JdsSavedLedgerPanel({
         />
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-panel">
+      {pollStalled ? (
+        <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
+          {t("pollStalledNote")}
+        </p>
+      ) : null}
+
+      <div className={`overflow-hidden ${PANEL}`}>
         {error ? (
           <div className="flex flex-col items-start gap-3 px-4 py-5">
             <p className="text-base text-red-700">{error}</p>
-            <button type="button" onClick={reload} className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50">
+            <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-9 gap-2 bg-white px-3 text-sm font-semibold`}>
               {t("tryAgain")}
             </button>
           </div>
@@ -140,7 +150,7 @@ export function JdsSavedLedgerPanel({
           />
         )}
         {rows && visible.length > 0 ? (
-          <div className="border-t border-stone-200 px-4 py-2 text-right text-xs uppercase tracking-wide text-steel">
+          <div className={`${DIVIDER} px-4 py-2 text-right ${META_LABEL}`}>
             {t("entryCount", { count: visible.length })}
           </div>
         ) : null}

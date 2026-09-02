@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Joignez un enregistrement à transcrire.",
     "AUDIO_UNSUPPORTED_TYPE": "Utilisez WAV, MP3, M4A, WebM, OGG ou FLAC pour l'enregistrement.",
     "AUDIO_TOO_LARGE": "Cet enregistrement dépasse la limite de téléversement de 25 Mo.",
-    "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez."
+    "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez.",
+    "JD_FIELDS_REQUIRED": "Le titre et la description sont tous deux obligatoires.",
+    "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
+    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3714,7 +3717,7 @@
       "shelfRecordLabel": "L’enregistrement que vous allez créer",
       "shelfWriteCta": "Rédiger la première fiche",
       "shelfDraftCta": "Laisser le générateur la rédiger",
-      "shelfCtaNote": "Les deux ouvrent le panneau Générer. Enregistrez un brouillon tel quel, ou laissez l’AI produire la description, une fourchette de salaire du marché et un exercice pratique.",
+      "shelfCtaNote": "Le panneau Générer prend le relais : enregistrez votre texte comme brouillon, ou confiez-le à l'IA pour qu'elle produise la description, une fourchette de salaire du marché et un exercice pratique.",
       "shelfReuseLabel": "Une fiche sert à",
       "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
       "shelfReuseIngest": "La convertir en poste ouvert",
@@ -4013,7 +4016,12 @@
       "buildIntentLanguage": "Langue",
       "buildIntentSeniority": "Séniorité",
       "buildIntentAiDefault": "Format par défaut de l'IA",
-      "caseTaskFallback": "Tâche"
+      "caseTaskFallback": "Tâche",
+      "pollStalledNote": "Analyse toujours en cours. Aucune nouvelle de cette génération depuis un moment — le tiroir Tâches en donne le statut en direct.",
+      "unsavedTitle": "Abandonner vos modifications non enregistrées ?",
+      "unsavedBody": "Cette fiche contient des modifications que vous n'avez pas encore enregistrées. Quitter l'éditeur les supprime.",
+      "unsavedDiscard": "Abandonner les modifications",
+      "unsavedKeep": "Continuer l'édition"
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",

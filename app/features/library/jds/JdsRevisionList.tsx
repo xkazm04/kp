@@ -68,7 +68,7 @@ export function JdRevisionList({
             </button>
           </div>
           {expanded === rev.id ? (
-            <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 font-mono text-xs text-ink">
+            <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 font-mono text-sm text-ink">
               {rev.body}
             </pre>
           ) : null}

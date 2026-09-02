@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Fügen Sie eine Aufnahme zum Transkribieren hinzu.",
     "AUDIO_UNSUPPORTED_TYPE": "Verwenden Sie für die Aufnahme WAV, MP3, M4A, WebM, OGG oder FLAC.",
     "AUDIO_TOO_LARGE": "Diese Aufnahme überschreitet das Upload-Limit von 25 MB.",
-    "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut."
+    "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut.",
+    "JD_FIELDS_REQUIRED": "Titel und Beschreibung sind beide erforderlich.",
+    "JD_TITLE_TOO_LONG": "Der Titel darf höchstens 200 Zeichen lang sein.",
+    "JD_BODY_TOO_LONG": "Die Beschreibung darf höchstens 20.000 Zeichen lang sein."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3714,7 +3717,7 @@
       "shelfRecordLabel": "Der Datensatz, den Sie gleich anlegen",
       "shelfWriteCta": "Erste Beschreibung schreiben",
       "shelfDraftCta": "Vom Builder entwerfen lassen",
-      "shelfCtaNote": "Beides öffnet das Panel „Generieren“. Speichern Sie einen Entwurf unverändert, oder lassen Sie die AI die Beschreibung, ein marktübliches Gehaltsband und eine Aufgabe als Arbeitsprobe erstellen.",
+      "shelfCtaNote": "Der Generieren-Bereich übernimmt: Speichern Sie Ihren Text als Entwurf oder lassen Sie die KI daraus die Beschreibung, eine Marktgehaltsspanne und eine Arbeitsprobe bauen.",
       "shelfReuseLabel": "Ein Blatt lässt sich mehrfach nutzen",
       "shelfReuseAnalyze": "Lebensläufe damit bewerten",
       "shelfReuseIngest": "Als offene Stelle übernehmen",
@@ -4013,7 +4016,12 @@
       "buildIntentLanguage": "Sprache",
       "buildIntentSeniority": "Senioritätsstufe",
       "buildIntentAiDefault": "KI-Standardformat",
-      "caseTaskFallback": "Aufgabe"
+      "caseTaskFallback": "Aufgabe",
+      "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung — den Live-Status zeigt die Aufgaben-Leiste.",
+      "unsavedTitle": "Nicht gespeicherte Änderungen verwerfen?",
+      "unsavedBody": "Diese Stellenbeschreibung enthält Änderungen, die Sie noch nicht gespeichert haben. Wenn Sie den Editor verlassen, gehen sie verloren.",
+      "unsavedDiscard": "Änderungen verwerfen",
+      "unsavedKeep": "Weiter bearbeiten"
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",

@@ -100,7 +100,7 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
               </p>
               {stale ? (
                 <span
-                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800"
+                  className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-sm font-semibold text-amber-800"
                   title={t("analysisStaleTitle", { date: shortDate(jdEditedAt!, locale) })}
                 >
                   <History size={11} aria-hidden /> {t("analysisStale", { date: shortDate(jdEditedAt!, locale) })}

@@ -9,9 +9,14 @@
 // hole. Its centrepiece is a GHOST RECORD — the real ledger columns (Role · Field
 // · Seniority · Status · Analyzed · Saved) rendered as empty slots — so the
 // recruiter learns the shape of the thing they're about to shelve before they
-// have one. Two honest routes to a first sheet, both landing in the existing
-// builder: write it yourself (Save as draft, no AI round-trip) or have the
-// builder draft it.
+// have one. ONE route to a first
+// sheet. There were two buttons here - "Write the first spec" and "Have the builder
+// draft it" - running the identical onStartGenerate handler and landing on the
+// identical panel; the note underneath even admitted it ("Both open the Generate
+// panel"). Two controls that cannot be told apart by their outcome are a choice the
+// reader has to make and cannot get right, so the shelf offers the one action it
+// actually performs and the note names the two routes waiting on the other side
+// (Save as draft, or the AI checklist) - which is where the choice really is.
 //
 // Differs from Variant B by looking at the ARTIFACT (what a spec is worth once
 // shelved) rather than the MACHINE that produces it.
@@ -23,7 +28,7 @@ import { useTranslations } from "next-intl";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { LIBRARY_GLYPH } from "@/app/_components/glyph/glyphs/libraryGlyph";
-import { BTN_PRIMARY, BTN_SECONDARY, CHIP, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, CHIP, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 
 // One empty slot of the ghost record. `wide` gives the Role cell the span it has
 // in the real table, so the phantom row reads with the ledger's own proportions.
@@ -83,10 +88,7 @@ export function LibraryEmptyShelf({ onStartGenerate }: { onStartGenerate: () => 
         <button type="button" onClick={onStartGenerate} className={`${BTN_PRIMARY} h-10 px-4 text-base`}>
           <PenLine size={15} aria-hidden /> {t("shelfWriteCta")}
         </button>
-        <button type="button" onClick={onStartGenerate} className={`${BTN_SECONDARY} h-10 px-4 text-base`}>
-          <Sparkles size={15} aria-hidden /> {t("shelfDraftCta")}
-        </button>
-        <p className="text-sm text-steel">{t("shelfCtaNote")}</p>
+        <p className="max-w-xl text-sm text-steel">{t("shelfCtaNote")}</p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4">

@@ -11,6 +11,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { compareCells, useTableSort } from "@/app/_components/table/useTableSort";
 import { useHeldBuilds, useJdLibrary } from "./jdsHooks";
+import { useAnalyzingPoll } from "./jdsBuildPoll";
 import {
   coachHandoffBlock,
   facetCounts,
@@ -36,14 +37,13 @@ export function useLedgerLogic() {
   const { rows, error, reload, refresh } = useJdLibrary();
   // Poll while any JD is mid-build: the analyzing→ready flip happens server-side
   // (the detached jd_build handler), so there's no client event to react to — a
-  // silent in-place refresh picks it up without flickering the table. The interval
-  // clears itself once the last analyzing row settles.
+  // silent in-place refresh picks it up without flickering the table. The shared
+  // helper (jdsBuildPoll.ts) gates it on tab visibility, backs off as the build
+  // runs on, and STOPS after POLL_MAX_DURATION_MS rather than polling a row that a
+  // dead handler left "analyzing" forever; `pollStalled` is that giving-up, which
+  // the panel states above the table.
   const hasAnalyzing = useMemo(() => (rows ?? []).some((r) => r.analysis_status === "analyzing"), [rows]);
-  useEffect(() => {
-    if (!hasAnalyzing) return;
-    const id = setInterval(refresh, 3500);
-    return () => clearInterval(id);
-  }, [hasAnalyzing, refresh]);
+  const pollStalled = useAnalyzingPoll(hasAnalyzing, refresh);
   // #2 — both sub-panels stay mounted; `nav.tab` toggles which is visible and
   // `nav.builderKey` is the builder's React key. A manual tab switch keeps the key
   // (draft preserved), Duplicate advances it (remount → re-reads prefill).
@@ -257,6 +257,7 @@ export function useLedgerLogic() {
     openRowAt,
     openHistoryFor,
     heldBuilds,
+    pollStalled,
     ingested,
     setIngested,
     coachEdit,
