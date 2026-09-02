@@ -18,6 +18,7 @@ import { JdsIntakeLayoutTriptych } from "./JdsIntakeLayoutTriptych";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import { useIntakeLogic } from "./jdsIntakeLogic";
+import { intakeLang } from "@/app/_lib/intake-lang";
 
 // Role-intake dialog surface (docs/concepts/role-intake-dialog.md, Phase 1):
 // a coaching-register conversation with the requestor on the left, the live
@@ -96,7 +97,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             type="button"
             className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
             disabled={creating}
-            onClick={() => startNew(locale === "cs" ? "cs" : "en")}
+            onClick={() => startNew(intakeLang(locale))}
           >
             {creating ? t("starting") : t("new")}
           </button>
@@ -105,7 +106,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             not start from a blank conversation — it starts from an APP. */}
         <JdsIntakeAppMasterStart
           busy={creating}
-          onStart={(repo) => startAppMaster(locale === "cs" ? "cs" : "en", repo)}
+          onStart={(repo) => startAppMaster(intakeLang(locale), repo)}
         />
         {error ? (
           <p className="mt-3 text-body text-red-700">

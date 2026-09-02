@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { getIntake, markIntakePromoted } from "@/app/_lib/db/intakes";
-import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db/jobs";
+import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { startTask } from "@/app/_lib/tasks";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -56,7 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const brief = intake.brief;
     const title = (brief.title ?? "").trim();
     const needText = needTextFromBrief(brief);
-    const lang = intake.lang === "cs" ? "cs" : "en";
+    const lang = intakeLang(intake.lang);
     const options = {
       description: true,
       // Opt-out (UAT L1-HRBP-6): the market layer is Czech-single-market, so a
@@ -66,27 +66,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       caseDesign: body.caseDesign === true,
     };
 
-    // Same three-step contract as /api/jds/generate: placeholder row in the
-    // Ledger, detached build (survives navigation), row↔task link for progress.
+    // THE ONE DOOR into a backgrounded build (`app/_lib/jd-build-start.ts`):
+    // placeholder row in the Ledger, detached task stamped with the SAME tenant,
+    // row↔task link. This route was the fourth hand-rolled copy of that sequence
+    // and the seam's source guard allow-listed it; the allow-list entry goes with
+    // this change rather than outliving it. `title`, `jdSlug` and `options` are
+    // the seam's to set — a task pointed at a different row than the one just
+    // created is the drift it exists to prevent.
     const buildInput = { needText, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options };
-    const { slug } = insertAnalyzingJd({ title, options, buildInput }, ws);
-    const task = startTask("jd_build", {
+    const { slug, taskId } = startJdBuild({
       title,
-      company: typeof body.company === "string" ? body.company : undefined,
-      seniority: brief.seniority,
-      roleFamily: brief.roleFamily,
-      needText,
-      brief,
-      lang,
-      jdSlug: slug,
       options,
-      // Same tenant as the placeholder JD row inserted just above.
-    }, ws);
-    setJdAnalysisTask(slug, task.id);
+      buildInput,
+      workspaceId: ws,
+      params: {
+        company: typeof body.company === "string" ? body.company : undefined,
+        seniority: brief.seniority,
+        roleFamily: brief.roleFamily,
+        needText,
+        brief,
+        lang,
+      },
+    });
     // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
     // stamped now so the back-link exists even while the build is running.
     markIntakePromoted(id, { jdSlug: slug, jobId: jdJobId(slug) }, ws);
-    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId: task.id });
+    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId });
   } catch (error) {
     return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
   }

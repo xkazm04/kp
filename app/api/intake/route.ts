@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createIntake, listIntakes } from "@/app/_lib/db/intakes";
 import { runIntakeOpening } from "@/app/_lib/intake-run";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -18,7 +19,11 @@ export async function POST(request: Request) {
   if (denied) return denied;
   try {
     const body = (await request.json().catch(() => ({}))) as { title?: unknown; lang?: unknown; scanId?: unknown };
-    const lang = body.lang === "cs" ? "cs" : "en";
+    // The session's dialog language, from the ONE locale vocabulary
+    // (i18n/locales.ts). It used to be clamped to cs-or-en here and in five
+    // other routes, so a German or French operator got an English intake agent
+    // although the Python side has named their language all along.
+    const lang = intakeLang(body.lang);
     // App master (docs/features/app-master/README.md): the caller already
     // started a repo_scan and hands its id in. That id — an ACT, not a triage —
     // is what makes this an `app_master` session, so it is stamped at CREATE

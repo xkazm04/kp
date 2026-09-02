@@ -3,6 +3,7 @@ import { getIntake } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getVoiceAdapter, missingVoiceEnv, voiceAvailability } from "@/app/_lib/voice";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return jsonRefusal("INTAKE_VOICE_NOT_CONFIGURED", 503, { provider: "openai", need: missingVoiceEnv(adapter) });
     }
 
-    const lang = intake.lang === "cs" ? "cs" : "en";
+    const lang = intakeLang(intake.lang);
     const connect = await adapter.connect({ instructions: RELAY_INSTRUCTIONS, language: lang, relay: true });
     return NextResponse.json({ provider: connect.provider, connect });
   } catch (error) {

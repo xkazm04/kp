@@ -53,11 +53,11 @@ test("both entry points link the row to its task, or the Ledger shows no progres
 // outside the seam — and therefore outside its tenant stamp and outside the
 // throttles the route doors carry.
 //
-// ALLOW-LIST: app/api/intake/[id]/promote/route.ts still hand-rolls the three steps
-// because it interleaves `markIntakePromoted` with them. Moving it onto the seam is
-// a three-line change owned by another lot in this wave; when it lands, DELETE its
-// entry here rather than widening the rule.
-const ALLOWED = [path.join("api", "intake", "[id]", "promote", "route.ts")];
+// ALLOW-LIST: empty, and it stays that way. It briefly held
+// app/api/intake/[id]/promote/route.ts, the fourth hand-rolled copy of the start
+// sequence; that route moved onto the seam in the same wave and the entry went with
+// it. A new door is routed through `startJdBuild()`, never added here.
+const ALLOWED: string[] = [];
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -84,22 +84,14 @@ test("no file starts a jd_build outside app/_lib/jd-build-start.ts", () => {
   );
 });
 
-test("the allow-listed promote route really is the only remaining hand-rolled door", () => {
-  // Pins the exception itself: when promote moves onto the seam and nobody prunes the
-  // allow-list, this fails and the stale entry is removed — instead of quietly
-  // licensing the next copy.
-  const src = read(ALLOWED[0]);
-  assert.ok(
-    src.includes("insertAnalyzingJd(") && /startTask\(\s*"jd_build"/.test(src),
-    "app/api/intake/[id]/promote/route.ts no longer hand-rolls the start — drop it from ALLOWED",
-  );
-});
-
-test("the three converted doors go through the seam", () => {
+test("all four doors go through the seam", () => {
   for (const rel of [
     path.join("api", "jds", "generate", "route.ts"),
     path.join("api", "jds", "[slug]", "retry-analysis", "route.ts"),
     path.join("_lib", "companion-actions.ts"),
+    // The last convert: promote used to interleave `markIntakePromoted` with the
+    // three steps, which is why it was allow-listed rather than converted first.
+    path.join("api", "intake", "[id]", "promote", "route.ts"),
   ]) {
     const src = read(rel);
     assert.match(src, /jd-build-start/, `${rel}: must import the seam`);

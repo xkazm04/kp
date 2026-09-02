@@ -429,9 +429,10 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     // The limiter sits AFTER the cheap 404/409/400 refusals, so a request that was
     // never going to promote costs no budget.
-    // Same reason: `insertAnalyzingJd(` appears in this route's own comment above
-    // the limiter. Pin the call's opening brace instead.
-    expensive: "insertAnalyzingJd({",
+    // Promote now goes through the shared jd_build seam (app/_lib/jd-build-start.ts),
+    // so the expensive call to pin is `startJdBuild({` — with its opening brace, the
+    // same reason as before: the bare name also appears in the import line above.
+    expensive: "startJdBuild({",
     servedBefore: "briefReadyToPromote(intake.brief)",
   },
   {

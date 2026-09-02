@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake, updateIntakeVoiceSweep } from "@/app/_lib/db/intakes";
 import { runIntakeTranscriptExtract } from "@/app/_lib/intake-run";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const lang = intake.lang === "cs" ? "cs" : "en";
+    const lang = intakeLang(intake.lang);
     const transcript = [...intake.transcript, ...turns];
     // Attachments ride along: the fast voice thread sees titles only, so this
     // extraction sweep is where attached bodies actually reach the model.

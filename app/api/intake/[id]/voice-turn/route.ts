@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { runIntakeVoiceTurn } from "@/app/_lib/intake-run";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const lang = intake.lang === "cs" ? "cs" : "en";
+    const lang = intakeLang(intake.lang);
     // The signal rides into the spawn: a hung-up call must not leave a paid
     // fast-model completion running for an utterance nobody will hear answered.
     const turn = await runIntakeVoiceTurn(

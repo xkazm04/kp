@@ -646,8 +646,22 @@ workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
 
 ## Known gaps
 
-- Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
-  to the language directive only.
+- Dialog languages are the four the product ships (`i18n/locales.ts`), resolved
+  once by `app/_lib/intake-lang.ts::intakeLang` and pinned by
+  `intake-lang.test.ts` — every route used to clamp `lang === "cs" ? "cs" :
+  "en"` by hand, six copies of it plus one in the panel, so a German or French
+  operator got an English intake agent although `pipeline/jobfit/i18n.py` has
+  named their language in `LANG_NAMES` all along. **Keyless the promise is
+  narrower and deliberately so**: the deterministic slot script
+  (`pipeline/jobfit/intake.py` — `_Q`, `_readback`, `_close_reply`) carries en
+  and cs only and falls back to its English text for de/fr, so a provider-less
+  `de` session is asked its questions in English while the brief it fills is
+  the same one. With a provider — the default — the whole dialog, the voice
+  fast thread, the extraction sweep and the promoted JD build are German or
+  French end to end. Two clamps remain OUTSIDE this: the App-master `dossier`
+  and `compose-app-master` routes still resolve cs-or-en for the merge/fit
+  spawn, so an App-master session's dossier facets stay English on a de/fr
+  session (a one-line fix in each, owned by the App-master lot).
 - The voice plane is **not live-verified**: built and unit/contract-tested,
   but no OpenAI Realtime key was available in the build sessions, so no real
   call has been placed. The audio-in-the-loop harness hook is designed in the

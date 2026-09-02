@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { runIntakeExchange } from "@/app/_lib/intake-run";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -57,7 +58,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         transcript: intake.transcript,
         brief: intake.brief,
         message,
-        lang: intake.lang === "cs" ? "cs" : "en",
+        lang: intakeLang(intake.lang),
         attachments: intake.attachments,
         // App master: the completed scan grounds every turn. Its presence is what
         // selects the persona overlay and the app-master slot script, so a session
