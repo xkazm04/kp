@@ -1,7 +1,7 @@
 "use client";
 // Headless browser side. Talks to whatever route the host mounts the package
 // behind (see README "Host wrapper"): POST {text, language, provider?, voiceId?}
-// -> audio bytes, with X-Tts-Provider / X-Tts-Fallback-From headers.
+// -> audio bytes, with X-Tts-Provider / X-Tts-Voice / X-Tts-Fallback-From headers.
 //
 // Time-to-first-audio is won HERE, with no transport change: the utterance is
 // normalized (chat markup stripped), segmented at sentence boundaries, and
@@ -39,7 +39,17 @@ export type SpeakArgs = {
   segment?: boolean;
 };
 
-export type TtsServed = { provider: TtsProviderId; fallbackFrom: TtsProviderId | null; elapsedMs: number; firstAudioMs: number };
+export type TtsServed = {
+  provider: TtsProviderId;
+  fallbackFrom: TtsProviderId | null;
+  elapsedMs: number;
+  firstAudioMs: number;
+  /** The voice the engine actually used (`X-Tts-Voice`), which is NOT always
+   *  the one asked for — a null request takes the engine's default, and a
+   *  fallback provider ignores the other engine's voice ids entirely. Null when
+   *  the host does not send the header. */
+  voiceId?: string | null;
+};
 
 export type UseTts = {
   providers: TtsStatus[] | null;
@@ -57,7 +67,7 @@ export type UseTts = {
   stop: () => void;
 };
 
-type Chunk = { url: string; provider: TtsProviderId; fallbackFrom: TtsProviderId | null; elapsedMs: number };
+type Chunk = { url: string; provider: TtsProviderId; fallbackFrom: TtsProviderId | null; elapsedMs: number; voiceId: string | null };
 
 export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }: UseTtsOptions): UseTts {
   const f = useMemo(() => fetcher ?? ((...a: Parameters<typeof fetch>) => fetch(...a)), [fetcher]);
@@ -124,6 +134,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
         provider: (res.headers.get("x-tts-provider") || "unknown") as TtsProviderId,
         fallbackFrom: (res.headers.get("x-tts-fallback-from") as TtsProviderId | null) || null,
         elapsedMs: Number(res.headers.get("x-tts-elapsed-ms") || 0),
+        voiceId: res.headers.get("x-tts-voice") || null,
       };
     },
     [endpoint, f],
@@ -175,7 +186,7 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
           const chunk = await pending[i];
           if (gen !== generation.current) return;
           if (i === 0) {
-            setServed({ provider: chunk.provider, fallbackFrom: chunk.fallbackFrom, elapsedMs: chunk.elapsedMs, firstAudioMs: Math.round(performance.now() - started) });
+            setServed({ provider: chunk.provider, fallbackFrom: chunk.fallbackFrom, elapsedMs: chunk.elapsedMs, firstAudioMs: Math.round(performance.now() - started), voiceId: chunk.voiceId });
           }
           const result = await playUrl(chunk.url, gen);
           if (gen !== generation.current) return;
