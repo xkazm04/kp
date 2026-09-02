@@ -290,6 +290,25 @@ export const REFUSAL_ERRORS = {
    *  tells the operator to configure a token; conflating the two would answer a
    *  throttled companion turn with advice about GITHUB_TOKEN. */
   TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,
+  // ---- Document-upload refusals (app/_lib/upload-constraints.ts). The document
+  // twins of AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE: the gate that guards every
+  // CV / JD / company file answered hardcoded English on BOTH sides of the wire
+  // until this change, so a Czech recruiter dropping a 20 MB PNG read an English
+  // sentence the surface had painted from the server. The MB figure is written
+  // out here (as the audio pair does) rather than interpolated — the resolver
+  // useErrorMessage() passes no values — and upload-constraints.test.ts fails if
+  // MAX_FILE_MB and this copy ever say different numbers.
+  /** The file is not one of PDF / DOCX / TXT / MD (400, or the client gate). */
+  UPLOAD_UNSUPPORTED_TYPE: "Use a PDF, DOCX, TXT or MD file.",
+  /** The file is over MAX_FILE_BYTES (413, or the client gate). */
+  UPLOAD_TOO_LARGE: "That file is over the 8 MB upload limit.",
+  // ---- /api/analyze's own two form refusals. Both were bare English 400s that
+  // the client collapsed into one generic "analysis failed" line.
+  /** The submitted form carried no CV/profile file at all (400). */
+  ANALYZE_CV_REQUIRED: "Attach a CV or profile file to analyze.",
+  /** More CV variants than one run compares (400) — MAX_CV_VARIANTS, pinned to
+   *  this copy by upload-constraints.test.ts the same way the MB figure is. */
+  ANALYZE_TOO_MANY_VARIANTS: "Compare at most 3 CV variants in one run.",
   // ---- App-master intake refusals (docs/features/intake/README.md §"Shape
   // app_master"). Both routes used to answer these as bare English strings with
   // no code, so the card collapsed a throttle, "the scan has not landed" and
