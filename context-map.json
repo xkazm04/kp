@@ -35,7 +35,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2704,
+  "files": 2712,
   "groups": 17,
   "use_cases": 12
  },
@@ -8199,6 +8199,7 @@
     "app/api/edge/route.ts"
    ],
    "file_paths": [
+    "app/_lib/edge-config.test.ts",
     "app/_lib/edge-config.ts",
     "app/_lib/edge-crypto.test.ts",
     "app/_lib/edge-crypto.ts",
@@ -8208,7 +8209,8 @@
     "app/api/edge/pair/route.ts",
     "app/api/edge/route.ts",
     "app/features/hiring/channels/ChannelsEdgeCard.tsx",
-    "edge/src/index.ts"
+    "edge/src/index.ts",
+    "edge/test/worker.test.ts"
    ],
    "group": "Platform Infrastructure",
    "group_id": "7345227e-e0bc-493c-a48c-c5106a902f7b",
@@ -8239,6 +8241,7 @@
     "app/_lib/db/repo-scans-store.test.ts",
     "app/_lib/db/repo-scans-tenancy.test.ts",
     "app/_lib/db/repo-scans.ts",
+    "app/_lib/repo-scan-run.test.ts",
     "app/_lib/repo-scan-run.ts",
     "app/_lib/repo-scan-target.test.ts",
     "app/_lib/repo-scan-target.ts",
@@ -8281,6 +8284,7 @@
     "app/_lib/devcase-promote-identity.test.ts",
     "app/_lib/devcase-timebox.test.ts",
     "app/_lib/devcase-timebox.ts",
+    "app/api/devcase/devcase-candidate-refusals.test.ts",
     "app/api/devcase/feedback/route.test.ts",
     "app/api/devcase/inbound/route.test.ts",
     "app/api/devcase/lifecycle/[id]/redesign/redesign-gate.test.ts",
@@ -8288,7 +8292,11 @@
     "app/api/devcase/session/[id]/session-read.test.ts",
     "app/api/devcase/session/session-limits.ts",
     "app/api/devcase/skill-profile/route.test.ts",
-    "app/api/devcase/submit/route.test.ts"
+    "app/api/devcase/submit/route.test.ts",
+    "app/features/tools/devcases/DevSessionEvidencePanel.tsx",
+    "app/features/tools/devcases/devcase-session-evidence.test.ts",
+    "app/features/tools/devcases/devcase-session-evidence.ts",
+    "app/features/tools/devcases/devcase-timebox-ui.test.ts"
    ],
    "group": "Developer Assessment",
    "group_id": "fa63c298-b710-4e0b-a26d-a0cba381da1f",
