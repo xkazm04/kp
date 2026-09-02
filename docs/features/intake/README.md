@@ -585,10 +585,38 @@ SERVER-side from the workspace's `jds` row (the client sends only the slug;
 ≤120; promoted sessions frozen). Stored in `role_intakes.attachment_json`
 (`IntakeAttachment` in `app/_lib/db/intakes.ts`). The pane clears its fields
 only once the server has accepted the attachment — hitting the 5-attachment
-cap (or a frozen session) keeps the pasted note in the textarea instead of
-destroying it. Same contract in the composer: a refused exchange
+cap, the 20k text cap (`INTAKE_ATTACHMENT_TOO_LONG`, carrying `max`) or a
+frozen session keeps the pasted note in the textarea instead of destroying it.
+
+Material is stored **as given**. Two consequences, both deliberate:
+
+- Over-cap note text is REFUSED, never truncated. The route used to `.slice()`
+  the overflow away silently, so a pasted long thread was accepted while the
+  agent grounded on a document whose tail was gone. The composer discloses the
+  cap before the send (`attachments.textCap`, reading `ATTACHMENT_TEXT_MAX`
+  from the route's own `attachment-limits.ts`) and the refusal restores the
+  typed text. A **JD** body still slices — it is resolved server-side from the
+  library, not typed by anyone.
+- An untitled note is stored untitled. The route used to default the title to
+  the English literal `"Note"`, persisting one locale's word into every
+  workspace's data; the stand-in is now a render-time fallback in the pane
+  (`attachments.noteFallbackTitle`), so it reads in the reader's language. No
+  migration: rows created before this keep the literal they were given. Same contract in the composer: a refused exchange
 (`send` → false) hands the typed message back rather than losing it with the
 rolled-back optimistic bubble.
+
+### The brief edit survives a reload
+
+The edit form is the only copy of the requestor's typed corrections, which is
+why a refused save keeps it mounted — and, since `intakeBriefDraft.ts`, why a
+reload no longer empties it: every change lands in a per-intake `sessionStorage`
+draft carrying the `updatedAt` it was typed against, restored on mount and
+cleared on save or cancel. A draft typed against a DIFFERENT row version is
+discarded rather than replayed (a voice sweep or a `/message` turn may have
+written the brief meanwhile, and restoring over that is a silent revert — the
+same reasoning as the store's compare-and-swap). Every storage access is
+wrapped: sessionStorage is absent under SSR and throws outright in some privacy
+modes. Pure half unit-pinned in `intakeBriefDraft.test.ts`.
 
 The pane's three form controls (note title, note body, JD picker) carry no
 visible `<label>` — it is a compact rail — so each names itself with an

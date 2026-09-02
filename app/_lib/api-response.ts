@@ -423,6 +423,13 @@ export const REFUSAL_ERRORS = {
   /** The per-session reference-material ceiling is spent (400). The cap rides
    *  alongside in `max` — a number, not a sentence, so it localizes. */
   INTAKE_ATTACHMENT_LIMIT: "This session already holds as much reference material as it can.",
+  /** A note longer than the per-attachment text cap (400). Same shape as
+   *  INTAKE_ATTACHMENT_LIMIT — the cap rides alongside in `max`. The route used
+   *  to silently `.slice()` the overflow away instead: the requestor pasted a
+   *  long thread, saw it accepted, and the agent grounded on a document whose
+   *  tail had been thrown away with nothing said. A refusal the composer can
+   *  restore from is the honest half of that trade. */
+  INTAKE_ATTACHMENT_TOO_LONG: "That note is longer than one piece of reference material can be.",
   /** A remove naming a position the list does not have (400) — a stale pane. */
   INTAKE_ATTACHMENT_INDEX: "That piece of reference material is no longer on this session.",
   /** The attached JD slug does not resolve in this workspace (404). Separate from
@@ -591,6 +598,12 @@ export const REFUSAL_ERRORS = {
    *  field, which bound — rides beside the code as DATA (`detail`): the composer
    *  needs it, but it is English prose and must never be the thing the UI paints. */
   DECISION_CONFIG_INVALID: "Those rules aren't valid for this phase.",
+  /** The rules changed since the client read them (409). Nothing was written: the draft
+   *  was built on a plan that is gone, so it is dropped rather than merged. */
+  DECISION_CONFIG_STALE: "Someone saved a newer version of these rules. Reload and make your change again.",
+  /** The board's column axis changed since the composer read it (409) — refused BEFORE
+   *  anybody is moved, since the stage ids the mapping names may no longer exist. */
+  PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

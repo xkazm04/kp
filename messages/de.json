@@ -117,7 +117,9 @@
     "blockedOccupancy": "Unklar, wer auf welchem Schritt steht. Ein Entfernen lässt sich deshalb nicht speichern. Prüfung oben wiederholen.",
     "blockedStranded": "Legen Sie fest, wohin die Kandidaten der entfernten Schritte gehen sollen.",
     "refreshFailed": "Gespeichert. Diese Ansicht ließ sich nicht aktualisieren und zeigt womöglich noch den vorherigen Plan.",
-    "refreshRetry": "Aktualisieren"
+    "refreshRetry": "Aktualisieren",
+    "stale": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Ihre Änderungen wurden nicht geschrieben.",
+    "staleReload": "Gespeicherten Plan laden"
   },
   "diagrams": {
     "eyebrow": "Architektur",
@@ -1464,7 +1466,9 @@
     "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
     "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
     "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
-    "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären. Die zugehörige Person oder Rolle existiert nicht mehr."
+    "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären. Die zugehörige Person oder Rolle existiert nicht mehr.",
+    "DECISION_CONFIG_STALE": "Jemand hat eine neuere Version dieser Regeln gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
+    "PIPELINE_AXIS_STALE": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Bitte neu laden und die Änderung erneut vornehmen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

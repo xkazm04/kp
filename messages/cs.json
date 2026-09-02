@@ -117,7 +117,9 @@
     "blockedOccupancy": "Nevíme, kdo je na kterém kroku, takže odebrání nelze uložit. Zopakujte kontrolu výše.",
     "blockedStranded": "Určete, kam se mají přesunout kandidáti z odebraných kroků.",
     "refreshFailed": "Uloženo. Zobrazení se nepodařilo obnovit, může proto ukazovat předchozí plán.",
-    "refreshRetry": "Obnovit"
+    "refreshRetry": "Obnovit",
+    "stale": "Někdo mezitím uložil novější verzi tohoto procesu. Vaše změny se neuložily.",
+    "staleReload": "Načíst uložený plán"
   },
   "diagrams": {
     "eyebrow": "Architektura",
@@ -1464,7 +1466,9 @@
     "MATRIX_BUILD_FAILED": "Matici vhodnosti se nepodařilo sestavit. Zkuste to prosím znovu.",
     "MATCH_REASONING_FAILED": "Tuto shodu se nepodařilo vysvětlit. Zkuste to prosím znovu.",
     "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
-    "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit. Kandidát nebo pozice za ní už neexistuje."
+    "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit. Kandidát nebo pozice za ní už neexistuje.",
+    "DECISION_CONFIG_STALE": "Někdo uložil novější verzi těchto pravidel. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "PIPELINE_AXIS_STALE": "Někdo uložil novější verzi tohoto procesu. Načtěte jej znovu a proveďte změnu ještě jednou."
   },
   "resilience": {
     "notFoundEyebrow": "404",

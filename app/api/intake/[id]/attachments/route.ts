@@ -14,7 +14,9 @@ import { ATTACHMENT_LIMIT, ATTACHMENT_TEXT_MAX } from "./attachment-limits";
 // DATA — values mined from it enter the brief as `inferred` until confirmed).
 //
 // Caps (the trust boundary for free-typed content): ≤5 attachments per
-// session, note text ≤20k chars, title ≤120. A JD attachment is resolved
+// session, note text ≤20k chars (REFUSED past it, never truncated), title ≤120
+// and stored as given — an untitled note stays untitled and the reader's own
+// language supplies the fallback. A JD attachment is resolved
 // SERVER-SIDE from the workspace's library (`loadJd`) — the client sends only
 // the slug, never the body, so an attachment of kind "jd" always reflects the
 // stored document. Promoted sessions are frozen (same rule as the brief).
@@ -63,12 +65,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       } else {
         const text = typeof body.text === "string" ? body.text.trim() : "";
         if (!text) return jsonRefusal("INTAKE_TEXT_REQUIRED", 400);
+        // A note over the cap is REFUSED, not silently truncated. Trimming it
+        // here told the requestor their whole pasted thread had been attached
+        // while the agent grounded on a document missing its tail — the count
+        // cap already sets the honest precedent (a refusal carrying `max`, from
+        // which the composer restores the typed text). A JD body still slices:
+        // it is server-resolved from the library, not something anyone typed.
+        if (text.length > ATTACHMENT_TEXT_MAX) {
+          return jsonRefusal("INTAKE_ATTACHMENT_TOO_LONG", 400, { max: ATTACHMENT_TEXT_MAX });
+        }
+        // The title is stored EXACTLY as given — empty when the requestor gave
+        // none. It used to be defaulted to the English literal "Note", which
+        // persisted one locale's word into every workspace's data and read as
+        // "Note" to a Czech reader forever after; the fallback is a render-time
+        // concern and lives in the pane (attachments.noteFallbackTitle).
         const title = typeof body.title === "string" ? body.title.trim() : "";
-        attachment = {
-          kind: "note",
-          title: (title || "Note").slice(0, 120),
-          text: text.slice(0, ATTACHMENT_TEXT_MAX),
-        };
+        attachment = { kind: "note", title: title.slice(0, 120), text };
       }
       next = [...intake.attachments, attachment];
     }

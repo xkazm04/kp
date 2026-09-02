@@ -117,7 +117,9 @@
     "blockedOccupancy": "Impossible de savoir qui est à chaque étape : une suppression ne peut pas être enregistrée. Relancez la vérification ci-dessus.",
     "blockedStranded": "Indiquez où doivent aller les candidats des étapes supprimées.",
     "refreshFailed": "Enregistré. Cette vue n'a pas pu être actualisée et peut encore afficher le plan précédent.",
-    "refreshRetry": "Actualiser"
+    "refreshRetry": "Actualiser",
+    "stale": "Quelqu'un a enregistré une version plus récente de ce pipeline. Rien de vos modifications n'a été écrit.",
+    "staleReload": "Recharger le plan enregistré"
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -1464,7 +1466,9 @@
     "MATRIX_BUILD_FAILED": "Impossible de construire la matrice d'adéquation. Veuillez réessayer.",
     "MATCH_REASONING_FAILED": "Impossible d'expliquer cette correspondance. Veuillez réessayer.",
     "MATRIX_INPUT_INVALID": "La matrice d'adéquation n'a pas pu être construite à partir de cette demande.",
-    "MATCH_REASONING_UNAVAILABLE": "Cette correspondance ne peut plus être expliquée : le candidat ou le poste associé n'existe plus."
+    "MATCH_REASONING_UNAVAILABLE": "Cette correspondance ne peut plus être expliquée : le candidat ou le poste associé n'existe plus.",
+    "DECISION_CONFIG_STALE": "Quelqu'un a enregistré une version plus récente de ces règles. Rechargez, puis refaites votre modification.",
+    "PIPELINE_AXIS_STALE": "Quelqu'un a enregistré une version plus récente de ce pipeline. Rechargez, puis refaites votre modification."
   },
   "resilience": {
     "notFoundEyebrow": "404",

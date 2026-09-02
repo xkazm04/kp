@@ -117,7 +117,9 @@
     "blockedOccupancy": "We can't tell who is on each step, so a removal can't be saved. Retry the check above.",
     "blockedStranded": "Say where the candidates on each removed step should go.",
     "refreshFailed": "Saved. This view couldn't be refreshed, so it may still show the previous plan.",
-    "refreshRetry": "Refresh"
+    "refreshRetry": "Refresh",
+    "stale": "Someone saved a newer version of this pipeline. Nothing of yours was written.",
+    "staleReload": "Reload the saved plan"
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -1464,7 +1466,9 @@
     "MATRIX_BUILD_FAILED": "Could not build the fit matrix. Please try again.",
     "MATCH_REASONING_FAILED": "Could not explain that match. Please try again.",
     "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
-    "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained: the candidate or role behind it is gone."
+    "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained: the candidate or role behind it is gone.",
+    "DECISION_CONFIG_STALE": "Someone saved a newer version of these rules. Reload and make your change again.",
+    "PIPELINE_AXIS_STALE": "Someone saved a newer version of this pipeline. Reload and make your change again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
