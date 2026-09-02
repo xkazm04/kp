@@ -181,7 +181,8 @@ test("the rating callback declares the bindings it closes over", () => {
 //
 // The drawer rendered the stage through the shared StatusChip and, twenty pixels
 // below, hand-rolled the interview verdict from a REC_STYLE map that existed in FOUR
-// files. The tone decision now lives once in status-tone.ts.
+// files. A verdict is a judgement, not a status (StatusChip's own doctrine), so the
+// cards render it through Badge's one shared verdict treatment, red for reject.
 
 test("no drawer card re-derives a verdict palette of its own", () => {
   for (const rel of [
@@ -190,8 +191,8 @@ test("no drawer card re-derives a verdict palette of its own", () => {
   ]) {
     const src = readFileSync(rel, "utf8");
     assert.doesNotMatch(src, /REC_STYLE/, `${rel} must not hold a local verdict colour map`);
-    assert.match(src, /recommendationTone\(/, `${rel} must tone the verdict through status-tone.ts`);
-    assert.match(src, /<StatusChip/, `${rel} must render the verdict as the shared chip`);
+    assert.match(src, /interviewRecommendationToken\(/, `${rel} must render the verdict through Badge's shared treatment`);
+    assert.doesNotMatch(src, /recommendationTone\(/, `${rel} must not tone a verdict as a lifecycle status`);
   }
 });
 

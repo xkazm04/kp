@@ -7,8 +7,7 @@
 import { ClipboardList } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { StatusChip } from "@/app/_components/StatusChip";
-import { recommendationTone } from "@/app/_lib/status-tone";
+import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { RATING_MAX } from "@/app/_lib/format";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
 
@@ -21,14 +20,11 @@ export function PipelineHumanScorecardCard({ humanSc }: { humanSc: Scorecard }) 
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
           <ClipboardList size={13} /> {t("humanScorecard")}
         </p>
-        {/* Same chip, same tone table as the AI interview outcome card above —
-            the recruiter's own verdict and the machine's must not read as two
+        {/* Same shared verdict badge as the AI interview outcome card above - the
+            recruiter's own verdict and the machine's must not read as two
             different vocabularies inside one drawer. */}
         {humanSc.recommendation ? (
-          <StatusChip
-            tone={recommendationTone(humanSc.recommendation)}
-            label={enumLabel("recommendation", humanSc.recommendation)}
-          />
+          <Badge {...interviewRecommendationToken(humanSc.recommendation)} label={enumLabel("recommendation", humanSc.recommendation)} />
         ) : null}
       </div>
       {humanSc.summary ? <p className="mt-1 text-sm text-ink">{humanSc.summary}</p> : null}

@@ -7,8 +7,7 @@
 import { FileText, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { StatusChip } from "@/app/_components/StatusChip";
-import { recommendationTone } from "@/app/_lib/status-tone";
+import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
 import { rubricAnchorLine } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
@@ -35,14 +34,12 @@ export function PipelineInterviewOutcomeCard({
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
           <Phone size={13} /> {t("interviewOutcome")}
         </p>
-        {/* ONE THREAD (gap 8) — the verdict is a point on the same thread as the
-            stage chip twenty pixels above it, so it renders through the same chip
-            and the same five-tone legend, instead of a private verdict palette. */}
+        {/* A verdict is a JUDGEMENT, not a lifecycle position (StatusChip's doctrine:
+            "only genuine judgements stay red, and those are verdicts, not statuses"),
+            so it renders through Badge's one shared verdict treatment - the same one
+            Decisions and every schedule surface use - not through the status chip. */}
         {ivOutcome.recommendation ? (
-          <StatusChip
-            tone={recommendationTone(ivOutcome.recommendation)}
-            label={enumLabel("recommendation", ivOutcome.recommendation)}
-          />
+          <Badge {...interviewRecommendationToken(ivOutcome.recommendation)} label={enumLabel("recommendation", ivOutcome.recommendation)} />
         ) : null}
       </div>
       {/* Honest coverage caveat — only when head+tail sampling meant the
