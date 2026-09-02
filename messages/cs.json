@@ -1379,6 +1379,16 @@
     "INTAKE_NOT_APP_MASTER": "Toto není zadání pro App mastera, není tedy co skládat.",
     "INTAKE_SCAN_NOT_LANDED": "Sken repozitáře ještě nedorazil. Specifikace se složí, jakmile dorazí.",
     "INTAKE_BRIEF_EMPTY": "Zadání je zatím prázdné. Nejdřív odpovězte v dialogu, potom skládejte.",
+    "INTAKE_CLOSED": "Tato konzultace je uzavřená. Chcete-li pokračovat, otevřete ji znovu.",
+    "INTAKE_TEXT_REQUIRED": "Není co odeslat. Nejdřív něco napište nebo řekněte.",
+    "INTAKE_BRIEF_INVALID": "Tato úprava zadání nemá očekávaný tvar.",
+    "INTAKE_BRIEF_NOT_READY": "Zadání potřebuje název role a alespoň jeden vylučovací požadavek nebo cíl na 90 dní, než z něj vznikne inzerát.",
+    "INTAKE_ALREADY_OPEN": "Tato konzultace už je otevřená.",
+    "INTAKE_ATTACHMENT_LIMIT": "Tato konzultace už nese maximum podkladů.",
+    "INTAKE_ATTACHMENT_INDEX": "Tento podklad už ke konzultaci nepatří.",
+    "INTAKE_JD_NOT_FOUND": "Tento inzerát není v knihovně tohoto pracovního prostoru.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Zatím není z čeho vytěžit zadání.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "Hlasový režim není v této instalaci nastavený.",
     "COMPANION_THREAD_NOT_FOUND": "Tato konverzace už neexistuje.",
     "TOO_MANY_REQUESTS": "Příliš mnoho požadavků. Zkuste to prosím za chvilku znovu.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
@@ -3597,6 +3607,8 @@
       "provWebGrounded": "podloženo webem",
       "provEstimated": "odhad",
       "salaryUnavailable": "Mzda není k dispozici",
+      "repoGrounding": "Podklad z repozitáře",
+      "repoLoc": "{loc} řádků kódu",
       "sourcesLabel": "Zdroje:",
       "interviewCase": "Praktické zadání",
       "timebox": "Časový rámec: ~{hours} h",
@@ -7495,6 +7507,105 @@
     }
   },
   "devcase": {
+    "studio": {
+      "dismiss": "Zavřít",
+      "loadLabel": "zadání",
+      "analysis": {
+        "empty": "Definujte potřebu a spusťte analýzu. Odraz reality se objeví zde.",
+        "running": "Načítáme kódovou základnu a připravujeme odraz…",
+        "runningHint": "Běží to jako úloha na pozadí, takže tuto záložku můžete opustit.",
+        "designing": "Navrhujeme roli a zadání…",
+        "designingHint": "Úloha na pozadí. Můžete kdykoli odejít.",
+        "designCta": "Navrhnout roli a zadání",
+        "snapshot": "Snímek kódové základny",
+        "snapshotIndexed": "Snímek kódové základny {index}/{total}",
+        "loc": "~{loc} řádků kódu",
+        "topDirs": "Hlavní adresáře: {dirs}",
+        "commitsRead": "{count, plural, one {Přečten # commit} few {Přečteny # commity} other {Přečteno # commitů}}",
+        "noSnapshot": "Žádný snímek kódové základny, analýza tedy nemá oporu v realitě. Přidejte veřejnou adresu na GitHubu a ukotvěte ji.",
+        "resultUnreadable": "Analýza skončila, ale její výsledek se nepodařilo načíst. Otevřete ji znovu ze záložky Úlohy, nebo analýzu spusťte znovu.",
+        "failed": "Analýza neproběhla do konce."
+      },
+      "reflection": {
+        "title": "Odraz reality",
+        "complexity": "složitost {level}",
+        "confidence": "jistota {value}",
+        "gaps": "Rozdíly mezi deklarovaným a skutečným",
+        "risks": "Rizikové oblasti: {areas}"
+      },
+      "design": {
+        "role": "Role",
+        "mustHaves": "Nutné požadavky",
+        "responsibilities": "Odpovědnosti",
+        "assignment": "Zadání",
+        "timebox": "~{hours} h",
+        "covertProbes": "Skryté sondy, interní a pro kandidáta neviditelné",
+        "approved": "Schváleno",
+        "approving": "Schvalujeme…",
+        "approve": "Schválit zadání",
+        "humanGate": "Lidská kontrola. Projděte sondy a poté zadání schvalte."
+      },
+      "detail": {
+        "back": "Všechna zadání",
+        "created": "vytvořeno {when}",
+        "scenarioTemplate": "scénář pohovoru: šablonové sondy",
+        "scenarioTemplateHint": "Generování scénáře spadlo zpět na deterministickou šablonu, sondy jsou proto obecné a nevycházejí z tohoto zadání. Před pohovorem generování zopakujte.",
+        "scenarioReady": "scénář pohovoru připraven",
+        "seedSkeleton": "startovní balíček: jen kostra",
+        "seedSkeletonHint": "Příprava startovního balíčku spadla zpět na deterministickou šablonu, kandidáti tedy dostanou jen textové README a DECISIONS místo konkrétních zdrojových souborů. Před odesláním ji zopakujte.",
+        "publish": "Publikovat",
+        "publishing": "Publikujeme…",
+        "published": "Publikováno",
+        "sourceDb": "Vyhledat v databázi",
+        "sourcing": "Vyhledáváme…",
+        "sourced": "Nalezeno {count}",
+        "sourceHint": "Seřadí stávající databázi kandidátů podle této role a naplní pipeline",
+        "confirmLabel": "Potvrzení publikace",
+        "confirmTitle": "Publikovat toto zadání?",
+        "confirmBody": "Publikací vznikne živý odkaz pro kandidáty a do pipeline se dostanou skuteční kandidáti z vaší databáze. Odtud to nelze vzít zpět.",
+        "degradedTitle": "Toto zadání je v omezeném režimu",
+        "degradedAck": "Rozumím, že je zadání v omezeném režimu. Přesto ho publikovat.",
+        "confirmCta": "Potvrdit a publikovat",
+        "cancel": "Zrušit",
+        "seedSummary": "Připravený startovní balíček: co kandidát dostane",
+        "seedFiles": "{count, plural, one {# soubor} few {# soubory} other {# souborů}}",
+        "seedSkeletonWarning": "Jen kostra. Jde o textovou náhradu, ne o konkrétní zdrojové soubory. Před odesláním generování zopakujte."
+      },
+      "degradedReason": {
+        "scenario": "Scénář pohovoru používá obecné šablonové sondy, ne sondy vycházející z tohoto zadání.",
+        "seed": "Startovní balíček je jen textová kostra, kandidáti nedostanou žádné konkrétní zdrojové soubory."
+      },
+      "internal": {
+        "title": "Interní materiál pro tazatele a hodnotitele",
+        "noProbes": "K tomuto zadání nejsou zaznamenány žádné skryté sondy.",
+        "roleMustHaves": "Nutné požadavky role",
+        "roleResponsibilities": "Odpovědnosti role"
+      },
+      "shortlist": {
+        "title": "Užší výběr napříč kanály"
+      },
+      "channels": {
+        "title": "Kanály pro přihlášení",
+        "posting": "Inzerát",
+        "received": "{count} přijato",
+        "applyLink": "Odkaz pro přihlášení"
+      },
+      "compare": {
+        "title": "Porovnání na osách rubriky",
+        "topOf": "nejlepších {shown} z {total}",
+        "truncated": "Řazeno podle přenositelné shody. Nejlepší na ose níže vede mezi těmito {shown}, ne v celé skupině. {hidden, plural, one {# další hodnocené odevzdání v této tabulce chybí} few {# další hodnocená odevzdání v této tabulce chybí} other {# dalších hodnocených odevzdání v této tabulce chybí}}.",
+        "axis": "Osa",
+        "fit": "shoda {score}"
+      },
+      "action": {
+        "runLifecycle": "Spuštění životního cyklu",
+        "approve": "Schválení",
+        "publish": "Publikace",
+        "source": "Vyhledání kandidátů"
+      },
+      "actionFailed": "{action} se nezdařilo. Zkuste to prosím znovu.",
+      "actionUnreachable": "{action} se nezdařilo, požadavek se nepodařilo dokončit."
+    },
     "lifecycle": {
       "sectionTitle": "Automatizovaný průběh",
       "intro": "Každé zadání postupuje podle pravidel: čisté návrhy schvaluje automaticky, označené směruje k vám, publikuje je a (jak přicházejí řešení) vyhodnocuje → řadí → posouvá nejlepší kandidáty do Rozhodnutí. Mezi tím žádné ruční kroky.",

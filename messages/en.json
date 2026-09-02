@@ -1379,6 +1379,16 @@
     "INTAKE_NOT_APP_MASTER": "This is not an App master intake, so there is no spec to compose.",
     "INTAKE_SCAN_NOT_LANDED": "The repository scan has not landed yet. The spec composes once it does.",
     "INTAKE_BRIEF_EMPTY": "The brief is still empty. Answer the dialog first, then compose.",
+    "INTAKE_CLOSED": "This intake session is closed. Re-open it to keep talking.",
+    "INTAKE_TEXT_REQUIRED": "There is nothing to send. Write or say something first.",
+    "INTAKE_BRIEF_INVALID": "That brief edit was not in the expected shape.",
+    "INTAKE_BRIEF_NOT_READY": "The brief needs a role title plus one dealbreaker or 90-day outcome before it can become a JD.",
+    "INTAKE_ALREADY_OPEN": "This session is already open.",
+    "INTAKE_ATTACHMENT_LIMIT": "This session already holds as much reference material as it can.",
+    "INTAKE_ATTACHMENT_INDEX": "That piece of reference material is no longer on this session.",
+    "INTAKE_JD_NOT_FOUND": "That JD is not in this workspace's library.",
+    "INTAKE_NOTHING_TO_EXTRACT": "There is nothing to extract yet.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "Voice is not configured on this install.",
     "COMPANION_THREAD_NOT_FOUND": "That conversation no longer exists.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again shortly.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
@@ -3597,6 +3607,8 @@
       "provWebGrounded": "web-grounded",
       "provEstimated": "estimated",
       "salaryUnavailable": "Salary unavailable",
+      "repoGrounding": "Repo grounding",
+      "repoLoc": "{loc} lines of code",
       "sourcesLabel": "Sources:",
       "interviewCase": "Work-sample assignment",
       "timebox": "Timebox: ~{hours}h",
@@ -7495,6 +7507,105 @@
     }
   },
   "devcase": {
+    "studio": {
+      "dismiss": "Dismiss",
+      "loadLabel": "assignments",
+      "analysis": {
+        "empty": "Define a need and analyze it. The reality reflection appears here.",
+        "running": "Pulling the codebase and reflecting…",
+        "runningHint": "This runs as a background task, so you can leave this tab.",
+        "designing": "Designing the role and the assignment…",
+        "designingHint": "Background task. Leave any time.",
+        "designCta": "Design role & assignment",
+        "snapshot": "Codebase snapshot",
+        "snapshotIndexed": "Codebase snapshot {index}/{total}",
+        "loc": "~{loc} LOC",
+        "topDirs": "Top dirs: {dirs}",
+        "commitsRead": "{count, plural, one {# recent commit read} other {# recent commits read}}",
+        "noSnapshot": "No codebase snapshot, so this analysis is ungrounded. Add a public GitHub URL to ground it in reality.",
+        "resultUnreadable": "The analysis finished, but its result could not be loaded. Reopen it from the Tasks tab, or run the analysis again.",
+        "failed": "Analysis did not complete."
+      },
+      "reflection": {
+        "title": "Reality reflection",
+        "complexity": "{level} complexity",
+        "confidence": "conf {value}",
+        "gaps": "Stated vs. real gaps",
+        "risks": "Risk areas: {areas}"
+      },
+      "design": {
+        "role": "Role",
+        "mustHaves": "Must-haves",
+        "responsibilities": "Responsibilities",
+        "assignment": "Assignment",
+        "timebox": "~{hours}h",
+        "covertProbes": "Covert probes, internal and hidden from the candidate",
+        "approved": "Approved",
+        "approving": "Approving…",
+        "approve": "Approve assignment",
+        "humanGate": "Human gate. Review the probes, then approve to save it."
+      },
+      "detail": {
+        "back": "All assignments",
+        "created": "created {when}",
+        "scenarioTemplate": "interview scenario: template probes",
+        "scenarioTemplateHint": "Scenario generation fell back to the deterministic template, so the probes are generic rather than grounded in this assignment. Re-run it before interviewing.",
+        "scenarioReady": "interview scenario ready",
+        "seedSkeleton": "seed: skeleton only",
+        "seedSkeletonHint": "Seed materialization fell back to the deterministic template, so candidates receive a prose-only README and DECISIONS skeleton instead of concrete starter files. Re-run it before sending the take-home.",
+        "publish": "Publish",
+        "publishing": "Publishing…",
+        "published": "Published",
+        "sourceDb": "Source DB",
+        "sourcing": "Sourcing…",
+        "sourced": "Sourced {count}",
+        "sourceHint": "Rank the existing candidate database against this role and seed the pipeline",
+        "confirmLabel": "Confirm publish",
+        "confirmTitle": "Publish this assignment?",
+        "confirmBody": "Publishing mints a live candidate-facing apply link and sources real candidates from your database into the pipeline. It cannot be undone from here.",
+        "degradedTitle": "This assignment is degraded",
+        "degradedAck": "I understand this assignment is degraded. Publish it anyway.",
+        "confirmCta": "Confirm & publish",
+        "cancel": "Cancel",
+        "seedSummary": "Materialized seed: what the candidate receives",
+        "seedFiles": "{count, plural, one {# file} other {# files}}",
+        "seedSkeletonWarning": "Skeleton only. This is the prose-only fallback, not concrete starter files. Re-run it before sending."
+      },
+      "degradedReason": {
+        "scenario": "The interview scenario uses generic template probes, not ones grounded in this assignment.",
+        "seed": "The seed is a prose-only skeleton, so candidates receive no concrete starter files."
+      },
+      "internal": {
+        "title": "Internal: interviewer & reviewer material",
+        "noProbes": "No covert probes recorded on this assignment.",
+        "roleMustHaves": "Role must-haves",
+        "roleResponsibilities": "Role responsibilities"
+      },
+      "shortlist": {
+        "title": "Shortlist, all channels"
+      },
+      "channels": {
+        "title": "Apply channels",
+        "posting": "Posting",
+        "received": "{count} in",
+        "applyLink": "Apply link"
+      },
+      "compare": {
+        "title": "Compare on rubric axes",
+        "topOf": "top {shown} of {total}",
+        "truncated": "Ranked by transfer fit. The axis leader below is the strongest of these {shown}, not of the whole cohort. {hidden, plural, one {# further evaluated submission is} other {# further evaluated submissions are}} not in this matrix.",
+        "axis": "Axis",
+        "fit": "fit {score}"
+      },
+      "action": {
+        "runLifecycle": "Run lifecycle",
+        "approve": "Approve",
+        "publish": "Publish",
+        "source": "Source candidates"
+      },
+      "actionFailed": "{action} failed. Please try again.",
+      "actionUnreachable": "{action} failed because the request could not be completed."
+    },
     "lifecycle": {
       "sectionTitle": "Automated lifecycle",
       "intro": "Each assignment advances under policy: auto-approving clean designs, routing flagged ones to you, publishing, and (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.",

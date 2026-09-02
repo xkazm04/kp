@@ -36,6 +36,7 @@ import {
   PROBE_STATUSES,
   RUBRIC_DIMENSION_NAMES,
 } from "./DevTypes.ts";
+import { STUDIO_LOCALIZED_FILES, visibleLiterals } from "./devcaseStudioCopy.ts";
 
 // app/features/tools/devcases/ -> repo root is four levels up.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
@@ -247,6 +248,25 @@ test("the sub-tab headings module does not smuggle the old word past the catalog
   assert.ok(copy.length >= 6, "found no copy fields in DevTabViews.ts — the shape changed and this guard is blind");
   const offenders = copy.filter((s) => CASE_WORD.test(s.replace(/\$\{[^}]*\}/g, " ")));
   assert.deepEqual(offenders, [], "DevTabViews.ts still calls the assignment a 'case' in user-visible copy");
+});
+
+test("the Assignments studio's own components do not smuggle the old word past the catalogs", () => {
+  // Same blind spot as DevTabViews.ts above, one layer out. The catalog walk cannot
+  // see a raw JSX literal, and eslint.config.mjs deliberately leaves
+  // `app/features/tools/devcases/**` out of the `no-literal-string` ERROR list — so
+  // "All cases", "Publish this case?" and "I understand this case is degraded" sat in
+  // the detail header, in English, past all three guards. Those files now read from
+  // `devcase.studio.*`; this walks them so a literal cannot bring the retired word
+  // back. The extractor is shared with devcase-studio-i18n.test.ts, which is the
+  // stricter half (it allows NO literal at all, retired word or not).
+  const offenders: string[] = [];
+  for (const file of STUDIO_LOCALIZED_FILES) {
+    const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), file), "utf8");
+    for (const lit of visibleLiterals(src)) {
+      if (CASE_WORD.test(lit.replace(/\$\{[^}]*\}/g, " "))) offenders.push(`${file} :: ${lit}`);
+    }
+  }
+  assert.deepEqual(offenders, [], "the Assignments studio still calls the assignment a 'case' in user-visible copy");
 });
 
 /** The three places every locale names the entity with nothing else in the string.

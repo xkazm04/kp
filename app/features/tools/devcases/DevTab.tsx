@@ -110,7 +110,7 @@ export function DevTab() {
         >
           <span>{actionError}</span>
           <button type="button" onClick={() => setActionError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
-            Dismiss
+            {tCopy("studio.dismiss")}
           </button>
         </div>
       ) : null}

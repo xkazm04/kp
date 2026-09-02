@@ -474,6 +474,54 @@ there: `comms` (1), `control` (2), `inbound` (1), `lifecycle` + its `[id]/approv
 `devcase/route.ts` (2), `source` (1), `submit` (1). They are recruiter-side, not candidate
 -facing, which is why these two went first.
 
+### The Assignments studio reads in four languages
+
+The operator-facing studio (define a need -> analysis -> design -> approve -> publish ->
+read the verdict) carried roughly forty hardcoded English strings on a four-locale
+product, and nothing was ever going to catch them: `eslint.config.mjs` deliberately keeps
+`app/features/tools/devcases/**` outside the `i18next/no-literal-string` ERROR list
+("dev-facing copy"), so the rule only ever ran at `warn` here and no build went red.
+
+Twelve components now read from the `devcase.studio.*` namespace in all four catalogs:
+`DevTab`, `DevCasesTable`, `DevCasesEmpty`, `DevAnalysisView`, `DevAnalysisReflectionCard`,
+`DevAnalysisDesignCard`, `DevCaseDetail`, `DevCaseDetailHeader`, `DevCaseDetailInternal`,
+`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Three
+non-component seams moved with them:
+
+- `degradedReasons` (`DevCaseDetail.publish.ts`) returns CODES (`"scenario"`, `"seed"`)
+  instead of two English sentences. It is pure TS with no reader attached, so the prose it
+  used to return was untranslatable by construction; the confirm dialog resolves each code
+  through `devcase.studio.degradedReason.<code>`.
+- `runAction` (`useDevTabActions.ts`) takes a `DevAction` id (`runLifecycle` / `approve` /
+  `publish` / `source`) rather than an English label, and its banner resolves the server's
+  machine `code` through `useErrorMessage()` before falling back to a localized sentence
+  built from `devcase.studio.action.<id>` — the repo's standard shape, replacing a
+  `body.error ?? "<English>"` chain that shipped the server's English to every locale.
+- `CasesEmpty` passes a translated label into `LoadStatus` instead of the string
+  `"dev cases"`, which was also the retired vocabulary.
+
+Five of the migrated strings still called the entity a **case** ("All cases", "Publish this
+case?", "I understand this case is degraded", the two degraded reasons, the `"dev cases"`
+loader label) in a product whose one word for it is **Assignment**. Those were invisible to
+all three vocabulary guards, because every one of them walked either the catalogs or
+`DevTabViews.ts`. `devcase-vocabulary.test.ts` now walks the twelve components too, through
+the shared extractor in `devcaseStudioCopy.ts`.
+
+Two tests hold the result, and they are deliberately different guarantees:
+`devcase-studio-i18n.test.ts` asserts (a) the twelve files carry NO user-visible literal at
+all and (b) every `devcase.studio.*` key renders, in all four locales, with the values the
+components actually pass (plural branches included, and the `degradedReason` /
+`action` sets read off their producers rather than re-typed); `devcase-vocabulary.test.ts`
+asserts that whatever literal does appear never says "case". The source-side matcher is a
+regex over JSX text nodes and literal `title`/`aria-label`/`placeholder`/`label`/`alt`
+attributes -- a **ratchet, not a proof**: English arriving through a helper or a template
+expression can still get past it, which is why the catalog half exists.
+
+Still English, and still a gap: the define/outbox views (`DevTabDefineView`, `DevNeedForm`,
+`OutboxSection`), the evaluation panel (`DevEvalPanel*`), the lifecycle rows and
+`DevShared`'s "Listen for" / "Red flag" interviewer notes. `DevTabViews.ts` (the sub-tab
+labels and headings) remains the one piece of studio copy with no catalog behind it.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
@@ -896,6 +944,9 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   pure and tested — `sessionEvidenceModel` in
   `app/features/tools/devcases/devcase-session-evidence.ts`, 7 node:test cases,
   including that a tree with no chat is **not** an empty session.
+- The Assignments studio is localized only in the twelve components listed above; the
+  define/outbox views, the evaluation panel, the lifecycle rows and `DevShared`'s
+  interviewer notes are still English, as is `DevTabViews.ts`.
 - The `architecture` rubric dimension name is still software-flavored even for
   a non-software case (the description text was neutralized, the field name
   wasn't — a cascading rename was deferred).

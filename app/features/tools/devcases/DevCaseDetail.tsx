@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { FileCode2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { Markdown } from "@/app/_components/Markdown";
 import { CompareSubmissions } from "./DevCompareSubmissions";
 import { InterviewKit } from "./DevInterviewKit";
@@ -41,6 +43,7 @@ export function CaseDetail({
   sourcedCounts: Record<string, number>;
   loadPostings: () => void;
 }) {
+  const t = useTranslations("devcase.studio.detail");
   const c = kase.case ?? {};
   const role = kase.role ?? null;
   // GH4 — the role spec flattened to JD-ish text, so an author's-GitHub
@@ -145,23 +148,21 @@ export function CaseDetail({
       />
 
       {/* the assignment, as the candidate would read it */}
-      <article className="rounded-lg border border-stone-200 bg-white px-6 py-5 shadow-panel sm:px-8 sm:py-6">
+      <article className={`${PANEL} px-6 py-5 sm:px-8 sm:py-6`}>
         <Markdown content={caseToMarkdown(c, role)} className="max-w-3xl" />
       </article>
 
       {/* #5 — the materialized seed the candidate is actually handed (collapsed). Lets the
           author verify the concrete starter files before publishing, not only the brief. */}
       {seedFiles.length > 0 ? (
-        <details className="rounded-lg border border-stone-200 bg-white shadow-panel">
+        <details className={PANEL}>
           <summary className="focus-ring flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-meta font-semibold uppercase tracking-wide text-steel">
-            <FileCode2 size={13} className="text-coral" /> Materialized seed — what the candidate receives
-            <span className="text-coral">· {seedFiles.length} file{seedFiles.length === 1 ? "" : "s"}</span>
+            <FileCode2 size={13} className="text-coral" /> {t("seedSummary")}
+            <span className="text-coral">· {t("seedFiles", { count: seedFiles.length })}</span>
           </summary>
           <div className="space-y-3 border-t border-stone-200 px-4 py-3">
             {seedDegraded ? (
-              <p className="text-xs text-amber-700">
-                Skeleton only — this is the prose-only fallback, not concrete starter files. Re-run before sending.
-              </p>
+              <p className="text-xs text-amber-700">{t("seedSkeletonWarning")}</p>
             ) : null}
             {seedFiles.map((f) => (
               <div key={f.path}>

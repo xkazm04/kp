@@ -3,6 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusChip, StatusLegend } from "@/app/_components/StatusChip";
+import { DIVIDER, PANEL } from "@/app/_components/ui/recipes";
 import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
@@ -53,7 +54,7 @@ export function CasesTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-panel">
+    <div className={`overflow-hidden ${PANEL}`}>
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60 text-micro font-semibold uppercase tracking-wide text-steel">
@@ -116,7 +117,7 @@ export function CasesTable({
           "collecting" are the same kind of state, and that "awaiting approval" is
           the one that is about them. Same component, same five words, on every
           surface that carries a status chip. */}
-      <StatusLegend className="border-t border-stone-200 bg-paper/40 px-3 py-2" />
+      <StatusLegend className={`${DIVIDER} bg-paper/40 px-3 py-2`} />
     </div>
   );
 }

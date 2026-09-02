@@ -1,6 +1,14 @@
 // The write actions (run lifecycle / approve lifecycle / publish / source) + their
 // shared error surfacing, split out of DevTab.tsx.
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+
+/** The write actions this hook can run. An ID, not a label: the banner it lands in
+ *  is read by a recruiter in one of four languages, so the name of the action is
+ *  looked up in `devcase.studio.action.*` at render time rather than being an
+ *  English string threaded through the call. */
+export type DevAction = "runLifecycle" | "approve" | "publish" | "source";
 
 export function useDevTabActions(args: {
   buildNeed: () => Record<string, unknown>;
@@ -8,6 +16,8 @@ export function useDevTabActions(args: {
   loadPostings: () => void;
 }) {
   const { buildNeed, loadLifecycles, loadPostings } = args;
+  const t = useTranslations("devcase.studio");
+  const errorMessage = useErrorMessage();
 
   // In-flight publish guard: `published` only becomes true after the postings reload,
   // so without this the Publish button stays clickable mid-request and a double-click
@@ -26,23 +36,26 @@ export function useDevTabActions(args: {
   // Shared error surfacing for the write actions: surface a failed/non-OK POST as a
   // banner instead of silently no-op'ing. Returns true on success so callers can chain.
   const runAction = async (
-    label: string,
+    action: DevAction,
     fetcher: () => Promise<Response>,
     onOk?: (body: unknown) => void
   ): Promise<boolean> => {
     setActionError(null);
+    const name = t(`action.${action}`);
     try {
       const r = await fetcher();
       const body = await r.json().catch(() => null);
       if (!r.ok) {
-        const msg = body && typeof body === "object" && "error" in body ? String((body as { error: unknown }).error) : null;
-        setActionError(msg ?? `${label} failed. Please try again.`);
+        // The server's `error` string is canonical English written for the log; the
+        // reader gets the machine `code` resolved in their own language, and the
+        // localized action sentence when the code is unknown (use-error-message.ts).
+        setActionError(errorMessage(body as { code?: string | null } | null, t("actionFailed", { action: name })));
         return false;
       }
       onOk?.(body);
       return true;
     } catch {
-      setActionError(`${label} failed — the request could not be completed.`);
+      setActionError(t("actionUnreachable", { action: name }));
       return false;
     }
   };
@@ -51,7 +64,7 @@ export function useDevTabActions(args: {
     if (runningLifecycle) return; // single-flight: no double-launch in the pre-poll gap
     setRunningLifecycle(true);
     try {
-      const ok = await runAction("Run lifecycle", () =>
+      const ok = await runAction("runLifecycle", () =>
         fetch("/api/devcase/lifecycle", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -65,7 +78,7 @@ export function useDevTabActions(args: {
   };
 
   const approveLifecycle = async (id: string) => {
-    const ok = await runAction("Approve", () => fetch(`/api/devcase/lifecycle/${id}/approve`, { method: "POST" }));
+    const ok = await runAction("approve", () => fetch(`/api/devcase/lifecycle/${id}/approve`, { method: "POST" }));
     if (ok) loadLifecycles();
   };
 
@@ -73,7 +86,7 @@ export function useDevTabActions(args: {
     if (publishingCase) return; // single-flight: a double-click can't mint duplicate postings
     setPublishingCase(caseId);
     try {
-      const ok = await runAction("Publish", () =>
+      const ok = await runAction("publish", () =>
         fetch("/api/devcase/publish", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -90,7 +103,7 @@ export function useDevTabActions(args: {
     setSourcing(caseId);
     try {
       await runAction(
-        "Source candidates",
+        "source",
         () =>
           fetch("/api/devcase/source", {
             method: "POST",
