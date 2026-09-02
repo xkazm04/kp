@@ -125,6 +125,19 @@ JD has ever had.
   `.candidate_objectives`, `.maintainer_load`. Confidence is 0.8 when Claude
   Code read the repo in place, 0.6 for the keyless file-walk. An empty dossier
   field produces **no facet** — a hole reads as a hole.
+- **Both App-master writes are compare-and-swap, not blind writes.** The merge
+  and the fit run in a Python spawn that can take minutes, and the brief the
+  route stores was computed from the row as it looked *before* that spawn. A
+  dialog turn landing inside the window used to be overwritten — a value the
+  requestor STATED, regressed by a machine reading, which is the merge rule
+  inverted. `updateIntakeDossier` / `updateIntakeAppMaster`
+  (`app/_lib/db/intakes.ts`) therefore carry `expectedUpdatedAt` — the row
+  version read before the spawn — into the UPDATE's `WHERE`, and report
+  `"ok" | "moved" | "missing"`. `moved` answers **409 `INTAKE_BRIEF_MOVED`**;
+  the client's scan watch resets its `posted` guard and re-posts on the next
+  tasks tick, without claiming the scan became unreachable. Pinned behaviorally
+  by `app/_lib/db/intake-app-master-cas.test.ts` and at the routes by
+  `app/api/intake/app-master-routes.test.ts`.
 - **The dialog asks only what the scan cannot know.** A persona overlay
   (`_PERSONA_APP_MASTER`) replaces the power-unit/story triage rules, and the
   dossier rides the prompt in a fenced `CODEBASE_DOSSIER` block framed as a
@@ -165,7 +178,12 @@ JD has ever had.
   match proves a tool is nearby, not that an agent can own an outcome.
 - **Compose** — `POST /api/intake/[id]/compose-app-master` runs
   `briefToAppMasterSpec(brief, dossier)` (pure, validated with
-  `appMasterSpecSchema`) and stores `{spec, fit, composedAt}` on the row. The
+  `appMasterSpecSchema`) and stores `{spec, fit, composedAt}` **plus the merged
+  brief the spawn just produced**, in one `.immediate()` write under the
+  compare-and-swap above. The brief used to be returned to the client and never
+  persisted, so the requestor's screen adopted a brief that reverted on the next
+  reload — and a stored spec without the brief it was composed from is a
+  decision filed without its evidence. The
   defaults are always the safe end: an unreadable rung stays 2, an unreadable
   forbidden-class answer keeps all six, an undecided population stays `either` —
   and every assumption is recorded in `coercionNotes[]`.

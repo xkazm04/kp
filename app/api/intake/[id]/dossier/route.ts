@@ -5,7 +5,7 @@ import { repoDossierSchema } from "@/app/_lib/schemas.generated";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/intake/[id]/dossier — an App-master session's repo scan finished:
 // fold the RepoDossier into the live brief as `codebase_dossier.*` facets
@@ -58,8 +58,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       dossier: parsed.data,
       lang: intake.lang === "cs" ? "cs" : "en",
     });
-    if (!updateIntakeDossier(id, { scanId: intake.scanId, dossier: parsed.data, brief: sync.brief }, ws)) {
+    // COMPARE-AND-SWAP, not a blind write. `intake.updatedAt` was read BEFORE the
+    // spawn above, which can take minutes; a dialog turn landing inside that
+    // window has already replaced the brief this merge was computed from, and
+    // storing `sync.brief` over it would regress a value the requestor STATED —
+    // the one thing the merge rule forbids. The refusal is the honest outcome:
+    // the client re-posts on its next tick against the current row.
+    const write = updateIntakeDossier(
+      id,
+      { scanId: intake.scanId, dossier: parsed.data, brief: sync.brief, expectedUpdatedAt: intake.updatedAt },
+      ws
+    );
+    if (write === "missing") {
       return NextResponse.json({ error: "Intake not found." }, { status: 404 });
+    }
+    if (write === "moved") {
+      return jsonRefusal("INTAKE_BRIEF_MOVED", 409);
     }
     return NextResponse.json({ brief: sync.brief, shape: sync.shape, dossier: parsed.data, fit: sync.fit });
   } catch (error) {

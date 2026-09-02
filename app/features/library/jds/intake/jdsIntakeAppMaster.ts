@@ -86,6 +86,12 @@ export function useAppMasterLogic(
           // Refused (429/409/offline): let the next tick try again rather than
           // silently leaving a finished scan unattached to its session.
           posted.current = null;
+          // 409 = INTAKE_BRIEF_MOVED: a dialog turn landed while the merge was
+          // being computed, so the server re-read rather than overwrote. That is
+          // the system working, not a fault — retry on the next tick WITHOUT
+          // claiming the scan is unreachable, which is what the catch below would
+          // otherwise render under an intake that is perfectly reachable.
+          if (post.status === 409) return;
           throw new Error(`HTTP ${post.status}`);
         }
         const payload = (await post.json()) as {

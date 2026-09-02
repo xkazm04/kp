@@ -88,6 +88,34 @@ test("both routes rate-limit before spending", () => {
   }
 });
 
+// Both writes are computed across a Python spawn that can take minutes, so the
+// row version read BEFORE the spawn has to be carried into the UPDATE — an
+// unconditional write here silently regresses a value the requestor stated
+// during the wait. The behavioral proof is app/_lib/db/intake-app-master-cas.test.ts;
+// this pins that the ROUTES actually pass the pre-spawn version and answer the
+// refusal with its code rather than swallowing it into a 404.
+test("both routes carry the pre-spawn row version into the write", () => {
+  for (const [name, src] of [["dossier", dossier], ["compose", compose]] as const) {
+    assert.match(src, /expectedUpdatedAt: intake\.updatedAt/, `${name}: the write is not a compare-and-swap`);
+    // The version must come from the read that PRECEDED the spawn, never from a
+    // fresh read after it (which would re-open the whole window).
+    assert.equal(
+      (src.match(/getIntake\(id, ws\)/g) ?? []).length,
+      1,
+      `${name}: a second read after the spawn would defeat the precondition`
+    );
+    assert.match(src, /write === "moved"/, `${name}: a moved row must be distinguished from a missing one`);
+    assert.match(src, /jsonRefusal\("INTAKE_BRIEF_MOVED", 409\)/, `${name}: the refusal needs its code`);
+  }
+});
+
+// The merged brief is the expensive half of what the spawn produced. Compose
+// used to return it and store only the spec, so the client adopted a brief the
+// row did not hold and the next reload reverted it.
+test("compose persists the merged brief in the same write as the spec", () => {
+  assert.match(compose, /updateIntakeAppMaster\(id, compose, ws, \{\s*brief: sync\.brief/);
+});
+
 // The shape is an ACT, not a triage: a session created with a scanId is
 // app_master from its first row, so a reload can resume a running scan.
 test("create route stamps the scan id and opens on the app-master opener", () => {

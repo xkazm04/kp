@@ -279,53 +279,110 @@ export function updateIntakeDialog(
   return run.immediate();
 }
 
+// The outcome of an App-master write that carries a row version with it.
+// `moved` is NOT an error: it is the ordinary result of a requestor answering a
+// question while a minutes-long Python spawn was still running, and the caller's
+// job is to recompute rather than to clobber.
+export type IntakeCasResult = "ok" | "moved" | "missing";
+
+// COMPARE-AND-SWAP over `updated_at`, the row version every intake writer already
+// stamps. Both App-master writes are read→compute→write across a spawn that can
+// take MINUTES (runIntakeAppMasterSync), so `.immediate()` alone buys nothing —
+// the write lock is taken long after the read it is meant to protect. The version
+// read BEFORE the spawn is therefore re-asserted in the UPDATE's WHERE, and a
+// `changes === 0` is disambiguated into `moved` vs `missing` inside the same
+// transaction. `IS` rather than `=` because a freshly created intake has
+// `updated_at NULL`, and `NULL = NULL` is not true in SQL.
+//
+// Granularity caveat: `updated_at` is an ISO string with millisecond resolution,
+// so two writes inside the same millisecond are indistinguishable. The window
+// this guards is a Python spawn, not a millisecond, so that is a theoretical hole
+// rather than the one that was losing stated values.
+function casUpdate(sql: string, params: unknown[], id: string, workspaceId: string): IntakeCasResult {
+  const d = db();
+  const run = d.transaction((): IntakeCasResult => {
+    const res = d.prepare(sql).run(...(params as never[]));
+    if (res.changes > 0) return "ok";
+    const still = d
+      .prepare(`SELECT id FROM role_intakes WHERE id = ? AND workspace_id = ? AND status != 'promoted'`)
+      .get(id, workspaceId) as { id: string } | undefined;
+    // The row is writable but the version moved under us — vs. gone/promoted,
+    // which is a 404/409-frozen, not a retry.
+    return still ? "moved" : "missing";
+  });
+  return run.immediate();
+}
+
 // A completed repo scan landed (App master): store the dossier verbatim and the
 // brief it was merged into, and stamp the shape. IMMEDIATE for the same reason
 // updateIntakeDialog is — a dossier landing while an exchange is in flight is a
-// read→compute→write race over the same brief. Frozen on a promoted session:
-// the JD exists, its grounding record must not shift under it.
+// read→compute→write race over the same brief — PLUS the `expectedUpdatedAt`
+// precondition, because the merge this brief came from was computed before a
+// minutes-long spawn (see casUpdate). Frozen on a promoted session: the JD
+// exists, its grounding record must not shift under it.
 export function updateIntakeDossier(
   id: string,
-  patch: { scanId: string; dossier: RepoDossier; brief: RoleBrief },
+  patch: { scanId: string; dossier: RepoDossier; brief: RoleBrief; expectedUpdatedAt: string | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID
-): boolean {
-  const d = db();
-  const run = d.transaction(() => {
-    const res = d
-      .prepare(
-        `UPDATE role_intakes
-         SET dossier_json = ?, brief_json = ?, scan_id = ?, shape = 'app_master', updated_at = ?
-         WHERE id = ? AND workspace_id = ? AND status != 'promoted'`
-      )
-      .run(
-        JSON.stringify(patch.dossier),
-        JSON.stringify(patch.brief),
-        patch.scanId.slice(0, 120),
-        new Date().toISOString(),
-        id,
-        workspaceId
-      );
-    return res.changes > 0;
-  });
-  return run.immediate();
+): IntakeCasResult {
+  return casUpdate(
+    `UPDATE role_intakes
+     SET dossier_json = ?, brief_json = ?, scan_id = ?, shape = 'app_master', updated_at = ?
+     WHERE id = ? AND workspace_id = ? AND status != 'promoted' AND updated_at IS ?`,
+    [
+      JSON.stringify(patch.dossier),
+      JSON.stringify(patch.brief),
+      patch.scanId.slice(0, 120),
+      new Date().toISOString(),
+      id,
+      workspaceId,
+      patch.expectedUpdatedAt,
+    ],
+    id,
+    workspaceId
+  );
 }
 
 // The composed AppMasterSpec + its population-fit verdict. Re-composing
 // REPLACES the record: a spec is a snapshot of the brief at compose time, and
 // keeping a stale one beside a newer brief is the drift the doc-sync rule exists
 // to prevent, one layer down.
+//
+// `cas` is what the compose ROUTE passes: the merged brief the spawn produced
+// (persisted in the SAME write as the spec — the route used to hand that brief
+// to the client and store only the spec, so the client adopted a brief that
+// reverted on the next reload) plus the row version it was computed from. Omit
+// it and the write keeps the old unconditional shape, for callers that hold no
+// pre-spawn read.
 export function updateIntakeAppMaster(
   id: string,
   compose: AppMasterCompose,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
-): boolean {
-  const res = db()
-    .prepare(
-      `UPDATE role_intakes SET app_master_spec_json = ?, updated_at = ?
-       WHERE id = ? AND workspace_id = ? AND status != 'promoted'`
-    )
-    .run(JSON.stringify(compose), new Date().toISOString(), id, workspaceId);
-  return res.changes > 0;
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  cas?: { brief: RoleBrief; expectedUpdatedAt: string | null }
+): IntakeCasResult {
+  if (!cas) {
+    const res = db()
+      .prepare(
+        `UPDATE role_intakes SET app_master_spec_json = ?, updated_at = ?
+         WHERE id = ? AND workspace_id = ? AND status != 'promoted'`
+      )
+      .run(JSON.stringify(compose), new Date().toISOString(), id, workspaceId);
+    return res.changes > 0 ? "ok" : "missing";
+  }
+  return casUpdate(
+    `UPDATE role_intakes SET app_master_spec_json = ?, brief_json = ?, updated_at = ?
+     WHERE id = ? AND workspace_id = ? AND status != 'promoted' AND updated_at IS ?`,
+    [
+      JSON.stringify(compose),
+      JSON.stringify(cas.brief),
+      new Date().toISOString(),
+      id,
+      workspaceId,
+      cas.expectedUpdatedAt,
+    ],
+    id,
+    workspaceId
+  );
 }
 
 // A human edit of the brief (UAT drain §2.1) — brief_json only; the transcript

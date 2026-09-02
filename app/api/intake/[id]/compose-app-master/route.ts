@@ -5,7 +5,7 @@ import { runIntakeAppMasterSync } from "@/app/_lib/intake-run";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/intake/[id]/compose-app-master — turn the captured RoleBrief plus
 // the session's RepoDossier into an `AppMasterSpec`
@@ -60,8 +60,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // is what the spec was built from — not a copy read before it.
     const spec = briefToAppMasterSpec(sync.brief, intake.dossier);
     const compose: AppMasterCompose = { spec, fit: sync.fit, composedAt: new Date().toISOString() };
-    if (!updateIntakeAppMaster(id, compose, ws)) {
+    // The merged brief is PERSISTED beside the spec, in the one write, under the
+    // same compare-and-swap. It used to be returned and dropped: the client
+    // adopted `sync.brief` through applySession and the next reload handed back
+    // the un-merged row, so a requestor watched their own screen revert. Not
+    // returning it instead would have been the cheaper fix and the wrong one —
+    // the merge is real work the spawn just paid for, and the spec stored beside
+    // it was composed FROM it, so a row holding the spec without its brief is a
+    // record of a decision with its evidence deleted.
+    const write = updateIntakeAppMaster(id, compose, ws, {
+      brief: sync.brief,
+      expectedUpdatedAt: intake.updatedAt,
+    });
+    if (write === "missing") {
       return NextResponse.json({ error: "Intake not found." }, { status: 404 });
+    }
+    if (write === "moved") {
+      return jsonRefusal("INTAKE_BRIEF_MOVED", 409);
     }
     return NextResponse.json({ spec, fit: sync.fit, composedAt: compose.composedAt, brief: sync.brief });
   } catch (error) {
