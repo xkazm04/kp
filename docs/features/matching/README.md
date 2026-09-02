@@ -449,6 +449,36 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### Three skill buckets on the card, not two
+`matching.py` splits a required skill three ways — `matched_skills` (at or above
+`_MATCH_THRESHOLD`), `unproven_skills` (scored above zero but under it, with
+`unproven_skill_strength` and an `unproven_skill_reason` of `adjacency` /
+`provenance` / `both`), and `missing_skills` (an exact zero). The report
+(`JobFitTab.tsx::UnprovenSkillsBlock`) and Decisions
+(`DecisionsAnalysisParts.tsx::UnprovenChips`) have rendered all three; the match
+**card** — the surface a recruiter actually picks interviewees on — rendered only
+the outer two, dropping precisely the bucket an interview exists to resolve.
+`focus/MatchCardSkillChips.tsx` now renders it as a third, amber chip class
+(`? <skill>` + a reason badge, strength in the tooltip), capped at
+`UNPROVEN_CAP` = 5 and folded into the same "+N more" expander. The six strings
+come from `decisions.summary` verbatim rather than a fork into `match`, and an
+absent/unknown reason code degrades to the neutral "claimed" label instead of
+asserting a distinction the pipeline did not make. Absent bucket = no chrome, so
+an analysis from before round 7 renders exactly as it did.
+
+### The grid announces where you are in it
+The grid has had `role="grid"` and a roving tabindex since
+`matrix-grid-arrow-keys`, so arrow keys move focus around a rectangle — but the
+cells were bare `<td>`s, so a screen reader could read the cell's own label and
+nothing about its position. `MatrixGrid.tsx` now carries the rest of the pattern:
+`role="gridcell"` on the cell, `role="columnheader"` / `role="rowheader"` on the
+sticky headers, 1-based `aria-rowindex` / `aria-colindex` that count the header
+row and the candidate column (header row = 1, data row `r` = `r + 2`; candidate
+column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
+`aria-colcount` that make those indices "of" something. Pinned structurally by
+`matrixGridRoles.test.ts` — indices only mean anything while the counts agree
+with them.
+
 ### The grid's controls describe the grid they actually produce
 
 - **Sort label.** A column sort only applies while that column is visible —
@@ -598,6 +628,13 @@ degrading to English for the other app locales rather than failing.
   `matrix.ofCount`); closing it needs the two routes to return the count, following
   the `listJobsPage`/`countJobs` template in `app/_lib/db/jobs.ts`. Deep links
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
+- The grid's cells carry **no per-cell confidence or provenance**: a cell shows one
+  number, and whether that number rests on evidenced or self-declared skills is
+  only readable after opening the cell's reasoning popover. Surfacing it in the
+  cell needs a per-cell provenance summary from the Python pass (`/api/matrix`
+  currently returns `{score, blocked, koKeys}` only) — a pipeline change, not a
+  UI one, so the match card's three-bucket split above is the honest interim:
+  the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.
