@@ -106,7 +106,7 @@ export function Modal({
           </header>
         )}
         <div className={`min-h-0 flex-1 overflow-y-auto ${bare ? "flex flex-col" : "px-5 py-4"}`}>{children}</div>
-        {footer ? <footer className="flex items-center justify-end gap-2 border-t border-stone-200 px-5 py-3">{footer}</footer> : null}
+        {footer ? <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-stone-200 px-5 py-3">{footer}</footer> : null}
       </div>
     </div>,
     document.body

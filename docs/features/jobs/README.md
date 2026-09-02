@@ -602,6 +602,43 @@ role without a work sample is the normal case and not a gap to nag about. The co
 stays `null` until the fetch lands and after a failure, so an unknown count is an absent
 segment rather than a confident "0".
 
+## The posting modal's tab strip is a real tablist
+
+`JobPostingModal` renders seven tabs under `role="tablist"`, and until now that
+was ARIA the widget did not honour: every button was a tab stop and no arrow key
+did anything, so a keyboard user reaching **Agent fit** from **Posting** paid six
+Tab presses through a strip that announces itself as one control. The strip now
+carries a roving tabindex (`tabIndex={tab === id ? 0 : -1}`) and ←/→/↑/↓/Home/End
+movement, and it scrolls horizontally (`overflow-x-auto`, `shrink-0` tabs) instead
+of squeezing seven labels off a narrow modal's edge.
+
+The ids live once, in `jobsPostingModalTabs.ts` — literal array → derived union →
+runtime guard, the same shape as `app/features/shell/tabs.ts` — with the label +
+icon per id in a `Record<PostingTabId, …>` in the modal, so adding a tab id is a
+type error until the strip learns to render it. The movement arithmetic is
+`SegmentedControl`'s `move`, **copied** rather than shared: that primitive's copy
+is entangled with its radiogroup semantics (`aria-checked`, the off-taxonomy
+recovery, the `layoutId` indicator). Both halves are pinned by
+`jobsPostingModalTabs.test.ts`.
+
+Two more shapes moved off hand-rolled strings in the same pass: the shared
+`Modal` footer wraps (`flex-wrap`) — this modal's footer carries up to six
+actions plus a publish note, and on a narrow viewport they were squeezed rather
+than wrapped, while the `basis-full` copy-failure line already assumed a wrapping
+row — and the jobs surfaces compose `PANEL` / `STAT` / `CHIP_TOGGLE` from
+`app/_components/ui/recipes.ts` (the Agent-fit status, coverage and spec panels,
+the campaign variant card, the coach's stat tiles, and the four language /
+filter chip toggles) instead of re-typing the class strings, so a restyle reaches
+them and Spark Dark's sticker treatment applies without a second edit.
+
+The modal's own lifecycle machine is extracted too: `derivePostingLifecycle`
+(`jobsPostingLifecycle.ts`) folds the server-decorated `job.status` together with
+the in-session `closed` / `published` flips. `published` is read FIRST, because a
+re-publish IS the reopen path — reading `closed` first would keep the apply links
+inert on a role that is live unless every caller remembered to clear the flag by
+hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
+staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
+
 ## The winnability coach stages the number it actually computed
 
 The Coach tab's loosen list (`JobsCoachPanelLoosenList.tsx`) can hand a

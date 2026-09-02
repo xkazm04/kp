@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 import { useLocale } from "next-intl";
+import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { LOCALES } from "@/i18n/locales";
 import { WARN_KEY } from "./jobsCampaignTabTypes";
@@ -38,9 +39,7 @@ export function CampaignTab({ jobId, jobTitle }: { jobId: string; jobTitle?: str
             type="button"
             onClick={() => setLang(loc)}
             aria-pressed={lang === loc}
-            className={`focus-ring rounded-full border px-2.5 py-0.5 text-sm font-semibold uppercase transition-colors ${
-              lang === loc ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
-            }`}
+            className={`${CHIP_TOGGLE(lang === loc)} px-2.5 py-0.5 uppercase`}
           >
             {loc}
           </button>

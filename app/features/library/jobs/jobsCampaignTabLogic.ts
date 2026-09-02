@@ -11,6 +11,7 @@ import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useTaskResult } from "@/app/features/shell/tasks/useTaskResult";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { BEATS, HOOK_LABEL_KEY, isHookType, WARN_KEY, type PackRecord } from "./jobsCampaignTabTypes";
+import { campaignPackKey, packSurvivingFailure } from "./jobsCampaignPackKey";
 
 export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?: string) {
   const t = useTranslations("jobs.campaign");
@@ -45,7 +46,7 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
   // timer), mirroring RecruiterCandidates: no synchronous setState in the
   // effect body (react-hooks/set-state-in-effect).
   useEffect(() => {
-    const key = `${jobId}|${lang}`;
+    const key = campaignPackKey(jobId, lang);
     const timer = window.setTimeout(() => {
       if (requestKeyRef.current === key) return;
       requestKeyRef.current = key;
@@ -68,15 +69,10 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
         .catch(() => {
           if (requestKeyRef.current !== key) return;
           setError(errMsg({ code: failureCode }, t("loadFailed")));
-          // A failed load must not leave the PREVIOUS language's pack on screen under
-          // the newly-selected one: the tab renders the error banner AND the stored
-          // pack side by side, and nothing in the pack names its language — so a
-          // recruiter who toggled cs -> de into a 500 saw the Czech ad copy sitting
-          // under a lit "DE" toggle and could "Copy all" it onto a German job board.
-          // Only a pack that belongs to the key we just failed to load survives (a
-          // same-(job, lang) reload after a generation), so a refresh still never
-          // blanks content that is already correct — loading-choreography law 2.
-          setRecord((prev) => (prev && `${prev.jobId}|${prev.lang}` === key ? prev : null));
+          // Only a pack belonging to the key we just failed to load survives — the
+          // rule (and why: Czech ad copy under a lit "DE" toggle is a "Copy all"
+          // away from a German board) lives in jobsCampaignPackKey.ts, pinned.
+          setRecord((prev) => packSurvivingFailure(prev, key));
         })
         .finally(() => {
           if (requestKeyRef.current === key) setLoading(false);

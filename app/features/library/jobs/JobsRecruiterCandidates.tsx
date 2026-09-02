@@ -2,6 +2,7 @@
 
 import { Scale, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { SkippedCandidatesNote } from "./JobsShared";
 import { useRecruiterCandidatesLogic } from "./jobsRecruiterCandidatesLogic";
 import { CandidateColumn } from "./JobsRecruiterCandidatesColumn";
@@ -85,9 +86,7 @@ export function RecruiterCandidates({
               onClick={() => setPoolFitOnly((v) => !v)}
               aria-pressed={poolFitOnly}
               title={t("poolFitTitle")}
-              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
-                poolFitOnly ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
-              }`}
+              className={`${CHIP_TOGGLE(poolFitOnly)} px-2.5 py-0.5`}
             >
               <Users size={13} /> {t("poolFit", { count: poolFitCount })}
             </button>
@@ -98,9 +97,7 @@ export function RecruiterCandidates({
               onClick={() => setFairRank((v) => !v)}
               aria-pressed={fairRank}
               title={t("fairRankTitle")}
-              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
-                fairActive ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
-              }`}
+              className={`${CHIP_TOGGLE(fairActive)} px-2.5 py-0.5`}
             >
               <Scale size={13} /> {t("fairRank")}
             </button>

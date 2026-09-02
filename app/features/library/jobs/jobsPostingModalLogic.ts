@@ -13,6 +13,8 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { derivePostingLifecycle } from "./jobsPostingLifecycle";
+import type { PostingTabId } from "./jobsPostingModalTabs";
 import {
   buildJobMarkdownStrings,
   jobToMarkdown,
@@ -37,7 +39,7 @@ export function useJobPostingModalLogic(
   const errMsg = useErrorMessage();
   const router = useRouter();
   const search = useSearchParams();
-  const [tab, setTab] = useState<"posting" | "coach" | "candidates" | "rediscover" | "compare" | "campaign" | "agentfit">("posting");
+  const [tab, setTab] = useState<PostingTabId>("posting");
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
@@ -96,9 +98,10 @@ export function useJobPostingModalLogic(
   // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
   const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
   const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
-  const status = closed ? "closed" : published ? "published" : job.status ?? null;
-  const isDraft = status === "draft";
-  const isClosed = status === "closed";
+  // The three-input state machine lives in jobsPostingLifecycle.ts (pinned by
+  // jobsPostingLifecycle.test.ts) — the footer hands out apply links from its
+  // answer, and a draft's pages 404 while a closed role's serve 410.
+  const { isDraft, isClosed } = derivePostingLifecycle(job.status ?? null, closed, published);
   // Same call DraftsPanel makes, surfaced where the draft actually opens: take
   // the JD live and source matching candidates into the pipeline. tone "warn" =
   // published but sourcing errored — not to be mistaken for a clean "sourced 0".

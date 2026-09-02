@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, Coins, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { PANEL_SUNKEN, STAT, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { EmptyState } from "./JobsShared";
@@ -131,9 +131,9 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
 
       <div className="grid grid-cols-3 gap-2">
         {statTiles.map((tile) => (
-          <div key={tile.key} className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-center">
-            <p className="text-2xl font-semibold text-ink">{tile.n}</p>
-            <p className="text-meta uppercase text-steel">{t(tile.key)}</p>
+          <div key={tile.key} className={`${STAT} items-center px-3 py-2`}>
+            <p className={`${STAT_VALUE} text-ink`}>{tile.n}</p>
+            <p className={STAT_LABEL}>{t(tile.key)}</p>
           </div>
         ))}
       </div>

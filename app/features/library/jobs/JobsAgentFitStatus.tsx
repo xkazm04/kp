@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
-import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { STATUS_BADGE, type AgentRosterEntry } from "@/app/features/agents-workforce/agentsWorkforceLogic";
 import { timeline } from "./jobsAgentFitModel";
 
@@ -28,7 +28,7 @@ export function JobsAgentFitStatus({
   const badge = STATUS_BADGE[agent.status];
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+    <div className={`${PANEL} p-4`}>
       <div className="flex flex-wrap items-center gap-3">
         <p className={META_LABEL}>{t("heading")}</p>
         <Badge tone={badge.tone} label={ta(badge.key as Parameters<typeof ta>[0])} />
