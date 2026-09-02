@@ -35,7 +35,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2720,
+  "files": 2726,
   "groups": 17,
   "use_cases": 12
  },
@@ -4669,6 +4669,7 @@
     "app/api/pipeline/outcomes/route.ts"
    ],
    "file_paths": [
+    "app/_lib/pipeline-approval-cas.test.ts",
     "app/api/attention/route.ts",
     "app/api/pipeline/[id]/consent/route.ts",
     "app/api/pipeline/[id]/route.ts",
@@ -4676,7 +4677,9 @@
     "app/api/pipeline/batch/authz-parity.test.ts",
     "app/api/pipeline/batch/route.test.ts",
     "app/api/pipeline/batch/route.ts",
+    "app/api/pipeline/command/command-execution-counts.test.ts",
     "app/api/pipeline/command/command-tenancy.test.ts",
+    "app/api/pipeline/command/execute.ts",
     "app/api/pipeline/command/route.test.ts",
     "app/api/pipeline/command/route.ts",
     "app/api/pipeline/entry-route.test.ts",
@@ -4685,6 +4688,7 @@
     "app/api/pipeline/events/route.ts",
     "app/api/pipeline/outcomes/outcomes-route.test.ts",
     "app/api/pipeline/outcomes/route.ts",
+    "app/api/pipeline/pipeline-refusals-coded.test.ts",
     "app/api/pipeline/pipeline-routes.test.ts",
     "app/api/pipeline/route.ts",
     "app/api/pipeline/stage-impact/route.ts",
@@ -5871,6 +5875,7 @@
     "app/api/jobs/[id]/winnability/route.ts",
     "app/api/jobs/close-tenancy.test.ts",
     "app/api/jobs/ingest/route.ts",
+    "app/api/jobs/jobs-publish-billing.test.ts",
     "app/api/jobs/lifecycle-signals.test.ts",
     "app/api/jobs/publish-atomicity.test.ts",
     "app/api/jobs/route.ts",
@@ -8731,6 +8736,7 @@
     "app/features/shell/simulation/SimControlDockPanelBody.tsx",
     "app/features/shell/simulation/SimControlDockRail.tsx",
     "app/features/shell/simulation/SimControlDockToolbar.tsx",
+    "app/features/shell/simulation/dockPanelSlot.test.ts",
     "app/features/shell/simulation/dockPanelSlot.ts",
     "app/features/shell/simulation/simControlDockLayers.test.ts",
     "app/features/shell/simulation/simControlDockLayers.ts",
