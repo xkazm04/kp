@@ -69,3 +69,8 @@ export function columnStats(scores: number[]): ColumnStat {
     buckets,
   };
 }
+
+/** The stat for a column with nothing scored in it. A module-level constant, not a
+ *  literal at the render site: it crosses the memoized ColumnStats boundary, and a fresh
+ *  `{ … }` per render would defeat the memo for exactly the columns that need it least. */
+export const EMPTY_COLUMN_STAT: ColumnStat = { count: 0, best: null, median: null, strong: 0, buckets: [0, 0, 0, 0, 0] };

@@ -2,6 +2,7 @@
 
 import { Download, ListChecks } from "lucide-react";
 import type { useTranslations } from "next-intl";
+import { BTN_SECONDARY, CHIP, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 import { MIN_FIT_FLOORS } from "./matrixStats";
 import type { Matrix } from "./matrixTabTypes";
 
@@ -43,7 +44,7 @@ export function MatrixToolbar({
   return (
     <div className="flex items-center gap-2">
       {data ? (
-        <span className="rounded-md border border-stone-200 bg-paper px-2.5 py-1 text-sm text-steel">
+        <span className={`${CHIP} bg-paper px-2.5 py-1`}>
           {t("countLine", {
             cands: minFit > 0 ? t("ofCount", { shown: rowsLength, total: data.candidates.length }) : `${data.candidates.length}`,
             positions: colsLength,
@@ -53,7 +54,7 @@ export function MatrixToolbar({
       {/* Min-fit floor (MAT6): hide candidates whose best visible fit is
           below the threshold so a noisy grid shows only the promising rows. */}
       {data && data.candidates.length > 0 ? (
-        <div className="inline-flex items-center overflow-hidden rounded-md border border-stone-200 bg-white text-sm font-semibold">
+        <div className={`${TOGGLE_GROUP} bg-white text-sm font-semibold`} role="group" aria-label={t("minFit")}>
           <span className="px-2 py-1 text-steel">{t("minFit")}</span>
           {MIN_FIT_FLOORS.map((lvl) => (
             <button
@@ -61,7 +62,7 @@ export function MatrixToolbar({
               type="button"
               onClick={() => setMinFit(lvl)}
               aria-pressed={minFit === lvl}
-              className={`focus-ring border-l border-stone-200 px-2.5 py-1 ${minFit === lvl ? "bg-ink text-white" : "text-ink hover:bg-paper"}`}
+              className={`focus-ring rounded px-2.5 py-1 ${toggleBtn(minFit === lvl)}`}
             >
               {lvl === 0 ? t("off") : `≥${lvl}`}
             </button>
@@ -74,7 +75,7 @@ export function MatrixToolbar({
           setSortCol(null); // an explicit fit/A–Z choice overrides a column sort
           setSortByFit((v) => !v);
         }}
-        className="focus-ring rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
+        className={`${BTN_SECONDARY} bg-white px-2.5 py-1 text-sm font-semibold`}
       >
         {t("sortLabel", { mode: sortCol != null ? t("sortByCol") : sortByFit ? t("sortBestFit") : t("sortAz") })}
       </button>
@@ -83,8 +84,8 @@ export function MatrixToolbar({
           type="button"
           onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
           aria-pressed={selectMode}
-          className={`focus-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-semibold ${
-            selectMode ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
+          className={`${BTN_SECONDARY} px-2.5 py-1 text-sm font-semibold ${
+            selectMode ? "border-coral bg-coral/10 text-coral" : "bg-white"
           }`}
           title={t("shortlistTitle")}
         >
@@ -95,7 +96,7 @@ export function MatrixToolbar({
         <button
           type="button"
           onClick={exportCsv}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1 text-sm font-semibold text-ink hover:border-coral/40"
+          className={`${BTN_SECONDARY} bg-white px-2.5 py-1 text-sm font-semibold`}
           title={t("exportTitle")}
         >
           <Download size={14} className="text-steel" /> {t("exportCsv")}

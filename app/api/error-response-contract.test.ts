@@ -217,7 +217,10 @@ const LEAK_CEILING = new Map<string, number>([
   ["channels/webhooks/route.ts", 3],
   ["comms/relay/route.ts", 1],
   ["comms/relay/test/route.ts", 2],
-  ["decisions/config/route.ts", 1],
+  // decisions/config's single leak was FIXED, not ceilinged (/perfect 2026-09-02,
+  // pipeline-composer): the 500 answers safeJsonError(..., "DECISION_CONFIG_SAVE_FAILED")
+  // and both 400s are jsonRefusal codes, so the Hiring composer resolves them in the
+  // reader's language. The row is deleted so the win is locked.
   ["decisions/group-eval/route.ts", 1],
   ["decisions/screen-wave/route.ts", 1],
   // The ten devcase rows that stood here (thirteen leaks across comms, control,
@@ -241,9 +244,12 @@ const LEAK_CEILING = new Map<string, number>([
   ["llm/keys/route.ts", 1],
   ["llm/keys/test/route.ts", 1],
   ["llm/test/route.ts", 1],
-  ["match/reasoning/route.ts", 1],
   ["match/route.ts", 1],
-  ["matrix/route.ts", 1],
+  // match/reasoning/route.ts and matrix/route.ts stood here at 1 each and are FIXED,
+  // not ceilinged (/perfect 2026-09-03, matrix-ui-2): both now answer through
+  // app/api/matrix/matrix-error-code.ts — jsonRefusal for the 429 and the engine's
+  // 4xx, safeJsonError with a MATRIX_*/MATCH_REASONING_* code for the rest. The rows
+  // are deleted so the win is locked and a regression reads as `undeclared`.
   ["ops/route.ts", 1],
   ["profile/candidates/route.ts", 1],
   ["profile/draft/route.ts", 1],

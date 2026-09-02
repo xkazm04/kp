@@ -7,8 +7,10 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { MatrixGridRow } from "./MatrixGridRow";
 import { type Candidate, type Matrix, type Position } from "./matrixTabTypes";
 import { MATRIX_HEADER_ROW } from "./matrixGridKeys";
+import { EMPTY_COLUMN_STAT } from "./matrixStats";
 import { useMatrixGridKeys } from "./useMatrixGridKeys";
 import type { Cell } from "./matrixCellClass";
+import type { ColumnStat } from "./matrixStats";
 
 // The Fit Matrix's scrollable candidate × position grid: sortable column
 // headers with a per-role distribution strip, and per-cell score/select
@@ -34,7 +36,7 @@ export function MatrixGrid({
   data,
   cols,
   rows,
-  colScores,
+  colStats,
   rowStrong,
   sortCol,
   setSortCol,
@@ -50,7 +52,7 @@ export function MatrixGrid({
   data: Matrix;
   cols: { p: Position; i: number }[];
   rows: { cand: Candidate; ri: number }[];
-  colScores: Record<number, number[]>;
+  colStats: Record<number, ColumnStat>;
   rowStrong: Record<number, number>;
   sortCol: number | null;
   setSortCol: (updater: (cur: number | null) => number | null) => void;
@@ -120,7 +122,7 @@ export function MatrixGrid({
                     </span>
                     <span className="block text-sm uppercase text-steel">{enumLabel("seniority", p.seniority)}</span>
                   </button>
-                  <ColumnStats scores={colScores[i] ?? []} />
+                  <ColumnStats stat={colStats[i] ?? EMPTY_COLUMN_STAT} />
                 </th>
               ))}
             </tr>

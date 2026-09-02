@@ -274,6 +274,8 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
         brief={
           <JdsIntakeBriefPanel
             brief={active.brief}
+            intakeId={active.id}
+            updatedAt={active.updatedAt}
             frozen={active.status === "promoted"}
             saving={savingBrief}
             onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}

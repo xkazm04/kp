@@ -279,6 +279,10 @@ const ROUTES: RouteSpec[] = [
     key: "`match-reasoning:${clientIpFrom(request.headers)}`",
     limit: 60,
     expensive: "runReasoning(",
+    // Moved onto the refusal chokepoint (/perfect 2026-09-03, matrix-ui-2): the grid's
+    // popover resolves the code, so a throttled recruiter reads "you're going too fast"
+    // in their own language instead of the generic engine-failure sentence.
+    refusalCode: "TOO_MANY_REQUESTS",
   },
   {
     rel: "./github-analysis/route.ts",
@@ -853,6 +857,42 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "dumpOrg(orgId)",
     servedBefore: 'await requireOrgCapability("org:manage")',
+  },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-02 (pipeline-composer), with the limiters themselves. The
+  // hiring pipeline's two write doors carried NONE. Both are operator-gated, and open
+  // mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the ENTIRE
+  // API, so each must self-limit.
+  {
+    // The AUTO-REJECT gate's own write. Cheap per call, which is exactly why it was
+    // unthrottled - but an unbounded loop here flaps the rules that decide who the
+    // screening wave rejects, and every flap is a real policy change with a real audit
+    // trail. 60/10min per IP leaves any human editing session untouched.
+    rel: "./decisions/config/route.ts",
+    key: "`decision-config:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "CONFIG_RATE_LIMIT",
+    optsDef: "const CONFIG_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setDecisionConfig(result.phase,",
+    // The body checks, the schema validation and the stale-version refusal all keep
+    // their semantics ahead of the throttle: a request that was never going to be
+    // written spends none of the window.
+    servedBefore: 'jsonRefusal("DECISION_CONFIG_INVALID", 400',
+  },
+  {
+    // This route MOVES CANDIDATES between board columns and rewrites the axis. 20/10min
+    // per IP is far above any real editing session. The limiter sits after EVERY cheap
+    // refusal - invalid axis, invalid mapping, stale axis, and the server's own
+    // occupancy recount - so a refused reshape costs no budget.
+    rel: "./pipeline/stage-migration/route.ts",
+    key: "`stage-migration:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "MIGRATION_RATE_LIMIT",
+    optsDef: "const MIGRATION_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "migratePipelineStages(migrations, ws)",
+    servedBefore: 'jsonRefusal("PIPELINE_MIGRATION_REQUIRED", 409',
   },
 ];
 

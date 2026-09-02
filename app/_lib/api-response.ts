@@ -221,6 +221,18 @@ export const STORE_ERRORS = {
   // verbatim as "synthesis failed" / "transcription failed" with no code at all.
   TTS_FAILED: "Could not speak that just now. Please try again.",
   STT_FAILED: "Could not transcribe that recording. Please try again.",
+  // The Fit Matrix's two routes (/perfect 2026-09-03, matrix-ui-2). Both spawn Python
+  // and both answered a bare `{ error: err.message }` — matrix_cli's stderr carries the
+  // temp workdir path and a traceback, reasoning_cli's carries provider stderr. Kept as
+  // two codes, not one: "the grid could not be built" and "that one match could not be
+  // explained" are different failures with different next moves.
+  MATRIX_BUILD_FAILED: "Could not build the fit matrix. Please try again.",
+  MATCH_REASONING_FAILED: "Could not explain that match. Please try again.",
+  // The decision-rules write (/api/decisions/config). Its 500 sits over the
+  // decision-config store's own SQLite connection, whose thrown messages carry
+  // constraint text and the absolute db path; it was forwarding `error.message`
+  // verbatim with no code, so the Hiring composer could only paint English.
+  DECISION_CONFIG_SAVE_FAILED: "Could not save these rules. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -411,6 +423,13 @@ export const REFUSAL_ERRORS = {
   /** The per-session reference-material ceiling is spent (400). The cap rides
    *  alongside in `max` — a number, not a sentence, so it localizes. */
   INTAKE_ATTACHMENT_LIMIT: "This session already holds as much reference material as it can.",
+  /** A note longer than the per-attachment text cap (400). Same shape as
+   *  INTAKE_ATTACHMENT_LIMIT — the cap rides alongside in `max`. The route used
+   *  to silently `.slice()` the overflow away instead: the requestor pasted a
+   *  long thread, saw it accepted, and the agent grounded on a document whose
+   *  tail had been thrown away with nothing said. A refusal the composer can
+   *  restore from is the honest half of that trade. */
+  INTAKE_ATTACHMENT_TOO_LONG: "That note is longer than one piece of reference material can be.",
   /** A remove naming a position the list does not have (400) — a stale pane. */
   INTAKE_ATTACHMENT_INDEX: "That piece of reference material is no longer on this session.",
   /** The attached JD slug does not resolve in this workspace (404). Separate from
@@ -564,6 +583,27 @@ export const REFUSAL_ERRORS = {
    *  app ships (400). A bad argument, never a permission problem — kept apart from
    *  ORG_SETTINGS_FORBIDDEN so the console cannot blame a recruiter's role for it. */
   ORG_LANGUAGE_INVALID: "That isn't one of the app's languages.",
+  /** The matrix scorer refused the request itself (4xx) — a corpus/profile the grid
+   *  asked for that the engine will not score. Not a fault, so it is not withheld: the
+   *  recruiter's move is to reload or narrow the scope, not to report a crash. */
+  MATRIX_INPUT_INVALID: "The fit matrix could not be built from that request.",
+  /** The (candidate, role) pair behind a clicked cell no longer resolves (400/404) —
+   *  a profile deleted, or a role that left the corpus, between the grid being scored
+   *  and the cell being opened. Distinct from MATCH_REASONING_FAILED, which is the
+   *  engine falling over: this one is answered by refreshing the grid. */
+  MATCH_REASONING_UNAVAILABLE: "That match can no longer be explained — the candidate or role behind it is gone.",
+  /** A decision-rules write with no phase or no config in the body (400). */
+  DECISION_CONFIG_FIELDS_REQUIRED: "That rules update named no phase, or carried no rules to save.",
+  /** The rules failed the phase's schema (400). The validator's own detail — which
+   *  field, which bound — rides beside the code as DATA (`detail`): the composer
+   *  needs it, but it is English prose and must never be the thing the UI paints. */
+  DECISION_CONFIG_INVALID: "Those rules aren't valid for this phase.",
+  /** The rules changed since the client read them (409). Nothing was written: the draft
+   *  was built on a plan that is gone, so it is dropped rather than merged. */
+  DECISION_CONFIG_STALE: "Someone saved a newer version of these rules. Reload and make your change again.",
+  /** The board's column axis changed since the composer read it (409) — refused BEFORE
+   *  anybody is moved, since the stage ids the mapping names may no longer exist. */
+  PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -3,7 +3,9 @@ import { ReasoningError, runReasoning, type ReasoningInput } from "@/app/_lib/re
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { matrixEngineAnswer, MATRIX_REASONING_SURFACE } from "@/app/api/matrix/matrix-error-code";
 
 
 // Synchronous convenience wrapper. The hardened/background path is /api/tasks
@@ -21,7 +23,10 @@ export async function POST(request: NextRequest) {
   // session, where opening many cells is the intended use. Limiter first: a
   // refused call must not pay for the body parse or the locale read.
   if (!rateLimit(`match-reasoning:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    // matrix-answers-with-codes-and-retries: coded, so the grid's popover can say
+    // "you're going too fast, try again shortly" in the reader's language instead of
+    // the same generic "couldn't load" it shows for an engine crash.
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
     const body = (await request.json()) as ReasoningInput;
@@ -37,7 +42,16 @@ export async function POST(request: NextRequest) {
     const data = await runReasoning({ ...body, lang }, request.signal, await currentWorkspace());
     return NextResponse.json(data);
   } catch (error) {
-    if (error instanceof ReasoningError) return NextResponse.json({ error: error.message }, { status: error.status });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Reasoning failed." }, { status: 500 });
+    if (error instanceof ReasoningError) {
+      // ReasoningError carries only message + status (it is thrown from
+      // app/_lib/reasoning-run.ts, which several callers share), so the code is
+      // derived from the status — a 4xx is the caller's pair being unresolvable, a
+      // 5xx is the engine, and only the latter's message must be withheld.
+      const answer = matrixEngineAnswer({ status: error.status }, MATRIX_REASONING_SURFACE);
+      return answer.kind === "refusal"
+        ? jsonRefusal(answer.code, error.status)
+        : safeJsonError(error, "api:match/reasoning", answer.code, error.status);
+    }
+    return safeJsonError(error, "api:match/reasoning", "MATCH_REASONING_FAILED");
   }
 }

@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-02T22:57:43.343Z",
+ "generated_at": "2026-09-02T23:26:56.503Z",
  "provenance": {
-  "git_commit": "f5b9413d9d6750b5cce70b8b19aee96411dc561d",
-  "git_commit_count": 2200,
+  "git_commit": "b09a2be0b17e13cc236ab76228fcc4de06153fd6",
+  "git_commit_count": 2211,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-02T22:57:43.343Z"
+  "generated_at": "2026-09-02T23:26:56.503Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2795,
+  "files": 2806,
   "groups": 17,
   "use_cases": 12
  },
@@ -2022,7 +2022,9 @@
     "app/features/insights/matrix/matrixGridMemo.test.ts",
     "app/features/insights/matrix/matrixGridRoles.test.ts",
     "app/features/insights/matrix/matrixReasoningFetch.test.ts",
-    "app/features/insights/matrix/matrixReasoningFetch.ts"
+    "app/features/insights/matrix/matrixReasoningFetch.ts",
+    "app/features/insights/matrix/matrixTabState.test.ts",
+    "app/features/insights/matrix/matrixTabState.ts"
    ],
    "group": "Candidate Matching & Scoring",
    "group_id": "c202db2a-c86d-4e7f-ac94-914b6327e9b6",
@@ -2225,6 +2227,8 @@
     "app/api/match/reasoning/route.test.ts",
     "app/api/match/reasoning/route.ts",
     "app/api/match/route.ts",
+    "app/api/matrix/matrix-error-code.test.ts",
+    "app/api/matrix/matrix-error-code.ts",
     "app/api/matrix/route.ts"
    ],
    "group": "Candidate Matching & Scoring",
@@ -4847,6 +4851,7 @@
    "file_paths": [
     "app/_lib/attention-tenancy.test.ts",
     "app/_lib/attention.ts",
+    "app/_lib/decision-config-version.test.ts",
     "app/_lib/pipeline-axis-server.ts",
     "app/_lib/pipeline-axis.ts",
     "app/_lib/pipeline-command.test.ts",
@@ -5202,6 +5207,8 @@
     "app/features/settings/hiring/PipelineComposerBits.tsx",
     "app/features/settings/hiring/PipelineStepPolicy.tsx",
     "app/features/settings/hiring/PipelineStepsEditor.tsx",
+    "app/features/settings/hiring/composerState.test.ts",
+    "app/features/settings/hiring/composerState.ts",
     "app/features/settings/hiring/impact/ImpactDecisionsCard.tsx",
     "app/features/settings/hiring/impact/ImpactOverviewCard.tsx",
     "app/features/settings/hiring/impact/ImpactScheduleCard.tsx",
@@ -6468,10 +6475,14 @@
     "app/features/library/jds/intake/JdsIntakeLayoutTriptych.tsx",
     "app/features/library/jds/intake/JdsIntakePanel.tsx",
     "app/features/library/jds/intake/JdsIntakeVoice.tsx",
+    "app/features/library/jds/intake/intakeBriefDraft.test.ts",
+    "app/features/library/jds/intake/intakeBriefDraft.ts",
     "app/features/library/jds/intake/intakeLayoutShared.ts",
     "app/features/library/jds/intake/jdsIntakeLogic.ts",
     "app/features/library/jds/intake/voiceOrchestration.test.ts",
-    "app/features/library/jds/intake/voiceOrchestration.ts"
+    "app/features/library/jds/intake/voiceOrchestration.ts",
+    "app/features/library/jds/intake/voicePhase.test.ts",
+    "app/features/library/jds/intake/voicePhase.ts"
    ],
    "group": "Job & JD Management",
    "group_id": "3d0fab8c-b963-4864-a4a0-683577ec221f",

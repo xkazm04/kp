@@ -55,7 +55,8 @@
       "unattended": "Bez dozoru",
       "touchpointsLabel": "Rozhodnutí člověka",
       "bookingsN": "{count, plural, one {# kolo k naplánování} few {# kola k naplánování} other {# kol k naplánování}}",
-      "weekAria": "Typický týden"
+      "weekAria": "Typický týden",
+      "weekNote": "Ilustrativní týden, nikoli předpověď."
     },
     "save": "Uložit plán",
     "saving": "Ukládání…",
@@ -110,7 +111,15 @@
       "offer": "Pošlete nabídku a čekáte na odpověď.",
       "terminal": "Kandidát nabídku přijal. Tady nábor končí.",
       "custom": "Váš vlastní krok. Znamená přesně to, co potřebuje váš tým."
-    }
+    },
+    "occupancyUnknown": "Nepodařilo se zjistit, kdo stojí na jednotlivých krocích. Dokud kontrola neprojde, nelze krok odebrat.",
+    "occupancyRetry": "Zkusit znovu",
+    "blockedOccupancy": "Nevíme, kdo je na kterém kroku, takže odebrání nelze uložit. Zopakujte kontrolu výše.",
+    "blockedStranded": "Určete, kam se mají přesunout kandidáti z odebraných kroků.",
+    "refreshFailed": "Uloženo. Zobrazení se nepodařilo obnovit, může proto ukazovat předchozí plán.",
+    "refreshRetry": "Obnovit",
+    "stale": "Někdo mezitím uložil novější verzi tohoto procesu. Vaše změny se neuložily.",
+    "staleReload": "Načíst uložený plán"
   },
   "diagrams": {
     "eyebrow": "Architektura",
@@ -1450,7 +1459,17 @@
     "INVITE_EMAIL_INVALID": "Je potřeba platná e-mailová adresa.",
     "MEMBER_PERMISSIONS_CHANGED": "Oprávnění tohoto člena se během vaší úpravy změnila. Načtěte stránku znovu a zkuste to ještě jednou.",
     "ORG_SETTINGS_FORBIDDEN": "Nastavení organizace může měnit jen správce organizace.",
-    "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje."
+    "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "Změna pravidel neuvedla fázi nebo neobsahovala žádná pravidla k uložení.",
+    "DECISION_CONFIG_INVALID": "Tato pravidla nejsou pro tuto fázi platná.",
+    "DECISION_CONFIG_SAVE_FAILED": "Pravidla se nepodařilo uložit. Zkuste to prosím znovu.",
+    "MATRIX_BUILD_FAILED": "Matici vhodnosti se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "MATCH_REASONING_FAILED": "Tuto shodu se nepodařilo vysvětlit. Zkuste to prosím znovu.",
+    "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
+    "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit. Kandidát nebo pozice za ní už neexistuje.",
+    "DECISION_CONFIG_STALE": "Někdo uložil novější verzi těchto pravidel. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "PIPELINE_AXIS_STALE": "Někdo uložil novější verzi tohoto procesu. Načtěte jej znovu a proveďte změnu ještě jednou.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "Tato poznámka je delší, než může jeden podklad být. Zkraťte ji, nebo ji připojte po částech."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3803,7 +3822,9 @@
           "processing": "Zapisuje se hovor…",
           "unavailable": "Hlas není na tomto serveru nastavený. Pokračujte textem.",
           "failed": "Hovor se nepodařilo spustit. Pokračujte textem.",
-          "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem."
+          "storedNote": "Přepis hovoru je uložený. AI extrakce vyžaduje připojeného poskytovatele, takže zadání zůstalo beze změny. Pokračujte textem.",
+          "checkFailed": "Nepodařilo se zjistit, zda je hlas k dispozici. Zkuste to znovu, nebo pokračujte v textu.",
+          "recheck": "Zkusit znovu"
         },
         "edit": {
           "start": "Upravit zadání",
@@ -3875,7 +3896,9 @@
           "kindNote": "poznámka",
           "kindJd": "uložený popis pozice",
           "jdPick": "Vyberte uložený popis pozice…",
-          "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
+          "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
+          "noteFallbackTitle": "Poznámka bez názvu",
+          "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech."
         },
         "columns": {
           "col": {
@@ -6729,7 +6752,8 @@
     "modeGrid": "Mřížka",
     "modeFocus": "Detail kandidáta",
     "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo.",
-    "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení."
+    "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení.",
+    "retryLoad": "Zkusit znovu"
   },
   "analyze": {
     "modeNew": "Nová analýza",

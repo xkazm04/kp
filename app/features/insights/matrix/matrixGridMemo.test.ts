@@ -16,6 +16,7 @@ const row = readFileSync(new URL("./MatrixGridRow.tsx", import.meta.url), "utf8"
 const grid = readFileSync(new URL("./MatrixGrid.tsx", import.meta.url), "utf8");
 const tab = readFileSync(new URL("./useMatrixTab.ts", import.meta.url), "utf8");
 const keys = readFileSync(new URL("./useMatrixGridKeys.ts", import.meta.url), "utf8");
+const shared = readFileSync(new URL("./MatrixShared.tsx", import.meta.url), "utf8");
 
 test("the candidate row is an actual memo boundary", () => {
   assert.match(row, /export const MatrixGridRow = memo\(MatrixGridRowInner\)/, "the row must be memoized");
@@ -55,4 +56,25 @@ test("the scroll/resize anchor never touches React state", () => {
   // whole grid for a change only the popover can see.
   const reposition = tab.slice(tab.indexOf("const measure = ()"), tab.indexOf("window.addEventListener(\"keydown\""));
   assert.ok(!/setPopover/.test(reposition), "re-anchoring must not call setPopover");
+});
+
+// grid-chrome-holds-the-floor. The header strip was the row memo's mirror image: the
+// rows stopped re-rendering, and the <th> above each of them still recomputed a full
+// pass over the whole candidate pool — sort, median, five buckets — on every render,
+// once per visible column, for a number that only changes when the DATA changes.
+
+test("column stats are computed once per data change, not once per render per column", () => {
+  assert.ok(
+    !/columnStats\(/.test(shared),
+    "ColumnStats must RECEIVE the computed stat — calling columnStats() in the component body is the per-render pass this removes",
+  );
+  assert.match(tab, /const colStats = useMemo\(/, "the stats belong to the hook's memo chain, beside colScores");
+  assert.match(tab, /\[data, cols, colScores\]|\[colScores\]/, "…and recompute only when the scores do");
+  assert.match(grid, /colStats\[i\]/, "the grid indexes the memoized stats by column");
+});
+
+test("the column-stats strip is a memo boundary", () => {
+  // Without this the memoized stat object buys nothing: the <th> re-renders with the
+  // header row, and the histogram + its five bars rebuild anyway.
+  assert.match(shared, /export const ColumnStats = memo\(ColumnStatsInner\)/, "ColumnStats must be memoized");
 });

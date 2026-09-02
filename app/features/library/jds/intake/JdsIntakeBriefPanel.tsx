@@ -97,6 +97,8 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 export function JdsIntakeBriefPanel({
   brief,
+  intakeId,
+  updatedAt,
   frozen,
   saving,
   onSaveBrief,
@@ -107,6 +109,10 @@ export function JdsIntakeBriefPanel({
   appMasterSlot,
 }: {
   brief: RoleBrief | null;
+  /** The open session and the row version its brief was read at — the edit
+   *  form's draft key (intakeBriefDraft.ts). */
+  intakeId: string;
+  updatedAt: string | null;
   // Promoted session: the JD exists, the brief is frozen (edit hidden + note).
   frozen?: boolean;
   saving?: boolean;
@@ -147,6 +153,8 @@ export function JdsIntakeBriefPanel({
       ) : editing && brief && onSaveBrief ? (
         <JdsIntakeBriefEdit
           brief={brief}
+          intakeId={intakeId}
+          updatedAt={updatedAt}
           saving={saving ?? false}
           onSave={async (edited) => {
             // Close only on a CONFIRMED save. The form is the only copy of the
