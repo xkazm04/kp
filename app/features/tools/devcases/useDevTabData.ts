@@ -1,18 +1,27 @@
 // Case/posting/lifecycle/outbox loaders + the JD picker + the codebase-refs form
 // fields, split out of DevTab.tsx. Everything here is read/intake state; the
 // write actions (publish/source/approve/lifecycle-run) stay in useDevTabActions.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useTranslations } from "next-intl";
 import { useLoader } from "@/app/_lib/useLoader";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 import type { DevCaseDetail, JdSummary, Lifecycle, OutboxItem, Posting, SelectedJd } from "./DevTypes";
 
 export function useDevTabData() {
+  const t = useTranslations("devcase.studio.jds");
+  const errorMessage = useErrorMessage();
   // JD-first intake: the saved job description IS the need's metadata (title +
   // stack + responsibilities live in its body); the form only adds codebases +
   // a seniority target on top.
   const [jds, setJds] = useState<JdSummary[]>([]);
   const [jd, setJd] = useState<SelectedJd | null>(null);
   const [jdLoading, setJdLoading] = useState(false);
+  // The picker is REQUIRED intake — nothing on the Define tab can run without a JD —
+  // so a failed fetch used to leave the entrance looking like an empty library and
+  // pointed the operator at "save one" in a library that already had some. The
+  // failure is now named, in the reader's language, with a way back.
+  const [jdsError, setJdsError] = useState<string | null>(null);
   const [repoUrls, setRepoUrls] = useState<string[]>([""]);
   const [seniority, setSeniority] = useState("medior");
 
@@ -48,18 +57,33 @@ export function useDevTabData() {
   }, [loadCases, loadPostings, loadLifecycles, loadOutbox]);
 
   // The saved-JD library backing the picker (same source as the Analyze tab).
+  const [jdsReloadKey, setJdsReloadKey] = useState(0);
+  const reloadJds = useCallback(() => setJdsReloadKey((n) => n + 1), []);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/jds")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((p) => {
-        if (!cancelled && p?.jds) setJds(p.jds as JdSummary[]);
-      })
-      .catch(() => {});
+    (async () => {
+      try {
+        const r = await fetch("/api/jds");
+        const body = (await r.json().catch(() => null)) as
+          | ({ jds?: unknown } & { code?: string | null })
+          | null;
+        if (cancelled) return;
+        if (!r.ok) {
+          setJdsError(errorMessage(body, t("failed")));
+          return;
+        }
+        setJdsError(null);
+        if (body?.jds) setJds(body.jds as JdSummary[]);
+      } catch {
+        // Not silent: without the library the whole Define flow is unreachable, so
+        // the operator is told and offered a retry rather than shown an empty picker.
+        if (!cancelled) setJdsError(t("failed"));
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [jdsReloadKey, errorMessage, t]);
 
   // Picking a JD fetches its full body — that body travels as need.jdText, the
   // primary statement of the need the analyze step extracts metadata from.
@@ -137,7 +161,7 @@ export function useDevTabData() {
   };
 
   return {
-    jds, jd, jdLoading, pickJd,
+    jds, jd, jdLoading, pickJd, jdsError, reloadJds,
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesState, loadCases,

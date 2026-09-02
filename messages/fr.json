@@ -7518,6 +7518,23 @@
   },
   "devcase": {
     "studio": {
+      "applyPill": {
+        "noToken": "aucun jeton",
+        "copy": "Copier le lien de candidature à transmettre aux personnes candidates",
+        "copyAria": "Copier le lien de candidature dans le presse-papiers",
+        "copiedAria": "Lien de candidature copié dans le presse-papiers",
+        "copied": "Copié",
+        "token": "jeton {token}",
+        "blocked": "La copie est bloquée ici. Sélectionnez le lien et copiez-le à la main :"
+      },
+      "waiting": {
+        "title": "En attente du premier rendu",
+        "body": "Cet exercice est en ligne. Les personnes qui candidatent via les canaux ci-dessous arrivent ici, classées entre elles."
+      },
+      "jds": {
+        "failed": "Les fiches de poste enregistrées n’ont pas pu être chargées.",
+        "retry": "Réessayer"
+      },
       "dismiss": "Fermer",
       "loadLabel": "les exercices",
       "analysis": {

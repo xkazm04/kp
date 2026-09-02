@@ -22,6 +22,8 @@ export const STUDIO_LOCALIZED_FILES = [
   "DevCaseDetailShortlist.tsx",
   "DevCaseDetailChannels.tsx",
   "DevCompareSubmissions.tsx",
+  "DevApplyTokenPill.tsx",
+  "DevPublishConfirm.tsx",
   "DevCasesEmpty.tsx",
   "DevCasesTable.tsx",
   "DevTab.tsx",

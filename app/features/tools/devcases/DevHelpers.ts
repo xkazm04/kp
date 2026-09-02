@@ -1,3 +1,4 @@
+import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
 import type { CaseScenario, PerStepSources, RoleSpec, SourceDescriptor, SourceKind } from "./DevTypes";
 
 // Single source of truth for how each provenance state reads and looks, so the
@@ -74,7 +75,12 @@ export function caseToMarkdown(kase: CaseScenario, role?: RoleSpec | null): stri
   const meta = [
     role?.title,
     role?.seniority,
-    kase.timeboxHours ? `~${kase.timeboxHours}h timebox` : null,
+    // The CLAMPED number, not the stored one. This document is the artifact that
+    // travels to the candidate, and it was the last reader of `timeboxHours` that
+    // still printed it raw — so a reviewer who typed 6 saw "~2h" on the design card
+    // and handed out "~6h timebox" one step later. app/_lib/devcase-timebox.ts is
+    // the single producer of the number any human is shown.
+    `~${timeboxHoursForDisplay(kase.timeboxHours)}h timebox`,
   ].filter(Boolean);
   if (meta.length) lines.push("", `**${meta.join(" · ")}**`);
   if (kase.brief?.trim()) lines.push("", "## Brief", kase.brief.trim());

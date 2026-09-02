@@ -7518,6 +7518,23 @@
   },
   "devcase": {
     "studio": {
+      "applyPill": {
+        "noToken": "kein Token",
+        "copy": "Bewerbungslink kopieren und an Kandidaten weitergeben",
+        "copyAria": "Bewerbungslink in die Zwischenablage kopieren",
+        "copiedAria": "Bewerbungslink in der Zwischenablage",
+        "copied": "Kopiert",
+        "token": "Token {token}",
+        "blocked": "Kopieren ist hier blockiert. Markieren Sie den Link und kopieren Sie ihn von Hand:"
+      },
+      "waiting": {
+        "title": "Warten auf die erste Einreichung",
+        "body": "Diese Aufgabe ist live. Wer sich über die Kanäle unten bewirbt, landet hier und wird gegen die anderen eingeordnet."
+      },
+      "jds": {
+        "failed": "Die gespeicherten Stellenbeschreibungen konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
       "dismiss": "Schließen",
       "loadLabel": "Aufgaben",
       "analysis": {

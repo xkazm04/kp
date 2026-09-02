@@ -7518,6 +7518,23 @@
   },
   "devcase": {
     "studio": {
+      "applyPill": {
+        "noToken": "bez tokenu",
+        "copy": "Zkopírovat odkaz pro přihlášení a poslat ho kandidátům",
+        "copyAria": "Zkopírovat odkaz pro přihlášení do schránky",
+        "copiedAria": "Odkaz pro přihlášení je ve schránce",
+        "copied": "Zkopírováno",
+        "token": "token {token}",
+        "blocked": "Kopírování je zde zablokované. Označte odkaz a zkopírujte ho ručně:"
+      },
+      "waiting": {
+        "title": "Čekáme na první odevzdání",
+        "body": "Toto zadání je živé. Kandidáti, kteří se přihlásí přes kanály níže, se objeví zde a seřadí se mezi sebou."
+      },
+      "jds": {
+        "failed": "Uložené popisy pozic se nepodařilo načíst.",
+        "retry": "Zkusit znovu"
+      },
       "dismiss": "Zavřít",
       "loadLabel": "zadání",
       "analysis": {

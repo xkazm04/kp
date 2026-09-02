@@ -7,6 +7,9 @@ const { caseToMarkdown, findingsSource, approveFallbackFor } = await import("./D
 // The real approve gate, so the code literal the review panel keys off can't drift
 // away from the one the route returns. Pure + import-free by design.
 const { enforceProbeGate } = await import("../../../_lib/devcase-probe-audit.ts");
+// The policy cap, read from the generated taxonomy rather than re-typed: the number
+// this document prints is the one the cap says, whatever the cap becomes.
+const { DEVCASE_MAX_TIMEBOX_HOURS } = await import("../../../_lib/devcase-timebox.ts");
 
 test("caseToMarkdown composes the candidate-facing document, in order", () => {
   const md = caseToMarkdown(
@@ -21,12 +24,26 @@ test("caseToMarkdown composes the candidate-facing document, in order", () => {
   );
   const lines = md.split("\n");
   assert.equal(lines[0], "# Stabilize the ingest path");
-  assert.ok(md.includes("**Senior Backend Engineer · senior · ~6h timebox**"));
+  assert.ok(md.includes(`**Senior Backend Engineer · senior · ~${DEVCASE_MAX_TIMEBOX_HOURS}h timebox**`), md);
   // section order: Brief → What you're handed → Tasks
   assert.ok(md.indexOf("## Brief") < md.indexOf("## What you're handed"));
   assert.ok(md.indexOf("## What you're handed") < md.indexOf("## Tasks"));
   // an ordered-list item must stay on one line for the renderer
   assert.ok(md.includes("2. Fix the offset ordering"));
+});
+
+test("caseToMarkdown prints the CLAMPED timebox, the same number the design card shows", () => {
+  // The saved-assignment reader printed `kase.timeboxHours` raw while the design
+  // card one step earlier printed timeboxHoursForDisplay() of the same field. A
+  // reviewer who typed 6 saw "~2h" on approval and "~6h timebox" in the document
+  // they can copy to a candidate — and the document is the artifact that actually
+  // travels. One producer for the number now (app/_lib/devcase-timebox.ts), which
+  // is where the policy cap lives.
+  const md = caseToMarkdown({ title: "T", brief: "b", timeboxHours: 6 }, null);
+  assert.ok(md.includes(`~${DEVCASE_MAX_TIMEBOX_HOURS}h timebox`), md);
+  assert.ok(!md.includes("~6h"), "the unclamped number must never reach the candidate-facing document");
+  // A missing/garbage value falls back to the cap rather than vanishing or inventing one.
+  assert.ok(caseToMarkdown({ title: "T" }, null).includes(`~${DEVCASE_MAX_TIMEBOX_HOURS}h timebox`));
 });
 
 test("caseToMarkdown never includes internal material (probes / rubric / decision spaces)", () => {
@@ -48,8 +65,14 @@ test("caseToMarkdown never includes internal material (probes / rubric / decisio
 });
 
 test("caseToMarkdown degrades gracefully on an empty case", () => {
+  // An empty case still states a timebox: timeboxHoursForDisplay answers the policy
+  // cap for a missing value ("the largest thing any candidate can actually be
+  // handed"), which is exactly what the design card already shows unconditionally.
+  // Silence here would be the only place in the flow that promises nothing.
   const md = caseToMarkdown({}, null);
-  assert.equal(md, "# Assignment");
+  assert.equal(md, `# Assignment
+
+**~${DEVCASE_MAX_TIMEBOX_HOURS}h timebox**`);
 });
 
 test("findingsSource reads the EVALUATE step, not the combined run source", () => {

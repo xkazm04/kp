@@ -2,10 +2,11 @@
 
 // The case-detail header: back button, provenance badges, Publish/Source DB
 // actions, and the confirm-before-publish dialog — split out of DevCaseDetail.tsx.
-import { AlertTriangle, ArrowLeft, FileWarning, MicVocal, Send, Users } from "lucide-react";
+import { ArrowLeft, FileWarning, MicVocal, Send, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { DevCaseJobLink } from "./DevCaseJobLink";
+import { DevPublishConfirm } from "./DevPublishConfirm";
 import type { DegradedReason } from "./DevCaseDetail.publish";
 import type { DevCaseDetail } from "./DevTypes";
 
@@ -52,7 +53,6 @@ export function DevCaseDetailHeader({
 }) {
   const rel = useRelativeTime();
   const t = useTranslations("devcase.studio.detail");
-  const tReason = useTranslations("devcase.studio.degradedReason");
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -101,7 +101,12 @@ export function DevCaseDetailHeader({
             type="button"
             // #3 — open the confirm step instead of publishing on this single click.
             onClick={() => setConfirmingPublish(true)}
-            disabled={published || publishing || confirmingPublish}
+            // NOT disabled while the confirm panel is open: useDialogA11y restores
+            // focus to whatever had it when the panel mounted, and `.focus()` on a
+            // disabled button is a silent no-op — so closing with Escape used to drop
+            // a keyboard user onto <body>. `aria-expanded` states the panel is open,
+            // and re-opening what is already open is harmless.
+            disabled={published || publishing}
             aria-haspopup="dialog"
             aria-expanded={confirmingPublish}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
@@ -126,52 +131,19 @@ export function DevCaseDetailHeader({
       </div>
 
       {/* #3 — confirm-before-publish. Publishing is effectively irreversible from here,
-          so it takes an explicit confirm; a degraded case takes a "publish anyway" ack. */}
+          so it takes an explicit confirm; a degraded assignment takes a "publish anyway"
+          ack. Its own component so the focus/Escape wiring mounts and unmounts WITH it. */}
       {confirmingPublish && !published ? (
-        <div role="alertdialog" aria-label={t("confirmLabel")} className="rounded-lg border border-coral/30 bg-coral/5 p-4">
-          <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral">
-            <Send size={12} /> {t("confirmTitle")}
-          </h3>
-          <p className="mt-2 max-w-prose text-sm text-steel">{t("confirmBody")}</p>
-          {degraded ? (
-            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3">
-              <p className="flex items-center gap-1.5 text-meta font-semibold text-amber-700">
-                <AlertTriangle size={13} /> {t("degradedTitle")}
-              </p>
-              <ul className="mt-1.5 list-disc space-y-1 pl-5 text-xs text-amber-800">
-                {publishReasons.map((r) => (
-                  <li key={r}>{tReason(r)}</li>
-                ))}
-              </ul>
-              <label className="mt-2 flex items-start gap-2 text-xs font-medium text-amber-900">
-                <input
-                  type="checkbox"
-                  checked={ackDegraded}
-                  onChange={(e) => setAckDegraded(e.target.checked)}
-                  className="mt-0.5"
-                />
-                {t("degradedAck")}
-              </label>
-            </div>
-          ) : null}
-          <div className="mt-3 flex gap-1.5">
-            <button
-              type="button"
-              onClick={confirmPublish}
-              disabled={!canPublishNow || publishing}
-              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-micro font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
-            >
-              <Send size={12} /> {publishing ? t("publishing") : t("confirmCta")}
-            </button>
-            <button
-              type="button"
-              onClick={cancelPublish}
-              className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 bg-white px-3 text-micro font-semibold text-steel hover:text-ink"
-            >
-              {t("cancel")}
-            </button>
-          </div>
-        </div>
+        <DevPublishConfirm
+          publishing={publishing}
+          degraded={degraded}
+          publishReasons={publishReasons}
+          ackDegraded={ackDegraded}
+          setAckDegraded={setAckDegraded}
+          canPublishNow={canPublishNow}
+          confirmPublish={confirmPublish}
+          cancelPublish={cancelPublish}
+        />
       ) : null}
     </>
   );

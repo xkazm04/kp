@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, Plus, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, Sparkles, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 import { isSupportedRepoRef } from "./DevHelpers";
 import { Field } from "./DevShared";
@@ -15,6 +16,8 @@ export function NeedForm({
   jd,
   jdLoading,
   pickJd,
+  jdsError,
+  reloadJds,
   repoUrls,
   setRepoUrl,
   addRepo,
@@ -33,6 +36,8 @@ export function NeedForm({
   jd: SelectedJd | null;
   jdLoading: boolean;
   pickJd: (slug: string) => void;
+  jdsError: string | null;
+  reloadJds: () => void;
   repoUrls: string[];
   setRepoUrl: (index: number, value: string) => void;
   addRepo: () => void;
@@ -50,10 +55,29 @@ export function NeedForm({
   // A JD must be picked AND its body loaded before anything can run — the JD is the
   // need's metadata (title + stack + responsibilities), not an optional attachment.
   const jdMissing = jd == null || jdLoading;
+  const t = useTranslations("devcase.studio.jds");
   return (
     <section className="space-y-3 rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
       <Field label="Job description *">
-        {jds.length === 0 ? (
+        {/* A failed library fetch is NOT an empty library. Without this the entrance
+            pointed the operator at "save one" in a library that already had some, and
+            the retry was a full page reload. */}
+        {jdsError ? (
+          <p
+            role="alert"
+            className="flex flex-wrap items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/70 p-2 text-sm text-amber-800"
+          >
+            <AlertTriangle size={13} className="shrink-0" />
+            {jdsError}
+            <button
+              type="button"
+              onClick={reloadJds}
+              className="focus-ring font-semibold text-coral underline-offset-2 hover:underline"
+            >
+              {t("retry")}
+            </button>
+          </p>
+        ) : jds.length === 0 ? (
           <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
             No JDs saved.{" "}
             <Link href="/?tab=library" className="font-semibold text-coral underline-offset-2 hover:underline">

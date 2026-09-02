@@ -28,7 +28,7 @@ export function DevTab() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   const {
-    jds, jd, jdLoading, pickJd,
+    jds, jd, jdLoading, pickJd, jdsError, reloadJds,
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesState, loadCases,
@@ -146,6 +146,8 @@ export function DevTab() {
             jd,
             jdLoading,
             pickJd,
+            jdsError,
+            reloadJds,
             repoUrls,
             setRepoUrl,
             addRepo,

@@ -522,6 +522,53 @@ Still English, and still a gap: the define/outbox views (`DevTabDefineView`, `De
 `DevShared`'s "Listen for" / "Red flag" interviewer notes. `DevTabViews.ts` (the sub-tab
 labels and headings) remains the one piece of studio copy with no catalog behind it.
 
+### Small truths on the studio surface
+
+Six places where the studio was quietly less honest than it looked, closed in one pass:
+
+- **The publish confirm is a real dialog.** It shipped as `role="alertdialog"` and
+  nothing else: no focus moved into it, Escape did nothing, Tab walked out into the page
+  behind. It now lives in `DevPublishConfirm.tsx` (its own component, because
+  `useDialogA11y`'s effect runs on MOUNT and the header is mounted the whole time) and
+  uses the shared `useDialogA11y` hook with `trap: true, lockScroll: false`. It is
+  deliberately NOT the shared `Modal`: `Modal` portals to `document.body`, scrims the page
+  and locks scroll, and this confirm is meant to appear inline under the header with the
+  assignment still readable beneath it. The Publish trigger also stopped being `disabled`
+  while the panel is open, because focus restore is `previouslyFocused?.focus?.()` and
+  that is a silent no-op on a disabled button, so Escape used to drop a keyboard user onto
+  `<body>`; `aria-expanded` states the open-ness instead.
+- **A blocked clipboard no longer eats the apply link.** `navigator.clipboard` is
+  undefined on an insecure origin and rejects when denied, both routine for a self-hosted
+  install reached over plain http on a LAN address. The catch was a no-op AND the URL was
+  never rendered, only copied, so the one artifact the panel exists to hand out was
+  unreachable. `DevApplyTokenPill` now shows the URL as `select-all` text under a
+  `role="status"` line when the copy fails.
+- **A failed JD fetch is named, not mistaken for an empty library.** `useDevTabData`'s
+  `/api/jds` load ended in `.catch(() => {})`, so an outage rendered the *"No JDs saved,
+  save one"* empty state and sent the operator to save a JD they already had. It now
+  resolves the server's machine code through `useErrorMessage()`, falls back to
+  `devcase.studio.jds.failed`, and `DevNeedForm` renders it with a retry that re-fetches
+  instead of demanding a page reload. The outage branch is checked BEFORE the
+  `jds.length === 0` branch, and the order is pinned by a test.
+- **The saved assignment prints the clamped timebox.** `caseToMarkdown` was the last
+  reader of `case.timeboxHours` that printed it raw, one step after the design card showed
+  `timeboxHoursForDisplay()` of the same field — so a reviewer who typed 6 saw "~2h" on
+  approval and handed out "~6h timebox" in the document that actually travels to the
+  candidate. Both now read `app/_lib/devcase-timebox.ts`, which is where the policy cap
+  lives, and an empty assignment states the cap rather than staying silent.
+- **A live assignment with no applicants says so.** `CompareSubmissions` needs two
+  evaluated submissions, the shortlist needs one and the interview kit needs a scored top,
+  so a freshly-published assignment rendered three nothings in a row and simply stopped
+  after the internal panels. One "waiting for the first submission" panel now stands in
+  for all three, and only when the assignment is actually published.
+- **`source()` is single-flight.** It was the one write action on the tab without a
+  guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
+  row it was clicked on: a click on a second row seeded the pipeline twice.
+
+The four behaviours with no DOM to test against are pinned as source shape in
+`devcase-studio-robustness.test.ts` — the same idiom as `DevTab.approve-error.test.ts`,
+and it says in the file that shape assertions are what they are.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:

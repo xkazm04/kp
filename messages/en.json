@@ -7518,6 +7518,23 @@
   },
   "devcase": {
     "studio": {
+      "applyPill": {
+        "noToken": "no token",
+        "copy": "Copy the apply link to share with candidates",
+        "copyAria": "Copy apply link to clipboard",
+        "copiedAria": "Apply link copied to clipboard",
+        "copied": "Copied",
+        "token": "token {token}",
+        "blocked": "Copying is blocked here. Select the link and copy it by hand:"
+      },
+      "waiting": {
+        "title": "Waiting for the first submission",
+        "body": "This assignment is live. Candidates who apply through the channels below land here, ranked against each other."
+      },
+      "jds": {
+        "failed": "The saved job descriptions could not be loaded.",
+        "retry": "Try again"
+      },
       "dismiss": "Dismiss",
       "loadLabel": "assignments",
       "analysis": {

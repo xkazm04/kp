@@ -100,6 +100,12 @@ export function useDevTabActions(args: {
   };
 
   const source = async (caseId: string) => {
+    // single-flight, the same reason publish has one: sourcing ranks the candidate DB
+    // and WRITES pipeline entries, and `sourcing` only pins the button for the id it
+    // was clicked on — so a second click on a different row (or the same one, before
+    // the fetch settles) seeded the pipeline twice. This was the one write action on
+    // the tab without the guard.
+    if (sourcing) return;
     setSourcing(caseId);
     try {
       await runAction(
