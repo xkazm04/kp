@@ -287,6 +287,11 @@ const config = [
     // door-coverage census's business (scripts, not lint) — this rule pins the
     // declaration convention, not routing.
     // ---------------------------------------------------------------------
+    // `uat/` is recorded driver scripts and archived shots, not product code: the
+    // 0-violation baseline was measured over the product tree, and 16 empty
+    // blocks live only there (pre-push runs `eslint .`, so this carve-out is
+    // what keeps the gate honest rather than the cache).
+    ignores: ["uat/**"],
     rules: {
       "no-empty": ["error", { allowEmptyCatch: false }]
     }
