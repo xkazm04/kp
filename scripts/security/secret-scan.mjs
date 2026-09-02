@@ -94,7 +94,7 @@ export const SECRET_PATTERNS = [
  * above and its fixtures, so scanning them reports the rule as a violation of
  * itself. That last carve-out is the same self-reference `SELF_RE` already
  * handles for the diff lens — narrow, named, and not a general "tests are
- * exempt" hole: a key committed in `app/**/*.test.ts` is still a leaked key and
+ * exempt" hole: a key committed in a test file under `app/` is still a leaked key and
  * still blocks.
  */
 export const SECRET_EXEMPT = [
