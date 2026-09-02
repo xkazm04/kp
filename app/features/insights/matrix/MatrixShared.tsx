@@ -1,5 +1,6 @@
+import { memo } from "react";
 import { useTranslations } from "next-intl";
-import { columnStats, MATRIX_BANDS, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
+import { MATRIX_BANDS, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
 import { BLOCKED_CELL } from "./matrixCellClass";
 
 // Cell, BLOCKED_CELL and cellClass moved to the JSX-free `matrixCellClass.ts` so they
@@ -15,11 +16,16 @@ const BAND_FILL = MATRIX_BANDS.map((b) => b.fill);
 // MAT2 — a compact distribution strip under a position header: a 5-bar histogram
 // of the column's non-blocked scores (bands match the legend) plus best / median /
 // strong-count. Reads the column's pool fit at a glance: deep bench vs one hit.
-export function ColumnStats({ scores }: { scores: number[] }) {
+//
+// grid-chrome-holds-the-floor: this used to run the columnStats pass in its own body,
+// once per visible column, on EVERY render of the header row — a sort, a median and five
+// buckets over the whole candidate pool for a number that only changes when the data
+// does. The stat now arrives precomputed from the hook's memo chain, and the component
+// is a memo boundary so the strip does not rebuild with the header around it.
+function ColumnStatsInner({ stat: s }: { stat: ColumnStat }) {
   const t = useTranslations("matrix");
-  const s: ColumnStat = columnStats(scores);
   if (s.count === 0) {
-    return <div className="mt-1 text-[10px] text-stone-400">{t("noFits")}</div>;
+    return <div className="mt-1 text-xs text-stone-400">{t("noFits")}</div>;
   }
   const maxBucket = Math.max(...s.buckets, 1);
   return (
@@ -36,7 +42,7 @@ export function ColumnStats({ scores }: { scores: number[] }) {
           />
         ))}
       </div>
-      <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-none text-steel">
+      <div className="mt-0.5 flex items-center gap-1 text-xs leading-none text-steel">
         <span className="nums font-semibold text-ink">{s.best}</span>
         <span className="text-stone-400">·</span>
         <span className="nums">~{s.median}</span>
@@ -45,6 +51,8 @@ export function ColumnStats({ scores }: { scores: number[] }) {
     </div>
   );
 }
+
+export const ColumnStats = memo(ColumnStatsInner);
 
 export function MatrixLegend() {
   const t = useTranslations("matrix");

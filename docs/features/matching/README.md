@@ -546,6 +546,33 @@ and `pickGridState` (the six-way branch whose ORDER is the contract — an error
 outranks a stale `?job=`, which outranks an empty pool, which outranks a pool
 filtered to nothing).
 
+### The header strip costs what the data costs, not what the render costs
+The row memo had a mirror image above it. Each position `<th>` renders
+`ColumnStats`, which called `columnStats(scores)` in its own body — a sort, a
+median and five buckets over the whole candidate pool — once per visible column,
+on every render of the header row, for a value that changes only when the grid's
+data does. `useMatrixTab` now computes `colStats` in the same memo chain as
+`colScores`, and `ColumnStats` takes the finished `ColumnStat` and is itself a
+`memo` boundary (a module-level `EMPTY_COLUMN_STAT` stands in for an unscored
+column, so no fresh object crosses that boundary). Pinned structurally by
+`matrixGridMemo.test.ts`.
+
+The popover's clamp had the opposite problem — a parameter nobody passed.
+`computePopoverPosition` accepted a `PopoverDims`, and every call site let it
+default to 320 × 340 while the dialog it clamps is `w-80 max-h-[60vh]`: the width
+agreed, the height was viewport-relative and so wrong in both directions.
+`popoverDims(viewport, measuredHeight?)` (`matrixPopover.ts`) restates the class
+list once — 320 wide, a 60vh ceiling — and the re-anchor pass measures the real
+dialog box, capped by that ceiling. The first placement has nothing to measure
+yet and takes the ceiling. `matrixPopover.test.ts` covers the short-viewport
+case, which is where the old constant was furthest off.
+
+Same pass: the bulk add's per-cell `find` plus a redundant `findIndex` on each
+axis collapsed into one index map per axis, and the grid's chrome moved onto the
+shared recipes (`BTN_SECONDARY`, `TOGGLE_GROUP`/`toggleBtn`, `CHIP`,
+`CHIP_TOGGLE`, `PANEL`, `BTN_PRIMARY`) with the two `text-[10px]` labels in the
+stats strip raised to the 14px type floor.
+
 ### The grid does not re-render while you scroll
 The popover follows its cell: `useMatrixTab` listens for `scroll` in the capture
 phase (so the grid's own `overflow-auto` scroller fires it too) plus `resize`,

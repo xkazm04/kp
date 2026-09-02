@@ -10,10 +10,10 @@ import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Cell } from "./matrixCellClass";
-import { STRONG_THRESHOLD } from "./matrixStats";
+import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
-import { computePopoverPosition } from "./matrixPopover";
+import { computePopoverPosition, popoverDims } from "./matrixPopover";
 import { createFrameThrottle } from "./matrixAnchor";
 import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
@@ -190,7 +190,16 @@ export function useMatrixTab() {
       const node = dialogRef.current;
       if (!el || !node || typeof el.getBoundingClientRect !== "function") return;
       const r = el.getBoundingClientRect();
-      const rect = computePopoverPosition({ left: r.left, bottom: r.bottom }, { width: window.innerWidth, height: window.innerHeight });
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      // Measure the REAL dialog rather than trusting the module's 320×340 guess: the card
+      // is `w-80 max-h-[60vh]`, so on a tall window its 340 was a 140px under-estimate (the
+      // popover was clamped further down the page than it needed to be) and on a short one
+      // an over-estimate. The clamp is only as good as the size it is given.
+      const rect = computePopoverPosition(
+        { left: r.left, bottom: r.bottom },
+        viewport,
+        popoverDims(viewport, node.getBoundingClientRect().height),
+      );
       node.style.top = `${rect.top}px`;
       node.style.left = `${rect.left}px`;
     };
@@ -315,6 +324,20 @@ export function useMatrixTab() {
     return out;
   }, [data, cols]);
 
+  // grid-chrome-holds-the-floor: the per-column distribution the header strip renders.
+  // ColumnStats used to compute this itself, in its own body, once per visible column on
+  // every render of the header row — an O(pool) sort + median + bucketing for a value
+  // that changes only when `colScores` does. Computed here, once, it is also a STABLE
+  // object per column, which is what lets the memoized ColumnStats actually skip.
+  const colStats = useMemo(() => {
+    const out: Record<number, ColumnStat> = {};
+    for (const key of Object.keys(colScores)) {
+      const i = Number(key);
+      out[i] = columnStats(colScores[i]);
+    }
+    return out;
+  }, [colScores]);
+
   // Coverage rollup (the value prop the context is named for): which OPEN roles have
   // ZERO strong fits in the pool. The per-column strong counts already exist (colScores
   // + STRONG_THRESHOLD); nothing surfaced "3 of 8 roles have no strong candidate — source
@@ -401,10 +424,14 @@ export function useMatrixTab() {
     // Remember the trigger so focus can be restored on close and the popover can be
     // re-anchored to the LIVE cell rect on resize/scroll (skill-matrix-coverage #5).
     triggerRef.current = ev.currentTarget;
-    const rect = computePopoverPosition(
-      { left: r.left, bottom: r.bottom },
-      { width: typeof window !== "undefined" ? window.innerWidth : 1024, height: typeof window !== "undefined" ? window.innerHeight : 768 },
-    );
+    const viewport = {
+      width: typeof window !== "undefined" ? window.innerWidth : 1024,
+      height: typeof window !== "undefined" ? window.innerHeight : 768,
+    };
+    // The dialog is not mounted yet on this first placement, so there is nothing to
+    // measure — `popoverDims` falls back to the max-height the class list declares, and
+    // the effect above re-anchors against the real box on the next scroll/resize.
+    const rect = computePopoverPosition({ left: r.left, bottom: r.bottom }, viewport, popoverDims(viewport));
     setPopover({ candId: cand.id, posId: pos.id, cand, pos, cell, rect });
     if (!cell.blocked) fetchReasoning(cand.id, pos.id);
   }, [fetchReasoning]);
@@ -428,17 +455,26 @@ export function useMatrixTab() {
     setAdding(true);
     const failed = new Set<string>();
     let ok = 0;
+    // One index pass over each axis instead of a find + a redundant findIndex PER
+    // selected cell: the two scans answered the same question twice (the record, then
+    // the position of the record), and a bulk add over a 200-candidate pool paid both
+    // for every tick. The maps also make the duplicate-id case explicit — a later
+    // duplicate loses, which is the same record `find`/`findIndex` already agreed on.
+    const candIdx = new Map<string, number>();
+    data.candidates.forEach((c, i) => { if (!candIdx.has(c.id)) candIdx.set(c.id, i); });
+    const posIdx = new Map<string, number>();
+    data.positions.forEach((p, i) => { if (!posIdx.has(p.id)) posIdx.set(p.id, i); });
     for (const key of selected) {
       const [candId, posId] = key.split("|");
-      const cand = data.candidates.find((c) => c.id === candId);
-      const pos = data.positions.find((p) => p.id === posId);
+      const ri = candIdx.get(candId) ?? -1;
+      const ci = posIdx.get(posId) ?? -1;
+      const cand = ri >= 0 ? data.candidates[ri] : undefined;
+      const pos = ci >= 0 ? data.positions[ci] : undefined;
       if (!cand || !pos) {
         failed.add(key);
         continue;
       }
-      const ri = data.candidates.findIndex((c) => c.id === candId);
-      const ci = data.positions.findIndex((p) => p.id === posId);
-      const score = ri >= 0 && ci >= 0 ? data.cells[ri]?.[ci]?.score ?? null : null;
+      const score = data.cells[ri]?.[ci]?.score ?? null;
       // A selectable cell always carries a real score, so a null here means the index
       // lookup missed (e.g. a duplicate id in candidates/positions). Fail the add rather
       // than silently filing the candidate with a null/incorrect match score.
@@ -535,6 +571,7 @@ export function useMatrixTab() {
     rowStrong,
     colScores,
     coverage,
+    colStats,
     open,
     viewFullMatchAndClose,
     openCell,

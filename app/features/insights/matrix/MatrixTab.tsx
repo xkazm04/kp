@@ -290,7 +290,7 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
             data={data!}
             cols={cols}
             rows={rows}
-            colScores={m.colScores}
+            colStats={m.colStats}
             rowStrong={m.rowStrong}
             sortCol={m.sortCol}
             setSortCol={m.setSortCol}
