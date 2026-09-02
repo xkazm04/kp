@@ -25,8 +25,10 @@ test("the regenerated design is only written while the lifecycle is STILL at the
   const designAt = src.indexOf("await runDesignArtifacts(");
   assert.ok(designAt >= 0, "expected the design call this guard exists around");
 
-  // A re-read of the lifecycle AFTER the design await — the pre-check's `lc` is stale by then.
-  const recheckAt = src.indexOf("getLifecycle(id)", designAt);
+  // A re-read of the lifecycle AFTER the design await — the pre-check's `lc` is stale by
+  // then. The re-read goes through the shared owner guard (devcase-owned-lifecycle.ts),
+  // which is the route's only reader of this row, so the marker is that call.
+  const recheckAt = src.indexOf("ownedLifecycle(id, workspace)", designAt);
   assert.ok(recheckAt > designAt, "the lifecycle must be re-read after the design call, not only before it");
 
   // …guarded by the same review-gate predicate as the pre-check…

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db/devcase";
+import { approveLifecycleCase } from "@/app/_lib/db/devcase";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+// The shared by-id owner guard (sibling module - a route file may export only handlers).
+import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
@@ -57,7 +60,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const body = (await request.json().catch(() => ({}))) as { case?: unknown; overrideProbeAudit?: unknown };
     const coerced = coerceCaseEdits(body.case);
     const edits = coerced?.edits ?? null;
-    const lc = getLifecycle(id);
+    // OWNERSHIP. A lifecycle id is a globally-unique point-read key, so this route used
+    // to approve ANOTHER studio's lifecycle into a live case on a known id. A cross-tenant
+    // id now answers the same 404 a nonexistent one does - never an existence oracle.
+    const lc = ownedLifecycle(id, await currentWorkspace());
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
     if (isAtReviewGate(lc.stage)) {
       // Persist the dev case + flip to "approved" atomically (the one shared

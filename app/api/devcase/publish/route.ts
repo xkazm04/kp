@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDevCase } from "@/app/_lib/db/devcase";
+// The shared by-id owner guard (sibling module - a route file may export only handlers).
+import { ownedDevCase } from "../devcase-owned-lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getAdapter } from "@/app/_lib/distribution";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -11,15 +12,15 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { caseId?: string; channel?: string };
     if (!body.caseId) return NextResponse.json({ error: "caseId is required." }, { status: 400 });
     const ws = await currentWorkspace();
-    const devCase = getDevCase(body.caseId);
     // getDevCase is a by-id point read (globally-unique id), so ownership is checked
-    // here — the same guard /api/devcase/source and /promote make. Unguarded, a known
+    // here — through the SHARED guard all six by-id doors now use. Unguarded, a known
     // case id from another team published through this door: createPosting inherits the
     // CASE's workspace, so a first publish minted a live apply token inside THEIR studio
     // and a re-publish re-selected their existing OPEN posting — handing its token back
     // in this response. That token is the bearer credential for their candidate surface
     // (it starts sessions, spends their chat budget, injects submissions).
-    if (!devCase || devCase.workspaceId !== ws) return NextResponse.json({ error: "case not found" }, { status: 404 });
+    const devCase = ownedDevCase(body.caseId, ws);
+    if (!devCase) return NextResponse.json({ error: "case not found" }, { status: 404 });
     const posting = await getAdapter(body.channel ?? "local").publish(devCase);
     return NextResponse.json({ posting });
   } catch (error) {

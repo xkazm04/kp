@@ -696,10 +696,13 @@ either exposes a credential or kills a link a candidate already gave an employer
 
 ## Recruiter-door ownership (multi-team deployments)
 
-The recruiter routes that act on an entity **by id** take that id from the request body,
-and `getDevCase` / `getSubmission` are unscoped point reads on globally-unique ids — so
-each such door compares the row's own `workspaceId` against `currentWorkspace()` and 404s
-a foreign entity. `/api/devcase/source` and `/api/devcase/promote` have always done this;
+The recruiter routes that act on an entity **by id** take that id from the request body
+or the path, and `getDevCase` / `getSubmission` / `getLifecycle` are unscoped point reads
+on globally-unique ids — so each such door compares the row's own `workspaceId` against
+`currentWorkspace()` and 404s a foreign entity. That comparison has **one producer**:
+`ownedLifecycle` / `ownedSubmission` / `ownedDevCase` in
+`app/api/devcase/devcase-owned-lifecycle.ts` (a sibling module, because a route file may
+export only handlers). `/api/devcase/source` and `/api/devcase/promote` have always done this;
 `/api/devcase/publish`, `/api/devcase/feedback`, `/api/devcase/submit` and
 `/api/devcase/skill-profile` now do too. Unguarded, publish inherited the *case's*
 workspace and handed back that team's live apply token (or minted one inside their studio),
@@ -721,13 +724,33 @@ carried the same hole:
   breaking `/skill` links the candidate had already shared.
 
 Both refuse with the same 404 body a genuinely-unknown id gets, so neither is an existence
-oracle. Pinned by `app/_lib/devcase-source-promote-tenancy.test.ts`,
+oracle. Pinned by `app/api/devcase/devcase-lifecycle-tenancy.test.ts`,
+`app/_lib/devcase-source-promote-tenancy.test.ts`,
 `app/api/devcase/publish/route.test.ts`, `app/api/devcase/feedback/route.test.ts`,
 `app/api/devcase/submit/route.test.ts` and `app/api/devcase/skill-profile/route.test.ts`.
 
-The lifecycle transitions derive their tenant from the **lifecycle row**, not the session
-(`[id]/close`, `[id]/approve`), and both write-after-await paths re-check their gate before
-writing: close claims the terminal stage with a compare-and-swap (`claimLifecycleClose`)
+### The three lifecycle doors that did not check
+
+`[id]/approve`, `[id]/close` and `[id]/redesign` loaded a lifecycle by id with **no
+workspace comparison at all** while feedback, promote and publish checked — so a known
+lifecycle id was enough to approve another studio's designed case into a live one, to
+close their lifecycle (which dispatches a wrap-up **rejection** to every one of their
+non-promoted candidates), or to redesign their brief *while debiting the caller's
+`case_designs` meter*. All three now call `ownedLifecycle(id, ws)` first and answer the
+same 404 a nonexistent id gets. Pinned behaviorally, per door, in
+`app/api/devcase/devcase-lifecycle-tenancy.test.ts` — cross-tenant refusal plus a control
+proving the guard is not over-broad. The control-room global kill switch is deliberately
+unchanged; it is an operator-wide switch, not a by-id door.
+
+One consequence for tests: a handler driven directly has no cookie jar, so
+`currentWorkspace()` falls back to the default workspace. `close-tenancy.test.ts`
+therefore proves the close *behaviour* in the default workspace and pins the
+`listPostings(lc.workspaceId)` argument-threading (the half a default-tenant behavioral
+test can no longer see) with a source guard in the same file.
+
+The lifecycle transitions still derive the tenant of their **work** from the lifecycle row
+rather than the session — the ownership guard decides only whether the caller may act on
+the row — and both write-after-await paths re-check their gate before writing: close claims the terminal stage with a compare-and-swap (`claimLifecycleClose`)
 before the first `sendComm`, and `[id]/redesign` re-reads the lifecycle after its ~60 s
 design call and **409**s rather than overwriting a case another reviewer already approved
 and published.

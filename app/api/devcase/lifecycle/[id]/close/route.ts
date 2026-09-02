@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { claimLifecycleClose, getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
+import { claimLifecycleClose, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+// The shared by-id owner guard (sibling module - a route file may export only handlers).
+import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { sendComm } from "@/app/_lib/comms";
 import { recordAudit } from "@/app/_lib/dev-control";
 
@@ -14,7 +17,12 @@ import { recordAudit } from "@/app/_lib/dev-control";
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const lc = getLifecycle(id);
+    // OWNERSHIP. Closing dispatches a wrap-up rejection to every non-promoted submitter,
+    // so a known lifecycle id from another studio used to reach THEIR candidates through
+    // this door. A cross-tenant id now answers the same 404 a nonexistent one does. The
+    // row's own workspace still drives the enumeration and the outbox filing below - that
+    // is the tenant of the WORK; this is the tenant of the CALLER.
+    const lc = ownedLifecycle(id, await currentWorkspace());
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
 
     // ATOMIC CLAIM (bug-ui-scan-2026-07-09 #1). The old guard read `lc.stage`, then
