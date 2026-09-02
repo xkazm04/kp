@@ -7,7 +7,7 @@ import {
 } from "@/app/_lib/companion-brain";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // The companion's MEMORY CONSENT door (docs/features/companion/README.md, WP4).
@@ -34,10 +34,21 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // Operator-gated like the rest of /api/companion, and workspace-scoped: consent
 // is a tenant fact even though the tree it consents to is machine-wide.
 
-export async function GET() {
+export async function GET(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
+    // Spawn protection, same premise as the POST's and a looser budget for the
+    // reason the two differ: the probe CREATES NOTHING and calls no model, but it
+    // still starts a Python child per request, and in open mode (no
+    // KP_OPERATOR_PASSWORD) the gate above is a no-op for the whole API — so a
+    // polling tab could keep the box spawning. 60/10min is one probe every ten
+    // seconds sustained; the wizard asks this question a handful of times at
+    // first run, so only a loop can meet it. Nothing cheap precedes it here (the
+    // operator gate is not budget), so it sits first.
+    if (!rateLimit(`companion-brain-probe:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     const ws = await currentWorkspace();
     return NextResponse.json(companionBrainStatus(await probeCompanionBrain(), ws));
   } catch (error) {
@@ -58,7 +69,8 @@ export async function POST(request: Request) {
     // AFTER the cheap 400 so a malformed call never starts a process, and before
     // the spawn itself. Far above human pace: this is answered once at first run.
     if (!rateLimit(`companion-brain:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      // RATE_LIMITED_ERROR through the refusal chokepoint (api-contracts.md §1.1).
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const ws = await currentWorkspace();
     // The disk is re-read HERE rather than trusted from the GET the wizard made

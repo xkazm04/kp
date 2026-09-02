@@ -562,7 +562,7 @@ Operator-gated routes, all workspace-scoped through the store's own tenancy.
 | `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns, its proposals AND `memoryEnabled` — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
 | `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something |
 | `POST /api/companion/[id]/message` | one exchange. Returns the thread's full turn list AND its live proposals |
-| `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled` |
+| `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled`. Per-IP 60/10min — it creates nothing and calls no model, but it is still a Python child per request, and in open mode the operator gate above it is a no-op for the whole API |
 | `POST /api/companion/brain` | **WP4.** `{action: "connect" \| "birth"}`. Records consent; `birth` runs `ensure_brain` first, so consent is never stamped over a brain that does not exist. Per-IP 20/10min, after the 400 so a malformed call never starts a process. There is no "decline" |
 | `POST /api/companion/proposals/[id]/resolve` | **WP3.** `{decision: "accept" \| "decline"}`. The one door that executes anything — see "The proposal lifecycle". Per-IP 60/10min, pinned in `app/api/rate-limit-contract.test.ts`, after the 404/400/409 refusals so a rejected call never consumes budget |
 
@@ -600,6 +600,37 @@ Throttle: per-IP 30/10min on the message route, pinned in
 `app/api/rate-limit-contract.test.ts`. It runs after the cheap refusals (404 for
 an unknown or other-tenant thread, 400 for an empty message) so a rejected call
 never consumes budget.
+
+### Refusals carry a code, and a vanished thread is one
+
+Every companion 4xx goes through the refusal chokepoint
+(`jsonRefusal` / `REFUSAL_ERRORS`, `docs/architecture/api-contracts.md` §1.1), so
+the dock resolves `errors.<CODE>` in the reader's language instead of printing
+the server's English. Two codes are the companion's own:
+
+- **`COMPANION_THREAD_NOT_FOUND` (404)** — an unknown or other-tenant thread, and
+  also a thread **deleted mid-request**. Both store writers re-check the thread
+  inside their own transaction and answer `null`; the route used to discard that
+  answer and reply `200` with a turn list missing the exchange it was reporting —
+  the one failure shape a dock cannot detect. The check on the operator's own turn
+  sits before the spawn, so a vanished thread never buys a model call.
+- **`TOO_MANY_REQUESTS` (429)** — the shared throttle, on all four routes. The
+  message is `RATE_LIMITED_ERROR` itself (the registry entry *is* the constant,
+  pinned by `rate-limit-contract.test.ts`); it is deliberately NOT the existing
+  `errors.RATE_LIMITED`, which is GitHub's upstream policy refusal and would
+  answer a throttled companion turn with advice about `GITHUB_TOKEN`.
+
+**Abort travels with the request.** `runCompanionTurn` takes the handler's
+`request.signal` and `spawnCompanion` hands it to `spawnPython`, so a closed tab
+or a dock unmounted mid-turn kills the child instead of leaving a 120-second
+spawn and a paid model call running to nobody.
+
+**The derived title is written under a precondition.** Both callers decide
+`!thread.title.trim()` from a read that predates the write — by a whole model call
+on the digest leg — so `renameThread`'s UPDATE re-asserts `title = ''` and reports
+`changes === 0` rather than overwriting the title the other leg just derived.
+
+Source guard for all of the above: `app/api/companion/companion-route-hygiene.test.ts`.
 
 ## Dock
 

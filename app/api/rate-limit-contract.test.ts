@@ -57,6 +57,14 @@ type RouteSpec = {
   /** The exact defining line for `optsSrc`; must precede the limiter call and must
    *  itself spell out the pinned limit and window. */
   optsDef?: string;
+  /** Routes that answer the throttle through the REFUSAL CHOKEPOINT
+   *  (`jsonRefusal("TOO_MANY_REQUESTS", 429)`) rather than hand-rolling the
+   *  envelope. The shared message still reaches the client — REFUSAL_ERRORS'
+   *  TOO_MANY_REQUESTS IS `RATE_LIMITED_ERROR`, pinned by its own test below —
+   *  and the response additionally carries the machine code, so a throttled dock
+   *  can say WHICH refusal happened in the reader's language instead of painting
+   *  the server's English string (api-contracts.md 1.1). */
+  refusalCode?: "TOO_MANY_REQUESTS";
   /** A snippet marking the expensive work the limiter must precede. */
   expensive: string;
   /** Optional snippet that must run BEFORE the limiter (a branch that keeps serving freely). */
@@ -258,10 +266,11 @@ const ROUTES: RouteSpec[] = [
     rel: "./companion/[id]/message/route.ts",
     key: "`companion-message:${clientIpFrom(request.headers)}`",
     limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runCompanionTurn(",
     // The 404 (unknown / other-tenant thread) and the 400 (empty message) keep
     // their semantics ahead of the throttle, so a rejected call never consumes budget.
-    servedBefore: "if (!thread) return NextResponse.json",
+    servedBefore: 'if (!thread) return jsonRefusal("COMPANION_THREAD_NOT_FOUND", 404)',
   },
   {
     // ADDED with the route (operator companion WP3). Per-IP. 60/10min: accepting
@@ -272,6 +281,7 @@ const ROUTES: RouteSpec[] = [
     rel: "./companion/proposals/[id]/resolve/route.ts",
     key: "`companion-resolve:${clientIpFrom(request.headers)}`",
     limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
     // The CALL SITE. `claimProposal(` also appears in this route's import, which
     // precedes the limiter, so the generic marker would fail on ordering rather
     // than on a real regression.
@@ -290,12 +300,32 @@ const ROUTES: RouteSpec[] = [
     rel: "./companion/brain/route.ts",
     key: "`companion-brain:${clientIpFrom(request.headers)}`",
     limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
     // The CALL SITE. Both helper names also appear in the import block above the
     // limiter, so a bare name would fail on ordering rather than on a regression.
     expensive: "? await birthCompanionBrain()",
     // The 400 (an action that is neither connect nor birth) keeps its semantics
     // ahead of the throttle, so a malformed call never starts a process.
     servedBefore: 'action !== "connect" && action !== "birth"',
+  },
+  {
+    // ADDED 2026-09-02 with the limiter itself (companion-route-hygiene). The GET
+    // in the SAME file was the one companion handler that spawned a Python child
+    // with no throttle at all: `companion_cli --probe` creates nothing and calls
+    // no model, but it is still a process per request, and in open mode the
+    // operator gate above it is a no-op for the whole API — so a polling tab could
+    // keep the box spawning. 60/10min (one probe per 10s sustained) is far above a
+    // wizard that asks the question a handful of times at first run, and three
+    // times the POST's budget because nothing here writes to the operator's home
+    // directory.
+    rel: "./companion/brain/route.ts",
+    key: "`companion-brain-probe:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE inside GET. A bare `probeCompanionBrain(` also appears in the
+    // import block and in the POST, so the generic marker would pass on the wrong
+    // occurrence rather than pin this handler.
+    expensive: "companionBrainStatus(await probeCompanionBrain(), ws)",
   },
   {
     rel: "./extract-text/route.ts",
@@ -513,10 +543,19 @@ for (const spec of ROUTES) {
     }
 
     // The refusal must follow the shared 429 convention used by every existing
-    // limiter consumer: the shared message, status 429, nothing bespoke.
+    // limiter consumer: the shared message, status 429, nothing bespoke. Routes on
+    // the refusal chokepoint say the same thing through `jsonRefusal` — same
+    // message (pinned below), plus the code the client localizes.
     const refusal = src.slice(at, at + 400);
-    assert.match(refusal, /RATE_LIMITED_ERROR/, "the refusal must use the shared message");
-    assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
+    if (spec.refusalCode) {
+      assert.ok(
+        refusal.includes(`jsonRefusal("${spec.refusalCode}", 429)`),
+        `the refusal must go through the chokepoint: jsonRefusal("${spec.refusalCode}", 429)`,
+      );
+    } else {
+      assert.match(refusal, /RATE_LIMITED_ERROR/, "the refusal must use the shared message");
+      assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
+    }
 
     // The limiter must run BEFORE the expensive work it guards…
     const expensiveAt = src.indexOf(spec.expensive);
@@ -559,6 +598,26 @@ for (const spec of ROUTES) {
     );
   });
 }
+
+// A coded refusal may not quietly become a DIFFERENT refusal. Every route above
+// that answers the throttle with `jsonRefusal("TOO_MANY_REQUESTS", 429)` is
+// claiming the shared message — so the registry entry must literally BE
+// RATE_LIMITED_ERROR, not a second string that drifts from it. (Read as source
+// rather than imported: api-response.ts pulls in next/server, which the unit
+// runner does not resolve.)
+test('REFUSAL_ERRORS.TOO_MANY_REQUESTS is RATE_LIMITED_ERROR itself, not a copy of it', () => {
+  const src = readFileSync(fileURLToPath(new URL("../_lib/api-response.ts", import.meta.url)), "utf8");
+  assert.match(
+    src,
+    /^ {2}TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,$/m,
+    "the throttle refusal must reuse the limiter's own message constant",
+  );
+  assert.match(
+    src,
+    /import \{ RATE_LIMITED_ERROR \} from "\.\/rate-limit";/,
+    "…and import it, so the two can never say different things",
+  );
+});
 
 // The connect throttle exists to protect credential minting per TOKEN — assert
 // it is not quietly re-keyed to the caller's IP (which an abuser rotates) and

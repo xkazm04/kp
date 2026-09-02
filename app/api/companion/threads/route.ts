@@ -3,8 +3,8 @@ import { createThread, listProposalsForThread, listThreads, listTurns } from "@/
 import { companionMemoryEnabled } from "@/app/_lib/companion-brain";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // The operator companion's conversations (docs/features/companion/README.md).
 // GET  — the ledger, plus the newest thread's turns so the dock hydrates in ONE
@@ -50,7 +50,9 @@ export async function POST(request: Request) {
     // and an unbounded loop could fill the ledger. Far above human pace: a
     // conversation is a conversation, not sixty of them in ten minutes.
     if (!rateLimit(`companion-thread:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      // RATE_LIMITED_ERROR through the refusal chokepoint: the dock resolves the
+      // code in the reader's language rather than painting the server's English.
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const ws = await currentWorkspace();
     // Titles are DERIVED, never typed (the store's contract) — the first

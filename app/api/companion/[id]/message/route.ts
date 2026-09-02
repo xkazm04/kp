@@ -12,8 +12,8 @@ import { clampCompanionMessage, deriveThreadTitle } from "@/app/_lib/companion-t
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/companion/[id]/message — one companion exchange: the operator's
 // message in, Candi's reply out, both persisted (docs/features/companion/README.md).
@@ -48,35 +48,56 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const ws = await currentWorkspace();
     const thread = getThread(id, ws);
-    if (!thread) return NextResponse.json({ error: "Companion thread not found." }, { status: 404 });
+    if (!thread) return jsonRefusal("COMPANION_THREAD_NOT_FOUND", 404);
     const body = (await request.json().catch(() => ({}))) as { message?: unknown };
     const message = clampCompanionMessage(body.message).slice(0, MAX_MESSAGE_CHARS);
     if (!message) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
     if (!rateLimit(`companion-message:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      // RATE_LIMITED_ERROR, carried through the refusal chokepoint so the dock
+      // can say WHICH refusal this was in the reader's language instead of
+      // painting the server's English string (api-contracts.md §1.1).
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // The transcript handed to the engine is the history BEFORE this message —
     // the CLI fences the new message separately, so it must not also appear in
     // the rendered history.
     const history = listTurns(id, ws);
-    appendTurn({ threadId: id, role: "user", content: message }, ws);
+    // Both appends re-check the thread INSIDE their transaction and answer null
+    // when it is gone. Discarding that answer used to 200 with a transcript that
+    // silently lacked the exchange it was reporting — the one shape a dock cannot
+    // detect. A thread deleted between the read above and this write is a 404,
+    // and the check on the user turn also means a vanished thread never reaches
+    // the paid spawn below.
+    if (!appendTurn({ threadId: id, role: "user", content: message }, ws)) {
+      return jsonRefusal("COMPANION_THREAD_NOT_FOUND", 404);
+    }
+    // The precondition rides in the UPDATE's WHERE (`title = ''`), so a title
+    // derived from THIS message cannot overwrite one the digest leg derived
+    // between the read above and this call.
     if (!thread.title.trim()) renameThread(id, deriveThreadTitle(message), ws);
 
-    const turn = await runCompanionTurn({
-      workspaceId: ws,
-      threadId: id,
-      message,
-      transcript: history.map((t) => ({ role: t.role, content: t.content })),
-      locale: await getServerLocale(),
-    });
+    const turn = await runCompanionTurn(
+      {
+        workspaceId: ws,
+        threadId: id,
+        message,
+        transcript: history.map((t) => ({ role: t.role, content: t.content })),
+        locale: await getServerLocale(),
+      },
+      // A closed tab must not leave a 120s Python child and a paid model call
+      // running: `spawnCompanion` already threads an AbortSignal down to
+      // spawnPython, and the request's own signal is the one that fires when the
+      // operator navigates away or the dock unmounts mid-turn.
+      request.signal
+    );
 
     // The reply and the proposals it offered are ONE write (WP3). A proposal row
     // whose turn was never stored is an Accept button under nothing, and a turn
     // whose meta points at proposals that were never inserted is a card the dock
     // paints empty — so they land together or neither lands.
-    appendTurnWithProposals(
+    const stored = appendTurnWithProposals(
       {
         threadId: id,
         role: "assistant",
@@ -106,6 +127,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
       ws
     );
+    // Same rule for the reply: a null here means the thread was deleted while
+    // the model was answering. The turn is gone with it, so reporting success
+    // would claim a stored answer that does not exist.
+    if (!stored) return jsonRefusal("COMPANION_THREAD_NOT_FOUND", 404);
 
     return NextResponse.json({
       turns: listTurns(id, ws),

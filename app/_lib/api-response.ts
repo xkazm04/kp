@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { RATE_LIMITED_ERROR } from "./rate-limit";
 
 // Shared JSON envelopes for route handlers. The error-shaping ternary
 // `error instanceof Error ? error.message : "…"` was hand-rolled in dozens of
@@ -210,6 +211,23 @@ export const REFUSAL_ERRORS = {
    *  while the folder was deleted refuses instead of recording consent to a
    *  brain that does not exist. */
   COMPANION_BRAIN_ABSENT: "There is no companion memory on this machine to connect.",
+  /** An App-master write (dossier merge / compose) was computed from a version of
+   *  the intake row that a dialog turn has since replaced (409). Not a fault: the
+   *  spawn behind both writes takes minutes, and refusing is what stops a stated
+   *  value from being regressed. The client re-runs it against the current row. */
+  INTAKE_BRIEF_MOVED: "The brief changed while that was being computed, so it was re-read rather than overwritten.",
+  /** A companion thread vanished between the route's read and its write (404).
+   *  Both appends re-check the thread inside their own transaction and answer
+   *  null, so a conversation deleted mid-request refuses here instead of
+   *  returning a 200 whose transcript is missing the reply it claims to hold. */
+  COMPANION_THREAD_NOT_FOUND: "That conversation no longer exists.",
+  /** The shared per-IP throttle refused this call (429). The message IS
+   *  `RATE_LIMITED_ERROR` — one string, one meaning, wherever the limiter
+   *  refuses — and the code is only what lets the client localize it. Distinct
+   *  from `errors.RATE_LIMITED`, which is GitHub's upstream policy refusal and
+   *  tells the operator to configure a token; conflating the two would answer a
+   *  throttled companion turn with advice about GITHUB_TOKEN. */
+  TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
