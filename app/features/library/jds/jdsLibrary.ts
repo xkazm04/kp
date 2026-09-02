@@ -239,18 +239,19 @@ export const STATUS_FILTERS = [
 ] as const;
 export type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 
-// The ledger's sort axis — VALUES only, like pipelineBoardFilters.SORTS. This
-// module is the ledger's data layer, so it carries no copy: a sort's label belongs
-// to whatever control renders it, read from the catalog there. The English labels
-// this list used to carry were never rendered by anything.
-export const SORTS = ["recent", "candidates", "title"] as const;
-export type SortKey = (typeof SORTS)[number];
-
-// The COLUMN sort axis, distinct from SortKey above: SortKey is the ledger's
-// single default ordering (the table always asked for "recent"), while these are
-// the columns a reader can re-rank by from the header. Kept alongside so the
-// accessor map below and the header cells can never name a column the other
-// doesn't have.
+// The ledger has ONE sort axis: the columns a reader re-ranks by from the header.
+//
+// There used to be a second, `SORTS = ["recent", "candidates", "title"]`, from
+// before the shared table kit landed. Its only consumer, filterAndSortJds, was
+// always called with "recent" - the comment below already recorded that - so the
+// other two branches had been unreachable since the column sort took over, and
+// nothing imported the vocabulary itself. A dead sort key is not inert: the next
+// reader wiring up "sort by title" would have found a comparator that collates
+// Czech titles under the runtime default locale, which is the bug the shared kit
+// exists to prevent. Removed rather than fixed - there is no caller to fix it for.
+//
+// Kept alongside the accessor map below so the map and the header cells can never
+// name a column the other doesn't have.
 export const JD_SORT_COLS = ["pipeline", "analyzed", "saved"] as const;
 export type JdSortCol = (typeof JD_SORT_COLS)[number];
 
@@ -265,9 +266,12 @@ export const JD_SORT_ACCESSORS: Record<JdSortCol, (r: JdRow) => string | number 
   saved: (r) => r.created_at,
 };
 
+/** Filter the ledger, newest-first. The ORDERING half is deliberately fixed: this
+ *  supplies the default the reader sees before touching a header, and useTableSort
+ *  re-ranks the result from there (see jdsLedgerLogic's two-stage comment). */
 export function filterAndSortJds(
   rows: JdRow[],
-  opts: { query: string; status: StatusFilter; field?: string | null; seniority?: string | null; sort: SortKey }
+  opts: { query: string; status: StatusFilter; field?: string | null; seniority?: string | null }
 ): JdRow[] {
   const q = opts.query.trim().toLowerCase();
   const filtered = rows.filter((r) => {
@@ -281,12 +285,10 @@ export function filterAndSortJds(
       r.preview.toLowerCase().includes(q)
     );
   });
-  // Copy before sort — never mutate the caller's array in place.
-  return [...filtered].sort((a, b) => {
-    if (opts.sort === "title") return a.title.localeCompare(b.title);
-    if (opts.sort === "candidates") return (b.analysisCount ?? 0) - (a.analysisCount ?? 0);
-    return b.created_at.localeCompare(a.created_at);
-  });
+  // Copy before sort — never mutate the caller's array in place. `created_at` is an
+  // ISO string, so a bare localeCompare is byte order on a fixed-width numeric
+  // format, which is the correct chronological order and locale-independent.
+  return [...filtered].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 // Per-status counts for the facet rail / filter badges — computed once per render

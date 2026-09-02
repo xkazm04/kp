@@ -42,9 +42,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // 20/10min per IP is far above any human pace (each promote produces a JD
     // the requestor then reads). Sits AFTER the 404/409/400 refusals so a
     // rejected promote never consumes budget, and BEFORE the insert + build.
-    // Belongs in app/api/rate-limit-contract.test.ts beside the other intake
-    // throttles (expensive marker: `insertAnalyzingJd(`) so the budget and the
-    // ordering stay contract-locked.
+    // Pinned in app/api/rate-limit-contract.test.ts beside the other intake
+    // throttles, so the budget and the ordering stay contract-locked. That spec's
+    // `expensive` marker is the INSERT CALL below including its opening brace, not
+    // the bare function name - the name also appears in prose above the limiter.
     if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }

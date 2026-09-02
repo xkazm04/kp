@@ -14,13 +14,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // sourcing-state decoration below: the pool and the pipeline it is decorated
     // against must be read from the same tenant or the join is nonsense.
     const workspaceId = await currentWorkspace();
-    // Visibility gate (the rule every sibling by-id route applies — winnability,
-    // rediscover, campaign, agent-fit — and GET /api/jobs/[id] states): getJob is a
-    // by-id point read over a globally-unique PK, so unguarded this ranked the
-    // caller's whole pool against ANY tenant's role and handed back a per-candidate
-    // breakdown of that role's must-haves, KO floors and requirement matches — while
-    // spending a recruiter_cli child on it. 404, not 403, so the endpoint can't
-    // confirm another team's id exists; seeded corpus rows stay visible to everyone.
+    // Visibility gate, same as every other by-id job route (winnability, rediscover,
+    // campaign, agent-fit; docs/features/jobs README § "By-id job routes re-apply
+    // the list's visibility predicate"): getJob is a by-id point read over a
+    // globally-unique PK, so unguarded this ranked the caller's whole pool against
+    // ANY tenant's role and handed back a per-candidate breakdown of that role's
+    // must-haves, KO floors and requirement matches — while spending a
+    // recruiter_cli child fed the role's title, body and stated band. 404, not 403,
+    // so the endpoint can't confirm another team's id exists; seeded corpus rows
+    // stay visible to everyone.
     const job = getJob(id);
     if (!job || !jobVisibleToWorkspace(id, workspaceId)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });

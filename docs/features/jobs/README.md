@@ -572,13 +572,35 @@ Behavioral coverage: `app/_lib/job-ingest.test.ts`.
 `jobs-tenancy.test.ts` exemption), so *any* `/api/jobs/[id]/*` route answers for
 *any* tenant's job unless it re-checks `jobVisibleToWorkspace(id, ws)` — the by-id
 form of the list's `(workspace_id IS NULL OR workspace_id = ?)` predicate. All of
-`campaign` (GET + POST), `winnability`, `rediscover` and `agent-fit` now do, ahead
+`campaign` (GET + POST), `winnability`, `rediscover`, `agent-fit`, `candidates` and
+`candidates/outreach` now do, ahead
 of the spend, answering `404` (never `403`, so the endpoint can't confirm an id
-exists); seeded corpus rows stay visible to every tenant. `POST /api/jobs/ingest`
+exists); seeded corpus rows stay visible to every tenant. The last two were the
+family members the first pass missed, and they are the two that cost the most when
+ungated: `GET .../candidates` spawns a `recruiter_cli` child fed the role's title,
+body and stated band, and `POST .../candidates/outreach` files a pipeline row
+stamped with that role's title *and* drafts a paid first-touch mail from it — so a
+caller could source and contact against another team's private opening. `POST /api/jobs/ingest`
 carries the write-side twin — an explicit `jobId` is a content overwrite of a
 named row, so it gates on `canWriteJobLifecycle` exactly like `/close` and
 `/publish`, before the Claude ad-parse is spent. Pinned by
 `app/api/jobs/lifecycle-signals.test.ts`.
+
+### The JD content-CAS holds the write lock from its SELECT
+
+`updateJd` and `revertJd` (`app/_lib/db/jobs.ts`) are read→compare→write: they
+SELECT the live body, refuse the write when it no longer equals the editor's
+`baseBody` (`{ ok: false, reason: "conflict" }` → the route's 409), snapshot the
+pre-edit version into `jd_revisions`, then overwrite. Both run `tx.immediate()`,
+not a bare `tx()`. A DEFERRED transaction takes only a shared read lock at the
+SELECT and upgrades at the first write, so a second connection can pass the same
+CAS check inside that gap and both writes land — last-write-wins, which is the
+exact failure the CAS exists to prevent, and the one whose recorded snapshot is
+the *intermediate* state. IMMEDIATE takes the write lock at BEGIN. This is the
+locking half of `.claude/CLAUDE.md` § "A read→compute→write either locks or
+re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
+reason. Pinned behaviorally (a stale base is still a conflict) and at the source
+by `app/_lib/db/jds-store.test.ts`.
 
 ## Reading the `jobs` corpus: a page is not a count, and "visible" is not "owned"
 

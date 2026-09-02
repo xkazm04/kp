@@ -3,6 +3,7 @@ import { candidateOutcomes } from "@/app/_lib/db/pipeline";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, RATE_LIMITED_ERROR, rateLimit } from "@/app/_lib/rate-limit";
 import { filterRelevantAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
 import {
   dismissRediscoveryAlert,
@@ -76,6 +77,23 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // THROTTLE: this is the heaviest compute surface in the jobs area — one call
+    // fans out a `recruiter_cli` child PER published role (bounded by the worker
+    // pool, the per-role timeout and the roles-per-sweep ceiling, but still N
+    // subprocesses), which is exactly the shape rate-limit.ts exists for: "a route
+    // that spends money or spawns a subprocess". It carried no limiter at all.
+    // The route is session-gated, but in open mode (no KP_OPERATOR_PASSWORD) that
+    // gate is a no-op for the whole API, so a held-open tab clicking Refresh could
+    // keep the box saturated with ranking children indefinitely.
+    //
+    // 10/10min per IP, the same key shape as the other spend routes: a sweep can
+    // legitimately run for minutes (maxDuration 180), so ten is far above any human
+    // Refresh pace and still bounds the fan-out. BEFORE the sweep, so a refused
+    // request has spawned nothing; the GET feed and PATCH dismiss stay unthrottled —
+    // they are pure reads/writes and the feed polls them.
+    if (!rateLimit(`rediscovery-sweep:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     // Sweep the CALLER's catalog, not the default tenant's (rediscovery-alerts #1):
     // this POST is the feed's Refresh, fired from one team's session, so the roles
     // swept and the alerts raised must match the feed the same request returns below.

@@ -28,12 +28,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const { id } = await context.params;
     const ws = await currentWorkspace();
-    // Visibility gate, same as the candidates read this button sits on and every
-    // other by-id job route: without it a caller could file one of their own
-    // candidates into a pipeline entry for ANOTHER team's role — stamped with that
-    // role's private title and family, read straight off the row — and fire a
-    // first-touch email naming it. 404 (not 403) so the id's existence isn't
-    // confirmed; seeded corpus rows (workspace_id NULL) stay reachable by every team.
+    // Visibility gate, ahead of every read of the role and every spend — same as the
+    // candidates read this button sits on and every other by-id job route
+    // (docs/features/jobs README § "By-id job routes re-apply the list's visibility
+    // predicate"). getJob is a point read over a globally-unique PK, so without it a
+    // caller could file one of their own candidates into a pipeline entry for
+    // ANOTHER team's role — stamped with that role's private title and family, read
+    // straight off the row — and draft a paid first-touch mail naming it. 404 (not
+    // 403) so the id's existence isn't confirmed; seeded corpus rows (workspace_id
+    // NULL) stay reachable by every team.
     const job = getJob(id);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return NextResponse.json({ error: "Role not found." }, { status: 404 });

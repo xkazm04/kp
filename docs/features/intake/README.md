@@ -416,6 +416,21 @@ The requestor can FIX what was captured without a new session:
   (`app/_lib/intake-export.ts`) — the artifact for the director/inspector
   meeting. A defaulted seniority is visibly flagged in the export.
 
+### A facet's confidence is shown when the reading is uncertain
+
+Requirements have carried weight + confidence since the defensibility pass;
+facets did not, and one producer depends on them doing so. `_dossier_facet`
+(`pipeline/jobfit/intake.py`) grades an App-master codebase facet **0.8** when
+Claude Code read the repo and **0.6** when the heuristic file-walk did, under a
+comment stating that "the confidence the panel chips must say so". The chips
+could not: both readings are provenance `inferred` by construction (never
+"stated" — a machine read this), so the panel rendered the identical chip for
+both and the number had no consumer at all. `JdsIntakeBriefPanel` now renders a
+quiet confidence chip on a facet row, reusing the existing
+`library.tab.intake.defense.confidence` key. Confidence `1` renders nothing — a
+value the requestor stated out loud is the common case, and a "100%" chip on
+every line would bury the one number that carries information.
+
 ## Attached reference material ("Materials")
 
 A session can carry up to 5 attachments — a pasted **note** (a colleague's
@@ -429,6 +444,14 @@ cap (or a frozen session) keeps the pasted note in the textarea instead of
 destroying it. Same contract in the composer: a refused exchange
 (`send` → false) hands the typed message back rather than losing it with the
 rolled-back optimistic bubble.
+
+The pane's three form controls (note title, note body, JD picker) carry no
+visible `<label>` — it is a compact rail — so each names itself with an
+`aria-label` reusing the very key its placeholder renders. A placeholder is not
+an accessible name: it is not exposed as one by every AT and it vanishes once
+the field has content, so re-entering a half-typed note title announced only
+"edit text". Same idiom as the inline title field in `JdsIntakeBriefTitle`, and
+no catalog entry is added — the spoken name is the visible hint.
 
 Grounding: the dialog prompt gains a fenced `ATTACHED_MATERIAL` block
 (`intake.py::_attachments_block`, budget-truncated to ~8k chars total) framed
@@ -479,6 +502,19 @@ and spine while its content crossfades, chat bubbles and status notes fade in
 and out, the draft crossfades on brief change —
 all flattened under `prefers-reduced-motion`. Both themes are covered at the
 token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
+
+### Per-session state does not survive a session switch
+
+`JdsIntakePanel` is mounted **once** (dynamically, by `JdsSavedLedger`) and swaps
+`active` underneath itself — there is no `key`, so nothing inside it remounts when
+the requestor goes Back and opens a different intake. The async half of this was
+already handled: every late voice/compose result is folded through the
+identity-checked `applySession`, "so a result must name the session it belongs to."
+`useAppMasterLogic`'s **synchronous** state now follows the same rule. `scanState`,
+`composeError` and `dispatchState` are cleared in a render-phase guard keyed on the
+intake id (the `jobsTabDeepLink.ts` shape — an effect would let one frame render the
+previous session's claims). `paired` is not reset: the Personas bridge is
+workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
 
 ## Known gaps
 

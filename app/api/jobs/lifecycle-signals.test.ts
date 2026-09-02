@@ -82,14 +82,35 @@ test("POST /api/jobs/ingest gates an explicit jobId on ownership and marks a min
 });
 
 // Every by-id job route is a point read over a globally-unique PK, so it answers for any
-// tenant unless it re-applies the list's visibility predicate. These four all spend
+// tenant unless it re-applies the list's visibility predicate. These all spend
 // (an LLM call or a recruiter_cli child) AND hand back content derived from the role, so
 // an unguarded one leaks another team's opening and bills the caller's provider for it.
-for (const route of ["campaign", "winnability", "rediscover", "agent-fit"] as const) {
-  test(`GET/POST /api/jobs/[id]/${route} re-applies the list's visibility predicate`, () => {
-    const src = read("[id]", route, "route.ts");
-    assert.match(src, /jobVisibleToWorkspace\(id, ws\)/, `${route} must not answer for a job the list would hide`);
+//
+// `spend` is the first line that costs something — the gate has to sit ABOVE it, or a
+// refused request has already paid. `candidates` and `candidates/outreach` were the two
+// members of this family the original fix missed: both were reachable with any tenant's
+// job id, and outreach additionally files a pipeline row stamped with that role's title.
+const VISIBILITY_GATED: ReadonlyArray<{ segments: readonly string[]; spend: string }> = [
+  { segments: ["campaign"], spend: "runCampaign(" },
+  { segments: ["winnability"], spend: "buildCandidatePool(" },
+  { segments: ["rediscover"], spend: "rediscoverForJob(" },
+  { segments: ["agent-fit"], spend: 'startTask("agent_fit"' },
+  { segments: ["candidates"], spend: "await rankPoolForJob" },
+  // `await` prefixes deliberately: the bare identifier also appears in each file's
+  // header comment and import list, both above the gate.
+  { segments: ["candidates", "outreach"], spend: "await runAutomationTask(" },
+];
+
+for (const { segments, spend } of VISIBILITY_GATED) {
+  const name = segments.join("/");
+  test(`GET/POST /api/jobs/[id]/${name} re-applies the list's visibility predicate`, () => {
+    const src = read("[id]", ...segments, "route.ts");
+    assert.ok(src.includes("jobVisibleToWorkspace(id, "), `${name} must not answer for a job the list would hide`);
     assert.match(src, /status: 404/, "an invisible job must 404, not leak existence");
+    const gateAt = src.indexOf("jobVisibleToWorkspace(id, ");
+    const spendAt = src.indexOf(spend);
+    assert.ok(spendAt > 0, `${name}: the spend marker ${spend} moved — re-point this assertion`);
+    assert.ok(gateAt < spendAt, `${name}: the gate must precede the spend — a refused request must not have cost anything`);
   });
 }
 

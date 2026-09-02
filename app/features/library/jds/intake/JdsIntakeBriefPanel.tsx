@@ -61,6 +61,31 @@ function RequirementRow({
   );
 }
 
+/** A facet's grading, shown only when the reading is UNCERTAIN.
+ *
+ *  Requirements have carried weight + confidence since the defensibility pass
+ *  (RequirementRow below); facets never did, and one producer depends on them
+ *  doing so. `_dossier_facet` in pipeline/jobfit/intake.py grades an App-master
+ *  codebase facet 0.8 when Claude Code read the repo and 0.6 when a heuristic
+ *  file-walk did, under a comment saying "a heuristic file-walk is a weaker
+ *  reading than Claude Code in the repo, and the confidence the panel chips must
+ *  say so". The chips could not: both readings are provenance `inferred` by
+ *  construction (never "stated" - a machine read this), so the panel rendered the
+ *  same chip for both and the number had no consumer.
+ *
+ *  Confidence 1 renders nothing. A stated value the requestor said out loud is
+ *  the common case, and a "100%" chip on every line is noise that would bury the
+ *  one number that carries information. */
+function ConfidenceChip({ confidence }: { confidence?: number | null }) {
+  const t = useTranslations("library.tab.intake.defense");
+  if (confidence == null || confidence >= 1) return null;
+  return (
+    <span className={`${CHIP_QUIET} text-steel`} title={t("confidence")}>
+      {t("confidence")} {Math.round(confidence * 100)}%
+    </span>
+  );
+}
+
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -172,7 +197,7 @@ export function JdsIntakeBriefPanel({
               {(brief?.facets ?? []).map((f, i) => (
                 <div key={i} className="text-body text-ink">
                   <span className="text-steel">{f.label || f.key}:</span> {f.value} <ProvenanceChip provenance={f.provenance} />{" "}
-                  <TurnChip turn={f.sourceTurn} onJump={onJumpToTurn} />
+                  <ConfidenceChip confidence={f.confidence} /> <TurnChip turn={f.sourceTurn} onJump={onJumpToTurn} />
                 </div>
               ))}
             </Section>

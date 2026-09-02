@@ -32,8 +32,11 @@ export async function POST(request: Request) {
     // KP_OPERATOR_PASSWORD) that gate is a no-op for the whole API. 30/10min
     // per IP is far above human pace (a session is a ten-minute conversation);
     // it runs BEFORE createIntake so a refused call leaves no orphan row.
-    // Belongs in app/api/rate-limit-contract.test.ts beside the other intake
-    // throttles (expensive marker: `runIntakeOpening(`).
+    // Pinned in app/api/rate-limit-contract.test.ts beside the other intake
+    // throttles. That spec's `expensive` marker is the OPENING CALL below, not the
+    // bare function name - the name also appears in this route's import and, until
+    // this comment was rewritten, in the comment itself, both above the limiter, so
+    // a generic marker fails on prose instead of on ordering.
     if (!rateLimit(`intake-create:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }

@@ -396,6 +396,25 @@ const ROUTES: RouteSpec[] = [
     expensive: "runSessionChat(",
     servedBefore: 'session.status !== "active"',
   },
+  {
+    // ADDED /explorer 2026-09-01, with the limiter itself. The heaviest compute
+    // surface in the jobs area and the only spend route in it that carried NO
+    // limiter: one POST fans out a `recruiter_cli` child PER published role
+    // (worker-pool + per-role-timeout + roles-per-sweep bounded, but still N
+    // subprocesses, hence maxDuration 180). Session-gated, and in open mode that
+    // gate is a no-op for the whole API — so a tab holding Refresh could keep the
+    // box saturated with ranking children. 10/10min per IP: a sweep legitimately
+    // runs for minutes, so ten is far above human Refresh pace.
+    //
+    // POST only. The GET feed and the PATCH dismiss are a read and a single-row
+    // write, and the feed polls the GET.
+    rel: "./rediscovery/alerts/route.ts",
+    key: "`rediscovery-sweep:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    // The CALL, not a bare `sweepRediscoveryAlerts(`: that substring also appears in
+    // this route's import and in the comment above the limiter, both before it.
+    expensive: "await sweepRediscoveryAlerts({",
+  },
 ];
 
 for (const spec of ROUTES) {

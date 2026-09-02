@@ -118,6 +118,41 @@ which half stayed unverified.
 
 _(dated one-liners; repo-specific learnings from `/explorer` runs land here)_
 
+- 2026-09-01 — **Print a GATE MATRIX for any route family before reading its members.**
+  One loop over `app/api/jobs/[id]/*/route.ts` greping for `jobVisibleToWorkspace` /
+  `canWriteJobLifecycle` / `requireOperator` / `rateLimit` showed in a single call that
+  `candidates` was the only by-id job route with no gate at all. That asymmetry is
+  invisible from inside any one route — all of them read as careful — and it was also
+  invisible to the contract test and the feature doc, which each enumerated the same
+  four routes. Generalizes to any enumerable family here: routes under a segment,
+  stores in `app/_lib/db/`, tabs in `app/features/shell/tabs.ts`.
+- 2026-09-01 — **A list hand-maintained INSIDE a contract test is a claim to diff
+  against reality.** `lifecycle-signals.test.ts` iterates four route names and
+  `rate-limit-contract.test.ts` an array of specs; in both cases this run's finding was
+  what the list omits, not what it asserts. Read those arrays as the repo's own
+  statement of what it believes about itself.
+- 2026-09-01 — **Careful with comments in files a source-level test scans.** Editing a
+  stale comment in `app/api/intake/route.ts` to quote the `expensive` marker the
+  rate-limit contract pins put that string ABOVE the limiter and failed the ordering
+  assertion. This repo has ~6 source-scanning suites (rate-limit-contract,
+  lifecycle-signals, *-tenancy, error-message-hygiene, save-ingest-contract,
+  authz-parity) — before adding prose to a file one of them reads, check what it greps
+  for. Describe the marker; never reproduce it.
+- 2026-09-01 — **`npm run test:unit` can be red for the CHECKOUT, not the commit.** Two
+  tests this sweep never touched (`decisions-auth`, `pipeline-routes`) failed
+  reproducibly in a `.claude/worktrees/` worktree and were green — 4336/4336 — at the
+  identical SHA in a fresh worktree under the temp dir, with several ascent loops and
+  sibling eval worktrees live on the box. Before bisecting, `git worktree add --detach
+  <your-sha>` somewhere isolated and re-run: one run either exonerates the branch or
+  proves the bisect is worth starting. And note `git worktree add <branch>` FOLLOWS the
+  branch — `main` moved twice mid-investigation here, so a comparison baseline must be
+  a SHA.
+- 2026-09-01 — **The commit-msg hook rejects `explorer:`.** The skill prescribes
+  `explorer: <title>`; the known types are build/chore/ci/deps/docs/feat/fix/perf/
+  refactor/security/style/test. Use the repo type that fits the diff and name the sweep
+  in the body. (`security(...)` for the two access/spend fixes, `fix(...)`, `docs(...)`,
+  `refactor(...)` for the rest.) The hook also rejects a subject that ends on a dangling
+  word — write the subject for the diff, not by slicing a sentence.
 - 2026-08-29 — **Pick the area from `.claude/scan-history/coverage-2026-08.md` until this
   repo's own explorer coverage has depth.** On a cold vault Phase 2b's staleness score ties
   across all 143 contexts and falls back to file count, which is arbitrary. That reconstructed
