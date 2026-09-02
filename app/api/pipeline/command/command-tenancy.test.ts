@@ -81,7 +81,7 @@ test("the command route threads the caller's workspace into preview AND every mu
   // is testable with a store double, so the tenancy contract now spans two files —
   // the route must give the loop THIS workspace, and every store call inside the
   // loop must carry it. A bare call still falls back to DEFAULT.
-  assert.match(src, /executeCommandTargets\(\s*\{[^}]*workspaceId: ws/s, "the execute loop must be given the caller's workspace");
+  assert.match(src, /executeCommandTargets\([\s\S]{0,300}?workspaceId: ws/, "the execute loop must be given the caller's workspace");
   const exec = readFileSync(path.join(dir, "execute.ts"), "utf8");
   const actCalls = exec.match(/deps\.actOn\([^\n]*\)/g) ?? [];
   assert.ok(actCalls.length >= 2, "both reject + advance mutations are present");

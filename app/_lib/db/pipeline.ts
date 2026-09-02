@@ -949,6 +949,12 @@ export function reinstatePipelineEntry(
   // candidates parked on a RETIRED stage the board no longer draws: reversed on the
   // record, invisible in the queue that was supposed to re-review them.
   const landingStage = screenedLandingStage(getPipelineAxis(workspaceId).stages) || "Screened";
+  // IMMEDIATE: this is a read -> compute -> write (the status SELECT decides
+  // whether the reversal is legal, the UPDATE performs it). The UPDATE re-asserts
+  // status='rejected' too, so the lost-update window was already closed — but a
+  // deferred tx() takes its write lock only at the first write, which is where the
+  // house rule says to pick a strategy deliberately rather than to rely on both
+  // halves staying in place. Taking the lock at BEGIN makes the guard structural.
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row || row.status !== "rejected") return null;
@@ -975,7 +981,7 @@ export function reinstatePipelineEntry(
     });
     return getPipelineEntry(id, workspaceId);
   });
-  return tx();
+  return tx.immediate();
 }
 
 export type CreatePipelineInput = {
@@ -2045,15 +2051,51 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
 }
 
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
-export function setApproval(entryId: string, approvalKind: ApprovalKind | null, approvalDetail: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+/** Set (or clear) the pending approval on an entry.
+ *
+ *  `opts.expectedApprovalKind` is the same compare-and-swap `actOnPipelineEntry`
+ *  offers, for the callers that DECIDE from a snapshot and then write after a
+ *  slow hop. Two of them do: extendDraftedOffer clears the approval only after
+ *  `await dispatchOffer(...)` (a comms round trip), and the hybrid-handoff path
+ *  arms the calendar gate after `await humanActor()` + the plan read. Both used a
+ *  bare UPDATE, so a human who resolved the approval during that gap had their
+ *  decision silently overwritten by a stale one. `undefined` = the caller did not
+ *  snapshot it (the automation writers that RAISE an approval) → not checked;
+ *  `null` is a real expectation ("no pending approval when I decided").
+ *
+ *  Returns whether the write applied — false means the precondition failed and
+ *  the caller must answer the conflict rather than claim success. */
+export function setApproval(
+  entryId: string,
+  approvalKind: ApprovalKind | null,
+  approvalDetail: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: { expectedApprovalKind?: ApprovalKind | null }
+): boolean {
   const db = ensureDb();
-  db.prepare(`UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
-    approvalKind,
-    approvalDetail,
-    new Date().toISOString(),
-    entryId,
-    workspaceId
-  );
+  // `IS` rather than `=`: the expectation is legitimately NULL ("no approval was
+  // pending"), and `approval_kind = NULL` is never true in SQL.
+  const guarded = opts?.expectedApprovalKind !== undefined;
+  const res = db
+    .prepare(
+      `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
+        guarded ? ` AND approval_kind IS ?` : ``
+      }`
+    )
+    .run(
+      approvalKind,
+      approvalDetail,
+      new Date().toISOString(),
+      entryId,
+      workspaceId,
+      ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
+    );
+  if (res.changes === 0 && guarded) {
+    console.warn(
+      `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
+    );
+  }
+  return res.changes > 0;
 }
 
 export function recordAutomationEvent(

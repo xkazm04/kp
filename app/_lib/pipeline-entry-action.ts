@@ -167,13 +167,47 @@ export async function extendDraftedOffer(
   }
 
   const link = `${publicBaseUrl(origin)}/offer/${offer.token}`;
-  await dispatchOffer(entry, draft, link, {
-    expiresAt: offer.expiresAt,
-    startDate: typeof draft.startDate === "string" ? draft.startDate : null,
-  });
+  try {
+    await dispatchOffer(entry, draft, link, {
+      expiresAt: offer.expiresAt,
+      startDate: typeof draft.startDate === "string" ? draft.startDate : null,
+    });
+  } catch (dispatchError) {
+    // COMPENSATION (stated deliberately): the approval is LEFT IN PLACE and the
+    // offer row is left open. The token was minted but never reached the wire, and
+    // getOrCreateOpenOffer is idempotent — so the recruiter's retry re-sends THAT
+    // SAME link rather than minting a second one, and the un-sent token is pending,
+    // not orphaned. The alternative (clearing the approval here) is the one thing
+    // that must not happen: it would leave a live offer link nobody was ever sent,
+    // with no gate left on the card to notice.
+    console.error(`[pipeline:offer] offer dispatch failed for ${entry.id}`, dispatchError);
+    recordAutomationEvent(
+      entry.id,
+      "offer_comms_failed",
+      "The offer was drafted but the message did not go out. The approval is still open — approve again to re-send the same link.",
+      workspaceId
+    );
+    return err(502, "The offer was drafted but couldn't be sent. Nothing was lost — approve again to re-send the same link.", {
+      entry: getPipelineEntry(entry.id, workspaceId),
+      offerExtended: false,
+    });
+  }
 
   // The offer is out — clear the recruiter approval; now awaiting the candidate.
-  setApproval(entry.id, null, "", workspaceId);
+  // GUARDED on the approval kind read BEFORE the dispatch above: that await is a
+  // comms round trip, and a bare UPDATE here overwrote whatever a human decided in
+  // the gap (raising a fresh gate, or resolving this one) with a stale NULL.
+  const cleared = setApproval(entry.id, null, "", workspaceId, { expectedApprovalKind: entry.approvalKind });
+  if (!cleared) {
+    // The offer DID go out; only the approval clear was refused because the card
+    // moved under us. Say so rather than reporting a clean extend: the candidate
+    // holds a live link and the card still shows a gate someone else just set.
+    return err(409, "The offer was sent, but this candidate's approval changed while it went out — refresh before deciding again.", {
+      entry: getPipelineEntry(entry.id, workspaceId),
+      offerExtended: true,
+      link,
+    });
+  }
   return ok({ entry: getPipelineEntry(entry.id, workspaceId), offerExtended: true, link });
 }
 
@@ -306,7 +340,15 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       // Stage stays put (they are still interviewing); the calendar gate re-arms
       // with the default proposed slot the screening accept uses, so the
       // candidate lands on the Schedule tab's human-round pending list.
-      setApproval(id, "calendar", "Tue 14:00", workspaceId);
+      // GUARDED on the approval kind read BEFORE the awaits above (humanActor() +
+      // the plan read): without the precondition this overwrote an approval a human
+      // resolved in that gap with a calendar gate they had already cleared.
+      const armed = setApproval(id, "calendar", "Tue 14:00", workspaceId, { expectedApprovalKind: current.approvalKind });
+      if (!armed) {
+        const fresh = getPipelineEntry(id, workspaceId);
+        if (!fresh) return err(404, "Pipeline entry not found.");
+        return staleResponse(fresh);
+      }
       // Auditable in the candidate timeline + sealed in the decision chain: the
       // human ratified the AI verdict AND the plan chose the next gate.
       recordAutomationEvent(
