@@ -3,6 +3,7 @@ import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, g
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 // Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
 // fires every ~8s per active candidate, and the token→posting→case chain it used
@@ -30,6 +31,17 @@ function midFlightUpdateForToken(token: string): { afterMinutes: number; update:
 
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  // OPERATOR-ONLY. This route lives under the PUBLIC `/api/devcase/session` prefix
+  // (its three siblings are candidate doors, each proving the apply token), but
+  // the read is the recruiter's: it returns the candidate's whole transcript and
+  // file tree. The workspace comparison below is a TENANT check, not an auth
+  // check - `currentWorkspace()` resolves to the default workspace for an
+  // anonymous caller - and session ids are Math.random ids, never a boundary.
+  // Without this gate an anonymous caller on a default-workspace deployment
+  // could enumerate ids and read candidate work. Open dev mode is unaffected
+  // (the gate is a no-op there), which is what the ownership test relies on.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const { id } = await params;
     const session = getDevSession(id);

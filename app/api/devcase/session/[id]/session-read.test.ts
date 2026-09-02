@@ -74,3 +74,16 @@ test("GET /session/[id] — returns transcript and files for the owning workspac
   assert.equal(body.files.length, 1, "one file was saved");
   assert.equal(body.files[0].path, "src/index.ts");
 });
+
+test("GET /session/[id] - the operator gate runs before the store read", async () => {
+  // Source guard: the route sits under the PUBLIC session prefix, so the
+  // workspace comparison alone is a tenant check, not authentication. The
+  // handler must call requireOperator() before it touches the store.
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("./route.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const get = src.slice(src.indexOf("export async function GET("));
+  const gate = get.indexOf("await requireOperator()");
+  const read = get.indexOf("getDevSession(");
+  assert.ok(gate >= 0, "GET must call requireOperator()");
+  assert.ok(read > gate, "the operator gate must precede the session read");
+});
