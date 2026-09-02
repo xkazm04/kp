@@ -3386,9 +3386,6 @@
     "reviewScorecard": "Review scorecard in Decisions",
     "loadFailed": "Failed to load.",
     "startFailed": "Couldn't start the interview.",
-    "slotSuggested": "suggested",
-    "slotConfirmed": "confirmed",
-    "candidateZone": "Candidate's timezone: {zone}",
     "bookFailed": "Couldn't book that time.",
     "declineFailed": "Couldn't decline this candidate. Nothing was recorded.",
     "interviewerTitle": "Interviewer: {name}",
@@ -3431,9 +3428,6 @@
       "pagerPrev": "Previous week",
       "pagerNext": "Next week",
       "weekOf": "Week of {range}"
-      "timezoneNote": "All times in the interview timezone: {zone}.",
-      "suggested": "suggested time, not confirmed",
-      "chipSuggestedTitle": "{name} · suggested time, not confirmed yet",
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",
@@ -6754,6 +6748,8 @@
     "errBadPayload": "Analysis returned an unexpected payload.",
     "errExtractionFailed": "Text extraction failed.",
     "errGithubFailed": "GitHub analysis failed.",
+    "engineStatusUnknown": "Engine status unknown: the readiness check could not be reached, so this run may fail on a missing key.",
+    "cancelFailed": "Stopped watching, but the server task may still be running. Check the Tasks indicator.",
     "uploadHint": "PDF · DOCX · TXT · MD up to {max} MB",
     "errUploadRejected": "That file could not be added.",
     "errRateLimitedRetry": "Too many requests. Try again in {seconds} seconds.",

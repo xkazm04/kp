@@ -3386,9 +3386,6 @@
     "reviewScorecard": "Examiner la scorecard dans Décisions",
     "loadFailed": "Échec du chargement.",
     "startFailed": "Impossible de démarrer l’entretien.",
-    "slotSuggested": "proposé",
-    "slotConfirmed": "confirmé",
-    "candidateZone": "Fuseau horaire du candidat : {zone}",
     "bookFailed": "Impossible de réserver ce créneau.",
     "declineFailed": "Impossible de refuser ce candidat. Rien n’a été enregistré.",
     "rounds": {
@@ -3431,9 +3428,6 @@
       "pagerPrev": "Semaine précédente",
       "pagerNext": "Semaine suivante",
       "weekOf": "Semaine du {range}"
-      "timezoneNote": "Toutes les heures dans le fuseau des entretiens : {zone}.",
-      "suggested": "horaire proposé, non confirmé",
-      "chipSuggestedTitle": "{name} · horaire proposé, pas encore confirmé",
     },
     "scorecard": {
       "editScorecard": "Modifier votre scorecard",
@@ -6754,6 +6748,8 @@
     "errBadPayload": "L’analyse a renvoyé des données inattendues.",
     "errExtractionFailed": "L’extraction du texte a échoué.",
     "errGithubFailed": "L’analyse GitHub a échoué.",
+    "engineStatusUnknown": "État du moteur inconnu : le contrôle de disponibilité est injoignable, cette analyse peut donc échouer faute de clé.",
+    "cancelFailed": "Suivi interrompu, mais la tâche serveur tourne peut-être encore. Consultez l’indicateur de tâches.",
     "uploadHint": "PDF · DOCX · TXT · MD jusqu’à {max} Mo",
     "errUploadRejected": "Ce fichier n’a pas pu être ajouté.",
     "errRateLimitedRetry": "Trop de requêtes. Réessayez dans {seconds} secondes.",

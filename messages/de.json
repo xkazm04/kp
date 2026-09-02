@@ -3386,9 +3386,6 @@
     "reviewScorecard": "Scorecard in Entscheidungen prüfen",
     "loadFailed": "Laden fehlgeschlagen.",
     "startFailed": "Interview konnte nicht gestartet werden.",
-    "slotSuggested": "Vorschlag",
-    "slotConfirmed": "bestätigt",
-    "candidateZone": "Zeitzone der Person: {zone}",
     "bookFailed": "Diese Zeit konnte nicht gebucht werden.",
     "declineFailed": "Die Absage war nicht möglich. Es wurde nichts gespeichert.",
     "interviewerTitle": "Interviewer: {name}",
@@ -3431,9 +3428,6 @@
       "pagerPrev": "Vorherige Woche",
       "pagerNext": "Nächste Woche",
       "weekOf": "Woche {range}"
-      "timezoneNote": "Alle Zeiten in der Interview-Zeitzone: {zone}.",
-      "suggested": "vorgeschlagene Zeit, nicht bestätigt",
-      "chipSuggestedTitle": "{name} · vorgeschlagene Zeit, noch nicht bestätigt",
     },
     "scorecard": {
       "editScorecard": "Ihre Scorecard bearbeiten",
@@ -6754,6 +6748,8 @@
     "errBadPayload": "Die Analyse hat unerwartete Daten zurückgegeben.",
     "errExtractionFailed": "Textextraktion fehlgeschlagen.",
     "errGithubFailed": "GitHub-Analyse fehlgeschlagen.",
+    "engineStatusUnknown": "Engine-Status unbekannt: die Bereitschaftsprüfung war nicht erreichbar, dieser Lauf kann also an einem fehlenden Schlüssel scheitern.",
+    "cancelFailed": "Die Beobachtung wurde beendet, die Aufgabe auf dem Server läuft aber möglicherweise weiter. Prüfen Sie die Aufgabenanzeige.",
     "uploadHint": "PDF · DOCX · TXT · MD bis {max} MB",
     "errUploadRejected": "Diese Datei konnte nicht hinzugefügt werden.",
     "errRateLimitedRetry": "Zu viele Anfragen. Versuchen Sie es in {seconds} Sekunden erneut.",

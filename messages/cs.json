@@ -3411,9 +3411,6 @@
       "confidence": "jistota: {level}"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
-    "slotSuggested": "návrh",
-    "slotConfirmed": "potvrzeno",
-    "candidateZone": "Časové pásmo kandidáta: {zone}",
     "bookFailed": "Termín se nepodařilo rezervovat.",
     "declineFailed": "Kandidáta se nepodařilo odmítnout. Nic se nezaznamenalo.",
     "interviewerTitle": "Tazatel: {name}",
@@ -3431,9 +3428,6 @@
       "pagerPrev": "Předchozí týden",
       "pagerNext": "Další týden",
       "weekOf": "Týden {range}"
-      "timezoneNote": "Všechny časy v časovém pásmu pohovorů: {zone}.",
-      "suggested": "navržený čas, není potvrzen",
-      "chipSuggestedTitle": "{name} · navržený čas, zatím nepotvrzeno",
     },
     "scorecard": {
       "editScorecard": "Upravit svou hodnoticí kartu",
@@ -6754,6 +6748,8 @@
     "errBadPayload": "Analýza vrátila neočekávaná data.",
     "errExtractionFailed": "Extrakce textu selhala.",
     "errGithubFailed": "Analýza GitHubu selhala.",
+    "engineStatusUnknown": "Stav enginu není známý: kontrolu připravenosti se nepodařilo načíst, takže tento běh může selhat kvůli chybějícímu klíči.",
+    "cancelFailed": "Sledování bylo ukončeno, ale úloha na serveru může stále běžet. Zkontrolujte indikátor úloh.",
     "uploadHint": "PDF · DOCX · TXT · MD do {max} MB",
     "errUploadRejected": "Tento soubor se nepodařilo přidat.",
     "errRateLimitedRetry": "Příliš mnoho požadavků. Zkuste to znovu za {seconds} s.",
