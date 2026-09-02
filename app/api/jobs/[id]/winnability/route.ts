@@ -4,6 +4,8 @@ import path from "node:path";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -37,6 +39,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const { entries } = buildCandidatePool(ws);
     if (entries.length === 0) {
       return NextResponse.json({ poolSize: 0, note: "No saved candidates yet." });
+    }
+
+    // Per-IP, AFTER the visibility gate and the empty-pool short-circuit (neither
+    // spawns anything, so both keep serving freely) and BEFORE the workdir + the
+    // winnability_cli child. 30/10min: the coach runs once per JD edit a recruiter
+    // stops to grade — a per-request spawn, so the same tight budget as the candidates
+    // ranking rather than publish's generous one.
+    if (!rateLimit(`jobs-winnability:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     workdir = await createWorkdir();

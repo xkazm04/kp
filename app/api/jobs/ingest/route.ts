@@ -3,6 +3,8 @@ import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
 import { canWriteJobLifecycle } from "@/app/_lib/db/jobs";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The parser this route spawns builds ClaudeCliProvider(timeout=120) for the LLM
 // ad-parse (pipeline/jobfit/jobs_cli.py). maxDuration must comfortably exceed that
@@ -35,6 +37,17 @@ export async function POST(request: NextRequest) {
     const explicitJobId = typeof body.jobId === "string" && body.jobId.trim() ? body.jobId.trim() : undefined;
     if (explicitJobId && !canWriteJobLifecycle(explicitJobId, ws)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    }
+
+    // Per-IP, AFTER the cheap refusals (too-short ad, unknown/foreign jobId) so a
+    // rejected paste costs no budget, and BEFORE the Claude CLI child that parses the
+    // ad. 20/10min: pasting an ad is a deliberate, one-at-a-time act — the bulk paste
+    // the splitter feeds is still one request per ad, so twenty in ten minutes sits far
+    // above honest use while a scripted loop is pinned. Operator-gated deploys stop a
+    // stranger; open mode (KP_OPERATOR_PASSWORD unset) makes that a no-op for the whole
+    // API, so the route must self-limit.
+    if (!rateLimit(`jobs-ingest:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Thread the request's AbortSignal so abandoning the ingest (navigating away

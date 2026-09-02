@@ -8,8 +8,18 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/library/jobs/JobsTypes";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
-export const maxDuration = 60;
+// 180, matching every sibling that spawns a child on this surface (jobs/ingest,
+// candidates/outreach, rediscovery/alerts): a go-live runs TWO spawning steps back to
+// back — runSourceForRole's recruiter child, then the rediscovery alert fan-out — and
+// 60s was under the ad-parse provider timeout alone. NOTE this bounds nothing on a
+// self-hosted `next start`, which never kills a handler; it matters only where a
+// platform enforces it (Vercel), and the real bound is the per-child timeout inside
+// python-runner. The value is here so that platform doesn't 504 a valid go-live and
+// orphan the children mid-source.
+export const maxDuration = 180;
 
 // Take a draft job live: flip its status to 'published' and source candidates
 // into the pipeline (the step that used to happen implicitly on save). Idempotent
@@ -31,6 +41,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // adopts a shared corpus role. See canWriteJobLifecycle. 404 (not 403) so the
     // endpoint doesn't confirm another tenant's job id exists.
     if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+
+    // Per-IP, AFTER the 404 and the ownership gate (a refused publish costs no budget)
+    // and BEFORE the billing transaction and the two spawning steps below. 20/10min is
+    // deliberately GENEROUS — publishing is a deliberate, once-per-role act a recruiter
+    // performs a handful of times a day, and a bulk go-live over a freshly imported req
+    // list is a legitimate burst, so a legitimate operator never meets this. It exists
+    // only to stop a loop: every accepted publish debits a metered unit AND spawns a
+    // sourcing child plus an alert fan-out. Session-gated, and in open mode
+    // (KP_OPERATOR_PASSWORD unset) that gate is a no-op for the whole API.
+    if (!rateLimit(`jobs-publish:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
 
     // Billing hard gate: one of the two units the customer actually pays for — a role
     // taken to market. Re-publishing an already-live job is always allowed and never
