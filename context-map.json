@@ -35,7 +35,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2726,
+  "files": 2738,
   "groups": 17,
   "use_cases": 12
  },
@@ -3905,6 +3905,10 @@
     "app/features/tools/devcases/DevCompareSubmissions.tsx",
     "app/features/tools/devcases/DevEvalPanel.tsx",
     "app/features/tools/devcases/DevEvalPanelChecks.tsx",
+    "app/features/tools/devcases/DevPublishConfirm.tsx",
+    "app/features/tools/devcases/devcase-studio-i18n.test.ts",
+    "app/features/tools/devcases/devcase-studio-robustness.test.ts",
+    "app/features/tools/devcases/devcaseStudioCopy.ts",
     "app/features/tools/devcases/useDevTabNeedAnalysis.ts"
    ],
    "group": "Developer Assessment",
@@ -5792,7 +5796,11 @@
     "app/api/jds/save/route.ts"
    ],
    "file_paths": [
+    "app/_lib/db/jd-build-cas.test.ts",
+    "app/_lib/jd-build-run.test.ts",
     "app/_lib/jd-build-run.ts",
+    "app/_lib/jd-build-start.test.ts",
+    "app/_lib/jd-build-start.ts",
     "app/_lib/jd-limits.test.ts",
     "app/_lib/jd-limits.ts",
     "app/_lib/jd-lint.test.ts",
@@ -5923,6 +5931,9 @@
     "app/api/intake/[id]/voice-connect/route.ts"
    ],
    "file_paths": [
+    "app/_lib/db/intake-voice-sweep.test.ts",
+    "app/_lib/intake-lang.test.ts",
+    "app/_lib/intake-lang.ts",
     "app/api/intake/[id]/attachments/route.ts",
     "app/api/intake/[id]/brief/route.ts",
     "app/api/intake/[id]/message/route.ts",
@@ -5933,6 +5944,7 @@
     "app/api/intake/[id]/voice-connect/route.ts",
     "app/api/intake/[id]/voice-turn/route.ts",
     "app/api/intake/attachments-guard.test.ts",
+    "app/api/intake/intake-refusal-guard.test.ts",
     "app/api/intake/route.ts"
    ],
    "group": "Job & JD Management",
