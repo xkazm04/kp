@@ -1281,6 +1281,10 @@
     "SCHEDULE_INVITE_BULK_FAILED": "Nepodařilo se odeslat odkazy pro plánování. Zkuste to prosím znovu.",
     "SCHEDULE_LOOKUP_FAILED": "Nepodařilo se načíst přehled termínů. Zkuste to prosím znovu.",
     "SCHEDULE_MANAGE_FAILED": "Nepodařilo se upravit tento pohovor. Zkuste to prosím znovu.",
+    "SCHEDULE_SLOT_TAKEN": "Tento termín je už obsazený. Vyberte jiný.",
+    "SCHEDULE_CANDIDATE_INACTIVE": "Tento kandidát už není aktivní, proto se nic nerezervovalo.",
+    "SCHEDULE_BOOK_FAILED": "Termín se nepodařilo rezervovat. Obnovte stránku a vyberte znovu.",
+    "SCHEDULE_SLOT_UNRESOLVED": "Toto pole kalendáře se nepodařilo převést na čas. Načtěte kalendář znovu a vyberte jiné.",
     "SEARCH_FAILED": "Vyhledávání je momentálně nedostupné. Zkuste to prosím znovu.",
     "ATTENTION_FAILED": "Nepodařilo se načíst počty položek k vyřízení. Zkuste to prosím znovu.",
     "STATUS_LOOKUP_FAILED": "Nepodařilo se načíst stav vaší přihlášky. Zkuste to prosím znovu.",
@@ -3390,6 +3394,8 @@
       "confidence": "jistota: {level}"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
+    "bookFailed": "Termín se nepodařilo rezervovat.",
+    "declineFailed": "Kandidáta se nepodařilo odmítnout. Nic se nezaznamenalo.",
     "interviewerTitle": "Tazatel: {name}",
     "calendar": {
       "calendarAria": "Týdenní kalendář pohovorů: dny vodorovně, časy svisle",

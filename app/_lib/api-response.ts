@@ -433,6 +433,26 @@ export const REFUSAL_ERRORS = {
   /** Steps being removed still hold candidates and no destination was given (409).
    *  The occupied steps and their counts ride alongside in `unmapped`. */
   PIPELINE_MIGRATION_REQUIRED: "Some steps you removed still hold candidates. Say where each of them should go.",
+  // ---- The RECRUITER book path's refusals (docs/features/scheduling/README.md).
+  // Every one of these was a bare English sentence with no code, so the Schedule
+  // tab funnelled all four into "Failed to load." — the load error's copy, on an
+  // action that loaded nothing. A recruiter who lost the hour to a candidate
+  // self-booking and one whose candidate was rejected in another tab read the same
+  // sentence, in English, in every locale.
+  /** The picked hour is spoken for — the candidate's own self-booking, or another
+   *  entry's accepted off-hour proposal inside it (409). The remedy is the whole
+   *  message: pick a different cell. */
+  SCHEDULE_SLOT_TAKEN: "That time is already booked — pick another.",
+  /** The linked entry is closed out (409). The grid's entry list is a client-side
+   *  snapshot, so a candidate rejected in another tab is still on this one. */
+  SCHEDULE_CANDIDATE_INACTIVE: "That candidate is no longer active — nothing was booked.",
+  /** The collision-checked transaction refused for any other reason: the invite
+   *  moved, or is no longer in a state that takes this slot (409). Nothing was
+   *  written, so re-picking after a refresh is safe. */
+  SCHEDULE_BOOK_FAILED: "Couldn't book that time. Refresh and pick again.",
+  /** The submitted grid cell did not resolve to a real instant (400) — a stale
+   *  week pager, or a slot grammar this server no longer parses. */
+  SCHEDULE_SLOT_UNRESOLVED: "That grid slot couldn't be resolved to a time.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -1,7 +1,7 @@
 import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
 import type { StageStatus } from "@/app/_components/AnalysisProgress";
 import { asAnalyzePhase } from "@/app/_lib/analyze-phases";
-import type { AnalyzeErrorCode, ProgressEmitter } from "./AnalyzeTypes";
+import type { AnalyzeErrorCode, AnalyzeErrorInfo, ProgressEmitter } from "./AnalyzeTypes";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -19,14 +19,88 @@ export class AnalyzeClientError extends Error {
   /** The failing route's own machine code, when it publishes one — resolved by the
    *  surface ahead of `serverText`, since a code localizes and English doesn't. */
   apiCode?: string;
-  constructor(code: AnalyzeErrorCode, serverText?: unknown, apiCode?: unknown) {
+  /** The refusal's HTTP status, kept so the surface can tell a 413 from a 402
+   *  from a 429 without re-reading a message. */
+  status?: number;
+  /** Seconds from a `Retry-After` response header, when the boundary sent one.
+   *  kp's own in-process limiter has no window to report, but a self-host behind
+   *  nginx/Cloudflare gets one for free — so when it IS present the form says
+   *  "try again in N seconds" instead of an open-ended "too many requests". */
+  retryAfterSeconds?: number;
+  constructor(
+    code: AnalyzeErrorCode,
+    serverText?: unknown,
+    apiCode?: unknown,
+    extra?: { status?: number; retryAfterSeconds?: number }
+  ) {
     const text = typeof serverText === "string" && serverText.trim() ? serverText.trim() : undefined;
     super(text ?? code);
     this.name = "AnalyzeClientError";
     this.code = code;
     this.serverText = text;
     this.apiCode = typeof apiCode === "string" && apiCode.trim() ? apiCode.trim() : undefined;
+    this.status = extra?.status;
+    this.retryAfterSeconds = extra?.retryAfterSeconds;
   }
+}
+
+/** The four localized channels `resolveAnalyzeErrorText` can draw on, supplied by
+ *  the component that has the translators. Each catalog lookup answers `null` for
+ *  a code it does not know, so the resolver can keep walking instead of painting a
+ *  key. Pure — so the precedence is testable without rendering anything. */
+export type AnalyzeMessageResolvers = {
+  /** app-wide `errors.<CODE>` (useErrorMessage) */
+  appCode: (code: string) => string | null;
+  /** the GitHub deep-dive's own `results.github.errors.<CODE>` */
+  githubCode: (code: string) => string | null;
+  /** this surface's stable `analyze.<code>` failures */
+  analyzeCode: (code: string) => string | null;
+  /** "too many requests — try again in N seconds" */
+  retryAfter: (seconds: number) => string;
+  /** the last-resort generic failure line */
+  generic: string;
+};
+
+/**
+ * THE precedence, in one place: a machine CODE beats the server's English, which
+ * beats the generic line. A code localizes and English does not, so preferring
+ * `serverText` over a code would be the inverted-fallback-chain trap by another
+ * name (api-contracts.md §1.1, and the header of use-error-message.ts).
+ *
+ * Two details worth keeping:
+ *  • a throttle that came with a Retry-After outranks everything, because
+ *    "try again in 45 seconds" is strictly more actionable than "too many
+ *    requests";
+ *  • an api code NO catalog knows falls THROUGH to the server text. The previous
+ *    resolver returned the generic line the moment an apiCode existed, so a code
+ *    added on the server before the catalogs caught up threw away the only
+ *    information the failure carried.
+ */
+export function resolveAnalyzeErrorText(info: AnalyzeErrorInfo, r: AnalyzeMessageResolvers): string {
+  if (info.apiCode === "TOO_MANY_REQUESTS" && typeof info.retryAfterSeconds === "number" && info.retryAfterSeconds > 0) {
+    return r.retryAfter(info.retryAfterSeconds);
+  }
+  if (info.apiCode) {
+    const known = r.appCode(info.apiCode) ?? r.githubCode(info.apiCode);
+    if (known) return known;
+  }
+  const server = info.serverText?.trim();
+  if (server) return server;
+  return (info.code ? r.analyzeCode(info.code) : null) ?? r.generic;
+}
+
+/** Seconds from a `Retry-After` header — the delta-seconds form or an HTTP date.
+ *  Anything unparseable answers undefined, so the caller simply shows the plain
+ *  throttle line. */
+export function retryAfterSeconds(headers: Headers): number | undefined {
+  const raw = headers.get("retry-after");
+  if (!raw) return undefined;
+  const seconds = Number(raw.trim());
+  if (Number.isFinite(seconds) && seconds > 0) return Math.ceil(seconds);
+  const at = Date.parse(raw);
+  if (Number.isNaN(at)) return undefined;
+  const delta = Math.ceil((at - Date.now()) / 1000);
+  return delta > 0 ? delta : undefined;
 }
 
 // POST the upload; the server persists it and starts a background `analyze`
@@ -54,9 +128,21 @@ export async function submitAnalysis(
   if (reportLang) form.append("reportLang", reportLang); // CV3 — per-run report language
 
   const response = await fetch("/api/analyze", { method: "POST", body: form });
-  const payload = await response.json();
-  if (!response.ok) throw new AnalyzeClientError("errFailed", payload.error);
-  const taskId = payload.task?.id as string | undefined;
+  // A refusal is not guaranteed to be JSON (a proxy's own 413/429 page is not),
+  // so a parse failure must degrade to the coded path rather than throw a
+  // SyntaxError the surface would render as an unexplained crash.
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    // Every refusal this route can produce now carries a code — the upload gate's
+    // UPLOAD_*, the form's ANALYZE_*, the throttle's TOO_MANY_REQUESTS, billing's
+    // quota code. The status and any Retry-After ride along so the surface can be
+    // specific without reading English.
+    throw new AnalyzeClientError("errFailed", payload?.error, payload?.code, {
+      status: response.status,
+      retryAfterSeconds: retryAfterSeconds(response.headers),
+    });
+  }
+  const taskId = payload?.task?.id as string | undefined;
   if (!taskId) throw new AnalyzeClientError("errNotStarted");
   return taskId;
 }

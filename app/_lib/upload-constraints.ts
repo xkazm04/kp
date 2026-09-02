@@ -42,12 +42,16 @@ export const ACCEPT_MIME = new Set([
 //     file size and is intentionally far larger, so a legitimate result is
 //     never truncated. See its comment for the reverse cross-reference.
 //
-// To change the contract, change MAX_FILE_BYTES / MAX_FILE_MB / MAX_FILE_HINT
-// here — the client gate, both routes, and the hint text all read from this one
-// place. If you raise MAX_FILE_MB toward ~9, raise next.config.ts's 10mb too.
+// To change the contract, change MAX_FILE_BYTES / MAX_FILE_MB here — the client
+// gate, both routes, and the drop-zone hint all read from this one place. If you
+// raise MAX_FILE_MB toward ~9, raise next.config.ts's 10mb too.
+//
+// There is deliberately NO exported hint STRING any more: "PDF · DOCX · TXT · MD
+// up to 8 MB" is copy, and copy belongs in the catalogs where all four locales
+// carry it (`analyze.uploadHint`, which takes the cap as `{max}` so the number
+// still comes from MAX_FILE_MB rather than from a translator).
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_FILE_MB = 8;
-export const MAX_FILE_HINT = "PDF · DOCX · TXT · MD up to 8 MB";
 export const MAX_CV_VARIANTS = 3;
 
 /**
@@ -70,10 +74,23 @@ export function fileTooLargeMessage(label: string): string {
 
 const EXTENSION_RE = /\.(pdf|docx|txt|md)$/i;
 
-/** Result of the upload gate: the accepted File, or the reason it was rejected. */
+/**
+ * The two ways a document upload can be refused, as CODES rather than sentences
+ * — the same vocabulary on both sides of the wire, so the client gate and a
+ * route's 400/413 resolve to ONE message per meaning in the reader's language
+ * (`errors.<CODE>`, api-contracts.md §1.1). These are the document twins of
+ * AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE, which had codes from the start; the
+ * document gate answered hardcoded English until this change converted every one
+ * of its call sites at once.
+ */
+export type UploadRejectionCode = "UPLOAD_UNSUPPORTED_TYPE" | "UPLOAD_TOO_LARGE";
+
+/** Result of the upload gate: the accepted File, or the CODE it was refused with
+ *  plus the cap as DATA (`maxMb`), so a caller can render "up to 8 MB" without
+ *  re-deriving the number or parsing it back out of a sentence. */
 export type UploadAcceptance =
   | { ok: true; file: File }
-  | { ok: false; error: string };
+  | { ok: false; code: UploadRejectionCode; maxMb: number };
 
 /**
  * The single client-side gate every CV / job-description / company File must
@@ -86,10 +103,10 @@ export type UploadAcceptance =
  */
 export function acceptUpload(file: File): UploadAcceptance {
   if (!EXTENSION_RE.test(file.name)) {
-    return { ok: false, error: "Use a PDF, DOCX, TXT, or MD file." };
+    return { ok: false, code: "UPLOAD_UNSUPPORTED_TYPE", maxMb: MAX_FILE_MB };
   }
   if (file.size > MAX_FILE_BYTES) {
-    return { ok: false, error: `File exceeds the ${MAX_FILE_MB} MB limit.` };
+    return { ok: false, code: "UPLOAD_TOO_LARGE", maxMb: MAX_FILE_MB };
   }
   return { ok: true, file };
 }
@@ -100,8 +117,13 @@ export function acceptUpload(file: File): UploadAcceptance {
  * one max-file-size contract — see FILE_TOO_LARGE_STATUS above). Carrying the
  * status here keeps the boundary's "too big" vs "wrong kind" distinction in one
  * place so the routes don't have to re-decide it.
+ *
+ * `code` is the SAME UploadRejectionCode the client gate returns. `error` stays:
+ * it names the offending input in English for the server log and for API
+ * consumers, which a code cannot do — but it is the log half, never the half a
+ * route hands the UI to paint.
  */
-export type ServerUploadRejection = { status: number; error: string };
+export type ServerUploadRejection = { status: number; error: string; code: UploadRejectionCode };
 
 /**
  * The single server-side gate every uploaded CV / job-description / company File
@@ -126,8 +148,10 @@ export function validateUploadServer(file: File, label: string): ServerUploadRej
   // case require the filename to match EXTENSION_RE too — otherwise a blank
   // Content-Type alone would wave any file past the server's only type gate.
   const typeOk = ACCEPT_MIME.has(file.type) && (file.type !== "" || EXTENSION_RE.test(file.name));
-  if (!typeOk) return { status: 400, error: `Use PDF, DOCX, TXT, or MD for the ${label}.` };
-  if (file.size > MAX_FILE_BYTES) return { status: FILE_TOO_LARGE_STATUS, error: fileTooLargeMessage(label) };
+  if (!typeOk)
+    return { status: 400, error: `Use PDF, DOCX, TXT, or MD for the ${label}.`, code: "UPLOAD_UNSUPPORTED_TYPE" };
+  if (file.size > MAX_FILE_BYTES)
+    return { status: FILE_TOO_LARGE_STATUS, error: fileTooLargeMessage(label), code: "UPLOAD_TOO_LARGE" };
   return null;
 }
 
@@ -167,8 +191,9 @@ export const ACCEPT_AUDIO_MIME = new Set([
  * the reader's language, so a Czech operator whose 30 MB WAV is refused reads
  * Czech. Both codes are REFUSAL_ERRORS members — a refusal is a decision whose
  * message IS the information, and these two say which of the two things to fix.
- * The document gate above still answers sentences; converting it means every one
- * of ITS call sites at once, which is a different change.
+ * The document gate above answers codes too now (UPLOAD_UNSUPPORTED_TYPE /
+ * UPLOAD_TOO_LARGE) — that conversion took every one of ITS call sites in one
+ * change, which is what this comment used to record as still outstanding.
  */
 export type AudioUploadRejection = { status: number; code: "AUDIO_TOO_LARGE" | "AUDIO_UNSUPPORTED_TYPE" };
 

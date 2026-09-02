@@ -2,7 +2,7 @@
 
 import { FileText, UploadCloud, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
+import { ACCEPT_EXTENSIONS, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
 import { formatFileSize } from "./AnalyzeApi";
 import { ownedDropZoneProps } from "./analyzeDropRouting";
 import { useFileAccept } from "./useAnalyzeFileAccept";
@@ -14,16 +14,20 @@ export function AnalyzeFileDropZone({
   file,
   onFileChange,
   onRemove,
-  hint = MAX_FILE_HINT,
+  hint,
 }: {
   inputId: string;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   file: File | null;
   onFileChange: (file: File) => void;
   onRemove: () => void;
+  /** Overrides the default "PDF · DOCX · TXT · MD up to 8 MB" line. Omit it and
+   *  the catalog supplies that line in the reader's language, with the cap
+   *  interpolated from MAX_FILE_MB rather than typed into the copy. */
   hint?: string;
 }) {
   const t = useTranslations("analyze");
+  const hintText = hint ?? t("uploadHint", { max: MAX_FILE_MB });
   // The shared intake gate: every File below is handed to `accept(file, commit)`
   // so a bad drop/select (wrong type or >8 MB) surfaces inline instead of only
   // failing after the upload POST. No path here calls onFileChange directly.
@@ -97,7 +101,7 @@ export function AnalyzeFileDropZone({
         <span className="mt-1 text-sm font-semibold text-ink">
           {isOver ? t("dropHere") : t("dropFileOrClick")}
         </span>
-        <span className="text-sm text-steel">{hint}</span>
+        <span className="text-sm text-steel">{hintText}</span>
       </label>
       {errorRow}
       <input

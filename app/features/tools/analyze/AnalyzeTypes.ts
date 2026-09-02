@@ -48,6 +48,11 @@ export type AnalyzeErrorInfo = {
   code?: AnalyzeErrorCode | AnalyzeNoticeCode;
   apiCode?: string;
   serverText?: string;
+  /** The refusal's HTTP status, when the failure came off a response. */
+  status?: number;
+  /** Seconds from a `Retry-After` header, when the boundary sent one — turns the
+   *  open-ended throttle line into "try again in N seconds". */
+  retryAfterSeconds?: number;
 };
 
 // Re-exported from the single source of truth so existing imports keep working.

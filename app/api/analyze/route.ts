@@ -8,7 +8,8 @@ import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";
 import { createWorkdir, persistFile } from "@/app/_lib/python-runner";
 import { startTask } from "@/app/_lib/tasks";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import {
   MAX_CV_VARIANTS,
@@ -32,7 +33,9 @@ export async function POST(request: Request) {
   // burst can't fan out unmetered model calls. Cached re-runs share the budget,
   // but they are part of the same human cadence the ceiling already covers.
   if (!rateLimit(`analyze:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    // Through the chokepoint, so the throttle carries TOO_MANY_REQUESTS and the
+    // form renders it in the reader's language instead of painting our English.
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
   // Tenant (P2): resolve the requesting workspace up front (a cheap cookie read) so
@@ -62,10 +65,10 @@ export async function POST(request: Request) {
 
   const cvFiles = await collectCvFiles(form);
   if (cvFiles.length === 0) {
-    return NextResponse.json({ error: "Upload a CV or profile file under the field name cv." }, { status: 400 });
+    return jsonRefusal("ANALYZE_CV_REQUIRED", 400);
   }
   if (cvFiles.length > MAX_CV_VARIANTS) {
-    return NextResponse.json({ error: `Compare at most ${MAX_CV_VARIANTS} CV variants in one run.` }, { status: 400 });
+    return jsonRefusal("ANALYZE_TOO_MANY_VARIANTS", 400, { max: MAX_CV_VARIANTS });
   }
 
   const fileValidation = cvFiles
@@ -76,7 +79,13 @@ export async function POST(request: Request) {
     validateOptionalUploadServer(jobDescriptionFile, "job description") ||
     validateOptionalUploadServer(companyFile, "company overview");
   if (validationError) {
-    return NextResponse.json({ error: validationError.error }, { status: validationError.status });
+    // The gate's `error` names WHICH file in English for the log and for API
+    // consumers; `code` is the half the form renders, localized. Both halves
+    // travel — the client never paints the sentence (api-contracts.md §1.1).
+    return NextResponse.json(
+      { error: validationError.error, code: validationError.code },
+      { status: validationError.status }
+    );
   }
 
   const jobDescFile = jobDescriptionFile instanceof File && jobDescriptionFile.size > 0 ? jobDescriptionFile : null;

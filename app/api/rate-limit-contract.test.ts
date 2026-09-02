@@ -117,6 +117,11 @@ const ROUTES: RouteSpec[] = [
     // ride together inside it), so a single operator never hits this.
     key: "`analyze:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // Moved onto the chokepoint with the analyze-refusal conversion: the form
+    // renders errors.TOO_MANY_REQUESTS in the reader's language (and "try again
+    // in N seconds" when a fronting proxy sent a Retry-After) instead of the
+    // server's English string.
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "startTask(",
   },
   {

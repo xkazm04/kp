@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { UploadCloud } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ACCEPT_EXTENSIONS, MAX_FILE_HINT } from "@/app/_lib/upload-constraints";
+import { ACCEPT_EXTENSIONS, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
 import { ownedDropZoneProps } from "./analyzeDropRouting";
 import { useFileAccept } from "./useAnalyzeFileAccept";
 import { useGlobalFileDrag } from "./useAnalyzeGlobalFileDrag";
@@ -144,7 +144,7 @@ export function AnalyzeProfileInput({
           <span className="mt-1 max-w-full truncate text-sm font-semibold text-ink">
             {isActive ? t("dropCvHere") : t("dropCvOrClick")}
           </span>
-          <span className="text-sm text-steel">{MAX_FILE_HINT}</span>
+          <span className="text-sm text-steel">{t("uploadHint", { max: MAX_FILE_MB })}</span>
         </label>
         {errorRow}
         <input

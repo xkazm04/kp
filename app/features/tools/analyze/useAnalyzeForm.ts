@@ -10,6 +10,7 @@ import {
 } from "@/app/_components/AnalysisProgress";
 import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   type AnalyzeErrorInfo,
   type ColumnStatus,
@@ -18,7 +19,7 @@ import {
 import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
 import { useAnalyzeCvFiles } from "./useAnalyzeCvFiles";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./analyzeRunAnalysis";
-import type { VariantProgress } from "./AnalyzeApi";
+import { resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
 import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
@@ -34,10 +35,19 @@ const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 const ANALYZE_DRAFT_KEY = "kp.analyzeDraft";
 type AnalyzeDraft = { jd?: string; company?: string; github?: string };
 
+// A message no catalog will ever produce, used as the "this code is unknown"
+// signal from resolvers whose only failure mode is silently returning a fallback.
+const UNKNOWN_CODE = "__kp_unknown_code__";
+const nullIfUnknown = (text: string): string | null => (text === UNKNOWN_CODE ? null : text);
+
 export function useAnalyzeForm() {
   const t = useTranslations("analyze");
   // The GitHub deep-dive publishes its own failure codes (results.github.errors.*).
   const ghErrMsg = useGithubErrorMessage();
+  // The app-wide `errors` catalog: /api/analyze's refusals (UPLOAD_*, ANALYZE_*,
+  // TOO_MANY_REQUESTS, the billing quota code) live there, not in the deep-dive's
+  // own namespace — so a 413 no longer resolves to the generic failure line.
+  const apiErrMsg = useErrorMessage();
   // CV3 — the report-narrative language for this run, defaulting to the active
   // locale; threaded into the submit FormData so the route can override the
   // cookie per run.
@@ -191,17 +201,17 @@ export function useAnalyzeForm() {
   // code maps to the localized `analyze` catalog (falling back to the generic
   // failure line for an unknown code). Single-sourced so every onError/onWarning
   // resolves identically.
-  const resolveAnalyzeMessage = (info: AnalyzeErrorInfo): string => {
-    const code = info.code;
-    const generic = code && t.has(code) ? t(code) : t("errFailed");
-    // A route-published machine code wins: it names the actual cause AND localizes.
-    // Only then does engine/server-owned English (serverText) get preferred verbatim
-    // — the honest "shown in English" disclosure on this operator surface — and the
-    // stable `analyze` code is the floor.
-    if (info.apiCode) return ghErrMsg({ code: info.apiCode }, generic);
-    const server = info.serverText?.trim();
-    return server || generic;
-  };
+  const resolveAnalyzeMessage = (info: AnalyzeErrorInfo): string =>
+    resolveAnalyzeErrorText(info, {
+      // Each channel answers null for a code it does not know, so the pure
+      // resolver can keep walking. A sentinel fallback is how "unknown" is
+      // detected — both hooks resolve to their fallback rather than reporting it.
+      appCode: (code) => nullIfUnknown(apiErrMsg({ code }, UNKNOWN_CODE)),
+      githubCode: (code) => nullIfUnknown(ghErrMsg({ code }, UNKNOWN_CODE)),
+      analyzeCode: (code) => (t.has(code as Parameters<typeof t>[0]) ? t(code as Parameters<typeof t>[0]) : null),
+      retryAfter: (seconds) => t("errRateLimitedRetry", { seconds }),
+      generic: t("errFailed"),
+    });
 
   const buildCallbacks = (runId: number) => {
     const current = () => runId === analysisRunIdRef.current;
