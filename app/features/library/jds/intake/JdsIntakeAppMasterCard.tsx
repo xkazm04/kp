@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, DIVIDER, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { mandateSections } from "@/app/_lib/app-master/mandate-view";
 import type { AppMasterCompose, PopulationFit } from "@/app/_lib/db/intakes";
-import type { RepoDossier } from "@/app/_lib/schemas.generated";
+import type { AppMasterSpec, RepoDossier } from "@/app/_lib/schemas.generated";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { DispatchState } from "./jdsIntakeAppMaster";
 
 // The App-master card in the live brief panel (docs/features/app-master/README.md).
-// Three stacked truths, in the order they become true:
+// Four stacked truths, in the order they become true:
 //
 //   1. **What the scan read** — the dossier, labelled as a MACHINE READING with
 //      its own provenance (`llm` = Claude Code read the repo in place;
@@ -20,6 +22,13 @@ import type { DispatchState } from "./jdsIntakeAppMaster";
 //      `unassessed` shown as the disclosed unknown rather than hidden.
 //   3. **The composed spec** — mandate rung, forbidden classes, budget, tenure,
 //      owner — plus every assumption the composition had to make.
+//   4. **The mandate itself** — the approval gates Personas will execute, every
+//      objective's bar (target · unit · direction · window), the review cadence,
+//      the retire criteria and the budget's reservation policy. This card used
+//      to show one number out of all of that, the objective COUNT, under a
+//      control that hires an accountable owner. Every capped list here (fit
+//      rows, dossier lines) also carries a "+N more": a silent truncation is a
+//      claim about how much was read.
 //
 // Both themes come from recipes + tokens (PANEL/CHIP_QUIET/META_LABEL, ink /
 // steel / moss / coral / amber-700); there is no raw colour here.
@@ -29,6 +38,147 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
       <span className="text-meta text-steel">{label}</span>
       <span className="text-body text-ink">{value}</span>
+    </div>
+  );
+}
+
+// The "+N more" affordance every capped list in this card owes. The caps are
+// real (a 40-context dossier line is unreadable), but a silent cap is a lie
+// about how much the scan read — MatchCardSkillChips has shown the same list
+// its expansion for a while, and these lists had none.
+function MoreToggle({ hidden, expanded, onToggle }: { hidden: number; expanded: boolean; onToggle: () => void }) {
+  const t = useTranslations("library.tab.intake.appMaster");
+  if (hidden <= 0 && !expanded) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`${CHIP_QUIET} focus-ring ml-1.5 font-semibold hover:bg-stone-200`}
+    >
+      {expanded ? t("showLess") : t("moreCount", { count: hidden })}
+    </button>
+  );
+}
+
+/** A one-line fact whose value is a capped, expandable list. Renders nothing at
+ *  all when the list is empty — a hole reads as a hole. */
+function ListRow({ label, items, cap, sep = ", " }: { label: string; items: string[]; cap: number; sep?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  if (items.length === 0) return null;
+  const shown = expanded ? items : items.slice(0, cap);
+  return (
+    <Row
+      label={label}
+      value={
+        <>
+          {shown.join(sep)}
+          <MoreToggle hidden={items.length - shown.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        </>
+      }
+    />
+  );
+}
+
+/** The per-objective coverage rows behind the fit verdict. Capped at six and
+ *  expandable: the verdict is computed over ALL of them, so a silently-cut list
+ *  under a percentage is a percentage nobody can check. */
+function FitRows({ rows }: { rows: PopulationFit["perObjective"] }) {
+  const t = useTranslations("library.tab.intake.appMaster");
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? rows : rows.slice(0, 6);
+  return (
+    <>
+      <ul className="space-y-0.5">
+        {shown.map((o) => (
+          <li key={o.kpiKey} className="text-meta text-steel">
+            <span className="text-ink">{o.kpiKey}</span> — {t(`fit.coverageClass.${o.coverage}`)}
+            {o.rationale ? `: ${o.rationale}` : ""}
+          </li>
+        ))}
+      </ul>
+      <MoreToggle hidden={rows.length - shown.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+    </>
+  );
+}
+
+/** THE MANDATE — the contract the requestor is about to hand to an owner they
+ *  may never speak to. Approval gates are executed by Personas; each objective's
+ *  target/unit/direction/window is the bar it is measured against; the review
+ *  cadence and retire criteria are how it ends; the reservation policy is how
+ *  its budget is held. The card used to show one number out of all of it (the
+ *  objective COUNT), so "Dispatch" asked for consent to terms nobody had read.
+ *
+ *  The field mapping lives in `mandateSections` (pure, `app/_lib/app-master/
+ *  mandate-view.ts`) — this is only its typography. Absent values render
+ *  NOTHING: no zero, no dash, no invented default. */
+function MandateSection({ spec }: { spec: AppMasterSpec }) {
+  const t = useTranslations("library.tab.intake.appMaster");
+  const view = mandateSections(spec);
+  if (view.isEmpty) return null;
+  return (
+    <div className={`${DIVIDER} space-y-2 pt-3`}>
+      <div className={META_LABEL}>{t("mandate.title")}</div>
+
+      {view.approvalGates.length > 0 ? (
+        <div className="space-y-0.5">
+          <div className="text-meta text-steel">{t("mandate.gates")}</div>
+          <ul className="space-y-0.5">
+            {view.approvalGates.map((gate) => (
+              <li key={gate} className="text-body text-ink">
+                {gate}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {view.objectives.length > 0 ? (
+        <div className="space-y-0.5">
+          <div className="text-meta text-steel">{t("mandate.objectives")}</div>
+          <ul className="space-y-1">
+            {view.objectives.map((o) => (
+              <li key={o.kpiKey}>
+                <div className="text-body text-ink">{o.label}</div>
+                <div className="text-meta text-steel nums">
+                  {o.target !== null ? (
+                    <span>
+                      {t(`mandate.direction.${o.direction}`)} {o.target}
+                      {o.unit ? ` ${o.unit}` : ""}
+                    </span>
+                  ) : null}
+                  {o.target !== null && o.windowDays !== null ? " · " : ""}
+                  {o.windowDays !== null ? t("mandate.windowValue", { days: o.windowDays }) : ""}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="space-y-1.5">
+        {view.reviewCadenceDays !== null ? (
+          <Row
+            label={t("mandate.reviewCadence")}
+            value={<span className="nums">{t("mandate.reviewCadenceValue", { days: view.reviewCadenceDays })}</span>}
+          />
+        ) : null}
+        {view.reservationPolicy ? (
+          <Row label={t("mandate.reservation")} value={t(`mandate.reservationValue.${view.reservationPolicy}`)} />
+        ) : null}
+      </div>
+
+      {view.retireCriteria.length > 0 ? (
+        <div className="space-y-0.5">
+          <div className="text-meta text-steel">{t("mandate.retire")}</div>
+          <ul className="space-y-0.5">
+            {view.retireCriteria.map((c) => (
+              <li key={c} className="text-body text-ink">
+                {c}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -96,26 +246,15 @@ export function JdsIntakeAppMasterCard({
         <p className="text-body text-steel">{scanNote ?? t("dossier.pending")}</p>
       ) : (
         <div className="space-y-1.5">
-          {dossier.stack.length > 0 ? <Row label={t("dossier.stack")} value={dossier.stack.slice(0, 10).join(", ")} /> : null}
-          {dossier.declaredGates.length > 0 ? (
-            <Row label={t("dossier.gates")} value={dossier.declaredGates.slice(0, 6).join(" · ")} />
-          ) : null}
+          <ListRow label={t("dossier.stack")} items={dossier.stack} cap={10} />
+          <ListRow label={t("dossier.gates")} items={dossier.declaredGates} cap={6} sep=" · " />
           <Row
             label={t("dossier.contexts")}
             value={t("dossier.contextCount", { count: dossier.size.contexts || dossier.contexts.length })}
           />
-          {dossier.hotSpots.length > 0 ? (
-            <Row label={t("dossier.hotSpots")} value={dossier.hotSpots.slice(0, 3).map((h) => h.ref).join(", ")} />
-          ) : null}
-          {dossier.riskAreas.length > 0 ? (
-            <Row label={t("dossier.riskAreas")} value={dossier.riskAreas.slice(0, 3).map((r) => r.ref).join(", ")} />
-          ) : null}
-          {dossier.candidateObjectives.length > 0 ? (
-            <Row
-              label={t("dossier.objectives")}
-              value={dossier.candidateObjectives.slice(0, 4).map((o) => o.label).join(", ")}
-            />
-          ) : null}
+          <ListRow label={t("dossier.hotSpots")} items={dossier.hotSpots.map((h) => h.ref)} cap={3} />
+          <ListRow label={t("dossier.riskAreas")} items={dossier.riskAreas.map((r) => r.ref)} cap={3} />
+          <ListRow label={t("dossier.objectives")} items={dossier.candidateObjectives.map((o) => o.label)} cap={4} />
           {dossier.maintainerLoadEstimate ? <Row label={t("dossier.load")} value={dossier.maintainerLoadEstimate} /> : null}
           {scanNote ? <p className="text-meta text-steel">{scanNote}</p> : null}
         </div>
@@ -123,7 +262,7 @@ export function JdsIntakeAppMasterCard({
 
       {/* Population fit — only once there is something to judge it over. */}
       {dossier ? (
-        <div className="space-y-1.5 border-t border-stone-200 pt-3">
+        <div className={`${DIVIDER} space-y-1.5 pt-3`}>
           <div className={META_LABEL}>{t("fit.title")}</div>
           {objectiveCount === 0 ? (
             <p className="text-body text-steel">{t("fit.needsObjectives")}</p>
@@ -141,14 +280,7 @@ export function JdsIntakeAppMasterCard({
                 {t("fit.coverage", { pct: Math.round(fit.coverageRatio * 100) })}
                 {fit.source === "deterministic" ? ` · ${t("fit.keyless")}` : ""}
               </p>
-              <ul className="space-y-0.5">
-                {fit.perObjective.slice(0, 6).map((o) => (
-                  <li key={o.kpiKey} className="text-meta text-steel">
-                    <span className="text-ink">{o.kpiKey}</span> — {t(`fit.coverageClass.${o.coverage}`)}
-                    {o.rationale ? `: ${o.rationale}` : ""}
-                  </li>
-                ))}
-              </ul>
+              <FitRows rows={fit.perObjective} />
             </>
           )}
         </div>
@@ -156,7 +288,7 @@ export function JdsIntakeAppMasterCard({
 
       {/* The composed spec + the two hire paths. */}
       {dossier ? (
-        <div className="space-y-2 border-t border-stone-200 pt-3">
+        <div className={`${DIVIDER} space-y-2 pt-3`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className={META_LABEL}>{t("spec.title")}</div>
             {!frozen && onCompose ? (
@@ -198,6 +330,8 @@ export function JdsIntakeAppMasterCard({
               />
               <Row label={t("spec.owner")} value={spec.mandate.owner || t("spec.noOwner")} />
               <Row label={t("spec.objectives")} value={t("spec.objectiveCount", { count: spec.objectives.length })} />
+              {/* The contract itself, below the summary rows it summarizes. */}
+              <MandateSection spec={spec} />
               {spec.coercionNotes.length > 0 ? (
                 <div className="pt-1">
                   <div className={META_LABEL}>{t("spec.notes")}</div>

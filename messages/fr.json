@@ -3827,6 +3827,26 @@
           "recompose": "Recomposer",
           "composing": "Composition…",
           "composeError": "Impossible de composer la spécification. Veuillez réessayer.",
+            "moreCount": "{count, plural, =1 {+1 de plus} other {+# de plus}}",
+            "showLess": "Afficher moins",
+            "mandate": {
+              "title": "Le mandat",
+              "gates": "Points de validation",
+              "objectives": "Résultats et leurs seuils",
+              "direction": {
+                "gte": "au moins",
+                "lte": "au plus"
+              },
+              "windowValue": "{days, plural, one {fenêtre de # jour} other {fenêtre de # jours}}",
+              "reviewCadence": "Rythme de revue",
+              "reviewCadenceValue": "{days, plural, one {tous les # jour} other {tous les # jours}}",
+              "retire": "Retirer lorsque",
+              "reservation": "Réservation du budget",
+              "reservationValue": {
+                "estimate": "estimée à chaque exécution",
+                "fixed": "réservée à l'avance"
+              }
+            },
           "spec": {
             "title": "Spécification du maître d'application",
             "empty": "Composez la spécification une fois les résultats et le mandat saisis.",

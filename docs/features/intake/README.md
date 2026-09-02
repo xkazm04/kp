@@ -205,6 +205,20 @@ JD has ever had.
   alive for a screen nobody was watching. Both routes now thread it, the card
   shows a **Cancel** beside "Composing…", and an aborted request answers 499
   with no store-error log — a deliberate cancel is not an incident.
+- **The card shows the mandate, not a count of it.** `mandate.approvalGates`
+  (executed by Personas), each objective's target · unit · direction · window,
+  `tenure.reviewCadenceDays`, `tenure.retireCriteria` and
+  `budget.reservationPolicy` are all composed into the spec, and the card used to
+  render one number out of them — the objective COUNT — directly above a control
+  that hires an accountable owner. The Mandate section renders each of those,
+  every label through next-intl in the four catalogs, and an **absent value
+  renders nothing**: no zero, no dash, no invented default. The field mapping is
+  pure and pinned — `mandateSections` in `app/_lib/app-master/mandate-view.ts`
+  (`mandate-view.test.ts`) — so the JSX stays typography. Capped lists (the fit's
+  per-objective rows, the dossier's stack/gates/hot-spots/risks/objectives) carry
+  a **"+N more"** that expands in place, the affordance
+  `MatchCardSkillChips` already uses: a silent truncation is a claim about how
+  much the scan read.
 - **Hire** — the human population promotes through the existing JD build
   (`/promote`, unchanged). The **agent population's dispatch to Personas is P4**:
   the card shows a disabled "Dispatch to Personas" control saying so. No fake
@@ -235,6 +249,7 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | App master: route trust boundaries | `app/api/intake/app-master-routes.test.ts` (source guard) |
 | App master: refusal codes | `REFUSAL_ERRORS` in `app/_lib/api-response.ts` (`INTAKE_NOT_FOUND`, `INTAKE_FROZEN`, `INTAKE_BRIEF_MOVED`, `INTAKE_NOT_FROM_SCAN`, `INTAKE_SCAN_MISMATCH`, `INTAKE_DOSSIER_INVALID`, `INTAKE_NOT_APP_MASTER`, `INTAKE_SCAN_NOT_LANDED`, `INTAKE_BRIEF_EMPTY`) + the shared `TOO_MANY_REQUESTS`; rendered via `useErrorMessage()` |
 | App master: write-path race guard | `app/_lib/db/intake-app-master-cas.test.ts` (behavioral, temp SQLite) |
+| App master: mandate section model (pure) | `app/_lib/app-master/mandate-view.ts::mandateSections` (`mandate-view.test.ts`) |
 | Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
 | Export builder (pure) | `app/_lib/intake-export.ts` |
 | Close sentinel strip (pure) | `app/api/intake/reply-sentinel.ts` (`stripEndSentinel`, `voice-close-guard.test.ts`) |

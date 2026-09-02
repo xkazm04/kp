@@ -3827,6 +3827,26 @@
           "recompose": "Neu erstellen",
           "composing": "Wird erstellt…",
           "composeError": "Die Spezifikation konnte nicht erstellt werden. Bitte erneut versuchen.",
+            "moreCount": "{count, plural, =1 {+1 weiterer} other {+# weitere}}",
+            "showLess": "Weniger anzeigen",
+            "mandate": {
+              "title": "Das Mandat",
+              "gates": "Freigabe-Gates",
+              "objectives": "Ergebnisse und ihre Messlatten",
+              "direction": {
+                "gte": "mindestens",
+                "lte": "höchstens"
+              },
+              "windowValue": "{days, plural, one {# Tag Zeitfenster} other {# Tage Zeitfenster}}",
+              "reviewCadence": "Review-Rhythmus",
+              "reviewCadenceValue": "{days, plural, one {alle # Tag} other {alle # Tage}}",
+              "retire": "Beenden, wenn",
+              "reservation": "Budgetreservierung",
+              "reservationValue": {
+                "estimate": "pro Lauf geschätzt",
+                "fixed": "vorab reserviert"
+              }
+            },
           "spec": {
             "title": "App-Master-Spezifikation",
             "empty": "Erstellen Sie die Spezifikation, sobald Ergebnisse und Mandat erfasst sind.",

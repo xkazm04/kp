@@ -3827,6 +3827,26 @@
           "recompose": "Re-compose",
           "composing": "Composing…",
           "composeError": "Could not compose the spec. Please try again.",
+            "moreCount": "{count, plural, =1 {+1 more} other {+# more}}",
+            "showLess": "Show less",
+            "mandate": {
+              "title": "The mandate",
+              "gates": "Approval gates",
+              "objectives": "Outcomes and their bars",
+              "direction": {
+                "gte": "at least",
+                "lte": "at most"
+              },
+              "windowValue": "{days, plural, one {# day window} other {# day window}}",
+              "reviewCadence": "Review cadence",
+              "reviewCadenceValue": "{days, plural, one {every # day} other {every # days}}",
+              "retire": "Retire when",
+              "reservation": "Budget reservation",
+              "reservationValue": {
+                "estimate": "estimated per run",
+                "fixed": "reserved up front"
+              }
+            },
           "spec": {
             "title": "App master spec",
             "empty": "Compose the spec once the outcomes and the mandate are captured.",

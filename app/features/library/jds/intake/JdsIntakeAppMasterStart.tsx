@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { BTN_GHOST, BTN_SECONDARY, FIELD, META_LABEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_SECONDARY, FIELD, META_LABEL, PANEL_SUNKEN, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 
 // The App-master start option on the intake ledger
 // (docs/features/app-master/README.md). This shape does not begin with a blank
@@ -40,7 +40,7 @@ export function JdsIntakeAppMasterStart({
   }
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3 dark:rounded-2xl">
+    <div className={`${PANEL_SUNKEN} mt-3 space-y-2 p-3`}>
       <div className={META_LABEL}>{t("start")}</div>
       <div className={TOGGLE_GROUP}>
         <button type="button" className={toggleBtn(mode === "url")} onClick={() => setMode("url")}>

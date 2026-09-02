@@ -3827,6 +3827,26 @@
           "recompose": "Sestavit znovu",
           "composing": "Sestavuji…",
           "composeError": "Specifikaci se nepodařilo sestavit. Zkuste to prosím znovu.",
+            "moreCount": "{count, plural, =1 {+1 další} other {+# dalších}}",
+            "showLess": "Zobrazit méně",
+            "mandate": {
+              "title": "Mandát",
+              "gates": "Schvalovací brány",
+              "objectives": "Výsledky a jejich laťky",
+              "direction": {
+                "gte": "alespoň",
+                "lte": "nejvýše"
+              },
+              "windowValue": "{days, plural, one {okno # dne} few {okno # dnů} other {okno # dnů}}",
+              "reviewCadence": "Frekvence revizí",
+              "reviewCadenceValue": "{days, plural, one {každý # den} few {každé # dny} other {každých # dnů}}",
+              "retire": "Ukončit, když",
+              "reservation": "Rezervace rozpočtu",
+              "reservationValue": {
+                "estimate": "odhad na každý běh",
+                "fixed": "rezervováno předem"
+              }
+            },
           "spec": {
             "title": "Specifikace správce aplikace",
             "empty": "Specifikaci sestavte, jakmile budou zachyceny výsledky a mandát.",
