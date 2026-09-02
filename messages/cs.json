@@ -4307,6 +4307,7 @@
       "notEligibleWhy": "{count, plural, one {Nevhodný (#): proč} few {Nevhodní (#): proč} other {Nevhodní (#): proč}}",
       "nearMiss": "téměř prošel/a",
       "earlyCareerNote": "Junioři se zobrazují jako samostatná pipeline a hodnotí se podle potenciálu. Nikdy se neřadí jedním číslem proti zkušeným kandidátům.",
+      "poolTruncatedNote": "Není to celý pool: váš korpus kandidátů překračuje limity řazení, takže někteří uložení kandidáti pro tuto roli nebyli vůbec ohodnoceni. Pořadí i počty zde pokrývají jen ohodnocenou část.",
       "experienced": "Zkušení",
       "earlyCareerPipeline": "Pipeline juniorů",
       "fairnessShielded": "Chráněno spravedlností: hodnoceno podle potenciálu, nikdy automaticky zamítnuto. Nepříznivá rozhodnutí zůstávají na člověku.",

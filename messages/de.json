@@ -4307,6 +4307,7 @@
       "notEligibleWhy": "{count, plural, one {Nicht geeignet (#): Gründe anzeigen} other {Nicht geeignet (#): Gründe anzeigen}}",
       "nearMiss": "knapp verfehlt",
       "earlyCareerNote": "Berufseinsteiger/innen werden als eigene Pipeline angezeigt und nach Potenzial bewertet. Sie werden nie nach einer einzigen Zahl gemeinsam mit erfahrenen Kandidat/innen gereiht.",
+      "poolTruncatedNote": "Nicht der ganze Pool: Ihr Kandidatenkorpus überschreitet die Ranking-Obergrenzen, daher wurden einige gespeicherte Kandidat/innen für diese Rolle nie bewertet. Rangfolge und Zahlen hier gelten nur für die bewertete Teilmenge.",
       "experienced": "Erfahrene",
       "earlyCareerPipeline": "Pipeline für Berufseinsteiger/innen",
       "fairnessShielded": "Fairness-geschützt: nach Potenzial bewertet, nie automatisch abgelehnt. Nachteilige Entscheidungen bleiben beim Menschen.",

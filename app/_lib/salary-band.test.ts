@@ -12,11 +12,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { APP_CURRENCY } from "./format.ts";
 import {
+  groundedJdBand,
   isSameCurrency,
   normalizeCurrency,
   normalizeMarketSalary,
   normalizeSalaryBand,
   salaryBandPosition,
+  withGroundedBand,
 } from "./salary-band.ts";
 
 test("normalizeMarketSalary keeps a usable band and marks it available", () => {
@@ -146,4 +148,32 @@ test("salaryBandPosition won't manufacture a verdict from a degenerate band", ()
   // No usable max → nothing to be "over"; no usable min → nothing to be "under".
   assert.deepEqual(salaryBandPosition(130000, 80000, 0), { position: "within", pct: 0 });
   assert.deepEqual(salaryBandPosition(40000, 0, 100000), { position: "within", pct: 0 });
+});
+
+// The JD's matchable band is AI-fixed (docs/features/jobs/README.md): the edit-time
+// re-sync re-parses the wording and would otherwise upsert the parsed figure — or
+// the "salary_band" anchor phantom — over the analysis band. One helper pins it for
+// both ingests; a JD with no usable analysis band keeps the parse.
+test("withGroundedBand pins the analysis band over a re-parsed figure and drops the phantom marker", () => {
+  const reparsed = { id: "jd-x", salaryBand: [55000, 65000], defaultedFields: ["location", "salary_band"] };
+  const pinned = withGroundedBand(reparsed, [80000, 110000]);
+  assert.deepEqual(pinned.salaryBand, [80000, 110000], "the grounded band wins over the wording's figure");
+  assert.deepEqual(pinned.defaultedFields, ["location"], "a grounded band is stated pay, not the anchor phantom");
+  assert.deepEqual(reparsed.salaryBand, [55000, 65000], "pure: the input record is untouched");
+});
+
+test("withGroundedBand leaves the parse alone when the JD has no grounded band", () => {
+  const reparsed = { id: "jd-x", salaryBand: [55000, 65000], defaultedFields: ["salary_band"] };
+  assert.equal(withGroundedBand(reparsed, null), reparsed, "no analysis band -> the wording is the only source");
+});
+
+test("groundedJdBand reads the persisted analysis band and rejects an unusable one", () => {
+  assert.deepEqual(
+    groundedJdBand(JSON.stringify({ salary: { suggestedMinimum: 80000, suggestedMaximum: 110000, currency: "CZK" } })),
+    [80000, 110000],
+  );
+  assert.equal(groundedJdBand(JSON.stringify({ salary: { suggestedMinimum: 0, suggestedMaximum: 0 } })), null, "the CLI's 0-0 miss");
+  assert.equal(groundedJdBand(JSON.stringify({ options: { marketResearch: true } })), null, "a ticked option is not a band");
+  assert.equal(groundedJdBand(null), null);
+  assert.equal(groundedJdBand("not json"), null);
 });

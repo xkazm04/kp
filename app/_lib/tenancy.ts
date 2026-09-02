@@ -356,7 +356,6 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "group_evals",
   "interview_preps",
   "jd_templates",
-  "job_ingests",
   "login_attempts",
   "offers",
   "personas_bridge",

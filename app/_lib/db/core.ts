@@ -220,6 +220,15 @@ export function safeRowParse<T>(
   return column.state === "ok" ? column.value : null;
 }
 
+// Stated once so the boot DDL and the pre-P1 rebuild (below) cannot drift.
+const JOB_INGESTS_DDL = `CREATE TABLE IF NOT EXISTS job_ingests (
+      content_hash TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      PRIMARY KEY (content_hash, workspace_id)
+    );`;
+
 export function ensureDb(): Database.Database {
   if (_dbHolder.__kpDb) return _dbHolder.__kpDb;
   // Canonical isolated-store open (WAL + busy_timeout=5000): the scheduler writes
@@ -450,6 +459,15 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_jobs_seniority ON jobs (seniority);
     CREATE INDEX IF NOT EXISTS idx_jobs_work_mode ON jobs (work_mode);
     CREATE INDEX IF NOT EXISTS idx_jobs_entry ON jobs (is_entry_eligible);
+
+    -- job_ingests: content-hash dedup of ingested ad text, scoped PER WORKSPACE
+    -- (composite PK) so a team never reuses another team's job for identical ad
+    -- text. Owned HERE, eagerly, because job-ingest.ts (its only writer) writes
+    -- the jobs corpus through this connection — it used to open its own, which
+    -- put setJobStatus outside every transaction a route opened on this handle
+    -- (publish's gate → flip → debit hit SQLITE_BUSY_SNAPSHOT on the debit).
+    -- A pre-P1 table (single content_hash PK) is rebuilt in the migrations below.
+    ${JOB_INGESTS_DDL}
 
     CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY,
@@ -1306,16 +1324,14 @@ export function ensureDb(): Database.Database {
     // (devcase/seed_materializer.py) — one per case, identical for every
     // candidate, so the submission is a diff against shared ground truth.
     "ALTER TABLE dev_cases ADD COLUMN seed_json TEXT",
-    // draft→publish lifecycle for the jobs corpus. job-ingest.ts ALTERs this in on
-    // its own connection; mirror it here so the db.ts connection can filter drafts
-    // out of the rematch corpus (listCorpusJobs) even when ingestion never ran this
-    // boot. NULL status = a seeded/live corpus job; authored JDs are 'draft' until
-    // published.
+    // draft→publish lifecycle for the jobs corpus (job-ingest.ts writes it through
+    // THIS connection; it once mirrored these ALTERs on a private one). NULL status
+    // = a seeded/live corpus job; authored JDs are 'draft' until published.
     "ALTER TABLE jobs ADD COLUMN status TEXT",
     // Tenant scope (P1): a team's authored openings. Seeded corpus rows keep
     // workspace_id NULL = the SHARED cross-company reference every team matches
     // against; authored JDs (a status was set) are backfilled to the default team
-    // below. job-ingest.ts mirrors this ALTER on its own connection.
+    // below.
     "ALTER TABLE jobs ADD COLUMN workspace_id TEXT",
     // When the role first went live. status alone says whether a job is published
     // now, never since when, so any publish-anchored cycle metric (publish→hire,
@@ -1760,6 +1776,15 @@ export function ensureDb(): Database.Database {
       if (!jobExists.get(jobId)) continue;
       linkCase.run(jobId, row.id);
     }
+  }
+  // job_ingests: a pre-P1 table (single content_hash PK, no workspace_id) is a
+  // rebuildable dedup cache that simply re-populates on the next ingest — drop it and
+  // recreate it under the composite PK. Guarded by the absence of the workspace_id
+  // column so it runs exactly once (moved here from job-ingest.ts's private
+  // connection, where it ran on that module's first call instead of at boot).
+  const ingestCols = db.prepare(`PRAGMA table_info(job_ingests)`).all() as { name: string }[];
+  if (ingestCols.length > 0 && !ingestCols.some((c) => c.name === "workspace_id")) {
+    db.exec(`DROP TABLE job_ingests; ${JOB_INGESTS_DDL}`);
   }
   // channel_spend: widen the single-column PK to (channel, workspace_id) so each team
   // keeps its own per-channel spend. One-time rebuild (SQLite can't alter a PK); guarded

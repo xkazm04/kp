@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
@@ -27,9 +27,17 @@ export const maxDuration = 180;
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
     const ws = await currentWorkspace();
+    // Visibility gate, same as the candidates read this button sits on and every
+    // other by-id job route: without it a caller could file one of their own
+    // candidates into a pipeline entry for ANOTHER team's role — stamped with that
+    // role's private title and family, read straight off the row — and fire a
+    // first-touch email naming it. 404 (not 403) so the id's existence isn't
+    // confirmed; seeded corpus rows (workspace_id NULL) stay reachable by every team.
+    const job = getJob(id);
+    if (!job || !jobVisibleToWorkspace(id, ws)) {
+      return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    }
 
     const body = (await request.json().catch(() => ({}))) as {
       candidateId?: string;

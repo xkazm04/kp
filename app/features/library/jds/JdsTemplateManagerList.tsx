@@ -53,13 +53,16 @@ export function JdsTemplateManagerList({
                   <Star size={11} className="fill-current" /> {t("default")}
                 </span>
               ) : (
-                <button type="button" onClick={() => setDefault(tpl.id)} className="focus-ring rounded-md p-1.5 text-steel hover:bg-moss/10 hover:text-moss" title={t("setDefaultTitle")}>
-                  <Star size={15} />
+                <button type="button" onClick={() => setDefault(tpl.id)} className="focus-ring rounded-md p-1.5 text-steel hover:bg-moss/10 hover:text-moss" title={t("setDefaultTitle")} aria-label={t("setDefaultTitle")}>
+                  <Star size={15} aria-hidden />
                 </button>
               )
             ) : null}
-            <button type="button" onClick={() => { setConfirmingId(null); setEditing({ id: tpl.id, name: tpl.name, body: tpl.body, scope: tpl.scope }); }} className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100" title={t("editTitle")}>
-              <Pencil size={15} />
+            {/* Icon-only controls carry an explicit accessible name (the ledger row's
+                idiom: title + aria-label, icon aria-hidden) — `title` alone is a
+                tooltip, not a reliable name for a screen reader. */}
+            <button type="button" onClick={() => { setConfirmingId(null); setEditing({ id: tpl.id, name: tpl.name, body: tpl.body, scope: tpl.scope }); }} className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100" title={t("editTitle")} aria-label={t("editTitle")}>
+              <Pencil size={15} aria-hidden />
             </button>
             {confirmingId === tpl.id ? (
               <span className="animate-fade-in inline-flex items-center gap-1" role="group" aria-label={t("deleteGroupAria", { name: tpl.name })}>

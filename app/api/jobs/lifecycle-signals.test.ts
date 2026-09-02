@@ -93,6 +93,28 @@ for (const route of ["campaign", "winnability", "rediscover", "agent-fit"] as co
   });
 }
 
+// The candidates pair was the gap in that rule: the ranking read spent a recruiter_cli
+// child ranking the caller's pool against ANY tenant's role and returned a per-candidate
+// breakdown of its must-haves and KO floors; the outreach write filed a pipeline entry
+// carrying another team's role title and fired a first-touch email naming it. Both now
+// gate BEFORE the spend / the write, and the gate must read the workspace the rest of
+// the handler uses (candidates resolves it as `workspaceId`, outreach as `ws`).
+for (const [label, segments, wsName] of [
+  ["GET /api/jobs/[id]/candidates", ["[id]", "candidates", "route.ts"], "workspaceId"],
+  ["POST /api/jobs/[id]/candidates/outreach", ["[id]", "candidates", "outreach", "route.ts"], "ws"],
+] as const) {
+  test(`${label} re-applies the list's visibility predicate before it spends or writes`, () => {
+    const src = read(...segments);
+    const gate = new RegExp(`jobVisibleToWorkspace\\(id, ${wsName}\\)`);
+    assert.match(src, gate, `${label} must not answer for a job the list would hide`);
+    assert.match(src, /status: 404/, "an invisible job must 404, not leak existence");
+    const gateAt = src.search(gate);
+    // rankPoolForJob is called with a type argument (`rankPoolForJob<…>(`).
+    const spendAt = src.search(/rankPoolForJob[<(]|createPipelineEntry\(/);
+    assert.ok(gateAt > 0 && spendAt > gateAt, `${label}: the gate must precede the ranking spend / the pipeline write`);
+  });
+}
+
 test("the Jobs tab falls back to the by-id fetch when a ?job= deep link misses the slice", () => {
   // Deep-link resolution lives in the tab's extracted hook; the notice it drives is
   // rendered by the tab itself.

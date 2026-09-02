@@ -39,6 +39,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // unit, and so a refused publish can never leave a debit behind. (No await sits
     // between them and better-sqlite3 is synchronous, so this is atomic today too;
     // the transaction enforces the invariant if an await is ever introduced here.)
+    //
+    // "ONE transaction" is only true because all three statements run on THIS
+    // handle. setJobStatus used to write through job-ingest.ts's own connection,
+    // which made this block fail on every genuine go-live: the gate's billing read
+    // opened this handle's WAL snapshot, the flip committed on the other connection,
+    // and the debit then hit SQLITE_BUSY_SNAPSHOT — rolled back here, 500 to the
+    // caller, and the role already live and unmetered. Pinned by
+    // publish-atomicity.test.ts, which drives exactly this sequence.
     const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof jobPostGate> } => {
       const prevStatus = getJobStatus(id);
       const wasPublished = prevStatus === "published";

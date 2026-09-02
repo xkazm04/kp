@@ -1,5 +1,5 @@
 import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
-import { normalizeSalaryBand } from "@/app/_lib/salary-band";
+import { normalizeSalaryBand, withGroundedBand } from "@/app/_lib/salary-band";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { parseRoleSpec } from "@/app/_lib/rolespec";
@@ -32,7 +32,7 @@ export async function ingestStructuredJob(input: {
     source: "authored_jd",
   };
 
-  const { job } = await normalizeJob(record, jdJobId(input.slug));
+  const { job: parsed } = await normalizeJob(record, jdJobId(input.slug));
   // The matchable band is FIXED to the AI/market analysis's salary, on purpose:
   // it carries that analysis's provenance, confidence, and cited sources, so a
   // hand-typed override (e.g. a number edited into the JD markdown) is NOT honored
@@ -41,14 +41,11 @@ export async function ingestStructuredJob(input: {
   // SalaryCard); editing the salary line in the markdown changes the published wording only.
   // Clamp/swap a backwards or non-positive band rather than dropping it, so the
   // matchable Job's band never silently disagrees with the analysis it came from.
+  // `withGroundedBand` is the ONE place that rule is written — the edit-time
+  // re-sync in PATCH /api/jds/[slug] applies the same helper, so the band the
+  // first ingest pinned survives every later wording edit.
   const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);
-  if (band) {
-    job.salaryBand = band;
-    // The grounded band replaces the taxonomy anchor normalize_job stamped (and
-    // flagged as the "salary_band" phantom). It IS the band this JD advertises,
-    // so drop that provenance lest the posting/campaign treat real pay as assumed.
-    job.defaultedFields = (job.defaultedFields ?? []).filter((f) => f !== "salary_band");
-  }
+  const job = withGroundedBand(parsed, band);
 
   // Authored JDs start as a DRAFT — "Source into Pipeline" takes them live and
   // sources them into the pipeline.

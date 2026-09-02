@@ -3,6 +3,7 @@ import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
 import { promotedBriefForJob } from "@/app/_lib/db/intakes";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
+import { groundedJdBand, withGroundedBand } from "@/app/_lib/salary-band";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -60,8 +61,11 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 //   { archived: bool }   — archive/unarchive (archived JDs leave listJds and
 //                          the pickers; the public page renders with a banner).
 export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
-  // The JD detail page is public/shareable, so edit + archive must be recruiter-only
-  // at the handler — not just hidden in the UI. GET above stays public.
+  // The JD detail PAGE (/jds/[slug]) is public/shareable, so edit + archive must be
+  // recruiter-only at the handler — not just hidden in the UI. This API route is
+  // not: `/api/jds/*` sits behind the session gate (public-routes.ts), and GET above
+  // serves the caller's own library — an earlier revision of this comment called
+  // that GET "public", which it never was.
   const denied = await requireOperator();
   if (denied) return denied;
   const { slug } = await context.params;
@@ -114,9 +118,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     if (getJob(jobId)) {
       try {
         const { job } = await ingestJobAd(fields.body, jobId);
+        // The re-parse reads the pay figure out of the edited WORDING, and
+        // insertJob's upsert writes salary_min/salary_max from whatever it got — so
+        // this write used to replace the analysis-grounded band the first ingest
+        // pinned with either the recruiter's hand-typed number (the exact override
+        // the builder refuses to honor) or, when the edited text states no pay, the
+        // taxonomy anchor `normalize_job` stamps as the "salary_band" phantom. The
+        // doc's contract is that editing the salary line changes the published
+        // wording, never the matchable band; carry the stored analysis band across
+        // the re-sync the same way the first ingest set it. A JD with no analysis
+        // (pasted, keyless 0–0 miss) has no grounded band, and the parse stands.
         // No content hash: the row already exists under this explicit id, so the
         // upsert path applies and the lifecycle status is preserved.
-        insertJob({ ...job, id: jobId }, undefined, "draft", ws);
+        insertJob(withGroundedBand({ ...job, id: jobId }, groundedJdBand(existing.analysis_json)), undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds] JD ${slug} edited but job re-ingest failed`, ingestError);

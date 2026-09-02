@@ -50,6 +50,19 @@ JD **markdown** wording only; editing the salary line there changes the
 published wording, not the matchable band, and the salary card says so
 explicitly.
 
+That contract has to survive the edit-time re-sync, and it did not:
+`PATCH /api/jds/[slug]` keeps the linked `jd-<slug>` Job in step with an edited
+body by re-parsing the markdown (`ingestJobAd`) and upserting the result, and
+`insertJob`'s upsert writes `salary_min`/`salary_max` from the parse — so the
+grounded band was replaced by whatever the wording now said (the hand-typed
+override, exactly), or by the taxonomy anchor `normalize_job` stamps as the
+`salary_band` phantom when the edited text states no pay at all. Both ingests
+now pin the band through one helper, `withGroundedBand` (`app/_lib/salary-band.ts`):
+the first ingest passes the analysis's salary, the re-sync passes
+`groundedJdBand(jds.analysis_json)`, and a JD with no usable analysis band (a
+pasted JD, a keyless 0–0 miss) keeps the parsed figure, because for those the
+wording is the only source there is.
+
 ## Templates are a live reformat — a switch warns before discarding edits
 
 The **Template** selector in `JdBuilder` is both a pre-generation choice and a
@@ -133,6 +146,21 @@ two produced the row.
 > deliberately left unchanged — only the user-facing labels were renamed.
 > Read `published` as **"Live (sourced)"**, never as external job-board
 > publishing.
+
+### The go-live is one transaction, on one connection
+
+`/publish` runs the billing gate (`jobPostGate`), the status flip
+(`setJobStatus`) and the `job_posts` debit inside one `ensureDb().transaction`,
+so a refused publish never charges and a live role never escapes the meter. That
+was only nominally true until `app/_lib/job-ingest.ts` stopped opening its own
+`openStore()` connection: with the flip committing on a second handle, the gate's
+`billing_state` read had already opened the main handle's WAL snapshot, and the
+debit that followed failed with `SQLITE_BUSY_SNAPSHOT` — the transaction rolled
+back, the route answered 500, and the role was already live and unmetered.
+`job-ingest.ts` now writes the `jobs` corpus through the main handle; `job_ingests`
+(its dedup cache) is created and migrated in `app/_lib/db/core.ts` with the rest
+of the boot DDL. `app/api/jobs/publish-atomicity.test.ts` drives the exact
+sequence against the real modules.
 
 ## JD specificity lint (Erika gap E7)
 
@@ -289,7 +317,7 @@ still never blanks content that is already correct.
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
 | `app/api/jobs/[id]/close/route.ts` | Published/draft → closed + withdraw in-flight entries. |
 | `app/api/jobs/[id]/campaign/route.ts` | Sourcing campaign pack (E1). |
-| `app/api/jobs/[id]/rediscover`, `app/api/jobs/[id]/candidates`, `app/api/jobs/[id]/winnability` | Re-surface past candidates, candidate list, winnability signal. |
+| `app/api/jobs/[id]/rediscover`, `app/api/jobs/[id]/candidates`, `app/api/jobs/[id]/winnability` | Re-surface past candidates, candidate list, winnability signal. Every by-id job route re-applies the list's visibility predicate (`jobVisibleToWorkspace`: the shared seeded corpus plus the caller's own openings) and 404s otherwise — including the candidates ranking and its `candidates/outreach` write, which used to skip it and would rank the caller's pool against, or file an entry under, another team's role. Pinned by `lifecycle-signals.test.ts`. |
 | `app/api/jobs/ingest/route.ts`, `app/api/jobs/status/route.ts` | Bulk ingest / status listing. |
 | `app/_lib/jd-lint.ts` | Live specificity linter (E7). |
 | `pipeline/jobfit/campaign.py`, `campaign_cli.py` | Campaign pack generation engine (E1). |
@@ -331,6 +359,20 @@ A failed sweep in that feed also stopped wearing the success tone: `note` carrie
 either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, and
 the failure was painted `text-moss` — this app's "it worked" green — whenever any
 alert was already on screen.
+
+## The Candidates tab says when the pool was capped
+
+`GET /api/jobs/[id]/candidates` returns `poolTruncated` ("the corpus exceeds the
+pool caps, so some candidates were never scored here" — the overflow is excluded,
+not ranked low). The tab shipped that flag unread: `jobsRecruiterCandidatesLogic.ts`
+typed only `candidates` / `skipped` / `fairness`, so an over-cap workspace saw a
+ranking, a KO-filtered count and a Pool-Fit count all computed over a subset,
+presented as the pool — the same cut-slice-as-whole-set shape the rediscovery
+panel closed with its "+N more" line. The hook now reads the flag (strictly
+`=== true`, so an older payload never invents a warning) and
+`JobsRecruiterCandidates` renders `jobs.candidates.poolTruncatedNote` beside the
+skipped-candidates note, in the same advisory amber. The winnability coach's half
+is still open (Known gaps).
 
 ## A rediscovery prior must be another role
 
@@ -636,15 +678,12 @@ include `workspace_id`).
   computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
   and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
   "showing N of M" line (new `library.tab.*` copy across all four locales).
-- `GET /api/jobs/[id]/candidates` forwards `poolTruncated` (from
-  `buildCandidatePool`) and **nothing reads it**: the `data` state in
-  `app/features/library/jobs/jobsRecruiterCandidatesLogic.ts` types only
-  `candidates` / `skipped` / `fairness`. A workspace whose corpus exceeds
-  `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) therefore sees a ranking, a
-  KO-filtered count and a Pool-Fit count all computed over a subset with no
-  notice. `GET /api/jobs/[id]/winnability` drops the same flag on the floor
-  (`const { entries } = buildCandidatePool(ws)`), so its "+N if you loosen this"
-  promises are capped the same way.
+- `GET /api/jobs/[id]/winnability` drops `buildCandidatePool`'s `truncated` flag
+  on the floor (`const { entries } = buildCandidatePool(ws)`), so on a workspace
+  whose corpus exceeds `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) the coach's
+  "+N if you loosen this" promises are computed over a capped subset with no
+  notice. The Candidates tab now says so for its own ranking (below); the coach
+  panel still needs the flag forwarded and a matching line.
 - **The Fair Rank audit table ranks one number across cohorts it is not
   comparable within.** `recruiter.fairness_check` is handed *every* validated
   candidate, so its `own` / `mean` arrays include both fairness tracks **and**
@@ -656,11 +695,6 @@ include `workspace_id`).
   experienced candidates"), and a candidate the KO filter rejected outright can
   sit at the top of the bias-defensible record. Fixing it needs `koPassed` +
   `track` passed down from `JobsRecruiterCandidates.tsx`, and a column label.
-- **`poolTruncated` is shipped and unread.** `GET /api/jobs/[id]/candidates`
-  returns it ("the corpus exceeds the pool caps, so some candidates were never
-  scored here"), but `jobsRecruiterCandidatesLogic.ts` does not type or read it,
-  so an over-cap workspace presents a capped ranking as the pool with no note —
-  the same cut-slice-as-whole-set shape rediscovery just closed.
 - No structurally-tracked, independently-provenanced editable salary band yet
   (would need its own `source: "manual"` marker, not a re-parse of the
   markdown).

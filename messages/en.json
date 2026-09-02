@@ -4307,6 +4307,7 @@
       "notEligibleWhy": "{count, plural, one {Not eligible (#): see why} other {Not eligible (#): see why}}",
       "nearMiss": "near miss",
       "earlyCareerNote": "Early-career candidates are shown as a separate pipeline and scored on potential. They are never ranked on one number against experienced candidates.",
+      "poolTruncatedNote": "Not the whole pool: your candidate corpus exceeds the ranking caps, so some saved candidates were never scored for this role. The ranking and the counts here cover the scored subset only.",
       "experienced": "Experienced",
       "earlyCareerPipeline": "Early-career pipeline",
       "fairnessShielded": "Fairness-shielded: scored on potential, never auto-rejected. Adverse decisions stay human.",

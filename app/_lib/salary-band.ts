@@ -66,6 +66,48 @@ export function normalizeSalaryBand(min: unknown, max: unknown): SalaryBand | nu
   return min <= max ? [min, max] : [max, min];
 }
 
+/**
+ * Pin a job's matchable band to the GROUNDED one (the market analysis the JD was
+ * built with) across a (re-)parse of its wording. The JD's salary band is
+ * AI-fixed by contract (docs/features/jobs/README.md § "The salary band is
+ * AI-fixed"): it carries the analysis's provenance, confidence and sources, so a
+ * figure hand-typed into the markdown must NOT become the band the Pipeline
+ * matches against. `normalize_job` (jobs.py) stamps a taxonomy anchor and flags it
+ * as the "salary_band" phantom when the text states no pay; the grounded band IS
+ * the pay this JD advertises, so that marker is dropped with it.
+ *
+ * Shared by the builder's first ingest (`ingestStructuredJob`) and the
+ * edit-time re-sync (PATCH /api/jds/[slug]), which parses the edited markdown
+ * through `ingestJobAd` and would otherwise upsert the parsed figure — or the
+ * anchor phantom — straight over the analysis. A `null` band (no analysis, e.g.
+ * a pasted JD) leaves the parsed record untouched: for those the wording is the
+ * only source there is.
+ */
+export function withGroundedBand<T extends { salaryBand?: number[]; defaultedFields?: string[] }>(
+  job: T,
+  band: SalaryBand | null
+): T {
+  if (!band) return job;
+  return { ...job, salaryBand: band, defaultedFields: (job.defaultedFields ?? []).filter((f) => f !== "salary_band") };
+}
+
+/** The grounded band stored on a JD row (`jds.analysis_json.salary`, the
+ *  `market_salary_cli` result the build persisted), or null when the row carries
+ *  no usable band — no analysis ran, the CLI's 0–0 taxonomy miss, or a keyless
+ *  build with no band. Tolerates a missing/malformed JSON string. */
+export function groundedJdBand(analysisJson: string | null | undefined): SalaryBand | null {
+  if (!analysisJson) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(analysisJson);
+  } catch {
+    return null;
+  }
+  const salary = parsed && typeof parsed === "object" ? (parsed as { salary?: unknown }).salary : undefined;
+  const s = normalizeMarketSalary(salary);
+  return s.available ? [s.suggestedMinimum, s.suggestedMaximum] : null;
+}
+
 // The grounded market-salary band the JD builder renders and persists, as
 // produced by `market_salary_cli`. This is the canonical shape — `jd-build-run`
 // (server) and the Ledger detail's SalaryCard (client) both import it instead of

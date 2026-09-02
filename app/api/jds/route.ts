@@ -59,8 +59,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // Writing a JD to the library is a recruiter action, not a public one (GET above
-  // stays open). Gate before the body read. Open mode is a no-op, so dev/sim pass.
+  // Writing a JD to the library is a recruiter write, so it re-verifies the operator
+  // here (defense in depth — `/api/jds/*` is already behind the session gate in
+  // public-routes.ts, GET above included; the only open surface is the /jds/[slug]
+  // page). Gate before the body read. Open mode is a no-op, so dev/sim pass.
   const denied = await requireOperator();
   if (denied) return denied;
   let body: unknown;

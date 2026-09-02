@@ -44,6 +44,7 @@ export function RecruiterCandidates({
     notEligibleRows,
     notEligible,
     skipped,
+    poolTruncated,
     fairness,
     fairById,
     hasFairness,
@@ -111,6 +112,15 @@ export function RecruiterCandidates({
       {poolFitOnly ? <p className="mt-1 text-sm text-steel">{t("poolFitNote")}</p> : null}
       {fairActive ? <p className="mt-1 text-sm text-steel">{t("fairRankNote")}</p> : null}
       <SkippedCandidatesNote skipped={skipped} />
+      {/* The pool was capped (route's `poolTruncated`): say so where the ranking,
+          the KO count and the Pool-Fit count are read, in the same advisory
+          amber the skipped-candidates note wears — a cut slice presented as the
+          whole pool is the shape this tab must never take. */}
+      {poolTruncated ? (
+        <p role="note" className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-sm text-amber-800">
+          {t("poolTruncatedNote")}
+        </p>
+      ) : null}
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         <CandidateColumn
           title={t("experienced")}

@@ -87,3 +87,15 @@ test("the Ledger offers an in-place re-ingest for a JD with no matchable job (no
     "re-ingest must target the existing slug's ingest-job endpoint",
   );
 });
+
+// The matchable band is pinned to the market analysis by contract (the doc's
+// "AI-fixed, not editable" section). Both writers of the jd-<slug> Job — the first
+// ingest and the edit-time re-sync in PATCH /api/jds/[slug] — must go through the
+// one helper that pins it, or an edited salary line becomes the matchable band.
+test("both jd-<slug> ingests pin the band through withGroundedBand", () => {
+  const first = read("./ingest-job.ts");
+  assert.match(first, /withGroundedBand\(/, "the first ingest must pin the analysis band through the shared helper");
+  const resync = read("../[slug]/route.ts");
+  assert.match(resync, /withGroundedBand\(/, "the edit re-sync must carry the grounded band across the re-parse");
+  assert.match(resync, /groundedJdBand\(existing\.analysis_json\)/, "…read from the JD row's stored analysis, not the parse");
+});
