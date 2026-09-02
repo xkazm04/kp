@@ -40,9 +40,13 @@ export function VoiceNav({ history, className = "" }: { history: VoiceHistory; c
       >
         <ChevronLeft size={18} aria-hidden />
       </button>
-      {/* aria-live: the arrows move the whole window's content, and a screen
-          reader that only hears the new answer has no idea WHERE it landed. */}
-      <span className="nums min-w-[4.5rem] text-center text-sm text-steel" aria-live="polite">
+      {/* NOT a live region. It was one, and with the prose region and the busy
+          note that made THREE announcements fire on a single arrow press, which
+          is how a screen reader user ends up hearing none of them properly. The
+          strip keeps one live region for the answer (VoiceProse) and one status
+          region for busy; the position stays readable, right beside the arrows
+          that changed it, for anyone who goes looking. */}
+      <span className="nums min-w-[4.5rem] text-center text-sm text-steel">
         {t("voiceMode.position", { index: history.position, total: history.total })}
       </span>
       <button

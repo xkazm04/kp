@@ -105,15 +105,24 @@ export function CompanionVoiceTicker({
 
   return (
     <div className={`${PANEL} px-3 py-2`}>
-      <div className="flex items-center gap-2.5">
+      {/* WRAPS BELOW sm, and it has to. The strip holds seven controls plus her
+          prose, and at 360px the padding leaves ~312px of content: play (~34) +
+          "show details" (~90) + the two arrows and their counter (~140) + the
+          settings and close pair (~68) is ~332px of CONTROLS ALONE. On one
+          nowrap row the prose is squeezed to nothing and the controls still
+          overflow. So the prose takes the full first row and every control sits
+          beneath it — rather than the cheaper fix of hiding the counter, which
+          would delete the one affordance this whole mode exists for (VoiceNav's
+          own note: without it "older" has no floor). Unchanged at sm and up,
+          where the row fits as designed. */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         <VoicePlaybackButton entry={entry} speech={speech} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 max-sm:order-first max-sm:w-full max-sm:basis-full">
           {entry ? <VoiceProse entry={entry} clamp={!open} /> : busy ? <VoiceBusyNote /> : <VoiceEmpty />}
-          {entry && busy ? (
-            <span className="text-sm text-steel" role="status">
-              {t("chat.thinking")}
-            </span>
-          ) : null}
+          {/* The SAME note the empty branch shows, not a second copy of it: the
+              duplicate here was a second live region announcing the identical
+              sentence, so a screen reader heard "thinking" twice. */}
+          {entry && busy ? <VoiceBusyNote /> : null}
         </div>
         {hasDetails ? (
           <button

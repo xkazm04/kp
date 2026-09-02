@@ -1036,6 +1036,19 @@ this mode exists. The rest pill is unchanged and shared: the mode changes the
 OPEN state only, so a voice-mode operator whose deck is collapsed still has the
 pill as a door.
 
+**Parity with the window, three ways.** *Escape* closes the strip when the
+settings popover is not open, through the SAME close path the X uses — so focus
+lands back on the rest pill however it was dismissed. Bound to the document, not
+to the region: the strip is one focus stop that an operator working the page
+behind it does not have focus in. *Below `sm` the row wraps*: the prose takes the
+full first row and the controls sit beneath it, because at 360px the controls
+alone want ~332px of the ~312px available and a nowrap row squeezes her answer to
+nothing. Hiding the counter would have been cheaper and would have deleted the
+one affordance the mode exists for. *One live region for the answer* (the prose)
+and *one status region for busy* — the counter is no longer live and the ticker
+reuses `VoiceBusyNote` instead of duplicating it, so a single arrow press no
+longer fires three announcements at once.
+
 The input is one line (`<input>`, not a textarea): the operator gave up the
 column to keep the page visible, so the composer cannot claim it back, Enter has
 exactly one meaning and there is no Shift+Enter to explain. It reproduces
