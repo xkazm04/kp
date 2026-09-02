@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, Loader2, Lock, RefreshCw } from "lucide-react";
+import { AlertTriangle, GitBranch, Loader2, Lock, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
-import { caseTaskLabel, type CaseArtifact } from "./jdsLedgerArtifacts";
+import { CHIP, CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { caseTaskLabel, type CaseArtifact, type SnapshotArtifact } from "./jdsLedgerArtifacts";
 
 // In-progress placeholder shown in the detail while the detached build runs.
 // Extracted verbatim from LibrarySavedJdsLedger.tsx so that file stays under the
@@ -86,6 +87,59 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
 }
 
 // The interview case (shown when "Case analysis" was ticked) — read-only overview.
+// The repo the build actually READ, when the recruiter supplied one. runJdBuild has
+// persisted this snapshot into analysis_json since repo grounding shipped and nothing
+// ever rendered it, so a JD grounded in a real codebase looked exactly like one
+// written from a paragraph of prose — the recruiter had no way to tell whether the
+// must-haves came from the code or from the model's prior. Same read-only card shape
+// as SalaryCard, because it answers the same kind of question: where did this come
+// from?
+export function RepoGroundingCard({ snapshot }: { snapshot: SnapshotArtifact }) {
+  const t = useTranslations("library.tab");
+  const n = useNumberFormat();
+  // The ref is operator-supplied and rides through a Python child — link it only when
+  // it is a safe http(s) URL, exactly like the salary sources above; otherwise it is
+  // shown as plain text.
+  const link = safeHttpLinks([snapshot.ref ?? ""])[0];
+  // Deduped across the two lists: a scan routinely reports "typescript" as both a
+  // detected language and an inferred stack entry, and two identical chips read as a
+  // rendering bug rather than as agreement.
+  const tags = dedupeBy(
+    [...(snapshot.languages ?? []), ...(snapshot.inferredStack ?? [])].filter(Boolean),
+    (tag) => tag.toLowerCase(),
+  ).slice(0, 6);
+  return (
+    <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-meta uppercase tracking-wide text-steel">{t("repoGrounding")}</p>
+        {snapshot.ref ? (
+          <span className={CHIP}>
+            <GitBranch size={12} className="text-steel" aria-hidden />
+            {link ? (
+              <a href={link.href} target="_blank" rel="noreferrer" className="text-coral hover:underline">
+                {snapshot.ref}
+              </a>
+            ) : (
+              snapshot.ref
+            )}
+          </span>
+        ) : null}
+      </div>
+      {tags.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span key={tag} className={CHIP_QUIET}>{tag}</span>
+          ))}
+        </div>
+      ) : null}
+      {typeof snapshot.loc === "number" && snapshot.loc > 0 ? (
+        // Reader-locale digit grouping (format.ts number-locale contract).
+        <p className="mt-2 text-sm text-steel">{t("repoLoc", { loc: n.grouped(snapshot.loc) })}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function CaseCard({ kase }: { kase: CaseArtifact }) {
   const t = useTranslations("library.tab");
   const tasks = Array.isArray(kase.tasks) ? kase.tasks : [];

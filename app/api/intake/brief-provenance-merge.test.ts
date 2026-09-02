@@ -54,7 +54,9 @@ test("PATCH still freezes a promoted session and still writes brief_json only", 
   assert.ok(route.indexOf("await requireOperator()") < route.indexOf("request.json"));
   assert.match(route, /intake\.status === "promoted"/);
   const freezeAt = route.indexOf('intake.status === "promoted"');
-  assert.match(route.slice(freezeAt, freezeAt + 200), /status:\s*409/);
+  // The freeze answers through the refusal chokepoint now (a CODE, not prose),
+  // so the status rides in the jsonRefusal call rather than a NextResponse init.
+  assert.match(route.slice(freezeAt, freezeAt + 200), /jsonRefusal\("INTAKE_FROZEN", 409\)/);
   // The only store call is the brief writer — an edit never rewrites the
   // dialog record (updateIntakeTranscript and friends have no business here).
   assert.deepEqual([...route.matchAll(/\b(update|append)[A-Za-z]*Intake[A-Za-z]*\(/g)].map((m) => m[0]), [

@@ -385,6 +385,10 @@ const ROUTES: RouteSpec[] = [
     // refusals run first so a rejected call never consumes budget.
     key: "`intake-message:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     // KP_BENCH_MODE=1 (server env, local app-master bench only — see
     // scripts/app-master-bench) raises the budget to 600 so a scripted sweep
     // is not throttled at human pace. The contract pins BOTH budgets and the
@@ -404,6 +408,10 @@ const ROUTES: RouteSpec[] = [
     rel: "./intake/route.ts",
     key: "`intake-create:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     // The CALL SITE, not a bare `runIntakeOpening(`: that substring also appears in
     // this route's IMPORT and in the comment above the limiter, both of which
     // precede it — so the generic marker would fail on prose, not on ordering.
@@ -415,11 +423,16 @@ const ROUTES: RouteSpec[] = [
     rel: "./intake/[id]/promote/route.ts",
     key: "`intake-promote:${clientIpFrom(request.headers)}`",
     limit: 20,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     // The limiter sits AFTER the cheap 404/409/400 refusals, so a request that was
     // never going to promote costs no budget.
-    // Same reason: `insertAnalyzingJd(` appears in this route's own comment above
-    // the limiter. Pin the call's opening brace instead.
-    expensive: "insertAnalyzingJd({",
+    // Promote now goes through the shared jd_build seam (app/_lib/jd-build-start.ts),
+    // so the expensive call to pin is `startJdBuild({` — with its opening brace, the
+    // same reason as before: the bare name also appears in the import line above.
+    expensive: "startJdBuild({",
     servedBefore: "briefReadyToPromote(intake.brief)",
   },
   {
@@ -434,6 +447,10 @@ const ROUTES: RouteSpec[] = [
     // ephemeral credentials per 10 minutes. Value pinned via the defining line.
     key: "`intake-voice-connect:${id}`",
     limit: 6,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     limitSrc: "voiceConnectLimit",
     limitDef: "const voiceConnectLimit = 6;",
     expensive: "adapter.connect(",
@@ -447,6 +464,10 @@ const ROUTES: RouteSpec[] = [
     // (operator retries share the office NAT).
     key: "`intake-voice-turn:${id}`",
     limit: 60,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runIntakeVoiceTurn(",
     servedBefore: 'intake.status !== "open"',
   },
@@ -457,6 +478,10 @@ const ROUTES: RouteSpec[] = [
     // double digits) plus the hang-up recovery; a scripted loop stays pinned.
     key: "`intake-voice-complete:${clientIpFrom(request.headers)}`",
     limit: 20,
+    // Moved onto the refusal chokepoint with the rest of this surface: the
+    // panel renders errors.TOO_MANY_REQUESTS in the reader's language instead of
+    // the server's English string (api-contracts.md §1.1).
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runIntakeTranscriptExtract(",
     servedBefore: 'intake.status !== "open"',
   },
@@ -622,6 +647,75 @@ const ROUTES: RouteSpec[] = [
     // The operator gate keeps serving (refusing) freely ahead of the budget: a
     // non-operator must never be able to spend another caller's window.
     servedBefore: "const denied = await requireOperator();",
+  },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-02 (api-jd-library), with the limiters themselves. The
+  // JD library's four spend doors carried NONE. Every one is operator-gated, and open
+  // mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the
+  // ENTIRE API, so each must self-limit. METERING the paid build (a per-workspace
+  // quota) is a separate BILLING decision and deliberately not what these are.
+  {
+    // The 1-2 minute paid build's front door. 20/10min per IP: a Generate produces a
+    // JD the requestor then reads, so twenty in ten minutes is far above honest pace.
+    rel: "./jds/generate/route.ts",
+    key: "`jd-generate:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "GENERATE_RATE_LIMIT",
+    optsDef: "const GENERATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its opening brace: the bare name also appears in the import
+    // and in the comment above the limiter, both of which precede it.
+    expensive: "startJdBuild({",
+    // The bad-JSON 400, the empty-checklist 400, the too-thin-need 400 and the
+    // vanished-template 400 keep their semantics ahead of the throttle, so a request
+    // that was never going to build costs no budget.
+    servedBefore: "const valid = validateJdBuildInput(title, needText);",
+  },
+  {
+    // The SAME build, replayed by one click. Same budget as generate for the same
+    // reason — a retry carries generate's full spend with none of its typing effort.
+    rel: "./jds/[slug]/retry-analysis/route.ts",
+    key: "`jd-retry:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "RETRY_RATE_LIMIT",
+    optsDef: "const RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "restartJdBuild(slug,",
+    // The 404, the not-failed 409 and the nothing-to-replay 400 run first.
+    servedBefore: 'jd.analysis_status !== "failed"',
+  },
+  {
+    // One Claude ad-parse of the whole JD body per accepted call — the JD-library
+    // door to the parse ./jobs/ingest already throttles at the same 20/10min.
+    rel: "./jds/[slug]/ingest-job/route.ts",
+    key: "`jd-ingest-job:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "INGEST_JOB_RATE_LIMIT",
+    optsDef: "const INGEST_JOB_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL with its first argument: a bare `ingestJobAd(` also appears in the
+    // import above the limiter.
+    expensive: "ingestJobAd(jd.body,",
+    // The already-ingested short-circuit parses nothing, so it must neither consume
+    // nor be masked by the budget.
+    servedBefore: "if (getJob(jobId)) {",
+  },
+  {
+    // The loosest of the four on purpose: a save is the CHEAPEST door (a
+    // deterministic `jobs_cli normalize` child, no model call) and the builder
+    // legitimately re-POSTs to retry the best-effort ingest, so 30/10min must clear
+    // a retry burst.
+    rel: "./jds/save/route.ts",
+    key: "`jds-save:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "SAVE_RATE_LIMIT",
+    optsDef: "const SAVE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL with its first argument: the bare name also appears in the import.
+    expensive: "ingestStructuredJob({ slug,",
+    // The invalid-title/body 400 runs first, so a rejected save costs no budget —
+    // and the limiter precedes the saveJd write as well as the spawn.
+    servedBefore: "validateJdFields(body.title, body.body)",
   },
 ];
 

@@ -1379,6 +1379,26 @@
     "INTAKE_NOT_APP_MASTER": "Dies ist kein App-Master-Intake, es gibt also keine Spezifikation zu erstellen.",
     "INTAKE_SCAN_NOT_LANDED": "Der Repository-Scan ist noch nicht eingetroffen. Die Spezifikation entsteht, sobald er da ist.",
     "INTAKE_BRIEF_EMPTY": "Das Briefing ist noch leer. Beantworten Sie zuerst den Dialog, dann komponieren Sie.",
+    "INTAKE_CLOSED": "Dieses Intake-Gespräch ist abgeschlossen. Öffnen Sie es erneut, um weiterzusprechen.",
+    "INTAKE_TEXT_REQUIRED": "Es gibt nichts zu senden. Schreiben oder sagen Sie zuerst etwas.",
+    "INTAKE_BRIEF_INVALID": "Diese Briefing-Änderung hat nicht die erwartete Form.",
+    "INTAKE_BRIEF_NOT_READY": "Das Briefing braucht einen Rollentitel und mindestens ein Ausschlusskriterium oder ein 90-Tage-Ziel, bevor daraus eine Stellenanzeige wird.",
+    "INTAKE_ALREADY_OPEN": "Dieses Gespräch ist bereits offen.",
+    "INTAKE_ATTACHMENT_LIMIT": "Dieses Gespräch trägt bereits so viel Referenzmaterial, wie es kann.",
+    "INTAKE_ATTACHMENT_INDEX": "Dieses Referenzmaterial gehört nicht mehr zu diesem Gespräch.",
+    "INTAKE_JD_NOT_FOUND": "Diese Stellenanzeige ist nicht in der Bibliothek dieses Workspace.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Es gibt noch nichts auszuwerten.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "Die Sprachfunktion ist in dieser Installation nicht konfiguriert.",
+    "INTAKE_CLOSED": "Dieses Intake-Gespräch ist abgeschlossen. Öffnen Sie es erneut, um weiterzusprechen.",
+    "INTAKE_TEXT_REQUIRED": "Es gibt nichts zu senden. Schreiben oder sagen Sie zuerst etwas.",
+    "INTAKE_BRIEF_INVALID": "Diese Briefing-Änderung hat nicht die erwartete Form.",
+    "INTAKE_BRIEF_NOT_READY": "Das Briefing braucht einen Rollentitel und mindestens ein Ausschlusskriterium oder ein 90-Tage-Ziel, bevor daraus eine Stellenanzeige wird.",
+    "INTAKE_ALREADY_OPEN": "Dieses Gespräch ist bereits offen.",
+    "INTAKE_ATTACHMENT_LIMIT": "Dieses Gespräch trägt bereits so viel Referenzmaterial, wie es kann.",
+    "INTAKE_ATTACHMENT_INDEX": "Dieses Referenzmaterial gehört nicht mehr zu diesem Gespräch.",
+    "INTAKE_JD_NOT_FOUND": "Diese Stellenanzeige ist nicht in der Bibliothek dieses Workspace.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Es gibt noch nichts auszuwerten.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "Die Sprachfunktion ist in dieser Installation nicht konfiguriert.",
     "COMPANION_THREAD_NOT_FOUND": "Diese Unterhaltung gibt es nicht mehr.",
     "TOO_MANY_REQUESTS": "Zu viele Anfragen. Bitte versuchen Sie es gleich noch einmal.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
@@ -3597,6 +3617,8 @@
       "provWebGrounded": "webgestützt",
       "provEstimated": "geschätzt",
       "salaryUnavailable": "Gehalt nicht verfügbar",
+      "repoGrounding": "Repository-Grundlage",
+      "repoLoc": "{loc} Codezeilen",
       "sourcesLabel": "Quellen:",
       "interviewCase": "Aufgabe als Arbeitsprobe",
       "timebox": "Zeitrahmen: ~{hours} Std.",
@@ -7495,6 +7517,122 @@
     }
   },
   "devcase": {
+    "studio": {
+      "applyPill": {
+        "noToken": "kein Token",
+        "copy": "Bewerbungslink kopieren und an Kandidaten weitergeben",
+        "copyAria": "Bewerbungslink in die Zwischenablage kopieren",
+        "copiedAria": "Bewerbungslink in der Zwischenablage",
+        "copied": "Kopiert",
+        "token": "Token {token}",
+        "blocked": "Kopieren ist hier blockiert. Markieren Sie den Link und kopieren Sie ihn von Hand:"
+      },
+      "waiting": {
+        "title": "Warten auf die erste Einreichung",
+        "body": "Diese Aufgabe ist live. Wer sich über die Kanäle unten bewirbt, landet hier und wird gegen die anderen eingeordnet."
+      },
+      "jds": {
+        "failed": "Die gespeicherten Stellenbeschreibungen konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
+      "dismiss": "Schließen",
+      "loadLabel": "Aufgaben",
+      "analysis": {
+        "empty": "Definieren Sie einen Bedarf und analysieren Sie ihn. Der Realitätsabgleich erscheint hier.",
+        "running": "Codebasis wird gelesen und abgeglichen…",
+        "runningHint": "Das läuft als Hintergrundaufgabe, Sie können diesen Tab also verlassen.",
+        "designing": "Rolle und Aufgabe werden entworfen…",
+        "designingHint": "Hintergrundaufgabe. Sie können jederzeit weggehen.",
+        "designCta": "Rolle und Aufgabe entwerfen",
+        "snapshot": "Momentaufnahme der Codebasis",
+        "snapshotIndexed": "Momentaufnahme der Codebasis {index}/{total}",
+        "loc": "~{loc} Codezeilen",
+        "topDirs": "Wichtigste Verzeichnisse: {dirs}",
+        "commitsRead": "{count, plural, one {# Commit gelesen} other {# Commits gelesen}}",
+        "noSnapshot": "Keine Momentaufnahme der Codebasis, die Analyse steht daher ohne Bezug zur Realität da. Fügen Sie eine öffentliche GitHub-URL hinzu, um sie zu verankern.",
+        "resultUnreadable": "Die Analyse ist fertig, ihr Ergebnis ließ sich aber nicht laden. Öffnen Sie sie erneut im Tab Aufgaben, oder starten Sie die Analyse noch einmal.",
+        "failed": "Die Analyse wurde nicht abgeschlossen."
+      },
+      "reflection": {
+        "title": "Realitätsabgleich",
+        "complexity": "Komplexität {level}",
+        "confidence": "Konf. {value}",
+        "gaps": "Angabe gegen Realität",
+        "risks": "Risikobereiche: {areas}"
+      },
+      "design": {
+        "role": "Rolle",
+        "mustHaves": "Muss-Kriterien",
+        "responsibilities": "Verantwortlichkeiten",
+        "assignment": "Aufgabe",
+        "timebox": "~{hours} h",
+        "covertProbes": "Verdeckte Sonden, intern und für die Kandidatin oder den Kandidaten unsichtbar",
+        "approved": "Freigegeben",
+        "approving": "Wird freigegeben…",
+        "approve": "Aufgabe freigeben",
+        "humanGate": "Menschliche Prüfung. Sehen Sie die Sonden durch und geben Sie die Aufgabe dann frei."
+      },
+      "detail": {
+        "back": "Alle Aufgaben",
+        "created": "erstellt {when}",
+        "scenarioTemplate": "Interviewszenario: Vorlagensonden",
+        "scenarioTemplateHint": "Die Szenario-Erzeugung ist auf die deterministische Vorlage zurückgefallen, die Sonden sind daher allgemein und nicht auf diese Aufgabe bezogen. Erzeugen Sie es vor dem Interview neu.",
+        "scenarioReady": "Interviewszenario bereit",
+        "seedSkeleton": "Startpaket: nur Gerüst",
+        "seedSkeletonHint": "Die Erzeugung des Startpakets ist auf die deterministische Vorlage zurückgefallen, Kandidatinnen und Kandidaten erhalten daher nur ein reines README und DECISIONS statt konkreter Startdateien. Erzeugen Sie es vor dem Versand neu.",
+        "publish": "Veröffentlichen",
+        "publishing": "Wird veröffentlicht…",
+        "published": "Veröffentlicht",
+        "sourceDb": "Datenbank durchsuchen",
+        "sourcing": "Wird durchsucht…",
+        "sourced": "{count} gefunden",
+        "sourceHint": "Ordnet die bestehende Kandidatendatenbank nach dieser Rolle und füllt die Pipeline",
+        "confirmLabel": "Veröffentlichung bestätigen",
+        "confirmTitle": "Diese Aufgabe veröffentlichen?",
+        "confirmBody": "Beim Veröffentlichen entsteht ein für Kandidaten sichtbarer Bewerbungslink und echte Kandidaten aus Ihrer Datenbank gelangen in die Pipeline. Von hier aus lässt sich das nicht rückgängig machen.",
+        "degradedTitle": "Diese Aufgabe ist eingeschränkt",
+        "degradedAck": "Mir ist klar, dass diese Aufgabe eingeschränkt ist. Trotzdem veröffentlichen.",
+        "confirmCta": "Bestätigen und veröffentlichen",
+        "cancel": "Abbrechen",
+        "seedSummary": "Erzeugtes Startpaket: was die Person erhält",
+        "seedFiles": "{count, plural, one {# Datei} other {# Dateien}}",
+        "seedSkeletonWarning": "Nur ein Gerüst. Das ist der reine Textersatz, keine konkreten Startdateien. Erzeugen Sie es vor dem Versand neu."
+      },
+      "degradedReason": {
+        "scenario": "Das Interviewszenario nutzt allgemeine Vorlagensonden statt auf diese Aufgabe bezogener Sonden.",
+        "seed": "Das Startpaket ist nur ein Textgerüst, Kandidaten erhalten keine konkreten Startdateien."
+      },
+      "internal": {
+        "title": "Intern: Material für Interviewende und Prüfende",
+        "noProbes": "Zu dieser Aufgabe sind keine verdeckten Sonden erfasst.",
+        "roleMustHaves": "Muss-Kriterien der Rolle",
+        "roleResponsibilities": "Verantwortlichkeiten der Rolle"
+      },
+      "shortlist": {
+        "title": "Auswahlliste über alle Kanäle"
+      },
+      "channels": {
+        "title": "Bewerbungskanäle",
+        "posting": "Ausschreibung",
+        "received": "{count} eingegangen",
+        "applyLink": "Bewerbungslink"
+      },
+      "compare": {
+        "title": "Vergleich auf den Rubrik-Achsen",
+        "topOf": "Top {shown} von {total}",
+        "truncated": "Sortiert nach Übertragbarkeit. Die Spitze auf der Achse unten ist die beste dieser {shown}, nicht der gesamten Gruppe. {hidden, plural, one {# weitere bewertete Einreichung fehlt} other {# weitere bewertete Einreichungen fehlen}} in dieser Matrix.",
+        "axis": "Achse",
+        "fit": "Passung {score}"
+      },
+      "action": {
+        "runLifecycle": "Lebenszyklus starten",
+        "approve": "Freigeben",
+        "publish": "Veröffentlichen",
+        "source": "Kandidaten suchen"
+      },
+      "actionFailed": "{action} ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "actionUnreachable": "{action} ist fehlgeschlagen, die Anfrage konnte nicht abgeschlossen werden."
+    },
     "lifecycle": {
       "sectionTitle": "Automatisierter Ablauf",
       "intro": "Jede Aufgabe läuft regelbasiert weiter: saubere Entwürfe werden automatisch genehmigt, markierte an Sie weitergeleitet, dann veröffentlicht und (sobald Einreichungen eintreffen) bewertet → sortiert → die besten Kandidaten in Entscheidungen übernommen. Keine manuellen Schritte dazwischen.",

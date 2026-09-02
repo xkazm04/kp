@@ -1379,6 +1379,26 @@
     "INTAKE_NOT_APP_MASTER": "Ce n'est pas un cadrage App master : il n'y a pas de spécification à composer.",
     "INTAKE_SCAN_NOT_LANDED": "L'analyse du dépôt n'est pas encore arrivée. La spécification se composera ensuite.",
     "INTAKE_BRIEF_EMPTY": "Le brief est encore vide. Répondez d'abord au dialogue, puis composez.",
+    "INTAKE_CLOSED": "Cette session de cadrage est close. Rouvrez-la pour continuer à parler.",
+    "INTAKE_TEXT_REQUIRED": "Il n'y a rien à envoyer. Écrivez ou dites d'abord quelque chose.",
+    "INTAKE_BRIEF_INVALID": "Cette modification du brief n'a pas la forme attendue.",
+    "INTAKE_BRIEF_NOT_READY": "Le brief a besoin d'un intitulé de poste et d'au moins un critère rédhibitoire ou un objectif à 90 jours avant de devenir une offre.",
+    "INTAKE_ALREADY_OPEN": "Cette session est déjà ouverte.",
+    "INTAKE_ATTACHMENT_LIMIT": "Cette session porte déjà autant de documents de référence qu'elle le peut.",
+    "INTAKE_ATTACHMENT_INDEX": "Ce document de référence n'est plus rattaché à cette session.",
+    "INTAKE_JD_NOT_FOUND": "Cette offre n'est pas dans la bibliothèque de cet espace de travail.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Il n'y a encore rien à extraire.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "La voix n'est pas configurée sur cette installation.",
+    "INTAKE_CLOSED": "Cette session de cadrage est close. Rouvrez-la pour continuer à parler.",
+    "INTAKE_TEXT_REQUIRED": "Il n'y a rien à envoyer. Écrivez ou dites d'abord quelque chose.",
+    "INTAKE_BRIEF_INVALID": "Cette modification du brief n'a pas la forme attendue.",
+    "INTAKE_BRIEF_NOT_READY": "Le brief a besoin d'un intitulé de poste et d'au moins un critère rédhibitoire ou un objectif à 90 jours avant de devenir une offre.",
+    "INTAKE_ALREADY_OPEN": "Cette session est déjà ouverte.",
+    "INTAKE_ATTACHMENT_LIMIT": "Cette session porte déjà autant de documents de référence qu'elle le peut.",
+    "INTAKE_ATTACHMENT_INDEX": "Ce document de référence n'est plus rattaché à cette session.",
+    "INTAKE_JD_NOT_FOUND": "Cette offre n'est pas dans la bibliothèque de cet espace de travail.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Il n'y a encore rien à extraire.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "La voix n'est pas configurée sur cette installation.",
     "COMPANION_THREAD_NOT_FOUND": "Cette conversation n'existe plus.",
     "TOO_MANY_REQUESTS": "Trop de requêtes. Réessayez dans un instant.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
@@ -3597,6 +3617,8 @@
       "provWebGrounded": "ancré sur le web",
       "provEstimated": "estimé",
       "salaryUnavailable": "Salaire indisponible",
+      "repoGrounding": "Ancrage dans le dépôt",
+      "repoLoc": "{loc} lignes de code",
       "sourcesLabel": "Sources :",
       "interviewCase": "Exercice pratique",
       "timebox": "Durée : ~{hours} h",
@@ -7495,6 +7517,122 @@
     }
   },
   "devcase": {
+    "studio": {
+      "applyPill": {
+        "noToken": "aucun jeton",
+        "copy": "Copier le lien de candidature à transmettre aux personnes candidates",
+        "copyAria": "Copier le lien de candidature dans le presse-papiers",
+        "copiedAria": "Lien de candidature copié dans le presse-papiers",
+        "copied": "Copié",
+        "token": "jeton {token}",
+        "blocked": "La copie est bloquée ici. Sélectionnez le lien et copiez-le à la main :"
+      },
+      "waiting": {
+        "title": "En attente du premier rendu",
+        "body": "Cet exercice est en ligne. Les personnes qui candidatent via les canaux ci-dessous arrivent ici, classées entre elles."
+      },
+      "jds": {
+        "failed": "Les fiches de poste enregistrées n’ont pas pu être chargées.",
+        "retry": "Réessayer"
+      },
+      "dismiss": "Fermer",
+      "loadLabel": "les exercices",
+      "analysis": {
+        "empty": "Définissez un besoin et lancez l’analyse. Le reflet du réel apparaîtra ici.",
+        "running": "Lecture de la base de code et mise en miroir…",
+        "runningHint": "Cela s’exécute en tâche de fond, vous pouvez donc quitter cet onglet.",
+        "designing": "Conception du poste et de l’exercice…",
+        "designingHint": "Tâche de fond. Vous pouvez partir à tout moment.",
+        "designCta": "Concevoir le poste et l’exercice",
+        "snapshot": "Instantané de la base de code",
+        "snapshotIndexed": "Instantané de la base de code {index}/{total}",
+        "loc": "~{loc} lignes de code",
+        "topDirs": "Principaux dossiers : {dirs}",
+        "commitsRead": "{count, plural, one {# commit récent lu} other {# commits récents lus}}",
+        "noSnapshot": "Aucun instantané de la base de code, l’analyse n’est donc ancrée dans rien de réel. Ajoutez une URL GitHub publique pour l’ancrer.",
+        "resultUnreadable": "L’analyse est terminée, mais son résultat n’a pas pu être chargé. Rouvrez-la depuis l’onglet Tâches, ou relancez l’analyse.",
+        "failed": "L’analyse n’est pas allée à son terme."
+      },
+      "reflection": {
+        "title": "Reflet du réel",
+        "complexity": "complexité {level}",
+        "confidence": "conf. {value}",
+        "gaps": "Écarts entre l’annoncé et le réel",
+        "risks": "Zones à risque : {areas}"
+      },
+      "design": {
+        "role": "Poste",
+        "mustHaves": "Indispensables",
+        "responsibilities": "Responsabilités",
+        "assignment": "Exercice",
+        "timebox": "~{hours} h",
+        "covertProbes": "Sondes masquées, internes et invisibles pour la personne candidate",
+        "approved": "Validé",
+        "approving": "Validation…",
+        "approve": "Valider l’exercice",
+        "humanGate": "Contrôle humain. Relisez les sondes, puis validez pour enregistrer."
+      },
+      "detail": {
+        "back": "Tous les exercices",
+        "created": "créé {when}",
+        "scenarioTemplate": "scénario d’entretien : sondes génériques",
+        "scenarioTemplateHint": "La génération du scénario est retombée sur le gabarit déterministe, les sondes sont donc génériques et non ancrées dans cet exercice. Relancez-la avant l’entretien.",
+        "scenarioReady": "scénario d’entretien prêt",
+        "seedSkeleton": "amorce : squelette seulement",
+        "seedSkeletonHint": "La matérialisation de l’amorce est retombée sur le gabarit déterministe, les personnes candidates reçoivent donc un README et un DECISIONS en texte seul, sans fichiers de départ concrets. Relancez-la avant l’envoi.",
+        "publish": "Publier",
+        "publishing": "Publication…",
+        "published": "Publié",
+        "sourceDb": "Chercher en base",
+        "sourcing": "Recherche…",
+        "sourced": "{count} trouvés",
+        "sourceHint": "Classe la base de candidatures existante face à ce poste et amorce le pipeline",
+        "confirmLabel": "Confirmer la publication",
+        "confirmTitle": "Publier cet exercice ?",
+        "confirmBody": "La publication crée un lien de candidature public et fait entrer dans le pipeline de vraies candidatures issues de votre base. C’est irréversible depuis cet écran.",
+        "degradedTitle": "Cet exercice est dégradé",
+        "degradedAck": "Je comprends que cet exercice est dégradé. Le publier quand même.",
+        "confirmCta": "Confirmer et publier",
+        "cancel": "Annuler",
+        "seedSummary": "Amorce matérialisée : ce que reçoit la personne candidate",
+        "seedFiles": "{count, plural, one {# fichier} other {# fichiers}}",
+        "seedSkeletonWarning": "Squelette seulement. C’est la solution de repli en texte, pas des fichiers de départ concrets. Relancez avant l’envoi."
+      },
+      "degradedReason": {
+        "scenario": "Le scénario d’entretien utilise des sondes génériques, pas des sondes ancrées dans cet exercice.",
+        "seed": "L’amorce n’est qu’un squelette en texte, les personnes candidates ne reçoivent aucun fichier de départ concret."
+      },
+      "internal": {
+        "title": "Interne : matériel pour l’entretien et la relecture",
+        "noProbes": "Aucune sonde masquée enregistrée sur cet exercice.",
+        "roleMustHaves": "Indispensables du poste",
+        "roleResponsibilities": "Responsabilités du poste"
+      },
+      "shortlist": {
+        "title": "Présélection, tous canaux"
+      },
+      "channels": {
+        "title": "Canaux de candidature",
+        "posting": "Annonce",
+        "received": "{count} reçus",
+        "applyLink": "Lien de candidature"
+      },
+      "compare": {
+        "title": "Comparer sur les axes de la grille",
+        "topOf": "{shown} premiers sur {total}",
+        "truncated": "Classement par transférabilité. La personne en tête de l’axe ci-dessous est la meilleure de ces {shown}, pas de tout le groupe. {hidden, plural, one {# autre rendu évalué ne figure pas} other {# autres rendus évalués ne figurent pas}} dans cette matrice.",
+        "axis": "Axe",
+        "fit": "adéq. {score}"
+      },
+      "action": {
+        "runLifecycle": "Le lancement du cycle de vie",
+        "approve": "La validation",
+        "publish": "La publication",
+        "source": "La recherche de candidatures"
+      },
+      "actionFailed": "{action} a échoué. Veuillez réessayer.",
+      "actionUnreachable": "{action} a échoué, la requête n’a pas pu aboutir."
+    },
     "lifecycle": {
       "sectionTitle": "Cycle automatisé",
       "intro": "Chaque exercice avance selon les règles : les conceptions propres sont approuvées automatiquement, celles qui sont signalées vous sont transmises, puis publication et (à mesure que les rendus arrivent) évaluation → classement → passage des meilleurs candidats dans Décisions. Aucune étape manuelle entre les deux.",

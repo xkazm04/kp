@@ -21,7 +21,10 @@ assert.ok(start >= 0, "approve() must exist");
 const body = src.slice(start, src.indexOf("return {", start));
 
 test("approve() routes through runAction (shared error surface), not a bare r.ok fetch", () => {
-  assert.match(body, /runAction\(\s*["']Approve["']/, "approve() must call runAction('Approve', …)");
+  // The first argument is an ACTION ID, not a label: the failure banner's sentence is
+  // built from `devcase.studio.action.approve` in the reader's own language, so the
+  // English word "Approve" no longer travels through this call.
+  assert.match(body, /runAction\(\s*["']approve["']/, "approve() must call runAction('approve', …)");
   // The old dead-button pattern was a bare `if (r.ok) {` gate with no error branch.
   assert.doesNotMatch(body, /if \(r\.ok\)\s*\{/, "approve() must not gate silently on a bare r.ok check");
 });

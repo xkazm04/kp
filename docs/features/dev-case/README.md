@@ -474,6 +474,101 @@ there: `comms` (1), `control` (2), `inbound` (1), `lifecycle` + its `[id]/approv
 `devcase/route.ts` (2), `source` (1), `submit` (1). They are recruiter-side, not candidate
 -facing, which is why these two went first.
 
+### The Assignments studio reads in four languages
+
+The operator-facing studio (define a need -> analysis -> design -> approve -> publish ->
+read the verdict) carried roughly forty hardcoded English strings on a four-locale
+product, and nothing was ever going to catch them: `eslint.config.mjs` deliberately keeps
+`app/features/tools/devcases/**` outside the `i18next/no-literal-string` ERROR list
+("dev-facing copy"), so the rule only ever ran at `warn` here and no build went red.
+
+Twelve components now read from the `devcase.studio.*` namespace in all four catalogs:
+`DevTab`, `DevCasesTable`, `DevCasesEmpty`, `DevAnalysisView`, `DevAnalysisReflectionCard`,
+`DevAnalysisDesignCard`, `DevCaseDetail`, `DevCaseDetailHeader`, `DevCaseDetailInternal`,
+`DevCaseDetailShortlist`, `DevCaseDetailChannels` and `DevCompareSubmissions`. Three
+non-component seams moved with them:
+
+- `degradedReasons` (`DevCaseDetail.publish.ts`) returns CODES (`"scenario"`, `"seed"`)
+  instead of two English sentences. It is pure TS with no reader attached, so the prose it
+  used to return was untranslatable by construction; the confirm dialog resolves each code
+  through `devcase.studio.degradedReason.<code>`.
+- `runAction` (`useDevTabActions.ts`) takes a `DevAction` id (`runLifecycle` / `approve` /
+  `publish` / `source`) rather than an English label, and its banner resolves the server's
+  machine `code` through `useErrorMessage()` before falling back to a localized sentence
+  built from `devcase.studio.action.<id>` — the repo's standard shape, replacing a
+  `body.error ?? "<English>"` chain that shipped the server's English to every locale.
+- `CasesEmpty` passes a translated label into `LoadStatus` instead of the string
+  `"dev cases"`, which was also the retired vocabulary.
+
+Five of the migrated strings still called the entity a **case** ("All cases", "Publish this
+case?", "I understand this case is degraded", the two degraded reasons, the `"dev cases"`
+loader label) in a product whose one word for it is **Assignment**. Those were invisible to
+all three vocabulary guards, because every one of them walked either the catalogs or
+`DevTabViews.ts`. `devcase-vocabulary.test.ts` now walks the twelve components too, through
+the shared extractor in `devcaseStudioCopy.ts`.
+
+Two tests hold the result, and they are deliberately different guarantees:
+`devcase-studio-i18n.test.ts` asserts (a) the twelve files carry NO user-visible literal at
+all and (b) every `devcase.studio.*` key renders, in all four locales, with the values the
+components actually pass (plural branches included, and the `degradedReason` /
+`action` sets read off their producers rather than re-typed); `devcase-vocabulary.test.ts`
+asserts that whatever literal does appear never says "case". The source-side matcher is a
+regex over JSX text nodes and literal `title`/`aria-label`/`placeholder`/`label`/`alt`
+attributes -- a **ratchet, not a proof**: English arriving through a helper or a template
+expression can still get past it, which is why the catalog half exists.
+
+Still English, and still a gap: the define/outbox views (`DevTabDefineView`, `DevNeedForm`,
+`OutboxSection`), the evaluation panel (`DevEvalPanel*`), the lifecycle rows and
+`DevShared`'s "Listen for" / "Red flag" interviewer notes. `DevTabViews.ts` (the sub-tab
+labels and headings) remains the one piece of studio copy with no catalog behind it.
+
+### Small truths on the studio surface
+
+Six places where the studio was quietly less honest than it looked, closed in one pass:
+
+- **The publish confirm is a real dialog.** It shipped as `role="alertdialog"` and
+  nothing else: no focus moved into it, Escape did nothing, Tab walked out into the page
+  behind. It now lives in `DevPublishConfirm.tsx` (its own component, because
+  `useDialogA11y`'s effect runs on MOUNT and the header is mounted the whole time) and
+  uses the shared `useDialogA11y` hook with `trap: true, lockScroll: false`. It is
+  deliberately NOT the shared `Modal`: `Modal` portals to `document.body`, scrims the page
+  and locks scroll, and this confirm is meant to appear inline under the header with the
+  assignment still readable beneath it. The Publish trigger also stopped being `disabled`
+  while the panel is open, because focus restore is `previouslyFocused?.focus?.()` and
+  that is a silent no-op on a disabled button, so Escape used to drop a keyboard user onto
+  `<body>`; `aria-expanded` states the open-ness instead.
+- **A blocked clipboard no longer eats the apply link.** `navigator.clipboard` is
+  undefined on an insecure origin and rejects when denied, both routine for a self-hosted
+  install reached over plain http on a LAN address. The catch was a no-op AND the URL was
+  never rendered, only copied, so the one artifact the panel exists to hand out was
+  unreachable. `DevApplyTokenPill` now shows the URL as `select-all` text under a
+  `role="status"` line when the copy fails.
+- **A failed JD fetch is named, not mistaken for an empty library.** `useDevTabData`'s
+  `/api/jds` load ended in `.catch(() => {})`, so an outage rendered the *"No JDs saved,
+  save one"* empty state and sent the operator to save a JD they already had. It now
+  resolves the server's machine code through `useErrorMessage()`, falls back to
+  `devcase.studio.jds.failed`, and `DevNeedForm` renders it with a retry that re-fetches
+  instead of demanding a page reload. The outage branch is checked BEFORE the
+  `jds.length === 0` branch, and the order is pinned by a test.
+- **The saved assignment prints the clamped timebox.** `caseToMarkdown` was the last
+  reader of `case.timeboxHours` that printed it raw, one step after the design card showed
+  `timeboxHoursForDisplay()` of the same field — so a reviewer who typed 6 saw "~2h" on
+  approval and handed out "~6h timebox" in the document that actually travels to the
+  candidate. Both now read `app/_lib/devcase-timebox.ts`, which is where the policy cap
+  lives, and an empty assignment states the cap rather than staying silent.
+- **A live assignment with no applicants says so.** `CompareSubmissions` needs two
+  evaluated submissions, the shortlist needs one and the interview kit needs a scored top,
+  so a freshly-published assignment rendered three nothings in a row and simply stopped
+  after the internal panels. One "waiting for the first submission" panel now stands in
+  for all three, and only when the assignment is actually published.
+- **`source()` is single-flight.** It was the one write action on the tab without a
+  guard, and `sourcing` holds an id rather than a boolean, so the button only disabled the
+  row it was clicked on: a click on a second row seeded the pipeline twice.
+
+The four behaviours with no DOM to test against are pinned as source shape in
+`devcase-studio-robustness.test.ts` — the same idiom as `DevTab.approve-error.test.ts`,
+and it says in the file that shape assertions are what they are.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
@@ -896,6 +991,9 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   pure and tested — `sessionEvidenceModel` in
   `app/features/tools/devcases/devcase-session-evidence.ts`, 7 node:test cases,
   including that a tree with no chat is **not** an empty session.
+- The Assignments studio is localized only in the twelve components listed above; the
+  define/outbox views, the evaluation panel, the lifecycle rows and `DevShared`'s
+  interviewer notes are still English, as is `DevTabViews.ts`.
 - The `architecture` rubric dimension name is still software-flavored even for
   a non-software case (the description text was neutralized, the field name
   wasn't — a cascading rename was deferred).

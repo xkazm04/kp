@@ -2,13 +2,14 @@
 // out of DevTab.tsx.
 import { useMemo, useState } from "react";
 import { useTaskResult, type Task } from "@/app/features/shell/tasks/TasksProvider";
+import type { DevAction } from "./useDevTabActions";
 import type { Design, Result } from "./DevTypes";
 
 export function useDevTabNeedAnalysis(args: {
   tasks: Task[];
   startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;
   buildNeed: () => Record<string, unknown>;
-  runAction: (label: string, fetcher: () => Promise<Response>, onOk?: (body: unknown) => void) => Promise<boolean>;
+  runAction: (action: DevAction, fetcher: () => Promise<Response>, onOk?: (body: unknown) => void) => Promise<boolean>;
   loadCases: () => void;
 }) {
   const { tasks, startTask, buildNeed, runAction, loadCases } = args;
@@ -101,7 +102,7 @@ export function useDevTabNeedAnalysis(args: {
       // banner, no explanation, a dead button. Now the server's message lands in the
       // actionError banner.
       await runAction(
-        "Approve",
+        "approve",
         () =>
           fetch("/api/devcase", {
             method: "POST",

@@ -5,14 +5,36 @@
 // The structured artifacts the jd_build handler stores in jds.analysis_json — the
 // same payload runJdBuild returns, minus the markdown body (that's jds.body).
 export type CaseArtifact = { title?: string; brief?: string; tasks?: unknown[]; timeboxHours?: number };
+/** The repo the build actually read, when the recruiter supplied one: the resolved
+ *  ref plus what the scan found. runJdBuild has persisted this since the repo-grounding
+ *  path shipped and nothing read it — so a JD grounded in a real codebase looked
+ *  identical to one written from a paragraph of prose. It is provenance, and the
+ *  recruiter is the person who needs it. */
+export type SnapshotArtifact = {
+  ref?: string;
+  languages?: string[];
+  inferredStack?: string[];
+  loc?: number;
+};
+
 export type Artifacts = {
   role?: Record<string, unknown>;
   salary?: unknown;
   salarySources?: string[];
   salarySource?: string;
+  snapshot?: SnapshotArtifact | null;
   case?: CaseArtifact | null;
   options?: { description?: boolean; marketResearch?: boolean; caseDesign?: boolean };
 };
+
+/** Whether a stored snapshot carries anything worth drawing. A build with no repoUrl
+ *  persists `null`; a scan that found nothing persists an empty shell. */
+export function hasRepoGrounding(snapshot: SnapshotArtifact | null | undefined): snapshot is SnapshotArtifact {
+  if (!snapshot) return false;
+  return Boolean(
+    snapshot.ref || snapshot.loc || snapshot.languages?.length || snapshot.inferredStack?.length
+  );
+}
 
 export function parseArtifacts(json: string | null | undefined): Artifacts | null {
   if (!json) return null;

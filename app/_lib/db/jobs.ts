@@ -116,12 +116,73 @@ export function setJdAnalysisTask(slug: string, taskId: string): void {
   ensureDb().prepare(`UPDATE jds SET analysis_task_id = ? WHERE slug = ?`).run(taskId, slug);
 }
 
-/** The build finished — write the body + structured artifacts and mark ready. Direct
- *  UPDATE (no jd_revisions snapshot): this is the first fill, not a user edit. */
-export function finishJdAnalysis(slug: string, input: { body: string; analysisJson: unknown }): void {
-  ensureDb()
-    .prepare(`UPDATE jds SET body = ?, analysis_json = ?, analysis_status = 'ready', analysis_error = NULL WHERE slug = ?`)
-    .run(input.body, JSON.stringify(input.analysisJson), slug);
+/** What the landing build was allowed to do to the row. `bodyWritten: false` means the
+ *  row moved under the build (an operator edit, or a run that already finished it), so
+ *  the composed markdown was filed as a revision instead of overwriting the live body. */
+export type JdFinishResult = { ok: true; bodyWritten: boolean } | { ok: false; reason: "not_found" };
+
+/** The build finished — write the structured artifacts, mark ready, and take the body
+ *  ONLY if the row is still the untouched placeholder this build was started for.
+ *
+ *  This was a bare by-slug UPDATE of the body with no precondition. A jd_build lands one to two
+ *  minutes after it starts, and PATCH /api/jds/[slug] accepts an edit throughout that
+ *  window (deliberately — the placeholder row is editable in the Ledger, and refusing an
+ *  edit the UI offers is the worse trade). So an operator who fixed the title/body of an
+ *  analyzing (or previously failed, then retried) row watched the build overwrite it with
+ *  no snapshot, no conflict and no trace: unlike updateJd/revertJd — which write a
+ *  jd_revisions snapshot before every overwrite — this path wrote none, so the lost text
+ *  was not even reconstructable, and jdLastEditedAt (the staleness signal, MAX over
+ *  jd_revisions) never saw the change either.
+ *
+ *  THE PREDICATE — `body = '' AND analysis_status = 'analyzing'`, both conjuncts:
+ *   - `body = ''` is the edit guard. insertAnalyzingJd creates the placeholder with an
+ *     empty body and nothing but a build or an operator edit ever fills it, so a
+ *     non-empty body at landing time IS someone else's text.
+ *   - `analysis_status = 'analyzing'` is the finished-row guard, and it is not implied by
+ *     the first: a market-research-only / case-only build composes NO markdown, so a row
+ *     can legitimately be `ready` with an empty body. Without this conjunct a late or
+ *     duplicate run would overwrite that finished row's artifacts.
+ *
+ *  When the predicate fails the build result is not thrown away: the composed markdown is
+ *  filed into jd_revisions (when it is non-empty), so the operator can read it in the
+ *  Ledger's revision list and revert to it — the build's output becomes an offer, not an
+ *  overwrite. The artifacts (salary band, role, case) and the ready flip still land: they
+ *  are what the detail panels read, and leaving the row `analyzing` forever would be worse.
+ *
+ *  IMMEDIATE, like updateJd: the read→compare→write is only atomic if the write lock is
+ *  held from the SELECT — a DEFERRED transaction lets a second connection pass the same
+ *  check in the gap (.claude/CLAUDE.md § "A read→compute→write either locks or re-checks").
+ *
+ *  Tenancy: the by-slug read is exempt for the same reason the status writers are (a JD
+ *  slug is a globally unique PK, so it can only ever resolve one row) and it PROJECTS
+ *  workspace_id precisely so the jd_revisions write below stays workspace-scoped. */
+export function finishJdAnalysis(slug: string, input: { body: string; analysisJson: unknown }): JdFinishResult {
+  const db = ensureDb();
+  const tx = db.transaction((): JdFinishResult => {
+    const row = db
+      .prepare(`SELECT title, body, analysis_status, workspace_id FROM jds WHERE slug = ?`)
+      .get(slug) as { title: string; body: string; analysis_status: JdAnalysisStatus | null; workspace_id: string } | undefined;
+    if (!row) return { ok: false, reason: "not_found" };
+    const bodyWritten = row.body === "" && row.analysis_status === "analyzing";
+    if (!bodyWritten && input.body.trim()) {
+      // Recoverable, not lost. Only a non-empty composition is filed — an empty one
+      // would bump jdLastEditedAt (the analysis-staleness signal) for nothing.
+      db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`).run(
+        slug,
+        row.title,
+        input.body,
+        new Date().toISOString(),
+        row.workspace_id
+      );
+    }
+    db.prepare(
+      `UPDATE jds SET body = CASE WHEN body = '' AND analysis_status = 'analyzing' THEN ? ELSE body END,
+              analysis_json = ?, analysis_status = 'ready', analysis_error = NULL
+       WHERE slug = ?`
+    ).run(input.body, JSON.stringify(input.analysisJson), slug);
+    return { ok: true, bodyWritten };
+  });
+  return tx.immediate();
 }
 
 /** The build errored — surface it on the row so the Ledger shows a failed chip + retry. */

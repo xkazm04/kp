@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getIntake, markIntakePromoted } from "@/app/_lib/db/intakes";
-import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db/jobs";
+import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { startTask } from "@/app/_lib/tasks";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/intake/[id]/promote — turn a captured RoleBrief into a JD + a
 // matchable Job through the EXISTING backgrounded build (the same
@@ -22,16 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
-    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    if (intake.status === "promoted") {
-      return NextResponse.json({ error: "This intake was already promoted.", jdSlug: intake.jdSlug }, { status: 409 });
-    }
-    if (!briefReadyToPromote(intake.brief)) {
-      return NextResponse.json(
-        { error: "The brief needs at least a role title plus one dealbreaker or 90-day outcome before it can become a JD." },
-        { status: 400 }
-      );
-    }
+    // Codes (docs/architecture/api-contracts.md §1.1). The not-ready refusal is
+    // the one that matters most here: it NAMES what the brief still needs, and
+    // the panel used to replace it with "promote failed" — the reader lost the
+    // only sentence that told them what to do next.
+    if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    // The produced JD rides alongside as DATA, so the panel can link to it.
+    if (intake.status === "promoted") return jsonRefusal("INTAKE_FROZEN", 409, { jdSlug: intake.jdSlug });
+    if (!briefReadyToPromote(intake.brief)) return jsonRefusal("INTAKE_BRIEF_NOT_READY", 400);
     // THROTTLE: promotion is the most expensive single operation this feature
     // has — it starts a full backgrounded jd_build (description + market
     // research + optionally a designed work-sample case), all paid. The route
@@ -47,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // `expensive` marker is the INSERT CALL below including its opening brace, not
     // the bare function name - the name also appears in prose above the limiter.
     if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -58,7 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const brief = intake.brief;
     const title = (brief.title ?? "").trim();
     const needText = needTextFromBrief(brief);
-    const lang = intake.lang === "cs" ? "cs" : "en";
+    const lang = intakeLang(intake.lang);
     const options = {
       description: true,
       // Opt-out (UAT L1-HRBP-6): the market layer is Czech-single-market, so a
@@ -68,27 +66,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       caseDesign: body.caseDesign === true,
     };
 
-    // Same three-step contract as /api/jds/generate: placeholder row in the
-    // Ledger, detached build (survives navigation), row↔task link for progress.
+    // THE ONE DOOR into a backgrounded build (`app/_lib/jd-build-start.ts`):
+    // placeholder row in the Ledger, detached task stamped with the SAME tenant,
+    // row↔task link. This route was the fourth hand-rolled copy of that sequence
+    // and the seam's source guard allow-listed it; the allow-list entry goes with
+    // this change rather than outliving it. `title`, `jdSlug` and `options` are
+    // the seam's to set — a task pointed at a different row than the one just
+    // created is the drift it exists to prevent.
     const buildInput = { needText, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options };
-    const { slug } = insertAnalyzingJd({ title, options, buildInput }, ws);
-    const task = startTask("jd_build", {
+    const { slug, taskId } = startJdBuild({
       title,
-      company: typeof body.company === "string" ? body.company : undefined,
-      seniority: brief.seniority,
-      roleFamily: brief.roleFamily,
-      needText,
-      brief,
-      lang,
-      jdSlug: slug,
       options,
-      // Same tenant as the placeholder JD row inserted just above.
-    }, ws);
-    setJdAnalysisTask(slug, task.id);
+      buildInput,
+      workspaceId: ws,
+      params: {
+        company: typeof body.company === "string" ? body.company : undefined,
+        seniority: brief.seniority,
+        roleFamily: brief.roleFamily,
+        needText,
+        brief,
+        lang,
+      },
+    });
     // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
     // stamped now so the back-link exists even while the build is running.
     markIntakePromoted(id, { jdSlug: slug, jobId: jdJobId(slug) }, ws);
-    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId: task.id });
+    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId });
   } catch (error) {
     return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
   }

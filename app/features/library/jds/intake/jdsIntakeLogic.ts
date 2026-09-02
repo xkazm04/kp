@@ -213,6 +213,31 @@ export function foldVoiceExchange(
   };
 }
 
+/** What went wrong, and the machine CODE the server gave for it.
+ *
+ *  `kind` is which affordance failed (the panel decides where the line goes and
+ *  what its fallback sentence is); `code` is the server's refusal code, which the
+ *  panel resolves through `useErrorMessage` in the reader's language. Every one of
+ *  these used to be a bare `setError("send")` and a single English "send failed",
+ *  so "you already have five attachments", "that JD is not in your library" and
+ *  "slow down" were the same red line (docs/architecture/api-contracts.md §1.1). */
+export type IntakeError = {
+  kind: "list" | "open" | "create" | "appMaster" | "send" | "promote" | "saveBrief" | "reopen" | "attachment";
+  code: string | null;
+};
+
+/** The refusal code off a non-OK response, or null when the body carries none
+ *  (an offline fetch, a proxy's HTML error page). Never the server's `error`
+ *  string: the client renders codes, not English. */
+async function refusalCode(res: Response): Promise<string | null> {
+  const body = (await res.json().catch(() => null)) as { code?: string } | null;
+  return typeof body?.code === "string" ? body.code : null;
+}
+
+/** The write refused because the row moved under an in-flight spawn. Not a
+ *  failure to retry: the truth is on the server, so the session is re-read. */
+const MOVED = "INTAKE_BRIEF_MOVED";
+
 export function useIntakeLogic(onPromoted?: () => void) {
   const [sessions, setSessions] = useState<IntakeSummary[] | null>(null);
   const [active, setActive] = useState<IntakeSession | null>(null);
@@ -220,7 +245,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
   const [creating, setCreating] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [degraded, setDegraded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IntakeError | null>(null);
   // Guards a stale exchange response from landing after the user switched sessions.
   const activeIdRef = useRef<string | null>(null);
 
@@ -232,7 +257,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
       setSessions(data.intakes);
     } catch {
       setSessions([]);
-      setError("list");
+      setError({ kind: "list", code: null });
     }
   }, []);
 
@@ -243,18 +268,30 @@ export function useIntakeLogic(onPromoted?: () => void) {
     return () => window.clearTimeout(timer);
   }, [loadList]);
 
-  const openSession = useCallback(async (id: string) => {
-    setError(null);
-    activeIdRef.current = id;
+  // Re-read the session from the server WITHOUT touching the error line: this is
+  // also what a `moved` refusal runs, and there the reader must keep seeing why
+  // their write was not applied while the panel quietly catches up to the truth.
+  const reloadSession = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/api/intake/${encodeURIComponent(id)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) return false;
       const data = (await res.json()) as IntakeSession;
       if (activeIdRef.current === id) setActive(data);
+      return true;
     } catch {
-      setError("open");
+      /* the caller already has an error line up; a failed re-read adds nothing to it */
+      return false;
     }
   }, []);
+
+  const openSession = useCallback(
+    async (id: string) => {
+      setError(null);
+      activeIdRef.current = id;
+      if (!(await reloadSession(id))) setError({ kind: "open", code: null });
+    },
+    [reloadSession]
+  );
 
   const startNew = useCallback(async (lang: string) => {
     setCreating(true);
@@ -265,13 +302,16 @@ export function useIntakeLogic(onPromoted?: () => void) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lang }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        setError({ kind: "create", code: await refusalCode(res) });
+        return;
+      }
       const data = (await res.json()) as IntakeSession;
       activeIdRef.current = data.id;
       setActive(data);
       setDegraded(false);
     } catch {
-      setError("create");
+      setError({ kind: "create", code: null });
     } finally {
       setCreating(false);
     }
@@ -306,7 +346,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
     } catch {
       // The scan never started (bad repo, unreachable path, rate limit) — say
       // so instead of opening a session bound to a scan that does not exist.
-      setError("appMaster");
+      setError({ kind: "appMaster", code: null });
     } finally {
       setCreating(false);
     }
@@ -329,7 +369,18 @@ export function useIntakeLogic(onPromoted?: () => void) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const code = await refusalCode(res);
+          setError({ kind: "send", code });
+          // Roll back the optimistic line so a retry doesn't double it server-side.
+          setActive((s) => (s && s.id === id ? { ...s, transcript: s.transcript.slice(0, -1) } : s));
+          // The turn was computed against a row a brief edit (or the voice plane)
+          // has since replaced, and the server refused rather than reverting it.
+          // Adopt the server's version instead of leaving the panel showing a
+          // brief the store no longer holds.
+          if (code === MOVED) void reloadSession(id);
+          return false;
+        }
         const data = (await res.json()) as {
           reply: string;
           brief: RoleBrief;
@@ -357,7 +408,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
         if (data.done) void loadList();
         return true;
       } catch {
-        setError("send");
+        setError({ kind: "send", code: null });
         // Roll back the optimistic line so a retry doesn't double it server-side.
         setActive((s) => (s && s.id === id ? { ...s, transcript: s.transcript.slice(0, -1) } : s));
         return false;
@@ -365,7 +416,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
         setSending(false);
       }
     },
-    [active, sending, loadList]
+    [active, sending, loadList, reloadSession]
   );
 
   const promote = useCallback(async (opts?: { caseDesign?: boolean; marketResearch?: boolean }) => {
@@ -388,7 +439,10 @@ export function useIntakeLogic(onPromoted?: () => void) {
           marketResearch: opts?.marketResearch !== false,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        setError({ kind: "promote", code: await refusalCode(res) });
+        return;
+      }
       const data = (await res.json()) as { slug: string };
       // Identity-checked like every other late response: without it, going Back
       // and opening another intake before this resolved stamped THAT session
@@ -397,7 +451,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
       void loadList();
       onPromoted?.();
     } catch {
-      setError("promote");
+      setError({ kind: "promote", code: null });
     } finally {
       setPromoting(false);
     }
@@ -444,19 +498,24 @@ export function useIntakeLogic(onPromoted?: () => void) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ brief }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const code = await refusalCode(res);
+          setError({ kind: "saveBrief", code });
+          if (code === MOVED) void reloadSession(id);
+          return false;
+        }
         const data = (await res.json()) as { brief: RoleBrief };
         if (activeIdRef.current !== id) return true;
         setActive((s) => (s && s.id === id ? { ...s, brief: data.brief, title: data.brief?.title || s.title } : s));
         return true;
       } catch {
-        setError("saveBrief");
+        setError({ kind: "saveBrief", code: null });
         return false;
       } finally {
         setSavingBrief(false);
       }
     },
-    [active, savingBrief]
+    [active, savingBrief, reloadSession]
   );
 
   // Re-open a completed session (UAT drain §2.1): the server appends a system
@@ -474,13 +533,16 @@ export function useIntakeLogic(onPromoted?: () => void) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ note }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          setError({ kind: "reopen", code: await refusalCode(res) });
+          return;
+        }
         const data = (await res.json()) as IntakeSession;
         if (activeIdRef.current !== id) return;
         setActive(data);
         void loadList();
       } catch {
-        setError("reopen");
+        setError({ kind: "reopen", code: null });
       } finally {
         setReopening(false);
       }
@@ -509,12 +571,15 @@ export function useIntakeLogic(onPromoted?: () => void) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          setError({ kind: "attachment", code: await refusalCode(res) });
+          return false;
+        }
         const data = (await res.json()) as { attachments: IntakeAttachment[] };
         setActive((s) => (s && s.id === id ? { ...s, attachments: data.attachments } : s));
         return true;
       } catch {
-        setError("attachment");
+        setError({ kind: "attachment", code: null });
         return false;
       } finally {
         setSavingAttachment(false);

@@ -4,6 +4,7 @@
 // DevCaseDetail.tsx: covert probes, discrimination banner, rubric chips, role
 // must-haves/responsibilities, and the cohort probe-miss roll-up.
 import { Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ProbeStrengthBanner } from "./DevProbeStrengthBanner";
 import { CohortProbePanel } from "./DevCohortProbePanel";
 import { MiniList, ProbeRow, RubricChip } from "./DevShared";
@@ -18,10 +19,11 @@ export function DevCaseDetailInternal({
   role: RoleSpec | null;
   caseSubmissions: Submission[];
 }) {
+  const t = useTranslations("devcase.studio.internal");
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-4">
       <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-amber-700">
-        <Lock size={12} /> Internal — interviewer &amp; reviewer material
+        <Lock size={12} /> {t("title")}
       </h3>
 
       {(c.coverProbes ?? []).length ? (
@@ -33,7 +35,7 @@ export function DevCaseDetailInternal({
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-micro text-steel">No covert probes recorded on this case.</p>
+        <p className="mt-2 text-micro text-steel">{t("noProbes")}</p>
       )}
 
       {/* bb4f5494 — does this case actually discriminate? */}
@@ -49,8 +51,8 @@ export function DevCaseDetailInternal({
 
       {role ? (
         <div className="mt-3 grid gap-3 border-t border-amber-200/60 pt-3 sm:grid-cols-2">
-          <MiniList title="Role must-haves" items={role.mustHaves ?? []} />
-          <MiniList title="Role responsibilities" items={role.responsibilities ?? []} />
+          <MiniList title={t("roleMustHaves")} items={role.mustHaves ?? []} />
+          <MiniList title={t("roleResponsibilities")} items={role.responsibilities ?? []} />
         </div>
       ) : null}
 

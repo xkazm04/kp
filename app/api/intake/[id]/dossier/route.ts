@@ -6,6 +6,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { intakeLang } from "@/app/_lib/intake-lang";
 
 // POST /api/intake/[id]/dossier — an App-master session's repo scan finished:
 // fold the RepoDossier into the live brief as `codebase_dossier.*` facets
@@ -60,7 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       {
         brief: intake.brief,
         dossier: parsed.data,
-        lang: intake.lang === "cs" ? "cs" : "en",
+        lang: intakeLang(intake.lang),
       },
       request.signal
     );

@@ -28,7 +28,7 @@ export function DevTab() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   const {
-    jds, jd, jdLoading, pickJd,
+    jds, jd, jdLoading, pickJd, jdsError, reloadJds,
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesState, loadCases,
@@ -110,7 +110,7 @@ export function DevTab() {
         >
           <span>{actionError}</span>
           <button type="button" onClick={() => setActionError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
-            Dismiss
+            {tCopy("studio.dismiss")}
           </button>
         </div>
       ) : null}
@@ -146,6 +146,8 @@ export function DevTab() {
             jd,
             jdLoading,
             pickJd,
+            jdsError,
+            reloadJds,
             repoUrls,
             setRepoUrl,
             addRepo,

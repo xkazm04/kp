@@ -1,7 +1,9 @@
 "use client";
 
 import { Boxes, ClipboardList, GitBranch, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { formatFraction } from "@/app/_lib/format";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { DevAnalysisReflectionCard } from "./DevAnalysisReflectionCard";
 import { DevAnalysisDesignCard } from "./DevAnalysisDesignCard";
 import type { Design, NeedAnalysis, RepoSnapshot, Result } from "./DevTypes";
@@ -32,17 +34,18 @@ export function AnalysisView({
   approving: boolean;
   approvedId: string | null;
 }) {
+  const t = useTranslations("devcase.studio.analysis");
   return (
     <section className="min-w-0">
       {viewed == null ? (
         <div className="rounded-lg border border-dashed border-stone-200 p-8 text-center text-base text-steel">
-          Define a need and analyze it — the reality reflection appears here.
+          {t("empty")}
         </div>
       ) : running ? (
-        <div className="rounded-lg border border-stone-200 bg-white p-8 text-center shadow-panel">
+        <div className={`${PANEL} p-8 text-center`}>
           <Loader2 className="mx-auto animate-spin text-coral" size={26} />
-          <p className="mt-2 text-base font-semibold text-ink">Pulling the codebase + reflecting…</p>
-          <p className="text-sm text-steel">This runs as a background task — you can leave this tab.</p>
+          <p className="mt-2 text-base font-semibold text-ink">{t("running")}</p>
+          <p className="text-sm text-steel">{t("runningHint")}</p>
         </div>
       ) : result ? (
         <div className="space-y-4">
@@ -51,14 +54,18 @@ export function AnalysisView({
           {snapshots.length > 0 ? (
             // One card per grounded codebase (multi-repo: the role can span up to 3).
             snapshots.map((snapshot, i) => (
-              <div key={snapshot.ref ?? i} className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+              <div key={snapshot.ref ?? i} className={`${PANEL} p-4`}>
                 <div className="mb-2 flex items-center gap-1.5">
                   <Boxes size={14} className="text-steel" />
                   <span className="text-meta uppercase tracking-wide text-steel">
-                    Codebase snapshot{snapshots.length > 1 ? ` ${i + 1}/${snapshots.length}` : ""}
+                    {snapshots.length > 1
+                      ? t("snapshotIndexed", { index: i + 1, total: snapshots.length })
+                      : t("snapshot")}
                   </span>
                   {snapshot.ref ? <span className="min-w-0 truncate text-micro text-steel">{snapshot.ref}</span> : null}
-                  <span className="ml-auto shrink-0 text-micro text-steel">~{(snapshot.loc ?? 0).toLocaleString()} LOC</span>
+                  <span className="ml-auto shrink-0 text-micro text-steel">
+                    {t("loc", { loc: (snapshot.loc ?? 0).toLocaleString() })}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(snapshot.languages ?? {}).slice(0, 6).map(([k, v]) => (
@@ -68,33 +75,33 @@ export function AnalysisView({
                   ))}
                 </div>
                 {(snapshot.topDirs ?? []).length > 0 ? (
-                  <p className="mt-2 text-micro text-steel">Top dirs: {(snapshot.topDirs ?? []).slice(0, 10).join(" / ")}</p>
+                  <p className="mt-2 text-micro text-steel">
+                    {t("topDirs", { dirs: (snapshot.topDirs ?? []).slice(0, 10).join(" / ") })}
+                  </p>
                 ) : null}
                 {(snapshot.recentCommitSummaries ?? []).length > 0 ? (
                   <p className="mt-1 flex items-center gap-1 text-micro text-steel">
-                    <GitBranch size={11} /> {(snapshot.recentCommitSummaries ?? []).length} recent commits read
+                    <GitBranch size={11} /> {t("commitsRead", { count: (snapshot.recentCommitSummaries ?? []).length })}
                   </p>
                 ) : null}
               </div>
             ))
           ) : (
-            <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">
-              No codebase snapshot — analysis is ungrounded. Add a public GitHub URL to ground it in reality.
-            </p>
+            <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">{t("noSnapshot")}</p>
           )}
 
           {/* D3 — artifact design + human gate */}
           {!design && !designing ? (
             <button type="button" onClick={startDesign}
               className="focus-ring inline-flex h-10 items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 text-base font-semibold text-coral hover:bg-coral/10">
-              <ClipboardList size={15} /> Design role &amp; assignment
+              <ClipboardList size={15} /> {t("designCta")}
             </button>
           ) : null}
           {designing ? (
-            <div className="rounded-lg border border-stone-200 bg-white p-6 text-center shadow-panel">
+            <div className={`${PANEL} p-6 text-center`}>
               <Loader2 className="mx-auto animate-spin text-coral" size={22} />
-              <p className="mt-2 text-base font-semibold text-ink">Designing the role + assignment…</p>
-              <p className="text-sm text-steel">Background task — leave any time.</p>
+              <p className="mt-2 text-base font-semibold text-ink">{t("designing")}</p>
+              <p className="text-sm text-steel">{t("designingHint")}</p>
             </div>
           ) : null}
           {design ? (
@@ -107,10 +114,12 @@ export function AnalysisView({
               full record could not be read (useTaskResult gave up after
               RESULT_FETCH_MAX_ATTEMPTS, or the record carries no result) — saying
               "did not complete" over that would blame the analysis for a fetch that
-              failed, and hide the fact that a retry is a re-fetch, not a re-run. */}
-          {viewed.status === "succeeded"
-            ? "The analysis finished, but its result could not be loaded. Reopen it from the Tasks tab, or run the analysis again."
-            : viewed.error ?? "Analysis did not complete."}
+              failed, and hide the fact that a retry is a re-fetch, not a re-run.
+              `viewed.error` is the engine's own English string (same class as the
+              engine-authored reasons[] known gap in docs/features/dev-case) — it is
+              shown as-is when present, and the localized message is what a reader
+              gets when it is not. */}
+          {viewed.status === "succeeded" ? t("resultUnreadable") : viewed.error ?? t("failed")}
         </div>
       )}
     </section>

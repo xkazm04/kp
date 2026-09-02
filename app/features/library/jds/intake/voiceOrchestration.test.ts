@@ -96,3 +96,32 @@ test("spokenOpener continues the pending question from the text thread", () => {
   assert.equal(spokenOpener(transcript), "What should be done in 90 days?");
   assert.equal(spokenOpener([]), null);
 });
+
+// The sweep and the next spoken turn used to leave the driver together —
+// `if (extract) void sweep(); if (next) void dispatch(next);` — so a seconds-long
+// batch extraction ran beside a paid fast turn AND raced it over the same row.
+// The machine now holds the sweep until the machine is idle. (It cannot serialize
+// an utterance the requestor speaks DURING a sweep — that is the store's job, in
+// updateIntakeVoiceSweep — but the driver must not create the overlap itself.)
+test("a due sweep waits behind a turn that is dispatching, and fires at the next idle", () => {
+  let s = enqueueUtterance(initialOrchestratorState, "a").state;
+  s = enqueueUtterance(s, "b").state; // spoken while the first turn is in flight → queued
+  // Exchange #1 completes: the queued utterance goes out, so the cadence tick
+  // (…which is not due at #1 with EXTRACT_EVERY=2) and the dispatch cannot clash.
+  const first = completeTurn(s, false);
+  assert.equal(first.next, "b", "the queued utterance still dispatches immediately");
+  assert.equal(first.extract, false);
+
+  // Exchange #2 IS due, and another utterance queued meanwhile → the sweep is owed.
+  const withQueued = enqueueUtterance(first.state, "c").state;
+  const second = completeTurn(withQueued, false);
+  assert.equal(second.next, "c");
+  assert.equal(second.extract, false, "a sweep must never leave beside a fast turn");
+  assert.equal(second.state.pendingExtract, true, "…but it is owed");
+
+  // Exchange #3 is not a cadence tick — the OWED sweep is what fires here.
+  const third = completeTurn(second.state, false);
+  assert.equal(third.next, null);
+  assert.equal(third.extract, true, "the deferred sweep must not be forgotten");
+  assert.equal(third.state.pendingExtract, false);
+});

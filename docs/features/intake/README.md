@@ -205,6 +205,34 @@ JD has ever had.
   defaults are always the safe end: an unreadable rung stays 2, an unreadable
   forbidden-class answer keeps all six, an undecided population stays `either` —
   and every assumption is recorded in `coercionNotes[]`.
+- **Every refusal on this surface carries a code — all nine dialog routes, not
+  just the App-master pair.** The dialog half answered English prose with no
+  code at all (`"Intake not found."` on six routes, plus a closed session, an
+  attachment limit, an index, "text is required", "JD not found." and "nothing
+  to extract yet"), and `jdsIntakeLogic` threw every one of them away into a
+  single `setError("send")` that the panel rendered as one red *"send failed"*.
+  So "you already hold five attachments", "that JD is not in this library" and
+  "slow down" were the same sentence, in English, to a Czech, German or French
+  reader. Each now answers `jsonRefusal` with its own code, the client keeps the
+  code (`IntakeError { kind, code }`) and `JdsIntakePanel` resolves it through
+  `useErrorMessage()`; the per-affordance string is only the fallback for a
+  failure that carries no code at all (an offline fetch). Pinned by
+  `app/api/intake/intake-refusal-guard.test.ts`, which fails on any hand-rolled
+  `{ error }` envelope at a 4xx/5xx status in these modules.
+- **The dialog writes carry the version they were computed from.** `/message`
+  and `/voice-turn` spend a model call between the read that feeds the engine and
+  the write that replaces transcript AND brief wholesale, so a brief edit typed
+  into the panel — or a turn on the other plane — was silently reverted by
+  whatever the spawn returned. Both now pass `expectedUpdatedAt` through
+  `casUpdate` and answer `INTAKE_BRIEF_MOVED` (409) instead of clobbering; the
+  client re-reads the session rather than painting its stale copy back. `PATCH
+  /brief` re-asserts its own read for the same vocabulary. The extraction sweep
+  is the deliberate exception — it appends instead of refusing, because a refusal
+  there would drop the hang-up recovery turns it carries.
+- **The three spawning dialog routes are cancellable.** `request.signal` reaches
+  `runIntakeExchange`, `runIntakeVoiceTurn` and `runIntakeTranscriptExtract`, and
+  an aborted request answers 499 with no store-error log — the same treatment the
+  App-master pair already had.
 - **Every refusal on the two App-master routes carries a code.** They answered
   bare English strings, so `JdsIntakeAppMasterCard` had one line — *"could not
   compose the spec"* — for five different next actions: wait for the scan
@@ -267,6 +295,9 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | App master: route trust boundaries | `app/api/intake/app-master-routes.test.ts` (source guard) |
 | App master: refusal codes | `REFUSAL_ERRORS` in `app/_lib/api-response.ts` (`INTAKE_NOT_FOUND`, `INTAKE_FROZEN`, `INTAKE_BRIEF_MOVED`, `INTAKE_NOT_FROM_SCAN`, `INTAKE_SCAN_MISMATCH`, `INTAKE_DOSSIER_INVALID`, `INTAKE_NOT_APP_MASTER`, `INTAKE_SCAN_NOT_LANDED`, `INTAKE_BRIEF_EMPTY`) + the shared `TOO_MANY_REQUESTS`; rendered via `useErrorMessage()` |
 | App master: write-path race guard | `app/_lib/db/intake-app-master-cas.test.ts` (behavioral, temp SQLite) |
+| Dialog refusal codes | `REFUSAL_ERRORS` (`INTAKE_CLOSED`, `INTAKE_TEXT_REQUIRED`, `INTAKE_BRIEF_INVALID`, `INTAKE_BRIEF_NOT_READY`, `INTAKE_ALREADY_OPEN`, `INTAKE_ATTACHMENT_LIMIT`, `INTAKE_ATTACHMENT_INDEX`, `INTAKE_JD_NOT_FOUND`, `INTAKE_NOTHING_TO_EXTRACT`, `INTAKE_VOICE_NOT_CONFIGURED`) + the shared `INTAKE_NOT_FOUND` / `INTAKE_FROZEN` / `INTAKE_BRIEF_MOVED` / `TOO_MANY_REQUESTS` |
+| Dialog refusal + cancel guard | `app/api/intake/intake-refusal-guard.test.ts` (source guard over all nine routes) |
+| Dialog write-path race guard | `app/_lib/db/intake-dialog-cas.test.ts`, `app/_lib/db/intake-voice-sweep.test.ts` (behavioral, temp SQLite) |
 | App master: mandate section model (pure) | `app/_lib/app-master/mandate-view.ts::mandateSections` (`mandate-view.test.ts`) |
 | Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
 | Export builder (pure) | `app/_lib/intake-export.ts` |
@@ -402,6 +433,32 @@ infrastructure). Conversation direction is OURS, in two LLM threads:
   sweep and the hang-up recovery both arrive after the close, so refusing them
   lost the last exchanges; only `promoted` is frozen, and this route still
   never closes a session itself (`voice-close-guard.test.ts`).
+
+The two threads run CONCURRENTLY — the client fires the sweep and the next
+spoken turn from the same place — so the sweep's write is shaped for that:
+`updateIntakeVoiceSweep` (`app/_lib/db/intakes.ts`) carries only the turns THIS
+request brought and re-reads the stored transcript inside its own write
+transaction. It used to write `[...transcriptReadBeforeTheSpawn, ...turns]`
+through `updateIntakeDialog`, which erased any `/voice-turn` pair that landed
+during the seconds-long extraction — words spoken into a live call, gone from
+the only record a call has (`app/_lib/db/intake-voice-sweep.test.ts`). The
+row version read before the spawn still rides along, so the write REPORTS a
+concurrent turn (`moved`); nothing is refused, because refusing would drop the
+hang-up recovery turns the payload carries. The response answers with the
+STORED transcript, since the panel adopts it wholesale. Client-side,
+`completeTurn` now holds a due sweep until no fast turn is dispatching
+(`pendingExtract`) — that removes the self-inflicted overlap and one
+concurrent paid call, but not an utterance the requestor simply speaks
+mid-sweep, which is why the store is where the guarantee lives.
+
+Extraction cost, stated plainly: every sweep re-reads the WHOLE transcript
+(`extract_transcript` is given the full turn list), so a 20-exchange call runs
+~10 batch extractions over a growing transcript. Slicing to "only turns since
+the last sweep" is not a free win and is NOT done: the model assigns
+`sourceTurn` indices over the turns it is handed (the click-to-turn chips read
+them) and `detect_shape` judges the same list, so a sliced sweep would
+misattribute every citation it produces. What the deferral removes is the
+redundant concurrency, not the O(n) per sweep.
 
 Client pieces: `JdsIntakeVoice.tsx` (thin driver) over the pure orchestrator
 `voiceOrchestration.ts` (serializes fast turns, coalesces utterances spoken
@@ -589,8 +646,22 @@ workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
 
 ## Known gaps
 
-- Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
-  to the language directive only.
+- Dialog languages are the four the product ships (`i18n/locales.ts`), resolved
+  once by `app/_lib/intake-lang.ts::intakeLang` and pinned by
+  `intake-lang.test.ts` — every route used to clamp `lang === "cs" ? "cs" :
+  "en"` by hand, six copies of it plus one in the panel, so a German or French
+  operator got an English intake agent although `pipeline/jobfit/i18n.py` has
+  named their language in `LANG_NAMES` all along. **Keyless the promise is
+  narrower and deliberately so**: the deterministic slot script
+  (`pipeline/jobfit/intake.py` — `_Q`, `_readback`, `_close_reply`) carries en
+  and cs only and falls back to its English text for de/fr, so a provider-less
+  `de` session is asked its questions in English while the brief it fills is
+  the same one. With a provider — the default — the whole dialog, the voice
+  fast thread, the extraction sweep and the promoted JD build are German or
+  French end to end. Two clamps remain OUTSIDE this: the App-master `dossier`
+  and `compose-app-master` routes still resolve cs-or-en for the merge/fit
+  spawn, so an App-master session's dossier facets stay English on a de/fr
+  session (a one-line fix in each, owned by the App-master lot).
 - The voice plane is **not live-verified**: built and unit/contract-tested,
   but no OpenAI Realtime key was available in the build sessions, so no real
   call has been placed. The audio-in-the-loop harness hook is designed in the

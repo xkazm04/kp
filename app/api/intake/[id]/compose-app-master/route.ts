@@ -6,6 +6,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { intakeLang } from "@/app/_lib/intake-lang";
 
 // POST /api/intake/[id]/compose-app-master — turn the captured RoleBrief plus
 // the session's RepoDossier into an `AppMasterSpec`
@@ -56,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       {
         brief: intake.brief,
         dossier: intake.dossier,
-        lang: intake.lang === "cs" ? "cs" : "en",
+        lang: intakeLang(intake.lang),
       },
       request.signal
     );
