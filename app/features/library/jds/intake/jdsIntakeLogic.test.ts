@@ -40,6 +40,7 @@ const session = (id: string): IntakeSession => ({
   id,
   title: "Data Analyst",
   status: "open",
+  updatedAt: null,
   lang: "cs",
   transcript: [{ role: "interviewer", text: "What must they already know?" }],
   brief: brief("Data Analyst", "SQL"),
