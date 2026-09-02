@@ -204,6 +204,35 @@ field, `statuses` — the whole workspace's jobId → status map — which no cl
 read: `JobsDraftsPanel.tsx` is the only caller and takes `drafts`. `listJobStatuses`
 remains for server-side callers.
 
+### A failed READ answers with a code too
+
+The rule above covers what the routes *send*. What the client *renders* was the
+other half, and the shared read hook broke it for every dashboard tab at once:
+`useJsonFetch` did `setError((body && body.error) || errorLabel)` — the inverted
+fallback chain `app/_lib/use-error-message.ts` exists to forbid — so the caller's
+localized label almost never won and every locale got the server's English. The
+hook now keeps the failure as `{ code, status }` (`jsonFetchFailure`, pure and
+pinned by `app/_lib/useJsonFetch.test.ts`) and derives the rendered string through
+`useErrorMessage`: the code resolves in the reader's language, `errorLabel` is the
+fallback for a code the catalog does not know, and the prose is never shown.
+`code` / `status` ride out alongside `error` for callers that must branch on the
+outcome. Every consumer of the hook — here the Coach, Compare, Rediscover and
+Agent-fit tabs — inherited the fix without a call-site change.
+
+Two hand-rolled reads in this area followed:
+
+- **The Campaign tab keeps the code.** `jobsCampaignTabLogic` threw `d.error` into
+  a `catch` that ignored it, so a 429 back-off and a 500 store fault both read
+  "Couldn't load the pack." The failed response's `code` is now carried to the
+  catch and resolved, with `loadFailed` as the fallback. Warning codes the build
+  has no sentence for are no longer filtered out in silence either — an unknown
+  code renders as `jobs.campaign.warnUnknown` naming the code.
+- **The Drafts panel fails visibly.** `loadDrafts` ended in `.catch(() => undefined)`,
+  leaving `drafts` at `[]` — and the panel returns `null` when empty, so a failed
+  read was indistinguishable from having no drafts: an authored JD awaiting
+  sourcing simply was not there. A failure is now its own state; the panel stays
+  on screen with `jobs.drafts.loadFailed` and a retry that re-runs the read.
+
 ### Every jobs route that spawns or spends is throttled
 
 Seven routes here reach a child process or a model on an accepted request, and
@@ -447,8 +476,19 @@ presented as the pool — the same cut-slice-as-whole-set shape the rediscovery
 panel closed with its "+N more" line. The hook now reads the flag (strictly
 `=== true`, so an older payload never invents a warning) and
 `JobsRecruiterCandidates` renders `jobs.candidates.poolTruncatedNote` beside the
-skipped-candidates note, in the same advisory amber. The winnability coach's half
-is still open (Known gaps).
+skipped-candidates note, in the same advisory amber.
+
+The **winnability coach's half is now closed too**. `GET /api/jobs/[id]/winnability`
+destructured `{ entries }` only, so the coach graded the same capped pool and
+presented "3 of 40 qualify — loosen this gate" as the whole truth; a recruiter
+edits their JD off that number. The route now reads `{ entries, truncated }` and
+echoes `poolTruncated` exactly as the candidates route does, and `JobsCoachPanel`
+renders **the candidates namespace's own sentence** (`useTranslations("jobs.candidates")`
+→ `poolTruncatedNote`) rather than a second copy of it, so the two surfaces cannot
+drift into two accounts of one cap. The empty-pool branch's English `note` ("No
+saved candidates yet.") is gone with it — no client ever read it, and a client is
+not allowed to render server prose. Pinned by
+`app/features/library/jobs/jobsCoachPoolCap.test.ts`.
 
 ## A rediscovery prior must be another role
 
@@ -871,12 +911,13 @@ include `workspace_id`).
   computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
   and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
   "showing N of M" line (new `library.tab.*` copy across all four locales).
-- `GET /api/jobs/[id]/winnability` drops `buildCandidatePool`'s `truncated` flag
-  on the floor (`const { entries } = buildCandidatePool(ws)`), so on a workspace
-  whose corpus exceeds `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) the coach's
-  "+N if you loosen this" promises are computed over a capped subset with no
-  notice. The Candidates tab now says so for its own ranking (below); the coach
-  panel still needs the flag forwarded and a matching line.
+- The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
+  rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
+  `campaign.py` spends them internally to suppress unstated facts but the pack it
+  returns carries only `warnings`. So a recruiter sees "no salary stated" but not
+  "we assumed medior / Praha for you". Surfacing it is a `campaign.py` change
+  (add the list to the returned pack) plus a line under the pack in
+  `JobsCampaignTab`, not a UI-only fix.
 - **The Fair Rank audit table ranks one number across cohorts it is not
   comparable within.** `recruiter.fairness_check` is handed *every* validated
   candidate, so its `own` / `mean` arrays include both fairness tracks **and**

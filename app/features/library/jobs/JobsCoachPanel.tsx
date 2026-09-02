@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Coins, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { EmptyState } from "./JobsShared";
@@ -21,6 +22,10 @@ import { JobsCoachPanelLoosenList } from "./JobsCoachPanelLoosenList";
 // silently emptying the pipeline, and whether the salary undercuts the market.
 export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const t = useTranslations("jobs.coach");
+  // The cap admission is the candidates ranking's sentence, read from ITS namespace
+  // rather than copied into this one: the coach grades the same capped pool, so the
+  // two surfaces must never drift into two different accounts of the same cap.
+  const tc = useTranslations("jobs.candidates");
   // Reader-locale digit grouping for the coach's bands (format.ts number-locale contract).
   const locale = useLocale();
   const router = useRouter();
@@ -132,6 +137,12 @@ export function CoachPanel({ jobId, jobTitle }: { jobId: string; jobTitle: strin
           </div>
         ))}
       </div>
+
+      {data.poolTruncated ? (
+        <p className={`${PANEL_SUNKEN} px-3 py-2 text-sm text-steel`}>
+          {tc("poolTruncatedNote")}
+        </p>
+      ) : null}
 
       {skippedCount > 0 ? (
         <div className="flex items-start gap-2 rounded-lg border border-dial-amber/40 bg-dial-amber/10 px-3 py-2 text-base text-ink">

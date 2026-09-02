@@ -36,9 +36,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     // Same population the candidates tab ranks, so the coach and the ranking
     // never diverge on who's in the pool. Workspace-scoped like the ranking.
-    const { entries } = buildCandidatePool(ws);
+    const { entries, truncated } = buildCandidatePool(ws);
     if (entries.length === 0) {
-      return NextResponse.json({ poolSize: 0, note: "No saved candidates yet." });
+      // No `note`: it was English prose the client is forbidden to render (and the
+      // coach never read it — poolSize 0 already selects the empty state).
+      return NextResponse.json({ poolSize: 0, poolTruncated: truncated });
     }
 
     // Per-IP, AFTER the visibility gate and the empty-pool short-circuit (neither
@@ -73,7 +75,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // trailing non-JSON at shutdown (asyncio "Event loop is closed", leaked-
     // semaphore / ResourceWarning — common on Windows) that would crash a parse.
     const payload = parsePythonJson<Record<string, unknown>>(stdout, stderr);
-    return NextResponse.json(payload);
+    // Echo the pool cap the same way the candidates route does (`poolTruncated`):
+    // the coach grades the SAME capped pool the ranking scores, so a verdict of
+    // "3 qualified of 40" computed over a truncated corpus has to say so — an
+    // unqualified "your JD only reaches 3 people" is a JD edit the recruiter
+    // would make for a reason that isn't true.
+    return NextResponse.json({ ...payload, poolTruncated: truncated });
   } catch (error) {
     return safeJsonError(error, "api:jobs/winnability", "JOB_WINNABILITY_FAILED");
   } finally {

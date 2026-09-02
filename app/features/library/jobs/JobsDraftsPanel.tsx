@@ -31,13 +31,30 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
   const search = useSearchParams();
   const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
   const [drafts, setDrafts] = useState<{ id: string; title: string; company: string | null }[]>([]);
+  // The drafts read used to end in `.catch(() => undefined)`, so a failed load left
+  // `drafts` at [] and the panel returned null: an authored JD awaiting sourcing
+  // simply WAS NOT THERE, indistinguishable from having none. A failure is now a
+  // state of its own — the panel stays on screen with a retryable line.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [sourcingId, setSourcingId] = useState<string | null>(null);
   // tone "warn" = publish succeeded but sourcing errored (or the call failed) — styled
   // distinctly so a broken pipeline isn't mistaken for a clean "sourced 0" result.
   // tone "quota" = hit the plan's active-job cap (402); an upgrade prompt, not a warning.
   const [draftNote, setDraftNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
   const loadDrafts = () =>
-    fetch("/api/jobs/status").then((r) => r.json()).then((p) => setDrafts(p.drafts ?? [])).catch(() => undefined);
+    fetch("/api/jobs/status")
+      .then(async (r) => {
+        // A non-2xx still parses (safeJsonError answers JSON) and `?? []` would turn
+        // it into a confident "no drafts" — treat it as the failure it is.
+        const p = r.ok ? ((await r.json()) as { drafts?: { id: string; title: string; company: string | null }[] }) : null;
+        if (!p) {
+          setLoadFailed(true);
+          return;
+        }
+        setDrafts(p.drafts ?? []);
+        setLoadFailed(false);
+      })
+      .catch(() => setLoadFailed(true));
   useEffect(() => {
     loadDrafts();
   }, []);
@@ -77,11 +94,23 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
     }
   };
 
-  if (drafts.length === 0) return null;
+  if (drafts.length === 0 && !loadFailed) return null;
 
   return (
     <div data-sim="job-drafts" className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">
       <p className="text-meta uppercase tracking-wide text-coral">{t("heading")} · {drafts.length}</p>
+      {loadFailed ? (
+        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-sm text-amber-800">
+          {t("loadFailed")}{" "}
+          <button
+            type="button"
+            onClick={() => loadDrafts()}
+            className="focus-ring rounded-md font-semibold underline hover:text-ink"
+          >
+            {t("retry")}
+          </button>
+        </p>
+      ) : null}
       <ul className="mt-2 space-y-1.5">
         {drafts.map((d) => (
           <li key={d.id} data-sim-entry={d.id} className="flex flex-wrap items-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm">

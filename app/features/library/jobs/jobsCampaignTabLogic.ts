@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useTaskResult } from "@/app/features/shell/tasks/useTaskResult";
 import { isLocale, type Locale } from "@/i18n/locales";
@@ -13,6 +14,11 @@ import { BEATS, HOOK_LABEL_KEY, isHookType, WARN_KEY, type PackRecord } from "./
 
 export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?: string) {
   const t = useTranslations("jobs.campaign");
+  // The pack route answers `{ error, code }`; resolve the machine code through the
+  // `errors` catalog. Pre-fix the code was thrown away (`throw new Error(d.error)`
+  // straight into a `catch` that ignored it), so a 429 back-off and a 500 store
+  // fault both read "Couldn't load the pack." — one sentence for every cause.
+  const errMsg = useErrorMessage();
   const { startTask } = useTasks();
   const [lang, setLang] = useState<Locale>(isLocale(appLocale) ? appLocale : "en");
   const [record, setRecord] = useState<PackRecord | null>(null);
@@ -45,15 +51,23 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
       requestKeyRef.current = key;
       setLoading(true);
       setError(null);
+      // The failed response's machine code, carried from the `then` to the `catch`
+      // (a rejection can hold only a message) so the error line can name the cause.
+      let failureCode: string | null = null;
       fetch(`/api/jobs/${encodeURIComponent(jobId)}/campaign?lang=${lang}`)
         .then(async (r) => {
-          const d = await r.json();
-          if (!r.ok) throw new Error(d.error);
-          if (requestKeyRef.current === key) setRecord((d.pack as PackRecord | null) ?? null);
+          const d = (await r.json().catch(() => null)) as
+            | { pack?: PackRecord | null; error?: string; code?: string }
+            | null;
+          if (!r.ok || !d) {
+            failureCode = typeof d?.code === "string" ? d.code : null;
+            throw new Error("campaign pack load failed");
+          }
+          if (requestKeyRef.current === key) setRecord(d.pack ?? null);
         })
         .catch(() => {
           if (requestKeyRef.current !== key) return;
-          setError(t("loadFailed"));
+          setError(errMsg({ code: failureCode }, t("loadFailed")));
           // A failed load must not leave the PREVIOUS language's pack on screen under
           // the newly-selected one: the tab renders the error banner AND the stored
           // pack side by side, and nothing in the pack names its language — so a
@@ -69,7 +83,7 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
         });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [jobId, lang, t, reloadNonce]);
+  }, [jobId, lang, t, errMsg, reloadNonce]);
 
   const generating = watch.active || watch.loading;
 
@@ -123,7 +137,13 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
 
   const pack = record?.payload;
   const variants = pack?.variants ?? [];
-  const warnings = (pack?.warnings ?? []).filter((w): w is keyof typeof WARN_KEY => w in WARN_KEY);
+  const allWarnings = pack?.warnings ?? [];
+  const warnings = allWarnings.filter((w): w is keyof typeof WARN_KEY => w in WARN_KEY);
+  // A warning code this build has no sentence for used to be filtered out in
+  // silence: the pipeline could add a fact the pack had to do without and the
+  // recruiter would never learn of it. Unknown codes now render as a generic
+  // warning naming the code — visible, and traceable back to the generator.
+  const unknownWarnings = allWarnings.filter((w) => !(w in WARN_KEY));
 
   // The whole pack as paste-ready Markdown (the export the backlog promised).
   const packMarkdown = () =>
@@ -149,5 +169,5 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
       .filter(Boolean)
       .join("\n");
 
-  return { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown, watch };
+  return { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, unknownWarnings, packMarkdown, watch };
 }
