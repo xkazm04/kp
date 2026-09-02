@@ -8,11 +8,34 @@ import type { CaseScenario, PerStepSources, RoleSpec, SourceDescriptor, SourceKi
 // and others fell back to deterministic templates — surfaced instead of
 // mislabelling it a full LLM run. Visual language: moss = real LLM, amber =
 // degraded/mixed, muted stone = template/deterministic.
+//
+// The three words themselves used to live here as English prose, and they surfaced
+// as chip labels, `title` tooltips and the strip's whole aria-label — the one part
+// of a provenance chip a screen-reader user gets. A plain module has no translator
+// in scope, so the descriptor names its string (`labelKey`) and the component that
+// renders it resolves the key.
 const SOURCE_DESCRIPTORS: Record<SourceKind, SourceDescriptor> = {
-  llm: { label: "Claude CLI", dotClass: "bg-moss", textClass: "text-ink", isDegraded: false },
-  partial: { label: "Partial (degraded)", dotClass: "bg-amber-400", textClass: "text-amber-700", isDegraded: true },
-  deterministic: { label: "template", dotClass: "bg-stone-300", textClass: "text-steel", isDegraded: false },
+  llm: { labelKey: "llm", dotClass: "bg-moss", textClass: "text-ink", isDegraded: false },
+  partial: { labelKey: "partial", dotClass: "bg-amber-400", textClass: "text-amber-700", isDegraded: true },
+  deterministic: { labelKey: "deterministic", dotClass: "bg-stone-300", textClass: "text-steel", isDegraded: false },
 };
+
+// The pipeline steps the CLI provenance envelope can name. A DECLARED set, so the
+// catalogs can be asserted against it in both directions rather than trusting that
+// whoever added a step remembered the four locales.
+export const PIPELINE_STEPS = ["analyze", "source", "role", "case", "reflect", "tooling", "evaluate", "transfer"] as const;
+
+/** A step key -> its label, given a lookup that answers null for "no such string".
+ *
+ *  Pure and lookup-injected precisely so the FALLBACK is testable: an envelope from a
+ *  newer engine can carry a step this build has never heard of, and a capitalised raw
+ *  id is a better degradation than a hole in the strip or a thrown render. The lookup
+ *  half is the catalog; this half is what happens when the catalog has no answer. */
+export function stepLabel(key: string, lookup: (k: string) => string | null): string {
+  const known = lookup(key);
+  if (known) return known;
+  return key ? key.charAt(0).toUpperCase() + key.slice(1) : "";
+}
 
 // Unknown / legacy / absent values degrade to the deterministic descriptor — the
 // runtime lookup catches strings outside the union (e.g. a future "cached") that

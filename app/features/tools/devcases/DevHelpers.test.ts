@@ -166,3 +166,31 @@ test("isSupportedRepoRef warns on exactly the refs the grounding cannot fetch", 
   assert.equal(isSupportedRepoRef("owner/repo/extra"), false);
   assert.equal(isSupportedRepoRef("not a url"), false);
 });
+
+const { describeSource, stepLabel, PIPELINE_STEPS } = await import("./DevHelpers.ts");
+
+test("describeSource names a catalog KEY, and an unknown provenance degrades to template", () => {
+  // The three words used to be English prose in this table, and they surfaced as chip
+  // labels, title tooltips and the strip's whole aria-label. The descriptor now names
+  // the string; the component resolves it.
+  assert.equal(describeSource("llm").labelKey, "llm");
+  assert.equal(describeSource("partial").labelKey, "partial");
+  assert.equal(describeSource("partial").isDegraded, true);
+  // Values outside the union arrive from JSON the type checker never saw (a future
+  // "cached"), as do null/undefined for bundles saved before provenance existed.
+  assert.equal(describeSource("cached" as never).labelKey, "deterministic");
+  assert.equal(describeSource(null).labelKey, "deterministic");
+  assert.equal(describeSource(undefined).isDegraded, false);
+});
+
+test("stepLabel falls back to a capitalised id for a step this build has never heard of", () => {
+  const catalog: Record<string, string> = { evaluate: "Vyhodnocení" };
+  const lookup = (k: string) => catalog[k] ?? null;
+  assert.equal(stepLabel("evaluate", lookup), "Vyhodnocení");
+  // A newer engine's step: readable, in place, not a hole and not a thrown render.
+  assert.equal(stepLabel("cached", lookup), "Cached");
+  assert.equal(stepLabel("x", lookup), "X");
+  assert.equal(stepLabel("", lookup), "");
+  // The declared set is what the catalog guard asserts against.
+  assert.ok(PIPELINE_STEPS.includes("evaluate"));
+});

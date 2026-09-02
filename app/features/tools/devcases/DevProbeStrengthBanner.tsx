@@ -3,6 +3,7 @@
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { auditProbeStrength } from "@/app/_lib/devcase-probe-audit";
+import { useProbeKindLabel } from "./DevLabels";
 import type { CoverProbe } from "./DevTypes";
 
 // bb4f5494 — adversarial probe-strength audit. Certifies, structurally, that each
@@ -13,6 +14,9 @@ import type { CoverProbe } from "./DevTypes";
 // internal panel.
 export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
   const t = useTranslations("devcase.probeAudit");
+  // Same hook as the eval panel and ProbeRow — this banner was printing the raw enum
+  // beside two siblings that localize it.
+  const probeKind = useProbeKindLabel();
   const audit = auditProbeStrength(probes);
   if (audit.total === 0) return null;
 
@@ -50,7 +54,7 @@ export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
               the index is the honest stable identity. */}
           {dead.map((p, i) => (
             <li key={`${p.probeId}|${p.where}|${i}`}>
-              <span className="rounded bg-white/70 px-1 py-0.5 font-semibold uppercase">{p.kind.replace(/_/g, " ")}</span>{" "}
+              <span className="rounded bg-white/70 px-1 py-0.5 font-semibold uppercase">{probeKind(p.kind)}</span>{" "}
               <span className="text-steel">@ {p.where || "—"}</span> — {p.issues.join(" ")}
             </li>
           ))}

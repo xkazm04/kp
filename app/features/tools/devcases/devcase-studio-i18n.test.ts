@@ -30,6 +30,7 @@ import { createTranslator } from "next-intl";
 import { LOCALES, type Locale } from "@/i18n/locales";
 import { DEGRADED_REASONS } from "./DevCaseDetail.publish.ts";
 import { STUDIO_LOCALIZED_FILES, visibleLiterals } from "./devcaseStudioCopy.ts";
+import { PIPELINE_STEPS } from "./DevHelpers.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,9 +58,9 @@ test("the ratchet can still see a literal (the detector is not vacuously green)"
 
 // ---- the catalog half -------------------------------------------------------
 
-function translator(locale: Locale) {
+function translator(locale: Locale, namespace = "devcase.studio") {
   const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8"));
-  const t = createTranslator({ locale, messages, namespace: "devcase.studio" }) as unknown as (
+  const t = createTranslator({ locale, messages, namespace }) as unknown as (
     key: string,
     values?: Record<string, unknown>
   ) => string;
@@ -165,6 +166,65 @@ const CALLS: [string, Record<string, unknown>][] = [
   ["jds.retry", {}],
   ["actionFailed", { action: "Publish" }],
   ["actionUnreachable", { action: "Publish" }],
+  // Round 9 — the need form, the entrance to the whole loop.
+  ["need.jdLabel", {}],
+  ["need.savedJdAria", {}],
+  ["need.pickJd", {}],
+  ["need.loadingJd", {}],
+  ["need.jdReadHint", {}],
+  ["need.jdRequired", {}],
+  ["need.codebasesLabel", { max: 3 }],
+  ["need.repoPlaceholder", {}],
+  ["need.codebaseAria", { n: 1 }],
+  ["need.removeCodebaseAria", { n: 2 }],
+  ["need.unsupportedRepo", {}],
+  ["need.addCodebase", {}],
+  ["need.seniorityLabel", {}],
+  ["need.seniorityAria", {}],
+  ["need.lifecycleTitle", {}],
+  ["need.lifecycleRunning", {}],
+  ["need.runLifecycle", {}],
+  ["need.reflecting", {}],
+  ["need.analyzeOnly", {}],
+  ["need.recent", {}],
+];
+
+// The round-9 namespaces that sit under `devcase`, not `devcase.studio`: they are
+// shared vocabularies (a provenance word, an interviewer's lead, a score's accessible
+// name) rather than one screen's copy, so they hang beside `devcase.probeKind`.
+const DEVCASE_CALLS: [string, Record<string, unknown>][] = [
+  ["provenance.chipTitle", { step: "Evaluate", source: "Claude CLI" }],
+  ["provenance.aria", { detail: "Evaluate via Claude CLI" }],
+  ["provenance.ariaStep", { step: "Evaluate", source: "Claude CLI" }],
+  ["provenance.source.llm", {}],
+  ["provenance.source.partial", {}],
+  ["provenance.source.deterministic", {}],
+  ...PIPELINE_STEPS.map((k) => [`provenance.step.${k}`, {}] as [string, Record<string, unknown>]),
+  ["followup.listenFor", { note: "how they picked the seam" }],
+  ["followup.redFlag", { note: "rewrote the module wholesale" }],
+  ["scoreBar.aria", { label: "Judgment", score: 71 }],
+  ["scoreBar.ariaWeighted", { label: "Judgment", score: 71, weight: 25 }],
+  ["outcomeStrip.reviewInDecisions", {}],
+  ["outcomeStrip.recorded", { outcome: "hired" }],
+  ["outcomeStrip.perfLabel", {}],
+  ["outcomeStrip.perfAria", { n: 3 }],
+  ["outcomeStrip.skipPerf", {}],
+  ["outcomeStrip.hint", {}],
+  ["outcomeStrip.label", {}],
+  ["skillProfile.issue", {}],
+  ["skillProfile.reissue", {}],
+  ["skillProfile.issuing", {}],
+  ["skillProfile.view", {}],
+  ["skillProfile.failed", {}],
+  ["submissionForm.candidatePlaceholder", {}],
+  ["submissionForm.repoPlaceholder", {}],
+  ["submissionForm.record", {}],
+  ["submissionForm.recording", {}],
+  ["submissionForm.failed", {}],
+  ["submissionForm.network", {}],
+  ["submissionForm.receiptRecorded", {}],
+  ["submissionForm.receiptDuplicate", {}],
+  ["review.tasksRequired", {}],
 ];
 
 for (const locale of LOCALES) {
@@ -186,3 +246,44 @@ for (const locale of LOCALES) {
     }
   });
 }
+
+for (const locale of LOCALES) {
+  test(`devcase (${locale}): the round-9 shared vocabularies render`, () => {
+    const t = translator(locale, "devcase");
+    for (const [key, values] of DEVCASE_CALLS) {
+      const out = String(t(key, values)).trim();
+      assert.ok(out.length > 0, `${locale} devcase.${key} rendered empty`);
+      assert.ok(!out.includes("devcase."), `${locale} devcase.${key} is missing (next-intl echoed the key): ${out}`);
+      assert.ok(!/[{}]/.test(out), `${locale} devcase.${key} left an unresolved placeholder: ${out}`);
+    }
+  });
+}
+
+test("every pipeline step the strip can be handed has a catalog name, in both directions", () => {
+  // The strip degrades an unknown step to a capitalised raw id — good behaviour, and
+  // exactly the fallback that hid nine missing keys the last time this surface was
+  // audited. Equality in BOTH directions is what stops it becoming the normal path.
+  const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", "en.json"), "utf-8"));
+  const catalog = Object.keys(messages.devcase.provenance.step);
+  assert.deepEqual(catalog.slice().sort(), [...PIPELINE_STEPS].sort());
+});
+
+test("the empty-library sentence keeps its one link, in every locale", () => {
+  // A rich message, so the plain-`t` sweep above cannot render it: `<link>` is a tag
+  // the component supplies, and a locale that drops or renames it silently loses the
+  // only way out of the empty state.
+  for (const locale of LOCALES) {
+    const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8"));
+    const t = createTranslator({ locale, messages, namespace: "devcase.studio.need" });
+    const parts: string[] = [];
+    const out = t.rich("noJds" as never, {
+      link: (chunks: unknown) => {
+        parts.push(String(chunks));
+        return `[${String(chunks)}]`;
+      },
+    } as never);
+    assert.equal(parts.length, 1, `${locale} devcase.studio.need.noJds must wrap exactly one <link> chunk`);
+    assert.ok(parts[0].trim().length > 0, `${locale} left the link text empty`);
+    assert.ok(String(out).length > parts[0].length, `${locale} rendered nothing around the link`);
+  }
+});

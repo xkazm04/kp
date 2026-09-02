@@ -526,10 +526,43 @@ regex over JSX text nodes and literal `title`/`aria-label`/`placeholder`/`label`
 attributes -- a **ratchet, not a proof**: English arriving through a helper or a template
 expression can still get past it, which is why the catalog half exists.
 
-Still English, and still a gap: the define/outbox views (`DevTabDefineView`, `DevNeedForm`,
-`OutboxSection`), the evaluation panel (`DevEvalPanel*`), the lifecycle rows and
-`DevShared`'s "Listen for" / "Red flag" interviewer notes. `DevTabViews.ts` (the sub-tab
-labels and headings) remains the one piece of studio copy with no catalog behind it.
+Round 9 took the ratchet from twelve files to twenty. The **entrance** — `DevNeedForm`,
+which was English down to the two `aria-label`s that are a screen-reader user's only name
+for the JD and seniority pickers — now reads from `devcase.studio.need.*`, and the
+empty-library sentence is one rich message with one `<link>` inside it rather than three
+fragments a translator has to reassemble. So do the five surfaces that describe a
+submission: `DevSubmissionRowOutcome` (which also stopped hand-rolling six button class
+strings and now composes `BTN_SECONDARY`/`CHIP_QUIET`), `DevSubmissionForm`,
+`DevSubmissionRowSkillProfile`, `DevProvenanceStrip`, `DevProbeStrengthBanner` and
+`DevScoreBar`, whose `aria-label` was the only sentence a capability bar has.
+
+Three vocabularies moved out of prose in the process, because a word rendered two ways on
+two surfaces is the failure this module keeps having:
+
+- **Provenance.** `describeSource` returned English (`"Claude CLI"`, `"Partial
+  (degraded)"`, `"template"`) from a plain module with no translator in scope, and those
+  words were the chip labels, the `title` tooltips AND the strip's whole `aria-label`. The
+  descriptor now carries a `labelKey`; `ProvenanceStrip` resolves it. Step names resolve
+  through `devcase.provenance.step.*`, with the unknown-step fallback isolated in
+  `stepLabel(key, lookup)` (pure, tested: a step a newer engine invents renders
+  capitalised rather than as a hole), and the eight declared `PIPELINE_STEPS` are asserted
+  against the catalog in both directions.
+- **Probe kind.** `DevShared`'s `ProbeRow` and `DevProbeStrengthBanner` each did
+  `.replace(/_/g, " ")` on the raw enum while `DevEvalPanel` — the sibling panel — resolved
+  the same value through `useProbeKindLabel()`. Both now use the hook.
+- **Seniority and hire outcome.** The need form rendered `"junior"`/`"medior"` raw into its
+  picker while the JD ledger localized the identical four values; the outcome strip printed
+  `outcome: hired`. `DevLabels` gained `useSeniorityLabel` (`enums.seniority`) and
+  `useOutcomeLabel` (`control.outcomes.value` — the very ledger this row writes into, not a
+  second copy of three words).
+
+Still English, and still a gap: the outbox view (`OutboxSection`), the evaluation panel's
+own chrome (`DevEvalPanel*`), the lifecycle rows, and `caseToMarkdown`'s document
+scaffolding in `DevHelpers.ts` (`# Assignment`, `## Brief`, `## What you're handed`,
+`## Tasks`) — that one wants the injected-strings shape `devcase-interview-kit.ts` already
+uses, threaded through both callers, and is a change of its own. `DevTabViews.ts` (the
+sub-tab labels and headings) remains the one piece of studio copy with no catalog behind
+it.
 
 ### Small truths on the studio surface
 

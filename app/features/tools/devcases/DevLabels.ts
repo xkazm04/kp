@@ -63,6 +63,28 @@ export function useProbeStatusLabel(): (status: ProbeStatus) => string {
   return (status: ProbeStatus) => t(status);
 }
 
+/** Seniority target -> its label. The APP-WIDE vocabulary (`enums.seniority`), not the
+ *  studio's: the need form used to render the raw ids ("junior", "medior") straight into
+ *  the picker while the JD ledger three tabs away localized the very same four values.
+ *  Producer-owned, so it keeps the `t.has()` guard. */
+export function useSeniorityLabel(): (value: string) => string {
+  const t = useTranslations("enums.seniority");
+  return (value: string) => {
+    const key = value as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : value.replace(/_/g, " ");
+  };
+}
+
+/** Hire outcome -> its word. Shared with the control room's outcome ledger
+ *  (`control.outcomes.value`) rather than copied: the row records exactly what that
+ *  ledger reads back, and two copies of three words is how they drift. Closed
+ *  UI-owned set — `recordSubmissionOutcome` accepts these three and nothing else —
+ *  so a missing key is a bug to surface, not to absorb. */
+export function useOutcomeLabel(): (value: "hired" | "rejected" | "withdrawn") => string {
+  const t = useTranslations("control.outcomes.value");
+  return (value) => t(value);
+}
+
 /** Capability name -> its label, for pre-`dimensions` bundles only (current ones
  *  carry their own labels from `_ordered_dimensions`, which stay authoritative). */
 export function useDimensionLabel(): (name: string) => string {

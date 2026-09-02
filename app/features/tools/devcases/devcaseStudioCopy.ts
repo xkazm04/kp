@@ -9,8 +9,8 @@
 // every catalog-backed label already said Assignment.
 
 /** The files the localization pass migrated. Adding a file here is how the ratchet
- *  grows. The studio files NOT listed (the define/outbox views, the eval panel, the
- *  lifecycle rows) are still English and are a stated gap in
+ *  grows. The studio files NOT listed (the outbox view, the eval panel's own chrome,
+ *  the lifecycle rows, `DevTabViews.ts`) are still English and are a stated gap in
  *  docs/features/dev-case/README.md — a known gap, not an oversight. */
 export const STUDIO_LOCALIZED_FILES = [
   "DevAnalysisView.tsx",
@@ -27,6 +27,17 @@ export const STUDIO_LOCALIZED_FILES = [
   "DevCasesEmpty.tsx",
   "DevCasesTable.tsx",
   "DevTab.tsx",
+  // Round 9: the ENTRANCE (the need form) and the five surfaces that describe a
+  // submission — the outcome strip, the provenance strip, the shared probe/follow-up
+  // rows, the probe-strength banner and the capability bar's screen-reader sentence.
+  "DevNeedForm.tsx",
+  "DevSubmissionForm.tsx",
+  "DevSubmissionRowOutcome.tsx",
+  "DevSubmissionRowSkillProfile.tsx",
+  "DevProvenanceStrip.tsx",
+  "DevProbeStrengthBanner.tsx",
+  "DevScoreBar.tsx",
+  "DevShared.tsx",
 ] as const;
 
 /** Comments are allowed to hold English prose — including the retired words a

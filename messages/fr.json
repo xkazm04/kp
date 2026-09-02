@@ -7738,7 +7738,30 @@
         "source": "La recherche de candidatures"
       },
       "actionFailed": "{action} a échoué. Veuillez réessayer.",
-      "actionUnreachable": "{action} a échoué, la requête n’a pas pu aboutir."
+      "actionUnreachable": "{action} a échoué, la requête n’a pas pu aboutir.",
+      "need": {
+        "jdLabel": "Fiche de poste *",
+        "noJds": "Aucune fiche de poste enregistrée. <link>Enregistrez-en une</link> dans la bibliothèque : le rôle et l'exercice en découlent.",
+        "savedJdAria": "Fiche de poste enregistrée",
+        "pickJd": "Choisir une fiche de poste enregistrée…",
+        "loadingJd": "Chargement de la fiche de poste…",
+        "jdReadHint": "L'intitulé du rôle, la stack et les responsabilités sont lus dans cette fiche de poste.",
+        "jdRequired": "Une fiche de poste est nécessaire pour lancer.",
+        "codebasesLabel": "Bases de code (GitHub, jusqu'à {max})",
+        "repoPlaceholder": "https://github.com/proprietaire/depot",
+        "codebaseAria": "Base de code {n}",
+        "removeCodebaseAria": "Retirer la base de code {n}",
+        "unsupportedRepo": "Seul GitHub est pris en charge pour l'ancrage ; cette référence sera ignorée.",
+        "addCodebase": "Ajouter une base de code",
+        "seniorityLabel": "Niveau visé",
+        "seniorityAria": "Niveau",
+        "lifecycleTitle": "Cycle automatisé : analyser → concevoir → contrôle des règles → publier → (aux rendus) évaluer → classer → promouvoir vers Décisions",
+        "lifecycleRunning": "Cycle en cours…",
+        "runLifecycle": "▶ Lancer le cycle automatisé",
+        "reflecting": "Réflexion…",
+        "analyzeOnly": "Analyser le besoin seulement",
+        "recent": "Récents"
+      }
     },
     "lifecycle": {
       "sectionTitle": "Cycle automatisé",
@@ -8103,9 +8126,46 @@
       "record": "Enregistrer",
       "recording": "…",
       "failed": "Le rendu n'a pas pu être enregistré. Veuillez réessayer.",
-      "network": "Erreur réseau — le rendu n'a pas été enregistré. Veuillez réessayer.",
+      "network": "Erreur réseau. Le rendu n'a pas été enregistré. Veuillez réessayer.",
       "receiptRecorded": "Rendu enregistré.",
-      "receiptDuplicate": "Déjà enregistré — ce dépôt a déjà été rendu pour ce candidat, rien n'a été ajouté."
+      "receiptDuplicate": "Déjà enregistré. Ce dépôt a déjà été rendu pour ce candidat, rien n'a été ajouté."
+    },
+    "provenance": {
+      "chipTitle": "{step} : {source}",
+      "aria": "Provenance : {detail}",
+      "ariaStep": "{step} via {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Partiel (dégradé)",
+        "deterministic": "modèle"
+      },
+      "step": {
+        "analyze": "Analyse",
+        "source": "Recherche",
+        "role": "Rôle",
+        "case": "Exercice",
+        "reflect": "Réflexion",
+        "tooling": "Outillage",
+        "evaluate": "Évaluation",
+        "transfer": "Transfert"
+      }
+    },
+    "followup": {
+      "listenFor": "À écouter : {note}",
+      "redFlag": "Signal d'alerte : {note}"
+    },
+    "scoreBar": {
+      "aria": "{label} : score {score} sur 100",
+      "ariaWeighted": "{label} : score {score} sur 100, pondéré à {weight} %"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "Examiner dans Décisions",
+      "recorded": "résultat : {outcome} ✓",
+      "perfLabel": "Performance en poste",
+      "perfAria": "Performance en poste {n} sur 5",
+      "skipPerf": "passer (n'enregistrer que l'embauche)",
+      "hint": "Alimentez le calibrage du seuil de promotion avec ce qui s'est réellement passé",
+      "label": "Résultat"
     }
   },
   "rubric": {
