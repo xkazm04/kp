@@ -59,6 +59,33 @@ API consumers.
 > re-deriving the safe pattern in the handler. That is the whole reason the
 > registries are exported constants and not strings at the call site.
 
+**What holds this, and what it does not hold yet.**
+[`app/api/error-response-contract.test.ts`](../../app/api/error-response-contract.test.ts)
+walks every module under `app/api/**` and fails when a catch block shapes a
+thrown error's own `.message` into a client response body. It is a **ratchet**,
+not a wall: a route that is not on its `LEAK_CEILING` may not leak at all, a
+listed route may not leak *more* than its number, and a route that drops below
+its number is a note rather than a red build. Adding a line to the ceiling to
+turn a build green is the one thing the file exists to prevent — migrate the
+handler instead. `EXEMPT` is for a response whose raw message is genuinely the
+answer (today: `/api/health`, and only behind `trusted`), one reason per entry.
+
+It replaced two hand-listed arrays that between them pinned eight of ~200
+handlers ([`jds/error-message-hygiene.test.ts`](../../app/api/jds/error-message-hygiene.test.ts),
+[`apply/apply-error-hygiene.test.ts`](../../app/api/apply/apply-error-hygiene.test.ts)
+— both still stand, and both are stricter about their own routes than the
+ratchet is). Those two key on `NextResponse.json({ error: … })`, so neither
+could see a raw message pushed into a results array on its way to the client;
+`/api/schedule/invite/bulk` was leaking that way past both of them.
+
+The scan cannot see a message that reaches the wire through a helper in another
+module, and it does not judge whether a `jsonError` call site's message is
+genuinely client-safe. Those stay review's job. §1.2 and §1.4 of this contract
+already had repo-wide guards
+([`route-tenancy-coverage.test.ts`](../../app/api/route-tenancy-coverage.test.ts),
+[`rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts));
+this section had none until now.
+
 ### 1.2 Who may call it
 
 Authorisation is **fail-closed and stated in two places on purpose**:
