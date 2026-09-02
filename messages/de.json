@@ -2230,6 +2230,10 @@
       "openai": "OpenAI Realtime",
       "elevenlabs": "ElevenLabs Agents"
     },
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "beobachtet",
       "professional": "beruflich",
       "internship": "Praktikum",
@@ -3419,6 +3423,10 @@
       "verdictNote": "Verdikte fließen als Scorecard-Reviews in die Entscheidungs-Queue. Dieses Board ist die Interview-Schleife, nicht die Entscheidung.",
       "fullTranscript": "Volles Transkript & Scorecard",
       "noScorecardHelp": "Für dieses Interview wurde keine Scorecard erzeugt. Öffnen Sie die Vollansicht, um das rohe Transkript zu lesen.",
+      "costUnknown": "Kosten unbekannt",
+      "costFree": "keine Minutenkosten",
+      "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
+      "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
       "costUnknown": "Kosten unbekannt",
       "costFree": "keine Minutenkosten",
       "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",

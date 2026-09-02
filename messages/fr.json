@@ -2230,6 +2230,10 @@
       "openai": "OpenAI Realtime",
       "elevenlabs": "ElevenLabs Agents"
     },
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "observé",
       "professional": "pro",
       "internship": "stage",
@@ -3418,6 +3422,10 @@
       "verdictNote": "Les verdicts rejoignent la file Décisions comme revues de scorecard. Ce tableau est la boucle d’entretien, pas la décision.",
       "fullTranscript": "Transcription complète et scorecard",
       "noScorecardHelp": "Aucune scorecard n’a été produite pour cet entretien. Ouvrez la vue complète pour lire la transcription brute.",
+      "costUnknown": "coût inconnu",
+      "costFree": "sans coût à la minute",
+      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
+      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
       "costUnknown": "coût inconnu",
       "costFree": "sans coût à la minute",
       "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",

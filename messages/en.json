@@ -2230,6 +2230,10 @@
       "openai": "OpenAI Realtime",
       "elevenlabs": "ElevenLabs Agents"
     },
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "observed",
       "professional": "prod",
       "internship": "intern",
@@ -3419,6 +3423,10 @@
       "verdictNote": "Verdicts flow to the Decisions queue as scorecard reviews. This docket is the interview loop, not the decision.",
       "fullTranscript": "Full transcript & scorecard",
       "noScorecardHelp": "No scorecard was produced for this interview. Open the full view to read the raw transcript.",
+      "costUnknown": "cost unknown",
+      "costFree": "no per-minute cost",
+      "costTitle": "Estimated cost of this call, from the usage ledger",
+      "providerTitle": "The voice provider that served this call",
       "costUnknown": "cost unknown",
       "costFree": "no per-minute cost",
       "costTitle": "Estimated cost of this call, from the usage ledger",

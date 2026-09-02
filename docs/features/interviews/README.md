@@ -468,6 +468,42 @@ any more, and the choice was a **log, not a status column**:
   the missing half was the *reason*, which only a log can carry. No
   `scorecardStatus` column was added: it would state a fact the row already states.
 
+## What a call cost reaches the recruiter
+
+`/api/interview/complete` has written every completed call's cost to the usage
+ledger since tiger F1 — `llm_usage.request_id` **is** the session id, use case
+`interview_realtime`, provider + model + a duration-derived estimate from
+`app/_lib/voice/minute-prices.ts`. Voice minutes are the one meter with a real
+per-unit cost, and the two providers differ by roughly 60% per minute, yet that
+number had **no reader** outside the aggregate Models usage panel: the recruiter
+deciding whether to run another screen could not see what the last one cost.
+
+`InterviewSessionSummary` now carries `costUsd`, read in the same query that builds
+the AI-round docket (a correlated `SUM(cost_usd)` over `llm_usage` keyed by request
+id **and** use case — no extra round trip, and the left side is already
+workspace-scoped). The completed card in `ScheduleAiDocket` renders it beside the
+provider that served the call, in all four locales.
+
+The answer has **three** states and the third is the one that had no way to be said
+before:
+
+| `costUsd` | Means | Rendered |
+|---|---|---|
+| a number > 0 | The ledger priced this call | The amount, in the reader's locale |
+| `0` | A **self-hosted** provider served it, so no per-minute credits were spent | "no per-minute cost" |
+| `null` | Unknown: no ledger row yet (not completed), or an unpriced provider whose row carries `cost_usd` NULL by design | "cost unknown" |
+
+Collapsing `null` to `0` would tell a recruiter the priciest meter in the product is
+free. `app/api/interview/interview-session-cost.test.ts` pins all three states, the
+use-case keying, the multi-attempt total, and that the join did not widen the
+tenant scope of the list it rides on.
+
+**Not shipped yet:** `failoverFrom` and `attempts` on the same summary. Both need a
+value the session row does not hold — the requested provider before a failover, and
+a per-link reconnect count — so both need a column on `interview_sessions`, i.e. a
+migration in `app/_lib/db/core.ts`. The connect route still records a failover as a
+`console.warn` only.
+
 ## Self-hosted voice
 
 The ElevenLabs adapter can point at a service you run yourself
@@ -523,43 +559,25 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
 
 ## Known gaps
 
-- **Failover can cross the free→paid boundary with no reservation behind it.**
-  `app/api/interview/simulate/route.ts` deliberately skips the
-  `interview_minutes` gate when the ElevenLabs base URL is a self-hosted
-  (loopback/private) service, and `/api/interview/connect` raises the per-token
-  connect throttle to 120/10 min on the same premise — but it reads
-  `isSelfHostedVoice()` (an env fact) *before* the session's provider is
-  resolved, so an **OpenAI** session on an install that also runs a local voice
-  service gets the 120/10 min budget on a fully paid credential mint. The check
-  it wants is `isSelfHostedProvider(provider)`, which requires moving the
-  throttle below provider resolution. If the local service is
-  down, `connectWithFailover` retries on **OpenAI Realtime** — real money — and
-  `setInterviewSessionProvider` flips the session, so `/complete` debits the
-  meter and stamps the paid per-minute cost for a call no gate ever checked.
-  The seam already reports the crossing (`FailoverResult.provider` is the
-  provider that actually served, plus `failedOver`); the decision belongs in
-  the route — e.g. pass `availability: { ...voiceAvailability(), openai: false }`
-  when the preferred provider is the self-hosted one, or run the skipped
-  `meterGate` before accepting the paid alternate.
-- **Self-hosted minutes are gate-skipped but still debited.** `/simulate` skips
-  `meterGate` for a self-hosted provider ("metering a free simulation would make
-  a self-hosted install run out of a budget it is not consuming"), but
-  `/api/interview/complete` calls `recordMeterUsage("interview_minutes", …)`
-  unconditionally — so the quota is consumed without ever being reserved, and a
-  self-hosted install burns prepaid minutes on calls that cost nothing.
-  `voiceMinuteCostUsd` already returns `0` for those sessions; the meter debit
-  needs the symmetric `isSelfHostedProvider(session.provider)` check.
-- **The same env/session conflation, unconditionally wrong, in the intake voice
-  route.** `app/api/intake/[id]/voice-connect/route.ts` sizes its throttle with
-  `isSelfHostedVoice() ? 120 : 6` — but that route mints
-  `getVoiceAdapter("openai")` credentials and nothing else, so
-  `isSelfHostedProvider("openai")` is **always** false and the raise is never
-  earned: on any install with a loopback `ELEVENLABS_BASE_URL`, an authenticated
-  operator holding an open intake id mints 120 paid OpenAI Realtime credentials
-  per 10 minutes instead of 6. Unlike the `/api/interview/connect` case there is
-  no session provider to resolve — the limit is simply `6`. Both fixes must
-  update the pinned literals in `app/api/rate-limit-contract.test.ts`
-  (`limitDef`) in the same change.
+- **The free→paid boundary is now closed on all three seams that once crossed it.**
+  This section used to list three open gaps here; all three ship fixed, and the
+  code that fixed them is where the reasoning lives:
+  - `/api/interview/connect` sizes its per-token throttle from
+    `isSelfHostedProvider(provider)` — the SESSION fact — decided *after* provider
+    resolution, so an OpenAI session on an install that also runs a local voice
+    service gets the paid budget of 6/10 min, not the free 120. It also passes
+    `availability: { ...voiceAvailability(), openai: false }` when the preferred
+    provider is the self-hosted one, so a failover can no longer rescue a
+    gate-skipped session onto a paid provider.
+  - `/api/interview/complete` guards its `recordMeterUsage("interview_minutes", …)`
+    with the symmetric `isSelfHostedProvider(session.provider)`, so a self-hosted
+    install no longer burns prepaid minutes on calls that cost nothing. The
+    `llm_usage` row stays unconditional on purpose: `voiceMinuteCostUsd` prices
+    those at 0, and a $0 ledger row is the truthful record that a call happened.
+  - `app/api/intake/[id]/voice-connect/route.ts` mints `getVoiceAdapter("openai")`
+    and nothing else, so its limit is simply `6` — the raise was never earned there.
+
+  All three limits are pinned in `app/api/rate-limit-contract.test.ts`.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
   damage" failure — a spoken skill can be silently substituted for another
   before the scorecard scores it). Two biases now push against it: the

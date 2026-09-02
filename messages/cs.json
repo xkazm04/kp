@@ -2230,6 +2230,10 @@
       "openai": "OpenAI Realtime",
       "elevenlabs": "ElevenLabs Agents"
     },
+    "voiceProvider": {
+      "openai": "OpenAI Realtime",
+      "elevenlabs": "ElevenLabs Agents"
+    },
       "observed": "pozorováno",
       "professional": "praxe",
       "internship": "stáž",
@@ -3412,6 +3416,10 @@
       "verdictNote": "Verdikty putují do fronty Rozhodnutí jako hodnoticí karty. Tento přehled je smyčka pohovorů, ne rozhodnutí.",
       "fullTranscript": "Celý přepis a hodnoticí karta",
       "noScorecardHelp": "K tomuto pohovoru nevznikla hodnoticí karta. Otevřete plné zobrazení a přečtěte si samotný přepis.",
+      "costUnknown": "cena neznámá",
+      "costFree": "bez minutových nákladů",
+      "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
+      "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
       "costUnknown": "cena neznámá",
       "costFree": "bez minutových nákladů",
       "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",

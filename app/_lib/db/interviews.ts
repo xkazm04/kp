@@ -194,6 +194,21 @@ export type InterviewSessionSummary = {
   hasTranscript: boolean;
   recommendation: InterviewRecommendation | null;
   ratingsCount: number;
+  /** What this call COST, in USD, read from the usage ledger the completion wrote
+   *  (`llm_usage.request_id` IS the session id, use case `interview_realtime`).
+   *
+   *  `null` is UNKNOWN and never a stand-in for free: a session that has not
+   *  completed has no ledger row yet, and an unpriced provider writes the row with
+   *  `cost_usd` NULL by design (minute-prices.ts mirrors base.py's convention -
+   *  metered by quantity, unpriced in money). `0` is a real, asserted zero: a call
+   *  a SELF-HOSTED provider served costs no per-minute credits, and saying so is
+   *  the whole point of running the voice service yourself.
+   *
+   *  Voice minutes are the one meter with real per-unit cost and the two providers
+   *  differ by ~60% per minute, yet this number had ZERO readers outside the
+   *  aggregate Models panel: a recruiter could not see what any single interview
+   *  cost, on the surface where they decide whether to run another. */
+  costUsd: number | null;
 };
 
 export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 100): InterviewSessionSummary[] {
@@ -205,12 +220,21 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       // bare IS NOT NULL kept reporting a transcript for an erased candidate:
       // their card indicator read "absent" while this ledger's docket card stayed
       // clickable into an evaluation with nothing behind it. One fact, one answer.
-      `SELECT id, entry_id, candidate_label, job_id, job_title, provider, status,
-              started_at, ended_at, created_at,
-              (transcript_json IS NOT NULL AND transcript_json != '[]') AS has_transcript, scorecard_json
-         FROM interview_sessions
-        WHERE mode = 'candidate' AND workspace_id = ?
-        ORDER BY created_at DESC
+      // The cost join, not a second round trip per row: llm_usage.request_id IS the
+      // session id, so the ledger row a completion wrote hangs directly off this
+      // read. SUM (not the bare column) because a reconnect that completes twice
+      // would leave two rows and the honest answer is what the call cost in total;
+      // SUM over an empty set is NULL, which is exactly the "unknown" this field
+      // means. llm_usage carries no workspace_id - it does not need one here, since
+      // the join's left side is already scoped and the request id is a session id.
+      `SELECT s.id, s.entry_id, s.candidate_label, s.job_id, s.job_title, s.provider, s.status,
+              s.started_at, s.ended_at, s.created_at,
+              (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_transcript, s.scorecard_json,
+              (SELECT SUM(u.cost_usd) FROM llm_usage u
+                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime') AS cost_usd
+         FROM interview_sessions s
+        WHERE s.mode = 'candidate' AND s.workspace_id = ?
+        ORDER BY s.created_at DESC
         LIMIT ?`
     )
     .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as {
@@ -226,6 +250,7 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
     created_at: string;
     has_transcript: number;
     scorecard_json: string | null;
+    cost_usd: number | null;
   }[];
   return rows.map((r) => {
     const sc = safeRowParse<{ recommendation?: string; ratings?: unknown[] }>(r.scorecard_json, "interview.summary", r.id);
@@ -243,6 +268,10 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       hasTranscript: Boolean(r.has_transcript),
       recommendation: sc?.recommendation != null ? coerceInterviewRecommendation(sc.recommendation) : null,
       ratingsCount: Array.isArray(sc?.ratings) ? sc.ratings.length : 0,
+      // Number.isFinite, not `?? null`: SQLite hands back NULL for "no ledger row"
+      // AND for "a row whose cost_usd is NULL", and both mean unknown. A real 0
+      // (a self-hosted call) is finite and survives.
+      costUsd: Number.isFinite(r.cost_usd) ? (r.cost_usd as number) : null,
     };
   });
 }

@@ -51,6 +51,18 @@ export function ScheduleAiDocket({
   const format = useFormatter();
   const enumLabel = useEnumLabel();
   const when = (iso: string | null) => (iso ? format.dateTime(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
+  // What the call cost, from the usage ledger the completion wrote. THREE states,
+  // and the third is the one that had no way to be said before: a real 0 (a
+  // self-hosted provider served it, so no per-minute credits were spent) is not the
+  // same claim as `null` (no ledger row, or an unpriced provider), and rendering an
+  // unknown as "$0.00" would tell a recruiter the priciest meter in the product is
+  // free. Formatted in the reader's locale like every other number here.
+  const cost = (usd: number | null) =>
+    usd == null
+      ? t("costUnknown")
+      : usd === 0
+        ? t("costFree")
+        : format.number(usd, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
   const out = sessions.filter((s) => s.status === "created" || s.status === "in_progress");
   const done = sessions.filter((s) => s.status === "completed");
@@ -127,6 +139,13 @@ export function ScheduleAiDocket({
               <span className="inline-flex items-center gap-1 font-semibold text-moss">
                 <FileSearch size={12} aria-hidden /> {s.ratingsCount > 0 ? t("competencies", { count: s.ratingsCount }) : t("review")}
               </span>
+            </p>
+            {/* What this one interview cost, and who served it. The ledger has carried
+                both since the completion wrote them; neither had ever reached the
+                recruiter deciding whether to run the next one. */}
+            <p className="nums mt-0.5 flex items-center justify-between text-meta text-steel">
+              <span title={t("providerTitle")}>{enumLabel("voiceProvider", s.provider)}</span>
+              <span title={t("costTitle")}>{cost(s.costUsd)}</span>
             </p>
           </button>
         ))}
