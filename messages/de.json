@@ -7468,6 +7468,7 @@
       "fieldBrief": "Kurzbeschreibung",
       "fieldTasks": "Aufgaben (eine pro Zeile)",
       "fieldTimebox": "Zeitbudget (Stunden)",
+      "timeboxClamped": "Eingegeben: {from} h. Die kandidierende Person erhält {to} h, die Obergrenze laut Richtlinie.",
       "internalProbes": "Interne verdeckte Prüfpunkte ({count})",
       "engineOwned": "Prüfpunkte und Bewertungsraster verwaltet die Engine. Zum Ändern mit einer Notiz neu generieren.",
       "previewTitle": "Vorschau aus Kandidatensicht (live)",

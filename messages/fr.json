@@ -7468,6 +7468,7 @@
       "fieldBrief": "Brief",
       "fieldTasks": "Tâches (une par ligne)",
       "fieldTimebox": "Limite de temps (heures)",
+      "timeboxClamped": "Vous avez saisi {from} h. La personne candidate recevra {to} h, le plafond prévu par la politique.",
       "internalProbes": "Sondes masquées internes ({count})",
       "engineOwned": "Les sondes et la grille d’évaluation sont gérées par le moteur. Pour les modifier, régénérez avec une note.",
       "previewTitle": "Aperçu côté candidat (en direct)",

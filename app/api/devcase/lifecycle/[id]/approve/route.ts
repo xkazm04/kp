@@ -4,14 +4,14 @@ import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
-import { clampTimeboxHours, DEVCASE_MAX_TIMEBOX_HOURS } from "@/app/_lib/devcase-timebox";
+import { timeboxClamp, type TimeboxClamp } from "@/app/_lib/devcase-timebox";
 
 
 // W5-4 — the editable subset of the designed case a reviewer may correct at
 // the gate without a regenerate: bounded scalars + the task list. Probes and
 // rubric stay engine-owned (change those via "Regenerate with note" so the
 // decision-space contract isn't hand-broken).
-function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timeboxClamped: boolean } | null {
+function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timeboxClamped: TimeboxClamp | null } | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const edits: Record<string, unknown> = {};
@@ -31,12 +31,17 @@ function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timebo
   // than reject (a 10 means "give them longer", and dropping the edit silently is the
   // very failure the 409 branch below was written to fix), against the SHARED bound
   // generated from pipeline/jobfit/devcase/models.py.
-  let timeboxClamped = false;
+  // The rewrite is DESCRIBED, not just performed: `timeboxClamp` is the one producer
+  // of { code, from, to }, shared with the review panel, so the reviewer's screen and
+  // the audit trail can never disagree about what the candidate will actually receive.
+  let timeboxClamped: TimeboxClamp | null = null;
   if (typeof o.timeboxHours === "number") {
-    const tb = clampTimeboxHours(o.timeboxHours);
-    if (tb != null) {
-      edits.timeboxHours = tb;
-      timeboxClamped = tb !== o.timeboxHours;
+    const clamp = timeboxClamp(o.timeboxHours);
+    if (clamp) {
+      edits.timeboxHours = clamp.to;
+      timeboxClamped = clamp;
+    } else if (Number.isFinite(o.timeboxHours)) {
+      edits.timeboxHours = o.timeboxHours;
     }
   }
   return Object.keys(edits).length > 0 ? { edits, timeboxClamped } : null;
@@ -81,20 +86,25 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // Surface the clamp to the REVIEWER, in the audit trail they already read for
       // this decision — a silently rewritten number is how the reviewer ends up
       // believing they approved a longer exercise than the candidate receives. The
-      // audit reason is free-form server prose (not a message catalog key), so this
-      // adds no new user-facing copy; the review panel itself still shows no inline
-      // notice, which needs a catalog string.
+      // The note is STRUCTURED (`timebox_clamped from=<n> to=<n>`), not English prose:
+      // an audit line is queried, and the reviewer reads the clamp in their own language
+      // from the review panel's inline notice (devcase.review.timeboxClamped), which
+      // renders the same { code, from, to } this line records.
       const reason =
         [
           edits ? `with edits: ${Object.keys(edits).join(", ")}` : null,
           coerced?.timeboxClamped
-            ? `timebox clamped to the ${DEVCASE_MAX_TIMEBOX_HOURS}h cap (requested ${(body.case as { timeboxHours?: unknown }).timeboxHours})`
+            ? `${coerced.timeboxClamped.code} from=${coerced.timeboxClamped.from} to=${coerced.timeboxClamped.to}`
             : null,
           gate.auditReason,
         ]
           .filter(Boolean)
           .join("; ") || undefined;
       recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
+      // Answer with the clamp too, so a client that skipped the inline notice (an older
+      // tab, a script) still learns the approved number is not the number it sent.
+      const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
+      return NextResponse.json({ ok: true, task, timeboxClamped: coerced?.timeboxClamped ?? null });
     } else if (edits) {
       // Not at the review gate (a second tab/reviewer already approved, or a retry
       // landed twice) but this request carried reviewer edits. The approve block

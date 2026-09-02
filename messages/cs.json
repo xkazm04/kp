@@ -7468,6 +7468,7 @@
       "fieldBrief": "Zadání",
       "fieldTasks": "Úkoly (jeden na řádek)",
       "fieldTimebox": "Časový limit (hodiny)",
+      "timeboxClamped": "Zadali jste {from} h. Kandidát dostane {to} h, což je limit dle pravidel.",
       "internalProbes": "Interní skryté sondy ({count})",
       "engineOwned": "Sondy a rubriku spravuje engine. Pokud je chcete změnit, nechte případ přegenerovat s poznámkou.",
       "previewTitle": "Náhled pro kandidáta (živý)",

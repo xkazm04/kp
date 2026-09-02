@@ -7468,6 +7468,7 @@
       "fieldBrief": "Brief",
       "fieldTasks": "Tasks (one per line)",
       "fieldTimebox": "Timebox (hours)",
+      "timeboxClamped": "You typed {from}h. The candidate will receive {to}h, the policy cap.",
       "internalProbes": "Internal cover probes ({count})",
       "engineOwned": "Probes and rubric are engine-owned. To change them, regenerate with a note.",
       "previewTitle": "Candidate-safe preview (live)",
