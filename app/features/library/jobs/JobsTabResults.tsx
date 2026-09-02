@@ -15,6 +15,7 @@ import { JobsEmptyLaunchpad } from "./JobsEmptyLaunchpad";
 export function JobsTabResults({
   jobs,
   stats,
+  page,
   error,
   fetching,
   anyFilter,
@@ -23,6 +24,9 @@ export function JobsTabResults({
 }: {
   jobs: Job[] | null;
   stats: Stats | null;
+  /** The route's page-honesty triple (`truncated` / `matching` / `limit`), null
+   *  on an older payload that does not carry it. */
+  page: { truncated: boolean; matching: number; limit: number } | null;
   error: string | null;
   fetching: boolean;
   anyFilter: boolean;
@@ -34,12 +38,25 @@ export function JobsTabResults({
     <>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-base" aria-live="polite">
         {jobs && stats ? (
-          <span className="text-steel">
-            {t.rich("showing", {
-              shown: jobs.length,
-              total: stats.total,
-              b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
-            })}
+          // TRUNCATED IS NOT FILTERED. `stats.total` is the workspace-wide
+          // UNFILTERED count, so "Showing 300 of 340 roles" reads as "40 filtered
+          // out" — while the truth may be "40 roles this list offers no way to
+          // reach". When the route says the slice was cut, the line says so
+          // against `matching` (the unbounded count over the SAME predicate) and
+          // names the page size it was cut at.
+          <span className={page?.truncated ? "text-amber-700" : "text-steel"}>
+            {page?.truncated
+              ? t.rich("showingCut", {
+                  shown: jobs.length,
+                  matching: page.matching,
+                  limit: page.limit,
+                  b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
+                })
+              : t.rich("showing", {
+                  shown: jobs.length,
+                  total: stats.total,
+                  b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
+                })}
           </span>
         ) : null}
         {anyFilter ? (

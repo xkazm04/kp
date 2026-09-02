@@ -1469,7 +1469,10 @@
     "MATCH_REASONING_UNAVAILABLE": "Cette correspondance ne peut plus être expliquée : le candidat ou le poste associé n'existe plus.",
     "DECISION_CONFIG_STALE": "Quelqu'un a enregistré une version plus récente de ces règles. Rechargez, puis refaites votre modification.",
     "PIPELINE_AXIS_STALE": "Quelqu'un a enregistré une version plus récente de ce pipeline. Rechargez, puis refaites votre modification.",
-    "INTAKE_ATTACHMENT_TOO_LONG": "Cette note est plus longue qu'un document de référence ne peut l'être. Raccourcissez-la ou joignez-la en plusieurs parties."
+    "INTAKE_ATTACHMENT_TOO_LONG": "Cette note est plus longue qu'un document de référence ne peut l'être. Raccourcissez-la ou joignez-la en plusieurs parties.",
+    "JOB_SEED_BROKEN": "Le catalogue de postes est vide car ses données initiales n'ont pas pu être chargées. Consultez le journal du serveur.",
+    "SCHEDULE_UPDATE_FAILED": "Impossible de modifier l'horloge d'automatisation. Veuillez réessayer.",
+    "SCHEDULE_INTERVAL_INVALID": "L'intervalle d'automatisation doit être un nombre de minutes."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2795,7 +2798,10 @@
       "thisRun": "{label} lors de cette exécution",
       "runScope": "{mine} sur {total} à vous",
       "scopeGlobal": "s’applique à toutes les équipes",
-      "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre."
+      "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre.",
+      "liveHealthy": "en marche",
+      "liveStarting": "démarrage…",
+      "liveStalled": "à l'arrêt"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -4259,7 +4265,9 @@
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",
         "unlockDecisions": "File de décisions"
-      }
+      },
+      "showingCut": "Affichage des <b>{shown}</b> premiers postes sur <b>{matching}</b> correspondants. La liste est coupée à {limit}.",
+      "loadFailed": "Impossible de charger le catalogue de postes."
     },
     "table": {
       "caption": "Corpus de postes : annonces normalisées filtrables par famille de postes, séniorité, mode de travail et éligibilité débutant. Activez une ligne pour déployer ses exigences et son prisme jeune diplômé.",
@@ -4491,7 +4499,10 @@
       "addToPipeline": "Ajouter au pipeline",
       "adding": "Ajout…",
       "added": "Ajouté",
-      "dismiss": "Ignorer"
+      "dismiss": "Ignorer",
+      "loadFailed": "Impossible de charger les médaillés d'argent.",
+      "retry": "Réessayer",
+      "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste."
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",

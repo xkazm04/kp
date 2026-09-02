@@ -1469,7 +1469,10 @@
     "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären. Die zugehörige Person oder Rolle existiert nicht mehr.",
     "DECISION_CONFIG_STALE": "Jemand hat eine neuere Version dieser Regeln gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
     "PIPELINE_AXIS_STALE": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
-    "INTAKE_ATTACHMENT_TOO_LONG": "Diese Notiz ist länger, als ein Referenzmaterial sein darf. Kürzen Sie sie oder hängen Sie sie in Teilen an."
+    "INTAKE_ATTACHMENT_TOO_LONG": "Diese Notiz ist länger, als ein Referenzmaterial sein darf. Kürzen Sie sie oder hängen Sie sie in Teilen an.",
+    "JOB_SEED_BROKEN": "Der Stellenkatalog ist leer, weil seine Startdaten nicht geladen werden konnten. Prüfen Sie das Server-Log.",
+    "SCHEDULE_UPDATE_FAILED": "Die Automatisierungsuhr konnte nicht geändert werden. Bitte erneut versuchen.",
+    "SCHEDULE_INTERVAL_INVALID": "Das Automatisierungsintervall muss eine Zahl in Minuten sein."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2795,7 +2798,10 @@
       "thisRun": "{label} in diesem Lauf",
       "runScope": "Ihr Anteil: {mine} von {total}",
       "scopeGlobal": "gilt für alle Teams",
-      "scopeGlobalTitle": "Für die gesamte Installation läuft ein einziger Timer: Ein- oder Ausschalten startet bzw. stoppt die Automatisierung für alle Teams, nicht nur für Ihres."
+      "scopeGlobalTitle": "Für die gesamte Installation läuft ein einziger Timer: Ein- oder Ausschalten startet bzw. stoppt die Automatisierung für alle Teams, nicht nur für Ihres.",
+      "liveHealthy": "läuft",
+      "liveStarting": "startet…",
+      "liveStalled": "steht still"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -4259,7 +4265,9 @@
         "unlockChannels": "Kanäle offen",
         "unlockPipeline": "Kandidat/innen kommen an",
         "unlockDecisions": "Entscheidungen warten"
-      }
+      },
+      "showingCut": "Erste <b>{shown}</b> von <b>{matching}</b> passenden Stellen. Die Liste ist bei {limit} abgeschnitten.",
+      "loadFailed": "Der Stellenkatalog konnte nicht geladen werden."
     },
     "table": {
       "caption": "Stellenkorpus: normalisierte Stellenanzeigen, filterbar nach Berufsfamilie, Seniorität, Arbeitsmodell und Einstiegs-Eignung. Aktivieren Sie eine Zeile, um ihre Anforderungen und die Absolvent/innen-Perspektive aufzuklappen.",
@@ -4491,7 +4499,10 @@
       "addToPipeline": "Zur Pipeline hinzufügen",
       "adding": "Wird hinzugefügt…",
       "added": "Hinzugefügt",
-      "dismiss": "Verwerfen"
+      "dismiss": "Verwerfen",
+      "loadFailed": "Silbermedaillisten konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "dismissFailed": "Der Treffer konnte nicht entfernt werden. Er steht wieder in der Liste."
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",

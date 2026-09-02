@@ -1469,7 +1469,10 @@
     "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit. Kandidát nebo pozice za ní už neexistuje.",
     "DECISION_CONFIG_STALE": "Někdo uložil novější verzi těchto pravidel. Načtěte je znovu a proveďte změnu ještě jednou.",
     "PIPELINE_AXIS_STALE": "Někdo uložil novější verzi tohoto procesu. Načtěte jej znovu a proveďte změnu ještě jednou.",
-    "INTAKE_ATTACHMENT_TOO_LONG": "Tato poznámka je delší, než může jeden podklad být. Zkraťte ji, nebo ji připojte po částech."
+    "INTAKE_ATTACHMENT_TOO_LONG": "Tato poznámka je delší, než může jeden podklad být. Zkraťte ji, nebo ji připojte po částech.",
+    "JOB_SEED_BROKEN": "Katalog pozic je prázdný, protože se nepodařilo načíst jeho výchozí data. Zkontrolujte protokol serveru.",
+    "SCHEDULE_UPDATE_FAILED": "Automatické hodiny se nepodařilo upravit. Zkuste to prosím znovu.",
+    "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2795,7 +2798,10 @@
       "thisRun": "{label} v tomto běhu",
       "runScope": "Váš podíl: {mine} z {total}",
       "scopeGlobal": "platí pro všechny týmy",
-      "scopeGlobalTitle": "Pro celou instalaci běží jediné hodiny: zapnutí či vypnutí spustí nebo zastaví automatizaci pro všechny týmy, nejen pro váš."
+      "scopeGlobalTitle": "Pro celou instalaci běží jediné hodiny: zapnutí či vypnutí spustí nebo zastaví automatizaci pro všechny týmy, nejen pro váš.",
+      "liveHealthy": "tiká",
+      "liveStarting": "spouští se…",
+      "liveStalled": "netiká"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -4259,7 +4265,9 @@
         "unlockChannels": "Otevřené kanály",
         "unlockPipeline": "Příliv kandidátů",
         "unlockDecisions": "Fronta rozhodnutí"
-      }
+      },
+      "showingCut": "Zobrazeno prvních <b>{shown}</b> z <b>{matching}</b> odpovídajících pozic. Seznam je oříznutý na {limit}.",
+      "loadFailed": "Katalog pozic se nepodařilo načíst."
     },
     "table": {
       "caption": "Korpus pozic: normalizované inzeráty filtrovatelné podle oboru, seniority, režimu práce a vhodnosti pro juniory. Aktivací řádku rozbalíte jeho požadavky a absolventskou optiku.",
@@ -4491,7 +4499,10 @@
       "addToPipeline": "Přidat do pipeline",
       "adding": "Přidávání…",
       "added": "Přidáno",
-      "dismiss": "Zavřít"
+      "dismiss": "Zavřít",
+      "loadFailed": "Stříbrné medailisty se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "dismissFailed": "Shodu se nepodařilo odstranit. Vrátila se zpět do seznamu."
     },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",

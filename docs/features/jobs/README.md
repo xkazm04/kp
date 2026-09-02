@@ -279,7 +279,7 @@ Two hand-rolled reads in this area followed:
 
 ### Every jobs route that spawns or spends is throttled
 
-Seven routes here reach a child process or a model on an accepted request, and
+Eight routes here reach a child process or a model on an accepted request, and
 until 2026-09-02 none carried a limiter — the whole area was missing from
 `app/api/rate-limit-contract.test.ts`. Each is session-gated, and open mode
 (`KP_OPERATOR_PASSWORD` unset) makes that gate a documented no-op for the entire
@@ -296,6 +296,7 @@ throttle in the reader's language.
 | `GET /api/jobs/[id]/rediscover` | `jobs-rediscover:<ip>` | 30 | `recruiter_cli` ranking child |
 | `POST /api/jobs/[id]/publish` | `jobs-publish:<ip>` | 20 | metered debit + sourcing child + alert fan-out |
 | `POST /api/jobs/[id]/candidates/outreach` | `jobs-outreach:<ip>` | 60 | drafted first-touch + Outbox dispatch |
+| `POST /api/jobs/[id]/agent-fit` | `jobs-agent-fit:<ip>` | 20 | backgrounded `agent_fit` LLM transform |
 
 Every limiter sits **after** the cheap refusals (visibility/ownership 404s, the
 validation 400s, the outreach GDPR 409, the empty-pool short-circuits) and
@@ -508,6 +509,17 @@ A failed sweep in that feed also stopped wearing the success tone: `note` carrie
 either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, and
 the failure was painted `text-moss` — this app's "it worked" green — whenever any
 alert was already on screen.
+The tone now travels WITH the line (`FeedNote = { text, tone }`) instead of being
+re-derived by comparing the rendered string against one known failure message.
+
+Two more honesty gaps in the same feed closed with it. The **initial** GET used to
+collapse failure into emptiness — a 500 set `alerts` to `[]` and the panel said
+*"No silver medalists right now"*, a claim about the pool it could not make; it now
+renders a red `loadFailed` line with a **Retry** that re-reads the alerts (not a
+re-sweep, which would re-rank every published role's pool). And **dismiss**, which
+was optimistic with no rollback, now remembers the row's index: a PATCH that fails
+or never lands puts the candidate back where they were and says the dismissal did
+not stick, instead of leaving them gone from the view and open on the server.
 
 ## The Candidates tab says when the pool was capped
 
@@ -911,6 +923,21 @@ roles" (30 roles/recruiter instead of 35) for a workspace carrying 350, labelled
 | `countJobs(filter, ws)` | The unbounded `COUNT(*)` over the *identical* predicate; `limit` is ignored. |
 | `GET /api/jobs` | `{ jobs, stats, truncated, matching, limit }` — `jobs` is `listJobsPage`'s slice, `matching` is `countJobs` over the **same bound filter object**, and `truncated` says the slice was cut. `stats.total` stays the workspace-wide **unfiltered** count, so "300 of 340" (ordinary filtering) and "300 of 312 matching, cut" (40 roles the UI offers no way to reach) are finally distinguishable. |
 | `listCorpusJobs(ws)` | Every live row as full records (the matcher/rematch corpus). |
+
+**And the catalog UI now reads all three.** `useJobsList` returned only `jobs` +
+`stats`, so the summary line said *"Showing 300 of 340 roles"* against the
+workspace-wide UNFILTERED total — the very reading the `matching` field was added
+to prevent. It now carries `{ truncated, matching, limit }` through to
+`JobsTabResults`, which paints `jobs.tab.showingCut` (amber) — *"Showing the first
+300 of 312 matching roles — the list is cut at 300"* — whenever the slice was cut,
+and keeps the ordinary `jobs.tab.showing` line otherwise. Truncated and filtered
+read differently on screen because they are different facts.
+
+The same hook was the one jobs read that bypassed `useJsonFetch`: it threw
+`Load failed (500).` in hardcoded English and the tab rendered it raw. It now keeps
+the failure as `{ code, status }` and resolves it through `useErrorMessage()`, and
+the route's seed-failure 500 answers `safeJsonError(..., "JOB_SEED_BROKEN")` — the
+failing seed PATH goes to the server log instead of into the recruiter's red box.
 
 **The dual-tier predicate `(workspace_id IS NULL OR workspace_id = ?)` shows a
 team the shared reference corpus as if it were its own openings.** `listJobs`,

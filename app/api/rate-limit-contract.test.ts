@@ -725,6 +725,48 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "candidateOutreachSuppression(body.candidateId)",
   },
   {
+    // ADDED /perfect 2026-09-03 (jobs-workspace-2), with the limiter itself. The
+    // eighth jobs spend door and the one the 2026-09-02 sweep missed: POST here
+    // accepts a BACKGROUNDED `agent_fit` task, i.e. one LLM call over the role's own
+    // text, and carried no throttle at all. Operator-gated, and open mode makes that
+    // gate a documented no-op for the whole API.
+    rel: "./jobs/[id]/agent-fit/route.ts",
+    key: "`jobs-agent-fit:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "AGENT_FIT_RATE_LIMIT",
+    optsDef: "const AGENT_FIT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its first argument: a bare `startTask(` also appears in this
+    // file's header comment, which precedes the limiter.
+    expensive: 'startTask("agent_fit"',
+    // The visibility 404 (unknown / other-tenant role) keeps its semantics ahead of
+    // the throttle, so a rejected call never consumes budget.
+    servedBefore: "jobVisibleToWorkspace(id, ws)",
+  },
+  {
+    // ADDED /perfect 2026-09-03 (pipeline-board-3), with the limiter itself. The
+    // scheduler dock's "Run now" door: `{"tick": true}` forces a FULL policy pass —
+    // the same Python-spawning sweep over every active entry that /api/automation/run
+    // and the board's `run policy` command already throttle — and it was the third
+    // entry point to that sweep, guarded by nothing but a client-side single-flight
+    // ref. Operator-gated, and open mode makes that gate a documented no-op for the
+    // whole API. 10/10min per IP: a pass runs for minutes, so ten is far above any
+    // human "Run now" pace. The GET and the cheap config writes (toggle, interval,
+    // reminders pause) stay unthrottled — they spawn nothing.
+    rel: "./automation/schedule/route.ts",
+    key: "`schedule-tick:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "SCHEDULE_TICK_RATE_LIMIT",
+    optsDef: "const SCHEDULE_TICK_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its arguments: a bare `tickScheduler(` also appears in the
+    // import above the limiter, so the generic marker would pass on the wrong one.
+    expensive: "tickScheduler({ force: true",
+    // The malformed-interval 400 keeps its semantics ahead of the throttle, so a
+    // broken body neither consumes budget nor is masked by a 429.
+    servedBefore: 'jsonRefusal("SCHEDULE_INTERVAL_INVALID", 400)',
+  },
+  {
     // ADDED /perfect 2026-09-02 (api-pipeline), with the limiter itself. `run policy`
     // typed into the board's command bar reaches the SAME sweep POST
     // /api/automation/run drives — a Python-spawning pass over every active entry
@@ -893,6 +935,30 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "migratePipelineStages(migrations, ws)",
     servedBefore: 'jsonRefusal("PIPELINE_MIGRATION_REQUIRED", 409',
+  },
+  {
+    // ADDED /perfect 2026-09-03 (devcase-workspace-3), with the limiter itself. The
+    // dead-letter RECOVERY door: the one place in the assignments loop where a click
+    // spends real email on demand, and it carried no throttle at all. Its only guards
+    // were an in-process in-flight Set and a dedup that a REFLESS message skipped
+    // entirely - so a refless dead letter could be re-dispatched once per click,
+    // without bound. Operator-gated, and open mode (KP_OPERATOR_PASSWORD unset) makes
+    // that gate a documented no-op for the ENTIRE API, so the limiter is the real
+    // bound. 60/10min per IP sits far above a recruiter working a dead-letter list by
+    // hand (one click per message, each read first) and pins a scripted loop at 6/min.
+    rel: "./comms/[id]/resend/route.ts",
+    key: "`comms-resend:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RESEND_RATE_LIMIT",
+    optsDef: "const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The relay call, with its opening brace: the bare name also appears in the import
+    // above the limiter, so the generic marker would pass on the wrong occurrence.
+    expensive: "await sendComm({",
+    // Every cheap refusal - the in-flight 409, the unknown-id 404, the missing-fields
+    // 422 - keeps its semantics ahead of the throttle, so a click that was never going
+    // to send costs no budget.
+    servedBefore: "getOutboxEntry(id, ws)",
   },
 ];
 

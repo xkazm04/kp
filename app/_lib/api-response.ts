@@ -78,6 +78,16 @@ export const STORE_ERRORS = {
   JOB_WINNABILITY_FAILED: "Could not grade this role against the candidate pool. Please try again.",
   JOB_CAMPAIGN_FAILED: "Could not generate the campaign pack. Please try again.",
   JOB_ASSIGNMENTS_FAILED: "Could not load the work samples for this role. Please try again.",
+  // The automation clock's control surface (/perfect 2026-09-03, pipeline-board-3).
+  // POST here writes the schedule row and can force a full policy pass, so its catch
+  // can surface better-sqlite3 constraint text, the db path, and the spawned pass's
+  // Python traceback.
+  SCHEDULE_UPDATE_FAILED: "Could not update the automation clock. Please try again.",
+  // NOT a thrown store error: GET /api/jobs raises this deliberately when the
+  // catalog is empty AND the seed health report names a failed jobs seed. The
+  // failing PATH and reason are operator detail — they go to the server log
+  // through safeJsonError, never into the catalog's red box (jobs-workspace-2).
+  JOB_SEED_BROKEN: "The job catalog is empty — its seed data failed to load. Check the server log.",
   // Voice-interview routes (idea-ab117371): their catch paths sit behind
   // better-sqlite3, the scorecard automation AND the provider adapters, whose
   // thrown errors embed upstream HTTP bodies — all internal detail.
@@ -260,6 +270,10 @@ export type StoreErrorCode = keyof typeof STORE_ERRORS;
 // The English here stays canonical for the server log and for API consumers;
 // the client renders the localized message from the code.
 export const REFUSAL_ERRORS = {
+  /** A non-numeric automation interval (400). The dock's own field clamps to
+   *  [1, 1440], so reaching this means a hand-rolled call or a broken client —
+   *  and the operator still deserves the reason in their own language. */
+  SCHEDULE_INTERVAL_INVALID: "The automation interval must be a number of minutes.",
   /** A submission arrived for a posting whose intake is closed (410). */
   POSTING_CLOSED: "This role's intake has closed and is no longer accepting submissions.",
   /** The offer link is past its deadline (410). */
@@ -604,6 +618,19 @@ export const REFUSAL_ERRORS = {
   /** The board's column axis changed since the composer read it (409) — refused BEFORE
    *  anybody is moved, since the stage ids the mapping names may no longer exist. */
   PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",
+  /** A resend for this outbox row is already in flight in this process (409). The
+   *  recovery door spends real email, so a double-click collapses here rather than
+   *  dispatching twice — and it now says so with a code, because the button used to
+   *  fall through to the generic "couldn't re-send" sentence in all four languages. */
+  COMM_RESEND_IN_PROGRESS: "A resend for this message is already in progress.",
+  /** A newer real delivery already exists for this message (409), so re-dispatching
+   *  it would send the candidate the same offer/rejection twice. Durable, not
+   *  in-process: the check reads the outbox. */
+  COMM_ALREADY_RESENT: "Already re-sent — a newer delivery exists for this message.",
+  /** An approve arrived for a lifecycle that is not at the review gate (409) — a second
+   *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
+   *  the code as DATA so the panel can say where the case actually is. */
+  DEVCASE_LIFECYCLE_NOT_AT_GATE: "This assignment is no longer awaiting review — reload to see where it is now.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

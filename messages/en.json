@@ -1469,7 +1469,10 @@
     "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained: the candidate or role behind it is gone.",
     "DECISION_CONFIG_STALE": "Someone saved a newer version of these rules. Reload and make your change again.",
     "PIPELINE_AXIS_STALE": "Someone saved a newer version of this pipeline. Reload and make your change again.",
-    "INTAKE_ATTACHMENT_TOO_LONG": "That note is longer than one piece of reference material can be. Shorten it, or attach it in parts."
+    "INTAKE_ATTACHMENT_TOO_LONG": "That note is longer than one piece of reference material can be. Shorten it, or attach it in parts.",
+    "JOB_SEED_BROKEN": "The job catalog is empty because its seed data failed to load. Check the server log.",
+    "SCHEDULE_UPDATE_FAILED": "Could not update the automation clock. Please try again.",
+    "SCHEDULE_INTERVAL_INVALID": "The automation interval must be a number of minutes."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2795,7 +2798,10 @@
       "thisRun": "{label} this run",
       "runScope": "{mine} of {total} yours",
       "scopeGlobal": "applies to all teams",
-      "scopeGlobalTitle": "One clock runs for the whole installation: turning it on or off starts or stops automation for every team, not just yours."
+      "scopeGlobalTitle": "One clock runs for the whole installation: turning it on or off starts or stops automation for every team, not just yours.",
+      "liveHealthy": "ticking",
+      "liveStarting": "starting…",
+      "liveStalled": "not ticking"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -4259,7 +4265,9 @@
         "unlockChannels": "Channels open",
         "unlockPipeline": "Candidates flow",
         "unlockDecisions": "Decisions queue"
-      }
+      },
+      "showingCut": "Showing the first <b>{shown}</b> of <b>{matching}</b> matching roles. The list is cut at {limit}.",
+      "loadFailed": "Couldn't load the job catalog."
     },
     "table": {
       "caption": "Job corpus: normalized job postings filterable by role family, seniority, work mode, and entry-eligibility. Activate a row to expand its requirements and graduate lens.",
@@ -4491,7 +4499,10 @@
       "addToPipeline": "Add to pipeline",
       "adding": "Adding…",
       "added": "Added",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "loadFailed": "Couldn't load silver medalists.",
+      "retry": "Retry",
+      "dismissFailed": "Couldn't dismiss that match. It's back in the list."
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",
