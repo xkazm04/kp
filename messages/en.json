@@ -4017,7 +4017,7 @@
       "buildIntentSeniority": "Seniority",
       "buildIntentAiDefault": "AI default format",
       "caseTaskFallback": "Task",
-      "pollStalledNote": "Still analyzing. Nothing has reported on this build for a while — the Tasks drawer has its live status.",
+      "pollStalledNote": "Still analyzing. Nothing has reported on this build for a while. The Tasks drawer has its live status.",
       "unsavedTitle": "Discard your unsaved changes?",
       "unsavedBody": "This JD has edits you haven't saved yet. Leaving the editor discards them.",
       "unsavedDiscard": "Discard changes",

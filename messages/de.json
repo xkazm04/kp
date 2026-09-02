@@ -4017,7 +4017,7 @@
       "buildIntentSeniority": "Senioritätsstufe",
       "buildIntentAiDefault": "KI-Standardformat",
       "caseTaskFallback": "Aufgabe",
-      "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung — den Live-Status zeigt die Aufgaben-Leiste.",
+      "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung. Den Live-Status zeigt die Aufgaben-Leiste.",
       "unsavedTitle": "Nicht gespeicherte Änderungen verwerfen?",
       "unsavedBody": "Diese Stellenbeschreibung enthält Änderungen, die Sie noch nicht gespeichert haben. Wenn Sie den Editor verlassen, gehen sie verloren.",
       "unsavedDiscard": "Änderungen verwerfen",

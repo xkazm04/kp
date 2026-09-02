@@ -4017,7 +4017,7 @@
       "buildIntentSeniority": "Seniorita",
       "buildIntentAiDefault": "Výchozí formát AI",
       "caseTaskFallback": "Úkol",
-      "pollStalledNote": "Stále se analyzuje. O tomto sestavení už chvíli nic nepřišlo — živý stav najdete v zásuvce Úlohy.",
+      "pollStalledNote": "Stále se analyzuje. O tomto sestavení už chvíli nic nepřišlo. Živý stav najdete v zásuvce Úlohy.",
       "unsavedTitle": "Zahodit neuložené změny?",
       "unsavedBody": "Tato nabídka má úpravy, které jste zatím neuložili. Opuštěním editoru o ně přijdete.",
       "unsavedDiscard": "Zahodit změny",

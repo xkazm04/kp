@@ -4017,7 +4017,7 @@
       "buildIntentSeniority": "Séniorité",
       "buildIntentAiDefault": "Format par défaut de l'IA",
       "caseTaskFallback": "Tâche",
-      "pollStalledNote": "Analyse toujours en cours. Aucune nouvelle de cette génération depuis un moment — le tiroir Tâches en donne le statut en direct.",
+      "pollStalledNote": "Analyse toujours en cours. Aucune nouvelle de cette génération depuis un moment. Le tiroir Tâches en donne le statut en direct.",
       "unsavedTitle": "Abandonner vos modifications non enregistrées ?",
       "unsavedBody": "Cette fiche contient des modifications que vous n'avez pas encore enregistrées. Quitter l'éditeur les supprime.",
       "unsavedDiscard": "Abandonner les modifications",
