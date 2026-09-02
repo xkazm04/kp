@@ -60,12 +60,17 @@ test("rejects a valid type that exceeds the size limit, carrying the cap as data
 // real cap. Without the last one, raising MAX_FILE_MB leaves four catalogs quietly
 // promising 8 MB.
 test("client and server gates answer the SAME code for the same refusal", () => {
+  const clientCode = (file: File): string | null => {
+    const result = acceptUpload(file);
+    return result.ok ? null : result.code;
+  };
+
   const tooBig = fileOf("huge.pdf", MAX_FILE_BYTES + 1, "application/pdf");
-  assert.equal(acceptUpload(tooBig).ok === false && acceptUpload(tooBig).code, "UPLOAD_TOO_LARGE");
+  assert.equal(clientCode(tooBig), "UPLOAD_TOO_LARGE");
   assert.equal(validateUploadServer(tooBig, "profile")?.code, "UPLOAD_TOO_LARGE");
 
   const wrongKind = fileOf("portfolio.png", 1024, "image/png");
-  assert.equal(acceptUpload(wrongKind).ok === false && acceptUpload(wrongKind).code, "UPLOAD_UNSUPPORTED_TYPE");
+  assert.equal(clientCode(wrongKind), "UPLOAD_UNSUPPORTED_TYPE");
   assert.equal(validateUploadServer(wrongKind, "profile")?.code, "UPLOAD_UNSUPPORTED_TYPE");
 });
 

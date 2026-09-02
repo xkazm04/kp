@@ -91,6 +91,10 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
         icon={<GitBranch className="h-4 w-4 text-coral" aria-hidden />}
         heading={t("colGithub")}
         status={statuses.githubStatusLabel}
+        // The only optional column that had no Clear: its three siblings each
+        // offer one, so a filled handle was the one attachment a recruiter had to
+        // select-and-delete by hand.
+        onClear={flags.hasGithub ? () => setGithubProfile("") : undefined}
       >
         {/* The GitHub input is a single field rather than a drop zone, so
             without a leading affordance + helper it reads as a bare,

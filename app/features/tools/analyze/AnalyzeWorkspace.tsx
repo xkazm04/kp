@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { PANEL } from "@/app/_components/ui/recipes";
 
 const MODES = [
   { id: "new", labelKey: "modeNew" },
@@ -39,7 +40,7 @@ export function AnalyzeWorkspace({ initialMode = "new" }: { initialMode?: "new" 
   const reduced = useReducedMotion();
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border border-stone-200 bg-white p-1 shadow-panel">
+      <div className={`${PANEL} inline-flex p-1`}>
         {MODES.map((m) => {
           const active = mode === m.id;
           return (

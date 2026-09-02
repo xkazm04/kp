@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { CARD_PAD, DIVIDER, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { HistoryTable } from "./HistoryTable";
 import { distinct, type AnalysisRow } from "./HistoryTypes";
@@ -90,11 +91,11 @@ export function HistoryTab() {
     // region cascade in as this section's direct children. aria-busy covers
     // only the FIRST load — rows, once loaded, are never nulled out by this
     // component again, so a later render never re-blanks what's on screen.
-    <section className="stagger-children rounded-lg border border-stone-200 bg-white p-5 shadow-panel" aria-busy={rows == null && !error}>
-      <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
+    <section className={`stagger-children ${PANEL} ${CARD_PAD}`} aria-busy={rows == null && !error}>
+      <header className={`${DIVIDER} border-t-0 border-b pb-4`}>
+        <p className={EYEBROW}>{t("eyebrow")}</p>
+        <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
+        <p className={`mt-2 max-w-3xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
       <div className="mt-5">

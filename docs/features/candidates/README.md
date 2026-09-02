@@ -84,6 +84,19 @@ design. The saved-JD picker distinguishes an empty library from a failed load �
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
+**The Analyze surface composes the design system.** `AnalyzeForm`,
+`AnalyzeFormCollapsed`, `AnalyzeWorkspace` and `HistoryTab` apply `PANEL` /
+`CARD_PAD` (and the History header `EYEBROW` / `TITLE_DISPLAY` / `INTRO`) from
+`app/_components/ui/recipes.ts` instead of re-typing the card literal, so the
+Spark Dark sticker treatment reaches them. The two primary drop zones wrap an
+`sr-only` input in a label, so their ring lives on the label via
+`DROP_ZONE_FOCUS` (`analyzeSurfaces.ts`, the technique `FileInput.tsx` uses) —
+`focus-ring` on the clipped input painted nothing a keyboard user could see. The
+form footer puts the run-CONFIGURING controls (report language, blind screening)
+before the Analyze button in DOM order, and what blind mode redacts is the
+checkbox's visible hint rather than a `title` attribute. Pinned by
+`analyzeDesignSurface.test.ts`.
+
 **A refused upload answers a CODE, in the reader's language.** The document gate
 (`app/_lib/upload-constraints.ts`) returns `UPLOAD_UNSUPPORTED_TYPE` /
 `UPLOAD_TOO_LARGE` — the document twins of the audio gate's `AUDIO_*` pair — on

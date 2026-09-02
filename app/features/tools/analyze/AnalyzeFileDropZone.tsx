@@ -7,6 +7,7 @@ import { formatFileSize } from "./AnalyzeApi";
 import { ownedDropZoneProps } from "./analyzeDropRouting";
 import { useFileAccept } from "./useAnalyzeFileAccept";
 import { useDropZoneHighlight } from "./useAnalyzeDropZoneHighlight";
+import { DROP_ZONE_FOCUS } from "./analyzeSurfaces";
 
 export function AnalyzeFileDropZone({
   inputId,
@@ -91,7 +92,7 @@ export function AnalyzeFileDropZone({
         htmlFor={inputId}
         {...ownedDropZoneProps}
         {...dragProps}
-        className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-3 text-center transition-colors ${
+        className={`${DROP_ZONE_FOCUS} flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-3 text-center transition-colors ${
           isOver
             ? "border-solid border-coral bg-coral/5"
             : "border-stone-300 bg-white hover:border-coral"

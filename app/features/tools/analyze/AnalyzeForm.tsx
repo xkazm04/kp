@@ -3,6 +3,7 @@
 import { FileText, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEngineAvailability } from "@/app/features/shell/useEngineAvailability";
+import { BTN_SECONDARY, CARD_PAD, PANEL } from "@/app/_components/ui/recipes";
 import { AnalyzeColumn } from "./AnalyzeColumn";
 import { AnalyzeProfileInput } from "./AnalyzeProfileInput";
 import { AnalyzeFormOptionalColumns } from "./AnalyzeFormOptionalColumns";
@@ -19,7 +20,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
 
   return (
     <section
-      className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel"
+      className={`${PANEL} ${CARD_PAD}`}
       aria-busy={flags.isLoading || flags.isCompleting}
     >
       <div className="flex items-start justify-between gap-3">
@@ -30,7 +31,7 @@ export function AnalyzeForm({ state }: { state: AnalyzeFormState }) {
         <button
           type="button"
           onClick={handlers.reset}
-          className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50"
+          className={`${BTN_SECONDARY} h-9 gap-2 bg-white px-3 text-sm`}
           title={t("reset")}
         >
           <RotateCcw className="h-3.5 w-3.5" aria-hidden />
