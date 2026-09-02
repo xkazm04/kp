@@ -72,6 +72,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // address, so the brief never went — a gap the recruiter must close.
   interviewer_brief_sent: { auto: true, tone: "text-steel" },
   interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
+  // The live call fell back to the other voice provider (interview/connect). A SYSTEM
+  // transition the recruiter should see beside the session, not a delivery.
+  interview_failover: { auto: true, tone: "text-amber-600" },
   // The offer-deadline nudge the sweep dispatches (comms-dispatch.ts:588). A live writer
   // that reached the log as NEZNÁMÉ and counted in no rollup — including `commsDelivered`,
   // even though it is a real message to a real candidate (see COMM_SENT_KINDS below).
