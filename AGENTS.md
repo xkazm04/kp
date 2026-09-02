@@ -85,11 +85,12 @@ rather than a snapshot.
 | `npm run i18n:check` | a key is missing from one of the 4 catalogs, or a literal leaked into a shared primitive |
 | `npm run docs:check` | an ADR's `sources:` path is gone, or the decision index drifted from the records |
 | `npm run guidance:check` | the guidance files, `.ai/manifest.yaml` and this table stopped agreeing |
+| `npm run api:check` | `docs/architecture/api-reference.md` and `app/api/**/route.ts` disagree — a route with no row, a row with no route, a method added, or a route that changed side of the fail-closed auth gate. Fix with `npm run api:docs` |
 | `npm run deploy:check` | the Helm chart regressed a deployment invariant (`docs/architecture/self-hosting.md`) |
 | `npm run release:check` | package.json, the chart's `appVersion` and the CHANGELOG name different versions |
 | `npm run test:release` | fixtures for the release scripts — prepare, commit-msg, sbom, provenance |
 | `npm run sbom` | the bill of materials cannot be built from the lockfile + the pip environment |
-| `npm run test:docs` | fixtures for the doc-sync hook, the ADR gate and the guidance check |
+| `npm run test:docs` | fixtures for the doc-sync hook, the ADR gate, the guidance check and the API-reference generator — including a comparison of the committed reference against the routes that exist |
 | `npm run test:review` | fixtures for the review lenses (constitution, gate-check) — including that an untrusted value reaches a shell only as a quoted `env:` binding, mutation-tested against the two write-path workflows |
 | `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written, and that an OBEDIENT model is refused everything a hostile issue asks it for |
 | `npm run test:lint-ratchet` | fixtures for the shared ratchet protocol and for the ruff and ts ignore ratchets built on it |
@@ -101,7 +102,8 @@ rather than a snapshot.
 | `npm run test:security` | fixtures for the credential table: every pattern fires, and the real tracked tree is clean |
 | `npm run hooks:check` | `.githooks/*` points at an npm script or a file that no longer exists |
 | `npm run test:bench-driver` | fixtures for the App-master bench driver and its committed baseline |
-| `npm run test:unit` | the node:test suite over `app/**/*.test.ts` and `packages/**/*.test.ts` |
+| `npm run test:flake` | fixtures for the flake policy — a FLAKE still blocks, a quarantine does not, and `test-quarantine.json` has a dead/unexplained/expired entry or is over its ceiling |
+| `npm run test:unit` | the node:test suite over `app/**/*.test.ts` and `packages/**/*.test.ts` — a failing run re-runs the failing files once and labels each BROKEN / FLAKE / QUARANTINE |
 | `npm run build` | `next build`, after `schemas:gen` |
 | `npm run lint:ruff-ratchet` | a `ruff.toml` ignore has no ceiling, is over it, or now suppresses nothing |
 | `npm run test:python:gate` | the gated Python suite, or its skip count exceeded `KP_SKIP_BASELINE` |

@@ -2,56 +2,59 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "8e432f39-aea2-4743-9509-cbff03d945e8",
+      "recommendationId": "678ad249-9c6d-4c29-bd2e-53d7bece591d",
       "verdict": "resolved",
-      "reason": "The `run:`-interpolation half was already mechanical (check-actions' run-injection rule plus a whole-tree fixture); the residual half — an untrusted value correctly passed through `env:` and then expanded UNQUOTED by the shell — was not, so I added the `unquoted-untrusted-env` blocking rule and mutation fixtures that reintroduce the real bug into both write-path workflows and require the check to go red.",
+      "reason": "`npm run test:unit` now re-runs the files that failed once and labels each BROKEN / FLAKE / QUARANTINE, prints the block to the CI step summary, and validates a quarantine register held to a ceiling, a reason and a 30-day expiry before the suite starts.",
       "files": [
-        "scripts/security/check-actions.mjs",
-        "scripts/review/__tests__/gate-check.test.mjs",
-        "docs/development/change-review.md"
-      ]
-    },
-    {
-      "recommendationId": "833defd4-64ec-4b77-a59d-8eccff72a625",
-      "verdict": "resolved",
-      "reason": "Extracted the ratchet protocol (verdict ladder, report, flags, exit codes, the no-op --tighten rule) into scripts/lint/ratchet.mjs, rebuilt both ratchets on it so each keeps only its debt format and its measurement, and pinned in a fixture that the two diverge in exactly one place (`zero` = `dead` for ruff, `burnt-down` for TypeScript).",
-      "files": [
-        "scripts/lint/ratchet.mjs",
-        "scripts/lint/ruff-ratchet.mjs",
-        "scripts/lint/ts-ratchet.mjs",
-        "scripts/lint/__tests__/ratchet.test.mjs",
-        "ruff.toml",
+        "scripts/run-unit-tests.mjs",
+        "scripts/test/flake-policy.mjs",
+        "scripts/test/flake-reporter.mjs",
+        "scripts/test/__tests__/flake-policy.test.mjs",
+        "test-quarantine.json",
+        "docs/development/testing-and-evaluation.md",
+        ".github/workflows/ci.yml",
         "package.json",
-        "docs/development/change-review.md"
-      ]
-    },
-    {
-      "recommendationId": "6a5a8df2-1d88-492f-bdf0-8be6547853db",
-      "verdict": "resolved",
-      "reason": "Added a keyless deterministic injection eval: 13 hostile issue bodies each paired with the plan an OBEDIENT model would return, asserting the guard refuses it by name before anything is written; building it found and fixed two real weaknesses (the untrusted-input label rode in round 1 only, and the fence around the issue text was one the issue text could close).",
-      "files": [
-        "scripts/agent/__tests__/injection.test.mjs",
-        "scripts/agent/dispatch.mjs",
-        "package.json",
-        "docs/development/change-review.md"
-      ]
-    },
-    {
-      "recommendationId": "db3fbda6-12be-440a-8ba4-7f68524fd6be",
-      "verdict": "resolved",
-      "reason": "The first cold-clone failure (typecheck -> schemas:gen -> Python) now diagnoses itself through scripts/schemas-gen.mjs instead of dying as a generic npm error, AGENTS.md states the prerequisite, and a nightly cold-clone workflow runs the three documented commands from an empty checkout with no caches and opens an issue when they fail; I could not execute that run from this session, so the workflow's first real verdict comes from CI.",
-      "files": [
-        "scripts/schemas-gen.mjs",
-        ".github/workflows/cold-clone.yml",
+        ".ai/manifest.yaml",
         "AGENTS.md",
-        "package.json"
+        "scripts/agent/dispatch.mjs",
+        "scripts/agent/__tests__/dispatch.test.mjs"
+      ]
+    },
+    {
+      "recommendationId": "6e3a8c85-e21f-469e-8e47-36045d7dfbf2",
+      "verdict": "resolved",
+      "reason": "The two colliding provenance vocabularies were merged into one owner: the compact `Agent-Provenance:` trailer CONTRIBUTING.md publishes used to FAIL the commit-convention gate (it matches `Agent-*`), and the four-key block the repo's own dispatch lane emits was invisible to `npm run provenance` and counted as human-authored; both now parse, validate and roll up through one module.",
+      "files": [
+        "scripts/agent/provenance.mjs",
+        "scripts/release/provenance.mjs",
+        "scripts/release/commit-msg.mjs",
+        "scripts/agent/__tests__/provenance.test.mjs",
+        "scripts/release/__tests__/provenance.test.mjs",
+        "scripts/release/__tests__/commit-msg.test.mjs",
+        "CONTRIBUTING.md",
+        "docs/architecture/releases.md"
+      ]
+    },
+    {
+      "recommendationId": "ee745b59-84f6-47e8-a47d-cb90da3ae506",
+      "verdict": "resolved",
+      "reason": "docs/architecture/api-reference.md now lists all 206 routes with their methods and auth posture, generated from app/api/** with the auth column computed by calling isPublicPath() itself; `npm run api:check` gates the drift in CI and `npm run api:docs` fixes it in one command.",
+      "files": [
+        "scripts/docs/api-reference.mjs",
+        "scripts/docs/__tests__/api-reference.test.mjs",
+        "docs/architecture/api-reference.md",
+        "docs/architecture/README.md",
+        ".github/workflows/ci.yml",
+        "package.json",
+        ".ai/manifest.yaml",
+        "AGENTS.md"
       ]
     }
   ],
   "lessons": [
-    "This repository answers scanner findings in file headers rather than in checks, and the headers are usually right — so the useful work is rarely 'fix the finding', it is 'find the half of the argument the header asserts and no gate covers'. Here that was `env:` passing being treated as sufficient when quoting at the read site is the other half.",
-    "A safety property argued in a comment is worth converting into a MUTATION test, not just a passing assertion: reintroduce the real bug into the real file and require the check to go red, with a loud failure when the mutation stops matching. A tree-wide 'no findings' assertion passes identically whether the detector works or is broken.",
-    "When two scripts implement one concept twice, the shared part is usually the verdict ladder and the CLI, not the parsing — and the one place they legitimately disagree is worth naming after the MEASUREMENT rather than the verdict, so each side can map it to its own answer without a flag.",
-    "Writing an adversarial fixture is a cheap way to find real hardening: simulating an obedient model against a hostile prompt surfaced that the untrusted-input label only rode in the round that reads, not the round that writes code."
+    "In this repo a rung is usually a MERGE, not an addition: two modules had each built half of agent-provenance and neither read the other's half, so the trailer the contributing guide published failed the gate that guide describes. Before adding a rule table, grep for the one that already exists — the duplicate is the bug.",
+    "Every CI gate here is declared in FOUR places that are checked against each other (package.json, .github/workflows/ci.yml, .ai/manifest.yaml `guidance.gates`, and the AGENTS.md gate table). `npm run guidance:check` fails in BOTH directions, so adding a CI step without its manifest entry and table row turns the build red. Add all four in the same change.",
+    "`scripts/lint/ratchet.mjs` is a reusable protocol, not a lint helper: a ceiling, a `why`, and a verdict ladder (undeclared/unexplained/grew/slack/zero). Any new 'how much of this is acceptable' question — quarantined tests, undocumented routes — should be built on it rather than inventing a fourth shape.",
+    "An offline lane cannot resolve a tag to a SHA, and it also cannot RUN a generator — so a generated artefact has to be hand-derivable from greps to be shippable. Designing the drift check to compare a SET rather than bytes is what made that safe: a mis-ordered hand-assembled table still passes, and one command reorders it."
   ]
 }

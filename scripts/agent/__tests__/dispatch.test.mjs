@@ -308,6 +308,12 @@ check('every gate file in this tree is inside a protected prefix', () => {
     // The provenance block commit-msg.mjs holds an agent commit to. A dispatched
     // agent that could edit this could edit the record of what wrote it.
     'scripts/agent/provenance.mjs',
+    // The gate's own launcher and the flake policy behind it. Both decide
+    // whether a red `npm run test:unit` blocks — an agent that could edit either
+    // could quarantine its own failures and land green.
+    'scripts/run-unit-tests.mjs',
+    'scripts/test/flake-policy.mjs',
+    'test-quarantine.json',
   ];
   for (const rel of mustBeProtected) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} moved — update this list AND PROTECTED_PREFIXES`);

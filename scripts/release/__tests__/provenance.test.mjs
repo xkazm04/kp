@@ -133,4 +133,61 @@ check('every trailer in the vocabulary documents its shape and its meaning', () 
   }
 });
 
+// --- one vocabulary: the four-key block is the same fact, read by the same reader
+//
+// THE TWO REGRESSIONS THESE PIN, both caused by the same split. This module and
+// scripts/agent/provenance.mjs each defined agent provenance, in a different
+// spelling, and neither read the other's:
+//
+//   1. `Agent-Provenance:` — the trailer CONTRIBUTING.md publishes — matched the
+//      other module's `Agent-*` rule and was REJECTED by the commit-convention
+//      gate as one undefined key plus four missing ones. `checkTrailers` said it
+//      was fine; the gate calls both, so the commit failed.
+//   2. The four-key block that .github/workflows/agent-dispatch.yml actually
+//      EMITS was invisible to `provenanceOf` here, so every commit this
+//      repository's own lane made was counted as written by a human.
+
+const DISPATCH_COMMIT = {
+  subject: 'fix(db): stop the double write',
+  body: [
+    'Proposed by scripts/agent/dispatch.mjs from issue #12.',
+    '',
+    'Refs #12',
+    'Dispatched-by: someone',
+    'Agent-model: claude-opus-5',
+    'Agent-harness: scripts/agent/dispatch.mjs@1',
+    'Agent-prompt: sha256:0123456789abcdef',
+    'Agent-run: https://github.com/xkazm04/kp/actions/runs/123456789',
+  ].join('\n'),
+};
+
+check("THE LANE'S OWN COMMITS COUNT: the four-key block is agent provenance here too", () => {
+  const p = provenanceOf(DISPATCH_COMMIT);
+  assert.equal(p.authorship, 'agent', 'a dispatch commit used to read as a human\'s');
+  assert.equal(p.structured, true);
+  assert.deepEqual(p.models, ['claude-opus-5']);
+  assert.deepEqual(p.lanes, ['scripts/agent/dispatch.mjs@1'], 'the driver at a version fills the lane column');
+});
+
+check('the roll-up counts both spellings as attributed', () => {
+  const s = summarize([AGENT_COMMIT, STRUCTURED_COMMIT, DISPATCH_COMMIT, HUMAN_COMMIT]);
+  assert.equal(s.agentAuthored, 3);
+  assert.equal(s.fullyAttributed, 2, 'compact and expanded both attribute; the co-author-only commit does not');
+});
+
+check('checkTrailers is the ONE entry point — a malformed block fails through it', () => {
+  // Before the merge this returned [] and the gate reached the other module
+  // separately, which is how the two rules could contradict each other.
+  const partial = checkTrailers('Agent-model: claude-opus-5\n');
+  assert.equal(partial.length, 3, 'the three missing keys');
+  assert.deepEqual(checkTrailers(DISPATCH_COMMIT.body), [], 'a complete block is silent');
+});
+
+check('a compact trailer no longer contradicts the block rule', () => {
+  // The exact body the old pair of rules disagreed about: `checkTrailers` passed
+  // it and `checkProvenance` produced five findings on the same lines.
+  assert.deepEqual(checkTrailers(STRUCTURED_COMMIT.body), []);
+  assert.deepEqual(checkTrailers('Agent-Provenance: agent=ascent\n'), []);
+});
+
 console.log(`\n${passed} checks passed.`);

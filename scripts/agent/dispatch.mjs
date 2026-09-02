@@ -138,7 +138,12 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/hooks/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/docs/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/lint/', why: 'the machinery that judges this change' },
+  // The flake policy decides whether a red suite BLOCKS: an agent that could
+  // edit it could label its own failures as quarantined and land green.
+  { prefix: 'scripts/test/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/run-unit-tests.mjs', why: 'the machinery that judges this change' },
   { prefix: 'package-lock.json', why: 'a resolved lockfile npm writes, never a model' },
+  { prefix: 'test-quarantine.json', why: 'the list of tests allowed to fail — a self-issued waiver' },
   { prefix: '.env', why: 'secrets' },
 ];
 

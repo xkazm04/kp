@@ -64,11 +64,19 @@
 // is the fast feedback; CI is the teeth, because a hook only binds the machine
 // that has it installed.
 //
-// AND ONE RULE THAT READS THE BODY: `checkProvenance` from
-// scripts/agent/provenance.mjs, which holds an agent-written commit to a
-// COMPLETE `Agent-model` / `Agent-harness` / `Agent-prompt` / `Agent-run` block.
-// It is silent on a commit that claims no provenance and fires on one that
-// claims half of it, because three of four keys cannot be joined on.
+// AND ONE RULE THAT READS THE BODY: `checkTrailers` from
+// scripts/release/provenance.mjs — the single entry point for a body's trailers.
+// It judges the non-agent vocabulary itself and hands every `Agent-*` line to
+// scripts/agent/provenance.mjs, which owns BOTH spellings of agent provenance
+// (the four-key `Agent-model`/`Agent-harness`/`Agent-prompt`/`Agent-run` block
+// and the one-line `Agent-Provenance: agent=…; model=…` compact form). It is
+// silent on a commit that claims no provenance and fires on one that claims half
+// of it, because three of four keys cannot be joined on.
+//
+// It used to be TWO calls, and they contradicted each other: the compact trailer
+// CONTRIBUTING.md tells an outside lane to write failed this gate as one
+// undefined key plus four missing ones, because each half of the rule had only
+// ever been read against its own half of the vocabulary.
 //
 // WAIVER: a `Commit-convention-exemption: <why>` trailer in the commit body,
 // the same shape as `Gate-exemption:` and `Doc-sync:`. A sentence in `git log` a
@@ -80,7 +88,6 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { SECTIONS } from './prepare.mjs';
 import { checkTrailers } from './provenance.mjs';
-import { checkProvenance } from '../agent/provenance.mjs';
 
 export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
@@ -369,18 +376,14 @@ export function review(commits) {
     const files = typeof c === 'string' ? null : (c.files ?? null);
     const waiver = body.match(EXEMPTION_RE)?.[1]?.trim() ?? null;
     // …and the trailers, which are the only machine-readable thing a commit
-    // carries. NARROW BY CONSTRUCTION (scripts/release/provenance.mjs): a trailer
+    // carries. ONE CALL (scripts/release/provenance.mjs): it covers the whole
+    // vocabulary, agent provenance included. NARROW BY CONSTRUCTION — a trailer
     // that is absent is fine, a trailer that is present and unparseable is not —
     // it looks like a fact that was recorded and answers no query.
     const problems = [
       ...checkSubject(subject),
       ...checkTrailers(body),
       ...(files?.length ? checkTypeAgainstFiles(subject, files) : []),
-      // …and the one rule that reads the BODY for a half-written Agent-*
-      // provenance block. Silent on a commit that claims none — see
-      // scripts/agent/provenance.mjs. Complements checkTrailers above: that one
-      // polices the trailer vocabulary, this one the Agent-* block's shape.
-      ...checkProvenance(body),
     ];
     return { subject, problems: waiver ? [] : problems, waiver: problems.length ? waiver : null };
   });
