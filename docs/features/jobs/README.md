@@ -678,6 +678,41 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### The JD build has one door, and four throttled entrances
+
+Four callers used to hand-roll the three-step start sequence (placeholder row →
+detached `jd_build` task stamped with the same workspace → row↔task link):
+`POST /api/jds/generate`, `POST /api/jds/[slug]/retry-analysis`, the companion's
+`draft_jd` action and `POST /api/intake/[id]/promote`. A rule that lands on three
+of four copies is worse than no rule — that is how the tenant stamp went missing
+once (the JD row was created for the right team while its matchable opening went
+to the default one). The sequence now lives once in
+`app/_lib/jd-build-start.ts` (`startJdBuild` / `restartJdBuild`), which owns
+`title`, `jdSlug` and `options` so a caller's params cannot point the task at a
+different row or a different checklist than the row it just created.
+`app/_lib/jd-build-start.test.ts` fails on any file that pairs
+`insertAnalyzingJd(` with `startTask("jd_build"` outside the seam; the intake
+promote route is the one allow-listed exception and the test also fails when that
+exception goes stale.
+
+All four JD spend doors now carry a per-IP limiter, answered through
+`jsonRefusal("TOO_MANY_REQUESTS", 429)`. They are operator-gated, but open mode
+(`KP_OPERATOR_PASSWORD` unset) makes that gate a documented no-op for the whole
+API, so the limiter is the real bound. Each sits after the route's cheap refusals
+(so a request that was never going to spend costs no budget) and before the write
+and the spawn; the budgets and that ordering are pinned in
+`app/api/rate-limit-contract.test.ts`.
+
+| Route | Key | Budget | What one call buys |
+| --- | --- | --- | --- |
+| `POST /api/jds/generate` | `jd-generate:<ip>` | 20 / 10 min | the full 1–2 minute paid build |
+| `POST /api/jds/[slug]/retry-analysis` | `jd-retry:<ip>` | 20 / 10 min | the same build, replayed by one click |
+| `POST /api/jds/[slug]/ingest-job` | `jd-ingest-job:<ip>` | 20 / 10 min | one Claude ad-parse of the JD body |
+| `POST /api/jds/save` | `jds-save:<ip>` | 30 / 10 min | a deterministic `jobs_cli normalize` child |
+
+METERING the build — a per-workspace paid quota — is a separate billing decision
+and is not what these limiters are.
+
 ### A landing build never overwrites an edit
 
 The same rule now binds the build's OWN write. `finishJdAnalysis` used to be a

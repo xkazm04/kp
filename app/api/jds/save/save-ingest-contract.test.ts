@@ -23,8 +23,15 @@ function read(rel: string): string {
 
 test("save route reports jobIngested and treats ingest as best-effort", () => {
   const src = read("./route.ts");
-  // Ingest is wrapped so a failure never blocks the JD save...
-  assert.match(src, /catch\s*\{[\s\S]{0,200}?best-effort/i, "ingest failure must be caught, not block the save");
+  // Ingest is wrapped so a failure never blocks the JD save — and the catch BINDS
+  // the error and logs it: best-effort is a reason to continue, never a reason to
+  // drop the cause on the floor (.claude/CLAUDE.md § "A catch body is never empty").
+  assert.match(
+    src,
+    /catch\s*\(ingestError\)\s*\{[\s\S]{0,400}?best-effort/i,
+    "ingest failure must be caught, not block the save",
+  );
+  assert.match(src, /console\.error\([\s\S]{0,120}ingestError\)/, "the cause must reach the server log");
   // ...and the response must surface whether it ran.
   assert.match(src, /jobIngested/, "the save response must include jobIngested");
 });

@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
-import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { startTask } from "@/app/_lib/tasks";
+import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+
+// THROTTLE: one accepted Generate buys a 1-2 minute PAID build (need analysis +
+// role design + a grounded market-salary lookup, each a spawned child and, with a
+// provider configured, a billed model call). The route is operator-gated, but open
+// mode (no KP_OPERATOR_PASSWORD) makes that gate a documented no-op for the whole
+// API, so the limiter is the real bound. 20/10min per IP: every Generate produces a
+// JD the requestor then reads, so twenty in ten minutes is far above any honest pace
+// while a scripted loop is pinned. METERING the build (a per-workspace paid quota) is
+// a BILLING decision and deliberately not what this is.
+const GENERATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 // POST /api/jds/generate — start a BACKGROUNDED AI build. Unlike /api/jds/save
 // (which persists a finished JD synchronously), this creates the JD row up front
@@ -91,28 +101,33 @@ export async function POST(request: Request) {
     options,
   };
 
+  // The budget is spent HERE: after every cheap refusal above (bad JSON, an empty
+  // checklist, a too-thin need, a vanished template), so a request that was never
+  // going to build costs nothing, and before the placeholder insert + the spawn.
+  if (!rateLimit(`jd-generate:${clientIpFrom(request.headers)}`, GENERATE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
+
   try {
-    // 1. Placeholder JD (appears in the Ledger as "Analyzing" right away).
-    const { slug } = insertAnalyzingJd({ title: cleanTitle, options, buildInput }, ws);
-    // 2. Detached build that fills it in (survives navigation). jdSlug makes the
-    //    task's dedupe identity the JD itself, so each Generate is its own run.
-    const task = startTask("jd_build", {
+    // Placeholder row → detached build → row↔task link, through the one seam every
+    // door shares (app/_lib/jd-build-start.ts), so the tenant stamp and the dedupe
+    // identity cannot drift between the four callers that start a jd_build.
+    const { slug, taskId } = startJdBuild({
       title: cleanTitle,
-      company: typeof record.company === "string" ? record.company : undefined,
-      seniority: typeof record.seniority === "string" ? record.seniority : undefined,
-      roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
-      needText,
-      repoUrl: typeof record.repoUrl === "string" ? record.repoUrl : undefined,
-      lang: typeof record.lang === "string" ? record.lang : undefined,
-      templateBody,
-      jdSlug: slug,
       options,
-      // The JD row is inserted for `ws`; the build task must run as the same tenant
-      // or the Ledger shows an "Analyzing" chip whose run lives in another team's tray.
-    }, ws);
-    // 3. Link the row to its task so the Ledger can show live progress / retry.
-    setJdAnalysisTask(slug, task.id);
-    return NextResponse.json({ slug, taskId: task.id });
+      buildInput,
+      workspaceId: ws,
+      params: {
+        company: typeof record.company === "string" ? record.company : undefined,
+        seniority: typeof record.seniority === "string" ? record.seniority : undefined,
+        roleFamily: typeof record.roleFamily === "string" ? record.roleFamily : undefined,
+        needText,
+        repoUrl: typeof record.repoUrl === "string" ? record.repoUrl : undefined,
+        lang: typeof record.lang === "string" ? record.lang : undefined,
+        templateBody,
+      },
+    });
+    return NextResponse.json({ slug, taskId });
   } catch (error) {
     return safeJsonError(error, "api:jds/generate", "JD_GENERATE_FAILED");
   }

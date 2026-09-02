@@ -360,8 +360,13 @@ export async function runJdBuild(
             { slug: jdSlug, title, markdown, role: spec, salary: salary?.result, company: input.company },
             workspaceId
           );
-        } catch {
-          /* best-effort ingest — never blocks the saved JD */
+        } catch (ingestError) {
+          // Best-effort: a failed ingest never blocks the saved JD. But it is not
+          // silent — the JD lands "ready" and not matchable, so "Source into
+          // Pipeline" dead-ends until the Ledger's "Ingest as job" retry is used,
+          // and whoever runs the server needs the cause. Same shape as the sibling
+          // catches in POST /api/jds/save and PATCH /api/jds/[slug].
+          console.error(`[jd-build] JD ${jdSlug} saved but job ingest failed`, ingestError);
         }
       }
     }

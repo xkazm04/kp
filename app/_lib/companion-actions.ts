@@ -196,21 +196,21 @@ export const COMPANION_ACTIONS: readonly CompanionActionSpec[] = [
       const { validateJdBuildInput } = await import("./jd-limits");
       const valid = validateJdBuildInput(title, needText);
       if (!valid.ok) return refused("jdNeedsMore");
-      const { insertAnalyzingJd, setJdAnalysisTask } = await import("./db/jobs");
-      const { startTask } = await import("./tasks");
-      // Byte-identical to the Generate flow: a placeholder JD row appears in the
-      // library immediately in its `analyzing` state, and the detached build
-      // fills it in. `analysis_status` never reaches "published" on this path —
+      const { startJdBuild } = await import("./jd-build-start");
+      // Byte-identical to the Generate flow BECAUSE IT IS THE SAME CODE: the shared
+      // seam inserts the placeholder JD row (it appears in the library immediately
+      // in its `analyzing` state), starts the detached build that fills it in, and
+      // links the two. `analysis_status` never reaches "published" on this path —
       // publishing is a separate act the operator takes in the library.
       const options = { description: true, marketResearch: true, caseDesign: false };
       const buildInput = { needText, seniority: params.seniority, lang: ctx.locale, options };
-      const { slug } = insertAnalyzingJd({ title: valid.title, options, buildInput }, ctx.workspaceId);
-      const task = startTask(
-        "jd_build",
-        { title: valid.title, needText, seniority: params.seniority, lang: ctx.locale, jdSlug: slug, options },
-        ctx.workspaceId
-      );
-      setJdAnalysisTask(slug, task.id);
+      const { slug } = startJdBuild({
+        title: valid.title,
+        options,
+        buildInput,
+        workspaceId: ctx.workspaceId,
+        params: { needText, seniority: params.seniority, lang: ctx.locale },
+      });
       return { key: "jdDrafting", values: { title: valid.title }, ref: slug };
     },
   },
