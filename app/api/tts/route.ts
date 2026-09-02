@@ -7,13 +7,44 @@
 // "spoken by X (fell back from Y)" — fallback is visible, never silent.
 import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { getTts, TtsError } from "@/app/_lib/tts";
 import { speakCached } from "@/app/_lib/tts-cache";
 import { ttsUsageRow } from "@/app/_lib/tts-prices";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
+
+// The engine's typed code -> the status that tells the caller what to do next.
+// A LOOKUP rather than a ternary chain over the union: the package owns that
+// union and adds to it (`rate_limited` arrived after this route was written), so
+// a shape that cannot compile against an unknown member is a route that breaks
+// on a package bump instead of degrading to the honest default. Anything not
+// listed is 502 — the engine broke, and that is what a caller retries against.
+const TTS_ERROR_STATUS: Record<string, number> = {
+  invalid_text: 400,
+  invalid_voice: 400,
+  unavailable: 503,
+  timeout: 504,
+};
+
+/** The ENGINE's own 429, answered with our own throttle's code so a client that
+ *  can back off from one can back off from both. Our per-IP refusal above calls
+ *  `jsonRefusal` inline rather than coming through here: the limiter's call site
+ *  and its refusal are pinned as a pair by rate-limit-contract.test.ts, and a
+ *  helper in between is exactly the indirection that pin exists to prevent.
+ *  429 with the wait the engine ASKED for, and no header at all when it did not
+ *  say. A fabricated Retry-After is worse than none: a client that trusts it
+ *  either hammers a service that wanted longer or sleeps through a window that
+ *  was already open. */
+function engineThrottled(retryAfterMs?: number) {
+  const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
+  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+    res.headers.set("retry-after", String(Math.ceil(retryAfterMs / 1000)));
+  }
+  return res;
+}
 
 export async function GET() {
   const denied = await requireOperator();
@@ -27,13 +58,13 @@ export async function POST(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`tts:${clientIpFrom(request.headers)}`, TTS_RATE_LIMIT)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   let body: { text?: unknown; language?: unknown; provider?: unknown; voiceId?: unknown; speed?: unknown };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+    return jsonRefusal("VOICE_REQUEST_INVALID", 400);
   }
   const text = typeof body.text === "string" ? body.text : "";
   try {
@@ -75,10 +106,13 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     if (err instanceof TtsError) {
-      const status = err.code === "invalid_text" || err.code === "invalid_voice" ? 400 : err.code === "unavailable" ? 503 : err.code === "timeout" ? 504 : 502;
+      // The engine asking us to slow down is the SAME refusal as our own
+      // throttle, so it answers with the same code and the same header — a
+      // client that can back off from one can back off from both.
+      if (err.code === "rate_limited") return engineThrottled(err.retryAfterMs);
+      const status = TTS_ERROR_STATUS[err.code] ?? 502;
       return NextResponse.json({ error: err.message, code: err.code, provider: err.provider ?? null }, { status });
     }
-    console.error("[tts] unexpected", err);
-    return NextResponse.json({ error: "synthesis failed" }, { status: 500 });
+    return safeJsonError(err, "api:tts", "TTS_FAILED");
   }
 }

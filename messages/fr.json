@@ -1357,7 +1357,14 @@
     "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations.",
     "EDGE_CONFIG_REJECTED": "Cette adresse d'edge a été refusée. Ce doit être une URL https:// publique.",
     "EDGE_PAIR_REFUSED": "Impossible de publier la clé de scellement sur l'edge. Vérifiez l'appairage et réessayez.",
-    "EDGE_SAVE_FAILED": "Impossible d'enregistrer l'appairage de l'edge. Veuillez réessayer."
+    "EDGE_SAVE_FAILED": "Impossible d'enregistrer l'appairage de l'edge. Veuillez réessayer.",
+    "TTS_FAILED": "Impossible de lire cette réponse à voix haute pour le moment. Veuillez réessayer.",
+    "STT_FAILED": "Impossible de transcrire cet enregistrement. Veuillez réessayer.",
+    "VOICE_REQUEST_INVALID": "Cette requête n'était pas un JSON valide.",
+    "AUDIO_MISSING": "Joignez un enregistrement à transcrire.",
+    "AUDIO_UNSUPPORTED_TYPE": "Utilisez WAV, MP3, M4A, WebM, OGG ou FLAC pour l'enregistrement.",
+    "AUDIO_TOO_LARGE": "Cet enregistrement dépasse la limite de téléversement de 25 Mo.",
+    "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez."
   },
   "resilience": {
     "notFoundEyebrow": "404",

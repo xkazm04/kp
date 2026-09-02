@@ -13,11 +13,44 @@
 // any human reviewing interviews by hand and nowhere near a bill worth noticing.
 import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { validateAudioUploadServer } from "@/app/_lib/upload-constraints";
 import { getStt, isSttMimeType, SttError, type SttNeeds } from "@/app/_lib/stt";
 
 const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+
+// The engine's typed code -> the status. A LOOKUP rather than a ternary chain
+// over the union, for the reason /api/tts's twin states: the package owns the
+// union and grows it, and a route that cannot compile against a member it has
+// not heard of breaks on a bump instead of degrading to the honest 502.
+// `unsupported` keeps its own 422: the request was well-formed and the engines
+// are healthy, but what was asked for (redaction, diarization, on-device) is not
+// on offer here. `too_long` is a 413 beside the byte cap, because the clip is
+// well-formed and the remedy for both is the same one: split it.
+const STT_ERROR_STATUS: Record<string, number> = {
+  invalid_audio: 400,
+  invalid_language: 400,
+  invalid_model: 400,
+  unsupported: 422,
+  unavailable: 503,
+  timeout: 504,
+};
+
+/** The ENGINE's own 429, answered with our own throttle's code so a client that
+ *  can back off from one can back off from both. Our per-IP refusal above calls
+ *  `jsonRefusal` inline rather than coming through here: the limiter's call site
+ *  and its refusal are pinned as a pair by rate-limit-contract.test.ts, and a
+ *  helper in between is exactly the indirection that pin exists to prevent.
+ *  429 with the wait the engine ASKED for, and no header when it did not say —
+ *  a fabricated Retry-After is worse than none. Same shape as /api/tts's. */
+function engineThrottled(retryAfterMs?: number) {
+  const res = jsonRefusal("TOO_MANY_REQUESTS", 429);
+  if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs) && retryAfterMs > 0) {
+    res.headers.set("retry-after", String(Math.ceil(retryAfterMs / 1000)));
+  }
+  return res;
+}
 
 /** Form fields arrive as strings; only an explicit "true"/"1" is a yes. */
 function flag(form: FormData, name: string): boolean {
@@ -42,26 +75,26 @@ export async function POST(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`stt:${clientIpFrom(request.headers)}`, STT_RATE_LIMIT)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
   let form: FormData;
   try {
     form = await request.formData();
   } catch {
-    return NextResponse.json({ error: "expected a multipart body with an `audio` file" }, { status: 400 });
+    return jsonRefusal("AUDIO_MISSING", 400);
   }
   const file = form.get("audio");
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "`audio` must be a non-empty file" }, { status: 400 });
+    return jsonRefusal("AUDIO_MISSING", 400);
   }
-  const rejection = validateAudioUploadServer(file, "recording");
-  if (rejection) return NextResponse.json({ error: rejection.error }, { status: rejection.status });
+  const rejection = validateAudioUploadServer(file);
+  if (rejection) return jsonRefusal(rejection.code, rejection.status);
   // The gate accepted the type, so the package's door will too — but the door is
   // the authority, and narrowing here rather than casting keeps it that way.
   const mimeType = file.type;
   if (!isSttMimeType(mimeType)) {
-    return NextResponse.json({ error: `unsupported container ${mimeType}` }, { status: 400 });
+    return jsonRefusal("AUDIO_UNSUPPORTED_TYPE", 400);
   }
 
   // `onDevice` is a per-request FLOOR, never a widening: it can refuse the cloud
@@ -107,23 +140,16 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     if (err instanceof SttError) {
-      // Five different answers, mapped in exactly one place so the browser can
-      // branch without parsing messages. `unsupported` is its own 422: the
-      // request was well-formed and the engines are healthy — what was asked for
-      // (redaction, diarization, on-device) is not on offer here.
-      const status =
-        err.code === "invalid_audio" || err.code === "invalid_language" || err.code === "invalid_model"
-          ? 400
-          : err.code === "unsupported"
-            ? 422
-            : err.code === "unavailable"
-              ? 503
-              : err.code === "timeout"
-                ? 504
-                : 502;
+      // The engine asking us to slow down is the SAME refusal as our own
+      // throttle, so it answers with the same code and the same header.
+      if (err.code === "rate_limited") return engineThrottled(err.retryAfterMs);
+      // A clip past the engine's declared length ceiling is a REFUSAL the
+      // operator can act on, so it carries a resolvable code rather than the
+      // adapter's English: "split it and try again", in their own language.
+      if (err.code === "too_long") return jsonRefusal("STT_TOO_LONG", 413);
+      const status = STT_ERROR_STATUS[err.code] ?? 502;
       return NextResponse.json({ error: err.message, code: err.code, provider: err.provider ?? null }, { status });
     }
-    console.error("[stt] unexpected", err);
-    return NextResponse.json({ error: "transcription failed" }, { status: 500 });
+    return safeJsonError(err, "api:stt", "STT_FAILED");
   }
 }

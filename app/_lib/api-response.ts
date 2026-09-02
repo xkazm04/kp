@@ -173,6 +173,12 @@ export const STORE_ERRORS = {
   // at-rest encryption of the shared secret, whose thrown messages carry key and
   // file detail — exactly what must not reach a browser.
   EDGE_SAVE_FAILED: "Could not save the edge pairing. Please try again.",
+  // The two voice host routes (/api/tts, /api/stt). Their 500 sits over a cloud
+  // adapter's HTTP body, a spawned local sidecar's stderr and the operator's own
+  // model paths — every one of them internal detail the route was forwarding
+  // verbatim as "synthesis failed" / "transcription failed" with no code at all.
+  TTS_FAILED: "Could not speak that just now. Please try again.",
+  STT_FAILED: "Could not transcribe that recording. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -279,6 +285,23 @@ export const REFUSAL_ERRORS = {
   /** Publishing the sealing key did not happen (400) — usually because no edge is
    *  paired yet, or it did not answer. Nothing was rotated; retrying is safe. */
   EDGE_PAIR_REFUSED: "Could not publish the sealing key to the edge. Check the pairing and try again.",
+  // ---- The voice host routes' boundary refusals (/api/tts, /api/stt). Every
+  // one of these was an English sentence with no code, on routes a Czech,
+  // German or French operator reaches through the same dock as everything else.
+  /** The POST body was not JSON at all (400) — /api/tts. */
+  VOICE_REQUEST_INVALID: "That request was not valid JSON.",
+  /** No `audio` part, an empty one, or a body that is not multipart (400). */
+  AUDIO_MISSING: "Attach a recording to transcribe.",
+  /** A container no engine here accepts (400). The remedy is a re-export, so it
+   *  stays distinct from AUDIO_TOO_LARGE: "convert it" and "shorten it" are
+   *  different next actions and a single generic 400 told the operator neither. */
+  AUDIO_UNSUPPORTED_TYPE: "Use WAV, MP3, M4A, WebM, OGG or FLAC for the recording.",
+  /** Past the 25 MB audio ceiling (413, the shared FILE_TOO_LARGE_STATUS). */
+  AUDIO_TOO_LARGE: "That recording is over the 25 MB upload limit.",
+  /** The clip is well-formed and within the byte cap but longer than the serving
+   *  engine's declared ceiling (413). The engine's own `too_long`, given the same
+   *  status as the byte cap because the remedy — split it — is the same one. */
+  STT_TOO_LONG: "That recording is longer than this engine can transcribe in one go. Split it and try again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

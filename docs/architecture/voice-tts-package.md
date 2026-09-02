@@ -126,6 +126,15 @@ ladder: explicit env → shared home `bin/` → PATH.
   HTTP-date; malformed/past → `undefined`, host picks its own backoff), 422/404 →
   `invalid_voice`, 401/403 → `unavailable`, 5xx → `engine_failed`. A 429 deliberately does
   NOT invalidate the cached ready probe — busy is not down.
+- **Refusals carry a CODE, never the adapter's English** (api-contracts.md §1.1):
+  `TOO_MANY_REQUESTS` for both the per-IP throttle and the engine's own 429 (which forwards
+  `Retry-After` from `err.retryAfterMs`, and sends no header when the engine did not say — a
+  fabricated wait is worse than none), `VOICE_REQUEST_INVALID` for a body that is not JSON,
+  and `safeJsonError(err, "api:tts", "TTS_FAILED")` for the 500, so a vendor HTTP body or a
+  local model path goes to the server log only. The engine code -> status mapping is a
+  LOOKUP keyed by the code, so a member the package adds later degrades to the honest 502
+  rather than failing to compile. Pinned by invoking the handler in
+  `app/api/tts/tts-route.test.ts`.
 - `requireOperator()` (defense in depth) and `rateLimit("tts:<ip>", 60/10 min)` — pinned by
   `app/api/rate-limit-contract.test.ts`, because in open mode a cloud call costs money and a
   local call spawns a process.

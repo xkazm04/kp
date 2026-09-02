@@ -170,6 +170,16 @@ length. `rate_limited` exists so a vendor's concurrency ceiling does not reach a
 as "the engine broke" — the two have opposite next actions (wait and repeat vs. investigate),
 and the adapter keeps a cached positive probe across a 429 because busy is not down.
 
+**Every refusal carries a CODE, never an English sentence** (api-contracts.md §1.1). The
+boundary refusals resolve through `REFUSAL_ERRORS`: `AUDIO_MISSING` (no multipart body, no
+`audio` part, or an empty one), `AUDIO_UNSUPPORTED_TYPE`, `AUDIO_TOO_LARGE`,
+`TOO_MANY_REQUESTS` (the per-IP throttle AND the engine's own `rate_limited`, so a client
+backs off from both the same way) and `STT_TOO_LONG` for the engine's `too_long`.
+`validateAudioUploadServer` returns `{ status, code }` rather than a sentence, and the 500
+is `safeJsonError(err, "api:stt", "STT_FAILED")` — the adapter's message (which can carry a
+vendor HTTP body or a local model path) goes to the server log only. The code -> status
+table is pinned by invoking the handler in `app/api/stt/stt-route.test.ts`.
+
 The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every
 boundary that renders it.

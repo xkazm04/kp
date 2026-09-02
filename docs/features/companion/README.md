@@ -309,6 +309,13 @@ Blocks ride to the client in the turn's `meta_json` (`CompanionTurnMeta.blocks`)
 are re-coerced at that boundary by `app/_lib/companion-blocks.ts` (a `meta_json`
 row written by an older build is untrusted input), and render through
 `app/_components/chat/ChatBlocks.tsx` → `ChatTable.tsx` / `ChatMiniChart.tsx`.
+**Both halves of that discard are counted.** `blockErrors` is produced in Python,
+where the raw fences were still visible; a block that satisfied
+`companion_blocks.py` and then failed the TS coercion — the stale stored turn
+this second gate exists for — used to be dropped in silence. `renderableBlocks()`
+now re-coerces at the point of drawing and adds what died there to the server's
+count, so the one chip both the dock and the voice strip render
+(`t("blocks.dropped")`) tells the truth about both.
 **The caps live in three places and must move together**: `companion_blocks.py`,
 `app/_components/chat/chatBlockTypes.ts`, and the renderers built to them.
 

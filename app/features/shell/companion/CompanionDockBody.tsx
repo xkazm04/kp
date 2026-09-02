@@ -7,6 +7,7 @@ import { ChatTranscript, type ChatSide, type ChatTurn } from "@/app/_components/
 import { ChatBlocks } from "@/app/_components/chat/ChatBlocks";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { renderableBlocks } from "@/app/_lib/companion-blocks";
 import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
@@ -305,8 +306,11 @@ function TurnExtras({
    *  so the whole strip stays one line of marginalia. */
   speakSlot?: ReactNode;
 }) {
-  const blocks = meta?.blocks ?? [];
-  const dropped = meta?.blockErrors ?? 0;
+  // Blocks are re-coerced at the point of DRAWING (a stored turn is untrusted
+  // input however it was typed on the way in) and the drop count is the
+  // server's PLUS whatever did not survive that coercion — the one half of the
+  // counted-discard rule the code was not keeping.
+  const { blocks, blockErrors: dropped } = renderableBlocks(meta);
   const droppedActions = meta?.actionErrors ?? 0;
   // What she REMEMBERED, as insight rather than transcript. The strip prints the
   // CLI's short `insight` form and nothing else: a hit that carries none grounded

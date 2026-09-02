@@ -1357,7 +1357,14 @@
     "AGENT_BRIDGE_KEY_UNREADABLE": "Uložený klíč pro Personas už nelze přečíst. Od spárování se změnilo tajemství serveru; obnovte je, nebo spárujte znovu v Nastavení → Integrace.",
     "EDGE_CONFIG_REJECTED": "Adresa edge byla odmítnuta. Musí to být veřejná https:// adresa.",
     "EDGE_PAIR_REFUSED": "Pečetící klíč se nepodařilo publikovat na edge. Zkontrolujte spárování a zkuste to znovu.",
-    "EDGE_SAVE_FAILED": "Spárování s edge se nepodařilo uložit. Zkuste to prosím znovu."
+    "EDGE_SAVE_FAILED": "Spárování s edge se nepodařilo uložit. Zkuste to prosím znovu.",
+    "TTS_FAILED": "Tuto odpověď se teď nepodařilo přečíst nahlas. Zkuste to prosím znovu.",
+    "STT_FAILED": "Nahrávku se nepodařilo přepsat. Zkuste to prosím znovu.",
+    "VOICE_REQUEST_INVALID": "Tento požadavek nebyl platný JSON.",
+    "AUDIO_MISSING": "Přiložte nahrávku k přepisu.",
+    "AUDIO_UNSUPPORTED_TYPE": "Pro nahrávku použijte WAV, MP3, M4A, WebM, OGG nebo FLAC.",
+    "AUDIO_TOO_LARGE": "Tato nahrávka překračuje limit 25 MB pro nahrání.",
+    "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
