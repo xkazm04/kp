@@ -678,6 +678,34 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### A landing build never overwrites an edit
+
+The same rule now binds the build's OWN write. `finishJdAnalysis` used to be a
+bare by-slug `UPDATE` of the body with no precondition and — unlike
+`updateJd`/`revertJd` — no `jd_revisions` snapshot. A `jd_build` lands one to two
+minutes after it starts, and `PATCH /api/jds/[slug]` accepts an edit for that
+whole window (deliberately: the placeholder row is editable in the Ledger, and
+refusing an edit the UI offers is the worse trade), so an operator who fixed an
+`analyzing` row watched the build overwrite it with no snapshot, no conflict and
+no trace.
+
+`finishJdAnalysis` now runs `tx.immediate()` and takes the body only when the row
+is still the untouched placeholder the build was started for —
+`body = '' AND analysis_status = 'analyzing'`. Both conjuncts matter: `body = ''`
+is the edit guard (only a build or an operator ever fills a placeholder), and
+`analysis_status = 'analyzing'` is the finished-row guard, which the first does
+not imply — a market-research-only build composes no markdown, so a `ready` row
+can legitimately carry an empty body, and without the second conjunct a late or
+duplicate run would overwrite its artifacts.
+
+When the predicate fails nothing is thrown away: the composed markdown is filed
+into `jd_revisions` (so the Ledger's revision list offers it and `revertJd` can
+restore it), the artifacts and the `ready` flip still land (leaving the row
+`analyzing` forever would be worse), the matchable `jd-<slug>` ingest is SKIPPED
+(an opening must not answer text the JD does not show), and the task result
+carries `bodyHeldAsRevision: true`, which the Tasks drawer renders — so the run
+does not report a silent success. Pinned by `app/_lib/db/jd-build-cas.test.ts`.
+
 ## Reading the `jobs` corpus: a page is not a count, and "visible" is not "owned"
 
 Two traps live in `app/_lib/db/jobs.ts`, both now named by primitives.

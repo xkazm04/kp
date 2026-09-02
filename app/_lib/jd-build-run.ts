@@ -333,14 +333,26 @@ export async function runJdBuild(
       options,
     };
 
+    let bodyHeldAsRevision = false;
     if (jdSlug) {
-      // Persist inside the detached handler → lands even if the client left.
-      finishJdAnalysis(jdSlug, { body: markdown, analysisJson: artifacts });
+      // Persist inside the detached handler → lands even if the client left. The
+      // write is conditional: finishJdAnalysis takes the body ONLY if the row is
+      // still the untouched placeholder this build was started for. An operator who
+      // edited the row during the 1–2 minute build keeps their text, and this
+      // build's markdown is filed as a revision they can read and revert to.
+      const finished = finishJdAnalysis(jdSlug, { body: markdown, analysisJson: artifacts });
+      bodyHeldAsRevision = finished.ok && !finished.bodyWritten && Boolean(markdown.trim());
+      if (bodyHeldAsRevision) {
+        // An operator would act on this: their JD did NOT get the generated body.
+        console.warn(`[jd-build] ${jdSlug} moved during the build — result filed as a revision, live body kept`);
+      }
       // Make it matchable exactly as "Save as draft" did — but only when there's a
-      // real description with a role. Best-effort (same contract as /api/jds/save):
-      // a failed ingest leaves the JD saved but not matchable, and the Ledger's
-      // "Ingest as job" retry can fix it up.
-      if (options.description && spec) {
+      // real description with a role AND that description is what the JD actually
+      // shows: ingesting a body the row does not carry would make the matchable
+      // `jd-<slug>` opening answer text no reader can see. Best-effort (same contract
+      // as /api/jds/save): a failed ingest leaves the JD saved but not matchable, and
+      // the Ledger's "Ingest as job" retry can fix it up.
+      if (options.description && spec && finished.ok && finished.bodyWritten) {
         try {
           // Same tenant the placeholder JD row lives in (see workspaceId above), so the
           // opening lands in the corpus of the team that generated it.
@@ -354,7 +366,10 @@ export async function runJdBuild(
       }
     }
 
-    return { markdown, ...artifacts };
+    // `bodyHeldAsRevision` rides the task result (TasksOutcome renders the result's
+    // scalars), so the Tasks drawer says the build did not become the JD's body
+    // rather than claiming a silent success.
+    return { markdown, ...artifacts, ...(bodyHeldAsRevision ? { bodyHeldAsRevision: true } : {}) };
   } catch (err) {
     // Mark the placeholder JD failed so the Ledger shows a failed chip + retry
     // instead of a row stuck "Analyzing" forever. Then rethrow so the TASK also
