@@ -78,8 +78,8 @@ export function MatrixGrid({
         if (selected.has(key)) s.push(key);
         if (added.has(key)) a.push(key);
       }
-      sel.push(s.join(" "));
-      add.push(a.join(" "));
+      sel.push(s.join(","));
+      add.push(a.join(","));
     }
     return { selSigs: sel, addSigs: add };
   }, [rows, cols, selected, added]);
