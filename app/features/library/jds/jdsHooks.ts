@@ -192,17 +192,21 @@ export function useHeldBuilds(rows: JdRow[] | null): Set<string> {
   const seen = useRef<Set<string>>(new Set());
 
   // The rows whose build FINISHED and whose task is still in the polled window.
-  const pending = (rows ?? [])
+  // Deliberately NOT filtered by `seen` here: a ref must not be read during render
+  // (react-hooks/refs — a render that depends on a ref does not re-run when it
+  // changes), so the once-only guard lives inside the effect below.
+  const candidates = (rows ?? [])
     .filter((r) => r.analysis_status !== "analyzing" && Boolean(r.analysis_task_id))
     .map((r) => r.analysis_task_id as string)
-    .filter((id) => !seen.current.has(id) && tasks.some((t) => t.id === id && t.status === "succeeded"));
+    .filter((id) => tasks.some((t) => t.id === id && t.status === "succeeded"));
   // A stable key so the effect re-runs when the candidate SET changes, not on
   // every poll tick that re-creates the same array.
-  const pendingKey = pending.join(",");
+  const candidateKey = candidates.join(",");
 
   useEffect(() => {
-    if (!pendingKey) return;
-    const ids = pendingKey.split(",");
+    if (!candidateKey) return;
+    const ids = candidateKey.split(",").filter((id) => !seen.current.has(id));
+    if (ids.length === 0) return;
     ids.forEach((id) => seen.current.add(id));
     let cancelled = false;
     void Promise.all(ids.map((id) => fetchTask(id).then((task) => [id, heldAsRevision(task?.result)] as const))).then(
@@ -220,7 +224,7 @@ export function useHeldBuilds(rows: JdRow[] | null): Set<string> {
     return () => {
       cancelled = true;
     };
-  }, [pendingKey, fetchTask]);
+  }, [candidateKey, fetchTask]);
 
   const slugs = new Set<string>();
   for (const row of rows ?? []) {
