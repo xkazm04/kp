@@ -7573,6 +7573,20 @@
       "weak": "Nosné jsou jen {loadBearing} z {total} sond. Většina silné od naivních neodliší.",
       "none": "Žádné nosné sondy. Toto zadání nerozezná silné řešení od naivního."
     },
+    "sessionEvidence": {
+      "show": "Doklady ze sezení",
+      "hide": "Skrýt doklady ze sezení",
+      "loading": "Načítám doklady ze sezení…",
+      "loadFailed": "Doklady ze sezení se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "empty": "Kandidát odkaz otevřel, ale nezanechal žádný přepis ani soubory.",
+      "transcriptTitle": "Přepis · {count} {count, plural, one {replika} few {repliky} other {replik}}",
+      "noTranscript": "V tomto sezení nejsou žádné repliky chatu.",
+      "filesTitle": "Odevzdané soubory · {count} · {total}",
+      "noFiles": "V tomto sezení nebyly uloženy žádné soubory.",
+      "roleCandidate": "Kandidát",
+      "roleAssistant": "Asistent"
+    },
     "integrity": {
       "title": "Integrita záznamu",
       "chainVerified": "Řetězec ověřen · {count, plural, one {# událost} few {# události} other {# událostí}}",

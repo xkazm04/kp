@@ -878,12 +878,24 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
 
 ## Known gaps
 
-- No reviewer surface renders the candidate's **chat transcript** or **submitted
-  file tree**. `getDevSessionChat` / `getDevSession().files` are read only by the
-  chat route and `devcase-run.ts`; there is no authenticated recruiter-facing GET
-  for session evidence (`app/api/devcase/session/[id]/route.ts` is POST-only and
-  candidate-token-authed). The mechanical verdicts above name the files a canary
-  landed in, but a reviewer cannot open them.
+- The reviewer CAN now open the candidate's **chat transcript** and **submitted
+  file tree**: `DevSessionEvidencePanel` (mounted by `DevSubmissionRow` beside
+  `EvalPanel`) calls the workspace-authed `GET /api/devcase/session/[id]`, which
+  had existed and been pinned by `session-read.test.ts` since the Live Work
+  Surface shipped with **zero callers**. It is gated on the submission being an
+  in-product session — `sessionIdFromRepoRef` reads the `session:<id>` encoding
+  `devcase-run.ts` writes — and NOT on an evaluation existing, so the evidence is
+  readable before a verdict is computed. It fetches on open rather than on mount
+  (a list of rows must not each pull a transcript plus a tree), keeps the result,
+  and offers a retry; the error resolves through `useErrorMessage`. The
+  `self_grading` judge chip renders beside it from the same `judgeSeatState` the
+  integrity strip uses, with the asymmetry intact (only the bad state shows).
+  What it deliberately does NOT do is preview file CONTENTS: it lists each path
+  with its size in bytes, because an unbounded blob of candidate-authored text in
+  the recruiter's page helps no decision they are making. The shaping half is
+  pure and tested — `sessionEvidenceModel` in
+  `app/features/tools/devcases/devcase-session-evidence.ts`, 7 node:test cases,
+  including that a tree with no chat is **not** an empty session.
 - The `architecture` rubric dimension name is still software-flavored even for
   a non-software case (the description text was neutralized, the field name
   wasn't — a cascading rename was deferred).

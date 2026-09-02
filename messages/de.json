@@ -7573,6 +7573,20 @@
       "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend. Die meisten trennen Starke nicht von Naiven.",
       "none": "Keine tragenden Prüfpunkte. Diese Aufgabe unterscheidet eine starke Einreichung nicht von einer naiven."
     },
+    "sessionEvidence": {
+      "show": "Sitzungsbelege",
+      "hide": "Sitzungsbelege ausblenden",
+      "loading": "Sitzungsbelege werden geladen…",
+      "loadFailed": "Die Sitzungsbelege konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Diese Person hat den Link geöffnet, aber weder Protokoll noch Dateien hinterlassen.",
+      "transcriptTitle": "Protokoll · {count} {count, plural, one {Beitrag} other {Beiträge}}",
+      "noTranscript": "In dieser Sitzung gibt es keine Chat-Beiträge.",
+      "filesTitle": "Eingereichte Dateien · {count} · {total}",
+      "noFiles": "In dieser Sitzung wurden keine Dateien gespeichert.",
+      "roleCandidate": "Kandidierende Person",
+      "roleAssistant": "Assistenz"
+    },
     "integrity": {
       "title": "Integrität des Protokolls",
       "chainVerified": "Kette verifiziert · {count, plural, one {# Ereignis} other {# Ereignisse}}",

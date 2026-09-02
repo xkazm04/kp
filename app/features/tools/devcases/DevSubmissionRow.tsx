@@ -11,6 +11,8 @@ import { useDevSubmissionRow } from "./useDevSubmissionRow";
 import { DevSubmissionRowOutcome } from "./DevSubmissionRowOutcome";
 import { DevSubmissionRowSkillProfile } from "./DevSubmissionRowSkillProfile";
 import { DevVoiceScreenPanel } from "./DevVoiceScreenPanel";
+import { DevSessionEvidencePanel } from "./DevSessionEvidencePanel";
+import { sessionIdFromRepoRef } from "./devcase-session-evidence";
 import type { Submission } from "./DevTypes";
 
 // The transfer-fit chip on the canonical score scale — scoreTone owns the 75/50
@@ -198,6 +200,17 @@ export function SubmissionRow({
         </div>
       ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {/* Gap #1 — the raw evidence behind every verdict above. Gated on the submission
+          being an in-product SESSION (a repo submission has no transcript and no
+          observed tree), NOT on `ev`: the evidence exists from the moment the candidate
+          submits, and a reviewer who wants to read it before running an evaluation is
+          exactly the reader this closes the gap for. */}
+      {sessionIdFromRepoRef(submission.repoRef) ? (
+        <DevSessionEvidencePanel
+          sessionId={sessionIdFromRepoRef(submission.repoRef)!}
+          judgeIndependence={ev?.judgeIndependence}
+        />
+      ) : null}
       {/* ONE THREAD (gap 4) — the voice screen that verifies this evaluation, reachable
           from the evaluation. Gated on `ev` for the same reason /api/interview/create
           is: the screen's brief is built from the evaluation's own minted follow-ups,

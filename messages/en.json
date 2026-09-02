@@ -7573,6 +7573,20 @@
       "weak": "Only {loadBearing} of {total} probes are load-bearing. Most won't separate strong from naive.",
       "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one."
     },
+    "sessionEvidence": {
+      "show": "Session evidence",
+      "hide": "Hide session evidence",
+      "loading": "Loading the session evidence…",
+      "loadFailed": "Could not load the session evidence.",
+      "retry": "Retry",
+      "empty": "This candidate opened the link but left no transcript and no files.",
+      "transcriptTitle": "Transcript · {count} {count, plural, one {turn} other {turns}}",
+      "noTranscript": "No chat turns in this session.",
+      "filesTitle": "Submitted files · {count} · {total}",
+      "noFiles": "No files were saved in this session.",
+      "roleCandidate": "Candidate",
+      "roleAssistant": "Assistant"
+    },
     "integrity": {
       "title": "Log integrity",
       "chainVerified": "Chain verified · {count, plural, one {# event} other {# events}}",

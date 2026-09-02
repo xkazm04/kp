@@ -7573,6 +7573,20 @@
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses. La plupart ne sépareront pas les bons des naïfs.",
       "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf."
     },
+    "sessionEvidence": {
+      "show": "Éléments de la session",
+      "hide": "Masquer les éléments de la session",
+      "loading": "Chargement des éléments de la session…",
+      "loadFailed": "Impossible de charger les éléments de la session.",
+      "retry": "Réessayer",
+      "empty": "Cette personne a ouvert le lien sans laisser de transcription ni de fichier.",
+      "transcriptTitle": "Transcription · {count} {count, plural, one {échange} other {échanges}}",
+      "noTranscript": "Aucun échange de chat dans cette session.",
+      "filesTitle": "Fichiers remis · {count} · {total}",
+      "noFiles": "Aucun fichier n’a été enregistré dans cette session.",
+      "roleCandidate": "Personne candidate",
+      "roleAssistant": "Assistant"
+    },
     "integrity": {
       "title": "Intégrité du journal",
       "chainVerified": "Chaîne vérifiée · {count, plural, one {# événement} other {# événements}}",
