@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { MessageSquarePlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 import { useAttention } from "@/app/features/shell/useAttention";
+import { shouldRefetchCompanionThread } from "@/app/_lib/companion-turn";
 import { useOptionalCompanionDock } from "./CompanionDockProvider";
 import { CompanionSettingsMenu } from "./CompanionSettingsMenu";
 import { CompanionVoiceMode } from "./voice/CompanionVoiceMode";
@@ -53,6 +54,9 @@ export function CompanionDock() {
   const t = useTranslations("companion");
   const attention = useAttention();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Whether the pill should take focus when it appears. True only on an operator
+  // close, so a workspace that loads with Candi collapsed does not grab focus.
+  const [focusRest, setFocusRest] = useState(false);
 
   const open = dock?.open ?? false;
   const voice = dock?.prefs.mode === "voice";
@@ -69,19 +73,61 @@ export function CompanionDock() {
     stop();
   }, [open, voice, stop]);
 
+  const closeDock = dock?.closeDock;
+  // ONE close path, so "the pill gets focus back" is a property of closing rather
+  // than of the button that happened to be pressed.
+  const close = useCallback(() => {
+    setFocusRest(true);
+    closeDock?.();
+  }, [closeDock]);
+
+  // Escape closes the window. Deliberately NOT a dialog dismissal: this is a
+  // complementary <aside> with no focus trap and no inert page (see the header),
+  // so the key is a courtesy for the operator whose hands are on the keyboard,
+  // not a modal contract. It is skipped while the settings popover is open —
+  // that popover binds Escape too, and although it calls stopPropagation, two
+  // listeners on `document` never see each other's propagation: the gate here is
+  // what actually stops one keypress from dismissing both.
+  useEffect(() => {
+    if (!open || settingsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      close();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, settingsOpen, close]);
+
+  // ARMED LATE, FOR FREE. `useAttention` already polls every 60s for the sidebar
+  // badges and `attention.companion` is the open-proposal count — so a digest that
+  // landed, or a proposal a sibling tab answered, moves a number this component is
+  // already holding. Reading it is the whole refresh: no second poller, no socket.
+  const companionCount = attention?.companion ?? null;
+  const refresh = dock?.thread.refresh;
+  const seenCount = useRef<number | null>(null);
+  useEffect(() => {
+    const should = shouldRefetchCompanionThread(seenCount.current, companionCount, open);
+    seenCount.current = companionCount;
+    if (should) void refresh?.();
+  }, [companionCount, open, refresh]);
+
   if (!dock) return null;
   if (showVoice) {
     return (
-      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={dock.closeDock} />
+      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={close} />
     );
   }
   if (!open) {
     return (
       <CompanionRest
-        onOpen={() => dock.openDock()}
+        onOpen={() => {
+          setFocusRest(false);
+          dock.openDock();
+        }}
         busy={dock.thread.busy}
         unread={dock.unread}
         label={t("dock.open")}
+        focusOnMount={focusRest}
       />
     );
   }
@@ -113,7 +159,7 @@ export function CompanionDock() {
         // empty thread is the one outcome nobody asked for.
         canStartNew={dock.thread.ready && !dock.thread.busy}
         onNew={() => void dock.thread.newThread()}
-        onClose={dock.closeDock}
+        onClose={close}
       />
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
         <CompanionBody
@@ -126,6 +172,8 @@ export function CompanionDock() {
           speech={dock.speech}
           onSend={dock.thread.send}
           onResolveProposal={dock.thread.resolveProposal}
+          lastFailed={dock.thread.lastFailed}
+          onRetry={dock.thread.retry}
         />
       </div>
     </aside>

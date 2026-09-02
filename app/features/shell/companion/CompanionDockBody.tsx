@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { ChatTranscript, type ChatSide, type ChatTurn } from "@/app/_components/chat/ChatTranscript";
 import { ChatBlocks } from "@/app/_components/chat/ChatBlocks";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
-import { CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
 import type { AttentionCounts } from "@/app/features/shell/useAttention";
@@ -66,6 +67,10 @@ export type CompanionBodyProps = {
   speech: CompanionSpeech;
   onSend: (message: string) => Promise<boolean>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The message whose exchange did not land. Present means the error line can
+   *  offer to send it again; the composer is holding the same text as a draft. */
+  lastFailed: string | null;
+  onRetry: () => Promise<boolean>;
 };
 
 /** Turn provenance, read from the stored meta without asserting past it: an
@@ -83,6 +88,7 @@ export function CompanionRest({
   busy,
   unread,
   label,
+  focusOnMount = false,
 }: {
   onOpen: () => void;
   /** A turn is still in flight after the operator collapsed the dock. */
@@ -90,9 +96,22 @@ export function CompanionRest({
   /** A reply landed while the dock was closed. */
   unread: boolean;
   label: string;
+  /** The operator just CLOSED the window, so keyboard focus was inside it and is
+   *  about to be nowhere. Take it here — the pill is where the window went. Only
+   *  on that transition: a page that loads with the dock closed must not steal
+   *  focus from wherever the operator actually is. */
+  focusOnMount?: boolean;
 }) {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  // Only ever true on the render that follows an operator CLOSE — the pill mounts
+  // already carrying it, and opening unmounts the pill again — so this fires once,
+  // on the transition it is named for, and never as a later grab.
+  useEffect(() => {
+    if (focusOnMount) ref.current?.focus();
+  }, [focusOnMount]);
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onOpen}
       aria-label={label}
@@ -119,6 +138,8 @@ export function CompanionBody({
   speech,
   onSend,
   onResolveProposal,
+  lastFailed,
+  onRetry,
 }: CompanionBodyProps) {
   const t = useTranslations("companion");
   const resolveError = useErrorMessage();
@@ -127,6 +148,19 @@ export function CompanionBody({
   // one exchange can carry two, a thread carries many, and the row the operator
   // is answering must be the one the sentence above it offered.
   const proposalById = useMemo(() => new Map(proposals.map((p) => [p.id, p])), [proposals]);
+  // Whether the LAST answer reached the brain. `indexSkipped` names the episode
+  // files that were written to disk but not indexed, so recall will not find them
+  // — the engine has always reported it and nothing has ever shown it. It is the
+  // newest assistant turn's fact, not the thread's: one blocked write does not
+  // make a conversation memoryless, and saying so on every later turn would be
+  // its own small lie.
+  const memoryNotWritten = useMemo(() => {
+    for (let i = turns.length - 1; i >= 0; i--) {
+      if (turns[i].role !== "assistant") continue;
+      return (turnMeta(turns[i]).indexSkipped ?? []).length > 0;
+    }
+    return false;
+  }, [turns]);
   const chatTurns = useMemo<ChatTurn[]>(
     () => turns.map((turn) => ({ id: turn.id, role: turn.role, content: turn.content })),
     [turns]
@@ -138,6 +172,15 @@ export function CompanionBody({
       placeholder: t("chat.placeholder"),
       send: t("chat.send"),
       transcriptLabel: t("chat.transcriptLabel"),
+    }),
+    [t]
+  );
+  const metaLabels = useMemo(
+    () => ({
+      digest: t("meta.digest"),
+      degraded: t("meta.degraded"),
+      degradedNoProvider: t("meta.degradedNoProvider"),
+      degradedProviderFailed: t("meta.degradedProviderFailed"),
     }),
     [t]
   );
@@ -157,8 +200,34 @@ export function CompanionBody({
             the switch is, because a limitation with no stated remedy just reads
             as a defect. */}
         {memoryEnabled ? null : <p className="text-sm text-steel">{t("state.memoryOff")}</p>}
+        {/* Consent is on and the write still did not land: a different fact, and
+            the only one of the two the operator cannot fix in setup. Same quiet
+            register as the line above — she answered, the answer just will not be
+            there next week. */}
+        {memoryEnabled && memoryNotWritten ? (
+          <p className="text-sm text-steel">{t("state.memoryNotWritten")}</p>
+        ) : null}
       </div>
-      {error ? <p className="pb-2 text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p> : null}
+      {/* An assertive live region, and OUTSIDE the transcript's polite one: a
+          failure is the one thing here a screen reader must hear now rather than
+          after whatever else is being announced. The Retry re-sends the refused
+          message; the composer is holding the same text, so this is the cheap
+          path and typing it again is still the other one. */}
+      {error ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2 pb-2">
+          <p className="text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p>
+          {lastFailed ? (
+            <button
+              type="button"
+              onClick={() => void onRetry()}
+              disabled={busy}
+              className={`${BTN_GHOST} h-7 px-2 text-sm`}
+            >
+              {t("chat.retry")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <ChatTranscript
         className="min-h-0 flex-1"
         tall
@@ -175,6 +244,7 @@ export function CompanionBody({
             <TurnExtras
               t={t}
               meta={metaById.get(turn.id)}
+              metaLabels={metaLabels}
               blockLabels={blockLabels}
               proposalById={proposalById}
               onResolveProposal={onResolveProposal}
@@ -215,6 +285,7 @@ function Greeting({ text }: { text: string }) {
 function TurnExtras({
   t,
   meta,
+  metaLabels,
   blockLabels,
   proposalById,
   onResolveProposal,
@@ -222,6 +293,10 @@ function TurnExtras({
 }: {
   t: ReturnType<typeof useTranslations<"companion">>;
   meta: CompanionTurnMeta | undefined;
+  /** The four provenance strings this row can print, resolved once by the body
+   *  rather than per turn — a transcript is many turns and they are all the same
+   *  four sentences. */
+  metaLabels: { digest: string; degraded: string; degradedNoProvider: string; degradedProviderFailed: string };
   blockLabels: ChatBlockLabels;
   proposalById: Map<string, CompanionProposal>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
@@ -241,6 +316,21 @@ function TurnExtras({
   // before that change carries no insight and correctly shows no chip.
   const recall = (meta?.recallUsed ?? []).filter((hit) => (hit.insight ?? "").trim().length > 0);
   const isDegraded = meta?.source === "deterministic";
+  // WHY it degraded, not just THAT it did. "No model configured" is a settings
+  // trip and "the model did not answer" is worth one retry; the single generic
+  // chip made an operator on a keyless install retry forever. An unrecognised
+  // reason keeps that generic chip rather than being guessed at.
+  const fallbackClass = isDegraded ? companionFallbackClass(meta?.fallbackReason) : null;
+  const degradedLabel = !isDegraded
+    ? null
+    : fallbackClass === "noProvider"
+      ? metaLabels.degradedNoProvider
+      : fallbackClass === "providerFailed"
+        ? metaLabels.degradedProviderFailed
+        : metaLabels.degraded;
+  // The one turn nobody asked for. Labelled, because an unannounced paragraph
+  // that appears above your own last message reads as a reply to it.
+  const isDigest = meta?.digest === true;
   // Ids the turn CLAIMS, resolved against the live rows: a proposal id that no
   // longer resolves (a restored database, a hand-deleted row) renders nothing
   // rather than a card with no content.
@@ -254,6 +344,7 @@ function TurnExtras({
     proposals.length === 0 &&
     recall.length === 0 &&
     !isDegraded &&
+    !isDigest &&
     !speakSlot
   ) {
     return null;
@@ -265,8 +356,9 @@ function TurnExtras({
         <CompanionProposalCard key={proposal.id} proposal={proposal} onResolve={onResolveProposal} />
       ))}
       <div className="mt-1.5 flex max-w-[85%] flex-wrap items-center gap-1.5">
+        {isDigest ? <span className={`${CHIP_QUIET} text-ink`}>{metaLabels.digest}</span> : null}
         {speakSlot}
-        {isDegraded ? <span className={`${CHIP_QUIET} text-coral`}>{t("meta.degraded")}</span> : null}
+        {degradedLabel ? <span className={`${CHIP_QUIET} text-coral`}>{degradedLabel}</span> : null}
         {dropped > 0 ? <span className={CHIP_QUIET}>{t("blocks.dropped", { count: dropped })}</span> : null}
         {droppedActions > 0 ? (
           <span className={CHIP_QUIET}>{t("proposal.dropped", { count: droppedActions })}</span>

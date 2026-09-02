@@ -143,3 +143,64 @@ export function pipelineSummary(rows: readonly CompanionPipelineRow[]): Companio
     meanMatchScore: scored > 0 ? Math.round(scoreSum / scored) : null,
   };
 }
+
+// ---- what the dock is allowed to SAY about a turn --------------------------
+//
+// The engine already reports why a reply degraded and whether it was written to
+// the brain; until the dock could name those, both facts were stored and never
+// shown. These live here, with the rest of the pure half, for the reason the
+// header states: a classification with a `next-intl` import in it is a decision
+// nobody can unit-test.
+
+/** Why an answer came from the deterministic path.
+ *
+ *  Two classes, because the operator's next move differs. `noProvider` is a
+ *  CONFIGURATION fact — keyless, or the configured provider reported itself
+ *  unavailable — and it is fixed in settings. `providerFailed` is an INCIDENT: a
+ *  provider was configured, was called, and raised; the same question usually
+ *  works on the next try. Saying only "no model reached" made the first look like
+ *  the second and left an operator retrying a keyless install forever. */
+export type CompanionFallbackClass = "noProvider" | "providerFailed";
+
+/** The two shapes `companion_cli.py::_complete` can report, and nothing else:
+ *  the literal `"no provider available"` when `resolve_provider` returned nothing
+ *  or reported itself unavailable, and `"<ExceptionType>: <message>"` (clipped to
+ *  200 chars) when the call raised.
+ *
+ *  An unrecognised reason returns null ON PURPOSE — the caller keeps the generic
+ *  chip. A CLI older or newer than this dock is a thing that happens, and a
+ *  confident mis-classification of a reason we do not know is worse than the
+ *  unspecific truth we already had. */
+export function companionFallbackClass(reason: string | null | undefined): CompanionFallbackClass | null {
+  const text = (reason ?? "").trim();
+  if (!text) return null;
+  if (/^no provider available$/i.test(text)) return "noProvider";
+  // `TypeError: …`, `TimeoutError: …`, `httpx.ReadTimeout: …` — a Python
+  // exception name (dotted paths allowed) followed by its message.
+  if (/^[A-Za-z_][\w.]*: \S/.test(text)) return "providerFailed";
+  return null;
+}
+
+/** Should the dock re-read its conversation because the studio's companion count
+ *  moved?
+ *
+ *  The dock does not poll: `useAttention` already polls `/api/attention` every
+ *  60s for the sidebar badges, and `attention.companion` is the count of open
+ *  proposals — which is exactly what a landed digest, or a proposal a sibling tab
+ *  answered, changes. Reading that existing signal is a refetch that costs no new
+ *  timer.
+ *
+ *  Rules, all three load-bearing: only while the dock is OPEN (a closed dock has
+ *  nothing to repaint and the rest pill's dot is already the honest signal for
+ *  it); only on a CHANGE (equal counts mean nothing moved); and never on the
+ *  FIRST observation (`prev === null`), because the boot fetch just read the same
+ *  thread and re-reading it is a wasted round trip. */
+export function shouldRefetchCompanionThread(
+  prev: number | null,
+  next: number | null,
+  open: boolean
+): boolean {
+  if (!open) return false;
+  if (prev === null || next === null) return false;
+  return prev !== next;
+}

@@ -702,6 +702,49 @@ recalled carried an insight the strip is empty, which is the honest rendering.
 A degraded turn says so in the same quiet voice, and a dropped block or proposal
 is admitted rather than hidden.
 
+#### The states the engine already reported, now shown
+
+Four facts were being stored on every turn and rendered by nothing. The dock now
+reads what it is handed:
+
+| Fact | Where it comes from | What the dock says |
+| --- | --- | --- |
+| `meta.fallbackReason` | `companion_cli.py::_complete` — either the literal `"no provider available"` or `"<ExceptionType>: <message>"` | The degraded chip names the CLASS: *no model configured* (a settings trip) vs *the model did not answer* (an incident worth one retry). An unrecognised reason keeps the old generic chip rather than being guessed at. `companionFallbackClass` in `app/_lib/companion-turn.ts`, unit-tested. |
+| `meta.indexSkipped` | the message route and the digest run both store it | One quiet line under the state line: *this answer was not written to memory*. The NEWEST assistant turn's fact only — one blocked write does not make a conversation memoryless. Distinct from `state.memoryOff`, which is consent and IS fixable in setup. |
+| `meta.digest` | `companion-digest-run.ts` | A chip labelling the turn as the daily digest. An unannounced paragraph that appears above your own last message otherwise reads as a reply to it. |
+| the route's error `code` | `jsonRefusal` (see Transport) | The error line is a `role="alert"` region — outside the transcript's `aria-live="polite"`, because a failure must be heard now — resolving `TOO_MANY_REQUESTS` / `COMPANION_THREAD_NOT_FOUND` through `useErrorMessage()`, with a **Send it again** button beside it. |
+
+**Retry, and the duplicate it fixed.** A refused message is no longer put back
+into the shared orchestration machine's queue. That requeue is right for the voice
+caller the machine was written for (a dropped utterance exists nowhere), and wrong
+here: `ChatComposer` already RESTORES the draft on a false resolve, so the queued
+copy made the operator's next send coalesce their restored draft WITH it and ask
+Candi the same question twice, in one message. It also stranded anything typed
+while the failed turn was in flight, because `completeTurn` dispatches nothing on
+the tick that carries a `failed`. The refused message is held in `lastFailed`
+instead, and Retry re-sends it through the ordinary `send` path — so it still
+queues behind an in-flight turn and is still never re-dispatched on its own.
+
+**Late arm, no new poller.** `useAttention` already polls `/api/attention` every
+60 s for the sidebar badges, and `attention.companion` is the open-proposal count
+— which is exactly what a landed digest, or a proposal a sibling tab answered,
+moves. `CompanionDock` watches that number and calls `thread.refresh()` when it
+changes while the dock is open (`shouldRefetchCompanionThread`: open only, on a
+change only, never on the first observation, since the boot fetch just read the
+same thread). `refresh()` re-reads `GET /api/companion/threads` — the boot route,
+which already returns the newest thread's turns and proposals — so an accepted
+digest appears in place instead of waiting for a remount. Its one stated limit:
+it can only refresh the thread that is still the NEWEST one, and it never switches
+threads. Since `runCompanionDigestTask` writes into `listThreads()[0]` — the same
+thread the dock opens on — the digest case is the one it covers.
+
+**Keyboard.** Escape closes the window when the settings popover is not open, and
+closing returns focus to the rest pill. Still deliberately not a dialog: no focus
+trap, no `inert` page (see the geometry note above). The Escape gate is on
+`settingsOpen` rather than on propagation — the popover's own handler calls
+`stopPropagation`, but two listeners on `document` never see each other's
+propagation, so the gate is what actually stops one keypress dismissing both.
+
 **The speak control lives in that marginalia strip** (`CompanionSpeakButton`),
 first in the chip row. It acts on THIS answer, which is why it is not in the
 header: a global "read the last reply" control cannot say which reply it means
