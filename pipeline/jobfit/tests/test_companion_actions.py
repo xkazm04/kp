@@ -290,7 +290,7 @@ class DigestTestCase(BrainTempDirTestCase):
         self.assertTrue(payload["recallUsed"])
         self.assertIn("Platform", provider.prompt or "")
 
-    def test_a_dead_provider_still_produces_an_honest_digest(self):
+    def test_a_dead_provider_digest_is_answered_but_never_remembered(self):
         class _Dead(_Provider):
             def complete(self, prompt, system=None):
                 raise TimeoutError("the model never answered")
@@ -300,7 +300,9 @@ class DigestTestCase(BrainTempDirTestCase):
         self.assertEqual(payload["source"], "deterministic")
         self.assertEqual(payload["reply"], companion_cli.UNREACHABLE_REPLY["en"])
         self.assertEqual(payload["actions"], [])
-        self.assertEqual(len(payload["episodePaths"]), 1)
+        # A deterministic reply is ANSWERED, not REMEMBERED, and the digest leg
+        # has no operator message to preserve either - so it writes nothing.
+        self.assertEqual(payload["episodePaths"], [])
 
     def test_the_cli_entry_point_routes_digest_and_needs_no_message(self):
         workdir = Path(self._tmp.name) / "work"

@@ -565,10 +565,10 @@ def run_digest(turn: dict) -> dict:
     )
     raw, source, fallbackReason = _complete(prompt, locale, catalog, digest=True, memory=memory)
     reply, blocks, blockErrors, actions, actionErrors, voiceReply = _shape(raw, locale, catalog, source)
-    # NOT yet gated on _worth_remembering: the digest leg's degraded episode is
-    # the same noise, but pinning that change belongs with test_companion_actions
-    # (which asserts the current count) and is deliberately left as one edit.
-    episodes = [append_episode("assistant", _episode_text(reply, blocks), session)] if memory else []
+    # Same rule as run_turn, with only one half to apply it to: a degraded digest
+    # has no user message to preserve either, so it remembers nothing at all.
+    remember = memory and _worth_remembering(source)
+    episodes = [append_episode("assistant", _episode_text(reply, blocks), session)] if remember else []
     return _payload(
         reply, voiceReply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason, memory
     )
