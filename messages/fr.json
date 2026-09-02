@@ -2272,6 +2272,7 @@
       "offer_declined": "a refusé l’offre",
       "offer_expired": "a laissé l’offre expirer sans réponse",
       "rejection_comms_failed": "n’a pas reçu de refus (mise en file échouée)",
+      "offer_comms_failed": "n’a pas reçu l’offre (envoi échoué)",
       "fairness_gate_unknown_archetype": "a déclenché le garde-fou d’équité (archétype inconnu)",
       "fairness_gate_blocked_reject": "a échappé à un rejet automatique grâce au garde-fou d’équité",
       "aging_alert": "dépasse le délai de son étape",

@@ -2272,6 +2272,7 @@
       "offer_declined": "odmítl/a nabídku",
       "offer_expired": "nechal/a nabídku vypršet bez odpovědi",
       "rejection_comms_failed": "nedostal/a zamítací e-mail, zařazení do fronty selhalo",
+      "offer_comms_failed": "nedostal/a nabídku, odeslání selhalo",
       "fairness_gate_unknown_archetype": "narazil/a na kontrolu férovosti (neznámý archetyp)",
       "fairness_gate_blocked_reject": "nebyl/a automaticky zamítnut/a, zabránila tomu kontrola férovosti",
       "aging_alert": "překračuje lhůtu ve své fázi",

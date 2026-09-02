@@ -145,6 +145,8 @@ export const EVENT_KINDS = [
   "offer_auto_extended",
   "offer_accept_blocked",
   "rejection_comms_failed",
+  // …and its offer-side sibling: the offer was drafted but the message never went out.
+  "offer_comms_failed",
   // The fairness backstop + the policy pass's aging/stale nudges (AUTOMATION_ALERT_KINDS).
   "fairness_gate_unknown_archetype",
   "fairness_gate_blocked_reject",
@@ -239,6 +241,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   offer_auto_extended: { Icon: Handshake, tone: "text-amber-600" },
   offer_accept_blocked: { Icon: Ban, tone: "text-amber-600" },
   rejection_comms_failed: { Icon: MailWarning, tone: "text-coral" },
+  offer_comms_failed: { Icon: MailWarning, tone: "text-coral" },
   fairness_gate_unknown_archetype: { Icon: Scale, tone: "text-coral" },
   fairness_gate_blocked_reject: { Icon: Scale, tone: "text-coral" },
   aging_alert: { Icon: Timer, tone: "text-amber-600" },

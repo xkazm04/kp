@@ -2272,6 +2272,7 @@
       "offer_declined": "declined the offer",
       "offer_expired": "had their offer expire unanswered",
       "rejection_comms_failed": "had the rejection email fail to queue",
+      "offer_comms_failed": "had the offer message fail to send",
       "fairness_gate_unknown_archetype": "hit the fairness gate (archetype unknown)",
       "fairness_gate_blocked_reject": "had an auto-reject blocked by the fairness gate",
       "aging_alert": "is aging past the stage SLA",

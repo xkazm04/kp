@@ -2272,6 +2272,7 @@
       "offer_declined": "hat das Angebot abgelehnt",
       "offer_expired": "ließ das Angebot unbeantwortet verfallen",
       "rejection_comms_failed": "hat keine Absage-E-Mail erhalten (Einreihung fehlgeschlagen)",
+      "offer_comms_failed": "hat das Angebot nicht erhalten (Versand fehlgeschlagen)",
       "fairness_gate_unknown_archetype": "traf auf die Fairness-Schranke (Archetyp unbekannt)",
       "fairness_gate_blocked_reject": "wurde von der Fairness-Schranke vor einer automatischen Ablehnung bewahrt",
       "aging_alert": "überschreitet die SLA dieser Phase",
