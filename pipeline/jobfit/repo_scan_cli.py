@@ -90,6 +90,11 @@ def main(argv: list[str] | None = None) -> int:
         reasons = collect_fallback_reasons([("repoScan", result)], pop=True)
         if reasons:
             envelope["fallbackReason"] = reasons
+            # …and the CLASS beside it. The reason line is a diagnostic (English,
+            # unbounded, can quote provider output); the class is the closed
+            # vocabulary the intake panel can localize. Classified HERE, where the
+            # exception was seen, rather than by the TS side re-parsing English.
+            envelope["fallbackClass"] = repo_scan.classify_fallback(reasons.get("repoScan"))
         print(json.dumps(envelope, ensure_ascii=False))
         return 0
     except ValueError as exc:

@@ -1006,6 +1006,14 @@ export function ensureDb(): Database.Database {
       source TEXT,
       dossier_json TEXT,
       error TEXT,
+      -- error_code is the CLASS of a failure (git missing / offline refusal /
+      -- clone timeout / cancelled / engine fault); `error` stays the diagnostic
+      -- line for the operator's log. The client renders the code in its own
+      -- language and never the English message. fallback_reason is the other
+      -- half of the same honesty: the dossier landed, but the agent fell back to
+      -- the heuristic floor, and this is which class of thing went wrong.
+      error_code TEXT,
+      fallback_reason TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -1561,6 +1569,14 @@ export function ensureDb(): Database.Database {
     // those rows, so nothing written before this change stops resolving.
     "ALTER TABLE pipeline_entries ADD COLUMN dev_case_id TEXT",
     "ALTER TABLE pipeline_entries ADD COLUMN dev_submission_id TEXT",
+    // App-master repo scan: an honest outcome instead of a bare "failed"/"complete".
+    // error_code names WHICH failure (git missing, offline refusal, clone timeout,
+    // cancelled, engine fault) so the panel can say it in the reader's language;
+    // fallback_reason names the class of agent failure behind a dossier that
+    // completed on the heuristic floor. Both NULL for every row written before
+    // this, and NULL reads as "no claim" on both — never as a green one.
+    "ALTER TABLE repo_scans ADD COLUMN error_code TEXT",
+    "ALTER TABLE repo_scans ADD COLUMN fallback_reason TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

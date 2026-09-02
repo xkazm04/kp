@@ -67,6 +67,58 @@ REPO_SCAN_PROMPT_VERSION = APP_MASTER_PROMPT_VERSION
 # calls the non-LLM path what it actually is.
 SOURCE_HEURISTIC = "heuristic"
 
+# ---- Fallback classification -------------------------------------------------
+#
+# ``generate_with_fallback`` records WHY a refinement fell back as a free-text
+# ``"<ExceptionType>: <message>"`` line (devcase/provenance.describe_fallback).
+# That line is a diagnostic, not a UI string: it is English, unbounded in shape,
+# and it can quote provider output. What the operator needs is the CLASS — "the
+# agent is not installed" reads very differently from "the agent timed out", and
+# only one of them is worth waiting for.
+#
+# This is the SINGLE definition of that closed vocabulary. The TS side carries a
+# copy (``REPO_SCAN_FALLBACK_CLASSES`` in app/_lib/repo-scan-run.ts) and a guard
+# test reads THIS tuple out of this file and asserts set equality, so the two can
+# never drift into a chip that renders a class the catalog has no words for.
+FALLBACK_CLASSES = (
+    "agent_not_installed",
+    "agent_timeout",
+    "agent_unparseable",
+    "agent_refused",
+    "agent_output_too_large",
+    "provider_error",
+    "unknown",
+)
+
+# Matched in order against the lower-cased reason line. Ordered most-specific
+# first: "timed out" is checked before the generic provider bucket, and the
+# not-found probe before either, because the CLI's own not-found message also
+# mentions the command.
+_FALLBACK_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("agent_not_installed", ("not found", "on path", "is it installed")),
+    ("agent_timeout", ("timed out", "timeout")),
+    ("agent_output_too_large", ("exceeded the", "byte cap", "runaway output")),
+    ("agent_unparseable", ("parseable json", "was not json", "produced no output", "unexpected cli envelope")),
+    ("agent_refused", ("returned an error", "subtype=")),
+)
+
+
+def classify_fallback(reason: str | None) -> str:
+    """Collapse a free-text fallback reason to one of :data:`FALLBACK_CLASSES`.
+
+    Never raises and never returns a class outside the tuple: an unrecognised
+    reason is ``"unknown"``, which the UI renders as a generic "the agent fell
+    back" rather than as silence. An empty reason is ``"unknown"`` too — the
+    caller only asks when a fallback actually happened.
+    """
+    text = (reason or "").lower()
+    for cls, needles in _FALLBACK_PATTERNS:
+        if any(n in text for n in needles):
+            return cls
+    # A recognisable exception type with no matching message still says more than
+    # nothing: everything the LLM path can raise came from a provider call.
+    return "provider_error" if text else "unknown"
+
 # Wall-clock budget for the in-repo agent. Bounded on purpose: the scan is an
 # intake step somebody is waiting on, and a repo big enough to need longer is a
 # repo whose heuristic floor is the honest answer anyway.
@@ -827,12 +879,14 @@ def scan_repo(
 
 
 __all__ = [
+    "FALLBACK_CLASSES",
     "LLM_TIMEOUT_S",
     "REFINABLE_KEYS",
     "REPO_SCAN_PROMPT_VERSION",
     "SKIP_DIRS",
     "SOURCE_HEURISTIC",
     "bind_provider_to_repo",
+    "classify_fallback",
     "build_heuristic_dossier",
     "build_prompt",
     "coerce_repo_dossier",
