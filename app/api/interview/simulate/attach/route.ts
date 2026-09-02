@@ -3,6 +3,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getInterviewSessionByToken } from "@/app/_lib/db/interviews";
 import { recordSimTranscriptAttached } from "@/app/_lib/db/pipeline";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { readEntityId } from "../../entry-id";
 import { isAttachableSimSession } from "./sim-session";
 
 
@@ -21,8 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as { token?: unknown; entryId?: unknown };
     const token = typeof body.token === "string" ? body.token.trim() : "";
-    const entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
-    if (!token || !entryId || entryId.length > 120) {
+    const entryId = readEntityId(body.entryId);
+    if (!token || !entryId) {
       return NextResponse.json({ error: "token and entryId are required." }, { status: 400 });
     }
     const session = getInterviewSessionByToken(token);

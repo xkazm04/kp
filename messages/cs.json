@@ -3411,6 +3411,9 @@
       "confidence": "jistota: {level}"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
+    "slotSuggested": "návrh",
+    "slotConfirmed": "potvrzeno",
+    "candidateZone": "Časové pásmo kandidáta: {zone}",
     "bookFailed": "Termín se nepodařilo rezervovat.",
     "declineFailed": "Kandidáta se nepodařilo odmítnout. Nic se nezaznamenalo.",
     "interviewerTitle": "Tazatel: {name}",
@@ -3428,6 +3431,9 @@
       "pagerPrev": "Předchozí týden",
       "pagerNext": "Další týden",
       "weekOf": "Týden {range}"
+      "timezoneNote": "Všechny časy v časovém pásmu pohovorů: {zone}.",
+      "suggested": "navržený čas, není potvrzen",
+      "chipSuggestedTitle": "{name} · navržený čas, zatím nepotvrzeno",
     },
     "scorecard": {
       "editScorecard": "Upravit svou hodnoticí kartu",

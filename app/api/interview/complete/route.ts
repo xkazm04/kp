@@ -259,8 +259,17 @@ export async function POST(request: NextRequest) {
       // a completion whose transcript is already persisted.
       try {
         insertLlmUsage(voiceUsageRow(session, billedMin));
-      } catch {
-        /* ledger write is telemetry — completion already succeeded */
+      } catch (ledgerErr) {
+        // Telemetry, so never the request — the completion already succeeded and the
+        // transcript is durable. But it is not nothing: this row is the ONLY record of
+        // what the call COST (the meter above counts quantity, not money), so a silent
+        // drop makes the interview free in the Models usage panel forever. An operator
+        // reconciling spend would act on this, so it says which session lost its price.
+        console.error(
+          `[interview:complete] usage-ledger write failed for session ${sessionId} ` +
+            `(${billedMin} min on ${session.provider}); its cost will read as unknown.`,
+          ledgerErr
+        );
       }
     }
 
@@ -279,8 +288,19 @@ export async function POST(request: NextRequest) {
       const ws = getEntryWorkspace(session.entryId);
       try {
         scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
-      } catch {
-        /* transcript is already persisted — scoring is best-effort */
+      } catch (scoringErr) {
+        // Best-effort by design: the transcript is already persisted, and a failed
+        // synthesis must never lose it. The ABSENCE of a scorecard is already the
+        // durable state a reader sees (the drawer offers the transcript with no
+        // verdict, and the Interview->Offer gate stays unapproved), so no status
+        // column is added here - what was missing is the REASON, which only this log
+        // can carry. An operator sees a scored-nothing interview and needs to know
+        // whether the model was unreachable or the entry no longer resolves.
+        console.error(
+          `[interview:complete] scorecard synthesis failed for session ${sessionId} ` +
+            `(entry ${session.entryId}); the transcript is saved, the verdict is not.`,
+          scoringErr
+        );
       }
       if (scorecard) {
         updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;

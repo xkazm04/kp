@@ -390,6 +390,84 @@ archetype × family combination's version hash). Guards:
 `rubricCoverage` stamp — the field is optional and consumers must treat it as
 absent there.
 
+## Spend doors, throttles and refusal codes
+
+Three doors in this feature cost real money on an accepted call, and until this pass
+only one of them was throttled.
+
+| Door | Budget | Guards |
+|---|---|---|
+| `POST /api/interview/create` | 20 / 10 min per IP (`CREATE_RATE_LIMIT`) | A model-backed run-of-show build **and** an email to the candidate, per call |
+| `POST /api/interview/simulate` | 20 / 10 min per IP (`SIMULATE_RATE_LIMIT`) | Mints a real billable session; on a self-hosted install it skips `meterGate`, so the limiter is the only bound |
+| `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
+
+Every route here is operator-gated, and open mode (`KP_OPERATOR_PASSWORD` unset) makes
+that gate a documented no-op for the whole API — so the limiter is the real bound, the
+same reasoning `app/api/rate-limit-contract.test.ts` already records for the JD
+library's four spend doors. All three are pinned there: key, budget, window, the
+expensive work each must precede, and the cheap refusal each must follow.
+
+`/create`'s five decisions run in a fixed order, and the order is the contract: the
+cheap 402 pre-gate and the "no candidate named" 400 serve free → the throttle →
+`buildGroundedInterview` (whose booked length sizes the next step) → the
+**authoritative** reservation of `maxBillableInterviewMin(bookedMin)` → the reissue
+revoke → the mint. The reservation before the revoke is load-bearing: refusing after
+killing the candidate's live link is the worst of both. Pinned by
+`app/api/interview/interview-spend-doors.test.ts`.
+
+### Refusals answer with a code
+
+Every refusal on `/create` and `/connect` now goes through `jsonRefusal` with an
+`INTERVIEW_*` code from `REFUSAL_ERRORS`, so `useErrorMessage()` resolves
+`errors.<CODE>` in the reader's language (four catalogs, pinned by
+`npm run i18n:check`). `/connect` mattered most: it is a **public** surface opened
+from an invite deliberately rendered in the applicant's own language (`?lang=`), and
+it answered five different lifecycle refusals — not found, revoked, expired, already
+completed, consent missing — in hardcoded English.
+
+`INTERVIEW_ENTRY_REQUIRED`, `INTERVIEW_SUBMISSION_NOT_FOUND`,
+`INTERVIEW_SUBMISSION_NOT_EVALUATED`, `INTERVIEW_CALL_IN_PROGRESS`,
+`INTERVIEW_LINK_NOT_FOUND`, `INTERVIEW_LINK_INACTIVE`, `INTERVIEW_LINK_EXPIRED`,
+`INTERVIEW_ALREADY_COMPLETED`, `INTERVIEW_CONSENT_REQUIRED`,
+`INTERVIEW_PROVIDER_INVALID`, `INTERVIEW_PROVIDER_UNCONFIGURED`,
+`INTERVIEW_LAB_DISABLED`, plus the shared `TOO_MANY_REQUESTS` and
+`PIPELINE_ENTRY_NOT_FOUND`. Diagnostic detail rides **alongside** the code rather
+than inside a sentence: the unconfigured 503 still names the missing env vars in
+`need`, where an operator can read them and a candidate never sees them.
+
+The id narrowing behind all of it lives once, in `app/api/interview/entry-id.ts`
+(`readEntityId`, `MAX_ID_LEN`) — four doors had re-typed the same "string, trimmed,
+non-empty, ≤ 120 chars" clause inline.
+
+### When the invite does not go out
+
+`POST /api/interview/create` returns `delivery` (the truthful outbox claim:
+`sent` / `queued` / `failed`) **and** `deliveryError`, a code saying *why* when it is
+not `sent`:
+
+- `INVITE_PROVIDER_UNCONFIGURED` — the provider has no keys on this server, so no
+  invite was attempted at all;
+- `INVITE_DISPATCH_FAILED` — the dispatch threw or dead-lettered.
+
+The remedy is the same for both (the link is in the response; hand it over), but the
+recruiter no longer has to guess which happened. Both are `errors.*` catalog keys in
+all four locales.
+
+### Two best-effort catches that now say what was lost
+
+`/api/interview/complete` runs the usage-ledger write and the scorecard synthesis
+after the transcript is durable, and both stay **best-effort** — neither may fail a
+completion whose transcript is already saved. What changed is that neither is silent
+any more, and the choice was a **log, not a status column**:
+
+- the ledger row is the only record of what a call **cost** (the meter counts
+  quantity, not money), so a dropped write logs the session id, the billed minutes
+  and the provider;
+- a failed synthesis is already visible as an absent scorecard — the drawer offers
+  the transcript with no verdict and the Interview→Offer gate stays unapproved — so
+  the missing half was the *reason*, which only a log can carry. No
+  `scorecardStatus` column was added: it would state a fact the row already states.
+
 ## Self-hosted voice
 
 The ElevenLabs adapter can point at a service you run yourself

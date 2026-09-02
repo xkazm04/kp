@@ -378,11 +378,50 @@ const ROUTES: RouteSpec[] = [
     limit: 6,
     limitSrc: "connectLimit",
     limitDef: "const connectLimit = isSelfHostedProvider(provider) ? 120 : 6;",
+    // Moved onto the refusal chokepoint with the rest of this route's refusals: a
+    // candidate portal opened from a Czech invite renders errors.TOO_MANY_REQUESTS
+    // in Czech instead of the server's English sentence.
+    refusalCode: "TOO_MANY_REQUESTS",
     // The provider connect moved behind the failover helper (round 8) — the
     // helper call IS the expensive work the limiter guards.
     expensive: "connectWithFailover(",
     // Lifecycle guards keep their 404/409 semantics ahead of the throttle.
     servedBefore: 'session0.status === "completed"',
+  },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
+  // /connect - the credential mint - had carried a per-token throttle since it
+  // shipped, but the two doors that MINT a session had none at all: /create runs a
+  // model-backed grounding and emails the candidate on every accepted call, and
+  // /simulate mints a billable voice session (and on a self-hosted install skips
+  // meterGate, so nothing else bounds it). Both are operator-gated, and open mode
+  // makes that gate a documented no-op for the ENTIRE API, so each must self-limit -
+  // the law this file already states for the JD library's four spend doors.
+  {
+    rel: "./interview/create/route.ts",
+    key: "`interview-create:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "CREATE_RATE_LIMIT",
+    optsDef: "const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The grounding is the LLM-backed half; the limiter must also precede
+    // resolveEntryForSubmission, which PROMOTES a candidate onto the board.
+    expensive: "await buildGroundedInterview(entryId, workspace)",
+    // The cheap refusals keep serving freely ahead of the budget: the billing 402
+    // and the "you named no candidate" 400 spend nothing and must not be masked.
+    servedBefore: 'const quota = meterGate("interview_minutes"',
+  },
+  {
+    rel: "./interview/simulate/route.ts",
+    key: "`interview-simulate:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "SIMULATE_RATE_LIMIT",
+    optsDef: "const SIMULATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The session row IS the billable artifact here.
+    expensive: "createInterviewSession({",
+    // The meter refusal runs first, so a 402'd sim consumes no budget.
+    servedBefore: 'const quota = meterGate("interview_minutes"',
   },
   {
     rel: "./devcase/session/[id]/chat/route.ts",

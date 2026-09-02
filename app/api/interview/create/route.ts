@@ -8,11 +8,29 @@ import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { readEntityId } from "../entry-id";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { coerceLanguage, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 
+// Per-IP spend door. One accepted call runs a model-backed run-of-show build AND
+// emails the candidate, and the route is operator-gated only in the sense that
+// open mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the
+// ENTIRE API - so the limiter is the real bound, exactly as it is on the JD
+// library's four spend doors. 20/10min: a Create link is followed by a human
+// reading the drawer, so twenty in ten minutes is far above honest pace, while an
+// automated loop over a board would otherwise spend LLM credit and mail a stranger
+// once per request. The billing meter is a separate, per-workspace decision and
+// deliberately not what this is.
+const CREATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+
+
+/** Why an invite did not reach the candidate, when the session itself was created.
+ *  Both resolve through `useErrorMessage()` like every other code on this wire, and
+ *  both carry the same remedy: the link is in the response, hand it over yourself. */
+type InviteDeliveryError = "INVITE_PROVIDER_UNCONFIGURED" | "INVITE_DISPATCH_FAILED" | null;
 
 // POST → recruiter creates a candidate-mode voice screen for a pipeline entry.
 // Builds grounded interviewer questions (Task 4) and returns a tokenized link
@@ -42,31 +60,37 @@ export async function POST(request: NextRequest) {
     // request, and resolving a submission could legitimately answer a DIFFERENT entry
     // (the candidate applied to the opening directly and the promote backfilled that
     // row) — silently overriding an explicit entry would be the surprising half.
-    let entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
+    let entryId = readEntityId(body.entryId) ?? "";
     let promotedForScreen = false;
-    const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";
+    const submissionId = readEntityId(body.submissionId) ?? "";
+    // Named NOTHING usable: refuse before the throttle below, so a malformed call
+    // can never spend another caller's budget (the shape the JD spend doors follow).
+    if (!entryId && !submissionId) {
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
+    }
+
+    // Everything past this point either PROMOTES a submission onto the board, runs
+    // the LLM-backed grounding, or emails the candidate. Throttle here, per IP.
+    if (!rateLimit(`interview-create:${clientIpFrom(request.headers)}`, CREATE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+
     if (!entryId && submissionId) {
-      if (submissionId.length > 120) {
-        return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
-      }
       // Resolves, or promotes through the SHARED promote door and then resolves — this
       // route never mints an identity of its own (devcase-interview-entry.ts).
       const resolved = resolveEntryForSubmission(submissionId, workspace);
       if (!resolved.ok) {
+        // Unknown id and another team's id answer alike, on purpose: a distinct
+        // refusal would confirm which submission ids exist on other tenants.
         return resolved.reason === "not_evaluated"
-          ? NextResponse.json(
-              { error: "evaluate the submission first.", code: "INTERVIEW_SUBMISSION_NOT_EVALUATED" },
-              { status: 400 }
-            )
-          : // Unknown id and another team's id answer alike, on purpose: a distinct
-            // 403 would confirm which submission ids exist on other tenants.
-            NextResponse.json({ error: "submission not found", code: "INTERVIEW_SUBMISSION_NOT_FOUND" }, { status: 404 });
+          ? jsonRefusal("INTERVIEW_SUBMISSION_NOT_EVALUATED", 400)
+          : jsonRefusal("INTERVIEW_SUBMISSION_NOT_FOUND", 404);
       }
       entryId = resolved.entryId;
       promotedForScreen = resolved.promoted;
     }
-    if (!entryId || entryId.length > 120) {
-      return NextResponse.json({ error: "entryId is required" }, { status: 400 });
+    if (!entryId) {
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
 
     const avail = voiceAvailability();
@@ -83,10 +107,7 @@ export async function POST(request: NextRequest) {
     if (body.force !== true) {
       const live = liveInterviewByEntry(entryId, workspace);
       if (live && isInterviewSessionLive(live)) {
-        return NextResponse.json(
-          { error: "An interview is in progress for this candidate — wait for the call to finish before issuing a new link." },
-          { status: 409 }
-        );
+        return jsonRefusal("INTERVIEW_CALL_IN_PROGRESS", 409);
       }
     }
 
@@ -139,8 +160,19 @@ export async function POST(request: NextRequest) {
     // sent only on a relayed 2xx, queued when the local outbox is the terminal
     // target, failed on a dead-letter/throw — so the drawer note can't say
     // "invite sent to the candidate" about a message nothing will deliver.
+    // …and when it does NOT arrive, WHY, as a code the drawer can render in the
+    // reader's language. `delivery` already told the truth about the outbox row, but
+    // "failed" alone left the recruiter guessing between "this server has no voice
+    // keys, so no invite was even attempted" and "the relay threw" - two different
+    // next actions, and only the second is worth a retry. The link itself is always
+    // returned, so the manual fallback (copy it to the candidate) is the remedy for
+    // both; the class is what says so out loud instead of only in a server log.
     let delivered = false;
     let delivery: DeliveryClaim = "failed";
+    let deliveryError: InviteDeliveryError = null;
+    if (!avail[provider]) {
+      deliveryError = "INVITE_PROVIDER_UNCONFIGURED";
+    }
     if (avail[provider]) {
       try {
         // SIM3 — invite in the applicant's language; the session carries no
@@ -177,7 +209,12 @@ export async function POST(request: NextRequest) {
         );
         delivery = deliveryClaim(isRelayConfigured(), status);
         delivered = delivery !== "failed";
+        if (delivery === "failed") deliveryError = "INVITE_DISPATCH_FAILED";
       } catch (commErr) {
+        // Best-effort by design (the recruiter can copy the link), but an operator
+        // WOULD act on this, so it is both logged with the session id and carried
+        // back as a class rather than dropped into the log alone.
+        deliveryError = "INVITE_DISPATCH_FAILED";
         console.error(
           `[interview:create] session ${session.token} created but invite delivery failed: ${commErr instanceof Error ? commErr.message : commErr}`
         );
@@ -191,6 +228,8 @@ export async function POST(request: NextRequest) {
       configured: avail[provider],
       delivered,
       delivery,
+      // null on a clean send; otherwise the reason, as an `errors.<CODE>` key.
+      deliveryError,
       // W6-4 — how many prior open links this reissue invalidated (UI hint).
       revoked,
       candidateLabel: session.candidateLabel,
@@ -208,7 +247,10 @@ export async function POST(request: NextRequest) {
     // prep-generation errors) goes through the generic safe responder so raw
     // err.message never crosses the wire (idea-ab117371).
     if (error instanceof Error && error.message === "pipeline entry not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      // Unknown entry and ANOTHER TEAM'S entry land here alike (buildGroundedInterview
+      // resolves under the caller's workspace), which is the refusal the tenancy pass
+      // wanted: one answer, no oracle.
+      return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     }
     return safeJsonError(error, "api:interview:create", "INTERVIEW_CREATE_FAILED");
   }

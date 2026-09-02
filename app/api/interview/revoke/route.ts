@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revokeOpenInterviewSessions } from "@/app/_lib/db/interviews";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { readEntityId } from "../entry-id";
 
 
 // W6-4 (VOX1) — recruiter-triggered revoke: pull every open interview link for
@@ -11,9 +12,9 @@ import { safeJsonError } from "@/app/_lib/api-response";
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
-    if (!entryId || entryId.length > 120) {
-      return NextResponse.json({ error: "entryId is required" }, { status: 400 });
+    const entryId = readEntityId(body.entryId);
+    if (!entryId) {
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
     // Tenant-scoped (direction 1): `entry_id` is globally unique, so the bare
     // revoke let an operator on any team kill another team's live interview

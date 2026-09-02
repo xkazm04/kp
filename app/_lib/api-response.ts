@@ -290,6 +290,53 @@ export const REFUSAL_ERRORS = {
    *  tells the operator to configure a token; conflating the two would answer a
    *  throttled companion turn with advice about GITHUB_TOKEN. */
   TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,
+  // ---- Voice-interview refusals (/perfect 2026-09-02, api-voice-interview).
+  // Every refusal on the two doors that SPEND — POST /api/interview/create (a
+  // model-backed grounding plus an email to the candidate) and POST
+  // /api/interview/connect (the provider credential mint) — used to be a bare
+  // English sentence with no code. /connect is a PUBLIC candidate surface reached
+  // from an emailed link in the candidate's own language, so its five lifecycle
+  // refusals were the worst placed of the lot: the portal painted the server's
+  // English at a Czech applicant who had just been told, in Czech, to click it.
+  /** The screen was asked for without naming a candidate — neither `entryId` nor
+   *  `submissionId` arrived in a usable shape (400). */
+  INTERVIEW_ENTRY_REQUIRED: "Say which candidate this interview is for.",
+  /** A dev-case submission id that resolves to nothing, or to another team's
+   *  submission (404). The two stay DELIBERATELY lumped: a distinct refusal would
+   *  confirm which submission ids exist on other tenants, and this door can write a
+   *  stranger's name and contact onto the caller's board. */
+  INTERVIEW_SUBMISSION_NOT_FOUND: "That submission could not be found.",
+  /** A submission with no evaluation behind it (400). There is nothing to promote
+   *  on, and the brief the screen would carry is built from the evaluation's own
+   *  minted follow-ups. */
+  INTERVIEW_SUBMISSION_NOT_EVALUATED: "Evaluate the submission before starting a voice screen.",
+  /** A reissue arrived while the candidate is mid-conversation (409). Revoking
+   *  would kill the live call and email them a second invite while they talk;
+   *  `force: true` is the explicit recruiter override. */
+  INTERVIEW_CALL_IN_PROGRESS: "This candidate is on the call right now. Wait for it to finish before issuing a new link.",
+  /** The presented interview token resolves to nothing (404) — a mistyped or
+   *  superseded link, never an invitation to open a lab session. */
+  INTERVIEW_LINK_NOT_FOUND: "This interview link isn't valid.",
+  /** The link was pulled by the recruiter, or its candidate is closed out (409). */
+  INTERVIEW_LINK_INACTIVE: "This interview link is no longer active.",
+  /** An untaken link past INTERVIEW_LINK_TTL_DAYS (409). An auto-emailed
+   *  credential must not stay valid forever. */
+  INTERVIEW_LINK_EXPIRED: "This interview link has expired. Ask the recruiter for a fresh one.",
+  /** The screen is finished (409). `completed` is single-use, enforced by the
+   *  status CAS in markInterviewStarted, so a retake mints no credentials. */
+  INTERVIEW_ALREADY_COMPLETED: "This interview has already been completed.",
+  /** A candidate-mode connect with no explicit consent (403). Consent is the legal
+   *  basis for an AI-conducted, transcribed interview, so it is enforced server-side
+   *  and not merely by the browser's disabled Start button. */
+  INTERVIEW_CONSENT_REQUIRED: "Recording consent is required before the interview can start.",
+  /** The requested provider is neither 'openai' nor 'elevenlabs' (400). */
+  INTERVIEW_PROVIDER_INVALID: "That voice provider isn't one this server knows.",
+  /** The chosen provider has no keys on this install (503). Which env vars are
+   *  missing rides alongside in `need` for the operator; the candidate reads only
+   *  this sentence. */
+  INTERVIEW_PROVIDER_UNCONFIGURED: "The voice provider isn't configured on this server, so the call can't start.",
+  /** A tokenless connect while the dev lab harness is off (403). */
+  INTERVIEW_LAB_DISABLED: "The interview lab is not enabled on this server.",
   // ---- Document-upload refusals (app/_lib/upload-constraints.ts). The document
   // twins of AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE: the gate that guards every
   // CV / JD / company file answered hardcoded English on BOTH sides of the wire
