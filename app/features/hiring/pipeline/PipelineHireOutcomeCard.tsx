@@ -54,13 +54,16 @@ export function PipelineHireOutcomeCard({ entryId }: { entryId: string }) {
   // exists for.
   useEffect(() => {
     let live = true;
-    setLoadFailed(false);
     fetch(`/api/pipeline/outcomes?entry=${encodeURIComponent(entryId)}`)
       .then((r) => r.json())
       .then((p) => {
         if (!live) return;
         if (p.error) throw new Error(p.error);
         setView(p as HireOutcomeView);
+        // Clears a prior give-up on a retry — and on an entryId change, since this
+        // card is not remounted per candidate. Set from the resolved read, never
+        // synchronously in the effect body (that is a cascading render).
+        setLoadFailed(false);
       })
       .catch(() => {
         // Not silent: a give-up the recruiter can see and re-run. The raw reason
@@ -122,7 +125,10 @@ export function PipelineHireOutcomeCard({ entryId }: { entryId: string }) {
         <p className="mt-1 text-sm text-steel">{t("loadFailed")}</p>
         <button
           type="button"
-          onClick={() => setReloadTick((n) => n + 1)}
+          onClick={() => {
+            setLoadFailed(false);
+            setReloadTick((n) => n + 1);
+          }}
           className={`${BTN_SECONDARY} mt-2 h-8 px-2.5 text-sm`}
         >
           {t("retry")}
