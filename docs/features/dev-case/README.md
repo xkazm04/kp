@@ -605,9 +605,12 @@ credential. These rules keep that honest, all sized so a real candidate never me
   apply token that minted the session, via `sessionTokenMatches` in
   `app/_lib/devcase-session-auth.ts`; the client sends `token` in each body. A mismatch is
   **403** — deliberately not 404/409, which tell `LiveWorkSurface` the session is dead and
-  to re-mint, spinning the per-token/day session quota. Sessions with `token: null`
-  (fixtures/dev seeds, never reachable from the product) skip the check, mirroring
-  `interview-connect`'s tokenless-lab carve-out.
+  to re-mint, spinning the per-token/day session quota. A session with `token: null`
+  (fixtures/dev seeds, never reachable from the product — the public mint always carries a
+  token) is **refused on all three doors**: the flush and chat used to carve it out with
+  `session.token && …`, which also carried it past the per-token daily budgets keyed on
+  that same column, so a `Math.random` session id was full authority over such a row.
+  There is no tokenless-lab carve-out here.
 - **Throttling.** `[id]/chat` makes a real LLM call per message, so it is limited by the
   shared limiter (`app/_lib/rate-limit.ts`) on two windows — **30 per 10 min per session**
   (one candidate's burst) and **3,000 per 24 h per apply token** (the collective aggregate;
@@ -618,6 +621,23 @@ credential. These rules keep that honest, all sized so a real candidate never me
   timed assessment legitimately share a NAT. Both refusals are the shared 429 envelope and
   the surface renders `devApply.workSurface.chatRateLimited` — a stated limit, never a
   silent failure that reads as lost work; the unsent message is handed back to the input.
+  The **flush** (`POST /api/devcase/session/[id]`) carries the same two-window shape —
+  **200 per 10 min per session** (`LiveWorkSurface` flushes on an 8s interval, 75 per
+  10 min, so this is ~2.6× the client's own cadence) and **60,000 per 24 h per apply
+  token** (1,200 flushes per session at the 50-sessions/day quota, ~2.7 h of continuous
+  flushing each). Counts alone are not the bound that matters on this route: it accepts
+  50 files × 256KB = 12.8MB per call, so it additionally charges a stated **byte budget of
+  4 GiB per apply token per 24 h** (`chargeFlushBytes` in
+  `app/api/devcase/session/session-limits.ts`) — ~80MB per session, roughly 1,200 full
+  resends of a 64KB working tree, against a previous ceiling of ~768GB. All three refusals
+  are the shared 429 envelope.
+- **The candidate is told when a reply is not a model.** `[id]/chat` returns `source`
+  (`"llm"` | `"deterministic"`) alongside `reply`, and the surface prints
+  `devApply.workSurface.chatDeterministicNote` under a deterministic bubble. Degrading
+  keyless is a product property here; letting a candidate mistake the offline stand-in for
+  their stakeholder — and spend an hour of a timed case on its answer — is not. The route
+  also forwards `request.signal` into `runSessionChat`, so an abandoned generation does not
+  leave a Python child running for the rest of its timeout.
 - **Durable submit.** The final flush is the only thing that puts the candidate's last
   edits and process events on the server — `saveDevSessionFiles` is a no-op once a session
   is `submitted`, so sealing after a failed flush would grade them on a stale tree *and*
@@ -975,7 +995,9 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
 
 - The reviewer CAN now open the candidate's **chat transcript** and **submitted
   file tree**: `DevSessionEvidencePanel` (mounted by `DevSubmissionRow` beside
-  `EvalPanel`) calls the workspace-authed `GET /api/devcase/session/[id]`, which
+  `EvalPanel`) calls the operator-gated `GET /api/devcase/session/[id]` (it calls
+  `requireOperator()` before touching the store, and then still compares the row's
+  workspace to `currentWorkspace()`), which
   had existed and been pinned by `session-read.test.ts` since the Live Work
   Surface shipped with **zero callers**. It is gated on the submission being an
   in-product session — `sessionIdFromRepoRef` reads the `session:<id>` encoding

@@ -3,6 +3,10 @@ import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, g
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+// The flush byte budget lives in a sibling module: Next's generated route types
+// reject any non-handler `export const` here (backlog item 57).
+import { chargeFlushBytes } from "../session-limits";
 
 // Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
 // fires every ~8s per active candidate, and the token→posting→case chain it used
@@ -79,14 +83,49 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
     if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
 
-    const body = (await request.json().catch(() => ({}))) as { events?: unknown; files?: unknown; token?: unknown };
+    // Read the body as TEXT first: its byte length is what the per-token daily budget
+    // charges, and JSON.parse of the same string costs nothing extra.
+    const raw = await request.text();
+    let parsed: unknown = {};
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch {
+      // A malformed body is treated as an empty one, exactly as the previous
+      // `request.json().catch(() => ({}))` did — the coercion below drops it anyway,
+      // and a candidate mid-assessment must not see a parse error for a flaky flush.
+      parsed = {};
+    }
+    const body = (parsed ?? {}) as { events?: unknown; files?: unknown; token?: unknown };
     // A session id alone is not authority to append to this session's observed process log
     // or to OVERWRITE its file tree — that second one destroys another candidate's work.
     // The caller must present the apply token that minted the session
     // (devcase-session-auth.ts). 403, deliberately not 404/409: those tell the client the
     // session is dead and to re-mint, which would spin the per-token/day session quota.
-    if (session.token && !sessionTokenMatches(session.token, body.token)) {
+    //
+    // A TOKENLESS session (fixtures/dev seeds; the public mint always carries one) used to
+    // take a `session.token && …` carve-out and walk STRAIGHT PAST this gate and past both
+    // budgets below — a session id was full authority over it. The submit sibling already
+    // refused those outright; the flush now agrees, so there is one rule on all three
+    // mutating doors and no row shape that is exempt from the throttle.
+    if (!session.token || !sessionTokenMatches(session.token, body.token)) {
       return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
+    }
+
+    // THROTTLE (rate-limit-contract.test.ts) — the same two-window shape the chat sibling
+    // carries, and for the same reason: this is a PUBLIC route that appends rows and
+    // OVERWRITES a file tree, admitting 50 x 256 KB = 12.8 MB per call, and it carried no
+    // bound at all. Budgets and their arithmetic: ../session-limits.ts. Both windows run
+    // AFTER the 404/409/403 refusals (a rejected call never consumes budget) and BEFORE
+    // the first write.
+    if (!rateLimit(`devcase-flush:${id}`, { limit: 200, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
+    if (!rateLimit(`devcase-flush-token:${session.token}`, { limit: 60_000, windowMs: 24 * 60 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
+    // …and the bound the two counts cannot express: BYTES per apply token per day.
+    if (!chargeFlushBytes(session.token, raw.length)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
 
     let seq = 0;

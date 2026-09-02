@@ -1389,16 +1389,6 @@
     "INTAKE_JD_NOT_FOUND": "That JD is not in this workspace's library.",
     "INTAKE_NOTHING_TO_EXTRACT": "There is nothing to extract yet.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Voice is not configured on this install.",
-    "INTAKE_CLOSED": "This intake session is closed. Re-open it to keep talking.",
-    "INTAKE_TEXT_REQUIRED": "There is nothing to send. Write or say something first.",
-    "INTAKE_BRIEF_INVALID": "That brief edit was not in the expected shape.",
-    "INTAKE_BRIEF_NOT_READY": "The brief needs a role title plus one dealbreaker or 90-day outcome before it can become a JD.",
-    "INTAKE_ALREADY_OPEN": "This session is already open.",
-    "INTAKE_ATTACHMENT_LIMIT": "This session already holds as much reference material as it can.",
-    "INTAKE_ATTACHMENT_INDEX": "That piece of reference material is no longer on this session.",
-    "INTAKE_JD_NOT_FOUND": "That JD is not in this workspace's library.",
-    "INTAKE_NOTHING_TO_EXTRACT": "There is nothing to extract yet.",
-    "INTAKE_VOICE_NOT_CONFIGURED": "Voice is not configured on this install.",
     "COMPANION_THREAD_NOT_FOUND": "That conversation no longer exists.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again shortly.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
@@ -1516,6 +1506,8 @@
     "eyebrow": "Your data",
     "loadFailed": "This link has expired or is no longer valid.",
     "eraseFailed": "Could not complete the erasure right now. Please try again.",
+    "confirmTitle": "Erase your data for good?",
+    "confirmBody": "This cannot be undone. Your name, contact details, CV and interview answers are removed immediately; only the de-identified assessment record stays.",
     "forRole": "Your application for {role}",
     "forRoleGeneric": "Your application",
     "heldTitle": "What we hold about you",
@@ -2358,7 +2350,8 @@
       "doneFailed": "{count, plural, =1 {1 candidate was not actioned} other {# candidates were not actioned}}. They were changed or closed out while the command ran, so nothing was applied to them. Refresh and try again.",
       "doneCommsFailed": "{count, plural, =1 {1 rejected candidate was not notified} other {# rejected candidates were not notified}}. The rejection stands; send the note manually from their card.",
       "doneSummary": "Policy pass done: {advanced} advanced, {rejected} rejected, {held} held.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "failed": "The command couldn't run. Check your connection and try again."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -2661,12 +2654,9 @@
     },
     "actions": {
       "screen": "Screen with AI",
-      "screenNote": "A confident pass advances the candidate; otherwise it holds for your review in Decisions.",
       "prep": "Interview prep",
       "scorecard": "Synthesize scorecard",
-      "scorecardNote": "From your notes → a structured scorecard in Decisions.",
       "offer": "Draft offer",
-      "offerNote": "Salary from the role band, scaled by fit → an offer to approve in Decisions.",
       "outreach": "Draft outreach",
       "rejection": "Draft rejection",
       "rematch": "Explore alternatives"

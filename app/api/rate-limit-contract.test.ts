@@ -525,6 +525,42 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'session.status !== "active"',
   },
   {
+    // ADDED /perfect 2026-09-02 (api-devcase-1), with the limiter itself. The FLUSH is
+    // the chat route's unthrottled twin on the same public prefix: it appends observed-
+    // process rows and OVERWRITES the session's file tree, admitting 50 x 256 KB =
+    // 12.8 MB per call, and carried no bound at all. Per-SESSION burst, 200/10min:
+    // LiveWorkSurface flushes on an 8s interval (75 per 10 minutes) plus a submit flush
+    // and the odd retry, so 200 is ~2.6x the client's own cadence and a candidate never
+    // meets it, while a scripted loop is pinned to 20/min.
+    rel: "./devcase/session/[id]/route.ts",
+    key: "`devcase-flush:${id}`",
+    limit: 200,
+    // The first WRITE the limiter guards (the bare name also appears in the import).
+    expensive: "appendDevSessionEvents(id, events)",
+    // The 404/409 lifecycle refusals and the 403 token check keep their semantics ahead
+    // of the throttle, so a rejected flush never consumes budget.
+    servedBefore: 'session.status !== "active"',
+  },
+  {
+    // The flush's per-apply-TOKEN daily aggregate — same collective budget shape as the
+    // chat sibling (a dev-case token is per-POSTING, shared by every applicant).
+    // Session-start caps a posting at 50 sessions/day, so 60,000 leaves 1,200 flushes per
+    // session: about 2.7 hours of continuous 8s flushing each, longer than any timeboxed
+    // case runs. The count is not the whole bound — 60,000 x 12.8 MB is ~768 GB of body
+    // per link per day — so the route additionally charges a stated BYTE budget through
+    // `chargeFlushBytes` (session-limits.ts), pinned by devcase-flush-guards.test.ts.
+    rel: "./devcase/session/[id]/route.ts",
+    key: "`devcase-flush-token:${session.token}`",
+    limit: 60000,
+    // The source writes the digit-separated form; the contract pins that text and the
+    // behavioral drive below uses the value.
+    limitSrc: "60_000",
+    windowMs: 24 * 60 * 60_000,
+    windowSrc: "24 * 60 * 60_000",
+    expensive: "appendDevSessionEvents(id, events)",
+    servedBefore: 'session.status !== "active"',
+  },
+  {
     // ADDED /explorer 2026-09-01, with the limiter itself. The heaviest compute
     // surface in the jobs area and the only spend route in it that carried NO
     // limiter: one POST fans out a `recruiter_cli` child PER published role

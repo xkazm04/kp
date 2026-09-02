@@ -1389,16 +1389,6 @@
     "INTAKE_JD_NOT_FOUND": "Cette offre n'est pas dans la bibliothèque de cet espace de travail.",
     "INTAKE_NOTHING_TO_EXTRACT": "Il n'y a encore rien à extraire.",
     "INTAKE_VOICE_NOT_CONFIGURED": "La voix n'est pas configurée sur cette installation.",
-    "INTAKE_CLOSED": "Cette session de cadrage est close. Rouvrez-la pour continuer à parler.",
-    "INTAKE_TEXT_REQUIRED": "Il n'y a rien à envoyer. Écrivez ou dites d'abord quelque chose.",
-    "INTAKE_BRIEF_INVALID": "Cette modification du brief n'a pas la forme attendue.",
-    "INTAKE_BRIEF_NOT_READY": "Le brief a besoin d'un intitulé de poste et d'au moins un critère rédhibitoire ou un objectif à 90 jours avant de devenir une offre.",
-    "INTAKE_ALREADY_OPEN": "Cette session est déjà ouverte.",
-    "INTAKE_ATTACHMENT_LIMIT": "Cette session porte déjà autant de documents de référence qu'elle le peut.",
-    "INTAKE_ATTACHMENT_INDEX": "Ce document de référence n'est plus rattaché à cette session.",
-    "INTAKE_JD_NOT_FOUND": "Cette offre n'est pas dans la bibliothèque de cet espace de travail.",
-    "INTAKE_NOTHING_TO_EXTRACT": "Il n'y a encore rien à extraire.",
-    "INTAKE_VOICE_NOT_CONFIGURED": "La voix n'est pas configurée sur cette installation.",
     "COMPANION_THREAD_NOT_FOUND": "Cette conversation n'existe plus.",
     "TOO_MANY_REQUESTS": "Trop de requêtes. Réessayez dans un instant.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
@@ -1516,6 +1506,8 @@
     "eyebrow": "Vos données",
     "loadFailed": "Ce lien a expiré ou n’est plus valide.",
     "eraseFailed": "Impossible d’effectuer l’effacement pour le moment. Veuillez réessayer.",
+    "confirmTitle": "Effacer définitivement vos données ?",
+    "confirmBody": "Cette action est irréversible. Votre nom, vos coordonnées, votre CV et vos réponses d’entretien sont supprimés immédiatement ; seul l’enregistrement anonymisé de l’évaluation subsiste.",
     "forRole": "Votre candidature au poste de {role}",
     "forRoleGeneric": "Votre candidature",
     "heldTitle": "Ce que nous détenons à votre sujet",
@@ -2358,7 +2350,8 @@
       "doneFailed": "{count, plural, =1 {1 candidat n’a pas été traité} other {# candidats n’ont pas été traités}}. Ils ont été modifiés ou clôturés pendant la commande, donc rien ne leur a été appliqué. Actualisez et réessayez.",
       "doneCommsFailed": "{count, plural, =1 {1 candidat rejeté n’a pas été notifié} other {# candidats rejetés n’ont pas été notifiés}}. Le rejet reste valable ; envoyez le message manuellement depuis sa fiche.",
       "doneSummary": "Passe de règles terminée : {advanced} avancé, {rejected} rejeté, {held} en attente.",
-      "dismiss": "Ignorer"
+      "dismiss": "Ignorer",
+      "failed": "La commande n'a pas pu s'exécuter. Vérifiez votre connexion et réessayez."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -2661,12 +2654,9 @@
     },
     "actions": {
       "screen": "Présélection AI",
-      "screenNote": "Un résultat clairement positif fait avancer le candidat ; sinon, il est mis en attente pour votre revue dans Décisions.",
       "prep": "Préparation d’entretien",
       "scorecard": "Synthétiser le scorecard",
-      "scorecardNote": "À partir de vos notes → un scorecard structuré dans Décisions.",
       "offer": "Rédiger l’offre",
-      "offerNote": "Salaire basé sur la fourchette du poste, ajusté selon la correspondance → une offre à approuver dans Décisions.",
       "outreach": "Rédiger un message d’approche",
       "rejection": "Rédiger le refus",
       "rematch": "Explorer des alternatives"

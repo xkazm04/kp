@@ -1389,16 +1389,6 @@
     "INTAKE_JD_NOT_FOUND": "Tento inzerát není v knihovně tohoto pracovního prostoru.",
     "INTAKE_NOTHING_TO_EXTRACT": "Zatím není z čeho vytěžit zadání.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Hlasový režim není v této instalaci nastavený.",
-    "INTAKE_CLOSED": "Tato konzultace je uzavřená. Chcete-li pokračovat, otevřete ji znovu.",
-    "INTAKE_TEXT_REQUIRED": "Není co odeslat. Nejdřív něco napište nebo řekněte.",
-    "INTAKE_BRIEF_INVALID": "Tato úprava zadání nemá očekávaný tvar.",
-    "INTAKE_BRIEF_NOT_READY": "Zadání potřebuje název role a alespoň jeden vylučovací požadavek nebo cíl na 90 dní, než z něj vznikne inzerát.",
-    "INTAKE_ALREADY_OPEN": "Tato konzultace už je otevřená.",
-    "INTAKE_ATTACHMENT_LIMIT": "Tato konzultace už nese maximum podkladů.",
-    "INTAKE_ATTACHMENT_INDEX": "Tento podklad už ke konzultaci nepatří.",
-    "INTAKE_JD_NOT_FOUND": "Tento inzerát není v knihovně tohoto pracovního prostoru.",
-    "INTAKE_NOTHING_TO_EXTRACT": "Zatím není z čeho vytěžit zadání.",
-    "INTAKE_VOICE_NOT_CONFIGURED": "Hlasový režim není v této instalaci nastavený.",
     "COMPANION_THREAD_NOT_FOUND": "Tato konverzace už neexistuje.",
     "TOO_MANY_REQUESTS": "Příliš mnoho požadavků. Zkuste to prosím za chvilku znovu.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
@@ -1516,6 +1506,8 @@
     "eyebrow": "Vaše údaje",
     "loadFailed": "Tento odkaz vypršel nebo už není platný.",
     "eraseFailed": "Výmaz se teď nepodařilo dokončit. Zkuste to prosím znovu.",
+    "confirmTitle": "Trvale vymazat vaše údaje?",
+    "confirmBody": "Tuto akci nelze vrátit zpět. Vaše jméno, kontaktní údaje, životopis i odpovědi z pohovoru budou okamžitě odstraněny; zůstane pouze anonymizovaný záznam o hodnocení.",
     "forRole": "Vaše přihláška na pozici {role}",
     "forRoleGeneric": "Vaše přihláška",
     "heldTitle": "Co o vás evidujeme",
@@ -2358,7 +2350,8 @@
       "doneFailed": "{count, plural, =1 {1 kandidát nebyl zpracován} few {# kandidáti nebyli zpracováni} other {# kandidátů nebylo zpracováno}}. Během příkazu se změnili nebo byli uzavřeni, takže se na ně nic neuplatnilo. Obnovte a zkuste to znovu.",
       "doneCommsFailed": "{count, plural, =1 {1 zamítnutý kandidát nebyl informován} few {# zamítnutí kandidáti nebyli informováni} other {# zamítnutých kandidátů nebylo informováno}}. Zamítnutí platí; zprávu odešlete ručně z jejich karty.",
       "doneSummary": "Průchod pravidel dokončen: {advanced} postoupilo, {rejected} zamítnuto, {held} pozdrženo.",
-      "dismiss": "Zavřít"
+      "dismiss": "Zavřít",
+      "failed": "Příkaz se nepodařilo spustit. Zkontrolujte připojení a zkuste to znovu."
     },
     "tab": {
       "eyebrow": "Nábor",
@@ -2661,12 +2654,9 @@
     },
     "actions": {
       "screen": "Prověřit přes AI",
-      "screenNote": "Při vysoké jistotě kandidát postoupí; jinak se pozdrží k vašemu posouzení v Rozhodnutích.",
       "prep": "Příprava na pohovor",
       "scorecard": "Sestavit hodnoticí kartu",
-      "scorecardNote": "Z vašich poznámek → strukturovaná hodnoticí karta v Rozhodnutích.",
       "offer": "Připravit nabídku",
-      "offerNote": "Mzda z pásma pozice, škálovaná podle shody → nabídka ke schválení v Rozhodnutích.",
       "outreach": "Připravit oslovení",
       "rejection": "Připravit zamítnutí",
       "rematch": "Prozkoumat alternativy"
