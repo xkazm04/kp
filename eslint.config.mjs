@@ -166,20 +166,31 @@ const DB_BARREL_SELECTOR = {
 // Six-digit only — three-digit `#abc` collides with issue refs and URL
 // fragments, and the codebase's 3-digit hexes are all test data.
 //
+// The end-of-hex anchor is `(?![0-9a-fA-F])`, NOT `\b`, and that is the whole
+// point of it. `\b` asks for a word/non-word transition, so a hex followed by
+// ANY word character was silently exempt — and Tailwind spells the space inside
+// an arbitrary value as `_`, a word character. That is exactly how
+// `[background-image:repeating-linear-gradient(45deg,#d6d3d1_0px,…)]` sat on the
+// Fit Matrix's blocked cell for months while `npm run lint` and
+// `npm run design:check` both reported clean (design:check delegates the hex
+// gate to this rule). The negative lookahead only exempts a LONGER hex run (an
+// 8-digit #rrggbbaa, which `\b` also let through), so every non-hex follower —
+// `_`, `)`, `;`, a quote, end of string — is now caught.
+//
 // The companion checks live in scripts/design/check-design-tokens.mjs (brand.ts
 // <-> globals.css lockstep, and dark-mapping parity for every shade utility),
 // wired as `npm run design:check`.
 // ---------------------------------------------------------------------------
 const COLOR_SELECTORS = [
   {
-    selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
+    selector: "Literal[value=/#[0-9a-fA-F]{6}(?![0-9a-fA-F])/]",
     message:
       "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
       "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
       "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
   },
   {
-    selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
+    selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}(?![0-9a-fA-F])/]",
     message:
       "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
       "[data-theme=\"dark\"]. See docs/design/README.md."
@@ -194,8 +205,8 @@ const COLOR_SELECTORS = [
   {
     selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
     message:
-      "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
-      "See docs/design/README.md."
+      "Inline rgb()/rgba() color in a template literal. Resolve it through a token so it follows " +
+      "[data-theme=\"dark\"]. See docs/design/README.md."
   }
 ];
 

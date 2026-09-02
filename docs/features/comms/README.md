@@ -248,8 +248,12 @@ links. `comms-dispatch.test.ts` now derives the key list **from the dispatcher s
 and asserts `t.has(key)` in **all four** locales, so neither a phantom key nor an
 unpinned de/fr catalog can come back.
 
-**Links.** The GDPR erasure footer is the only candidate link built inside
-`comms-dispatch.ts`. It is absolute (`candidateLinkBase` → `publicBaseUrl`, warning
+**Links.** The GDPR erasure footer is the only candidate link BUILT inside
+`comms-dispatch.ts`; the offer letter and the offer reminder receive their link from the
+caller and PIN it here (`pinLinkLocale`, beside the same `candidateLocale` resolution the
+letter uses) — until 2026-09-01 the offer link was the one bare candidate door, so a Czech
+letter opened an English accept/decline page. Locked by `offer-link-locale.test.ts`. The
+erasure link is absolute (`candidateLinkBase` → `publicBaseUrl`, warning
 loudly when nothing is configured) **and `?lang=`-pinned to the language the letter is
 written in**, exactly like the status link that rides beside it — `proxy.ts` turns the
 param into the `NEXT_LOCALE` cookie, and without it the page resolved from a cookie the

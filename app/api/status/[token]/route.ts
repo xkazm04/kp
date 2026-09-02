@@ -9,8 +9,8 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-// Abuse containment for the last PUBLIC token route that had none — the offer,
-// scheduling token routes all throttle already. The token is a
+// Abuse containment, in the same shape as every other PUBLIC token route (offer,
+// schedule, data, invite — all throttled per token AND client). The token is a
 // strong CSPRNG capability, so this is not guessing prevention: it caps what a
 // single link-holder can extract from the DB per minute.
 //

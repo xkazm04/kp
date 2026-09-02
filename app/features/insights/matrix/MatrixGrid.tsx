@@ -7,11 +7,17 @@ import { cellClass, ColumnStats } from "./MatrixShared";
 import { Defer } from "@/app/_components/ui/Defer";
 import { STRONG_THRESHOLD } from "./matrixStats";
 import { archStyle, STAGE_INITIAL, type Candidate, type Matrix, type Position } from "./matrixTabTypes";
+import { MATRIX_HEADER_ROW } from "./matrixGridKeys";
+import { useMatrixGridKeys } from "./useMatrixGridKeys";
 import type { Cell } from "./MatrixShared";
 
 // The Fit Matrix's scrollable candidate × position grid: sortable column
 // headers with a per-role distribution strip, and per-cell score/select
 // buttons. Split out of MatrixTab.tsx to keep that file under the 200-line cap.
+//
+// Keyboard model: role="grid" + a roving tabindex (useMatrixGridKeys) — one Tab in,
+// arrows/Home/End/PageUp/PageDown between the sort headers and the cells. Reaching the
+// last of 200×N cells by Tab alone used to cost ~1,600 presses.
 export function MatrixGrid({
   data,
   cols,
@@ -45,16 +51,17 @@ export function MatrixGrid({
   enumLabel: (kind: string, value: string) => string;
   blockedLabel: (c: { koKeys?: string[] }) => string;
 }) {
+  const { scrollerRef, cornerRef, cellProps } = useMatrixGridKeys({ rows: rows.length, cols: cols.length });
   return (
     <>
-      <div className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>
-        <table className="border-collapse text-sm">
+      <div ref={scrollerRef} className="overflow-auto rounded-lg border border-stone-200 bg-white shadow-panel" style={{ maxHeight: "70vh" }}>
+        <table role="grid" className="border-collapse text-sm">
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
+              <th ref={cornerRef} scope="col" className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
                 {t("candidateHeader")}
               </th>
-              {cols.map(({ p, i }) => (
+              {cols.map(({ p, i }, ci) => (
                 <th
                   key={p.id}
                   scope="col"
@@ -63,6 +70,7 @@ export function MatrixGrid({
                   {/* Click a column to rank candidates by their fit for THAT role
                       (MAT6); click again to clear back to best-overall. */}
                   <button
+                    {...cellProps(MATRIX_HEADER_ROW, ci)}
                     type="button"
                     onClick={() => setSortCol((cur) => (cur === i ? null : i))}
                     aria-pressed={sortCol === i}
@@ -85,7 +93,7 @@ export function MatrixGrid({
               never has to build the whole table in one frame. */}
           <Defer strategy="next-frame">
           <tbody>
-            {rows.map(({ cand, ri }) => {
+            {rows.map(({ cand, ri }, r) => {
               const a = archStyle(cand.archetype);
               return (
                 <tr key={cand.id} className="hover:bg-paper/40">
@@ -104,7 +112,7 @@ export function MatrixGrid({
                       ) : null}
                     </div>
                   </th>
-                  {cols.map(({ p, i }) => {
+                  {cols.map(({ p, i }, ci) => {
                     const c = data.cells[ri]?.[i] ?? { score: null, blocked: true };
                     const place = data.placements[`${cand.id}|${p.id}`];
                     // "In the pipeline" = placed and not in a terminal state.
@@ -120,10 +128,19 @@ export function MatrixGrid({
                     const isSel = selected.has(key);
                     return (
                       <td key={p.id} className="border-b border-l border-stone-50 p-0">
+                        {/* `aria-disabled`, never `disabled`: a disabled cell drops out of
+                            the tab order and takes its accessible name — the reason it
+                            cannot be selected — with it. The click handler is already
+                            inert (`selectable &&`), so the cell stays reachable and silent.
+                            `focus-visible:z-[5]`: every cell is `relative`, so a later
+                            sibling would paint over the coral ring's outer 4px — lift the
+                            focused one above its neighbours, still under the sticky
+                            headers (z-10/20). */}
                         <button
+                          {...cellProps(r, ci)}
                           type="button"
                           onClick={(ev) => (selectMode ? selectable && toggleCell(cand.id, p.id) : openCell(cand, p, c, ev))}
-                          disabled={selectMode && !selectable}
+                          aria-disabled={selectMode && !selectable ? true : undefined}
                           title={
                             selectMode
                               ? selectable
@@ -139,7 +156,7 @@ export function MatrixGrid({
                             sel: selectMode && selectable ? (isSel ? t("selectedSuffix") : t("selectableSuffix")) : "",
                           })}
                           aria-pressed={selectMode ? isSel : undefined}
-                          className={`relative grid h-9 w-full place-items-center font-semibold transition-transform ${
+                          className={`relative grid h-9 w-full place-items-center font-semibold transition-transform focus-visible:z-[5] ${
                             selectMode
                               ? selectable
                                 ? "cursor-pointer"

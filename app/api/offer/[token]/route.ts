@@ -4,11 +4,22 @@ import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 
+// The GET is not a pure read: offerView runs expireOfferIfDue, a write path, on
+// every hit — and until 2026-09-01 only the POST below was throttled. The page
+// now revalidates on a 60s interval plus focus, i.e. ~1 req/min per candidate;
+// 60/min leaves more than an order of magnitude of headroom for focus churn and
+// manual reloads, while capping what a leaked link can make the store do.
+// Keyed by token AND client, like the status route.
+const OFFER_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
+
 // Candidate-facing offer response (token-gated). GET renders the summary for the
 // public /offer/[token] page; POST captures accept/decline and runs the terminal
 // transitions (accept -> Hired, the terminal state; decline -> closed).
-export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
+  if (!rateLimit(`offer-view:${clientIpFrom(request.headers)}:${token}`, OFFER_VIEW_RATE_LIMIT)) {
+    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+  }
   const view = offerView(token);
   if (!view) return NextResponse.json({ error: "This offer link is not valid." }, { status: 404 });
   return jsonOk({ offer: view });

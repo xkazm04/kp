@@ -170,6 +170,67 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "60_000",
   },
   {
+    // ADDED 2026-09-01 (perfect: open-doors-throttled). The Art. 17 erasure door:
+    // its POST is an IRREVERSIBLE anonymizeEntry and was the one public token door
+    // with no limiter. Both verbs keyed per token AND client, like status; the
+    // limiter precedes the token lookup so a flood never reaches the store.
+    rel: "./data/[token]/route.ts",
+    key: "`data-view:${clientIpFrom(request.headers)}:${token}`",
+    limit: 60,
+    optsSrc: "DATA_VIEW_RATE_LIMIT",
+    optsDef: "const DATA_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    expensive: "findEntryByErasureToken(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    rel: "./data/[token]/route.ts",
+    key: "`data-erase:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "DATA_ERASE_RATE_LIMIT",
+    optsDef: "const DATA_ERASE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    expensive: "anonymizeEntry(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // ADDED 2026-09-01 (perfect: open-doors-throttled). The invited-member door:
+    // GET discloses the invitee's email + org name to any token holder, POST creates
+    // a user, a membership and a session cookie. Its sibling /api/auth/register is
+    // throttled; this path into the same tenant was not.
+    rel: "./invite/[token]/route.ts",
+    key: "`invite-view:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "INVITE_RATE_LIMIT",
+    optsDef: "const INVITE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    expensive: "getRedeemableInvite(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    rel: "./invite/[token]/route.ts",
+    key: "`invite-redeem:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "INVITE_RATE_LIMIT",
+    optsDef: "const INVITE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    expensive: "acceptInvite(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // ADDED 2026-09-01 (perfect: open-doors-throttled). The offer GET runs
+    // expireOfferIfDue — a write — on every hit and only the POST was throttled.
+    // 60/min: the page revalidates every 60s plus on focus, an order of magnitude under.
+    rel: "./offer/[token]/route.ts",
+    key: "`offer-view:${clientIpFrom(request.headers)}:${token}`",
+    limit: 60,
+    optsSrc: "OFFER_VIEW_RATE_LIMIT",
+    optsDef: "const OFFER_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    expensive: "offerView(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
     // ADDED scan-sweep 2026-08-24. The SYNCHRONOUS twin of ./tasks/route.ts kind
     // "reasoning" — same runReasoning, same LLM spend, but reachable directly and
     // unlimited until now. 60/10min is below the batch path's 120 because a matrix

@@ -467,10 +467,40 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   updater: React invokes an updater more than once per dispatch (StrictMode's purity
   double-invoke, a rebased queue), and a fetch inside it spent two reasoning runs — both
   missing the prompt cache — on one cell. A failed key is released so re-opening retries.
+- **The bulk shortlist acts on what you can see — and says when it doesn't.** Select mode
+  keeps `selected` across every change to the visible set (the role-family filter, the
+  min-fit floor, a `?job=` scope), and `addSelected` files the whole set. The selection is
+  deliberately **not** pruned — the same decision the board made in `28463f8f`: filtering
+  down to review a subset does not abandon the rest, and a silently shrunk cohort swaps
+  over-reach for under-reach. So `MatrixSelectBar` states the divergence instead, in its
+  coral warning register with `role="status"`: "3 selected cells are outside this view.
+  Adding still files them." The "Add 5" button keeps naming the full count it will file,
+  so the mismatch is visible before the click rather than discovered on the board.
+  `matrixSelection.ts` derives it — `visibleMatrixColumns` (the column filter itself,
+  shared with the hook) × the rows `orderMatrixRows` kept, diffed against the selection —
+  so a filter added later is covered without any handler remembering to reconcile.
+  Pinned in `matrixSelection.test.ts`.
 - **A bulk add that fully fails says so on screen.** The `CompletionCta` band is gated
   on `ok > 0`; when every row fails, `MatrixTab` renders the same `matrix.addedPartial`
   sentence in the failure register (no board link — nothing landed) instead of leaving
   the outcome to the `sr-only` live region alone.
+- **The grid is ONE tab stop, and arrows move inside it.** Every cell is a `<button>`, so
+  a keyboard or screen-reader recruiter used to pay one Tab per cell — with the pool
+  capped at `MATRIX_POOL_CAP` 200 and N open roles, ~1,600 presses to reach the bottom
+  row. `MatrixGrid` is now a `role="grid"` with a roving `tabIndex` (`useMatrixGridKeys`):
+  Tab enters once, **arrows** move between cells, **Home/End** run to the ends of the
+  current row, **Ctrl/Cmd+Home/End** to the grid corners, **PageUp/PageDown** jump
+  `MATRIX_GRID_PAGE` 10 rows, and **Enter/Space** do exactly what a click does in the
+  current mode (open the reasoning popover, or toggle the selection) because the reducer
+  hands those keys back to the native button untouched. The sortable column headers are
+  row `-1` of the same rectangle, which is what keeps the count at one tab stop rather
+  than 1 + N. Edges **clamp, never wrap**, and the roving cell is re-clamped every render
+  so a re-sort or a filter cannot strand the tab stop on a cell that no longer exists.
+  Focus is scrolled clear of the sticky header row and candidate column by the grid's own
+  offset math — `scrollIntoView({ block: "nearest" })` stops with the cell tucked *under*
+  them. Select mode marks unselectable cells `aria-disabled` rather than `disabled`, so
+  they keep their place in the grid and still announce why they cannot be picked.
+  `matrixGridKeys.ts` is pure and pinned in `matrixGridKeys.test.ts`.
 
 ## Data model
 

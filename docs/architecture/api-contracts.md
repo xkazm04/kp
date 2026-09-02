@@ -134,6 +134,15 @@ spawns a subprocess calls it, and *where* the call sits matters: it goes after
 any branch that must keep serving freely (a cache hit is not a spend) and before
 the expensive work.
 
+The same applies to every **public token door** that writes or discloses —
+`/api/status`, `/api/offer`, `/api/data`, `/api/invite`, `/api/schedule` and the
+apply routes all throttle **per token AND client** (``<door>:${clientIpFrom(...)}:${token}``),
+BEFORE the token lookup, so a leaked or logged link caps what one holder can make
+the store do per minute and a flood never reaches the store. A GET counts when it is
+not a pure read (`/api/offer` runs `expireOfferIfDue` on every hit). The erasure POST
+(an irreversible scrub) and the invite POST (a user, a membership and a session) were
+the last two doors without one; closed 2026-09-01.
+
 Pick the key deliberately:
 
 - per-IP (`clientIpFrom(request.headers)`) for abuse containment;

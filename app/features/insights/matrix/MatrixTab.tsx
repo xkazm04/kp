@@ -202,6 +202,7 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
       {m.selectMode ? (
         <MatrixSelectBar
           selectedSize={m.selected.size}
+          selectedOutsideCount={m.selectedOutsideCount}
           adding={m.adding}
           addSelected={m.addSelected}
           clearSelected={() => m.setSelected(new Set())}
@@ -242,8 +243,6 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
           </button>
         </div>
       ) : data.candidates.length === 0 || data.positions.length === 0 ? (
-        // /prototype round 1: the first-run empty state is behind a local variant
-        // switcher (baseline is the default, so this load is unchanged).
         <MatrixEmptyState candidateCount={data.candidates.length} positionCount={data.positions.length} />
       ) : rows.length === 0 || cols.length === 0 ? (
         // The dataset has candidates/positions, but the min-fit floor or family filter

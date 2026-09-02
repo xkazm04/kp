@@ -8,6 +8,7 @@ import type { useTranslations } from "next-intl";
 // to keep that file under the 200-line cap.
 export function MatrixSelectBar({
   selectedSize,
+  selectedOutsideCount,
   adding,
   addSelected,
   clearSelected,
@@ -15,6 +16,10 @@ export function MatrixSelectBar({
   t,
 }: {
   selectedSize: number;
+  /** How many selected cells the current view hides (matrix-shortlist-acts-on-what-you-see).
+   *  The grid keeps the selection across filter/floor/scope changes on purpose, so the bar
+   *  owes the recruiter this number before "Add N" files the lot. */
+  selectedOutsideCount: number;
   adding: boolean;
   addSelected: () => void;
   clearSelected: () => void;
@@ -26,6 +31,18 @@ export function MatrixSelectBar({
       <span className="text-sm font-semibold text-ink">
         {selectedSize > 0 ? t("selectedCount", { count: selectedSize }) : t("tapToShortlist")}
       </span>
+      {/* matrix-shortlist-acts-on-what-you-see — "5 selected" reads as "5 cells on this
+          grid" when the role-family filter, the min-fit floor or a ?job= scope is hiding
+          some of them. The selection is NOT pruned (the recruiter built it on purpose;
+          see matrixSelection.ts), and "Add 5" below still names and files the FULL count
+          — so the mismatch is stated here, before the click, in the bar's own coral
+          warning register. role="status" so a screen reader hears it the moment a filter
+          change creates the divergence. */}
+      {selectedOutsideCount > 0 ? (
+        <span role="status" className="text-sm font-semibold text-coral">
+          {t("selectedOutsideView", { count: selectedOutsideCount })}
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={addSelected}
