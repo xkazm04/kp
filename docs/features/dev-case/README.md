@@ -416,6 +416,28 @@ by reusing the two strings already on screen: the probe banner's `none` verdict 
 Approve. The test pins the code literal against `enforceProbeGate` itself, so a rename
 cannot silently restore the generic message.
 
+**The timebox the reviewer approves is the timebox the candidate receives.** The
+cap on a candidate's unpaid work is policy, generated from
+`pipeline/jobfit/devcase/models.py` into `app/_lib/devcase-timebox.ts` — and the UI kept
+its own copies anyway. `DevAnalysisDesignCard` rendered `design.case?.timeboxHours ?? 4`,
+double the enforced cap and the exact stale Pydantic default the shared module exists to
+kill; `DevLifecycleReviewPanel` POSTed the reviewer's raw number and previewed it
+verbatim, so a reviewer could type 8, read "~8h" in the candidate-safe preview, approve,
+and hand the candidate the capped value with no notice on either screen. Both files now
+resolve the number through the shared module (`timeboxHoursForDisplay`,
+`clampTimeboxHours`), and `timeboxClamp` is the single producer of the clamp description
+`{ code, from, to }` for BOTH sides of the gate: the panel renders it inline as the
+reviewer types (`devcase.review.timeboxClamped`, four catalogs), and
+`[id]/approve/route.ts` writes the same triple to the audit trail as
+`timebox_clamped from=<n> to=<n>` — structured and queryable rather than an English
+sentence readable in one language — and returns it as `timeboxClamped` on the approve
+response so a client that never rendered the notice still learns the number changed.
+`app/features/tools/devcases/devcase-timebox-ui.test.ts` pins the *source* of both
+components against any timebox literal, because a number baked into a component is
+invisible to tsc, lint and `design:check` alike. **Enforcement is still out of scope** —
+the timebox remains advisory at runtime (see Known gaps); this change makes it honest,
+not binding.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
