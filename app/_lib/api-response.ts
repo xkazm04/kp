@@ -169,6 +169,10 @@ export const STORE_ERRORS = {
   // errors carry the operator's own home-directory paths, which is precisely the
   // detail this registry exists to keep off the wire.
   COMPANION_BRAIN_FAILED: "Could not check this machine for Candi's memory. Please try again.",
+  // The edge pairing (app/api/edge). The catch sits over better-sqlite3 AND the
+  // at-rest encryption of the shared secret, whose thrown messages carry key and
+  // file detail — exactly what must not reach a browser.
+  EDGE_SAVE_FAILED: "Could not save the edge pairing. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -268,6 +272,13 @@ export const REFUSAL_ERRORS = {
   /** Compose was asked with an empty brief (400) — nothing has been said yet for
    *  the pure composer to turn into a mandate. */
   INTAKE_BRIEF_EMPTY: "The brief is still empty. Answer the dialog first, then compose.",
+  /** The edge pairing was refused before anything was written (400): the endpoint is
+   *  not an allowed public https URL, or a field was the wrong type. A DECISION, so
+   *  the reader is told what to change rather than "something went wrong". */
+  EDGE_CONFIG_REJECTED: "That edge endpoint was refused. It must be a public https:// URL.",
+  /** Publishing the sealing key did not happen (400) — usually because no edge is
+   *  paired yet, or it did not answer. Nothing was rotated; retrying is safe. */
+  EDGE_PAIR_REFUSED: "Could not publish the sealing key to the edge. Check the pairing and try again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

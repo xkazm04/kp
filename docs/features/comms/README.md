@@ -353,6 +353,22 @@ this version does not understand) is **handled** and advances the cursor — a r
 would only reproduce it. Anything 5xx-class **holds**: the page stops at the last
 good sequence and the operator gets a reason on the Channels card.
 
+The drain **catches up across pages**: while the edge reports events still waiting it
+fetches the next page, up to `MAX_PAGES_PER_DRAIN = 5` (250 events) per tick. Bounded
+rather than unbounded because each applied event is a real intake write, and an edge
+whose `pending` never falls would otherwise spin the loop; what is left over is not
+lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
+stops the run rather than asking for another page, because events are ordered.
+
+The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
+backlog still at the edge, last heartbeat — each with a relative time in the reader's
+locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
+distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
+and the drain then does nothing forever. Failures are shown by CLASS
+(`unreachable` / `held` / `ack` / `unknown`, `EDGE_ERROR_KINDS` in `edge-config.ts`),
+never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
+`EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
+
 Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
 `x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the
 body for a POST and the path+query for a GET. Both halves of that choice are

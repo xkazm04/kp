@@ -233,7 +233,6 @@ const LEAK_CEILING = new Map<string, number>([
   ["devcase/route.ts", 2],
   ["devcase/source/route.ts", 1],
   ["devcase/submit/route.ts", 1],
-  ["edge/route.ts", 1],
   ["extract-text/route.ts", 1],
   ["github-analysis/route.ts", 1],
   ["jobs/[id]/assignments/route.ts", 1],

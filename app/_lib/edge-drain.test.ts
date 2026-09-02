@@ -42,8 +42,12 @@ test("the drain acks only AFTER applying, and only up to what was applied", () =
   const ackAt = src.indexOf('edgeFetch(edge, `/ack`');
   assert.ok(applyAt >= 0 && ackAt >= 0, "guard the guard: both steps are still recognizable");
   assert.ok(applyAt < ackAt, "acking before applying would delete events that were never filed");
-  assert.match(src, /if \(cursor > edge\.cursor\)/, "nothing to ack unless the cursor actually moved");
-  assert.match(src, /recordDrain\(\{ cursor, error: summary\.error \}\)/, "the stored cursor is the applied cursor");
+  assert.match(src, /if \(cursor > pageStart\)/, "nothing to ack unless the cursor actually moved on this page");
+  assert.match(
+    src,
+    /recordDrain\(\{ cursor, error: summary\.error, errorKind: summary\.errorKind, pending: summary\.pending \}\)/,
+    "the stored cursor is the applied cursor, and the ledger is written with it"
+  );
 });
 
 test("a hold breaks the loop instead of skipping the event", () => {
@@ -131,4 +135,22 @@ test("a storage failure is answered 503, never 400 — a 4xx stops the sender re
   const fn = workerSrc.slice(workerSrc.indexOf("function storageFailure"));
   assert.match(fn.slice(0, 700), /console\.error/, "the diagnostic is logged");
   assert.doesNotMatch(fn.slice(0, 700), /JSON\.stringify\(\{ error: `/, "and never interpolated into the response");
+});
+
+test("the drain CATCHES UP across pages, under a stated bound", () => {
+  // One page per tick meant a 500-event backlog needed ten ticks while the `pending`
+  // the edge had just reported was fetched and thrown away. The loop now continues
+  // while there is more — but it is BOUNDED, because every applied event is a real
+  // intake write and an edge whose `pending` never falls would otherwise spin here.
+  assert.match(src, /const MAX_PAGES_PER_DRAIN = 5;/, "the bound is a named constant, not a magic number");
+  assert.match(src, /for \(let page = 0; page < MAX_PAGES_PER_DRAIN; page\+\+\)/, "and it is the loop's ceiling");
+  // Each of the three ways a page is the last one.
+  assert.match(src, /if \(events\.length === 0\) break;/, "an empty page ends the run");
+  assert.match(src, /if \(summary\.pending !== null && summary\.pending <= 0\) break;/, "so does an empty queue");
+  assert.match(src, /if \(events\.length < MAX_EVENTS_PER_DRAIN\) break;/, "so does a short page");
+  // A blocked queue must NOT be retried on the next page: the events are ordered.
+  const loop = src.slice(src.indexOf("for (let page = 0"));
+  assert.match(loop, /if \(held\) break;/, "a hold or a failed ack stops asking for more");
+  // What is left over is not lost, and not silent.
+  assert.match(src, /pending: summary\.pending/, "the leftover is PERSISTED for the card to show");
 });

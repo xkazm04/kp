@@ -19,6 +19,16 @@ import { assertPublicHttpsEndpoint } from "./safe-url";
 import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "./ats-secret";
 import { generateEdgeKeypair } from "./edge-crypto";
 
+/** The closed vocabulary of drain failures. Literal array + derived union + runtime
+ *  guard, the repo's shape for a closed vocabulary (tabs.ts, i18n/locales.ts) — the
+ *  card owes one message per member and `i18n:check` cannot see a string built at
+ *  runtime, so the union is what keeps the four catalogs honest. */
+export const EDGE_ERROR_KINDS = ["unreachable", "held", "ack", "unknown"] as const;
+export type EdgeErrorKind = (typeof EDGE_ERROR_KINDS)[number];
+export function isEdgeErrorKind(v: unknown): v is EdgeErrorKind {
+  return typeof v === "string" && (EDGE_ERROR_KINDS as readonly string[]).includes(v);
+}
+
 export class EdgeConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -38,7 +48,19 @@ export type EdgePublicConfig = {
   cursor: number;
   lastDrainAt: string | null;
   lastHeartbeatAt: string | null;
+  /** Events still waiting at the edge after the last drain, as the edge itself
+   *  reported them. NULL means "not known yet" — never 0, because "the queue is
+   *  empty" and "we have never asked" are different facts and the card says which. */
+  pending: number | null;
+  /** The raw diagnostic, for the operator's server-side eye. The CARD renders
+   *  `lastErrorKind` instead: a machine string like `HTTP 502` is not a sentence in
+   *  any of the four languages this app ships. */
   lastError: string | null;
+  /** The CLASS of the last failure, which is what a reader can act on:
+   *  `unreachable` (the edge did not answer), `held` (an event could not be filed
+   *  and stays queued), `ack` (events were filed but the edge was not told, so it
+   *  re-serves them harmlessly). NULL when the last drain was clean. */
+  lastErrorKind: EdgeErrorKind | null;
   /** Where a "your studio has mail" nudge is sent. An ntfy topic URL, a webhook, or
    *  null (the edge then still counts, and nothing is sent). */
   nudgeTarget: string | null;
@@ -75,10 +97,24 @@ function db(): Database.Database {
       last_drain_at TEXT,
       last_heartbeat_at TEXT,
       last_error TEXT,
+      last_error_kind TEXT,
+      pending INTEGER,
       nudge_target TEXT,
       updated_at TEXT
     );
   `);
+  // Migrations for stores created before the drain LEDGER existed. The card used to
+  // show two facts (cursor, last error) while the engine already knew four; `pending`
+  // in particular was fetched on every drain and thrown away, so a 500-event backlog
+  // looked identical to an empty queue. Same idiom as offers-store.ts: try, and treat
+  // the duplicate-column error as the success it is.
+  for (const column of ["last_error_kind TEXT", "pending INTEGER"]) {
+    try {
+      d.exec(`ALTER TABLE edge_config ADD COLUMN ${column}`);
+    } catch {
+      /* column already exists — the ALTER is the migration and this is idempotent */
+    }
+  }
   _db = d;
   return d;
 }
@@ -92,6 +128,8 @@ type Row = {
   last_drain_at: string | null;
   last_heartbeat_at: string | null;
   last_error: string | null;
+  last_error_kind: string | null;
+  pending: number | null;
   nudge_target: string | null;
 };
 
@@ -99,7 +137,7 @@ function readRow(): Row | undefined {
   return db()
     .prepare(
       `SELECT edge_url, edge_secret, public_jwk, private_jwk, cursor, last_drain_at,
-              last_heartbeat_at, last_error, nudge_target
+              last_heartbeat_at, last_error, last_error_kind, pending, nudge_target
          FROM edge_config WHERE id = 1`
     )
     .get() as Row | undefined;
@@ -132,7 +170,9 @@ export function getEdgeConfig(): EdgePublicConfig {
     cursor: row?.cursor ?? 0,
     lastDrainAt: row?.last_drain_at ?? null,
     lastHeartbeatAt: row?.last_heartbeat_at ?? null,
+    pending: typeof row?.pending === "number" ? row.pending : null,
     lastError: row?.last_error ?? null,
+    lastErrorKind: isEdgeErrorKind(row?.last_error_kind) ? row.last_error_kind : null,
     nudgeTarget: process.env.KP_NUDGE_TARGET?.trim() || row?.nudge_target || null,
     envConfigured: Boolean(process.env.KP_EDGE_URL),
     offline: edgeOffline(),
@@ -275,18 +315,36 @@ export async function ensureEdgeKeypair(): Promise<string> {
 
 /** Advance the drain cursor. Called ONLY after the events up to `cursor` have been
  *  applied AND acked, so a crash between apply and ack replays rather than skips. */
-export function recordDrain(result: { cursor: number; error: string | null }): void {
+export function recordDrain(result: {
+  cursor: number;
+  error: string | null;
+  errorKind?: EdgeErrorKind | null;
+  /** What the edge said is still waiting. `undefined` = we never got an answer (the
+   *  drain failed before the response parsed), and the stored value is then LEFT
+   *  ALONE rather than zeroed — a failed reach is not evidence the queue drained. */
+  pending?: number | null;
+}): void {
+  const now = new Date().toISOString();
   db()
     .prepare(
-      `INSERT INTO edge_config (id, cursor, last_drain_at, last_error, updated_at)
-       VALUES (1, ?, ?, ?, ?)
+      `INSERT INTO edge_config (id, cursor, last_drain_at, last_error, last_error_kind, pending, updated_at)
+       VALUES (1, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          cursor = MAX(edge_config.cursor, excluded.cursor),
          last_drain_at = excluded.last_drain_at,
          last_error = excluded.last_error,
+         last_error_kind = excluded.last_error_kind,
+         pending = COALESCE(excluded.pending, edge_config.pending),
          updated_at = excluded.updated_at`
     )
-    .run(result.cursor, new Date().toISOString(), result.error, new Date().toISOString());
+    .run(
+      result.cursor,
+      now,
+      result.error,
+      result.error ? (result.errorKind ?? "unknown") : null,
+      result.pending === undefined ? null : result.pending,
+      now
+    );
 }
 
 export function recordHeartbeat(): void {

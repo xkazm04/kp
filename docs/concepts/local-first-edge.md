@@ -430,5 +430,24 @@ than no design doc.
   `comms_relay_config`); the clock's pull sweep is a named, narrow exemption in
   `channels-tenancy.test.ts`, while the recruiter-facing half stays scoped.
 
+- **The Worker's doors are now as hard as the install's** (2026-09-02). §2 rule 1 said
+  the edge holds "one per-tenant HMAC key"; it did not say that `/relay/callback` was
+  outside that scheme entirely, and it was — open to anyone who learned the URL, while
+  a buffered receipt becomes a `bounced` outbox row. It now mirrors
+  `app/api/comms/callback/callback-auth.ts` rule for rule (a secret whose absence
+  disables the route, constant-time compare, ±5 min freshness, a nonce). §2 rule 2's
+  "every edge row carries a nonce" turned out to describe the EVENT log, not the
+  protocol: a captured signed `POST /ack` replayed for five minutes and deleted queued
+  events. A `nonces` table now spends every signature once. Both are pinned across the
+  runtimes by text, and `edge/test/worker.test.ts` drives the Worker against a D1
+  double — no wrangler, no account, no network.
+- **The card shows the ledger, not two of its four facts** (2026-09-02). `pending` was
+  fetched on every drain and discarded, `lastDrainAt`/`lastHeartbeatAt` were stored and
+  never rendered, and a URL with no secret showed a green "Paired" over a drain that
+  `resolveEdge()` refuses to run. The drain also stopped after one page, so a weekend
+  backlog needed ten ticks; it now catches up to a stated bound (5 pages) and persists
+  what is left. Not a design change — the design always said the operator should be
+  able to see the queue; the build had just not surfaced it.
+
 Next rung, unchanged: **L2** (signed public projection so `schedule/[token]` and
 friends survive a closed studio), starting with scheduling.
