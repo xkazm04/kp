@@ -131,6 +131,8 @@ export const EVENT_KINDS = [
   "interview_reminder_sent",
   "interviewer_brief_sent",
   "interviewer_brief_skipped",
+  // interview/connect — the live call fell back to the other voice provider.
+  "interview_failover",
   "offer_sent",
   // comms-dispatch.ts — the offer-deadline nudge.
   "offer_reminder_sent",
@@ -231,6 +233,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   interview_reminder_sent: { Icon: Mail, tone: "text-steel" },
   interviewer_brief_sent: { Icon: Mail, tone: "text-steel" },
   interviewer_brief_skipped: { Icon: MailWarning, tone: "text-amber-600" },
+  interview_failover: { Icon: Shuffle, tone: "text-amber-600" },
   offer_sent: { Icon: Mail, tone: "text-steel" },
   offer_reminder_sent: { Icon: Mail, tone: "text-steel" },
   comm_resent: { Icon: Send, tone: "text-steel" },

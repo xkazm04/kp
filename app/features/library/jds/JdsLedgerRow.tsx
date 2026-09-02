@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Loader2, Maximize2, Users } from "lucide-react";
+import { Copy, History, Loader2, Maximize2, Users } from "lucide-react";
 import { useLocale } from "next-intl";
 import type { useTranslations } from "next-intl";
 import { PipelineShapeBar } from "@/app/_components/ui/PipelineShapeBar";
@@ -22,6 +22,7 @@ export function JdsLedgerRow({
   onOpenRow,
   onDuplicate,
   onIngested,
+  held = false,
   t,
 }: {
   row: JdRow;
@@ -30,9 +31,12 @@ export function JdsLedgerRow({
   duplicating: string | null;
   /** Largest pipeline in the visible set — the shape bar's width scale. */
   peak: number;
-  onOpenRow: (row: JdRow) => void;
+  onOpenRow: (row: JdRow, opts?: { history?: boolean }) => void;
   onDuplicate: (row: JdRow) => void;
   onIngested: (slug: string, jobId: string | null) => void;
+  /** This build's markdown never became the JD's body — it was filed as a revision
+   *  because the recruiter edited the row while the build ran (see useHeldBuilds). */
+  held?: boolean;
   t: ReturnType<typeof useTranslations<"library.tab">>;
 }) {
   // The saved-on stamp follows the APP locale, not the browser/OS one (see shortDate).
@@ -67,6 +71,20 @@ export function JdsLedgerRow({
         ) : (
           <StatusBadge row={row} muted={isUnlinked(row)} />
         )}
+        {/* The row flips to "ready" whether or not the build's markdown became the
+            body, so a held build is invisible on the status alone: the recruiter
+            keeps their own text and a fresh AI draft sits unread in the history.
+            The chip says so and opens straight to it. */}
+        {held ? (
+          <button
+            type="button"
+            onClick={() => onOpenRow(row, { history: true })}
+            title={t("buildHeldHint")}
+            className="focus-ring mt-1 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-800 hover:border-coral/40"
+          >
+            <History size={12} aria-hidden /> {t("buildHeldChip")}
+          </button>
+        ) : null}
       </td>
       {/* Pipeline — the role's live state as ONE cell: a comparable shape, the
           headcount, and the hires when there are any. Deliberately not split into

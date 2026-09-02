@@ -124,7 +124,7 @@ export function ColumnHeaderFilter({
               onClick={() => choose(it.value)}
             />
           ))}
-          {options.length === 0 ? <p className="px-3 py-2 text-xs normal-case tracking-normal text-steel">{t("filterNoValues")}</p> : null}
+          {options.length === 0 ? <p className="px-3 py-2 text-sm normal-case tracking-normal text-steel">{t("filterNoValues")}</p> : null}
         </div>
       ) : null}
     </div>
@@ -148,7 +148,7 @@ const FilterRow = forwardRef<HTMLButtonElement, { label: string; count?: number;
       >
         {Icon ? <Icon size={14} aria-hidden className="shrink-0 text-steel" /> : null}
         <span className="flex-1 truncate">{label}</span>
-        {typeof count === "number" ? <span className="nums text-xs text-steel">{count}</span> : null}
+        {typeof count === "number" ? <span className="nums text-sm text-steel">{count}</span> : null}
         {active ? <Check size={13} aria-hidden className="shrink-0" /> : null}
       </button>
     );

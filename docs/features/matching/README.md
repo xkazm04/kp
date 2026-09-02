@@ -449,6 +449,107 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### Three skill buckets on the card, not two
+`matching.py` splits a required skill three ways — `matched_skills` (at or above
+`_MATCH_THRESHOLD`), `unproven_skills` (scored above zero but under it, with
+`unproven_skill_strength` and an `unproven_skill_reason` of `adjacency` /
+`provenance` / `both`), and `missing_skills` (an exact zero). The report
+(`JobFitTab.tsx::UnprovenSkillsBlock`) and Decisions
+(`DecisionsAnalysisParts.tsx::UnprovenChips`) have rendered all three; the match
+**card** — the surface a recruiter actually picks interviewees on — rendered only
+the outer two, dropping precisely the bucket an interview exists to resolve.
+`focus/MatchCardSkillChips.tsx` now renders it as a third, amber chip class
+(`? <skill>` + a reason badge, strength in the tooltip), capped at
+`UNPROVEN_CAP` = 5 and folded into the same "+N more" expander. The six strings
+come from `decisions.summary` verbatim rather than a fork into `match`, and an
+absent/unknown reason code degrades to the neutral "claimed" label instead of
+asserting a distinction the pipeline did not make. Absent bucket = no chrome, so
+an analysis from before round 7 renders exactly as it did.
+
+### The grid announces where you are in it
+The grid has had `role="grid"` and a roving tabindex since
+`matrix-grid-arrow-keys`, so arrow keys move focus around a rectangle — but the
+cells were bare `<td>`s, so a screen reader could read the cell's own label and
+nothing about its position. `MatrixGrid.tsx` now carries the rest of the pattern:
+`role="gridcell"` on the cell, `role="columnheader"` / `role="rowheader"` on the
+sticky headers, 1-based `aria-rowindex` / `aria-colindex` that count the header
+row and the candidate column (header row = 1, data row `r` = `r + 2`; candidate
+column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
+`aria-colcount` that make those indices "of" something. Pinned structurally by
+`matrixGridRoles.test.ts` — indices only mean anything while the counts agree
+with them.
+
+### The narrative says what it is, on both surfaces
+`/api/match/reasoning` reports three things about an answer besides the answer:
+`source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —
+the language the engine actually wrote in, which is only ever `en` or `cs`.
+Candidate focus (`app/features/shared/MatchReasoningPanel.tsx`) has rendered all
+three; the grid's cell popover rendered the same sentences with none of them, and
+`useMatrixTab` dropped `narrativeLang` on the floor entirely. A de or fr reader
+therefore read English text in the grid with nothing saying so, and could not tell
+a cached rule-based summary from a fresh LLM one.
+`MatrixReasoningPopover.tsx` now carries the same strip, reusing
+`match.shared.sourceLlm` / `sourceRuleBased` / `cachedSuffix` /
+`narrativeInLanguage` **key for key** rather than re-wording them — the bespoke
+`matrix.reasoningDeterministic` footnote it replaces said half of it in a second
+vocabulary. The grid itself gained the matching disclosure: `/api/matrix` has
+always returned `cached` (`route.ts::respond`, set when the scored-grid cache
+key hits), and `MatrixDataNotices` now renders it as `matrix.servedFromCache`.
+Placements are re-read fresh on every response, so a cached grid legitimately
+sits under live pipeline rings — which is exactly why the state has to be
+readable.
+
+### A cell you stopped reading stops costing money
+The reasoning call spawns Python and, on a miss, spends an LLM call.
+`fetchMatchReasoning` (`matrixReasoningFetch.ts`, split out of the hook so it can
+be driven by a fetch double) takes an `AbortSignal`, and `closePopover` /
+"View full match" abort it. An abort is a third outcome, not a failure: it leaves
+no error card and releases the de-dupe key so re-opening the cell asks again.
+On the focus side the symmetric bug was ordering — `runMatchFor` fires from the
+candidate picker, the weights panel and the deep-link auto-run, and a slow
+earlier run could `setResult` after a fast later one, showing one candidate's
+name over another's ranking. `createRunSequence` (`focus/matchRunSequence.ts`) is
+a last-write-wins ticket; superseded runs drop their result, their error and
+their `loading` reset. A counter rather than an abort on purpose: the older run
+may already have paid for its spawn and its answer is still worth caching
+server-side — it just must not reach the screen. Pinned by
+`matrixReasoningFetch.test.ts` and `focus/matchRunSequence.test.ts`.
+
+### The grid does not re-render while you scroll
+The popover follows its cell: `useMatrixTab` listens for `scroll` in the capture
+phase (so the grid's own `overflow-auto` scroller fires it too) plus `resize`,
+and re-anchors from the live trigger rect. Both fire at input rate, and each
+event used to call `setPopover({ ...cur, rect })` — a state update on the tab, so
+a trackpad flick re-rendered the entire grid subtree tens of times a second and
+every one of the up-to-200 × N cells rebuilt its `title` and `aria-label` through
+the translator, for a change no cell can see. Two changes:
+
+- **One measurement per frame, and no React in it.** `createFrameThrottle`
+  (`matrixAnchor.ts`, DOM- and React-free with `raf`/`caf` injected) coalesces a
+  burst into a single run, and that run writes `style.top` / `style.left` on the
+  popover element directly. `matrixAnchor.test.ts` drives fake frames and states
+  both numbers: a 40-event burst cost 40 full-grid renders before and costs 1
+  measurement with 0 grid renders now. `popover.rect` remains the open-time
+  anchor that a genuine re-render restores.
+- **The row is a memo boundary.** `MatrixGridRow.tsx` is `memo`'d and receives
+  per-row *signatures* (`selSig` / `addSig`) rather than the shared selection and
+  added `Set`s — a Set is a new object on every toggle, so passing it would
+  re-render all 200 rows when one cell changed — plus its own `rovingCol` rather
+  than the whole roving cell, so arrowing between cells re-renders two rows
+  instead of every row. That only holds while the functions crossing the boundary
+  keep stable identities, so `blockedLabel` / `fetchReasoning` / `openCell` /
+  `toggleCell` are `useCallback`s and `useMatrixGridKeys` returns a `useCallback`
+  `cellProps` keyed on `size`'s primitives. `matrixGridMemo.test.ts` pins each of
+  those, because a reverted `useCallback` makes the memo a silent no-op that
+  neither review nor runtime shows.
+
+No markup or layout changed, both themes are unaffected (the cell's classes are
+untouched), and the existing keyboard tests still pass. **Virtualization is
+deliberately not here**: the pool is capped at `MATRIX_POOL_CAP` = 200 rows and,
+with the memo, a full re-render only happens when the data or the filters
+actually change. Windowing becomes the next step if that cap rises past roughly
+500 rows, or if the grid ever renders an uncapped pool.
+
 ### The grid's controls describe the grid they actually produce
 
 - **Sort label.** A column sort only applies while that column is visible —
@@ -598,6 +699,13 @@ degrading to English for the other app locales rather than failing.
   `matrix.ofCount`); closing it needs the two routes to return the count, following
   the `listJobsPage`/`countJobs` template in `app/_lib/db/jobs.ts`. Deep links
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
+- The grid's cells carry **no per-cell confidence or provenance**: a cell shows one
+  number, and whether that number rests on evidenced or self-declared skills is
+  only readable after opening the cell's reasoning popover. Surfacing it in the
+  cell needs a per-cell provenance summary from the Python pass (`/api/matrix`
+  currently returns `{score, blocked, koKeys}` only) — a pipeline change, not a
+  UI one, so the match card's three-bucket split above is the honest interim:
+  the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.

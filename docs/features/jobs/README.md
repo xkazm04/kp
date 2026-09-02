@@ -147,6 +147,50 @@ two produced the row.
 > Read `published` as **"Live (sourced)"**, never as external job-board
 > publishing.
 
+### Publishing tells the whole story
+
+`POST /api/jobs/[id]/publish` answers six facts —
+`{ sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished, reopened }`
+— and both publish surfaces read two of them. The result was not merely thin, it
+was wrong in the case that matters: an idempotent re-publish **skips sourcing
+entirely** (`if (!already)`), so its `sourced: 0` was rendered as "Sourced 0
+candidates into the Pipeline." — a fresh go-live that matched nobody, which is a
+very different and much more alarming event. A reopen looked like a first
+publish, and the rediscovery alerts a genuine go-live raises were never mentioned.
+
+`jobsPublishResult.ts` now selects one sentence per fact (pinned by
+`jobsPublishResult.test.ts`): the lead states the transition (went live / reopened
+with the count restored / already live and nothing re-sourced), then the sourcing
+count, the unreadable-profile count, and the rediscovery flags — each only when it
+has something to say. A `sourcingWarning` is amber and **replaces** the sourced
+claim, and its text (an Error message, sometimes a Python traceback) never reaches
+the screen: it selects a localized sentence. `JobsPublishNote.tsx` renders the
+list, so the Drafts panel and the modal footer tell the same story from the same
+call.
+
+**The wait is narrated and escapable.** Publishing runs a sourcing child plus the
+rediscovery fan-out and can take minutes; the only signal was a disabled button.
+There is now a live region under it naming the wait and a **Stop waiting** action
+backed by an `AbortController`. The copy is careful about what leaving does: the
+route threads the request's `AbortSignal` into the sourcing child, so aborting
+genuinely stops the sweep, but the go-live transaction commits *before* sourcing
+starts — so the sentence says the role is probably live and the sweep was
+cancelled, rather than guessing either way. The route itself is unchanged.
+
+This stayed a synchronous call rather than moving to a background task
+(`TasksProvider`) deliberately: registering a new task kind means touching the
+task registry and its handler, which is a different area from this one. Instead
+the result gets a memory of its own — a module-scope map in `jobsPublishResult.ts`
+keyed by job id — so closing the modal mid-publish no longer throws the answer
+away. Reopening the role shows it labelled **Last publish**, never as a fresh
+result, and it is deliberately not storage-backed: a week-old sentence restored
+after a reload would be a worse lie than silence.
+
+Finally, `JobLifecycleStrip` takes a `refreshToken` the modal bumps on every
+transition. Its effect keyed on `[jobId]` alone, so the strip a recruiter had just
+watched go live kept showing the pre-publish funnel, channels and decision counts
+until the modal was closed and reopened.
+
 ### The go-live is one transaction, on one connection
 
 `/publish` runs the billing gate (`jobPostGate`), the status flip
@@ -203,6 +247,35 @@ and status, and `AutomationError` does the same on outreach. Full rule:
 field, `statuses` — the whole workspace's jobId → status map — which no client ever
 read: `JobsDraftsPanel.tsx` is the only caller and takes `drafts`. `listJobStatuses`
 remains for server-side callers.
+
+### A failed READ answers with a code too
+
+The rule above covers what the routes *send*. What the client *renders* was the
+other half, and the shared read hook broke it for every dashboard tab at once:
+`useJsonFetch` did `setError((body && body.error) || errorLabel)` — the inverted
+fallback chain `app/_lib/use-error-message.ts` exists to forbid — so the caller's
+localized label almost never won and every locale got the server's English. The
+hook now keeps the failure as `{ code, status }` (`jsonFetchFailure`, pure and
+pinned by `app/_lib/useJsonFetch.test.ts`) and derives the rendered string through
+`useErrorMessage`: the code resolves in the reader's language, `errorLabel` is the
+fallback for a code the catalog does not know, and the prose is never shown.
+`code` / `status` ride out alongside `error` for callers that must branch on the
+outcome. Every consumer of the hook — here the Coach, Compare, Rediscover and
+Agent-fit tabs — inherited the fix without a call-site change.
+
+Two hand-rolled reads in this area followed:
+
+- **The Campaign tab keeps the code.** `jobsCampaignTabLogic` threw `d.error` into
+  a `catch` that ignored it, so a 429 back-off and a 500 store fault both read
+  "Couldn't load the pack." The failed response's `code` is now carried to the
+  catch and resolved, with `loadFailed` as the fallback. Warning codes the build
+  has no sentence for are no longer filtered out in silence either — an unknown
+  code renders as `jobs.campaign.warnUnknown` naming the code.
+- **The Drafts panel fails visibly.** `loadDrafts` ended in `.catch(() => undefined)`,
+  leaving `drafts` at `[]` — and the panel returns `null` when empty, so a failed
+  read was indistinguishable from having no drafts: an authored JD awaiting
+  sourcing simply was not there. A failure is now its own state; the panel stays
+  on screen with `jobs.drafts.loadFailed` and a retry that re-runs the read.
 
 ### Every jobs route that spawns or spends is throttled
 
@@ -447,8 +520,19 @@ presented as the pool — the same cut-slice-as-whole-set shape the rediscovery
 panel closed with its "+N more" line. The hook now reads the flag (strictly
 `=== true`, so an older payload never invents a warning) and
 `JobsRecruiterCandidates` renders `jobs.candidates.poolTruncatedNote` beside the
-skipped-candidates note, in the same advisory amber. The winnability coach's half
-is still open (Known gaps).
+skipped-candidates note, in the same advisory amber.
+
+The **winnability coach's half is now closed too**. `GET /api/jobs/[id]/winnability`
+destructured `{ entries }` only, so the coach graded the same capped pool and
+presented "3 of 40 qualify — loosen this gate" as the whole truth; a recruiter
+edits their JD off that number. The route now reads `{ entries, truncated }` and
+echoes `poolTruncated` exactly as the candidates route does, and `JobsCoachPanel`
+renders **the candidates namespace's own sentence** (`useTranslations("jobs.candidates")`
+→ `poolTruncatedNote`) rather than a second copy of it, so the two surfaces cannot
+drift into two accounts of one cap. The empty-pool branch's English `note` ("No
+saved candidates yet.") is gone with it — no client ever read it, and a client is
+not allowed to render server prose. Pinned by
+`app/features/library/jobs/jobsCoachPoolCap.test.ts`.
 
 ## A rediscovery prior must be another role
 
@@ -561,6 +645,43 @@ SERVER-side; the segment renders only when there is at least one assignment, sin
 role without a work sample is the normal case and not a gap to nag about. The count
 stays `null` until the fetch lands and after a failure, so an unknown count is an absent
 segment rather than a confident "0".
+
+## The posting modal's tab strip is a real tablist
+
+`JobPostingModal` renders seven tabs under `role="tablist"`, and until now that
+was ARIA the widget did not honour: every button was a tab stop and no arrow key
+did anything, so a keyboard user reaching **Agent fit** from **Posting** paid six
+Tab presses through a strip that announces itself as one control. The strip now
+carries a roving tabindex (`tabIndex={tab === id ? 0 : -1}`) and ←/→/↑/↓/Home/End
+movement, and it scrolls horizontally (`overflow-x-auto`, `shrink-0` tabs) instead
+of squeezing seven labels off a narrow modal's edge.
+
+The ids live once, in `jobsPostingModalTabs.ts` — literal array → derived union →
+runtime guard, the same shape as `app/features/shell/tabs.ts` — with the label +
+icon per id in a `Record<PostingTabId, …>` in the modal, so adding a tab id is a
+type error until the strip learns to render it. The movement arithmetic is
+`SegmentedControl`'s `move`, **copied** rather than shared: that primitive's copy
+is entangled with its radiogroup semantics (`aria-checked`, the off-taxonomy
+recovery, the `layoutId` indicator). Both halves are pinned by
+`jobsPostingModalTabs.test.ts`.
+
+Two more shapes moved off hand-rolled strings in the same pass: the shared
+`Modal` footer wraps (`flex-wrap`) — this modal's footer carries up to six
+actions plus a publish note, and on a narrow viewport they were squeezed rather
+than wrapped, while the `basis-full` copy-failure line already assumed a wrapping
+row — and the jobs surfaces compose `PANEL` / `STAT` / `CHIP_TOGGLE` from
+`app/_components/ui/recipes.ts` (the Agent-fit status, coverage and spec panels,
+the campaign variant card, the coach's stat tiles, and the four language /
+filter chip toggles) instead of re-typing the class strings, so a restyle reaches
+them and Spark Dark's sticker treatment applies without a second edit.
+
+The modal's own lifecycle machine is extracted too: `derivePostingLifecycle`
+(`jobsPostingLifecycle.ts`) folds the server-decorated `job.status` together with
+the in-session `closed` / `published` flips. `published` is read FIRST, because a
+re-publish IS the reopen path — reading `closed` first would keep the apply links
+inert on a role that is live unless every caller remembered to clear the flag by
+hand. Pinned by `jobsPostingLifecycle.test.ts`; the Campaign tab's `(job, lang)`
+staleness rule moved to `jobsCampaignPackKey.ts` with the same treatment.
 
 ## The winnability coach stages the number it actually computed
 
@@ -871,12 +992,13 @@ include `workspace_id`).
   computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
   and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
   "showing N of M" line (new `library.tab.*` copy across all four locales).
-- `GET /api/jobs/[id]/winnability` drops `buildCandidatePool`'s `truncated` flag
-  on the floor (`const { entries } = buildCandidatePool(ws)`), so on a workspace
-  whose corpus exceeds `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) the coach's
-  "+N if you loosen this" promises are computed over a capped subset with no
-  notice. The Candidates tab now says so for its own ranking (below); the coach
-  panel still needs the flag forwarded and a matching line.
+- The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
+  rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
+  `campaign.py` spends them internally to suppress unstated facts but the pack it
+  returns carries only `warnings`. So a recruiter sees "no salary stated" but not
+  "we assumed medior / Praha for you". Surfacing it is a `campaign.py` change
+  (add the list to the returned pack) plus a line under the pack in
+  `JobsCampaignTab`, not a UI-only fix.
 - **The Fair Rank audit table ranks one number across cohorts it is not
   comparable within.** `recruiter.fairness_check` is handed *every* validated
   candidate, so its `own` / `mean` arrays include both fairness tracks **and**

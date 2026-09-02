@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession, getInterviewSessionByToken, isInterviewLinkExpired, markInterviewStarted, revokeInterviewSession, setInterviewSessionProvider } from "@/app/_lib/db/interviews";
-import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { getEntryWorkspace, getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import {
   coerceLanguage,
@@ -239,7 +239,37 @@ export async function POST(request: NextRequest) {
     // session.provider) and telemetry attribute to the real provider, not the
     // requested one — and leave a breadcrumb that a failover occurred.
     if (failedOver) {
-      setInterviewSessionProvider(session.id, served);
+      // …and the breadcrumb is now a COLUMN, not only a log line. `provider` is
+      // overwritten in place with whoever served, so the provider the recruiter
+      // actually chose used to survive nowhere a recruiter could reach: they saw a
+      // call priced on the other vendor with no way to learn that theirs was down.
+      // failover_from is written once (COALESCE in the store) and stays NULL on the
+      // overwhelming majority of calls, where nothing fell back.
+      setInterviewSessionProvider(session.id, served, provider);
+      // An entry-backed session also leaves the fact on the candidate's timeline —
+      // the same trail every other unattended action writes, so "why did this screen
+      // run on ElevenLabs?" is answerable months later from the activity log rather
+      // than from server logs that have long rotated. Best-effort: the audit marker
+      // must never fail a call the candidate is waiting on.
+      if (session.entryId) {
+        try {
+          recordAutomationEvent(
+            session.entryId,
+            "interview_failover",
+            `${provider} → ${served} (preferred provider's connect failed)`,
+            session.workspaceId,
+            "auto:interview-connect"
+          );
+        } catch (eventErr) {
+          // Telemetry, so never the request. Not silent either: this marker is the
+          // only durable candidate-facing record that the chosen provider was down,
+          // and an operator reconciling a surprising bill would act on it.
+          console.error(
+            `[interview:connect] failover event write failed for session ${session.id} (${provider} → ${served}):`,
+            eventErr
+          );
+        }
+      }
       console.warn(
         `[interview:connect] provider failover ${provider} → ${served} for session ${session.id} ` +
           `(preferred provider's connect failed; alternate served).`

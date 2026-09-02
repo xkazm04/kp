@@ -63,15 +63,27 @@ function outcomeLink(task: Task): { href: string; key: OutcomeKey } | null {
 
 export function TaskOutcome({ task }: { task: Task }) {
   const t = useTranslations("tasks");
+  // ONE key, two surfaces: the JD ledger's "build held as a revision" chip and this
+  // dock line resolve the SAME `library.tab.buildHeldChip` string, so the drawer and
+  // the library can never describe the same outcome two different ways. It rode the
+  // generic scalar list before — a bare `bodyHeldAsRevision  true` row, untranslated
+  // and unexplained, which is the whole reason this branch exists.
+  const tLibrary = useTranslations("library.tab");
   const link = outcomeLink(task);
   const result = task.result && typeof task.result === "object" ? (task.result as Record<string, unknown>) : null;
   // Scalars only: nested blobs (full analysis payloads, drafts) belong on their
   // own surfaces — the deep link is the path to them.
+  const bodyHeld = result?.["bodyHeldAsRevision"] === true;
   const scalars = result
-    ? Object.entries(result).filter(([, v]) => ["string", "number", "boolean"].includes(typeof v)).slice(0, 8)
+    ? Object.entries(result)
+        .filter(([k, v]) => k !== "bodyHeldAsRevision" && ["string", "number", "boolean"].includes(typeof v))
+        .slice(0, 8)
     : [];
   return (
     <div className="space-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2">
+      {bodyHeld ? (
+        <p className="text-sm font-semibold text-amber-800">{tLibrary("buildHeldChip")}</p>
+      ) : null}
       {task.kind === "batch_screen" && result ? (
         <p className="text-sm text-ink">
           <span className="font-semibold text-moss">{t("outcome.advanced", { count: Number(result["advanced"] ?? 0) })}</span>

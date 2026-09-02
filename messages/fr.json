@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Joignez un enregistrement à transcrire.",
     "AUDIO_UNSUPPORTED_TYPE": "Utilisez WAV, MP3, M4A, WebM, OGG ou FLAC pour l'enregistrement.",
     "AUDIO_TOO_LARGE": "Cet enregistrement dépasse la limite de téléversement de 25 Mo.",
-    "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez."
+    "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez.",
+    "JD_FIELDS_REQUIRED": "Le titre et la description sont tous deux obligatoires.",
+    "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
+    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2226,14 +2229,10 @@
       "offer_reminder": "Rappel d’offre"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "observé",
       "professional": "pro",
       "internship": "stage",
@@ -2342,6 +2341,7 @@
       "interview_reminder_sent": "a reçu un rappel d’entretien",
       "interviewer_brief_sent": "a fait l’objet d’un brief pour l’intervieweur",
       "interviewer_brief_skipped": "aucun briefing d’intervieweur (pas d’adresse au dossier)",
+      "interview_failover": "a vu son entretien basculer vers un autre fournisseur vocal",
       "offer_sent": "a reçu une offre",
       "comm_resent": "s’est vu renvoyer un message",
       "interview_scheduled": "a confirmé un créneau d’entretien",
@@ -3426,11 +3426,10 @@
       "costFree": "sans coût à la minute",
       "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
       "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
-      "costUnknown": "coût inconnu",
-      "costFree": "sans coût à la minute",
-      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
-      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
-      "confidence": "confiance : {level}"
+      "confidence": "confiance : {level}",
+      "attempts": "{count, plural, one {# tentative} other {# tentatives}}",
+      "failedOverFrom": "bascule depuis {provider}",
+      "attemptsTitle": "Déroulé de l'appel : reconnexions et bascule de fournisseur si celui choisi était indisponible"
     },
     "interviewerTitle": "Intervieweur : {name}",
     "calendar": {
@@ -3722,7 +3721,7 @@
       "shelfRecordLabel": "L’enregistrement que vous allez créer",
       "shelfWriteCta": "Rédiger la première fiche",
       "shelfDraftCta": "Laisser le générateur la rédiger",
-      "shelfCtaNote": "Les deux ouvrent le panneau Générer. Enregistrez un brouillon tel quel, ou laissez l’AI produire la description, une fourchette de salaire du marché et un exercice pratique.",
+      "shelfCtaNote": "Le panneau Générer prend le relais : enregistrez votre texte comme brouillon, ou confiez-le à l'IA pour qu'elle produise la description, une fourchette de salaire du marché et un exercice pratique.",
       "shelfReuseLabel": "Une fiche sert à",
       "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
       "shelfReuseIngest": "La convertir en poste ouvert",
@@ -3962,26 +3961,26 @@
           "recompose": "Recomposer",
           "composing": "Composition…",
           "composeError": "Impossible de composer la spécification. Veuillez réessayer.",
-            "moreCount": "{count, plural, =1 {+1 de plus} other {+# de plus}}",
-            "showLess": "Afficher moins",
-            "mandate": {
-              "title": "Le mandat",
-              "gates": "Points de validation",
-              "objectives": "Résultats et leurs seuils",
-              "direction": {
-                "gte": "au moins",
-                "lte": "au plus"
-              },
-              "windowValue": "{days, plural, one {fenêtre de # jour} other {fenêtre de # jours}}",
-              "reviewCadence": "Rythme de revue",
-              "reviewCadenceValue": "{days, plural, one {tous les # jour} other {tous les # jours}}",
-              "retire": "Retirer lorsque",
-              "reservation": "Réservation du budget",
-              "reservationValue": {
-                "estimate": "estimée à chaque exécution",
-                "fixed": "réservée à l'avance"
-              }
+          "moreCount": "{count, plural, =1 {+1 de plus} other {+# de plus}}",
+          "showLess": "Afficher moins",
+          "mandate": {
+            "title": "Le mandat",
+            "gates": "Points de validation",
+            "objectives": "Résultats et leurs seuils",
+            "direction": {
+              "gte": "au moins",
+              "lte": "au plus"
             },
+            "windowValue": "{days, plural, one {fenêtre de # jour} other {fenêtre de # jours}}",
+            "reviewCadence": "Rythme de revue",
+            "reviewCadenceValue": "{days, plural, one {tous les # jour} other {tous les # jours}}",
+            "retire": "Retirer lorsque",
+            "reservation": "Réservation du budget",
+            "reservationValue": {
+              "estimate": "estimée à chaque exécution",
+              "fixed": "réservée à l'avance"
+            }
+          },
           "spec": {
             "title": "Spécification du maître d'application",
             "empty": "Composez la spécification une fois les résultats et le mandat saisis.",
@@ -4011,7 +4010,22 @@
           "dispatchHuman": "Cette spécification est composée pour un titulaire humain. Promouvez-la plutôt en fiche de poste.",
           "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer."
         }
-      }
+      },
+      "buildHeldChip": "Résultat conservé en révision",
+      "buildHeldBody": "Vous avez modifié cette fiche pendant la génération : votre texte a été conservé et le brouillon généré a été classé dans l'historique des modifications.",
+      "buildHeldHint": "Ouvrir le brouillon généré dans l'historique des modifications de cette fiche.",
+      "buildHeldOpenDraft": "Ouvrir ce brouillon",
+      "buildIntentLabel": "Généré avec",
+      "buildIntentTemplate": "Modèle",
+      "buildIntentLanguage": "Langue",
+      "buildIntentSeniority": "Séniorité",
+      "buildIntentAiDefault": "Format par défaut de l'IA",
+      "caseTaskFallback": "Tâche",
+      "pollStalledNote": "Analyse toujours en cours. Aucune nouvelle de cette génération depuis un moment. Le tiroir Tâches en donne le statut en direct.",
+      "unsavedTitle": "Abandonner vos modifications non enregistrées ?",
+      "unsavedBody": "Cette fiche contient des modifications que vous n'avez pas encore enregistrées. Quitter l'éditeur les supprime.",
+      "unsavedDiscard": "Abandonner les modifications",
+      "unsavedKeep": "Continuer l'édition"
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",
@@ -4267,7 +4281,20 @@
       "publishedButFailed": "Publié, mais le sourcing a échoué : {warning}",
       "sourced": "{count, plural, one {# candidat sourcé dans le pipeline.} other {# candidats sourcés dans le pipeline.}}",
       "quotaNote": "Vous avez atteint la limite de postes actifs de votre forfait. Passez à un forfait supérieur ou fermez un poste pour en publier un autre.",
-      "goToBilling": "Mettre à niveau (Facturation)"
+      "goToBilling": "Mettre à niveau (Facturation)",
+      "loadFailed": "Impossible de charger les brouillons.",
+      "publishWentLive": "Le poste est en ligne.",
+      "publishReopened": "{count, plural, one {Rouvert : # candidature retirée est de retour dans le pipeline.} other {Rouvert : # candidatures retirées sont de retour dans le pipeline.}}",
+      "publishAlreadyLive": "Déjà en ligne. Aucune nouvelle recherche n’a été lancée.",
+      "publishSourced": "{count, plural, =0 {Aucun profil enregistré ne correspond encore à ce poste.} one {# profil ajouté au pipeline.} other {# profils ajoutés au pipeline.}}",
+      "publishSkipped": "{count, plural, one {# profil enregistré n’a pas pu être lu, il n’a donc pas été évalué.} other {# profils enregistrés n’ont pas pu être lus, ils n’ont donc pas été évalués.}}",
+      "publishSilver": "{count, plural, one {# ancien profil a été signalé pour redécouverte.} other {# anciens profils ont été signalés pour redécouverte.}}",
+      "publishSourcingFailed": "La recherche a échoué, personne n’a donc été ajouté. Cela ne veut pas dire qu’aucun profil ne correspond.",
+      "publishInFlight": "Mise en ligne et recherche de profils. Cela peut prendre quelques minutes.",
+      "publishStopWaiting": "Arrêter d’attendre",
+      "publishAbandoned": "Attente interrompue. Le poste est probablement déjà en ligne, mais la recherche de profils a été annulée. Rouvrez le poste pour vérifier.",
+      "publishLastResult": "Dernière mise en ligne",
+      "retry": "Réessayer"
     },
     "posting": {
       "copied": "Copié",
@@ -4390,7 +4417,8 @@
       "warnNoSkills": "Aucune compétence extraite, les accroches sur la stack ont donc été ignorées.",
       "applyUrlNote": "Le CTA renvoie au formulaire de candidature express :",
       "loadFailed": "Impossible de charger le pack de campagne.",
-      "generateFailed": "Impossible de générer le pack de campagne."
+      "generateFailed": "Impossible de générer le pack de campagne.",
+      "warnUnknown": "Une information dont le pack ne disposait pas ({code})."
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
@@ -6405,6 +6433,7 @@
         "interview_reminder_sent": "Rappel d’entretien envoyé",
         "interviewer_brief_sent": "Intervieweur briefé",
         "interviewer_brief_skipped": "Brief de l’intervieweur ignoré (pas d’e-mail)",
+        "interview_failover": "Entretien basculé vers un autre fournisseur",
         "comm_resent": "Message renvoyé",
         "rejection_comms_failed": "Échec de l’e-mail de refus",
         "moved": "Étape définie manuellement",
@@ -6685,7 +6714,8 @@
     "modeLabel": "Vue matrice",
     "modeGrid": "Grille",
     "modeFocus": "Focus candidat",
-    "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir."
+    "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir.",
+    "servedFromCache": "Affiché depuis le calcul de scoring mis en cache."
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",

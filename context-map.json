@@ -6,15 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-02T09:57:08.208Z",
+ "generated_at": "2026-09-02T22:23:42.307Z",
  "provenance": {
-  "git_commit": "0c0668af81f6364ef7c017acafa786bc0eb873df",
-  "git_commit_count": 2089,
+  "git_commit": "a38451c7422b5ea3310d16fda879bb7bc8bf927d",
+  "git_commit_count": 2189,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
-  "prior_unmapped_files": 326
+  "prior_unmapped_files": 326,
+  "generated_at": "2026-09-02T22:23:42.307Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -35,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2761,
+  "files": 2789,
   "groups": 17,
   "use_cases": 12
  },
@@ -1995,6 +1996,7 @@
     "app/features/insights/matrix/MatrixEmptyState.tsx",
     "app/features/insights/matrix/MatrixFilterRow.tsx",
     "app/features/insights/matrix/MatrixGrid.tsx",
+    "app/features/insights/matrix/MatrixGridRow.tsx",
     "app/features/insights/matrix/focus/MatchCard.tsx",
     "app/features/insights/matrix/focus/MatchCardSkillChips.tsx",
     "app/features/insights/matrix/focus/MatchJobCompare.tsx",
@@ -2005,12 +2007,22 @@
     "app/features/insights/matrix/focus/MatchWeightsPanel.tsx",
     "app/features/insights/matrix/focus/MatrixCandidateFocus.tsx",
     "app/features/insights/matrix/focus/matchResultsWriteback.test.ts",
+    "app/features/insights/matrix/focus/matchRunSequence.test.ts",
+    "app/features/insights/matrix/focus/matchRunSequence.ts",
     "app/features/insights/matrix/focus/matchView.test.ts",
     "app/features/insights/matrix/focus/matchView.ts",
     "app/features/insights/matrix/focus/matchWeightsPanel.test.ts",
     "app/features/insights/matrix/focus/useMatchCardReasoning.ts",
     "app/features/insights/matrix/focus/useMatchResultsPipeline.ts",
-    "app/features/insights/matrix/focus/useMatchTabRun.ts"
+    "app/features/insights/matrix/focus/useMatchTabRun.ts",
+    "app/features/insights/matrix/matrixAnchor.test.ts",
+    "app/features/insights/matrix/matrixAnchor.ts",
+    "app/features/insights/matrix/matrixCellClass.test.ts",
+    "app/features/insights/matrix/matrixCellClass.ts",
+    "app/features/insights/matrix/matrixGridMemo.test.ts",
+    "app/features/insights/matrix/matrixGridRoles.test.ts",
+    "app/features/insights/matrix/matrixReasoningFetch.test.ts",
+    "app/features/insights/matrix/matrixReasoningFetch.ts"
    ],
    "group": "Candidate Matching & Scoring",
    "group_id": "c202db2a-c86d-4e7f-ac94-914b6327e9b6",
@@ -2065,6 +2077,7 @@
     "app/features/insights/matrix/matrixSelection.ts",
     "app/features/insights/matrix/matrixStats.test.ts",
     "app/features/insights/matrix/matrixStats.ts",
+    "app/features/insights/matrix/matrixTabTypes.test.ts",
     "app/features/insights/matrix/matrixTabTypes.ts",
     "app/features/insights/matrix/useMatrixGridKeys.ts",
     "app/features/insights/matrix/useMatrixTab.ts"
@@ -5997,6 +6010,7 @@
     "app/features/library/jds/JdsEmptyStates.tsx",
     "app/features/library/jds/JdsGeneratePanel.tsx",
     "app/features/library/jds/JdsLedgerBadges.tsx",
+    "app/features/library/jds/JdsLedgerBuildProvenance.tsx",
     "app/features/library/jds/JdsLedgerCoachTrace.tsx",
     "app/features/library/jds/JdsLedgerDetailModal.tsx",
     "app/features/library/jds/JdsLedgerDetailPanels.tsx",
@@ -6008,7 +6022,9 @@
     "app/features/library/jds/JdsLedgerTableHead.tsx",
     "app/features/library/jds/JdsLintPanel.tsx",
     "app/features/library/jds/JdsModalEditor.tsx",
-    "app/features/library/jds/JdsModalEditorStagedBanner.tsx"
+    "app/features/library/jds/JdsModalEditorStagedBanner.tsx",
+    "app/features/library/jds/jdsBuildPoll.test.ts",
+    "app/features/library/jds/jdsBuildPoll.ts"
    ],
    "group": "Job & JD Management",
    "group_id": "3d0fab8c-b963-4864-a4a0-683577ec221f",
@@ -6058,6 +6074,7 @@
     "app/features/library/jds/jdsEditClient.test.ts",
     "app/features/library/jds/jdsEditClient.ts",
     "app/features/library/jds/jdsHooks.ts",
+    "app/features/library/jds/jdsLedgerArtifacts.test.ts",
     "app/features/library/jds/jdsLedgerArtifacts.ts",
     "app/features/library/jds/jdsLedgerLogic.ts",
     "app/features/library/jds/jdsLedgerNav.test.ts",
@@ -6179,8 +6196,18 @@
     "app/features/library/jobs/JobsLifecycleStrip.tsx",
     "app/features/library/jobs/JobsPostingModal.tsx",
     "app/features/library/jobs/JobsPostingModalFooter.tsx",
+    "app/features/library/jobs/JobsPublishNote.tsx",
     "app/features/library/jobs/JobsRecruiterCandidates.tsx",
-    "app/features/library/jobs/jobsLifecycleStrip.test.ts"
+    "app/features/library/jobs/jobsCampaignPackKey.test.ts",
+    "app/features/library/jobs/jobsCampaignPackKey.ts",
+    "app/features/library/jobs/jobsCoachPoolCap.test.ts",
+    "app/features/library/jobs/jobsLifecycleStrip.test.ts",
+    "app/features/library/jobs/jobsPostingLifecycle.test.ts",
+    "app/features/library/jobs/jobsPostingLifecycle.ts",
+    "app/features/library/jobs/jobsPostingModalTabs.test.ts",
+    "app/features/library/jobs/jobsPostingModalTabs.ts",
+    "app/features/library/jobs/jobsPublishResult.test.ts",
+    "app/features/library/jobs/jobsPublishResult.ts"
    ],
    "group": "Job & JD Management",
    "group_id": "3d0fab8c-b963-4864-a4a0-683577ec221f",
@@ -6489,6 +6516,7 @@
     "app/_lib/useAddToPipeline.test.ts",
     "app/_lib/useAddToPipeline.ts",
     "app/_lib/useInfiniteScroll.ts",
+    "app/_lib/useJsonFetch.test.ts",
     "app/_lib/useJsonFetch.ts",
     "app/_lib/useLoader.ts",
     "app/_lib/useReachOut.test.ts",
@@ -6695,6 +6723,7 @@
     "app/_lib/db/db-test-isolation-guard.test.ts",
     "app/_lib/db/dev-session-integrity.test.ts",
     "app/_lib/db/dev-session-paste.test.ts",
+    "app/_lib/db/interview-failover-attempts.test.ts",
     "app/_lib/db/interview-sim-attach.test.ts",
     "app/_lib/db/jd-build-intent.test.ts",
     "app/_lib/db/jd-staleness.test.ts",

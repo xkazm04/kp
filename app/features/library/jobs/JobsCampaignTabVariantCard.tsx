@@ -2,6 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import type { useTranslations } from "next-intl";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { BEATS, HOOK_LABEL_KEY, isHookType, type Variant } from "./jobsCampaignTabTypes";
 
 // One ad-copy + video-script variant card — extracted verbatim from
@@ -20,7 +21,7 @@ export function JobsCampaignTabVariantCard({
   t: ReturnType<typeof useTranslations<"jobs.campaign">>;
 }) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-3">
+    <div className={`${PANEL} p-3`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <span className="rounded-full bg-stone-100 px-2 py-0.5 text-micro font-semibold uppercase text-steel">

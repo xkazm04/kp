@@ -3,6 +3,7 @@
 import { BarChart3, Check, Copy, Link2, Megaphone, Users, Zap } from "lucide-react";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { useJobPostingModalLogic } from "./jobsPostingModalLogic";
+import { PublishFlightNote, PublishSentences } from "./JobsPublishNote";
 
 // The modal footer (close/reopen, publish notes, campaign-pack CTA, apply links,
 // matrix + copy-markdown actions) — extracted verbatim from JobsPostingModal.tsx
@@ -34,6 +35,8 @@ export function JobsPostingModalFooter({
     published,
     packExists,
     publishNote,
+    publishOutcome,
+    cancelPublish,
     goToBilling,
     isDraft,
     isClosed,
@@ -86,6 +89,13 @@ export function JobsPostingModalFooter({
           {closedCount > 0 ? t("withdrewCount", { count: closedCount }) : t("closedNow")}
         </span>
       ) : null}
+      {/* The wait itself, narrated: a live region under the button that started it
+          plus a way out. Pre-fix the only signal was a disabled button, for up to
+          three minutes. */}
+      {publishing ? <PublishFlightNote onStop={cancelPublish} /> : null}
+      {!publishing && publishOutcome ? (
+        <PublishSentences note={publishOutcome.note} stale={publishOutcome.stale} />
+      ) : null}
       {publishNote ? (
         publishNote.tone === "quota" ? (
           <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-sm text-coral">
@@ -99,11 +109,7 @@ export function JobsPostingModalFooter({
             </button>
           </span>
         ) : (
-          <span
-            aria-live="polite"
-            className={`min-w-0 truncate text-sm ${publishNote.tone === "warn" ? "text-amber-800" : "text-steel"}`}
-            title={publishNote.text}
-          >
+          <span aria-live="polite" className="min-w-0 text-sm text-amber-800">
             {publishNote.text}
           </span>
         )

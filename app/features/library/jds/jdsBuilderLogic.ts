@@ -50,7 +50,10 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   const [seniority, setSeniority] = useState(prefill?.seniority ?? sp.get("jdSeniority") ?? "medior");
   const [roleFamily, setRoleFamily] = useState(prefill?.roleFamily ?? sp.get("jdFamily") ?? "software_engineering");
   const [needText, setNeedText] = useState(prefill?.need ?? sp.get("jdNeed") ?? "");
-  const [repoUrl, setRepoUrl] = useState("");
+  // Duplicate carries the source build's repo across (jd-build-intent), so a copy of
+  // a repo-grounded role is rebuilt against the same codebase instead of silently
+  // losing its grounding.
+  const [repoUrl, setRepoUrl] = useState(prefill?.repoUrl ?? "");
   // JDL5 — the generated JD's output language, defaulting to the active locale
   // (a Czech-market recruiter gets a Czech JD without hand-translating).
   //
@@ -60,14 +63,25 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   // offering de/fr as if selectable was a silent English fallback. The selector
   // now marks de/fr unavailable and the default is clamped to a supported code,
   // so a de/fr app locale doesn't silently produce an English JD.
+  // Duplicate wins over the app locale: a Czech JD copied by a recruiter reading the
+  // app in English used to come back in English, because the source build's `lang`
+  // was recorded and then never read back.
   const appLocale = useLocale();
-  const [outputLang, setOutputLang] = useState(isOutputLang(appLocale) ? appLocale : "en");
+  const [outputLang, setOutputLang] = useState(
+    isOutputLang(prefill?.lang) ? prefill.lang : isOutputLang(appLocale) ? appLocale : "en"
+  );
 
   // Template-first authoring: pick a company format, then let AI fill it. An empty
   // templateId means "use the AI's own default formatting". The build renders
   // through the chosen template server-side (render-template.ts).
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [templateId, setTemplateId] = useState("");
+  // Seeded from the Duplicate source's recorded templateId, so a copy renders through
+  // the same company format. loadTemplates below reconciles it: a template deleted
+  // since that build no longer resolves and the selection falls back to the default,
+  // which is the honest outcome — the format it was built with is gone. A source
+  // build that used the AI default carries no id, so it seeds "" and picks up the
+  // workspace default exactly as a fresh form does.
+  const [templateId, setTemplateId] = useState(prefill?.templateId ?? "");
   const [manageOpen, setManageOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -182,7 +196,10 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     // (a full markdown editor) becomes the JD body.
     const fields = validateJdFields(title, needText);
     if (!fields.ok) {
-      setError(fields.error);
+      // The validator's `error` is canonical English for the server log; the reader
+      // gets its CODE resolved in their own language, exactly as an API failure is
+      // handled two branches down. This banner used to print English into cs/de/fr.
+      setError(errMsg({ code: fields.code }, t("saveDraftFailed")));
       return;
     }
     setSavingDraft(true);

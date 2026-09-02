@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Attach a recording to transcribe.",
     "AUDIO_UNSUPPORTED_TYPE": "Use WAV, MP3, M4A, WebM, OGG or FLAC for the recording.",
     "AUDIO_TOO_LARGE": "That recording is over the 25 MB upload limit.",
-    "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again."
+    "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again.",
+    "JD_FIELDS_REQUIRED": "A title and a description are both required.",
+    "JD_TITLE_TOO_LONG": "The title must be 200 characters or fewer.",
+    "JD_BODY_TOO_LONG": "The description must be 20,000 characters or fewer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2226,14 +2229,10 @@
       "offer_reminder": "Offer reminder"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "observed",
       "professional": "prod",
       "internship": "intern",
@@ -2342,6 +2341,7 @@
       "interview_reminder_sent": "was sent an interview reminder",
       "interviewer_brief_sent": "had their interviewer briefed",
       "interviewer_brief_skipped": "got no interviewer brief (no address on file)",
+      "interview_failover": "had their interview fail over to another voice provider",
       "offer_sent": "was sent an offer",
       "comm_resent": "had a message resent",
       "interview_scheduled": "confirmed an interview slot",
@@ -3427,11 +3427,10 @@
       "costFree": "no per-minute cost",
       "costTitle": "Estimated cost of this call, from the usage ledger",
       "providerTitle": "The voice provider that served this call",
-      "costUnknown": "cost unknown",
-      "costFree": "no per-minute cost",
-      "costTitle": "Estimated cost of this call, from the usage ledger",
-      "providerTitle": "The voice provider that served this call",
-      "confidence": "confidence: {level}"
+      "confidence": "confidence: {level}",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "failedOverFrom": "fell back from {provider}",
+      "attemptsTitle": "How this call ran: reconnects, and a provider swap if the chosen one was unavailable"
     },
     "calendar": {
       "calendarAria": "Interview week calendar: days across, times down",
@@ -3722,7 +3721,7 @@
       "shelfRecordLabel": "The record you're about to create",
       "shelfWriteCta": "Write the first spec",
       "shelfDraftCta": "Have the builder draft it",
-      "shelfCtaNote": "Both open the Generate panel. Save a draft as-is, or let the AI build the description, a market salary band and a work-sample assignment.",
+      "shelfCtaNote": "The Generate panel takes it from here: save what you type as a draft, or hand it to the AI to build the description, a market salary band and a work-sample assignment.",
       "shelfReuseLabel": "One sheet is reusable for",
       "shelfReuseAnalyze": "Score CVs against it",
       "shelfReuseIngest": "Ingest it as an open role",
@@ -3962,26 +3961,26 @@
           "recompose": "Re-compose",
           "composing": "Composing…",
           "composeError": "Could not compose the spec. Please try again.",
-            "moreCount": "{count, plural, =1 {+1 more} other {+# more}}",
-            "showLess": "Show less",
-            "mandate": {
-              "title": "The mandate",
-              "gates": "Approval gates",
-              "objectives": "Outcomes and their bars",
-              "direction": {
-                "gte": "at least",
-                "lte": "at most"
-              },
-              "windowValue": "{days, plural, one {# day window} other {# day window}}",
-              "reviewCadence": "Review cadence",
-              "reviewCadenceValue": "{days, plural, one {every # day} other {every # days}}",
-              "retire": "Retire when",
-              "reservation": "Budget reservation",
-              "reservationValue": {
-                "estimate": "estimated per run",
-                "fixed": "reserved up front"
-              }
+          "moreCount": "{count, plural, =1 {+1 more} other {+# more}}",
+          "showLess": "Show less",
+          "mandate": {
+            "title": "The mandate",
+            "gates": "Approval gates",
+            "objectives": "Outcomes and their bars",
+            "direction": {
+              "gte": "at least",
+              "lte": "at most"
             },
+            "windowValue": "{days, plural, one {# day window} other {# day window}}",
+            "reviewCadence": "Review cadence",
+            "reviewCadenceValue": "{days, plural, one {every # day} other {every # days}}",
+            "retire": "Retire when",
+            "reservation": "Budget reservation",
+            "reservationValue": {
+              "estimate": "estimated per run",
+              "fixed": "reserved up front"
+            }
+          },
           "spec": {
             "title": "App master spec",
             "empty": "Compose the spec once the outcomes and the mandate are captured.",
@@ -4011,7 +4010,22 @@
           "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
           "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
         }
-      }
+      },
+      "buildHeldChip": "Build held as a revision",
+      "buildHeldBody": "You edited this JD while the build was running, so your own text was kept and the generated draft was filed in the edit history.",
+      "buildHeldHint": "Open the generated draft in this JD's edit history.",
+      "buildHeldOpenDraft": "Open that draft",
+      "buildIntentLabel": "Built with",
+      "buildIntentTemplate": "Template",
+      "buildIntentLanguage": "Language",
+      "buildIntentSeniority": "Seniority",
+      "buildIntentAiDefault": "AI default format",
+      "caseTaskFallback": "Task",
+      "pollStalledNote": "Still analyzing. Nothing has reported on this build for a while. The Tasks drawer has its live status.",
+      "unsavedTitle": "Discard your unsaved changes?",
+      "unsavedBody": "This JD has edits you haven't saved yet. Leaving the editor discards them.",
+      "unsavedDiscard": "Discard changes",
+      "unsavedKeep": "Keep editing"
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -4267,7 +4281,20 @@
       "publishedButFailed": "Published, but sourcing failed: {warning}",
       "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
       "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
-      "goToBilling": "Upgrade in Billing"
+      "goToBilling": "Upgrade in Billing",
+      "loadFailed": "Couldn't load your drafts.",
+      "publishWentLive": "The role is live.",
+      "publishReopened": "{count, plural, one {Reopened: # withdrawn candidate is back in the pipeline.} other {Reopened: # withdrawn candidates are back in the pipeline.}}",
+      "publishAlreadyLive": "Already live. Nothing was re-sourced.",
+      "publishSourced": "{count, plural, =0 {No saved candidate matched this role yet.} one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
+      "publishSkipped": "{count, plural, one {# saved candidate could not be read, so it was never scored.} other {# saved candidates could not be read, so they were never scored.}}",
+      "publishSilver": "{count, plural, one {# past candidate was flagged for rediscovery.} other {# past candidates were flagged for rediscovery.}}",
+      "publishSourcingFailed": "Sourcing broke, so nobody was pulled in. That is not the same as nobody matching.",
+      "publishInFlight": "Going live and sourcing candidates. This can take a few minutes.",
+      "publishStopWaiting": "Stop waiting",
+      "publishAbandoned": "Stopped waiting. The role may already be live, but the candidate sweep was cancelled. Reopen this role to check.",
+      "publishLastResult": "Last publish",
+      "retry": "Retry"
     },
     "posting": {
       "copied": "Copied",
@@ -4390,7 +4417,8 @@
       "warnNoSkills": "No extracted skills, so stack hooks were skipped.",
       "applyUrlNote": "CTA links to the quick-apply form:",
       "loadFailed": "Couldn't load the campaign pack.",
-      "generateFailed": "Couldn't generate the campaign pack."
+      "generateFailed": "Couldn't generate the campaign pack.",
+      "warnUnknown": "A fact the pack had to do without ({code})."
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",
@@ -6405,6 +6433,7 @@
         "interview_reminder_sent": "Interview reminder sent",
         "interviewer_brief_sent": "Interviewer briefed",
         "interviewer_brief_skipped": "Interviewer brief skipped (no email)",
+        "interview_failover": "Interview failed over to another provider",
         "comm_resent": "Message resent",
         "rejection_comms_failed": "Rejection email failed",
         "moved": "Stage set manually",
@@ -6685,7 +6714,8 @@
     "modeLabel": "Matrix view",
     "modeGrid": "Grid",
     "modeFocus": "Candidate focus",
-    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for."
+    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for.",
+    "servedFromCache": "Served from the cached scoring pass."
   },
   "analyze": {
     "modeNew": "New analysis",

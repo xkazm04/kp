@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, History, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
@@ -38,6 +39,9 @@ export function JdModalEditor({
   marketResearch,
   linked,
   stagedSuggestion,
+  initialHistoryOpen = false,
+  onDirtyChange,
+  onCancel,
   onDone,
 }: {
   slug: string;
@@ -58,6 +62,17 @@ export function JdModalEditor({
   // Advisory only: the recruiter makes the wording change themselves and saves
   // through the existing PATCH/CAS path (which re-ingests the linked job).
   stagedSuggestion?: CoachEdit | null;
+  // Open with the edit history already expanded (and loading). Used by the
+  // "build held as a revision" chip, whose whole point is the revision row the
+  // build left behind — the history list IS the draft's only reader.
+  initialHistoryOpen?: boolean;
+  // Report whether the draft differs from what was loaded, so the SURROUNDING modal
+  // can guard its own exits (the header X / Escape / backdrop, and the rail's Edit
+  // toggle) — the two ways out of this editor that it does not own.
+  onDirtyChange?: (dirty: boolean) => void;
+  // Leave the editor. Defaults to `onDone`; the modal passes a guarded version that
+  // asks before discarding an unsaved draft.
+  onCancel?: () => void;
   // Refresh the detail + leave edit mode (used by a successful save AND the
   // conflict "Reload latest" recovery).
   onDone: () => void;
@@ -66,6 +81,20 @@ export function JdModalEditor({
   const [draftTitle, setDraftTitle] = useState(initialTitle);
   const [draftBody, setDraftBody] = useState(initialBody);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+
+  // An unsaved draft used to vanish on Cancel, on the rail's Edit toggle and on
+  // closing the modal — three silent discards of typing the recruiter had every
+  // reason to think was safe. Dirtiness is computed here (this is where the draft
+  // lives) and reported up, because two of those three exits are the modal's.
+  const dirty = draftTitle !== initialTitle || draftBody !== initialBody;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    // Unmounting the editor (a save, a revert, an accepted discard) always leaves a
+    // clean slate behind, so the modal can never hold a stale "unsaved" verdict.
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
+
+  const leave = onCancel ?? onDone;
 
   // The ONE shared edit client — fetch / baseBody CAS / 401 gate latch / 409
   // conflict / revisions / revert. A successful save or revert reloads the detail
@@ -79,6 +108,7 @@ export function JdModalEditor({
       saveError: t("editSaveError"),
       revertError: t("editRevertError"),
     },
+    initialHistoryOpen,
     onSaved: onDone,
     onReverted: onDone,
   });
@@ -131,8 +161,8 @@ export function JdModalEditor({
           </button>
           <button
             type="button"
-            onClick={onDone}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink"
+            onClick={leave}
+            className={`${BTN_SECONDARY} px-3 py-1.5 text-sm font-semibold text-steel hover:text-ink`}
           >
             <X size={13} aria-hidden /> {t("editCancel")}
           </button>
@@ -147,18 +177,22 @@ export function JdModalEditor({
           {linked ? <span className="text-sm text-steel">{t("editLinkedNote")}</span> : null}
         </div>
 
+        {/* The message is the alert; the RECOVERY is a control. They were one
+            element — a <button> nested inside the role="alert" <p> — so a screen
+            reader announced the button's label as part of the error text and the
+            only way out of a 409 conflict was buried in a live region. Two siblings:
+            the alert says what happened, the button beside it fixes it. */}
         {editor.error ? (
-          <p role="alert" className="text-sm text-red-700">
-            {editor.error}
+          <div className="space-y-1.5">
+            <p role="alert" className="text-sm text-red-700">
+              {editor.error}
+            </p>
             {editor.conflict ? (
-              <>
-                {" "}
-                <button type="button" onClick={onDone} className="focus-ring font-semibold text-coral hover:underline">
-                  {t("editReload")}
-                </button>
-              </>
+              <button type="button" onClick={onDone} className={`${BTN_SECONDARY} px-3 py-1 text-sm font-semibold text-coral`}>
+                {t("editReload")}
+              </button>
             ) : null}
-          </p>
+          </div>
         ) : null}
       </div>
 

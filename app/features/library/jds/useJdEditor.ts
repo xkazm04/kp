@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   classifyJdWriteResponse,
@@ -29,6 +29,7 @@ export function useJdEditor({
   slug,
   baseBody,
   copy,
+  initialHistoryOpen = false,
   onSaved,
   onReverted,
 }: {
@@ -36,6 +37,9 @@ export function useJdEditor({
   // The body the editor loaded — the CAS base for every write from this session.
   baseBody: string;
   copy: JdEditorCopy;
+  // Start with the revision history open (and fetch it on mount). Default false —
+  // only the ledger's held-build deep link opens straight into it.
+  initialHistoryOpen?: boolean;
   // Called after a save the server accepted.
   onSaved: () => void;
   // Called after a revert the server accepted (the caller decides whether to
@@ -54,7 +58,7 @@ export function useJdEditor({
   // disabled carrying the reason, never a silently-refailing button.
   const [gateBlocked, setGateBlocked] = useState(false);
 
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(initialHistoryOpen);
   const [revisions, setRevisions] = useState<JdRevision[] | null>(null);
   const [revLoading, setRevLoading] = useState(false);
   const [reverting, setReverting] = useState<number | null>(null);
@@ -72,6 +76,15 @@ export function useJdEditor({
       setRevLoading(false);
     }
   }, [slug]);
+
+  // Deep-opened history still has to FETCH — toggleHistory is what normally
+  // triggers the load, and it is never called on this path. Deferred kickoff (no
+  // synchronous setState in an effect body), the same shape jdsHooks uses.
+  useEffect(() => {
+    if (!initialHistoryOpen) return;
+    const timer = window.setTimeout(() => void loadRevisions(), 0);
+    return () => window.clearTimeout(timer);
+  }, [initialHistoryOpen, loadRevisions]);
 
   const toggleHistory = useCallback(() => {
     setHistoryOpen((open) => {

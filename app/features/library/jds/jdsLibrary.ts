@@ -122,6 +122,16 @@ export type GeneratePrefill = {
   seniority?: string;
   roleFamily?: string;
   need?: string;
+  // The BUILD choices the source JD was generated with (jds.build_input_json), so a
+  // duplicate is rebuilt the same way rather than under the app's defaults. A copy
+  // of a Czech JD rendered through the company template used to come back English
+  // and AI-formatted — the recruiter's two most consequential choices, silently
+  // dropped by the one action whose whole purpose is "again, like that one".
+  // Absent for a draft save or a pre-migration row; each is applied only when the
+  // value is still valid at seed time (the template may since have been deleted).
+  templateId?: string;
+  lang?: string;
+  repoUrl?: string;
 };
 
 // The single JD detail record GET /api/jds/[slug] serves (full body + analysis state

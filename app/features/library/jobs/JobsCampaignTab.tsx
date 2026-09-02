@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 import { useLocale } from "next-intl";
+import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { LOCALES } from "@/i18n/locales";
 import { WARN_KEY } from "./jobsCampaignTabTypes";
@@ -23,7 +24,7 @@ export function CampaignTab({ jobId, jobTitle }: { jobId: string; jobTitle?: str
   const appLocale = useLocale();
   const router = useRouter();
   const search = useSearchParams();
-  const { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown, watch } =
+  const { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, unknownWarnings, packMarkdown, watch } =
     useCampaignTabLogic(jobId, appLocale, jobTitle);
 
   return (
@@ -38,9 +39,7 @@ export function CampaignTab({ jobId, jobTitle }: { jobId: string; jobTitle?: str
             type="button"
             onClick={() => setLang(loc)}
             aria-pressed={lang === loc}
-            className={`focus-ring rounded-full border px-2.5 py-0.5 text-sm font-semibold uppercase transition-colors ${
-              lang === loc ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
-            }`}
+            className={`${CHIP_TOGGLE(lang === loc)} px-2.5 py-0.5 uppercase`}
           >
             {loc}
           </button>
@@ -99,7 +98,7 @@ export function CampaignTab({ jobId, jobTitle }: { jobId: string; jobTitle?: str
             </span>
           </p>
 
-          {warnings.length ? (
+          {warnings.length || unknownWarnings.length ? (
             <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
               <p className="flex items-center gap-1.5 font-semibold">
                 <AlertTriangle size={14} /> {t("warnTitle")}
@@ -107,6 +106,9 @@ export function CampaignTab({ jobId, jobTitle }: { jobId: string; jobTitle?: str
               <ul className="mt-1 list-inside list-disc">
                 {warnings.map((w) => (
                   <li key={w}>{t(WARN_KEY[w])}</li>
+                ))}
+                {unknownWarnings.map((w) => (
+                  <li key={w}>{t("warnUnknown", { code: w })}</li>
                 ))}
               </ul>
             </div>

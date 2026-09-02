@@ -48,3 +48,24 @@ test("a deep link spends the resolved stage id, and is withheld when the axis ha
   assert.match(SRC, /offersOut > 0 && offerStage/, "no offer column ⟹ no offers segment");
   assert.match(SRC, /hired > 0 && terminalStage/, "no terminal column ⟹ no hired segment");
 });
+
+// The strip is the job modal's mission control, and its effect was keyed on
+// [jobId] alone: publishing (or closing) the role from the footer changed the
+// funnel, the decision count and the channels count, and the strip kept showing
+// the state of the world one action ago until the modal was closed and reopened.
+const MODAL = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "JobsPostingModal.tsx"), "utf8");
+const LOGIC = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jobsPostingModalLogic.ts"), "utf8");
+
+test("the strip re-reads its counts when the role's lifecycle moves", () => {
+  assert.match(SRC, /refreshToken/, "the strip must accept a refresh token");
+  assert.match(SRC, /\}, \[jobId, refreshToken\]\);/, "the token must be in the fetching effect's deps");
+  assert.match(MODAL, /refreshToken=\{lifecycleToken\}/, "the modal must pass its lifecycle token down");
+});
+
+test("every lifecycle transition bumps the token — publish, reopen and close", () => {
+  // Two bump sites, no more and no fewer: the close handler and the publish
+  // handler (which is also the reopen path).
+  assert.equal(LOGIC.match(/setLifecycleToken\(\(n\) => n \+ 1\)/g)?.length, 2);
+  assert.match(LOGIC, /onChanged\?\.\("closed"\);\s*\n\s*setLifecycleToken/);
+  assert.match(LOGIC, /onChanged\?\.\("published"\);\s*\n\s*setLifecycleToken/);
+});

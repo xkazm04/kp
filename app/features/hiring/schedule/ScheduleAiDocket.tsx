@@ -147,6 +147,21 @@ export function ScheduleAiDocket({
               <span title={t("providerTitle")}>{enumLabel("voiceProvider", s.provider)}</span>
               <span title={t("costTitle")}>{cost(s.costUsd)}</span>
             </p>
+            {/* How the call actually went, when it did not go plainly: a retried link
+                and a provider that had to be swapped mid-flow both explain a cost or a
+                thin transcript that otherwise looks inexplicable. Rendered ONLY when
+                there is something to say — an ordinary single-attempt call on the
+                chosen provider stays quiet rather than carrying a "1 attempt" badge. */}
+            {s.attempts > 1 || s.failoverFrom ? (
+              <p className="nums mt-0.5 text-meta text-amber-700" title={t("attemptsTitle")}>
+                {[
+                  s.attempts > 1 ? t("attempts", { count: s.attempts }) : null,
+                  s.failoverFrom ? t("failedOverFrom", { provider: enumLabel("voiceProvider", s.failoverFrom) }) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            ) : null}
           </button>
         ))}
       </Station>

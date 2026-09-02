@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Fügen Sie eine Aufnahme zum Transkribieren hinzu.",
     "AUDIO_UNSUPPORTED_TYPE": "Verwenden Sie für die Aufnahme WAV, MP3, M4A, WebM, OGG oder FLAC.",
     "AUDIO_TOO_LARGE": "Diese Aufnahme überschreitet das Upload-Limit von 25 MB.",
-    "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut."
+    "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut.",
+    "JD_FIELDS_REQUIRED": "Titel und Beschreibung sind beide erforderlich.",
+    "JD_TITLE_TOO_LONG": "Der Titel darf höchstens 200 Zeichen lang sein.",
+    "JD_BODY_TOO_LONG": "Die Beschreibung darf höchstens 20.000 Zeichen lang sein."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2226,14 +2229,10 @@
       "offer_reminder": "Angebotserinnerung"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "beobachtet",
       "professional": "beruflich",
       "internship": "Praktikum",
@@ -2342,6 +2341,7 @@
       "interview_reminder_sent": "hat eine Interview-Erinnerung erhalten",
       "interviewer_brief_sent": "wurde für den Interviewer aufbereitet",
       "interviewer_brief_skipped": "kein Interviewer-Briefing (keine Adresse hinterlegt)",
+      "interview_failover": "wurde im Interview auf einen anderen Sprachanbieter umgeschaltet",
       "offer_sent": "hat ein Angebot erhalten",
       "comm_resent": "hat eine Nachricht erneut erhalten",
       "interview_scheduled": "hat einen Interviewtermin bestätigt",
@@ -3427,11 +3427,10 @@
       "costFree": "keine Minutenkosten",
       "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
       "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
-      "costUnknown": "Kosten unbekannt",
-      "costFree": "keine Minutenkosten",
-      "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
-      "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
-      "confidence": "Konfidenz: {level}"
+      "confidence": "Konfidenz: {level}",
+      "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+      "failedOverFrom": "gewechselt von {provider}",
+      "attemptsTitle": "Wie dieses Gespräch lief: erneute Verbindungen und ein Anbieterwechsel, falls der gewählte nicht verfügbar war"
     },
     "calendar": {
       "calendarAria": "Interview-Wochenkalender: Tage waagerecht, Zeiten senkrecht",
@@ -3722,7 +3721,7 @@
       "shelfRecordLabel": "Der Datensatz, den Sie gleich anlegen",
       "shelfWriteCta": "Erste Beschreibung schreiben",
       "shelfDraftCta": "Vom Builder entwerfen lassen",
-      "shelfCtaNote": "Beides öffnet das Panel „Generieren“. Speichern Sie einen Entwurf unverändert, oder lassen Sie die AI die Beschreibung, ein marktübliches Gehaltsband und eine Aufgabe als Arbeitsprobe erstellen.",
+      "shelfCtaNote": "Der Generieren-Bereich übernimmt: Speichern Sie Ihren Text als Entwurf oder lassen Sie die KI daraus die Beschreibung, eine Marktgehaltsspanne und eine Arbeitsprobe bauen.",
       "shelfReuseLabel": "Ein Blatt lässt sich mehrfach nutzen",
       "shelfReuseAnalyze": "Lebensläufe damit bewerten",
       "shelfReuseIngest": "Als offene Stelle übernehmen",
@@ -3962,26 +3961,26 @@
           "recompose": "Neu erstellen",
           "composing": "Wird erstellt…",
           "composeError": "Die Spezifikation konnte nicht erstellt werden. Bitte erneut versuchen.",
-            "moreCount": "{count, plural, =1 {+1 weiterer} other {+# weitere}}",
-            "showLess": "Weniger anzeigen",
-            "mandate": {
-              "title": "Das Mandat",
-              "gates": "Freigabe-Gates",
-              "objectives": "Ergebnisse und ihre Messlatten",
-              "direction": {
-                "gte": "mindestens",
-                "lte": "höchstens"
-              },
-              "windowValue": "{days, plural, one {# Tag Zeitfenster} other {# Tage Zeitfenster}}",
-              "reviewCadence": "Review-Rhythmus",
-              "reviewCadenceValue": "{days, plural, one {alle # Tag} other {alle # Tage}}",
-              "retire": "Beenden, wenn",
-              "reservation": "Budgetreservierung",
-              "reservationValue": {
-                "estimate": "pro Lauf geschätzt",
-                "fixed": "vorab reserviert"
-              }
+          "moreCount": "{count, plural, =1 {+1 weiterer} other {+# weitere}}",
+          "showLess": "Weniger anzeigen",
+          "mandate": {
+            "title": "Das Mandat",
+            "gates": "Freigabe-Gates",
+            "objectives": "Ergebnisse und ihre Messlatten",
+            "direction": {
+              "gte": "mindestens",
+              "lte": "höchstens"
             },
+            "windowValue": "{days, plural, one {# Tag Zeitfenster} other {# Tage Zeitfenster}}",
+            "reviewCadence": "Review-Rhythmus",
+            "reviewCadenceValue": "{days, plural, one {alle # Tag} other {alle # Tage}}",
+            "retire": "Beenden, wenn",
+            "reservation": "Budgetreservierung",
+            "reservationValue": {
+              "estimate": "pro Lauf geschätzt",
+              "fixed": "vorab reserviert"
+            }
+          },
           "spec": {
             "title": "App-Master-Spezifikation",
             "empty": "Erstellen Sie die Spezifikation, sobald Ergebnisse und Mandat erfasst sind.",
@@ -4011,7 +4010,22 @@
           "dispatchHuman": "Diese Spezifikation ist für einen menschlichen Rolleninhaber verfasst. Überführen Sie sie stattdessen in eine Stellenbeschreibung.",
           "dispatchNeedsPairing": "Koppeln Sie Kandi unter Einstellungen → Integrationen mit Personas, um zu entsenden."
         }
-      }
+      },
+      "buildHeldChip": "Ergebnis als Revision abgelegt",
+      "buildHeldBody": "Sie haben diese Stellenbeschreibung während der Erstellung bearbeitet. Ihr eigener Text bleibt erhalten, der generierte Entwurf wurde im Bearbeitungsverlauf abgelegt.",
+      "buildHeldHint": "Den generierten Entwurf im Bearbeitungsverlauf dieser Stellenbeschreibung öffnen.",
+      "buildHeldOpenDraft": "Entwurf öffnen",
+      "buildIntentLabel": "Erstellt mit",
+      "buildIntentTemplate": "Vorlage",
+      "buildIntentLanguage": "Sprache",
+      "buildIntentSeniority": "Senioritätsstufe",
+      "buildIntentAiDefault": "KI-Standardformat",
+      "caseTaskFallback": "Aufgabe",
+      "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung. Den Live-Status zeigt die Aufgaben-Leiste.",
+      "unsavedTitle": "Nicht gespeicherte Änderungen verwerfen?",
+      "unsavedBody": "Diese Stellenbeschreibung enthält Änderungen, die Sie noch nicht gespeichert haben. Wenn Sie den Editor verlassen, gehen sie verloren.",
+      "unsavedDiscard": "Änderungen verwerfen",
+      "unsavedKeep": "Weiter bearbeiten"
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",
@@ -4267,7 +4281,20 @@
       "publishedButFailed": "Veröffentlicht, aber Sourcing fehlgeschlagen: {warning}",
       "sourced": "{count, plural, one {# Kandidat/in in die Pipeline gesourct.} other {# Kandidat/innen in die Pipeline gesourct.}}",
       "quotaNote": "Sie haben das Limit aktiver Stellen Ihres Tarifs erreicht. Führen Sie ein Upgrade durch oder schließen Sie eine Stelle, um eine weitere zu veröffentlichen.",
-      "goToBilling": "Upgrade in der Abrechnung"
+      "goToBilling": "Upgrade in der Abrechnung",
+      "loadFailed": "Entwürfe konnten nicht geladen werden.",
+      "publishWentLive": "Die Stelle ist live.",
+      "publishReopened": "{count, plural, one {Wieder geöffnet: # zurückgezogene Kandidatin bzw. Kandidat ist wieder in der Pipeline.} other {Wieder geöffnet: # zurückgezogene Kandidatinnen und Kandidaten sind wieder in der Pipeline.}}",
+      "publishAlreadyLive": "War bereits live. Es wurde nicht erneut gesucht.",
+      "publishSourced": "{count, plural, =0 {Bisher passt keine gespeicherte Person zu dieser Stelle.} one {# Person in die Pipeline übernommen.} other {# Personen in die Pipeline übernommen.}}",
+      "publishSkipped": "{count, plural, one {# gespeicherte Person konnte nicht gelesen und daher nicht bewertet werden.} other {# gespeicherte Personen konnten nicht gelesen und daher nicht bewertet werden.}}",
+      "publishSilver": "{count, plural, one {# frühere Person wurde für die Wiederentdeckung markiert.} other {# frühere Personen wurden für die Wiederentdeckung markiert.}}",
+      "publishSourcingFailed": "Die Suche ist fehlgeschlagen, deshalb wurde niemand übernommen. Das heißt nicht, dass niemand passt.",
+      "publishInFlight": "Stelle wird veröffentlicht und Kandidaten werden gesucht. Das kann einige Minuten dauern.",
+      "publishStopWaiting": "Nicht weiter warten",
+      "publishAbandoned": "Warten beendet. Die Stelle ist wahrscheinlich bereits live, die Kandidatensuche wurde jedoch abgebrochen. Öffnen Sie die Stelle erneut, um nachzusehen.",
+      "publishLastResult": "Letzte Veröffentlichung",
+      "retry": "Erneut versuchen"
     },
     "posting": {
       "copied": "Kopiert",
@@ -4390,7 +4417,8 @@
       "warnNoSkills": "Keine extrahierten Skills, deshalb wurden Stack-Hooks übersprungen.",
       "applyUrlNote": "CTA verlinkt das Schnellbewerbungsformular:",
       "loadFailed": "Kampagnenpaket konnte nicht geladen werden.",
-      "generateFailed": "Kampagnenpaket konnte nicht generiert werden."
+      "generateFailed": "Kampagnenpaket konnte nicht generiert werden.",
+      "warnUnknown": "Eine Angabe, die dem Paket fehlte ({code})."
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
@@ -6405,6 +6433,7 @@
         "interview_reminder_sent": "Interview-Erinnerung gesendet",
         "interviewer_brief_sent": "Interviewer gebrieft",
         "interviewer_brief_skipped": "Interviewer-Briefing übersprungen (keine E-Mail)",
+        "interview_failover": "Interview auf anderen Anbieter umgeschaltet",
         "comm_resent": "Nachricht erneut gesendet",
         "rejection_comms_failed": "Absage-E-Mail fehlgeschlagen",
         "moved": "Phase manuell gesetzt",
@@ -6685,7 +6714,8 @@
     "modeLabel": "Matrix-Ansicht",
     "modeGrid": "Raster",
     "modeFocus": "Kandidatenfokus",
-    "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist."
+    "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist.",
+    "servedFromCache": "Aus dem zwischengespeicherten Bewertungslauf angezeigt."
   },
   "analyze": {
     "modeNew": "Neue Analyse",

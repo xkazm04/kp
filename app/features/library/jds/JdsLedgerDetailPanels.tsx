@@ -6,19 +6,28 @@ import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
-import { CHIP, CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
 import { caseTaskLabel, type CaseArtifact, type SnapshotArtifact } from "./jdsLedgerArtifacts";
 
 // In-progress placeholder shown in the detail while the detached build runs.
 // Extracted verbatim from LibrarySavedJdsLedger.tsx so that file stays under the
 // 200-line split threshold.
-export function BuildingPanel() {
+export function BuildingPanel({ progress, stalled = false }: { progress?: string | null; stalled?: boolean }) {
   const t = useTranslations("library.tab");
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
       <Loader2 size={28} className="animate-spin text-blue-700" aria-hidden />
       <p className="text-sm font-semibold text-ink">{t("buildingTitle")}</p>
+      {/* The jd_build task's own live progress line, read off the polled task list
+          via the row's analysis_task_id. It costs nothing extra (the Tasks poll
+          already carries progressMsg) and it is the difference between "something
+          is happening" and knowing which stage of the chain is running. */}
+      {progress ? <p className="text-sm font-semibold text-blue-700">{progress}</p> : null}
       <p className="max-w-sm text-sm text-steel">{t("buildingBody")}</p>
+      {/* The poll gave up (POLL_MAX_DURATION_MS). The row may still say "analyzing"
+          forever — a detached handler that died writes neither ready nor failed — so
+          say the surface stopped watching rather than spinning a lie. */}
+      {stalled ? <p className="max-w-sm text-sm font-semibold text-amber-800">{t("pollStalledNote")}</p> : null}
     </div>
   );
 }
@@ -144,14 +153,14 @@ export function CaseCard({ kase }: { kase: CaseArtifact }) {
   const t = useTranslations("library.tab");
   const tasks = Array.isArray(kase.tasks) ? kase.tasks : [];
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+    <div className={`${PANEL} p-4`}>
       <p className="text-meta uppercase tracking-wide text-coral">{t("interviewCase")}</p>
       {kase.title ? <h3 className="mt-1 font-serif text-h3 font-semibold text-ink">{kase.title}</h3> : null}
       {kase.brief ? <p className="mt-2 whitespace-pre-line text-sm text-steel">{kase.brief}</p> : null}
       {tasks.length ? (
         <ul className="mt-3 space-y-1">
           {tasks.map((task, i) => (
-            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task)}</li>
+            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task, t("caseTaskFallback"))}</li>
           ))}
         </ul>
       ) : null}

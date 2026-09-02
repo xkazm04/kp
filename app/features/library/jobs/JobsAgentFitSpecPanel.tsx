@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { CHIP_QUIET, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
+import { CHIP_QUIET, FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { AgentFitSpecRecord } from "@/app/_lib/db/agents";
 import { metricsOf } from "@/app/features/agents-workforce/agentsWorkforceLogic";
 import { budgetFromInput, type SpecForm } from "./jobsAgentFitModel";
@@ -37,8 +37,8 @@ export function JobsAgentFitSpecPanel({
   const addable = catalog.filter((c) => !form.connectors.includes(c.name));
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-      <p className="text-meta uppercase text-steel">{t("heading")}</p>
+    <div className={`${PANEL} p-4`}>
+      <p className={META_LABEL}>{t("heading")}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={ids.name} className={META_LABEL}>

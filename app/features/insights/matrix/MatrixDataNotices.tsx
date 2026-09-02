@@ -57,6 +57,13 @@ export function MatrixDataNotices({
         </p>
       ) : null}
 
+      {/* grid-narrative-says-what-it-is: /api/matrix caches the SCORED grid keyed by the
+          profile+job payload (route.ts) and re-reads placements fresh on every response,
+          so a cached grid can sit under live pipeline rings. The route has always sent
+          `cached`; nothing rendered it, so "is this a fresh pass?" was unanswerable from
+          the screen. Quiet by design — this is provenance, not a warning. */}
+      {data?.cached ? <p className="text-meta text-stone-400">{t("servedFromCache")}</p> : null}
+
       {data && data.missing.length > 0 ? (
         <p className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-800">
           {t.rich("missingPositions", {

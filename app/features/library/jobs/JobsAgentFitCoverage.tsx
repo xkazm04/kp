@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { AgentFitSpecRecord } from "@/app/_lib/db/agents";
 import { coverageSkin, fitOf, isFallbackSource, VERDICT_SKIN } from "./jobsAgentFitModel";
 
@@ -46,8 +47,8 @@ export function JobsAgentFitCoverage({ record }: { record: AgentFitSpecRecord })
       </div>
 
       {fit.coverage.length > 0 ? (
-        <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-          <p className="text-meta uppercase text-steel">{t("coverage.heading")}</p>
+        <div className={`${PANEL} p-4`}>
+          <p className={META_LABEL}>{t("coverage.heading")}</p>
           <ul className="mt-2 space-y-2">
             {fit.coverage.map((item, i) => {
               const c = coverageSkin(item.coverage);

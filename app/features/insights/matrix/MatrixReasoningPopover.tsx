@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Sparkles, X } from "lucide-react";
-import type { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { Popover, ReasonState } from "./matrixTabTypes";
 
 // deec915c — the on-demand "why this score" popover. Anchored under the clicked
@@ -9,6 +9,13 @@ import type { Popover, ReasonState } from "./matrixTabTypes";
 // out of the tab's stagger-children cascade — it's a user-triggered overlay,
 // not a load-time section. Split out of MatrixTab.tsx to keep that file under
 // the 200-line cap.
+//
+// grid-narrative-says-what-it-is: the SAME narrative rendered here and in focus mode
+// (MatchReasoningPanel) used to carry three facts on one surface and none on the other.
+// The provenance strip below is that panel's, key for key — `match.shared.sourceLlm` /
+// `sourceRuleBased` / `cachedSuffix` / `narrativeInLanguage` — because a reader who
+// learns in focus mode that an answer is rule-based and cached must not have to
+// re-learn a second vocabulary in the grid. Reused verbatim, not re-worded.
 export function MatrixReasoningPopover({
   popover,
   reasoning,
@@ -73,6 +80,7 @@ export function MatrixReasoningPopover({
               if (!d) return <p className="text-steel">{t("noReasoning")}</p>;
               return (
                 <div className="space-y-2">
+                  <ReasoningProvenance source={st.source} cached={st.cached} narrativeLang={st.narrativeLang} />
                   {d.verdict ? <p className="text-ink">{d.verdict}</p> : null}
                   {d.strengths?.length ? (
                     <div>
@@ -104,9 +112,6 @@ export function MatrixReasoningPopover({
                       </ul>
                     </div>
                   ) : null}
-                  {st.source && st.source !== "llm" ? (
-                    <p className="text-meta text-stone-400">{t("reasoningDeterministic")}</p>
-                  ) : null}
                 </div>
               );
             })()
@@ -122,5 +127,31 @@ export function MatrixReasoningPopover({
         </button>
       </div>
     </>
+  );
+}
+
+// The three facts focus mode has always stated about a narrative, in the grid's smaller
+// register: which engine wrote it, whether it came from the cache, and — when the engine's
+// language is not the reader's — that they are reading it in another language. Same keys
+// as MatchReasoningPanel's ResolvedReasoning, so the two surfaces cannot drift apart.
+function ReasoningProvenance({ source, cached, narrativeLang }: { source?: string; cached?: boolean; narrativeLang?: string }) {
+  const ts = useTranslations("match.shared");
+  const locale = useLocale();
+  // The engine writes the narrative only in en/cs, so a de/fr reader gets English (or
+  // Czech). Say so plainly rather than passing the text off as localized.
+  const showLangNote = Boolean(narrativeLang) && narrativeLang !== locale;
+  const narrativeLangName = showLangNote
+    ? new Intl.DisplayNames([locale], { type: "language" }).of(narrativeLang as string) ?? narrativeLang
+    : null;
+  return (
+    <div>
+      <span className="rounded bg-paper px-1.5 py-0.5 text-meta text-steel">
+        {source === "llm" ? ts("sourceLlm") : ts("sourceRuleBased")}
+        {cached ? ts("cachedSuffix") : ""}
+      </span>
+      {showLangNote ? (
+        <p className="mt-1 text-meta italic text-steel">{ts("narrativeInLanguage", { language: narrativeLangName as string })}</p>
+      ) : null}
+    </div>
   );
 }

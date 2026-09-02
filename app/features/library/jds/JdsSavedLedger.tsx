@@ -65,6 +65,10 @@ export function LibrarySavedJdsLedger() {
     seniority,
     setSeniority,
     setOpenRow,
+    openRowAt,
+    openHistoryFor,
+    heldBuilds,
+    pollStalled,
     ingested,
     setIngested,
     coachEdit,
@@ -153,7 +157,9 @@ export function LibrarySavedJdsLedger() {
         sort={sort}
         onSort={onSort}
         duplicating={duplicating}
-        onOpenRow={setOpenRow}
+        heldBuilds={heldBuilds}
+        pollStalled={pollStalled}
+        onOpenRow={openRowAt}
         onDuplicate={startDuplicate}
         onStartGenerate={() => {
           setPrefill(null);
@@ -166,6 +172,8 @@ export function LibrarySavedJdsLedger() {
         <LedgerDetailModal
           row={effectiveOpenRow}
           stagedSuggestion={stagedForOpenRow}
+          held={heldBuilds.has(effectiveOpenRow.slug)}
+          openHistory={openHistoryFor === effectiveOpenRow.slug}
           onClose={() => {
             setOpenRow(null);
             setCoachDismissed(true);

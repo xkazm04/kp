@@ -1437,7 +1437,10 @@
     "AUDIO_MISSING": "Přiložte nahrávku k přepisu.",
     "AUDIO_UNSUPPORTED_TYPE": "Pro nahrávku použijte WAV, MP3, M4A, WebM, OGG nebo FLAC.",
     "AUDIO_TOO_LARGE": "Tato nahrávka překračuje limit 25 MB pro nahrání.",
-    "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu."
+    "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu.",
+    "JD_FIELDS_REQUIRED": "Název i popis jsou povinné.",
+    "JD_TITLE_TOO_LONG": "Název může mít nejvýše 200 znaků.",
+    "JD_BODY_TOO_LONG": "Popis může mít nejvýše 20 000 znaků."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2226,14 +2229,10 @@
       "offer_reminder": "Připomenutí nabídky"
     },
     "provenance": {
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
-    "voiceProvider": {
-      "openai": "OpenAI Realtime",
-      "elevenlabs": "ElevenLabs Agents"
-    },
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "pozorováno",
       "professional": "praxe",
       "internship": "stáž",
@@ -2342,6 +2341,7 @@
       "interview_reminder_sent": "dostal/a připomenutí pohovoru",
       "interviewer_brief_sent": "byl/a shrnut/a v podkladech pro tazatele",
       "interviewer_brief_skipped": "nemá odeslané podklady pro tazatele (chybí adresa)",
+      "interview_failover": "měl(a) pohovor přepnutý na jiného hlasového poskytovatele",
       "offer_sent": "dostal/a nabídku",
       "comm_resent": "dostal/a zprávu znovu",
       "interview_scheduled": "potvrdil/a termín pohovoru",
@@ -3420,11 +3420,10 @@
       "costFree": "bez minutových nákladů",
       "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
       "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
-      "costUnknown": "cena neznámá",
-      "costFree": "bez minutových nákladů",
-      "costTitle": "Odhadovaná cena tohoto hovoru podle knihy spotřeby",
-      "providerTitle": "Hlasový poskytovatel, který hovor obsloužil",
-      "confidence": "jistota: {level}"
+      "confidence": "jistota: {level}",
+      "attempts": "{count, plural, one {# pokus} few {# pokusy} other {# pokusů}}",
+      "failedOverFrom": "přepnuto z {provider}",
+      "attemptsTitle": "Jak hovor proběhl: opětovná připojení a případné přepnutí poskytovatele, když zvolený nebyl dostupný"
     },
     "startFailed": "Pohovor se nepodařilo spustit.",
     "slotSuggested": "návrh",
@@ -3722,7 +3721,7 @@
       "shelfRecordLabel": "Záznam, který se chystáte vytvořit",
       "shelfWriteCta": "Napsat první popis",
       "shelfDraftCta": "Nechat návrh na AI",
-      "shelfCtaNote": "Obojí otevře panel Generovat. Uložte koncept tak, jak je, nebo nechte AI vytvořit popis, tržní mzdové rozpětí a praktické zadání.",
+      "shelfCtaNote": "Panel Generovat převezme štafetu: uložte, co napíšete, jako koncept, nebo to předejte AI, ať sestaví popis, tržní mzdové rozpětí a pracovní zadání.",
       "shelfReuseLabel": "Jeden list využijete pro",
       "shelfReuseAnalyze": "Hodnocení CV proti němu",
       "shelfReuseIngest": "Převod na otevřenou pozici",
@@ -3962,26 +3961,26 @@
           "recompose": "Sestavit znovu",
           "composing": "Sestavuji…",
           "composeError": "Specifikaci se nepodařilo sestavit. Zkuste to prosím znovu.",
-            "moreCount": "{count, plural, =1 {+1 další} other {+# dalších}}",
-            "showLess": "Zobrazit méně",
-            "mandate": {
-              "title": "Mandát",
-              "gates": "Schvalovací brány",
-              "objectives": "Výsledky a jejich laťky",
-              "direction": {
-                "gte": "alespoň",
-                "lte": "nejvýše"
-              },
-              "windowValue": "{days, plural, one {okno # dne} few {okno # dnů} other {okno # dnů}}",
-              "reviewCadence": "Frekvence revizí",
-              "reviewCadenceValue": "{days, plural, one {každý # den} few {každé # dny} other {každých # dnů}}",
-              "retire": "Ukončit, když",
-              "reservation": "Rezervace rozpočtu",
-              "reservationValue": {
-                "estimate": "odhad na každý běh",
-                "fixed": "rezervováno předem"
-              }
+          "moreCount": "{count, plural, =1 {+1 další} other {+# dalších}}",
+          "showLess": "Zobrazit méně",
+          "mandate": {
+            "title": "Mandát",
+            "gates": "Schvalovací brány",
+            "objectives": "Výsledky a jejich laťky",
+            "direction": {
+              "gte": "alespoň",
+              "lte": "nejvýše"
             },
+            "windowValue": "{days, plural, one {okno # dne} few {okno # dnů} other {okno # dnů}}",
+            "reviewCadence": "Frekvence revizí",
+            "reviewCadenceValue": "{days, plural, one {každý # den} few {každé # dny} other {každých # dnů}}",
+            "retire": "Ukončit, když",
+            "reservation": "Rezervace rozpočtu",
+            "reservationValue": {
+              "estimate": "odhad na každý běh",
+              "fixed": "rezervováno předem"
+            }
+          },
           "spec": {
             "title": "Specifikace správce aplikace",
             "empty": "Specifikaci sestavte, jakmile budou zachyceny výsledky a mandát.",
@@ -4011,7 +4010,22 @@
           "dispatchHuman": "Tato specifikace je složena pro lidského držitele role. Povyšte ji místo toho na JD.",
           "dispatchNeedsPairing": "Před vysláním spárujte Kandi s Personas v Nastavení → Integrace."
         }
-      }
+      },
+      "buildHeldChip": "Výstup uložen jako revize",
+      "buildHeldBody": "Během generování jste tuto nabídku upravili, takže váš text zůstal zachován a vygenerovaný návrh se uložil do historie úprav.",
+      "buildHeldHint": "Otevřít vygenerovaný návrh v historii úprav této nabídky.",
+      "buildHeldOpenDraft": "Otevřít návrh",
+      "buildIntentLabel": "Sestaveno pomocí",
+      "buildIntentTemplate": "Šablona",
+      "buildIntentLanguage": "Jazyk",
+      "buildIntentSeniority": "Seniorita",
+      "buildIntentAiDefault": "Výchozí formát AI",
+      "caseTaskFallback": "Úkol",
+      "pollStalledNote": "Stále se analyzuje. O tomto sestavení už chvíli nic nepřišlo. Živý stav najdete v zásuvce Úlohy.",
+      "unsavedTitle": "Zahodit neuložené změny?",
+      "unsavedBody": "Tato nabídka má úpravy, které jste zatím neuložili. Opuštěním editoru o ně přijdete.",
+      "unsavedDiscard": "Zahodit změny",
+      "unsavedKeep": "Pokračovat v úpravách"
     },
     "form": {
       "saveAjd": "Uložit popis pozice",
@@ -4267,7 +4281,20 @@
       "publishedButFailed": "Publikováno, ale sourcing selhal: {warning}",
       "sourced": "{count, plural, one {Do Pipeline přiveden # kandidát.} few {Do Pipeline přivedeni # kandidáti.} many {Do Pipeline přivedeno # kandidáta.} other {Do Pipeline přivedeno # kandidátů.}}",
       "quotaNote": "Dosáhli jste limitu aktivních pozic ve svém tarifu. Upgradujte nebo uzavřete pozici, abyste mohli publikovat další.",
-      "goToBilling": "Upgradovat ve Fakturaci"
+      "goToBilling": "Upgradovat ve Fakturaci",
+      "loadFailed": "Koncepty se nepodařilo načíst.",
+      "publishWentLive": "Pozice je zveřejněná.",
+      "publishReopened": "{count, plural, one {Znovu otevřeno: # stažený kandidát je zpět v pipeline.} few {Znovu otevřeno: # stažení kandidáti jsou zpět v pipeline.} other {Znovu otevřeno: # stažených kandidátů je zpět v pipeline.}}",
+      "publishAlreadyLive": "Už byla zveřejněná. Nic se nevyhledávalo znovu.",
+      "publishSourced": "{count, plural, =0 {Zatím neodpovídá žádný uložený kandidát.} one {Do pipeline přidán # kandidát.} few {Do pipeline přidáni # kandidáti.} other {Do pipeline přidáno # kandidátů.}}",
+      "publishSkipped": "{count, plural, one {# uloženého kandidáta nešlo načíst, takže nebyl vyhodnocen.} few {# uložené kandidáty nešlo načíst, takže nebyli vyhodnoceni.} other {# uložených kandidátů nešlo načíst, takže nebyli vyhodnoceni.}}",
+      "publishSilver": "{count, plural, one {# dřívější kandidát byl označen k opětovnému oslovení.} few {# dřívější kandidáti byli označeni k opětovnému oslovení.} other {# dřívějších kandidátů bylo označeno k opětovnému oslovení.}}",
+      "publishSourcingFailed": "Vyhledávání selhalo, takže nikdo nebyl přidán. Neznamená to, že nikdo neodpovídá.",
+      "publishInFlight": "Zveřejňujeme a hledáme kandidáty. Může to trvat několik minut.",
+      "publishStopWaiting": "Přestat čekat",
+      "publishAbandoned": "Čekání ukončeno. Pozice už nejspíš je zveřejněná, ale vyhledávání kandidátů bylo zrušeno. Otevřete ji znovu a zkontrolujte to.",
+      "publishLastResult": "Poslední zveřejnění",
+      "retry": "Zkusit znovu"
     },
     "posting": {
       "copied": "Zkopírováno",
@@ -4390,7 +4417,8 @@
       "warnNoSkills": "Žádné extrahované dovednosti, takže háčky se stackem jsme vynechali.",
       "applyUrlNote": "Výzva odkazuje na rychlou přihlášku:",
       "loadFailed": "Balíček kampaně se nepodařilo načíst.",
-      "generateFailed": "Balíček kampaně se nepodařilo vygenerovat."
+      "generateFailed": "Balíček kampaně se nepodařilo vygenerovat.",
+      "warnUnknown": "Údaj, který balíček neměl k dispozici ({code})."
     },
     "rediscover": {
       "loadFailed": "Znovuobjevení se nepodařilo spustit.",
@@ -6405,6 +6433,7 @@
         "interview_reminder_sent": "Připomínka pohovoru odeslána",
         "interviewer_brief_sent": "Tazatel informován",
         "interviewer_brief_skipped": "Podklad pro tazatele přeskočen (chybí e-mail)",
+        "interview_failover": "Pohovor přepnut na jiného poskytovatele",
         "comm_resent": "Zpráva odeslána znovu",
         "rejection_comms_failed": "E-mail o zamítnutí selhal",
         "moved": "Fáze nastavena ručně",
@@ -6685,7 +6714,8 @@
     "modeLabel": "Zobrazení matice",
     "modeGrid": "Mřížka",
     "modeFocus": "Detail kandidáta",
-    "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo."
+    "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo.",
+    "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení."
   },
   "analyze": {
     "modeNew": "Nová analýza",
