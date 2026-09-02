@@ -429,6 +429,49 @@ the actions the literal gates used to offer on the shipped board. Before the rol
 resolution a renamed axis matched nothing and the grid rendered **Draft outreach**
 alone — no error, nothing to notice.
 
+### The board poll carries only what it draws
+
+`GET /api/pipeline` used to return `listPipeline()` verbatim, and `rowToEntry` fills
+every `PipelineEntry` field whether or not the SELECT asked for the column. So each
+30 s poll shipped nine fields **no consumer of this payload reads**: `contact` (the
+candidate's email/phone), `locale`, the four consent columns, `anonymizedAt`,
+`workspaceId`, and the two devcase ids. Every consumer was checked one at a time —
+the board (`pipelineTypes.Entry`), the drawer (`PipelineCandidateDrawerTypes`), the
+bulk bar, the off-axis strip, the Decisions queue, the Schedule grid, the Channels
+tab, the simulation engine, the jobs lifecycle strip and the interview attach dialog
+— and none of them names one of the nine.
+
+`BOARD_ENTRY_FIELDS` in `app/_lib/db/pipeline.ts` is now that allowlist, `PipelineEntryView`
+is `Pick<>`ed from it plus the three stamped scores, and the route maps every stamped
+row through `boardEntryView`. Direction matters more than bytes here: before this, a
+column added to `pipeline_entries` reached the browser **by default**. `contact` was
+null on the wire only because `listPipeline`'s SELECT omits the column — an accident
+of the query, not a contract.
+
+The expensive fields **stay**, because they have readers: `notes` and `githubEvidence`
+hydrate the drawer's scratchpad and evidence card from the board-opened entry, and both
+the Decisions queue and the Schedule grid parse `approvalDetail`. Trimming them would
+have been a saving paid for with a broken read.
+
+Measured on the seeded demo corpus (83 active entries): **70.5 KiB → 55.5 KiB per poll,
+21.2 % smaller**. On a real corpus the gap is larger — the demo rows carry no notes,
+no GitHub evidence and no source attribution, so most of what was dropped there was key
+names rather than values.
+
+The second half is the drag-move. It used to `await load()` in a `finally`, paying for a
+full board re-read on top of the optimistic write to learn the one thing it already knew.
+The route answers `set_stage` with the moved row, so the success path applies **that** —
+taking only the fields a move can change (`stage`, `stageChangedAt`, `status`,
+`approvalKind`, `approvalDetail`), because the response is the raw store row rather than
+the score-stamped projection and a whole-object swap would blank the card's badge. The
+activity feed still hears about the move through `load({ eventsOnly: true })`, one small
+`?since=` delta. A **refusal** still reconciles with a full `load()`: a lost CAS means
+somebody else moved the row, so the board's own view is the suspect one.
+
+Pinned by `pipelineBoardProjection.test.ts` (the allowlist and the nine omissions by
+name) and `pipelineMovePath.test.ts` (the success branch applies the returned row, the
+refusal branch reconciles, the route projects).
+
 ### A refused move says why, where it happened
 
 A drag whose `set_stage` is refused rolls the card back into the column it came

@@ -9,6 +9,9 @@ import { randomToken } from "../random-id";
 import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
+// Type-only: match-score.ts is pure, and the import is erased, so no cycle and no
+// server code follows PipelineEntryView into the client bundle.
+import type { MatchScoreProvenance } from "../match-score";
 // ONE THREAD: devcase-identity.ts owns the legacy "ds-" prefix string. Importing the
 // const rather than re-typing it is what keeps the contact join below and the
 // resolvers there from ever disagreeing about what a synthetic candidate id looks
@@ -43,13 +46,80 @@ import {
 export { PIPELINE_STAGES, FUNNEL_STAGES, SCREENING_STAGES, hasAdvancedPastScreening, isScreeningStage, screenStageOutcome };
 export type { PipelineStage, FunnelStage, ScreeningStage };
 
-// Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
-// (PipelineEntry[]) verbatim, so this IS the client-facing view contract. Client
-// consumers (SimulationProvider, ChannelsTab) import this with `import type`
-// instead of re-declaring divergent, partial local row types — those drift
-// silently from the server the moment a field is renamed. (`import type` is
-// erased at compile time, so no server code enters the client bundle.)
-export type PipelineEntryView = PipelineEntry;
+// Canonical shape of a /api/pipeline row — now an explicit ALLOWLIST rather than
+// "whatever the store row happens to hold".
+//
+// board-poll-carries-only-what-it-draws: the endpoint used to return listPipeline()
+// verbatim, and rowToEntry fills every PipelineEntry field whether or not the SELECT
+// asked for the column. So each 30s board poll shipped `contact` (the candidate's
+// email/phone), `locale`, the four consent columns, `anonymizedAt`, `workspaceId`,
+// `devCaseId` and `devSubmissionId` to the browser — nine fields, and NOT ONE of them
+// is read by any consumer of this payload. They were checked one at a time: the board
+// (pipelineTypes.Entry), the drawer (PipelineCandidateDrawerTypes), the bulk bar, the
+// off-axis strip, the Decisions queue, the Schedule grid, the Channels tab, the
+// simulation engine, the jobs lifecycle strip and the interview attach dialog all
+// declare their own row shape and none of them names one of the nine.
+//
+// `contact` is the one that matters beyond bytes: an operator-gated endpoint is not a
+// licence to serialize a store row, and the drawer reaches candidate contact through
+// its own bundle. It happens to be null today only because listPipeline's SELECT omits
+// the column — an accident of the query, not a contract. This makes it a contract.
+//
+// Everything a consumer DOES read stays, `notes` / `githubEvidence` / `approvalDetail`
+// included: the drawer hydrates its scratchpad and evidence card from the board-opened
+// entry, and the Decisions queue and Schedule grid both parse `approvalDetail`. Pinned
+// by app/features/hiring/pipeline/pipelineBoardProjection.test.ts.
+export const BOARD_ENTRY_FIELDS = [
+  "id",
+  "candidateId",
+  "candidateLabel",
+  "archetype",
+  "roleFamily",
+  "jobId",
+  "jobTitle",
+  "stage",
+  "matchScore",
+  "status",
+  "approvalKind",
+  "approvalDetail",
+  "createdAt",
+  "stageChangedAt",
+  "intakeDegraded",
+  "intakeDegradedReason",
+  "githubEvidence",
+  "githubHandle",
+  "notes",
+  "sourceChannel",
+  "sourceCampaign",
+  "sourceVariant",
+] as const satisfies readonly (keyof PipelineEntry)[];
+
+/** The three scores GET /api/pipeline STAMPS onto each row before it goes out
+ *  (match-score-resolve.ts + pipeline-transfer-score.ts). They are not store columns,
+ *  so they ride beside the allowlist rather than inside it. */
+export type BoardScoreStamps = {
+  canonicalScore?: number | null;
+  scoreProvenance?: MatchScoreProvenance | null;
+  transferScore?: number | null;
+};
+
+/** The client-facing view contract. Client consumers import this with `import type`
+ *  instead of re-declaring divergent, partial local row types — those drift silently
+ *  from the server the moment a field is renamed. (`import type` is erased at compile
+ *  time, so no server code enters the client bundle.) */
+export type PipelineEntryView = Pick<PipelineEntry, (typeof BOARD_ENTRY_FIELDS)[number]> & BoardScoreStamps;
+
+/** Project one stamped store row down to the board payload. Copies the allowlist by
+ *  NAME, so a column added to `pipeline_entries` reaches the browser only when somebody
+ *  adds it here on purpose — the previous shape leaked every new column by default. */
+export function boardEntryView<T extends PipelineEntry & BoardScoreStamps>(entry: T): PipelineEntryView {
+  const view = {} as Record<string, unknown>;
+  for (const field of BOARD_ENTRY_FIELDS) view[field] = entry[field];
+  view.canonicalScore = entry.canonicalScore ?? null;
+  view.scoreProvenance = entry.scoreProvenance ?? null;
+  view.transferScore = entry.transferScore ?? null;
+  return view as PipelineEntryView;
+}
 
 export type PipelineEvent = {
   id: number;

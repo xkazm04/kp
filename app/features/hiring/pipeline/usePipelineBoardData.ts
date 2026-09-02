@@ -85,42 +85,49 @@ export function usePipelineBoardData({
   // reads the same board (features/shared/sharedGet.ts). The abort machinery is
   // unchanged: a shared request isn't cancellable, but it is the post-resolution
   // `signal.aborted` guard that actually stops a superseded load writing state.
-  const load = useCallback((opts?: { shared?: boolean }) => {
+  const load = useCallback((opts?: { shared?: boolean; eventsOnly?: boolean }) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     const { signal } = controller;
-    sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; error?: string }>("/api/pipeline", {
-      refresh: !opts?.shared,
-    })
-      .then((p) => {
-        if (signal.aborted) return; // a newer load superseded this one
-        if (p.error) throw new Error(p.error);
-        const next = (p.entries as Entry[]) ?? [];
-        // Committed by identity comparison, not a signature: the axis changes
-        // rarely (a Settings save) and is a handful of objects, so the cheap
-        // JSON compare keeps the board from re-bucketing on every 30s poll.
-        if (Array.isArray(p.stages) && p.stages.length > 0) {
-          setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(p.stages) ? cur : p.stages!));
-        }
-        setRetiredStages((cur) => {
-          const incoming = p.retiredStages ?? [];
-          return JSON.stringify(cur) === JSON.stringify(incoming) ? cur : incoming;
-        });
-        // Content-equality short-circuit: only reset the entries array when the
-        // rendered content actually changed. setError(null) below is a no-op
-        // re-render when error is already null (React bails on an identical value).
-        const sig = boardSignature(next, { overrides: slaOverridesRef.current });
-        if (sig !== lastEntriesSigRef.current) {
-          lastEntriesSigRef.current = sig;
-          setEntries(next);
-        }
-        setError(null); // success clears any prior transient error
+    // `eventsOnly` skips the board half: a drag-move already knows the one row that
+    // changed (the server hands it back), so re-reading the WHOLE active board to
+    // learn nothing new is the expensive half of a cheap operation. The activity
+    // feed still has to hear about the move, and its delta read is one small
+    // `?since=` request — so that half always runs.
+    if (!opts?.eventsOnly) {
+      sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; error?: string }>("/api/pipeline", {
+        refresh: !opts?.shared,
       })
-      .catch((e) => {
-        if (signal.aborted) return; // ignore aborted/stale failures
-        setError(e instanceof Error ? e.message : t("loadFailed"));
-      });
+        .then((p) => {
+          if (signal.aborted) return; // a newer load superseded this one
+          if (p.error) throw new Error(p.error);
+          const next = (p.entries as Entry[]) ?? [];
+          // Committed by identity comparison, not a signature: the axis changes
+          // rarely (a Settings save) and is a handful of objects, so the cheap
+          // JSON compare keeps the board from re-bucketing on every 30s poll.
+          if (Array.isArray(p.stages) && p.stages.length > 0) {
+            setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(p.stages) ? cur : p.stages!));
+          }
+          setRetiredStages((cur) => {
+            const incoming = p.retiredStages ?? [];
+            return JSON.stringify(cur) === JSON.stringify(incoming) ? cur : incoming;
+          });
+          // Content-equality short-circuit: only reset the entries array when the
+          // rendered content actually changed. setError(null) below is a no-op
+          // re-render when error is already null (React bails on an identical value).
+          const sig = boardSignature(next, { overrides: slaOverridesRef.current });
+          if (sig !== lastEntriesSigRef.current) {
+            lastEntriesSigRef.current = sig;
+            setEntries(next);
+          }
+          setError(null); // success clears any prior transient error
+        })
+        .catch((e) => {
+          if (signal.aborted) return; // ignore aborted/stale failures
+          setError(e instanceof Error ? e.message : t("loadFailed"));
+        });
+    }
     const since = eventsCursorRef.current;
     fetch(since == null ? "/api/pipeline/events" : `/api/pipeline/events?since=${since}`, { signal })
       .then((r) => {
@@ -183,9 +190,10 @@ export function usePipelineBoardData({
 
   // cea12908 — drag a candidate to a new stage column. Optimistic: reflect the
   // move immediately, then POST set_stage with the card's PRIOR stage as
-  // expectedStage (the same CAS guard the bulk move + AI actions use). On any
-  // failure roll back; load() always reconciles the board with the server (a 409
-  // means a concurrent actor moved them in the gap).
+  // expectedStage (the same CAS guard the bulk move + AI actions use). A SUCCESS
+  // applies the row the route hands back (no board refetch); a REFUSAL rolls the
+  // card back, says why on the card, and reconciles with load() — a lost CAS means
+  // a concurrent actor moved them in the gap, so the board's view is suspect.
   const moveEntry = async (entry: Entry, toStage: string) => {
     if (entry.stage === toStage) return;
     const prevStage = entry.stage;
@@ -207,12 +215,53 @@ export function usePipelineBoardData({
         restage(entry.id, prevStage);
         setMoveError(errorMessage(await pipelineActionReason(r), t("moveFailed")));
         setMoveErrorEntryId(entry.id);
+        // A refusal is the one case where the board's own view is suspect (a lost CAS
+        // means somebody else moved the row), so reconcile against the server.
+        await load();
+        return;
+      }
+      // board-poll-carries-only-what-it-draws — the success path used to `await load()`
+      // in a `finally`, re-reading the entire active board with every candidate's
+      // notes, GitHub evidence and approval detail to learn the one thing it already
+      // knew. The route answers with the moved row, so apply THAT. Only the fields a
+      // set_stage can change are taken: the response is the raw store row, not the
+      // score-stamped board projection, so a whole-object swap would blank the card's
+      // canonicalScore/transferScore and visibly change the badge.
+      const moved = (await r.json().catch(() => null)) as { entry?: Partial<Entry> } | null;
+      const server = moved?.entry;
+      if (server && typeof server.stage === "string") {
+        setEntries((cur) =>
+          cur
+            ? cur.map((e) =>
+                e.id === entry.id
+                  ? {
+                      ...e,
+                      stage: server.stage as string,
+                      stageChangedAt: server.stageChangedAt ?? e.stageChangedAt,
+                      status: server.status ?? e.status,
+                      approvalKind: server.approvalKind ?? null,
+                      approvalDetail: server.approvalDetail ?? null,
+                    }
+                  : e
+              )
+            : cur
+        );
+        // The board array just changed under the poll's content-equality gate; clear
+        // the committed signature so the next poll is free to write a genuinely
+        // different payload rather than comparing against a stale one.
+        lastEntriesSigRef.current = null;
+        // The move produced a pipeline event — the activity feed still hears about it
+        // through the delta read, without the board refetch riding along.
+        load({ eventsOnly: true });
+      } else {
+        // No usable row came back (an older route, an unparseable body): fall back to
+        // the full reconcile rather than trusting the optimistic write.
+        await load();
       }
     } catch {
       restage(entry.id, prevStage);
       setMoveError(t("moveFailed"));
       setMoveErrorEntryId(entry.id);
-    } finally {
       await load();
     }
   };
