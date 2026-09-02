@@ -90,7 +90,13 @@ const ROUTES: RouteSpec[] = [
     limit: 60,
     optsSrc: "TTS_RATE_LIMIT",
     optsDef: "const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
-    expensive: "getTts().speak(",
+    // Moved onto the chokepoint: the dock renders errors.TOO_MANY_REQUESTS in
+    // the reader's language instead of the server's English string.
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The limiter precedes the CACHE LOOKUP too, not just the engine: a hit is
+    // cheap but not free, and a throttle that only counted misses would let a
+    // burst walk the whole window for nothing.
+    expensive: "speakCached(",
   },
   {
     // ADDED with the route (voice-stt package). The TIGHTEST of the three voice
@@ -102,6 +108,7 @@ const ROUTES: RouteSpec[] = [
     limit: 20,
     optsSrc: "STT_RATE_LIMIT",
     optsDef: "const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "getStt().transcribe(",
   },
   {

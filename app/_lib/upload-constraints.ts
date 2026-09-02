@@ -159,9 +159,22 @@ export const ACCEPT_AUDIO_MIME = new Set([
 ]);
 
 /**
+ * A rejected audio upload: the HTTP status AND a machine CODE, never a sentence.
+ *
+ * The difference from `ServerUploadRejection` above is the lesson §1.1 of
+ * docs/architecture/api-contracts.md already wrote down: the client never
+ * renders the server's English. `useErrorMessage()` resolves `errors.<CODE>` in
+ * the reader's language, so a Czech operator whose 30 MB WAV is refused reads
+ * Czech. Both codes are REFUSAL_ERRORS members — a refusal is a decision whose
+ * message IS the information, and these two say which of the two things to fix.
+ * The document gate above still answers sentences; converting it means every one
+ * of ITS call sites at once, which is a different change.
+ */
+export type AudioUploadRejection = { status: number; code: "AUDIO_TOO_LARGE" | "AUDIO_UNSUPPORTED_TYPE" };
+
+/**
  * The server gate for an uploaded audio File — the audio twin of
  * validateUploadServer, ending at the SAME 413 for size and 400 for type.
- * `label` names the offending input ("recording", "interview clip", …).
  * Returns null when the file is accepted.
  *
  * No empty-MIME fallback here, unlike the document gate: a browser recording
@@ -170,13 +183,9 @@ export const ACCEPT_AUDIO_MIME = new Set([
  * guessed at, because guessing wrong means spawning a transcription engine or
  * spending a vendor's per-hour rate on a file that is not audio.
  */
-export function validateAudioUploadServer(file: File, label: string): ServerUploadRejection | null {
-  if (!ACCEPT_AUDIO_MIME.has(file.type)) {
-    return { status: 400, error: `Use WAV, MP3, M4A, WebM, OGG or FLAC for the ${label}.` };
-  }
-  if (file.size > MAX_AUDIO_BYTES) {
-    return { status: FILE_TOO_LARGE_STATUS, error: `The ${label} exceeds the ${MAX_AUDIO_MB} MB upload limit.` };
-  }
+export function validateAudioUploadServer(file: File): AudioUploadRejection | null {
+  if (!ACCEPT_AUDIO_MIME.has(file.type)) return { status: 400, code: "AUDIO_UNSUPPORTED_TYPE" };
+  if (file.size > MAX_AUDIO_BYTES) return { status: FILE_TOO_LARGE_STATUS, code: "AUDIO_TOO_LARGE" };
   return null;
 }
 

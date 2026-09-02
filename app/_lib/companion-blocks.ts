@@ -91,21 +91,70 @@ function coerceChart(raw: Record<string, unknown>): ChatChartBlock | null {
   };
 }
 
-/** Untrusted JSON in, renderable blocks out. Anything unrecognised is dropped
- *  silently HERE — the honest count of what the model got wrong is
- *  `blockErrors`, produced upstream where the raw fences were still visible;
- *  a block that dies at this boundary is a bug in one of the two schemas, not
- *  something to tell the operator about. */
-export function coerceChatBlocks(raw: unknown): ChatBlock[] {
-  if (!Array.isArray(raw)) return [];
+/** What survived coercion, and how much did not. */
+export type CoercedChatBlocks = { blocks: ChatBlock[]; dropped: number };
+
+/**
+ * Untrusted JSON in, renderable blocks out — AND a count of what died on the way.
+ *
+ * The count is the half this file used to be missing. The rule everywhere else
+ * in a companion turn is that a dropped thing is admitted: `blockErrors` and
+ * `actionErrors` both exist because "she showed me nothing" and "she tried and
+ * it was malformed" are different facts. But `blockErrors` was produced ONLY in
+ * Python (companion_cli.py), where the raw fences were still visible — so a
+ * block that satisfied companion_blocks.py and then failed HERE was dropped in
+ * silence and counted nowhere. That is not a hypothetical: this boundary exists
+ * precisely because a `meta_json` row can have been written by an older build,
+ * and a stale stored block is the exact input that survives one schema and not
+ * the other. The renderer adds this count to the server's, so the chip tells the
+ * truth about both halves.
+ *
+ * Entries past `CHAT_MAX_BLOCKS` count as dropped too: the cap is deliberate,
+ * but from the operator's side "there was more and you are not seeing it" is the
+ * same fact either way.
+ */
+export function coerceChatBlocksCounted(raw: unknown): CoercedChatBlocks {
+  if (!Array.isArray(raw)) return { blocks: [], dropped: 0 };
   const blocks: ChatBlock[] = [];
-  for (const entry of raw) {
-    if (!isRecord(entry)) continue;
-    const block = entry.type === "table" ? coerceTable(entry) : entry.type === "chart" ? coerceChart(entry) : null;
+  let dropped = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    if (blocks.length === CHAT_MAX_BLOCKS) {
+      dropped += raw.length - i;
+      break;
+    }
+    const entry = raw[i];
+    const block = !isRecord(entry)
+      ? null
+      : entry.type === "table"
+        ? coerceTable(entry)
+        : entry.type === "chart"
+          ? coerceChart(entry)
+          : null;
     if (block) blocks.push(block);
-    if (blocks.length === CHAT_MAX_BLOCKS) break;
+    else dropped += 1;
   }
-  return blocks;
+  return { blocks, dropped };
+}
+
+/** The blocks only — the shape `companion-run.ts` has always taken, kept so the
+ *  fresh-spawn path is unchanged by the counting. */
+export function coerceChatBlocks(raw: unknown): ChatBlock[] {
+  return coerceChatBlocksCounted(raw).blocks;
+}
+
+/**
+ * What a RENDERER should draw for one turn, and what its "dropped" chip should
+ * say. One function so the dock and the voice strip cannot disagree about
+ * either: the blocks are re-coerced at the point of drawing (a stored turn is
+ * untrusted input however it was typed on the way in) and the drop count is the
+ * server's count PLUS whatever did not survive here.
+ */
+export function renderableBlocks(
+  meta: { blocks?: unknown; blockErrors?: number } | null | undefined
+): { blocks: ChatBlock[]; blockErrors: number } {
+  const { blocks, dropped } = coerceChatBlocksCounted(meta?.blocks);
+  const reported = typeof meta?.blockErrors === "number" && meta.blockErrors > 0 ? Math.floor(meta.blockErrors) : 0;
+  return { blocks, blockErrors: reported + dropped };
 }
 
 export type { ChatBlock };

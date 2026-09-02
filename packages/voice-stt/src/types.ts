@@ -187,12 +187,25 @@ export type SttResolution = {
   reason: string | null;
 };
 
+/** The failure vocabulary. Callers branch on the CODE; the message is for a log
+ *  and for an operator, never for a client to parse. Host HTTP mappings are
+ *  written down once in docs/architecture/voice-stt-package.md — a code without
+ *  a mapping is a code that reaches a surface as a generic 502. */
 export type SttErrorCode =
   | "invalid_audio"
   | "invalid_language"
   | "invalid_model"
+  /** The clip is longer than the serving engine's declared ceiling. Its own code
+   *  rather than `invalid_audio` because the fix is different in kind: the audio
+   *  is well-formed and the caller has to split or trim it, and a host that maps
+   *  size to 413 wants to map length there too rather than to a flat 400. */
+  | "too_long"
   | "unsupported"
   | "unavailable"
+  /** The engine asked us to slow down. Distinguishable from `engine_failed`
+   *  because it is not a fault and the request is worth repeating — with
+   *  `retryAfterMs` when the engine said how long to wait. */
+  | "rate_limited"
   | "engine_failed"
   | "timeout"
   | "aborted";
@@ -202,6 +215,9 @@ export class SttError extends Error {
     readonly code: SttErrorCode,
     message: string,
     readonly provider?: SttProviderId,
+    /** Only meaningful for `rate_limited`: how long the engine asked us to wait,
+     *  parsed from its own answer. Null/undefined = it did not say. */
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "SttError";

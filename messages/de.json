@@ -1357,7 +1357,14 @@
     "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen.",
     "EDGE_CONFIG_REJECTED": "Diese Edge-Adresse wurde abgelehnt. Sie muss eine öffentliche https://-URL sein.",
     "EDGE_PAIR_REFUSED": "Der Siegel-Schlüssel konnte nicht am Edge veröffentlicht werden. Prüfen Sie die Kopplung und versuchen Sie es erneut.",
-    "EDGE_SAVE_FAILED": "Die Edge-Kopplung konnte nicht gespeichert werden. Bitte erneut versuchen."
+    "EDGE_SAVE_FAILED": "Die Edge-Kopplung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "TTS_FAILED": "Das konnte gerade nicht vorgelesen werden. Bitte erneut versuchen.",
+    "STT_FAILED": "Die Aufnahme konnte nicht transkribiert werden. Bitte erneut versuchen.",
+    "VOICE_REQUEST_INVALID": "Diese Anfrage war kein gültiges JSON.",
+    "AUDIO_MISSING": "Fügen Sie eine Aufnahme zum Transkribieren hinzu.",
+    "AUDIO_UNSUPPORTED_TYPE": "Verwenden Sie für die Aufnahme WAV, MP3, M4A, WebM, OGG oder FLAC.",
+    "AUDIO_TOO_LARGE": "Diese Aufnahme überschreitet das Upload-Limit von 25 MB.",
+    "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",

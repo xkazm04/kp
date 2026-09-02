@@ -144,19 +144,28 @@ test("validateOptionalUploadServer validates a present file like validateUploadS
 
 // ── The audio contract (voice-stt package, /api/stt) ─────────────────────────
 
-test("validateAudioUploadServer: over-limit is the SHARED 413, wrong kind is a 400", () => {
-  assert.equal(validateAudioUploadServer(fileOf("clip.wav", 1024, "audio/wav"), "recording"), null);
-  assert.deepEqual(validateAudioUploadServer(fileOf("clip.wav", MAX_AUDIO_BYTES + 1, "audio/wav"), "recording"), {
+test("validateAudioUploadServer: over-limit is the SHARED 413, wrong kind is a 400 — and both answer a CODE", () => {
+  assert.equal(validateAudioUploadServer(fileOf("clip.wav", 1024, "audio/wav")), null);
+  assert.deepEqual(validateAudioUploadServer(fileOf("clip.wav", MAX_AUDIO_BYTES + 1, "audio/wav")), {
     status: FILE_TOO_LARGE_STATUS,
-    error: `The recording exceeds the ${MAX_AUDIO_MB} MB upload limit.`,
+    code: "AUDIO_TOO_LARGE",
   });
-  assert.equal(validateAudioUploadServer(fileOf("cv.pdf", 1024, "application/pdf"), "recording")?.status, 400);
+  assert.deepEqual(validateAudioUploadServer(fileOf("cv.pdf", 1024, "application/pdf")), {
+    status: 400,
+    code: "AUDIO_UNSUPPORTED_TYPE",
+  });
+  // The English sentence is gone on purpose: the client resolves errors.<CODE>
+  // in the reader's language, so a refusal is never shipped in one language.
+  assert.equal(MAX_AUDIO_MB, 25);
 });
 
 test("validateAudioUploadServer refuses an untyped blob rather than guessing", () => {
   // No empty-MIME fallback, unlike the document gate: guessing wrong here means
   // spawning an engine or spending a per-audio-hour rate on a file that is not audio.
-  assert.equal(validateAudioUploadServer(fileOf("clip.wav", 1024, ""), "recording")?.status, 400);
+  assert.deepEqual(validateAudioUploadServer(fileOf("clip.wav", 1024, "")), {
+    status: 400,
+    code: "AUDIO_UNSUPPORTED_TYPE",
+  });
 });
 
 test("the boundary's audio MIME list matches the package's validation door", async () => {

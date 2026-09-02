@@ -309,6 +309,13 @@ Blocks ride to the client in the turn's `meta_json` (`CompanionTurnMeta.blocks`)
 are re-coerced at that boundary by `app/_lib/companion-blocks.ts` (a `meta_json`
 row written by an older build is untrusted input), and render through
 `app/_components/chat/ChatBlocks.tsx` → `ChatTable.tsx` / `ChatMiniChart.tsx`.
+**Both halves of that discard are counted.** `blockErrors` is produced in Python,
+where the raw fences were still visible; a block that satisfied
+`companion_blocks.py` and then failed the TS coercion — the stale stored turn
+this second gate exists for — used to be dropped in silence. `renderableBlocks()`
+now re-coerces at the point of drawing and adds what died there to the server's
+count, so the one chip both the dock and the voice strip render
+(`t("blocks.dropped")`) tells the truth about both.
 **The caps live in three places and must move together**: `companion_blocks.py`,
 `app/_components/chat/chatBlockTypes.ts`, and the renderers built to them.
 
@@ -1028,6 +1035,19 @@ Nothing traps focus and nothing is inert — the page behind is the entire reaso
 this mode exists. The rest pill is unchanged and shared: the mode changes the
 OPEN state only, so a voice-mode operator whose deck is collapsed still has the
 pill as a door.
+
+**Parity with the window, three ways.** *Escape* closes the strip when the
+settings popover is not open, through the SAME close path the X uses — so focus
+lands back on the rest pill however it was dismissed. Bound to the document, not
+to the region: the strip is one focus stop that an operator working the page
+behind it does not have focus in. *Below `sm` the row wraps*: the prose takes the
+full first row and the controls sit beneath it, because at 360px the controls
+alone want ~332px of the ~312px available and a nowrap row squeezes her answer to
+nothing. Hiding the counter would have been cheaper and would have deleted the
+one affordance the mode exists for. *One live region for the answer* (the prose)
+and *one status region for busy* — the counter is no longer live and the ticker
+reuses `VoiceBusyNote` instead of duplicating it, so a single arrow press no
+longer fires three announcements at once.
 
 The input is one line (`<input>`, not a textarea): the operator gave up the
 column to keep the page visible, so the composer cannot claim it back, Enter has

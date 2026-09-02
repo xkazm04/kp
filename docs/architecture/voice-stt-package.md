@@ -56,8 +56,24 @@ deploy that allows both; it can never admit a provider `KP_STT_PROVIDERS` exclud
 ### 3. `diarized` / `redacted` report what the engine DID
 
 Both fields are read back off the engine's answer, never echoed from the request. A surface
-that prints "redacted" reads the response field. (`AssemblyAiStt` derives `diarized` from
-whether utterances actually came back, not from whether `speaker_labels` was sent.)
+that prints "redacted" reads the response field. `AssemblyAiStt` derives `diarized` from
+whether utterances actually came back, not from whether `speaker_labels` was sent, and
+`redacted` from the transcript row's `redact_pii` — the vendor echoes the **accepted** job
+configuration onto every row it returns, which is the only field in the API that can
+disagree with the request. When it does disagree in the dangerous direction (asked for,
+row says `false`), the adapter throws `unsupported` instead of returning a transcript whose
+`redacted: false` a caller might not read. When the row omits the field entirely the
+property is simply not claimed — an unproven `redacted: true` is the one lie this package
+must never tell.
+
+### 3b. A declared ceiling is enforced or it is a comment
+
+Every adapter declares `capabilities.maxClipSeconds`; for months nothing read it. The
+dispatch door now refuses a clip past the serving engine's ceiling with `too_long`, using
+the duration `node/wav.ts` reads out of the RIFF header — so the refusal costs neither a
+subprocess nor an audio-hour. It is honestly partial: a compressed container's length lives
+behind a decoder this package deliberately does not carry, so for `mpeg`/`mp4`/`webm`/
+`ogg`/`flac` the engine's own limit is still the first thing that says no.
 
 ### 4. Failure states the synthesis side does not have
 
@@ -96,7 +112,14 @@ agent); this is the input one, and an operator picking between them is answering
 different questions.
 
 1. **Language.** This adapter is the **async** path, whose catalog is wide and includes
-   Czech. The vendor's real-time multilingual model is en/es/fr/de/it/pt only — no Czech —
+   Czech. Its `language_code` vocabulary is primary subtags (`cs`, `de`) plus a handful of
+   underscore-delimited English variants (`en_us`, `en_au`) — *not* hyphenated BCP-47
+   regionals, which is what this package's validation door normalizes a request to. So the
+   adapter narrows the hint to its primary subtag and lets the service pick the regional
+   model; asking for a specific `en_*` variant is a `modelId` / `ASSEMBLYAI_MODEL` decision,
+   which is where an account-level vocabulary belongs.
+
+   The vendor's **real-time** multilingual model is en/es/fr/de/it/pt only — no Czech —
    which is why the streaming transport is *not* quietly wired in behind the same id. A
    streaming adapter is a different seam (a socket, not a request) and would need its own
    language row.
@@ -134,10 +157,28 @@ Error mapping, in one place:
 | `SttErrorCode` | status |
 | --- | --- |
 | `invalid_audio`, `invalid_language`, `invalid_model` | 400 |
+| `too_long` — well-formed audio, longer than the serving engine's `maxClipSeconds` | **413** |
 | `unsupported` — well-formed request, healthy engines, capability not on offer | **422** |
+| `rate_limited` — the engine asked us to slow down | **429**, plus `Retry-After` from `err.retryAfterMs` when the engine said how long |
 | `unavailable` — nothing ready, with the last probe's reason | 503 |
 | `timeout` | 504 |
 | `engine_failed`, `aborted` | 502 |
+
+`too_long` is 413 rather than 400 for the same reason the upload gate answers 413 for too
+many bytes: a client branches on "too much audio" once, whether the excess is size or
+length. `rate_limited` exists so a vendor's concurrency ceiling does not reach an operator
+as "the engine broke" — the two have opposite next actions (wait and repeat vs. investigate),
+and the adapter keeps a cached positive probe across a 429 because busy is not down.
+
+**Every refusal carries a CODE, never an English sentence** (api-contracts.md §1.1). The
+boundary refusals resolve through `REFUSAL_ERRORS`: `AUDIO_MISSING` (no multipart body, no
+`audio` part, or an empty one), `AUDIO_UNSUPPORTED_TYPE`, `AUDIO_TOO_LARGE`,
+`TOO_MANY_REQUESTS` (the per-IP throttle AND the engine's own `rate_limited`, so a client
+backs off from both the same way) and `STT_TOO_LONG` for the engine's `too_long`.
+`validateAudioUploadServer` returns `{ status, code }` rather than a sentence, and the 500
+is `safeJsonError(err, "api:stt", "STT_FAILED")` — the adapter's message (which can carry a
+vendor HTTP body or a local model path) goes to the server log only. The code -> status
+table is pinned by invoking the handler in `app/api/stt/stt-route.test.ts`.
 
 The served engine travels in headers (`x-stt-provider`, `x-stt-elapsed-ms`,
 `x-stt-fallback-from`) and in the body's `fallbackFrom`, so a fallback is visible at every
@@ -166,6 +207,16 @@ One package, two shapes, no code fork — the allowed set does the work:
   `.claude/onboarding/config.md` (the CLI skill) but the product's first-run wizard
   (`app/features/shell/setup/`) still has no engine or key step for any of the three voice
   planes. That is the next piece of work, and it is what the probe-only `GET` exists to feed.
+- **Two adapter behaviours are unverified against a live engine.** The cloud path's
+  `redact_pii` read-back and the 429 mapping are pinned by a scripted `fetch`
+  (`packages/voice-stt/src/providers/adapters.test.ts`), not by a real key; the local
+  probe cache and its invalidation are pinned by a counting host, not by a real
+  `whisper-cli`. Both are the shapes the vendor and the CLI document, and both would show
+  up first as a live smoke test on the day the first consumer lands.
+- **The local probe is cached for 60 s.** The same TTL the cloud adapter uses, against a
+  different cost (a readdir + stat per model directory on every resolve). Installing a model
+  therefore takes up to a minute to show as `ready` in a settings surface; a real transcribe
+  failure invalidates it immediately.
 - **PII policy names are unverified against a live key.** `DEFAULT_PII_POLICIES` is the
   vendor's vocabulary, not ours; a rejected policy surfaces as the API's 400 body verbatim,
   and `ASSEMBLYAI_PII_POLICIES` overrides the list without a code change.

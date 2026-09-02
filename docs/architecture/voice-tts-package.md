@@ -51,9 +51,21 @@ and its listening half by the STT one, once a streaming local engine is worth it
   never an empty 200.
 - **Retired ids normalize on read.** `preferenceFromEnv` drops unknown ids instead of
   throwing, so a stale `KP_TTS_PROVIDER` never wedges the app.
-- **The test seam is the interface.** `providers/fake.ts` scripts probe outcomes and
-  failures; `registry.test.ts` covers the door, the resolution order, visible fallback and
-  the unavailable path with no audio hardware or network.
+- **A failure is a next action, not a message.** `TtsErrorCode` names what the caller should
+  do: `invalid_text`/`invalid_voice` (fix the request), `unavailable` (no engine can speak —
+  credentials, entitlement, nothing installed), `rate_limited` (the engine is HEALTHY and the
+  same request succeeds later — with `retryAfterMs` when the service said how long),
+  `timeout`, `aborted`, `engine_failed`. Added 2026-09-02: the cloud adapter used to map 401
+  to `unavailable` and everything else — quota, a wrong voice id, a transient 5xx — to
+  `engine_failed`/502, so a surface could not tell "add credits" from "try again in a
+  minute". See the mapping table under *Host wrapper*.
+- **The test seam is the interface.** `providers/fake.ts` scripts probe outcomes, failures,
+  `capabilities` overrides (`maxClipChars`, which makes the segment-and-join path reachable
+  without a 1200-char fixture) and a `gate`/`trace` pair that turns concurrency into an
+  observable order. `registry.test.ts` covers the door, the resolution order, visible
+  fallback, the unavailable path, segment-and-join and local serialization;
+  `providers/elevenlabs.test.ts` pins the whole HTTP status → code table against a `fetch`
+  double. No audio hardware, no network, no model files.
 
 ## Chat quality: speech-ready text and chunked playback (deepen round, 2026-08-23)
 
@@ -96,13 +108,58 @@ ladder: explicit env → shared home `bin/` → PATH.
 
 - `GET` → `{ providers: TtsStatus[], preferred, allowed }` — probes only, spends nothing.
 - `POST { text, language?, provider?, voiceId?, speed? }` → audio bytes with
-  `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`.
-- Errors are typed: 400 invalid text/voice, 503 unavailable, 504 timeout, 502 engine failed.
+  `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, `X-Tts-Fallback-From?`. `useTts` reads
+  all four; `X-Tts-Voice` surfaces as `served.voiceId` (the voice that spoke is not always the
+  one asked for — a null request takes the engine default and a fallback provider ignores the
+  other engine's ids).
+- Errors are typed, and the status is part of the contract:
+
+  | `TtsError.code` | status | caller's next action |
+  | --- | --- | --- |
+  | `invalid_text`, `invalid_voice` | 400 | fix the request; never retry unchanged |
+  | `unavailable` | 503 | nothing can speak (no key, no entitlement, nothing installed) |
+  | `rate_limited` | 429 + `Retry-After` | wait, then retry the same request |
+  | `timeout` | 504 | retry or shorten the text |
+  | `engine_failed` | 502 | the engine broke; retry or fall back |
+
+  ElevenLabs statuses map: 429 → `rate_limited` (`Retry-After` parsed as delta-seconds or
+  HTTP-date; malformed/past → `undefined`, host picks its own backoff), 422/404 →
+  `invalid_voice`, 401/403 → `unavailable`, 5xx → `engine_failed`. A 429 deliberately does
+  NOT invalidate the cached ready probe — busy is not down.
+- **Refusals carry a CODE, never the adapter's English** (api-contracts.md §1.1):
+  `TOO_MANY_REQUESTS` for both the per-IP throttle and the engine's own 429 (which forwards
+  `Retry-After` from `err.retryAfterMs`, and sends no header when the engine did not say — a
+  fabricated wait is worse than none), `VOICE_REQUEST_INVALID` for a body that is not JSON,
+  and `safeJsonError(err, "api:tts", "TTS_FAILED")` for the 500, so a vendor HTTP body or a
+  local model path goes to the server log only. The engine code -> status mapping is a
+  LOOKUP keyed by the code, so a member the package adds later degrades to the honest 502
+  rather than failing to compile. Pinned by invoking the handler in
+  `app/api/tts/tts-route.test.ts`.
 - `requireOperator()` (defense in depth) and `rateLimit("tts:<ip>", 60/10 min)` — pinned by
   `app/api/rate-limit-contract.test.ts`, because in open mode a cloud call costs money and a
   local call spawns a process.
 - Browser side: `packages/voice-tts/src/react/useTts.ts` owns playback (one utterance
   audible at a time, stop means now, blocked autoplay surfaces a play affordance).
+
+### Metered, and never paid twice
+
+- **Every serve writes one `llm_usage` row** — use case `tts`, the serving provider, the
+  voice as `model`, and a `cost_usd` estimate from `app/_lib/tts-prices.ts` (USD per 1000
+  characters; ElevenLabs 0.22, the two local engines a *known* zero, an unlisted provider
+  `null` so it counts as `unpriced_calls` rather than as free). Token columns stay null:
+  characters are not tokens. Same shape and the same reasoning as
+  `app/_lib/voice/minute-prices.ts` on the realtime plane. The write is best-effort — the
+  ledger is telemetry and never the request.
+- **A bounded host-side cache** (`app/_lib/tts-cache.ts`) folds an identical repeat request
+  into the clip the first one produced, so auto-speak followed by the play the operator
+  presses after a blocked autoplay — or arrowing back to an answer and replaying it — is
+  ONE synthesis. Key = requested provider + voice + language + speed + format + a sha256 of
+  the whitespace-normalised text; anything that changes the bytes is in the key.
+  **In-memory, process lifetime** (64 entries / 16 MB, LRU, single clips over 4 MB served
+  but not stored): a restart is rare next to a replay, and the audit trail survives it
+  anyway because the ledger row does. The response carries `X-Tts-Cache: hit|miss`; a hit
+  is metered as a counted call that spent nothing (`source: "deterministic"`, cost 0).
+  `Cache-Control: no-store` on the response is unchanged — the browser still stores nothing.
 
 ## Where it is applied in kp
 
@@ -117,6 +174,8 @@ ladder: explicit env → shared home `bin/` → PATH.
 
 Nothing set: `GET /api/tts` lists three `absent` providers, each with the exact setup step;
 `POST` answers 503 `unavailable`; the lab panel disables every button and prints the hints.
+Nothing was served, so nothing is cached and **no ledger row is written** — a refusal is not
+a call, and a zero-cost row for it would inflate the call count with calls that never were.
 No other kp feature depends on spoken output, so the app is whole without it.
 
 ## Known gaps

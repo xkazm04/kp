@@ -5,7 +5,7 @@
 // must degrade to "no block" rather than to a renderer holding `rows: undefined`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coerceChatBlocks } from "./companion-blocks.ts";
+import { coerceChatBlocks, coerceChatBlocksCounted, renderableBlocks } from "./companion-blocks.ts";
 import {
   CHAT_CHART_MAX_POINTS,
   CHAT_MAX_BLOCKS,
@@ -100,4 +100,39 @@ test("an unknown block type is skipped without taking the good ones with it", ()
   const blocks = coerceChatBlocks([{ type: "timeline", rows: [] }, TABLE]);
   assert.equal(blocks.length, 1);
   assert.equal(blocks[0].type, "table");
+});
+
+// ---- The counted discard (the half that was silent) -------------------------
+// A block that satisfies companion_blocks.py and then dies HERE was dropped in
+// silence and counted nowhere: `blockErrors` is produced only in Python. These
+// pin the client's own count and its addition to the server's.
+
+test("a malformed STORED block is counted, not silently dropped", () => {
+  const { blocks, dropped } = coerceChatBlocksCounted([{ ...TABLE, rows: [] }, TABLE, "not even an object"]);
+  assert.equal(blocks.length, 1);
+  assert.equal(dropped, 2);
+});
+
+test("entries past the per-turn cap count as dropped too", () => {
+  const many = Array.from({ length: CHAT_MAX_BLOCKS + 3 }, () => TABLE);
+  const { blocks, dropped } = coerceChatBlocksCounted(many);
+  assert.equal(blocks.length, CHAT_MAX_BLOCKS);
+  assert.equal(dropped, 3);
+});
+
+test("the renderer's count is the server's PLUS what died in TS coercion", () => {
+  const stale = renderableBlocks({ blocks: [TABLE, { type: "chart", kind: "pie" }], blockErrors: 2 });
+  assert.equal(stale.blocks.length, 1);
+  assert.equal(stale.blockErrors, 3, "2 the model got wrong upstream + 1 that did not survive here");
+});
+
+test("a turn with nothing wrong reports nothing wrong", () => {
+  assert.deepEqual(renderableBlocks({ blocks: [TABLE] }), { blocks: coerceChatBlocks([TABLE]), blockErrors: 0 });
+  assert.deepEqual(renderableBlocks(null), { blocks: [], blockErrors: 0 });
+  assert.deepEqual(renderableBlocks(undefined), { blocks: [], blockErrors: 0 });
+});
+
+test("a nonsense server count is not trusted into the chip", () => {
+  assert.equal(renderableBlocks({ blocks: [], blockErrors: -4 }).blockErrors, 0);
+  assert.equal(renderableBlocks({ blocks: [], blockErrors: 1.7 }).blockErrors, 1);
 });

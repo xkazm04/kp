@@ -128,13 +128,23 @@ export type TtsResolution = {
   reason: string | null;
 };
 
-export type TtsErrorCode = "invalid_text" | "invalid_voice" | "unavailable" | "engine_failed" | "timeout" | "aborted";
+/** `rate_limited` is deliberately NOT `engine_failed`: the engine is healthy and
+ *  the same request will succeed later, so the only correct next action is to
+ *  wait — a surface that cannot tell it from a failure either retries into the
+ *  same wall or tells the user to fix something that is not broken. Quota
+ *  exhaustion that needs a top-up stays `unavailable` (the account, not the
+ *  clock, is the blocker). */
+export type TtsErrorCode = "invalid_text" | "invalid_voice" | "unavailable" | "engine_failed" | "timeout" | "aborted" | "rate_limited";
 
 export class TtsError extends Error {
   constructor(
     readonly code: TtsErrorCode,
     message: string,
     readonly provider?: TtsProviderId,
+    /** Only meaningful with `rate_limited`: how long the engine asked the caller
+     *  to wait (parsed from `Retry-After` when the service sent one). A host
+     *  forwards it as its own `Retry-After` header. */
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "TtsError";

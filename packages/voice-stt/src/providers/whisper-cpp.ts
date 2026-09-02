@@ -30,6 +30,13 @@ import {
 } from "../types.ts";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
+/** Same TTL the cloud adapter uses, for the same reason and against a different
+ *  cost: there the probe is a network round trip, here it is a readdir plus a
+ *  stat per model directory on EVERY resolve — and resolve runs ahead of every
+ *  transcribe and every status read. A minute of staleness is the right price:
+ *  installing an engine is a deliberate act somebody can wait a moment to see,
+ *  and a real failure invalidates the cache immediately (see transcribe). */
+const PROBE_TTL_MS = 60_000;
 const REQUIRED_SAMPLE_RATE = 16_000;
 /** A GGML model smaller than this is a truncated download, not a small model —
  *  the tiny quantized builds start around 30 MB. */
@@ -63,7 +70,16 @@ export class WhisperCppStt implements SttProvider {
     maxBytes: 25 * 1024 * 1024,
   } as const;
 
+  private probeCache: { at: number; probe: SttProbe } | null = null;
+
   constructor(private readonly host: SttHost) {}
+
+  /** Drop a cached probe because the engine just failed for real. Mirrors the
+   *  cloud adapter's rule: a positive probe a minute old is worthless once the
+   *  binary or the model has proved unusable. */
+  private invalidateProbe(): void {
+    this.probeCache = null;
+  }
 
   private binary(): string | null {
     // `main` is the pre-rename CLI; an engine installed under the old name is
@@ -110,6 +126,7 @@ export class WhisperCppStt implements SttProvider {
   }
 
   async probe(): Promise<SttProbe> {
+    if (this.probeCache && Date.now() - this.probeCache.at < PROBE_TTL_MS) return this.probeCache.probe;
     const started = Date.now();
     const bin = this.binary();
     let probe: SttProbe;
@@ -125,6 +142,7 @@ export class WhisperCppStt implements SttProvider {
             : { state: "broken", reason: `${models[0].file} is ${size} bytes — a truncated download` };
       }
     }
+    this.probeCache = { at: Date.now(), probe };
     this.host.log?.({ type: "probe", provider: this.id, probe, ms: Date.now() - started });
     return probe;
   }
@@ -135,7 +153,10 @@ export class WhisperCppStt implements SttProvider {
 
   async transcribe(req: SttRequest, signal?: AbortSignal): Promise<SttTranscript> {
     const bin = this.binary();
-    if (!bin) throw new SttError("unavailable", "whisper-cli binary not found", this.id);
+    if (!bin) {
+      this.invalidateProbe();
+      throw new SttError("unavailable", "whisper-cli binary not found", this.id);
+    }
 
     // The container check, before a process is spawned. This package does not
     // transcode (node/wav.ts explains why), so the refusal has to name the fix.
@@ -159,7 +180,10 @@ export class WhisperCppStt implements SttProvider {
     // asked for Czech returns confident English nonsense, which is worse than a
     // refusal because it looks like a transcript.
     const model = wanted ?? models.find((m) => !m.language || m.language === lang) ?? models[0];
-    if (!model) throw new SttError("unavailable", "no ggml model installed", this.id);
+    if (!model) {
+      this.invalidateProbe();
+      throw new SttError("unavailable", "no ggml model installed", this.id);
+    }
     if (lang && model.language && model.language !== lang) {
       throw new SttError("unsupported", `${model.id} is ${model.language}-only and cannot transcribe ${lang}`, this.id);
     }
@@ -172,6 +196,9 @@ export class WhisperCppStt implements SttProvider {
       if (threads && /^\d{1,3}$/.test(threads)) args.push("-t", threads);
       const run = await runSidecar(this.id, bin, args, { timeoutMs: this.timeoutMs(), signal });
       if (run.code !== 0) {
+        // The engine itself failed, not the request: whatever the last probe
+        // said about this install is no longer evidence.
+        this.invalidateProbe();
         this.host.log?.({ type: "error", provider: this.id, message: run.stderr.slice(-300) });
         throw new SttError("engine_failed", `whisper-cli exited ${run.code}`, this.id);
       }

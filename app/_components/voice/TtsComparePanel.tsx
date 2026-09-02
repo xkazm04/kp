@@ -3,12 +3,30 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useTts } from "@/packages/voice-tts/src/react/useTts";
+import { LOCALES, type Locale } from "@/i18n/locales";
 import type { TtsProviderId, TtsStatus } from "@/packages/voice-tts/src/index";
 import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD } from "@/app/_components/ui/recipes";
 
-const SAMPLE: Record<"cs" | "en", string> = {
+// One sentence per SHIPPED locale, not per locale someone got round to. The
+// panel exists to answer "does this engine sound acceptable to our users", and
+// two of the four languages the app ships in could not be asked: a German
+// operator comparing Piper against ElevenLabs was listening to English, which is
+// the one comparison that does not decide anything. Derived from LOCALES below,
+// so a fifth locale is a compile error here rather than a silently missing row.
+const SAMPLE: Record<Locale, string> = {
   en: "Hi, I'm the AI assistant running a short first-round screen. This call is transcribed. Could you start by telling me about your most recent role?",
   cs: "Dobrý den, jsem asistent umělé inteligence a povedu krátký úvodní rozhovor. Hovor se přepisuje. Můžete mi nejprve říct o své poslední pozici?",
+  de: "Guten Tag, ich bin die KI-Assistenz und führe ein kurzes Erstgespräch. Dieses Gespräch wird transkribiert. Erzählen Sie mir zu Beginn bitte von Ihrer letzten Position.",
+  fr: "Bonjour, je suis l'assistant IA qui mène ce court entretien de préqualification. Cet appel est transcrit. Pouvez-vous commencer par me parler de votre poste le plus récent ?",
+};
+
+/** Each language named in ITSELF — the one label a speaker of it recognises at a
+ *  glance, and the reason these are not translation keys. */
+const LANGUAGE_ENDONYM: Record<Locale, string> = {
+  en: "English",
+  cs: "Čeština",
+  de: "Deutsch",
+  fr: "Français",
 };
 
 
@@ -20,7 +38,7 @@ export function TtsComparePanel() {
   const tts = useTts({ endpoint: "/api/tts" });
   const probeLabel = (p: TtsStatus): string =>
     p.probe.state === "ready" ? (p.kind === "local" ? t("stateLocalReady") : t("stateCloudReady")) : p.probe.state === "absent" ? t("stateAbsent") : t("stateBroken");
-  const [lang, setLang] = useState<"cs" | "en">("en");
+  const [lang, setLang] = useState<Locale>("en");
   const [text, setText] = useState(SAMPLE.en);
   const [picked, setPicked] = useState<TtsProviderId | null>(null);
 
@@ -65,7 +83,7 @@ export function TtsComparePanel() {
                 {p.label}
                 {p.preferred ? <span className="ml-2 text-meta uppercase text-coral">{t("default")}</span> : null}
               </span>
-              <span className={`block text-meta ${ready ? "text-moss" : "text-red-600"}`}>{probeLabel(p)}</span>
+              <span className={`block text-meta ${ready ? "text-moss" : "text-coral"}`}>{probeLabel(p)}</span>
             </button>
           );
         })}
@@ -88,7 +106,7 @@ export function TtsComparePanel() {
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="inline-flex rounded-lg border border-stone-200 bg-paper p-1">
-          {(["en", "cs"] as const).map((v) => (
+          {LOCALES.map((v) => (
             <button
               key={v}
               type="button"
@@ -100,7 +118,7 @@ export function TtsComparePanel() {
               }}
               className={`focus-ring rounded-md px-3 py-1.5 text-base transition-colors ${lang === v ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"}`}
             >
-              {v === "en" ? "English" : "Čeština"}
+              {LANGUAGE_ENDONYM[v]}
             </button>
           ))}
         </div>
@@ -132,7 +150,7 @@ export function TtsComparePanel() {
       />
 
       <p className="mt-2 min-h-5 text-meta text-steel" aria-live="polite">
-        {tts.error ? <span className="text-red-600">{tts.error}</span> : null}
+        {tts.error ? <span className="text-coral">{tts.error}</span> : null}
         {!tts.error && tts.served ? (
           <>
             <span className="text-ink">

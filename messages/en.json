@@ -1357,7 +1357,14 @@
     "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations.",
     "EDGE_CONFIG_REJECTED": "That edge endpoint was refused. It must be a public https:// URL.",
     "EDGE_PAIR_REFUSED": "Could not publish the sealing key to the edge. Check the pairing and try again.",
-    "EDGE_SAVE_FAILED": "Could not save the edge pairing. Please try again."
+    "EDGE_SAVE_FAILED": "Could not save the edge pairing. Please try again.",
+    "TTS_FAILED": "Could not speak that just now. Please try again.",
+    "STT_FAILED": "Could not transcribe that recording. Please try again.",
+    "VOICE_REQUEST_INVALID": "That request was not valid JSON.",
+    "AUDIO_MISSING": "Attach a recording to transcribe.",
+    "AUDIO_UNSUPPORTED_TYPE": "Use WAV, MP3, M4A, WebM, OGG or FLAC for the recording.",
+    "AUDIO_TOO_LARGE": "That recording is over the 25 MB upload limit.",
+    "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",

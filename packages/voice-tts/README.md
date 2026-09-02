@@ -43,10 +43,36 @@ that `useTts` expects:
 
 - `GET <endpoint>` → `{ providers: TtsStatus[] }` (probe only; spends nothing)
 - `POST <endpoint> { text, language?, provider?, voiceId?, speed? }` → audio bytes with
-  headers `X-Tts-Provider`, `X-Tts-Elapsed-Ms`, and `X-Tts-Fallback-From` when the served
-  provider is not the one asked for.
-- Map `TtsError.code` → status: `invalid_*` 400, `unavailable` 503, `timeout` 504, else 502.
+  headers `X-Tts-Provider`, `X-Tts-Voice`, `X-Tts-Elapsed-Ms`, and `X-Tts-Fallback-From` when
+  the served provider is not the one asked for. `useTts` reads all four; `X-Tts-Voice`
+  surfaces as `served.voiceId`, because the voice that spoke is not always the one asked for
+  (a null request takes the engine default, and a fallback provider ignores the other
+  engine's ids).
 - Gate it (a cloud call costs money, a local call spawns a process) — rate-limit per caller.
+
+### `TtsError.code` → HTTP (the mapping a host owes its callers)
+
+| code | status | what the caller should do |
+| --- | --- | --- |
+| `invalid_text`, `invalid_voice` | 400 | fix the request — never retry it unchanged |
+| `unavailable` | 503 | no engine can speak: credentials, entitlement or nothing installed |
+| `rate_limited` | **429** + `Retry-After` | wait, then retry the SAME request |
+| `timeout` | 504 | the engine took too long; retry or shorten the text |
+| `aborted` | 499 / no body | the caller went away |
+| `engine_failed` | 502 | the engine broke; retry or fall back |
+
+`rate_limited` is the one that must not collapse into 502: the engine is healthy and the
+same request succeeds later, so "add credits" (`unavailable`) and "wait a moment" are
+different next actions. When the service sent a `Retry-After`, `TtsError.retryAfterMs`
+carries it (delta-seconds or HTTP-date, both parsed; malformed or past values yield
+`undefined` so the host picks its own backoff) — forward it:
+
+```ts
+if (err.code === "rate_limited") {
+  const headers = err.retryAfterMs ? { "retry-after": String(Math.ceil(err.retryAfterMs / 1000)) } : undefined;
+  return new Response(JSON.stringify({ error: "TTS_RATE_LIMITED" }), { status: 429, headers });
+}
+```
 
 Reference realization: kp's `app/api/tts/route.ts` + `app/_lib/tts.ts`.
 
@@ -102,6 +128,18 @@ something) and broken (fix something) are different next actions.
 
 ## Tests
 
-`registry.test.ts` and `text.test.ts` run on Node's built-in runner with the `FakeTts` provider: validation
-door, preference parsing, resolution order, visible fallback, allowed-set enforcement,
-unavailable-with-reason, status enumeration. No audio, no network, no model files.
+`registry.test.ts`, `text.test.ts` and `providers/elevenlabs.test.ts` run on Node's built-in
+runner: validation door, preference parsing, resolution order, visible fallback, allowed-set
+enforcement, unavailable-with-reason, status enumeration; the segment-and-join path (a
+`FakeTts` with `maxClipChars: 50` fed 200 chars — one joined WAV, one header, data = the sum
+of the parts); local serialization and cloud non-serialization as an observable ORDER; and
+the cloud adapter's full status→code table against a `fetch` double. No audio, no network, no
+model files.
+
+`FakeTts` takes `capabilities` (override `maxClipChars` and the segmentation path becomes
+reachable without a 1200-char fixture), `gate` (suspend `synthesize` until the test releases
+it) and `trace` (a shared `start:/end:` log, so overlap is an order rather than a timing
+guess).
+
+Not covered here, and only a live key can: that the hosted service actually answers 422 for a
+bad voice and 429 with a `Retry-After` — the table pins OUR mapping, not their statuses.
