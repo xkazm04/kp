@@ -1,7 +1,7 @@
 ---
 product: "kp"
 stack: "an AI-assisted hiring platform (Next.js 16.3 canary with Cache Components + React 19 + TS + Tailwind 4 + better-sqlite3 + next-intl; Python pipeline/ for LLM scoring)"
-vault: ["C:/Users/kazda/Documents/Obsidian/kp"]
+vault: ["C:/Users/kazda/Documents/Obsidian/kp", "C:/Users/mkdol/Documents/Obsidian/kp"]   # per machine; first existing wins. mkdol vault created 2026-09-02, fresh (kazda history not migrated)
 vault_subdir: Perfect
 base_branch: main
 wave_size: 3
