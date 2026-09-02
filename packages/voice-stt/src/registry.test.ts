@@ -168,3 +168,28 @@ test("wavInfo reads duration past injected chunks, and rejects non-WAV", () => {
   const truncated = silentWav(16_000).subarray(0, 44 + 16_000);
   assert.equal(wavInfo(truncated)?.durationMs, 500);
 });
+
+test("a clip past the serving engine's maxClipSeconds is refused before it is sent", async () => {
+  const short = new FakeStt("whisper_cpp", { capabilities: { maxClipSeconds: 1 } });
+  const stt = createStt({ host: host(), providers: [short] });
+  await assert.rejects(
+    // 2 s of 16 kHz mono PCM — the ceiling is read from the WAV header, so the
+    // refusal costs neither a subprocess nor an audio-hour.
+    stt.transcribe({ audio: silentWav(32_000), mimeType: "audio/wav" }),
+    (e: SttError) => e.code === "too_long" && /at most 1s/.test(e.message),
+  );
+  assert.equal(short.calls.length, 0);
+  // …and a clip inside the ceiling still goes through.
+  assert.equal((await stt.transcribe({ audio: silentWav(8_000), mimeType: "audio/wav" })).text, "hello");
+});
+
+test("resolve() takes the language, so the capability gate runs before any probe", async () => {
+  const english = new FakeStt("whisper_cpp", { capabilities: { languages: ["en"] } });
+  const cloud = new FakeStt("assemblyai", { kind: "cloud" });
+  const stt = createStt({ host: host(), providers: [english, cloud] });
+  const r = await stt.resolve(undefined, {}, "cs-CZ");
+  assert.equal(r.provider.id, "assemblyai");
+  assert.equal(english.probes, 0, "an engine that cannot serve the language is never probed");
+  // Without the language the gate has nothing to filter on and the order stands.
+  assert.equal((await stt.resolve()).provider.id, "whisper_cpp");
+});

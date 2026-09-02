@@ -13,6 +13,7 @@
 // removed. So an engine that cannot meet the need is not in the order at all,
 // and when none can, the answer is a typed refusal naming the missing
 // capability rather than a transcript nobody asked for.
+import { wavInfo } from "./node/wav.ts";
 import { AssemblyAiStt } from "./providers/assemblyai.ts";
 import { WhisperCppStt } from "./providers/whisper-cpp.ts";
 import { speaksLanguage, validateRequest } from "./validate.ts";
@@ -41,8 +42,15 @@ export type Stt = {
   /** Pick the provider that will serve: the requested one if allowed, capable
    *  and ready, else the preferred, else the first that is. Throws
    *  `unavailable` when nothing can listen — the host's degraded terminal state
-   *  is text, and it must know it arrived there. */
-  resolve(requested?: unknown, needs?: SttNeeds): Promise<SttResolution>;
+   *  is text, and it must know it arrived there.
+   *
+   *  `language` is part of the capability gate, not a hint: an engine that does
+   *  not declare the tag is out of the order BEFORE anything is probed. A
+   *  status surface that omits it gets the old answer, which is why the
+   *  parameter is optional — but a surface that is about to transcribe Czech
+   *  and asks "who will serve this?" without saying so is asking a different
+   *  question from the one transcribe() will answer. */
+  resolve(requested?: unknown, needs?: SttNeeds, language?: string | null): Promise<SttResolution>;
   transcribe(
     req: SttRequest,
     opts?: { provider?: unknown; needs?: SttNeeds; signal?: AbortSignal },
@@ -148,7 +156,7 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
         })),
       );
     },
-    resolve: (requested, needs) => resolve(requested, needs),
+    resolve: (requested, needs, language) => resolve(requested, needs, language ?? null),
     async transcribe(raw, o) {
       const req = validateRequest(raw);
       const needs: SttNeeds = {
@@ -161,6 +169,21 @@ export function createStt(opts: { host: SttHost; providers?: SttProvider[]; pref
       // this is the SERVING engine's own ceiling, which may be lower.
       if (req.audio.byteLength > provider.capabilities.maxBytes) {
         throw new SttError("invalid_audio", `${provider.id} accepts at most ${provider.capabilities.maxBytes} bytes`, provider.id);
+      }
+      // The declared clip ceiling, enforced where the length is free to read: a
+      // WAV header gives the real duration for the cost of a few arithmetic
+      // ops, and every adapter declares a maxClipSeconds that nothing was
+      // checking. A ceiling nobody enforces is a comment. Compressed containers
+      // keep their length behind a decoder this package deliberately does not
+      // carry (node/wav.ts), so for those the engine's own limit is still the
+      // first thing that says no — an honest partial guard, not a silent one.
+      const durationMs = req.mimeType === "audio/wav" || req.mimeType === "audio/x-wav" ? (wavInfo(req.audio)?.durationMs ?? null) : null;
+      if (durationMs != null && durationMs > provider.capabilities.maxClipSeconds * 1000) {
+        throw new SttError(
+          "too_long",
+          `${provider.id} accepts at most ${provider.capabilities.maxClipSeconds}s; this clip is ${Math.round(durationMs / 1000)}s`,
+          provider.id,
+        );
       }
       const run = () => provider.transcribe(req, o?.signal);
       const transcript =

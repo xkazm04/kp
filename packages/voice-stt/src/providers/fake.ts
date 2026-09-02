@@ -42,6 +42,9 @@ export class FakeStt implements SttProvider {
   readonly requiredEnv = [] as const;
   readonly capabilities: SttCapabilities;
   calls: SttRequest[] = [];
+  /** Probes are counted, not just answered: "was this engine probed at all?" is
+   *  the assertion that proves the capability gate ran BEFORE the probe. */
+  probes = 0;
 
   constructor(
     readonly id: SttProviderId,
@@ -62,6 +65,7 @@ export class FakeStt implements SttProvider {
     this.opts = { ...this.opts, ...opts };
   }
   async probe(): Promise<SttProbe> {
+    this.probes += 1;
     return this.opts.probe ?? { state: "ready" };
   }
   async models(): Promise<SttModel[]> {

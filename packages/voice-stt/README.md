@@ -63,7 +63,17 @@ await stt.resolve(undefined, { onDevice: true });   // refuses the cloud even wh
 When nothing allowed can meet the need, the package throws `SttError("unsupported")` naming
 the missing capability — never a success carrying the un-redacted transcript. And
 `transcript.redacted` / `.diarized` report **what the engine did**, read back off its answer,
-never echoed from the request.
+never echoed from the request: the cloud adapter reads `redacted` from the vendor row's
+accepted job configuration, and a row that says redaction was *not* applied to a request
+that asked for it is an `unsupported` refusal rather than a transcript with a `false` flag
+somebody might not read.
+
+Length is gated the same way, before the engine is paid: every adapter declares
+`capabilities.maxClipSeconds`, and the dispatch door reads the real duration out of a WAV
+header (`node/wav.ts`, no decoder) and refuses a clip past the ceiling with
+`SttError("too_long")` — no subprocess, no audio-hour. Compressed containers keep their
+length behind a decoder this package deliberately does not carry, so for those the engine's
+own limit is still the first thing that says no.
 
 ## Wrap it in a route (the host wrapper)
 
@@ -74,8 +84,11 @@ policy. The shape:
 - `POST <endpoint>` multipart `audio=<File>` + `language? provider? model? diarize? redact?
   onDevice?` → a transcript as JSON, with `X-Stt-Provider`, `X-Stt-Elapsed-Ms`, and
   `X-Stt-Fallback-From` when the served engine is not the one asked for.
-- Map `SttError.code` → status: `invalid_*` 400, **`unsupported` 422**, `unavailable` 503,
-  `timeout` 504, else 502.
+- Map `SttError.code` → status: `invalid_*` 400, **`too_long` 413**, **`unsupported` 422**,
+  **`rate_limited` 429 + a `Retry-After` header from `err.retryAfterMs`**, `unavailable` 503,
+  `timeout` 504, else 502. `too_long` is 413 rather than 400 so a client branches on length
+  the same way it branches on size — the upload gate already answers 413 for too many bytes,
+  and "too much audio" is the same conversation.
 - Gate it hard. One call is billed per audio **hour** on the cloud path and occupies a CPU
   for minutes on the local one — a looser throttle than a synthesis route, not a tighter one,
   is the mistake to avoid.
@@ -104,13 +117,16 @@ Resample in the host, where the dependency is a choice somebody made on purpose.
 2. **Every request passes `validateRequest`.** Adapters assume a bounded, sanitized request.
 3. **Probe the artifact, not the config.** Binary readable, `ggml-*.bin` present and not
    truncated, key accepted. Three states: absent (offer setup) ≠ broken (offer repair) ≠ ready.
-4. **Fallback is visible; nothing-ready is an error.** Never an empty 200 — an empty
+4. **Throttling is not a fault.** A 429 is `rate_limited` carrying `retryAfterMs` parsed
+   from the engine's own `Retry-After`, never `engine_failed` — the two have opposite next
+   actions, and a cached positive probe survives a 429 (busy ≠ down).
+5. **Fallback is visible; nothing-ready is an error.** Never an empty 200 — an empty
    transcript reads as silence, which is a claim about what the person said.
-5. **A capability asked for and not delivered is a refusal**, not a quiet downgrade.
-6. **Local engines share one per-user home** (`~/.personas/companion-tts`, override
+6. **A capability asked for and not delivered is a refusal**, not a quiet downgrade.
+7. **Local engines share one per-user home** (`~/.personas/companion-tts`, override
    `VOICE_SIDECAR_HOME`) — the same one the TTS package uses, so a machine has one folder of
    voice engines and one download serves every app.
-7. **Adding a provider** = one literal in `STT_PROVIDER_IDS` + one adapter file + a row in
+8. **Adding a provider** = one literal in `STT_PROVIDER_IDS` + one adapter file + a row in
    `defaultProviders`. Nothing else. Registration order is the default resolution order, so
    put on-device engines first.
 
@@ -119,12 +135,19 @@ Resample in the host, where the dependency is a choice somebody made on purpose.
 | id | kind | needs | notes |
 | --- | --- | --- | --- |
 | `whisper_cpp` | local | `whisper-cli` (or the pre-rename `main`) via `WHISPER_BIN` / `<sidecar home>/bin`; a `ggml-*.bin` in `WHISPER_MODEL_DIR` (default `<cwd>/data/whisper`) or `<sidecar home>/whisper` | multilingual incl. Czech; 16 kHz PCM WAV only; no diarization/redaction; `WHISPER_THREADS`, `WHISPER_TIMEOUT_MS` |
-| `assemblyai` | cloud | `ASSEMBLYAI_API_KEY` (+ `ASSEMBLYAI_BASE_URL` for the EU data zone, `ASSEMBLYAI_MODEL`, `ASSEMBLYAI_PII_POLICIES`, `ASSEMBLYAI_PII_SUB`) | async upload→submit→poll; diarization + PII redaction; billed per audio hour; never self-retries a submission |
+| `assemblyai` | cloud | `ASSEMBLYAI_API_KEY` (+ `ASSEMBLYAI_BASE_URL` for the EU data zone, `ASSEMBLYAI_MODEL`, `ASSEMBLYAI_PII_POLICIES`, `ASSEMBLYAI_PII_SUB`) | async upload→submit→poll; diarization + PII redaction; billed per audio hour; never self-retries a submission; the language hint is narrowed to its primary subtag (the vendor takes `cs`/`de` and `en_us`-style variants, not `cs-CZ`) |
 
 ## Tests
 
 `registry.test.ts` runs on Node's built-in runner with the `FakeStt` provider: the
 validation door, preference parsing (including on-device-first defaults), resolution order,
-the capability gate in both directions, visible fallback, both shapes of "nothing can
-serve", the per-provider byte ceiling, status enumeration, and the WAV reader. No audio, no
-network, no model files.
+the capability gate in both directions (including the language gate running BEFORE any
+probe), visible fallback, both shapes of "nothing can serve", the per-provider byte and clip
+ceilings, status enumeration, and the WAV reader. `providers/adapters.test.ts` covers the
+adapters themselves on doubles — a scripted `fetch` for the cloud path (`redacted` read off
+the row, a 429 becoming `rate_limited` with its `Retry-After`, the primary-tag narrowing)
+and a counting host for the local probe cache. No audio, no network, no model files.
+
+Two things only a live check can confirm, and neither is asserted here: that AssemblyAI
+accepts each `DEFAULT_PII_POLICIES` name (a rejected one comes back as its 400 body), and
+that a real `whisper-cli` build produces the `-oj` document this adapter narrows.
