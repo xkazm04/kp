@@ -1468,7 +1468,8 @@
     "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
     "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären. Die zugehörige Person oder Rolle existiert nicht mehr.",
     "DECISION_CONFIG_STALE": "Jemand hat eine neuere Version dieser Regeln gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
-    "PIPELINE_AXIS_STALE": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Bitte neu laden und die Änderung erneut vornehmen."
+    "PIPELINE_AXIS_STALE": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "Diese Notiz ist länger, als ein Referenzmaterial sein darf. Kürzen Sie sie oder hängen Sie sie in Teilen an."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3895,7 +3896,9 @@
           "kindNote": "Notiz",
           "kindJd": "gespeicherte Stellenbeschreibung",
           "jdPick": "Gespeicherte Stellenbeschreibung wählen…",
-          "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen."
+          "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen.",
+          "noteFallbackTitle": "Notiz ohne Titel",
+          "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an."
         },
         "columns": {
           "col": {

@@ -31,6 +31,11 @@ export type IntakeSession = {
   id: string;
   title: string;
   status: "open" | "complete" | "promoted";
+  /** The row version this session was read at (the store returns it on every
+   *  session read). The brief edit form keys its sessionStorage draft on it, so
+   *  a draft typed against a superseded row is discarded rather than replayed
+   *  over whatever landed meanwhile — intakeBriefDraft.ts. */
+  updatedAt: string | null;
   lang: string | null;
   transcript: IntakeTurn[];
   brief: RoleBrief | null;

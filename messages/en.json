@@ -1468,7 +1468,8 @@
     "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
     "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained: the candidate or role behind it is gone.",
     "DECISION_CONFIG_STALE": "Someone saved a newer version of these rules. Reload and make your change again.",
-    "PIPELINE_AXIS_STALE": "Someone saved a newer version of this pipeline. Reload and make your change again."
+    "PIPELINE_AXIS_STALE": "Someone saved a newer version of this pipeline. Reload and make your change again.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "That note is longer than one piece of reference material can be. Shorten it, or attach it in parts."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3895,7 +3896,9 @@
           "kindNote": "note",
           "kindJd": "saved JD",
           "jdPick": "Pick a saved JD…",
-          "error": "Could not update the attachments. Please try again."
+          "error": "Could not update the attachments. Please try again.",
+          "noteFallbackTitle": "Untitled note",
+          "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts."
         },
         "columns": {
           "col": {

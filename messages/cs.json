@@ -1468,7 +1468,8 @@
     "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
     "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit. Kandidát nebo pozice za ní už neexistuje.",
     "DECISION_CONFIG_STALE": "Někdo uložil novější verzi těchto pravidel. Načtěte je znovu a proveďte změnu ještě jednou.",
-    "PIPELINE_AXIS_STALE": "Někdo uložil novější verzi tohoto procesu. Načtěte jej znovu a proveďte změnu ještě jednou."
+    "PIPELINE_AXIS_STALE": "Někdo uložil novější verzi tohoto procesu. Načtěte jej znovu a proveďte změnu ještě jednou.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "Tato poznámka je delší, než může jeden podklad být. Zkraťte ji, nebo ji připojte po částech."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3895,7 +3896,9 @@
           "kindNote": "poznámka",
           "kindJd": "uložený popis pozice",
           "jdPick": "Vyberte uložený popis pozice…",
-          "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
+          "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
+          "noteFallbackTitle": "Poznámka bez názvu",
+          "textCap": "Tato poznámka je delší než {max, number} znaků, které jeden podklad pojme. Zkraťte ji, nebo ji připojte po částech."
         },
         "columns": {
           "col": {
