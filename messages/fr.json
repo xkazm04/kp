@@ -55,7 +55,8 @@
       "unattended": "Sans supervision",
       "touchpointsLabel": "Décisions humaines",
       "bookingsN": "{count, plural, one {# tour à planifier} other {# tours à planifier}}",
-      "weekAria": "Une semaine type"
+      "weekAria": "Une semaine type",
+      "weekNote": "Une semaine à titre d'illustration, pas une prévision."
     },
     "save": "Enregistrer le plan",
     "saving": "Enregistrement…",
@@ -110,7 +111,13 @@
       "offer": "Vous faites une offre et vous attendez la réponse.",
       "terminal": "L’offre est acceptée. Le recrutement s’arrête ici.",
       "custom": "Votre propre étape. Elle signifie ce dont votre équipe a besoin."
-    }
+    },
+    "occupancyUnknown": "Impossible de vérifier qui se trouve à chaque étape. Tant que cette vérification échoue, aucune étape ne peut être supprimée.",
+    "occupancyRetry": "Revérifier",
+    "blockedOccupancy": "Impossible de savoir qui est à chaque étape : une suppression ne peut pas être enregistrée. Relancez la vérification ci-dessus.",
+    "blockedStranded": "Indiquez où doivent aller les candidats des étapes supprimées.",
+    "refreshFailed": "Enregistré. Cette vue n'a pas pu être actualisée et peut encore afficher le plan précédent.",
+    "refreshRetry": "Actualiser"
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -1450,7 +1457,14 @@
     "INVITE_EMAIL_INVALID": "Une adresse e-mail valide est requise.",
     "MEMBER_PERMISSIONS_CHANGED": "Les autorisations de ce membre ont changé pendant votre modification. Rechargez la page, puis réessayez.",
     "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
-    "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application."
+    "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "Cette mise à jour des règles n'indiquait aucune phase ou ne contenait aucune règle à enregistrer.",
+    "DECISION_CONFIG_INVALID": "Ces règles ne sont pas valides pour cette phase.",
+    "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
+    "MATRIX_BUILD_FAILED": "Impossible de construire la matrice d'adéquation. Veuillez réessayer.",
+    "MATCH_REASONING_FAILED": "Impossible d'expliquer cette correspondance. Veuillez réessayer.",
+    "MATRIX_INPUT_INVALID": "La matrice d'adéquation n'a pas pu être construite à partir de cette demande.",
+    "MATCH_REASONING_UNAVAILABLE": "Cette correspondance ne peut plus être expliquée : le candidat ou le poste associé n'existe plus."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6729,7 +6743,8 @@
     "modeGrid": "Grille",
     "modeFocus": "Focus candidat",
     "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir.",
-    "servedFromCache": "Affiché depuis le calcul de scoring mis en cache."
+    "servedFromCache": "Affiché depuis le calcul de scoring mis en cache.",
+    "retryLoad": "Réessayer"
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",

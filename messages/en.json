@@ -55,7 +55,8 @@
       "unattended": "Unattended",
       "touchpointsLabel": "Human decisions",
       "bookingsN": "{count, plural, one {# round to book} other {# rounds to book}}",
-      "weekAria": "A typical week"
+      "weekAria": "A typical week",
+      "weekNote": "An illustrative week, not a forecast."
     },
     "save": "Save plan",
     "saving": "Saving…",
@@ -110,7 +111,13 @@
       "offer": "You make an offer and wait for the answer.",
       "terminal": "They accepted. This is where hiring ends.",
       "custom": "Your own step. It means whatever your team needs it to mean."
-    }
+    },
+    "occupancyUnknown": "Couldn't check who is standing on each step. A step can't be removed until this check succeeds.",
+    "occupancyRetry": "Check again",
+    "blockedOccupancy": "We can't tell who is on each step, so a removal can't be saved. Retry the check above.",
+    "blockedStranded": "Say where the candidates on each removed step should go.",
+    "refreshFailed": "Saved. This view couldn't be refreshed, so it may still show the previous plan.",
+    "refreshRetry": "Refresh"
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -1450,7 +1457,14 @@
     "INVITE_EMAIL_INVALID": "A valid email address is required.",
     "MEMBER_PERMISSIONS_CHANGED": "This member’s permissions changed while you were editing them. Reload and try again.",
     "ORG_SETTINGS_FORBIDDEN": "Only an organization administrator can change the organization’s settings.",
-    "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages."
+    "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "That rules update named no phase, or carried no rules to save.",
+    "DECISION_CONFIG_INVALID": "Those rules aren't valid for this phase.",
+    "DECISION_CONFIG_SAVE_FAILED": "Couldn't save these rules. Please try again.",
+    "MATRIX_BUILD_FAILED": "Could not build the fit matrix. Please try again.",
+    "MATCH_REASONING_FAILED": "Could not explain that match. Please try again.",
+    "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
+    "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained — the candidate or role behind it is gone."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6729,7 +6743,8 @@
     "modeGrid": "Grid",
     "modeFocus": "Candidate focus",
     "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for.",
-    "servedFromCache": "Served from the cached scoring pass."
+    "servedFromCache": "Served from the cached scoring pass.",
+    "retryLoad": "Try again"
   },
   "analyze": {
     "modeNew": "New analysis",

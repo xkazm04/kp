@@ -55,7 +55,8 @@
       "unattended": "Unbeaufsichtigt",
       "touchpointsLabel": "Menschliche Entscheidungen",
       "bookingsN": "{count, plural, one {# Runde zu planen} other {# Runden zu planen}}",
-      "weekAria": "Eine typische Woche"
+      "weekAria": "Eine typische Woche",
+      "weekNote": "Eine beispielhafte Woche, keine Prognose."
     },
     "save": "Plan speichern",
     "saving": "Wird gespeichert…",
@@ -110,7 +111,13 @@
       "offer": "Sie machen ein Angebot und warten auf die Antwort.",
       "terminal": "Das Angebot ist angenommen. Hier endet der Prozess.",
       "custom": "Ihr eigener Schritt. Er bedeutet genau das, was Ihr Team braucht."
-    }
+    },
+    "occupancyUnknown": "Es ließ sich nicht ermitteln, wer auf welchem Schritt steht. Bis das gelingt, kann kein Schritt entfernt werden.",
+    "occupancyRetry": "Erneut prüfen",
+    "blockedOccupancy": "Unklar, wer auf welchem Schritt steht. Ein Entfernen lässt sich deshalb nicht speichern. Prüfung oben wiederholen.",
+    "blockedStranded": "Legen Sie fest, wohin die Kandidaten der entfernten Schritte gehen sollen.",
+    "refreshFailed": "Gespeichert. Diese Ansicht ließ sich nicht aktualisieren und zeigt womöglich noch den vorherigen Plan.",
+    "refreshRetry": "Aktualisieren"
   },
   "diagrams": {
     "eyebrow": "Architektur",
@@ -1450,7 +1457,14 @@
     "INVITE_EMAIL_INVALID": "Eine gültige E-Mail-Adresse ist erforderlich.",
     "MEMBER_PERMISSIONS_CHANGED": "Die Berechtigungen dieses Mitglieds haben sich während Ihrer Bearbeitung geändert. Bitte neu laden und erneut versuchen.",
     "ORG_SETTINGS_FORBIDDEN": "Nur eine Administratorin oder ein Administrator der Organisation kann deren Einstellungen ändern.",
-    "ORG_LANGUAGE_INVALID": "Das ist keine der Sprachen dieser App."
+    "ORG_LANGUAGE_INVALID": "Das ist keine der Sprachen dieser App.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "Diese Regeländerung nannte keine Phase oder enthielt keine Regeln zum Speichern.",
+    "DECISION_CONFIG_INVALID": "Diese Regeln sind für diese Phase nicht gültig.",
+    "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
+    "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
+    "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären — die zugehörige Person oder Rolle existiert nicht mehr."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6729,7 +6743,8 @@
     "modeGrid": "Raster",
     "modeFocus": "Kandidatenfokus",
     "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist.",
-    "servedFromCache": "Aus dem zwischengespeicherten Bewertungslauf angezeigt."
+    "servedFromCache": "Aus dem zwischengespeicherten Bewertungslauf angezeigt.",
+    "retryLoad": "Erneut versuchen"
   },
   "analyze": {
     "modeNew": "Neue Analyse",

@@ -55,7 +55,8 @@
       "unattended": "Bez dozoru",
       "touchpointsLabel": "Rozhodnutí člověka",
       "bookingsN": "{count, plural, one {# kolo k naplánování} few {# kola k naplánování} other {# kol k naplánování}}",
-      "weekAria": "Typický týden"
+      "weekAria": "Typický týden",
+      "weekNote": "Ilustrativní týden, nikoli předpověď."
     },
     "save": "Uložit plán",
     "saving": "Ukládání…",
@@ -110,7 +111,13 @@
       "offer": "Pošlete nabídku a čekáte na odpověď.",
       "terminal": "Kandidát nabídku přijal. Tady nábor končí.",
       "custom": "Váš vlastní krok. Znamená přesně to, co potřebuje váš tým."
-    }
+    },
+    "occupancyUnknown": "Nepodařilo se zjistit, kdo stojí na jednotlivých krocích. Dokud kontrola neprojde, nelze krok odebrat.",
+    "occupancyRetry": "Zkusit znovu",
+    "blockedOccupancy": "Nevíme, kdo je na kterém kroku, takže odebrání nelze uložit. Zopakujte kontrolu výše.",
+    "blockedStranded": "Určete, kam se mají přesunout kandidáti z odebraných kroků.",
+    "refreshFailed": "Uloženo. Zobrazení se nepodařilo obnovit, může proto ukazovat předchozí plán.",
+    "refreshRetry": "Obnovit"
   },
   "diagrams": {
     "eyebrow": "Architektura",
@@ -1450,7 +1457,14 @@
     "INVITE_EMAIL_INVALID": "Je potřeba platná e-mailová adresa.",
     "MEMBER_PERMISSIONS_CHANGED": "Oprávnění tohoto člena se během vaší úpravy změnila. Načtěte stránku znovu a zkuste to ještě jednou.",
     "ORG_SETTINGS_FORBIDDEN": "Nastavení organizace může měnit jen správce organizace.",
-    "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje."
+    "ORG_LANGUAGE_INVALID": "Tento jazyk aplikace nepodporuje.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "Změna pravidel neuvedla fázi nebo neobsahovala žádná pravidla k uložení.",
+    "DECISION_CONFIG_INVALID": "Tato pravidla nejsou pro tuto fázi platná.",
+    "DECISION_CONFIG_SAVE_FAILED": "Pravidla se nepodařilo uložit. Zkuste to prosím znovu.",
+    "MATRIX_BUILD_FAILED": "Matici vhodnosti se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "MATCH_REASONING_FAILED": "Tuto shodu se nepodařilo vysvětlit. Zkuste to prosím znovu.",
+    "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
+    "MATCH_REASONING_UNAVAILABLE": "Tuto shodu už nelze vysvětlit — kandidát nebo pozice za ní už neexistuje."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6729,7 +6743,8 @@
     "modeGrid": "Mřížka",
     "modeFocus": "Detail kandidáta",
     "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených pozic, včetně vah, zdůvodnění a porovnání pozic, na které v jedné buňce mřížky není místo.",
-    "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení."
+    "servedFromCache": "Zobrazeno z uloženého výsledku hodnocení.",
+    "retryLoad": "Zkusit znovu"
   },
   "analyze": {
     "modeNew": "Nová analýza",

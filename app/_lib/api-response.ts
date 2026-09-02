@@ -221,6 +221,18 @@ export const STORE_ERRORS = {
   // verbatim as "synthesis failed" / "transcription failed" with no code at all.
   TTS_FAILED: "Could not speak that just now. Please try again.",
   STT_FAILED: "Could not transcribe that recording. Please try again.",
+  // The Fit Matrix's two routes (/perfect 2026-09-03, matrix-ui-2). Both spawn Python
+  // and both answered a bare `{ error: err.message }` — matrix_cli's stderr carries the
+  // temp workdir path and a traceback, reasoning_cli's carries provider stderr. Kept as
+  // two codes, not one: "the grid could not be built" and "that one match could not be
+  // explained" are different failures with different next moves.
+  MATRIX_BUILD_FAILED: "Could not build the fit matrix. Please try again.",
+  MATCH_REASONING_FAILED: "Could not explain that match. Please try again.",
+  // The decision-rules write (/api/decisions/config). Its 500 sits over the
+  // decision-config store's own SQLite connection, whose thrown messages carry
+  // constraint text and the absolute db path; it was forwarding `error.message`
+  // verbatim with no code, so the Hiring composer could only paint English.
+  DECISION_CONFIG_SAVE_FAILED: "Could not save these rules. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -564,6 +576,21 @@ export const REFUSAL_ERRORS = {
    *  app ships (400). A bad argument, never a permission problem — kept apart from
    *  ORG_SETTINGS_FORBIDDEN so the console cannot blame a recruiter's role for it. */
   ORG_LANGUAGE_INVALID: "That isn't one of the app's languages.",
+  /** The matrix scorer refused the request itself (4xx) — a corpus/profile the grid
+   *  asked for that the engine will not score. Not a fault, so it is not withheld: the
+   *  recruiter's move is to reload or narrow the scope, not to report a crash. */
+  MATRIX_INPUT_INVALID: "The fit matrix could not be built from that request.",
+  /** The (candidate, role) pair behind a clicked cell no longer resolves (400/404) —
+   *  a profile deleted, or a role that left the corpus, between the grid being scored
+   *  and the cell being opened. Distinct from MATCH_REASONING_FAILED, which is the
+   *  engine falling over: this one is answered by refreshing the grid. */
+  MATCH_REASONING_UNAVAILABLE: "That match can no longer be explained — the candidate or role behind it is gone.",
+  /** A decision-rules write with no phase or no config in the body (400). */
+  DECISION_CONFIG_FIELDS_REQUIRED: "That rules update named no phase, or carried no rules to save.",
+  /** The rules failed the phase's schema (400). The validator's own detail — which
+   *  field, which bound — rides beside the code as DATA (`detail`): the composer
+   *  needs it, but it is English prose and must never be the thing the UI paints. */
+  DECISION_CONFIG_INVALID: "Those rules aren't valid for this phase.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

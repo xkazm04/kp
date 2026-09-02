@@ -3,6 +3,7 @@ import { getAllDecisionConfigs, setDecisionConfig } from "@/app/_lib/decision-co
 import { DecisionConfigError, validateDecisionConfig } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
 // Read / update the per-phase decision rules (Phase 3 decision module config).
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     const ws = await currentWorkspace();
     const body = (await request.json()) as { phase?: unknown; config?: unknown; scope?: unknown };
     if (body.phase === undefined || body.config === undefined) {
-      return NextResponse.json({ error: "phase and config are required." }, { status: 400 });
+      return jsonRefusal("DECISION_CONFIG_FIELDS_REQUIRED", 400);
     }
     // Validate + clamp at the boundary: a malformed body (wrong type, stray key,
     // unknown phase) is a 400, and out-of-range 0–100 fields are clamped rather
@@ -42,8 +43,12 @@ export async function POST(request: NextRequest) {
     // The store's backstop throws DecisionConfigError on a bad write — surface it
     // as a 400 too, so a schema violation is never reported as a 500.
     if (error instanceof DecisionConfigError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      // The backstop's own prose stays server-side: the route already validated,
+      // so reaching here means a caller found a path around that — the client
+      // gets the code, the detail goes to the log.
+      console.error("[api:decisions/config] DECISION_CONFIG_INVALID", error);
+      return jsonRefusal("DECISION_CONFIG_INVALID", 400);
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save config." }, { status: 500 });
+    return safeJsonError(error, "api:decisions/config", "DECISION_CONFIG_SAVE_FAILED");
   }
 }

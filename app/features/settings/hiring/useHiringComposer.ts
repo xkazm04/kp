@@ -9,6 +9,11 @@
 // sequencing that leaving it inline would bury the rules in JSX. Split out also
 // keeps HiringTab.tsx under the 200-line cap.
 //
+// The RULES that read this state — dirty, blocked and WHY, the migration legs a
+// save needs, what a discard restores, and what a save attempt actually did —
+// live in composerState.ts as pure functions, so they can be tested without a
+// renderer. This file owns the state cells and the IO, nothing else.
+//
 // The axis is saved BEFORE the plan, deliberately. The plan's stations resolve
 // against the axis (composerStations), so persisting a plan that references a
 // column the stored axis does not have yet would leave a window where the two
@@ -18,18 +23,18 @@ import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { InterviewPlanRule, PipelineStagesRule } from "@/app/_lib/decision-config-schema";
-import type { StageDef } from "@/app/_lib/pipeline-stages";
+import { draftFromStored, draftToStored, type AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
+import { sortPlanToAxis, type PipelinePlan } from "./pipelineComposerModel";
 import {
-  axisEqualsStored,
-  axisProblems,
-  draftFromStored,
-  draftToStored,
-  strandedByDraft,
-  type AxisDraft,
-} from "@/app/features/shared/pipelineAxisDraft";
-import { planEqualsStored, sortPlanToAxis, type PipelinePlan } from "./pipelineComposerModel";
+  deriveComposerState,
+  migrateMapFor,
+  restoreDrafts,
+  runComposerSave,
+  type ComposerRefresh,
+} from "./composerState";
 
 type ConfigPayload = { configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule } };
+type ImpactPayload = { counts?: Record<string, number> };
 
 export function useHiringComposer() {
   const t = useTranslations("hiringPlan");
@@ -42,11 +47,18 @@ export function useHiringComposer() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   // Per-stage occupancy. Empty until it lands: a missing count must never make a
-  // removal LOOK safe, so `stranded` is only trusted once `countsLoaded` is true.
+  // removal LOOK safe, so stranding is only computed once `countsLoaded` is true.
   const [counts, setCounts] = useState<Record<string, number>>({});
   // removedStageId -> destination. Reset on discard and after a successful save.
   const [mapping, setMappingState] = useState<Record<string, string>>({});
   const [countsLoaded, setCountsLoaded] = useState(false);
+  // The occupancy read FAILED (as opposed to "has not landed yet"). Rendered as
+  // its own line with its own retry: it is the thing that blocks a removal, and a
+  // reader looking at a page with no problems on it cannot act on "fix the
+  // problems above".
+  const [countsFailed, setCountsFailed] = useState(false);
+  // The post-save re-reads failed. NOT a save failure — both writes are committed.
+  const [refreshFailed, setRefreshFailed] = useState(false);
 
   const adopt = useCallback((configs: NonNullable<ConfigPayload["configs"]>) => {
     if (configs.pipelineStages) {
@@ -62,6 +74,19 @@ export function useHiringComposer() {
     }
   }, []);
 
+  const loadCounts = useCallback(async (): Promise<void> => {
+    try {
+      const p = await readJson<ImpactPayload>(await fetch("/api/pipeline/stage-impact"));
+      setCounts(p.counts ?? {});
+      setCountsLoaded(true);
+      setCountsFailed(false);
+    } catch {
+      // Deliberately not fatal to the page: the composer still edits policy. It
+      // is fatal to a REMOVAL, which is what countsFailed says out loud.
+      setCountsFailed(true);
+    }
+  }, []);
+
   useEffect(() => {
     let alive = true;
     fetch("/api/decisions/config")
@@ -72,80 +97,87 @@ export function useHiringComposer() {
         adopt(p.configs);
       })
       .catch(() => alive && setLoadFailed(true));
-    // Occupancy is advisory, not load-bearing for rendering: a failure leaves
-    // countsLoaded false, which makes the tab refuse an axis REMOVAL rather than
-    // let one through unverified.
-    fetch("/api/pipeline/stage-impact")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
-      .then((p: { counts?: Record<string, number> }) => {
-        if (!alive) return;
-        setCounts(p.counts ?? {});
-        setCountsLoaded(true);
-      })
-      .catch(() => undefined);
+    // Off the synchronous effect body on purpose: the retry action and the first
+    // read are the same function, and calling it inline trips the cascading-render
+    // lint (the eslint rule cannot see that its first statement is an await).
+    void Promise.resolve().then(loadCounts);
     return () => {
       alive = false;
     };
-  }, [adopt]);
+  }, [adopt, loadCounts]);
 
-  const savedStages: StageDef[] = savedAxis?.stages.map((s) => ({ ...(s as StageDef) })) ?? [];
-  const problems = axis ? axisProblems(axis) : [];
-  const stranded = axis && countsLoaded ? strandedByDraft(axis, savedStages, counts) : [];
-  const axisDirty = axis != null && savedAxis != null && !axisEqualsStored(axis, savedAxis, savedStages);
-  const planDirty = plan != null && savedPlan != null && !planEqualsStored(plan, savedPlan);
-  const dirty = axisDirty || planDirty;
-  // A removal we cannot account for is refused, not warned about. Two ways it can
-  // be unaccounted for: the occupancy read failed (so a count of 0 would be a
-  // guess, not a fact), or the operator has not yet said where the people go.
-  const removalsPending = axis != null && savedAxis != null && !countsLoaded && droppedAny(axis, savedStages);
-  // A destination must still EXIST in the draft — removing the column someone was
-  // mapped onto silently invalidates the mapping, and the reader must re-answer.
-  const liveIds = new Set(axis?.stages.map((s) => s.id) ?? []);
-  const unmapped = stranded.filter((s) => !liveIds.has(mapping[s.stage.id] ?? ""));
-  const blocked = problems.length > 0 || unmapped.length > 0 || removalsPending;
+  const state = deriveComposerState({ axis, savedAxis, plan, savedPlan, counts, countsLoaded, mapping });
 
   const setMapping = (fromStage: string, toStage: string) =>
     setMappingState((cur) => ({ ...cur, [fromStage]: toStage }));
 
   const discard = () => {
-    if (savedPlan) setPlan(savedPlan);
-    if (savedAxis) setAxis(draftFromStored(savedAxis));
-    setMappingState({});
+    const next = restoreDrafts(savedPlan, savedAxis, { plan, axis });
+    setPlan(next.plan);
+    setAxis(next.axis);
+    setMappingState(next.mapping);
+  };
+
+  const applyRefresh = (data: ComposerRefresh) => {
+    if (data.configs) adopt(data.configs);
+    if (data.counts) {
+      setCounts(data.counts);
+      setCountsLoaded(true);
+      setCountsFailed(false);
+    }
+  };
+
+  const refreshAfterSave = async (): Promise<ComposerRefresh> => {
+    const configs = await readJson<ConfigPayload>(await fetch("/api/decisions/config"));
+    // Occupancy changed if anybody moved; re-read so a follow-up edit is judged
+    // against the new reality rather than the pre-migration counts.
+    const impact = await readJson<ImpactPayload>(await fetch("/api/pipeline/stage-impact"));
+    return { configs: configs.configs, counts: impact.counts ?? {} };
+  };
+
+  const retryRefresh = async () => {
+    try {
+      applyRefresh(await refreshAfterSave());
+      setRefreshFailed(false);
+    } catch {
+      // Still stale — the line stays up, which is the honest report.
+      setRefreshFailed(true);
+    }
   };
 
   const save = async () => {
-    if (!plan || !axis || !savedAxis || saving || blocked) return;
+    if (!plan || !axis || !savedAxis || saving || state.blocked) return;
     setSaving(true);
-    try {
-      if (axisDirty) {
-        // Only the legs this edit actually needs — a stale mapping entry for a
-        // stage the reader put back must not move anybody.
-        const migrate: Record<string, string> = {};
-        for (const s of stranded) migrate[s.stage.id] = mapping[s.stage.id];
+    const outcome = await runComposerSave(
+      { axisDirty: state.axisDirty, planDirty: state.planDirty },
+      {
         // ONE call: the axis write and the candidate moves are the same decision
         // ("remove this column, send its people there"), so they are the same
         // request. Splitting them would let a client perform half.
-        await applyAxis(draftToStored(axis, savedStages), migrate, errMsg, t("saveFailed"));
+        applyAxis: () =>
+          applyAxis(draftToStored(axis, state.savedStages), migrateMapFor(state.stranded, mapping), errMsg, t("saveFailed")),
+        // Sent in BOARD order. The editor appends a column's step on first touch,
+        // so a step added and then moved earlier leaves the array disagreeing with
+        // the board — and the validator numbers rounds by array position to decide
+        // which one is the plan's first (and so carries no cohort reducer). Sorting
+        // here is what stops a "Top 3" the composer legitimately offered from being
+        // stripped by the save that reports success.
+        writePlan: () => writePhase("interviewPlan", sortPlanToAxis(plan, axis.stages), errMsg, t("saveFailed")),
+        refresh: refreshAfterSave,
       }
-      // Sent in BOARD order. The editor appends a column's step on first touch,
-      // so a step added and then moved earlier leaves the array disagreeing with
-      // the board — and the validator numbers rounds by array position to decide
-      // which one is the plan's first (and so carries no cohort reducer). Sorting
-      // here is what stops a "Top 3" the composer legitimately offered from being
-      // stripped by the save that reports success.
-      if (planDirty) await writePhase("interviewPlan", sortPlanToAxis(plan, axis.stages), errMsg, t("saveFailed"));
-      const refreshed = (await fetch("/api/decisions/config").then((r) => r.json())) as ConfigPayload;
-      if (refreshed.configs) adopt(refreshed.configs);
-      // Occupancy changed if anybody moved; re-read so a follow-up edit is judged
-      // against the new reality rather than the pre-migration counts.
-      const impact = (await fetch("/api/pipeline/stage-impact").then((r) => r.json())) as { counts?: Record<string, number> };
-      setCounts(impact.counts ?? {});
-      setMappingState({});
-      toast.success(t("savedToast"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("saveFailed"));
-    } finally {
-      setSaving(false);
+    );
+    setSaving(false);
+    if (outcome.kind === "write-failed") {
+      toast.error(outcome.error instanceof Error ? outcome.error.message : t("saveFailed"));
+      return;
+    }
+    setMappingState({});
+    toast.success(t("savedToast"));
+    if (outcome.refresh === "ok") {
+      applyRefresh(outcome.data);
+      setRefreshFailed(false);
+    } else {
+      setRefreshFailed(true);
     }
   };
 
@@ -156,24 +188,30 @@ export function useHiringComposer() {
     setAxis,
     loadFailed,
     saving,
-    dirty,
-    blocked,
-    problems,
-    stranded,
+    dirty: state.dirty,
+    blocked: state.blocked,
+    blockedReason: state.blockedReason,
+    problems: state.problems,
+    stranded: state.stranded,
     mapping,
     setMapping,
-    countsLoaded,
+    /** The occupancy read failed; a removal cannot be judged until it succeeds. */
+    countsFailed,
+    retryCounts: loadCounts,
+    /** The save landed, the view behind it did not refresh. */
+    refreshFailed,
+    retryRefresh,
     discard,
     save,
   };
 }
 
-/** Does this draft drop any saved stage at all? Used only to decide whether a
- *  missing occupancy read is a blocker — a draft that removes nothing is safe to
- *  save regardless of what we know about counts. */
-function droppedAny(draft: AxisDraft, savedStages: readonly StageDef[]): boolean {
-  const live = new Set(draft.stages.map((s) => s.id));
-  return savedStages.some((s) => !live.has(s.id));
+/** A JSON body from a response that must be OK. `r.json()` on a 500 HTML page
+ *  throws a SyntaxError, which used to escape the save's try as "save failed"
+ *  even though both writes had committed. */
+async function readJson<T>(r: Response): Promise<T> {
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return (await r.json()) as T;
 }
 
 /**

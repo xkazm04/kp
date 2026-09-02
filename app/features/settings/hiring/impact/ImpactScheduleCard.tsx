@@ -72,6 +72,11 @@ export function ImpactScheduleCard({ schedule, bookings }: { schedule: PlanImpac
           </div>
         ))}
       </div>
+      {/* The claim the grid makes is "a representative week", not "your week".
+          That used to be stated only in the table's aria-label, so every sighted
+          reader saw a schedule that looked like a forecast with nothing saying
+          it is not one. Visible, and matching the aria. */}
+      <p className="mt-1.5 text-sm text-steel">{t("weekNote")}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {schedule.aiRound ? (
           <span className="rounded-full bg-coral/10 px-2 py-0.5 text-sm font-semibold text-coral">{t("schAiDocket")}</span>

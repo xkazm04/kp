@@ -48,6 +48,22 @@ export function HiringTab() {
         <div className="reveal-quiet min-h-[28rem]" aria-hidden />
       ) : (
         <>
+          {/* The occupancy read failed. Said out loud, with the retry: it is what
+              refuses a column removal, and a reader shown "fix the problems
+              above" over a page with no problems on it cannot act on that. */}
+          {c.countsFailed ? (
+            <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {t("occupancyUnknown")}
+              <button
+                type="button"
+                onClick={() => void c.retryCounts()}
+                className="focus-ring rounded-md px-2 py-0.5 text-sm font-semibold text-amber-900 underline hover:bg-amber-100"
+              >
+                {t("occupancyRetry")}
+              </button>
+            </p>
+          ) : null}
+
           <PipelineStepsEditor
             draft={c.axis}
             onChange={c.setAxis}
@@ -68,7 +84,15 @@ export function HiringTab() {
             }`}
           >
             <span className={`text-sm ${c.dirty ? "font-semibold text-amber-800" : "text-steel"}`} role="status">
-              {c.blocked ? t("blocked") : c.dirty ? t("unsaved") : t("allSaved")}
+              {c.blockedReason === "occupancy"
+                ? t("blockedOccupancy")
+                : c.blockedReason === "unmapped"
+                  ? t("blockedStranded")
+                  : c.blockedReason === "problems"
+                    ? t("blocked")
+                    : c.dirty
+                      ? t("unsaved")
+                      : t("allSaved")}
             </span>
             <span className="ml-auto flex items-center gap-2">
               {c.dirty ? (
@@ -92,6 +116,22 @@ export function HiringTab() {
               </button>
             </span>
           </div>
+
+          {/* The writes landed; the re-read behind them did not. Its own line, not
+              a "save failed" toast over a committed save — that lie invites a
+              second save of a plan that is already stored. */}
+          {c.refreshFailed ? (
+            <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-stone-200 bg-paper px-3 py-2 text-sm text-steel">
+              {t("refreshFailed")}
+              <button
+                type="button"
+                onClick={() => void c.retryRefresh()}
+                className="focus-ring rounded-md px-2 py-0.5 text-sm font-semibold text-ink underline hover:bg-stone-100"
+              >
+                {t("refreshRetry")}
+              </button>
+            </p>
+          ) : null}
 
           {/* The live preview: the board these steps and this policy produce. */}
           <PlanImpactStrip plan={c.plan} axis={c.axis.stages} />
