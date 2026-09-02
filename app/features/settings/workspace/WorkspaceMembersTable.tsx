@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { initials } from "@/app/_lib/initials";
 import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
-import { BTN_GHOST } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleLabel, roleTone, statusBadge } from "@/app/features/shared/memberUi";
 import { hasCustomPermissions, holdsOwnerSeat, memberName, teamFor } from "./workspaceAdminHelpers";
 import type { MemberTeam, OrgMemberDto } from "./useWorkspaceAdmin";
@@ -25,6 +25,7 @@ export function WorkspaceMembersTable({
   loading,
   error,
   canManage,
+  pendingMembers,
   onPatchMember,
   onEditPermissions,
   onConfirmRemoveFromWorkspace,
@@ -35,6 +36,8 @@ export function WorkspaceMembersTable({
   /** The roster fetch failed. A flag, not a message — the copy lives in the catalog. */
   error: boolean;
   canManage: boolean;
+  /** Rows with a role/status write in flight — locked until the reload lands. */
+  pendingMembers: string[];
   onPatchMember: (userId: string, body: Record<string, unknown>) => void;
   onEditPermissions: (member: OrgMemberDto, team: MemberTeam) => void;
   onConfirmRemoveFromWorkspace: (member: OrgMemberDto) => void;
@@ -48,7 +51,7 @@ export function WorkspaceMembersTable({
       {loading ? (
         <div className="reveal-quiet min-h-[14rem]" aria-hidden />
       ) : error ? (
-        <p className="px-5 py-6 text-sm text-coral">{t("loadError")}</p>
+        <p role="alert" className="px-5 py-6 text-sm text-coral">{t("loadError")}</p>
       ) : members.length === 0 ? (
         <p className="px-5 py-6 text-sm text-steel">{t("noMembers")}</p>
       ) : (
@@ -77,13 +80,14 @@ export function WorkspaceMembersTable({
                 const disabled = m.user.status === "disabled";
                 const custom = team ? hasCustomPermissions(team) : false;
                 const displayName = memberName(m);
+                const pending = pendingMembers.includes(m.user.id);
                 return (
-                  <tr key={m.user.id} className="align-middle">
+                  <tr key={m.user.id} className="align-middle" aria-busy={pending}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
                         <span
                           aria-hidden
-                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold ${team ? roleTone(team.role) : "bg-stone-100 text-steel"} ${
+                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-micro font-semibold ${team ? roleTone(team.role) : "bg-stone-100 text-steel"} ${
                             disabled ? "opacity-50 grayscale" : ""
                           }`}
                         >
@@ -91,7 +95,7 @@ export function WorkspaceMembersTable({
                         </span>
                         <div className="min-w-0">
                           <p className={`truncate text-sm font-medium ${disabled ? "text-steel" : "text-ink"}`}>{displayName}</p>
-                          <p className="truncate text-xs text-steel">{m.user.email}</p>
+                          <p className="truncate text-micro text-steel">{m.user.email}</p>
                         </div>
                       </div>
                     </td>
@@ -101,6 +105,7 @@ export function WorkspaceMembersTable({
                           value={team.role}
                           onChange={(v) => onPatchMember(m.user.id, { workspaceId, role: v })}
                           ariaLabel={t("roleAria", { name: displayName })}
+                          disabled={pending}
                           size="sm"
                           options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, t) }))}
                         />
@@ -114,8 +119,9 @@ export function WorkspaceMembersTable({
                         {canManage && !ownerSomewhere && m.user.status !== "invited" ? (
                           <button
                             type="button"
+                            disabled={pending}
                             onClick={() => onPatchMember(m.user.id, { status: disabled ? "active" : "disabled" })}
-                            className="text-xs font-medium text-steel underline decoration-dotted underline-offset-2 hover:text-ink"
+                            className="text-micro font-medium text-steel underline decoration-dotted underline-offset-2 hover:text-ink disabled:opacity-50"
                           >
                             {disabled ? t("enable") : t("disable")}
                           </button>
@@ -124,7 +130,7 @@ export function WorkspaceMembersTable({
                     </td>
                     <td className="px-2 py-3">
                       {isOwner ? (
-                        <span className="text-xs text-steel">{t("fullAccess")}</span>
+                        <span className="text-micro text-steel">{t("fullAccess")}</span>
                       ) : canManage && team ? (
                         <button
                           type="button"
@@ -133,19 +139,20 @@ export function WorkspaceMembersTable({
                         >
                           <SlidersHorizontal size={14} aria-hidden />
                           {custom ? (
-                            <span className="rounded-full bg-coral/10 px-1.5 py-0.5 text-[11px] font-semibold text-coral">{t("custom")}</span>
+                            <span className={`${CHIP_QUIET} bg-coral/10 text-micro font-semibold text-coral`}>{t("custom")}</span>
                           ) : (
                             t("edit")
                           )}
                         </button>
                       ) : (
-                        <span className="text-xs text-steel">{custom ? t("custom") : t("roleDefault")}</span>
+                        <span className="text-micro text-steel">{custom ? t("custom") : t("roleDefault")}</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right">
                       {canManage && !isOwner ? (
                         <button
                           type="button"
+                          disabled={pending}
                           onClick={() => onConfirmRemoveFromWorkspace(m)}
                           className={`${BTN_GHOST} h-8 w-8 justify-center`}
                           aria-label={t("removeFromWorkspaceAria", { name: displayName })}

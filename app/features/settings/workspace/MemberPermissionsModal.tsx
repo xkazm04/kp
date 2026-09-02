@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { toast } from "@/app/_components/toast-store";
-import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { roleCapabilities, type Capability } from "@/app/_lib/auth/roles";
 import { capabilityMeta, roleLabel } from "@/app/features/shared/memberUi";
@@ -99,12 +99,12 @@ export function MemberPermissionsModal({
                 <p className="flex items-center gap-2 text-sm font-medium text-ink">
                   {label}
                   {on !== isDefault ? (
-                    <span className="rounded-full bg-coral/10 px-1.5 py-0.5 text-[11px] font-semibold text-coral">
+                    <span className={`${CHIP_QUIET} bg-coral/10 text-micro font-semibold text-coral`}>
                       {on ? t("granted") : t("revoked")}
                     </span>
                   ) : null}
                 </p>
-                <p className="text-xs text-steel">{desc}</p>
+                <p className="text-micro text-steel">{desc}</p>
               </div>
               <button
                 type="button"
@@ -127,7 +127,7 @@ export function MemberPermissionsModal({
           );
         })}
       </ul>
-      <p className="mt-3 text-xs text-steel">{t("footnote", { role: roleLabel(team.role, tm) })}</p>
+      <p className="mt-3 text-micro text-steel">{t("footnote", { role: roleLabel(team.role, tm) })}</p>
     </Modal>
   );
 }

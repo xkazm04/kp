@@ -17,7 +17,12 @@ inventing a second scoping dimension.
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
-  — company identity only: org name, app language, backup/restore.
+  — company identity only: org name, app language, backup/restore. There is **no
+  domain row**: `organizations.domain` exists in the schema but nothing in the app
+  ever writes it (`createOrganization` is called once, from `signup-service.ts`,
+  with no domain), so every install has it NULL and the panel was rendering a
+  hardcoded `"csas.cz"` behind a padlock — a demo string presented as a locked
+  company fact. It is gone until a surface actually sets the column.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
@@ -312,7 +317,7 @@ routes below. The switch route now refuses on the workspace the session came fro
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
 | Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min. Both pinned in `app/api/rate-limit-contract.test.ts` |
 | Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts` (`addMemberToWorkspace`, `removeMemberFromWorkspace`), `app/_lib/bulk-invite.ts` |
-| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin`, `workspaceAdminHelpers`) |
+| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin` + the pure `workspaceAdminLoad` fold, `workspaceAdminHelpers`) |
 | Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |
 | Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
@@ -338,6 +343,29 @@ way to put them on a second team.
 Removing somebody **from a workspace** and removing them **from the organization**
 are now distinct actions with distinct confirms: the first is reversible in two
 clicks, the second deletes the account. They used to be the same red X.
+
+**Every member write leaves a receipt, and locks the row it is writing.** A role
+change and a status toggle used to do neither: the PATCH went out, the reload came
+back, and the only evidence was one word changing inside a select — while every
+other mutation on this console toasted. Both now toast
+(`workspaceAdmin.members.roleUpdated` / `statusUpdated`) and hold a **per-member**
+lock (`pendingMembers` in `WorkspaceTab`, `aria-busy` on the row, the controls
+disabled) until the reload lands, so a double click cannot send two PATCHes and the
+row never sits silently on its old value. Per-member and not panel-wide on purpose:
+locking the whole console would freeze four other rows an administrator is working
+through. The permissions dialog and the language setting keep their own tickers
+(`saving` / `saved` / `saveFailed`).
+
+**A partial reload says so.** `foldWorkspaceAdminLoad`
+(`app/features/settings/workspace/workspaceAdminLoad.ts`, pinned by
+`workspaceAdminLoad.test.ts`) is the pure fold over the three parallel answers, and
+it separates three states the inline promise chain could not: a failed **members**
+request is the error state (coral, and the previous roster is kept rather than
+blanked — an emptied roster reads as "everybody is gone"); a failed **teams** or
+**invites** request for a caller who may read them is `partial`, which the console
+renders as an amber note over the previous reading; and a missing invites answer for
+a caller **without** `members:manage` is the complete answer, not a failure, because
+that endpoint refuses them by design.
 
 **Membership-scoped vs account-scoped controls ask different ownership
 questions.** Role, seat permissions and remove-from-team write one membership, so

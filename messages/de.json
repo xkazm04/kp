@@ -5596,7 +5596,6 @@
       "saving": "Wird gespeichert…",
       "saved": "Gespeichert",
       "saveFailed": "Speichern fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
-      "domainLabel": "Primäre Domain",
       "languageLabel": "App-Sprache",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
       "backup": {
@@ -5711,7 +5710,9 @@
         "body": "Die Einladung für <em>{email}</em> zurückziehen? Der bereits geteilte Link funktioniert dann nicht mehr.",
         "cancel": "Abbrechen",
         "confirm": "Einladung zurückziehen"
-      }
+      },
+      "roleUpdated": "Rolle aktualisiert.",
+      "statusUpdated": "Kontostatus aktualisiert."
     },
     "permissions": {
       "title": "Berechtigungen für {name}",
@@ -5743,7 +5744,8 @@
           "desc": "Kandidaten und Daten des Teams einsehen."
         }
       }
-    }
+    },
+    "partialLoad": "Ein Teil dieser Seite konnte nicht neu geladen werden. Einige Angaben sind möglicherweise nicht aktuell."
   },
   "login": {
     "eyebrow": "Kandi",

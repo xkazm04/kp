@@ -41,6 +41,11 @@ export function OrganizationTab() {
   const appLocale = useLocale();
   const errMsg = useErrorMessage();
   const [, startTransition] = useTransition();
+  // The language write's ticker, the twin of nameSave below. `isPending` from the
+  // transition was deliberately NOT used for it: the transition covers the action
+  // AND the router.refresh() that follows, so it would keep claiming "saving" long
+  // after the write landed - and it can say nothing at all about a refusal.
+  const [languageSave, setLanguageSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [onboarding, setOnboarding] = useState(false);
   const [name, setName] = useState<string>(() => readClientOrgName());
   const language: AppLanguage = (isLocale(appLocale) ? appLocale : "en") as AppLanguage;
@@ -86,15 +91,18 @@ export function OrganizationTab() {
   // request-scoped generation, background automation, and candidate comms all follow.
   function onLanguageChange(next: AppLanguage) {
     if (!isLocale(next) || next === language) return;
+    setLanguageSave("saving");
     startTransition(async () => {
       const res = await setOrgLanguage(next);
       if (!res.ok) {
+        setLanguageSave("error");
         // Refusing and then refreshing anyway would repaint the OLD language with no
         // explanation - the toggle would simply spring back. Say why instead, from
         // the code, in the reader's language.
         toast.error(errMsg({ code: res.code }, t("saveFailed")));
         return;
       }
+      setLanguageSave("saved");
       router.refresh();
     });
   }
@@ -129,7 +137,7 @@ export function OrganizationTab() {
         <OrganizationGeneralPanel
           name={name}
           nameSave={nameSave}
-          domain="csas.cz"
+          languageSave={languageSave}
           language={language}
           onNameChange={editName}
           onLanguageChange={onLanguageChange}

@@ -13,6 +13,7 @@
 // other: a table with 0 rows in the file and 4,000 live is the one that empties.
 import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 
 export type BackupPlan = {
   tables: { name: string; rows: number; existing: number }[];
@@ -89,22 +90,19 @@ export function OrganizationBackupRestorePlan({
         ))}
       </ul>
       <div className="flex flex-wrap items-center gap-2">
+        {/* The shared recipes: this pair was hand-typed and therefore missed the
+            press-down both themes give every other primary/secondary action. The
+            non-destructive arm keeps its ink fill - a restore into an empty org is
+            not the coral act the destructive one is. */}
         <button
           type="button"
           onClick={onApply}
           disabled={busy || (destructive && confirmText.trim().toUpperCase() !== confirmWord)}
-          className={`focus-ring rounded-md px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60 ${
-            destructive ? "bg-coral hover:bg-coral/90" : "bg-ink hover:bg-steel"
-          }`}
+          className={`${BTN_PRIMARY} h-9 px-3 text-sm ${destructive ? "" : "bg-ink hover:bg-steel"}`}
         >
           {destructive ? t("plan.applyReplace", { count: plan.totalExisting }) : t("plan.apply")}
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={busy}
-          className="focus-ring rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-steel hover:bg-paper disabled:opacity-60"
-        >
+        <button type="button" onClick={onCancel} disabled={busy} className={`${BTN_SECONDARY} h-9 bg-white px-3 text-sm text-steel hover:bg-paper`}>
           {t("plan.cancel")}
         </button>
       </div>

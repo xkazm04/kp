@@ -5596,7 +5596,6 @@
       "saving": "Saving…",
       "saved": "Saved",
       "saveFailed": "Couldn't save. Check the connection and try again.",
-      "domainLabel": "Primary domain",
       "languageLabel": "App language",
       "previewOnboarding": "Preview onboarding flow",
       "backup": {
@@ -5711,7 +5710,9 @@
         "body": "Revoke the invitation for <em>{email}</em>? The link already shared with them will stop working.",
         "cancel": "Cancel",
         "confirm": "Revoke invitation"
-      }
+      },
+      "roleUpdated": "Role updated.",
+      "statusUpdated": "Account status updated."
     },
     "permissions": {
       "title": "Permissions for {name}",
@@ -5743,7 +5744,8 @@
           "desc": "See the team’s candidates and data."
         }
       }
-    }
+    },
+    "partialLoad": "Some of this page could not be refreshed. Parts of it may be out of date."
   },
   "login": {
     "eyebrow": "Kandi",
