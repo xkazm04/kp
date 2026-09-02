@@ -9,6 +9,9 @@ import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { getTts, TtsError } from "@/app/_lib/tts";
+import { speakCached } from "@/app/_lib/tts-cache";
+import { ttsUsageRow } from "@/app/_lib/tts-prices";
+import { insertLlmUsage } from "@/app/_lib/db/llm";
 
 const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
@@ -32,24 +35,41 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
+  const text = typeof body.text === "string" ? body.text : "";
   try {
-    const audio = await getTts().speak(
+    // speakCached folds an identical repeat request into the clip the first one
+    // produced (app/_lib/tts-cache.ts): auto-speak followed by the play the
+    // operator presses when the browser blocked autoplay used to pay twice.
+    const { audio, cached, key } = await speakCached(
+      getTts(),
       {
-        text: typeof body.text === "string" ? body.text : "",
+        text,
         language: typeof body.language === "string" ? body.language : null,
         voiceId: typeof body.voiceId === "string" ? body.voiceId : null,
         speed: typeof body.speed === "number" ? body.speed : null,
       },
       { provider: body.provider, signal: request.signal },
     );
+    // Every serve is metered, hits included — a hit is a counted call that spent
+    // nothing (source "deterministic", cost 0), so the ledger shows both what
+    // was spent and what the cache saved. Best-effort, in the house shape: the
+    // ledger is telemetry and never the request.
+    try {
+      insertLlmUsage(ttsUsageRow({ provider: audio.provider, voiceId: audio.voiceId, chars: text.length, cached, requestId: key }));
+    } catch (ledgerErr) {
+      console.warn("[tts] ledger write failed", ledgerErr);
+    }
     return new NextResponse(audio.bytes as BodyInit, {
       status: 200,
       headers: {
         "content-type": audio.mimeType,
+        // The BROWSER still stores nothing: the audio is short-lived, may carry
+        // a candidate's name, and the host-side cache is where the saving is.
         "cache-control": "no-store",
         "x-tts-provider": audio.provider,
         "x-tts-voice": audio.voiceId,
         "x-tts-elapsed-ms": String(audio.elapsedMs),
+        "x-tts-cache": cached ? "hit" : "miss",
         ...(audio.fallbackFrom ? { "x-tts-fallback-from": audio.fallbackFrom } : {}),
       },
     });
