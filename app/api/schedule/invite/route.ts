@@ -8,6 +8,8 @@ import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
+import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
@@ -71,7 +73,21 @@ export async function POST(request: NextRequest) {
     let dispatched = false;
     let delivery: DeliveryClaim = "failed";
     try {
-      const link = `${publicBaseUrl(new URL(request.url).origin)}/schedule/${invite.token}`;
+      // The EMAILED link is pinned to the candidate's own language, like the status
+      // link in the ack letter, the erasure link in every candidate comm and the voice
+      // interview link: an ABSOLUTE link opened from an email carries no NEXT_LOCALE
+      // cookie, so unpinned it resolves from Accept-Language and drops the Czech
+      // candidate who just read a Czech invitation onto an English booking page
+      // (proxy.ts turns ?lang= back into the cookie). Same resolution the letter
+      // itself uses — dispatchScheduleInvite reads candidateLocale off this entry.
+      //
+      // Only the emailed link. The `url` returned below is opened by the RECRUITER
+      // (the drawer's copy button, the Schedule tab's window.open), and ?lang= there
+      // would rewrite their own cookie and flip the console's language.
+      const link = pinLinkLocale(
+        `${publicBaseUrl(new URL(request.url).origin)}/schedule/${invite.token}`,
+        resolveCommsLocale(entry.locale, entry.workspaceId ?? undefined)
+      );
       const status = await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });
       delivery = deliveryClaim(isRelayConfigured(), status);
       dispatched = delivery !== "failed";

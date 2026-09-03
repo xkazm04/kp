@@ -766,6 +766,30 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "jobVisibleToWorkspace(id, ws)",
   },
   {
+    // ADDED /perfect (schedule-door-speaks-the-candidates-language), with the limiter
+    // itself. The candidate's own READ was the last public token read in the product with
+    // no throttle — and it is not a cheap one: every hit runs proposeFreeSlots, which
+    // queries the interviewer's connected Google calendar for free/busy. A holder of one
+    // link (or anyone who scraped one out of a forwarded email) could drive unbounded
+    // third-party calendar traffic, and the same call is what the POST's own "stuck"
+    // decision re-runs. 60/min per client AND token, the same budget and key shape as
+    // /api/status/[token]: the picker fetches on load and re-fetches after a booking, a
+    // 409 and an RSVP cancel, so honest use sits an order of magnitude under it, while
+    // the per-token half keeps one scraped link from throttling a different candidate
+    // behind the same NAT.
+    rel: "./schedule/[token]/route.ts",
+    key: "`sched-read:${clientIpFrom(request.headers)}:${token}`",
+    limit: 60,
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    optsSrc: "SCHEDULE_READ_RATE_LIMIT",
+    optsDef: "const SCHEDULE_READ_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The free/busy fan-out the limiter exists to bound. The GET's call is the first in
+    // the file, so this also pins that the throttle precedes it rather than the POST's.
+    expensive: "await proposeFreeSlots(",
+  },
+  {
     // ADDED /perfect 2026-09-03 (pipeline-board-3), with the limiter itself. The
     // scheduler dock's "Run now" door: `{"tick": true}` forces a FULL policy pass —
     // the same Python-spawning sweep over every active entry that /api/automation/run

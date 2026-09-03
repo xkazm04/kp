@@ -746,6 +746,37 @@ export const REFUSAL_ERRORS = {
   /** A self-declared archetype that is not one of the offered options (400) — a
    *  scripted POST, since the UI only renders the script's own choices. */
   APPLY_SELECTION_INVALID: "That is not one of the options offered.",
+  // ---- The CANDIDATE's own scheduling door (docs/features/scheduling/README.md).
+  // Eleven refusals on the public token route were bare English prose with no code —
+  // on the one surface whose reader is, by construction, not an operator and may not
+  // read English at all. The recruiter half of the same feature was moved onto codes
+  // first (SCHEDULE_SLOT_TAKEN and friends above); these are the candidate-facing
+  // twins, worded for someone holding a link rather than looking at a grid.
+  /** No invite row for this token (404). Either a mistyped/truncated link or one
+   *  that was cleaned up — the page tells them to ask for a fresh one. */
+  SCHEDULE_LINK_NOT_FOUND: "We couldn't find that scheduling link.",
+  /** The link aged out, or the state machine closed it (410 Gone). A stale tab can
+   *  still POST after the GET has already rendered the terminal card. */
+  SCHEDULE_LINK_CLOSED: "This scheduling link is no longer active.",
+  /** The linked pipeline entry went terminal since the link was minted (409) — the
+   *  candidate was rejected or withdrew, so nothing on this invite may still move. */
+  SCHEDULE_INTERVIEW_UNAVAILABLE: "This interview is no longer available.",
+  /** "Propose your own times" was submitted while the picker still has slots (409).
+   *  The escalation exists for a genuine dead-end; the remedy is the list. */
+  SCHEDULE_SLOTS_STILL_OPEN: "There are still open times — please pick one from the list.",
+  /** The proposed instants failed server-side validation (400): out of hours, in the
+   *  past, off the horizon, or more than the three the form offers. */
+  SCHEDULE_PROPOSALS_INVALID: "Please suggest 1-3 future weekday times during working hours.",
+  /** An RSVP arrived for an invite with no confirmed booking (409) — a stale tab
+   *  acting on a card the cancel already replaced. */
+  SCHEDULE_NO_BOOKING_YET: "There's no confirmed time to update yet.",
+  /** The submitted instant is not one the server would offer (400). The label is
+   *  re-authored server-side, so this is the structural gate on body.slotAt. */
+  SCHEDULE_SLOT_NOT_OFFERED: "That time isn't one of the offered slots — please pick from the list.",
+  /** Every self-reschedule is spent (409). Not a fault: the remedy is the reply the
+   *  message names, and the page also offers the propose-your-own-times escalation. */
+  SCHEDULE_RESCHEDULE_LIMIT:
+    "You've changed your interview time a few times already — reply to your confirmation email and we'll help you find a slot.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
