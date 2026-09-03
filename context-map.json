@@ -4849,7 +4849,6 @@
     "app/_lib/db/pipeline-job-stats.test.ts",
     "app/_lib/db/pipeline-profile-gaps.test.ts",
     "app/_lib/db/pipeline-reopen.test.ts",
-    "app/_lib/db/pipeline-stage-migration.test.ts",
     "app/_lib/db/pipeline-store.test.ts",
     "app/_lib/db/pipeline-tenancy.test.ts",
     "app/_lib/db/pipeline.ts"
@@ -6868,7 +6867,6 @@
    "entry_points": [],
    "file_paths": [
     "app/_lib/db/automation-approval-cas.test.ts",
-    "app/_lib/db/core-migrations.test.ts",
     "app/_lib/db/core.ts",
     "app/_lib/db/db-test-isolation-guard.test.ts",
     "app/_lib/db/dev-session-integrity.test.ts",
@@ -8955,10 +8953,12 @@
    "description": "[auto-seeded — pending sweep enrichment] DB Integrity + Gate Tests: seed marks, row health, rollback drill and DB path tests plus the repo's self-guarding gate tests (lint selectors, error contract, health exposure).",
    "entry_points": [],
    "file_paths": [
+    "app/_lib/db/core-migrations.test.ts",
     "app/_lib/db/core-seed-marks.test.ts",
     "app/_lib/db/db-path-backend.test.ts",
     "app/_lib/db/interview-link-lifecycle.test.ts",
     "app/_lib/db/pipeline-close-guard.test.ts",
+    "app/_lib/db/pipeline-stage-migration.test.ts",
     "app/_lib/db/rollback-drill.test.ts",
     "app/_lib/db/row-health.test.ts",
     "app/_lib/db/seed-marks.ts",
