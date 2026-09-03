@@ -5,7 +5,7 @@
 // and the pasteable share link. Split out of usePipelineTabState; it reads and writes
 // the board's filter state through the usePipelineFilters handle it is given.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/shell/tabs";
 import {
@@ -18,7 +18,6 @@ import {
   type SavedView,
 } from "./pipelineBoardFilters";
 import {
-  normalizeStoredViews,
   defaultViewId,
   defaultViewToApply,
   withDefault,
@@ -26,11 +25,20 @@ import {
   renameStoredView,
 } from "./pipelineViews";
 import { copyText } from "@/app/_lib/export-utils";
-import { PIPELINE_VIEWS_KEY, VIEW_PARAM_KEYS, newViewId } from "./pipelineTabHelpers";
+import { VIEW_PARAM_KEYS, newViewId } from "./pipelineTabHelpers";
+import { readStoredViews, writeStoredViews } from "./pipelineBoardStorage";
+import { usePipelineTenant } from "./usePipelineTenant";
 import type { PipelineFilters } from "./usePipelineFilters";
 
 export function usePipelineSavedViews({ filters }: { filters: PipelineFilters }) {
   const search = useSearchParams();
+  // board-storage-is-keyed-by-tenant — the workspace this document belongs to. The
+  // list used to live under one bare `kp.pipelineViews` for the whole browser, and
+  // localStorage is scoped to the ORIGIN, not the session: after a team switch, team
+  // A's view NAMES hydrated onto team B's board and a view A had marked DEFAULT
+  // auto-applied A's filter combination on B's bare visit. `null` until it resolves,
+  // and nothing is read, written or auto-applied while it is null.
+  const workspaceId = usePipelineTenant();
   const { query, quicks, scoreBands, sources, sort, stageFilter } = filters;
   // Saved board views (PIPE5): named {search + quick-filter} presets a recruiter
   // returns to, persisted in localStorage (single board, client-only — no schema).
@@ -40,15 +48,19 @@ export function usePipelineSavedViews({ filters }: { filters: PipelineFilters })
   // visit while an explicit shared link still wins.
   const persistViews = (next: SavedView[]) => {
     setViews(next);
-    try {
-      localStorage.setItem(PIPELINE_VIEWS_KEY, JSON.stringify(next));
-    } catch {
-      /* storage full / unavailable — the in-memory list still works this session */
-    }
+    // An unresolved tenant writes NOTHING — a named view we cannot attribute to a
+    // team must not be persisted "somewhere"; the in-memory list still works.
+    writeStoredViews(localStorage, workspaceId, next);
   };
   // PIPE3 — a saved view as a pasteable link: built from a CLEAN query string
   // (not the current one) so the share never drags along unrelated params.
   const [copiedViewId, setCopiedViewId] = useState<string | null>(null);
+  // The "copied!" reset timer, held so unmount can cancel it. It used to be a bare
+  // window.setTimeout: closing the board (a tab switch) inside the 2s window left a
+  // timer that fired a setState on an unmounted hook — a React warning in dev and, on
+  // a fast tab-flip loop, a small pile of live timers.
+  const copyResetRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copyResetRef.current), []);
   const copyViewLink = async (v: SavedView) => {
     // Encode the WHOLE view (compound quicks + score/source facets + sort + stage) so
     // a shared link reopens exactly the board the sharer saved — a view saved with an
@@ -69,7 +81,11 @@ export function usePipelineSavedViews({ filters }: { filters: PipelineFilters })
     )}`;
     if (await copyText(href)) {
       setCopiedViewId(v.id);
-      window.setTimeout(() => setCopiedViewId((cur) => (cur === v.id ? null : cur)), 2000);
+      window.clearTimeout(copyResetRef.current); // a second copy restarts the window
+      copyResetRef.current = window.setTimeout(
+        () => setCopiedViewId((cur) => (cur === v.id ? null : cur)),
+        2000
+      );
     }
   };
   // PIPE5 — save the current filter combo as a named view, apply one, or drop it.
@@ -148,29 +164,34 @@ export function usePipelineSavedViews({ filters }: { filters: PipelineFilters })
   };
   const deleteView = (id: string) => persistViews(views.filter((v) => v.id !== id));
 
-  // Mount hydration + default application (views-earn-their-name). localStorage is
-  // client-only, so this reads it in a mount effect (the SSR-safe path — a lazy
-  // initializer would mismatch the server's empty HTML). normalizeStoredViews migrates
-  // the legacy bare-array shape and enforces one default. PRECEDENCE: an explicit
-  // shared/deep link (any VIEW_PARAM_KEYS present) WINS — only a bare visit applies the
-  // marked default, so a pasted link opens exactly what it encodes, never overridden.
-  // A one-time mount set isn't the cascading-render case the set-state rule targets.
+  // Hydration + default application (views-earn-their-name). localStorage is
+  // client-only, so this reads it in an effect (the SSR-safe path — a lazy initializer
+  // would mismatch the server's empty HTML). readStoredViews migrates the legacy bare-
+  // array shape and enforces one default.
+  //
+  // board-storage-is-keyed-by-tenant — it runs on the TENANT, not on mount: while
+  // `workspaceId` is null the board shows no saved views and applies no default, so a
+  // team switch can never open the previous team's filter combination. `appliedFor`
+  // keeps the default a ONE-TIME application per resolved workspace (a re-render must
+  // not yank the filters back).
+  //
+  // PRECEDENCE is unchanged: an explicit shared/deep link (any VIEW_PARAM_KEYS present)
+  // WINS — only a bare visit applies the marked default, so a pasted link opens exactly
+  // what it encodes.
+  const appliedFor = useRef<string | null>(null);
   useEffect(() => {
-    let loaded: SavedView[] = [];
-    try {
-      const raw = localStorage.getItem(PIPELINE_VIEWS_KEY);
-      loaded = raw ? normalizeStoredViews(JSON.parse(raw)) : [];
-    } catch {
-      loaded = []; // corrupt/absent — start empty
-    }
+    if (!workspaceId) return;
+    const loaded = readStoredViews(localStorage, workspaceId);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setViews(loaded);
+    if (appliedFor.current === workspaceId) return;
+    appliedFor.current = workspaceId;
     const hasExplicit = VIEW_PARAM_KEYS.some((k) => search.get(k) != null);
     const def = defaultViewToApply(loaded, hasExplicit);
     if (def) applyView(def);
-    // Mount-only: hydrate + apply once. applyView/search are intentionally excluded.
+    // Tenant-keyed, one-shot: applyView/search are intentionally excluded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [workspaceId]);
 
   return {
     views,

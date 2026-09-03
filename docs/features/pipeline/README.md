@@ -388,7 +388,28 @@ and once more on hydration, so a value written by an older build is repaired on 
 The range is stated inline beside the inputs (`tab.slaEditorRange`).
 
 Team-shared SLAs remain an **owner decision, not a gap**: these overrides are
-per-browser `localStorage` with no schema and no server surface.
+per-browser `localStorage` with no schema and no server surface — but they are
+per-browser **per workspace**, see below.
+
+### Board storage is keyed by tenant
+
+The board's two `localStorage` memories — saved views (`kp.pipelineViews`) and the
+per-stage SLA overrides (`kp.pipelineStageSla`) — were browser-wide, and
+`localStorage` is scoped to the ORIGIN, not to the session. So after switching teams
+in Settings -> Workspaces, team A's recruiter-authored view NAMES ("Berlin seniors -
+waiting on Ada") and the stage ids they encode hydrated onto team B's board, and a
+view A had marked DEFAULT auto-applied A's filter combination on B's bare visit.
+
+`pipelineBoardStorage.ts` keys both under the workspace (`kp.pipelineViews:<ws>`),
+and `usePipelineTenant` resolves that workspace ONCE per document from
+`GET /api/workspaces` (`current`) - the same door the shell's Recent list uses
+(`app/features/shell/recents.ts`), because the session cookie carrying the workspace
+is httpOnly. Until it resolves, the board hydrates **nothing**: no views, no
+overrides, and no default view auto-applies. The pre-tenancy global keys are adopted
+ONCE into whichever workspace resolves first (a single-workspace install keeps its
+own configuration) and then removed, so a second tenant can never read them. An
+existing tenant value always wins over the legacy one. The cross-tenant invariant is
+pinned by `pipelineBoardStorage.test.ts`.
 
 ### Opening a candidate's live link
 
