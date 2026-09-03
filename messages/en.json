@@ -132,7 +132,8 @@
       "gap": "remaining gap (shown inside a step)"
     },
     "explorer": {
-      "instruction": "Click any step to see how it's wired. The open step stays outlined here on the left."
+      "instruction": "Click any step to see how it's wired. The open step stays outlined here on the left.",
+      "codeHeading": "Code"
     },
     "status": {
       "live": "Automated",
@@ -165,6 +166,68 @@
       "svgLabelUntitled": "Component diagram",
       "tooLarge": "This diagram is too large to render here.",
       "renderFailed": "Couldn't render this diagram."
+    },
+    "steps": {
+      "jd": {
+        "title": "JD authoring",
+        "summary": "A recruiter's free-text need (optionally a GitHub repo) becomes a publishable Markdown JD via the devcase need→design chain, then is persisted and ingested into the matchable corpus."
+      },
+      "ingest": {
+        "title": "JD → structured Job",
+        "summary": "Direction #1: an authored or pasted ad is parsed into a structured Job (must/nice, taxonomy-resolved skills, entry profile) and written to the matchable corpus, content-hash deduped so unchanged ads are free."
+      },
+      "dist": {
+        "title": "Candidate fan-out",
+        "summary": "On JD save the candidate pool is ranked against the new job and seeded as Accepted pipeline entries; the policy pass's Accepted branch (Direction #1) auto-advances matched candidates into Screened (first-wave evaluation). External job-board posting is still manual."
+      },
+      "apply": {
+        "title": "Candidate apply / CV upload",
+        "summary": "A CV (PDF/DOCX/TXT/MD) uploaded in the Analyze tab is bridged to the Python analysis CLI as a subprocess and the result is saved. The guided Profile form persists a structured V2 profile."
+      },
+      "extract": {
+        "title": "Extract text + LLM fields",
+        "summary": "Deterministic text extraction (with Czech mojibake + letter-spacing repair) feeds an LLM that returns structured skills/traits/evidence. Note: the runtime extractor still calls Gemini (off-spec vs the Claude-CLI-only rule) and the LLM-only fields have no deterministic fallback yet."
+      },
+      "v2": {
+        "title": "Archetype route → V2 profile",
+        "summary": "Direction #2: the CV path now infers archetype signals and runs detect_archetype, mapping the extracted CV into a CandidateProfileV2 with provenance/potential. The candidates route and match-candidate.ts read the real archetype instead of hard-coding BAU."
+      },
+      "match": {
+        "title": "Match: KO · score · reason",
+        "summary": "A normalized candidate is filtered by hard knock-out gates, then scored against the job corpus with archetype-aware weights over the taxonomy hierarchy. Surfaced in the Match tab and the Matrix grid."
+      },
+      "screen": {
+        "title": "AI screening",
+        "summary": "Fairness-gated screening (Task 1) runs the Claude CLI with a deterministic fallback. Available one-by-one at both pre-interview stages: at Accepted it triages a fresh applicant into Screened; at Screened it advances toward Interview. Confident matches advance; early-career and low-confidence are held for the Decisions queue, never auto-rejected."
+      },
+      "decide": {
+        "title": "Decisions queue",
+        "summary": "The deliberate human-in-the-loop gate: held candidates, rejections, and approvals are a recruiter's call. The AI recommendation rides along as context; the action is a click."
+      },
+      "engage": {
+        "title": "Outreach + interview invite",
+        "summary": "Direction #3: outreach and rejection messages are drafted (Claude CLI + fallback) and actually dispatched through the comms channel (queued by default, sent when COMMS_WEBHOOK_URL is set). The recipient is still the candidate label. An email/ATS field is the enrichment hook."
+      },
+      "interview": {
+        "title": "Interview: AI voice screen → scorecard",
+        "summary": "The recruiter creates a grounded voice screen (questions from Task 4 prep); the candidate takes it in-browser (OpenAI Realtime or ElevenLabs). On hang-up the transcript synthesizes a scorecard (Task 5) and sets scorecard_review for the Interview→Offer gate. Slot scheduling is live too: accepting a screening queues the entry on the Schedule tab, the recruiter mints a tokenized self-scheduling link the comms channel delivers, and the candidate confirms a real dated slot (with reschedule + calendar invite). The weekday-relative “Tue 14:00” is only the seed proposal a legacy entry carries until an invite exists."
+      },
+      "offer": {
+        "title": "Offer decision",
+        "summary": "The offer figure is deterministic (role band × fit) and the letter auto-drafts. A human approves it (the gate), which EXTENDS the offer and dispatches it to the candidate."
+      },
+      "close": {
+        "title": "Deliver offer · capture accept/decline",
+        "summary": "Direction #4: the candidate opens a tokenized offer page and accepts or declines. Accept transitions the entry to Hired; decline closes it. No more bare human click at the terminal."
+      },
+      "hire": {
+        "title": "Hire handoff to the HRIS",
+        "summary": "Direction #4 terminal: Hired is where kp's job ends. The transition mirrors the hire into whatever ATS/HRIS the workspace configured (candidate.hired webhook), so the system of record gets the outcome without re-keying. What happens after (paperwork, equipment, day one) is deliberately the HRIS's job, not this app's."
+      },
+      "cron": {
+        "title": "Scheduler / cron",
+        "summary": "Direction #5: a durable clock. An instrumentation heartbeat ticks the scheduler, which atomically claims a due run and executes the policy pass (aging nudges, time-based advances). Default OFF. Opt in via the Pipeline-tab toggle or AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {

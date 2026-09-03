@@ -97,12 +97,6 @@
     "devcase/apply/[token]/page.tsx": {
       "panel": 1
     },
-    "diagrams/PipelineExplorer.tsx": {
-      "metaLabel": 1
-    },
-    "diagrams/page.tsx": {
-      "panel": 1
-    },
     "features/agents-workforce/AgentsWorkforceRoster.tsx": {
       "metaLabel": 1
     },

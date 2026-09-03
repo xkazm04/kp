@@ -132,7 +132,8 @@
       "gap": "écart restant (affiché dans une étape)"
     },
     "explorer": {
-      "instruction": "Cliquez sur une étape pour voir comment elle est câblée. L’étape ouverte reste encadrée ici à gauche."
+      "instruction": "Cliquez sur une étape pour voir comment elle est câblée. L’étape ouverte reste encadrée ici à gauche.",
+      "codeHeading": "Code"
     },
     "status": {
       "live": "Automatisé",
@@ -165,6 +166,68 @@
       "svgLabelUntitled": "Diagramme de composants",
       "tooLarge": "Ce diagramme est trop grand pour être affiché ici.",
       "renderFailed": "Impossible d'afficher ce diagramme."
+    },
+    "steps": {
+      "jd": {
+        "title": "Rédaction de l'offre",
+        "summary": "Le besoin en texte libre d'un recruteur (avec éventuellement un dépôt GitHub) devient une offre Markdown publiable via la chaîne besoin→conception de devcase, puis est enregistrée et intégrée au corpus interrogeable."
+      },
+      "ingest": {
+        "title": "Offre → poste structuré",
+        "summary": "Direction #1 : une annonce rédigée ou collée est analysée en un poste structuré (indispensable/souhaité, compétences résolues via la taxonomie, profil d'entrée) puis écrite dans le corpus interrogeable, dédupliquée par empreinte de contenu : une annonce inchangée ne coûte donc rien."
+      },
+      "dist": {
+        "title": "Diffusion aux candidats",
+        "summary": "À l'enregistrement de l'offre, le vivier est classé face au nouveau poste et amorcé en entrées de pipeline au stade Accepted ; la branche Accepted de la passe de politique (direction #1) fait avancer automatiquement les candidats retenus vers Screened (première vague d'évaluation). La publication sur les jobboards externes reste manuelle."
+      },
+      "apply": {
+        "title": "Candidature / dépôt de CV",
+        "summary": "Un CV (PDF/DOCX/TXT/MD) déposé dans l'onglet Analyze est transmis au CLI d'analyse Python en sous-processus et le résultat est enregistré. Le formulaire guidé Profile enregistre un profil V2 structuré."
+      },
+      "extract": {
+        "title": "Extraction du texte + champs LLM",
+        "summary": "L'extraction déterministe du texte (avec réparation du mojibake tchèque et de l'interlettrage) alimente un LLM qui renvoie compétences, traits et preuves structurés. Note : l'extracteur appelle encore Gemini à l'exécution (hors spécification face à la règle « Claude CLI uniquement ») et les champs purement LLM n'ont pas encore de repli déterministe."
+      },
+      "v2": {
+        "title": "Routage d'archétype → profil V2",
+        "summary": "Direction #2 : le parcours CV déduit désormais les signaux d'archétype et exécute detect_archetype, projetant le CV extrait vers un CandidateProfileV2 avec provenance et potentiel. La route des candidats et match-candidate.ts lisent l'archétype réel au lieu d'un BAU codé en dur."
+      },
+      "match": {
+        "title": "Match : KO · score · justification",
+        "summary": "Un candidat normalisé est filtré par des critères éliminatoires stricts, puis noté face au corpus de postes avec des pondérations dépendant de l'archétype sur toute la hiérarchie de la taxonomie. Visible dans l'onglet Match et la grille Matrix."
+      },
+      "screen": {
+        "title": "Présélection par IA",
+        "summary": "La présélection encadrée par l'équité (Task 1) s'exécute via le CLI Claude avec un repli déterministe. Disponible une par une aux deux stades antérieurs à l'entretien : au stade Accepted elle oriente un nouveau candidat vers Screened ; au stade Screened elle le fait avancer vers Interview. Les correspondances sûres avancent ; les profils juniors et les cas peu certains sont retenus pour la file Decisions, jamais rejetés automatiquement."
+      },
+      "decide": {
+        "title": "File de décisions",
+        "summary": "Le point de contrôle humain assumé : candidats en attente, refus et validations relèvent du recruteur. La recommandation de l'IA accompagne le dossier comme contexte ; l'action, elle, est un clic."
+      },
+      "engage": {
+        "title": "Prise de contact + invitation à l'entretien",
+        "summary": "Direction #3 : les messages d'approche et de refus sont rédigés (CLI Claude + repli) puis réellement envoyés par le canal de communication (mis en file par défaut, envoyés dès que COMMS_WEBHOOK_URL est défini). Le destinataire reste le libellé du candidat. Un champ e-mail/ATS est le point d'accroche pour l'enrichissement."
+      },
+      "interview": {
+        "title": "Entretien : présélection vocale IA → grille d'évaluation",
+        "summary": "Le recruteur crée une présélection vocale ancrée (questions issues de la préparation Task 4) ; le candidat la passe dans son navigateur (OpenAI Realtime ou ElevenLabs). À la fin de l'appel, la transcription produit une grille d'évaluation (Task 5) et positionne scorecard_review pour le point de contrôle Interview→Offer. La prise de rendez-vous est également en service : accepter une présélection place l'entrée dans l'onglet Schedule, le recruteur génère un lien de réservation autonome à jeton que le canal de communication délivre, et le candidat confirme un créneau réellement daté (avec report et invitation d'agenda). Le « mar. 14:00 » relatif au jour de la semaine n'est que la proposition initiale que porte une entrée ancienne tant qu'aucune invitation n'existe."
+      },
+      "offer": {
+        "title": "Décision d'offre",
+        "summary": "Le montant de l'offre est déterministe (fourchette du poste × adéquation) et la lettre se rédige automatiquement. Un humain l'approuve (le point de contrôle), ce qui ÉMET l'offre et l'envoie au candidat."
+      },
+      "close": {
+        "title": "Remise de l'offre · réponse acceptée ou refusée",
+        "summary": "Direction #4 : le candidat ouvre une page d'offre à jeton et accepte ou refuse. L'acceptation fait passer l'entrée en Hired ; le refus la clôt. Plus de simple clic humain au bout de la chaîne."
+      },
+      "hire": {
+        "title": "Transmission de l'embauche au SIRH",
+        "summary": "Fin de la direction #4 : à Hired, le travail de kp s'arrête. La transition recopie l'embauche vers l'ATS/SIRH configuré par l'espace de travail (webhook candidate.hired), afin que le système de référence reçoive le résultat sans ressaisie. Ce qui suit (paperasse, matériel, premier jour) relève délibérément du SIRH, pas de cette application."
+      },
+      "cron": {
+        "title": "Planificateur / cron",
+        "summary": "Direction #5 : une horloge durable. Un battement d'instrumentation cadence le planificateur, qui réclame de façon atomique une exécution due et lance la passe de politique (relances liées à l'ancienneté, avancements temporels). Désactivé par défaut. À activer via l'interrupteur de l'onglet Pipeline ou AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {

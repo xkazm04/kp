@@ -19,10 +19,20 @@ import { fileURLToPath } from "node:url";
 
 import { STEP_DETAILS } from "./pipelineSteps.ts";
 import { parsePuml } from "../_components/puml/parse.ts";
+import { LOCALES } from "../../i18n/locales.ts";
 
 // app/diagrams/ -> repo root (two levels up), so files[] entries (repo-relative)
 // and the .puml source resolve regardless of the test runner's cwd.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** `diagrams.steps` from one locale catalog — where every step's operator-facing
+ *  title and summary now lives (the module keeps only the code identifiers). */
+function stepCatalog(locale: string): Record<string, { title?: unknown; summary?: unknown }> {
+  const raw = JSON.parse(readFileSync(path.resolve(ROOT, "messages", `${locale}.json`), "utf8")) as {
+    diagrams?: { steps?: Record<string, { title?: unknown; summary?: unknown }> };
+  };
+  return raw.diagrams?.steps ?? {};
+}
 
 /** Normalize a files[] entry to a checkable path + how to check it:
  *  - strip a trailing parenthetical note: "automation.py (evaluate_entry)" -> "automation.py"
@@ -82,6 +92,38 @@ test("alias contract: every funnel step has a STEP_DETAILS entry and vice versa"
   );
 });
 
+// /perfect wave 21b (internal-explorers): the drawer's TITLE and SUMMARY are the
+// only operator-facing prose in the explorer, so they moved out of the module and
+// into the four catalogs — `diagrams.steps.<id>.{title,summary}`. The module keeps
+// what is NOT copy: the status, the repo paths and the puml body (code identifiers,
+// deliberately untranslated). That split only holds if the two halves stay in
+// bijection: a step added to the module with no catalog row renders a raw key at
+// every seat, and a catalog row for a deleted step is dead weight no reader can
+// reach. next-intl's typed keys catch a MISSING key only where it is written as a
+// literal; these are built from the step id at runtime, so nothing else would.
+test("every step id has a title + summary in all four catalogs, and no extras", () => {
+  const ids = Object.keys(STEP_DETAILS).sort();
+  const problems: string[] = [];
+  for (const locale of LOCALES) {
+    const steps = stepCatalog(locale);
+    for (const id of ids) {
+      const row = steps[id];
+      if (!row) {
+        problems.push(`${locale}: no diagrams.steps.${id}`);
+        continue;
+      }
+      for (const field of ["title", "summary"] as const) {
+        const v = row[field];
+        if (typeof v !== "string" || v.trim() === "") problems.push(`${locale}: diagrams.steps.${id}.${field} is missing or empty`);
+      }
+    }
+    for (const key of Object.keys(steps)) {
+      if (!ids.includes(key)) problems.push(`${locale}: diagrams.steps.${key} has no STEP_DETAILS entry`);
+    }
+  }
+  assert.deepEqual(problems, [], `the step catalog and STEP_DETAILS disagree:\n  ${problems.join("\n  ")}`);
+});
+
 // bug-ui-scan-2026-07-09 (architecture-diagrams #2): the guards above pin the
 // CITATIONS (files[]) and the click CONTRACT (alias↔detail), but not the CLAIMS
 // drawn in the SVG — the `[POST /api/…]` boxes users read as "this is how it's
@@ -106,8 +148,13 @@ function routeFileFor(route: string): string | null {
 
 test("every /api route drawn in a step body/summary resolves to a real route.ts", () => {
   const missing: string[] = [];
+  // The summary half of the haystack now comes from the EN catalog (the source of
+  // truth for the four locales) rather than the module — the guard is about the
+  // endpoints the prose CLAIMS, and the prose moved.
+  const summaries = stepCatalog("en");
   for (const [stepId, detail] of Object.entries(STEP_DETAILS)) {
-    const haystack = `${detail.puml}\n${detail.summary}`;
+    const summary = summaries[stepId]?.summary;
+    const haystack = `${detail.puml}\n${typeof summary === "string" ? summary : ""}`;
     const seen = new Set<string>();
     for (const match of haystack.matchAll(API_ROUTE)) {
       const route = match[0];
