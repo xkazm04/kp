@@ -1488,7 +1488,17 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "Cette demande n'indiquait aucun seuil suggéré. Rechargez le panneau et appliquez la valeur affichée.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "La recommandation a changé depuis son affichage. Rechargez, puis examinez la suggestion actuelle.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "Aucune recommandation de calibrage n'est disponible pour le moment.",
-    "CALIBRATION_FAMILY_UNKNOWN": "Ce n'est pas l'une des familles de rôles de l'application."
+    "CALIBRATION_FAMILY_UNKNOWN": "Ce n'est pas l'une des familles de rôles de l'application.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Seul le propriétaire peut gérer la facturation de cette organisation.",
+    "BILLING_NOT_CONFIGURED": "La facturation n'est pas configurée sur ce déploiement.",
+    "BILLING_PLAN_CONTACT_SALES": "Ce forfait est à tarif sur mesure. Parlez-en à notre équipe commerciale.",
+    "BILLING_PLAN_WITHDRAWN": "Ce forfait n'est plus commercialisé. Choisissez l'un des forfaits actuels, ou hébergez KP gratuitement avec vos propres clés de modèles.",
+    "BILLING_ALREADY_SUBSCRIBED": "Vous avez déjà un forfait. Changez-le dans le portail client (Gérer l’abonnement), pas avec une nouvelle commande.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Cette commande n'indiquait ni forfait ni pack de minutes.",
+    "BILLING_NO_CUSTOMER": "Pas encore de compte de facturation. Finalisez d’abord une commande.",
+    "BILLING_OVERVIEW_FAILED": "Impossible de charger la facturation. Réessayez.",
+    "BILLING_CHECKOUT_FAILED": "Impossible de démarrer la commande. Réessayez.",
+    "BILLING_PORTAL_FAILED": "Impossible d'ouvrir le portail client. Réessayez."
   },
   "resilience": {
     "notFoundEyebrow": "404",

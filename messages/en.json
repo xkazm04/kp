@@ -1488,7 +1488,17 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "That apply named no suggested threshold. Reload the panel and apply the number it shows.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "The recommendation changed since it was shown. Reload and review the current suggestion.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "There is no calibration recommendation to apply right now.",
-    "CALIBRATION_FAMILY_UNKNOWN": "That isn't one of the app's role families."
+    "CALIBRATION_FAMILY_UNKNOWN": "That isn't one of the app's role families.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Only an owner can manage billing for this organization.",
+    "BILLING_NOT_CONFIGURED": "Billing is not configured on this deployment.",
+    "BILLING_PLAN_CONTACT_SALES": "That plan is custom-priced. Talk to our sales team to get set up.",
+    "BILLING_PLAN_WITHDRAWN": "That plan is no longer sold. Pick one of the current plans, or self-host KP for free on your own model keys.",
+    "BILLING_ALREADY_SUBSCRIBED": "You already have a plan. Change it in the customer portal (Manage subscription), not with a new checkout.",
+    "BILLING_CHECKOUT_BODY_INVALID": "That checkout named neither a plan nor a minutes pack.",
+    "BILLING_NO_CUSTOMER": "No billing customer yet. Complete a checkout first.",
+    "BILLING_OVERVIEW_FAILED": "Could not load billing. Please try again.",
+    "BILLING_CHECKOUT_FAILED": "Could not start the checkout. Please try again.",
+    "BILLING_PORTAL_FAILED": "Could not open the customer portal. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",

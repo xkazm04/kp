@@ -1488,7 +1488,17 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "Požadavek neuvedl navrhovaný práh. Načtěte panel znovu a použijte číslo, které ukazuje.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "Doporučení se od zobrazení změnilo. Načtěte stránku znovu a projděte si aktuální návrh.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "Momentálně není k dispozici žádné kalibrační doporučení k použití.",
-    "CALIBRATION_FAMILY_UNKNOWN": "Toto není žádná z rodin rolí, které aplikace zná."
+    "CALIBRATION_FAMILY_UNKNOWN": "Toto není žádná z rodin rolí, které aplikace zná.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Fakturaci může spravovat pouze vlastník organizace.",
+    "BILLING_NOT_CONFIGURED": "Fakturace není v této instalaci nastavená.",
+    "BILLING_PLAN_CONTACT_SALES": "Tento tarif má individuální cenu. Domluvte se s naším obchodním týmem.",
+    "BILLING_PLAN_WITHDRAWN": "Tento tarif se už neprodává. Vyberte si některý ze současných tarifů, nebo provozujte KP zdarma na vlastní infrastruktuře s vlastními klíči k modelům.",
+    "BILLING_ALREADY_SUBSCRIBED": "Tarif už máte. Změňte ho v zákaznickém portálu (Spravovat předplatné), ne novou objednávkou.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Objednávka neuvedla tarif ani balíček minut.",
+    "BILLING_NO_CUSTOMER": "Zatím nemáte fakturační účet. Nejdřív dokončete objednávku.",
+    "BILLING_OVERVIEW_FAILED": "Fakturaci se nepodařilo načíst. Zkuste to prosím znovu.",
+    "BILLING_CHECKOUT_FAILED": "Objednávku se nepodařilo zahájit. Zkuste to prosím znovu.",
+    "BILLING_PORTAL_FAILED": "Zákaznický portál se nepodařilo otevřít. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1488,7 +1488,17 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "Dieser Vorgang nannte keinen vorgeschlagenen Schwellenwert. Bitte das Panel neu laden und den dort angezeigten Wert übernehmen.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "Die Empfehlung hat sich seit der Anzeige geändert. Bitte neu laden und den aktuellen Vorschlag prüfen.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "Derzeit gibt es keine Kalibrierungsempfehlung zum Übernehmen.",
-    "CALIBRATION_FAMILY_UNKNOWN": "Das ist keine der Rollenfamilien der App."
+    "CALIBRATION_FAMILY_UNKNOWN": "Das ist keine der Rollenfamilien der App.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Nur eine Inhaberin oder ein Inhaber darf die Abrechnung dieser Organisation verwalten.",
+    "BILLING_NOT_CONFIGURED": "Die Abrechnung ist in dieser Installation nicht eingerichtet.",
+    "BILLING_PLAN_CONTACT_SALES": "Dieser Tarif wird individuell bepreist. Sprechen Sie mit unserem Vertriebsteam.",
+    "BILLING_PLAN_WITHDRAWN": "Dieser Tarif wird nicht mehr verkauft. Wählen Sie einen der aktuellen Tarife oder betreiben Sie KP kostenlos selbst mit eigenen Modell-Schlüsseln.",
+    "BILLING_ALREADY_SUBSCRIBED": "Sie haben bereits einen Tarif. Ändern Sie ihn im Kundenportal (Abo verwalten), nicht über eine neue Bestellung.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Diese Bestellung nannte weder einen Tarif noch ein Minutenpaket.",
+    "BILLING_NO_CUSTOMER": "Noch kein Abrechnungskonto. Schließen Sie zuerst eine Bestellung ab.",
+    "BILLING_OVERVIEW_FAILED": "Die Abrechnung konnte nicht geladen werden. Bitte erneut versuchen.",
+    "BILLING_CHECKOUT_FAILED": "Die Bestellung konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "BILLING_PORTAL_FAILED": "Das Kundenportal konnte nicht geöffnet werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

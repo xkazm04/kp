@@ -172,6 +172,64 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
 
+### Who may open a billing door: `org:manage`, not "any session"
+
+`app/_lib/auth/roles.ts` defines the `org:manage` capability as, verbatim, *"billing,
+org profile/settings, delete org — owner only"*. Until 2026-09-03 not one billing route
+asked for it. Checkout and portal called `requireOperator()`, which answers a different
+question — *is there a valid session on this deployment?* — and every recruiter, hiring
+manager and viewer answers it yes; `GET /api/billing` had no handler gate at all. So any
+seat could start a checkout that charges the org's card, mint a merchant-of-record portal
+URL that **cancels the subscription** and lists invoices, and read the org's plan, metered
+burn and prepaid credit balance.
+
+All three doors now go through `requireBillingAuthority()`
+(`app/api/billing/authority.ts`), a thin wrapper over `requireOrgCapability("org:manage")`:
+
+- **org-level**, not workspace-level — a subscription is bought per ORG
+  (`billingOrgForWorkspace`), so authority over it is org-wide, and an owner administering
+  a second team must still be able to pay for it;
+- **403 + `BILLING_ORG_MANAGE_REQUIRED`** for a signed-in caller without the capability,
+  **plain 401** with no session at all (nothing to localize for yet);
+- unchanged for a single-operator install: open dev mode and an operator-password session
+  both fold to owner inside `callerOrgCapabilities`.
+
+Pinned by `app/api/billing/billing-authority.test.ts`, which runs with
+`KP_OPERATOR_PASSWORD` **set** (billing-routes.test.ts runs open, so the two live in
+separate files — the auth helpers read that env at module scope).
+
+### The two spend doors are rate-limited
+
+Authorization and abuse containment are different jobs and neither substitutes for the
+other: open mode makes every capability gate in the app a documented no-op, so without a
+limiter an unauthenticated caller could loop live Polar checkout sessions and portal
+mints. Per-IP `rateLimit()`, placed **after every cheap refusal and before the provider
+hop** so a body that was never going to buy anything spends none of the window:
+
+| Door | Budget | Why that number |
+| --- | --- | --- |
+| `POST /api/billing/checkout` | 10 / 10 min | a person buys once, or retries a card twice |
+| `POST /api/billing/portal` | 20 / 10 min | one click per visit, plus a re-open after a popup blocker |
+
+Both refuse through the shared chokepoint (`jsonRefusal("TOO_MANY_REQUESTS", 429)`), and
+both call sites — key, constant, budget, ordering — are pinned in
+`app/api/rate-limit-contract.test.ts`.
+
+### Every billing refusal carries a code
+
+The routes used to answer prose with no `code`, so the tab computed a genuinely actionable
+reason — *use the portal*, *that tier is withdrawn*, *you are not an owner* — and then
+discarded it into one generic "Checkout failed", in English, for every locale. Ten codes
+now cover the surface (`REFUSAL_ERRORS` / `STORE_ERRORS` in `app/_lib/api-response.ts`,
+four catalog entries each): `BILLING_ORG_MANAGE_REQUIRED`, `BILLING_NOT_CONFIGURED`,
+`BILLING_PLAN_CONTACT_SALES`, `BILLING_PLAN_WITHDRAWN`, `BILLING_ALREADY_SUBSCRIBED`,
+`BILLING_CHECKOUT_BODY_INVALID`, `BILLING_NO_CUSTOMER`, plus `BILLING_OVERVIEW_FAILED`,
+`BILLING_CHECKOUT_FAILED` and `BILLING_PORTAL_FAILED` for the fault paths. Where a refusal
+names a tier, the tier's **name travels beside the code as data** (`{ plan: "BYOM" }`)
+rather than inside a sentence only English readers can parse. Both checkout and portal are
+off the `error-response-contract.test.ts` ceiling — the gateway's thrown message (a
+merchant-of-record HTTP body) is logged, never forwarded.
+
 ### The webhook reads its raw body under a hard cap
 
 `/api/billing/webhook` is on the public allow-list (`app/_lib/auth/public-routes.ts` —
