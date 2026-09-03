@@ -202,7 +202,12 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
           role="status"
           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700"
         >
-          <span>{t("addedPartial", { ok: 0, failed: m.lastAdd.failed })}</span>
+          <span>
+            {t("addedPartial", { ok: 0, failed: m.lastAdd.failed })}
+            {/* Wave 19b: the first coded refusal already reaches the live region; a
+                sighted recruiter reads it here, in the same band. */}
+            {m.lastAdd.reason ? <> {m.lastAdd.reason}</> : null}
+          </span>
           <button
             type="button"
             onClick={() => m.setLastAdd(null)}
