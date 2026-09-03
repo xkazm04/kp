@@ -1,6 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import type { MatchScoreProvenance } from "@/app/_lib/match-score";
 
 // The provenance half of the canonical match-score read path (REC-01 /
@@ -12,14 +13,11 @@ import type { MatchScoreProvenance } from "@/app/_lib/match-score";
 /** The localized provenance string (also usable inside `title` tooltips). */
 export function useScoreProvenanceText(): (p: MatchScoreProvenance | null | undefined) => string | null {
   const t = useTranslations("scoreProvenance");
-  const locale = useLocale();
+  const fmt = useDateFormat();
   return (p) => {
     if (!p) return null;
     if (p.source === "analysis") {
-      const parsed = Date.parse(p.at);
-      const date = Number.isFinite(parsed)
-        ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(parsed)
-        : p.at;
+      const date = fmt.date(p.at, { fallback: p.at });
       return t("analysis", { date });
     }
     // ONE THREAD (gap 2): a transfer score is not a match snapshot, so it must not

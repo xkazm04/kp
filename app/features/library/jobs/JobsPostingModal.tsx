@@ -11,7 +11,8 @@ import { RediscoverPanel } from "./JobsRediscoverPanel";
 import { CompareInterviews } from "./JobsCompareInterviews";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { POSTING_LOCALES } from "./jobsMarkdown";
-import { POSTING_TAB_IDS, nextTabIndex, type PostingTabId } from "./jobsPostingModalTabs";
+import { POSTING_TAB_IDS, type PostingTabId } from "./jobsPostingModalTabs";
+import { useTablist } from "@/app/_components/ui/useTablist";
 import type { Job } from "./JobsTypes";
 import { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { JobsPostingModalFooter } from "./JobsPostingModalFooter";
@@ -62,8 +63,10 @@ export function JobPostingModal({
   // is what `role="tablist"` already promised a screen-reader user. Pre-fix every
   // button was tabbable and no arrow key did anything, so reaching "Agent fit"
   // from "Posting" cost six Tab presses through a widget whose ARIA said otherwise.
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // …now the shared hook (app/_components/ui/useTablist.ts), which was the
+  // promotion jobsPostingModalTabs.ts's note asked for on the third caller.
   const { t, tab, setTab, postingLang, setPostingLang, markdown, statusSuffix, confirmingClose, setConfirmingClose, closeRole, lifecycleToken } = logic;
+  const tablist = useTablist({ ids: POSTING_TAB_IDS, active: tab, onSelect: setTab });
   return (
     <Modal
       title={job.title}
@@ -79,32 +82,17 @@ export function JobPostingModal({
       {/* Seven tabs do not fit a phone or a narrow split: the strip scrolls
           horizontally instead of squeezing the labels off the modal's edge. */}
       <div
-        role="tablist"
+        {...tablist.tablistProps}
         aria-label={t("viewsAria")}
         className="mb-3 flex gap-1 overflow-x-auto border-b border-stone-200"
       >
-        {POSTING_TAB_IDS.map((id, index) => {
+        {POSTING_TAB_IDS.map((id) => {
           const { labelKey, Icon } = TAB_META[id];
           return (
             <button
               key={id}
-              ref={(el) => {
-                tabRefs.current[index] = el;
-              }}
               type="button"
-              role="tab"
-              id={`jobtab-${id}`}
-              aria-selected={tab === id}
-              aria-controls={`jobpanel-${id}`}
-              tabIndex={tab === id ? 0 : -1}
-              onClick={() => setTab(id)}
-              onKeyDown={(event) => {
-                const next = nextTabIndex(event.key, index, POSTING_TAB_IDS.length);
-                if (next === null) return;
-                event.preventDefault();
-                setTab(POSTING_TAB_IDS[next]);
-                tabRefs.current[next]?.focus();
-              }}
+              {...tablist.tabProps(id)}
               className={`focus-ring -mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
                 tab === id ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"
               }`}
@@ -115,13 +103,7 @@ export function JobPostingModal({
         })}
       </div>
 
-      <div
-        role="tabpanel"
-        id={`jobpanel-${tab}`}
-        aria-labelledby={`jobtab-${tab}`}
-        tabIndex={0}
-        className="focus-ring rounded-lg"
-      >
+      <div {...tablist.panelProps} className="focus-ring rounded-lg">
         {tab === "posting" ? (
           <>
             {/* JOB3 — choose the posting's language independently of the app. */}

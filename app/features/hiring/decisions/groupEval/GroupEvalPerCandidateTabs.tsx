@@ -1,8 +1,9 @@
-import { useId, useRef, useState } from "react";
+import { useState } from "react";
+import { useTablist } from "@/app/_components/ui/useTablist";
 import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, CheckCircle2, CircleDot, XCircle } from "lucide-react";
-import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ConfidenceBandBadge, FitTierBadge } from "@/app/_components/Badge";
@@ -10,7 +11,6 @@ import { ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels } from "@/app/f
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { styleFor } from "@/app/features/shared/decisionsTypes";
 import { isTopPick, koFailed, potentialOf } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
-import { nextTabIndex } from "@/app/features/hiring/decisions/groupEval/groupEvalTabKeys";
 import { ArchetypeTag, Avatar, Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { candIdentity, type EvalCandidate, type GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 
@@ -93,7 +93,7 @@ function CandidateDetail({
                 <button
                   type="button"
                   onClick={() => onDecide(candIdentity(c), "accept")}
-                  className="focus-ring inline-flex h-8 items-center gap-1 rounded-md bg-moss px-2.5 text-sm font-semibold text-white hover:opacity-90"
+                  className={`${BTN_AFFIRM} h-8 px-2.5 text-sm`}
                 >
                   <CheckCircle2 size={14} /> {t("advance")}
                 </button>
@@ -146,8 +146,9 @@ function CandidateDetail({
 // APG tablist: ONE tab stop for the whole strip (roving tabindex), arrows/Home/End
 // to move within it, each tab owning the panel it controls. Before this a keyboard
 // user reached the eighth candidate only by tabbing through seven tabs AND the
-// advance/reject buttons behind each of them. The movement itself is the pure
-// reducer in groupEvalTabKeys.ts.
+// advance/reject buttons behind each of them. All of that is now the shared
+// useTablist hook (app/_components/ui/useTablist.ts) — this was the third caller
+// the two per-feature copies of the reducer were waiting for.
 export function PerCandidateTabs({
   candidates,
   differentiators,
@@ -162,34 +163,21 @@ export function PerCandidateTabs({
   onDecide?: (label: string, action: "accept" | "reject") => void;
 }) {
   const t = useTranslations("decisions.groupEval");
-  const [active, setActive] = useState(0);
-  // Stable, collision-free ids for the aria-controls / aria-labelledby pair (the
-  // modal can render beside other tablists).
-  const uid = useId();
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Keyed on IDENTITY, not index: the pool is re-ordered as decisions land, and
+  // an index would quietly start addressing a different candidate. An identity
+  // that has left the pool falls back to the first tab.
+  const ids = candidates.map(candIdentity);
+  const [active, setActive] = useState<string>("");
+  const selectedId = ids.includes(active) ? active : (ids[0] ?? "");
+  const tablist = useTablist({ ids, active: selectedId, onSelect: setActive });
   if (!candidates.length) return null;
-  const idx = Math.min(active, candidates.length - 1);
+  const idx = Math.max(0, ids.indexOf(selectedId));
   const current = candidates[idx];
-  const panelId = `${uid}-panel`;
-  const tabId = (i: number) => `${uid}-tab-${i}`;
-  const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const next = nextTabIndex(e.key, idx, candidates.length);
-    // null = not our key: let Tab leave the strip and Escape reach the dialog.
-    if (next == null) return;
-    e.preventDefault();
-    setActive(next);
-    tabRefs.current[next]?.focus();
-  };
 
   return (
     <section>
       <SectionTitle>{t("perCandidate")}</SectionTitle>
-      <div
-        role="tablist"
-        aria-label={t("candidatesAria")}
-        onKeyDown={onTabKeyDown}
-        className="mt-2 flex flex-wrap gap-1 border-b border-stone-200"
-      >
+      <div {...tablist.tablistProps} aria-label={t("candidatesAria")} className="mt-2 flex flex-wrap gap-1 border-b border-stone-200">
         {candidates.map((c, i) => {
           const selected = i === idx;
           const s = styleFor(c.archetype ?? null);
@@ -198,15 +186,7 @@ export function PerCandidateTabs({
             <button
               key={candIdentity(c)}
               type="button"
-              role="tab"
-              id={tabId(i)}
-              aria-selected={selected}
-              aria-controls={panelId}
-              tabIndex={selected ? 0 : -1}
-              ref={(el) => {
-                tabRefs.current[i] = el;
-              }}
-              onClick={() => setActive(i)}
+              {...tablist.tabProps(ids[i])}
               className={`focus-ring -mb-px inline-flex items-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-base font-semibold ${
                 selected ? "border-coral text-ink" : "border-transparent text-steel hover:text-ink"
               }`}
@@ -228,7 +208,7 @@ export function PerCandidateTabs({
       </div>
       {/* The panel is focusable so the keyboard user who arrows to a tab can Tab
           straight into its content (and so a screen reader announces the region). */}
-      <div role="tabpanel" id={panelId} aria-labelledby={tabId(idx)} tabIndex={0} className="focus-ring mt-3">
+      <div {...tablist.panelProps} className="focus-ring mt-3">
         <CandidateDetail c={current} differentiators={differentiators} topPick={topPick} decision={decided[candIdentity(current)]} onDecide={onDecide} />
       </div>
     </section>
