@@ -19,7 +19,7 @@ from pathlib import Path
 from ._cli import configure_stdio
 from .gemini import GroundedAnswer, grounded_answer, load_local_env
 from .market_config import ACTIVE_MARKET, MarketConfig
-from .taxonomy import role_band
+from .taxonomy import role_benchmark
 
 # Region phrase and currency default to the ACTIVE market instead of hardcoded
 # Czech/CZK literals — byte-identical ("Czech Republic (Prague)" / "CZK") for the
@@ -32,16 +32,19 @@ REGION_DEFAULT = ACTIVE_MARKET.region_label
 # ("About the role" interpolates it), so localize it: an English fallback inside
 # a Czech JD is the exact mixed-language seam the bilingual i18n closed. Keyed by
 # normalized lang; falls back to English for any unknown code — this table holds
-# only the two languages the JD chain is honest end-to-end in (en/cs), while
-# ``normalize_lang`` accepts all FOUR app locales (en/cs/de/fr), so a ``--lang de``
-# request MUST resolve through ``.get`` rather than subscripting a missing key.
-# (It used to subscript: ``--lang de|fr`` raised KeyError('de') inside _fallback —
-# which _coerce calls unconditionally — so main()'s blanket handler turned every
-# de/fr invocation into ``{"error": "'de'", "status": 500}``, AFTER paying for the
-# grounded call, instead of the band this module promises to always return.)
+# ALL FOUR app locales — ``normalize_lang`` accepts en/cs/de/fr, and this sentence is
+# baked into a candidate-facing posting, so a German JD carrying the English sentence
+# is the same mixed-language seam in a different language. (The table covered en/cs
+# only; ``.get`` kept de/fr from raising — it used to subscript and turned every
+# ``--lang de|fr`` run into ``{"error": "'de'", "status": 500}`` AFTER paying for the
+# grounded call — but a silent English fallback in a German posting is a quieter
+# version of the same defect, not a fix for it. ``.get`` stays as the guard for an
+# unknown code.)
 _FALLBACK_SUMMARY = {
     "en": "Estimated from the internal role-family salary table (no live web evidence).",
     "cs": "Odhadnuto z interní tabulky mezd podle oborů (bez živých webových podkladů).",
+    "de": "Geschätzt anhand der internen Gehaltstabelle nach Berufsfeldern (ohne aktuelle Webquellen).",
+    "fr": "Estimation basée sur la grille salariale interne par famille de métiers (sans sources web actuelles).",
 }
 
 
@@ -56,13 +59,24 @@ def _fallback(
     # returned 65,500–103,000 "EUR"/month — the CZK magnitudes wearing a EUR label,
     # ~25x the de-berlin block's own 2,600–4,100 band. Exactly the stranded-literal
     # defect MarketConfig.seniority_default_bands was introduced to kill.
-    band = role_band(role_family, seniority, market=market) or (0, 0)
+    benchmark = role_benchmark(role_family, seniority, market=market)
+    band = benchmark["band"] if benchmark else (0, 0)
     return {
         "suggestedMinimum": int(band[0]),
         "suggestedMaximum": int(band[1]),
         "currency": market.currency,
         "confidence": "low",
         "summary": _FALLBACK_SUMMARY.get(normalize_lang(lang), _FALLBACK_SUMMARY["en"]),
+        # SCOR6b — the provenance of the table this figure came from, so the surface
+        # rendering it can say WHICH dataset and HOW OLD instead of presenting a 2025
+        # vintage as a timeless fact. ``None`` on a taxonomy miss (the 0-0 band is not
+        # a benchmark reading), and ``sampleK: None`` for a hand-entered family — the
+        # renderer treats both as "no sample behind this", never as zero.
+        "benchmark": (
+            {"sourceId": benchmark["sourceId"], "asOf": benchmark["asOf"], "sampleK": benchmark["sampleK"]}
+            if benchmark
+            else None
+        ),
     }
 
 
@@ -94,6 +108,12 @@ def _coerce(
         "currency": str(payload.get("currency") or market.currency),
         "confidence": str(payload.get("confidence") or "medium"),
         "summary": str(payload.get("summary") or fb["summary"]),
+        # A GROUNDED band is the model reading live web evidence, not the benchmark
+        # table — attaching the table's vintage to it would credit the figure to a
+        # dataset it did not come from. Explicitly null so the key is always present
+        # on the wire and the TS normalizer never has to distinguish "absent" from
+        # "not applicable".
+        "benchmark": None,
     }, True
 
 
@@ -103,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Grounded market-salary estimate for a role.")
     parser.add_argument("--input-json", type=Path, help="Role JSON. Reads stdin if omitted.")
     parser.add_argument("--no-grounding", action="store_true", help="Skip web search; taxonomy band only.")
-    parser.add_argument("--lang", default="en", help="Output locale for the summary text (en, cs).")
+    parser.add_argument("--lang", default="en", help="Output locale for the summary text (en, cs, de, fr).")
     args = parser.parse_args(argv)
 
     try:

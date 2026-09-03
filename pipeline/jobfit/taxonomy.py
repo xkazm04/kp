@@ -759,6 +759,63 @@ def role_band(
     return None
 
 
+# A benchmark whose ``sample_k`` is below this is THIN: the band is real, but it
+# rests on too few observations to read as a market fact. Hand-entered families
+# (``source: "manual"``, no ``sample_k`` at all) are thin by the same rule —
+# ``sample_k`` is ``None`` there, and a missing sample is not a large one. The
+# threshold is deliberately generous: the CZ block's ISPV families run from 19
+# (creative_design, life_sciences_research) to 838 (operations_logistics), so 30
+# separates "a couple of dozen rows" from "a real sample" without flagging the bulk
+# of the table. Surfaced to the recruiter so an anchor built on 19 rows and one
+# built on 838 stop rendering identically.
+THIN_SAMPLE_K = 30
+
+
+def role_benchmark(
+    family: str, seniority: str, *, market: MarketConfig = ACTIVE_MARKET
+) -> dict[str, Any] | None:
+    """The anchor band for ``(family, seniority)`` TOGETHER WITH the provenance of
+    the dataset it came from: ``{"band", "sourceId", "asOf", "sampleK"}``.
+
+    ``role_band`` returns the two numbers and nothing else, which is why a 2025
+    benchmark vintage reads identically today and in three years, and why a
+    hand-entered family with no sample behind it renders exactly like one measured
+    on 838 rows. This is the same lookup carrying the answers to "how old is this?"
+    and "how much is it standing on?" so a consumer can say so.
+
+    * ``sourceId`` — ``market.benchmark_source_id`` (the dataset identity, e.g.
+      ``cz-ispv-2025``).
+    * ``asOf`` — the market block's ``generated_at`` (ISO-8601), or ``""`` when the
+      block carries none (the de-berlin sample block does not).
+    * ``sampleK`` — the role's ``sample_k`` as a positive int, or ``None`` when the
+      family is hand-entered / the value is missing or unusable. ``None`` means "no
+      sample", never "zero rows", and callers must not treat it as a number.
+
+    Returns ``None`` on exactly the misses ``role_band`` returns ``None`` on, so the
+    two agree about what a usable band is.
+    """
+    band = role_band(family, seniority, market=market)
+    if band is None:
+        return None
+    roles = _ROLES_BY_MARKET.get(market.market_id, _ROLES)
+    role = next((r for r in roles if r.get("family") == family), None)
+    raw_sample = role.get("sample_k") if isinstance(role, dict) else None
+    sample_k: int | None
+    # bool is an int subclass — a stray `true` in the data must not read as 1 row.
+    if isinstance(raw_sample, bool) or not isinstance(raw_sample, (int, float)):
+        sample_k = None
+    else:
+        sample_k = int(raw_sample) if raw_sample > 0 else None
+    block = _MARKET_BLOCKS.get(market.market_id) or {}
+    as_of = block.get("generated_at") if isinstance(block, dict) else None
+    return {
+        "band": band,
+        "sourceId": market.benchmark_source_id,
+        "asOf": str(as_of) if isinstance(as_of, str) else "",
+        "sampleK": sample_k,
+    }
+
+
 # Default cap on the skill surface-forms returned by ``detected_skills``.
 # Generous by design: the list only *seeds* Gemini's extraction (which wins),
 # so it errs toward recall. Callers feeding a size-sensitive prompt may pass a

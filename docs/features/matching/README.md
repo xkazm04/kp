@@ -803,8 +803,39 @@ rounding one — `market_salary_cli._fallback` threads its `market` through to
 `role_band` for exactly this reason (pinned by
 `tests/test_market_config.py::MarketSeamStragglersTest`). The CLI's deterministic
 fallback is labelled honestly (`confidence: "low"`, `source: "deterministic"`,
-and a summary naming the internal table) and localizes its summary for `en`/`cs`,
-degrading to English for the other app locales rather than failing.
+and a summary naming the internal table), and that summary is written natively in
+**all four app locales** (`_FALLBACK_SUMMARY`, en/cs/de/fr) because it is
+interpolated into a candidate-facing posting — an unknown code still resolves to
+English rather than raising.
+
+### The band says which dataset it came from and how old it is
+
+`role_band` returns two numbers and nothing else, so a band read off a 2025
+vintage reads identically in three years, and a family hand-entered with no
+sample behind it (`source: "manual"`, no `sample_k` — `product_project`,
+`hr_people`) renders exactly like one measured on 838 rows. `taxonomy.role_benchmark`
+is the same lookup carrying the provenance with the numbers:
+
+| Field | Source | Meaning |
+| --- | --- | --- |
+| `band` | `role_band` (identical by construction, pinned by a test) | the anchor `(low, high)` |
+| `sourceId` | `MarketConfig.benchmark_source_id` | the dataset identity (`cz-ispv-2025`, `de-berlin-sample`) |
+| `asOf` | the market block's `generated_at` | ISO-8601 vintage, `""` when the block carries none (the Berlin sample) |
+| `sampleK` | the role's `sample_k` | positive int, or `null` for **no sample** — never `0` |
+
+`market_salary_cli` puts that on the wire as `result.benchmark` on the
+DETERMINISTIC result only. A grounded (live-web) band carries `benchmark: null`
+— explicitly present, so the TS normalizer never distinguishes "absent" from "not
+applicable" — because crediting a model's web read to the internal table would
+name a dataset the figure did not come from. `taxonomy.THIN_SAMPLE_K` (30) is the
+shared threshold below which a real band is still too thinly evidenced to read as
+a market fact; the TS side mirrors it in `app/_lib/salary-benchmark.ts`. Pinned by
+`tests/test_market_salary_cli.py`.
+
+`salary_band.py` mirrors exactly one TS export, `normalizeSalaryBand`. It used to
+also carry a `band_error` documented as a mirror of a `salaryBandError` that
+`app/_lib/salary-band.ts` does not export, with no non-test caller on the Python
+side either; it was removed, and a test asserts it does not come back.
 
 ## Known gaps
 

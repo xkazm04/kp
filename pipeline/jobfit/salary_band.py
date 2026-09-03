@@ -6,8 +6,12 @@ are rejected. Salaries round to the nearest :data:`SALARY_STEP` so a band like
 47,300-61,800 reads as 45k-60k, never spuriously precise.
 
 This mirrors the documented contract of ``app/_lib/salary-band.ts``
-(``normalizeSalaryBand`` / ``salaryBandError``) so the band a JD advertises and
-the band the matching pipeline emits can never drift apart. These are numbers
+(``normalizeSalaryBand``) so the band a JD advertises and the band the matching
+pipeline emits can never drift apart. It mirrors that ONE export: the TS module
+has no authoring-time validator, and the ``band_error`` this module used to carry
+claimed to mirror a ``salaryBandError`` that does not exist there and had no
+non-test caller on this side either — a "shared" rule with nothing on either end
+of it, which is worse than no claim at all. These are numbers
 users negotiate against — keep the rule in exactly ONE place per language. See
 ``tests/test_salary_band.py`` for the shared fixture both sides are checked
 against.
@@ -66,13 +70,3 @@ def normalize_band(
         return None
     lo, hi = (minimum, maximum) if minimum <= maximum else (maximum, minimum)
     return round_salary(lo, market=market), round_salary(hi, market=market)
-
-
-def band_error(minimum: float, maximum: float) -> str | None:
-    """Human-readable reason a ``(min, max)`` band is invalid, or ``None`` if it
-    is fine. Mirror of salary-band.ts ``salaryBandError``."""
-    if not _positive_finite(minimum) or not _positive_finite(maximum):
-        return "Enter a positive minimum and maximum."
-    if minimum > maximum:
-        return "Minimum can't exceed the maximum."
-    return None
