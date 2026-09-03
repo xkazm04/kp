@@ -23,7 +23,10 @@ Input files keep the arg list short and unambiguous on Windows:
   --attachments-json reference material attached to the session (list of
                      {kind,title,text}) — fenced into the dialog and
                      extraction prompts; the voice fast thread sees titles only
-  --lang             en|cs (normalized)
+  --lang             en|cs|de|fr (normalized). The keyless scripted path
+                     is written in all four; a locale it does NOT carry is
+                     disclosed on the turn as `fallbackLang` (the language
+                     actually served) rather than silently swapped.
   --no-llm           force the deterministic scripted path
 
 Output: one JSON object — {reply, brief, shape, done, source[, fallbackReason]}
@@ -36,10 +39,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-from ._cli import configure_stdio
+from ._cli import CliError, configure_stdio, emit_error, invalid_input
 from .agentfit import assess_population_fit
 from .intake import (
     APP_MASTER_SHAPE,
@@ -79,16 +81,16 @@ def main() -> int:
     try:
         attachments = _load_json(args.attachments_json)
         if attachments is not None and not isinstance(attachments, list):
-            raise ValueError("--attachments-json must contain a JSON array")
+            raise invalid_input("--attachments-json must contain a JSON array")
         dossier = _load_json(args.dossier_json)
         if dossier is not None and not isinstance(dossier, dict):
-            raise ValueError("--dossier-json must contain a JSON object")
+            raise invalid_input("--dossier-json must contain a JSON object")
         if args.app_master_sync:
             # Deterministic merge + the population-fit judgment, in ONE spawn:
             # the route calls this when a scan lands and again at compose, and
             # two subprocesses for one screen would be two subprocesses.
             if dossier is None:
-                raise ValueError("--app-master-sync needs a --dossier-json object")
+                raise invalid_input("--app-master-sync needs a --dossier-json object")
             brief = merge_dossier(coerce_role_brief(_load_json(args.brief_json)), dossier, lang=args.lang)
             provider = None
             if not args.no_llm:
@@ -106,7 +108,7 @@ def main() -> int:
             # provider must fall to the deterministic script, not stall the call.
             turns = _load_json(args.transcript_json) or []
             if not isinstance(turns, list):
-                raise ValueError("--transcript-json must contain a JSON array of turns")
+                raise invalid_input("--transcript-json must contain a JSON array of turns")
             brief = _load_json(args.brief_json)
             provider = None
             if not args.no_llm:
@@ -117,7 +119,7 @@ def main() -> int:
         elif args.extract_transcript:
             turns = _load_json(args.transcript_json) or []
             if not isinstance(turns, list) or not turns:
-                raise ValueError("--extract-transcript needs a non-empty --transcript-json array")
+                raise invalid_input("--extract-transcript needs a non-empty --transcript-json array")
             brief = _load_json(args.brief_json)
             provider = None
             if not args.no_llm:
@@ -130,7 +132,7 @@ def main() -> int:
         else:
             turns = _load_json(args.transcript_json) or []
             if not isinstance(turns, list):
-                raise ValueError("--transcript-json must contain a JSON array of turns")
+                raise invalid_input("--transcript-json must contain a JSON array of turns")
             brief = _load_json(args.brief_json)
             provider = None
             if not args.no_llm:
@@ -140,12 +142,16 @@ def main() -> int:
             payload = run_intake_turn(
                 provider, turns, brief, args.message, lang=args.lang, attachments=attachments, dossier=dossier
             )
-    except ValueError as exc:
-        print(json.dumps({"error": str(exc), "status": 400}, ensure_ascii=False), file=sys.stderr)
-        return 2
-    except Exception as exc:  # keep the TS-side stderr contract: JSON error line
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
-        return 1
+    except Exception as exc:
+        # ONE envelope, from the shared scaffold: {error, status, code}. The code
+        # is chosen at the raise site (invalid_input above) or classified from the
+        # exception, so python-runner.ts stops guessing "invalid input" out of a
+        # status and useErrorMessage can resolve errors.<CODE> in the reader's
+        # language. Exit 2 is preserved for a failure this CLI itself named as
+        # caller-correctable — the only signal parseStderrError has left if the
+        # envelope itself is ever unparseable.
+        rc = emit_error(exc)
+        return 2 if isinstance(exc, CliError) and exc.status == 400 else rc
 
     print(json.dumps(payload, ensure_ascii=False))
     return 0

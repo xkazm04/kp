@@ -9,12 +9,23 @@ implements the research doc's power-unit fast path."""
 from __future__ import annotations
 
 import json
+import pathlib
 import subprocess
 import sys
+import tempfile
 import unittest
+import unittest.mock
 
+from pipeline.jobfit import intake as intake_module
+
+from pipeline.jobfit.i18n import LANG_NAMES
 from pipeline.jobfit.intake import (
     INTAKE_PROMPT_VERSION,
+    SCRIPT_LANGS,
+    _ATTACH_ACK,
+    _CONFIRM_WORDS,
+    _Q,
+    _SKIP_WORDS,
     _apply_answer,
     _attachments_block,
     deterministic_turn,
@@ -249,6 +260,145 @@ class DeterministicScriptTest(unittest.TestCase):
         self.assertIn("no wrong answers", opener["reply"])
 
 
+# --- Four-locale scripted path ---------------------------------------------
+# The keyless script is the whole product for an operator without a key, and it
+# carried its questions, labels, read-back and attachment acknowledgement in
+# English and Czech only — so a German or French operator was silently served
+# English prose by `.get(lang, ...["en"])`. Mirrors campaign.py's
+# `test_de_and_fr_are_not_silently_collapsed_to_english`.
+
+# Distinctive English fragments of every stage of a keyless session: the
+# opener, a mid-script question, the read-back header and rows, and the close.
+_ENGLISH_TELLS = (
+    "no wrong answers",
+    "A working title is enough",
+    "true dealbreakers",
+    "nice to have, but trainable",
+    "Here's what I took away",
+    "Done in 90 days",
+    "ready to promote",
+)
+
+_ANSWERS_BY_LANG = {
+    "de": [
+        "Die Berichte kommen seit Monaten zu spät",
+        "Data Analyst",
+        "Das Wochenreporting läuft ohne Nacharbeit",
+        "SQL\nPython",
+        "dbt",
+        "senior",
+        "Deutsch, Englisch",
+        "Vierköpfiges Team, Bericht an die CTO",
+        "Dann bleibt das Reporting ein weiteres Quartal liegen",
+        "überspringen",
+    ],
+    "fr": [
+        "Les rapports arrivent en retard depuis des mois",
+        "Data Analyst",
+        "Le reporting hebdomadaire tourne sans reprise",
+        "SQL\nPython",
+        "dbt",
+        "senior",
+        "Français, anglais",
+        "Équipe de quatre, rattachée à la CTO",
+        "Le reporting restera en souffrance un trimestre de plus",
+        "passer",
+    ],
+}
+
+
+class FourLocaleScriptTest(unittest.TestCase):
+    def test_every_app_locale_is_a_scripted_locale(self) -> None:
+        # SCRIPT_LANGS is DERIVED from _Q, so this fails the moment a locale is
+        # added to the app (i18n.LANG_NAMES / the frontend catalogs) without the
+        # scripted path learning it — which is exactly how de and fr regressed.
+        self.assertEqual(set(SCRIPT_LANGS), set(LANG_NAMES))
+        for slot, variants in _Q.items():
+            self.assertEqual(set(variants), set(LANG_NAMES), f"slot {slot} is missing a locale")
+
+    def test_a_de_or_fr_session_never_speaks_english(self) -> None:
+        for lang, answers in _ANSWERS_BY_LANG.items():
+            with self.subTest(lang=lang):
+                turns, result = _drive(answers + ["ok"], lang=lang)
+                spoken = "\n".join(t["text"] for t in turns if t["role"] == "interviewer")
+                spoken += "\n" + result["reply"]
+                for tell in _ENGLISH_TELLS:
+                    self.assertNotIn(tell, spoken, f"{lang} session served the English {tell!r}")
+                # …and it really did run to the close, so the absence is not
+                # the absence of a session.
+                self.assertTrue(result["done"])
+                self.assertIn("<<END>>", result["reply"])
+                self.assertIn(_Q["title"][lang][:30], spoken)
+
+    def test_the_readback_and_close_are_written_in_the_dialog_language(self) -> None:
+        _turns, result = _drive(_ANSWERS_BY_LANG["de"], lang="de")
+        self.assertIn("Hier ist, was ich mitgenommen", result["reply"])
+        self.assertIn("Ausschlusskriterien", result["reply"])
+        _turns, result = _drive(_ANSWERS_BY_LANG["fr"], lang="fr")
+        self.assertIn("Voici ce que j'ai retenu", result["reply"])
+        self.assertIn("Critères rédhibitoires", result["reply"])
+
+    def test_facet_labels_are_written_in_the_dialog_language(self) -> None:
+        _turns, result = _drive(_ANSWERS_BY_LANG["fr"], lang="fr")
+        labels = {f.key: f.label for f in coerce_role_brief(result["brief"]).facets}
+        self.assertEqual(labels["why_now"], "Pourquoi maintenant")
+        self.assertEqual(labels["team_context"], "Contexte d'équipe")
+        self.assertEqual(labels["urgency"], "Urgence")
+
+    def test_de_and_fr_confirmations_close_instead_of_landing_as_corrections(self) -> None:
+        # "ja" / "oui" at the read-back is a confirmation. Unknown to the
+        # vocabulary it would have been captured as the requestor's stated
+        # correction — a sign-off turned into a fabricated brief line.
+        for lang, confirm in (("de", "ja"), ("fr", "oui")):
+            with self.subTest(lang=lang):
+                _turns, result = _drive(_ANSWERS_BY_LANG[lang] + [confirm], lang=lang)
+                self.assertTrue(result["done"])
+                keys = [f.key for f in coerce_role_brief(result["brief"]).facets]
+                self.assertNotIn("correction", keys)
+
+    def test_de_and_fr_skip_words_skip(self) -> None:
+        for word in ("überspringen", "später", "nein", "passer", "aucune", "non"):
+            with self.subTest(word=word):
+                self.assertTrue(_SKIP_WORDS.match(word))
+        for word in ("ja", "stimmt", "oui", "d'accord"):
+            with self.subTest(word=word):
+                self.assertTrue(_CONFIRM_WORDS.match(word))
+
+    def test_the_attachment_acknowledgement_is_localized(self) -> None:
+        for lang in SCRIPT_LANGS:
+            with self.subTest(lang=lang):
+                self.assertIn("{titles}", _ATTACH_ACK[lang])
+        opener = opening_turn("de")
+        turns = [{"role": "interviewer", "text": opener["reply"]}]
+        result = run_intake_turn(
+            None,
+            turns,
+            opener["brief"],
+            "Wir brauchen Ersatz",
+            lang="de",
+            attachments=[{"kind": "jd", "title": "Alte Stellenanzeige", "text": "Java, Kafka"}],
+        )
+        self.assertIn("angehängten Unterlagen", result["reply"])
+        self.assertNotIn("attached material", result["reply"].lower())
+
+    def test_an_unscripted_locale_is_disclosed_not_silently_swapped(self) -> None:
+        # The future-fifth-locale case: the app gains a locale the script does
+        # not carry. The turn must SAY it is serving a stand-in language
+        # (`fallbackLang`) instead of quietly handing over English.
+        with unittest.mock.patch.object(intake_module, "SCRIPT_LANGS", ("en", "cs")):
+            opener = opening_turn("fr")
+            self.assertEqual(opener["fallbackLang"], "en")
+            self.assertEqual(opener["reply"], _Q["context"]["en"])
+            turn = deterministic_turn(
+                [{"role": "interviewer", "text": opener["reply"]}], RoleBrief(), "we need a backfill", "fr"
+            )
+            self.assertEqual(turn["fallbackLang"], "en")
+        # A scripted locale carries NO disclosure — the field is a exception
+        # report, not a permanent decoration.
+        self.assertNotIn("fallbackLang", opening_turn("fr"))
+        self.assertNotIn("fallbackLang", opening_turn("en"))
+
+
 class ShapeTriageTest(unittest.TestCase):
     def test_backfill_markers_yield_power_unit(self) -> None:
         turns = [{"role": "candidate", "text": "This is a backfill for the same role as the old JD"}]
@@ -475,6 +625,46 @@ class CliSmokeTest(unittest.TestCase):
         opening = json.loads(out.stdout)
         self.assertIn("reply", opening)
         self.assertEqual(opening["source"], "deterministic")
+
+    def test_the_opener_crosses_the_process_boundary_in_french(self) -> None:
+        # UTF-8 on the pipe (configure_stdio) AND the French script: the two
+        # halves a keyless fr operator needs before they read a single word.
+        out = subprocess.run(
+            [sys.executable, "-m", "pipeline.jobfit.intake_cli", "--opening", "--lang", "fr"],
+            capture_output=True, text=True, encoding="utf-8", timeout=60,
+        )
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(json.loads(out.stdout)["reply"], _Q["context"]["fr"])
+
+    def test_a_bad_argument_answers_the_shared_coded_envelope(self) -> None:
+        # Before this the intake CLI emitted {error, status} with no `code`, so
+        # python-runner.ts had to GUESS one back out of the status and every
+        # failure reached the browser as the same anonymous message.
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = pathlib.Path(tmp) / "attachments.json"
+            bad.write_text('{"not": "an array"}', encoding="utf-8")
+            out = subprocess.run(
+                [sys.executable, "-m", "pipeline.jobfit.intake_cli", "--attachments-json", str(bad), "--no-llm"],
+                capture_output=True, text=True, encoding="utf-8", timeout=60,
+            )
+        self.assertNotEqual(out.returncode, 0)
+        envelope = json.loads(out.stderr.strip().splitlines()[-1])
+        self.assertEqual(envelope["code"], "invalid_input")
+        self.assertEqual(envelope["status"], 400)
+
+    def test_jobs_cli_names_its_failures_too(self) -> None:
+        # Same contract for the JD-save / ad-ingest bridge: a malformed record is
+        # the caller's input, not an engine fault.
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = pathlib.Path(tmp) / "ad.txt"
+            empty.write_text("   ", encoding="utf-8")
+            out = subprocess.run(
+                [sys.executable, "-m", "pipeline.jobfit.jobs_cli", "ingest", "--ad-file", str(empty)],
+                capture_output=True, text=True, encoding="utf-8", timeout=60,
+            )
+        self.assertNotEqual(out.returncode, 0)
+        envelope = json.loads(out.stderr.strip().splitlines()[-1])
+        self.assertEqual((envelope["code"], envelope["status"]), ("invalid_input", 400))
 
 
 class AttachmentsTest(unittest.TestCase):
