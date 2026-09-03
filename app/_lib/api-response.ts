@@ -243,6 +243,29 @@ export const STORE_ERRORS = {
   // constraint text and the absolute db path; it was forwarding `error.message`
   // verbatim with no code, so the Hiring composer could only paint English.
   DECISION_CONFIG_SAVE_FAILED: "Could not save these rules. Please try again.",
+  // The analytics WRITE doors (/perfect 2026-09-03, analytics-writes-check-authority).
+  // Both sit directly over better-sqlite3 (setChannelSpend / setAnalyticsTarget) and
+  // were forwarding `error.message` verbatim — a UNIQUE/CHECK constraint string or the
+  // absolute db path, painted into the Economics board in English for every locale.
+  ANALYTICS_SPEND_SAVE_FAILED: "Could not save that spend figure. Please try again.",
+  ANALYTICS_TARGET_SAVE_FAILED: "Could not save that target. Please try again.",
+  /** The decision log page read (/api/analytics/decisions). Two full-table reads plus
+   *  the sealed-record joins, all over the store's own connection. */
+  DECISION_LOG_LOAD_FAILED: "Could not load the decision log. Please try again.",
+  /** The calibration apply's 500 — the transactional decision-config write plus the
+   *  seal. Distinct from CALIBRATION_* refusals below: this one is a fault, and the
+   *  floor may or may not have moved, so the panel must say "reload", not "stale". */
+  CALIBRATION_APPLY_FAILED: "Could not apply that threshold. Reload the panel and check the current floor.",
+  /** The metric pack could not be assembled — it reads four stores over the shared
+   *  connection, and it is the one analytics read that is also a DOWNLOAD. */
+  ANALYTICS_METRIC_PACK_FAILED: "Could not build the metric pack. Please try again.",
+  // The candidate-focus ranking (/api/match, /perfect 2026-09-03). The third route in
+  // the matrix family and the last one still answering `{ error: err.message }` — where
+  // that message was `parseStderrError`'s RAW STDERR: match_cli's Python traceback and
+  // the absolute temp workdir path, forwarded to the browser. Distinct from
+  // MATRIX_BUILD_FAILED because the reader is looking at ONE candidate's ranking, not
+  // at the grid.
+  MATCH_RUN_FAILED: "Could not rank that candidate against the roles. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -631,6 +654,37 @@ export const REFUSAL_ERRORS = {
    *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
    *  the code as DATA so the panel can say where the case actually is. */
   DEVCASE_LIFECYCLE_NOT_AT_GATE: "This assignment is no longer awaiting review. Reload to see where it is now.",
+  /** A write to this team's analytics settings or screening floor by a caller without
+   *  `pipeline:write` (403). Spend, targets and the auto-reject floor are recruiter
+   *  operations: they move the cost-per-hire denominator, the goal lines every board
+   *  is judged against, and the score below which the screening wave rejects
+   *  automatically. A `viewer` seat holds `read` and nothing else, and until this code
+   *  existed all three routes had no role check at all — the operator gate they leaned
+   *  on is "a valid, non-demo session", which every seat has. */
+  ANALYTICS_POLICY_FORBIDDEN: "Your role can't change this team's analytics settings or screening floor.",
+  /** An apply arrived with no `suggestedThreshold` (400). The value is the operator's
+   *  CONSENT — the number they read on the card — so the comparison that keeps a stale
+   *  card from moving the live floor cannot be optional: omitting the field used to skip
+   *  the guard entirely and apply whatever the live recommendation had become. */
+  CALIBRATION_SUGGESTION_REQUIRED: "That apply named no suggested threshold. Reload the panel and apply the number it shows.",
+  /** The posted value is no longer the live recommendation (409). Nothing was written;
+   *  the recommendation rides beside the code as DATA so the panel can show what the
+   *  number became. */
+  CALIBRATION_RECOMMENDATION_CHANGED: "The recommendation changed since it was shown. Reload and review the current suggestion.",
+  /** There is no recommendation to apply at all (409) — the pairs moved under the card,
+   *  or the clean arm no longer carries enough decided candidates. Kept apart from
+   *  CHANGED: "it became something else" and "there is nothing" are different reads. */
+  CALIBRATION_RECOMMENDATION_ABSENT: "There is no calibration recommendation to apply right now.",
+  /** A role family the app does not define (400). Never a silent global write. */
+  CALIBRATION_FAMILY_UNKNOWN: "That isn't one of the app's role families.",
+  /** The candidate a match run named does not resolve (400/404) — no profile or
+   *  analysis in the caller's workspace behind the id, or a body that named neither.
+   *  A decision, not a fault: the recruiter's move is to pick a different candidate,
+   *  which is why the focus panel must be able to say THIS rather than "try again". */
+  MATCH_INPUT_INVALID: "That candidate could not be resolved. The profile or analysis behind it is gone.",
+  /** A market-salary lookup with no role family (400). The band is aggregated per
+   *  role family, so there is nothing to answer without one. */
+  BENCHMARK_ROLE_FAMILY_REQUIRED: "That benchmark named no role family.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

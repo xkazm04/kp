@@ -1475,7 +1475,20 @@
     "SCHEDULE_INTERVAL_INVALID": "L'intervalle d'automatisation doit être un nombre de minutes.",
     "COMM_RESEND_IN_PROGRESS": "Un renvoi de ce message est déjà en cours.",
     "COMM_ALREADY_RESENT": "Déjà renvoyé. Une remise plus récente existe pour ce message.",
-    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est."
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est.",
+    "MATCH_RUN_FAILED": "Impossible de classer ce candidat par rapport aux postes. Veuillez réessayer.",
+    "MATCH_INPUT_INVALID": "Ce candidat est introuvable : le profil ou l'analyse correspondante n'existe plus.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Ce comparatif n'indique aucune famille de postes.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Impossible d'enregistrer ce montant de dépense. Veuillez réessayer.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Impossible d'enregistrer cet objectif. Veuillez réessayer.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Impossible de générer le dossier d'indicateurs. Veuillez réessayer.",
+    "DECISION_LOG_LOAD_FAILED": "Impossible de charger le journal des décisions. Veuillez réessayer.",
+    "CALIBRATION_APPLY_FAILED": "Impossible d'appliquer ce seuil. Rechargez le panneau et vérifiez le seuil actuel.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Votre rôle ne permet pas de modifier les réglages d'analyse ni le seuil de présélection de cette équipe.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "Cette demande n'indiquait aucun seuil suggéré. Rechargez le panneau et appliquez la valeur affichée.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "La recommandation a changé depuis son affichage. Rechargez, puis examinez la suggestion actuelle.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "Aucune recommandation de calibrage n'est disponible pour le moment.",
+    "CALIBRATION_FAMILY_UNKNOWN": "Ce n'est pas l'une des familles de rôles de l'application."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9214,6 +9227,11 @@
         "s10": "écartée avant d'atteindre le document",
         "s11": "statedVsRealGaps : signalé à vous à la place",
         "s12": "6 indispensables retenues · plafond strict 8"
+      },
+      "reqs": {
+        "stack": "Postgres ou SQLite",
+        "ownership": "Prendre en charge un service de bout en bout",
+        "languages": "Tchèque + anglais"
       }
     },
     "scoring": {
@@ -9253,7 +9271,8 @@
         "s7": "match_reasoning : le modèle, sur les {n} premiers seulement",
         "s9": "la seule étape payante ne voit jamais une personne déjà écartée"
       },
-      "costLabel": "coût"
+      "costLabel": "coût",
+      "figuresNote": "Les chiffres 120 / 74 / 8 sont un exemple. Les noms des couches et les motifs d’exclusion viennent du code réel."
     },
     "archetypes": {
       "signals": {

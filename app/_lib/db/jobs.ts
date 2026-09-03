@@ -603,16 +603,27 @@ export function jobVisibleToWorkspace(id: string, workspaceId: string): boolean 
  *  variable limit, same pattern as interviewStatusByEntries — instead of one
  *  point SELECT per id. Returns records in the REQUESTED order; unknown ids and
  *  corrupt payloads (logged by safeRowParse) are skipped, matching getJob's
- *  per-row degradation. */
-export function getJobsByIds(ids: string[]): JobRecord[] {
+ *  per-row degradation.
+ *
+ *  Tenant scope: the same dual predicate as listJobs — the shared seeded corpus
+ *  (workspace_id NULL) plus this team's own authored openings. getJob's by-id
+ *  exemption does NOT extend here: "a point read returns exactly the one row you
+ *  named" is an argument about ONE id, and this takes N. It was safe only because
+ *  its callers launder the ids through a workspace-scoped list first, which is a
+ *  property of the caller, not of the read — so an id set from anywhere else (a
+ *  request body, a cache key, a future caller) would have crossed tenants silently.
+ *  Defaulted, so single-workspace callers are unchanged. */
+export function getJobsByIds(ids: string[], workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord[] {
   if (ids.length === 0) return [];
   const db = ensureDb();
   const byId = new Map<string, JobRecord>();
   for (const part of chunk(ids, SQL_IN_CHUNK)) {
     const placeholders = part.map(() => "?").join(",");
     const rows = db
-      .prepare(`SELECT id, payload_json FROM jobs WHERE id IN (${placeholders})`)
-      .all(...part) as { id: string; payload_json: string }[];
+      .prepare(
+        `SELECT id, payload_json FROM jobs WHERE id IN (${placeholders}) AND (workspace_id IS NULL OR workspace_id = ?)`
+      )
+      .all(...part, workspaceId) as { id: string; payload_json: string }[];
     for (const r of rows) {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "getJobsByIds", r.id);
       if (parsed) byId.set(r.id, parsed);

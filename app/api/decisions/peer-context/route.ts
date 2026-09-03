@@ -90,7 +90,7 @@ export async function GET(request: Request) {
 
   // One chunked IN-query for all requested jobs (getJobsByIds) instead of a point
   // SELECT per id — up to 50 ids arrive in one request.
-  const jobById = new Map(getJobsByIds(jobIds).map((j) => [j.id, j]));
+  const jobById = new Map(getJobsByIds(jobIds, ws).map((j) => [j.id, j]));
   const jobs: Record<string, JobPeerContext> = {};
   for (const jobId of jobIds) {
     const job = jobById.get(jobId) ?? null;

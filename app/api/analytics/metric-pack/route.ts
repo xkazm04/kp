@@ -9,6 +9,8 @@ import { metricPackStrings } from "@/app/_lib/metric-pack-strings";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { getServerLocale } from "@/i18n/server";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // W0.4 — the metric pack: the four numbers a buyer asks for, assembled into one
 // shareable artifact (app/_lib/metric-pack.ts holds the honesty contract and the
@@ -18,6 +20,14 @@ import { getServerLocale } from "@/i18n/server";
 //   GET /api/analytics/metric-pack?format=md  -> the one-page Markdown
 //   GET /api/analytics/metric-pack?days=90    -> windowed (default: all time)
 
+// THROTTLE (2026-09-03). One hit assembles the whole analytics aggregate, walks the
+// entire open-role corpus, reads every membership on the team and summarises the NPS
+// corpus - and it hangs off a DOWNLOAD LINK (`?format=md`), which a browser, a
+// prefetcher or a shared bookmark can pull repeatedly with no click. Operator-gated,
+// and open mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the
+// ENTIRE API, so the limiter is the real bound. 30/10min per IP is far above any human
+// reading the board (the pack is a page you read, then send).
+const METRIC_PACK_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 const MIN_WINDOW_DAYS = 7;
 const MAX_WINDOW_DAYS = 365;
 
@@ -64,6 +74,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const windowDays = parseWindowDays(searchParams.get("days"));
+    if (!rateLimit(`metric-pack:${clientIpFrom(request.headers)}`, METRIC_PACK_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     const ws = await currentWorkspace();
 
     const analytics = pipelineAnalytics(windowDays, undefined, ws);
@@ -126,8 +139,8 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(pack);
   } catch (error) {
-    console.error("[api/analytics/metric-pack] failed to build the metric pack", error);
-    const message = error instanceof Error ? error.message : "Failed to build the metric pack.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The pack reads four stores over the shared SQLite connection; a thrown message
+    // carries constraint text and the absolute db path.
+    return safeJsonError(error, "api:analytics/metric-pack", "ANALYTICS_METRIC_PACK_FAILED");
   }
 }

@@ -199,12 +199,7 @@ const EXEMPT = new Map<string, string>([
 // the 81 (schedule/invite/bulk) was fixed in the same change rather than ceilinged, so
 // the list below is 80 across 67 — the first tooth of the ratchet, taken on the way in.
 const LEAK_CEILING = new Map<string, number>([
-  ["analytics/calibration/apply-threshold/route.ts", 1],
-  ["analytics/decisions/route.ts", 1],
-  ["analytics/metric-pack/route.ts", 1],
   ["analytics/route.ts", 1],
-  ["analytics/spend/route.ts", 1],
-  ["analytics/targets/route.ts", 1],
   ["archetypes/[id]/route.ts", 2],
   ["archetypes/route.ts", 2],
   ["ats/config/route.ts", 1],
@@ -247,7 +242,13 @@ const LEAK_CEILING = new Map<string, number>([
   ["llm/keys/route.ts", 1],
   ["llm/keys/test/route.ts", 1],
   ["llm/test/route.ts", 1],
-  ["match/route.ts", 1],
+  // match/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,
+  // match-route-answers-like-its-siblings): its leak was the WORST of the family —
+  // `parseStderrError`'s raw stderr, i.e. match_cli's traceback and the temp workdir
+  // path, forwarded verbatim. It now answers through app/api/matrix/matrix-error-code.ts
+  // like its two siblings: jsonRefusal for the 429 and the engine's 4xx, safeJsonError
+  // with MATCH_RUN_FAILED for the rest. The row is deleted so the win is locked and a
+  // regression reads as `undeclared` rather than as budget already granted.
   // match/reasoning/route.ts and matrix/route.ts stood here at 1 each and are FIXED,
   // not ceilinged (/perfect 2026-09-03, matrix-ui-2): both now answer through
   // app/api/matrix/matrix-error-code.ts — jsonRefusal for the 429 and the engine's

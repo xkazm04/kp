@@ -15,22 +15,13 @@ import type { ReactNode } from "react";
  */
 
 /**
- * Build a phase → text lookup that holds the last set value.
+ * The phase → text lookup, re-exported so scenes keep one import.
  *
- * Scenes declare status only on the beats where the wording should CHANGE,
- * which keeps the table readable as prose and means a re-timed scene doesn't
- * need every intermediate beat re-stated.
+ * It moved to `scenes/status.ts` when it earned a test: it is pure, six scenes
+ * depend on it, and the node test runner cannot load a TSX file. Everything
+ * else in this file needs React, which is why only this one left.
  */
-export function statusPicker(table: Record<number, string>): (phase: number) => string {
-  const first = table[0] ?? "";
-  return (phase: number) => {
-    for (let p = phase; p >= 0; p--) {
-      const hit = table[p];
-      if (hit) return hit;
-    }
-    return first;
-  };
-}
+export { statusPicker } from "./status";
 
 /**
  * The status line itself.

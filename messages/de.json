@@ -1475,7 +1475,20 @@
     "SCHEDULE_INTERVAL_INVALID": "Das Automatisierungsintervall muss eine Zahl in Minuten sein.",
     "COMM_RESEND_IN_PROGRESS": "Ein erneuter Versand dieser Nachricht läuft bereits.",
     "COMM_ALREADY_RESENT": "Bereits erneut gesendet. Für diese Nachricht gibt es eine neuere Zustellung.",
-    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen."
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen.",
+    "MATCH_RUN_FAILED": "Diese Person konnte nicht gegen die Rollen bewertet werden. Bitte erneut versuchen.",
+    "MATCH_INPUT_INVALID": "Diese Person ließ sich nicht auflösen. Das Profil oder die Analyse dahinter existiert nicht mehr.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Dieser Benchmark nennt keine Rollenfamilie.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Diese Ausgabe konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Dieses Ziel konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Das Kennzahlenpaket konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "DECISION_LOG_LOAD_FAILED": "Das Entscheidungsprotokoll konnte nicht geladen werden. Bitte erneut versuchen.",
+    "CALIBRATION_APPLY_FAILED": "Der Schwellenwert konnte nicht übernommen werden. Bitte das Panel neu laden und die aktuelle Untergrenze prüfen.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Ihre Rolle darf die Analyse-Einstellungen und die Screening-Untergrenze dieses Teams nicht ändern.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "Dieser Vorgang nannte keinen vorgeschlagenen Schwellenwert. Bitte das Panel neu laden und den dort angezeigten Wert übernehmen.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "Die Empfehlung hat sich seit der Anzeige geändert. Bitte neu laden und den aktuellen Vorschlag prüfen.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "Derzeit gibt es keine Kalibrierungsempfehlung zum Übernehmen.",
+    "CALIBRATION_FAMILY_UNKNOWN": "Das ist keine der Rollenfamilien der App."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9214,6 +9227,11 @@
         "s10": "verworfen, bevor es ins Dokument kam",
         "s11": "statedVsRealGaps: stattdessen an Sie gemeldet",
         "s12": "6 Muss-Kriterien behalten · hartes Limit 8"
+      },
+      "reqs": {
+        "stack": "Postgres oder SQLite",
+        "ownership": "Einen Dienst von Anfang bis Ende verantworten",
+        "languages": "Tschechisch + Englisch"
       }
     },
     "scoring": {
@@ -9253,7 +9271,8 @@
         "s7": "match_reasoning: das Modell, nur auf den Top {n}",
         "s9": "der einzige kostenpflichtige Schritt sieht nie eine bereits ausgeschlossene Person"
       },
-      "costLabel": "Kosten"
+      "costLabel": "Kosten",
+      "figuresNote": "Die Zahlen 120 / 74 / 8 sind ein Beispiel. Die Namen der Schichten und die Ausschlussgründe stammen aus dem laufenden Code."
     },
     "archetypes": {
       "signals": {

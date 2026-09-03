@@ -1475,7 +1475,20 @@
     "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách.",
     "COMM_RESEND_IN_PROGRESS": "Odeslání této zprávy už právě probíhá.",
     "COMM_ALREADY_RESENT": "Už bylo odesláno znovu. Pro tuto zprávu existuje novější doručení.",
-    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází."
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází.",
+    "MATCH_RUN_FAILED": "Tohoto kandidáta se nepodařilo porovnat s rolemi. Zkuste to prosím znovu.",
+    "MATCH_INPUT_INVALID": "Tohoto kandidáta nelze načíst. Profil nebo analýza za ním už neexistuje.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Tento benchmark neuvedl žádnou rodinu rolí.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Náklady na tento kanál se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Cíl se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Přehled metrik se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "DECISION_LOG_LOAD_FAILED": "Deník rozhodnutí se nepodařilo načíst. Zkuste to prosím znovu.",
+    "CALIBRATION_APPLY_FAILED": "Práh se nepodařilo použít. Načtěte panel znovu a zkontrolujte aktuální hranici.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Vaše role nemůže měnit nastavení analytiky ani hranici předvýběru tohoto týmu.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "Požadavek neuvedl navrhovaný práh. Načtěte panel znovu a použijte číslo, které ukazuje.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "Doporučení se od zobrazení změnilo. Načtěte stránku znovu a projděte si aktuální návrh.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "Momentálně není k dispozici žádné kalibrační doporučení k použití.",
+    "CALIBRATION_FAMILY_UNKNOWN": "Toto není žádná z rodin rolí, které aplikace zná."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9214,6 +9227,11 @@
         "s10": "vyřazeno dřív, než se dostalo do dokumentu",
         "s11": "statedVsRealGaps: místo toho jsme to nahlásili vám",
         "s12": "ponecháno 6 nutných · tvrdý strop 8"
+      },
+      "reqs": {
+        "stack": "Postgres nebo SQLite",
+        "ownership": "Zodpovědnost za službu od začátku do konce",
+        "languages": "Čeština + angličtina"
       }
     },
     "scoring": {
@@ -9253,7 +9271,8 @@
         "s7": "match_reasoning: model, jen na prvních {n}",
         "s9": "jediný placený krok nikdy neuvidí kandidáta, který už byl vyřazen"
       },
-      "costLabel": "cena"
+      "costLabel": "cena",
+      "figuresNote": "Čísla 120 / 74 / 8 jsou ilustrace. Názvy vrstev a důvody vyřazení pocházejí ze skutečného kódu."
     },
     "archetypes": {
       "signals": {
