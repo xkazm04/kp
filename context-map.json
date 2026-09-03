@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2971,
+  "files": 2972,
   "groups": 17,
   "use_cases": 12
  },
@@ -7787,6 +7787,7 @@
     "app/api/feedback/feedback-read-gate.test.ts",
     "app/api/feedback/route.ts",
     "app/api/health/route.ts",
+    "app/api/me/capabilities/route.ts",
     "app/api/me/getting-started/getting-started-route.test.ts",
     "app/api/me/getting-started/route.ts",
     "app/api/me/onboarding/route.ts",
