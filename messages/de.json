@@ -1657,7 +1657,8 @@
     "SIM_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
     "SIM_CV_UNREADABLE": "Dieser Lebenslauf konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
     "DEMO_NOT_PROVISIONED": "Die Live-Demo ist auf dieser Installation noch nicht eingerichtet.",
-    "DEMO_DISABLED": "Die Live-Demo ist auf dieser Installation deaktiviert."
+    "DEMO_DISABLED": "Die Live-Demo ist auf dieser Installation deaktiviert.",
+    "SIM_RUN_ACTIVE": "Hier läuft bereits eine geführte Demo. Warten Sie, bis sie fertig ist, oder stoppen Sie sie zuerst."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8890,7 +8891,9 @@
       "accepted": "Angenommen · nach Eingestellt verschoben · Onboarding-Nachricht eingereiht",
       "stopped": "Simulation gestoppt.",
       "error": "Fehler: {message}",
-      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt."
+      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt.",
+      "clickedViaApi": "Das Bedienelement war nicht sichtbar, daher lief dieser Schritt über die API statt über einen echten Klick.",
+      "selfScheduleUnavailable": "Die Selbstbuchung war nicht verfügbar, daher bestätigt der Recruiter den Termin."
     },
     "wait": {
       "screeningGate": "die Interview- bzw. Kalenderfreigabe nach dem Screening",

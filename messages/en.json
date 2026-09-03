@@ -1657,7 +1657,8 @@
     "SIM_ROLE_CLOSED": "This role is closed to applications.",
     "SIM_CV_UNREADABLE": "That CV could not be read. Try a PDF, DOCX, TXT or MD file.",
     "DEMO_NOT_PROVISIONED": "The live demo is not set up on this deployment yet.",
-    "DEMO_DISABLED": "The live demo is turned off on this deployment."
+    "DEMO_DISABLED": "The live demo is turned off on this deployment.",
+    "SIM_RUN_ACTIVE": "A guided demo is already running here. Wait for it to finish, or stop it first."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8890,7 +8891,9 @@
       "accepted": "Accepted · moved to Hired · onboarding comm queued",
       "stopped": "Simulation stopped.",
       "error": "Error: {message}",
-      "groupEvalTimedOut": "⚠︎ Group evaluation timed out. Showing an unavailable notice."
+      "groupEvalTimedOut": "⚠︎ Group evaluation timed out. Showing an unavailable notice.",
+      "clickedViaApi": "The control wasn't on screen, so this step ran through the API instead of a real click.",
+      "selfScheduleUnavailable": "Self-scheduling wasn't available, so the recruiter confirms the slot instead."
     },
     "wait": {
       "screeningGate": "screening to open the interview / calendar gate",

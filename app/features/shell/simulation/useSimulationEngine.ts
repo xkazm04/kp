@@ -236,7 +236,14 @@ export function useSimulationEngine({
         let payload: GroupEvalPayload | null = null;
         while (Date.now() < deadline) {
           if (ctrl.current.stop) throw new SimStop();
-          const ev = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(jobId)}`).then((r) => r.json()).catch(() => null);
+          // Through okJson like the start above: `.catch(() => null)` swallowed a 500
+          // (GROUP_EVAL_READ_FAILED — the read JSON.parses a persisted payload) and a
+          // 401, so a server that was answering "I cannot read this" for 25 seconds
+          // surfaced as "the comparison timed out" — the one message that tells the
+          // viewer to wait longer. A non-OK answer ends the poll with its code.
+          const ev = await okJson<{ evaluation?: { payload?: GroupEvalPayload } }>(
+            await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(jobId)}`)
+          );
           if (ev?.evaluation?.payload) {
             payload = ev.evaluation.payload as GroupEvalPayload;
             break;
@@ -274,7 +281,7 @@ export function useSimulationEngine({
         });
       }
     },
-    [ctrl, entriesFor, locale, log, patch, tSim]
+    [ctrl, entriesFor, locale, log, okJson, patch, tSim]
   );
 
   return { getBoard, getEntries, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };

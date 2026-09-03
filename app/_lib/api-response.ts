@@ -999,6 +999,12 @@ export const REFUSAL_ERRORS = {
   /** KP_DEMO_ENABLED is off on a gated deploy (workspace-lock.ts) — the operator
    *  CAN turn this one on. */
   DEMO_DISABLED: "The live demo is turned off on this deployment.",
+  /** POST /api/sim/reset while another guided run holds this workspace (409).
+   *  Every demo visitor and every operator tab shares ONE tenant and a run STARTS by
+   *  deleting every SIM row in it, so a second start used to wipe the first walk's
+   *  job mid-tour. `retryAfterSeconds` rides beside the code as data — the holder's
+   *  remaining lease (sim-store.ts SIM_RUN_TTL_MS), not a guess. */
+  SIM_RUN_ACTIVE: "A guided demo is already running here. Wait for it to finish, or stop it first.",
   /** GET /api/feedback is a read of colleagues' free-text reports WITH their reply
    *  addresses, so it is `members:manage`-gated (/perfect wave 17, api-workspace).
    *  One code covers both statuses requireCapability produces — 401 with no session,

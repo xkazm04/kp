@@ -1657,7 +1657,8 @@
     "SIM_ROLE_CLOSED": "Tato pozice je pro nové přihlášky uzavřená.",
     "SIM_CV_UNREADABLE": "Tento životopis se nepodařilo přečíst. Zkuste soubor PDF, DOCX, TXT nebo MD.",
     "DEMO_NOT_PROVISIONED": "Živé demo zatím na tomto nasazení není připravené.",
-    "DEMO_DISABLED": "Živé demo je na tomto nasazení vypnuté."
+    "DEMO_DISABLED": "Živé demo je na tomto nasazení vypnuté.",
+    "SIM_RUN_ACTIVE": "Tady už jedno provázené demo běží. Počkejte, až skončí, nebo ho nejdřív zastavte."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8890,7 +8891,9 @@
       "accepted": "Přijato · přesun do stavu Přijat/a · onboardingová zpráva zařazena do fronty",
       "stopped": "Simulace zastavena.",
       "error": "Chyba: {message}",
-      "groupEvalTimedOut": "⚠︎ Skupinovému vyhodnocení vypršel čas. Zobrazujeme informaci o nedostupnosti."
+      "groupEvalTimedOut": "⚠︎ Skupinovému vyhodnocení vypršel čas. Zobrazujeme informaci o nedostupnosti.",
+      "clickedViaApi": "Ovládací prvek nebyl na obrazovce, takže tento krok proběhl přes API místo skutečného kliknutí.",
+      "selfScheduleUnavailable": "Samoobslužné plánování nebylo dostupné, termín proto potvrzuje recruiter."
     },
     "wait": {
       "screeningGate": "otevření pohovoru nebo kalendářní brány po screeningu",

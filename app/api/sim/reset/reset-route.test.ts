@@ -18,11 +18,24 @@ import { cleanupUnitDb } from "@/app/_lib/testing/unit-db";
 import { createPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { SIM_MARKER } from "@/app/features/shell/simulation/constants";
+import { __resetSimRunLocks, simRunActive } from "@/app/_lib/sim-store";
 
 after(() => cleanupUnitDb());
 
 register(new URL("../../../_lib/testing/next-server-hooks.mjs", import.meta.url));
-const { POST } = await import("./route.ts");
+const { POST, DELETE } = await import("./route.ts");
+const { NextRequest } = await import("next/server");
+
+/** POST with an optional body. `hold` claims the workspace's run lock for a walk. */
+function post(body?: { hold?: boolean }) {
+  return POST(
+    new NextRequest("http://localhost:3000/api/sim/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+  );
+}
 
 const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "route.ts"), "utf8");
 
@@ -55,7 +68,7 @@ test("the handler purges the caller's SIM rows and reports the counts", async ()
     stage: "Accepted",
   }).entry;
 
-  const res = await POST();
+  const res = await post();
   assert.equal(res.status, 200);
   const body = (await res.json()) as { ok: boolean; cleared: Record<string, number> };
   assert.equal(body.ok, true);
@@ -67,10 +80,38 @@ test("the handler purges the caller's SIM rows and reports the counts", async ()
 });
 
 test("the reset is idempotent — a second call clears nothing and still succeeds", async () => {
-  const res = await POST();
+  const res = await post();
   assert.equal(res.status, 200);
   const body = (await res.json()) as { cleared: { entries: number } };
   assert.equal(body.cleared.entries, 0, "nothing left to clear, and that is a success, not an error");
+});
+
+test("a run holds the lock, so a SECOND start is refused instead of wiping the first", async () => {
+  __resetSimRunLocks();
+  const first = await post({ hold: true });
+  assert.equal(first.status, 200, "the walk that got there first purges and keeps the lock");
+  assert.equal(simRunActive(CALLER_WS).active, true);
+
+  const second = await post({ hold: true });
+  assert.equal(second.status, 409, "the second visitor is told, not served a wipe of someone else's tour");
+  const body = (await second.json()) as { code: string; retryAfterSeconds: number };
+  assert.equal(body.code, "SIM_RUN_ACTIVE");
+  assert.ok(body.retryAfterSeconds > 0, "and told how long the holder's lease has left");
+
+  // A manual reset is refused for the same reason while a walk is live.
+  assert.equal((await post()).status, 409);
+
+  const released = await DELETE();
+  assert.equal(released.status, 200);
+  assert.equal(simRunActive(CALLER_WS).active, false, "the run ended: the tenant is free");
+  assert.equal((await post({ hold: true })).status, 200, "and the next visitor may start");
+  __resetSimRunLocks();
+});
+
+test("a manual reset holds the lock only for its own purge", async () => {
+  __resetSimRunLocks();
+  assert.equal((await post()).status, 200);
+  assert.equal(simRunActive(CALLER_WS).active, false, "no `hold`, no lease left behind — otherwise a reset locked the tenant for 5 minutes");
 });
 
 test("a failure answers the CODE, never the thrown store message", () => {
@@ -81,4 +122,5 @@ test("a failure answers the CODE, never the thrown store message", () => {
 test("the purge is scoped to the CALLER's tenant, not the default", () => {
   assert.match(src, /await currentWorkspace\(\)/, "the tenant comes from the session, never a hardcoded default");
   assert.match(src, /resetSim\(ws\)/, "and it is threaded into the purge");
+  assert.match(src, /beginSimRun\(ws\)/, "the lock is per-workspace too");
 });
