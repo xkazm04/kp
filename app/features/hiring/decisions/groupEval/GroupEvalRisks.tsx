@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { riskText, type Translate } from "./localize";
 import type { RiskFact } from "@/app/features/shared/groupEvalTypes";
+import { NOTICE } from "@/app/_components/ui/recipes";
 
 // Watch-outs strip at the bottom of the modal — the evaluation's pool-level risks.
 // A risk arrives as a STRUCTURED FACT and is composed here in the reader's
@@ -18,7 +19,7 @@ export function Risks({ risks }: { risks: (string | RiskFact)[] }) {
       </p>
       <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
         {risks.map((r, i) => (
-          <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/60 p-2 text-base text-amber-900">
+          <div key={i} className={`flex items-start gap-2 ${NOTICE()} p-2 text-base`}>
             <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />
             <span>{riskText(tt, r)}</span>
           </div>

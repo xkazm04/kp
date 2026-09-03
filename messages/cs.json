@@ -1566,7 +1566,8 @@
     "TASK_BUDGET_EXHAUSTED": "Nedávno se spustilo příliš mnoho AI běhů tohoto druhu. Zkuste to prosím za chvíli.",
     "TASK_NOT_FOUND": "Tato úloha už neexistuje.",
     "TASK_NOT_RETRYABLE": "Znovu spustit lze jen neúspěšné, přerušené nebo zrušené úlohy.",
-    "TASK_REPLAY_INPUTS_GONE": "Nahrané soubory k tomuto běhu už byly smazány. Nahrajte je prosím znovu a běh zopakujte."
+    "TASK_REPLAY_INPUTS_GONE": "Nahrané soubory k tomuto běhu už byly smazány. Nahrajte je prosím znovu a běh zopakujte.",
+    "FORBIDDEN_CAPABILITY": "Vaše role tuto akci neumožňuje."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9662,5 +9663,13 @@
       "details": "Zobrazit detaily",
       "detailsHide": "Skrýt detaily"
     }
+  },
+  "loadStatus": {
+    "stale": "neaktuální · {ago}",
+    "offline": "offline",
+    "pillTitle": "Automatické načítání sekce {label} selhává.",
+    "pillTitleStale": "Automatické načítání sekce {label} selhává. Poslední aktualizace {ago}.",
+    "refreshFailed": "Sekci {label} se nepodařilo obnovit. Zobrazujeme data {ago}, zkoušíme znovu…",
+    "loadFailed": "Sekci {label} se nepodařilo načíst. Služba může být nedostupná, zkoušíme znovu…"
   }
 }

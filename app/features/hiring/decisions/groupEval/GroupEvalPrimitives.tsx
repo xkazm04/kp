@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle } from "lucide-react";
-import { CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
+import { CHIP_QUIET, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 import { initials } from "@/app/_lib/initials";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { styleFor } from "@/app/features/shared/decisionsTypes";
@@ -66,7 +66,7 @@ export function ArchetypeTag({ archetype }: { archetype?: string | null }) {
  *  are token-mapped in both themes (globals.css `[data-theme="dark"]`). */
 export function Notice({ icon: Icon = AlertTriangle, children }: { icon?: LucideIcon; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900 dark:rounded-2xl">
+    <div className={`flex items-start gap-2 ${NOTICE()} p-3 text-base`}>
       <Icon size={18} className="mt-0.5 shrink-0" aria-hidden />
       <span>{children}</span>
     </div>

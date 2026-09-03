@@ -12,6 +12,7 @@ import { lifecycleStall } from "@/app/_lib/devcase-sla";
 import { useStageLabel } from "./DevLabels";
 import { LIFECYCLE_STEPS, LIVE_STAGES } from "./DevTypes";
 import type { Lifecycle } from "./DevTypes";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export function LifecycleRow({
   lc,
@@ -139,7 +140,7 @@ export function LifecycleRow({
             type="button"
             onClick={() => setReviewOpen((o) => !o)}
             aria-expanded={reviewOpen}
-            className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md bg-moss px-2.5 text-micro font-semibold text-white hover:opacity-90"
+            className={`${BTN_AFFIRM} h-7 shrink-0 px-2.5 text-micro`}
           >
             <Eye size={12} /> {reviewOpen ? t("lifecycle.hideReview") : t("lifecycle.review")}
           </button>

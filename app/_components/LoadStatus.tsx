@@ -1,17 +1,9 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import type { LoadState } from "@/app/_lib/useLoader";
-
-// How long ago a `lastUpdated` epoch was, in coarse human units.
-function ago(ms: number): string {
-  const d = (Date.now() - ms) / 1000;
-  if (!Number.isFinite(d) || d < 0) return "just now";
-  if (d < 60) return `${Math.floor(d)}s ago`;
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
-  return `${Math.floor(d / 86400)}d ago`;
-}
 
 // Surfaces a loader's failure so an outage no longer renders identically to a
 // genuinely empty result. Renders nothing while the loader is healthy. On
@@ -20,6 +12,12 @@ function ago(ms: number): string {
 //  - loaded before → "stale, last updated X ago" (we're showing old data)
 // `variant="banner"` is for an empty slot; `variant="pill"` sits inline in a
 // section header next to data that's now stale.
+//
+// The frame sentences used to be English string literals wrapped around a
+// `label` the caller had already localized — so a Czech operator read
+// "Couldn't refresh Kandidáti — showing data from 3m ago." The elapsed time was
+// hand-rolled too ("3m ago"), which is a relative-time format every locale
+// spells differently; next-intl's formatter owns it now.
 export function LoadStatus({
   state,
   label,
@@ -31,32 +29,30 @@ export function LoadStatus({
   variant?: "banner" | "pill";
   className?: string;
 }) {
+  const t = useTranslations("loadStatus");
+  const format = useFormatter();
   if (!state.failed) return null;
   const seen = state.lastUpdated != null;
+  // Formatted against an explicit `now` so the string is a pure function of the
+  // render, not of when the formatter happened to read the clock.
+  const ago = seen ? format.relativeTime(new Date(state.lastUpdated!), new Date()) : "";
 
   if (variant === "pill") {
     return (
       <span
         role="status"
-        title={`Automatic refresh of ${label} is failing${seen ? ` — last updated ${ago(state.lastUpdated!)}` : ""}.`}
+        title={seen ? t("pillTitleStale", { label, ago }) : t("pillTitle", { label })}
         className={`inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-micro font-semibold uppercase text-amber-700 ${className}`}
       >
-        <AlertTriangle size={11} className="shrink-0" /> {seen ? `stale · ${ago(state.lastUpdated!)}` : "offline"}
+        <AlertTriangle size={11} className="shrink-0" /> {seen ? t("stale", { ago }) : t("offline")}
       </span>
     );
   }
 
   return (
-    <div
-      role="alert"
-      className={`flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 ${className}`}
-    >
+    <div role="alert" className={`flex items-center gap-2 ${NOTICE("amber")} px-3 py-2 text-xs ${className}`}>
       <AlertTriangle size={14} className="shrink-0" />
-      <span>
-        {seen
-          ? `Couldn't refresh ${label} — showing data from ${ago(state.lastUpdated!)}. Retrying…`
-          : `Couldn't load ${label} — the service may be down. Retrying…`}
-      </span>
+      <span>{seen ? t("refreshFailed", { label, ago }) : t("loadFailed", { label })}</span>
     </div>
   );
 }

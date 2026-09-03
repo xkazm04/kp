@@ -2,6 +2,7 @@
 
 import { GitBranch, Plus } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useTablist } from "@/app/_components/ui/useTablist";
 import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
@@ -160,17 +161,10 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
     setActiveTab(tabs[0].id);
   }
 
-  const onTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    let next = activeIndex;
-    if (event.key === "ArrowRight") next = (activeIndex + 1) % tabs.length;
-    else if (event.key === "ArrowLeft") next = (activeIndex - 1 + tabs.length) % tabs.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    setActiveTab(tabs[next].id);
-    document.getElementById(`tab-${tabs[next].id}`)?.focus();
-  };
+  // Roles + roving tabindex + arrows/Home/End from the shared hook, which also
+  // owns the ids — so moving focus no longer needs a document.getElementById
+  // round trip against a hand-built `tab-${id}` string.
+  const tablist = useTablist({ ids: tabs.map((tab) => tab.id), active: activeTab, onSelect: setActiveTab });
 
   // Tailwind needs explicit, statically-known class names for dynamic grid
   // counts to survive purge — so we pick from a small lookup table.
@@ -215,19 +209,14 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
       <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
 
       <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
-        <div role="tablist" aria-label={t("sections")} onKeyDown={onTabKeyDown} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
+        <div {...tablist.tablistProps} aria-label={t("sections")} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {
             const selected = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
-                role="tab"
-                id={`tab-${tab.id}`}
-                aria-selected={selected}
-                aria-controls="result-tabpanel"
-                tabIndex={selected ? 0 : -1}
-                onClick={() => setActiveTab(tab.id)}
+                {...tablist.tabProps(tab.id)}
                 className={`focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md px-3 text-base font-semibold ${
                   selected ? "bg-ink text-white" : "text-steel hover:bg-paper hover:text-ink"
                 }`}
@@ -240,7 +229,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         </div>
       </div>
 
-      <div role="tabpanel" id="result-tabpanel" aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="focus-ring rounded-md">
+      <div {...tablist.panelProps} className="focus-ring rounded-md">
         {activeTab === "extraction" ? <ExtractionTab analysis={analysis} /> : null}
         {activeTab === "compare" ? <CompareTab analysis={analysis} /> : null}
         {activeTab === "jobFit" ? <JobFitTab analysis={analysis} /> : null}

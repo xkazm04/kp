@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { AutomationPassError, isPassInFlight, runAutomationPass } from "@/app/_lib/automation-pass";
 import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
@@ -16,6 +18,13 @@ export async function POST(request: Request) {
   // (mirrors the requireOperator guard on the other Python-spawning routes).
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown };
   const dryRun = body.dryRun === true;
   // TENANCY (phase 1): the sweep is global by design and the run log keeps the FULL

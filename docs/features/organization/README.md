@@ -75,6 +75,23 @@ inventing a second scoping dimension.
   `callerOrgCapabilities`/`callerDelegationCeiling`) does not consult the status,
   so a disabled admin's live session can still reach member/team administration —
   see Known gaps.
+- **A login costs the same whether or not the account exists.**
+  `verifyCredentials` (`app/_lib/db/users.ts`) verifies against
+  `DUMMY_PASSWORD_HASH` (`app/_lib/auth/password.ts` — a real scrypt hash of a
+  throwaway secret, computed once at module load) when the email is unknown, the
+  account is disabled, or an invited user has no credential row yet. It used to
+  return before the hash in all three cases, so the deliberately uniform 401 was
+  undone by the clock: microseconds for "no such account" against ~40ms for "wrong
+  password" is a user-existence oracle any client can measure.
+  `app/_lib/auth/credentials.test.ts` counts the scrypt work rather than the wall
+  clock, so the property is pinned without a timing flake.
+- **The password floor is enforced at the store write.** `MIN_PASSWORD_LENGTH`
+  lives in `app/_lib/auth/password.ts` (users.ts cannot import `org-service.ts` —
+  org-service imports users) and `setUserPassword` throws below it. Signup and
+  invite redemption still answer their own `weak_password` refusal first; the
+  store check is what covers every OTHER path — `createUser({ password })`, an
+  admin reset, a script — which had no floor at all. `org-service.ts` re-states
+  the constant for its callers and the two are pinned equal by a test.
 - **The login throttle's storage is bounded, not just its counters.**
   `app/_lib/auth/login-throttle.ts` keeps one `login_attempts` row per bucket key
   (`login:acct:<email>` / `login:ip:<ip>` / `login:op:<ip>`). Rows used to be

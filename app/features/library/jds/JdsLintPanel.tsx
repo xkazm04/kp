@@ -3,6 +3,7 @@
 import { AlertTriangle, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { jdLintMessage, type JdLintFinding } from "@/app/_lib/jd-lint";
+import { NOTICE } from "@/app/_components/ui/recipes";
 
 // The inclusivity + specificity lint findings panel, extracted so the SAME panel
 // renders on every authoring surface — the public-page in-place editor
@@ -19,7 +20,7 @@ export function JdLintPanel({ findings }: { findings: JdLintFinding[] }) {
     );
   }
   return (
-    <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-800">
+    <div className={`mt-3 ${NOTICE()} px-3 py-2 text-sm`}>
       <p className="flex items-center gap-1.5 font-semibold">
         <AlertTriangle size={14} aria-hidden /> {t("lintHeading")}
       </p>

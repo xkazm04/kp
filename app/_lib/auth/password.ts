@@ -9,6 +9,16 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 const KEYLEN = 64; // scrypt output length in bytes
 
+/** The one minimum-password-length floor for the whole app.
+ *
+ *  It lives HERE, beside the hash, because the lowest layer that writes a password
+ *  (`setUserPassword` in app/_lib/db/users.ts) must enforce it too, and users.ts
+ *  cannot import org-service.ts — org-service imports users, so that would be a
+ *  cycle. `org-service.ts` re-states the value for its own callers and
+ *  `password-floor.test.ts` pins the two together, so a drift is a red test rather
+ *  than a quietly weaker signup path. */
+export const MIN_PASSWORD_LENGTH = 8;
+
 /** Hash a plaintext password → `<saltB64url>:<hashB64url>` for storage. */
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
@@ -34,3 +44,15 @@ export function verifyPassword(password: string, stored: string | null | undefin
   }
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
+
+/** A real credential, over a throwaway secret nobody holds, hashed ONCE at module
+ *  load with the production scrypt cost.
+ *
+ *  `verifyCredentials` verifies against this whenever the account is unknown,
+ *  disabled, or simply has no credential row — so a miss spends exactly the scrypt
+ *  work a real account spends. Without it the login route returned in microseconds
+ *  for "no such user" and in ~40ms for "wrong password": a user-existence oracle
+ *  measurable over the network, which the deliberately uniform 401 body only
+ *  masked at the response level. Module load (not lazy) so the very first miss of
+ *  a process is already indistinguishable from a hit. */
+export const DUMMY_PASSWORD_HASH: string = hashPassword(randomBytes(32).toString("base64url"));

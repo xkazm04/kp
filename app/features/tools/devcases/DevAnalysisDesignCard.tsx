@@ -5,7 +5,7 @@
 import { Check, ClipboardList, Lock, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, PANEL } from "@/app/_components/ui/recipes";
 import { ProvenanceStrip } from "./DevProvenanceStrip";
 import { MiniList, ProbeRow, RubricChip } from "./DevShared";
 import type { Design } from "./DevTypes";
@@ -81,7 +81,7 @@ export function DevAnalysisDesignCard({
             <span className="inline-flex items-center gap-1 text-base font-semibold text-moss"><Check size={16} /> {t("approved")}</span>
           ) : (
             <button type="button" onClick={approve} disabled={approving}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-moss px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50">
+              className={`${BTN_AFFIRM} h-9 px-3 text-base`}>
               <ShieldCheck size={15} /> {approving ? t("approving") : t("approve")}
             </button>
           )}

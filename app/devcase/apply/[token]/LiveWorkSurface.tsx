@@ -6,6 +6,12 @@ import { TextInput } from "@/app/_components/TextInput";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft } from "./liveWorkDraft";
+import { NOTICE } from "@/app/_components/ui/recipes";
+import { useTablist } from "@/app/_components/ui/useTablist";
+
+/** The captured chat channels, in strip order — literal array, derived union. */
+const CHAT_CHANNELS = ["assistant", "stakeholder"] as const;
+type ChatChannel = (typeof CHAT_CHANNELS)[number];
 
 // Live Work Surface (moonshot E) — an in-product editor over the materialized seed.
 // As the candidate works, it records OBSERVED process events (which files they
@@ -345,7 +351,8 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
 
   // Captured chat channels (LLM-era controls #2/#5): assistant + stakeholder.
   // Everything flows through the platform — the dialogue is part of the submission.
-  const [chatChannel, setChatChannel] = useState<"assistant" | "stakeholder">("assistant");
+  const [chatChannel, setChatChannel] = useState<ChatChannel>("assistant");
+  const chatTabs = useTablist({ ids: CHAT_CHANNELS, active: chatChannel, onSelect: setChatChannel, controlsPanel: false });
   // `deterministic` marks a reply produced by the keyless fallback rather than a model.
   // Degrading without keys is a product property here; letting the candidate believe a
   // stub was their stakeholder is not, so the bubble says so.
@@ -421,7 +428,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       <p className="mt-1 max-w-prose text-sm text-steel">{t("intro")}</p>
       {/* Phone advisory (sm:hidden): a timed case started on a phone is a trap —
           say so BEFORE the candidate burns their attempt, without blocking them. */}
-      <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:hidden">
+      <p className={`mt-2 ${NOTICE()} px-3 py-2 text-sm sm:hidden`}>
         {t("phoneAdvisory")}
       </p>
       {note ? <p className="mt-2 text-xs text-stone-400">{note}</p> : null}
@@ -431,18 +438,18 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         </p>
       ) : null}
       {syncBlocked ? (
-        <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" role="status">
+        <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-xs`} role="status">
           {t("syncBlocked")}
         </p>
       ) : null}
       {refusal && status !== "error" ? (
-        <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-800" role="alert">
+        <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-xs`} role="alert">
           {errMsg(refusal, t("error"))}
         </p>
       ) : null}
 
       {perturbation ? (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4" role="status">
+        <div className={`mt-4 ${NOTICE()} p-4`} role="status">
           <p className="text-meta uppercase text-amber-700">{t("updateHeading")}</p>
           <p className="mt-1 text-sm text-amber-900">{perturbation}</p>
         </div>
@@ -492,14 +499,17 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       <div className="mt-5 rounded-lg border border-stone-200 bg-paper/40 p-4">
         <h3 className="text-sm font-semibold text-ink">{t("chatHeading")}</h3>
         <p className="mt-1 max-w-prose text-xs text-steel">{t("chatIntro")}</p>
-        <div className="mt-3 flex gap-2" role="tablist" aria-label={t("chatHeading")}>
-          {(["assistant", "stakeholder"] as const).map((ch) => (
+        {/* The roles were declared here with no keyboard behind them: each tab was
+            its own Tab stop and no arrow key did anything. The transcript below is
+            conditional, so there is no stable panel id these tabs could control —
+            `controlsPanel: false` states that instead of shipping a dangling
+            aria-controls. */}
+        <div {...chatTabs.tablistProps} className="mt-3 flex gap-2" aria-label={t("chatHeading")}>
+          {CHAT_CHANNELS.map((ch) => (
             <button
               key={ch}
               type="button"
-              role="tab"
-              aria-selected={chatChannel === ch}
-              onClick={() => setChatChannel(ch)}
+              {...chatTabs.tabProps(ch)}
               className={`rounded px-3 py-2 text-sm font-medium ${
                 chatChannel === ch ? "bg-stone-900 text-white" : "text-ink hover:bg-stone-100"
               }`}
@@ -550,7 +560,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         </div>
         {chatState === "error" ? <p className="mt-2 text-xs text-red-700">{t("chatError")}</p> : null}
         {chatState === "limited" ? (
-          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" role="status">
+          <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-xs`} role="status">
             {t("chatRateLimited")}
           </p>
         ) : null}

@@ -27,7 +27,10 @@ import { resolveCapabilities, type Capability, type CapabilityOverride, type Mem
 // operations the Organization page + its API routes call. Guardrails live here
 // (not in the route) so every caller gets them: last-owner protection, and the
 // invite→accept lifecycle. The minimum accepted password length.
-export const MIN_PASSWORD_LENGTH = 8;
+// One floor, owned by the credential module (wave 18a) - re-exported here so the
+// signup service and the invite route keep their import path.
+import { MIN_PASSWORD_LENGTH } from "./auth/password";
+export { MIN_PASSWORD_LENGTH };
 
 export type MemberTeam = { workspaceId: string; role: MemberRole; capabilities: Capability[] };
 export type OrgMember = { user: User; teams: MemberTeam[] };

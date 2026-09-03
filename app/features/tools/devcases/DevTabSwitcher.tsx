@@ -7,6 +7,7 @@
 // the engineering team that built it rather than by what it holds. A screen-reader user
 // heard a second name for a tab the sidebar calls Assignments.
 import { useTranslations } from "next-intl";
+import { useTablist } from "@/app/_components/ui/useTablist";
 import { DEV_VIEWS, type DevView } from "./DevTabViews";
 
 export function DevTabSwitcher({
@@ -21,10 +22,13 @@ export function DevTabSwitcher({
   outboxCount: number;
 }) {
   const t = useTranslations("devcase.studio");
+  // Same repair as ChannelsTabSwitcher: the roles were declared, the keyboard
+  // was not. DevTab owns the view body, so these tabs control no id.
+  const tabs = useTablist({ ids: DEV_VIEWS.map((v) => v.id), active: view, onSelect: onChange, controlsPanel: false });
   return (
     // data-sim anchor: Getting-started "show me" coachmark target (case design
     // starts at Define need).
-    <div data-sim="dev-need" role="tablist" aria-label={t("sectionsLabel")} className="inline-flex rounded-lg border border-stone-200 bg-paper p-0.5">
+    <div data-sim="dev-need" {...tabs.tablistProps} aria-label={t("sectionsLabel")} className="inline-flex rounded-lg border border-stone-200 bg-paper p-0.5">
       {/* `tab`, not `t`: the translator owns that name here now. */}
       {DEV_VIEWS.map((tab) => {
         const active = view === tab.id;
@@ -33,9 +37,7 @@ export function DevTabSwitcher({
           <button
             key={tab.id}
             type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(tab.id)}
+            {...tabs.tabProps(tab.id)}
             className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors ${
               active ? "bg-white text-ink shadow-panel" : "text-steel hover:text-ink"
             }`}

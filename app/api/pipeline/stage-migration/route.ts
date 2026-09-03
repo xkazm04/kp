@@ -4,8 +4,9 @@ import { getDecisionConfigVersion, setDecisionConfig } from "@/app/_lib/decision
 import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Apply a board-shape change AND the candidate moves it forces, as one operation.
@@ -47,6 +48,13 @@ type Body = { config?: unknown; migrate?: unknown; expectedUpdatedAt?: unknown }
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => null)) as Body | null;
     const validated = validateDecisionConfig("pipelineStages", body?.config);

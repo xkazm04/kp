@@ -6,6 +6,7 @@
 // ChannelSection any more — it lives in `channels.sections.<id>.label` ×4 locales.
 
 import { useTranslations } from "next-intl";
+import { useTablist } from "@/app/_components/ui/useTablist";
 import type { BadgeTone } from "@/app/_components/Badge";
 import { CHANNEL_SECTIONS, type ChannelSectionId } from "./channelsSections";
 import { CHANNEL_ACCENT } from "./channelsAccent";
@@ -20,8 +21,18 @@ export function ChannelsTabSwitcher({
   statusFor: (id: ChannelSectionId, channel?: string) => { tone: BadgeTone; label: string } | null | "pending";
 }) {
   const t = useTranslations("channels");
+  // The roles were here without the keyboard contract they promise: six section
+  // pills, six Tab stops, no arrows. ChannelsTab renders the section body, which
+  // has no id these tabs can point at, so `controlsPanel: false` says that
+  // instead of shipping a dangling aria-controls.
+  const tabs = useTablist({
+    ids: CHANNEL_SECTIONS.map((s) => s.id),
+    active: section,
+    onSelect: setSection,
+    controlsPanel: false,
+  });
   return (
-    <div role="tablist" aria-label={t("tablist")} className="flex flex-wrap gap-2">
+    <div {...tabs.tablistProps} aria-label={t("tablist")} className="flex flex-wrap gap-2">
       {CHANNEL_SECTIONS.map((s) => {
         const selected = s.id === section;
         const acc = CHANNEL_ACCENT[s.id];
@@ -30,9 +41,7 @@ export function ChannelsTabSwitcher({
           <button
             key={s.id}
             type="button"
-            role="tab"
-            aria-selected={selected}
-            onClick={() => setSection(s.id)}
+            {...tabs.tabProps(s.id)}
             className={`focus-ring flex items-center gap-2.5 rounded-xl border px-3 py-2 transition-all ${
               selected ? `${acc.border} ${acc.soft} shadow-pop` : "border-stone-200 bg-white hover:border-stone-300"
             }`}

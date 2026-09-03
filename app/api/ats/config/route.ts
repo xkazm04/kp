@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AtsConfigError, AtsConfigStaleError, getAtsConfig, setAtsConfig } from "@/app/_lib/ats-config-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 
 
 // P1-5 — read / update the outbound-webhook integration config. The GET never
@@ -24,6 +25,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. This door rewrites INSTALLATION-level configuration,
+  // so it is an org-administration act: `org:manage`, resolved org-wide, which
+  // recruiters and viewers do not hold.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   try {
     const body = (await request.json()) as {
       webhookUrl?: unknown;

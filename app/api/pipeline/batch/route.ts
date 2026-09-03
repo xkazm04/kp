@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { REFUSAL_ERRORS, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { REFUSAL_ERRORS, jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 
@@ -61,6 +62,13 @@ function coerceItem(raw: unknown): BatchItem | null {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of batch calls (each fans out to up to BATCH_CAP entries),

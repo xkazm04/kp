@@ -12,6 +12,7 @@ import { approveFallbackFor, caseEdits, caseToMarkdown } from "./DevHelpers";
 import { ProbeRow } from "./DevShared";
 import { ProbeStrengthBanner } from "./DevProbeStrengthBanner";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 // W5-4 (DEVP1) — the review drawer behind the human approval gate. Everything
 // here was already persisted on the lifecycle record and served by the GET;
@@ -196,7 +197,7 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
           type="button"
           onClick={approve}
           disabled={busy !== null || blocked !== null}
-          className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-moss px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          className={`${BTN_AFFIRM} h-7 px-2.5 text-micro`}
         >
           <ShieldCheck size={12} /> {busy === "approve" ? t("approving") : hasEdits ? t("approveWithEdits") : t("approve")}
         </button>

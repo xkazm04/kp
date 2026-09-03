@@ -9,6 +9,7 @@ import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 type OfferView = {
   token: string;
@@ -403,7 +404,7 @@ export function OfferClient() {
                       onClick={() => respond("accept")}
                       disabled={pending !== null}
                       aria-busy={pending === "accept"}
-                      className={`focus-ring inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-moss text-base font-semibold text-white transition-opacity hover:opacity-90 ${
+                      className={`${BTN_AFFIRM} h-11 flex-1 justify-center text-base ${
                         pending === "decline" ? "opacity-40" : ""
                       }`}
                     >

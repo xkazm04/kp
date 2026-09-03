@@ -7,6 +7,7 @@
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export function PipelineBulkDecideRow({
   t,
@@ -43,7 +44,7 @@ export function PipelineBulkDecideRow({
         type="button"
         onClick={() => onBulkDecide("accept")}
         disabled={bulkBusy}
-        className="focus-ring ml-auto rounded-md bg-moss px-3 py-1 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50"
+        className={`${BTN_AFFIRM} ml-auto px-3 py-1 text-sm`}
       >
         {t("bulkAccept", { count: selectedAwaiting.length })}
       </button>

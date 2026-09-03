@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T09:25:25.998Z",
+ "generated_at": "2026-09-03T09:44:46.325Z",
  "provenance": {
-  "git_commit": "6507f3a75dd9986dd782f56413df1d2178676b6e",
-  "git_commit_count": 2268,
+  "git_commit": "1c2bc1a64041a0ee706b9d8ecf5118b16e0ae17d",
+  "git_commit_count": 2279,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T09:25:25.998Z"
+  "generated_at": "2026-09-03T09:44:46.325Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2907,
+  "files": 2914,
   "groups": 17,
   "use_cases": 12
  },
@@ -3408,6 +3408,9 @@
     "app/_components/ui/defer-policy.ts",
     "app/_components/ui/recipes-sizing.test.ts",
     "app/_components/ui/recipes.ts",
+    "app/_components/ui/useDateFormat.ts",
+    "app/_components/ui/useTablist.test.ts",
+    "app/_components/ui/useTablist.ts",
     "app/_components/ui/useTheme.ts"
    ],
    "group": "Design System & Shared UI",
@@ -3731,6 +3734,7 @@
     "app/_components/table/useTableSort.test.ts",
     "app/_components/table/useTableSort.ts",
     "app/_lib/use-enum-label.ts",
+    "app/_lib/use-error-message.test.ts",
     "app/_lib/use-error-message.ts",
     "app/_lib/use-github-error.ts",
     "app/_lib/use-number-format.ts",
@@ -3806,7 +3810,9 @@
     "app/api/devcase/session/[id]/submit/route.ts",
     "app/api/devcase/session/devcase-flush-guards.test.ts",
     "app/api/devcase/session/route.ts",
-    "app/api/devcase/session/session-intake-guards.test.ts"
+    "app/api/devcase/session/session-intake-guards.test.ts",
+    "app/api/route-capability-coverage.test.ts",
+    "app/api/write-capability-gate.test.ts"
    ],
    "group": "Developer Assessment",
    "group_id": "fa63c298-b710-4e0b-a26d-a0cba381da1f",
@@ -4436,8 +4442,6 @@
     "app/features/hiring/decisions/groupEval/groupEvalSalaryScale.ts",
     "app/features/hiring/decisions/groupEval/groupEvalSession.test.ts",
     "app/features/hiring/decisions/groupEval/groupEvalSession.ts",
-    "app/features/hiring/decisions/groupEval/groupEvalTabKeys.test.ts",
-    "app/features/hiring/decisions/groupEval/groupEvalTabKeys.ts",
     "app/features/hiring/decisions/groupEval/lead-story.test.ts",
     "app/features/hiring/decisions/groupEval/localize.test.ts",
     "app/features/hiring/decisions/groupEval/localize.ts",
@@ -5322,6 +5326,8 @@
    "description": "[auto-seeded — pending sweep enrichment] Auth Core: 14 source + 8 test file(s) under app/_lib/auth. Reads/writes login_attempts.",
    "entry_points": [],
    "file_paths": [
+    "app/_lib/auth/credentials.test.ts",
+    "app/_lib/auth/current-user.test.ts",
     "app/_lib/auth/current-user.ts",
     "app/_lib/auth/current-workspace.ts",
     "app/_lib/auth/edge-verify.test.ts",
@@ -5337,6 +5343,7 @@
     "app/_lib/auth/password.ts",
     "app/_lib/auth/public-routes.test.ts",
     "app/_lib/auth/public-routes.ts",
+    "app/_lib/auth/require-operator.test.ts",
     "app/_lib/auth/require-operator.ts",
     "app/_lib/auth/roles.test.ts",
     "app/_lib/auth/roles.ts",

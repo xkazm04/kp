@@ -104,7 +104,7 @@ Authorisation is **fail-closed and stated in two places on purpose**:
   if (denied) return denied;          // a 401 NextResponse, already shaped
   ```
 
-Three facts about that gate that are easy to get wrong:
+Four facts about that gate that are easy to get wrong:
 
 - `KP_OPERATOR_PASSWORD` unset = **open mode**, and `isOperator()` returns
   `true`. That is deliberate (local single-operator use); production fails
@@ -116,6 +116,15 @@ Three facts about that gate that are easy to get wrong:
   (`underPath`). An entry ending in `/` matches strict descendants only. This is
   why a newly added child route inherits its parent's gating instead of
   escaping it — the bug class that once made `/api/schedule/invite/bulk` public.
+- **`/` is public** (since 2026-09-03), and it is the one entry matched EXACTLY:
+  `PUBLIC_PAGES_EXACT`, not `PUBLIC_PAGES`. A `"/"` in the segment list would end
+  in a slash and `underPath` would match every path in the app — the whole gate
+  off. It is public because `app/page.tsx` already renders the marketing landing
+  for an anonymous visitor and the workspace only once `hasEnteredWorkspace()`
+  says so; in password mode the proxy never let that branch run, so every
+  marketing link and OG unfurl on the site's own front door met a login form. What
+  the root can render anonymously is the static landing — the workspace behind it
+  is a client shell whose every `/api/*` call is still gated.
 
 **A session is not an authorisation.** `requireOperator()` answers "is this a
 trusted operator", which on a TEAM deployment every member satisfies. A route
@@ -130,6 +139,31 @@ is now `members:manage`, the same bar as the member and invite lists — and the
 `/control` section that renders it resolves the same capability server-side, so
 the UI and the API cannot drift apart. Pick the capability by what the data IS,
 not by which role happens to visit the page.
+
+**The same rule binds WRITES, and a ratchet holds the line.** As of 2026-09-03 the
+ten highest-consequence write doors ask a capability before they mutate anything:
+`pipeline:write` for `POST /api/pipeline/{command,batch,stage-migration}`,
+`/api/decisions/{screen-wave,config}`, `/api/automation/{schedule,run,[task]}`,
+`/api/schedule/invite/bulk` and the JD writes (`/api/jds/{save,generate}`, `PATCH
+/api/jds/[slug]`); `org:manage` for the installation-configuration doors
+`/api/comms/relay`, `/api/ats/{connections,config}`, `/api/edge/{drain,pair}` and
+`/api/llm/keys/test`. The gate is
+`requireCapabilityCoded(cap, requireCapability | requireOrgCapability |
+requireWorkspaceCapability)` from `app/_lib/api-response.ts`, which re-shapes the
+auth layer's bare 403 into the coded refusal `FORBIDDEN_CAPABILITY` **carrying the
+capability as data** (`{ error, code, capability }`) so the client can name the
+missing permission in the reader's language; 401 (no session) passes through
+unchanged, and open mode is unaffected because every gate folds to owner there.
+Behaviour is pinned by `app/api/write-capability-gate.test.ts` (real handlers,
+throwaway DB, real signed viewer/recruiter/owner sessions).
+`app/api/route-capability-coverage.test.ts` is the ratchet — the authorisation
+sibling of `route-tenancy-coverage.test.ts`. It walks every `app/api/**/route.ts`
+exporting POST/PUT/PATCH/DELETE and demands either a capability-gate call or a line
+in its `ALLOWED` map with a reason; it was seeded with the 118 mutating doors that
+were ungated the day it landed (31 structural exemptions — public token surfaces,
+webhooks, self-service, the guided-sim sandbox — and 87 marked "slice 2 candidate",
+i.e. not yet judged). The count is printed on every run and may only FALL: closing a
+door means deleting its line, and a NEW ungated mutating route is red immediately.
 
 **A public route's payload is split by that gate, not by convenience.**
 `/api/health` is on the allow-list, so the verdict a monitor gates on

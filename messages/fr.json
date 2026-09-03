@@ -1566,7 +1566,8 @@
     "TASK_BUDGET_EXHAUSTED": "Trop de traitements IA de ce type ont été lancés récemment. Réessayez dans un instant.",
     "TASK_NOT_FOUND": "Cette tâche n'existe plus.",
     "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
-    "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer."
+    "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer.",
+    "FORBIDDEN_CAPABILITY": "Votre rôle ne permet pas cette action."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9662,5 +9663,13 @@
       "details": "Afficher les détails",
       "detailsHide": "Masquer les détails"
     }
+  },
+  "loadStatus": {
+    "stale": "obsolète · {ago}",
+    "offline": "hors ligne",
+    "pillTitle": "L'actualisation automatique de {label} échoue.",
+    "pillTitleStale": "L'actualisation automatique de {label} échoue. Dernière mise à jour {ago}.",
+    "refreshFailed": "Impossible d'actualiser {label}. Données affichées de {ago}, nouvelle tentative…",
+    "loadFailed": "Impossible de charger {label}. Le service est peut-être indisponible, nouvelle tentative…"
   }
 }
