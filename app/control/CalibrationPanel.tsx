@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CalibrationRationale } from "@/app/_lib/dev-outcomes";
@@ -161,14 +162,14 @@ export function CalibrationPanel({
 
   return (
     <section className="mt-6">
-      <h2 className="text-meta uppercase tracking-wide text-steel">{t("outcomes.heading")}</h2>
-      <p className="mt-1 max-w-2xl text-[11px] text-steel">{t("outcomes.blurb")}</p>
+      <h2 className={META_LABEL}>{t("outcomes.heading")}</h2>
+      <p className="mt-1 max-w-2xl text-micro text-steel">{t("outcomes.blurb")}</p>
 
       {/* AUTHORITY (/perfect wave 21): recording an outcome is `pipeline:write`. The
           calibration READ below stays for every seat - it is the evidence an oversight
           reader came here for. */}
       {canOperate ? (
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
+      <div className={`mt-2 flex flex-wrap items-center gap-1.5 p-2.5 ${PANEL}`}>
         {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): a placeholder is
             not an accessible name (it vanishes once a value is typed) — name each
             field explicitly so a screen reader announces it recording an outcome. */}
@@ -177,14 +178,14 @@ export function CalibrationPanel({
           value={form.candidate}
           onChange={(e) => setForm({ ...form, candidate: e.target.value })}
           placeholder={t("outcomes.candidatePlaceholder")}
-          className="focus-ring h-8 w-28 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel"
+          className="focus-ring h-8 w-28 rounded border border-stone-200 bg-white px-2 text-micro text-ink caret-coral placeholder:text-steel"
         />
         <input
           aria-label={t("outcomes.scoreLabel")}
           value={form.score}
           onChange={(e) => setForm({ ...form, score: e.target.value })}
           placeholder={t("outcomes.scorePlaceholder")}
-          className="focus-ring h-8 w-16 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel"
+          className="focus-ring h-8 w-16 rounded border border-stone-200 bg-white px-2 text-micro text-ink caret-coral placeholder:text-steel"
         />
         <Select
           value={form.outcome}
@@ -204,21 +205,21 @@ export function CalibrationPanel({
             options={PERF_VALUES.map((x) => ({ value: String(x), label: t("outcomes.perfOption", { n: x }) }))}
           />
         ) : null}
-        <button type="button" onClick={recordOutcome} disabled={busy} className="focus-ring h-8 rounded-md bg-ink px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50">
+        <button type="button" onClick={recordOutcome} disabled={busy} className="focus-ring h-8 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
           {t("outcomes.record")}
         </button>
       </div>
       ) : null}
 
       {err ? (
-        <p role="alert" className="mt-1.5 text-[11px] font-semibold text-coral">
+        <p role="alert" className="mt-1.5 text-micro font-semibold text-coral">
           {err}
         </p>
       ) : null}
 
       {data ? (
-        <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-          <div className="flex items-center gap-2 text-xs">
+        <div className={`mt-2 p-3 ${PANEL}`}>
+          <div className="flex items-center gap-2 text-micro">
             <span className="text-steel">{t("calibration.activeFloor")}</span>
             <span className="font-serif text-lg text-ink">{data.activeFloor}</span>
             {canGovern && data.calibration.suggestedFloor != null && data.calibration.resolved >= 4 && data.calibration.suggestedFloor !== data.activeFloor ? (
@@ -232,7 +233,7 @@ export function CalibrationPanel({
                 type="button"
                 onClick={() => guard(floorKey(data.calibration.suggestedFloor!), () => applyFloor(data.calibration.suggestedFloor!))}
                 disabled={busy}
-                className={`focus-ring ml-auto h-7 rounded-md px-2.5 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50 ${
+                className={`focus-ring ml-auto h-7 rounded-md px-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 ${
                   armed === floorKey(data.calibration.suggestedFloor!) ? "bg-ink ring-2 ring-coral/40" : "bg-coral"
                 }`}
               >
@@ -241,12 +242,12 @@ export function CalibrationPanel({
                   : t("calibration.applySuggested", { floor: data.calibration.suggestedFloor })}
               </button>
             ) : (
-              <span className="ml-auto text-[10px] uppercase text-steel">{t("calibration.resolved", { count: data.calibration.resolved })}</span>
+              <span className={`ml-auto ${META_LABEL}`}>{t("calibration.resolved", { count: data.calibration.resolved })}</span>
             )}
           </div>
-          <table className="mt-2 w-full text-[11px]">
+          <table className="mt-2 w-full text-micro">
             <thead>
-              <tr className="text-left text-[9px] uppercase text-steel">
+              <tr className={`text-left ${META_LABEL}`}>
                 <th className="py-1">{t("calibration.colBand")}</th>
                 <th>{t("calibration.colN")}</th>
                 <th>{t("calibration.colHireRate")}</th>
@@ -265,7 +266,7 @@ export function CalibrationPanel({
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-[11px] text-ink">{rationaleText(data.calibration.rationale)}</p>
+          <p className="mt-2 text-micro text-ink">{rationaleText(data.calibration.rationale)}</p>
         </div>
       ) : null}
 
@@ -273,11 +274,11 @@ export function CalibrationPanel({
           score; "add perf" updates the existing row (store upsert) so a known
           candidate never needs free-text re-entry that could double-count. */}
       {data && data.outcomes.length > 0 ? (
-        <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-          <h3 className="text-[9px] uppercase tracking-wide text-steel">{t("outcomes.recordedHeading", { count: Math.min(data.outcomes.length, 12) })}</h3>
-          <table className="mt-1 w-full text-[11px]">
+        <div className={`mt-2 p-3 ${PANEL}`}>
+          <h3 className={META_LABEL}>{t("outcomes.recordedHeading", { count: Math.min(data.outcomes.length, 12) })}</h3>
+          <table className="mt-1 w-full text-micro">
             <thead>
-              <tr className="text-left text-[9px] uppercase text-steel">
+              <tr className={`text-left ${META_LABEL}`}>
                 <th className="py-1">{t("outcomes.colCandidate")}</th>
                 <th>{t("outcomes.colScore")}</th>
                 <th>{t("outcomes.colOutcome")}</th>
@@ -292,7 +293,7 @@ export function CalibrationPanel({
                   <td className="py-1 font-semibold text-ink" title={row.note ?? undefined}>
                     {row.candidateRef ?? row.ref ?? "—"}
                     {row.note?.startsWith("auto-recorded") ? (
-                      <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-coral">{t("outcomes.autoBadge")}</span>
+                      <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-meta uppercase text-coral">{t("outcomes.autoBadge")}</span>
                     ) : null}
                   </td>
                   <td className="text-steel">{row.predictedScore ?? "—"}</td>
@@ -313,7 +314,7 @@ export function CalibrationPanel({
                               disabled={busy}
                               aria-label={t("outcomes.ratePerformance", { n: p })}
                               onClick={() => void addPerformance(row, p)}
-                              className="focus-ring h-5 w-5 rounded border border-stone-200 bg-white text-[10px] font-semibold text-ink hover:border-moss/50 hover:bg-moss/5 disabled:opacity-50"
+                              className="focus-ring h-6 w-6 rounded border border-stone-200 bg-white text-micro font-semibold text-ink hover:border-moss/50 hover:bg-moss/5 disabled:opacity-50"
                             >
                               {p}
                             </button>
@@ -324,7 +325,7 @@ export function CalibrationPanel({
                           type="button"
                           disabled={busy}
                           onClick={() => setPerfFor(row.id)}
-                          className="focus-ring rounded border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-steel hover:text-ink disabled:opacity-50"
+                          className="focus-ring rounded border border-stone-200 bg-white px-1.5 py-0.5 text-micro font-semibold text-steel hover:text-ink disabled:opacity-50"
                         >
                           {t("outcomes.addPerf")}
                         </button>
@@ -333,7 +334,7 @@ export function CalibrationPanel({
                       "—"
                     )}
                   </td>
-                  <td className="text-[10px] text-steel">{rel(row.recordedAt)}</td>
+                  <td className="text-micro text-steel">{rel(row.recordedAt)}</td>
                 </tr>
               ))}
             </tbody>

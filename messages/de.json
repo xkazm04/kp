@@ -132,7 +132,8 @@
       "gap": "verbleibende Lücke (innerhalb eines Schritts gezeigt)"
     },
     "explorer": {
-      "instruction": "Klicken Sie auf einen Schritt, um zu sehen, wie er verdrahtet ist. Der geöffnete Schritt bleibt hier links umrandet."
+      "instruction": "Klicken Sie auf einen Schritt, um zu sehen, wie er verdrahtet ist. Der geöffnete Schritt bleibt hier links umrandet.",
+      "codeHeading": "Code"
     },
     "status": {
       "live": "Automatisiert",
@@ -165,6 +166,68 @@
       "svgLabelUntitled": "Komponentendiagramm",
       "tooLarge": "Dieses Diagramm ist zu groß, um hier dargestellt zu werden.",
       "renderFailed": "Dieses Diagramm konnte nicht dargestellt werden."
+    },
+    "steps": {
+      "jd": {
+        "title": "Stellenanzeige verfassen",
+        "summary": "Der Freitext-Bedarf einer Recruiterin (optional plus GitHub-Repository) wird über die devcase-Kette Bedarf→Entwurf zu einer veröffentlichbaren Markdown-Stellenanzeige, wird gespeichert und in den abgleichbaren Korpus eingelesen."
+      },
+      "ingest": {
+        "title": "Anzeige → strukturierte Stelle",
+        "summary": "Richtung #1: eine verfasste oder eingefügte Anzeige wird zu einer strukturierten Stelle geparst (Muss/Kann, über die Taxonomie aufgelöste Skills, Einstiegsprofil) und in den abgleichbaren Korpus geschrieben. Per Content-Hash dedupliziert, kosten unveränderte Anzeigen also nichts."
+      },
+      "dist": {
+        "title": "Verteilung an Kandidaten",
+        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) rückt passende Kandidaten automatisch nach Screened vor (erste Bewertungswelle). Das Posten auf externen Jobbörsen bleibt manuell."
+      },
+      "apply": {
+        "title": "Bewerbung / Lebenslauf-Upload",
+        "summary": "Ein im Analyze-Tab hochgeladener Lebenslauf (PDF/DOCX/TXT/MD) wird als Subprozess an das Python-Analyse-CLI übergeben und das Ergebnis gespeichert. Das geführte Profile-Formular speichert ein strukturiertes V2-Profil."
+      },
+      "extract": {
+        "title": "Text extrahieren + LLM-Felder",
+        "summary": "Die deterministische Textextraktion (mit Reparatur von tschechischem Mojibake und gesperrter Schrift) speist ein LLM, das strukturierte Skills, Eigenschaften und Belege zurückgibt. Hinweis: der Extraktor ruft zur Laufzeit weiterhin Gemini auf (spec-widrig gegenüber der Regel „nur Claude CLI“), und für die reinen LLM-Felder gibt es noch keinen deterministischen Rückfallpfad."
+      },
+      "v2": {
+        "title": "Archetyp-Routing → V2-Profil",
+        "summary": "Richtung #2: der Lebenslauf-Pfad leitet jetzt Archetyp-Signale ab und führt detect_archetype aus, wodurch der extrahierte Lebenslauf auf ein CandidateProfileV2 mit Provenienz und Potenzial abgebildet wird. Die Kandidaten-Route und match-candidate.ts lesen den echten Archetyp statt eines fest verdrahteten BAU."
+      },
+      "match": {
+        "title": "Match: KO · Score · Begründung",
+        "summary": "Ein normalisierter Kandidat wird durch harte Ausschluss-Gates gefiltert und dann gegen den Stellen-Korpus bewertet, mit archetyp-abhängigen Gewichten über die Taxonomie-Hierarchie. Sichtbar im Match-Tab und im Matrix-Raster."
+      },
+      "screen": {
+        "title": "KI-Screening",
+        "summary": "Das fairness-geprüfte Screening (Task 1) läuft über das Claude CLI mit deterministischem Rückfallpfad. Einzeln verfügbar in beiden Stufen vor dem Interview: bei Accepted triagiert es eine frische Bewerbung nach Screened, bei Screened rückt es Richtung Interview vor. Sichere Treffer rücken vor; Berufseinsteiger und unsichere Fälle werden für die Decisions-Warteschlange zurückgehalten, nie automatisch abgelehnt."
+      },
+      "decide": {
+        "title": "Entscheidungs-Warteschlange",
+        "summary": "Das bewusste Human-in-the-Loop-Gate: zurückgestellte Kandidaten, Absagen und Zusagen sind die Entscheidung der Recruiterin. Die KI-Empfehlung fährt als Kontext mit; die Aktion ist ein Klick."
+      },
+      "engage": {
+        "title": "Ansprache + Interview-Einladung",
+        "summary": "Richtung #3: Ansprache- und Absagenachrichten werden entworfen (Claude CLI + Rückfallpfad) und tatsächlich über den Kommunikationskanal zugestellt (standardmäßig in der Warteschlange, gesendet sobald COMMS_WEBHOOK_URL gesetzt ist). Empfänger ist bislang nur das Kandidatenlabel. Ein E-Mail-/ATS-Feld ist der Haken für die Anreicherung."
+      },
+      "interview": {
+        "title": "Interview: KI-Sprachscreening → Scorecard",
+        "summary": "Die Recruiterin erstellt ein fundiertes Sprachscreening (Fragen aus der Task-4-Vorbereitung); der Kandidat absolviert es im Browser (OpenAI Realtime oder ElevenLabs). Beim Auflegen synthetisiert das Transkript eine Scorecard (Task 5) und setzt scorecard_review für das Gate Interview→Offer. Auch die Terminplanung ist live: die Annahme eines Screenings stellt den Eintrag in den Schedule-Tab, die Recruiterin erzeugt einen tokenisierten Selbstbuchungslink, den der Kommunikationskanal zustellt, und der Kandidat bestätigt einen echten datierten Termin (inklusive Umbuchung und Kalendereinladung). Das wochentagsrelative „Di 14:00“ ist nur der Startvorschlag, den ein Alteintrag trägt, bis eine Einladung existiert."
+      },
+      "offer": {
+        "title": "Angebotsentscheidung",
+        "summary": "Die Angebotssumme ist deterministisch (Rollenband × Passung) und das Anschreiben wird automatisch entworfen. Ein Mensch gibt es frei (das Gate), womit das Angebot ERTEILT und an den Kandidaten zugestellt wird."
+      },
+      "close": {
+        "title": "Angebot zustellen · Zu- oder Absage erfassen",
+        "summary": "Richtung #4: der Kandidat öffnet eine tokenisierte Angebotsseite und nimmt an oder lehnt ab. Die Annahme überführt den Eintrag nach Hired; die Absage schließt ihn. Kein blanker Menschenklick mehr am Ende."
+      },
+      "hire": {
+        "title": "Einstellungs-Übergabe an das HRIS",
+        "summary": "Endpunkt von Richtung #4: bei Hired endet die Aufgabe von kp. Der Übergang spiegelt die Einstellung in das vom Workspace konfigurierte ATS/HRIS (candidate.hired-Webhook), damit das führende System das Ergebnis ohne Neuerfassung bekommt. Was danach kommt (Papierkram, Ausstattung, erster Tag), ist bewusst Sache des HRIS, nicht dieser App."
+      },
+      "cron": {
+        "title": "Scheduler / Cron",
+        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, zeitbasierte Vorrückungen). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {

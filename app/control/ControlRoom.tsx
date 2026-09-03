@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
+import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useLoader } from "@/app/_lib/useLoader";
 import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import { pollDelayMs } from "@/app/_lib/task-poll-state";
@@ -174,9 +175,9 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
       <div className="mx-auto max-w-4xl px-6 py-8">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-            <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
-            <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
+            <p className={EYEBROW}>{t("eyebrow")}</p>
+            <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
+            <p className={`mt-1 max-w-2xl ${INTRO}`}>{t("intro")}</p>
           </div>
           <Link href="/?tab=assignments" className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40">
             {t("backToDevCases")}
@@ -190,12 +191,12 @@ export function ControlRoom({ canGovern, canOperate }: { canGovern: boolean; can
         <LoadStatus state={roomState} label="the control room" className="mt-4" />
 
         {actErr ? (
-          <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-xs font-semibold text-coral">
+          <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-micro font-semibold text-coral">
             {actErr}
           </p>
         ) : null}
         {sweep ? (
-          <p role="status" className="mt-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-xs text-ink">
+          <p role="status" className="mt-3 rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-micro text-ink">
             {t("sweep.resumed", { count: sweep.resumed })}
             {sweep.budgetExhausted ? ` ${t("sweep.budgetExhausted")}` : ""}
           </p>

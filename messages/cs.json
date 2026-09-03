@@ -132,7 +132,8 @@
       "gap": "zbývající mezera (zobrazena uvnitř kroku)"
     },
     "explorer": {
-      "instruction": "Klikněte na kterýkoli krok a uvidíte, jak je zapojen. Otevřený krok zůstává zvýrazněný tady vlevo."
+      "instruction": "Klikněte na kterýkoli krok a uvidíte, jak je zapojen. Otevřený krok zůstává zvýrazněný tady vlevo.",
+      "codeHeading": "Kód"
     },
     "status": {
       "live": "Automatizováno",
@@ -165,6 +166,68 @@
       "svgLabelUntitled": "Diagram komponent",
       "tooLarge": "Tento diagram je příliš velký, než aby se zde vykreslil.",
       "renderFailed": "Diagram se nepodařilo vykreslit."
+    },
+    "steps": {
+      "jd": {
+        "title": "Tvorba inzerátu (JD)",
+        "summary": "Volný text potřeby náboráře (volitelně i GitHub repozitář) se přes řetěz potřeba→návrh v devcase promění v publikovatelný Markdown inzerát, ten se uloží a rovnou načte do porovnávaného korpusu."
+      },
+      "ingest": {
+        "title": "Inzerát → strukturovaná pozice",
+        "summary": "Směr #1: napsaný nebo vložený inzerát se rozparsuje na strukturovanou pozici (must/nice, dovednosti dohledané v taxonomii, vstupní profil) a zapíše do porovnávaného korpusu; deduplikace podle hashe obsahu znamená, že nezměněný inzerát nic nestojí."
+      },
+      "dist": {
+        "title": "Rozeslání kandidátům",
+        "summary": "Při uložení inzerátu se pool kandidátů seřadí vůči nové pozici a založí jako záznamy ve stavu Accepted; větev Accepted v policy průchodu (směr #1) automaticky posune odpovídající kandidáty do stavu Screened (první vlna hodnocení). Zveřejnění na externích job boardech je stále ruční."
+      },
+      "apply": {
+        "title": "Přihláška kandidáta / nahrání CV",
+        "summary": "CV (PDF/DOCX/TXT/MD) nahrané v záložce Analyze se předá Python analyzačnímu CLI jako podproces a výsledek se uloží. Průvodce Profile ukládá strukturovaný profil V2."
+      },
+      "extract": {
+        "title": "Extrakce textu + pole z LLM",
+        "summary": "Deterministická extrakce textu (s opravou českého mojibake a rozestupů mezi písmeny) živí LLM, které vrací strukturované dovednosti, vlastnosti a důkazy. Pozn.: běhový extraktor stále volá Gemini (mimo spec proti pravidlu „pouze Claude CLI“) a pole závislá jen na LLM zatím nemají deterministickou záložní cestu."
+      },
+      "v2": {
+        "title": "Určení archetypu → profil V2",
+        "summary": "Směr #2: cesta CV nyní odvozuje signály archetypu a spouští detect_archetype, čímž extrahované CV mapuje na CandidateProfileV2 s proveniencí a potenciálem. Route kandidátů i match-candidate.ts čtou skutečný archetyp místo napevno zadaného BAU."
+      },
+      "match": {
+        "title": "Match: KO · skóre · zdůvodnění",
+        "summary": "Normalizovaný kandidát projde tvrdými vyřazovacími branami a pak se oboduje proti korpusu pozic s váhami podle archetypu napříč hierarchií taxonomie. Zobrazuje se v záložce Match a v mřížce Matrix."
+      },
+      "screen": {
+        "title": "AI screening",
+        "summary": "Screening hlídaný férovostí (Task 1) běží přes Claude CLI s deterministickou záložní cestou. Je dostupný po jednom v obou fázích před pohovorem: ve stavu Accepted roztřídí nového uchazeče do Screened, ve stavu Screened ho posune blíž k Interview. Jisté shody postupují; začínající kariéry a nízká jistota se odkládají do fronty Decisions, nikdy se nezamítají automaticky."
+      },
+      "decide": {
+        "title": "Fronta rozhodnutí",
+        "summary": "Záměrná brána s člověkem ve smyčce: odložení kandidáti, zamítnutí i schválení jsou volbou náboráře. Doporučení AI jede s sebou jako kontext; akcí je klik."
+      },
+      "engage": {
+        "title": "Oslovení + pozvánka na pohovor",
+        "summary": "Směr #3: oslovovací a zamítací zprávy se navrhnou (Claude CLI + záložní cesta) a skutečně odešlou komunikačním kanálem (ve výchozím stavu do fronty, odeslané jakmile je nastaveno COMMS_WEBHOOK_URL). Příjemcem je zatím jen štítek kandidáta. Pole e-mail/ATS je háček pro obohacení."
+      },
+      "interview": {
+        "title": "Pohovor: hlasový AI screening → hodnoticí karta",
+        "summary": "Náborář vytvoří ukotvený hlasový screening (otázky z přípravy v Task 4); kandidát ho absolvuje v prohlížeči (OpenAI Realtime nebo ElevenLabs). Po zavěšení se z přepisu syntetizuje hodnoticí karta (Task 5) a nastaví se scorecard_review pro bránu Interview→Offer. Živé je i plánování termínů: přijetí screeningu zařadí záznam do záložky Schedule, náborář vygeneruje tokenový odkaz na samoobslužné plánování, který doručí komunikační kanál, a kandidát potvrdí skutečný datovaný termín (včetně přeplánování a kalendářové pozvánky). Relativní „Út 14:00“ je jen zárodečný návrh, který starší záznam nese, dokud pozvánka neexistuje."
+      },
+      "offer": {
+        "title": "Rozhodnutí o nabídce",
+        "summary": "Částka nabídky je deterministická (pásmo role × fit) a dopis se navrhne automaticky. Člověk ji schválí (to je ta brána), čímž se nabídka VYSTAVÍ a odešle kandidátovi."
+      },
+      "close": {
+        "title": "Doručení nabídky · zachycení přijetí a odmítnutí",
+        "summary": "Směr #4: kandidát otevře tokenovou stránku nabídky a přijme ji, nebo odmítne. Přijetí převede záznam na Hired; odmítnutí ho uzavře. Žádný holý lidský klik na konci."
+      },
+      "hire": {
+        "title": "Předání náboru do HRIS",
+        "summary": "Konec směru #4: stavem Hired práce kp končí. Přechod zrcadlí nábor do ATS/HRIS, které si workspace nastavil (webhook candidate.hired), takže systém záznamu dostane výsledek bez přepisování. Co následuje, tedy papírování, technika a první den, je záměrně věcí HRIS, ne této aplikace."
+      },
+      "cron": {
+        "title": "Plánovač / cron",
+        "summary": "Směr #5: trvalé hodiny. Heartbeat z instrumentace tiká plánovači, ten atomicky převezme splatný běh a provede policy průchod (upomínky podle stáří, časové posuny). Ve výchozím stavu VYPNUTO. Zapíná se přepínačem v záložce Pipeline nebo přes AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {

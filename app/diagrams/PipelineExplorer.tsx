@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
 
 // bug-ui-scan-2026-07-09 (architecture-diagrams #3): status pill labels now come
@@ -53,12 +54,12 @@ export function PipelineExplorer({ source }: { source: string }) {
           switching steps while the drawer is open REMOUNTS it — re-running the
           focus-in / scroll-reset affordances instead of silently swapping content
           under a persistent instance whose mount-only focus effect never re-fires. */}
-      {active ? <StepDrawer key={active.id} detail={active.detail} onClose={() => setActive(null)} /> : null}
+      {active ? <StepDrawer key={active.id} id={active.id} detail={active.detail} onClose={() => setActive(null)} /> : null}
     </>
   );
 }
 
-function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => void }) {
+function StepDrawer({ id, detail, onClose }: { id: string; detail: StepDetail; onClose: () => void }) {
   // Deliberately NON-modal (the funnel on the left stays clickable), so focus-in +
   // restore + Escape only — never trap Tab or lock page scroll.
   const ref = useRef<HTMLElement | null>(null);
@@ -71,6 +72,13 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
   const tCommon = useTranslations("common");
 
   const cls = STATUS_CLS[detail.status];
+  // /perfect wave 21b: the title and the summary are the step's COPY and live in the
+  // four catalogs (see pipelineSteps.ts). The key is built from the funnel alias, so
+  // it cannot be a literal next-intl types statically — the same cast the control
+  // room's outcome labels take, with pipelineSteps.test.ts standing in for the check
+  // the literal would have got.
+  const stepKey = (field: "title" | "summary") => `steps.${id}.${field}` as Parameters<typeof t>[0];
+  const title = t(stepKey("title"));
   return (
     // pointer-events-none on the wrapper keeps the left half (the funnel)
     // clickable; the panel re-enables pointer events for itself.
@@ -80,13 +88,13 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
         tabIndex={-1}
         role="dialog"
         aria-modal="false"
-        aria-label={detail.title}
+        aria-label={title}
         className="animate-drawer-in pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-overlay focus:outline-none lg:w-1/2"
       >
         <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 px-6 py-4 backdrop-blur">
           <div className="min-w-0 flex-1">
             <span className={`inline-block rounded-full px-2.5 py-0.5 text-meta ${cls}`}>{t(`status.${detail.status}`)}</span>
-            <h2 className="mt-1 font-serif text-h2 text-ink">{detail.title}</h2>
+            <h2 className="mt-1 font-serif text-h2 text-ink">{title}</h2>
           </div>
           <button
             type="button"
@@ -99,10 +107,10 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
         </header>
 
         <div className="px-6 py-6">
-          <p className="max-w-2xl text-body leading-7 text-steel">{detail.summary}</p>
+          <p className="max-w-2xl text-body leading-7 text-steel">{t(stepKey("summary"))}</p>
           <PlantUml source={detail.puml} scale="natural" className="mt-5" strict />
           <div className="mt-5">
-            <p className="text-meta uppercase text-steel">Code</p>
+            <p className={META_LABEL}>{t("explorer.codeHeading")}</p>
             <ul className="mt-1 space-y-0.5">
               {detail.files.map((f) => (
                 <li key={f}>

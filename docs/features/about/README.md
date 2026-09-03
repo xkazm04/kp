@@ -22,8 +22,20 @@ machine can check are checked by `app/features/insights/about/chapters.test.ts`.
 | --- | --- |
 | `?tab=about` | `app/features/insights/about/AboutTab.tsx` |
 | Deep link to one chapter | `?tab=about#<id>` — ids in `app/features/insights/about/chapters.ts` (`job-descriptions`, `scoring`, `screening`, `archetypes`, `assignments`, `human-gates`) |
-| Out to the architecture diagrams | `/diagrams` (header link) |
+| Out to the architecture diagrams | `/diagrams` (header link, shown only to a caller holding `read` — the explorer is operator-only, see below) |
 | Out to the guided tour | the shell's `SimulationProvider` (header button, hidden while a tour is running) |
+
+**The architecture link is gated.** `/diagrams` (`app/diagrams/page.tsx`) draws
+this repository's own module paths, the endpoint behind each pipeline step and an
+explicit off-spec admission, so it is an engineering artifact rather than product
+copy. The page answers `notFound()` unless `isOperator()` — open dev mode is an
+operator, a demo-workspace cookie is not — and the header link here is hidden for
+a caller whose resolved capability set lacks `read` (the demo seat), fail-open
+while the set is still unknown, exactly as the nav rail treats a locked tab. The
+step titles and summaries the explorer's drawer renders live in
+`messages/*.json` under `diagrams.steps.<id>`; only the status, the cited repo
+paths and the PlantUML body stay in `app/diagrams/pipelineSteps.ts`, and
+`pipelineSteps.test.ts` holds the two halves in bijection.
 
 The chapter frames — number, eyebrow, title, lede, anchor, handoff link — are
 always in the server HTML (`stage/Scene.tsx`). Only the art is code-split, one
