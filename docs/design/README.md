@@ -407,6 +407,40 @@ deliberately theme-invariant surface, a real white in both registers, for
 third-party artwork only (a tenant's uploaded logo) - `white`/`paper` remain the
 role tokens for KandiDate's own surfaces.
 
+### The ratchet — a hand-typed recipe count can only fall (2026-09-03)
+
+"Adoption is opportunistic" was true and unmeasured, which is how the tree
+reached 107 lines re-typing the `PANEL` string, 76 the `META_LABEL`, 10 the
+`CHIP_QUIET`, and 62 amber advisory blocks sitting beside the `NOTICE()`
+recipe written to replace them. Each one is a surface that will NOT follow
+when a recipe is restyled — the whole value of the seam — and nothing could
+tell "107, shrinking" from "107, on the way to 150".
+
+[`app/_components/ui/recipes-literals.test.ts`](../../app/_components/ui/recipes-literals.test.ts)
+walks every `app/**/*.tsx` (`app/landing/**` excluded) and counts the literal
+forms of six recipes — `panel`, `metaLabel`, `chipQuiet`, `noticeAmber`,
+`btnAffirm`, and raw `toLocaleDateString`/`new Intl.DateTimeFormat` beside
+`useDateFormat`. The ceilings are per FILE, in
+[`recipe-debt.json`](../../app/_components/ui/recipe-debt.json) beside it, in the
+`ts-debt.json` idiom: **grew** and **undeclared** (a new file with a literal) are
+blocking, **slack** and **burnt down** print `tighten`. It runs in the ordinary
+unit gate — `npm run test:unit` — and needs no script alias.
+
+**The rule is fix-as-you-touch.** You are not asked to migrate a surface you did
+not open. You ARE asked, when you edit a file that owes something, to swap its
+literals for the recipe and lower its number in the same change:
+
+```bash
+node --experimental-transform-types app/_components/ui/recipes-literals.test.ts --tighten
+```
+
+A number is never raised to make a build green — that is editing the gate to pass
+the change (ADR 0007). A file burnt down to zero loses its entry, which locks the
+win: it is then undeclared, and the next literal to arrive there is red.
+
+Seeded 2026-09-03 at `panel=107 metaLabel=76 chipQuiet=10 noticeAmber=62
+btnAffirm=5 rawDate=15` over 168 files.
+
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.
