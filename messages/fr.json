@@ -1520,7 +1520,8 @@
     "COMMS_RELAY_SAVE_FAILED": "Impossible d’enregistrer la configuration du relais. Veuillez réessayer.",
     "PROFILE_STALE": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture. Rechargez-le et réappliquez vos modifications.",
     "ATS_CONFIG_SAVE_FAILED": "Impossible d'enregistrer les paramètres du webhook. Veuillez réessayer.",
-    "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification."
+    "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification.",
+    "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3401,7 +3402,11 @@
         "cancel": "Annuler",
         "confirm": "Rejeter et consigner le motif",
         "sealedToast": "{name} rejeté(e). Le motif figure au registre d’audit."
-      }
+      },
+      "schemeSkillsShort": "Cp",
+      "schemeCareerShort": "Ca",
+      "schemePersonalShort": "Pe",
+      "schemeWeightsTitle": "Pondération : compétences / carrière / personnel"
     },
     "empty": {
       "batonEyebrow": "Témoin passé",
@@ -3419,7 +3424,8 @@
         "applyFailed": "Échec de l’exécution : {detail}. Décision initiale des règles : {original}"
       }
     },
-    "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez."
+    "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",
+    "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7562,7 +7568,9 @@
   "setup": {
     "aria": {
       "dialog": "Configurer votre espace de travail",
-      "skip": "Ignorer la configuration pour l’instant"
+      "skip": "Ignorer la configuration pour l’instant",
+      "stepAnnounce": "Étape {index} sur {total} : {title}",
+      "stepPosition": "Étape {index} sur {total} :"
     },
     "previewRibbon": "Aperçu : rien de ce que vous faites ici ne sera enregistré",
     "rail": {
@@ -7730,8 +7738,7 @@
     "toast": {
       "saved": "Votre espace de travail est configuré",
       "partial": "Certaines étapes n’ont pas pu être enregistrées. Vous pourrez les terminer dans les Paramètres",
-      "pipelineSaved": "Les colonnes de votre tableau ont été enregistrées",
-      "pipelineFailed": "Les colonnes de votre tableau n’ont pas pu être enregistrées. Définissez-les dans Paramètres → Pipeline de recrutement"
+      "partialLead": "Certaines étapes de la configuration n’ont pas pu être enregistrées :"
     },
     "checklist": {
       "title": "Premiers pas",
@@ -7760,6 +7767,17 @@
           "listening": "En écoute. Vérifiez en recevant une candidature test."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Nom de l’entreprise",
+        "language": "Langue de l’application",
+        "invites": "Invitations d’équipe",
+        "pipeline": "Colonnes du tableau"
+      },
+      "reasonUnknown": "n’a pas pu être enregistré. Vous pouvez le terminer dans les Réglages.",
+      "line": "{part} : {reason}",
+      "lineWithAddresses": "{part} ({addresses}) : {reason}"
     }
   },
   "devcase": {

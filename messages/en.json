@@ -1520,7 +1520,8 @@
     "COMMS_RELAY_SAVE_FAILED": "Could not save the relay config. Please try again.",
     "PROFILE_STALE": "This profile was saved by someone else after you opened it. Reload it and re-apply your changes.",
     "ATS_CONFIG_SAVE_FAILED": "Could not save the webhook settings. Please try again.",
-    "ATS_CONFIG_STALE": "Someone saved newer webhook settings. Reload and make your change again."
+    "ATS_CONFIG_STALE": "Someone saved newer webhook settings. Reload and make your change again.",
+    "GROUP_EVAL_READ_FAILED": "Could not load the saved comparison. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3401,7 +3402,11 @@
         "cancel": "Cancel",
         "confirm": "Reject & record reason",
         "sealedToast": "{name} rejected. The reason is on the audit record."
-      }
+      },
+      "schemeSkillsShort": "S",
+      "schemeCareerShort": "C",
+      "schemePersonalShort": "P",
+      "schemeWeightsTitle": "Weighting: skills / career / personal"
     },
     "empty": {
       "batonEyebrow": "Baton passed",
@@ -3419,7 +3424,8 @@
         "applyFailed": "Apply failed: {detail}. Original policy decision: {original}"
       }
     },
-    "reinstateFailed": "Couldn't put this candidate back. Try again."
+    "reinstateFailed": "Couldn't put this candidate back. Try again.",
+    "evalCacheProbeFailed": "We couldn't check whether a saved comparison already exists for this selection. Re-run to compare fresh; that starts a new AI run."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7562,7 +7568,9 @@
   "setup": {
     "aria": {
       "dialog": "Set up your workspace",
-      "skip": "Skip setup for now"
+      "skip": "Skip setup for now",
+      "stepAnnounce": "Step {index} of {total}: {title}",
+      "stepPosition": "Step {index} of {total}:"
     },
     "previewRibbon": "Preview: nothing you do here will be saved",
     "rail": {
@@ -7730,8 +7738,7 @@
     "toast": {
       "saved": "Your workspace is set up",
       "partial": "Some setup steps couldn’t be saved. You can finish them in Settings",
-      "pipelineSaved": "Your board's columns were saved",
-      "pipelineFailed": "Your board's columns couldn't be saved. Set them in Settings → Hiring pipeline"
+      "partialLead": "Some setup steps couldn’t be saved:"
     },
     "checklist": {
       "title": "Getting started",
@@ -7760,6 +7767,17 @@
           "listening": "Listening. Receive a test application to verify."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Company name",
+        "language": "App language",
+        "invites": "Teammate invites",
+        "pipeline": "Board columns"
+      },
+      "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
+      "line": "{part}: {reason}",
+      "lineWithAddresses": "{part} ({addresses}): {reason}"
     }
   },
   "devcase": {

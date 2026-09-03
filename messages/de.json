@@ -1520,7 +1520,8 @@
     "COMMS_RELAY_SAVE_FAILED": "Die Relay-Konfiguration konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "PROFILE_STALE": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert. Laden Sie es neu und wenden Sie Ihre Änderungen erneut an.",
     "ATS_CONFIG_SAVE_FAILED": "Die Webhook-Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
-    "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor."
+    "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
+    "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3401,7 +3402,11 @@
         "cancel": "Abbrechen",
         "confirm": "Ablehnen & Grund erfassen",
         "sealedToast": "{name} abgelehnt. Der Grund steht im Auditprotokoll."
-      }
+      },
+      "schemeSkillsShort": "F",
+      "schemeCareerShort": "K",
+      "schemePersonalShort": "P",
+      "schemeWeightsTitle": "Gewichtung: Fähigkeiten / Karriere / Persönliches"
     },
     "empty": {
       "batonEyebrow": "Staffelstab übergeben",
@@ -3419,7 +3424,8 @@
         "applyFailed": "Ausführung fehlgeschlagen: {detail}. Ursprüngliche Regelentscheidung: {original}"
       }
     },
-    "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen."
+    "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen.",
+    "evalCacheProbeFailed": "Wir konnten nicht prüfen, ob für diese Auswahl bereits ein gespeicherter Vergleich vorliegt. Neu ausführen startet einen neuen KI-Durchlauf."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7562,7 +7568,9 @@
   "setup": {
     "aria": {
       "dialog": "Arbeitsbereich einrichten",
-      "skip": "Einrichtung vorerst überspringen"
+      "skip": "Einrichtung vorerst überspringen",
+      "stepAnnounce": "Schritt {index} von {total}: {title}",
+      "stepPosition": "Schritt {index} von {total}:"
     },
     "previewRibbon": "Vorschau: Nichts, was Sie hier tun, wird gespeichert",
     "rail": {
@@ -7730,8 +7738,7 @@
     "toast": {
       "saved": "Ihr Arbeitsbereich ist eingerichtet",
       "partial": "Einige Schritte konnten nicht gespeichert werden. Sie können sie in den Einstellungen nachholen",
-      "pipelineSaved": "Die Spalten Ihres Boards wurden gespeichert",
-      "pipelineFailed": "Die Spalten Ihres Boards konnten nicht gespeichert werden. Legen Sie sie unter Einstellungen → Hiring-Pipeline fest"
+      "partialLead": "Einige Einrichtungsschritte konnten nicht gespeichert werden:"
     },
     "checklist": {
       "title": "Erste Schritte",
@@ -7760,6 +7767,17 @@
           "listening": "Empfangsbereit. Verifizieren Sie mit einer Testbewerbung."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Firmenname",
+        "language": "App-Sprache",
+        "invites": "Team-Einladungen",
+        "pipeline": "Board-Spalten"
+      },
+      "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
+      "line": "{part}: {reason}",
+      "lineWithAddresses": "{part} ({addresses}): {reason}"
     }
   },
   "devcase": {

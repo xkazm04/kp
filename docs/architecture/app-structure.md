@@ -501,13 +501,47 @@ Backward navigation is never capped.
 
 **`finish()` is best-effort per step, never silently so**
 (`setupOnboardingFinish.ts`). Each write is allowed to fail without sinking the
-rest, but the closing toast reports what actually landed: the invite POSTs are
-`allSettled` *and* their `ok` is read, so a row the route refuses (400 malformed
-address, 403 above the caller's role, 409 already a member) downgrades
-`setup.toast.saved` to `setup.toast.partial` instead of closing on a green claim
-nobody verified. The Team step keeps the first half of that bargain by refusing
-to stage an address the route would reject at all (`SetupInviteEditor.tsx`), so
-the common mistake is caught where it is made rather than four steps later.
+rest, but the closing claim is ONE truthful fold of all of them
+(`setupFinishOutcome.ts`): every write reports a `SetupPartResult` — `landed`,
+`skipped` (an empty invite list, an untouched axis, a blank name: legitimate
+answers) or `refused` with the server's machine CODE — and `foldSetupOutcome()`
+turns those into the toast. All landed → `setup.toast.saved`; anything refused →
+`setup.toast.partialLead` followed by one line per part naming **what** did not
+land and **why**, the reason resolved from the code through `useErrorMessage()`
+so it arrives in the reader's language.
+
+This matters because none of these writes throws. `setOrgName`/`setOrgLanguage`
+return `{ ok: false, code: "ORG_SETTINGS_FORBIDDEN" }` when the caller lacks
+`org:manage` (`_lib/org-actions.ts`), `POST /api/org/invites` refuses per address
+(400 malformed, 403 above the caller's role, 409 already a member) and the axis
+write can answer 409 — a finish that only watched for exceptions closed on a green
+"your workspace is set up" while the workspace kept the seed default as its
+identity on every generated JD, offer and candidate mail. Invite results carry the
+**address** as well as the code, so the partial line names the invitee that was
+refused. The Team step keeps the first half of that bargain by refusing to stage
+an address the route would reject at all (`SetupInviteEditor.tsx`), so the common
+mistake is caught where it is made rather than four steps later.
+
+**The wizard survives a reload** (`setupDraft.ts` + `useSetupDraft.ts`, live mode
+only). Answers are mirrored into `sessionStorage` under a key scoped to the
+principal — `GET /api/me/onboarding` answers the same user-else-workspace identity
+the stamp writes under, because session storage outlives a logout inside one tab
+and the next person to sign in must not inherit a half-typed setup. Only the
+operator's own answers travel (name, accent, logo, invites, consent, the axis
+*draft*, the step); `pipeline.stored`/`counts` and the brain probe are re-read from
+the server, so the dirty check keeps comparing against real truth. The merge lets
+anything typed in this mount win over the restored value, and finishing or
+dismissing clears the slot — a dismissal is an answer, not an interruption.
+
+**It is a real dialog.** The overlay uses the shared `useDialogA11y()` (focus in
+on open, Tab trapped, Escape dismisses, page scroll locked), so it joins the same
+stack every other modal is on instead of running a bare `keydown` listener beside
+an `aria-modal` it never enforced. Each step change moves focus to the step's
+`<h2>` (`SetupWizardStepPane.tsx`, remounted per step so the move happens after
+the crossfade) and updates a persistent `aria-live` region with
+`setup.aria.stepAnnounce`; the org-name field therefore carries no `autoFocus` —
+two effects racing for focus on one commit is a coin flip, and the announcement
+has to win.
 
 **Step 4 replaced a "First role" step** that collected the inputs of a real
 backgrounded JD build. Authoring a job description belongs in the Library, where a

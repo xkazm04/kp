@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sendSetupInvites } from "./setupOnboardingFinish";
+import { everyInviteLanded } from "./setupFinishOutcome";
 import type { SetupInvite } from "./setupSteps";
 
 // The wizard's closing toast keys off this one boolean, and the trap it guards is
@@ -28,46 +29,77 @@ async function withFetch<T>(impl: (url: string, init?: RequestInit) => Promise<R
 const ok = () => Promise.resolve(new Response(JSON.stringify({ invite: {} }), { status: 200 }));
 
 test("every invite accepted → landed", async () => {
-  const landed = await withFetch(ok, () => sendSetupInvites(INVITES));
-  assert.equal(landed, true);
+  const results = await withFetch(ok, () => sendSetupInvites(INVITES));
+  assert.equal(everyInviteLanded(results), true);
+  assert.deepEqual(
+    results.map((r) => r.email),
+    ["jana@acme.com", "petr@acme.com"]
+  );
 });
 
 test("nobody invited is not a failure (the blank-tenant default: Team is skippable)", async () => {
-  const landed = await withFetch(
+  const results = await withFetch(
     () => Promise.reject(new Error("must not be called")),
     () => sendSetupInvites([])
   );
-  assert.equal(landed, true);
+  assert.equal(everyInviteLanded(results), true);
+  assert.deepEqual(results, []);
 });
 
 test("a 400 from the route is NOT a landed invite", async () => {
   // What an address the operator mistyped actually produces:
   // `if (!email || !email.includes("@")) return 400 "A valid email is required."`.
   let calls = 0;
-  const landed = await withFetch(() => {
+  const results = await withFetch(() => {
     calls += 1;
     return calls === 1
-      ? Promise.resolve(new Response(JSON.stringify({ error: "A valid email is required." }), { status: 400 }))
+      ? Promise.resolve(
+          new Response(JSON.stringify({ error: "A valid email is required.", code: "INVITE_EMAIL_INVALID" }), { status: 400 })
+        )
       : ok();
   }, () => sendSetupInvites(INVITES));
   assert.equal(calls, 2, "the other invite is still attempted — best-effort per invite");
-  assert.equal(landed, false);
+  assert.equal(everyInviteLanded(results), false);
+  // The ADDRESS and the machine CODE both survive the batch, so the partial toast
+  // can say which invitee was refused and why — in the reader's language, never
+  // from the server's English `error` string.
+  assert.deepEqual(results, [
+    { email: "jana@acme.com", ok: false, code: "INVITE_EMAIL_INVALID" },
+    { email: "petr@acme.com", ok: true, code: null },
+  ]);
 });
 
 test("a 409 (already an active member) is NOT a landed invite", async () => {
-  const landed = await withFetch(
-    () => Promise.resolve(new Response(JSON.stringify({ error: "That person is already an active member." }), { status: 409 })),
+  const results = await withFetch(
+    () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "That person is already an active member.", code: "INVITE_ALREADY_MEMBER" }), {
+          status: 409,
+        })
+      ),
     () => sendSetupInvites([INVITES[0]])
   );
-  assert.equal(landed, false);
+  assert.equal(everyInviteLanded(results), false);
+  assert.equal(results[0].code, "INVITE_ALREADY_MEMBER");
 });
 
 test("a network rejection is NOT a landed invite", async () => {
-  const landed = await withFetch(
+  const results = await withFetch(
     () => Promise.reject(new Error("offline")),
     () => sendSetupInvites(INVITES)
   );
-  assert.equal(landed, false);
+  assert.equal(everyInviteLanded(results), false);
+  // No response means no code: the toast falls back to its localized generic
+  // rather than inventing a reason the server never gave.
+  assert.deepEqual(results.map((r) => r.code), [null, null]);
+});
+
+test("a refusal with an unparseable body still reports the address", async () => {
+  const results = await withFetch(
+    () => Promise.resolve(new Response("<html>gateway</html>", { status: 502 })),
+    () => sendSetupInvites([INVITES[1]])
+  );
+  assert.deepEqual(results, [{ email: "petr@acme.com", ok: false, code: null }]);
 });
 
 test("posts the staged email and role verbatim", async () => {

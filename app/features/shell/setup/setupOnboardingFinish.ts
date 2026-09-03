@@ -1,22 +1,47 @@
 // The "persist everything the wizard collected" body of OnboardingExperience's
 // finish(), split out so the component stays under the 200-line file cap.
-// Same best-effort-per-step contract (a failing invite must not sink the rest);
-// throws are left for the caller's try/catch to turn into the generic "partial"
-// toast.
-import type { useTranslations } from "next-intl";
+//
+// Best-effort PER STEP (a refused invite must not sink the org name) but never
+// SILENT: every write reports a SetupPartResult and the caller folds them into ONE
+// truthful closing claim (setupFinishOutcome.ts). This module raises no toast of
+// its own — it has no business deciding what the operator is told, and two writes
+// each toasting their own verdict is how the wizard used to end with a green
+// "Your workspace is set up" over a red pipeline error.
 import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
-import { toast } from "@/app/_components/toast-store";
 import { axisEqualsStored, draftToStored } from "@/app/features/shared/pipelineAxisDraft";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
+import {
+  foldSetupOutcome,
+  inviteBatchResult,
+  type SetupFinishOutcome,
+  type SetupInviteResult,
+  type SetupPartResult,
+} from "./setupFinishOutcome";
 import type { SetupInvite, SetupState } from "./setupSteps";
 
-export async function persistOnboardingSetup(state: SetupState, t: ReturnType<typeof useTranslations>): Promise<void> {
+export async function persistOnboardingSetup(state: SetupState): Promise<SetupFinishOutcome> {
+  const results: SetupPartResult[] = [];
+
+  // Both org settings are REFUSABLE, not merely failable: since the org:manage
+  // gate landed on them (org-actions.ts), a recruiter finishing the wizard gets
+  // `{ ok: false, code: "ORG_SETTINGS_FORBIDDEN" }` and nothing is written. The
+  // old finish() discarded both return values, so the workspace kept the seed
+  // default as its identity on every generated JD, offer and candidate mail while
+  // the wizard closed green.
   const name = state.orgName.trim();
-  if (name) await setOrgName(name);
-  await setOrgLanguage(state.language);
+  if (!name) results.push({ part: "orgName", status: "skipped" });
+  else {
+    const res = await setOrgName(name);
+    results.push(res.ok ? { part: "orgName", status: "landed" } : { part: "orgName", status: "refused", code: res.code });
+  }
+  const lang = await setOrgLanguage(state.language);
+  results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
 
   // Brand (optional): merge over the current config — PUT replaces the whole
-  // record, and onboarding must not clobber a displayName set elsewhere.
+  // record, and onboarding must not clobber a displayName set elsewhere. Not part
+  // of the fold: the accent and the logo are decoration the operator can redo in
+  // Settings in one click, and naming them in the closing sentence would crowd out
+  // the writes that decide who can do what.
   const logo = state.logoUrl.trim();
   if (state.accentColor || logo) {
     try {
@@ -39,18 +64,14 @@ export async function persistOnboardingSetup(state: SetupState, t: ReturnType<ty
     }
   }
 
-  const invitesLanded = await sendSetupInvites(state.invites);
-
-  await persistPipelineAxis(state, t);
+  results.push(inviteBatchResult(await sendSetupInvites(state.invites)));
+  results.push(await persistPipelineAxis(state));
   await persistCompanionConsent(state);
-  // The closing claim is the one the operator carries into the app, so it reports
-  // what actually landed rather than what was attempted.
-  if (invitesLanded) toast.success(t("toast.saved"));
-  else toast.error(t("toast.partial"));
+  return foldSetupOutcome(results);
 }
 
 /**
- * Fire every staged invite; report whether they ALL landed.
+ * Fire every staged invite; report EACH one's outcome.
  *
  * Best-effort PER INVITE (one refusal must not sink the rest — hence allSettled),
  * but never SILENT. `POST /api/org/invites` refuses a malformed address (400), a
@@ -61,11 +82,15 @@ export async function persistOnboardingSetup(state: SetupState, t: ReturnType<ty
  * the hand-off summary said "1 teammate invited". The Organization console
  * already reports the same three refusals (settings/workspace/WorkspaceTab.tsx).
  *
+ * The route answers each refusal with a machine CODE (jsonRefusal), so the address
+ * AND the reason travel back rather than collapsing to one boolean — the partial
+ * toast can then say which invitee was refused and why, in the reader's language.
+ *
  * Nobody invited is not a failure: an empty list lands vacuously, because
  * skipping the Team step is the documented default answer.
  */
-export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise<boolean> {
-  const results = await Promise.allSettled(
+export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise<SetupInviteResult[]> {
+  const settled = await Promise.allSettled(
     invites.map((inv) =>
       fetch("/api/org/invites", {
         method: "POST",
@@ -74,7 +99,17 @@ export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise
       })
     )
   );
-  return results.every((r) => r.status === "fulfilled" && r.value.ok);
+  return Promise.all(
+    settled.map(async (r, i): Promise<SetupInviteResult> => {
+      const email = invites[i].email;
+      // A network rejection has no response and therefore no code: the toast falls
+      // back to the generic "couldn't be saved" line rather than inventing one.
+      if (r.status !== "fulfilled") return { email, ok: false, code: null };
+      if (r.value.ok) return { email, ok: true, code: null };
+      const body = (await r.value.json().catch(() => null)) as { code?: unknown } | null;
+      return { email, ok: false, code: typeof body?.code === "string" ? body.code : null };
+    })
+  );
 }
 
 /**
@@ -92,9 +127,9 @@ export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise
  * of birthing a brain. `birth` is idempotent server-side, so a double finish
  * cannot make two.
  *
- * Silent on failure by design — the consent question is re-askable and nothing
- * downstream is broken by a missed stamp (the dock simply stays memoryless), so
- * a red toast about the companion at the end of a successful setup would be
+ * Silent on failure by design — and therefore NOT a part of the fold: the consent
+ * question is re-askable and nothing downstream is broken by a missed stamp (the
+ * dock simply stays memoryless), so naming it in the closing sentence would be
  * noise. The pipeline write, which CHANGES the board, is the one that speaks up.
  */
 async function persistCompanionConsent(state: SetupState): Promise<void> {
@@ -127,20 +162,21 @@ async function persistCompanionConsent(state: SetupState): Promise<void> {
  * and the operator is told to finish the change in Settings rather than being
  * shown a green lie.
  */
-async function persistPipelineAxis(state: SetupState, t: ReturnType<typeof useTranslations>): Promise<void> {
+async function persistPipelineAxis(state: SetupState): Promise<SetupPartResult> {
   const pipeline = state.pipeline;
-  if (state.pipelineLoad !== "ready" || !pipeline) return;
+  if (state.pipelineLoad !== "ready" || !pipeline) return { part: "pipeline", status: "skipped" };
   const savedStages: StageDef[] = pipeline.stored.stages.map((s) => ({ ...(s as StageDef) }));
-  if (axisEqualsStored(pipeline.draft, pipeline.stored, savedStages)) return;
+  if (axisEqualsStored(pipeline.draft, pipeline.stored, savedStages)) return { part: "pipeline", status: "skipped" };
   try {
     const res = await fetch("/api/pipeline/stage-migration", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ config: draftToStored(pipeline.draft, savedStages), migrate: {} }),
     });
-    if (res.ok) toast.success(t("toast.pipelineSaved"));
-    else toast.error(t("toast.pipelineFailed"));
+    if (res.ok) return { part: "pipeline", status: "landed" };
+    const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
+    return { part: "pipeline", status: "refused", code: typeof body?.code === "string" ? body.code : null };
   } catch {
-    toast.error(t("toast.pipelineFailed"));
+    return { part: "pipeline", status: "refused", code: null };
   }
 }
