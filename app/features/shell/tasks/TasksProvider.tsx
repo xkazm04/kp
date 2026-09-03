@@ -1,10 +1,17 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { tasksSignature } from "@/app/_lib/task-view";
+import {
+  initialTasksPollState,
+  pollDelayMs,
+  queueUnreachable,
+  tasksPollReducer,
+  type TasksPollEvent,
+  type TasksPollState,
+} from "@/app/_lib/task-poll-state";
 import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
-import { ACTIVE, type Task, type TaskStartError, type TasksCtx } from "./tasksProviderTypes";
+import { ACTIVE, type Task, type TasksCtx } from "./tasksProviderTypes";
 
 export type { Task, TaskStatus, TaskStartError } from "./tasksProviderTypes";
 // useTaskResult lives in its own module (useTaskResult.ts) so this file stays
@@ -37,33 +44,30 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     },
     [tErrors]
   );
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [startError, setStartError] = useState<TaskStartError | null>(null);
-  // Did the LAST poll actually reach the queue? A dropped fetch or a 500 leaves
-  // `tasks` at its previous value — which on a first load is `[]`, indistinguishable
-  // from a genuinely empty window. Without this flag the tab flipped `loaded` on a
-  // FAILED refresh and asserted "No recent AI tasks" over runs it had not read.
-  const [loadFailed, setLoadFailed] = useState(false);
+  // ONE reducer for the polled rows, the health flags and the last action error —
+  // extracted to app/_lib/task-poll-state.ts so node --test can pin the parts that
+  // used to live untested inside this .tsx: the signature bail-out (an unchanged
+  // poll returns the SAME state object, so no consumer re-renders), the loadFailed
+  // third state, and the consecutive-failure count the backoff below reads.
+  const [state, dispatch] = useReducer(
+    tasksPollReducer as (s: TasksPollState<Task>, e: TasksPollEvent<Task>) => TasksPollState<Task>,
+    undefined,
+    initialTasksPollState<Task>
+  );
+  const { tasks, startError, loadFailed } = state;
 
   const refresh = useCallback(async () => {
     try {
       const r = await fetch("/api/tasks");
       const p = (await r.json().catch(() => ({}))) as { tasks?: unknown };
       if (!r.ok || !Array.isArray(p.tasks)) {
-        setLoadFailed(true);
+        dispatch({ type: "pollFailed" });
         return;
       }
-      setLoadFailed(false); // same value ⇒ React bails out; no extra render on a healthy poll
-      const next = p.tasks as Task[];
-      // The 2s poll parses a fresh array every tick, so an unconditional
-      // setTasks committed a NEW reference even when nothing changed —
-      // re-rendering every useTasks() consumer for the whole life of a running
-      // task. Commit only when a cheap rendered-state signature actually differs;
-      // an unchanged poll returns the SAME reference and is a no-op.
-      setTasks((prev) => (tasksSignature(prev) === tasksSignature(next) ? prev : next));
+      dispatch({ type: "polled", tasks: p.tasks as Task[] });
     } catch {
-      /* transient — next tick retries, and the flag lets the view say so meanwhile */
-      setLoadFailed(true);
+      /* transient — the next (backed-off) tick retries, and the flag lets the view say so meanwhile */
+      dispatch({ type: "pollFailed" });
     }
   }, []);
 
@@ -77,13 +81,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         });
         const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string; code?: string };
         if (!r.ok) throw new Error(errMsg(p, t("startErrorTitle")));
-        setStartError(null);
+        dispatch({ type: "actionOk" });
         void refresh();
         return p.task as Task;
       } catch (e) {
         // Don't swallow it: a 400 (unknown kind), a 500, or a dropped network call
         // would otherwise make the click a silent no-op. Surface it via the indicator.
-        setStartError({ kind, message: e instanceof Error && e.message ? e.message : t("unreachable") });
+        dispatch({ type: "actionFailed", kind, message: e instanceof Error && e.message ? e.message : t("unreachable") });
         return null;
       }
     },
@@ -100,7 +104,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         // Same contract as startTask: a dead Cancel must never be silent — the
         // task keeps running and the user would conclude the button is broken.
-        setStartError({ kind: "cancel", message: e instanceof Error && e.message ? e.message : t("unreachable") });
+        dispatch({ type: "actionFailed", kind: "cancel", message: e instanceof Error && e.message ? e.message : t("unreachable") });
       }
     },
     [refresh, t, errMsg]
@@ -112,12 +116,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const r = await fetch(`/api/tasks/${id}/retry`, { method: "POST" });
         const p = (await r.json().catch(() => ({}))) as { task?: Task; error?: string; code?: string };
         if (!r.ok) throw new Error(errMsg(p, t("startErrorTitle")));
-        setStartError(null);
+        dispatch({ type: "actionOk" });
         void refresh();
         return p.task ?? null;
       } catch (e) {
         // Same contract as startTask: a dead retry click must never be silent.
-        setStartError({ kind: "retry", message: e instanceof Error && e.message ? e.message : t("unreachable") });
+        dispatch({ type: "actionFailed", kind: "retry", message: e instanceof Error && e.message ? e.message : t("unreachable") });
         return null;
       }
     },
@@ -147,6 +151,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     anyActive.current = tasks.some(ACTIVE);
   }, [tasks]);
+  // The consecutive-failure count the loop re-arms on, mirrored into a ref for the
+  // same reason as `anyActive`: the loop is created once and reads it on its next
+  // tick. Without it the poll re-armed at a flat 2s against a DEAD endpoint —
+  // 30 requests a minute per open tab, for as long as the server stayed down.
+  const failures = useRef(0);
+  useEffect(() => {
+    failures.current = state.failures;
+  }, [state.failures]);
   useEffect(() => {
     // Deferred kick-off: the first refresh runs on an immediate (0 ms) timer
     // tick rather than synchronously in the effect body — refresh sets state,
@@ -158,7 +170,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
       timeout = window.setTimeout(async () => {
         if (!document.hidden) await refresh();
-        loop(anyActive.current ? 2000 : 6000);
+        loop(pollDelayMs(anyActive.current, failures.current));
       }, delay);
     };
     loop(0);
@@ -171,7 +183,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refresh]);
 
-  const clearStartError = useCallback(() => setStartError(null), []);
+  const clearStartError = useCallback(() => dispatch({ type: "clearError" }), []);
 
   // Read/unread ack: stamp seen_at server-side, then refresh so the indicator
   // badge clears on the next paint. Best-effort — a failed ack just leaves the
@@ -213,8 +225,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       clearStartError,
       markSeen,
       loadFailed,
+      queueUnreachable: queueUnreachable(state),
     }),
-    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen, loadFailed]
+    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen, loadFailed, state]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

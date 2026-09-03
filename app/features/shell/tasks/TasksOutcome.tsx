@@ -1,65 +1,20 @@
 "use client";
 
 // DATA5 — a finished task's outcome drawer: the compact result summary plus the
-// deep link back to the entity the run concerned. Split out of the row component
-// (was TasksDoneRow.tsx, now TasksTableRow.tsx) so both stay under the 200-line
-// file cap. Same derivation as before.
+// deep link back to the entity the run concerned.
+//
+// The derivation moved OUT of this file (app/_lib/task-outcome-summary.ts) for one
+// reason: a .tsx cannot be loaded by the node test runner, so the per-kind result
+// reading and the deep-link routing had no test at all — and it showed. Every kind
+// but batch_screen fell through an `Object.entries(result)` dump that printed the
+// raw handler key in mono beside `String(value)`: the whole generated JD under
+// `markdown`, `cached true`, `narrativeLang en`, `source deterministic`. Internal
+// vocabulary, untranslated in all four locales, to the one person who opens this
+// drawer. Now a pure table decides WHAT is said and this file only paints it.
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { taskOutcomeLink, taskOutcomeSummary } from "@/app/_lib/task-outcome-summary";
 import type { Task } from "./TasksProvider";
-
-// The deep-link targets a finished task offers. `key` names the copy in
-// `tasks.outcome.*` rather than carrying a sentence — this is a pure router-ish
-// derivation and holds no strings a user reads.
-type OutcomeKey =
-  | "openSavedReport"
-  | "openJdLibrary"
-  | "openRoleDecisions"
-  | "openDecisions"
-  | "reviewInDecisions"
-  | "openSchedule"
-  | "openBoard";
-
-// batch_screen gets its rich counts; everything else falls back to the result's
-// scalar fields (the generic shape readable without per-kind plumbing). The deep
-// link is derived from params/result so a task row connects back to the entity it
-// concerned.
-function outcomeLink(task: Task): { href: string; key: OutcomeKey } | null {
-  const params = (task.params as Record<string, unknown>) ?? {};
-  const result = (task.result as Record<string, unknown>) ?? {};
-  if (task.kind === "analyze") {
-    const persistence = result["persistence"] as { slug?: unknown } | undefined;
-    if (persistence && typeof persistence.slug === "string" && persistence.slug) {
-      return { href: `/history/${encodeURIComponent(persistence.slug)}`, key: "openSavedReport" };
-    }
-    return null;
-  }
-  // The task id rides along (?jdTask=) so JdBuilder can rehydrate this build's
-  // generated JD — a bare /?tab=library landed on an empty builder, because the
-  // tab switch had unmounted the component that held the result.
-  if (task.kind === "jd_build") {
-    return { href: `/?tab=library&jdTask=${encodeURIComponent(task.id)}`, key: "openJdLibrary" };
-  }
-  // Decision-shaped runs land their output in the Decisions queue: a group eval
-  // saves per-role (the ?job= filter isolates it), a batch screen raises
-  // holds/reviews there.
-  if (task.kind === "group_eval") {
-    const jobId = params["jobId"] ?? params["roleKey"];
-    return typeof jobId === "string" && jobId
-      ? { href: `/?tab=decisions&job=${encodeURIComponent(jobId)}`, key: "openRoleDecisions" }
-      : { href: "/?tab=decisions", key: "openDecisions" };
-  }
-  if (task.kind === "batch_screen") return { href: "/?tab=decisions", key: "reviewInDecisions" };
-  // Prep artifacts are opened from the Schedule tab's candidate cards.
-  if (task.kind === "interview_prep") return { href: "/?tab=schedule", key: "openSchedule" };
-  // Entry-scoped kinds carry a label; ANA1's board ?q= filter isolates the
-  // candidate (no per-entry deep link exists).
-  const entryLabel = params["entryLabel"] ?? params["candidateLabel"];
-  if (typeof entryLabel === "string" && entryLabel) {
-    return { href: `/?tab=pipeline&q=${encodeURIComponent(entryLabel)}`, key: "openBoard" };
-  }
-  return null;
-}
 
 export function TaskOutcome({ task }: { task: Task }) {
   const t = useTranslations("tasks");
@@ -69,16 +24,14 @@ export function TaskOutcome({ task }: { task: Task }) {
   // generic scalar list before — a bare `bodyHeldAsRevision  true` row, untranslated
   // and unexplained, which is the whole reason this branch exists.
   const tLibrary = useTranslations("library.tab");
-  const link = outcomeLink(task);
+  const link = taskOutcomeLink(task);
   const result = task.result && typeof task.result === "object" ? (task.result as Record<string, unknown>) : null;
-  // Scalars only: nested blobs (full analysis payloads, drafts) belong on their
-  // own surfaces — the deep link is the path to them.
   const bodyHeld = result?.["bodyHeldAsRevision"] === true;
-  const scalars = result
-    ? Object.entries(result)
-        .filter(([k, v]) => k !== "bodyHeldAsRevision" && ["string", "number", "boolean"].includes(typeof v))
-        .slice(0, 8)
-    : [];
+  // batch_screen keeps its bespoke SENTENCE (advanced / held / advisory / of total,
+  // with ICU plurals) — a four-row label/value list would be a downgrade of copy
+  // that already reads well. task-outcome-summary.ts records that exemption with
+  // its reason, and its test fails if any OTHER kind acquires one silently.
+  const lines = task.kind === "batch_screen" ? [] : taskOutcomeSummary(task.kind, result);
   return (
     <div className="space-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2">
       {bodyHeld ? (
@@ -96,16 +49,18 @@ export function TaskOutcome({ task }: { task: Task }) {
           ) : null}
           <span className="text-steel"> · {t("outcome.ofTotal", { count: Number(result["total"] ?? 0) })}</span>
         </p>
-      ) : scalars.length > 0 ? (
+      ) : lines.length > 0 ? (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
-          {scalars.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="font-mono text-steel/80">{k}</dt>
-              <dd className="min-w-0 truncate text-ink">{String(v)}</dd>
+          {lines.map((line) => (
+            <div key={line.labelKey} className="contents">
+              <dt className="text-steel">{t(`outcome.field.${line.labelKey}`)}</dt>
+              <dd className="min-w-0 truncate font-medium text-ink">
+                {line.valueKey ? t(`outcome.value.${line.valueKey}`) : String(line.value ?? "")}
+              </dd>
             </div>
           ))}
         </dl>
-      ) : (
+      ) : bodyHeld ? null : (
         <p className="text-sm text-steel">{task.status === "succeeded" ? t("outcome.noSummary") : t("outcome.noResult")}</p>
       )}
       {link ? (

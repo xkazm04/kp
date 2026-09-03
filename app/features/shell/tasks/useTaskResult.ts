@@ -12,13 +12,16 @@
 // `full.params`). A transient fetch failure leaves `full` null and retries on the
 // next poll tick. Pass null to watch nothing (e.g. before a task is started).
 import { useEffect, useRef, useState } from "react";
+import { nextResultFetchAttempts, resultFetchGaveUp } from "@/app/_lib/task-poll-state";
 import { useTasks } from "./TasksProvider";
 import type { Task, TaskStatus } from "./tasksProviderTypes";
 
-/** OO-L2-12 — how many failed full-record fetches (for a KNOWN-terminal task)
- *  the hook tolerates before giving up. Retries ride the ~2s poll tick, so this
- *  bounds the silent-spinner window to roughly 10s instead of forever. */
-export const RESULT_FETCH_MAX_ATTEMPTS = 5;
+// OO-L2-12 — the give-up counter itself now lives in app/_lib/task-poll-state.ts
+// (pure, and pinned by task-poll-state.test.ts: a .tsx-adjacent hook cannot be
+// driven by node --test, and "how many silent retries before the spinner gives
+// up" is exactly the kind of number that rots unwatched). Re-exported here, and
+// from TasksProvider, so every existing import path keeps working.
+export { RESULT_FETCH_MAX_ATTEMPTS } from "@/app/_lib/task-poll-state";
 
 export function useTaskResult(taskId: string | null): {
   /** Live status from the poll (null when not watching a task). */
@@ -84,11 +87,11 @@ export function useTaskResult(taskId: string | null): {
       if (inFlight.current === taskId) inFlight.current = null;
       if (cancelled) return;
       if (t) {
-        failedAttempts.current = 0;
+        failedAttempts.current = nextResultFetchAttempts(failedAttempts.current, true);
         setFetched(t);
       } else if (attemptsFor.current === taskId) {
-        failedAttempts.current += 1;
-        if (failedAttempts.current >= RESULT_FETCH_MAX_ATTEMPTS) setGaveUpId(taskId);
+        failedAttempts.current = nextResultFetchAttempts(failedAttempts.current, false);
+        if (resultFetchGaveUp(failedAttempts.current)) setGaveUpId(taskId);
       }
     });
     return () => {

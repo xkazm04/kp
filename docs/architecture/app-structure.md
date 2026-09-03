@@ -449,16 +449,16 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 
 | File | Role |
 | --- | --- |
-| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the 2s/6s poll, start/cancel/retry, the read/unread ack, and `loadFailed` (the last poll did not reach the queue). Survives tab switches |
+| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the poll, start/cancel/retry, the read/unread ack, and the health flags (`loadFailed`, `queueUnreachable`). Survives tab switches. Its state machine and schedule are `app/_lib/task-poll-state.ts` |
 | `TasksIndicator.tsx` | Sidebar-footer entry: ONGOING count, unread badges, start-failure alert, load meter |
 | `TasksTab.tsx` | Header, start-error banner, the filter state (shared by the live table and the history pager) |
 | `TasksRunsPanel.tsx` | The recent window as ONE paginated table (`TablePager`, 20 rows) — and the dwell-ack, because this is where the visible page slice lives |
 | `TasksTable.tsx` | Table shell + `ColumnFilter` headers, shared by the live window and history |
-| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal |
+| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal. What the drawer SAYS is `app/_lib/task-outcome-summary.ts` |
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 
-Five decisions are load-bearing:
+Seven decisions are load-bearing:
 
 - **Retry replays the persisted params, but only when they still resolve.**
   `POST /api/tasks/[id]/retry` re-runs a failed/interrupted/canceled row
@@ -471,6 +471,24 @@ Five decisions are load-bearing:
   the rows `TasksRunsPanel` actually drew — its page slice, already narrowed by the
   column filters. Acking the whole polled window while the table paginates 20 at a
   time acknowledged outcomes on pages the reader never turned to.
+- **An outcome speaks its kind, or says nothing.** `taskOutcomeSummary(kind, result)`
+  (`app/_lib/task-outcome-summary.ts`, pure and unit-tested) returns `(label key,
+  value)` lines the drawer translates. Every kind in `HANDLERS` either has a mapper
+  or sits in `NO_TABLE_SUMMARY` with a stated reason, and the test fails on a kind
+  that has neither — before it, one kind (`batch_screen`) had a real renderer and
+  the other sixteen fell through an `Object.entries(result)` dump that printed the
+  raw handler key beside `String(value)`: the whole generated JD under `markdown`,
+  `cached true`, `source deterministic`, untranslated in all four locales. The
+  generic path is now an allowlist of the four envelope shapes every handler shares
+  (`source` / `applied` / `ok`+`total` / `cached`); a mapper reads defensively, so a
+  field it cannot find produces no line rather than a wrong one. Vocabulary tokens
+  render through `tasks.outcome.value.*`, so `held_for_review` never reaches a reader.
+- **The poll backs off when the queue stops answering.** `pollDelayMs` is 2s while
+  something is active and 6s otherwise, but after N consecutive failures it is
+  4s, 8s, 16s, 32s, then a 60s ceiling — one success resets it. A flat 2s against a
+  dead endpoint was 30 requests a minute per open tab for as long as the server was
+  down. After the SECOND consecutive failure `queueUnreachable` flips and the sidebar
+  says so: the counts and the frozen progress bar on screen are a snapshot, not live.
 - **An unread poll is not an empty one.** A dropped fetch or a 500 leaves `tasks`
   at `[]` on a first load; `loadFailed` carries that third state so the panel says
   the server is unreachable instead of asserting "No recent AI tasks" over runs it
