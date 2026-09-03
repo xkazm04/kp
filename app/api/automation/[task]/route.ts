@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getServerLocale } from "@/i18n/server";
 
@@ -12,6 +14,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ta
   // effects) — operator-only, like the bulk pass route.
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const { task } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { entryId?: string; notes?: string };

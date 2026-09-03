@@ -4,7 +4,8 @@ import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decis
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 export const maxDuration = 60;
@@ -31,6 +32,13 @@ const WAVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     // Tenant (P1): scope the whole wave — cohort read, approval token, commits, and
     // seals — to the caller's team. Without this the wave would rank and reject the

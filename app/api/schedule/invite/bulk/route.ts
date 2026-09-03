@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntriesByIds } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
 import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
@@ -10,7 +11,7 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
 
@@ -50,6 +51,13 @@ type InviteResult = {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of bulk calls (each fans out to up to BULK_INVITE_CAP

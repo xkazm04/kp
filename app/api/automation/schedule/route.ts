@@ -10,10 +10,11 @@ import {
 } from "@/app/_lib/scheduler-store";
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { ensureDb } from "@/app/_lib/db/core";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Forcing a tick runs a FULL policy pass — a Python-spawning sweep over every
@@ -86,6 +87,13 @@ export async function POST(request: NextRequest) {
   // Operator-only: toggling the clock / forcing a tick arms autonomous outreach.
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json()) as {
       enabled?: boolean;

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { readJdBuildOptions } from "@/app/_lib/jd-build-run";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { validateJdBuildInput } from "@/app/_lib/jd-limits";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 
 // THROTTLE: one accepted Generate buys a 1-2 minute PAID build (need analysis +
 // role design + a grounded market-salary lookup, each a spawned child and, with a
@@ -31,6 +32,13 @@ export async function POST(request: Request) {
   // KP_OPERATOR_PASSWORD) is a no-op, so dev/sim are unaffected.
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   let body: unknown;
   try {
     body = await request.json();
