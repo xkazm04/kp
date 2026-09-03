@@ -46,6 +46,25 @@ default team: on any other workspace the lookup missed and every relayed
 message shipped with `candidate`/`job`/`stage` null, leaving the receiving ATS
 unable to map it back to a person. Locked by `comms-tenancy.test.ts`.
 
+### The simulation never reaches a relay
+
+The guided tour (`app/features/shell/simulation`) seeds candidates and then drives
+the real invite and offer paths, so with a relay configured a demo run used to POST
+a schedule invite and an offer letter about a SEEDED profile to the customer's mail
+relay: nothing in this module knew the `(SIM)` marker existed.
+
+`sendCommUnlessSim` (`comms-dispatch.ts`) is the guard. It reads `isSimTitle`
+(`app/features/shell/simulation/constants.ts` — the same predicate the sim writer
+stamps with, `resetSim` purges by and the analytics filters exclude) off the pipeline
+entry's **`jobTitle`**, and for a marked entry writes the row straight to the local
+outbox on channel `simulation` with status `queued` instead of calling
+`getCommsChannel()`. The row is still recorded — the demo's Outbox entry is part of
+what the tour shows, and `queued` is the honest "recorded locally, nothing will
+deliver it" terminal state; `sent` would be a lie. Every candidate-facing dispatcher
+inherits it through `sendCandidateComm`, and the two direct senders (the KO decline
+and the interviewer brief) pass their own title. Pinned by
+`app/_lib/comms-dispatch-sim.test.ts`.
+
 ## 2. The status contract (single source of truth)
 
 Defined once in `comms-status.ts` as `OUTBOX_STATUSES` / `OutboxStatus`.

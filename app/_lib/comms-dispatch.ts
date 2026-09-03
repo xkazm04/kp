@@ -1,4 +1,6 @@
-import { sendComm } from "./comms";
+import { sendComm, type OutboundMessage } from "./comms";
+import { recordOutbox, type OutboxEntry } from "./db/devcase";
+import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import type { OutboxStatus } from "./comms-status";
 import type { PipelineEntry } from "./db/core";
 import { ensureErasureToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
@@ -134,6 +136,11 @@ async function candidateLinkBase(): Promise<string> {
 // no entry id) can use the same wrapper.
 type CandidateCommTarget = {
   id?: string | null;
+  // The SIM guard's input: a `(SIM)`-marked title means this comm is a demo
+  // artifact and must never be handed to a real relay (see sendCommUnlessSim).
+  // Optional only because two callers pass a structural subtype — both of those
+  // carry a jobTitle of their own.
+  jobTitle?: string | null;
   candidateLabel?: string | null;
   candidateId?: string | null;
   contact?: string | null;
@@ -158,6 +165,46 @@ async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator, locale
   return "\n\n" + t("dataFooter", { link });
 }
 
+// --- The SIMULATION guard ------------------------------------------------------
+//
+// The guided tour (app/features/shell/simulation) seeds candidates and then drives
+// the REAL invite/offer paths — the demo's whole claim is that nothing is faked. So
+// with a relay configured (COMMS_WEBHOOK_URL or the UI-configured one), a demo run
+// POSTed a schedule invite and an offer letter about a SEEDED profile to the
+// customer's real mail relay. Nothing in this module knew the marker existed.
+//
+// THE FIELD: `jobTitle` on the pipeline entry the comm is about — the one the sim
+// writer stamps (simCvIntakeTarget / markSimTitle), resetSim purges by and the
+// analytics read-side filter excludes. Same predicate as all three (`isSimTitle`),
+// so a marker change moves the writer, the purge, the filters AND this guard at once.
+// Entry-less dispatches pass the title they hold (a KO decline's `input.jobTitle`).
+//
+// WHAT IT DOES: records the row — the demo's Outbox entry is half of what the tour
+// shows, and dropping it silently would be its own lie — but writes it directly to
+// the local outbox on the `simulation` channel instead of handing it to the channel
+// resolver, so no relay is ever contacted for a simulated candidate.
+//
+// STATUS: `queued`, the outbox's honest "recorded locally, nothing will deliver it"
+// terminal state (comms-status.ts). It is NOT `sent`: a simulated letter reached
+// nobody. There is no `skipped` member in OUTBOX_STATUSES — adding one would touch
+// the enum, the db column contract and every UI that styles by it — so the CHANNEL
+// carries the reason and the status stays truthful.
+export const SIM_COMMS_CHANNEL = "simulation";
+
+async function sendCommUnlessSim(msg: OutboundMessage, jobTitle: string | null | undefined): Promise<OutboxEntry> {
+  if (!isSimTitle(jobTitle)) return sendComm(msg);
+  return recordOutbox({
+    recipient: msg.to,
+    subject: msg.subject,
+    body: msg.body,
+    kind: msg.kind,
+    channel: SIM_COMMS_CHANNEL,
+    status: "queued",
+    ref: msg.ref,
+    workspaceId: msg.workspaceId,
+  });
+}
+
 // Candidate-facing send: identical to sendComm but auto-appends the GDPR data
 // footer and defaults `to`/`ref` from the entry, so every applicant comm carries
 // the self-service erasure link without each dispatcher re-deriving it.
@@ -173,7 +220,7 @@ async function sendCandidateComm(
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
 ): Promise<OutboxStatus> {
-  const recorded = await sendComm({
+  const recorded = await sendCommUnlessSim({
     to: candidateRecipient(entry),
     subject: msg.subject,
     body: msg.body + (await dataFooter(entry, t, locale)),
@@ -182,7 +229,7 @@ async function sendCandidateComm(
     // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
     // ref on an entry-less dispatch). Ignored whenever the entry resolves.
     workspaceId: msg.workspaceId,
-  });
+  }, entry.jobTitle);
   return recorded.status;
 }
 
@@ -366,7 +413,7 @@ export async function dispatchKnockoutDecline(input: {
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
   const body = t("koDecline.body", { name, role, team: t("team") });
-  await sendComm({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId });
+  await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle);
 }
 
 /**
@@ -501,7 +548,9 @@ export async function dispatchInterviewerBrief(
     }
   }
 
-  await sendComm({ to: address, subject, body, kind: "interviewer_brief", ref: entry.id ?? undefined });
+  // The interviewer is org-side staff, but a brief about a SEEDED candidate is still
+  // demo traffic — same guard, same marker (the entry's own role title).
+  await sendCommUnlessSim({ to: address, subject, body, kind: "interviewer_brief", ref: entry.id ?? undefined }, entry.jobTitle);
   if (entry.id) recordAutomationEvent(entry.id, "interviewer_brief_sent", name, entry.workspaceId);
   return true;
 }
