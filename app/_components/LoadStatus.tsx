@@ -50,7 +50,7 @@ export function LoadStatus({
   }
 
   return (
-    <div role="alert" className={`flex items-center gap-2 ${NOTICE("amber")} px-3 py-2 text-xs ${className}`}>
+    <div role="alert" className={`flex items-center gap-2 ${NOTICE("amber")} px-3 py-2 text-micro ${className}`}>
       <AlertTriangle size={14} className="shrink-0" />
       <span>{seen ? t("refreshFailed", { label, ago }) : t("loadFailed", { label })}</span>
     </div>
