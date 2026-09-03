@@ -1568,7 +1568,12 @@
     "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",
     "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
     "FORBIDDEN_CAPABILITY": "Your role does not allow this action.",
-    "forbiddenCapabilityNeeds": "Your role does not allow this action. It needs the “{capability}” permission."
+    "forbiddenCapabilityNeeds": "Your role does not allow this action. It needs the “{capability}” permission.",
+    "TEMPLATE_NOT_FOUND": "That template no longer exists.",
+    "TEMPLATE_LAST_ONE": "This is the last template your team can see. Keep at least one.",
+    "TEMPLATE_IS_DEFAULT": "This is the default template. Set another template as the default before deleting it.",
+    "TEMPLATE_STALE": "Someone else saved this template while you were editing. Reload it and reapply your changes.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Only a template shared with the whole company can be the default."
   },
   "resilience": {
     "notFoundEyebrow": "404",

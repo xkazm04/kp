@@ -122,20 +122,75 @@ export function createTemplate(
   return getTemplate(id, workspaceId)!;
 }
 
-/** Edit a template the team can see (its own draft, or the shared library). A team
- *  can't edit another team's private template (the WHERE guard). */
+/** Why a template write was refused. Machine reasons, not prose — the route turns
+ *  each into a REFUSAL code the reader's own language resolves. */
+export type TemplateWriteFailure = "notFound" | "conflict";
+
+/** Why a delete was refused: the row isn't visible to this team, it is the last
+ *  template the team can see, or it is the org default. */
+export type TemplateDeleteFailure = "notFound" | "last" | "default";
+
+/** The outcome of an edit. `template` on the failure branch is the row as it stands
+ *  NOW, so a conflicted client can reload the winner instead of re-fetching. */
+export type TemplateUpdateResult =
+  | { ok: true; template: JdTemplate }
+  | { ok: false; reason: TemplateWriteFailure; template?: JdTemplate };
+
+/** Edit a template the team can see (its own draft, or the shared library), with an
+ *  OPTIONAL compare-and-swap on `updatedAt`.
+ *
+ *  Template writes were last-writer-wins: two recruiters with the manager open both
+ *  PUT their whole body and the slower click silently erased the other's. The
+ *  precondition rides in the UPDATE's WHERE (the second of the two valid
+ *  read→compute→write strategies in .claude/CLAUDE.md — this path does no slow work,
+ *  so a compensating WHERE is cheaper than an IMMEDIATE transaction) and
+ *  `res.changes === 0` is the conflict. `expectedUpdatedAt` omitted = the old
+ *  unconditional behaviour, for callers that legitimately have no base stamp.
+ *
+ *  A team can't edit another team's private template (the same WHERE guard). */
+export function editTemplate(
+  id: string,
+  input: { name?: string; body?: string; expectedUpdatedAt?: string },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): TemplateUpdateResult {
+  const d = db();
+  const cur = getTemplate(id, workspaceId);
+  if (!cur) return { ok: false, reason: "notFound" };
+  // The stamp IS the CAS token, so it must move on every accepted write: two edits
+  // inside the same millisecond would otherwise leave the second one's base stamp
+  // still valid and the third writer would clobber unnoticed.
+  const nowIso = new Date().toISOString();
+  const next = nowIso > cur.updatedAt ? nowIso : new Date(Date.parse(cur.updatedAt) + 1).toISOString();
+  const res = d
+    .prepare(
+      `UPDATE jd_templates SET name = ?, body = ?, updated_at = ?
+       WHERE id = ? AND (workspace_id IS NULL OR workspace_id = ?)` +
+        (input.expectedUpdatedAt ? ` AND updated_at = ?` : ``)
+    )
+    .run(
+      ...([
+        input.name?.trim() || cur.name,
+        input.body ?? cur.body,
+        next,
+        id,
+        workspaceId,
+        ...(input.expectedUpdatedAt ? [input.expectedUpdatedAt] : []),
+      ] as string[])
+    );
+  if (res.changes === 0) return { ok: false, reason: "conflict", template: getTemplate(id, workspaceId) ?? undefined };
+  return { ok: true, template: getTemplate(id, workspaceId)! };
+}
+
+/** Unconditional edit, kept as the thin legacy shape (`JdTemplate | null`) the
+ *  cross-team isolation contract asserts on (app/_lib/templates-isolation.test.ts).
+ *  New callers should use `editTemplate` and pass `expectedUpdatedAt`. */
 export function updateTemplate(
   id: string,
   input: { name?: string; body?: string },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): JdTemplate | null {
-  const d = db();
-  const cur = getTemplate(id, workspaceId);
-  if (!cur) return null;
-  d.prepare(
-    `UPDATE jd_templates SET name = ?, body = ?, updated_at = ? WHERE id = ? AND (workspace_id IS NULL OR workspace_id = ?)`
-  ).run(input.name?.trim() || cur.name, input.body ?? cur.body, new Date().toISOString(), id, workspaceId);
-  return getTemplate(id, workspaceId);
+  const r = editTemplate(id, input, workspaceId);
+  return r.ok ? r.template : null;
 }
 
 /** Promote one ORG template to be the sole org default, clearing the flag on the other
@@ -159,16 +214,25 @@ export function setDefaultTemplate(id: string, workspaceId: string = DEFAULT_WOR
  * the current default. Deleting the only is_default row would leave the library with
  * zero defaults: the seed only re-runs on an empty org tier, so the baseline would be
  * gone for good. To remove the default, promote another template first. */
-export function deleteTemplate(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): { ok: boolean; reason?: string } {
+export function deleteTemplate(
+  id: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { ok: true } | { ok: false; reason: TemplateDeleteFailure } {
   const d = db();
+  // A refusal is a REASON, never English prose: the route maps each to a code and
+  // the manager renders it in the reader's language (the reason strings used to be
+  // forwarded as-is, so a Czech recruiter got an English sentence and no code).
+  const cur = getTemplate(id, workspaceId);
+  // Not visible to this team (gone, or another team's private draft) — said first,
+  // so "the last template" can never be reported about a row that isn't there.
+  if (!cur) return { ok: false, reason: "notFound" };
   // Count the team's VISIBLE set (org-shared + own) — deleting the last visible
   // template would leave the picker empty for this team.
   const count = (
     d.prepare(`SELECT COUNT(*) AS n FROM jd_templates WHERE workspace_id IS NULL OR workspace_id = ?`).get(workspaceId) as { n: number }
   ).n;
-  if (count <= 1) return { ok: false, reason: "Can't delete the last template." };
-  const cur = getTemplate(id, workspaceId);
-  if (cur?.isDefault) return { ok: false, reason: "Can't delete the default template. Set another template as the default first." };
+  if (count <= 1) return { ok: false, reason: "last" };
+  if (cur.isDefault) return { ok: false, reason: "default" };
   d.prepare(`DELETE FROM jd_templates WHERE id = ? AND (workspace_id IS NULL OR workspace_id = ?)`).run(id, workspaceId);
   return { ok: true };
 }

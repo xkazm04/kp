@@ -1568,7 +1568,12 @@
     "TASK_NOT_RETRYABLE": "Znovu spustit lze jen neúspěšné, přerušené nebo zrušené úlohy.",
     "TASK_REPLAY_INPUTS_GONE": "Nahrané soubory k tomuto běhu už byly smazány. Nahrajte je prosím znovu a běh zopakujte.",
     "FORBIDDEN_CAPABILITY": "Vaše role tuto akci neumožňuje.",
-    "forbiddenCapabilityNeeds": "Vaše role tuto akci neumožňuje. Vyžaduje oprávnění „{capability}“."
+    "forbiddenCapabilityNeeds": "Vaše role tuto akci neumožňuje. Vyžaduje oprávnění „{capability}“.",
+    "TEMPLATE_NOT_FOUND": "Tato šablona už neexistuje.",
+    "TEMPLATE_LAST_ONE": "Tohle je poslední šablona, kterou váš tým vidí. Aspoň jedna musí zůstat.",
+    "TEMPLATE_IS_DEFAULT": "Tohle je výchozí šablona. Než ji smažete, nastavte jako výchozí jinou.",
+    "TEMPLATE_STALE": "Šablonu mezitím uložil někdo jiný. Načtěte ji znovu a proveďte své úpravy znovu.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Výchozí může být jen šablona sdílená s celou firmou."
   },
   "resilience": {
     "notFoundEyebrow": "404",

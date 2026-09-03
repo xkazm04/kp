@@ -1568,7 +1568,12 @@
     "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
     "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer.",
     "FORBIDDEN_CAPABILITY": "Votre rôle ne permet pas cette action.",
-    "forbiddenCapabilityNeeds": "Votre rôle ne permet pas cette action : elle requiert l’autorisation « {capability} »."
+    "forbiddenCapabilityNeeds": "Votre rôle ne permet pas cette action : elle requiert l’autorisation « {capability} ».",
+    "TEMPLATE_NOT_FOUND": "Ce modèle n'existe plus.",
+    "TEMPLATE_LAST_ONE": "C'est le dernier modèle visible par votre équipe. Il doit en rester au moins un.",
+    "TEMPLATE_IS_DEFAULT": "C'est le modèle par défaut. Définissez d'abord un autre modèle par défaut avant de le supprimer.",
+    "TEMPLATE_STALE": "Quelqu'un d'autre a enregistré ce modèle pendant votre modification. Rechargez-le et réappliquez vos changements.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Seul un modèle partagé avec toute l'entreprise peut être le modèle par défaut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
