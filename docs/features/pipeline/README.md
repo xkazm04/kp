@@ -952,6 +952,40 @@ Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
   downgraded to `hold` and logged as `fairness_gate_blocked_reject` — audit
   that event kind for any refused (bug-caught) or, worse, missed case.
 
+### Which half of the guarantee is Python's, and which is TypeScript's
+
+"A reject can never happen unattended" is **two** guarantees in two languages,
+and `automation.py`'s module docstring used to state them as one. That matters
+because `automation_cli` is a real integration surface: a caller that spawns the
+Python CLI (a self-host script, a bench harness, an embedding integration) gets
+the Python half and **nothing else** — no TS pass, no approval queue.
+
+| Guarantee | Enforced in | Reached by a CLI-only caller? |
+|---|---|---|
+| A screening verdict is narrowed to a **route** in `SCREEN_ROUTES` = {`advance`, `hold`} — a `reject` recommendation never becomes a reject route | `screen_candidate` (`automation.py`) | yes |
+| Early-career (`registry.early_career_archetypes()`) is never auto-advanced or auto-rejected; a model's `reject` is rewritten to `hold` **after** the call | `screen_candidate` + `evaluate_entry` | yes |
+| `evaluate_entry` emits `action:"reject"` on **one** path only: stage `Screened`, non-early archetype, no pending approval, no recent screening decision, and a *genuine* score (absent/0 = unscored) below `POLICY["bau_reject_score"]` | `evaluate_entry` | yes |
+| **No adverse action runs unattended** — AUTO1 retired (UAT M6 / GDPR Art. 22); every fairness-cleared reject is queued as a human `rejection_review` approval, so a committed pass rejects nobody | `app/_lib/automation-pass.ts` | **no** |
+| Fail-closed re-check at the apply boundary: `isFairnessProtected` treats an **unknown/renamed** archetype as protected and downgrades the reject to `hold` + `fairness_gate_blocked_reject` | `app/_lib/automation-fairness.ts` | **no** |
+
+One asymmetry is deliberate and now pinned rather than fixed: Python's
+early-career gate is a *membership* test, so an unknown archetype scores as BAU
+and stays rejectable there; only the TS backstop reads it fail-closed. A
+CLI-only integration therefore owns its own approval gate.
+
+Pinned by `test_automation.py::AdverseActionBoundaryTest` (an exhaustive sweep of
+the entry snapshot space plus every verdict/confidence a model can return) and,
+at the CLI boundary, `test_automation_cli.py::TestAutomationCliAdverseActionBoundary`.
+
+### Constants mirrored across the language boundary
+
+`MAX_SCORECARD_NOTES_CHARS` (`automation.py` ↔ `app/_lib/interview-transcript.ts`)
+and `MIN_CALIBRATION_OUTCOMES` / `CALIBRATION_BIN_COUNT`
+(`calibration_drift.py` ↔ `app/_lib/calibration.ts`) are hand-copied numbers that
+said "must match" in a comment and nothing more. `test_automation_constant_sync.py`
+reads the TS source (comments stripped, name word-anchored) and fails when either
+side moves alone — the same shape as `test_fit_threshold_sync.py`.
+
 ### A reject issued from the group-eval comparison carries its reason
 
 UAT `LUC-GEF-L1-08` (raised twice, built 2026-08-18). A reject taken from inside
