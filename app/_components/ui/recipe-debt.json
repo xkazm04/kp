@@ -56,38 +56,14 @@
     "_components/results/DispositionEditor.tsx": {
       "btnAffirm": 1
     },
-    "_components/results/QualityStrip.tsx": {
-      "noticeAmber": 1
-    },
-    "_components/results/ResultPanel.tsx": {
-      "panel": 1
-    },
     "_components/results/interview/InterviewTab.tsx": {
-      "panel": 3,
       "btnAffirm": 1
     },
     "_components/results/interview/ReadbackEntitiesStrip.tsx": {
       "chipQuiet": 1
     },
     "_components/results/interview/SoftSignalsSection.tsx": {
-      "panel": 1,
       "chipQuiet": 1
-    },
-    "_components/results/job-fit/JobFitTab.tsx": {
-      "panel": 4
-    },
-    "_components/results/job-fit/MissingSkillsTiers.tsx": {
-      "metaLabel": 1
-    },
-    "_components/results/job-fit/SkillChips.tsx": {
-      "metaLabel": 1
-    },
-    "_components/results/salary/SalaryTab.tsx": {
-      "panel": 5
-    },
-    "_components/results/shared.tsx": {
-      "panel": 2,
-      "metaLabel": 2
     },
     "_components/table/FilterMenu.tsx": {
       "panel": 1

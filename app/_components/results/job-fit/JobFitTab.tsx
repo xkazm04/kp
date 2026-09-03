@@ -6,6 +6,7 @@ import { Meter } from "@/app/_components/Meter";
 import { ScoreDial } from "@/app/_components/ScoreDial";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { ListBlock } from "../shared";
 import { SkillChips } from "./SkillChips";
 
@@ -15,7 +16,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
   if (!analysis.jobFit) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className={`${PANEL} p-5`}>
         <h3 className="font-serif text-h3 text-ink">{t("panel.jobFit")}</h3>
         <p className="mt-3 text-base leading-6 text-steel">{t("panel.jobFitPlaceholder")}</p>
       </div>
@@ -25,7 +26,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="space-y-5">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
@@ -77,7 +78,7 @@ export function JobFitTab({ analysis }: { analysis: Analysis }) {
       </div>
 
       <div className="space-y-5">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.alignment")}</h3>
           <div className="mt-4 space-y-3 text-base leading-6 text-ink">
             <p>{analysis.jobFit.seniorityAlignment}</p>
@@ -151,7 +152,7 @@ function UnprovenSkillsBlock({
               title={st != null ? t("unprovenStrengthTitle", { pct: Math.round(st * 100) }) : undefined}
             >
               {s}
-              <span className="rounded bg-amber-100 px-1 text-[10px] uppercase text-amber-800">{t(unprovenLabelKey(reason[s]))}</span>
+              <span className="rounded bg-amber-100 px-1 text-meta uppercase text-amber-800">{t(unprovenLabelKey(reason[s]))}</span>
             </span>
           );
         })}
@@ -177,7 +178,7 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
   const overUsedHidden = hiddenByCap(coverage.overUsedTotal, coverage.overUsed.length);
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-serif text-h3 text-ink">{t("panel.keywordCoverage")}</h3>
         <span className="text-base font-semibold text-ink nums">

@@ -8,6 +8,7 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { tabHref } from "@/app/features/shell/tabs";
 import { dedupe } from "@/app/_lib/dedupe";
 import { SoftSignalsSection } from "./SoftSignalsSection";
+import { PANEL } from "@/app/_components/ui/recipes";
 import {
   classifyBucket,
   groupBuckets,
@@ -81,7 +82,7 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
     return (
       <div className="space-y-5">
         <SoftSignalsSection panel={analysis.softSignals} />
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.mockInterview")}</h3>
           <p className="mt-3 text-base leading-6 text-steel">{t("panel.mockPlaceholder")}</p>
         </div>
@@ -100,7 +101,7 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
   return (
     <div className="space-y-5">
       <SoftSignalsSection panel={analysis.softSignals} />
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className={`${PANEL} p-5`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -169,7 +170,7 @@ function QuestionCard({ question, index }: { question: InterviewQuestion; index:
   const label = group === OTHER_BUCKET ? question.bucket || metaLabel : metaLabel;
 
   return (
-    <article className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <article className={`${PANEL} p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold uppercase tracking-wide ${chip}`}>

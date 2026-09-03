@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { dedupe } from "@/app/_lib/dedupe";
 
 // IMPORTANT: `missingSkills` is a flat, model-emitted list (schemas.generated.ts:
@@ -105,7 +106,7 @@ export function MissingSkillsTiers({ skills }: { skills: string[] }) {
 
   return (
     <div className="rounded-md bg-paper p-3">
-      <h4 className="text-meta uppercase text-steel">{t("panel.missingSkills")}</h4>
+      <h4 className={META_LABEL}>{t("panel.missingSkills")}</h4>
 
       {skills.length === 0 ? (
         <p className="mt-2 text-sm leading-5 text-steel">{t("panel.missingSkillsCovered")}</p>

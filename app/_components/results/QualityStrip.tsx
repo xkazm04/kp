@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { authenticityBand, splitSanityChecks } from "@/app/_lib/sanity-checks";
+import { NOTICE } from "@/app/_components/ui/recipes";
 
 // The engine's per-analysis trust ledger (`sanityChecks`), surfaced (SCOR2).
 // The pipeline states every repair, degradation and self-contradiction it
@@ -51,7 +52,7 @@ export function QualityStrip({ checks }: { checks: string[] }) {
   }
 
   return (
-    <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-panel">
+    <div role="status" className={`${NOTICE("amber")} p-4 shadow-panel`}>
       <div className="flex flex-wrap items-center gap-2">
         <AlertTriangle size={16} className="text-amber-600" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-amber-800">{t("title")}</span>

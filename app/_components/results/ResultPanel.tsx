@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import { QualityStrip } from "./QualityStrip";
@@ -80,13 +81,13 @@ function RunCostLine({
 }) {
   const t = useTranslations("report");
   if (cached) {
-    return <p className="text-xs text-steel">{t("runCost.cached")}</p>;
+    return <p className="text-micro text-steel">{t("runCost.cached")}</p>;
   }
   if (!runCost) return null;
   const model = runCost.model ?? "—";
   if (runCost.costUsd == null) {
     return (
-      <p className="text-xs text-steel" title={t("runCost.titleEstimate")}>
+      <p className="text-micro text-steel" title={t("runCost.titleEstimate")}>
         {t("runCost.unpriced", { model })}
       </p>
     );
@@ -97,7 +98,7 @@ function RunCostLine({
   const cost = formatCostUsd(runCost.costUsd);
   return (
     <p
-      className="text-xs text-steel"
+      className="text-micro text-steel"
       title={runCost.estimated ? t("runCost.titleEstimate") : t("runCost.titleMetered")}
     >
       {runCost.estimated
@@ -208,7 +209,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
       <QualityStrip checks={analysis.sanityChecks ?? []} />
       <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
 
-      <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
+      <div className={`${PANEL} p-2`}>
         <div {...tablist.tablistProps} aria-label={t("sections")} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {
             const selected = activeTab === tab.id;

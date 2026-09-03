@@ -9,6 +9,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ConfidenceBadge } from "@/app/_components/Badge";
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { BulletList, InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 import { confidenceGrade, growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
@@ -63,7 +64,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <div className="flex items-center gap-2">
             <CircleDollarSign className="h-5 w-5 text-coral" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("panel.salaryEstimate")}</h3>
@@ -102,7 +103,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
         </div>
 
         {analysis.companyContext ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <h3 className="font-serif text-h3 text-ink">{t("panel.companyCompContext")}</h3>
             <p className="mt-3 text-base leading-6 text-ink">
               {labelize(analysis.companyContext.companyType)}: {analysis.companyContext.salaryEffect} ({analysis.companyContext.adjustmentFactor}x)
@@ -113,13 +114,13 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
       </div>
 
       <div className="space-y-5">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.salaryRationale")}</h3>
           <BulletList items={analysis.salary.rationale} listClassName="mt-4 space-y-3" />
         </div>
 
         {analysis.evidenceTrace ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <InlineList
               title={t("panel.salaryEvidence")}
               items={analysis.evidenceTrace.salary}
@@ -129,7 +130,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
         ) : null}
 
         {analysis.marketEvidence ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <div className="flex items-center gap-2">
               <CircleDollarSign className="h-5 w-5 text-coral" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.groundedMarketEvidence")}</h3>
