@@ -49,10 +49,11 @@ registerHooks({
           export const MIN_PASSWORD_LENGTH = real.MIN_PASSWORD_LENGTH;
           export const DUMMY_PASSWORD_HASH = real.DUMMY_PASSWORD_HASH;
           export const hashPassword = real.hashPassword;
+          export const needsRehash = real.needsRehash;
           export function verifyPassword(password, stored) {
             // Only a well-formed stored hash makes verifyPassword run scrypt; anything
             // else returns false for free, which is exactly the oracle under test.
-            const wellFormed = typeof stored === "string" && stored.indexOf(":") > 0 && stored.length > 40;
+            const wellFormed = typeof stored === "string" && /[$:]/.test(stored) && stored.length > 40;
             if (password && wellFormed) {
               globalThis.__kpVerifyCounter.hashed += 1;
             }
@@ -106,7 +107,7 @@ test("an invited account with no credential row spends the hash", () => {
 test("the dummy hash is a REAL credential, so the miss costs what a hit costs", () => {
   // A malformed or empty stand-in would short-circuit inside verifyPassword and
   // reinstate the oracle with the counter still reading 1.
-  assert.match(DUMMY_PASSWORD_HASH, /^[\w-]+:[\w-]+$/);
+  assert.match(DUMMY_PASSWORD_HASH, /^v1\$scrypt\$\d+\$\d+\$\d+\$[\w-]+\$[\w-]+$/);
   assert.equal(verifyPassword("not the secret", DUMMY_PASSWORD_HASH), false, "and nobody can guess it");
 });
 
@@ -131,4 +132,77 @@ test("the floor has ONE value — org-service and the hash module cannot drift a
   // users.ts cannot import org-service (org-service imports users), so the constant
   // lives in password.ts and org-service re-states it. This is the join.
   assert.equal(SERVICE_FLOOR, MIN_PASSWORD_LENGTH);
+});
+
+// ---- Upgrade-on-login ---------------------------------------------------------
+// The stored value carries its format and cost (`v1$scrypt$N$r$p$salt$hash`), so
+// "is this hash behind?" is a pure function of the row — and a successful sign-in
+// is the one moment the plaintext is legitimately in hand to act on the answer.
+// Without this seam, raising the cost later has only two endings: log everybody
+// out, or keep the weak hashes forever.
+
+const { needsRehash } = await import("./password.ts");
+const { ensureDb } = await import("../db/core.ts");
+const { randomBytes, scryptSync } = await import("node:crypto");
+
+/** The raw stored credential, read straight from the table — the only way to see
+ *  WHICH hash an account is carrying (verifyCredentials only reports who it is). */
+function storedHashRead(userId: string): string | null {
+  const row = ensureDb().prepare(`SELECT password_hash FROM user_credentials WHERE user_id = ?`).get(userId) as
+    | { password_hash?: string }
+    | undefined;
+  return row?.password_hash ?? null;
+}
+
+function storedHashWrite(userId: string, hash: string): void {
+  ensureDb()
+    .prepare(
+      `INSERT INTO user_credentials (user_id, password_hash, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET password_hash = excluded.password_hash, updated_at = excluded.updated_at`,
+    )
+    .run(userId, hash, new Date().toISOString());
+}
+
+/** Write a credential in the PRE-VERSIONING format straight into the store, the
+ *  way every hash in an existing install looks. */
+function seedLegacyCredential(userId: string, password: string): string {
+  const salt = randomBytes(16);
+  const stored = `${salt.toString("base64url")}:${scryptSync(password, salt, 64).toString("base64url")}`;
+  storedHashWrite(userId, stored);
+  return stored;
+}
+
+test("a legacy hash still signs its owner in, and is rewritten in place", () => {
+  const user = createUser({ orgId: ORG, email: "cred.legacy@csas.cz", name: "Legacy", status: "active" });
+  const before = seedLegacyCredential(user.id, "legacy-password-1");
+  assert.ok(needsRehash(before), "the fixture must be a hash the app wants to upgrade");
+
+  assert.equal(verifyCredentials("cred.legacy@csas.cz", "legacy-password-1")?.id, user.id, "nobody is locked out");
+
+  const after = storedHashRead(user.id);
+  assert.notEqual(after, before, "a successful login must have rewritten it");
+  assert.match(after!, /^v1\$scrypt\$/, "…into the current tagged format");
+  assert.equal(needsRehash(after), false);
+  // …and the upgrade is transparent: the same password still works, the next
+  // login finds nothing to do, and a wrong one is still refused.
+  assert.equal(verifyCredentials("cred.legacy@csas.cz", "legacy-password-1")?.id, user.id);
+  assert.equal(storedHashRead(user.id), after, "a current hash is left alone — no rewrite per login");
+  assert.equal(verifyCredentials("cred.legacy@csas.cz", "wrong-password"), null);
+});
+
+test("a FAILED login against a legacy hash rewrites nothing", () => {
+  const user = createUser({ orgId: ORG, email: "cred.legacy2@csas.cz", name: "Legacy2", status: "active" });
+  const before = seedLegacyCredential(user.id, "legacy-password-2");
+  assert.equal(verifyCredentials("cred.legacy2@csas.cz", "not-the-password"), null);
+  assert.equal(storedHashRead(user.id), before, "an unproven plaintext must never be written as the new hash");
+});
+
+test("a legacy hash of a password BELOW today's floor is left alone", () => {
+  // The floor moved after these were written. Rewriting would mean calling
+  // setUserPassword with a value it refuses — the account keeps working on its old
+  // hash instead of a failed login or a thrown 500.
+  const user = createUser({ orgId: ORG, email: "cred.legacy3@csas.cz", name: "Legacy3", status: "active" });
+  const before = seedLegacyCredential(user.id, "short");
+  assert.equal(verifyCredentials("cred.legacy3@csas.cz", "short")?.id, user.id, "the old credential still opens the account");
+  assert.equal(storedHashRead(user.id), before, "…and is not rewritten below the floor");
 });

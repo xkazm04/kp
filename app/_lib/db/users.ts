@@ -1,6 +1,6 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
-import { DUMMY_PASSWORD_HASH, hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from "../auth/password";
+import { DUMMY_PASSWORD_HASH, hashPassword, MIN_PASSWORD_LENGTH, needsRehash, verifyPassword } from "../auth/password";
 
 // Users (P0) — a person in an org. Identity lives here; the password secret lives
 // in `user_credentials` (separate table) so the model stays auth-mechanism-
@@ -217,5 +217,20 @@ export function verifyCredentials(email: string, password: string): User | null 
   // taken only after the work is done.
   const ok = verifyPassword(password, row?.password_hash ?? DUMMY_PASSWORD_HASH);
   if (!user || !ok) return null;
+  // UPGRADE-ON-LOGIN. A successful sign-in is the one moment the plaintext is
+  // legitimately in hand, so it is the only place a stored hash in an older format
+  // (the legacy untagged `<salt>:<hash>`) or at a cost below today's can be rewritten
+  // without asking anybody to reset anything. Without this seam a cost bump has only
+  // two endings: invalidate every password in the install, or carry the weaker hashes
+  // forever. Best-effort by construction — the caller has already authenticated, and
+  // a failed rewrite must never turn a valid login into a 401.
+  if (row?.password_hash && needsRehash(row.password_hash) && password.length >= MIN_PASSWORD_LENGTH) {
+    try {
+      setUserPassword(user.id, password);
+    } catch {
+      /* best-effort upgrade: the sign-in already succeeded on the old hash, and the
+         next one will try again. A store failure here is not the user's problem. */
+    }
+  }
   return user;
 }

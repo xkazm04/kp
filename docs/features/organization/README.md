@@ -108,6 +108,23 @@ inventing a second scoping dimension.
   password" is a user-existence oracle any client can measure.
   `app/_lib/auth/credentials.test.ts` counts the scrypt work rather than the wall
   clock, so the property is pinned without a timing flake.
+- **A stored hash carries its own parameters, and upgrades itself on login.** The
+  format is `v1$scrypt$<N>$<r>$<p>$<saltB64url>$<hashB64url>`
+  (`app/_lib/auth/password.ts`). It used to be a bare `<salt>:<hash>` with the cost
+  implied by node's defaults, so there was no way to ask whether a row was behind:
+  raising the cost later meant either invalidating every password in the install or
+  carrying an undocumented "hashes written before <date> are cheap" rule forever.
+  `needsRehash(stored)` now answers that from the row alone — true for a legacy
+  untagged value or one below `CURRENT`, false for anything unparseable (no caller
+  will ever hold a plaintext proven against it) and for stronger-than-current
+  parameters. `verifyCredentials` rewrites the credential on a **successful** login,
+  the one moment the plaintext is legitimately in hand; a failed login rewrites
+  nothing, and a legacy hash whose password is below today's floor is left alone
+  rather than pushed through a write `setUserPassword` would refuse. Legacy values
+  still verify at node's defaults, so the change logs nobody out. Pinned by
+  `app/_lib/auth/password.test.ts` (both formats, both directions of `needsRehash`,
+  malformed values failing closed) and `credentials.test.ts` (the in-place rewrite,
+  the failed-login no-op, the below-floor no-op).
 - **The password floor is enforced at the store write.** `MIN_PASSWORD_LENGTH`
   lives in `app/_lib/auth/password.ts` (users.ts cannot import `org-service.ts` —
   org-service imports users) and `setUserPassword` throws below it. Signup and
