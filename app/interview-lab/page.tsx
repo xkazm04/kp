@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TtsComparePanel } from "@/app/_components/voice/TtsComparePanel";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
+import { isOperator } from "@/app/_lib/auth/require-operator";
 
 export const metadata = { title: "Voice interview lab" };
 
@@ -15,7 +16,9 @@ export const metadata = { title: "Voice interview lab" };
 // force-dynamic) with no useful static shell to prerender.
 export const instant = false;
 
-export default function InterviewLabPage() {
+export default async function InterviewLabPage() {
+  // /diagrams is operator-only since wave 21b; a seat that cannot open it gets no link.
+  const showDiagrams = await isOperator();
   // The lab exercises the tokenless credential-minting path, which is gated in
   // production (idea-6236b597; see interview-lab.ts). Say so instead of
   // rendering a client whose Start would 403.
@@ -55,11 +58,16 @@ export default function InterviewLabPage() {
 
       <p className="mt-4 text-meta text-steel">
         The candidate-facing version lives at <code className="rounded bg-stone-100 px-1 py-0.5">/interview/&lt;token&gt;</code>{" "}
-        with the provider fixed per session.{" "}
-        <Link href="/diagrams" className="text-coral hover:underline">
-          See the pipeline diagrams
-        </Link>
-        .
+        with the provider fixed per session.
+        {showDiagrams ? (
+          <>
+            {" "}
+            <Link href="/diagrams" className="text-coral hover:underline">
+              See the pipeline diagrams
+            </Link>
+            .
+          </>
+        ) : null}
       </p>
     </main>
   );
