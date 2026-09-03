@@ -76,6 +76,15 @@ changes" pattern, guarded by the previously-seen param) rather than in an effect
 so there is no frame of the wrong tab before a correction. The effect does only
 the side effect: emptying the inbox.
 
+The three rules — what a cold load renders, when a param counts as an *arrival*,
+and when the inbox is emptied — are pure functions in `shell/nav/urlInbox.ts`
+(`initialInboxValue`, `arrivalAdoption`, `shouldEmptyInbox`), pinned by
+`urlInbox.test.ts`; the hook is the React plumbing around them. The rule worth
+reading twice is that an **absent** param is an arrival to *record* but never a
+value change: the hook clears the param it just consumed, so treating that
+absence as "the default arrived" would bounce every deep link back to Overview
+one frame after it landed.
+
 `parse` owns the vocabulary, so legacy ids (`?tab=profile`, `?tab=dev`) still
 resolve via `LEGACY_TAB_ALIASES` and a gated tab (`AGENTS_TAB_IN_NAV`) is
 *rejected* rather than adopted-then-corrected — a link to a gated view is inert
@@ -222,12 +231,23 @@ never `pipelineAnalytics` or a Python spawn). Operator-only tabs (billing, model
 integrations, organization, workspaces) resolve to `{ view: "restricted" }` for a
 demo session (`isOperator()`); the analysis view applies the same PII masking as
 `/api/analyses/[slug]`. Client side, `shell/palette/usePalettePreview.ts`
-(120 ms debounce, aborting, 30 s per-key memo) feeds `PalettePreviewPane.tsx`,
+(120 ms debounce, aborting) feeds `PalettePreviewPane.tsx`,
 which dispatches to one small renderer per view (`PreviewHiring.tsx`,
 `PreviewLibraryTools.tsx`, `PreviewInsightsSettings.tsx`, `PreviewEntities.tsx`)
 built from `previewBits.tsx` (Tiles/Tile, Row, Status dot, Chips, RankList,
 `useFmt`). Copy lives under the `palettePreview` catalog namespace. Adding a
 destination = one union member + one resolver case + one renderer.
+
+The memo behind it lives in `shell/palette/previewCache.ts` and is keyed on
+**(workspace, query)**, not on the query alone: a palette query says nothing
+about whose numbers it asked for, so a query-only key let one document re-show
+the previous tenant's counts for the whole 30 s TTL after an in-place team
+switch. An unresolved tenant is not a key — nothing is read and nothing is
+written, so the worst case is a colder pane rather than a wrong one. The tenant
+comes from the same door `shell/recents.ts` uses (`GET /api/workspaces` →
+`current`; the session cookie carrying it is httpOnly), resolved once per
+document, and changing it empties the cache. `previewCache.test.ts` pins the
+scoping, the TTL boundary and the three response shapes that mean "error".
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group

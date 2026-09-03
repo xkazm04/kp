@@ -137,6 +137,20 @@ export const railIconBtn = (isActive: boolean): string =>
     isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
   }`;
 
+/** First-level (sidebar rail) TILE — the icon-over-label shape every destination
+ *  on the 4.75rem rail wears: the section buttons, the Search trigger and the
+ *  Feedback door. The icon-only `railIconBtn` above is its sibling for the rail's
+ *  chrome (preference popups, sign out), which is not a destination.
+ *
+ *  Was hand-copied as a class string in NavSectionRail and NavFeedbackButton, and
+ *  the copies had already drifted (only one carried the dark active outline), which
+ *  is the drift a recipe exists to stop. Sizing is the recipe's; a call site adds
+ *  only what is genuinely its own. */
+export const railTile = (isActive: boolean): string =>
+  `focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${
+    isActive ? "bg-coral/10 text-coral dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
+  }`;
+
 /** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
 export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";
