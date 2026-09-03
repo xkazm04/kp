@@ -75,7 +75,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   // and importing that provider into the logic module would drag React and
   // next-intl into its node:test unit run. Called before the ledger early-return
   // so the hook order is stable across both branches.
-  const { scanState, cancelScan, composeAppMaster, cancelCompose, composing, composeError, paired, dispatchState, dispatchAppMaster } =
+  const { scanState, scanFence, cancelScan, composeAppMaster, cancelCompose, composing, composeError, paired, dispatchState, dispatchAppMaster } =
     useAppMasterLogic(active, applySession);
   const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
@@ -149,6 +149,10 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   // The scan line the chat shows under the opener while the codebase is read.
   // Cleared the moment the dossier lands — the card then speaks for itself.
   const scanNote = scanState ? t(`appMaster.scan.${scanState}`) : null;
+  // A SECOND line, not a replacement: an unverified fence is true of a scan that
+  // otherwise completed cleanly, and folding it into scanNote would mean one of the
+  // two disclosures was always dropped.
+  const fenceNote = scanFence ? t(`appMaster.scan.${scanFence}`) : null;
   const objectiveCount = (active.brief?.facets ?? []).filter((f) => f.key?.startsWith("objective:")).length;
   const promoteHint = ready ? undefined : blockers.map((b) => t(`promoteMissing.${b}`)).join(" ");
 
@@ -287,6 +291,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
                   dossier={active.dossier}
                   appMaster={active.appMaster}
                   scanNote={scanNote}
+                  fenceNote={fenceNote}
                   objectiveCount={objectiveCount}
                   composing={composing}
                   composeError={composeError}

@@ -12,6 +12,7 @@ import {
   foldVoiceExchange,
   foldVoiceSweep,
   readRepoScanResponse,
+  scanFenceWarningFor,
   scanStateFor,
   type IntakeSession,
   type VoiceSweepResult,
@@ -224,4 +225,50 @@ test("the scan can be cancelled, and only while there is something to cancel", (
   // Never offered once the dossier has landed or the scan has ended.
   assert.match(src, /scanState === "queued" \|\| scanState === "running"/);
   assert.match(src, /!hasDossier/);
+});
+
+// The fence disclosure is a SECOND, independent fact about a scan: an agent can have
+// read the repository behind deny rules nobody has verified for the CLI it ran on,
+// and the run can still have completed perfectly. scanStateFor says nothing about
+// that, by design, so this is where it stops going unsaid.
+
+test("an unverified fence is disclosed on an otherwise clean completion", () => {
+  const base = { id: "s1", source: "llm" } as const;
+  const withFence = (state: string) =>
+    scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: { state } } as never });
+  assert.equal(withFence("unverified_version"), "fenceUnverified");
+  assert.equal(withFence("version_unknown"), "fenceVersionUnknown");
+});
+
+test("a verified fence, and a scan with no fence to verify, say nothing", () => {
+  const base = { id: "s1", source: "llm" } as const;
+  for (const state of ["verified", "not_applicable"]) {
+    assert.equal(
+      scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: { state } } as never }),
+      null,
+      state
+    );
+  }
+});
+
+test("a row with no fence block reads as no claim, not as a warning", () => {
+  const base = { id: "s1", source: "llm" } as const;
+  // A scan written before the field existed, a dossier the schema stripped it from,
+  // and a state this build has never heard of all fall silent — a warning nobody can
+  // act on is worse than none.
+  assert.equal(scanFenceWarningFor({ ...base, status: "complete", dossier: null }), null);
+  assert.equal(scanFenceWarningFor({ ...base, status: "complete", dossier: {} as never }), null);
+  assert.equal(
+    scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: "nope" } as never }),
+    null
+  );
+  assert.equal(
+    scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: { state: "vibes" } } as never }),
+    null
+  );
+  // ...and an unfinished scan has not earned a claim about its fence either.
+  assert.equal(
+    scanFenceWarningFor({ ...base, status: "running", dossier: { scanFence: { state: "unverified_version" } } as never }),
+    null
+  );
 });

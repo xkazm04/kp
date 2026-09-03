@@ -234,6 +234,48 @@ reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
    is a silent edit of the operator's data. The pattern set is deliberately
    narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
    `test_repo_scan.RedactionTest` pins both directions.
+4. **…and the fence says whether it can still be trusted.** Layer 1's semantics
+   — that a `Read` deny rule also covers Grep and Glob, that a path rule is
+   anchored the way `claude_deny_rules` assumes — were verified live against ONE
+   CLI version. These tools ship weekly, and nothing at runtime used to notice
+   when the installed one had moved past it, so an upstream change to the rule
+   grammar would widen what the agent may read and the scan would report the
+   same confident nothing. It cannot be re-verified without a live session, so
+   the scan DISCLOSES instead: `VERIFIED_FENCE_CLI_VERSIONS` is the allow-list of
+   versions the contract was actually checked against, and every scan stamps a
+   `scanFence` block — on the envelope AND inside the dossier, which is the copy
+   that survives to the row:
+
+   | `state` | `verified` | Means |
+   | --- | --- | --- |
+   | `verified` | true | an in-repo agent ran, on a CLI in the allow-list |
+   | `unverified_version` | **false** | it ran on a CLI nobody has checked the rules against |
+   | `version_unknown` | **false** | it ran, and the CLI would not report a version |
+   | `not_applicable` | true | no in-repo agent read the files (keyless, `--no-llm`, or a text-API adapter answering from the grounding) — there is no fence to verify |
+
+   An unverified fence is a **disclosure, not a failure**: the deny rules are
+   still sent and layer 3 still runs. The runner logs it, and the intake card
+   shows a second amber line beside the scan note (`appMaster.scan.fenceUnverified`
+   / `.fenceVersionUnknown`, four locales) — `scanFenceWarningFor`,
+   `app/features/library/jds/intake/jdsIntakeLogic.ts`. `verified` is DERIVED from
+   `state` on the TS side, so a payload claiming `true` cannot talk its way past
+   the narrowing, and `REPO_SCAN_FENCE_STATES` is asserted equal to Python's
+   `FENCE_STATES` by a test that reads the tuple out of the source file.
+
+   Bumping the allow-list is a deliberate act: re-run the live check (ask a bound
+   session to read `.env` and to grep it — both must be refused), refresh the
+   dated comment on `claude_deny_rules`, then add the version.
+5. **The walk stays inside the root it was given.** `repo-scan-target.ts` fences
+   the ROOT (below); nothing fenced what the tree *inside* it points at, so a
+   symlinked manifest aimed at `~/.aws/credentials` was a file the heuristic walk
+   would open, count and let the stack line describe. `walk_files` now resolves
+   every symlink — files and directories — against the root's own realpath and
+   skips the ones that escape, counting them as `scanFence.skippedSymlinks` (a
+   walk that quietly skipped half a repo under-reports it, and the number is how
+   the operator finds out). A link that stays inside the root is read as normal;
+   an unresolvable one is treated as an escape. `test_repo_scan.SymlinkContainmentTest`
+   pins all three, and skips with a stated reason where the platform cannot create
+   a symlink (Windows without developer mode).
 
 ### Where the local path is gated
 
@@ -762,7 +804,8 @@ spec was composed, and it travels with the spec.
 | task kind `repo_scan`, dedupe `repo_scan:<scanId>` | task | `app/_lib/tasks.ts`, `app/_lib/task-dedupe.ts` |
 | `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` / `classify_fallback` / `FALLBACK_CLASSES` | Python | `pipeline/jobfit/repo_scan.py` |
 | `SECRET_FILE_GLOBS` / `is_secret_file` / `claude_deny_rules` / `repo_scan_settings_json` / `redact_secret_values` / `redact_dossier` | Python | same file — the one secret-file list and its three consumers |
-| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope, plus `fallbackClass` and a `redactions` count |
+| `VERIFIED_FENCE_CLI_VERSIONS` / `FENCE_STATES` / `fence_state_for` / `fence_stamp` / `provider_cli_version` | Python | `pipeline/jobfit/repo_scan.py` — the fence's own disclosure; mirrored as `REPO_SCAN_FENCE_STATES` in `app/_lib/repo-scan-run.ts` |
+| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope, plus `fallbackClass`, a `redactions` count and the `fence` / `fenceState` / `fenceVerified` disclosure (also stamped inside the dossier as `scanFence`) |
 | `ClaudeCliProvider.with_repo_access(cwd)` / `cli_args()` / `READ_ONLY_TOOLS` / `WRITE_TOOL_DENYLIST` / `READ_ONLY_PERMISSION_MODE` / `PERMISSION_MODES` | Python | `pipeline/jobfit/claude_cli.py` — the read-only repo binding |
 | `repo_scan` LLM use case | config | `pipeline/jobfit/llm/capabilities.py` (`{json}`, 6144 max tokens) + `LLM_USE_CASES` in `app/_lib/llm-config.ts` (Settings → Models, "roles" section) |
 

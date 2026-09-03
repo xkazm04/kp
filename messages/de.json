@@ -4224,7 +4224,9 @@
             "fellBackAgentRefused": "Der KI-Agent hat vorzeitig abgebrochen, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fellBackAgentOutputTooLarge": "Die Antwort des KI-Agenten war zu groß, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fellBackProviderError": "Der KI-Anbieter ist ausgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
-            "fellBackUnknown": "Der KI-Agent ist zurückgefallen, dies ist nur die Lesung aus dem Dateidurchlauf."
+            "fellBackUnknown": "Der KI-Agent ist zurückgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fenceUnverified": "Der KI-Agent hat dieses Repo hinter Regeln für Geheimnisdateien gelesen, die für die hier installierte Claude-CLI-Version nicht verifiziert sind.",
+            "fenceVersionUnknown": "Die Claude CLI hat ihre Version nicht gemeldet, daher konnten die Regeln für Geheimnisdateien, hinter denen dieser Scan lief, nicht verifiziert werden."
           },
           "dossier": {
             "title": "Was der Scan gelesen hat",

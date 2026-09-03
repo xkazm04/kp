@@ -34,6 +34,7 @@ from pipeline.jobfit.claude_cli import (
 )
 from pipeline.jobfit.repo_scan import (
     FALLBACK_CLASSES,
+    FENCE_STATES,
     REDACTED,
     SECRET_FILE_GLOBS,
     SOURCE_HEURISTIC,
@@ -43,7 +44,10 @@ from pipeline.jobfit.repo_scan import (
     claude_deny_rules,
     classify_fallback,
     coerce_repo_dossier,
+    fence_stamp,
+    fence_state_for,
     is_secret_file,
+    provider_cli_version,
     read_churn,
     read_declared_gates,
     redact_dossier,
@@ -51,6 +55,7 @@ from pipeline.jobfit.repo_scan import (
     repo_scan_settings_json,
     scan_repo,
     walk_files,
+    VERIFIED_FENCE_CLI_VERSIONS,
 )
 
 # Fixture credentials are ASSEMBLED at import time: `npm run security:secrets` scans every
@@ -503,7 +508,7 @@ class SecretFileScopeTest(unittest.TestCase):
     def test_the_walk_never_counts_a_secret_file(self) -> None:
         # Counting is not innocent: the EXTENSION feeds the stack line, so a
         # counted `*.pem` publishes "this repo keeps private keys" by another door.
-        total, by_ext = walk_files(self.root)
+        total, by_ext, _skipped = walk_files(self.root)
         self.assertNotIn(".pem", by_ext)
         self.assertNotIn(".key", by_ext)
         dossier = build_heuristic_dossier(self.root, generated_at="2026-01-01T00:00:00+00:00")
@@ -655,3 +660,206 @@ class RedactionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _RefusingProvider:
+    """A repo-bindable provider that never answers.
+
+    The fence is stamped BEFORE the model is asked, so a provider that raises
+    exercises the disclosure without a network call: the dossier lands on the
+    heuristic floor and the fence still records which CLI the binding would have
+    run under. ``version`` is what the CLI would report; None is "it would not say".
+    """
+
+    def __init__(self, version):
+        self._version = version
+        self.mode = "generate"
+        self.extra_args = ()
+
+    def cli_version(self):
+        return self._version
+
+    def with_repo_access(self, cwd, *, timeout=None):
+        clone = _RefusingProvider(self._version)
+        clone.mode = "repo_scan"
+        return clone
+
+    def complete_json(self, *args, **kwargs):
+        raise RuntimeError("the stub never answers")
+
+    def generate(self, *args, **kwargs):
+        raise RuntimeError("the stub never answers")
+
+
+class _TextApiProvider:
+    """Every non-Claude adapter: it answers from the grounding, it never opens a
+    file, and there is therefore no fence for it to have or to verify."""
+
+    def complete_json(self, *args, **kwargs):
+        raise RuntimeError("the stub never answers")
+
+    def generate(self, *args, **kwargs):
+        raise RuntimeError("the stub never answers")
+
+
+class FenceVerificationTest(unittest.TestCase):
+    """The deny rules are pinned to ONE verified CLI version in a code comment, and
+    nothing at runtime noticed when the installed CLI moved past it. It cannot be
+    re-verified without a live session, so the scan DISCLOSES instead: which CLI it
+    ran under, and whether that version is one the contract was checked against."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "fixture"
+        self.root.mkdir()
+        _make_fixture_repo(self.root)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _fence(self, provider):
+        diagnostics = {}
+        scan_repo(
+            self.root,
+            provider=provider,
+            generated_at="2026-01-01T00:00:00+00:00",
+            diagnostics=diagnostics,
+        )
+        return diagnostics["fence"]
+
+    def test_a_verified_cli_version_reports_a_verified_fence(self):
+        version = VERIFIED_FENCE_CLI_VERSIONS[0]
+        fence = self._fence(_RefusingProvider(version))
+        self.assertEqual(fence["state"], "verified")
+        self.assertIs(fence["verified"], True)
+        self.assertEqual(fence["cliVersion"], version)
+
+    def test_an_unverified_cli_version_stamps_fence_verified_false(self):
+        # The other branch, and the whole point: a CLI nobody has checked the deny
+        # rules against must not read as a verified fence.
+        fence = self._fence(_RefusingProvider("99.0.0"))
+        self.assertEqual(fence["state"], "unverified_version")
+        self.assertIs(fence["verified"], False)
+        self.assertEqual(fence["cliVersion"], "99.0.0")
+
+    def test_a_cli_that_will_not_report_a_version_is_unknown_not_verified(self):
+        fence = self._fence(_RefusingProvider(None))
+        self.assertEqual(fence["state"], "version_unknown")
+        self.assertIs(fence["verified"], False)
+        self.assertIsNone(fence["cliVersion"])
+
+    def test_a_text_api_provider_has_no_fence_to_verify(self):
+        # It never took the repo binding, so it never read a file: `not_applicable`
+        # is the honest answer, and reporting `unverified_version` there would cry
+        # wolf on every install that routes repo_scan at a text API.
+        fence = self._fence(_TextApiProvider())
+        self.assertEqual(fence["state"], "not_applicable")
+        self.assertIs(fence["verified"], True)
+        self.assertIsNone(fence["cliVersion"])
+
+    def test_the_keyless_walk_reports_not_applicable(self):
+        fence = self._fence(None)
+        self.assertEqual(fence["state"], "not_applicable")
+        self.assertIs(fence["verified"], True)
+
+    def test_every_state_is_inside_the_declared_vocabulary(self):
+        for version in (VERIFIED_FENCE_CLI_VERSIONS[0], "99.0.0", "", None):
+            for agent_ran in (True, False):
+                with self.subTest(version=version, agent_ran=agent_ran):
+                    self.assertIn(fence_state_for(version, agent_ran=agent_ran), FENCE_STATES)
+
+    def test_a_version_probe_that_explodes_is_survived(self):
+        class Exploding:
+            def cli_version(self):
+                raise OSError("no such binary")
+
+        self.assertIsNone(provider_cli_version(Exploding()))
+        self.assertIsNone(provider_cli_version(object()))
+
+    def test_the_stamp_carries_the_symlink_count(self):
+        stamp = fence_stamp("99.0.0", agent_ran=True, skipped_symlinks=3)
+        self.assertEqual(stamp["skippedSymlinks"], 3)
+
+    def test_the_cli_envelope_carries_the_fence_and_the_dossier_keeps_it(self):
+        # The envelope is what the TS runner reads; `scanFence` inside the dossier
+        # is what survives to the row an operator reads a week later.
+        import contextlib
+        import io as _io
+
+        from pipeline.jobfit import repo_scan_cli
+
+        buffer = _io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            code = repo_scan_cli.main(["--root", str(self.root), "--no-llm"])
+        self.assertEqual(code, 0)
+        envelope = json.loads(buffer.getvalue())
+        self.assertIn(envelope["fenceState"], FENCE_STATES)
+        self.assertIs(envelope["fenceVerified"], True)  # --no-llm: nothing to fence
+        self.assertEqual(envelope["fence"], envelope["result"]["scanFence"])
+        self.assertEqual(envelope["result"]["scanFence"]["skippedSymlinks"], 0)
+
+
+class SymlinkContainmentTest(unittest.TestCase):
+    """``repo-scan-target.ts`` fences the ROOT; nothing fenced what the tree inside
+    it POINTS AT. A symlinked manifest aimed at `~/.aws/credentials` is a file this
+    walk would have opened, counted and let the stack line describe."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        base = Path(self._tmp.name)
+        self.root = base / "fixture"
+        self.root.mkdir()
+        _make_fixture_repo(self.root)
+        self.outside = base / "outside"
+        self.outside.mkdir()
+        _write(self.outside / "stolen.ts", "export const secret = 1;\n")
+        _write(self.outside / "nested" / "deep.ts", "export const deep = 1;\n")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _link(self, link, target, *, directory):
+        try:
+            os.symlink(target, link, target_is_directory=directory)
+        except (OSError, NotImplementedError, AttributeError) as exc:
+            self.skipTest(
+                "this platform cannot create a symlink here (Windows without "
+                f"developer mode, or an unprivileged account): {exc}"
+            )
+
+    def test_a_file_symlink_out_of_the_root_is_skipped_and_counted(self):
+        before, ext_before, skipped_before = walk_files(self.root)
+        self.assertEqual(skipped_before, 0)
+        self._link(self.root / "src" / "escape.ts", self.outside / "stolen.ts", directory=False)
+        total, by_ext, skipped = walk_files(self.root)
+        self.assertEqual(skipped, 1)
+        self.assertEqual(total, before, "the escaping file was counted anyway")
+        self.assertEqual(by_ext[".ts"], ext_before[".ts"])
+
+    def test_a_directory_symlink_out_of_the_root_is_skipped_and_counted(self):
+        before, _ext, _skipped = walk_files(self.root)
+        self._link(self.root / "src" / "vendored", self.outside / "nested", directory=True)
+        total, _by_ext, skipped = walk_files(self.root)
+        self.assertEqual(skipped, 1)
+        self.assertEqual(total, before)
+
+    def test_a_symlink_that_stays_inside_the_root_is_still_read(self):
+        # The rule is containment, not "no symlinks": a repo that links one of its
+        # own files is an ordinary repo, and dropping it would under-report it.
+        before, _ext, _skipped = walk_files(self.root)
+        self._link(self.root / "src" / "alias.ts", self.root / "src" / "pay.ts", directory=False)
+        total, _by_ext, skipped = walk_files(self.root)
+        self.assertEqual(skipped, 0)
+        self.assertEqual(total, before + 1)
+
+    def test_the_escape_never_reaches_the_dossier(self):
+        self._link(self.root / "canary.ts", self.outside / "stolen.ts", directory=False)
+        diagnostics = {}
+        dossier = build_heuristic_dossier(
+            self.root,
+            generated_at="2026-01-01T00:00:00+00:00",
+            diagnostics=diagnostics,
+        )
+        self.assertEqual(diagnostics["skippedSymlinks"], 1)
+        blob = json.dumps(dossier.model_dump(by_alias=True), ensure_ascii=False)
+        self.assertNotIn("canary.ts", blob)

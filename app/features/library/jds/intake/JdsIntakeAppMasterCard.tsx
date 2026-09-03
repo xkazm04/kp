@@ -199,6 +199,7 @@ export function JdsIntakeAppMasterCard({
   dossier,
   appMaster,
   scanNote,
+  fenceNote,
   objectiveCount,
   composing,
   composeError,
@@ -214,6 +215,10 @@ export function JdsIntakeAppMasterCard({
   appMaster: AppMasterCompose | null;
   /** A line about the scan while it is still running / unreachable. */
   scanNote: string | null;
+  /** The scan's fence disclosure: the in-repo agent read this repo behind deny
+   *  rules nobody has verified for the CLI it ran on. `null` = nothing to say —
+   *  the fence was verified, or no agent read the files at all. */
+  fenceNote?: string | null;
   /** How many `objective:` facets the brief holds — the fit is judged over them. */
   objectiveCount: number;
   composing: boolean;
@@ -274,6 +279,12 @@ export function JdsIntakeAppMasterCard({
           <ListRow label={t("dossier.objectives")} items={dossier.candidateObjectives.map((o) => o.label)} cap={4} />
           {dossier.maintainerLoadEstimate ? <Row label={t("dossier.load")} value={dossier.maintainerLoadEstimate} /> : null}
           {scanNote ? <p className="text-meta text-steel">{scanNote}</p> : null}
+          {fenceNote ? (
+            // Amber, not red: the deny rules were still sent and the redaction
+            // backstop still ran. This is a disclosure the operator can act on
+            // (re-verify and bump the list), not a failed scan.
+            <p className="text-meta font-medium text-amber-700">{fenceNote}</p>
+          ) : null}
         </div>
       )}
 

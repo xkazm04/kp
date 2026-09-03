@@ -141,6 +141,41 @@ const FALLBACK_STATE: Record<string, ScanState> = {
  * that is the one moment the operator can still decide to fix their agent and
  * re-scan. Pure, so jdsIntakeLogic.test.ts pins it without React.
  */
+/** The scan's second, INDEPENDENT disclosure: what it can claim about the fence
+ *  that keeps the in-repo agent out of `.env` and its friends.
+ *
+ *  Independent of `ScanState` on purpose. "The agent timed out" and "the agent read
+ *  your repo behind deny rules nobody has verified for the CLI it ran on" are two
+ *  different facts about the same run, and folding the second into the first enum
+ *  would mean one of them was always dropped. `null` = nothing to say: the fence was
+ *  verified, or no in-repo agent read the files at all (a keyless walk has no fence
+ *  to verify, and warning there would cry wolf on every keyless install).
+ *
+ *  Both members are ALSO message keys under `library.tab.intake.appMaster.scan.*`. */
+export type ScanFenceWarning = "fenceUnverified" | "fenceVersionUnknown" | null;
+
+const FENCE_WARNING: Record<string, ScanFenceWarning> = {
+  unverified_version: "fenceUnverified",
+  version_unknown: "fenceVersionUnknown",
+};
+
+/**
+ * Read that disclosure off a scan row. Defensive by construction: the block is
+ * stamped by Python onto the dossier as `scanFence`, which is outside
+ * `repoDossierSchema` (it is a fact about the SCAN, not about the repo), so a row
+ * written before the field existed — or by a build that strips it — must read as
+ * "no claim" rather than as a warning nobody can act on.
+ *
+ * Pure, so jdsIntakeLogic.test.ts pins it without React.
+ */
+export function scanFenceWarningFor(scan: RepoScanView): ScanFenceWarning {
+  if (scan.status !== "complete") return null;
+  const fence = (scan.dossier as { scanFence?: unknown } | null)?.scanFence;
+  if (!fence || typeof fence !== "object" || Array.isArray(fence)) return null;
+  const state = (fence as { state?: unknown }).state;
+  return typeof state === "string" ? FENCE_WARNING[state] ?? null : null;
+}
+
 export function scanStateFor(scan: RepoScanView): ScanState {
   if (scan.status === "failed") return FAILURE_STATE[scan.errorCode ?? ""] ?? "failed";
   if (scan.status === "complete") return scan.fallbackClass ? FALLBACK_STATE[scan.fallbackClass] ?? "fellBackUnknown" : null;
