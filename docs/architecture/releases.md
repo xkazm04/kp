@@ -214,6 +214,24 @@ gh release download v0.1.0 --pattern '*.cdx.json'
 jq -r '.components[] | "\(.name) \(.version)"' kp-0.1.0.cdx.json
 ```
 
+**The document is reproducible, so it can be checked rather than trusted.** The
+component lists are sorted and the serial number is a SHA-256 of them, and the
+timestamp — the one remaining input that made two cuts of the same tag differ
+byte for byte — is pinned: `--timestamp` (epoch seconds or an ISO instant), or
+the `SOURCE_DATE_EPOCH` convention when it is not passed. The release workflow
+passes the **tagged commit's own commit time**, so re-cutting the document from
+that tag reproduces the published file exactly:
+
+```bash
+git checkout v0.1.0
+node scripts/release/sbom.mjs --version 0.1.0 --commit "$(git rev-parse HEAD)" \
+  --timestamp "$(git log -1 --format=%cI)" --out /tmp/kp-0.1.0.cdx.json
+diff /tmp/kp-0.1.0.cdx.json kp-0.1.0.cdx.json   # the asset downloaded above
+```
+
+A `--timestamp` that is neither form is an **error**, not a fallback: a caller
+that asked for a reproducible document must not silently receive a clock.
+
 `npm run sbom` also runs on **every push** in CI, so a lockfile format change
 breaks the build rather than the next release. The generator refuses to write a
 document that lists implausibly little — see [`SECURITY.md`](../../SECURITY.md)

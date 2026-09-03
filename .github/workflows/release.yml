@@ -99,6 +99,14 @@ jobs:
       # lists suspiciously little (scripts/release/sbom.mjs, checkSbom) — an
       # empty SBOM published as if complete is worse than no SBOM, because the
       # operator triaging a CVE would read "not affected" from an omission.
+      #
+      # `--timestamp` is the TAGGED COMMIT's own commit time, not the clock this
+      # job happens to run on. Everything else in the document is already
+      # content-derived (sorted components, a serial number hashed from them),
+      # so the clock was the only reason re-running this job produced a
+      # different file for the same tag — and "re-cut it and compare" is exactly
+      # how an operator checks that the SBOM attached to a release describes the
+      # tree it claims to.
       - name: Generate the SBOM (CycloneDX)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -107,6 +115,7 @@ jobs:
             --out "dist/sbom/kp-${VERSION}.cdx.json" \
             --version "$VERSION" \
             --commit "$GITHUB_SHA" \
+            --timestamp "$(git log -1 --format=%cI "$GITHUB_SHA")" \
             --image "$IMAGE"
 
       # Pinned to a major tag for the reason recorded in the publish job below.
