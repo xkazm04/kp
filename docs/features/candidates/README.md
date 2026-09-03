@@ -150,7 +150,7 @@ truncated under the disposition pill, full text in the cell title.
 `app/_components/ui/recipes.ts` instead of re-typing the card literal, so the
 Spark Dark sticker treatment reaches them. The two primary drop zones wrap an
 `sr-only` input in a label, so their ring lives on the label via
-`DROP_ZONE_FOCUS` (`analyzeSurfaces.ts`, the technique `FileInput.tsx` uses) —
+`DROP_ZONE_FOCUS` (`analyzeSurfaces.ts`, now the only copy of the technique) —
 `focus-ring` on the clipped input painted nothing a keyboard user could see. The
 form footer puts the run-CONFIGURING controls (report language, blind screening)
 before the Analyze button in DOM order, and what blind mode redacts is the
