@@ -515,6 +515,7 @@ jobs:
           npx playwright test
           modal-escape
           profile-builder
+          landing
           journey-role-to-schedule
           journey-one-thread
           --project=chromium
