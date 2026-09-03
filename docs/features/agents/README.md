@@ -65,6 +65,18 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
    leaves the roster row marked `failed` and the board untouched
    (`agents-bridge.test.ts`).
+   **Both agent doors are throttled per IP.** Dispatch and pairing spawn real outbound
+   work behind `requireOperator()`, which open mode (no `KP_OPERATOR_PASSWORD`) makes a
+   documented no-op for the whole API — so each self-limits, in the idiom
+   `app/api/rate-limit-contract.test.ts` states for every spend door:
+   `agent-dispatch:<ip>` 10 / 10 min (inside `mintAndDispatch`, i.e. after every cheap
+   refusal and after the one-live-agent idempotency reuse, so a rejected or idempotent
+   call costs nothing), `agent-pair:<ip>` 10 / 10 min for the start phase, and
+   `agent-pair-claim:<ip>` 120 / 10 min for the claim poll — laxer because the panel
+   polls claim for the full 300s TTL along a 2s→15s backoff. All three answer the shared
+   `TOO_MANY_REQUESTS` code, so the card says it in the reader's language. The public
+   report receiver keeps its own per token+IP budget (60 / 60 s), now pinned
+   behaviourally by `app/api/agents/report/[token]/report-throttle.test.ts`.
    **An expired pairing key is its own answer.** Personas rejecting kp's stored `pk_`
    (a 401 upstream) comes back as a 502 whose code is **`AGENT_BRIDGE_KEY_INVALID`**,
    with the message *"Personas rejected kp's API key (401) — the pairing key has expired
@@ -101,7 +113,10 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    branch now writes its outcome into a `role="status"` line beside the button, resolved
    from the machine `code` through `useErrorMessage()` (never the server's English
    `error`), and only a real transition refetches the roster. `AGENT_BRIDGE_KEY_INVALID`
-   and `AGENT_BRIDGE_KEY_UNREADABLE` are in the `errors` catalog in all four locales.
+   and `AGENT_BRIDGE_KEY_UNREADABLE` are in the `errors` catalog in all four locales, as
+   is `AGENT_REFRESH_NOT_DISPATCHED` — the "there is no Personas request to poll" branch,
+   which used to ship a `reason` and no code and so landed every operator on the generic
+   localized sentence with no remedy in it.
    Known gap: the route's "no Personas request to poll" reason carries no code, so it
    lands on the localized generic rather than on its own sentence.
 5. **Counters flow back**: the hired persona reports executions/rollups/lifecycle events

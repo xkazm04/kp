@@ -63,6 +63,7 @@ export async function PUT(request: NextRequest) {
     endpoint?: unknown;
     apiVersion?: unknown;
     baseUrl?: unknown;
+    expectedUpdatedAt?: unknown;
   } | null;
   if (!body) return jsonRefusal("MODEL_KEY_BODY_INVALID", 400);
   if (!isKeyableProvider(body.provider)) {
@@ -98,16 +99,25 @@ export async function PUT(request: NextRequest) {
   if (!process.env.KP_SECRET) {
     return jsonRefusal("MODEL_KEY_ENCRYPTION_UNCONFIGURED", 400, { provider: body.provider });
   }
+  let saved: Awaited<ReturnType<typeof saveProviderKey>>;
   try {
     // Awaited: saveProviderKey now RESOLVES the endpoint host (DNS-rebind guard),
     // so an invalid/private-resolving endpoint rejects here and maps to a 400.
-    await saveProviderKey({
+    saved = await saveProviderKey({
       provider: body.provider,
       scope,
       apiKey,
       endpoint,
       apiVersion: typeof body.apiVersion === "string" && body.apiVersion.trim() ? body.apiVersion.trim() : undefined,
       baseUrl,
+      // The version the PANEL rendered, echoed back. A stored key is encrypted and
+      // unrecoverable once replaced, so two admins rotating the same row in
+      // overlapping tabs must not silently destroy one of the keys — the store
+      // re-asserts this under the write lock (upsertProviderKey). A caller that
+      // sends nothing (headless/CLI) never read a version, so it keeps the old
+      // last-writer-wins behaviour rather than being refused for a field it has no
+      // way to supply.
+      expectedUpdatedAt: typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : undefined,
     });
   } catch (error) {
     // The thrown message names the resolved host, the rejected URL or the crypto
@@ -116,6 +126,11 @@ export async function PUT(request: NextRequest) {
     // same for every member of the class.
     console.error(`[api:llm/keys] MODEL_KEY_REJECTED for ${String(body.provider)}:${scope}`, error);
     return jsonRefusal("MODEL_KEY_REJECTED", 400, { provider: body.provider });
+  }
+  if (!saved.ok) {
+    // 409, with the CURRENT rows: the refusal is only useful if the panel can
+    // reload onto what is actually stored and re-decide with it in front of them.
+    return jsonRefusal("MODEL_KEY_STALE", 409, { provider: body.provider, keys: listProviderKeyMeta() });
   }
   return NextResponse.json({ ok: true, keys: listProviderKeyMeta() });
 }

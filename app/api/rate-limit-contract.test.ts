@@ -457,6 +457,51 @@ const ROUTES: RouteSpec[] = [
     // that spawns nothing consumes nothing.
     servedBefore: "buildProviderKeyProbeEnv(provider, scope)",
   },
+  // The two AGENT-BRIDGE doors. Both spawn real outbound work — a persona request
+  // POSTed to Personas, a pairing key exchange — behind `requireOperator()`, which
+  // open mode (no KP_OPERATOR_PASSWORD) makes a documented no-op for the whole API.
+  // Neither had a limiter until the 2026-09-03 sweep.
+  {
+    rel: "./agents/dispatch/route.ts",
+    // Per-IP. The limiter sits inside `mintAndDispatch`, which is entered only after
+    // EVERY cheap refusal of both origins (job/intake missing, not composed, spec
+    // stale, human population, invalid budget) and after the one-live-agent
+    // idempotency reuse — so a rejected or idempotent call spends no budget. That
+    // ordering is structural, not textual, which is why no `servedBefore` is pinned.
+    key: "`agent-dispatch:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "DISPATCH_RATE_LIMIT",
+    optsDef: "const DISPATCH_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The mint is the first irreversible act: a row, a CSPRNG report token, then the
+    // outbound POST.
+    expensive: "createHiredAgent(",
+  },
+  {
+    rel: "./agents/pair/route.ts",
+    // Phase 1. Ahead of the baseUrl WRITE as well as the outbound call — a throttled
+    // start must not re-point the deployment at someone else's Personas either.
+    key: "`agent-pair:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "PAIR_START_RATE_LIMIT",
+    optsDef: "const PAIR_START_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startPairing()",
+  },
+  {
+    rel: "./agents/pair/route.ts",
+    // Phase 2, and DELIBERATELY the laxer of the pair: the panel polls claim for up
+    // to the 300s TTL along a 2s→15s backoff (~30 requests per pairing), so a budget
+    // sized like start's would refuse a legitimate wait. After the shape refusal, so
+    // a bodyless poll costs nothing.
+    key: "`agent-pair-claim:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "PAIR_CLAIM_RATE_LIMIT",
+    optsDef: "const PAIR_CLAIM_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "claimPairing(nonce)",
+    servedBefore: "if (!nonce)",
+  },
   {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.

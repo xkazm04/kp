@@ -351,6 +351,22 @@ export const REFUSAL_ERRORS = {
    *  candidate still deserves the reason in their own language rather than the
    *  server's English sentence. */
   OFFER_RESPONSE_INVALID: "Respond with either accept or decline.",
+  /** A status link that resolves to no application (404) — mistyped, revoked, or
+   *  belonging to an entry that has since been erased. `not found` in bare English
+   *  was what the two public status doors answered; the page shows the reader
+   *  `errors.STATUS_LINK_INVALID` in their own language instead. The token and the
+   *  entry stay DELIBERATELY indistinguishable: one refusal for both, so the door
+   *  is not an existence oracle. */
+  STATUS_LINK_INVALID: "This status link is not valid.",
+  /** Feedback arrived for an application that is still running (409). Refused
+   *  rather than stored: a response captured mid-process would be folded into a
+   *  "candidate experience" figure that claims to measure completed journeys. */
+  STATUS_NPS_NOT_APPLICABLE: "This question opens once your application has finished.",
+  /** An erasure link that resolves to nothing (404): never issued, or already
+   *  spent — anonymizeEntry NULLs the token, so a replay lands here. Both readings
+   *  share one refusal because the candidate's next step is the same either way,
+   *  and telling them apart would confirm which tokens exist. */
+  DATA_LINK_INVALID: "This data link is no longer valid.",
   /** A work-session id presented without, or with the wrong, apply token (403). */
   SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
   /** The apply link does not resolve to a posting that is taking work (404). The two
