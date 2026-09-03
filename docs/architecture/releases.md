@@ -70,6 +70,11 @@ asserts it), and runs in two places:
 | [`.githooks/commit-msg`](../../.githooks/commit-msg) | as the message is written (`core.hooksPath` is set by `npm install`) | the commit is rejected; amend and retry |
 | `commit-convention` job in [`ci.yml`](../../.github/workflows/ci.yml) | every push and PR, over the whole range | the build is red until the subject is amended or waived |
 
+All four scripts here shell out through one wrapper —
+[`scripts/release/git.mjs`](../../scripts/release/git.mjs), which also serves the
+doc-sync gate — so the range reader, the rev check and the 64MB stdout buffer a
+long `git log` needs exist once rather than in three copies that drift.
+
 Merge, revert and `fixup!` subjects are exempt — those are git's words, not
 ours. An individual message is waived on the record with a
 `Commit-convention-exemption: <why>` trailer in the body, the same shape as

@@ -77,12 +77,12 @@
 // EXIT CODES: 0 every subject conforms (or was exempt) · 1 at least one does not.
 
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { REPO_ROOT, commitsInRange as commitsWithFiles, filesInCommit, git, revExists } from './git.mjs';
 import { SECTIONS } from './prepare.mjs';
 import { checkTrailers } from './provenance.mjs';
 import { checkProvenance } from '../agent/provenance.mjs';
 
-export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+export { REPO_ROOT, filesInCommit };
 
 /** The types prepare.mjs can file. Anything else lands in "Other" — the failure. */
 export const KNOWN_TYPES = [...new Set(SECTIONS.flatMap(([, types]) => types))].sort();
@@ -445,48 +445,15 @@ export function review(commits) {
 }
 
 // --- git plumbing (not pure; not covered by fixtures) -----------------------
+//
+// The wrappers themselves live in ./git.mjs, shared with prepare.mjs,
+// provenance.mjs and the doc-sync gate. This gate is the caller that wants the
+// FILES of each commit, because checkTypeAgainstFiles() judges a type against
+// the diff it actually carries.
 
-function git(args) {
-  return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-}
-
-function revExists(rev) {
-  try {
-    git(['rev-parse', '--verify', '--quiet', `${rev}^{commit}`]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ASCII record separator. Commit bodies contain blank lines and every printable
-// delimiter someone might reach for, so records are split on a byte a message
-// cannot contain.
-const RECORD = '\x1e';
-
-/** The paths one commit touches. Empty on anything git will not show (a root commit's parent, a bad rev). */
-export function filesInCommit(sha) {
-  try {
-    return git(['show', '--no-renames', '--pretty=format:', '--name-only', sha])
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-/** Commits in `base..head`, merges excluded (their subjects are git's, not ours). */
+/** Commits in `base..head`, merges excluded, each with the paths it touches. */
 export function commitsInRange(base, head) {
-  const out = git(['log', '--no-merges', '--format=%H%n%s%n%b%x1e', `${base}..${head}`]);
-  return out
-    .split(RECORD)
-    .map((chunk) => chunk.replace(/^\n+/, ''))
-    .filter((chunk) => chunk.trim())
-    .map((chunk) => {
-      const [sha, subject, ...rest] = chunk.split('\n');
-      return { sha: sha.trim(), subject: (subject ?? '').trim(), body: rest.join('\n'), files: filesInCommit(sha.trim()) };
-    });
+  return commitsWithFiles(base, head, { withFiles: true });
 }
 
 /**

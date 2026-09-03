@@ -43,9 +43,9 @@
 // EXIT CODES: 0 always in query mode — this reports, it does not judge. The
 // judging half lives in commit-msg.mjs, which is already a required check.
 
-import { execFileSync } from 'node:child_process';
+import { REPO_ROOT, commitsInRange } from './git.mjs';
 
-export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+export { REPO_ROOT, commitsInRange };
 
 /**
  * THE VOCABULARY. Each entry is a trailer key, whether a well-formed value is
@@ -207,24 +207,10 @@ export function render(s, range) {
   return lines.join('\n');
 }
 
-// --- git plumbing (not pure; not covered by fixtures) -------------------------
-
-const RECORD = '\x1e';
-
-function git(args) {
-  return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-}
-
-export function commitsInRange(base, head) {
-  return git(['log', '--no-merges', '--format=%H%n%s%n%b%x1e', `${base}..${head}`])
-    .split(RECORD)
-    .map((chunk) => chunk.replace(/^\n+/, ''))
-    .filter((chunk) => chunk.trim())
-    .map((chunk) => {
-      const [sha, subject, ...rest] = chunk.split('\n');
-      return { sha: sha.trim(), subject: (subject ?? '').trim(), body: rest.join('\n') };
-    });
-}
+// --- cli --------------------------------------------------------------------
+//
+// The git plumbing is ./git.mjs, shared with the release scripts. This query
+// reads bodies only, so it does not ask for each commit's files.
 
 export function parseArgs(argv) {
   const out = { base: null, head: 'HEAD', json: false };

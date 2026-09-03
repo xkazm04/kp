@@ -29,9 +29,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { REPO_ROOT, git, lastTag } from './git.mjs';
 
-export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+export { REPO_ROOT, lastTag };
+
 const PKG = 'package.json';
 const CHART = 'deploy/helm/kp/Chart.yaml';
 const CHANGELOG = 'CHANGELOG.md';
@@ -136,18 +137,9 @@ export function checkCoherence({ pkgVersion, chart, changelog }) {
 }
 
 // --- git helpers (not pure; not covered by fixtures) ------------------------
-
-function git(args) {
-  return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-}
-
-export function lastTag() {
-  try {
-    return git(['describe', '--tags', '--abbrev=0', '--match', 'v*']).trim() || null;
-  } catch {
-    return null;
-  }
-}
+//
+// `git` and `lastTag` are shared with the commit gate and the provenance query;
+// they live in ./git.mjs so a fix to the plumbing lands in one place.
 
 function subjectsSince(tag) {
   const range = tag ? `${tag}..HEAD` : 'HEAD';
