@@ -1475,6 +1475,7 @@
     "SCHEDULE_INTERVAL_INVALID": "Das Automatisierungsintervall muss eine Zahl in Minuten sein.",
     "COMM_RESEND_IN_PROGRESS": "Ein erneuter Versand dieser Nachricht läuft bereits.",
     "COMM_ALREADY_RESENT": "Bereits erneut gesendet. Für diese Nachricht gibt es eine neuere Zustellung.",
+    "COMM_SIMULATION_ROW": "Diese Nachricht gehört zur geführten Simulation und wird nie gesendet.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen.",
     "MATCH_RUN_FAILED": "Diese Person konnte nicht gegen die Rollen bewertet werden. Bitte erneut versuchen.",
     "MATCH_INPUT_INVALID": "Diese Person ließ sich nicht auflösen. Das Profil oder die Analyse dahinter existiert nicht mehr.",

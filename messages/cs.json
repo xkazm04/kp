@@ -1475,6 +1475,7 @@
     "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách.",
     "COMM_RESEND_IN_PROGRESS": "Odeslání této zprávy už právě probíhá.",
     "COMM_ALREADY_RESENT": "Už bylo odesláno znovu. Pro tuto zprávu existuje novější doručení.",
+    "COMM_SIMULATION_ROW": "Tato zpráva patří k řízené simulaci a nikdy se neodesílá.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází.",
     "MATCH_RUN_FAILED": "Tohoto kandidáta se nepodařilo porovnat s rolemi. Zkuste to prosím znovu.",
     "MATCH_INPUT_INVALID": "Tohoto kandidáta nelze načíst. Profil nebo analýza za ním už neexistuje.",

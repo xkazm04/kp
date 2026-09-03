@@ -1475,6 +1475,7 @@
     "SCHEDULE_INTERVAL_INVALID": "L'intervalle d'automatisation doit être un nombre de minutes.",
     "COMM_RESEND_IN_PROGRESS": "Un renvoi de ce message est déjà en cours.",
     "COMM_ALREADY_RESENT": "Déjà renvoyé. Une remise plus récente existe pour ce message.",
+    "COMM_SIMULATION_ROW": "Ce message appartient à la simulation guidée et n'est jamais envoyé.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est.",
     "MATCH_RUN_FAILED": "Impossible de classer ce candidat par rapport aux postes. Veuillez réessayer.",
     "MATCH_INPUT_INVALID": "Ce candidat est introuvable : le profil ou l'analyse correspondante n'existe plus.",

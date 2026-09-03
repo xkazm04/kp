@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 // The recovery door's dedup must cover the REFLESS dead letter too.
 //
 // The check was written as `if (original.ref) { …look for a newer delivery… }`, so a
@@ -109,4 +110,12 @@ test("an unknown outbox id is a 404, and a message missing fields a 422 — both
     0,
     "and nothing was written for it",
   );
+});
+
+test("a (SIM) outbox row is refused before the relay is reached", () => {
+  const src = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  const guard = src.indexOf("SIM_COMMS_CHANNEL) return jsonRefusal(\"COMM_SIMULATION_ROW\"");
+  const relay = src.indexOf("await sendComm(");
+  assert.ok(guard >= 0, "the simulation guard exists");
+  assert.ok(relay >= 0 && guard < relay, "the guard precedes the relay call");
 });

@@ -727,6 +727,7 @@ export const REFUSAL_ERRORS = {
    *  dispatching twice — and it now says so with a code, because the button used to
    *  fall through to the generic "couldn't re-send" sentence in all four languages. */
   COMM_RESEND_IN_PROGRESS: "A resend for this message is already in progress.",
+  COMM_SIMULATION_ROW: "This message belongs to the guided simulation and is never sent.",
   /** A newer real delivery already exists for this message (409), so re-dispatching
    *  it would send the candidate the same offer/rejection twice. Durable, not
    *  in-process: the check reads the outbox. */
