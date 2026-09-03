@@ -66,6 +66,12 @@ MTOK_PRICES: dict[str, tuple[float, float]] = {
     "claude-sonnet-5": (3.00, 15.00),
     "claude-opus-5": (5.00, 25.00),
     # provider price books, 2026-08-11 (requesty/wavespeed/deepseek listings)
+    # gemini-3.8-flash (announced 2026-09-02) lists an intro $0.75/$3.75 through
+    # 2026-12-31, reverting to $1.50/$7.50 on 2027-01-01. Booked at the STANDARD
+    # rate for the same reason claude-sonnet-5 is above: this figure feeds
+    # cross-model comparison, and a promo rate would make 3.8 look cheaper than
+    # 3.6 until the promo lapses and the ranking silently flipped back.
+    "gemini-3.8-flash": (1.50, 7.50),
     "gemini-3.6-flash": (1.50, 7.00),
     "gemini-3-flash-preview": (0.30, 2.50),
     "gemini-2.5-flash": (0.30, 2.50),

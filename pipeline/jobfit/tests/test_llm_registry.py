@@ -98,7 +98,7 @@ class RoutingTest(unittest.TestCase):
         with llm_config(cfg):
             provider = resolve_provider("match_reasoning")
         self.assertIsInstance(provider, GeminiProvider)
-        self.assertEqual(provider.model, "gemini-3.6-flash")
+        self.assertEqual(provider.model, "gemini-3.8-flash")
 
     def test_params_and_keys_flow_into_adapter(self) -> None:
         cfg = {
@@ -191,7 +191,7 @@ class ProductionDefaultTest(unittest.TestCase):
                 with mock.patch.object(GeminiProvider, "available", lambda self: True):
                     provider = resolve_provider("match_reasoning")
         self.assertIsInstance(provider, GeminiProvider)
-        self.assertEqual(provider.model, "gemini-3.6-flash")
+        self.assertEqual(provider.model, "gemini-3.8-flash")
 
     def test_production_keyless_keeps_claude_cli(self) -> None:
         with llm_config(None):

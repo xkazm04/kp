@@ -5,7 +5,7 @@ import { trackLlmToLightTrack } from "@/app/_lib/llm-lighttrack";
 // The model id lives here next to its price book on purpose: the cost stamped on
 // the ledger row must always belong to the model that was actually called, so the
 // two can never be edited apart. code-review.ts imports GEMINI_MODEL from here.
-export const GEMINI_MODEL = "gemini-3.6-flash";
+export const GEMINI_MODEL = "gemini-3.8-flash";
 
 // USD per million tokens for GEMINI_MODEL — keep in sync with MTOK_PRICES in
 // pipeline/jobfit/llm/base.py (Python is the price book of record; this pair
@@ -14,8 +14,16 @@ export const GEMINI_MODEL = "gemini-3.6-flash";
 // to 7.5 against the record's 7.00, so every github_analysis row overstated its
 // output cost by ~7% and disagreed with every Python-metered Gemini call in the
 // same ledger — usage.test.ts now pins the pair to base.py so it can't drift again.
+//
+// 2026-09-02: GEMINI_MODEL moved 3.6 -> 3.8, so this pair follows base.py's 3.8
+// row, NOT its 3.6 row. Note the coincidence and do not read it as the old drift
+// returning: 7.5 is now the CORRECT output figure because it is 3.8's standard
+// rate, where before it was a wrong copy of 3.6's 7.00. base.py books 3.8 at the
+// standard rate rather than its introductory 0.75/3.75 (which runs to 2026-12-31)
+// so cross-model comparisons don't silently improve and then lapse; this pair
+// mirrors that choice, because the two must agree or the ledger disagrees with itself.
 const GEMINI_MTOK_PRICE_IN_USD = 1.5;
-const GEMINI_MTOK_PRICE_OUT_USD = 7.0;
+const GEMINI_MTOK_PRICE_OUT_USD = 7.5;
 
 // Stamp the deep-review Gemini call into BOTH telemetry sinks — the durable
 // llm_usage ledger and LightTrack. The LLM-cost audit flagged this site as the
