@@ -117,6 +117,32 @@ Three facts about that gate that are easy to get wrong:
   why a newly added child route inherits its parent's gating instead of
   escaping it — the bug class that once made `/api/schedule/invite/bulk` public.
 
+**A session is not an authorisation.** `requireOperator()` answers "is this a
+trusted operator", which on a TEAM deployment every member satisfies. A route
+that returns other members' data needs a capability, through
+`requireCapability(cap)` from
+[`app/_lib/auth/current-user.ts`](../../app/_lib/auth/current-user.ts) — 401
+unauthenticated, 403 under-privileged, resolved live from the DB membership.
+`GET /api/feedback` is the worked example (2026-09-03): it is a read of
+colleagues' free-text messages *with* their reply addresses and it required only a
+session, so every viewer and recruiter in the workspace could read all of it. It
+is now `members:manage`, the same bar as the member and invite lists — and the
+`/control` section that renders it resolves the same capability server-side, so
+the UI and the API cannot drift apart. Pick the capability by what the data IS,
+not by which role happens to visit the page.
+
+**A public route's payload is split by that gate, not by convenience.**
+`/api/health` is on the allow-list, so the verdict a monitor gates on
+(`ok`/`db`/`seeds`/`clock` + the status code) is public and everything else rides
+`isOperator()`: the deployment-wide table counts, the queue, `degradedReasons`
+(whose seed entries quote absolute server paths) and — since 2026-09-03 — the
+`engines` preflight map, which is SECRET PRESENCE (is a Gemini key configured, is
+a `claude` CLI installed on this host). The detail is **omitted, never blanked**:
+an empty `degradedReasons` beside a 503 is a confident lie. It is also no longer
+COMPUTED for an untrusted caller — the seven unscoped `COUNT(*)`s collapse to one
+`LIMIT 1` existence probe, the single fact the public verdict depends on.
+Pinned by `app/api/health/health-exposure.test.ts`.
+
 ### 1.3 Public token surfaces carry a projection, not a row
 
 `/schedule/[token]`, `/interview/[token]`, `/offer/[token]`, `/status/[token]`,
@@ -142,6 +168,18 @@ the store do per minute and a flood never reaches the store. A GET counts when i
 not a pure read (`/api/offer` runs `expireOfferIfDue` on every hit). The erasure POST
 (an irreversible scrub) and the invite POST (a user, a membership and a session) were
 the last two doors without one; closed 2026-09-01.
+
+**Sizing, when the key can degenerate.** With `KP_TRUSTED_PROXY` unset — the
+default for a directly-exposed self-host — `clientIpFrom` returns
+`SHARED_CLIENT_KEY` for *every* caller, so a per-IP bucket is one bucket for the
+whole deployment. For an abuse-containment door that is the safe failure
+(over-throttle). For a door whose refusal DENIES A FEATURE to every colleague at
+once it is not, and there are two honest answers: skip the degenerate bucket
+(`/api/auth/login` does, because its per-account bucket is the real defense), or
+set a ceiling people cannot plausibly reach. `/api/search` — the command palette,
+five leading-wildcard `LIKE` scans per hit and the heaviest read per byte of input
+in the app — took the second at 3000/10min (2026-09-03). A tight number there
+would have let one script take the palette away from everyone.
 
 Pick the key deliberately:
 

@@ -1556,7 +1556,9 @@
     "SCHEDULE_NOTHING_TO_RECONCILE": "U tohoto pohovoru už není co srovnávat.",
     "SCHEDULE_MEETING_URL_INVALID": "Zadejte platný odkaz na schůzku (http nebo https).",
     "FEEDBACK_MESSAGE_REQUIRED": "Před odesláním napište zprávu.",
-    "FEEDBACK_MESSAGE_TOO_LONG": "Zpráva je příliš dlouhá. Zkraťte ji prosím na nejvýše 2 000 znaků."
+    "FEEDBACK_MESSAGE_TOO_LONG": "Zpráva je příliš dlouhá. Zkraťte ji prosím na nejvýše 2 000 znaků.",
+    "OPS_STATUS_FAILED": "Stav systému se nepodařilo načíst. Zkuste to prosím znovu.",
+    "FEEDBACK_READ_FORBIDDEN": "Schránku zpětné vazby může číst jen ten, kdo spravuje členy týmu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9011,7 +9013,51 @@
       "openDecisions": "Otevřít Rozhodnutí",
       "reviewInDecisions": "Zkontrolovat výsledky v Rozhodnutích",
       "openSchedule": "Otevřít Plánování",
-      "openBoard": "Otevřít na nástěnce"
+      "openBoard": "Otevřít na nástěnce",
+      "field": {
+        "source": "Vytvořil",
+        "outcome": "Výsledek",
+        "language": "Jazyk textu",
+        "freshness": "Aktuálnost",
+        "savedAs": "Uloženo jako",
+        "drafted": "Připraveno",
+        "codebases": "Načtené repozitáře",
+        "stage": "Fáze",
+        "detail": "Detail",
+        "candidates": "Porovnaných kandidátů",
+        "lead": "Favorit",
+        "caseIncluded": "Praktické zadání",
+        "followups": "Doplňující otázky",
+        "proposals": "Návrhy",
+        "failures": "Chyby"
+      },
+      "value": {
+        "llm": "AI",
+        "deterministic": "Šablona",
+        "heuristic": "Heuristika",
+        "skipped": "Přeskočeno",
+        "cached": "Z mezipaměti",
+        "fresh": "Nově spočítáno",
+        "yes": "Součástí",
+        "no": "Není součástí",
+        "advanced": "Posunut o fázi dál",
+        "held_for_review": "Čeká na lidskou kontrolu",
+        "advisory": "Pouze doporučení, nic se nezměnilo",
+        "auto_ratified": "Automaticky schváleno",
+        "drafted": "Připraven koncept",
+        "scorecard_ready": "Hodnoticí list připraven",
+        "offer_ready": "Nabídka připravena",
+        "offer_sent": "Nabídka odeslána",
+        "sent": "Odesláno",
+        "already_sent": "Již odesláno",
+        "suppressed_anonymized": "Neodesláno: data kandidáta byla anonymizována",
+        "suppressed_consent_expired": "Neodesláno: vypršel souhlas",
+        "rematched": "Přiřazen k jiné roli",
+        "already_rematched": "Již přiřazen jinam",
+        "no_alternative": "Žádná jiná role se nenašla",
+        "skipped_hired": "Přeskočeno: již přijat",
+        "skipped_stage_changed": "Přeskočeno: kandidát změnil fázi"
+      }
     },
     "results": {
       "emptyTitle": "Žádné nedávné úlohy AI",
@@ -9036,7 +9082,8 @@
       "leaveNote": "Běží na pozadí. Mezitím můžete pracovat jinde, výsledek najdete v Úlohách AI."
     },
     "unreadDone": "{count, plural, one {# nepřečtená dokončená úloha} few {# nepřečtené dokončené úlohy} other {# nepřečtených dokončených úloh}}",
-    "unreadRow": "Nové, dokončeno, zatímco jste byli jinde"
+    "unreadRow": "Nové, dokončeno, zatímco jste byli jinde",
+    "queueUnreachable": "Frontu úloh se nedaří načíst. Vidíte poslední snímek; nové běhy se objeví, až bude znovu dostupná."
   },
   "legal": {
     "updated": "Poslední aktualizace: {date}",

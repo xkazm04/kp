@@ -92,6 +92,11 @@ export const STORE_ERRORS = {
   // SQLITE_* text, the absolute db path and the crypto helper's key detail — all of
   // which the handler used to forward as `error.message`.
   COMMS_RELAY_SAVE_FAILED: "Could not save the relay config. Please try again.",
+  // GET /api/ops (/perfect wave 17, api-workspace). Its catch forwarded the thrown
+  // message for a payload assembled from better-sqlite3 (the db FILE PATH inside a
+  // SQLITE_* text), the seed report (absolute seed paths) and three log tails (the
+  // log directory) — the widest internal-path leak of any single handler.
+  OPS_STATUS_FAILED: "Could not load system status. Please try again.",
   // NOT a thrown store error: GET /api/jobs raises this deliberately when the
   // catalog is empty AND the seed health report names a failed jobs seed. The
   // failing PATH and reason are operator detail — they go to the server log
@@ -914,6 +919,12 @@ export const REFUSAL_ERRORS = {
   SIM_NO_APPLICANT: "No candidate is available to simulate an application from.",
   SIM_ENTRY_REQUIRED: "The simulation needs a pipeline entry to act on.",
   SIM_ENTRY_NOT_FOUND: "That candidate is not on this board.",
+  /** GET /api/feedback is a read of colleagues' free-text reports WITH their reply
+   *  addresses, so it is `members:manage`-gated (/perfect wave 17, api-workspace).
+   *  One code covers both statuses requireCapability produces — 401 with no session,
+   *  403 for a member who lacks the capability — because the remedy is identical and
+   *  the control room renders the same sentence either way. */
+  FEEDBACK_READ_FORBIDDEN: "Only someone who can manage members may read the feedback inbox.",
   /** The recruiter feedback door's two validator refusals (/perfect wave 17,
    *  shell-nav). parseFeedbackSubmission used to put its own English sentence in
    *  the 400 body and the limiter answered 429 with no code at all, so the dialog

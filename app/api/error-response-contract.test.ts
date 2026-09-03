@@ -262,7 +262,13 @@ const LEAK_CEILING = new Map<string, number>([
   // app/api/matrix/matrix-error-code.ts — jsonRefusal for the 429 and the engine's
   // 4xx, safeJsonError with a MATRIX_*/MATCH_REASONING_* code for the rest. The rows
   // are deleted so the win is locked and a regression reads as `undeclared`.
-  ["ops/route.ts", 1],
+  // ops/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect wave 17,
+  // api-workspace): its catch forwarded the thrown message for a payload built from
+  // better-sqlite3, the seed report and three log tails — the db file path, absolute
+  // seed paths and the log directory, all to the System strip. It now answers
+  // safeJsonError(error, "api:ops", "OPS_STATUS_FAILED"). The entry is DELETED so the
+  // win is locked and a regression reads as `undeclared` rather than as budget
+  // already granted; app/api/ops/ops-route.test.ts pins the code itself.
   ["profile/candidates/route.ts", 1],
   ["profile/draft/route.ts", 1],
   ["profile/route.ts", 4],

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
@@ -77,8 +78,11 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("[api/ops] failed to build the ops payload", error);
-    const message = error instanceof Error ? error.message : "Failed to load system status.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The thrown message here is the WORST kind to forward: this payload is built
+    // from better-sqlite3 (the db file path in a SQLITE_* message), the seed report
+    // (absolute seed paths) and three log tails (the log directory). It answered with
+    // all of it. safeJsonError logs the real error and hands back the code the System
+    // strip renders through useErrorMessage in the reader's language.
+    return safeJsonError(error, "api:ops", "OPS_STATUS_FAILED");
   }
 }

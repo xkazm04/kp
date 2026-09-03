@@ -1556,7 +1556,9 @@
     "SCHEDULE_NOTHING_TO_RECONCILE": "There's nothing left to reconcile on this interview.",
     "SCHEDULE_MEETING_URL_INVALID": "Enter a valid http(s) meeting link.",
     "FEEDBACK_MESSAGE_REQUIRED": "Write a message before sending.",
-    "FEEDBACK_MESSAGE_TOO_LONG": "That message is too long. Please shorten it to 2,000 characters or fewer."
+    "FEEDBACK_MESSAGE_TOO_LONG": "That message is too long. Please shorten it to 2,000 characters or fewer.",
+    "OPS_STATUS_FAILED": "Could not load system status. Please try again.",
+    "FEEDBACK_READ_FORBIDDEN": "Only someone who can manage members may read the feedback inbox."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9011,7 +9013,51 @@
       "openDecisions": "Open Decisions",
       "reviewInDecisions": "Review outcomes in Decisions",
       "openSchedule": "Open Schedule",
-      "openBoard": "Open on the board"
+      "openBoard": "Open on the board",
+      "field": {
+        "source": "Produced by",
+        "outcome": "Outcome",
+        "language": "Written in",
+        "freshness": "Freshness",
+        "savedAs": "Saved as",
+        "drafted": "Drafted",
+        "codebases": "Codebases read",
+        "stage": "Stage",
+        "detail": "Detail",
+        "candidates": "Candidates compared",
+        "lead": "Front-runner",
+        "caseIncluded": "Work-sample case",
+        "followups": "Follow-up questions",
+        "proposals": "Proposals",
+        "failures": "Failures"
+      },
+      "value": {
+        "llm": "AI",
+        "deterministic": "Template",
+        "heuristic": "Heuristic",
+        "skipped": "Skipped",
+        "cached": "Reused from cache",
+        "fresh": "Newly computed",
+        "yes": "Included",
+        "no": "Not included",
+        "advanced": "Advanced a stage",
+        "held_for_review": "Held for human review",
+        "advisory": "Advisory only, nothing moved",
+        "auto_ratified": "Auto-ratified",
+        "drafted": "Draft prepared",
+        "scorecard_ready": "Scorecard ready",
+        "offer_ready": "Offer ready",
+        "offer_sent": "Offer sent",
+        "sent": "Sent",
+        "already_sent": "Already sent",
+        "suppressed_anonymized": "Not sent: the candidate's data was anonymized",
+        "suppressed_consent_expired": "Not sent: consent expired",
+        "rematched": "Re-matched to another role",
+        "already_rematched": "Already re-matched",
+        "no_alternative": "No alternative role found",
+        "skipped_hired": "Skipped: already hired",
+        "skipped_stage_changed": "Skipped: the candidate moved stage"
+      }
     },
     "results": {
       "emptyTitle": "No recent AI tasks",
@@ -9036,7 +9082,8 @@
       "leaveNote": "Runs in the background. You can keep working elsewhere, and the outcome lands in AI tasks."
     },
     "unreadDone": "{count, plural, one {# finished task unread} other {# finished tasks unread}}",
-    "unreadRow": "New, finished while you were elsewhere"
+    "unreadRow": "New, finished while you were elsewhere",
+    "queueUnreachable": "Can't reach the task queue. What you see is the last snapshot, and new runs won't appear until it's back."
   },
   "legal": {
     "updated": "Last updated: {date}",

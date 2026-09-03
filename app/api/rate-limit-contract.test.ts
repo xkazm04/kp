@@ -641,6 +641,10 @@ const ROUTES: RouteSpec[] = [
     // rejected submission never consumes budget.
     key: "`feedback:${clientIpFrom(request.headers)}`",
     limit: 10,
+    // Moved onto the refusal chokepoint with the feedback-code conversion: the dialog
+    // renders errors.TOO_MANY_REQUESTS instead of falling through to its generic
+    // "couldn't send, try again" and sending the recruiter straight back at the wall.
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "recordFeedback(",
     servedBefore: "parseFeedbackSubmission(body)",
   },
@@ -1206,6 +1210,32 @@ const ROUTES: RouteSpec[] = [
     expensive: "await gateway.createPortalSession(customerId)",
     // The "no customer yet" 404 is the calm pre-first-purchase state; it mints nothing.
     servedBefore: 'jsonRefusal("BILLING_NO_CUSTOMER", 404)',
+  },
+  {
+    // ADDED /perfect wave 17 (api-workspace). Not a money or subprocess door — a
+    // COMPUTE one, and the heaviest read per byte of input in the app: five
+    // `LIKE '%q%'` scans, all with a leading wildcard, so every one is a full table
+    // walk (analytics.ts searchEntities). It had no limiter, and in open mode it takes
+    // an unauthenticated path.
+    //
+    // 3000/10min looks absurd next to its neighbours and the reason is pinned here so
+    // nobody "tightens" it: with KP_TRUSTED_PROXY unset, clientIpFrom returns
+    // SHARED_CLIENT_KEY for everyone, so `search:local` is ONE bucket for the whole
+    // deployment — and unlike an apply or login door, tripping it denies the command
+    // palette to every colleague at once. The ceiling has to sit where people cannot
+    // reach it and a script still can.
+    rel: "./search/route.ts",
+    key: "`search:${clientIpFrom(request.headers)}`",
+    limit: 3000,
+    optsSrc: "SEARCH_RATE_LIMIT",
+    optsDef: "const SEARCH_RATE_LIMIT = { limit: 3000, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The call site, not the bare name: `searchEntities(` also appears in the import
+    // line, which necessarily precedes the limiter.
+    expensive: "searchEntities(q,",
+    // A sub-minimum query runs no SQL and the palette sends one on every deletion
+    // keystroke — it must never spend the window.
+    servedBefore: "if (q.length < MIN_QUERY_LENGTH)",
   },
 ];
 

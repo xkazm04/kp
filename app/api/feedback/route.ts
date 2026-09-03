@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { currentSession } from "@/app/_lib/auth/current-user";
+import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { getUserById } from "@/app/_lib/db/users";
 import { parseFeedbackSubmission, replyEmailFrom } from "@/app/_lib/feedback";
