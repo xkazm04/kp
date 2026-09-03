@@ -1573,7 +1573,14 @@
     "TEMPLATE_LAST_ONE": "This is the last template your team can see. Keep at least one.",
     "TEMPLATE_IS_DEFAULT": "This is the default template. Set another template as the default before deleting it.",
     "TEMPLATE_STALE": "Someone else saved this template while you were editing. Reload it and reapply your changes.",
-    "TEMPLATE_DEFAULT_ORG_ONLY": "Only a template shared with the whole company can be the default."
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Only a template shared with the whole company can be the default.",
+    "MODEL_KEY_STALE": "Someone else replaced this key while you were editing it. The stored keys have been reloaded, so make your change again.",
+    "AGENT_REFRESH_NOT_DISPATCHED": "This agent never reached Personas, so there is no request to poll. Dispatch it again.",
+    "VOICE_TRANSPORT_NETWORK": "We could not reach the interview service. Check your connection and try again.",
+    "VOICE_TRANSPORT_AUTH": "The interview service rejected this session. Please contact the recruiter who sent you this link.",
+    "VOICE_TRANSPORT_TIMEOUT": "The interview service did not answer in time. Please try again.",
+    "VOICE_TRANSPORT_PROVIDER": "The interview service could not start the call. Please try again in a moment.",
+    "OFFER_RESPONSE_INVALID": "Respond with either accept or decline."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2005,7 +2012,11 @@
         "truncated": "stopped after {spoken} of {total} chunks. The rest is in the text."
       },
       "availabilityUnknown": "We could not check whether the interview service is reachable.",
-      "availabilityRetry": "Check again"
+      "availabilityRetry": "Check again",
+      "notChecked": "not checked",
+      "micTestLevel": "Mic level: {level}%",
+      "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
+      "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]"
     }
   },
   "palette": {
@@ -9377,7 +9388,7 @@
   "activity": {
     "eyebrow": "Insights",
     "title": "AI activity",
-    "intro": "The last {window} AI actions this workspace ran, newest first.",
+    "intro": "The last {window} AI actions across every workspace on this deployment, newest first.",
     "loadError": "Couldn’t load the activity ledger.",
     "empty": "No LLM actions recorded yet. They appear here the moment the first AI feature runs.",
     "noMatches": "No actions match the current filters.",

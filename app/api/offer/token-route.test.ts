@@ -55,7 +55,11 @@ test("GET with an unknown token → 404 with the error envelope, leaking nothing
   const res = await GET(new NextRequest("http://localhost/api/offer/tk-nope"), params("tk-nope"));
   assert.equal(res.status, 404);
   const body = await res.json();
-  assert.deepEqual(Object.keys(body), ["error"]);
+  // The refusal envelope is the shared one: the canonical English PLUS the machine
+  // code the card localizes. Still exactly two fields — nothing about the offer,
+  // the entry or the store leaks onto a 404 for an unknown token.
+  assert.deepEqual(Object.keys(body).sort(), ["code", "error"]);
+  assert.equal(body.code, "OFFER_NOT_FOUND");
 });
 
 test("GET renders the candidate view for a live offer", async () => {

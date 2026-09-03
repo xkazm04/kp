@@ -346,6 +346,11 @@ export const REFUSAL_ERRORS = {
   OFFER_EXPIRED: "This offer has expired.",
   /** No offer for this token (404). */
   OFFER_NOT_FOUND: "Offer not found.",
+  /** The accept/decline POST arrived with neither verb (400). The card only ever
+   *  sends one of the two, so reaching this means a hand-rolled call — and the
+   *  candidate still deserves the reason in their own language rather than the
+   *  server's English sentence. */
+  OFFER_RESPONSE_INVALID: "Respond with either accept or decline.",
   /** A work-session id presented without, or with the wrong, apply token (403). */
   SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
   /** The apply link does not resolve to a posting that is taking work (404). The two
@@ -910,6 +915,17 @@ export const REFUSAL_ERRORS = {
    *  address. The detail names the host and goes to the server log; the remedy is the
    *  same for the whole class. */
   MODEL_KEY_REJECTED: "That key couldn't be stored. Check the endpoint or server URL you gave.",
+  /** A save composed against a row version another admin has since replaced (409).
+   *  The sibling of MODEL_ROUTING_STALE, and the stakes are higher: a provider key is
+   *  encrypted at rest and unrecoverable, so a last-writer-wins upsert destroyed the
+   *  other admin's credential with a green "Saved" on both screens. Nothing was
+   *  written; the current rows ride along in `keys` so the panel reloads itself. */
+  MODEL_KEY_STALE: "Someone else replaced this key while you were editing it. The stored keys have been reloaded, so make your change again.",
+  /** The agent-status pull found no Personas request to poll — the dispatch never
+   *  landed. Carried on a 200 beside `refreshed:false`: it is a state, not a failure,
+   *  but it is the one state with a remedy (dispatch again), so it needs a code the
+   *  roster can say in the reader's language. */
+  AGENT_REFRESH_NOT_DISPATCHED: "This agent never reached Personas, so there is no request to poll. Dispatch it again.",
   /** A routing pin composed against a version of the row another operator has since
    *  replaced (409). Nothing was written: the Models table shows the row's own
    *  `updatedAt` and its editor is a long-lived draft, so a last-writer-wins upsert

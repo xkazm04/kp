@@ -7,9 +7,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
+import { classifyOfferResponse, offerRespondAllowed } from "./offer-response";
+import { formatOfferDeadline } from "./offer-deadline";
 
 type OfferView = {
   token: string;
@@ -52,14 +55,7 @@ export function OfferClient() {
   // routes through a deliberate inline confirm step before the POST fires — a single
   // misclick must not permanently close the offer.
   const [confirmingDecline, setConfirmingDecline] = useState(false);
-  const goBackRef = useRef<HTMLButtonElement>(null);
   const acceptedCardRef = useRef<HTMLDivElement>(null);
-
-  // When the confirm step appears, move focus to the safe option so a keyboard user
-  // lands on 'Go back' rather than the destructive default.
-  useEffect(() => {
-    if (confirmingDecline) goBackRef.current?.focus();
-  }, [confirmingDecline]);
 
   // bug-ui-scan-2026-07-09 (offers-onboarding #4): on accept, move focus to the
   // confirmation itself. Paired with role=status/aria-live on the success card, a
@@ -173,6 +169,9 @@ export function OfferClient() {
   }, [token, terminal, refresh]);
 
   const respond = async (response: "accept" | "decline") => {
+    // One in-flight response at a time: both outcomes are irreversible, and the
+    // guard is asserted in offer-client-logic.test.ts rather than assumed.
+    if (!offerRespondAllowed(pending)) return;
     setPending(response);
     setResponseError(null);
     try {
@@ -181,21 +180,19 @@ export function OfferClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ response }),
       });
-      const p = await r.json();
-      if (!r.ok) {
-        // 410 → the offer lapsed past its deadline (idea-29361408): swap to the
-        // definite expired card rather than an inline retry error.
-        if (r.status === 410) {
-          setResult("expired");
-          return;
-        }
-        // Prefer the server's stable error `code` (localized via the errors
-        // catalog); fall back to the page's own localized respond-failed message.
-        setResponseError(errMsg(p, t("respondFailed")));
-        void refresh();
+      const p = await r.json().catch(() => null);
+      // What the answer MEANS is a pure decision (410 = a definite ending, not a
+      // retry; a 2xx that names no recorded status is a failure, not a silent
+      // success) and lives in offer-response.ts where a unit test can reach it.
+      const outcome = classifyOfferResponse(r.status, p);
+      if (outcome.kind === "settled") {
+        setResult(outcome.status);
         return;
       }
-      setResult(p.status as "accepted" | "declined");
+      // The server's stable error `code`, localized via the errors catalog; its
+      // English prose is never rendered (api-contracts.md 1.1).
+      setResponseError(errMsg(outcome.code ? { code: outcome.code } : {}, t("respondFailed")));
+      void refresh();
     } catch {
       setResponseError(t("respondFailed"));
       void refresh();
@@ -229,7 +226,7 @@ export function OfferClient() {
             <button
               type="button"
               onClick={retryLoad}
-              className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
+              className={`${BTN_SECONDARY_LG} mt-2 px-4`}
             >
               {tCommon("retry")}
             </button>
@@ -336,9 +333,12 @@ export function OfferClient() {
                 {(() => {
                   const hrs = offer.hoursRemaining;
                   if (hrs === null || !offer.expiresAt) return null;
-                  const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(
-                    new Date(offer.expiresAt)
-                  );
+                  // Rendered in ONE explicit, NAMED zone — not the viewer's — so a
+                  // candidate abroad cannot read a different calendar day than the
+                  // letter states (offer-deadline.ts carries the reasoning and the
+                  // stated gap: the offer row has no zone of its own yet).
+                  const date = formatOfferDeadline(offer.expiresAt, locale);
+                  if (!date) return null;
                   return (
                     <p className={`mt-2 text-sm font-medium ${hrs <= 48 ? "text-coral" : "text-steel"}`}>
                       {t("deadline", { date })} {t("deadlineHours", { hours: hrs })}
@@ -355,47 +355,12 @@ export function OfferClient() {
                   </p>
                 ) : null}
                 {confirmingDecline ? (
-                  <div
-                    role="alertdialog"
-                    aria-labelledby="decline-confirm-title"
-                    aria-describedby="decline-confirm-desc"
-                    className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-4"
-                  >
-                    <p id="decline-confirm-title" className="text-base font-semibold text-ink">
-                      {t("declineConfirmTitle")}
-                    </p>
-                    <p id="decline-confirm-desc" className="mt-0.5 text-sm text-steel">
-                      {t("declineConfirmBody")}
-                    </p>
-                    <div className="mt-3 flex gap-3">
-                      <button
-                        type="button"
-                        data-sim-click="offer-decline-confirm"
-                        onClick={() => respond("decline")}
-                        disabled={pending !== null}
-                        aria-busy={pending === "decline"}
-                        className="focus-ring inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-coral text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-                      >
-                        {pending === "decline" ? (
-                          <>
-                            <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                            {t("recording")}
-                          </>
-                        ) : (
-                          t("confirm")
-                        )}
-                      </button>
-                      <button
-                        ref={goBackRef}
-                        type="button"
-                        onClick={() => setConfirmingDecline(false)}
-                        disabled={pending !== null}
-                        className="focus-ring inline-flex h-11 items-center justify-center rounded-md border border-stone-200 px-4 text-base font-semibold text-steel transition-opacity hover:bg-stone-50 disabled:opacity-60"
-                      >
-                        {t("goBack")}
-                      </button>
-                    </div>
-                  </div>
+                  <DeclineConfirm
+                    busy={pending !== null}
+                    pending={pending === "decline"}
+                    onCancel={() => setConfirmingDecline(false)}
+                    onConfirm={() => respond("decline")}
+                  />
                 ) : (
                   <div className="mt-4 flex gap-3">
                     <button
@@ -421,9 +386,7 @@ export function OfferClient() {
                       type="button"
                       onClick={() => setConfirmingDecline(true)}
                       disabled={pending !== null}
-                      className={`focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md border border-stone-200 px-4 text-base font-semibold text-steel transition-opacity hover:bg-stone-50 ${
-                        pending === "accept" ? "opacity-40" : ""
-                      }`}
+                      className={`${BTN_SECONDARY_LG} px-4 ${pending === "accept" ? "opacity-40" : ""}`}
                     >
                       {t("decline")}
                     </button>
@@ -438,5 +401,80 @@ export function OfferClient() {
       </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * The decline confirm. Declining is IRREVERSIBLE (offer-finalize markEntryStatus
+ * 'declined' closes the entry) and this is a public page a candidate reaches from
+ * an email, so it is a real modal `alertdialog` on the SAME shared hook the
+ * lower-stakes erasure door already uses. It used to CLAIM role="alertdialog"
+ * while hand-rolling one focus() call: no Tab trap, no Escape, no focus restore
+ * and no aria-modal, so a screen-reader user could tab straight out of an open
+ * confirm back onto the live Accept button behind it.
+ *
+ *  - `useDialogA11y` moves focus inside on open, traps Tab, closes on Escape and
+ *    restores focus to the trigger;
+ *  - Cancel is FIRST in the DOM, so the hook's "focus the first focusable" lands a
+ *    keyboard user on the safe option and the destructive button sits last;
+ *  - it is its own component so the hook mounts and unmounts with the dialog.
+ */
+function DeclineConfirm({
+  busy,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  busy: boolean;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const t = useTranslations("offer");
+  const ref = useRef<HTMLDivElement>(null);
+  // Escape must not close the dialog mid-write: the POST is already irreversible
+  // and a vanished dialog would leave no place for its result.
+  useDialogA11y(ref, () => {
+    if (!busy) onCancel();
+  });
+  return (
+    <div
+      ref={ref}
+      tabIndex={-1}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="decline-confirm-title"
+      aria-describedby="decline-confirm-desc"
+      className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-4"
+    >
+      <p id="decline-confirm-title" className="text-base font-semibold text-ink">
+        {t("declineConfirmTitle")}
+      </p>
+      <p id="decline-confirm-desc" className="mt-0.5 text-sm text-steel">
+        {t("declineConfirmBody")}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-3">
+        <button type="button" onClick={onCancel} disabled={busy} className={`${BTN_SECONDARY_LG} px-4`}>
+          {t("goBack")}
+        </button>
+        <button
+          type="button"
+          data-sim-click="offer-decline-confirm"
+          onClick={onConfirm}
+          disabled={busy}
+          aria-busy={pending}
+          className={`${BTN_PRIMARY_LG} flex-1`}
+        >
+          {pending ? (
+            <>
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+              {t("recording")}
+            </>
+          ) : (
+            t("confirm")
+          )}
+        </button>
+      </div>
+    </div>
   );
 }

@@ -21,7 +21,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
   }
   const view = offerView(token);
-  if (!view) return NextResponse.json({ error: "This offer link is not valid." }, { status: 404 });
+  // Coded, not prose: this is a PUBLIC door reached from a letter written in the
+  // candidate's own language, and the client renders `errors.OFFER_NOT_FOUND`
+  // rather than the server's English (api-contracts.md 1.1). Same code the POST
+  // has always answered a missing token with.
+  if (!view) return jsonRefusal("OFFER_NOT_FOUND", 404);
   return jsonOk({ offer: view });
 }
 
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const body = (await request.json()) as { response?: string };
     const response = body.response;
     if (response !== "accept" && response !== "decline") {
-      return NextResponse.json({ error: "Response must be 'accept' or 'decline'." }, { status: 400 });
+      return jsonRefusal("OFFER_RESPONSE_INVALID", 400);
     }
     const result = await respondToOffer(token, response);
     // 410 Gone for a lapsed offer (idea-29361408) — distinct from 404 not-found so

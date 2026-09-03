@@ -1573,7 +1573,14 @@
     "TEMPLATE_LAST_ONE": "C'est le dernier modèle visible par votre équipe. Il doit en rester au moins un.",
     "TEMPLATE_IS_DEFAULT": "C'est le modèle par défaut. Définissez d'abord un autre modèle par défaut avant de le supprimer.",
     "TEMPLATE_STALE": "Quelqu'un d'autre a enregistré ce modèle pendant votre modification. Rechargez-le et réappliquez vos changements.",
-    "TEMPLATE_DEFAULT_ORG_ONLY": "Seul un modèle partagé avec toute l'entreprise peut être le modèle par défaut."
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Seul un modèle partagé avec toute l'entreprise peut être le modèle par défaut.",
+    "MODEL_KEY_STALE": "Quelqu’un d’autre a remplacé cette clé pendant votre modification. Les clés enregistrées ont été rechargées : refaites votre changement.",
+    "AGENT_REFRESH_NOT_DISPATCHED": "Cet agent n’a jamais atteint Personas : il n’y a aucune demande à interroger. Relancez son envoi.",
+    "VOICE_TRANSPORT_NETWORK": "Nous n’avons pas pu joindre le service d’entretien. Vérifiez votre connexion et réessayez.",
+    "VOICE_TRANSPORT_AUTH": "Le service d’entretien a refusé cette session. Contactez le recruteur qui vous a envoyé ce lien.",
+    "VOICE_TRANSPORT_TIMEOUT": "Le service d’entretien n’a pas répondu à temps. Veuillez réessayer.",
+    "VOICE_TRANSPORT_PROVIDER": "Le service d’entretien n’a pas pu démarrer l’appel. Veuillez réessayer dans un instant.",
+    "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2005,7 +2012,11 @@
         "truncated": "arrêté après {spoken} segments sur {total}. Le reste est dans le texte."
       },
       "availabilityUnknown": "Nous n’avons pas pu vérifier si le service d’entretien est joignable.",
-      "availabilityRetry": "Réessayer"
+      "availabilityRetry": "Réessayer",
+      "notChecked": "non vérifié",
+      "micTestLevel": "Niveau du micro : {level} %",
+      "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
+      "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]"
     }
   },
   "palette": {
@@ -9377,7 +9388,7 @@
   "activity": {
     "eyebrow": "Analyses",
     "title": "Activité IA",
-    "intro": "Les {window} dernières actions d’IA exécutées par cet espace de travail, de la plus récente à la plus ancienne.",
+    "intro": "Les {window} dernières actions d’IA sur tous les espaces de travail de ce déploiement, de la plus récente à la plus ancienne.",
     "loadError": "Impossible de charger le journal d’activité.",
     "empty": "Aucune action LLM enregistrée pour l’instant. Elles apparaîtront dès l’exécution de la première fonctionnalité AI.",
     "noMatches": "Aucune action ne correspond aux filtres actuels.",
