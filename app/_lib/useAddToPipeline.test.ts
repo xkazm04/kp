@@ -83,30 +83,39 @@ test("postPipelineAdd POSTs the built body as JSON to /api/pipeline", async () =
 
 const INPUT = { candidateId: "c1", candidateLabel: "Ada", archetype: "builder", matchScore: 82 };
 
-test("postPipelineAdd surfaces a body { error } on a non-OK status", async () => {
+// remaining-add-callers-read-the-code (wave 19b): the result no longer carries the
+// server's English `message`. It existed "as a last-resort fallback" and all three
+// remaining callers used it as the first resort, so an English sentence reached
+// every locale. What a caller gets is the machine half — code, capability, status —
+// and it supplies its own localized fallback.
+test("postPipelineAdd reports a non-OK status WITHOUT the server's English", async () => {
   stubFetch({ ok: false, status: 400, json: () => ({ error: "candidateId and jobId are required." }) });
   const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
   assert.equal(result.ok, false);
-  assert.equal(result.ok === false && result.message, "candidateId and jobId are required.");
   assert.equal(result.ok === false && result.status, 400);
   assert.equal(result.ok === false && result.code, null);
+  assert.ok(!("message" in result), "the English half must not travel to the client");
 });
 
-test("postPipelineAdd falls back to a status message when the error body has none", async () => {
-  // e.g. an HTML 500: .json() throws, our catch yields null, no payload.error.
+test("postPipelineAdd carries the status when the error body is not JSON", async () => {
+  // e.g. an HTML 500: .json() throws, our catch yields null, no payload at all —
+  // the status is then the ONLY thing the caller learns, and that is enough for it
+  // to pick its own localized line.
   stubFetch({ ok: false, status: 500, json: () => { throw new Error("not json"); } });
   const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
   assert.equal(result.ok, false);
-  assert.equal(result.ok === false && result.message, "Couldn't add (500).");
   assert.equal(result.ok === false && result.status, 500);
+  assert.equal(result.ok === false && result.code, null);
 });
 
 test("postPipelineAdd reports a thrown network error without throwing", async () => {
   stubFetch(() => { throw new Error("network down"); });
   const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
   assert.equal(result.ok, false);
-  assert.equal(result.ok === false && result.message, "network down");
+  // A transport blip is not a verdict: no status, no code, and never the raw
+  // exception text on a user-facing line.
   assert.equal(result.ok === false && result.status, null);
+  assert.equal(result.ok === false && result.code, null);
 });
 
 // ---- gated-doors-clients-read-the-refusal (wave 18b) --------------------------

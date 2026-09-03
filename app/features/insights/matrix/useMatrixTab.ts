@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
+import { capabilityAwareReason } from "@/app/_lib/use-error-message";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -97,7 +98,10 @@ export function useMatrixTab() {
   const [announce, setAnnounce] = useState("");
   // Last bulk-add outcome — drives the visible completion band (the sr-only
   // announce stays for screen readers; sighted users got nothing before).
-  const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number } | null>(null);
+  // `reason` (wave 19b): a bulk add that fails used to report a bare tally — "0
+  // added, 7 failed" — even when the door had refused with a code and named the
+  // permission the seat lacked. The localized sentence travels with the count.
+  const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number; reason: string | null } | null>(null);
 
   // matrix-answers-with-codes-and-retries (b). Bumping this re-runs the fetch effect;
   // it is the retry button's whole mechanism, so a failed load is recoverable without
@@ -455,6 +459,12 @@ export function useMatrixTab() {
     setAdding(true);
     const failed = new Set<string>();
     let ok = 0;
+    // The FIRST coded refusal answers for the pass. Every cell in one bulk add goes
+    // through the same door with the same seat, so a capability refusal is about the
+    // operator, not the row — one sentence, not N identical ones. Local index misses
+    // (below) carry no code and leave this null, which is the honest outcome: the
+    // server was never asked.
+    let refusal: { code: string; capability: string | null } | null = null;
     // One index pass over each axis instead of a find + a redundant findIndex PER
     // selected cell: the two scans answered the same question twice (the record, then
     // the position of the record), and a bulk add over a 200-candidate pool paid both
@@ -495,15 +505,20 @@ export function useMatrixTab() {
         setAdded((a) => new Set(a).add(key));
       } else {
         failed.add(key);
+        if (!refusal && res.code) refusal = { code: res.code, capability: res.capability ?? null };
       }
     }
     setSelected(failed);
+    // Resolved from the CODE, in the reader's language; "" when the door named none
+    // (a transport blip or an older server), which keeps the tally as the whole
+    // message rather than inventing a cause.
+    const addReason = refusal ? capabilityAwareReason(errMsg, refusal, "") : "";
     setAnnounce(
       failed.size === 0
         ? t("addedAnnounce", { count: ok })
-        : t("addedPartial", { ok, failed: failed.size })
+        : `${t("addedPartial", { ok, failed: failed.size })}${addReason ? ` ${addReason}` : ""}`
     );
-    setLastAdd({ ok, failed: failed.size });
+    setLastAdd({ ok, failed: failed.size, reason: addReason || null });
     setAdding(false);
   };
 

@@ -282,7 +282,7 @@
     "addToPipeline": "Add to pipeline",
     "adding": "Adding…",
     "added": "Added to pipeline",
-    "addFailed": "Couldn't add to the pipeline. {error}",
+    "addFailed": "Couldn't add to the pipeline.",
     "importToPrep": "Add these questions to interview prep",
     "importToPrepBusy": "Adding to prep…",
     "importToPrepDone": "Added to interview prep",
@@ -3089,7 +3089,8 @@
       "rejectConfirmYes": "Reject & notify",
       "rejectCancel": "Cancel",
       "rejecting": "Rejecting…",
-      "accepting": "Accepting…"
+      "accepting": "Accepting…",
+      "requestFailed": "Couldn't run that batch. Nothing was decided."
     },
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role. Advance or reject from a candidate's analysis summary.",
@@ -4664,7 +4665,8 @@
       "dismiss": "Dismiss",
       "loadFailed": "Couldn't load silver medalists.",
       "retry": "Retry",
-      "dismissFailed": "Couldn't dismiss that match. It's back in the list."
+      "dismissFailed": "Couldn't dismiss that match. It's back in the list.",
+      "addFailed": "Couldn't add to the pipeline."
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",

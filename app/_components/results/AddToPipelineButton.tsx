@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { buildGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
 import { postPipelineAdd, type PipelineAddInput } from "@/app/_lib/useAddToPipeline";
+import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 
 // Everything POST /api/pipeline needs to file this candidate under a role. The
 // candidate fields reuse the canonical PipelineAddInput (so this surface can't
@@ -30,6 +31,9 @@ export function AddToPipelineButton({
   github?: GithubAnalysis | null;
 }) {
   const t = useTranslations("report");
+  // The refusal is rendered from its CODE in the reader's language — the door's
+  // English `error` never reaches this line (see app/_lib/use-error-message.ts).
+  const errMsg = useErrorMessage();
   const [state, setState] = useState<"idle" | "adding" | "added">("idle");
   const [error, setError] = useState<string | null>(null);
   const statusId = useId();
@@ -47,7 +51,10 @@ export function AddToPipelineButton({
       setState("added");
     } else {
       setState("idle");
-      setError(result.message);
+      // A capability refusal names the permission the seat is missing; anything
+      // else resolves through errors.<CODE>, and an uncoded door falls back to
+      // this surface's own localized line.
+      setError(capabilityAwareReason(errMsg, result, t("addFailed")));
     }
   };
 
@@ -72,7 +79,7 @@ export function AddToPipelineButton({
       {/* aria-live so the outcome is announced; visible only on failure (success
           is conveyed by the button's own state change). */}
       <p id={statusId} role="status" aria-live="polite" className="min-h-0 text-sm text-red-700">
-        {error ? t("addFailed", { error }) : ""}
+        {error ?? ""}
       </p>
     </div>
   );

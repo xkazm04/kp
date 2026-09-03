@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
+import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
@@ -32,6 +33,8 @@ export function useDecisionsQueue() {
   const search = useSearchParams();
   const t = useTranslations("decisions");
   const tWave = useTranslations("decisions.wave"); // shared sealed-reason resolver scope
+  // A refused batch is answered from its CODE in the reader's language.
+  const errMsg = useErrorMessage();
   const locale = useLocale(); // PREP2 — prep pack language
   // REC-10 — "Offer sent" is only claimed when a relay delivers; without one
   // the letter is a terminal outbox row and the recruiter must hand over the link.
@@ -394,6 +397,7 @@ export function useDecisionsQueue() {
     let ok = 0;
     const failed = new Set<string>();
     const reasons = new Set<string>();
+    let requestReason: string | null = null;
     const items: PipelineBatchItem[] = targets.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
     const res = await postPipelineBatch(items);
     if (res.ok) {
@@ -424,8 +428,17 @@ export function useDecisionsQueue() {
         setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
       }
     } else {
-      // Transport-level failure — every attempted decision stays selected for retry.
+      // WHOLE-REQUEST failure — every attempted decision stays selected for retry.
+      // It used to end there: the band said "0 accepted · N couldn't be decided" and
+      // nothing else, even when the door had refused the seat with a code and named
+      // the permission it wanted. A whole-request refusal is not a per-id verdict —
+      // none was ever reached — so it OVERRIDES the per-id reasons below.
       for (const e of targets) failed.add(e.id);
+      requestReason = capabilityAwareReason(
+        errMsg,
+        { code: res.code, capability: res.capability },
+        t("batch.requestFailed")
+      );
     }
     // Successes clear; failures + any selected non-selectable strays stay selected.
     const untouched = [...selectedReviewIds].filter((id) => !targets.some((e) => e.id === id));
@@ -437,7 +450,7 @@ export function useDecisionsQueue() {
       ok,
       failed: failed.size,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: reasons.size ? [...reasons].join(" · ") : null,
+      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
     });
     setBulkBusy(false);
     await load();

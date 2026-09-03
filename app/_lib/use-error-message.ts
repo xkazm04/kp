@@ -96,3 +96,29 @@ export function useErrorMessage(): (
 /** The bound resolver's type. Non-hook helpers take one of these as a parameter
  *  so the call site (a component or hook) supplies it. */
 export type ErrorMessageResolver = ReturnType<typeof useErrorMessage>;
+
+/** The localized sentence for a refusal that may carry a capability.
+ *
+ *  gated-doors-clients-read-the-refusal — the write doors answer a seat without the
+ *  permission with a coded 403 (FORBIDDEN_CAPABILITY) carrying `capability`. The
+ *  code's OWN message (errors.FORBIDDEN_CAPABILITY) is deliberately
+ *  placeholder-free, because a dozen consumers resolve it with no values and a
+ *  required ICU argument would break every one of them; a client that HOLDS the
+ *  data renders the client variant `errors.forbiddenCapabilityNeeds` instead, which
+ *  names the permission the operator has to ask for.
+ *
+ *  Takes the bound resolver rather than calling the hook, so a non-hook helper can
+ *  fold a refusal exactly the same way as a component.
+ *
+ *  It lives HERE, not in the add-to-pipeline transport module it was born in: eight
+ *  surfaces import it and only two of them add a candidate. This module is the one
+ *  every client already imports for the rule it implements. */
+export function capabilityAwareReason(
+  resolve: ErrorMessageResolver,
+  payload: (ApiErrorPayload & { capability?: string | null }) | null | undefined,
+  fallback: string
+): string {
+  const generic = resolve(payload, fallback);
+  if (payload?.code !== "FORBIDDEN_CAPABILITY" || !payload.capability) return generic;
+  return resolve({ code: "forbiddenCapabilityNeeds" }, generic, { capability: payload.capability });
+}

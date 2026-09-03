@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
+import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): the add-outcome
 // transition (keep the row + badge it "Added ✓", THEN dismiss after a beat) lives in
 // this pure sibling so the previously-dead success branch is reachable and testable.
@@ -20,6 +21,10 @@ export type FeedNote = { text: string; tone: "ok" | "error" };
 
 export function useRediscoveryFeedLogic() {
   const t = useTranslations("jobs.rediscoveryFeed");
+  // A failed add is answered from its CODE in the reader's language. The row error
+  // used to be postPipelineAdd's canonical ENGLISH, painted verbatim into every
+  // locale — the capability gate's refusal was the loudest example.
+  const errMsg = useErrorMessage();
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [sweeping, setSweeping] = useState(false);
   // The note carries its OWN tone. It used to be a bare string the component
@@ -171,6 +176,7 @@ export function useRediscoveryFeedLogic() {
       next.delete(a.candidateId);
       return next;
     });
+    const addReason = res.ok ? "" : capabilityAwareReason(errMsg, res, t("addFailed"));
     // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): route the outcome
     // through the pure transition, then HONOR its dismiss timing. On success the row is
     // KEPT so the green "Added ✓" badge actually renders, and dismissed only after a
@@ -178,9 +184,16 @@ export function useRediscoveryFeedLogic() {
     // unreachable dead code and the candidate vanished with no confirmation. Each slice
     // derives from the LATEST state (functional updater) so a second in-flight add of a
     // different candidate can't drop the first.
-    setAdded((s) => applyAddResult({ added: s, rowError: new Map() }, a.candidateId, res).added);
-    setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, a.candidateId, res).rowError);
-    const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, a.candidateId, res);
+    //
+    // The transition takes a message, so it is handed the LOCALIZED one: the fold
+    // happens here (where the bound resolver lives) and jobsRediscoveryAdd stays the
+    // pure state machine it is, with no opinion about language.
+    const outcome = res.ok
+      ? res
+      : { ok: false as const, message: addReason };
+    setAdded((s) => applyAddResult({ added: s, rowError: new Map() }, a.candidateId, outcome).added);
+    setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, a.candidateId, outcome).rowError);
+    const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, a.candidateId, outcome);
     if (timing === "deferred") {
       window.setTimeout(() => dismiss(a.id), ADDED_BADGE_MS);
     }

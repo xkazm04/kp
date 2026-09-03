@@ -282,7 +282,7 @@
     "addToPipeline": "Přidat do pipeline",
     "adding": "Přidávání…",
     "added": "Přidáno do pipeline",
-    "addFailed": "Nepodařilo se přidat do pipeline. {error}",
+    "addFailed": "Kandidáta se nepodařilo přidat do pipeline.",
     "importToPrep": "Přidat tyto otázky do přípravy pohovoru",
     "importToPrepBusy": "Přidávání do přípravy…",
     "importToPrepDone": "Přidáno do přípravy pohovoru",
@@ -3089,7 +3089,8 @@
       "rejectConfirmYes": "Zamítnout a uvědomit",
       "rejectCancel": "Zrušit",
       "rejecting": "Zamítání…",
-      "accepting": "Schvaluji…"
+      "accepting": "Schvaluji…",
+      "requestFailed": "Dávku se nepodařilo provést. Nic nebylo rozhodnuto."
     },
     "keyDecisions": "Klíčová rozhodnutí",
     "keyDecisionsHelp": "Jeden řádek na pozici. Postupte nebo zamítněte přímo ze souhrnu analýzy kandidáta.",
@@ -4664,7 +4665,8 @@
       "dismiss": "Zavřít",
       "loadFailed": "Stříbrné medailisty se nepodařilo načíst.",
       "retry": "Zkusit znovu",
-      "dismissFailed": "Shodu se nepodařilo odstranit. Vrátila se zpět do seznamu."
+      "dismissFailed": "Shodu se nepodařilo odstranit. Vrátila se zpět do seznamu.",
+      "addFailed": "Kandidáta se nepodařilo přidat do pipeline."
     },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",

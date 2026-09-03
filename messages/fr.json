@@ -282,7 +282,7 @@
     "addToPipeline": "Ajouter au pipeline",
     "adding": "Ajout…",
     "added": "Ajouté au pipeline",
-    "addFailed": "Impossible d’ajouter au pipeline. {error}",
+    "addFailed": "Impossible d'ajouter au pipeline.",
     "importToPrep": "Ajouter ces questions à la préparation de l’entretien",
     "importToPrepBusy": "Ajout à la préparation…",
     "importToPrepDone": "Ajouté à la préparation de l’entretien",
@@ -3089,7 +3089,8 @@
       "rejectConfirmYes": "Rejeter et notifier",
       "rejectCancel": "Annuler",
       "rejecting": "Rejet…",
-      "accepting": "Acceptation…"
+      "accepting": "Acceptation…",
+      "requestFailed": "Impossible d'exécuter ce lot. Rien n'a été décidé."
     },
     "keyDecisions": "Décisions clés",
     "keyDecisionsHelp": "Une ligne par poste. Faites avancer ou rejetez depuis le résumé d’analyse d’un candidat.",
@@ -4664,7 +4665,8 @@
       "dismiss": "Ignorer",
       "loadFailed": "Impossible de charger les médaillés d'argent.",
       "retry": "Réessayer",
-      "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste."
+      "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste.",
+      "addFailed": "Impossible d'ajouter au pipeline."
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
