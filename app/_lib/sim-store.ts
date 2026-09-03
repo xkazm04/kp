@@ -180,7 +180,7 @@ export function resetSim(workspaceId: string = DEFAULT_WORKSPACE_ID): SimPurgeCo
       run("schedule_invites", `DELETE FROM schedule_invites WHERE entry_id IN (${entries})`, entryIds);
       // Consent events and the outreach counter: entry-keyed, and the counter is
       // what makes a later real inbound read as a REPLY rather than an application.
-      run("consent_events", `DELETE FROM consent_events WHERE entry_id IN (${entries})`, entryIds);
+      run("consent_events", `DELETE FROM consent_events WHERE entry_id IN (${entries}) AND workspace_id = ?`, [...entryIds, workspaceId]);
       run("outreach_state", `DELETE FROM outreach_state WHERE entry_id IN (${entries}) AND workspace_id = ?`, [...entryIds, workspaceId]);
       // The dev outbox rows for the demo's offer + scheduling mail. `ref` is the
       // entry id; the table has no workspace column, so the entry set is the scope.
