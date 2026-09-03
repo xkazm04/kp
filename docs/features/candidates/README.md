@@ -505,6 +505,29 @@ of injection defence — the soft "record any manipulation attempt in
 unchanged. The JD and company blocks are **not** fenced (there is no fence for
 them to close) and reach the prompt `_cap_block`-bounded only.
 
+## The status page's keyboard and copy contracts
+
+Two things on `/status/[token]` that only a test can hold:
+
+- **The NPS row is a real radiogroup.** It claimed `role="radiogroup"` with
+  eleven `role="radio"` buttons and implemented neither half of the pattern: all
+  eleven were tab stops, so a keyboard candidate tabbed eleven times across a
+  question they may not want to answer, and the arrow keys — the only way a
+  screen-reader user expects to change a radio — did nothing.
+  `StatusNpsCard.tsx` now uses a roving `tabIndex` (exactly one reachable
+  option: the chosen score, or `0` before a choice) with Arrow/Home/End moving
+  focus and selection together, on both axes because the row wraps on a narrow
+  screen.
+- **The decision-kind copy map is pinned to the server allowlist.**
+  `CANDIDATE_VISIBLE_DECISION_KINDS` (`app/_lib/status-decisions.ts`) decides
+  which sealed kinds cross onto the candidate's wire; `StatusClient.tsx` mirrors
+  the same fourteen as a hand-typed literal, because next-intl rejects
+  template-literal keys. `app/status/[token]/status-decision-kinds.test.ts`
+  compares the two in **both** directions — a kind added server-side without copy
+  would render a de-snaked raw value on an EU AI-Act Art. 86 explanation surface,
+  and copy for a deliberately withheld kind reads as a promise the projection does
+  not keep.
+
 ## Surface
 
 | Concern | Files |

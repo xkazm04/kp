@@ -373,6 +373,23 @@ of magnitude below it while one scraped link cannot throttle another candidate
 behind the same NAT. Over the limit answers `jsonRefusal("TOO_MANY_REQUESTS", 429)`.
 The spec lives in `app/api/rate-limit-contract.test.ts`.
 
+## Keyboard and focus on the candidate's page
+
+`/schedule/[token]` replaces its whole body three times over a session: the slot
+grid becomes the booked card, the booked card becomes the grid again after an RSVP
+cancel or a "different time", and any of them becomes the dead-link card when the
+invite closes. Each swap unmounts the element focus was on, so focus fell to
+`<body>` and a keyboard candidate had to tab from the top of the document to learn
+whether their booking landed. `app/schedule/[token]/schedule-focus.ts` is the
+pure decision — `scheduleSurface()` mirrors SchedulePicker's own branch order
+(dead beats booked beats picker unless rescheduling) and `SCHEDULE_FOCUS_ID` names
+each surface's anchor; every surface renders that id with `tabIndex={-1}`, so it
+is programmatically focusable without becoming a tab stop. SchedulePicker focuses
+the anchor only on a **change**, never on the first loaded render, so an arriving
+load cannot steal focus from someone already reading. Pinned by
+`app/schedule/[token]/schedule-focus.test.ts` (the pure ordering directly, the
+wiring as a source guard, like `schedule-picker-recovery.test.ts`).
+
 ## API / lib surface
 
 | Surface | File | Notes |

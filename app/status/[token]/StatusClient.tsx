@@ -236,7 +236,7 @@ export function StatusClient() {
                     <li key={step} className="flex items-start gap-3">
                       <span
                         aria-hidden
-                        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs font-semibold ${
+                        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border text-meta font-semibold ${
                           reached ? "border-moss bg-moss text-white" : "border-stone-300 bg-white text-steel"
                         }`}
                       >

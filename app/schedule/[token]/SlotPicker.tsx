@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { CalendarClock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
+import { SCHEDULE_FOCUS_ID } from "./schedule-focus";
 import type { Invite, Slot } from "./use-schedule-invite";
 import { useTzLabel } from "./use-schedule-invite";
 
@@ -43,9 +44,12 @@ export function SlotPicker({
   const tzLabel = useTzLabel();
 
   return (
-    <div>
+    // The focus anchor for this surface (schedule-focus.ts). A labelled group rather than
+    // a heading, because the grid has no single title of its own — an RSVP cancel or a
+    // "different time" lands the candidate here and hears what the section is.
+    <div id={SCHEDULE_FOCUS_ID.picker} tabIndex={-1} role="group" aria-label={t("title")}>
       {notice ? (
-        <p role="status" className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">
+        <p role="status" className="mb-3 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-3 text-base text-ink">
           {notice}
         </p>
       ) : null}

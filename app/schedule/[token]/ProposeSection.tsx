@@ -34,9 +34,9 @@ export function ProposeSection({
   }
   if (proposalStatus === "declined") {
     return (
-      <div role="status" className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4">
-        <p className="font-medium text-amber-800">{t("proposalsDeclinedTitle")}</p>
-        <p className="mt-1 text-base text-amber-800">{t("proposalsDeclinedBody")}</p>
+      <div role="status" className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-4">
+        <p className="font-medium text-ink">{t("proposalsDeclinedTitle")}</p>
+        <p className="mt-1 text-base text-ink">{t("proposalsDeclinedBody")}</p>
       </div>
     );
   }
