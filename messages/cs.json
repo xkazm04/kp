@@ -724,7 +724,9 @@
       "about": "O aplikaci",
       "market": "Pulz trhu",
       "source": "Zdrojový kód",
-      "signIn": "Přihlásit se"
+      "signIn": "Přihlásit se",
+      "menuOpen": "Otevřít menu",
+      "menuClose": "Zavřít menu"
     },
     "hero": {
       "badge": "Automatizovaný nábor, schvaluje člověk",
@@ -9858,5 +9860,9 @@
     "bulletedList": "Seznam s odrážkami",
     "numberedList": "Číslovaný seznam",
     "editorLabel": "Editor formátovaného textu"
+  },
+  "select": {
+    "filterFor": "Filtrovat {label}",
+    "filterOptions": "Filtrovat možnosti"
   }
 }
