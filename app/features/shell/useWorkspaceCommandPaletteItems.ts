@@ -4,6 +4,8 @@
 // inline in its useMemo — verbatim logic, just relocated.
 import { useMemo } from "react";
 import { useLocale, type useTranslations } from "next-intl";
+import type { Capability } from "@/app/_lib/auth/roles";
+import { commandAllowed, lockedTabsFor, TOUR_CAPABILITY } from "./navCapabilities";
 import type { RecentItem } from "./recents";
 import { buildTabSwitchUrl, HIRING_FALLBACK_LABEL, navLabel, NAV_GROUPS, sectionOf, type WorkspaceTabId } from "./tabs";
 import { hitHref, HIT_TYPE_ORDER, type PaletteItem, type SearchHit } from "./workspaceCommandPaletteTypes";
@@ -18,6 +20,7 @@ export function useWorkspaceCommandPaletteItems({
   simRunning,
   simStart,
   askCandi,
+  capabilities,
   nav,
   t,
 }: {
@@ -30,6 +33,9 @@ export function useWorkspaceCommandPaletteItems({
   /** Opens the companion dock seeded with the query. Null on the deep-link pages,
    *  which render the palette without the workspace shell (and so without a dock). */
   askCandi: ((query: string) => void) | null;
+  /** What this caller may do here (navCapabilities.ts), or null while unknown —
+   *  which offers everything, the same fail-open the nav takes. */
+  capabilities: readonly Capability[] | null;
   nav: Translate;
   t: Translate;
 }): PaletteItem[] {
@@ -37,6 +43,12 @@ export function useWorkspaceCommandPaletteItems({
   // (shared navLabel helper in tabs.ts).
   const tabLabel = (id: WorkspaceTabId, fallback: string): string => navLabel(nav, `tabs.${id}`, fallback);
   const locale = useLocale();
+  // A lookup surface does not offer doors it knows are shut. This is the ONE place
+  // the palette and the rail treat a locked tab differently, and deliberately: the
+  // rail is a map (a missing landmark reads as a bug, so a locked row stays,
+  // disabled), the palette is a search over things you can act on.
+  const locked = lockedTabsFor(capabilities);
+  const tourAllowed = commandAllowed(TOUR_CAPABILITY, capabilities);
 
   return useMemo<PaletteItem[]>(() => {
     const q = query.trim().toLowerCase();
@@ -75,6 +87,7 @@ export function useWorkspaceCommandPaletteItems({
     })).sort((a, b) => collator.compare(a.section, b.section));
     for (const { section, items } of sections) {
       for (const { def, label } of items) {
+        if (locked.has(def.id)) continue;
         if (!q || label.toLowerCase().includes(q) || def.id.includes(q)) {
           navOut.push({
             key: `tab-${def.id}`,
@@ -91,7 +104,7 @@ export function useWorkspaceCommandPaletteItems({
     // The tour command: offered at rest and under "tour"/"demo"-flavored
     // queries; hidden while a run is live (SimBar owns pause/stop then).
     const tourLabel = t("tourAction");
-    if (!simRunning && (!q || tourLabel.toLowerCase().includes(q) || "tour story demo prohlídka příběh".includes(q))) {
+    if (!simRunning && tourAllowed && (!q || tourLabel.toLowerCase().includes(q) || "tour story demo prohlídka příběh".includes(q))) {
       navOut.push({
         key: "action-tour",
         group: "actions",
@@ -131,5 +144,5 @@ export function useWorkspaceCommandPaletteItems({
     }
     return q ? out.concat(navOut) : out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents, simRunning, simStart, askCandi, locale]);
+  }, [query, hits, search, recents, simRunning, simStart, askCandi, locale, capabilities]);
 }

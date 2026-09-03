@@ -6,6 +6,9 @@
 // anchors, for the server-rendered deep-link sidebar) and the SPA's onSelect/
 // onSliceNav callbacks.
 import Link from "next/link";
+import { Lock } from "lucide-react";
+import type { Capability } from "@/app/_lib/auth/roles";
+import { capabilityLabelKey } from "@/app/features/shell/navCapabilities";
 import { navItemClass, tabHref, type WorkspaceTabDef, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { TAB_ICON } from "./navMeta";
 
@@ -22,6 +25,8 @@ export function NavPanelItem({
   onSelect,
   onSliceNav,
   onPrefetch,
+  locked = null,
+  lockedLabel,
 }: {
   item: WorkspaceTabDef;
   isActive: boolean;
@@ -45,6 +50,15 @@ export function NavPanelItem({
   /** select mode only — warm this tab's code-split chunk before the click that
    *  needs it (see shell/tabChunks.ts). Idempotent, so hover/focus can both fire. */
   onPrefetch?: (id: WorkspaceTabId) => void;
+  /** The capability this viewer LACKS for this tab (navCapabilities.ts), or null
+   *  when the tab is theirs to open. A locked row stays visible and disabled with
+   *  the capability named in its tooltip — never removed. A door that vanishes for
+   *  the person who holds the key (an admin whose capability read has not landed)
+   *  is indistinguishable from a broken build, and a viewer who simply loses half
+   *  the rail learns nothing about why. */
+  locked?: Capability | null;
+  /** Localized "you need <capability>" tooltip for a locked row. */
+  lockedLabel?: (cap: Capability) => string;
 }) {
   const Icon = TAB_ICON[item.id];
   // The suppression is total: no inline pill, no slice pill, and no `pr-9` gutter
@@ -73,6 +87,27 @@ export function NavPanelItem({
       ) : null}
     </>
   );
+  // A locked tab is a dead row: no link, no onSelect, no chunk prefetch (warming a
+  // chunk this viewer can never render is pure waste), and no badge gutter.
+  if (locked) {
+    return (
+      <div className="contents">
+        <span
+          aria-disabled="true"
+          title={lockedLabel ? lockedLabel(locked) : capabilityLabelKey(locked)}
+          className="group focus-ring relative flex w-full cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium text-steel/50"
+        >
+          {Icon ? (
+            <Icon size={17} aria-hidden className="shrink-0 text-steel/50" />
+          ) : (
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" aria-hidden />
+          )}
+          <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
+          <Lock size={13} aria-hidden className="shrink-0 text-steel/50" />
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={sliceHref ? "relative" : "contents"}>
       {isLink ? (

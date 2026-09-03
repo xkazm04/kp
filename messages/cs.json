@@ -2282,7 +2282,15 @@
       "settings": "Nastavení"
     },
     "openWorkspace": "Otevřít pracovní prostor",
-    "home": "Domů"
+    "home": "Domů",
+    "lockedTab": "Vaše role sem nemá přístup. Vyžaduje se „{capability}“.",
+    "capabilities": {
+      "orgManage": "Správa organizace",
+      "membersManage": "Správa členů",
+      "teamManage": "Správa týmů",
+      "pipelineWrite": "Úpravy náboru",
+      "read": "Zobrazení"
+    }
   },
   "enums": {
     "stage": {
@@ -9705,5 +9713,14 @@
     "revertPrompt": "Obnovit tuto verzi?",
     "revertConfirm": "Obnovit",
     "revertCancel": "Zrušit"
+  },
+  "errorBoundary": {
+    "title": "Něco se tu pokazilo",
+    "body": "{what} se nepodařilo zobrazit. Data mají zřejmě nečekaný tvar; zbytek pracovní plochy to neovlivnilo.",
+    "retry": "Zkusit znovu",
+    "labels": {
+      "tab": "Tuto kartu",
+      "panel": "Tento panel"
+    }
   }
 }

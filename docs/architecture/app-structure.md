@@ -192,6 +192,71 @@ password-protected deploy has an anonymous principal to distinguish. A `/api/dem
 demo session is deliberately *not* an operator (see `require-operator.ts`), so it also
 sees the un-badged rail on these three pages.
 
+### The shell reads the caller's capabilities, and stops offering shut doors
+
+Until wave 19b nothing under `app/features/shell/` read a capability. The rail
+offered Organization, Billing, Models, Integrations and Workspaces to every member,
+and the palette's "Go to" list offered the same doors plus the guided-tour command —
+which starts a run that MOVES CANDIDATES, a pipeline write. Wave 18a's capability
+gates then refused each of those requests server-side, so a viewer's only feedback
+was a 403 rendered as a failed load.
+
+- **The table** is `shell/navCapabilities.ts`. Every entry mirrors the capability
+  the tab's own primary route already enforces — `organization` → `members:manage`
+  (`/api/org/invites`), `billing` / `models` / `integrations` → `org:manage`,
+  `workspace` → `team:manage` (`POST /api/workspaces`), `hiring` → `pipeline:write`
+  (`/api/decisions/config`), and the tour → `pipeline:write`. `branding` is
+  deliberately absent: its door is `requireOperator`, not a capability, so no entry
+  would be truthful. Pinned by `navCapabilities.test.ts`.
+- **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
+  per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
+  so a late mount sees the answer on its first render). A dedicated route rather
+  than `/api/org/members`' `callerCapabilities`, because that payload is the whole
+  member roster, it 401/403s for exactly the callers whose shell must still render,
+  and open dev mode / an operator-password session hold no membership row at all
+  (both fold to owner inside `callerCapabilities`). The deep-link sidebar
+  (`WorkspaceNav.tsx`) resolves the same set server-side — it has no client hook to
+  hang a fetch on — and passes `[]` for a non-operator.
+- **It fails open.** An unresolved set is `null`, and `null` locks nothing. A shell
+  that hid an owner's Billing tab because one GET blipped would be a worse failure
+  than the one this closes; the server gates remain the enforcement.
+- **Rail vs palette differ on purpose.** A locked rail row STAYS, disabled, with the
+  capability named in its tooltip (`nav.lockedTab` + `nav.capabilities.*`), because
+  a landmark that vanishes for the person who holds the key reads as a broken build.
+  The palette simply omits them: it is a search over things you can act on.
+
+### The tab error boundary speaks the reader's language
+
+`app/_components/ErrorBoundary.ts` is the fallback a reader meets when a tab's
+render throws. Its three strings were hardcoded English — the only shell copy
+outside the catalogs — because React error boundaries must be class components and a
+class cannot call `useTranslations`. They now arrive as a `messages` prop, and
+`TranslatedErrorBoundary` (a function component in the same file) resolves them from
+the `errorBoundary` catalog; the caller names a label KEY (`"tab"` / `"panel"`),
+never a string. The file is `.ts` with `createElement` rather than `.tsx`: `node
+--test` strips types but cannot compile JSX, and that is what makes
+`ErrorBoundary.test.ts` able to render the real fallback and assert the real strings
+(plus the `resetKey` contract that keeps a tab switch from inheriting the previous
+tab's fallback).
+
+### The badge poll backs off; the palette has a door on a phone
+
+- `shell/useAttention.ts` re-armed at a flat 60 s whether or not the last read
+  reached the server — one request a minute for ever, from every open tab, against a
+  restarting server or a laptop off the network. It now rides the tasks dock's curve
+  (`shell/attentionPoll.ts`, built on `app/_lib/task-poll-state.ts`'s constants):
+  60 s healthy, then 60 s / 2 m / 4 m / 8 m / 10 m capped, reset by one success. A
+  hidden document skips the request without counting a failure, and
+  `visibilitychange` reads immediately on return — coming back is when a stale badge
+  is most visibly wrong. Pinned by `attentionPoll.test.ts`.
+- Below `md` the palette's rail trigger lives inside the off-canvas `<aside>`, which
+  is `inert` while shut — so on a handset the global search had no door at all. The
+  mobile top bar now mounts a second `CommandPalette variant="bar" hotkey={false}`;
+  exactly one instance owns the document-level Ctrl/Cmd+K (the rail's), so one
+  keypress never opens two dialogs. That handler also refuses to open OVER another
+  dialog (`isAnyModalOpen()`) — stacking the palette on an unsaved edit dialog let
+  the reader Enter their way out of a form they were mid-way through.
+
 ### The command palette lives on the rail
 
 `shell/WorkspaceCommandPalette.tsx` is the Ctrl/Cmd+K search + navigator. Its

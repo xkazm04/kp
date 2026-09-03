@@ -2282,7 +2282,15 @@
       "settings": "Einstellungen"
     },
     "openWorkspace": "Arbeitsbereich öffnen",
-    "home": "Startseite"
+    "home": "Startseite",
+    "lockedTab": "Ihre Rolle kann das nicht öffnen. Erforderlich: „{capability}“.",
+    "capabilities": {
+      "orgManage": "Organisation verwalten",
+      "membersManage": "Mitglieder verwalten",
+      "teamManage": "Teams verwalten",
+      "pipelineWrite": "Pipeline bearbeiten",
+      "read": "Ansehen"
+    }
   },
   "enums": {
     "stage": {
@@ -9705,5 +9713,14 @@
     "revertPrompt": "Diese Version wiederherstellen?",
     "revertConfirm": "Wiederherstellen",
     "revertCancel": "Abbrechen"
+  },
+  "errorBoundary": {
+    "title": "Hier ist etwas schiefgelaufen",
+    "body": "{what} konnte nicht angezeigt werden. Die Daten haben möglicherweise ein unerwartetes Format; der Rest des Arbeitsbereichs ist nicht betroffen.",
+    "retry": "Erneut versuchen",
+    "labels": {
+      "tab": "Dieser Tab",
+      "panel": "Dieses Panel"
+    }
   }
 }

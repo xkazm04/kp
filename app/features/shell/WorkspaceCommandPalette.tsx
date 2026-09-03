@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
-import { Modal } from "@/app/_components/Modal";
+import { Modal, isAnyModalOpen } from "@/app/_components/Modal";
 import { recordRecent, useRecents } from "./recents";
+import { useCapabilities } from "./useCapabilities";
 import { paletteItemId, paletteListView } from "./workspacePaletteResults";
 import { useOptionalSimulation } from "./simulation/SimulationProvider";
 import { useOptionalCompanionDock } from "./companion/CompanionDockProvider";
@@ -26,7 +27,20 @@ import type { PaletteItem, PaletteViewProps } from "./workspaceCommandPaletteTyp
 // grow downward. This host owns all state; the body is WorkspacePaletteLedger
 // (index + live preview pane — the /prototype winner).
 
-export function CommandPalette() {
+export function CommandPalette({
+  variant = "rail",
+  hotkey = true,
+}: {
+  /** "rail" is the sidebar's icon+label tile; "bar" is the compact icon button in
+   *  the mobile top bar — the palette's only door on a phone, because the rail
+   *  lives inside an off-canvas <aside> that is `inert` while the drawer is shut. */
+  variant?: "rail" | "bar";
+  /** Does THIS instance answer Ctrl/Cmd+K? Two palettes are mounted below md (rail
+   *  + top bar) and the shortcut is a document listener, so exactly one may own it
+   *  — otherwise one keypress opens two dialogs, and the second lands on top of
+   *  the first. The rail instance (present on every surface) is the owner. */
+  hotkey?: boolean;
+} = {}) {
   const t = useTranslations("palette");
   const nav = useTranslations("nav");
   const router = useRouter();
@@ -62,14 +76,24 @@ export function CommandPalette() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (openRef.current) {
+          e.preventDefault();
+          setOpen(false);
+          return;
+        }
+        // Never OVER another dialog. The palette navigates away, so opening it on
+        // top of an unsaved edit dialog (or a confirm) stacked two focus traps and
+        // let the reader Enter their way out of a form they were mid-way through.
+        // Closing the palette itself is exempt — that is the branch above.
+        if (isAnyModalOpen()) return;
         e.preventDefault();
-        if (openRef.current) setOpen(false);
-        else openPalette();
+        openPalette();
       }
     };
+    if (!hotkey) return;
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [openPalette]);
+  }, [openPalette, hotkey]);
 
   // Modal's focus trap lands on its first focusable; a rAF runs after that
   // effect, so the input wins the opening focus.
@@ -80,6 +104,11 @@ export function CommandPalette() {
   }, [open]);
 
   const recents = useRecents();
+  // The palette is a NAVIGATOR: a "Go to Billing" it knows will 403, or a tour
+  // command that starts a pipeline write this caller may not perform, is noise
+  // that costs a click to discover. Unlike the rail — where a vanished row would
+  // read as a broken build — a lookup surface simply does not offer them.
+  const capabilities = useCapabilities();
   // 5d2e0998 — the guided tour as a palette command. Null on the deep-link pages
   // (no SimulationProvider there): reported as "running" so the command is
   // simply not offered.
@@ -99,6 +128,7 @@ export function CommandPalette() {
     simRunning: sim ? sim.running : true,
     simStart: sim ? sim.start : () => {},
     askCandi,
+    capabilities,
     nav,
     t,
   });
@@ -166,6 +196,10 @@ export function CommandPalette() {
   };
 
   const label = t("title");
+  const triggerClass =
+    variant === "bar"
+      ? "focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-stone-300 text-steel hover:text-ink"
+      : "focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-steel transition-colors hover:bg-stone-100 hover:text-ink";
   return (
     <>
       {/* Rail trigger — icon + label like the section buttons above it (the rail
@@ -176,10 +210,13 @@ export function CommandPalette() {
         aria-haspopup="dialog"
         aria-expanded={open}
         title={`${label} (${kbdHint})`}
-        className="focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
+        aria-label={variant === "bar" ? label : undefined}
+        className={triggerClass}
       >
         <Search size={20} aria-hidden />
-        <span className="text-[13px] font-semibold leading-tight">{label}</span>
+        {variant === "rail" ? (
+          <span className="text-[13px] font-semibold leading-tight">{label}</span>
+        ) : null}
       </button>
 
       {open ? (

@@ -2282,7 +2282,15 @@
       "settings": "Paramètres"
     },
     "openWorkspace": "Ouvrir l’espace de travail",
-    "home": "Accueil"
+    "home": "Accueil",
+    "lockedTab": "Votre rôle ne peut pas ouvrir ceci. Nécessite « {capability} ».",
+    "capabilities": {
+      "orgManage": "Gérer l’organisation",
+      "membersManage": "Gérer les membres",
+      "teamManage": "Gérer les équipes",
+      "pipelineWrite": "Modifier le pipeline",
+      "read": "Consulter"
+    }
   },
   "enums": {
     "stage": {
@@ -9705,5 +9713,14 @@
     "revertPrompt": "Restaurer cette version ?",
     "revertConfirm": "Restaurer",
     "revertCancel": "Annuler"
+  },
+  "errorBoundary": {
+    "title": "Un problème est survenu ici",
+    "body": "{what} n’a pas pu s’afficher. Les données ont peut-être un format inattendu; le reste de l’espace de travail n’est pas affecté.",
+    "retry": "Réessayer",
+    "labels": {
+      "tab": "Cet onglet",
+      "panel": "Ce panneau"
+    }
   }
 }
