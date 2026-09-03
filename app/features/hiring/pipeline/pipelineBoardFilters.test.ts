@@ -275,11 +275,19 @@ test("entryMatchesFilters threads the axis down to the quick predicates", () => 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 test("the Today rail resolves its stage buckets by ROLE, not by stage name", () => {
-  const src = readFileSync(resolve(HERE, "PipelineTodayRail.tsx"), "utf8");
-  assert.match(src, /stageHasRole\(/, "the rail's buckets must ask the workspace axis");
+  // The derivation moved to pipelineBoardPopulation.ts (/perfect 2026-09-03,
+  // pipeline-board-3) so the stat header counts from the SAME predicate the rail
+  // names from. The property is unchanged and still worth pinning at the source
+  // level — it just lives one file over now, and the rail must not grow a second,
+  // name-based answer of its own.
+  const derived = readFileSync(resolve(HERE, "pipelineBoardPopulation.ts"), "utf8");
+  assert.match(derived, /stageHasRole\(/, "the rail's buckets must ask the workspace axis");
   assert.doesNotMatch(
-    src,
+    derived,
     /e\.stage === "/,
     "a literal stage-name test answers a different question on a composed board"
   );
+  const src = readFileSync(resolve(HERE, "PipelineTodayRail.tsx"), "utf8");
+  assert.match(src, /deriveRailRows\(/, "the rail must render the shared derivation, not re-derive");
+  assert.doesNotMatch(src, /e\.stage === "/, "…and must not grow a name-based bucket of its own");
 });

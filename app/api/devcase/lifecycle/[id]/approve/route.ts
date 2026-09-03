@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { approveLifecycleCase } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -112,23 +112,21 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // tab, a script) still learns the approved number is not the number it sent.
       const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
       return NextResponse.json({ ok: true, task, timeboxClamped: coerced?.timeboxClamped ?? null });
-    } else if (edits) {
-      // Not at the review gate (a second tab/reviewer already approved, or a retry
-      // landed twice) but this request carried reviewer edits. The approve block
-      // above is skipped, so those edits would be silently dropped while we still
-      // returned { ok: true } — the reviewer never learns their corrections didn't
-      // land and the published case differs from what they think they approved.
-      // Mirror the redesign route: 409 with the current stage so the UI can say
-      // "already approved elsewhere — reload". (An editless body still resumes.)
-      return NextResponse.json(
-        { error: `lifecycle is at '${lc.stage}', not awaiting review — your edits were not applied.`, stage: lc.stage },
-        { status: 409 }
-      );
     }
-    // Tenant derived from the lifecycle itself, not the session — this is a by-id
-    // route, and the row is the authority on which team the resumed runner belongs to.
-    const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
-    return NextResponse.json({ ok: true, task });
+    // NOT at the review gate — a second tab, a retried fetch, or a reviewer who left
+    // the panel open while someone else signed off. The stage is the PRECONDITION for
+    // this door and it is re-asserted for EVERY body, not just one carrying edits.
+    //
+    // It used to be re-asserted only for the edit-carrying path (the reviewer's
+    // corrections would otherwise have been silently dropped behind a green
+    // { ok: true }). An EDIT-LESS approve fell through to the resume below and started
+    // a SECOND "lifecycle" runner on the same case, answering ok both times: the walk
+    // is not idempotent — it designs, publishes and dispatches — and startTask's dedup
+    // only coalesces runs that are still ACTIVE, so a retry arriving after the first
+    // finished ran the whole thing again. There is no honest 200 here: nothing was
+    // approved, because there was nothing awaiting approval. Answer 409 with the stage
+    // as DATA, so the panel says where the case actually is in the reader's language.
+    return jsonRefusal("DEVCASE_LIFECYCLE_NOT_AT_GATE", 409, { stage: lc.stage, editsApplied: false });
   } catch (error) {
     // approveLifecycleCase is a store transaction and the resumed runner spawns Python:
     // the thrown message carries SQLITE_* codes, the db path or child stderr.

@@ -71,6 +71,8 @@ export function SchedulerControl({
         onToggleHistory={() => st.setHistoryOpen((o) => !o)}
         result={st.result}
         error={st.error}
+        liveness={st.liveness}
+        livenessReason={st.livenessReason}
       />
 
       {/* AUTO2 — run history: what each pass did and WHY, per candidate. The

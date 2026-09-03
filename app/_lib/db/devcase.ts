@@ -629,6 +629,35 @@ function rowToPosting(r: Record<string, unknown>): Posting {
   };
 }
 
+/** The SQL behind both the dedup inside {@link createPosting} and the publish
+ *  route's precondition read — one string, so "is this case already live on this
+ *  channel?" can never be answered two different ways. */
+const SELECT_OPEN_POSTING = `SELECT * FROM dev_postings WHERE workspace_id = ? AND case_id = ? AND channel = ? AND status = 'open' ORDER BY created_at ASC LIMIT 1`;
+
+/** The workspace a posting for this case would belong to: the CASE's own, since a
+ *  posting inherits it (never the session's). Shared by createPosting and the
+ *  precondition read so both ask the same question of the same tenant. */
+function postingWorkspaceOf(db: ReturnType<typeof ensureDb>, caseId: string): string {
+  const wsRow = db.prepare(`SELECT workspace_id FROM dev_cases WHERE id = ?`).get(caseId) as { workspace_id?: string } | undefined;
+  return wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+}
+
+/**
+ * The PUBLISH PRECONDITION: the case's currently-open posting on this channel, or
+ * null. The publish route reads it BEFORE calling the adapter so it can answer
+ * `alreadyPublished` truthfully — createPosting alone cannot say it, because by
+ * design it returns the same row whether it minted it or found it, and the route
+ * was therefore reporting a fresh publish for a case that was already live.
+ * `workspaceId` is optional: omitted, it resolves to the CASE's own workspace,
+ * the same tenant createPosting will use.
+ */
+export function getOpenPosting(caseId: string, channel: string, workspaceId?: string): Posting | null {
+  const db = ensureDb();
+  const ws = workspaceId ?? postingWorkspaceOf(db, caseId);
+  const r = db.prepare(SELECT_OPEN_POSTING).get(ws, caseId, channel) as Record<string, unknown> | undefined;
+  return r ? rowToPosting(r) : null;
+}
+
 export function createPosting(input: {
   caseId: string;
   channel: string;
@@ -638,8 +667,7 @@ export function createPosting(input: {
 }): Posting {
   const db = ensureDb();
   // Tenant (P1): a posting inherits its case's workspace (by-id read of the team's case).
-  const wsRow = db.prepare(`SELECT workspace_id FROM dev_cases WHERE id = ?`).get(input.caseId) as { workspace_id?: string } | undefined;
-  const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  const workspaceId = postingWorkspaceOf(db, input.caseId);
   // PUBLISH DEDUP (bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #4)). Publish
   // must be idempotent per (workspace, case, channel) while a posting stays OPEN —
   // otherwise a concurrent / multi-tab / reload-mid-request re-publish mints a SECOND
@@ -652,21 +680,33 @@ export function createPosting(input: {
   // NOTHING makes even a cross-connection double-insert impossible. Either way the SAME
   // existing token is returned, never a duplicate. A CLOSED posting is excluded, so a
   // deliberate re-publish after closing still mints a fresh posting.
-  const selectOpen = `SELECT * FROM dev_postings WHERE workspace_id = ? AND case_id = ? AND channel = ? AND status = 'open' ORDER BY created_at ASC LIMIT 1`;
-  const existing = db.prepare(selectOpen).get(workspaceId, input.caseId, input.channel) as Record<string, unknown> | undefined;
-  if (existing) return rowToPosting(existing);
+  //
+  // The read→write pair runs inside an IMMEDIATE transaction (repo law: a
+  // read→compute→write either locks or re-checks). It used to rest on prose — "no
+  // other in-process request interleaves" — which is true of Node but says nothing
+  // about the OTHER connections this DB has: a second process, the tasks runner, a
+  // script. BEGIN IMMEDIATE takes the write lock before the SELECT, so the layer-2
+  // unique index is now the backstop it was described as rather than the only real
+  // guard. Synchronous throughout — no await may enter this block.
+  const tx = db.transaction((): Posting => {
+    const existing = db.prepare(SELECT_OPEN_POSTING).get(workspaceId, input.caseId, input.channel) as
+      | Record<string, unknown>
+      | undefined;
+    if (existing) return rowToPosting(existing);
 
-  const now = new Date().toISOString();
-  const id = randomId("pst");
-  db.prepare(
-    `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)
-     ON CONFLICT DO NOTHING`
-  ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now, workspaceId);
-  // Re-select the canonical open row: ours if the insert won, or the row a concurrent
-  // connection inserted first (the unique index rejected ours via ON CONFLICT DO NOTHING).
-  const row = db.prepare(selectOpen).get(workspaceId, input.caseId, input.channel) as Record<string, unknown>;
-  return rowToPosting(row);
+    const now = new Date().toISOString();
+    const id = randomId("pst");
+    db.prepare(
+      `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)
+       ON CONFLICT DO NOTHING`
+    ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now, workspaceId);
+    // Re-select the canonical open row: ours if the insert won, or the row a concurrent
+    // connection inserted first (the unique index rejected ours via ON CONFLICT DO NOTHING).
+    const row = db.prepare(SELECT_OPEN_POSTING).get(workspaceId, input.caseId, input.channel) as Record<string, unknown>;
+    return rowToPosting(row);
+  });
+  return tx.immediate();
 }
 
 export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Posting[] {

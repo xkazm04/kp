@@ -23,7 +23,7 @@ export function JobsTab() {
   const td = useTranslations("jobs.deeplink");
   const enumLabel = useEnumLabel();
   const list = useJobsList();
-  const { jobs, stats, error, fetching, openOnly, setOpenOnly, anyFilter, clearAll, reload, patchJobStatus } = list;
+  const { jobs, stats, page, error, fetching, openOnly, setOpenOnly, anyFilter, clearAll, reload, patchJobStatus } = list;
 
   const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(jobs);
 
@@ -128,6 +128,7 @@ export function JobsTab() {
       <JobsTabResults
         jobs={jobs}
         stats={stats}
+        page={page}
         error={error}
         fetching={fetching}
         anyFilter={anyFilter}

@@ -7,7 +7,7 @@
 import { Inbox } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
-import { META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { CommsVerdict } from "@/app/_lib/comms-view";
 import { ResendButton } from "./ResendButton";
@@ -80,7 +80,9 @@ export function OutboxRows({
         <button
           type="button"
           onClick={onClearFilters}
-          className="focus-ring rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink/90"
+          // The shared primary action, not a re-typed class string: hand-rolled, this
+          // button carried none of the dual-theme press-down the rest of the studio has.
+          className={`${BTN_PRIMARY} h-9 rounded-full px-4`}
         >
           {t("clearFilters")}
         </button>

@@ -3,6 +3,7 @@
 import { SearchX, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusLegend } from "@/app/_components/StatusChip";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { Job, Stats } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
 import { JobsTableFrame } from "./JobsTable";
@@ -15,6 +16,7 @@ import { JobsEmptyLaunchpad } from "./JobsEmptyLaunchpad";
 export function JobsTabResults({
   jobs,
   stats,
+  page,
   error,
   fetching,
   anyFilter,
@@ -23,6 +25,9 @@ export function JobsTabResults({
 }: {
   jobs: Job[] | null;
   stats: Stats | null;
+  /** The route's page-honesty triple (`truncated` / `matching` / `limit`), null
+   *  on an older payload that does not carry it. */
+  page: { truncated: boolean; matching: number; limit: number } | null;
   error: string | null;
   fetching: boolean;
   anyFilter: boolean;
@@ -30,16 +35,32 @@ export function JobsTabResults({
   onOpen: (job: Job) => void;
 }) {
   const t = useTranslations("jobs.tab");
+  // ONE `enums` translator subscription for the whole table, passed down. Each row
+  // used to open its own, so a 300-row catalog paid for 300 of them per render.
+  const enumLabel = useEnumLabel();
   return (
     <>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-base" aria-live="polite">
         {jobs && stats ? (
-          <span className="text-steel">
-            {t.rich("showing", {
-              shown: jobs.length,
-              total: stats.total,
-              b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
-            })}
+          // TRUNCATED IS NOT FILTERED. `stats.total` is the workspace-wide
+          // UNFILTERED count, so "Showing 300 of 340 roles" reads as "40 filtered
+          // out" — while the truth may be "40 roles this list offers no way to
+          // reach". When the route says the slice was cut, the line says so
+          // against `matching` (the unbounded count over the SAME predicate) and
+          // names the page size it was cut at.
+          <span className={page?.truncated ? "text-amber-700" : "text-steel"}>
+            {page?.truncated
+              ? t.rich("showingCut", {
+                  shown: jobs.length,
+                  matching: page.matching,
+                  limit: page.limit,
+                  b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
+                })
+              : t.rich("showing", {
+                  shown: jobs.length,
+                  total: stats.total,
+                  b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
+                })}
           </span>
         ) : null}
         {anyFilter ? (
@@ -101,7 +122,9 @@ export function JobsTabResults({
             <JobsTableFrame>
               <tbody className="divide-y divide-stone-200">
                 {jobs.map((job) => (
-                  <JobRow key={job.id} job={job} onOpen={() => onOpen(job)} />
+                  // `onOpen` takes the job so the row's memo boundary is not erased
+                  // by a fresh arrow per row per render.
+                  <JobRow key={job.id} job={job} onOpen={onOpen} enumLabel={enumLabel} />
                 ))}
               </tbody>
             </JobsTableFrame>

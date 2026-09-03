@@ -1469,7 +1469,13 @@
     "MATCH_REASONING_UNAVAILABLE": "Cette correspondance ne peut plus être expliquée : le candidat ou le poste associé n'existe plus.",
     "DECISION_CONFIG_STALE": "Quelqu'un a enregistré une version plus récente de ces règles. Rechargez, puis refaites votre modification.",
     "PIPELINE_AXIS_STALE": "Quelqu'un a enregistré une version plus récente de ce pipeline. Rechargez, puis refaites votre modification.",
-    "INTAKE_ATTACHMENT_TOO_LONG": "Cette note est plus longue qu'un document de référence ne peut l'être. Raccourcissez-la ou joignez-la en plusieurs parties."
+    "INTAKE_ATTACHMENT_TOO_LONG": "Cette note est plus longue qu'un document de référence ne peut l'être. Raccourcissez-la ou joignez-la en plusieurs parties.",
+    "JOB_SEED_BROKEN": "Le catalogue de postes est vide car ses données initiales n'ont pas pu être chargées. Consultez le journal du serveur.",
+    "SCHEDULE_UPDATE_FAILED": "Impossible de modifier l'horloge d'automatisation. Veuillez réessayer.",
+    "SCHEDULE_INTERVAL_INVALID": "L'intervalle d'automatisation doit être un nombre de minutes.",
+    "COMM_RESEND_IN_PROGRESS": "Un renvoi de ce message est déjà en cours.",
+    "COMM_ALREADY_RESENT": "Déjà renvoyé. Une remise plus récente existe pour ce message.",
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2329,7 +2335,12 @@
     "tokenLink": {
       "copy": "Copier le lien",
       "openAsCandidate": "Ouvrir en tant que candidat",
-      "createFailed": "Impossible de créer le lien."
+      "createFailed": "Impossible de créer le lien.",
+      "openConfirmTitle": "Ouvrir le lien de ce candidat ?",
+      "openConfirmSubtitle": "Vous verrez exactement ce qu'il voit.",
+      "openConfirmBody": "C'est le lien réel, pas un aperçu. Certaines de ces pages enregistrent leur ouverture : la visite peut apparaître dans l'historique du candidat comme la sienne.",
+      "openConfirmCancel": "Annuler",
+      "openConfirmCta": "Ouvrir le lien réel"
     },
     "events": {
       "matched": "a été mis en correspondance",
@@ -2571,7 +2582,8 @@
       "attentionTitle": "Requiert votre attention",
       "filterStateLabel": "État",
       "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
-      "stageOffBoardClear": "Supprimer ce filtre"
+      "stageOffBoardClear": "Supprimer ce filtre",
+      "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut"
     },
     "today": {
       "eyebrow": "Aujourd’hui",
@@ -2795,7 +2807,10 @@
       "thisRun": "{label} lors de cette exécution",
       "runScope": "{mine} sur {total} à vous",
       "scopeGlobal": "s’applique à toutes les équipes",
-      "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre."
+      "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre.",
+      "liveHealthy": "en marche",
+      "liveStarting": "démarrage…",
+      "liveStalled": "à l'arrêt"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -4259,7 +4274,9 @@
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",
         "unlockDecisions": "File de décisions"
-      }
+      },
+      "showingCut": "Affichage des <b>{shown}</b> premiers postes sur <b>{matching}</b> correspondants. La liste est coupée à {limit}.",
+      "loadFailed": "Impossible de charger le catalogue de postes."
     },
     "table": {
       "caption": "Corpus de postes : annonces normalisées filtrables par famille de postes, séniorité, mode de travail et éligibilité débutant. Activez une ligne pour déployer ses exigences et son prisme jeune diplômé.",
@@ -4491,7 +4508,10 @@
       "addToPipeline": "Ajouter au pipeline",
       "adding": "Ajout…",
       "added": "Ajouté",
-      "dismiss": "Ignorer"
+      "dismiss": "Ignorer",
+      "loadFailed": "Impossible de charger les médaillés d'argent.",
+      "retry": "Réessayer",
+      "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste."
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
@@ -4571,7 +4591,8 @@
       "couldntAdd": "Ajout au pipeline impossible : {error}",
       "couldntReach": "Contact impossible : {error}",
       "assumptions": "Hypothèses :",
-      "auditUnder": "selon la pondération de {label}"
+      "auditUnder": "selon la pondération de {label}",
+      "auditPoolTruncated": "Échantillon plafonné : le corpus de candidats dépasse les plafonds de classement, cet audit ne couvre donc que le sous-ensemble évalué, pas tout le vivier."
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
@@ -7785,6 +7806,24 @@
         "reflecting": "Réflexion…",
         "analyzeOnly": "Analyser le besoin seulement",
         "recent": "Récents"
+      },
+      "sectionsLabel": "Sections du studio d’exercices",
+      "views": {
+        "cases": {
+          "label": "Exercices",
+          "title": "Exercices actifs",
+          "blurb": "Tous les exercices conçus au même endroit : étape, réception et évaluations. Cliquez sur un exercice pour lire le brief complet et son matériel de sonde interne."
+        },
+        "define": {
+          "label": "Définir le besoin",
+          "title": "Définir le besoin",
+          "blurb": "Choisissez la fiche de poste et indiquez-nous les bases de code réelles qu’elle couvre ({max} au maximum). Le moteur confronte ce que la fiche de poste demande à ce que le code est réellement, et met au jour les écarts avant que nous concevions un exercice. Partez du principe que le code du candidat est généré par un modèle ; nous évaluons le jugement, pas la frappe."
+        },
+        "outbox": {
+          "label": "Boîte d’envoi",
+          "title": "Boîte d’envoi des communications",
+          "blurb": "Chaque message envoyé par le pipeline : accusés de réception, invitations à poursuivre, prises de contact des recruteurs et refus."
+        }
       }
     },
     "lifecycle": {
@@ -7864,7 +7903,8 @@
       "countFiltered": "{shown, plural, one {# message} other {# messages}} sur {total}",
       "deadLetters": "{count} à traiter",
       "filteredEmpty": "Aucun message ne correspond à ces filtres.",
-      "clearFilters": "Effacer les filtres"
+      "clearFilters": "Effacer les filtres",
+      "loadLabel": "la boîte d’envoi des communications"
     },
     "outboxKind": {
       "acknowledgement": "Accusé de réception",

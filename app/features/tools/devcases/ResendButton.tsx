@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // W6-1 — re-dispatch a dead-lettered message through the live channel (a NEW
@@ -79,7 +80,10 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
         onClick={resend}
         disabled={state === "busy" || state === "done" || state === "queued"}
         title={td("resendTitle")}
-        className={`focus-ring inline-flex shrink-0 items-center gap-1 rounded border border-stone-200 bg-white font-semibold text-coral hover:bg-coral/5 disabled:opacity-50 ${
+        // The shared secondary action plus this button's own size/tone. It used to
+        // re-type the whole class string, so it missed the dual-theme press-down and
+        // border every other secondary control on the surface has.
+        className={`${BTN_SECONDARY} shrink-0 font-semibold text-coral hover:bg-coral/5 ${
           compact ? "px-1.5 py-0.5 text-micro" : "px-2 py-1 text-sm"
         }`}
       >

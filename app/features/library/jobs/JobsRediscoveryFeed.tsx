@@ -2,6 +2,7 @@
 
 import { RefreshCw, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useRediscoveryFeedLogic } from "./jobsRediscoveryFeedLogic";
 import { JobsRediscoveryFeedRow } from "./JobsRediscoveryFeedRow";
 
@@ -14,20 +15,23 @@ export function RediscoveryFeed() {
   // Same localized why-now the on-demand panel tells (RediscoverPanel): reuse the exact
   // jobs.rediscover.whyNow.* keys + enums.stage resolution — never a forked copy.
   const tr = useTranslations("jobs.rediscover");
-  const { t, alerts, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline } = useRediscoveryFeedLogic();
+  // Hoisted: one `enums` subscription for the feed, not one per alert row.
+  const enumLabel = useEnumLabel();
+  const { t, alerts, loadFailed, retryLoad, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline } =
+    useRediscoveryFeedLogic();
 
   // Empty + loaded: render a slim bar so the recruiter can still trigger a sweep
   // after the pool changes. Hidden entirely until the first load resolves.
   if (alerts === null) return null;
 
-  // `note` carries EITHER the sweep's outcome line ("Checked 12 roles: 3 new
-  // matches") or its failure — and the failure was painted `text-moss`, this app's
-  // "it worked" green, whenever any alert was already on screen. A recruiter whose
-  // refresh 500'd read a green "Couldn't check for silver medalists." and walked
-  // away believing the pool had just been re-swept with nothing new. Same
-  // translator instance the hook wrote the note with, same parameter-free message,
-  // so the comparison is exact — the failure reads red, an outcome keeps its tone.
-  const sweepFailed = note != null && note === t("sweepFailed");
+  // `note` carries EITHER an outcome line ("Checked 12 roles: 3 new matches") or a
+  // failure — and the failure was painted `text-moss`, this app's "it worked"
+  // green, whenever any alert was already on screen. A recruiter whose refresh
+  // 500'd read a green "Couldn't check for silver medalists." and walked away
+  // believing the pool had just been re-swept with nothing new. The tone now
+  // travels WITH the note (FeedNote) rather than being re-derived by comparing the
+  // rendered string against one known failure message.
+  const noteFailed = note?.tone === "error";
 
   return (
     <section className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3" aria-label={t("title")}>
@@ -47,12 +51,27 @@ export function RediscoveryFeed() {
         </button>
       </div>
 
-      {alerts.length === 0 ? (
-        <p className={`mt-1.5 text-sm ${sweepFailed ? "text-red-700" : "text-steel"}`}>{note ?? t("empty")}</p>
+      {loadFailed ? (
+        // "We could not look" — never the reassuring "no silver medalists right
+        // now", which is a claim about the pool this panel cannot make when the
+        // read failed. Same red tone as a failed sweep, plus the cheap retry (a
+        // re-read, not a re-sweep).
+        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-red-700">
+          {t("loadFailed")}
+          <button
+            type="button"
+            onClick={retryLoad}
+            className="focus-ring inline-flex items-center rounded-md border border-red-200 bg-white px-2 py-0.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+          >
+            {t("retry")}
+          </button>
+        </p>
+      ) : alerts.length === 0 ? (
+        <p className={`mt-1.5 text-sm ${noteFailed ? "text-red-700" : "text-steel"}`}>{note?.text ?? t("empty")}</p>
       ) : (
         <>
           <p className="mt-1 text-sm text-steel">{t("intro")}</p>
-          {note ? <p className={`mt-1 text-sm ${sweepFailed ? "text-red-700" : "text-moss"}`}>{note}</p> : null}
+          {note ? <p className={`mt-1 text-sm ${noteFailed ? "text-red-700" : "text-moss"}`}>{note.text}</p> : null}
           <ul className="mt-2 space-y-2">
             {alerts.map((a) => (
               <JobsRediscoveryFeedRow
@@ -65,6 +84,7 @@ export function RediscoveryFeed() {
                 onDismiss={() => dismiss(a.id)}
                 t={t}
                 tr={tr}
+                enumLabel={enumLabel}
               />
             ))}
           </ul>

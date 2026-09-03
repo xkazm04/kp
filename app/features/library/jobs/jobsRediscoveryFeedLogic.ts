@@ -4,7 +4,7 @@
 // per-row dismiss, and the add-to-pipeline outcome transition.
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 // bug-ui-scan-2026-07-09 (sourcing-campaigns-rediscovery #4): the add-outcome
@@ -13,15 +13,35 @@ import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
 import { applyAddResult, ADDED_BADGE_MS } from "./jobsRediscoveryAdd";
 import type { Alert } from "./jobsRediscoveryFeedTypes";
 
+/** A status line plus the tone it must be painted in. A failure rendered in this
+ *  app's "it worked" green is a lie the recruiter acts on, so the producer of the
+ *  line — not a string comparison at the render site — declares which it is. */
+export type FeedNote = { text: string; tone: "ok" | "error" };
+
 export function useRediscoveryFeedLogic() {
   const t = useTranslations("jobs.rediscoveryFeed");
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [sweeping, setSweeping] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
+  // The note carries its OWN tone. It used to be a bare string the component
+  // re-identified by comparing it against `t("sweepFailed")` — which worked only
+  // as long as exactly one failure message existed. Now a dismiss rollback has one
+  // too, so the tone travels with the text instead of being inferred from it.
+  const [note, setNote] = useState<FeedNote | null>(null);
+  // Distinct from "the sweep failed": this is the INITIAL load. It used to collapse
+  // into emptiness — a 500 set `alerts` to `[]` and the panel said "No silver
+  // medalists right now", i.e. it answered "there are none" when the truth was
+  // "we could not look".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [pending, setPending] = useState<Set<string>>(() => new Set());
   const [rowError, setRowError] = useState<Map<string, string>>(() => new Map());
   const abortRef = useRef<AbortController | null>(null);
+
+  // `loadKey` re-runs the initial GET — the retry offered beside the failure line.
+  // Deliberately NOT the sweep: re-reading the alerts the server already holds is
+  // free, while a sweep re-ranks every published role's pool.
+  const [loadKey, setLoadKey] = useState(0);
+  const retryLoad = useCallback(() => setLoadKey((k) => k + 1), []);
 
   useEffect(() => {
     let alive = true;
@@ -37,17 +57,29 @@ export function useRediscoveryFeedLogic() {
         const r = await fetch("/api/rediscovery/alerts", { signal: controller.signal });
         const body = (await r.json().catch(() => null)) as { alerts?: Alert[] } | null;
         if (!alive) return;
-        setAlerts(r.ok && body?.alerts ? body.alerts : []);
+        // "We could not look" is not "there are none": a non-OK status (or a body
+        // with no `alerts`) sets the failure flag, and the panel renders a retryable
+        // red line instead of the reassuring empty state.
+        if (!r.ok || !body?.alerts) {
+          setAlerts([]);
+          setLoadFailed(true);
+        } else {
+          setAlerts(body.alerts);
+          setLoadFailed(false);
+        }
       } catch {
         // An abort (unmount) is expected — only surface a genuine load failure.
-        if (alive && !controller.signal.aborted) setAlerts([]);
+        if (alive && !controller.signal.aborted) {
+          setAlerts([]);
+          setLoadFailed(true);
+        }
       }
     })();
     return () => {
       alive = false;
       abortRef.current?.abort();
     };
-  }, []);
+  }, [loadKey]);
 
   const sweep = async () => {
     if (sweeping) return;
@@ -60,32 +92,62 @@ export function useRediscoveryFeedLogic() {
         | null;
       if (r.ok && body?.alerts) {
         setAlerts(body.alerts);
-        setNote(
-          body.jobsSwept === 0
-            ? t("noPublished")
-            : t("swept", { jobs: body.jobsSwept ?? 0, found: body.newAlerts ?? 0 })
-        );
+        // A successful sweep is also the answer to a failed initial load.
+        setLoadFailed(false);
+        setNote({
+          text:
+            body.jobsSwept === 0
+              ? t("noPublished")
+              : t("swept", { jobs: body.jobsSwept ?? 0, found: body.newAlerts ?? 0 }),
+          tone: "ok",
+        });
       } else {
-        setNote(t("sweepFailed"));
+        setNote({ text: t("sweepFailed"), tone: "error" });
       }
     } catch {
-      setNote(t("sweepFailed"));
+      setNote({ text: t("sweepFailed"), tone: "error" });
     } finally {
       setSweeping(false);
     }
   };
 
   const dismiss = async (id: string) => {
-    // Optimistic: drop it immediately, the PATCH is fire-and-forget recovery.
-    setAlerts((prev) => (prev ? prev.filter((a) => a.id !== id) : prev));
+    // Optimistic, and now REVERSIBLE. The row is dropped immediately, but the
+    // position it was dropped from is remembered: a PATCH that never lands (or
+    // answers non-OK) used to leave the recruiter with a candidate silently gone
+    // from the view and still open on the server, resurfacing on the next reload
+    // with no explanation. On failure the row goes back where it was and the panel
+    // says the dismissal did not stick.
+    let removed: { alert: Alert; index: number } | null = null;
+    setAlerts((prev) => {
+      if (!prev) return prev;
+      const index = prev.findIndex((a) => a.id === id);
+      if (index < 0) return prev;
+      removed = { alert: prev[index], index };
+      return prev.filter((a) => a.id !== id);
+    });
+    const restore = () => {
+      const dropped = removed as { alert: Alert; index: number } | null;
+      if (!dropped) return;
+      setAlerts((prev) => {
+        if (!prev || prev.some((a) => a.id === dropped.alert.id)) return prev;
+        const next = [...prev];
+        next.splice(Math.min(dropped.index, next.length), 0, dropped.alert);
+        return next;
+      });
+      setNote({ text: t("dismissFailed"), tone: "error" });
+    };
     try {
-      await fetch("/api/rediscovery/alerts", {
+      const r = await fetch("/api/rediscovery/alerts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!r.ok) restore();
     } catch {
-      /* the row's already gone from the view; a reload would resurface it */
+      // A transport failure is the same outcome as a rejected one: the server still
+      // holds the alert, so the view must not claim otherwise.
+      restore();
     }
   };
 
@@ -124,5 +186,5 @@ export function useRediscoveryFeedLogic() {
     }
   };
 
-  return { t, alerts, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline };
+  return { t, alerts, loadFailed, retryLoad, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline };
 }

@@ -1,23 +1,38 @@
+import { memo } from "react";
 import { ChevronRight } from "lucide-react";
 import { formatPercent } from "@/app/_lib/format";
 import { formatBand } from "./JobsTypes";
 import type { Job } from "./JobsTypes";
 import { JobStatusBadge, Td } from "./JobsShared";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import type { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 // A clickable corpus row: activating it opens the publish-format posting modal.
-export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
-  const enumLabel = useEnumLabel();
+//
+// MEMO BOUNDARY. The catalog renders up to 500 of these and the tab re-renders on
+// every filter keystroke (debounced fetch, `fetching` flag) — every untouched row
+// was rebuilt each time. It holds because `onOpen` takes the JOB (a pre-bound
+// `() => onOpen(job)` would be a new identity per render) and `enumLabel` is
+// hoisted to the ONE list that renders the rows instead of each row opening its
+// own `enums` translator subscription. Pinned by jobsCandidatesMemo.test.ts.
+export const JobRow = memo(function JobRow({
+  job,
+  onOpen,
+  enumLabel,
+}: {
+  job: Job;
+  onOpen: (job: Job) => void;
+  enumLabel: ReturnType<typeof useEnumLabel>;
+}) {
   const ep = job.entryProfile;
   return (
     <tr
       tabIndex={0}
       role="button"
-      onClick={onOpen}
+      onClick={() => onOpen(job)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onOpen();
+          onOpen(job);
         }
       }}
       className="focus-ring cursor-pointer transition-colors hover:bg-paper"
@@ -49,4 +64,4 @@ export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
       </Td>
     </tr>
   );
-}
+});

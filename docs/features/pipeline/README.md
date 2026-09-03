@@ -245,7 +245,8 @@ strands nobody, and moving them would rewrite closed history.
 | `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
 | `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. |
-| `app/api/automation/schedule/route.ts` | Scheduling-side automation hook. |
+| `app/api/automation/schedule/route.ts` | The automation clock's control surface: `GET` returns the schedule, the reminders job, recent runs (decision rows workspace-filtered), `scheduleScope: "global"`, and — since /perfect 2026-09-03 — the clock's **liveness** (`liveness`/`livenessReason`/`lastTickAt`, from `schedulerLiveness()` over the `scheduler_heartbeat` row, the same verdict `/api/health` and `/api/ops` render). `POST` toggles the clock, sets the cadence, pauses reminders, or forces a tick. Operator-only. The malformed-interval 400 answers `jsonRefusal("SCHEDULE_INTERVAL_INVALID")` and the catch answers `safeJsonError(..., "SCHEDULE_UPDATE_FAILED")`, so the dock renders both in the reader's language. `{"tick": true}` — a full policy pass — is throttled per IP (`schedule-tick:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`); the GET and the cheap config writes are not. |
+| `app/features/hiring/pipeline/Scheduler*.tsx` + `useSchedulerControlState.ts` | The dock's clock control. The ON/OFF pill renders the stored **armed** flag; a chip beside it renders **liveness** (ticking / starting / not ticking) and an armed-but-stalled clock tones the pill amber instead of moss — the pure mapping (`livenessChip`, `enabledPillTone`) plus `describeTick`, `clampInterval` and the poll's backoff curve live in `schedulerRunState.ts` and are unit-pinned by `schedulerRunState.test.ts`. The 30s poll skips a hidden tab, refreshes once on becoming visible, and backs off 30s → 60s → 2m → 4m → 5m on consecutive read failures. Run-history actions render through `useEnumLabel("recommendation")` rather than the raw wire enum. |
 | `app/api/tasks` (kind `"automation"`) | Hardened/background path sharing `runAutomationTask` with the synchronous route above — tracked, deduped, refresh-safe. |
 | `app/_lib/automation-run.ts` | `runAutomationTask` — shared dispatcher both routes call into. |
 | `app/_lib/automation-pass.ts` | Applies Task 7 policy-pass decisions to the DB in one transaction. |
@@ -338,6 +339,55 @@ pointing at. The notice waits for the board fetch (`PipelineTab` passes
 then retract. Labels follow the off-axis strip's rule — the workspace's own label
 wins when it authored one, otherwise the `enums.stage.*` catalog translates the
 id. Pinned by `pipelineStageFilter.test.ts` (8 checks).
+
+### Who the board counts
+
+The stat header and the Today rail sit one above the other and answer the same
+question, so they derive it from ONE module —
+`app/features/hiring/pipeline/pipelineBoardPopulation.ts`
+(`pipelineBoardPopulation.test.ts`, 10 checks):
+
+- **`boardPopulation(entries)`** → `{ real, active }`. `real` drops the guided
+  demo's `(SIM)`-marked rows (`isSimTitle`, gsim-l2-105) — the board still *renders*
+  them, visibly marked, so a running simulation sees itself, but they are never
+  counted or narrated as real hiring work. `active` is `real` narrowed to
+  `status === "active"`: a rejected or withdrawn candidate is real history, not live
+  work, whichever column their card is still parked on.
+- **`deriveRailRows(entries, axis, now)`** buckets that population into the rail's
+  six queues (inbound / scorecards / offer reviews / awaiting slot / offers out /
+  hired-this-week), resolving every stage question by **role** on the workspace's own
+  axis. `PipelineTodayRail` supplies only the glyph, tone and catalog sentence.
+
+`usePipelineTabState`'s `activeCount`, `interviewCount` and `staleCount` (and
+therefore the aging chip) now read `boardPopulation(...).active`. They previously
+counted every row not standing on a terminal-role stage — sim residue included,
+un-tidied rejections included — so the header read "Active 14" over a rail naming
+four people. `approvals` and `degradedCount` deliberately keep their own predicates:
+an approval is real work waiting on the Decisions gate whoever created it, and a
+degraded stub is a recoverability signal rather than a funnel count.
+
+### Aging SLA overrides
+
+`PipelineSlaEditor` declared `[1, 365]` on its number input and did not enforce it —
+a native input's `min`/`max` are advisory, so a pasted 5000 persisted to
+`localStorage` and silenced that column's amber dot for fourteen years.
+`pipelineSla.ts` states the range once (`clampSlaDays`, unit-pinned by
+`pipelineSla.test.ts`): empty / 0 / negative / unparseable CLEARS back to the stage
+role's default, anything else rounds to whole days and clamps into range. Applied at
+the field, again in `usePipelineSla`'s store (so a second caller cannot bypass it),
+and once more on hydration, so a value written by an older build is repaired on read.
+The range is stated inline beside the inputs (`tab.slaEditorRange`).
+
+Team-shared SLAs remain an **owner decision, not a gap**: these overrides are
+per-browser `localStorage` with no schema and no server surface.
+
+### Opening a candidate's live link
+
+`TokenLinkPanel`'s "Open as candidate" opens the LIVE capability link, and several
+of those surfaces stamp an opened/first-seen mark on first fetch — so a recruiter
+peeking burnt the candidate's own first open and the timeline then read as if they
+had looked. It now asks once, through the shared `Modal`, and says the link may be
+marked opened. **Copy stays one click** — it touches nothing.
 
 ### Typography and presence motion
 

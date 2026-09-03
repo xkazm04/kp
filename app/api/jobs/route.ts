@@ -53,9 +53,14 @@ export async function GET(request: NextRequest) {
     if (stats.total === 0) {
       const seedError = getSeedHealth().issues.find((i) => i.seed === "jobs" && i.severity === "error");
       if (seedError) {
-        return NextResponse.json(
-          { error: `Job catalog is empty — seed failed to load (${seedError.path}: ${seedError.reason}).` },
-          { status: 500 }
+        // The failing SEED PATH is operator detail, not client detail: it used to ride
+        // in the response prose, so an absolute filesystem path landed in the catalog's
+        // red box — in English, in every locale. safeJsonError logs the path + reason
+        // server-side and answers the code the client resolves through `errors.*`.
+        return safeJsonError(
+          new Error(`jobs seed failed to load (${seedError.path}): ${seedError.reason}`),
+          "api:jobs/list",
+          "JOB_SEED_BROKEN"
         );
       }
     }

@@ -231,24 +231,19 @@ test("no allowlisted key has quietly stopped being an offender", () => {
   }
 });
 
-test("the sub-tab headings module does not smuggle the old word past the catalogs", () => {
-  // DevTabViews.ts holds the Assignments studio's sub-tab labels and headings as
-  // plain English string literals — the ONE piece of user copy on this surface that
-  // is not in messages/. That is why it kept saying "Cases" / "Active cases" /
-  // "Click a case" while every catalog-backed label already said Assignment: no
-  // locale gate reads it, so nothing could notice. Its lack of localization is a
-  // separate open gap; the WORD is guarded here.
-  const src = read("app", "features", "tools", "devcases", "DevTabViews.ts");
-  // The COPY fields only. `id:` holds route/state keys ("cases" is a DevView id and
-  // must not move), and a comment is allowed to name the word it retired — a guard
-  // that fires on its own rationale teaches the next reader to delete the rationale.
-  const copy = [...src.matchAll(/\b(?:label|title|blurb):\s*(?:"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`)/g)].map(
-    (m) => m[1] ?? m[2]
-  );
-  assert.ok(copy.length >= 6, "found no copy fields in DevTabViews.ts — the shape changed and this guard is blind");
-  const offenders = copy.filter((s) => CASE_WORD.test(s.replace(/\$\{[^}]*\}/g, " ")));
-  assert.deepEqual(offenders, [], "DevTabViews.ts still calls the assignment a 'case' in user-visible copy");
-});
+// The sub-tab headings USED to need a guard of their own here. DevTabViews.ts held the
+// Assignments studio's labels, headings and blurbs as plain English literals - the one
+// piece of user copy on this surface that was not in messages/ - which is why it kept
+// saying "Cases" / "Active cases" / "Click a case" long after every catalog-backed label
+// said Assignment: no locale gate reads a string literal. That test matched the copy
+// fields in the source and asserted the word was gone from them.
+//
+// Round 10 moved the module to catalog KEYS, so the copy is now walked by the `en`
+// catalog test above (the strongest form of the same check, and the one that also sees
+// the other three locales) and the module itself is on the STUDIO_LOCALIZED_FILES ratchet
+// exercised below, which allows no literal at all. The source guard is deleted rather
+// than kept green against a file with no copy in it: a guard whose subject has moved is
+// how a suite starts reassuring people about nothing.
 
 test("the Assignments studio's own components do not smuggle the old word past the catalogs", () => {
   // Same blind spot as DevTabViews.ts above, one layer out. The catalog walk cannot

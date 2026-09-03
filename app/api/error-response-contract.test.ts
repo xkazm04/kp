@@ -210,7 +210,10 @@ const LEAK_CEILING = new Map<string, number>([
   ["ats/config/route.ts", 1],
   ["automation/[task]/route.ts", 1],
   ["automation/run/route.ts", 1],
-  ["automation/schedule/route.ts", 1],
+  // automation/schedule's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
+  // pipeline-board-3): the 500 answers safeJsonError(..., "SCHEDULE_UPDATE_FAILED")
+  // and the interval 400 is jsonRefusal("SCHEDULE_INTERVAL_INVALID"), so the control
+  // dock resolves both in the reader's language. The row is deleted so the win is locked.
   ["billing/checkout/route.ts", 1],
   ["billing/portal/route.ts", 1],
   ["channels/inbound/[token]/route.ts", 1],

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useTranslations } from "next-intl";
 import { ARCHETYPE_BADGE, isEarlyCareer } from "./JobsTypes";
 import type { CandRow } from "./JobsTypes";
@@ -13,7 +14,15 @@ import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_compo
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 
-export function JobsRecruiterCandidatesCard({
+// MEMO BOUNDARY (per row). Adding one candidate to the pipeline flips one
+// entry in the parent's `added` set and re-renders the whole column; without
+// this every other card in the pool re-rendered too — badges, provenance
+// mapping, confidence copy and all. Pinned by jobsCandidatesMemo.test.ts.
+//
+// `onAdd`/`onReach` take the ROW rather than being pre-bound by the column: an
+// inline `() => onAdd(c)` per row is a new function identity every render, which
+// makes the memo below structurally present and behaviourally dead.
+export const JobsRecruiterCandidatesCard = memo(function JobsRecruiterCandidatesCard({
   c,
   added,
   adding,
@@ -29,11 +38,11 @@ export function JobsRecruiterCandidatesCard({
   added: boolean;
   adding: boolean;
   error: string | null;
-  onAdd: () => void;
+  onAdd: (c: CandRow) => void;
   reached: boolean;
   reaching: boolean;
   reachError: string | null;
-  onReach: () => void;
+  onReach: (c: CandRow) => void;
   // e1e4e0ea — robust mean + own-vs-robust delta, present only in Fair Rank mode.
   fair?: { own: number; mean: number; delta: number };
 }) {
@@ -89,7 +98,7 @@ export function JobsRecruiterCandidatesCard({
             <>
               <button
                 type="button"
-                onClick={onReach}
+                onClick={() => onReach(c)}
                 disabled={reaching}
                 title={reachError ?? t("reachTitle")}
                 className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
@@ -109,7 +118,7 @@ export function JobsRecruiterCandidatesCard({
               ) : (
                 <button
                   type="button"
-                  onClick={onAdd}
+                  onClick={() => onAdd(c)}
                   disabled={added || adding}
                   title={error ?? undefined}
                   className={`focus-ring rounded px-1.5 py-0.5 text-sm font-semibold ${
@@ -156,4 +165,4 @@ export function JobsRecruiterCandidatesCard({
       ) : null}
     </li>
   );
-}
+});

@@ -26,10 +26,12 @@ empty ledger, the candidate's work surface and the sub-tab headings still said
 "case". It is enforced now — `devcase-vocabulary.test.ts` § "the ONE-NAME rule" bans
 the word from the `devcase` / `devApply` / `about` / `palettePreview` / `setup`
 namespaces in `en`, checks its (empty) allowlist for staleness in both directions,
-asserts the three places each locale names the entity bare agree inside that locale,
-and source-guards `DevTabViews.ts`, whose labels are the one piece of copy on this
-surface that lives outside the four catalogs (and are still English-only — a separate
-open gap).
+and asserts the three places each locale names the entity bare agree inside that locale.
+It used to need a fourth check — a source guard over `DevTabViews.ts`, whose labels were
+the one piece of copy on this surface living outside the four catalogs. That module now
+carries catalog KEYS (`devcase.studio.views.*`), so the ordinary `en` catalog walk covers
+its words and the other three locales cover its language; the source guard was deleted
+rather than kept green against a file with no copy left in it.
 
 Status chips on this surface — the lifecycle stage, the voice-screen status, the
 submission status — resolve their TONE through `app/_lib/status-tone.ts` and render
@@ -556,13 +558,40 @@ two surfaces is the failure this module keeps having:
   `useOutcomeLabel` (`control.outcomes.value` — the very ledger this row writes into, not a
   second copy of three words).
 
-Still English, and still a gap: the outbox view (`OutboxSection`), the evaluation panel's
-own chrome (`DevEvalPanel*`), the lifecycle rows, and `caseToMarkdown`'s document
-scaffolding in `DevHelpers.ts` (`# Assignment`, `## Brief`, `## What you're handed`,
-`## Tasks`) — that one wants the injected-strings shape `devcase-interview-kit.ts` already
-uses, threaded through both callers, and is a change of its own. `DevTabViews.ts` (the
-sub-tab labels and headings) remains the one piece of studio copy with no catalog behind
-it.
+Still English, and still a gap: the evaluation panel's own chrome (`DevEvalPanel*`), the
+lifecycle rows, and `caseToMarkdown`'s document scaffolding in `DevHelpers.ts`
+(`# Assignment`, `## Brief`, `## What you're handed`, `## Tasks`) — that one wants the
+injected-strings shape `devcase-interview-kit.ts` already uses, threaded through both
+callers, and is a change of its own.
+
+**The masthead speaks the reader's language** (/perfect 2026-09-03). `DevTabViews.ts` held
+the three sub-tab labels, headings and blurbs as English literals and `DevTab` rendered
+them *under a localized eyebrow*, so a cs/de/fr reader got a translated kicker over an
+English headline. `DEV_VIEWS` now carries `labelKey`, and `VIEW_HEADING` `titleKey` /
+`blurbKey`, resolved under `devcase.studio.views.*` in all four catalogs (the define blurb
+takes `{max}` from the shared `MAX_CODEBASES`, so the number a reader is promised and the
+number the form enforces cannot disagree). Two more literals went with it:
+`DevTabSwitcher`'s tablist name, which was `aria-label="Dev studio sections"` — English,
+and the last place still calling the module by the team that built it rather than by what
+it holds — and `OutboxSection`'s stale-banner subject, passed to `LoadStatus` as the bare
+noun `"the comms outbox"` on both branches. All three files joined
+`STUDIO_LOCALIZED_FILES`; because the source ratchet's extractor reads JSX and cannot see
+a plain `.ts` module, `DevTabViews.ts` additionally gets its own pin in
+`devcase-studio-i18n.test.ts` — nine key-shaped fields, each resolving in every locale.
+Residual: `LoadStatus` itself still frames that localized noun in an English sentence
+("Couldn't refresh …"), which is a shared-primitive change and not this surface's to make.
+
+**The outbox refreshes when the reader comes back.** It loaded on mount, after a finished
+lifecycle task and after a resend, and never again — but dead letters and bounce receipts
+are produced by the *relay*, asynchronously, long after the click that queued the message,
+so a tab left open showed a snapshot from before the failure existed. A `focus` /
+`visibilitychange` pair in `useDevTabData` now reloads it on return. The decision is the
+pure `shouldReloadOnReturn` (`outboxRefresh.ts`, 4 node:test cases): leaving never fetches,
+one return is one fetch (both events fire on the same return), and an attempt inside a
+15s window is suppressed, so an alt-tabbing reader — or a failing endpoint — is not
+hammered. Staleness semantics are unchanged by construction: the reload goes through the
+same `useLoader` as every other read, so a failed refresh keeps the last good rows and
+leaves the existing stale pill up rather than blanking the table.
 
 ### Small truths on the studio surface
 
@@ -709,6 +738,37 @@ credential. These rules keep that honest, all sized so a real candidate never me
   `app/api/devcase/session/session-limits.ts`) — ~80MB per session, roughly 1,200 full
   resends of a 64KB working tree, against a previous ceiling of ~768GB. All three refusals
   are the shared 429 envelope.
+- **The three operator-side doors of the assignments loop are throttled and idempotent**
+  (/perfect 2026-09-03). Each answered a race with a green lie, and one of them spent real
+  email while doing it:
+  - `POST /api/comms/[id]/resend` — the dead-letter RECOVERY door, and the one place here
+    where a click dispatches on demand — carried **no limiter at all**. It now takes
+    **60/10 min per IP** (`RESEND_RATE_LIMIT`), placed after the cheap refusals (the
+    in-flight 409, the unknown-id 404, the missing-fields 422) so a rejected click costs
+    no budget, and pinned in `app/api/rate-limit-contract.test.ts`. Its recovery dedup
+    also skipped **refless** messages entirely (`if (original.ref)`), so a comm whose ref
+    named no pipeline entry — a KO decline — could be re-dispatched once per click without
+    bound, guarded only by an in-process Set that lives for one request. A refless message
+    now correlates on its **own outbox id**: the recovery row carries it as `ref`, the same
+    query answers both shapes, and a second attempt is refused `409 COMM_ALREADY_RESENT`
+    (localized off the code, like `COMM_RESEND_IN_PROGRESS` for the in-flight collapse).
+    Pinned by `app/api/comms/[id]/resend/resend-dedup.test.ts`.
+  - `POST /api/devcase/lifecycle/[id]/approve` re-asserted the review stage only for a body
+    carrying reviewer **edits**. An edit-less approve — what the studio's own button sends,
+    and what a retried fetch replays — fell through to `startTask("lifecycle")` and answered
+    `{ ok: true }` twice: the walk designs, publishes and dispatches, and startTask's dedup
+    only coalesces runs that are still *active*. The stage is now the precondition for every
+    body; anything off the gate is `409 DEVCASE_LIFECYCLE_NOT_AT_GATE` with the current
+    `stage` (and `editsApplied: false`) as data. `approve-gate.test.ts`.
+  - `POST /api/devcase/publish` is idempotent per (case, channel) and now **says so**. The
+    store had deduped since bug-ui-scan-2026-07-09, but the route reported every call as a
+    fresh mint, so two tabs each got "here is your new posting" for the same apply token.
+    It reads the precondition (`getOpenPosting`) before the adapter and answers
+    `alreadyPublished` — false for a genuine mint, including a deliberate re-publish after a
+    close-out. `createPosting`'s read→insert moved inside `db.transaction(...).immediate()`,
+    so the dedup takes the write lock instead of resting on "Node is single-threaded".
+    `publish-idempotent.test.ts`.
+
 - **The candidate is told when a reply is not a model.** `[id]/chat` returns `source`
   (`"llm"` | `"deterministic"`) alongside `reply`, and the surface prints
   `devApply.workSurface.chatDeterministicNote` under a deterministic bubble. Degrading
@@ -1114,9 +1174,10 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   pure and tested — `sessionEvidenceModel` in
   `app/features/tools/devcases/devcase-session-evidence.ts`, 7 node:test cases,
   including that a tree with no chat is **not** an empty session.
-- The Assignments studio is localized only in the twelve components listed above; the
-  define/outbox views, the evaluation panel, the lifecycle rows and `DevShared`'s
-  interviewer notes are still English, as is `DevTabViews.ts`.
+- The Assignments studio is localized in the files on `STUDIO_LOCALIZED_FILES` (now
+  including the masthead: `DevTabViews.ts`, `DevTabSwitcher.tsx`, `OutboxSection.tsx`);
+  the evaluation panel, the lifecycle rows and `DevShared`'s interviewer notes are still
+  English.
 - The `architecture` rubric dimension name is still software-flavored even for
   a non-software case (the description text was neutralized, the field name
   wasn't — a cascading rename was deferred).
