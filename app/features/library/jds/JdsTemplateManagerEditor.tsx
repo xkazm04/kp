@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { BTN_PRIMARY, BTN_SECONDARY, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { TextInput } from "@/app/_components/TextInput";
 import {
@@ -40,7 +41,9 @@ export function JdsTemplateManagerEditor({
   // READER's locale rather than a hardcoded en-US (format.ts number-locale contract).
   const { grouped } = useNumberFormat();
   return (
-    <div className="space-y-3">
+    // The form is a surface, so it is composed from the shared recipes rather
+    // than re-typed Tailwind (PANEL_SUNKEN + BTN_*), like every other panel here.
+    <div className={`${PANEL_SUNKEN} space-y-3 p-4`}>
       <TextInput
         value={editing.name}
         onChange={(e) => setEditing({ ...editing, name: e.target.value })}
@@ -98,10 +101,12 @@ export function JdsTemplateManagerEditor({
         </div>
       ) : null}
       <div className="flex items-center gap-2">
-        <button type="button" onClick={save} disabled={busy || unknownTokens.length > 0} className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50">
+        <button type="button" onClick={save} disabled={busy || unknownTokens.length > 0} className={`${BTN_PRIMARY} h-9 gap-2 px-4 text-sm`}>
           {busy ? <Loader2 size={15} className="animate-spin" /> : null} {t("saveTemplate")}
         </button>
-        <button type="button" onClick={cancel} className="focus-ring h-9 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:bg-stone-50">
+        {/* Cancel goes through the manager's exit guard — it used to drop a
+            half-written body on the spot. */}
+        <button type="button" onClick={cancel} className={`${BTN_SECONDARY} h-9 px-3 text-sm font-semibold text-steel`}>
           {t("cancel")}
         </button>
       </div>

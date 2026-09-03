@@ -4375,7 +4375,16 @@
         "heading_apply": "So bewerben Sie sich",
         "offer_note": "Hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
         "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview."
-      }
+      },
+      "loadFailed": "Die Vorlagen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "retrying": "Wird erneut versucht…",
+      "deleteTitleLastOne": "Das ist die letzte Vorlage, die Ihr Team sieht. Mindestens eine muss bleiben.",
+      "reloadLatest": "Gespeicherte Version laden",
+      "unsavedTitle": "Nicht gespeicherte Vorlage verwerfen?",
+      "unsavedBody": "Diese Vorlage enthält noch nicht gespeicherte Änderungen. Wenn Sie den Editor verlassen, gehen sie verloren.",
+      "unsavedDiscard": "Änderungen verwerfen",
+      "unsavedKeep": "Weiter bearbeiten"
     }
   },
   "jobs": {
@@ -9686,5 +9695,13 @@
     "pillTitleStale": "Die automatische Aktualisierung von {label} schlägt fehl. Zuletzt aktualisiert {ago}.",
     "refreshFailed": "{label} konnte nicht aktualisiert werden. Angezeigt werden Daten von {ago}, neuer Versuch…",
     "loadFailed": "{label} konnte nicht geladen werden. Der Dienst ist möglicherweise nicht erreichbar, neuer Versuch…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Der Bearbeitungsverlauf konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "retrying": "Wird erneut versucht…",
+    "revertPrompt": "Diese Version wiederherstellen?",
+    "revertConfirm": "Wiederherstellen",
+    "revertCancel": "Abbrechen"
   }
 }

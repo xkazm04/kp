@@ -4375,7 +4375,16 @@
         "heading_apply": "Jak se přihlásit",
         "offer_note": "Hybridní režim práce, smysluplná zodpovědnost a prostor k růstu.",
         "apply_note": "Přihlaste se přes odkaz: krátký rozhovor a potom první kolo pohovoru."
-      }
+      },
+      "loadFailed": "Šablony se nepodařilo načíst.",
+      "retry": "Zkusit znovu",
+      "retrying": "Zkouším znovu…",
+      "deleteTitleLastOne": "Tohle je poslední šablona, kterou váš tým vidí. Aspoň jedna musí zůstat.",
+      "reloadLatest": "Načíst uloženou verzi",
+      "unsavedTitle": "Zahodit neuloženou šablonu?",
+      "unsavedBody": "V této šabloně máte neuložené úpravy. Odchodem z editoru je zahodíte.",
+      "unsavedDiscard": "Zahodit změny",
+      "unsavedKeep": "Pokračovat v úpravách"
     }
   },
   "jobs": {
@@ -9686,5 +9695,13 @@
     "pillTitleStale": "Automatické načítání sekce {label} selhává. Poslední aktualizace {ago}.",
     "refreshFailed": "Sekci {label} se nepodařilo obnovit. Zobrazujeme data {ago}, zkoušíme znovu…",
     "loadFailed": "Sekci {label} se nepodařilo načíst. Služba může být nedostupná, zkoušíme znovu…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Historii úprav se nepodařilo načíst.",
+    "retry": "Zkusit znovu",
+    "retrying": "Zkouším znovu…",
+    "revertPrompt": "Obnovit tuto verzi?",
+    "revertConfirm": "Obnovit",
+    "revertCancel": "Zrušit"
   }
 }

@@ -4375,7 +4375,16 @@
         "heading_apply": "How to apply",
         "offer_note": "Hybrid working, meaningful ownership, and room to grow.",
         "apply_note": "Apply via the link: a short conversation, then a first-round interview."
-      }
+      },
+      "loadFailed": "Couldn't load your templates.",
+      "retry": "Retry",
+      "retrying": "Retrying…",
+      "deleteTitleLastOne": "This is the last template your team can see. Keep at least one.",
+      "reloadLatest": "Reload the saved version",
+      "unsavedTitle": "Discard your unsaved template?",
+      "unsavedBody": "This template has edits you haven't saved yet. Leaving the editor discards them.",
+      "unsavedDiscard": "Discard changes",
+      "unsavedKeep": "Keep editing"
     }
   },
   "jobs": {
@@ -9686,5 +9695,13 @@
     "pillTitleStale": "Automatic refresh of {label} is failing. Last updated {ago}.",
     "refreshFailed": "Couldn't refresh {label}. Showing data from {ago}, retrying…",
     "loadFailed": "Couldn't load {label}. The service may be down, retrying…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Couldn't load the edit history.",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "revertPrompt": "Restore this version?",
+    "revertConfirm": "Restore",
+    "revertCancel": "Cancel"
   }
 }
