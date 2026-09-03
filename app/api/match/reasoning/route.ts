@@ -6,6 +6,23 @@ import { isLocale } from "@/i18n/locales";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_REASONING_SURFACE } from "@/app/api/matrix/matrix-error-code";
+import type { RefusalErrorCode } from "@/app/_lib/api-response";
+
+// The runner's own machine code -> the refusal this surface answers with, as a
+// DECLARED table (never a blind index into REFUSAL_ERRORS with a string that came
+// off a subprocess's stderr — same rule as matrix-error-code.ts's RUNNER_REFUSALS).
+//
+// Why it exists: `parseStderrError` and `runReasoning` both produce "not_found" vs
+// "invalid_input", and the route used to collapse them by re-deriving a code from
+// the HTTP status alone. A request that named no candidate at all was answered
+// "that match can no longer be explained — the candidate or role behind it is
+// gone", pointing the reader at "refresh the grid" for a malformed body. The two
+// now keep their own sentences; an unmapped/absent code still falls through to
+// matrixEngineAnswer, which preserves the previous behaviour exactly.
+const REASONING_RUNNER_REFUSALS: Record<string, RefusalErrorCode> = {
+  not_found: "MATCH_REASONING_UNAVAILABLE",
+  invalid_input: "MATCH_REASONING_INPUT_INVALID",
+};
 
 
 // Synchronous convenience wrapper. The hardened/background path is /api/tasks
@@ -43,11 +60,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof ReasoningError) {
-      // ReasoningError carries only message + status (it is thrown from
-      // app/_lib/reasoning-run.ts, which several callers share), so the code is
-      // derived from the status — a 4xx is the caller's pair being unresolvable, a
-      // 5xx is the engine, and only the latter's message must be withheld.
-      const answer = matrixEngineAnswer({ status: error.status }, MATRIX_REASONING_SURFACE);
+      // ReasoningError now carries the RUNNER's own code (reasoning-run.ts stamps
+      // one at every throw site), so the answer no longer has to be guessed from the
+      // HTTP status: not_found and invalid_input are different sentences with
+      // different remedies. The declared table wins; anything it doesn't name falls
+      // through to matrixEngineAnswer's status-derived answer, unchanged — including
+      // the 429 refusal and the 5xx withheld-message path.
+      const forwarded = error.code ? REASONING_RUNNER_REFUSALS[error.code] : undefined;
+      if (forwarded && error.status < 500) return jsonRefusal(forwarded, error.status);
+      const answer = matrixEngineAnswer({ status: error.status, code: error.code }, MATRIX_REASONING_SURFACE);
       return answer.kind === "refusal"
         ? jsonRefusal(answer.code, error.status)
         : safeJsonError(error, "api:match/reasoning", answer.code, error.status);

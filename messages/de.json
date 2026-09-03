@@ -1649,7 +1649,16 @@
     "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Diese Aktion des Kontrollraums kennt diese Installation nicht. Laden Sie die Seite neu.",
     "DEVCASE_FLOOR_INVALID": "Die Promote-Schwelle muss eine Zahl zwischen 0 und 100 sein.",
-    "DEVCASE_OUTCOME_INVALID": "Das Ergebnis konnte nicht erfasst werden. Prüfen Sie Ergebnis und Leistungsbewertung."
+    "DEVCASE_OUTCOME_INVALID": "Das Ergebnis konnte nicht erfasst werden. Prüfen Sie Ergebnis und Leistungsbewertung.",
+    "MATCH_REASONING_INPUT_INVALID": "Dieser Match konnte nicht erklärt werden: Die Anfrage nannte weder eine Person noch eine Stelle.",
+    "SIM_CV_INTAKE_FAILED": "Die simulierte Bewerbung konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
+    "SIM_CV_FORM_REQUIRED": "Senden Sie den Lebenslauf als Multipart-Formulardaten.",
+    "SIM_CV_FILE_REQUIRED": "Hängen Sie eine Lebenslauf-Datei an, um eine Bewerbung zu simulieren.",
+    "SIM_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
+    "SIM_CV_UNREADABLE": "Dieser Lebenslauf konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
+    "DEMO_NOT_PROVISIONED": "Die Live-Demo ist auf dieser Installation noch nicht eingerichtet.",
+    "DEMO_DISABLED": "Die Live-Demo ist auf dieser Installation deaktiviert.",
+    "SIM_RUN_ACTIVE": "Hier läuft bereits eine geführte Demo. Warten Sie, bis sie fertig ist, oder stoppen Sie sie zuerst."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4565,7 +4574,8 @@
       "resFailed": "nicht lesbar",
       "cancelRun": "Lauf abbrechen",
       "cancelled": "Analyse abgebrochen. Es wurde nichts hinzugefügt.",
-      "bulkCancelled": "Abgebrochen nach {done} von {total} Anzeigen. Die bisherigen Ergebnisse bleiben unten stehen."
+      "bulkCancelled": "Abgebrochen nach {done} von {total} Anzeigen. Die bisherigen Ergebnisse bleiben unten stehen.",
+      "malformedResponse": "Der Server hat eine unlesbare Antwort geschickt. Es wurde nichts hinzugefügt, bitte erneut versuchen."
     },
     "drafts": {
       "heading": "Entwürfe, die auf Sourcing warten",
@@ -4837,7 +4847,8 @@
       "couldntReach": "Kontaktaufnahme fehlgeschlagen: {error}",
       "assumptions": "Annahmen:",
       "auditUnder": "nach Gewichtung von {label}",
-      "auditPoolTruncated": "Begrenzte Stichprobe: Der Kandidatenbestand überschreitet die Ranking-Obergrenzen, daher deckt dieses Audit nur die bewertete Teilmenge ab, nicht den gesamten Pool."
+      "auditPoolTruncated": "Begrenzte Stichprobe: Der Kandidatenbestand überschreitet die Ranking-Obergrenzen, daher deckt dieses Audit nur die bewertete Teilmenge ab, nicht den gesamten Pool.",
+      "malformedResponse": "Der Server hat eine unlesbare Antwort geschickt. Bitte die Kandidaten erneut laden."
     },
     "deeplink": {
       "notFound": "Diese Stelle ist nicht in Ihrem Katalog. Sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
@@ -8880,7 +8891,9 @@
       "accepted": "Angenommen · nach Eingestellt verschoben · Onboarding-Nachricht eingereiht",
       "stopped": "Simulation gestoppt.",
       "error": "Fehler: {message}",
-      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt."
+      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt.",
+      "clickedViaApi": "Das Bedienelement war nicht sichtbar, daher lief dieser Schritt über die API statt über einen echten Klick.",
+      "selfScheduleUnavailable": "Die Selbstbuchung war nicht verfügbar, daher bestätigt der Recruiter den Termin."
     },
     "wait": {
       "screeningGate": "die Interview- bzw. Kalenderfreigabe nach dem Screening",

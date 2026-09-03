@@ -12,6 +12,8 @@ import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-mes
 // transition (keep the row + badge it "Added ✓", THEN dismiss after a beat) lives in
 // this pure sibling so the previously-dead success branch is reachable and testable.
 import { applyAddResult, ADDED_BADGE_MS } from "./jobsRediscoveryAdd";
+// The reversible-dismiss transitions, pure + pinned by jobsRediscoveryDismiss.test.ts.
+import { dropAddedMark, extractRow, restoreRow, type RemovedRow } from "./jobsRediscoveryDismiss";
 import type { Alert } from "./jobsRediscoveryFeedTypes";
 
 /** A status line plus the tone it must be painted in. A failure rendered in this
@@ -41,6 +43,19 @@ export function useRediscoveryFeedLogic() {
   const [pending, setPending] = useState<Set<string>>(() => new Set());
   const [rowError, setRowError] = useState<Map<string, string>>(() => new Map());
   const abortRef = useRef<AbortController | null>(null);
+  // The "Added ✓" badge is held for a beat, then the row auto-dismisses on a
+  // timer. That timer outlived the panel: switch tabs inside the beat and it
+  // still fired, running a PATCH plus setAlerts/setNote into an unmounted tree —
+  // and on failure it painted a rollback note nobody could see. Every deferred
+  // dismiss is registered here and cleared on teardown.
+  const dismissTimers = useRef<Set<number>>(new Set());
+  useEffect(
+    () => () => {
+      for (const id of dismissTimers.current) window.clearTimeout(id);
+      dismissTimers.current.clear();
+    },
+    []
+  );
 
   // `loadKey` re-runs the initial GET — the retry offered beside the failure line.
   // Deliberately NOT the sweep: re-reading the alerts the server already holds is
@@ -116,30 +131,29 @@ export function useRediscoveryFeedLogic() {
     }
   };
 
-  const dismiss = async (id: string) => {
-    // Optimistic, and now REVERSIBLE. The row is dropped immediately, but the
+  // `addedCandidateId` is set only for the DEFERRED dismiss that follows a
+  // successful add. It is what the rollback needs in order to undo the "Added ✓"
+  // badge: a restored row that kept its badge rendered a green success and a red
+  // "couldn't dismiss" at once, and the recruiter had to guess which was true.
+  const dismiss = async (id: string, addedCandidateId?: string) => {
+    // Optimistic, and REVERSIBLE. The row is dropped immediately, but the
     // position it was dropped from is remembered: a PATCH that never lands (or
     // answers non-OK) used to leave the recruiter with a candidate silently gone
     // from the view and still open on the server, resurfacing on the next reload
     // with no explanation. On failure the row goes back where it was and the panel
     // says the dismissal did not stick.
-    let removed: { alert: Alert; index: number } | null = null;
+    let removed: RemovedRow<Alert> | null = null;
     setAlerts((prev) => {
-      if (!prev) return prev;
-      const index = prev.findIndex((a) => a.id === id);
-      if (index < 0) return prev;
-      removed = { alert: prev[index], index };
-      return prev.filter((a) => a.id !== id);
+      const out = extractRow(prev, id);
+      removed = out.removed;
+      return out.next;
     });
     const restore = () => {
-      const dropped = removed as { alert: Alert; index: number } | null;
+      const dropped = removed as RemovedRow<Alert> | null;
       if (!dropped) return;
-      setAlerts((prev) => {
-        if (!prev || prev.some((a) => a.id === dropped.alert.id)) return prev;
-        const next = [...prev];
-        next.splice(Math.min(dropped.index, next.length), 0, dropped.alert);
-        return next;
-      });
+      setAlerts((prev) => restoreRow(prev, dropped));
+      // One truth per row: the badge goes back with the row.
+      setAdded((s) => dropAddedMark(s, addedCandidateId));
       setNote({ text: t("dismissFailed"), tone: "error" });
     };
     try {
@@ -195,7 +209,13 @@ export function useRediscoveryFeedLogic() {
     setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, a.candidateId, outcome).rowError);
     const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, a.candidateId, outcome);
     if (timing === "deferred") {
-      window.setTimeout(() => dismiss(a.id), ADDED_BADGE_MS);
+      // Registered so an unmount inside the beat cancels it — see dismissTimers.
+      // The candidateId travels with it so a failed PATCH can undo the badge.
+      const timer = window.setTimeout(() => {
+        dismissTimers.current.delete(timer);
+        void dismiss(a.id, a.candidateId);
+      }, ADDED_BADGE_MS);
+      dismissTimers.current.add(timer);
     }
   };
 

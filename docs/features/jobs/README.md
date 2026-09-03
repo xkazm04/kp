@@ -521,6 +521,48 @@ was optimistic with no rollback, now remembers the row's index: a PATCH that fai
 or never lands puts the candidate back where they were and says the dismissal did
 not stick, instead of leaving them gone from the view and open on the server.
 
+A rollback now restores **one** truth. The add flow keeps the row for a beat so the
+green "Added ✓" badge renders, then dismisses it on a timer; when that deferred
+PATCH failed, the restored row carried the green badge AND the red *"Couldn't
+dismiss that match"* note at once. The rollback drops the added mark with the row
+(`dropAddedMark`, `jobsRediscoveryDismiss.ts`), and the deferred timer is registered
+so an unmount inside the beat cancels it rather than running a PATCH and two
+setStates into a torn-down panel. The extract/restore/rollback trio is pure and
+pinned by `jobsRediscoveryDismiss.test.ts`.
+
+## A response body is not guaranteed to be JSON
+
+Every fetch in the jobs workspace decodes through `.json().catch(() => null)` and
+folds the result (`jobsResponseFold.ts`): a **failed** status keeps the parsed body
+so `errors.<code>` still resolves in the reader's language; a **malformed** body — an
+unparseable one (a proxy's HTML 502), or a 200 missing the field the surface needs —
+answers its own localized line (`jobs.ingest.malformedResponse`,
+`jobs.candidates.malformedResponse`) rather than painting the raw `SyntaxError` text
+into the panel in English. The ad-ingest POST and the candidates GET were the last
+two bare `r.json()` awaits; both now fold.
+
+## Ingest: cancel is an outcome, unmount is not
+
+The ad-ingest panel drives one `AbortController` for two different events, and
+`settleBulkRun` / `settleSingleRun` (`jobsIngestRunOutcome.ts`, pinned by
+`jobsIngestRunOutcome.test.ts`) is the decision that separates them. A recruiter's
+**Cancel run** is terminal: the rows that landed stay on screen, busy clears, the
+note says how far it got, and the corpus refreshes only if something was created. An
+**unmount** writes nothing at all. The same module owns the paste rule — a bulk run
+that created nothing (`added === 0`, every ad a dedup hit or a parse failure) KEEPS
+the textarea, because that paste is the only copy of the text the recruiter needs to
+fix and re-run.
+
+## The campaign-pack CTA is keyed to the role on screen
+
+The posting modal's pack-existence probe (`GET /api/jobs/[id]/campaign?lang=`) runs
+under the same latest-request guard as the candidate ranking, keyed by job **and**
+posting language via `requestKey` (`jobsRequestGuard.ts`). The modal is reused across
+roles, so an unguarded probe for Role A resolving after the switch decided Role B's
+CTA from A's answer — offering "View campaign pack" for a pack B has not got. The
+probe is aborted when the modal changes role or unmounts, and `packExists` resets
+with the role so no frame of the previous role's CTA is painted.
+
 ## The Candidates tab says when the pool was capped
 
 `GET /api/jobs/[id]/candidates` returns `poolTruncated` ("the corpus exceeds the

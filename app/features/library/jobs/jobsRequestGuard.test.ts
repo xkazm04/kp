@@ -34,3 +34,31 @@ test("no request has begun: nothing is current", () => {
   const g = makeLatestRequestGuard();
   assert.equal(g.isCurrent("job-A"), false);
 });
+
+// --- requestKey (lot JW, wave 22) -------------------------------------------
+// The posting modal's campaign-pack existence probe was the one keyed fetch in
+// this context running WITHOUT the guard: a bare `void fetch(...).then(setPackExists)`.
+// It is keyed by two things, not one — the job AND the posting language — so the
+// key has to be composed, and composing it ad-hoc per call site is how a guard
+// silently starts comparing the wrong strings.
+import { requestKey } from "./jobsRequestGuard.ts";
+
+test("requestKey composes a multi-part key that changes with EITHER part", () => {
+  assert.equal(requestKey("job-A", "en"), requestKey("job-A", "en"));
+  assert.notEqual(requestKey("job-A", "en"), requestKey("job-B", "en")); // role switched
+  assert.notEqual(requestKey("job-A", "en"), requestKey("job-A", "cs")); // language switched
+});
+
+test("requestKey cannot collide across a part boundary", () => {
+  // Without a separator "a" + "bc" and "ab" + "c" are the same key, and a probe
+  // for one job/lang pair would be accepted as the answer for another.
+  assert.notEqual(requestKey("a", "bc"), requestKey("ab", "c"));
+});
+
+test("a pack probe superseded by a role switch is dropped", () => {
+  const g = makeLatestRequestGuard();
+  g.begin(requestKey("job-A", "en")); // probe A's pack (slow)
+  g.begin(requestKey("job-B", "en")); // the modal is reused for Role B
+  assert.equal(g.isCurrent(requestKey("job-A", "en")), false); // A's answer must not set packExists
+  assert.equal(g.isCurrent(requestKey("job-B", "en")), true);
+});

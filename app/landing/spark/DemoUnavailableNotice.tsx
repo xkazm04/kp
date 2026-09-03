@@ -6,10 +6,16 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 /*
- * Demo-CTA honesty: /api/demo redirects here with `?demo=unavailable` when a
- * gated deploy refuses to mint the public demo session (demoSessionAllowed()
- * false). Before this notice the hero's "Try the live demo" silently reloaded
- * the landing — a dead end with no explanation. Small fixed banner in the
+ * Demo-CTA honesty: /api/demo redirects here with `?demo=unavailable` whenever a
+ * GATED deploy refuses the public demo, and `&code=` names WHICH refusal — the two
+ * are different operator answers and used to read as one silent dead end:
+ *   DEMO_DISABLED        KP_DEMO_ENABLED is off. The operator can flip it.
+ *   DEMO_NOT_PROVISIONED it is on, but a demo-workspace session carries EMPTY_CAPS
+ *                        and the demo tenant has no corpus, so the walk would 401
+ *                        on its first write. Nothing to flip today.
+ * The code resolves through `errors.<CODE>` like every other refusal the client
+ * renders (never the server's English); an unknown or absent code falls back to
+ * the original generic body. Small fixed banner in the
  * landing's own art direction (app/landing is the literal-hex exemption);
  * dismissible, client-only (useSearchParams — mounted under Suspense in
  * SparkHome). Renders nothing without the param, so the landing pays nothing.
@@ -19,9 +25,14 @@ export function DemoUnavailableNotice() {
   // namespace union next-intl derives for this catalog doesn't accept the
   // nested "landing.demoNotice" path.
   const t = useTranslations("landing");
+  // The refusal vocabulary, shared with every coded API answer.
+  const tErrors = useTranslations("errors");
   const params = useSearchParams();
   const [dismissed, setDismissed] = useState(false);
   if (params.get("demo") !== "unavailable" || dismissed) return null;
+  const code = params.get("code");
+  type ErrorKey = Parameters<typeof tErrors>[0];
+  const body = code && tErrors.has(code as ErrorKey) ? tErrors(code as ErrorKey) : t("demoNotice.body");
   return (
     <div className="fixed inset-x-0 top-3 z-[70] flex justify-center px-4">
       <div
@@ -30,7 +41,7 @@ export function DemoUnavailableNotice() {
       >
         <div className="min-w-0 text-sm text-[#141414]">
           <p className="font-semibold">{t("demoNotice.title")}</p>
-          <p className="mt-0.5 opacity-80">{t("demoNotice.body")}</p>
+          <p className="mt-0.5 opacity-80">{body}</p>
         </div>
         <button
           type="button"

@@ -424,8 +424,14 @@ the group-eval `low_fit` risk, and `Badge.tsx::scoreToFitTier`, the fallback tha
 bands a bare numeric score on surfaces with no server-emitted `fitTier`. That last
 one used to re-hardcode both literals, so tuning the shared floor would have moved
 every gate and left the badge the recruiter reads on the old scale. Pinned by
-`app/_lib/fit-thresholds.test.ts`. The TS↔Python pairing itself stays hand-kept —
-one number on each side of the boundary, and both sides say so.
+`app/_lib/fit-thresholds.test.ts`. The TS↔Python pairing is no longer hand-kept:
+`pipeline/jobfit/tests/test_fit_threshold_sync.py` reads the numeric literals out of
+`fit-thresholds.ts` and compares them to `matching.py`'s constants, both directions
+enumerated, plus the ordering and the tier VOCABULARY (`scoreToFitTier`'s three
+return strings against `matching.FitTier`). It is the shape
+`test_prompt_version_sync.py` uses for the eight cached prompt versions. Move a floor
+on one side alone and CI reddens instead of a recruiter reading "promising" from the
+gate that admitted them and "partial" on the badge beside their name.
 
 ### Both modes say when their field was cut
 Every list on this surface is capped, so each cap is stated rather than hidden —
@@ -542,6 +548,42 @@ reached the browser verbatim. It now maps through the same
 `matrixEngineAnswer` against `MATCH_RUN_SURFACE`, so a failed run resolves
 `MATCH_INPUT_INVALID` (the profile/analysis the body named is gone),
 `TOO_MANY_REQUESTS`, or `MATCH_RUN_FAILED` in the reader's language.
+
+The reasoning route no longer re-derives that code from the HTTP status.
+`ReasoningError` (`app/_lib/reasoning-run.ts`) carried message + status only, so the
+runner's own `not_found` / `invalid_input` was produced by `parseStderrError` and then
+dropped one frame later: a request that named no job at all was answered "that match
+can no longer be explained — the candidate or role behind it is gone", pointing the
+reader at "refresh the grid" for a malformed body. Every throw site now stamps a code
+(including the `match-input` resolution failures, whose 404 is a genuinely absent
+profile and whose 400 is a malformed pair), and the route forwards it through a
+declared table: `not_found` → `MATCH_REASONING_UNAVAILABLE`, `invalid_input` →
+`MATCH_REASONING_INPUT_INVALID`. Anything the table does not name still falls through
+to `matrixEngineAnswer`, unchanged. Pinned by `app/_lib/reasoning-error-code.test.ts`.
+
+### The two matching caches are keyed by tenant, and the grid's is bounded
+Both caches on this surface content-address their inputs, and both used to carry a
+tenancy invariant in a comment rather than in the key.
+
+The **reasoning cache** (`reasoning-cache-key.ts`) keyed on five axes — prompt version,
+candidate content, job content, locale, corpus fingerprint — and argued that the tenant
+was implied, because the candidate hash and the corpus fingerprint "differ per tenant
+anyway". That holds only while those two axes never collapse, and two workspaces seeded
+from the same demo corpus collapse both. `workspaceId` is now axis 6. Adding it retires
+the existing reasoning cache ONCE — the first request per (candidate, job, locale,
+corpus, tenant) recomputes, the same accepted cost as a `REASONING_PROMPT_VERSION` bump
+and bounded by the 168h TTL either way.
+
+The **scored-grid cache** behind `GET /api/matrix` was a SINGLE in-process entry, on the
+premise that "one corpus state matters". Tenancy ended that premise: the grid is scored
+per workspace from that workspace's profiles and open positions, so two tenants with the
+tab open evicted each other on every poll and the hit rate fell to zero — every visit
+paying a Python spawn for a deterministic O(N×M) computation the cache existed to avoid.
+It is now a small LRU (`app/_lib/matrix-cache.ts`, capacity 8) keyed by a hash of the
+workspace plus the exact JSON handed to the scorer. Bounded rather than a plain map
+because the value is a whole grid and the key is a content hash: unbounded, it would hold
+one grid per distinct corpus state forever. Pinned by `app/_lib/matrix-cache.test.ts`
+(eviction order, read-promotes, capacity refused below 1, the key's axes and separator).
 
 **It is also rate-limited now**: 60/10min per IP on `match:<ip>`, placed after
 the body parse (a malformed request must still be refused honestly) and before

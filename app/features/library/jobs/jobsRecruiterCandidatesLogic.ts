@@ -19,6 +19,7 @@ import { useReachOut } from "@/app/_lib/useReachOut";
 // guard so a slow ranking for a previously-selected role can't clobber the current
 // role's list when the posting modal is reused across jobs.
 import { makeLatestRequestGuard } from "./jobsRequestGuard";
+import { foldJsonResponse } from "./jobsResponseFold";
 
 export function useRecruiterCandidatesLogic({
   jobId,
@@ -83,10 +84,19 @@ export function useRecruiterCandidatesLogic({
     setError(null);
     try {
       const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/candidates`, { signal: controller.signal });
-      const payload = await r.json();
+      // Guarded decode + fold. The bare `r.json()` here threw a raw SyntaxError
+      // ("Unexpected token '<'…") into the panel whenever a proxy answered HTML,
+      // while every sibling fetch in this workspace already wrote `.catch(() => null)`.
+      const body = (await r.json().catch(() => null)) as unknown;
       if (!guardRef.current.isCurrent(key)) return; // a newer role's load superseded this one
-      if (!r.ok) throw new Error(errMsg(payload, t("failedStatus", { status: r.status })));
-      setData(payload);
+      const fold = foldJsonResponse<NonNullable<typeof data>>(r, body, (p) =>
+        Array.isArray((p as { candidates?: unknown }).candidates)
+      );
+      if (fold.kind === "failed") throw new Error(errMsg(fold.payload, t("failedStatus", { status: r.status })));
+      // A 200 with no `candidates` array: there is nothing to rank and no code to
+      // resolve — say that, rather than rendering an empty pool as a real answer.
+      if (fold.kind === "malformed") throw new Error(t("malformedResponse"));
+      setData(fold.data);
     } catch (caught) {
       // A superseded or aborted request must never surface an error over the current role.
       if (controller.signal.aborted || !guardRef.current.isCurrent(key)) return;

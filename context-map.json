@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T12:48:47.498Z",
+ "generated_at": "2026-09-03T13:19:50.852Z",
  "provenance": {
-  "git_commit": "78180c3ab81d3e849690f1b0b77ee915ab349ac1",
-  "git_commit_count": 2367,
+  "git_commit": "266727a2f86ab01da2b209c833815beae3ab693a",
+  "git_commit_count": 2382,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T12:48:47.498Z"
+  "generated_at": "2026-09-03T13:19:50.852Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2972,
+  "files": 2988,
   "groups": 17,
   "use_cases": 12
  },
@@ -508,7 +508,8 @@
     "pipeline/jobfit/tests/test_devcase_evaluate.py",
     "pipeline/jobfit/tests/test_devcase_judge_independence.py",
     "pipeline/jobfit/tests/test_devcase_lifecycle.py",
-    "pipeline/jobfit/tests/test_devcase_models.py"
+    "pipeline/jobfit/tests/test_devcase_models.py",
+    "pipeline/jobfit/tests/test_fit_threshold_sync.py"
    ],
    "group": "AI & LLM Infrastructure",
    "group_id": "a99d0563-6781-424b-a926-0230a68fe2ff",
@@ -1973,6 +1974,7 @@
     "app/_lib/match-candidate.ts",
     "app/_lib/match-input-tenancy.test.ts",
     "app/_lib/match-input.ts",
+    "app/_lib/match-score-resolve.test.ts",
     "app/_lib/match-score-resolve.ts",
     "app/_lib/match-score.test.ts",
     "app/_lib/match-score.ts",
@@ -4933,6 +4935,8 @@
     "app/_lib/comms-resend-outcome.ts",
     "app/_lib/decision-config-version.test.ts",
     "app/_lib/llm-config-probe-env.test.ts",
+    "app/_lib/matrix-cache.test.ts",
+    "app/_lib/matrix-cache.ts",
     "app/_lib/pipeline-axis-server.ts",
     "app/_lib/pipeline-axis.ts",
     "app/_lib/pipeline-command.test.ts",
@@ -4953,6 +4957,7 @@
     "app/_lib/pipeline-status.ts",
     "app/_lib/pipeline-transfer-score.test.ts",
     "app/_lib/pipeline-transfer-score.ts",
+    "app/_lib/reasoning-error-code.test.ts",
     "app/_lib/reinstate-seal.test.ts",
     "app/_lib/task-budget.test.ts",
     "app/_lib/task-budget.ts",
@@ -6335,6 +6340,8 @@
     "app/features/library/jobs/jobsCoachPoolCap.test.ts",
     "app/features/library/jobs/jobsFairnessMatrix.test.ts",
     "app/features/library/jobs/jobsFairnessMatrix.ts",
+    "app/features/library/jobs/jobsIngestRunOutcome.test.ts",
+    "app/features/library/jobs/jobsIngestRunOutcome.ts",
     "app/features/library/jobs/jobsLifecycleStrip.test.ts",
     "app/features/library/jobs/jobsPostingLifecycle.test.ts",
     "app/features/library/jobs/jobsPostingLifecycle.ts",
@@ -6342,7 +6349,11 @@
     "app/features/library/jobs/jobsPostingModalTabs.ts",
     "app/features/library/jobs/jobsPublishResult.test.ts",
     "app/features/library/jobs/jobsPublishResult.ts",
-    "app/features/library/jobs/jobsRediscoveryAddRefusal.test.ts"
+    "app/features/library/jobs/jobsRediscoveryAddRefusal.test.ts",
+    "app/features/library/jobs/jobsRediscoveryDismiss.test.ts",
+    "app/features/library/jobs/jobsRediscoveryDismiss.ts",
+    "app/features/library/jobs/jobsResponseFold.test.ts",
+    "app/features/library/jobs/jobsResponseFold.ts"
    ],
    "group": "Job & JD Management",
    "group_id": "3d0fab8c-b963-4864-a4a0-683577ec221f",
@@ -7715,7 +7726,9 @@
    "file_paths": [
     "app/_lib/sim-store.test.ts",
     "app/_lib/sim-store.ts",
+    "app/api/demo/demo-door.test.ts",
     "app/api/demo/route.ts",
+    "app/api/sim/apply-cv/apply-cv-codes.test.ts",
     "app/api/sim/apply-cv/route.ts",
     "app/api/sim/inbound/route.ts",
     "app/api/sim/inbound/sim-inbound-scope.test.ts",
@@ -7723,6 +7736,7 @@
     "app/api/sim/offer-draft/route.ts",
     "app/api/sim/offer-link/offer-link-scope.test.ts",
     "app/api/sim/offer-link/route.ts",
+    "app/api/sim/reset/reset-route.test.ts",
     "app/api/sim/reset/route.ts",
     "app/api/sim/screen-draft/route.ts",
     "app/features/shell/simulation/simDiagrams.ts",
@@ -7980,7 +7994,9 @@
     "app/features/shell/simulation/simDrafts.test.ts",
     "app/features/shell/simulation/simDrafts.ts",
     "app/features/shell/simulation/simRunControl.test.ts",
-    "app/features/shell/simulation/simRunControl.ts"
+    "app/features/shell/simulation/simRunControl.ts",
+    "app/features/shell/simulation/simWalkSteps.test.ts",
+    "app/features/shell/simulation/simWalkSteps.ts"
    ],
    "group": "Workspace Shell & Onboarding",
    "group_id": "88b642b4-d4f5-4a19-a58c-ec4e3889dd1d",
