@@ -1475,7 +1475,10 @@
     "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách.",
     "COMM_RESEND_IN_PROGRESS": "Odeslání této zprávy už právě probíhá.",
     "COMM_ALREADY_RESENT": "Už bylo odesláno znovu. Pro tuto zprávu existuje novější doručení.",
-    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází."
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází.",
+    "MATCH_RUN_FAILED": "Tohoto kandidáta se nepodařilo porovnat s rolemi. Zkuste to prosím znovu.",
+    "MATCH_INPUT_INVALID": "Tohoto kandidáta nelze načíst. Profil nebo analýza za ním už neexistuje.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Tento benchmark neuvedl žádnou rodinu rolí."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9214,6 +9217,11 @@
         "s10": "vyřazeno dřív, než se dostalo do dokumentu",
         "s11": "statedVsRealGaps: místo toho jsme to nahlásili vám",
         "s12": "ponecháno 6 nutných · tvrdý strop 8"
+      },
+      "reqs": {
+        "stack": "Postgres nebo SQLite",
+        "ownership": "Zodpovědnost za službu od začátku do konce",
+        "languages": "Čeština + angličtina"
       }
     },
     "scoring": {
@@ -9253,7 +9261,8 @@
         "s7": "match_reasoning: model, jen na prvních {n}",
         "s9": "jediný placený krok nikdy neuvidí kandidáta, který už byl vyřazen"
       },
-      "costLabel": "cena"
+      "costLabel": "cena",
+      "figuresNote": "Čísla 120 / 74 / 8 jsou ilustrace. Názvy vrstev a důvody vyřazení pocházejí ze skutečného kódu."
     },
     "archetypes": {
       "signals": {

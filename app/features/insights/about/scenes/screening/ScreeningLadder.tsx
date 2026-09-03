@@ -38,6 +38,21 @@ import { CodeLabel, SceneStatus, statusPicker } from "../shared";
 const CYCLE = 14;
 const STILL = 10;
 
+/*
+ * ILLUSTRATIVE, and said out loud in the copy (`about.screening.figuresNote`).
+ *
+ * Unlike every other number in this deck, these three are NOT quoted from a
+ * constant: there is no cohort size, no survival rate and no shortlist width in
+ * `pipeline/jobfit/matching.py` — the shortlist is whatever the caller asks
+ * `match_reasoning` for, and the survival rate is whatever the gates say about
+ * the actual applicants. They are a worked example of the SHAPE (wide → narrow
+ * → narrower), which is the claim the chapter makes.
+ *
+ * So they get a disclaimer instead of a drift guard, and chapters.test.ts pins
+ * the parts that ARE coupled: the three layer function names, and the KO reason
+ * keys. If one of these ever becomes a real default, guard it and delete the
+ * note.
+ */
 const COHORT = 120;
 const SURVIVORS = 74;
 const TOP_N = 8;
@@ -164,6 +179,10 @@ export function ScreeningLadder() {
       </Field>
 
       <SceneStatus phase={phase} reduced={reduced} text={statusAt(phase)} />
+      {/* The one place in the deck where a number is an example rather than a
+          quote, so it says so. Cheaper than inventing a fake constant to point
+          at, and honest in a way a reader can check. */}
+      <p className="mt-1 text-meta text-steel">{t("figuresNote")}</p>
     </div>
   );
 }

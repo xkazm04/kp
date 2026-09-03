@@ -1475,7 +1475,10 @@
     "SCHEDULE_INTERVAL_INVALID": "The automation interval must be a number of minutes.",
     "COMM_RESEND_IN_PROGRESS": "A resend for this message is already in progress.",
     "COMM_ALREADY_RESENT": "Already re-sent. A newer delivery exists for this message.",
-    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "This assignment is no longer awaiting review. Reload to see where it is now."
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "This assignment is no longer awaiting review. Reload to see where it is now.",
+    "MATCH_RUN_FAILED": "Could not rank that candidate against the roles. Please try again.",
+    "MATCH_INPUT_INVALID": "That candidate could not be resolved. The profile or analysis behind it is gone.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "That benchmark named no role family."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9214,6 +9217,11 @@
         "s10": "dropped before it reached the document",
         "s11": "statedVsRealGaps: reported to you instead",
         "s12": "6 must-haves kept · hard cap 8"
+      },
+      "reqs": {
+        "stack": "Postgres or SQLite",
+        "ownership": "Owning a service end to end",
+        "languages": "Czech + English"
       }
     },
     "scoring": {
@@ -9253,7 +9261,8 @@
         "s7": "match_reasoning: the model, on the top {n} only",
         "s9": "the only paid step never sees a candidate already ruled out"
       },
-      "costLabel": "cost"
+      "costLabel": "cost",
+      "figuresNote": "The 120 / 74 / 8 figures are an illustration. The layer names and the gate reasons are the running code."
     },
     "archetypes": {
       "signals": {

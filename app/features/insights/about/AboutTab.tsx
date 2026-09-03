@@ -8,7 +8,7 @@ import { ArrowRight, Play } from "lucide-react";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { CHAPTERS, type ChapterDef } from "./chapters";
-import { ChapterRail } from "./ChapterRail";
+import { ChapterJumpList, ChapterRail } from "./ChapterRail";
 import { Scene } from "./stage/Scene";
 
 /*
@@ -113,6 +113,12 @@ export function AboutTab() {
           ) : null}
         </div>
       </header>
+
+      {/* Below `xl` there is no gutter for the rail, so the same six links ride
+          above the deck as a sticky chip row. It sits here rather than beside
+          the rail because a jump list a reader has to scroll to the BOTTOM to
+          find is not a jump list. */}
+      <ChapterJumpList chapters={CHAPTERS} />
 
       <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,1fr)_13rem]">
         <div className="min-w-0">

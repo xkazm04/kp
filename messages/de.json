@@ -1475,7 +1475,10 @@
     "SCHEDULE_INTERVAL_INVALID": "Das Automatisierungsintervall muss eine Zahl in Minuten sein.",
     "COMM_RESEND_IN_PROGRESS": "Ein erneuter Versand dieser Nachricht läuft bereits.",
     "COMM_ALREADY_RESENT": "Bereits erneut gesendet. Für diese Nachricht gibt es eine neuere Zustellung.",
-    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen."
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen.",
+    "MATCH_RUN_FAILED": "Diese Person konnte nicht gegen die Rollen bewertet werden. Bitte erneut versuchen.",
+    "MATCH_INPUT_INVALID": "Diese Person ließ sich nicht auflösen. Das Profil oder die Analyse dahinter existiert nicht mehr.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Dieser Benchmark nennt keine Rollenfamilie."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9214,6 +9217,11 @@
         "s10": "verworfen, bevor es ins Dokument kam",
         "s11": "statedVsRealGaps: stattdessen an Sie gemeldet",
         "s12": "6 Muss-Kriterien behalten · hartes Limit 8"
+      },
+      "reqs": {
+        "stack": "Postgres oder SQLite",
+        "ownership": "Einen Dienst von Anfang bis Ende verantworten",
+        "languages": "Tschechisch + Englisch"
       }
     },
     "scoring": {
@@ -9253,7 +9261,8 @@
         "s7": "match_reasoning: das Modell, nur auf den Top {n}",
         "s9": "der einzige kostenpflichtige Schritt sieht nie eine bereits ausgeschlossene Person"
       },
-      "costLabel": "Kosten"
+      "costLabel": "Kosten",
+      "figuresNote": "Die Zahlen 120 / 74 / 8 sind ein Beispiel. Die Namen der Schichten und die Ausschlussgründe stammen aus dem laufenden Code."
     },
     "archetypes": {
       "signals": {

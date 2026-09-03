@@ -25,8 +25,12 @@ import { Bar, CodeLabel, SceneStatus, statusPicker } from "../shared";
  * "Unproven" is the whole argument. A product with two buckets has to call a
  * weak signal either a match (flattering) or a gap (unfair); this one refuses
  * both and says what it actually saw. The deliberate detail underneath:
- * `_SIBLING_MATCH = 0.4` sits BELOW the threshold on purpose, so a merely
- * adjacent skill can never be counted as the real thing.
+ * `_SIBLING_MATCH = 0.4` (pipeline/jobfit/taxonomy.py — the SIBLING rule lives
+ * with the taxonomy that decides what "adjacent" means, not with the matcher
+ * that applies the threshold) sits BELOW `_MATCH_THRESHOLD` on purpose, so a
+ * merely adjacent skill can never be counted as the real thing.
+ *
+ * Both numbers are pinned to their source files by chapters.test.ts.
  *
  * Beats (CYCLE = 14 @ 900ms ≈ 12.6s):
  *   0 outline · 1 the requirements · 2 the threshold is painted
@@ -86,7 +90,7 @@ const WHY_X = 88;
 const THRESHOLD_X = TRACK_X + TRACK_W * 0.5; // _MATCH_THRESHOLD = 0.5
 
 const NOTE: Rect = { x: 0, y: 80, w: 100, h: 20 };
-// A code identifier the reader matches against matching.py, not copy — named
+// A code identifier the reader matches against taxonomy.py, not copy — named
 // constant, not JSX text (the machine-surface idiom; i18next/no-literal-string
 // is right to refuse it as a literal child).
 const SIBLING_MATCH_LABEL = "_SIBLING_MATCH = 0.4";

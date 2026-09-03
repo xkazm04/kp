@@ -42,16 +42,40 @@ const SOURCES: { rect: Rect; key: "need" | "jd" | "code" }[] = [
   { rect: { x: 0, y: 62, w: 30, h: 22 }, key: "code" },
 ];
 
-// Right-hand rows. `src` is the index of the source each one attaches to;
-// `null` means nothing in the inputs states it — the row that never prints.
-const REQS: { skill: string; src: number | null; kind: "must" | "nice" }[] = [
-  { skill: "TypeScript", src: 2, kind: "must" },
-  { skill: "React 19", src: 2, kind: "must" },
-  { skill: "Postgres or SQLite", src: 1, kind: "must" },
-  { skill: "Owning a service end to end", src: 0, kind: "must" },
-  { skill: "Czech + English", src: 0, kind: "must" },
-  { skill: "Playwright", src: 1, kind: "nice" },
-  { skill: "Kafka", src: null, kind: "must" },
+/*
+ * Right-hand rows. `src` is the index of the source each one attaches to;
+ * `null` means nothing in the inputs states it — the row that never prints.
+ *
+ * Two kinds of row label, and the difference is a localization rule rather than
+ * a styling one (the same rule `CodeLabel`'s `code` prop states):
+ *
+ *   text: "code"  — a product noun. "TypeScript", "React 19", "Playwright",
+ *                   "Kafka" are the same word in every locale, and putting them
+ *                   in the catalog would invite four translators to render them
+ *                   four ways. They stay here.
+ *   text: "prose" — a requirement written as a SENTENCE. "Owning a service end
+ *                   to end" is English, not an identifier, and shipping it from
+ *                   this array meant a Czech reader met three untranslated
+ *                   lines in the middle of a translated deck. These resolve
+ *                   from `about.jd.reqs.<key>`.
+ *
+ * `id` is the React key and stays stable across locales; it is never rendered.
+ */
+type ReqKey = "stack" | "ownership" | "languages";
+
+type Req = { id: string; src: number | null; kind: "must" | "nice" } & (
+  | { text: "code"; code: string }
+  | { text: "prose"; key: ReqKey }
+);
+
+const REQS: Req[] = [
+  { id: "typescript", text: "code", code: "TypeScript", src: 2, kind: "must" },
+  { id: "react", text: "code", code: "React 19", src: 2, kind: "must" },
+  { id: "stack", text: "prose", key: "stack", src: 1, kind: "must" },
+  { id: "ownership", text: "prose", key: "ownership", src: 0, kind: "must" },
+  { id: "languages", text: "prose", key: "languages", src: 0, kind: "must" },
+  { id: "playwright", text: "code", code: "Playwright", src: 1, kind: "nice" },
+  { id: "kafka", text: "code", code: "Kafka", src: null, kind: "must" },
 ];
 
 const ROW_H = 10.5;
@@ -88,7 +112,7 @@ export function JdGrounding() {
           {REQS.map((req, i) =>
             req.src === null ? null : (
               <Wire
-                key={req.skill}
+                key={req.id}
                 d={thread(i)}
                 drawn={at(landsAt(i))}
                 stroke={req.kind === "must" ? INK.line : INK.quiet}
@@ -123,7 +147,7 @@ export function JdGrounding() {
           const faded = orphan && at(10);
           return (
             <motion.div
-              key={req.skill}
+              key={req.id}
               initial={false}
               animate={{ opacity: faded ? 0.25 : 1 }}
               transition={reduced ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }}
@@ -158,7 +182,7 @@ export function JdGrounding() {
                   {orphan ? t("noSource") : req.kind === "must" ? t("must") : t("nice")}
                 </Part>
                 <Part show={landed} i={1} reduced={reduced} className="min-w-0 truncate text-base text-ink">
-                  {req.skill}
+                  {req.text === "code" ? req.code : t(`reqs.${req.key}`)}
                 </Part>
               </div>
             </motion.div>
