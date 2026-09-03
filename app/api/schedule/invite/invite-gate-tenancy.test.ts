@@ -77,7 +77,11 @@ const WS_B = "team-b"; // a second team, the case that was broken outright
 
 /** Sign in as `workspace` (null ⇒ no session cookie at all). */
 function signedInAs(workspace: string | null): void {
-  cookieValue = workspace === null ? null : signSession(workspace);
+  // Wave 18a put the invite doors behind pipeline:write. A bare workspace session
+  // (no member, no operator marker) holds no capability, so this tenancy test signs
+  // the explicit OPERATOR marker: the subject here is which workspace the write lands
+  // in, not who may write (write-capability-gate.test.ts owns that question).
+  cookieValue = workspace === null ? null : signSession(workspace, Date.now(), { op: true });
 }
 
 const req = (body: unknown): NextRequest =>
