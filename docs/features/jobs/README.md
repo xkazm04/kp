@@ -63,6 +63,41 @@ the first ingest passes the analysis's salary, the re-sync passes
 pasted JD, a keyless 0–0 miss) keeps the parsed figure, because for those the
 wording is the only source there is.
 
+### The card says which benchmark, how old, and how thin
+
+A `deterministic` band is read off `data/salary_benchmarks.json`, and the card
+used to show only *that* it was estimated — not that the table is a **2025**
+vintage, and not that `product_project` and `hr_people` are hand-entered with no
+sample behind them while `operations_logistics` rests on 838 ISPV rows. The CLI
+now returns `result.benchmark` (`{sourceId, asOf, sampleK}` — see
+`docs/features/matching/README.md`), `normalizeMarketSalary` carries it onto
+`MarketSalary.benchmark`, and `SalaryCard`
+(`app/features/library/jds/JdsLedgerDetailPanels.tsx`) renders:
+
+- the dataset and its vintage — *"Benchmark cz-ispv-2025, updated Jul 2026"* —
+  in the reader's language and month precision, because the table is a periodic
+  snapshot and a day-precise date would imply a freshness it does not have;
+- a thin-data caveat when `sampleK` is below `THIN_SAMPLE_K` (30) or absent —
+  `(n=19)` for a thinly-measured family, *"no sample recorded (editorial
+  anchor)"* for a hand-entered one. `null` sample means **no sample**, never
+  zero rows, and nothing does arithmetic on it.
+
+A **grounded** band carries `benchmark: null` and shows none of this: its
+provenance is the cited sources beside it, and stamping the internal table's
+vintage on a live-web read would name a dataset the figure never came from.
+The shared helper is `app/_lib/salary-benchmark.ts`; its test pins
+`THIN_SAMPLE_K` and `ACTIVE_BENCHMARK` against the Python constants they mirror,
+so a regenerated benchmark block fails the suite instead of silently ageing the
+label. The report's salary tab shows the same vintage as an *anchor* line, but
+only when `metadata.deterministicEvidence.anchorBand` actually holds two numbers
+— with no anchor, the estimate rested on the model alone and naming a dataset
+would be a false attribution.
+
+The card's confidence is also a `ConfidenceBadge` now, graded through the same
+`confidenceGrade` helper the report's gauge uses. It used to print the engine's
+raw English word (`medium`) beside otherwise fully localized copy, and it was
+the one surface in the app where this quantity was not a badge.
+
 ## Templates are a live reformat — a switch warns before discarding edits
 
 The **Template** selector in `JdBuilder` is both a pre-generation choice and a

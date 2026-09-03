@@ -37,15 +37,15 @@ test("normalizeSalaryBenchmark rejects provenance with no dataset name", () => {
 test("normalizeSalaryBenchmark reads a missing sample as null, never as zero rows", () => {
   // The hand-entered families (product_project, hr_people) have no sample_k at all.
   for (const k of [undefined, null, 0, -3, NaN, Infinity, "838", true]) {
-    assert.equal(normalizeSalaryBenchmark({ sourceId: "cz-ispv-2025", sampleK: k }).sampleK, null, String(k));
+    assert.equal(normalizeSalaryBenchmark({ sourceId: "cz-ispv-2025", sampleK: k })?.sampleK, null, String(k));
   }
-  assert.equal(normalizeSalaryBenchmark({ sourceId: "cz-ispv-2025", sampleK: 19.5 }).sampleK, 19);
+  assert.equal(normalizeSalaryBenchmark({ sourceId: "cz-ispv-2025", sampleK: 19.5 })?.sampleK, 19);
 });
 
 test("normalizeSalaryBenchmark tolerates a missing vintage rather than inventing one", () => {
   // The de-berlin sample block carries no generated_at.
-  assert.equal(normalizeSalaryBenchmark({ sourceId: "de-berlin-sample" }).asOf, "");
-  assert.equal(normalizeSalaryBenchmark({ sourceId: "de-berlin-sample", asOf: 20260705 }).asOf, "");
+  assert.equal(normalizeSalaryBenchmark({ sourceId: "de-berlin-sample" })?.asOf, "");
+  assert.equal(normalizeSalaryBenchmark({ sourceId: "de-berlin-sample", asOf: 20260705 })?.asOf, "");
 });
 
 test("normalizeSalaryBenchmark is idempotent at a render boundary", () => {
