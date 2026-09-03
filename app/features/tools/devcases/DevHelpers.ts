@@ -94,8 +94,37 @@ const oneLine = (s: string) => s.replace(/\s*\n\s*/g, " ").trim();
 // probes, decision spaces, rubric weights, role spec — is deliberately NOT part of
 // this document, so copy-pasting it to a candidate can never leak a probe; the
 // detail view renders those in clearly-marked internal panels instead.
-export function caseToMarkdown(kase: CaseScenario, role?: RoleSpec | null): string {
-  const lines: string[] = [`# ${oneLine(kase.title || "Assignment")}`];
+/** The document's own section headings, so a CANDIDATE surface can hand in the
+ *  reader's language. A plain module has no translator in scope (the DevHelpers
+ *  convention: the descriptor names its string, the renderer resolves it), so the
+ *  labels are injected. The defaults are the English this function used to hard-code,
+ *  which is what the two INTERNAL readers (the case detail, the review drawer) still
+ *  render: their surrounding chrome is the recruiter's, not the candidate's. The
+ *  candidate-facing apply page passes all five.
+ *
+ *  `timebox` is the whole phrase, not a number: "~4h timebox" does not survive word
+ *  order into cs/de/fr, and the CLAMPED figure is the caller's to compute (it is the
+ *  same one the design card prints — devcase-timebox.ts). */
+export type CaseMarkdownLabels = {
+  fallbackTitle: string;
+  /** Already interpolated with the clamped hours, e.g. "~4h timebox". */
+  timebox: string;
+  brief: string;
+  handed: string;
+  tasks: string;
+};
+
+const EN_LABELS: CaseMarkdownLabels = {
+  fallbackTitle: "Assignment",
+  timebox: "",
+  brief: "Brief",
+  handed: "What you're handed",
+  tasks: "Tasks",
+};
+
+export function caseToMarkdown(kase: CaseScenario, role?: RoleSpec | null, labels?: CaseMarkdownLabels): string {
+  const l = labels ?? EN_LABELS;
+  const lines: string[] = [`# ${oneLine(kase.title || l.fallbackTitle)}`];
   const meta = [
     role?.title,
     role?.seniority,
@@ -104,14 +133,14 @@ export function caseToMarkdown(kase: CaseScenario, role?: RoleSpec | null): stri
     // still printed it raw — so a reviewer who typed 6 saw "~2h" on the design card
     // and handed out "~6h timebox" one step later. app/_lib/devcase-timebox.ts is
     // the single producer of the number any human is shown.
-    `~${timeboxHoursForDisplay(kase.timeboxHours)}h timebox`,
+    l.timebox || `~${timeboxHoursForDisplay(kase.timeboxHours)}h timebox`,
   ].filter(Boolean);
   if (meta.length) lines.push("", `**${meta.join(" · ")}**`);
-  if (kase.brief?.trim()) lines.push("", "## Brief", kase.brief.trim());
-  if (kase.repoSeed?.trim()) lines.push("", "## What you're handed", kase.repoSeed.trim());
+  if (kase.brief?.trim()) lines.push("", `## ${l.brief}`, kase.brief.trim());
+  if (kase.repoSeed?.trim()) lines.push("", `## ${l.handed}`, kase.repoSeed.trim());
   const tasks = (kase.tasks ?? []).map(oneLine).filter(Boolean);
   if (tasks.length) {
-    lines.push("", "## Tasks");
+    lines.push("", `## ${l.tasks}`);
     tasks.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
   }
   return lines.join("\n");
