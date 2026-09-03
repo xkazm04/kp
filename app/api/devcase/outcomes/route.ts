@@ -4,6 +4,7 @@ import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit, setPromoteFloor } from "@/app/_lib/dev-control";
 import { calibrate, listOutcomes, outcomeInputSchema, recordOutcome } from "@/app/_lib/dev-outcomes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
 const activeFloor = activePromoteFloor;
@@ -13,6 +14,10 @@ const activeFloor = activePromoteFloor;
 // promote-floor recommendation derived from it) is per-team, not deployment-wide. The
 // promote FLOOR itself stays global (dev_control is a declared deployment-level table).
 export async function GET() {
+  // Director gate (2026-09-03): the control room's doors carried no operator check, so a
+  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const ws = await currentWorkspace();
     return NextResponse.json({ outcomes: listOutcomes(80, ws), calibration: calibrate(activeFloor(), ws), activeFloor: activeFloor() });
@@ -22,6 +27,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Director gate (2026-09-03): the control room's doors carried no operator check, so a
+  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json().catch(() => ({}))) as {
       setFloor?: number;
