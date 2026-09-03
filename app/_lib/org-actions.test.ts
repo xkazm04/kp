@@ -127,3 +127,17 @@ test("a language that is not one of the app's four answers its OWN code", async 
   // sent nonsense is the kind of wrong answer that costs a support round.
   assert.deepEqual(await setOrgLanguage("kl" as "en"), { ok: false, code: "ORG_LANGUAGE_INVALID" });
 });
+
+test("the language write reaches EVERY team in the org, not just the caller's", async () => {
+  // `setOrgLanguage` is the Organization tab's setting and takes the org-wide
+  // capability, but it used to write one workspaces.default_locale row — the
+  // caller's own team — leaving every other team's automation passes and candidate
+  // emails in the previous language under a green "Saved".
+  const second = createWorkspace("Second team", ORG);
+  const outside = createWorkspace("Another org's team", "org-elsewhere");
+  signedInAs(owner); // seated on `team`
+  assert.deepEqual(await setOrgLanguage("fr"), { ok: true });
+  assert.equal(getWorkspaceDefaultLocale(team.id), "fr", "the caller's team");
+  assert.equal(getWorkspaceDefaultLocale(second.id), "fr", "…and every sibling team in the same org");
+  assert.notEqual(getWorkspaceDefaultLocale(outside.id), "fr", "never across the tenant boundary");
+});
