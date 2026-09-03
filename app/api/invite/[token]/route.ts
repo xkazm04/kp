@@ -4,7 +4,8 @@ import { getRedeemableInvite } from "@/app/_lib/db/invites";
 import { getOrganization } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
 import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { isThrottled, recordFailedAttempt, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 
 // PUBLIC (proxy allow-listed): the invited-member accept flow. GET previews a
 // redeemable invite; POST redeems it (sets the password, adds the membership) and
@@ -18,13 +19,26 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 // a leaked link) can do per minute, keyed by token AND client like every sibling.
 // 10/min covers a human retrying a weak password several times; a script that
 // wants more is the point.
-const INVITE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };
+//
+// PERSISTED, not in-process (wave 23). This budget shipped on rate-limit.ts's
+// in-memory Map while its two siblings into the same tenant — /api/auth/login and
+// /api/auth/register — use the multi-process store in auth/login-throttle.ts. kp
+// can run as several workers over one kp.sqlite (a PM2 cluster, more than one
+// instance), and a per-process Map hands the flood one FULL budget PER WORKER: the
+// door that creates a user, a membership and a session cookie was the one carrying
+// the weakest counter. Same shape as register — EVERY attempt counts, success
+// included, because what is bounded here is account provisioning and invitee
+// disclosure, not credential guessing — and the key still carries the client AND
+// the token, so one leaked link cannot spend another invitee's budget.
+const INVITE_THROTTLE: ThrottleOpts = { limit: 10, windowMs: 60_000 };
 
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
-  if (!rateLimit(`invite-view:${clientIpFrom(request.headers)}:${token}`, INVITE_RATE_LIMIT)) {
+  const viewKey = `invite-view:${clientIpFrom(request.headers)}:${token}`;
+  if (isThrottled(viewKey, INVITE_THROTTLE)) {
     return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
   }
+  recordFailedAttempt(viewKey, INVITE_THROTTLE);
   const invite = getRedeemableInvite(token);
   if (!invite) return NextResponse.json({ valid: false }, { status: 404 });
   const org = getOrganization(invite.orgId);
@@ -46,9 +60,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   const { token } = await context.params;
   // Throttle BEFORE the body is even read: the redeem path writes a user, a
   // membership and a session, so the flood must be refused at the door.
-  if (!rateLimit(`invite-redeem:${clientIpFrom(request.headers)}:${token}`, INVITE_RATE_LIMIT)) {
+  const redeemKey = `invite-redeem:${clientIpFrom(request.headers)}:${token}`;
+  if (isThrottled(redeemKey, INVITE_THROTTLE)) {
     return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
   }
+  recordFailedAttempt(redeemKey, INVITE_THROTTLE);
   const body = (await request.json().catch(() => ({}))) as { name?: unknown; password?: unknown };
   const password = typeof body.password === "string" ? body.password : "";
   const name = typeof body.name === "string" ? body.name : null;

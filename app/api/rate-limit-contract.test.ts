@@ -242,30 +242,6 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "60_000",
   },
   {
-    // ADDED 2026-09-01 (perfect: open-doors-throttled). The invited-member door:
-    // GET discloses the invitee's email + org name to any token holder, POST creates
-    // a user, a membership and a session cookie. Its sibling /api/auth/register is
-    // throttled; this path into the same tenant was not.
-    rel: "./invite/[token]/route.ts",
-    key: "`invite-view:${clientIpFrom(request.headers)}:${token}`",
-    limit: 10,
-    optsSrc: "INVITE_RATE_LIMIT",
-    optsDef: "const INVITE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
-    expensive: "getRedeemableInvite(",
-    windowMs: 60_000,
-    windowSrc: "60_000",
-  },
-  {
-    rel: "./invite/[token]/route.ts",
-    key: "`invite-redeem:${clientIpFrom(request.headers)}:${token}`",
-    limit: 10,
-    optsSrc: "INVITE_RATE_LIMIT",
-    optsDef: "const INVITE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
-    expensive: "acceptInvite(",
-    windowMs: 60_000,
-    windowSrc: "60_000",
-  },
-  {
     // ADDED 2026-09-01 (perfect: open-doors-throttled). The offer GET runs
     // expireOfferIfDue — a write — on every hit and only the POST was throttled.
     // 60/min: the page revalidates every 60s plus on focus, an order of magnitude under.
@@ -786,6 +762,30 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "24 * 60 * 60_000",
     expensive: "appendDevSessionEvents(id, events)",
     servedBefore: 'session.status !== "active"',
+  },
+  {
+    // ADDED /perfect wave 23 (devcase-candidate-and-devcase), with the limiter itself.
+    // The live-work FINALIZE was the last public dev-case intake door with no bound at
+    // all — and until this wave it was also the cheapest, because it wrote the row
+    // directly instead of going through the shared intake. It now does what its two
+    // siblings do: send the candidate acknowledgement over the comms relay to a
+    // CALLER-SUPPLIED address and resume a collecting lifecycle (a real Python/LLM
+    // evaluation pass). Same key shape as the flush and chat siblings — the apply
+    // TOKEN, never the caller's IP, because candidates sitting a timed assessment
+    // legitimately share a NAT. 60/24h: session-start already caps a posting at 50
+    // sessions/day and a session finalizes once, so a genuine posting cannot reach it.
+    rel: "./devcase/session/[id]/submit/route.ts",
+    key: "`devcase-finalize:${session.token}`",
+    limit: 60,
+    windowMs: 24 * 60 * 60_000,
+    windowSrc: "24 * 60 * 60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The first spend the limiter guards. `submitDevSession` runs before it in the
+    // source only in the sense that it is imported above; the CALL is after.
+    expensive: "await intakeSubmission({",
+    // The 403 token check and the 404/410 lifecycle refusals keep their semantics ahead
+    // of the throttle, so a rejected finalize never consumes a real candidate's slot.
+    servedBefore: 'jsonRefusal("SESSION_TOKEN_REQUIRED", 403)',
   },
   {
     // ADDED /explorer 2026-09-01, with the limiter itself. The heaviest compute
@@ -1705,6 +1705,60 @@ test("every route that enqueues a task throttles first", () => {
   // walk would report a clean tree it never actually looked at.
   assert.ok(checked >= 5, `expected the enqueueing routes, matched ${checked}`);
   assert.deepEqual(offenders, [], "these routes enqueue a background task with no throttle ahead of it");
+});
+
+// ── the invited-member door, on the PERSISTED store (/perfect wave 23) ───────
+//
+// DELIBERATE MOVE, not a deleted assertion: the two invite specs used to sit in
+// SPECS above, driving rate-limit.ts's in-process Map. The budget is unchanged
+// (10/min per client AND token, both verbs) but the STORE is now
+// auth/login-throttle.ts — the same multi-process table /api/auth/login and
+// /api/auth/register use. kp can run as several workers over one kp.sqlite, and a
+// per-process Map hands the flood a full budget per worker; the door that creates
+// a user, a membership and a session cookie must not be the weakest counter in
+// the building.
+//
+// Pinned at the SOURCE level only. login-throttle.ts opens its own sqlite
+// connection at first call, and this file has no isolated-DB bootstrap — importing
+// it here would drive a limiter against the developer's real data/kp.sqlite. The
+// store's own behaviour (window arithmetic, the atomic upsert, the sweep) is
+// covered by app/_lib/auth/login-throttle.test.ts.
+test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", () => {
+  const src = read("./invite/[token]/route.ts");
+  assert.match(
+    src,
+    /import \{ isThrottled, recordFailedAttempt, type ThrottleOpts \} from "@\/app\/_lib\/auth\/login-throttle";/,
+    "the invite door must share the login/register throttle store, not the in-process Map",
+  );
+  assert.doesNotMatch(src, /rateLimit\(/, "…and must not keep a second, per-process budget beside it");
+
+  const def = "const INVITE_THROTTLE: ThrottleOpts = { limit: 10, windowMs: 60_000 };";
+  const defAt = src.indexOf(def);
+  assert.ok(defAt >= 0, `expected the pinned budget:
+  ${def}`);
+
+  for (const [verb, key, expensive] of [
+    ["GET", "`invite-view:${clientIpFrom(request.headers)}:${token}`", "getRedeemableInvite("],
+    ["POST", "`invite-redeem:${clientIpFrom(request.headers)}:${token}`", "acceptInvite("],
+  ] as const) {
+    // Keyed per client AND token, exactly as the in-process version was.
+    const keyAt = src.indexOf(key);
+    assert.ok(keyAt > defAt, `${verb}: expected the pinned key ${key} after the budget`);
+    const gateAt = src.indexOf("isThrottled(", keyAt);
+    assert.ok(gateAt > keyAt, `${verb}: the key must feed isThrottled`);
+    // The shared 429 envelope every limited route answers with.
+    const refusal = src.slice(gateAt, gateAt + 300);
+    assert.match(refusal, /RATE_LIMITED_ERROR/, `${verb}: the refusal must use the shared message`);
+    assert.match(refusal, /status:\s*429/, `${verb}: the refusal must be a 429`);
+    // EVERY attempt counts, success included — like register, and unlike login.
+    // What is bounded is provisioning and invitee disclosure, not guessing, so a
+    // successful redeem must still spend its slot.
+    const recordAt = src.indexOf("recordFailedAttempt(", gateAt);
+    assert.ok(recordAt > gateAt, `${verb}: every attempt must be recorded, not only the refused ones`);
+    // …and the whole gate precedes the work it guards.
+    const expensiveAt = src.indexOf(expensive);
+    assert.ok(expensiveAt > recordAt, `${verb}: the throttle must precede ${expensive}`);
+  }
 });
 
 // ── the credential PAGE's throttle (/perfect wave 20, token doors) ───────────
