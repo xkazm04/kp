@@ -116,6 +116,12 @@ export async function runReasoning(
     jobPayload: getJob(body.jobId),
     lang: requestedLang,
     corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
+    // Sixth axis: the TENANT, named rather than inferred. The comment above used to
+    // argue this was implied — the candidate content hash and the corpus fingerprint
+    // "differ per tenant anyway" — but two workspaces seeded from the same demo
+    // corpus collapse both. One-time invalidation of the existing cache is accepted;
+    // see reasoning-cache-key.ts.
+    workspaceId,
   });
   const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
   if (cached) return { ...(cached as object), cached: true, narrativeLang: engineLang };

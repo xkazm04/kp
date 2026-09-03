@@ -87,3 +87,30 @@ test("the resolved job key is distinct from the id-only fallback for the same id
   // Guards against a resolved record ever colliding with the degraded form.
   assert.notEqual(jobKeyPart("job-1", base.jobPayload), jobKeyPart("job-1", null));
 });
+
+// --- axis 6: the workspace -------------------------------------------------
+// runReasoning is tenant-scoped (resolveMatchInput and listCorpusJobs both take a
+// workspaceId), and its header comment asserted that the resulting key is therefore
+// tenant-safe "because the candidate content hash and the corpus fingerprint already
+// differ per tenant". That is an invariant held by a COMMENT: it depends on two other
+// axes never collapsing, and two workspaces seeded from the same demo corpus collapse
+// both of them. The tenant is now a key axis in its own right.
+test("the workspace is an explicit axis — two tenants never share a slot", () => {
+  const a = reasoningCacheKey({ ...base, workspaceId: "ws-a" });
+  const b = reasoningCacheKey({ ...base, workspaceId: "ws-b" });
+  assert.notEqual(a, b, "identical candidate + job content in two tenants must key apart");
+  assert.equal(a, reasoningCacheKey({ ...base, workspaceId: "ws-a" }), "and stay stable within one");
+});
+
+test("the workspace axis defaults to empty, so a no-workspace caller keys consistently", () => {
+  assert.equal(reasoningCacheKey({ ...base }), reasoningCacheKey({ ...base, workspaceId: undefined }));
+});
+
+test("the workspace axis cannot be absorbed by a neighbouring axis", () => {
+  // The axes are joined with a separator, so moving text across a boundary must not
+  // produce the same digest.
+  assert.notEqual(
+    reasoningCacheKey({ ...base, lang: "en", workspaceId: "x" }),
+    reasoningCacheKey({ ...base, lang: "enx", workspaceId: "" })
+  );
+});

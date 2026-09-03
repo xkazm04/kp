@@ -13,6 +13,7 @@ const { runReasoning, REASONING_PROMPT_VERSION } = await import("./reasoning-run
 const { resolveMatchInput } = await import("./match-input.ts");
 const { reasoningCacheKey } = await import("./reasoning-cache-key.ts");
 const { computeCorpusFingerprint } = await import("./automation-cache-key.ts");
+const { DEFAULT_WORKSPACE_ID } = await import("./db/workspaces.ts");
 
 after(() => cleanupUnitDb());
 
@@ -29,6 +30,9 @@ function keyFor(profileId: string, jobId: string, lang: string = "en"): string {
     jobPayload: getJob(jobId),
     lang,
     corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
+    // The tenant is a key axis (reasoning-cache-key.ts axis 6); runReasoning defaults
+    // to the default workspace, so the reconstruction must name it too.
+    workspaceId: DEFAULT_WORKSPACE_ID,
   });
 }
 
