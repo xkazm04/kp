@@ -91,3 +91,75 @@ test("all four verbs of /api/interview-prep pass the resolved workspace into get
     );
   }
 });
+
+// ---- the reader side: a non-default team must keep its own pack -----------------
+//
+// The workspace predicate closed a leak; the OTHER half of getting a default
+// parameter right is that every caller which owns the entry keeps reading it. Six
+// server-side readers passed no workspace at all, so on a non-default team each
+// silently read `null` — the scheduling link's duration hint fell back to the quick
+// screen, the voice brief lost its grounded chronology, and a regeneration dropped
+// the interviewer's carried-forward notes. Not a leak; a quiet downgrade, which is
+// exactly the failure a default parameter hides.
+
+const { plannedInterviewMinutes } = await import("../../_lib/interview-planned-minutes.ts");
+const { getPipelineEntry } = await import("../../_lib/db/pipeline.ts");
+
+test("the planned-minutes path reads a NON-DEFAULT team's prep, not null", () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "prep-minutes-c1",
+    candidateLabel: "Prep Minutes",
+    jobId: "prep-minutes-job",
+    jobTitle: "Prep Minutes Role",
+    workspaceId: OTHER_WS,
+  });
+  // A GROUNDED pack: a chronology plus an explicit 75-minute plan. Read correctly,
+  // the scheduling link is minted for 75 minutes; read as null, it silently collapses
+  // to the quick-screen floor.
+  saveInterviewPrep(entry.id, entry.candidateLabel, entry.jobTitle, {
+    scenario: "grounded",
+    durationMin: 75,
+    chronology: [{ fromMin: 0, toMin: 75, topic: "t", goal: "g", questions: [] }],
+    signals: [],
+    focusAreas: [],
+  });
+  const row = getPipelineEntry(entry.id, OTHER_WS);
+  assert.ok(row, "the fixture entry must exist on its own team");
+  assert.equal(row.workspaceId, OTHER_WS, "PipelineEntry carries the tenant the reader needs");
+  assert.equal(plannedInterviewMinutes(row), 75, "the entry's own workspace is what the prep read must use");
+});
+
+test("POST /api/interview-prep/scorecard refuses a foreign entry id", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "prep-scorecard-c1",
+    candidateLabel: "Prep Scorecard",
+    jobId: "prep-scorecard-job",
+    jobTitle: "Prep Scorecard Role",
+    workspaceId: OTHER_WS,
+  });
+  saveInterviewPrep(entry.id, entry.candidateLabel, entry.jobTitle, { scenario: "other team's plan" });
+
+  // currentWorkspace() reads cookies(), which throws outside a request and falls back
+  // to the default workspace — so "the caller" here is the default tenant holding
+  // another team's entry id. saveHumanScorecard is an unscoped by-id point op, so
+  // without a gate this OVERWRITES that team's scorecard.
+  const { POST } = await import("./scorecard/route.ts");
+  // The handler reads `request.nextUrl.searchParams` and `request.json()` and nothing
+  // else. Neither the real NextRequest (outside a Next request context) nor the test
+  // shim populates `nextUrl`, so the two members the handler actually uses are supplied
+  // directly — the alternative is booting Next to assert a workspace predicate.
+  const url = new URL(`http://localhost/api/interview-prep/scorecard?entry=${encodeURIComponent(entry.id)}`);
+  const res = (await POST({
+    nextUrl: url,
+    json: async () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }),
+  } as never)) as unknown as Response;
+  assert.equal(res.status, 404, "a foreign entry id must be refused, not written");
+
+  const untouched = getInterviewPrep(entry.id, OTHER_WS);
+  assert.ok(untouched, "the owning team's pack still exists");
+  assert.equal(
+    (untouched.payload as { humanScorecard?: unknown }).humanScorecard,
+    undefined,
+    "and carries no scorecard written by the other team"
+  );
+});

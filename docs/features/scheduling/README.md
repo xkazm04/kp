@@ -584,28 +584,25 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   webhook dead-lettering, the bar therefore still reads "N invited to
   schedule". The remaining edit is client-side: count `delivery === "sent"`
   and fall back to the queued copy otherwise.
-- **`POST /api/interview-prep/scorecard` is still keyed by entry id alone.**
-  `GET ?entry=`, `PUT`, `POST` and `PATCH` on `/api/interview-prep` were closed:
-  `getInterviewPrep(entryId, workspaceId)` now carries a `workspace_id`
+- ~~`/api/interview-prep` is keyed by entry id with no workspace check.~~
+  **Closed.** `getInterviewPrep(entryId, workspaceId)` carries a `workspace_id`
   predicate (the column has existed since E0 Phase 1 and `saveInterviewPrep`
-  stamps it from the linked pipeline entry), all four verbs pass the workspace
-  they resolved, and `listPreparedEntries` — whose `IN` query matched entry ids
-  across every team while taking a `workspaceId` only for the JD-staleness join —
-  is scoped the same way. Pinned by
-  `app/api/interview-prep/interview-prep-tenancy.test.ts`, which proves both
-  halves: the store filters, and every handler passes the tenant. The scorecard
-  route reaches `saveHumanScorecard`, an unscoped by-id point op, and is the
-  remaining hole — an operator holding another team's entry id can still
-  overwrite that team's human scorecard.
-- **Server-side readers of a prep still read the DEFAULT workspace.**
-  `getInterviewPrep`'s second parameter defaults to `DEFAULT_WORKSPACE_ID` (the
-  house shape, matching `prepJdEditedAt` and `listPreparedEntries`), and six
-  callers outside the interview-prep route omit it: `interview-planned-minutes.ts`,
-  `interview-run.ts` (x2), `interview-prep-run.ts`, `candidate-timeline.ts` and
-  the public `api/schedule/[token]` door. Behaviour is unchanged for every
-  single-workspace install; on a non-default team each would read `null` rather
-  than another team's row — a lost duration hint or a dropped carried-forward
-  progress, never a leak.
+  stamps it from the linked pipeline entry); `GET ?entry=`, `PUT`, `POST`,
+  `PATCH` and `POST /api/interview-prep/scorecard` all pass the workspace they
+  resolved and 404 on a foreign id; and `listPreparedEntries` — whose `IN` query
+  matched entry ids across every team while taking a `workspaceId` only for the
+  JD-staleness join — is scoped the same way. The scorecard verb was the last
+  one that could still WRITE through a foreign id (`saveHumanScorecard` is an
+  unscoped by-`entry_id` point op), so it now refuses before the write. Every
+  production reader passes a tenant too — `interview-planned-minutes.ts` and
+  `candidate-timeline.ts` from `entry.workspaceId`, `interview-run.ts` (both
+  sites) and `interview-prep-run.ts` from the workspace already resolved in the
+  function, and the public `api/schedule/[token]` door from the invite's own
+  entry — so a non-default team keeps its duration hint, its grounded voice
+  brief and its carried-forward prep progress rather than reading `null`. Pinned
+  by `app/api/interview-prep/interview-prep-tenancy.test.ts`, which proves all
+  three halves: the store filters, every handler passes the tenant, and the
+  planned-minutes path reads a non-default team's pack.
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.

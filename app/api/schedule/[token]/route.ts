@@ -419,7 +419,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         // gatekeeper — it no-ops (or records interviewer_brief_skipped) when the
         // prep carries no interviewer / no deliverable address.
         try {
-          const prep = getInterviewPrep(entry.id);
+          const prep = getInterviewPrep(entry.id, entry.workspaceId);
           const p = (prep?.payload ?? {}) as { interviewer?: unknown; scenario?: unknown; focusAreas?: unknown; lang?: unknown };
           await dispatchInterviewerBrief(entry, slot, {
             interviewer: typeof p.interviewer === "string" ? p.interviewer : null,

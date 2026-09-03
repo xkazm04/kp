@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
-import { saveHumanScorecard } from "@/app/_lib/interview-prep";
+import { getInterviewPrep, saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
@@ -46,6 +46,15 @@ export async function POST(request: NextRequest) {
     // the defect the DEC1 note further down was written to fix.
     const ws = await currentWorkspace();
     const pipelineEntry = getPipelineEntry(entry, ws);
+    // TENANCY: `saveHumanScorecard` is an unscoped by-`entry_id` point op, so this was
+    // the last verb of the interview-prep surface a foreign entry id could still WRITE
+    // through — overwriting another team's interviewer verdict. The workspace predicate
+    // rides the read that authorizes the write, exactly as on the other four verbs, and
+    // answers the SAME 404 the "no prep yet" path answers: to a caller who does not hold
+    // the entry the two are indistinguishable, deliberately.
+    if (!getInterviewPrep(entry, ws)) {
+      return NextResponse.json({ error: "No interview prep to attach a scorecard to — generate it first." }, { status: 404 });
+    }
 
     const parsed: ScorecardRating[] = [];
     if (Array.isArray(body.ratings)) {
