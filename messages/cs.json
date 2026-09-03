@@ -9849,5 +9849,14 @@
       "tab": "Tuto kartu",
       "panel": "Tento panel"
     }
+  },
+  "richTextEditor": {
+    "bold": "Tučně",
+    "italic": "Kurzíva",
+    "underline": "Podtržení",
+    "heading": "Nadpis",
+    "bulletedList": "Seznam s odrážkami",
+    "numberedList": "Číslovaný seznam",
+    "editorLabel": "Editor formátovaného textu"
   }
 }

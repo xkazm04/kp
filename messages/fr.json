@@ -9849,5 +9849,14 @@
       "tab": "Cet onglet",
       "panel": "Ce panneau"
     }
+  },
+  "richTextEditor": {
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "heading": "Titre",
+    "bulletedList": "Liste à puces",
+    "numberedList": "Liste numérotée",
+    "editorLabel": "Éditeur de texte enrichi"
   }
 }

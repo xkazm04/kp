@@ -9849,5 +9849,14 @@
       "tab": "Dieser Tab",
       "panel": "Dieses Panel"
     }
+  },
+  "richTextEditor": {
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "underline": "Unterstrichen",
+    "heading": "Überschrift",
+    "bulletedList": "Aufzählungsliste",
+    "numberedList": "Nummerierte Liste",
+    "editorLabel": "Rich-Text-Editor"
   }
 }

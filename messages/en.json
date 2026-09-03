@@ -9849,5 +9849,14 @@
       "tab": "This tab",
       "panel": "This panel"
     }
+  },
+  "richTextEditor": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "heading": "Heading",
+    "bulletedList": "Bulleted list",
+    "numberedList": "Numbered list",
+    "editorLabel": "Rich text editor"
   }
 }
