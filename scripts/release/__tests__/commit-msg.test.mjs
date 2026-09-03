@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict';
 import { classify } from '../prepare.mjs';
 import {
+  DANGLING_TAIL,
   KNOWN_TYPES,
   checkShape,
   checkSubject,
@@ -99,6 +100,40 @@ check('a subject truncated mid-clause is rejected', () => {
   bad('fix: reconcile the queue against the');
   bad('chore: regenerate the map because it was');
   assert.match(checkShape('the slot is dropped when the candidate and')[0], /stops on "and"/);
+});
+
+// --- the tail is a WHOLE word, and only words that cannot end a clause ---------
+//
+// Two bugs the gate shipped with, both of which rejected honest subjects and
+// pointed their author at the waiver trailer the file itself warns about.
+check('a tail ending in digits is read whole, not by its last letters', () => {
+  // The tail was extracted with a letters-only regex, so "21a" was read as "a"
+  // — an article — and a real wave subject was refused as truncated.
+  ok('chore(perfect): ship wave 21a');
+  ok('feat(bench): rerun the c1 exam on gpt-5');
+  ok('fix(sbom): pin the document to spec 1.5');
+  assert.deepEqual(checkShape('ship wave 21a'), []);
+});
+
+check('words that legitimately end a clause are not read as a cut', () => {
+  ok('refactor(scripts): unify the three git wrappers into one');
+  ok('docs(releases): record what the pre-release gate does and why we did');
+  ok('fix(gate): the tail rule now reads the whole word, not the letters of it');
+  assert.deepEqual(checkShape('unify the three git wrappers into one'), []);
+  assert.deepEqual(checkShape('record why we did'), []);
+});
+
+check('the dangling-tail vocabulary is pinned, in both directions', () => {
+  // Pinned so a later edit is a deliberate one: these need a following word…
+  for (const w of ['and', 'or', 'the', 'a', 'an', 'to', 'of', 'is', 'was', 'were', 'because', 'its', 'with']) {
+    assert.ok(DANGLING_TAIL.has(w), `"${w}" cannot end a subject and should stay in the list`);
+  }
+  // …and these end a clause perfectly well, which is why they left it.
+  for (const w of ['one', 'it', 'do', 'does', 'did']) {
+    assert.ok(!DANGLING_TAIL.has(w), `"${w}" can end a clause and must not be read as a truncation`);
+  }
+  // The rule still catches the shape it exists for.
+  bad('fix(schedule): the slot is dropped when the candidate and');
 });
 
 check('a subject cut on punctuation or an unclosed delimiter is rejected', () => {

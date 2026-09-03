@@ -170,15 +170,40 @@ export const SESSION_LIFECYCLE = [
 /**
  * Words a subject does not end on. A line that stops here was cut, not written:
  * every one of them needs a following word to mean anything.
+ *
+ * PINNED BY A FIXTURE, IN BOTH DIRECTIONS (commit-msg.test.mjs). A list of
+ * "words that look wrong at the end" grows by intuition until it refuses honest
+ * subjects, and the only fix a rejected author has is the waiver trailer this
+ * file warns against — which is exactly how a gate stops being believed. So the
+ * membership test is: does the word REQUIRE a following word to mean anything?
+ *
+ * Five entries failed that test and left:
+ *   one   "unify the three git wrappers into one" — a pronoun, not a determiner
+ *   it    "the tail rule now reads the whole word, not the letters of it"
+ *   do / does / did   elliptical and emphatic use ("…more than it did", "why we
+ *         did"). `is`/`was`/`are`/`were` stay: a subject ending on the copula
+ *         ("a panel that opens when the operator is") really was cut.
+ * `its` stays for the same reason `the` does — a determiner with nothing after it.
  */
 export const DANGLING_TAIL = new Set([
   'and', 'or', 'but', 'so', 'then', 'than', 'as', 'if', 'while', 'when', 'because',
-  'the', 'a', 'an', 'this', 'that', 'these', 'those', 'which', 'who', 'whose', 'it', 'its', 'one',
+  'the', 'a', 'an', 'this', 'that', 'these', 'those', 'which', 'who', 'whose', 'its',
   'to', 'of', 'in', 'on', 'at', 'for', 'with', 'from', 'by', 'into', 'onto', 'over', 'under',
   'about', 'after', 'before', 'per', 'via', 'between', 'through',
   'is', 'are', 'was', 'were', 'be', 'been', 'being', 'has', 'have', 'had',
-  'do', 'does', 'did', 'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must',
+  'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must',
 ]);
+
+/**
+ * The last WORD of a subject — digits included, so "ship wave 21a" ends on
+ * "21a" and not on "a". A letters-only tail reads the final letters of an
+ * alphanumeric token as if they were a word of their own, which made every
+ * subject ending in a version, a wave number or an id ("21a", "v2", "gpt-5")
+ * look truncated. Trailing punctuation is left to CUT_TAIL_RE.
+ */
+export function tailWord(s) {
+  return (String(s).match(/[A-Za-z0-9][A-Za-z0-9'’-]*$/) ?? [''])[0].toLowerCase();
+}
 
 /** Punctuation a subject does not end on — each one opens something. */
 const CUT_TAIL_RE = /[,;:\-–—/&+([{]$|\.{2,}$|…$/;
@@ -237,7 +262,7 @@ export function checkShape(text) {
     problems.push('the subject is written in the first person — a commit subject is about the code, not the author');
   }
 
-  const last = (s.match(/[A-Za-z][A-Za-z'’-]*$/) ?? [''])[0].toLowerCase();
+  const last = tailWord(s);
   if (DANGLING_TAIL.has(last)) {
     problems.push(
       `the subject stops on "${last}", a word that needs whatever came next — it was truncated rather than written`,

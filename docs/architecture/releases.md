@@ -105,7 +105,20 @@ change.** It rejects
 | an unclosed delimiter | ``fix(db): stop the write in `pipeline`` |
 | a trailing full stop | `fix(auth): stop the leak.` |
 
-and `checkTypeAgainstFiles()` adds the one claim the diff settles outright: a
+"Cut mid-phrase" is a **tail-word** rule, and it is deliberately narrow in two
+ways a reader should know about, because the cost of a false rejection is that
+the author reaches for the waiver trailer this gate exists to make unnecessary.
+The tail is read as a **whole word, digits included** — `chore(perfect): ship
+wave 21a` ends on `21a`, not on the article `a`, which is what a letters-only
+tail regex saw. And `DANGLING_TAIL` holds only words that *require* a following
+word: `one`, `it`, `do`, `does` and `did` end a clause perfectly well (`… into
+one`, `… why we did`) and are not in it, while the copulas (`is`, `was`) are,
+because a subject ending on one really was cut. The list is pinned in both
+directions by a fixture in
+[`commit-msg.test.mjs`](../../scripts/release/__tests__/commit-msg.test.mjs), so
+growing it by intuition is a deliberate act rather than a quiet one.
+
+`checkTypeAgainstFiles()` adds the one claim the diff settles outright: a
 commit whose files are **all** documentation is not a `feat` or a `fix`, and one
 whose files are **all** tests is not either — a release note would otherwise
 announce a user-visible change that does not exist. A mixed commit is never
