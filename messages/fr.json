@@ -1540,7 +1540,20 @@
     "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI a besoin du point de terminaison de votre ressource avant de pouvoir stocker sa clé.",
     "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Ce serveur n’a pas de secret de chiffrement défini : aucune clé de fournisseur ne peut encore être stockée.",
     "MODEL_KEY_REJECTED": "Cette clé n’a pas pu être enregistrée. Vérifiez le point de terminaison ou l’URL de serveur indiqués.",
-    "MODEL_ROUTING_STALE": "Quelqu’un a réaffecté ce cas d’usage pendant que vous le modifiiez. Le tableau a été rechargé, refaites votre modification."
+    "MODEL_ROUTING_STALE": "Quelqu’un a réaffecté ce cas d’usage pendant que vous le modifiiez. Le tableau a été rechargé, refaites votre modification.",
+    "SCHEDULE_ACTION_REQUIRED": "Aucune action de planification n'a été indiquée. Rechargez l'onglet et réessayez.",
+    "SCHEDULE_ACTION_UNKNOWN": "Cette action de planification n'est pas assurée par l'application.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Choisissez un candidat et un horaire avant de réserver.",
+    "SCHEDULE_TOKEN_REQUIRED": "Le lien d'entretien est absent. Rechargez l'onglet et réessayez.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Cet entretien ne figure plus dans votre agenda. Rechargez l'onglet.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Seule une réservation confirmée peut être annulée. Rechargez pour voir où elle en est.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Seule une réservation confirmée peut être marquée comme absence. Rechargez pour voir où elle en est.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Seule une réservation confirmée peut être déplacée. Envoyez plutôt un nouveau lien de planification.",
+    "SCHEDULE_PROPOSAL_GONE": "Cet horaire proposé ne figure plus sur l'invitation. Rechargez pour voir les propositions actuelles.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Cet horaire proposé est passé. Demandez de nouveaux créneaux au candidat.",
+    "SCHEDULE_NO_PROPOSALS": "Aucun horaire proposé à refuser.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "Il n'y a plus rien à réconcilier sur cet entretien.",
+    "SCHEDULE_MEETING_URL_INVALID": "Saisissez un lien de réunion http(s) valide."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3510,7 +3523,9 @@
       "proposalsGroupAria": "Créneaux proposés par le candidat",
       "acceptProposal": "Accepter {time}",
       "declineProposals": "Tout refuser",
-      "declineProposalsPrompt": "Refuser les créneaux proposés ?"
+      "declineProposalsPrompt": "Refuser les créneaux proposés ?",
+      "cancelling": "Annulation…",
+      "markingNoShow": "Marquage…"
     },
     "eyebrow": "Décisions · Planification",
     "title": "Calendrier des entretiens",
@@ -3732,7 +3747,9 @@
       "noteWaiting": "En attente ici",
       "noteHere": "Vous êtes ici",
       "noteNext": "Ensuite"
-    }
+    },
+    "liveStale": "Le statut des entretiens en direct n'est plus à jour.",
+    "liveRetry": "Réessayer"
   },
   "library": {
     "tab": {

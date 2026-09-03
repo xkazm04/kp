@@ -37,9 +37,14 @@ test("PATCH /api/schedule resolves the tenant and rejects a foreign/candidate to
   // BOUND, not merely present: the tenant predicate must be the condition of the
   // refusal, and that refusal must be the 404 — an unused `invite.workspaceId !== ws`
   // expression somewhere in the body is not a guard.
+  // The refusal may be spelled either way — `NextResponse.json(…, { status: 404 })`
+  // or the shared `jsonRefusal("<CODE>", 404)` the whole route moved onto
+  // (/perfect 2026-09-03, schedule-ui-2). What is pinned is that a 404 is the
+  // BOUND consequence of the tenant predicate, not that a particular envelope
+  // helper spells it.
   assert.match(
     patch,
-    /if\s*\([^)]*invite\.workspaceId\s*!==\s*ws[^)]*\)\s*\{?[\s\S]{0,200}?status:\s*404/,
+    /if\s*\([^)]*invite\.workspaceId\s*!==\s*ws[^)]*\)\s*\{?[\s\S]{0,200}?(status:\s*404|jsonRefusal\("[A-Z_]+",\s*404\))/,
     "PATCH must 404 when the invite is outside the caller's workspace"
   );
   // The write itself must sit BEHIND that refusal, not beside it.

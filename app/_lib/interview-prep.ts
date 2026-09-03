@@ -123,7 +123,7 @@ export function saveInterviewPrepProgress(entryId: string, progress: InterviewPr
   // (kp's fork-churned model) can't read-then-clobber — last-write-wins can't drop the
   // other human input.
   return db().transaction((): boolean => {
-    const existing = getInterviewPrep(entryId);
+    const existing = readPrepRow(entryId);
     if (!existing) return false;
     const { interviewer, ...checklist } = progress;
     const payload: Record<string, unknown> = { ...existing.payload, userProgress: checklist };
@@ -147,7 +147,7 @@ export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boole
   // scorecard POST share the row but touch disjoint keys; the IMMEDIATE transaction
   // makes each merge serialize so neither clobbers the other's just-saved input.
   return db().transaction((): boolean => {
-    const existing = getInterviewPrep(entryId);
+    const existing = readPrepRow(entryId);
     if (!existing) return false;
     const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: "human" as const } };
     const res = db()
@@ -160,7 +160,7 @@ export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boole
 /** The human scorecard saved on an entry's prep artifact, if any (PREP1). Read by
  *  surfaces that show interview results so a human-led round isn't invisible. */
 export function getHumanScorecard(entryId: string): Scorecard | null {
-  const prep = getInterviewPrep(entryId);
+  const prep = readPrepRow(entryId);
   const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard;
   return sc ?? null;
 }
@@ -194,16 +194,49 @@ export function isPrepStale(createdAt: string, jdEditedAt: string | null): boole
   return jdEditedAt != null && createdAt < jdEditedAt;
 }
 
-export function getInterviewPrep(entryId: string): InterviewPrep | null {
-  const row = db()
-    .prepare(`SELECT entry_id, candidate_label, job_title, payload_json, created_at FROM interview_preps WHERE entry_id = ?`)
-    .get(entryId) as { entry_id: string; candidate_label: string | null; job_title: string | null; payload_json: string; created_at: string } | undefined;
+type PrepRow = { entry_id: string; candidate_label: string | null; job_title: string | null; payload_json: string; created_at: string };
+
+/** Parse one row into the public shape; null on a corrupt payload_json. */
+function toPrep(row: PrepRow | undefined): InterviewPrep | null {
   if (!row) return null;
   try {
     return { entryId: row.entry_id, candidateLabel: row.candidate_label, jobTitle: row.job_title, payload: JSON.parse(row.payload_json), createdAt: row.created_at };
   } catch {
+    /* corrupt payload_json — the artifact is unreadable, so there is no prep to return */
     return null;
   }
+}
+
+/** The UNSCOPED read, for this module's own read-merge-write helpers. Each of them is
+ *  reached only through a caller that already owns the entry, and each is keyed by the
+ *  globally-unique entry_id — so re-asserting a workspace they were never given would
+ *  turn a legitimate non-default-tenant save into a silent no-op. Kept private: the
+ *  EXPORTED read below is the one a trust boundary calls. */
+function readPrepRow(entryId: string): InterviewPrep | null {
+  return toPrep(
+    db()
+      .prepare(`SELECT entry_id, candidate_label, job_title, payload_json, created_at FROM interview_preps WHERE entry_id = ?`)
+      .get(entryId) as PrepRow | undefined
+  );
+}
+
+/** One entry's prep artifact, SCOPED to a workspace (tenancy, /perfect 2026-09-03,
+ *  schedule-ui-2). All four verbs of /api/interview-prep read this by entry id alone
+ *  and leaned on id-unguessability: an id from another team's board returned that
+ *  team's candidate name, job title, tailored scenario, the interviewer's verbatim
+ *  notes and their saved human scorecard — and the POST/PATCH wrote back into it. The
+ *  row has carried `workspace_id` since E0 Phase 1; this is the predicate that finally
+ *  uses it. Default-signature shape, like its neighbours `prepJdEditedAt` and
+ *  `listPreparedEntries`. */
+export function getInterviewPrep(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewPrep | null {
+  return toPrep(
+    db()
+      .prepare(
+        `SELECT entry_id, candidate_label, job_title, payload_json, created_at
+           FROM interview_preps WHERE entry_id = ? AND workspace_id = ?`
+      )
+      .get(entryId, workspaceId) as PrepRow | undefined
+  );
 }
 
 /** Which of the given entry ids already have a prep artifact — `createdAt` plus the
@@ -221,9 +254,17 @@ export function listPreparedEntries(
   const out: Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean; stale: boolean }> = {};
   for (const ids of chunk(entryIds, SQL_IN_CHUNK)) {
     const placeholders = ids.map(() => "?").join(",");
+    // TENANCY: `workspaceId` reached this function only to scope the JD-staleness join
+    // below — the roster query itself matched entry ids across EVERY team, so a board
+    // id from another workspace came back with that team's generated-at stamp, the
+    // assigned interviewer's name and the has-a-human-scorecard flag. Same predicate
+    // the by-id read now carries.
     const rows = db()
-      .prepare(`SELECT entry_id, payload_json, created_at FROM interview_preps WHERE entry_id IN (${placeholders})`)
-      .all(...ids) as { entry_id: string; payload_json: string; created_at: string }[];
+      .prepare(
+        `SELECT entry_id, payload_json, created_at
+           FROM interview_preps WHERE workspace_id = ? AND entry_id IN (${placeholders})`
+      )
+      .all(workspaceId, ...ids) as { entry_id: string; payload_json: string; created_at: string }[];
     for (const r of rows) {
       let interviewer: string | null = null;
       let hasHumanScorecard = false;

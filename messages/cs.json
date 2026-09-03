@@ -1540,7 +1540,20 @@
     "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI potřebuje endpoint vašeho prostředku, jinak klíč uložit nelze.",
     "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Server nemá nastavené šifrovací tajemství, takže klíč poskytovatele zatím uložit nelze.",
     "MODEL_KEY_REJECTED": "Klíč se nepodařilo uložit. Zkontrolujte zadaný endpoint nebo adresu serveru.",
-    "MODEL_ROUTING_STALE": "Někdo toto použití přenastavil, zatímco jste ho upravovali. Tabulka byla znovu načtena, proveďte změnu ještě jednou."
+    "MODEL_ROUTING_STALE": "Někdo toto použití přenastavil, zatímco jste ho upravovali. Tabulka byla znovu načtena, proveďte změnu ještě jednou.",
+    "SCHEDULE_ACTION_REQUIRED": "Nebyla zadána žádná akce plánování. Načtěte kartu znovu a zkuste to znovu.",
+    "SCHEDULE_ACTION_UNKNOWN": "Tuto akci plánování aplikace neprovádí.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Před rezervací vyberte kandidáta a čas.",
+    "SCHEDULE_TOKEN_REQUIRED": "Chybí odkaz na pohovor. Načtěte kartu znovu a zkuste to znovu.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Tento pohovor už ve vašem kalendáři není. Načtěte kartu znovu.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Zrušit lze jen potvrzenou rezervaci. Načtěte znovu a zjistěte, jak na tom je.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Jako neúčast lze označit jen potvrzenou rezervaci. Načtěte znovu a zjistěte, jak na tom je.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Přesunout lze jen potvrzenou rezervaci. Pošlete raději nový odkaz na plánování.",
+    "SCHEDULE_PROPOSAL_GONE": "Tento navržený čas už na pozvánce není. Načtěte znovu aktuální návrhy.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Tento navržený čas už uplynul. Požádejte kandidáta o nové termíny.",
+    "SCHEDULE_NO_PROPOSALS": "Nejsou tu žádné navržené časy k odmítnutí.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "U tohoto pohovoru už není co srovnávat.",
+    "SCHEDULE_MEETING_URL_INVALID": "Zadejte platný odkaz na schůzku (http nebo https)."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3510,7 +3523,9 @@
       "proposalsGroupAria": "Termíny navržené kandidátem",
       "acceptProposal": "Přijmout {time}",
       "declineProposals": "Zamítnout vše",
-      "declineProposalsPrompt": "Zamítnout navržené termíny?"
+      "declineProposalsPrompt": "Zamítnout navržené termíny?",
+      "cancelling": "Ruším…",
+      "markingNoShow": "Označuji…"
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
@@ -3732,7 +3747,9 @@
       "noteWaiting": "Čeká tady",
       "noteHere": "Jste tady",
       "noteNext": "Další"
-    }
+    },
+    "liveStale": "Živý stav pohovorů je zastaralý.",
+    "liveRetry": "Zkusit znovu"
   },
   "library": {
     "tab": {

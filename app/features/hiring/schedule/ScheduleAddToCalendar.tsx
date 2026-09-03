@@ -8,6 +8,7 @@ import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
 // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #4) — shared dismissal
 // primitive (Escape-to-close, focus-return, outside-press without a click-eating
 // viewport blanket), replacing this component's hand-rolled `fixed inset-0` button.
+import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { usePopoverDismiss } from "./useSchedulePopoverDismiss";
 
 // Solution Ⓑ surface — a compact "Add to calendar ▾" that opens a menu of one-click
@@ -59,7 +60,7 @@ export function AddToCalendar({
         aria-haspopup="menu"
         className={
           triggerClassName ??
-          "focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-ink hover:border-coral/40"
+          `${BTN_SECONDARY} bg-white px-2 py-1 text-meta normal-case`
         }
       >
         <CalendarPlus size={13} aria-hidden /> {t("addToCalendar")} <ChevronDown size={12} className="opacity-60" aria-hidden />
@@ -67,7 +68,7 @@ export function AddToCalendar({
       {open ? (
         // role=menu + menuitem so AT announces a menu, not loose links. Dismissal
         // (Escape / outside press) is handled by usePopoverDismiss — no blanket button.
-        <div role="menu" className="absolute right-0 z-50 mt-1 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-pop">
+        <div role="menu" className={`${PANEL} absolute right-0 z-50 mt-1 w-44 p-1 shadow-pop`}>
           <a role="menuitem" href={googleCalendarUrl(event)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className={menuItem}>
             <CalendarPlus size={13} className="text-steel" aria-hidden /> {t("google")}
           </a>

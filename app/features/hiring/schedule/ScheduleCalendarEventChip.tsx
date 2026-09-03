@@ -57,7 +57,7 @@ export function CalendarEventChip({
       <Icon size={12} aria-hidden /> {label}
     </>
   );
-  const className = `inline-flex items-center gap-1 text-xs ${TONE[state]}`;
+  const className = `inline-flex items-center gap-1 text-micro ${TONE[state]}`;
   // A written event links straight to it — the recruiter's fastest way to check that the
   // entry really is where kp says it is.
   return state === "written" && link ? (

@@ -37,14 +37,14 @@ export function AwaitingSection({
             {/* idea-87af39c5 — a candidate who cancelled attendance is back here
                 awaiting a new time; flag it so the recruiter can follow up. */}
             {i.attendanceStatus === "cancelled" ? (
-              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-meta normal-case text-amber-800">
                 {t("attendanceCancelled")}
               </span>
             ) : null}
             {/* A cancelled booking's calendar entry: 'removed' is the quiet all-clear,
                 'orphaned' is the one that still needs a human to delete it. */}
             <CalendarEventChip state={i.calendarEventState} link={i.calendarEventLink} t={t} />
-            <span className="ml-auto text-xs text-steel">
+            <span className="ml-auto text-micro text-steel">
               {t(relayConfigured === false ? "queuedAgo" : "sentAgo", { time: relativeTime(i.createdAt) })}
             </span>
           </li>
@@ -94,7 +94,7 @@ export function ClosedSection({
               {reason === "no_show" && i.slotAt ? <span className="text-steel nums">· {slotLine(i)}</span> : null}
               <CalendarEventChip state={i.calendarEventState} link={i.calendarEventLink} t={t} />
               <span
-                className={`ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                className={`ml-auto rounded-full px-1.5 py-0.5 text-meta normal-case ${
                   reason === "no_show"
                     ? "bg-red-100 text-red-700"
                     : reason === "declined"

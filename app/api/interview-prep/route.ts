@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
       // Direction 1 — `jdEditedAt` is the linked JD's last content edit, so the modal
       // can flag a pack built against since-changed JD text (it compares against the
       // prep's createdAt). null when the entry has no JD-backed job — no chip.
-      return NextResponse.json({ prep: getInterviewPrep(entry), jdEditedAt: prepJdEditedAt(entry, ws) });
+      // TENANCY — both halves scoped to the authenticated team. The read used to be
+      // `getInterviewPrep(entry)`: an entry id alone, matched across every workspace,
+      // while the jdEditedAt beside it was already scoped. Same predicate on both now.
+      return NextResponse.json({ prep: getInterviewPrep(entry, ws), jdEditedAt: prepJdEditedAt(entry, ws) });
     }
     // Bounded + de-duped at the trust boundary so a crafted/huge `entries` list
     // can't blow the SQLite variable limit or amplify the IN query (idea-191ccc0c).
@@ -46,6 +49,15 @@ export async function PUT(request: NextRequest) {
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return NextResponse.json({ error: "entry is required" }, { status: 400 });
+    }
+    // TENANCY: prove this team owns the artifact BEFORE the merge write. The write
+    // path (saveInterviewPrepProgress) is keyed by the globally-unique entry id, so
+    // without this an id from another team's board saved that team's interviewer,
+    // checklist and notes. Same 404 as "no artifact yet" — the two are indistinguishable
+    // to a caller who does not hold the entry, deliberately.
+    const ws = await currentWorkspace();
+    if (!getInterviewPrep(entry, ws)) {
+      return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
     }
     const body = (await request.json().catch(() => ({}))) as { checked?: unknown; notes?: unknown; interviewer?: unknown };
 
@@ -90,7 +102,9 @@ export async function POST(request: NextRequest) {
     // Read-merge-write through the existing full-payload save path (getInterviewPrep +
     // saveInterviewPrep) — no parallel store, no new persistence function. Preserve
     // every other payload key (generated plan, userProgress, humanScorecard).
-    const existing = getInterviewPrep(entry);
+    // TENANCY — scoped to the authenticated team, so a foreign entry id can neither
+    // read the pack back nor have questions merged into it.
+    const existing = getInterviewPrep(entry, await currentWorkspace());
     if (!existing) {
       return NextResponse.json({ error: "No interview prep to import into — generate it first." }, { status: 404 });
     }
@@ -126,7 +140,9 @@ export async function PATCH(request: NextRequest) {
     // null / "" / missing ⇒ unassign; otherwise the target block's topic (bounded).
     const blockRef = typeof body.blockRef === "string" && body.blockRef.trim() ? body.blockRef.trim().slice(0, MAX_BLOCK_REF_LEN) : null;
 
-    const existing = getInterviewPrep(entry);
+    // TENANCY — as the POST above: the weave writes back into the pack, so the
+    // workspace predicate rides the read that authorizes it.
+    const existing = getInterviewPrep(entry, await currentWorkspace());
     if (!existing) {
       return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
     }

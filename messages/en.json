@@ -1540,7 +1540,20 @@
     "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI needs the endpoint of your resource before its key can be stored.",
     "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "This server has no encryption secret set, so a provider key can’t be stored yet.",
     "MODEL_KEY_REJECTED": "That key couldn’t be stored. Check the endpoint or server URL you gave.",
-    "MODEL_ROUTING_STALE": "Someone re-pinned this use case while you were editing it. The table has been reloaded, so make your change again."
+    "MODEL_ROUTING_STALE": "Someone re-pinned this use case while you were editing it. The table has been reloaded, so make your change again.",
+    "SCHEDULE_ACTION_REQUIRED": "No scheduling action was named. Reload the tab and try again.",
+    "SCHEDULE_ACTION_UNKNOWN": "That scheduling action isn't one this app performs.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Pick a candidate and a time before booking.",
+    "SCHEDULE_TOKEN_REQUIRED": "That interview link is missing. Reload the tab and try again.",
+    "SCHEDULE_INVITE_NOT_FOUND": "That interview is no longer on your calendar. Reload the tab.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Only a confirmed booking can be cancelled. Reload to see where this one stands.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Only a confirmed booking can be marked as a no-show. Reload to see where this one stands.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Only a confirmed booking can be moved. Send a new scheduling link instead.",
+    "SCHEDULE_PROPOSAL_GONE": "That proposed time is no longer on the invite. Reload to see the current proposals.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "That proposed time has passed. Ask the candidate to suggest new times.",
+    "SCHEDULE_NO_PROPOSALS": "There are no proposed times to decline.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "There's nothing left to reconcile on this interview.",
+    "SCHEDULE_MEETING_URL_INVALID": "Enter a valid http(s) meeting link."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3510,7 +3523,9 @@
       "proposalsGroupAria": "Candidate's proposed times",
       "acceptProposal": "Accept {time}",
       "declineProposals": "Decline all",
-      "declineProposalsPrompt": "Decline the proposed times?"
+      "declineProposalsPrompt": "Decline the proposed times?",
+      "cancelling": "Cancelling…",
+      "markingNoShow": "Marking…"
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
@@ -3732,7 +3747,9 @@
       "noteWaiting": "Waiting here",
       "noteHere": "You are here",
       "noteNext": "Next"
-    }
+    },
+    "liveStale": "Live interview status is out of date.",
+    "liveRetry": "Retry"
   },
   "library": {
     "tab": {

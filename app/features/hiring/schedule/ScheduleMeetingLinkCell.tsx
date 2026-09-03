@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Link2, Pencil, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #4) — shared dismissal
 // primitive, replacing the hand-rolled `fixed inset-0` viewport blanket that ate
 // the first outside click and gave no focus-return.
@@ -70,7 +71,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
   return (
     <span ref={containerRef} className="relative inline-flex items-center gap-1">
       {url ? (
-        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-coral hover:underline">
+        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-meta normal-case text-coral hover:underline">
           <Video size={12} aria-hidden /> {t("join")}
         </a>
       ) : null}
@@ -81,7 +82,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
         aria-label={url ? t("editLink") : t("addLink")}
         aria-haspopup="dialog"
         aria-expanded={editing}
-        className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-steel hover:border-coral/40 hover:text-ink"
+        className={`${BTN_SECONDARY} bg-white px-1.5 py-0.5 text-meta normal-case text-steel hover:text-ink`}
       >
         {url ? (
           <Pencil size={11} aria-hidden />
@@ -94,7 +95,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
       {editing ? (
         // Dismissal (Escape / outside press) via usePopoverDismiss — no blanket
         // button that would swallow the first outside click.
-        <div role="dialog" aria-label={url ? t("editLink") : t("addLink")} className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-stone-200 bg-white p-2 shadow-pop">
+        <div role="dialog" aria-label={url ? t("editLink") : t("addLink")} className={`${PANEL} absolute right-0 top-full z-50 mt-1 w-64 p-2 shadow-pop`}>
             <TextInput
               autoFocus
               value={value}
@@ -108,16 +109,16 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
               sizeVariant="sm"
               className="py-1"
             />
-            {error ? <p className="mt-1 text-xs text-coral">{error}</p> : null}
+            {error ? <p className="mt-1 text-micro text-coral">{error}</p> : null}
             <div className="mt-2 flex items-center justify-end gap-1.5">
-              <button type="button" onClick={() => setEditing(false)} className="focus-ring rounded px-2 py-1 text-xs font-semibold text-steel hover:text-ink">
+              <button type="button" onClick={() => setEditing(false)} className={`${BTN_GHOST} px-2 py-1 text-meta normal-case`}>
                 {t("cancel")}
               </button>
               <button
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="focus-ring rounded-md bg-ink px-2.5 py-1 text-xs font-semibold text-white hover:bg-steel disabled:opacity-50"
+                className={`${BTN_PRIMARY} bg-ink px-2.5 py-1 text-meta normal-case hover:bg-steel`}
               >
                 {t("save")}
               </button>

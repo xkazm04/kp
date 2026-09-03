@@ -48,25 +48,25 @@ export function AgendaRow({
       {i.jobTitle ? <span className="text-steel">· {i.jobTitle}</span> : null}
       {/* idea-b51106df — the candidate's own timezone, so the recruiter
           reads slotLine() (their local time) knowing where the candidate is. */}
-      {i.candidateTz ? <span className="text-xs text-steel" title={i.candidateTz}>· {i.candidateTz}</span> : null}
+      {i.candidateTz ? <span className="text-micro text-steel" title={i.candidateTz}>· {i.candidateTz}</span> : null}
       {inProgress ? (
-        <span className="rounded-full bg-coral/15 px-1.5 py-0.5 text-xs font-semibold text-coral">{t("inProgress")}</span>
+        <span className="rounded-full bg-coral/15 px-1.5 py-0.5 text-meta normal-case text-coral">{t("inProgress")}</span>
       ) : null}
       {i.rescheduleCount > 0 ? (
-        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-meta normal-case text-amber-800">
           {t("rescheduled", { count: i.rescheduleCount })}
         </span>
       ) : null}
       {/* idea-87af39c5 — the candidate's RSVP, an early no-show signal. */}
       {i.attendanceStatus === "confirmed" ? (
-        <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-xs font-semibold text-moss">{t("attendanceConfirmed")}</span>
+        <span className="rounded-full bg-moss/15 px-1.5 py-0.5 text-meta normal-case text-moss">{t("attendanceConfirmed")}</span>
       ) : null}
       <span className="ml-auto flex items-center gap-2">
         {/* W1.4 second half — whether this booking actually reached the connected
             calendar. Best-effort writes have to be visible or a silent failure is
             indistinguishable from a working integration. */}
         <CalendarEventChip state={i.calendarEventState} link={i.calendarEventLink} t={t} />
-        <span className="text-xs text-steel">
+        <span className="text-micro text-steel">
           {i.reminderSentAt ? t(relayConfigured === false ? "reminderQueued" : "reminderSent") : t("reminderPending")}
         </span>
         <MeetingLinkCell token={i.token} url={i.meetingUrl} onSaved={(patch) => onSavedInvite(i.token, patch)} />

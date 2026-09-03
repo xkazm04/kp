@@ -1540,7 +1540,20 @@
     "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI braucht den Endpunkt Ihrer Ressource, bevor der Schlüssel gespeichert werden kann.",
     "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Auf diesem Server ist kein Verschlüsselungsgeheimnis gesetzt, deshalb lässt sich noch kein Anbieterschlüssel speichern.",
     "MODEL_KEY_REJECTED": "Der Schlüssel konnte nicht gespeichert werden. Prüfen Sie den angegebenen Endpunkt oder die Server-URL.",
-    "MODEL_ROUTING_STALE": "Jemand hat diesen Anwendungsfall neu zugewiesen, während Sie ihn bearbeitet haben. Die Tabelle wurde neu geladen, nehmen Sie Ihre Änderung noch einmal vor."
+    "MODEL_ROUTING_STALE": "Jemand hat diesen Anwendungsfall neu zugewiesen, während Sie ihn bearbeitet haben. Die Tabelle wurde neu geladen, nehmen Sie Ihre Änderung noch einmal vor.",
+    "SCHEDULE_ACTION_REQUIRED": "Es wurde keine Planungsaktion angegeben. Laden Sie den Tab neu und versuchen Sie es erneut.",
+    "SCHEDULE_ACTION_UNKNOWN": "Diese Planungsaktion führt die App nicht aus.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Wählen Sie vor der Buchung eine Kandidatin oder einen Kandidaten und eine Zeit.",
+    "SCHEDULE_TOKEN_REQUIRED": "Der Interview-Link fehlt. Laden Sie den Tab neu und versuchen Sie es erneut.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Dieses Interview steht nicht mehr in Ihrem Kalender. Laden Sie den Tab neu.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann storniert werden. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann als Nichterscheinen markiert werden. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann verschoben werden. Senden Sie stattdessen einen neuen Planungslink.",
+    "SCHEDULE_PROPOSAL_GONE": "Dieser vorgeschlagene Termin steht nicht mehr auf der Einladung. Laden Sie die aktuellen Vorschläge neu.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Dieser vorgeschlagene Termin ist verstrichen. Bitten Sie um neue Terminvorschläge.",
+    "SCHEDULE_NO_PROPOSALS": "Es gibt keine vorgeschlagenen Termine zum Ablehnen.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "Bei diesem Interview gibt es nichts mehr abzugleichen.",
+    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3510,7 +3523,9 @@
       "proposalsGroupAria": "Vom Kandidaten vorgeschlagene Termine",
       "acceptProposal": "{time} annehmen",
       "declineProposals": "Alle ablehnen",
-      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?"
+      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?",
+      "cancelling": "Wird storniert…",
+      "markingNoShow": "Wird markiert…"
     },
     "eyebrow": "Entscheidungen · Planung",
     "title": "Interview-Kalender",
@@ -3732,7 +3747,9 @@
       "noteWaiting": "Wartet hier",
       "noteHere": "Sie sind hier",
       "noteNext": "Als Nächstes"
-    }
+    },
+    "liveStale": "Der Live-Status der Interviews ist veraltet.",
+    "liveRetry": "Erneut versuchen"
   },
   "library": {
     "tab": {
