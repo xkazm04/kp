@@ -9,9 +9,9 @@
 // every catalog-backed label already said Assignment.
 
 /** The files the localization pass migrated. Adding a file here is how the ratchet
- *  grows. The studio files NOT listed (the outbox view, the eval panel's own chrome,
- *  the lifecycle rows, `DevTabViews.ts`) are still English and are a stated gap in
- *  docs/features/dev-case/README.md — a known gap, not an oversight. */
+ *  grows. The studio files NOT listed (the eval panel's own chrome, the lifecycle
+ *  rows) are still English and are a stated gap in docs/features/dev-case/README.md —
+ *  a known gap, not an oversight. */
 export const STUDIO_LOCALIZED_FILES = [
   "DevAnalysisView.tsx",
   "DevAnalysisDesignCard.tsx",
@@ -38,6 +38,18 @@ export const STUDIO_LOCALIZED_FILES = [
   "DevProbeStrengthBanner.tsx",
   "DevScoreBar.tsx",
   "DevShared.tsx",
+  // Round 10: the studio's MASTHEAD and its sub-navigation. `DevTabViews.ts` held the
+  // three sub-tab labels, headings and blurbs as English literals — the last
+  // user-facing copy on this surface outside the catalogs, rendered under a localized
+  // eyebrow, so a cs/de/fr reader got a translated kicker over an English headline. It
+  // now carries KEYS, which is why a .ts module belongs on a list of .tsx files: the
+  // ratchet's job here is to keep it that way. `DevTabSwitcher.tsx` carried the
+  // tablist's accessible name in English AND under a second name for the module ("Dev
+  // studio sections"); `OutboxSection.tsx` passed the stale-banner's subject as a bare
+  // English noun.
+  "DevTabViews.ts",
+  "DevTabSwitcher.tsx",
+  "OutboxSection.tsx",
 ] as const;
 
 /** Comments are allowed to hold English prose — including the retired words a

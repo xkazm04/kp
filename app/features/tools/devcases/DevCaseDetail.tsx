@@ -163,12 +163,12 @@ export function CaseDetail({
           </summary>
           <div className="space-y-3 border-t border-stone-200 px-4 py-3">
             {seedDegraded ? (
-              <p className="text-xs text-amber-700">{t("seedSkeletonWarning")}</p>
+              <p className="text-micro text-amber-700">{t("seedSkeletonWarning")}</p>
             ) : null}
             {seedFiles.map((f) => (
               <div key={f.path}>
-                <p className="font-mono text-xs font-semibold text-ink">{f.path}</p>
-                <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-stone-200 bg-stone-50 p-2 font-mono text-[11px] leading-relaxed text-steel">
+                <p className="font-mono text-micro font-semibold text-ink">{f.path}</p>
+                <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-stone-200 bg-stone-50 p-2 font-mono text-micro leading-relaxed text-steel">
                   {seedPreview(f.contents)}
                 </pre>
               </div>

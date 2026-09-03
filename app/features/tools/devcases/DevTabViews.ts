@@ -3,35 +3,33 @@
 // state only — the tab owns its own sub-navigation, the workspace-level ?tab=
 // param stays untouched.
 //
-// ONE THREAD (gap 7): this module holds the only user-facing copy for the surface
-// that is NOT in the four catalogs, which is exactly why it kept saying "Cases"
-// long after the nav tab, the table header and the empty ledger said Assignment —
-// no locale gate reads it. `devcase-vocabulary.test.ts` now source-guards it. Its
-// strings being English-only is a SEPARATE, still-open gap: fixing the word costs
-// nothing, localizing the module is a change of its own.
-import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
+// ONE THREAD (gap 7), closed. This module used to hold the only user-facing copy on
+// this surface that was NOT in the four catalogs, which is exactly why it kept saying
+// "Cases" long after the nav tab, the table header and the empty ledger said
+// Assignment — no locale gate reads a string literal, so nothing could notice, and
+// `devcase-vocabulary.test.ts` had to source-guard the WORD while the LANGUAGE stayed
+// English for every cs/de/fr reader. It now carries catalog KEYS instead of copy: the
+// word is guarded by the ordinary catalog walk (one gate, not two) and the headings
+// render in the reader's own language.
+//
+// Keys, not sentences, is the whole point — a component that holds a key cannot drift
+// from the catalog without `tsc` saying so, because next-intl keys are typed.
 
+/** The sub-tabs, in the order they are offered. `id` is STATE (it selects a view and
+ *  is not copy — "cases" must not move); `labelKey` names the word on the chip,
+ *  resolved under `devcase.studio`. */
 export const DEV_VIEWS = [
-  { id: "cases", label: "Assignments" },
-  { id: "define", label: "Define need" },
-  { id: "outbox", label: "Outbox" },
+  { id: "cases", labelKey: "views.cases.label" },
+  { id: "define", labelKey: "views.define.label" },
+  { id: "outbox", labelKey: "views.outbox.label" },
 ] as const;
 export type DevView = (typeof DEV_VIEWS)[number]["id"];
 
-export const VIEW_HEADING: Record<DevView, { title: string; blurb: string }> = {
-  cases: {
-    title: "Active assignments",
-    blurb:
-      "Every designed assignment in one place — stage, intake and evaluations. Click an assignment to read the full brief and its internal probe material.",
-  },
-  define: {
-    title: "Define the need",
-    blurb:
-      `Pick the job description and point us at the real codebases it covers (up to ${MAX_CODEBASES}). The engine reflects what the JD says you need against what the code actually is — surfacing the gaps before we design an assignment. Assume the candidate's code is LLM-generated; we'll grade judgment, not typing.`,
-  },
-  outbox: {
-    title: "Comms outbox",
-    blurb:
-      "Every message the pipeline sent — intake acknowledgements, promote invites, recruiter outreach, and rejections.",
-  },
-};
+/** The page header for each view, as KEYS under `devcase.studio`. The define blurb
+ *  takes `max` — the codebase cap comes from `devcase-constraints.ts`, so the number a
+ *  reader is promised and the number the form enforces cannot disagree. */
+export const VIEW_HEADING = {
+  cases: { titleKey: "views.cases.title", blurbKey: "views.cases.blurb" },
+  define: { titleKey: "views.define.title", blurbKey: "views.define.blurb" },
+  outbox: { titleKey: "views.outbox.title", blurbKey: "views.outbox.blurb" },
+} as const satisfies Record<DevView, { titleKey: string; blurbKey: string }>;

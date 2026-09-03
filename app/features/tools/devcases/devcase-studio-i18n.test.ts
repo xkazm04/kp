@@ -187,12 +187,31 @@ const CALLS: [string, Record<string, unknown>][] = [
   ["need.reflecting", {}],
   ["need.analyzeOnly", {}],
   ["need.recent", {}],
+  // Round 10: the masthead. The three sub-tab headings lived in DevTabViews.ts as
+  // English literals and are now keys; `sectionsLabel` is the tablist's accessible
+  // name, which used to be the literal "Dev studio sections". The define blurb is the
+  // only one that takes a value, and it is the SHARED codebase cap - a locale that
+  // drops the placeholder promises the reader a different number than the form
+  // enforces, so the value is passed exactly as DevTab passes it.
+  ["sectionsLabel", {}],
+  ["views.cases.label", {}],
+  ["views.cases.title", {}],
+  ["views.cases.blurb", {}],
+  ["views.define.label", {}],
+  ["views.define.title", {}],
+  ["views.define.blurb", { max: 3 }],
+  ["views.outbox.label", {}],
+  ["views.outbox.title", {}],
+  ["views.outbox.blurb", {}],
 ];
 
 // The round-9 namespaces that sit under `devcase`, not `devcase.studio`: they are
 // shared vocabularies (a provenance word, an interviewer's lead, a score's accessible
 // name) rather than one screen's copy, so they hang beside `devcase.probeKind`.
 const DEVCASE_CALLS: [string, Record<string, unknown>][] = [
+  // Round 10: the stale-banner's subject. It was the bare English noun "the comms
+  // outbox" passed into LoadStatus, on both the empty and the populated branch.
+  ["outbox.loadLabel", {}],
   ["provenance.chipTitle", { step: "Evaluate", source: "Claude CLI" }],
   ["provenance.aria", { detail: "Evaluate via Claude CLI" }],
   ["provenance.ariaStep", { step: "Evaluate", source: "Claude CLI" }],
@@ -258,6 +277,35 @@ for (const locale of LOCALES) {
     }
   });
 }
+
+test("the sub-tab definitions carry KEYS, and every one of them resolves in all four locales", () => {
+  // The masthead is the one place a reader looks to find out what surface they are on,
+  // and DevTabViews.ts used to answer in English only: `{ id: "cases", label: "Assignments" }`
+  // plus a VIEW_HEADING table of English titles and blurbs, rendered UNDER a localized
+  // eyebrow. The source ratchet above cannot see any of it - its extractor reads JSX text
+  // and literal attributes, and this is a plain .ts module - so nothing in the suite could
+  // have noticed. This is the guard that fits the shape: the module must hold KEYS, and
+  // every key it holds must exist in every catalog.
+  const src = readFileSync(path.join(DIR, "DevTabViews.ts"), "utf8");
+  const keys = [...src.matchAll(/(?:labelKey|titleKey|blurbKey):\s*"([^"]+)"/g)].map((m) => m[1]);
+  assert.equal(keys.length, 9, "three views x label/title/blurb - the module changed shape and this guard is blind");
+
+  // NON-VACUITY / fail-first: against HEAD these fields were `label:` / `title:` / `blurb:`
+  // holding sentences, so the match above found nothing and this assertion failed first.
+  for (const key of keys) {
+    assert.match(key, /^views\.(cases|define|outbox)\.(label|title|blurb)$/, `${key} is not a catalog key`);
+  }
+
+  for (const locale of LOCALES) {
+    const t = translator(locale);
+    for (const key of keys) {
+      // The define blurb takes the shared codebase cap; the others ignore it.
+      const out = String(t(key, { max: 3 })).trim();
+      assert.ok(out.length > 0 && !out.includes("devcase.studio"), `${locale} is missing devcase.studio.${key}`);
+      assert.ok(!/[{}]/.test(out), `${locale} devcase.studio.${key} left an unresolved placeholder: ${out}`);
+    }
+  }
+});
 
 test("every pipeline step the strip can be handed has a catalog name, in both directions", () => {
   // The strip degrades an unknown step to a capitalised raw id — good behaviour, and

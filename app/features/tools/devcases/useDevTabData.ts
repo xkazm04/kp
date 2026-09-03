@@ -1,13 +1,14 @@
 // Case/posting/lifecycle/outbox loaders + the JD picker + the codebase-refs form
 // fields, split out of DevTab.tsx. Everything here is read/intake state; the
 // write actions (publish/source/approve/lifecycle-run) stay in useDevTabActions.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTranslations } from "next-intl";
 import { useLoader } from "@/app/_lib/useLoader";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 import type { DevCaseDetail, JdSummary, Lifecycle, OutboxItem, Posting, SelectedJd } from "./DevTypes";
 import { buildNeed } from "./buildNeed";
+import { shouldReloadOnReturn } from "./outboxRefresh";
 
 export function useDevTabData() {
   const t = useTranslations("devcase.studio.jds");
@@ -50,12 +51,52 @@ export function useDevTabData() {
     (p) => (p.outbox as OutboxItem[]) ?? [],
     [],
   );
+  // When the outbox last STARTED a load. Read by the return-to-tab refresh below to
+  // collapse the focus/visibilitychange double-fire and to throttle an alt-tabbing
+  // reader; a ref, not state, because changing it must not re-render the tab.
+  const outboxAttemptAt = useRef<number | null>(null);
+  const reloadOutbox = useCallback(() => {
+    outboxAttemptAt.current = Date.now();
+    return loadOutbox();
+  }, [loadOutbox]);
+
   useEffect(() => {
     loadCases();
     loadPostings();
     loadLifecycles();
-    loadOutbox();
-  }, [loadCases, loadPostings, loadLifecycles, loadOutbox]);
+    reloadOutbox();
+  }, [loadCases, loadPostings, loadLifecycles, reloadOutbox]);
+
+  // Refresh the outbox when the reader COMES BACK to the tab. Dead letters and bounce
+  // receipts are produced by the relay long after the click that queued the message,
+  // so a tab left open showed a snapshot from before the failure existed. Returning is
+  // the one moment we know the reader is about to trust what is on screen. The
+  // decision (which event, how often) is the pure `shouldReloadOnReturn`; staleness
+  // semantics are untouched, because this goes through the same loader as every other
+  // read — a failed refresh keeps the last good rows and leaves the stale pill up.
+  useEffect(() => {
+    const onReturn = (event: "focus" | "visibilitychange") => () => {
+      if (
+        !shouldReloadOnReturn({
+          event,
+          visibility: document.visibilityState === "visible" ? "visible" : "hidden",
+          lastAttemptAt: outboxAttemptAt.current,
+          now: Date.now(),
+        })
+      ) {
+        return;
+      }
+      reloadOutbox();
+    };
+    const onFocus = onReturn("focus");
+    const onVisibility = onReturn("visibilitychange");
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [reloadOutbox]);
 
   // The saved-JD library backing the picker (same source as the Analyze tab).
   const [jdsReloadKey, setJdsReloadKey] = useState(0);
@@ -134,7 +175,7 @@ export function useDevTabData() {
     cases, casesState, loadCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
-    outbox, outboxState, loadOutbox,
+    outbox, outboxState, loadOutbox: reloadOutbox,
     buildNeed: build,
   };
 }

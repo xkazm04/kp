@@ -69,12 +69,12 @@ export function DevPublishConfirm({
           <p className="flex items-center gap-1.5 text-meta font-semibold text-amber-700">
             <AlertTriangle size={13} /> {t("degradedTitle")}
           </p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-xs text-amber-800">
+          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-micro text-amber-800">
             {publishReasons.map((r) => (
               <li key={r}>{tReason(r)}</li>
             ))}
           </ul>
-          <label className="mt-2 flex items-start gap-2 text-xs font-medium text-amber-900">
+          <label className="mt-2 flex items-start gap-2 text-micro font-medium text-amber-900">
             <input
               type="checkbox"
               checked={ackDegraded}

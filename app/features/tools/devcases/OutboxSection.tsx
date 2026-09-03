@@ -78,7 +78,7 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
   if (outbox.length === 0) {
     return (
       <div className="space-y-3">
-        <LoadStatus state={state} label="the comms outbox" />
+        <LoadStatus state={state} label={t("loadLabel")} />
         <div className="rounded-lg border border-dashed border-stone-300 bg-white p-10 text-center">
           <Send size={22} className="mx-auto text-steel" aria-hidden />
           <p className="mt-2 text-base font-semibold text-ink">{t("emptyTitle")}</p>
@@ -96,7 +96,7 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
           the recruiter reading a dead letter that had already been re-dispatched — or
           missing one that had just arrived — with nothing on screen saying the view
           was stale. */}
-      <LoadStatus state={state} label="the comms outbox" />
+      <LoadStatus state={state} label={t("loadLabel")} />
 
       <p className="text-micro text-steel">
         {t.rich("relayHint", {
