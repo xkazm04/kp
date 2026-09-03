@@ -37,6 +37,16 @@ env:
   # OPENAI_BASE_URL: "http://ollama.default.svc.cluster.local:11434/v1"  # self-hosted model
 extraEnv: {}                     # any additional non-secret env, merged in
 
+# A node drain evicts the only replica, and kp is down for a reschedule plus a PVC
+# reattach. Every other statement of the single-instance rule is addressed to
+# whoever runs `helm install`; a PodDisruptionBudget is addressed to whoever runs
+# `kubectl drain`, and they are frequently different people on different days.
+# Blocking voluntary eviction outright is the correct behaviour for a database
+# that cannot be moved without downtime. Turn it off to permit drains — which is a
+# decision to accept the outage, taken deliberately rather than discovered.
+podDisruptionBudget:
+  enabled: true
+
 # Pod identity. kp calls NO Kubernetes API — it serves HTTP, writes one SQLite file
 # on the mounted volume and spawns a local Python process — so the correct
 # permission set is empty (the chart ships no Role and no RoleBinding) and the

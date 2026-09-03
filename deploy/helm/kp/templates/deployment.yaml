@@ -22,6 +22,16 @@ spec:
       annotations:
         # Roll the pod when the (non-secret) config changes.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if not .Values.existingSecret }}
+        # ...and when the credentials change. envFrom.secretRef is read ONCE at
+        # container start, so `helm upgrade --set auth.secret=<new>` updated the
+        # Secret object, left the running pod holding the old value and reported
+        # success — a rotation that appears to have happened, after which the
+        # operator retires the old credential. Only the chart-rendered Secret can
+        # be hashed; with existingSecret the chart renders none (see the note in
+        # docs/architecture/self-hosting.md on rotating a pre-created Secret).
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

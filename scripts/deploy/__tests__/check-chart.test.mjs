@@ -75,6 +75,10 @@ const GOOD = {
     '  strategy:',
     '    type: Recreate',
     '  template:',
+    '    metadata:',
+    '      annotations:',
+    '        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}',
+    '        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}',
     '    spec:',
     '      serviceAccountName: kp',
     '      automountServiceAccountToken: false',
@@ -110,6 +114,7 @@ GOOD.templates = {
   'serviceaccount.yaml': 'apiVersion: v1\nkind: ServiceAccount\nautomountServiceAccountToken: false\n',
   'ingress.yaml': '{{- if .Values.ingress.enabled }}\nkind: Ingress\n{{- end }}\n',
   'pvc.yaml': 'kind: PersistentVolumeClaim\n',
+  'pdb.yaml': 'kind: PodDisruptionBudget\nspec:\n  minAvailable: 1\n',
   '_helpers.tpl': '{{- define "kp.name" -}}kp{{- end -}}\n',
   'NOTES.txt': 'KP is deploying.\n',
 };
@@ -287,6 +292,32 @@ check('THE OTHER TIDY-UP: both probes pointed at one endpoint', () => {
   // And the shape that must stay clean: different questions, different reads.
   assert.equal(probeEndpoint(GOOD.values, 'livenessProbe'), 'tcp:http');
   assert.equal(probeEndpoint(GOOD.values, 'readinessProbe'), 'http:/api/health');
+});
+
+check('a node drain that nothing refuses', () => {
+  const noPdb = { ...GOOD.templates };
+  delete noPdb['pdb.yaml'];
+  const reviewed = new Map([...REVIEWED_TEMPLATES].filter(([n]) => n !== 'pdb.yaml'));
+  assert.ok(has(runPolicies({ ...GOOD, templates: noPdb, reviewed }), 'no-disruption-budget'));
+  // The decorative form: the object exists and constrains nothing, which is the
+  // failure the values/Deployment pairing above exists to catch elsewhere.
+  assert.ok(
+    has(runPolicies({ ...GOOD, templates: { ...GOOD.templates, 'pdb.yaml': 'kind: PodDisruptionBudget\nspec: {}\n' } }), 'no-disruption-budget'),
+  );
+});
+
+check('a credential rotation the running pod never sees', () => {
+  // The ConfigMap is hashed and the Secret is not: `helm upgrade --set
+  // auth.secret=<new>` then reports success while the container still holds the
+  // old value, because envFrom.secretRef is read once at start.
+  const noHash = GOOD.deployment.replace(
+    '        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}\n',
+    '',
+  );
+  assert.ok(has(broken({ deployment: noHash }), 'secret-not-in-rollout-checksum'));
+  // Hashing the ConfigMap twice under the secret's name is not the same fact.
+  const wrongFile = GOOD.deployment.replace('"/secret.yaml"', '"/configmap.yaml"');
+  assert.ok(has(broken({ deployment: wrongFile }), 'secret-not-in-rollout-checksum'));
 });
 
 check('a shared volume access mode', () => {

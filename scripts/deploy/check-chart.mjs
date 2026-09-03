@@ -85,6 +85,7 @@ export const REVIEWED_TEMPLATES = new Map([
   ['serviceaccount.yaml', 'pod identity with no Role and no token — kp calls no Kubernetes API'],
   ['ingress.yaml', 'optional (ingress.enabled), routes to the Service by name'],
   ['pvc.yaml', 'the RWO volume holding the SQLite database, annotated keep'],
+  ['pdb.yaml', 'the single-instance invariant addressed to whoever drains the node'],
   ['_helpers.tpl', 'names and labels only; renders no object of its own'],
   ['NOTES.txt', 'post-install prose for the operator; renders no object'],
 ]);
@@ -372,6 +373,30 @@ export const POLICIES = [
           'rather than remove it from service.'
         : null;
     },
+  },
+  {
+    rule: 'no-disruption-budget',
+    why:
+      'One replica on one RWO volume: a node drain is a full outage, and the three in-pod rules that defend the ' +
+      'single-writer invariant cannot see it coming.',
+    check: ({ templates }) => {
+      const pdb = Object.entries(templates ?? {}).find(([, t]) => /^kind:\s*PodDisruptionBudget\s*$/m.test(String(t)));
+      if (!pdb) return 'no template declares a PodDisruptionBudget, so `kubectl drain` evicts the only replica silently.';
+      return hasKey(pdb[1], 'minAvailable') || hasKey(pdb[1], 'maxUnavailable')
+        ? null
+        : `${pdb[0]} declares a PodDisruptionBudget with neither minAvailable nor maxUnavailable, which constrains nothing.`;
+    },
+  },
+  {
+    rule: 'secret-not-in-rollout-checksum',
+    why:
+      '`envFrom.secretRef` is read once at container start, so a rotated credential that does not roll the pod is a ' +
+      'rotation that appears to have happened — after which the old value is treated as retired.',
+    check: ({ deployment }) =>
+      /checksum\/secret:\s*\{\{[^}]*secret\.yaml[^}]*sha256sum/.test(deployment)
+        ? null
+        : 'the pod annotations do not hash secret.yaml. The ConfigMap is hashed, so a config change rolls the pod ' +
+          'and a credential change does not — the quieter of the two failures.',
   },
   {
     rule: 'volume-access-mode-shared',
