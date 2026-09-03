@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     // Bounded + de-duped at the trust boundary so a crafted/huge `entries` list
     // can't blow the SQLite variable limit or amplify the IN query (idea-191ccc0c).
     const entries = parseEntriesParam(sp.get("entries"));
-    return NextResponse.json({ status: interviewStatusByEntries(entries) });
+    return NextResponse.json({ status: interviewStatusByEntries(entries, await currentWorkspace()) });
   } catch (error) {
     return safeJsonError(error, "api:interview:by-entry", "INTERVIEW_LOOKUP_FAILED");
   }

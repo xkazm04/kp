@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     // never claim to hold interview records / scores for a candidate who only applied.
     const held = heldDataCategories({
       hasContact: entry.contact != null,
-      hasInterview: interviewStatusByEntries([entry.id])[entry.id] != null,
+      hasInterview: interviewStatusByEntries([entry.id], entry.workspaceId ?? undefined)[entry.id] != null,
       hasScore: entry.matchScore != null,
     });
     return jsonOk({
