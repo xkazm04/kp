@@ -20,6 +20,47 @@ Not on `app/_lib/auth/public-routes.ts`, so a session is required;
 `/api/decisions/records` and `/api/analytics/calibration/apply-threshold` re-verify with
 `requireOperator()` on top.
 
+### The three write doors check a ROLE, not just a session (2026-09-03)
+
+`requireOperator()` answers "is there a valid, non-demo session" — it reads no role
+(`app/_lib/auth/require-operator.ts`). So every seat on the team, `viewer` included,
+could move the live auto-reject floor; and `POST /api/analytics/spend` and
+`POST /api/analytics/targets` carried no gate at all. All three now additionally require
+**`pipeline:write`** (`can()` in `app/_lib/auth/current-user.ts`) — the capability that
+already gates the rest of the recruiter's decision surface. A `viewer` holds `read` only
+and is refused **403 `ANALYTICS_POLICY_FORBIDDEN`**; no session is still 401.
+
+`apply-threshold` also stopped treating the operator's consent as optional.
+`suggestedThreshold` — the number the panel showed — is now **required**: it used to be
+compared only `if (typeof body.suggestedThreshold === "number")`, so a POST that omitted
+it skipped the staleness comparison entirely and applied whatever the live recommendation
+had become. The four outcomes are now distinct codes rather than one prose sentence:
+
+| Outcome | Status | Code |
+| --- | --- | --- |
+| No `suggestedThreshold` in the body | 400 | `CALIBRATION_SUGGESTION_REQUIRED` |
+| A `roleFamily` the app does not define | 400 | `CALIBRATION_FAMILY_UNKNOWN` |
+| Nothing to apply (the honesty gates closed) | 409 | `CALIBRATION_RECOMMENDATION_ABSENT` |
+| The live recommendation moved (carries `recommendation`) | 409 | `CALIBRATION_RECOMMENDATION_CHANGED` |
+
+`AnalyticsThresholdSuggestion.tsx` resolves the code through `useErrorMessage()`, so
+"the recommendation changed under you" and "the write fell over" no longer render the
+same red line. Pinned by `app/api/analytics/analytics-writes-authority.test.ts`.
+
+### Three expensive reads carry a per-IP budget
+
+`metric-pack`, `decisions` and `calibration/threshold-history` spend CPU and the shared
+SQLite connection rather than provider credit, which is why they had no limiter — and the
+metric pack hangs off a **download link**, which a browser or a prefetcher can pull with
+no click. Each now calls `rateLimit()` after its cheap refusals, answering
+`TOO_MANY_REQUESTS` (429): metric-pack 30/10 min, decisions 120/10 min (the log pages 20
+at a time on scroll), threshold-history 60/10 min. Pinned in
+`app/api/rate-limit-contract.test.ts`.
+
+`threshold-history` stays ungated by role deliberately — it returns policy-level seals
+(`policy:screening:*`, no candidate PII) and aggregate band rates, the same exposure class
+as the `/calibration` reads beside it. That is precisely why it needed a budget.
+
 ## Three sections, not one scroll
 
 | Section (`?sec=`) | Question | Holds |
@@ -616,10 +657,10 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time |
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
-| `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()`) |
+| `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
 | `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only); the sealed floor-over-time strip, read by the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain |
-| `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input |
-| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
+| `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
+| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
 | `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |

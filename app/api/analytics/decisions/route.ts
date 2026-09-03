@@ -25,8 +25,16 @@ import {
   matchesSubject,
   type SubjectScan,
 } from "@/app/features/insights/analytics/analyticsDecisionLogTypes";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
+// THROTTLE (2026-09-03). The `?q=` path abandons SQL paging and refines IN THIS
+// HANDLER: it pulls up to MAX_SUBJECT_SCAN rows, folds diacritics on every one and
+// collates with Intl - per request, per keystroke a client cares to send. 120/10min
+// per IP is generous by design (the log pages 20 at a time on scroll, and a recruiter
+// working a long trail legitimately chains pages) while pinning a scripted scan.
+const DECISION_LOG_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
@@ -170,6 +178,11 @@ export async function GET(request: Request) {
     if (filter.matchesNothing) {
       return NextResponse.json({ decisions: [], total: 0, hasMore: false, nextOffset: offset });
     }
+    // After the cheap refusal above: a contradictory filter selects nothing and costs
+    // no budget. Everything past this line reads the trail.
+    if (!rateLimit(`decision-log:${clientIpFrom(request.headers)}`, DECISION_LOG_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     const trailTotal = countPipelineEvents(filter.kinds, ws);
 
     // UAT LUC-ANA-5 — the refined path: a subject search, or an ordering by a text
@@ -201,7 +214,8 @@ export async function GET(request: Request) {
     const nextOffset = offset + decisions.length;
     return NextResponse.json({ decisions, total: trailTotal, hasMore: nextOffset < trailTotal, nextOffset });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load the decision log.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Two full-table reads plus the sealed-record joins, all over the store's own
+    // connection: a constraint string or the db path was reaching the analytics tab.
+    return safeJsonError(error, "api:analytics/decisions", "DECISION_LOG_LOAD_FAILED");
   }
 }

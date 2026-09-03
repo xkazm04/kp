@@ -1478,7 +1478,17 @@
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "This assignment is no longer awaiting review. Reload to see where it is now.",
     "MATCH_RUN_FAILED": "Could not rank that candidate against the roles. Please try again.",
     "MATCH_INPUT_INVALID": "That candidate could not be resolved. The profile or analysis behind it is gone.",
-    "BENCHMARK_ROLE_FAMILY_REQUIRED": "That benchmark named no role family."
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "That benchmark named no role family.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Could not save that spend figure. Please try again.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Could not save that target. Please try again.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Could not build the metric pack. Please try again.",
+    "DECISION_LOG_LOAD_FAILED": "Could not load the decision log. Please try again.",
+    "CALIBRATION_APPLY_FAILED": "Could not apply that threshold. Reload the panel and check the current floor.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Your role can't change this team's analytics settings or screening floor.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "That apply named no suggested threshold. Reload the panel and apply the number it shows.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "The recommendation changed since it was shown. Reload and review the current suggestion.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "There is no calibration recommendation to apply right now.",
+    "CALIBRATION_FAMILY_UNKNOWN": "That isn't one of the app's role families."
   },
   "resilience": {
     "notFoundEyebrow": "404",
