@@ -23,3 +23,12 @@ export function makeLatestRequestGuard(): LatestRequestGuard {
     isCurrent: (key) => current === key,
   };
 }
+
+// A request is not always keyed by one value. The posting modal's campaign-pack
+// probe is keyed by the job AND the posting language, and a key built by ad-hoc
+// concatenation is a guard waiting to compare the wrong strings: "a" + "bc" and
+// "ab" + "c" are the same key. Compose keys through here instead — the separator
+// is a character no id or locale tag contains.
+export function requestKey(...parts: string[]): string {
+  return parts.join("\u0000");
+}
