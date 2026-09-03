@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T08:19:48.861Z",
+ "generated_at": "2026-09-03T08:53:28.680Z",
  "provenance": {
-  "git_commit": "f1fcbe25db9cf536ba4513f3d43da77687c9d384",
-  "git_commit_count": 2251,
+  "git_commit": "7d0e7ee73b0c7829ba0085e69f2786316be3afed",
+  "git_commit_count": 2258,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T08:19:48.861Z"
+  "generated_at": "2026-09-03T08:53:28.680Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2873,
+  "files": 2890,
   "groups": 17,
   "use_cases": 12
  },
@@ -389,7 +389,9 @@
     "app/api/agents/report/[token]/route.ts",
     "app/api/agents/route.ts",
     "app/api/llm/activity/route.ts",
+    "app/api/llm/config/llm-config-race.test.ts",
     "app/api/llm/config/route.ts",
+    "app/api/llm/keys/llm-admin-auth.test.ts",
     "app/api/llm/keys/route.ts",
     "app/api/llm/keys/test/route.ts",
     "app/api/llm/test/route.ts",
@@ -436,9 +438,11 @@
     "app/features/settings/models/modelsKeysPanelLogic.test.ts",
     "app/features/settings/models/modelsKeysPanelLogic.ts",
     "app/features/settings/models/modelsProviderNames.ts",
+    "app/features/settings/models/modelsRoutingActions.test.ts",
     "app/features/settings/models/modelsRoutingActions.ts",
     "app/features/settings/models/modelsRoutingSections.test.ts",
     "app/features/settings/models/modelsRoutingSections.ts",
+    "app/features/settings/models/modelsTestReason.test.ts",
     "app/features/settings/models/modelsTestReason.ts"
    ],
    "group": "AI & LLM Infrastructure",
@@ -4897,6 +4901,7 @@
     "app/_lib/ats-config-version.test.ts",
     "app/_lib/attention-tenancy.test.ts",
     "app/_lib/attention.ts",
+    "app/_lib/comms-dispatch-sim.test.ts",
     "app/_lib/comms-resend-outcome.test.ts",
     "app/_lib/comms-resend-outcome.ts",
     "app/_lib/decision-config-version.test.ts",
@@ -5726,7 +5731,13 @@
     "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx",
     "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx",
     "app/features/hiring/schedule/scheduleGridSeeds.test.ts",
-    "app/features/hiring/schedule/scheduleGridSeeds.ts"
+    "app/features/hiring/schedule/scheduleGridSeeds.ts",
+    "app/features/hiring/schedule/scheduleInterviewPrepProgress.test.ts",
+    "app/features/hiring/schedule/scheduleInterviewPrepProgress.ts",
+    "app/features/hiring/schedule/schedulePollBackoff.test.ts",
+    "app/features/hiring/schedule/schedulePollBackoff.ts",
+    "app/features/hiring/schedule/scheduleTabDerived.test.ts",
+    "app/features/hiring/schedule/scheduleTabDerived.ts"
    ],
    "group": "Interview Scheduling",
    "group_id": "fe7fc1b8-4068-4ca9-afbd-c3fc47b2eb17",
@@ -5833,6 +5844,7 @@
     "app/api/interview-prep/import-store.test.ts",
     "app/api/interview-prep/importMerge.test.ts",
     "app/api/interview-prep/importMerge.ts",
+    "app/api/interview-prep/interview-prep-tenancy.test.ts",
     "app/api/interview-prep/route.ts",
     "app/api/interview-prep/scorecard/route.ts",
     "app/api/schedule/[token]/route.ts",
@@ -5844,6 +5856,7 @@
     "app/api/schedule/invite/route.ts",
     "app/api/schedule/meeting-url-tenancy.test.ts",
     "app/api/schedule/route.ts",
+    "app/api/schedule/schedule-lifecycle-refusals.test.ts",
     "app/api/schedule/token-route.test.ts",
     "app/features/hiring/schedule/useScheduleInviteLifecycle.ts",
     "app/features/hiring/schedule/useSchedulePopoverDismiss.test.ts",
@@ -7893,7 +7906,11 @@
     "app/features/shell/simulation/simCompanyTemplate.ts",
     "app/features/shell/simulation/simControlCenterKit.ts",
     "app/features/shell/simulation/simControlDockStyles.ts",
-    "app/features/shell/simulation/simCriteria.ts"
+    "app/features/shell/simulation/simCriteria.ts",
+    "app/features/shell/simulation/simDrafts.test.ts",
+    "app/features/shell/simulation/simDrafts.ts",
+    "app/features/shell/simulation/simRunControl.test.ts",
+    "app/features/shell/simulation/simRunControl.ts"
    ],
    "group": "Workspace Shell & Onboarding",
    "group_id": "88b642b4-d4f5-4a19-a58c-ec4e3889dd1d",
