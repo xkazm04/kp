@@ -763,7 +763,7 @@ export const REFUSAL_ERRORS = {
   SCHEDULE_INTERVIEW_UNAVAILABLE: "This interview is no longer available.",
   /** "Propose your own times" was submitted while the picker still has slots (409).
    *  The escalation exists for a genuine dead-end; the remedy is the list. */
-  SCHEDULE_SLOTS_STILL_OPEN: "There are still open times — please pick one from the list.",
+  SCHEDULE_SLOTS_STILL_OPEN: "There are still open times. Please pick one from the list.",
   /** The proposed instants failed server-side validation (400): out of hours, in the
    *  past, off the horizon, or more than the three the form offers. */
   SCHEDULE_PROPOSALS_INVALID: "Please suggest 1-3 future weekday times during working hours.",
@@ -772,11 +772,11 @@ export const REFUSAL_ERRORS = {
   SCHEDULE_NO_BOOKING_YET: "There's no confirmed time to update yet.",
   /** The submitted instant is not one the server would offer (400). The label is
    *  re-authored server-side, so this is the structural gate on body.slotAt. */
-  SCHEDULE_SLOT_NOT_OFFERED: "That time isn't one of the offered slots — please pick from the list.",
+  SCHEDULE_SLOT_NOT_OFFERED: "That time isn't one of the offered slots. Please pick from the list.",
   /** Every self-reschedule is spent (409). Not a fault: the remedy is the reply the
    *  message names, and the page also offers the propose-your-own-times escalation. */
   SCHEDULE_RESCHEDULE_LIMIT:
-    "You've changed your interview time a few times already — reply to your confirmation email and we'll help you find a slot.",
+    "You've changed your interview time a few times already. Reply to your confirmation email and we'll help you find a slot.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

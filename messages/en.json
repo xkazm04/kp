@@ -1510,11 +1510,11 @@
     "SCHEDULE_LINK_NOT_FOUND": "We couldn't find that scheduling link.",
     "SCHEDULE_LINK_CLOSED": "This scheduling link is no longer active.",
     "SCHEDULE_INTERVIEW_UNAVAILABLE": "This interview is no longer available.",
-    "SCHEDULE_SLOTS_STILL_OPEN": "There are still open times — please pick one from the list.",
+    "SCHEDULE_SLOTS_STILL_OPEN": "There are still open times. Please pick one from the list.",
     "SCHEDULE_PROPOSALS_INVALID": "Please suggest 1-3 future weekday times during working hours.",
     "SCHEDULE_NO_BOOKING_YET": "There's no confirmed time to update yet.",
-    "SCHEDULE_SLOT_NOT_OFFERED": "That time isn't one of the offered slots — please pick from the list.",
-    "SCHEDULE_RESCHEDULE_LIMIT": "You've changed your interview time a few times already — reply to your confirmation email and we'll help you find a slot."
+    "SCHEDULE_SLOT_NOT_OFFERED": "That time isn't one of the offered slots. Please pick from the list.",
+    "SCHEDULE_RESCHEDULE_LIMIT": "You've changed your interview time a few times already. Reply to your confirmation email and we'll help you find a slot."
   },
   "resilience": {
     "notFoundEyebrow": "404",

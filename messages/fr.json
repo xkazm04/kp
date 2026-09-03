@@ -1510,11 +1510,11 @@
     "SCHEDULE_LINK_NOT_FOUND": "Nous n'avons pas trouvé ce lien de prise de rendez-vous.",
     "SCHEDULE_LINK_CLOSED": "Ce lien de prise de rendez-vous n'est plus actif.",
     "SCHEDULE_INTERVIEW_UNAVAILABLE": "Cet entretien n'est plus disponible.",
-    "SCHEDULE_SLOTS_STILL_OPEN": "Il reste des créneaux disponibles — merci d'en choisir un dans la liste.",
+    "SCHEDULE_SLOTS_STILL_OPEN": "Il reste des créneaux disponibles. Merci d'en choisir un dans la liste.",
     "SCHEDULE_PROPOSALS_INVALID": "Proposez 1-3 créneaux à venir, en semaine et pendant les heures ouvrées.",
     "SCHEDULE_NO_BOOKING_YET": "Aucun horaire confirmé n'est encore à modifier.",
-    "SCHEDULE_SLOT_NOT_OFFERED": "Cet horaire ne fait pas partie des créneaux proposés — merci de choisir dans la liste.",
-    "SCHEDULE_RESCHEDULE_LIMIT": "Vous avez déjà déplacé votre entretien plusieurs fois — répondez à votre e-mail de confirmation et nous trouverons un créneau ensemble."
+    "SCHEDULE_SLOT_NOT_OFFERED": "Cet horaire ne fait pas partie des créneaux proposés. Merci de choisir dans la liste.",
+    "SCHEDULE_RESCHEDULE_LIMIT": "Vous avez déjà déplacé votre entretien plusieurs fois. Répondez à votre e-mail de confirmation et nous trouverons un créneau ensemble."
   },
   "resilience": {
     "notFoundEyebrow": "404",

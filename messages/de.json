@@ -1510,11 +1510,11 @@
     "SCHEDULE_LINK_NOT_FOUND": "Diesen Terminlink konnten wir nicht finden.",
     "SCHEDULE_LINK_CLOSED": "Dieser Terminlink ist nicht mehr aktiv.",
     "SCHEDULE_INTERVIEW_UNAVAILABLE": "Dieses Gespräch ist nicht mehr verfügbar.",
-    "SCHEDULE_SLOTS_STILL_OPEN": "Es sind noch Termine frei — bitte wählen Sie einen aus der Liste.",
+    "SCHEDULE_SLOTS_STILL_OPEN": "Es sind noch Termine frei. Bitte wählen Sie einen aus der Liste.",
     "SCHEDULE_PROPOSALS_INVALID": "Bitte schlagen Sie 1-3 künftige Termine an Werktagen innerhalb der Geschäftszeiten vor.",
     "SCHEDULE_NO_BOOKING_YET": "Es gibt noch keinen bestätigten Termin, den Sie ändern könnten.",
-    "SCHEDULE_SLOT_NOT_OFFERED": "Diese Zeit gehört nicht zu den angebotenen Terminen — bitte wählen Sie aus der Liste.",
-    "SCHEDULE_RESCHEDULE_LIMIT": "Sie haben Ihren Gesprächstermin bereits mehrfach verschoben — antworten Sie bitte auf Ihre Bestätigungsmail, dann finden wir gemeinsam einen Termin."
+    "SCHEDULE_SLOT_NOT_OFFERED": "Diese Zeit gehört nicht zu den angebotenen Terminen. Bitte wählen Sie aus der Liste.",
+    "SCHEDULE_RESCHEDULE_LIMIT": "Sie haben Ihren Gesprächstermin bereits mehrfach verschoben. Antworten Sie bitte auf Ihre Bestätigungsmail, dann finden wir gemeinsam einen Termin."
   },
   "resilience": {
     "notFoundEyebrow": "404",
