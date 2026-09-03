@@ -54,7 +54,10 @@
         "app/jds/**",
         "pipeline/jobfit/campaign.py",
         "pipeline/jobfit/campaign_cli.py",
-        "app/features/library/jobs/**"
+        "app/features/library/jobs/**",
+        "app/features/library/jds/**",
+        "app/api/templates/**",
+        "app/_lib/templates-store.ts"
       ]
     },
     {
