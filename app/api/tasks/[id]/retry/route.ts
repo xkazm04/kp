@@ -2,8 +2,15 @@ import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
+import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
+
+// Every accepted retry re-spends — a real LLM call and/or a Python spawn — so this
+// door carries the SAME per-class budget as POST /api/tasks (app/_lib/task-budget.ts)
+// under its own keys, plus a tighter overall bucket of its own.
+const TASKS_RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 
 // DATA1 — one-click replay of a dead task. `params_json` is the exact request
@@ -50,32 +57,41 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // another team's task must be unreachable here, not merely unstartable.
     const ws = await currentWorkspace();
     const task = getTask(id, ws);
-    if (!task) return NextResponse.json({ error: "task not found" }, { status: 404 });
+    if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
     if (!RETRYABLE.has(task.status)) {
-      return NextResponse.json(
-        { error: "Only failed, interrupted or canceled tasks can be retried." },
-        { status: 409 }
-      );
+      // The status rides along so the dock can say WHICH state refused, in the
+      // reader's language, instead of painting this handler's English.
+      return jsonRefusal("TASK_NOT_RETRYABLE", 409, { status: task.status });
     }
     // A kind this build no longer knows (row from an older version) can't replay.
     if (!isKnownKind(task.kind)) {
-      return NextResponse.json({ error: `This task kind ("${task.kind}") no longer exists.` }, { status: 400 });
+      return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: task.kind });
     }
     const params = (task.params as Record<string, unknown>) ?? {};
     // Refuse a replay whose inputs no longer exist (see replayInputsMissing) —
     // BEFORE startTask, so it costs no queue slot and no subprocess.
     if (replayInputsMissing(task.kind, params)) {
-      return NextResponse.json(
-        { error: "The uploaded files for this run have been cleaned up. Upload them again to re-run it." },
-        { status: 409 }
-      );
+      return jsonRefusal("TASK_REPLAY_INPUTS_GONE", 409);
     }
     // THROTTLE (rate-limit-contract.test.ts): every accepted retry re-spends — a real
     // LLM call and/or a Python spawn. Placed AFTER the ownership and status refusals
     // so a rejected click consumes no budget, and before startTask so an accepted one
     // is bounded. Same door as POST /api/tasks (see its header), which this bypasses.
-    if (!rateLimit(`tasks-retry:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    const ip = clientIpFrom(request.headers);
+    if (!rateLimit(`tasks-retry:${ip}`, TASKS_RETRY_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+    // The per-class budget too: a retry of a repo_scan costs exactly what the
+    // original did, and this door bypasses POST /api/tasks entirely. Same keys as
+    // that route, so the two spend ONE workspace allowance between them rather than
+    // two — replaying is not a way to double the budget.
+    const cls = taskBudgetClass(task.kind);
+    const budget = taskBudget(task.kind);
+    if (!rateLimit(`tasks-start:${cls}:${ip}`, budget.ip)) {
+      return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, { budgetClass: cls });
+    }
+    if (budget.workspace && !rateLimit(`tasks-start-ws:${cls}:${ws}`, budget.workspace)) {
+      return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, { budgetClass: cls });
     }
     // The replay is stamped for the SAME tenant the original ran in (which the
     // ownership check above has already proven is the caller's own). Dropping it
@@ -84,7 +100,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const started = startTask(task.kind, params, ws);
     return NextResponse.json({ task: started });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to retry the task.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The row read and the enqueue both go through better-sqlite3; the thrown
+    // message carries the db path and SQLite detail, never client copy.
+    return safeJsonError(error, "api:tasks/retry", "TASK_RETRY_FAILED");
   }
 }

@@ -35,6 +35,7 @@ import {
   type WorkspaceTabDef,
   type WorkspaceTabId,
 } from "@/app/features/shell/tabs";
+import { railTile } from "@/app/_components/ui/recipes";
 import { SECTION_ICON } from "./navMeta";
 import { NavPanelItem } from "./NavPanelItem";
 
@@ -146,9 +147,7 @@ export function NavSectionRail({
         onFocus={() => prefetchSection(group)}
         aria-pressed={current}
         title={label}
-        className={`focus-ring flex flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${
-          current ? "bg-coral/10 text-coral dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
-        }`}
+        className={railTile(current)}
       >
         {Icon ? <Icon size={20} aria-hidden /> : <span className="h-5 w-5 rounded-full bg-current opacity-40" aria-hidden />}
         {/* First-level labels sit one step above the old 11px: the rail is the

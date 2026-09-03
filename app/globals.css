@@ -28,6 +28,16 @@
      app/_lib/brand.ts mirror with one rule instead of a special case. */
   --color-white: #ffffff;
 
+  /* The ONE deliberately theme-INVARIANT surface. `--color-white` is a ROLE (the
+     raised card), so it remaps to #1d2630 after dark — correct for panels, wrong
+     for the plate under an image the app does not control. A tenant's uploaded
+     logo is usually a dark mark on transparency, and on the remapped plate it
+     went near-black on near-black. This token is the plate: the same real white
+     in both registers, declared identically in the dark block below so the pair
+     stays visible to anyone reading either half. Use it ONLY for third-party
+     artwork; a KandiDate surface belongs on `white`/`paper`. */
+  --color-white-fixed: #ffffff;
+
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
   --color-stone-200: #e6ddcc;
@@ -251,6 +261,9 @@ body {
   /* Neutrals — `bg-white` is the raised card surface, stone-* the fills and
      hairlines. Mapped onto the same ink-blue ramp as the canvas. */
   --color-white: #1d2630;
+  /* Deliberately NOT remapped — see the light block: this is the plate under a
+     tenant's own logo, which must stay a real white in both themes. */
+  --color-white-fixed: #ffffff;
   --color-stone-50: #222d39;
   --color-stone-100: #283442;
   --color-stone-200: #364453;

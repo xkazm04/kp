@@ -92,6 +92,11 @@ export const STORE_ERRORS = {
   // SQLITE_* text, the absolute db path and the crypto helper's key detail — all of
   // which the handler used to forward as `error.message`.
   COMMS_RELAY_SAVE_FAILED: "Could not save the relay config. Please try again.",
+  // GET /api/ops (/perfect wave 17, api-workspace). Its catch forwarded the thrown
+  // message for a payload assembled from better-sqlite3 (the db FILE PATH inside a
+  // SQLITE_* text), the seed report (absolute seed paths) and three log tails (the
+  // log directory) — the widest internal-path leak of any single handler.
+  OPS_STATUS_FAILED: "Could not load system status. Please try again.",
   // NOT a thrown store error: GET /api/jobs raises this deliberately when the
   // catalog is empty AND the seed health report names a failed jobs seed. The
   // failing PATH and reason are operator detail — they go to the server log
@@ -296,6 +301,13 @@ export const STORE_ERRORS = {
   SIM_SCREEN_DRAFT_FAILED: "Could not prepare the screening recommendation. Please try again.",
   SIM_OFFER_DRAFT_FAILED: "Could not prepare the offer draft. Please try again.",
   SIM_OFFER_LINK_FAILED: "Could not read the offer link. Please try again.",
+  /** The background-task dock (/perfect wave 17, background-tasks). All three of
+   *  these 500s forwarded the thrown message, which on this path is better-sqlite3
+   *  detail plus the absolute db path — and the dock renders whatever it is handed,
+   *  in every locale. */
+  TASK_LIST_FAILED: "Could not load the AI tasks. Please try again.",
+  TASK_START_FAILED: "Could not start that AI task. Please try again.",
+  TASK_RETRY_FAILED: "Could not re-run that AI task. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -914,6 +926,43 @@ export const REFUSAL_ERRORS = {
   SIM_NO_APPLICANT: "No candidate is available to simulate an application from.",
   SIM_ENTRY_REQUIRED: "The simulation needs a pipeline entry to act on.",
   SIM_ENTRY_NOT_FOUND: "That candidate is not on this board.",
+  /** GET /api/feedback is a read of colleagues' free-text reports WITH their reply
+   *  addresses, so it is `members:manage`-gated (/perfect wave 17, api-workspace).
+   *  One code covers both statuses requireCapability produces — 401 with no session,
+   *  403 for a member who lacks the capability — because the remedy is identical and
+   *  the control room renders the same sentence either way. */
+  FEEDBACK_READ_FORBIDDEN: "Only someone who can manage members may read the feedback inbox.",
+  /** The recruiter feedback door's two validator refusals (/perfect wave 17,
+   *  shell-nav). parseFeedbackSubmission used to put its own English sentence in
+   *  the 400 body and the limiter answered 429 with no code at all, so the dialog
+   *  showed its generic "could not send" to a throttled sender in every locale. */
+  FEEDBACK_MESSAGE_REQUIRED: "Write a message before sending.",
+  /** Keep the number in step with FEEDBACK_MESSAGE_MAX (app/_lib/feedback.ts). */
+  FEEDBACK_MESSAGE_TOO_LONG: "That message is too long. Please shorten it to 2,000 characters or fewer.",
+  // ---- Background-task doors (/perfect wave 17, background-tasks). POST
+  // /api/tasks and POST /api/tasks/[id]/retry answered every refusal with a bare
+  // English sentence and no code, so the dock's start-error banner painted the
+  // server's string at a Czech or French recruiter.
+  /** A kind this build has no handler for (400) — a hand-rolled call, or a row
+   *  written by an older version whose kind has since been dropped. */
+  TASK_KIND_UNKNOWN: "This kind of AI task does not exist in this version.",
+  /** The per-kind budget class refused this start (429). Distinct from
+   *  TOO_MANY_REQUESTS, which is the door's overall burst bucket: this one says
+   *  "too many runs of THIS weight", and the remedy is to wait rather than to slow
+   *  down. The class rides along in `budgetClass`. See app/_lib/task-budget.ts. */
+  TASK_BUDGET_EXHAUSTED: "Too many AI runs of this kind have been started recently. Try again shortly.",
+  /** A task id that resolves to nothing, or to another team's row (404). The two
+   *  stay DELIBERATELY lumped: a distinct refusal would confirm which task ids
+   *  exist on other tenants. */
+  TASK_NOT_FOUND: "That task no longer exists.",
+  /** A replay asked for on a row that is still queued, running, or already
+   *  succeeded (409). The status is re-read server-side, so a dock left open across
+   *  a state change refuses instead of duplicating a live run. */
+  TASK_NOT_RETRYABLE: "Only failed, interrupted or canceled tasks can be re-run.",
+  /** A replay whose uploaded inputs were cleaned up when the original run exited
+   *  (409). Not a fault: runAnalyze deletes its workdir in a `finally`, so the
+   *  honest answer is "upload them again" rather than a second red row. */
+  TASK_REPLAY_INPUTS_GONE: "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

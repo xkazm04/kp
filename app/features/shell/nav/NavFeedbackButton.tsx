@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { railTile } from "@/app/_components/ui/recipes";
 import { FeedbackDialog } from "./FeedbackDialog";
 
 /*
@@ -30,7 +31,7 @@ export function NavFeedbackButton() {
         aria-haspopup="dialog"
         aria-expanded={open}
         title={label}
-        className="focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
+        className={railTile(false)}
       >
         <MessageSquarePlus size={20} aria-hidden />
         <span className="text-[13px] font-semibold leading-tight">{railLabel}</span>

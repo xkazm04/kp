@@ -322,15 +322,36 @@ function serializeResult(result: unknown): string | null {
   }
 }
 
-export function finishTask(id: string, status: TaskStatus, opts: { result?: unknown; error?: string }): void {
+/** Stamp the terminal state on a task. Returns whether the row was actually
+ *  written — false means it had already reached a terminal state and this result
+ *  was dropped.
+ *
+ *  The `status IN ('queued','running')` guard is the same precondition
+ *  markTaskRunning and setTaskProgress have carried all along, and this was the
+ *  one transition without it: terminal is final, so a handler that keeps working
+ *  after a cancel (the abort signal is cooperative — a Python child can take
+ *  seconds to die, an LLM call longer) must not overwrite the `canceled` row with
+ *  `succeeded` and its result, and the wall-clock reaper's `interrupted` must not
+ *  be un-done by the run it gave up on returning a minute later. Both were live
+ *  paths: runOne's finally re-finishes a row the cancel path has already closed.
+ *
+ *  A compensating precondition in the WHERE plus a `changes === 0` skip is the
+ *  second of the two sanctioned read-compute-write strategies (.claude/CLAUDE.md);
+ *  a lock is the wrong tool here because the compute between the read and this
+ *  write is the whole handler run. */
+export function finishTask(id: string, status: TaskStatus, opts: { result?: unknown; error?: string }): boolean {
   const db = ensureDb();
-  db.prepare(`UPDATE tasks SET status=?, result_json=?, error=?, finished_at=? WHERE id=?`).run(
-    status,
-    serializeResult(opts.result),
-    opts.error ?? null,
-    new Date().toISOString(),
-    id
-  );
+  const res = db
+    .prepare(`UPDATE tasks SET status=?, result_json=?, error=?, finished_at=? WHERE id=? AND status IN ('queued','running')`)
+    .run(status, serializeResult(opts.result), opts.error ?? null, new Date().toISOString(), id);
+  if (res.changes === 0) {
+    // Not an error — the row that stands is the answer. Logged because a dropped
+    // SUCCESS means real work whose output nobody will ever see, and an operator
+    // chasing "the scan finished but the row says canceled" needs the trail.
+    console.warn(`[db:task.finish] ${id}: already terminal — dropped a late '${status}' write`);
+    return false;
+  }
+  return true;
 }
 
 /**

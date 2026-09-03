@@ -27,9 +27,26 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { rateLimit } from "../_lib/rate-limit.ts";
+
+const apiDir = path.dirname(fileURLToPath(import.meta.url));
+
+/** Every route module under app/api — for the tree-walking rules at the bottom of
+ *  this file (the named specs above cover one file each). */
+function walk(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      if (e.name !== "node_modules") walk(p, out);
+    } else if (e.name.endsWith(".ts") && !e.name.endsWith(".test.ts")) {
+      out.push(p);
+    }
+  }
+  return out;
+}
 
 function read(rel: string): string {
   // Line endings normalised: a checkout with core.autocrlf=true carries CRLF, and
@@ -131,16 +148,22 @@ const ROUTES: RouteSpec[] = [
     // 120/10min is deliberately generous: a 50-card bulk accept in the Decisions
     // queue is a legitimate 50-request burst.
     rel: "./tasks/route.ts",
-    key: "`tasks-start:${clientIpFrom(request.headers)}`",
+    key: "`tasks-start:${ip}`",
     limit: 120,
+    optsSrc: "TASKS_START_RATE_LIMIT",
+    optsDef: "const TASKS_START_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "startTask(",
   },
   {
     // ADDED scan-sweep 2026-08-22. Every accepted retry re-spends; the limiter sits
     // after the ownership/status refusals so a rejected click costs no budget.
     rel: "./tasks/[id]/retry/route.ts",
-    key: "`tasks-retry:${clientIpFrom(request.headers)}`",
+    key: "`tasks-retry:${ip}`",
     limit: 20,
+    optsSrc: "TASKS_RETRY_RATE_LIMIT",
+    optsDef: "const TASKS_RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     // The CALL SITE, not the bare `startTask(` this file uses elsewhere: that
     // substring also appears in this route's header comment, which precedes the
     // limiter, so the generic marker would fail on prose rather than on ordering.
@@ -641,6 +664,10 @@ const ROUTES: RouteSpec[] = [
     // rejected submission never consumes budget.
     key: "`feedback:${clientIpFrom(request.headers)}`",
     limit: 10,
+    // Moved onto the refusal chokepoint with the feedback-code conversion: the dialog
+    // renders errors.TOO_MANY_REQUESTS instead of falling through to its generic
+    // "couldn't send, try again" and sending the recruiter straight back at the wall.
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "recordFeedback(",
     servedBefore: "parseFeedbackSubmission(body)",
   },
@@ -1207,6 +1234,32 @@ const ROUTES: RouteSpec[] = [
     // The "no customer yet" 404 is the calm pre-first-purchase state; it mints nothing.
     servedBefore: 'jsonRefusal("BILLING_NO_CUSTOMER", 404)',
   },
+  {
+    // ADDED /perfect wave 17 (api-workspace). Not a money or subprocess door — a
+    // COMPUTE one, and the heaviest read per byte of input in the app: five
+    // `LIKE '%q%'` scans, all with a leading wildcard, so every one is a full table
+    // walk (analytics.ts searchEntities). It had no limiter, and in open mode it takes
+    // an unauthenticated path.
+    //
+    // 3000/10min looks absurd next to its neighbours and the reason is pinned here so
+    // nobody "tightens" it: with KP_TRUSTED_PROXY unset, clientIpFrom returns
+    // SHARED_CLIENT_KEY for everyone, so `search:local` is ONE bucket for the whole
+    // deployment — and unlike an apply or login door, tripping it denies the command
+    // palette to every colleague at once. The ceiling has to sit where people cannot
+    // reach it and a script still can.
+    rel: "./search/route.ts",
+    key: "`search:${clientIpFrom(request.headers)}`",
+    limit: 3000,
+    optsSrc: "SEARCH_RATE_LIMIT",
+    optsDef: "const SEARCH_RATE_LIMIT = { limit: 3000, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The call site, not the bare name: `searchEntities(` also appears in the import
+    // line, which necessarily precedes the limiter.
+    expensive: "searchEntities(q,",
+    // A sub-minimum query runs no SQL and the palette sends one on every deletion
+    // keystroke — it must never spend the window.
+    servedBefore: "if (q.length < MIN_QUERY_LENGTH)",
+  },
 ];
 
 for (const spec of ROUTES) {
@@ -1372,3 +1425,118 @@ for (const rel of [
 
   });
 }
+
+// ── the task doors' per-KIND budget (/perfect wave 17, background-tasks) ────
+//
+// POST /api/tasks is ONE door in front of every kind in HANDLERS and carried ONE
+// bucket, 120/10min per IP, calibrated for the cheapest thing that comes through
+// it (the Decisions queue's one-POST-per-accepted-review burst). The same 120
+// admitted 120 repo clones, 120 board-wide screen sweeps and 120 cohort
+// evaluations. The class table is app/_lib/task-budget.ts; these tests pin that
+// BOTH doors consult it, that the numbers stay where this direction put them, and
+// that the workspace half exists — the IP half alone is the wrong unit when a team
+// shares a NAT (and with no trusted proxy configured `clientIpFrom` collapses the
+// whole deployment into one bucket anyway).
+for (const rel of ["./tasks/route.ts", "./tasks/[id]/retry/route.ts"]) {
+  test(`${rel} applies the per-kind budget class on top of the IP bucket`, () => {
+    const src = read(rel);
+    assert.match(src, /from "@\/app\/_lib\/task-budget"/, "must reuse the shared budget table");
+    const clsAt = src.indexOf("rateLimit(`tasks-start:${cls}:${ip}`, budget.ip)");
+    const wsAt = src.indexOf("rateLimit(`tasks-start-ws:${cls}:${ws}`, budget.workspace)");
+    assert.ok(clsAt > 0, "expected the per-class IP bucket");
+    assert.ok(wsAt > clsAt, "expected the per-class WORKSPACE bucket after it");
+    // Both refuse with the code the dock localizes — never the shared throttle
+    // message, whose remedy ("slow down") is not this one's ("wait, this weight of
+    // run is spent").
+    for (const at of [clsAt, wsAt]) {
+      assert.ok(
+        src.slice(at, at + 200).includes('jsonRefusal("TASK_BUDGET_EXHAUSTED", 429'),
+        "the per-kind refusal must carry its own code",
+      );
+    }
+    // …and the whole budget precedes the enqueue.
+    const spend = src.indexOf(rel.includes("retry") ? "startTask(task.kind" : "const task = startTask(");
+    assert.ok(spend > wsAt, "the budget must precede the enqueue, or a refused start still costs a slot");
+    // The retry door reuses the START keys deliberately: replaying must not be a
+    // way to double a workspace's allowance.
+    assert.ok(src.includes("tasks-start-ws:"), "the two doors must share one workspace allowance");
+  });
+}
+
+test("the task budget classes keep the numbers this contract claims", () => {
+  const src = read("../_lib/task-budget.ts");
+  for (const line of [
+    "cheap: { ip: { limit: 120, windowMs: TEN_MIN }, workspace: null },",
+    "metered: { ip: { limit: 30, windowMs: TEN_MIN }, workspace: { limit: 90, windowMs: HOUR } },",
+    "agent: { ip: { limit: 6, windowMs: TEN_MIN }, workspace: { limit: 15, windowMs: HOUR } },",
+  ]) {
+    assert.ok(src.includes(line), `expected the pinned budget line:
+  ${line}`);
+  }
+  assert.ok(src.includes("const TEN_MIN = 10 * 60_000;") && src.includes("const HOUR = 60 * 60_000;"), "…with the pinned windows");
+});
+
+// Drive the REAL limiter with each class's config, the same way the per-route
+// specs above do: every hit up to the limit passes, the next is refused, a fresh
+// window admits again.
+for (const [cls, limit, windowMs] of [
+  ["cheap", 120, 600_000],
+  ["metered", 30, 600_000],
+  ["agent", 6, 600_000],
+  ["metered-ws", 90, 3_600_000],
+  ["agent-ws", 15, 3_600_000],
+] as const) {
+  test(`the ${cls} task budget refuses the hit past its limit (${limit}/${windowMs}ms)`, () => {
+    const t0 = 20_000_000;
+    const key = `task-budget:${cls}:contract`;
+    for (let i = 0; i < limit; i++) assert.equal(rateLimit(key, { limit, windowMs }, t0 + i), true, `hit ${i + 1} must pass`);
+    assert.equal(rateLimit(key, { limit, windowMs }, t0 + limit), false, "the next hit inside the window must be refused");
+    assert.equal(rateLimit(key, { limit, windowMs }, t0 + windowMs + 1), true, "a fresh window must admit again");
+  });
+}
+
+// EVERY startTask has a bucket. The two task doors are pinned by name above, but
+// startTask is reachable from any route file, and each call is a real LLM call
+// and/or a Python spawn. A route that acquires one without a limiter is the exact
+// hole the 2026-08-22 sweep found on ./tasks/route.ts and the 2026-09-03 one found
+// on ./jobs/[id]/agent-fit — both times because nothing walked the tree.
+// Routes that reach startTask with NO limiter ahead of it. Every one is a real
+// gap, not an exemption: all three enqueue `lifecycle`, the heaviest budget class
+// in app/_lib/task-budget.ts (a whole dev-case orchestration, several model steps
+// in sequence), and all three are operator-gated — which open mode makes a
+// documented no-op for the whole API. They are listed rather than fixed here
+// because they belong to the dev-case area and this change owns the task doors;
+// the list is a ratchet in the idiom of error-response-contract.test.ts — a file
+// not on it may not leak at all, and REMOVING a line is the fix.
+const UNTHROTTLED_ENQUEUE = new Set([
+  "devcase/control/route.ts",
+  "devcase/lifecycle/route.ts",
+  "devcase/lifecycle/[id]/approve/route.ts",
+]);
+
+/** Comments masked out — this repo documents its own call sites in prose, and
+ *  ./tasks/[id]/retry/route.ts's header explains the replay as "startTask(kind,
+ *  params)" ABOVE its limiter, which a naive scan reads as an unthrottled call. */
+function withoutComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ 	]*\/\/.*$/gm, "");
+}
+
+test("every route that enqueues a task throttles first", () => {
+  const offenders: string[] = [];
+  let checked = 0;
+  for (const file of walk(apiDir)) {
+    const src = withoutComments(readFileSync(file, "utf8")).replace(/\r\n/g, "\n");
+    // The CALL, not the import or the prose: `startTask(` with an argument.
+    const call = src.search(/\bstartTask\(\s*[^)\s]/);
+    if (call < 0) continue;
+    checked += 1;
+    const limiter = src.indexOf("rateLimit(");
+    const rel = path.relative(apiDir, file).split(path.sep).join("/");
+    if ((limiter < 0 || limiter > call) && !UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(rel);
+    if (limiter >= 0 && limiter < call && UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(`${rel} (FIXED — delete it from UNTHROTTLED_ENQUEUE)`);
+  }
+  // The rule must not pass vacuously: if the CALL pattern ever stops matching, the
+  // walk would report a clean tree it never actually looked at.
+  assert.ok(checked >= 5, `expected the enqueueing routes, matched ${checked}`);
+  assert.deepEqual(offenders, [], "these routes enqueue a background task with no throttle ahead of it");
+});

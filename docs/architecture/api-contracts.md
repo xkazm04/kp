@@ -117,6 +117,32 @@ Three facts about that gate that are easy to get wrong:
   why a newly added child route inherits its parent's gating instead of
   escaping it — the bug class that once made `/api/schedule/invite/bulk` public.
 
+**A session is not an authorisation.** `requireOperator()` answers "is this a
+trusted operator", which on a TEAM deployment every member satisfies. A route
+that returns other members' data needs a capability, through
+`requireCapability(cap)` from
+[`app/_lib/auth/current-user.ts`](../../app/_lib/auth/current-user.ts) — 401
+unauthenticated, 403 under-privileged, resolved live from the DB membership.
+`GET /api/feedback` is the worked example (2026-09-03): it is a read of
+colleagues' free-text messages *with* their reply addresses and it required only a
+session, so every viewer and recruiter in the workspace could read all of it. It
+is now `members:manage`, the same bar as the member and invite lists — and the
+`/control` section that renders it resolves the same capability server-side, so
+the UI and the API cannot drift apart. Pick the capability by what the data IS,
+not by which role happens to visit the page.
+
+**A public route's payload is split by that gate, not by convenience.**
+`/api/health` is on the allow-list, so the verdict a monitor gates on
+(`ok`/`db`/`seeds`/`clock` + the status code) is public and everything else rides
+`isOperator()`: the deployment-wide table counts, the queue, `degradedReasons`
+(whose seed entries quote absolute server paths) and — since 2026-09-03 — the
+`engines` preflight map, which is SECRET PRESENCE (is a Gemini key configured, is
+a `claude` CLI installed on this host). The detail is **omitted, never blanked**:
+an empty `degradedReasons` beside a 503 is a confident lie. It is also no longer
+COMPUTED for an untrusted caller — the seven unscoped `COUNT(*)`s collapse to one
+`LIMIT 1` existence probe, the single fact the public verdict depends on.
+Pinned by `app/api/health/health-exposure.test.ts`.
+
 ### 1.3 Public token surfaces carry a projection, not a row
 
 `/schedule/[token]`, `/interview/[token]`, `/offer/[token]`, `/status/[token]`,
@@ -143,6 +169,35 @@ not a pure read (`/api/offer` runs `expireOfferIfDue` on every hit). The erasure
 (an irreversible scrub) and the invite POST (a user, a membership and a session) were
 the last two doors without one; closed 2026-09-01.
 
+**Sizing, when the key can degenerate.** With `KP_TRUSTED_PROXY` unset — the
+default for a directly-exposed self-host — `clientIpFrom` returns
+`SHARED_CLIENT_KEY` for *every* caller, so a per-IP bucket is one bucket for the
+whole deployment. For an abuse-containment door that is the safe failure
+(over-throttle). For a door whose refusal DENIES A FEATURE to every colleague at
+once it is not, and there are two honest answers: skip the degenerate bucket
+(`/api/auth/login` does, because its per-account bucket is the real defense), or
+set a ceiling people cannot plausibly reach. `/api/search` — the command palette,
+five leading-wildcard `LIKE` scans per hit and the heaviest read per byte of input
+in the app — took the second at 3000/10min (2026-09-03). A tight number there
+would have let one script take the palette away from everyone.
+
+**One door, many prices.** A route that fans out to *several kinds of work* needs
+more than one bucket. `POST /api/tasks` is the case: one handler in front of every
+kind in `HANDLERS`, and for a year one bucket — 120 starts / 10 min / IP, a number
+calibrated for the cheapest thing that comes through it (the Decisions queue fires
+one POST per accepted review, so a 50-card bulk accept is a legitimate 50-request
+burst). The same 120 admitted 120 repo clones, 120 board-wide screen sweeps and 120
+cohort evaluations. [`app/_lib/task-budget.ts`](../../app/_lib/task-budget.ts)
+classifies every kind as **cheap** (120/10min IP), **metered** (30/10min IP +
+90/hour per WORKSPACE) or **agent** (6/10min IP + 15/hour per workspace); both
+`POST /api/tasks` and `POST /api/tasks/[id]/retry` apply the class budget on top of
+the door's own bucket, under the SAME keys, so replaying is not a way to double an
+allowance. An unclassified kind falls to the tightest class, and a test parses
+`HANDLERS` and fails on a kind that has no class. The per-workspace half is the one
+that actually bounds spend: it survives an IP rotation and it is the tenant whose
+allowance is drawn down — see the `SHARED_CLIENT_KEY` note above for why the IP
+half alone is the wrong unit for a team.
+
 Pick the key deliberately:
 
 - per-IP (`clientIpFrom(request.headers)`) for abuse containment;
@@ -156,7 +211,12 @@ The call sites are **pinned by a contract test**,
 it asserts both the source-level guard (key template, limit, the shared
 `{ error: RATE_LIMITED_ERROR }` 429 envelope) and the real limiter's behaviour
 at the route's exact config. Moving or re-keying a limiter means updating that
-test deliberately — not deleting the assertion.
+test deliberately — not deleting the assertion. It also walks the whole tree for
+one rule no per-route spec can express: **every route that reaches `startTask` must
+throttle first.** Three dev-case routes (`devcase/control`, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/approve`) enqueue an `agent`-class `lifecycle` run with no
+limiter at all and are listed in that test's `UNTHROTTLED_ENQUEUE` ratchet — a known
+gap, recorded so it cannot grow, and removing a line is the fix.
 
 ### 1.5 Uploads, timeouts and tenancy
 

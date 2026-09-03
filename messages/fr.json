@@ -1554,7 +1554,19 @@
     "SCHEDULE_PROPOSAL_EXPIRED": "Cet horaire proposé est passé. Demandez de nouveaux créneaux au candidat.",
     "SCHEDULE_NO_PROPOSALS": "Aucun horaire proposé à refuser.",
     "SCHEDULE_NOTHING_TO_RECONCILE": "Il n'y a plus rien à réconcilier sur cet entretien.",
-    "SCHEDULE_MEETING_URL_INVALID": "Saisissez un lien de réunion http(s) valide."
+    "SCHEDULE_MEETING_URL_INVALID": "Saisissez un lien de réunion http(s) valide.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Rédigez un message avant de l’envoyer.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Ce message est trop long. Veuillez le réduire à 2 000 caractères maximum.",
+    "OPS_STATUS_FAILED": "Impossible de charger l'état du système. Veuillez réessayer.",
+    "FEEDBACK_READ_FORBIDDEN": "Seules les personnes autorisées à gérer les membres peuvent consulter les retours.",
+    "TASK_LIST_FAILED": "Impossible de charger les tâches IA. Veuillez réessayer.",
+    "TASK_START_FAILED": "Impossible de lancer cette tâche IA. Veuillez réessayer.",
+    "TASK_RETRY_FAILED": "Impossible de relancer cette tâche IA. Veuillez réessayer.",
+    "TASK_KIND_UNKNOWN": "Ce type de tâche IA n'existe pas dans cette version.",
+    "TASK_BUDGET_EXHAUSTED": "Trop de traitements IA de ce type ont été lancés récemment. Réessayez dans un instant.",
+    "TASK_NOT_FOUND": "Cette tâche n'existe plus.",
+    "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
+    "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9009,7 +9021,51 @@
       "openDecisions": "Ouvrir Décisions",
       "reviewInDecisions": "Examiner les résultats dans Décisions",
       "openSchedule": "Ouvrir Planification",
-      "openBoard": "Ouvrir sur le tableau"
+      "openBoard": "Ouvrir sur le tableau",
+      "field": {
+        "source": "Produit par",
+        "outcome": "Résultat",
+        "language": "Rédigé en",
+        "freshness": "Fraîcheur",
+        "savedAs": "Enregistré sous",
+        "drafted": "Rédigés",
+        "codebases": "Bases de code lues",
+        "stage": "Étape",
+        "detail": "Détail",
+        "candidates": "Candidats comparés",
+        "lead": "Favori",
+        "caseIncluded": "Cas pratique",
+        "followups": "Questions de suivi",
+        "proposals": "Propositions",
+        "failures": "Échecs"
+      },
+      "value": {
+        "llm": "IA",
+        "deterministic": "Modèle",
+        "heuristic": "Heuristique",
+        "skipped": "Ignoré",
+        "cached": "Repris du cache",
+        "fresh": "Recalculé",
+        "yes": "Inclus",
+        "no": "Non inclus",
+        "advanced": "Passé à l'étape suivante",
+        "held_for_review": "En attente de revue humaine",
+        "advisory": "Consultatif, rien n'a bougé",
+        "auto_ratified": "Ratifié automatiquement",
+        "drafted": "Brouillon préparé",
+        "scorecard_ready": "Grille d'évaluation prête",
+        "offer_ready": "Offre prête",
+        "offer_sent": "Offre envoyée",
+        "sent": "Envoyé",
+        "already_sent": "Déjà envoyé",
+        "suppressed_anonymized": "Non envoyé : les données ont été anonymisées",
+        "suppressed_consent_expired": "Non envoyé : consentement expiré",
+        "rematched": "Réorienté vers un autre poste",
+        "already_rematched": "Déjà réorienté",
+        "no_alternative": "Aucun autre poste trouvé",
+        "skipped_hired": "Ignoré : déjà recruté",
+        "skipped_stage_changed": "Ignoré : le candidat a changé d'étape"
+      }
     },
     "results": {
       "emptyTitle": "Aucune tâche IA récente",
@@ -9034,7 +9090,8 @@
       "leaveNote": "S’exécute en arrière-plan. Vous pouvez continuer à travailler ailleurs, le résultat arrive dans les tâches IA."
     },
     "unreadDone": "{count, plural, one {# tâche terminée non lue} other {# tâches terminées non lues}}",
-    "unreadRow": "Nouveau, terminé pendant que vous étiez ailleurs"
+    "unreadRow": "Nouveau, terminé pendant que vous étiez ailleurs",
+    "queueUnreachable": "File des tâches injoignable. Vous voyez le dernier instantané ; les nouveaux traitements n'apparaîtront qu'à son retour."
   },
   "control": {
     "eyebrow": "Supervision",

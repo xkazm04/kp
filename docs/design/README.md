@@ -358,6 +358,13 @@ behavior, so a `string` keeps JSX shape unchanged, works on any element
 (`section`, `button`, `Link`), and adds zero runtime. Patterns that *do* carry
 behavior (modal focus trap, segmented control keyboard nav) stay components.
 
+Two additions from the 2026-09-03 rail pass: `railTile(isActive)` is the
+icon-over-label rail tile shared by the section buttons and the Feedback door
+(`railIconBtn` stays for rail chrome), and `--color-white-fixed` is the one
+deliberately theme-invariant surface, a real white in both registers, for
+third-party artwork only (a tenant's uploaded logo) - `white`/`paper` remain the
+role tokens for KandiDate's own surfaces.
+
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.

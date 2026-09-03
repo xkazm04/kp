@@ -15,7 +15,7 @@ import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler
 // is up". Read-only: it reports orphaned tasks rather than mutating them.
 //
 // PUBLIC (public-routes.ts PUBLIC_API_EXACT), so the payload is SPLIT. The verdict
-// — ok / db / seeds / clock / engines and the status code — is what an uptime
+// — ok / db / seeds / clock and the status code — is what an uptime
 // monitor with no cookie needs, and it carries no tenant or host detail. The
 // DETAIL is not: `tables` is coreTableCounts(), a deployment-wide
 // `SELECT COUNT(*)` over jobs/profiles/pipeline_entries/analyses/tasks, `queue`
@@ -29,6 +29,22 @@ import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler
 // non-demo session, so local dev, the UAT preflight and the signed-in shell
 // (useEngineAvailability) see exactly what they saw before; only the anonymous
 // caller on a password-protected deploy loses the detail.
+//
+// `engines` RIDES THE SAME GATE (/perfect wave 17, api-workspace). It was blessed
+// as public on the grounds that the shell and the demo read it — but the shell IS
+// trusted and the map is SECRET-PRESENCE: it says whether this box has a Gemini
+// key configured and whether a `claude` CLI (a shell-capable local binary) is
+// installed. That is reconnaissance — which provider's credential is worth going
+// after, and whether the LLM path here is a local process rather than a cloud call
+// — and no uptime monitor needs it. The verdict a monitor DOES need (ok/db/seeds/
+// clock + the status code) is unchanged, so nothing that gates on this probe moves.
+//
+// The detail is also no longer COMPUTED for an untrusted caller. `coreTableCounts()`
+// is five unscoped `SELECT COUNT(*)`s and `countActiveTasks()` two more; all seven
+// were run on every anonymous hit and then dropped on the floor. Only the one fact
+// the PUBLIC verdict depends on — is the job catalog empty — is still read, as a
+// single `LIMIT 1` existence probe, so the untrusted response is byte-identical to
+// what it was on this line and costs one query instead of seven.
 export async function GET() {
   const trusted = await isOperator();
   const degradedReasons: string[] = [];
@@ -43,9 +59,17 @@ export async function GET() {
     for (const issue of seed.issues) {
       if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);
     }
-    tables = coreTableCounts();
-    queue = countActiveTasks();
-    if ((tables.jobs ?? 0) === 0) degradedReasons.push("job catalog is empty");
+    let jobsEmpty: boolean;
+    if (trusted) {
+      tables = coreTableCounts();
+      queue = countActiveTasks();
+      jobsEmpty = (tables.jobs ?? 0) === 0;
+    } else {
+      // Same verdict, one query: an untrusted caller never sees the counts, so
+      // counting is pure waste — existence is the whole question.
+      jobsEmpty = ensureDb().prepare(`SELECT 1 AS n FROM jobs LIMIT 1 -- tenancy:global`).get() === undefined;
+    }
+    if (jobsEmpty) degradedReasons.push("job catalog is empty");
 
     // Scheduler LIVENESS (bug-ui-scan-2026-07-09 #1): a single indexed read of the
     // clock heartbeat, judged by age. A wedged automation clock now degrades the
@@ -80,14 +104,14 @@ export async function GET() {
       seeds: seedOk ? "ok" : "degraded",
       // Named sub-check so the response says WHICH thing is broken, not just "unhealthy".
       clock,
-      // DATA4 — informational, never a degradedReason: a missing Claude CLI is
-      // a designed fallback mode, and a missing Gemini key may be intentional
-      // in a demo sandbox; 503-ing on either would block deploys that mean it.
-      engines: engineAvailability(),
       // Host/tenant detail — operator only (see the header). OMITTED rather than
       // blanked for an untrusted caller: an empty `degradedReasons` beside a 503
       // would be a confident lie about a probe that DID find reasons.
-      ...(trusted ? { tables, queue, degradedReasons } : {}),
+      //
+      // DATA4 `engines` is informational and never a degradedReason (a missing
+      // Claude CLI is a designed fallback mode), but it is also secret-presence,
+      // so it sits behind the same gate as the counts.
+      ...(trusted ? { engines: engineAvailability(), tables, queue, degradedReasons } : {}),
     },
     { status: ok ? 200 : 503 }
   );

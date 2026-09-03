@@ -76,6 +76,15 @@ changes" pattern, guarded by the previously-seen param) rather than in an effect
 so there is no frame of the wrong tab before a correction. The effect does only
 the side effect: emptying the inbox.
 
+The three rules — what a cold load renders, when a param counts as an *arrival*,
+and when the inbox is emptied — are pure functions in `shell/nav/urlInbox.ts`
+(`initialInboxValue`, `arrivalAdoption`, `shouldEmptyInbox`), pinned by
+`urlInbox.test.ts`; the hook is the React plumbing around them. The rule worth
+reading twice is that an **absent** param is an arrival to *record* but never a
+value change: the hook clears the param it just consumed, so treating that
+absence as "the default arrived" would bounce every deep link back to Overview
+one frame after it landed.
+
 `parse` owns the vocabulary, so legacy ids (`?tab=profile`, `?tab=dev`) still
 resolve via `LEGACY_TAB_ALIASES` and a gated tab (`AGENTS_TAB_IN_NAV`) is
 *rejected* rather than adopted-then-corrected — a link to a gated view is inert
@@ -222,12 +231,23 @@ never `pipelineAnalytics` or a Python spawn). Operator-only tabs (billing, model
 integrations, organization, workspaces) resolve to `{ view: "restricted" }` for a
 demo session (`isOperator()`); the analysis view applies the same PII masking as
 `/api/analyses/[slug]`. Client side, `shell/palette/usePalettePreview.ts`
-(120 ms debounce, aborting, 30 s per-key memo) feeds `PalettePreviewPane.tsx`,
+(120 ms debounce, aborting) feeds `PalettePreviewPane.tsx`,
 which dispatches to one small renderer per view (`PreviewHiring.tsx`,
 `PreviewLibraryTools.tsx`, `PreviewInsightsSettings.tsx`, `PreviewEntities.tsx`)
 built from `previewBits.tsx` (Tiles/Tile, Row, Status dot, Chips, RankList,
 `useFmt`). Copy lives under the `palettePreview` catalog namespace. Adding a
 destination = one union member + one resolver case + one renderer.
+
+The memo behind it lives in `shell/palette/previewCache.ts` and is keyed on
+**(workspace, query)**, not on the query alone: a palette query says nothing
+about whose numbers it asked for, so a query-only key let one document re-show
+the previous tenant's counts for the whole 30 s TTL after an in-place team
+switch. An unresolved tenant is not a key — nothing is read and nothing is
+written, so the worst case is a colder pane rather than a wrong one. The tenant
+comes from the same door `shell/recents.ts` uses (`GET /api/workspaces` →
+`current`; the session cookie carrying it is httpOnly), resolved once per
+document, and changing it empties the cache. `previewCache.test.ts` pins the
+scoping, the TTL boundary and the three response shapes that mean "error".
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group
@@ -429,16 +449,16 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 
 | File | Role |
 | --- | --- |
-| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the 2s/6s poll, start/cancel/retry, the read/unread ack, and `loadFailed` (the last poll did not reach the queue). Survives tab switches |
+| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the poll, start/cancel/retry, the read/unread ack, and the health flags (`loadFailed`, `queueUnreachable`). Survives tab switches. Its state machine and schedule are `app/_lib/task-poll-state.ts` |
 | `TasksIndicator.tsx` | Sidebar-footer entry: ONGOING count, unread badges, start-failure alert, load meter |
 | `TasksTab.tsx` | Header, start-error banner, the filter state (shared by the live table and the history pager) |
 | `TasksRunsPanel.tsx` | The recent window as ONE paginated table (`TablePager`, 20 rows) — and the dwell-ack, because this is where the visible page slice lives |
 | `TasksTable.tsx` | Table shell + `ColumnFilter` headers, shared by the live window and history |
-| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal |
+| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal. What the drawer SAYS is `app/_lib/task-outcome-summary.ts` |
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 
-Five decisions are load-bearing:
+Ten decisions are load-bearing:
 
 - **Retry replays the persisted params, but only when they still resolve.**
   `POST /api/tasks/[id]/retry` re-runs a failed/interrupted/canceled row
@@ -451,6 +471,42 @@ Five decisions are load-bearing:
   the rows `TasksRunsPanel` actually drew — its page slice, already narrowed by the
   column filters. Acking the whole polled window while the table paginates 20 at a
   time acknowledged outcomes on pages the reader never turned to.
+- **One door, many prices.** `POST /api/tasks` fronts every kind in `HANDLERS`, so
+  the budget is per KIND CLASS (`app/_lib/task-budget.ts`): cheap 120/10min per IP,
+  metered 30/10min + 90/hour per workspace, agent 6/10min + 15/hour per workspace.
+  `POST /api/tasks/[id]/retry` applies the same class budget under the SAME keys —
+  a replay costs what the original did and cannot double an allowance. Full
+  reasoning in `docs/architecture/api-contracts.md` §1.4.
+- **Both doors refuse with a code.** Start and retry answer every refusal through
+  `jsonRefusal` with a `TASK_*` code (`TASK_KIND_UNKNOWN`, `TASK_BUDGET_EXHAUSTED`,
+  `TASK_NOT_FOUND`, `TASK_NOT_RETRYABLE`, `TASK_REPLAY_INPUTS_GONE`) and their 500s
+  through `safeJsonError`, so the dock's start-error banner resolves `errors.<CODE>`
+  in the reader's language instead of painting the handler's English. Their rows are
+  DELETED from `error-response-contract.test.ts` rather than lowered.
+- **Terminal is final.** `finishTask` guards on `status IN ('queued','running')`
+  like `markTaskRunning` and `setTaskProgress` always have, and returns whether it
+  wrote. Abort is cooperative — a Python child takes seconds to die — so a handler
+  finishing after a cancel used to overwrite the `canceled` row with `succeeded`
+  and its result, and a run returning after the wall-clock reaper undid the
+  reaper's `interrupted`.
+- **An outcome speaks its kind, or says nothing.** `taskOutcomeSummary(kind, result)`
+  (`app/_lib/task-outcome-summary.ts`, pure and unit-tested) returns `(label key,
+  value)` lines the drawer translates. Every kind in `HANDLERS` either has a mapper
+  or sits in `NO_TABLE_SUMMARY` with a stated reason, and the test fails on a kind
+  that has neither — before it, one kind (`batch_screen`) had a real renderer and
+  the other sixteen fell through an `Object.entries(result)` dump that printed the
+  raw handler key beside `String(value)`: the whole generated JD under `markdown`,
+  `cached true`, `source deterministic`, untranslated in all four locales. The
+  generic path is now an allowlist of the four envelope shapes every handler shares
+  (`source` / `applied` / `ok`+`total` / `cached`); a mapper reads defensively, so a
+  field it cannot find produces no line rather than a wrong one. Vocabulary tokens
+  render through `tasks.outcome.value.*`, so `held_for_review` never reaches a reader.
+- **The poll backs off when the queue stops answering.** `pollDelayMs` is 2s while
+  something is active and 6s otherwise, but after N consecutive failures it is
+  4s, 8s, 16s, 32s, then a 60s ceiling — one success resets it. A flat 2s against a
+  dead endpoint was 30 requests a minute per open tab for as long as the server was
+  down. After the SECOND consecutive failure `queueUnreachable` flips and the sidebar
+  says so: the counts and the frozen progress bar on screen are a snapshot, not live.
 - **An unread poll is not an empty one.** A dropped fetch or a 500 leaves `tasks`
   at `[]` on a first load; `loadFailed` carries that third state so the panel says
   the server is unreachable instead of asserting "No recent AI tasks" over runs it

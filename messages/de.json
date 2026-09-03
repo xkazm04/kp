@@ -1554,7 +1554,19 @@
     "SCHEDULE_PROPOSAL_EXPIRED": "Dieser vorgeschlagene Termin ist verstrichen. Bitten Sie um neue Terminvorschläge.",
     "SCHEDULE_NO_PROPOSALS": "Es gibt keine vorgeschlagenen Termine zum Ablehnen.",
     "SCHEDULE_NOTHING_TO_RECONCILE": "Bei diesem Interview gibt es nichts mehr abzugleichen.",
-    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein."
+    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Diese Nachricht ist zu lang. Bitte kürzen Sie sie auf höchstens 2.000 Zeichen.",
+    "OPS_STATUS_FAILED": "Der Systemstatus konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "FEEDBACK_READ_FORBIDDEN": "Nur wer Mitglieder verwalten darf, kann den Feedback-Eingang lesen.",
+    "TASK_LIST_FAILED": "Die KI-Aufgaben konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "TASK_START_FAILED": "Die Aufgabe konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "TASK_RETRY_FAILED": "Die Aufgabe konnte nicht erneut ausgeführt werden. Bitte versuchen Sie es erneut.",
+    "TASK_KIND_UNKNOWN": "Diese Art von KI-Aufgabe gibt es in dieser Version nicht.",
+    "TASK_BUDGET_EXHAUSTED": "Zu viele KI-Läufe dieser Art wurden kürzlich gestartet. Bitte versuchen Sie es in Kürze erneut.",
+    "TASK_NOT_FOUND": "Diese Aufgabe existiert nicht mehr.",
+    "TASK_NOT_RETRYABLE": "Nur fehlgeschlagene, unterbrochene oder abgebrochene Aufgaben lassen sich erneut ausführen.",
+    "TASK_REPLAY_INPUTS_GONE": "Die hochgeladenen Dateien dieses Laufs wurden bereits gelöscht. Laden Sie sie erneut hoch, um den Lauf zu wiederholen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9009,7 +9021,51 @@
       "openDecisions": "Entscheidungen öffnen",
       "reviewInDecisions": "Ergebnisse in den Entscheidungen prüfen",
       "openSchedule": "Planung öffnen",
-      "openBoard": "Im Board öffnen"
+      "openBoard": "Im Board öffnen",
+      "field": {
+        "source": "Erstellt von",
+        "outcome": "Ergebnis",
+        "language": "Sprache",
+        "freshness": "Aktualität",
+        "savedAs": "Gespeichert als",
+        "drafted": "Entworfen",
+        "codebases": "Gelesene Codebasen",
+        "stage": "Phase",
+        "detail": "Detail",
+        "candidates": "Verglichene Kandidaten",
+        "lead": "Favorit",
+        "caseIncluded": "Arbeitsprobe",
+        "followups": "Rückfragen",
+        "proposals": "Vorschläge",
+        "failures": "Fehler"
+      },
+      "value": {
+        "llm": "KI",
+        "deterministic": "Vorlage",
+        "heuristic": "Heuristik",
+        "skipped": "Übersprungen",
+        "cached": "Aus dem Cache",
+        "fresh": "Neu berechnet",
+        "yes": "Enthalten",
+        "no": "Nicht enthalten",
+        "advanced": "Eine Phase weiter",
+        "held_for_review": "Zur manuellen Prüfung zurückgestellt",
+        "advisory": "Nur beratend, nichts verändert",
+        "auto_ratified": "Automatisch bestätigt",
+        "drafted": "Entwurf erstellt",
+        "scorecard_ready": "Bewertungsbogen bereit",
+        "offer_ready": "Angebot bereit",
+        "offer_sent": "Angebot gesendet",
+        "sent": "Gesendet",
+        "already_sent": "Bereits gesendet",
+        "suppressed_anonymized": "Nicht gesendet: die Daten wurden anonymisiert",
+        "suppressed_consent_expired": "Nicht gesendet: Einwilligung abgelaufen",
+        "rematched": "Einer anderen Rolle zugeordnet",
+        "already_rematched": "Bereits neu zugeordnet",
+        "no_alternative": "Keine passende andere Rolle gefunden",
+        "skipped_hired": "Übersprungen: bereits eingestellt",
+        "skipped_stage_changed": "Übersprungen: Phase hat sich geändert"
+      }
     },
     "results": {
       "emptyTitle": "Keine aktuellen KI-Aufgaben",
@@ -9034,7 +9090,8 @@
       "leaveNote": "Läuft im Hintergrund. Sie können währenddessen weiterarbeiten, das Ergebnis landet in den KI-Aufgaben."
     },
     "unreadDone": "{count, plural, one {# ungelesene abgeschlossene Aufgabe} other {# ungelesene abgeschlossene Aufgaben}}",
-    "unreadRow": "Neu, abgeschlossen, während Sie anderswo waren"
+    "unreadRow": "Neu, abgeschlossen, während Sie anderswo waren",
+    "queueUnreachable": "Die Aufgaben-Warteschlange ist nicht erreichbar. Sie sehen den letzten Stand; neue Läufe erscheinen erst wieder, wenn sie antwortet."
   },
   "legal": {
     "updated": "Zuletzt aktualisiert: {date}",
