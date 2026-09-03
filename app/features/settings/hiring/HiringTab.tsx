@@ -23,7 +23,7 @@
 // useHiringComposer.
 import { Loader2, RotateCcw, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { PlanImpactStrip } from "./PipelineComposerBits";
 import { PipelineStepsEditor } from "./PipelineStepsEditor";
 import { useHiringComposer } from "./useHiringComposer";
@@ -126,7 +126,7 @@ export function HiringTab() {
                 type="button"
                 onClick={() => void c.save()}
                 disabled={!c.dirty || c.saving || c.blocked}
-                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-moss px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className={`${BTN_AFFIRM} h-8 px-3 text-sm`}
               >
                 {c.saving ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Save size={13} aria-hidden />}
                 {c.saving ? t("saving") : t("save")}

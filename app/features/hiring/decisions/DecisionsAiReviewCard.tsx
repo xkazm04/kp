@@ -16,6 +16,7 @@ import { useAiReviewCardLogic } from "./decisionsAiReviewCardLogic";
 import { AiReviewCardLadder } from "./DecisionsAiReviewCardLadder";
 import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export function AiReviewCard({
   entry,
@@ -213,7 +214,7 @@ export function AiReviewCard({
             type="button"
             data-sim-click="accept"
             onClick={() => onAccept(isOffer ? ttlDays : undefined)}
-            className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
+            className={`${BTN_AFFIRM} h-9 flex-1 justify-center text-base`}
           >
             <Check size={16} /> {acceptLabel}
           </button>

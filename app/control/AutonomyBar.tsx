@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { Guard } from "./types";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 // The kill switch. Pause/resume fire on a single click by design — an oversight
 // surface must be able to halt automation instantly — while reconcile, which mutates
@@ -36,7 +37,7 @@ export function AutonomyBar({
         <p className="text-xs text-steel">{paused ? t("pausedBody") : t("runningBody")}</p>
       </div>
       {paused ? (
-        <button type="button" onClick={() => void onAct("resume")} disabled={busy} className="focus-ring h-9 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+        <button type="button" onClick={() => void onAct("resume")} disabled={busy} className={`${BTN_AFFIRM} h-9 px-4 text-sm`}>
           {t("resume")}
         </button>
       ) : (

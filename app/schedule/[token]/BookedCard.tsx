@@ -9,6 +9,7 @@ import { AddToCalendar } from "@/app/features/hiring/schedule/ScheduleAddToCalen
 import { candidateCalendarEvent } from "@/app/_lib/calendar-links";
 import type { Invite } from "./use-schedule-invite";
 import { useTzLabel } from "./use-schedule-invite";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 /** The confirmed-booking card: the slot, the delivery claim, the join / add-to-calendar
  *  / reschedule actions, the RSVP row and the withdraw exit. `proposeSection` is the
@@ -140,7 +141,7 @@ export function BookedCard({
               type="button"
               disabled={rsvpPending !== null}
               onClick={() => onRsvp("confirm")}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className={`${BTN_AFFIRM} px-3 py-1.5 text-base`}
             >
               <Check size={15} aria-hidden /> {rsvpPending === "confirm" ? t("booking") : t("rsvpConfirm")}
             </button>

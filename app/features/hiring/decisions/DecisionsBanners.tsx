@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { CompletionCta } from "@/app/_components/CompletionCta";
 import { capNames } from "./decisionsSelectionHygiene";
+import { NOTICE } from "@/app/_components/ui/recipes";
 
 export function DecisionsBanners({
   queuedLabels,
@@ -98,7 +99,7 @@ export function DecisionsBanners({
       {waveCommsFailed.length > 0 ? (
         <section
           aria-live="polite"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5"
+          className={`flex flex-wrap items-center justify-between gap-2 ${NOTICE()} px-4 py-2.5`}
         >
           <p className="min-w-0 text-sm text-ink">
             <AlertTriangle size={14} className="-mt-0.5 mr-1 inline text-amber-700" aria-hidden />

@@ -12,6 +12,7 @@ import { CandidateCardHeader } from "./ScheduleCandidateCardHeader";
 import type { SchedEntry } from "./ScheduleTypes";
 import { isSuggested, type SlotSource } from "./scheduleGridSeeds";
 import type { IvStatus } from "./useScheduleTab";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export function ScheduleTabPendingList({
   t,
@@ -171,7 +172,7 @@ export function ScheduleTabPendingList({
                   data-sim-click="confirm"
                   onClick={() => onAct(e, "approve_event")}
                   disabled={busy === e.id}
-                  className="focus-ring inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  className={`${BTN_AFFIRM} h-8 flex-1 justify-center text-sm`}
                 >
                   <Check size={14} /> {t("confirm")}
                 </button>
