@@ -9,6 +9,21 @@
 // route stays gated (safe). A forgotten public route sends a candidate to /login
 // (visible, fixable) — never a PII leak.
 
+// Public pages matched EXACTLY — never by segment prefix. "/" is the only member and
+// the reason the set exists: every other entry is a path segment, but "/" as a
+// PUBLIC_PAGES entry would end in a slash and `underPath` would make it match every
+// path in the app, i.e. turn the fail-closed gate off entirely. Keeping it here makes
+// that impossible, and `public-routes.test.ts` fails if "/" ever appears in
+// PUBLIC_PAGES.
+//
+// WHY "/" IS PUBLIC (2026-09-03): `app/page.tsx` already renders the marketing landing
+// (SparkHome — static, DB-free, no session read beyond the gate) for an anonymous
+// visitor and the workspace only once `hasEnteredWorkspace()` says so. In password mode
+// the proxy never let that branch run: the root redirected to /login, so every
+// marketing link, OG unfurl and crawler hitting the site's own front door met a login
+// form. robots.ts allows "/" and sitemap.ts lists it — the gate was the odd one out.
+export const PUBLIC_PAGES_EXACT: ReadonlySet<string> = new Set(["/"]);
+
 export const PUBLIC_PAGES = [
   "/login",
   "/about",
@@ -120,6 +135,7 @@ export function underPath(p: string, entry: string): boolean {
 
 /** True when `pathname` is public-by-design and the auth gate must let it through. */
 export function isPublicPath(p: string): boolean {
+  if (PUBLIC_PAGES_EXACT.has(p)) return true;
   if (PUBLIC_API_EXACT.has(p)) return true;
   if (PUBLIC_API_PREFIXES.some((x) => underPath(p, x))) return true;
   if (SCHEDULE_TOKEN.test(p) && !underPath(p, "/api/schedule/invite")) return true;

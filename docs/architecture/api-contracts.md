@@ -104,7 +104,7 @@ Authorisation is **fail-closed and stated in two places on purpose**:
   if (denied) return denied;          // a 401 NextResponse, already shaped
   ```
 
-Three facts about that gate that are easy to get wrong:
+Four facts about that gate that are easy to get wrong:
 
 - `KP_OPERATOR_PASSWORD` unset = **open mode**, and `isOperator()` returns
   `true`. That is deliberate (local single-operator use); production fails
@@ -116,6 +116,15 @@ Three facts about that gate that are easy to get wrong:
   (`underPath`). An entry ending in `/` matches strict descendants only. This is
   why a newly added child route inherits its parent's gating instead of
   escaping it — the bug class that once made `/api/schedule/invite/bulk` public.
+- **`/` is public** (since 2026-09-03), and it is the one entry matched EXACTLY:
+  `PUBLIC_PAGES_EXACT`, not `PUBLIC_PAGES`. A `"/"` in the segment list would end
+  in a slash and `underPath` would match every path in the app — the whole gate
+  off. It is public because `app/page.tsx` already renders the marketing landing
+  for an anonymous visitor and the workspace only once `hasEnteredWorkspace()`
+  says so; in password mode the proxy never let that branch run, so every
+  marketing link and OG unfurl on the site's own front door met a login form. What
+  the root can render anonymously is the static landing — the workspace behind it
+  is a client shell whose every `/api/*` call is still gated.
 
 **A session is not an authorisation.** `requireOperator()` answers "is this a
 trusted operator", which on a TEAM deployment every member satisfies. A route

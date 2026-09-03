@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isPublicPath, underPath } from "./public-routes.ts";
+import { isPublicPath, PUBLIC_PAGES, underPath } from "./public-routes.ts";
 
 // The auth gate is fail-closed: these tests pin WHICH paths escape it. Two Criticals in
 // the 2026-07-09 bug+ui scan were both this one bug class — a public entry matched by raw
@@ -115,8 +115,11 @@ test("signup page + register API pass the proxy gate (feature-gated in-route)", 
 });
 
 test("recruiter surfaces stay gated", () => {
+  // "/" was in this list until 2026-09-03 and is now deliberately public — see the
+  // front-door test below. The workspace it can render is a CLIENT shell whose every
+  // data call ("/api/*" here) is still gated, so what an anonymous visitor can reach
+  // through the root is the landing, and nothing else.
   for (const p of [
-    "/",
     "/pipeline",
     "/api/pipeline",
     "/api/jobs",
@@ -130,4 +133,53 @@ test("recruiter surfaces stay gated", () => {
   ]) {
     assert.equal(isPublicPath(p), false, `${p} must be gated`);
   }
+});
+
+test("the site's own front door is public — and cannot be widened into a wildcard", () => {
+  // The gate used to redirect "/" to /login in password mode while app/page.tsx
+  // still carried an anonymous-landing branch: a marketing link, an OG unfurl or a
+  // crawler hitting the root met a login form, and the landing branch was dead code.
+  assert.equal(isPublicPath("/"), true);
+  // …EXACTLY, though. "/" is in PUBLIC_PAGES_EXACT and must never migrate into
+  // PUBLIC_PAGES, where `underPath` (trailing-slash entry ⇒ prefix match) would make
+  // it match every path in the app and switch the fail-closed gate off entirely.
+  assert.equal(PUBLIC_PAGES.includes("/"), false, "'/' in PUBLIC_PAGES would make the WHOLE app public");
+  for (const gated of ["/settings", "/api/jds", "/api/org/members", "/analytics"]) {
+    assert.equal(isPublicPath(gated), false, `${gated} must stay gated with '/' public`);
+  }
+});
+
+test("every marketing + legal page an anonymous visitor is promised survives the gate", () => {
+  // robots.ts allows these and the public footer links them; a missing fixture here is
+  // how one of them would quietly regress into a /login redirect for the whole internet.
+  for (const p of ["/about", "/market", "/landing", "/privacy", "/terms", "/trust"]) {
+    assert.equal(isPublicPath(p), true, `${p} must be public`);
+  }
+  // Segment matching, not prefix: a longer sibling never rides along.
+  assert.equal(isPublicPath("/marketing"), false);
+  assert.equal(isPublicPath("/trustees"), false);
+  assert.equal(isPublicPath("/privacy-internal"), false);
+});
+
+test("the machine-authed and candidate API entries stay reachable, their siblings gated", () => {
+  // Each of these is authed by something OTHER than a session cookie (a token, a shared
+  // secret, or nothing but a rate limiter), so the operator gate would 401 it before its
+  // own auth ran — the documented trap this allow-list exists to avoid.
+  for (const p of [
+    "/api/demo", // mints the isolated demo-workspace session for the guided sim
+    "/api/extract-text", // anonymous CV drop on the public apply form
+    "/api/channels/inbound", // token-authed ad/email intake
+    "/api/agents/report/agt_1", // a hired agent POSTs cost/activity with a report token
+    "/api/devcase/session", // candidate work-sample runtime
+    "/api/interview/complete", // candidate voice runtime end-of-call callback
+  ]) {
+    assert.equal(isPublicPath(p), true, `${p} must be public`);
+  }
+  // The recruiter consoles that share those subtrees must NOT come with them.
+  assert.equal(isPublicPath("/api/channels/webhooks"), false);
+  assert.equal(isPublicPath("/api/agents/roster"), false);
+  assert.equal(isPublicPath("/api/agents/report"), false, "the prefix is strict-descendants");
+  assert.equal(isPublicPath("/api/devcase/list"), false);
+  assert.equal(isPublicPath("/api/interview/create"), false);
+  assert.equal(isPublicPath("/api/demo/reset"), false, "an exact entry never grows children");
 });
