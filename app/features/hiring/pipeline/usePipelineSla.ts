@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { PIPELINE_SLA_KEY } from "./pipelineTabHelpers";
+import { clampSlaDays } from "./pipelineSla";
 
 export function usePipelineSla() {
   // Per-stage aging SLA overrides (PIPE4): a recruiter's per-board tuning of the
@@ -18,15 +19,29 @@ export function usePipelineSla() {
       // Client-only localStorage — see the saved-views hydration (usePipelineSavedViews):
       // a mount effect is the SSR-safe way to read it, and a one-time set isn't a
       // cascading-render concern.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setSlaOverrides(JSON.parse(raw) as Record<string, number>);
+      // Clamped on the way IN too: a value stored by an older build (which accepted
+      // anything positive) must not keep silencing a column's aging chip forever.
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, number>;
+        const clean: Record<string, number> = {};
+        for (const [stage, days] of Object.entries(parsed)) {
+          const c = clampSlaDays(String(days));
+          if (c) clean[stage] = c;
+        }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSlaOverrides(clean);
+      }
     } catch {
       /* corrupt/absent — fall back to defaults */
     }
   }, []);
   const setStageSla = (stage: string, days: number | null) => {
     const next = { ...slaOverrides };
-    if (days && days > 0) next[stage] = days;
+    // Re-clamped at the STORE, not only at the field: this is what persists, and a
+    // second caller (or a hydrated value from an older build that stored 5000) must
+    // not be able to write a cadence the aging chip will never fire on.
+    const clamped = days == null ? null : clampSlaDays(String(days));
+    if (clamped) next[stage] = clamped;
     else delete next[stage]; // cleared → back to the default
     setSlaOverrides(next);
     try {

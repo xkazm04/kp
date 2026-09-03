@@ -2335,7 +2335,12 @@
     "tokenLink": {
       "copy": "Copy link",
       "openAsCandidate": "Open as candidate",
-      "createFailed": "Couldn't create the link."
+      "createFailed": "Couldn't create the link.",
+      "openConfirmTitle": "Open this candidate's link?",
+      "openConfirmSubtitle": "You'll see exactly what they see.",
+      "openConfirmBody": "This is the live link, not a preview. Some of these pages record that they were opened, so the candidate's timeline may show this visit as theirs.",
+      "openConfirmCancel": "Cancel",
+      "openConfirmCta": "Open the live link"
     },
     "events": {
       "matched": "was matched",
@@ -2577,7 +2582,8 @@
       "attentionTitle": "Needs your attention",
       "filterStateLabel": "State",
       "stageOffBoard": "Stage {stage} is no longer a column on this board. The filter is still applied, so you are seeing only the candidates still standing on it.",
-      "stageOffBoardClear": "Remove this filter"
+      "stageOffBoardClear": "Remove this filter",
+      "slaEditorRange": "{min}–{max} days; blank uses the default"
     },
     "today": {
       "eyebrow": "Today",
@@ -7800,6 +7806,24 @@
         "reflecting": "Reflecting…",
         "analyzeOnly": "Analyze need only",
         "recent": "Recent"
+      },
+      "sectionsLabel": "Assignments studio sections",
+      "views": {
+        "cases": {
+          "label": "Assignments",
+          "title": "Active assignments",
+          "blurb": "Every designed assignment in one place: stage, intake and evaluations. Click an assignment to read the full brief and its internal probe material."
+        },
+        "define": {
+          "label": "Define need",
+          "title": "Define the need",
+          "blurb": "Pick the job description and point us at the real codebases it covers (up to {max}). The engine reflects what the JD says you need against what the code actually is, surfacing the gaps before we design an assignment. Assume the candidate's code is LLM-generated; we'll grade judgment, not typing."
+        },
+        "outbox": {
+          "label": "Outbox",
+          "title": "Comms outbox",
+          "blurb": "Every message the pipeline sent: intake acknowledgements, promote invites, recruiter outreach, and rejections."
+        }
       }
     },
     "lifecycle": {
@@ -7879,7 +7903,8 @@
       "countFiltered": "{shown} of {total} messages",
       "deadLetters": "{count, plural, one {# needs attention} other {# need attention}}",
       "filteredEmpty": "No message matches these filters.",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "loadLabel": "the comms outbox"
     },
     "outboxKind": {
       "acknowledgement": "acknowledgement",

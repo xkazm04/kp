@@ -340,6 +340,55 @@ then retract. Labels follow the off-axis strip's rule — the workspace's own la
 wins when it authored one, otherwise the `enums.stage.*` catalog translates the
 id. Pinned by `pipelineStageFilter.test.ts` (8 checks).
 
+### Who the board counts
+
+The stat header and the Today rail sit one above the other and answer the same
+question, so they derive it from ONE module —
+`app/features/hiring/pipeline/pipelineBoardPopulation.ts`
+(`pipelineBoardPopulation.test.ts`, 10 checks):
+
+- **`boardPopulation(entries)`** → `{ real, active }`. `real` drops the guided
+  demo's `(SIM)`-marked rows (`isSimTitle`, gsim-l2-105) — the board still *renders*
+  them, visibly marked, so a running simulation sees itself, but they are never
+  counted or narrated as real hiring work. `active` is `real` narrowed to
+  `status === "active"`: a rejected or withdrawn candidate is real history, not live
+  work, whichever column their card is still parked on.
+- **`deriveRailRows(entries, axis, now)`** buckets that population into the rail's
+  six queues (inbound / scorecards / offer reviews / awaiting slot / offers out /
+  hired-this-week), resolving every stage question by **role** on the workspace's own
+  axis. `PipelineTodayRail` supplies only the glyph, tone and catalog sentence.
+
+`usePipelineTabState`'s `activeCount`, `interviewCount` and `staleCount` (and
+therefore the aging chip) now read `boardPopulation(...).active`. They previously
+counted every row not standing on a terminal-role stage — sim residue included,
+un-tidied rejections included — so the header read "Active 14" over a rail naming
+four people. `approvals` and `degradedCount` deliberately keep their own predicates:
+an approval is real work waiting on the Decisions gate whoever created it, and a
+degraded stub is a recoverability signal rather than a funnel count.
+
+### Aging SLA overrides
+
+`PipelineSlaEditor` declared `[1, 365]` on its number input and did not enforce it —
+a native input's `min`/`max` are advisory, so a pasted 5000 persisted to
+`localStorage` and silenced that column's amber dot for fourteen years.
+`pipelineSla.ts` states the range once (`clampSlaDays`, unit-pinned by
+`pipelineSla.test.ts`): empty / 0 / negative / unparseable CLEARS back to the stage
+role's default, anything else rounds to whole days and clamps into range. Applied at
+the field, again in `usePipelineSla`'s store (so a second caller cannot bypass it),
+and once more on hydration, so a value written by an older build is repaired on read.
+The range is stated inline beside the inputs (`tab.slaEditorRange`).
+
+Team-shared SLAs remain an **owner decision, not a gap**: these overrides are
+per-browser `localStorage` with no schema and no server surface.
+
+### Opening a candidate's live link
+
+`TokenLinkPanel`'s "Open as candidate" opens the LIVE capability link, and several
+of those surfaces stamp an opened/first-seen mark on first fetch — so a recruiter
+peeking burnt the candidate's own first open and the timeline then read as if they
+had looked. It now asks once, through the shared `Modal`, and says the link may be
+marked opened. **Copy stays one click** — it touches nothing.
+
 ### Typography and presence motion
 
 One scale across the page: `text-meta` for the ruled section headers, `text-base`

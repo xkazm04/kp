@@ -2335,7 +2335,12 @@
     "tokenLink": {
       "copy": "Kopírovat odkaz",
       "openAsCandidate": "Otevřít jako kandidát",
-      "createFailed": "Odkaz se nepodařilo vytvořit."
+      "createFailed": "Odkaz se nepodařilo vytvořit.",
+      "openConfirmTitle": "Otevřít odkaz tohoto kandidáta?",
+      "openConfirmSubtitle": "Uvidíte přesně to, co vidí on.",
+      "openConfirmBody": "Jde o živý odkaz, ne o náhled. Některé z těchto stránek si zaznamenají, že byly otevřeny, takže se návštěva může v časové ose kandidáta objevit jako jeho.",
+      "openConfirmCancel": "Zrušit",
+      "openConfirmCta": "Otevřít živý odkaz"
     },
     "events": {
       "matched": "byl/a spárován/a",
@@ -2577,7 +2582,8 @@
       "attentionTitle": "Vyžaduje vaši pozornost",
       "filterStateLabel": "Stav",
       "stageOffBoard": "Fáze {stage} už na této nástěnce není sloupcem. Filtr zůstává aktivní, takže vidíte jen kandidáty, kteří v ní stále stojí.",
-      "stageOffBoardClear": "Odebrat tento filtr"
+      "stageOffBoardClear": "Odebrat tento filtr",
+      "slaEditorRange": "{min}–{max} dní; prázdné použije výchozí"
     },
     "today": {
       "eyebrow": "Dnes",
@@ -7800,6 +7806,24 @@
         "reflecting": "Přemýšlím…",
         "analyzeOnly": "Jen analyzovat potřebu",
         "recent": "Nedávné"
+      },
+      "sectionsLabel": "Sekce studia zadání",
+      "views": {
+        "cases": {
+          "label": "Zadání",
+          "title": "Aktivní zadání",
+          "blurb": "Všechna navržená zadání na jednom místě: fáze, příjem a hodnocení. Kliknutím na zadání zobrazíte celý brief i interní materiál k sondám."
+        },
+        "define": {
+          "label": "Definovat potřebu",
+          "title": "Definujte potřebu",
+          "blurb": "Vyberte popis pozice a ukažte nám reálné kódové základny, kterých se týká (nejvýše {max}). Engine porovná, co popis pozice požaduje, s tím, jaký kód ve skutečnosti je, a odhalí mezery dřív, než navrhneme zadání. Počítejte s tím, že kód kandidáta vygeneroval model; hodnotíme úsudek, ne psaní."
+        },
+        "outbox": {
+          "label": "Odchozí pošta",
+          "title": "Odchozí pošta",
+          "blurb": "Každá zpráva, kterou pipeline odeslala: potvrzení příjmu, pozvánky k postupu, oslovení od recruiterů a zamítnutí."
+        }
       }
     },
     "lifecycle": {
@@ -7879,7 +7903,8 @@
       "countFiltered": "{shown} z {total} zpráv",
       "deadLetters": "Vyžaduje pozornost: {count}",
       "filteredEmpty": "Těmto filtrům neodpovídá žádná zpráva.",
-      "clearFilters": "Zrušit filtry"
+      "clearFilters": "Zrušit filtry",
+      "loadLabel": "odchozí pošta"
     },
     "outboxKind": {
       "acknowledgement": "Potvrzení přijetí",

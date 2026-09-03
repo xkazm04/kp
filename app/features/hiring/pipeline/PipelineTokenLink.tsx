@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Modal } from "@/app/_components/Modal";
+import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { copyText } from "@/app/_lib/export-utils";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -71,7 +73,16 @@ export function useTokenLink(endpoint: string) {
 // a link has been minted, so callers can drop it in unconditionally.
 export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink> }) {
   const t = useTranslations("pipeline");
+  // "Open as candidate" walked straight into the LIVE capability link — the same
+  // one-way door the candidate has. Several of these surfaces stamp an opened-at /
+  // first-seen mark on first fetch (the schedule invite, the offer view, the
+  // devcase session), so a recruiter checking "what does this look like?" burns the
+  // candidate's own first-open and the timeline then reads as if they had looked.
+  // One confirm, stated plainly, before the door opens. Copy stays one click — it
+  // touches nothing.
+  const [confirmOpen, setConfirmOpen] = useState(false);
   if (!link.data) return null;
+  const url = link.data.url;
   return (
     <div className="flex items-center gap-1.5">
       <input
@@ -88,15 +99,41 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
       >
         {link.copied ? <Check size={14} /> : <Copy size={14} />}
       </button>
-      <a
-        href={link.data.url}
-        target="_blank"
-        rel="noreferrer"
+      <button
+        type="button"
+        onClick={() => setConfirmOpen(true)}
         className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
         title={t("tokenLink.openAsCandidate")}
       >
         <ExternalLink size={14} />
-      </a>
+      </button>
+      {confirmOpen ? (
+        <Modal
+          title={t("tokenLink.openConfirmTitle")}
+          subtitle={t("tokenLink.openConfirmSubtitle")}
+          size="md"
+          onClose={() => setConfirmOpen(false)}
+          footer={
+            <>
+              <button type="button" className={`${BTN_GHOST} px-3 py-1.5 text-sm`} onClick={() => setConfirmOpen(false)}>
+                {t("tokenLink.openConfirmCancel")}
+              </button>
+              <button
+                type="button"
+                className={`${BTN_PRIMARY} px-3 py-1.5 text-sm`}
+                onClick={() => {
+                  setConfirmOpen(false);
+                  window.open(url, "_blank", "noreferrer");
+                }}
+              >
+                {t("tokenLink.openConfirmCta")}
+              </button>
+            </>
+          }
+        >
+          <p className="text-base text-steel">{t("tokenLink.openConfirmBody")}</p>
+        </Modal>
+      ) : null}
     </div>
   );
 }

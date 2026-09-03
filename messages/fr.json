@@ -2335,7 +2335,12 @@
     "tokenLink": {
       "copy": "Copier le lien",
       "openAsCandidate": "Ouvrir en tant que candidat",
-      "createFailed": "Impossible de créer le lien."
+      "createFailed": "Impossible de créer le lien.",
+      "openConfirmTitle": "Ouvrir le lien de ce candidat ?",
+      "openConfirmSubtitle": "Vous verrez exactement ce qu'il voit.",
+      "openConfirmBody": "C'est le lien réel, pas un aperçu. Certaines de ces pages enregistrent leur ouverture : la visite peut apparaître dans l'historique du candidat comme la sienne.",
+      "openConfirmCancel": "Annuler",
+      "openConfirmCta": "Ouvrir le lien réel"
     },
     "events": {
       "matched": "a été mis en correspondance",
@@ -2577,7 +2582,8 @@
       "attentionTitle": "Requiert votre attention",
       "filterStateLabel": "État",
       "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
-      "stageOffBoardClear": "Supprimer ce filtre"
+      "stageOffBoardClear": "Supprimer ce filtre",
+      "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut"
     },
     "today": {
       "eyebrow": "Aujourd’hui",
@@ -7800,6 +7806,24 @@
         "reflecting": "Réflexion…",
         "analyzeOnly": "Analyser le besoin seulement",
         "recent": "Récents"
+      },
+      "sectionsLabel": "Sections du studio d’exercices",
+      "views": {
+        "cases": {
+          "label": "Exercices",
+          "title": "Exercices actifs",
+          "blurb": "Tous les exercices conçus au même endroit : étape, réception et évaluations. Cliquez sur un exercice pour lire le brief complet et son matériel de sonde interne."
+        },
+        "define": {
+          "label": "Définir le besoin",
+          "title": "Définir le besoin",
+          "blurb": "Choisissez la fiche de poste et indiquez-nous les bases de code réelles qu’elle couvre ({max} au maximum). Le moteur confronte ce que la fiche de poste demande à ce que le code est réellement, et met au jour les écarts avant que nous concevions un exercice. Partez du principe que le code du candidat est généré par un modèle ; nous évaluons le jugement, pas la frappe."
+        },
+        "outbox": {
+          "label": "Boîte d’envoi",
+          "title": "Boîte d’envoi des communications",
+          "blurb": "Chaque message envoyé par le pipeline : accusés de réception, invitations à poursuivre, prises de contact des recruteurs et refus."
+        }
       }
     },
     "lifecycle": {
@@ -7879,7 +7903,8 @@
       "countFiltered": "{shown, plural, one {# message} other {# messages}} sur {total}",
       "deadLetters": "{count} à traiter",
       "filteredEmpty": "Aucun message ne correspond à ces filtres.",
-      "clearFilters": "Effacer les filtres"
+      "clearFilters": "Effacer les filtres",
+      "loadLabel": "la boîte d’envoi des communications"
     },
     "outboxKind": {
       "acknowledgement": "Accusé de réception",

@@ -6,9 +6,9 @@ import { useTranslations } from "next-intl";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { Fade } from "./PipelineMotion";
 import { buildUrl, clearedTabScopedParams, type WorkspaceTabId } from "@/app/features/shell/tabs";
-import { isSimTitle } from "@/app/features/shell/simulation/constants";
-import { stageHasRole, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
-import { daysSince, type Entry } from "@/app/features/shared/pipelineTypes";
+import { type StageDef } from "@/app/_lib/pipeline-stages";
+import type { Entry } from "@/app/features/shared/pipelineTypes";
+import { deriveRailRows, type RailBucketKey } from "./pipelineBoardPopulation";
 
 // 8f8f578d — the "Today" rail: candidate-driven work, narrated. The attention
 // badges say HOW MANY need you; this rail says WHO and WHERE, on the landing
@@ -19,10 +19,9 @@ import { daysSince, type Entry } from "@/app/features/shared/pipelineTypes";
 // (pipeline-events-public.ts). Renders nothing when every queue is quiet.
 
 const MAX_NAMES = 2;
-const HIRED_WINDOW_DAYS = 7;
 
 type RailRow = {
-  key: string;
+  key: RailBucketKey;
   Icon: typeof Inbox;
   iconCls: string;
   message: string;
@@ -30,6 +29,19 @@ type RailRow = {
   // Either an in-board stage focus (onShow) or a cross-tab jump (tab).
   stage?: string;
   tab?: WorkspaceTabId;
+};
+
+// Presentation per bucket. WHICH buckets exist and WHO is in them is
+// pipelineBoardPopulation.deriveRailRows — the same module the stat header counts
+// from, so the two can never again answer "who is live on this board" differently.
+// Here it is only the glyph, the tone and which catalog sentence to render.
+const BUCKET_STYLE: Record<RailBucketKey, { Icon: typeof Inbox; iconCls: string; ctaKey: "showBoard" | "openDecisions" | "openSchedule" }> = {
+  inbound: { Icon: Inbox, iconCls: "text-coral", ctaKey: "showBoard" },
+  scorecards: { Icon: FileText, iconCls: "text-moss", ctaKey: "openDecisions" },
+  offerReviews: { Icon: Send, iconCls: "text-coral", ctaKey: "openDecisions" },
+  awaitingSlot: { Icon: CalendarClock, iconCls: "text-steel", ctaKey: "openSchedule" },
+  offersOut: { Icon: Send, iconCls: "text-steel", ctaKey: "showBoard" },
+  hired: { Icon: PartyPopper, iconCls: "text-moss", ctaKey: "showBoard" },
 };
 
 // "Erika N., Marek B. +3" — full labels are fine here: this is the recruiter's
@@ -55,99 +67,23 @@ export function TodayRail({
   const router = useRouter();
   const search = useSearchParams();
 
-  // gsim-l2-105 — the rail digests the recruiter's REAL work: rows the guided
-  // demo wrote (job title carries the "(SIM)" marker) must never claim "hired
-  // this week" or swell the queues her lead reads. The board below still renders
-  // them — visibly marked — so the running sim keeps seeing its own rows.
-  const real = entries.filter((e) => !isSimTitle(e.jobTitle));
-  const active = real.filter((e) => e.status === "active");
-  // UAT KAT-L1-002 — "who is waiting where" is a question about what a column
-  // MEANS, so the three stage-keyed buckets resolve the workspace's OWN axis by
-  // ROLE (pipeline-stages.ts) instead of the shipped names. Settings → Hiring
-  // composes those columns: on a board whose offer column carries any other id
-  // the "offers out" row read 0 forever while offers were outstanding, the
-  // inbound row missed every fresh application, and "hired this week" never
-  // fired. The same ids drive the CTA, so the row also stops filtering the board
-  // to a column it doesn't render. Byte-identical on the shipped axis.
-  const entryStage = stageWithRole("entry", axis);
-  const offerStage = stageWithRole("offer", axis);
-  const terminalStage = stageWithRole("terminal", axis);
-  const inbound = active.filter((e) => stageHasRole(e.stage, "entry", axis));
-  const awaitingSlot = active.filter((e) => e.approvalKind === "calendar");
-  const scorecards = active.filter((e) => e.approvalKind === "scorecard_review");
-  const offerReviews = active.filter((e) => e.approvalKind === "offer_review");
-  // Offers out with the candidate: sent (no approval pending), response pending.
-  const offersOut = active.filter((e) => stageHasRole(e.stage, "offer", axis) && !e.approvalKind);
-  const hired = real.filter(
-    (e) => stageHasRole(e.stage, "terminal", axis) && (daysSince(e.stageChangedAt) ?? Infinity) <= HIRED_WINDOW_DAYS
-  );
-
-  const candidates: (RailRow | null)[] = [
-    // The `&& <stage>` guards only satisfy the type: a non-empty bucket means at
-    // least one entry stands on a column carrying that role, so the id is never
-    // null when there is a row to show.
-    inbound.length > 0 && entryStage
-      ? {
-          key: "inbound",
-          Icon: Inbox,
-          iconCls: "text-coral",
-          message: `${t("inbound", { count: inbound.length })} — ${nameList(inbound)}`,
-          ctaLabel: t("showBoard"),
-          stage: entryStage,
-        }
-      : null,
-    scorecards.length > 0
-      ? {
-          key: "scorecards",
-          Icon: FileText,
-          iconCls: "text-moss",
-          message: `${t("scorecards", { count: scorecards.length })} — ${nameList(scorecards)}`,
-          ctaLabel: t("openDecisions"),
-          tab: "decisions",
-        }
-      : null,
-    offerReviews.length > 0
-      ? {
-          key: "offerReviews",
-          Icon: Send,
-          iconCls: "text-coral",
-          message: `${t("offerReviews", { count: offerReviews.length })} — ${nameList(offerReviews)}`,
-          ctaLabel: t("openDecisions"),
-          tab: "decisions",
-        }
-      : null,
-    awaitingSlot.length > 0
-      ? {
-          key: "awaitingSlot",
-          Icon: CalendarClock,
-          iconCls: "text-steel",
-          message: `${t("awaitingSlot", { count: awaitingSlot.length })} — ${nameList(awaitingSlot)}`,
-          ctaLabel: t("openSchedule"),
-          tab: "schedule",
-        }
-      : null,
-    offersOut.length > 0 && offerStage
-      ? {
-          key: "offersOut",
-          Icon: Send,
-          iconCls: "text-steel",
-          message: `${t("offersOut", { count: offersOut.length })} — ${nameList(offersOut)}`,
-          ctaLabel: t("showBoard"),
-          stage: offerStage,
-        }
-      : null,
-    hired.length > 0 && terminalStage
-      ? {
-          key: "hired",
-          Icon: PartyPopper,
-          iconCls: "text-moss",
-          message: `${t("hired", { count: hired.length })} — ${nameList(hired)}`,
-          ctaLabel: t("showBoard"),
-          stage: terminalStage,
-        }
-      : null,
-  ];
-  const rows = candidates.filter((r): r is RailRow => r !== null);
+  // gsim-l2-105 / UAT KAT-L1-002 — WHO is in each queue is derived ONCE, in
+  // pipelineBoardPopulation.ts: real (non-sim) rows only, live status only, stage
+  // questions resolved by ROLE on this workspace's own axis. The stat header above
+  // counts from the same module, so the rail can no longer name four people under a
+  // header that claims fourteen.
+  const rows: RailRow[] = deriveRailRows(entries, axis).map((b) => {
+    const style = BUCKET_STYLE[b.key];
+    return {
+      key: b.key,
+      Icon: style.Icon,
+      iconCls: style.iconCls,
+      message: `${t(b.key, { count: b.entries.length })} — ${nameList(b.entries)}`,
+      ctaLabel: t(style.ctaKey),
+      stage: b.stage,
+      tab: b.tab,
+    };
+  });
 
   const go = (row: RailRow) => {
     if (row.stage) onShowStage(row.stage);

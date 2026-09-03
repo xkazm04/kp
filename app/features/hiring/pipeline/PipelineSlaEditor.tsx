@@ -14,6 +14,7 @@
 
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 import { DEFAULT_BOARD_AXIS, slaForStage, type StageDef } from "@/app/features/shared/pipelineTypes";
+import { SLA_MAX_DAYS, SLA_MIN_DAYS, clampSlaDays } from "./pipelineSla";
 
 export function PipelineSlaEditor({
   t,
@@ -44,19 +45,25 @@ export function PipelineSlaEditor({
             {columnLabel(stage)}
             <input
               type="number"
-              min={1}
-              max={365}
+              min={SLA_MIN_DAYS}
+              max={SLA_MAX_DAYS}
               value={slaOverrides[stage.id] ?? ""}
               placeholder={String(slaForStage(stage.id, null, axis))}
-              onChange={(ev) => {
-                const n = parseInt(ev.target.value, 10);
-                onChangeStageSla(stage.id, Number.isFinite(n) ? n : null);
-              }}
+              // The min/max above are ADVISORY — a native number input colours an
+              // out-of-range value, it does not refuse a paste or an arrow-key
+              // overshoot. Without this the typed 5000 persisted and silenced the
+              // column's aging dot for fourteen years. clampSlaDays holds the same
+              // [1, 365] the field declares, and empty/0/garbage clears back to the
+              // role default the placeholder shows (pipelineSla.ts, unit-pinned).
+              onChange={(ev) => onChangeStageSla(stage.id, clampSlaDays(ev.target.value))}
               className="focus-ring mt-0.5 h-8 w-16 rounded-md border border-stone-200 bg-white px-2 text-sm nums text-ink caret-coral"
             />
           </label>
         ))}
       <span className="text-meta text-steel">{t("slaEditorNote")}</span>
+      {/* The clamp, stated where it bites: a recruiter typing 400 needs to know the
+          board stored 365, not wonder why aging went quiet. */}
+      <span className="text-meta text-steel">{t("slaEditorRange", { min: SLA_MIN_DAYS, max: SLA_MAX_DAYS })}</span>
     </div>
   );
 }

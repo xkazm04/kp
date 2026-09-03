@@ -2335,7 +2335,12 @@
     "tokenLink": {
       "copy": "Link kopieren",
       "openAsCandidate": "Als Kandidat/in öffnen",
-      "createFailed": "Link konnte nicht erstellt werden."
+      "createFailed": "Link konnte nicht erstellt werden.",
+      "openConfirmTitle": "Link dieser Kandidatin öffnen?",
+      "openConfirmSubtitle": "Sie sehen genau das, was sie sieht.",
+      "openConfirmBody": "Das ist der Live-Link, keine Vorschau. Einige dieser Seiten protokollieren, dass sie geöffnet wurden. Der Besuch kann im Verlauf der Kandidatin als ihrer erscheinen.",
+      "openConfirmCancel": "Abbrechen",
+      "openConfirmCta": "Live-Link öffnen"
     },
     "events": {
       "matched": "wurde abgeglichen",
@@ -2577,7 +2582,8 @@
       "attentionTitle": "Benötigt Ihre Aufmerksamkeit",
       "filterStateLabel": "Status",
       "stageOffBoard": "Phase {stage} ist keine Spalte dieses Boards mehr. Der Filter bleibt aktiv, Sie sehen also nur die Kandidat/innen, die weiterhin auf ihr stehen.",
-      "stageOffBoardClear": "Diesen Filter entfernen"
+      "stageOffBoardClear": "Diesen Filter entfernen",
+      "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard"
     },
     "today": {
       "eyebrow": "Heute",
@@ -7800,6 +7806,24 @@
         "reflecting": "Wird durchdacht…",
         "analyzeOnly": "Nur Bedarf analysieren",
         "recent": "Zuletzt"
+      },
+      "sectionsLabel": "Bereiche des Aufgaben-Studios",
+      "views": {
+        "cases": {
+          "label": "Aufgaben",
+          "title": "Aktive Aufgaben",
+          "blurb": "Alle entworfenen Aufgaben an einem Ort: Phase, Eingang und Bewertungen. Klicken Sie eine Aufgabe an, um das vollständige Briefing und das interne Sondenmaterial zu lesen."
+        },
+        "define": {
+          "label": "Bedarf definieren",
+          "title": "Den Bedarf definieren",
+          "blurb": "Wählen Sie die Stellenbeschreibung und zeigen Sie uns die echten Codebasen, um die es geht (höchstens {max}). Die Engine gleicht ab, was die Stellenbeschreibung fordert und wie der Code tatsächlich aussieht, und legt die Lücken offen, bevor wir eine Aufgabe entwerfen. Gehen Sie davon aus, dass der Code der Kandidatin oder des Kandidaten von einem Modell stammt; bewertet wird Urteilsvermögen, nicht Tippen."
+        },
+        "outbox": {
+          "label": "Postausgang",
+          "title": "Kommunikations-Postausgang",
+          "blurb": "Jede Nachricht, die die Pipeline gesendet hat: Eingangsbestätigungen, Einladungen zur nächsten Runde, Ansprache durch Recruiter und Absagen."
+        }
       }
     },
     "lifecycle": {
@@ -7879,7 +7903,8 @@
       "countFiltered": "{shown} von {total} Nachrichten",
       "deadLetters": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
       "filteredEmpty": "Keine Nachricht entspricht diesen Filtern.",
-      "clearFilters": "Filter zurücksetzen"
+      "clearFilters": "Filter zurücksetzen",
+      "loadLabel": "der Kommunikations-Postausgang"
     },
     "outboxKind": {
       "acknowledgement": "Bestätigung",
