@@ -504,7 +504,7 @@
       "benchmarkVintage": "Benchmark {source}, aktualisiert {date}",
       "benchmarkVintageUndated": "Benchmark {source}",
       "benchmarkThin": "kleine Stichprobe (n={count})",
-      "benchmarkNoSample": "keine Stichprobe erfasst — redaktioneller Richtwert",
+      "benchmarkNoSample": "keine Stichprobe erfasst (redaktioneller Richtwert)",
       "benchmarkAnchor": "Verankert am Benchmark {source}, aktualisiert {date}"
     }
   },

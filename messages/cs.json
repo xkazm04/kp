@@ -504,7 +504,7 @@
       "benchmarkVintage": "Benchmark {source}, aktualizováno {date}",
       "benchmarkVintageUndated": "Benchmark {source}",
       "benchmarkThin": "malý vzorek (n={count})",
-      "benchmarkNoSample": "bez zaznamenaného vzorku — redakční odhad",
+      "benchmarkNoSample": "bez zaznamenaného vzorku (redakční odhad)",
       "benchmarkAnchor": "Ukotveno na benchmark {source}, aktualizováno {date}"
     }
   },

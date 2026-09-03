@@ -504,7 +504,7 @@
       "benchmarkVintage": "Référentiel {source}, mis à jour le {date}",
       "benchmarkVintageUndated": "Référentiel {source}",
       "benchmarkThin": "échantillon réduit (n={count})",
-      "benchmarkNoSample": "aucun échantillon enregistré — repère éditorial",
+      "benchmarkNoSample": "aucun échantillon enregistré (repère éditorial)",
       "benchmarkAnchor": "Ancré sur le référentiel {source}, mis à jour le {date}"
     }
   },
