@@ -181,6 +181,23 @@ five leading-wildcard `LIKE` scans per hit and the heaviest read per byte of inp
 in the app — took the second at 3000/10min (2026-09-03). A tight number there
 would have let one script take the palette away from everyone.
 
+**One door, many prices.** A route that fans out to *several kinds of work* needs
+more than one bucket. `POST /api/tasks` is the case: one handler in front of every
+kind in `HANDLERS`, and for a year one bucket — 120 starts / 10 min / IP, a number
+calibrated for the cheapest thing that comes through it (the Decisions queue fires
+one POST per accepted review, so a 50-card bulk accept is a legitimate 50-request
+burst). The same 120 admitted 120 repo clones, 120 board-wide screen sweeps and 120
+cohort evaluations. [`app/_lib/task-budget.ts`](../../app/_lib/task-budget.ts)
+classifies every kind as **cheap** (120/10min IP), **metered** (30/10min IP +
+90/hour per WORKSPACE) or **agent** (6/10min IP + 15/hour per workspace); both
+`POST /api/tasks` and `POST /api/tasks/[id]/retry` apply the class budget on top of
+the door's own bucket, under the SAME keys, so replaying is not a way to double an
+allowance. An unclassified kind falls to the tightest class, and a test parses
+`HANDLERS` and fails on a kind that has no class. The per-workspace half is the one
+that actually bounds spend: it survives an IP rotation and it is the tenant whose
+allowance is drawn down — see the `SHARED_CLIENT_KEY` note above for why the IP
+half alone is the wrong unit for a team.
+
 Pick the key deliberately:
 
 - per-IP (`clientIpFrom(request.headers)`) for abuse containment;
@@ -194,7 +211,12 @@ The call sites are **pinned by a contract test**,
 it asserts both the source-level guard (key template, limit, the shared
 `{ error: RATE_LIMITED_ERROR }` 429 envelope) and the real limiter's behaviour
 at the route's exact config. Moving or re-keying a limiter means updating that
-test deliberately — not deleting the assertion.
+test deliberately — not deleting the assertion. It also walks the whole tree for
+one rule no per-route spec can express: **every route that reaches `startTask` must
+throttle first.** Three dev-case routes (`devcase/control`, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/approve`) enqueue an `agent`-class `lifecycle` run with no
+limiter at all and are listed in that test's `UNTHROTTLED_ENQUEUE` ratchet — a known
+gap, recorded so it cannot grow, and removing a line is the fix.
 
 ### 1.5 Uploads, timeouts and tenancy
 

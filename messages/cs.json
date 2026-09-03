@@ -1558,7 +1558,15 @@
     "FEEDBACK_MESSAGE_REQUIRED": "Před odesláním napište zprávu.",
     "FEEDBACK_MESSAGE_TOO_LONG": "Zpráva je příliš dlouhá. Zkraťte ji prosím na nejvýše 2 000 znaků.",
     "OPS_STATUS_FAILED": "Stav systému se nepodařilo načíst. Zkuste to prosím znovu.",
-    "FEEDBACK_READ_FORBIDDEN": "Schránku zpětné vazby může číst jen ten, kdo spravuje členy týmu."
+    "FEEDBACK_READ_FORBIDDEN": "Schránku zpětné vazby může číst jen ten, kdo spravuje členy týmu.",
+    "TASK_LIST_FAILED": "AI úlohy se nepodařilo načíst. Zkuste to prosím znovu.",
+    "TASK_START_FAILED": "Úlohu se nepodařilo spustit. Zkuste to prosím znovu.",
+    "TASK_RETRY_FAILED": "Úlohu se nepodařilo spustit znovu. Zkuste to prosím později.",
+    "TASK_KIND_UNKNOWN": "Tento druh AI úlohy v této verzi neexistuje.",
+    "TASK_BUDGET_EXHAUSTED": "Nedávno se spustilo příliš mnoho AI běhů tohoto druhu. Zkuste to prosím za chvíli.",
+    "TASK_NOT_FOUND": "Tato úloha už neexistuje.",
+    "TASK_NOT_RETRYABLE": "Znovu spustit lze jen neúspěšné, přerušené nebo zrušené úlohy.",
+    "TASK_REPLAY_INPUTS_GONE": "Nahrané soubory k tomuto běhu už byly smazány. Nahrajte je prosím znovu a běh zopakujte."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1558,7 +1558,15 @@
     "FEEDBACK_MESSAGE_REQUIRED": "Rédigez un message avant de l’envoyer.",
     "FEEDBACK_MESSAGE_TOO_LONG": "Ce message est trop long. Veuillez le réduire à 2 000 caractères maximum.",
     "OPS_STATUS_FAILED": "Impossible de charger l'état du système. Veuillez réessayer.",
-    "FEEDBACK_READ_FORBIDDEN": "Seules les personnes autorisées à gérer les membres peuvent consulter les retours."
+    "FEEDBACK_READ_FORBIDDEN": "Seules les personnes autorisées à gérer les membres peuvent consulter les retours.",
+    "TASK_LIST_FAILED": "Impossible de charger les tâches IA. Veuillez réessayer.",
+    "TASK_START_FAILED": "Impossible de lancer cette tâche IA. Veuillez réessayer.",
+    "TASK_RETRY_FAILED": "Impossible de relancer cette tâche IA. Veuillez réessayer.",
+    "TASK_KIND_UNKNOWN": "Ce type de tâche IA n'existe pas dans cette version.",
+    "TASK_BUDGET_EXHAUSTED": "Trop de traitements IA de ce type ont été lancés récemment. Réessayez dans un instant.",
+    "TASK_NOT_FOUND": "Cette tâche n'existe plus.",
+    "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
+    "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

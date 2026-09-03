@@ -1558,7 +1558,15 @@
     "FEEDBACK_MESSAGE_REQUIRED": "Write a message before sending.",
     "FEEDBACK_MESSAGE_TOO_LONG": "That message is too long. Please shorten it to 2,000 characters or fewer.",
     "OPS_STATUS_FAILED": "Could not load system status. Please try again.",
-    "FEEDBACK_READ_FORBIDDEN": "Only someone who can manage members may read the feedback inbox."
+    "FEEDBACK_READ_FORBIDDEN": "Only someone who can manage members may read the feedback inbox.",
+    "TASK_LIST_FAILED": "Could not load the AI tasks. Please try again.",
+    "TASK_START_FAILED": "Could not start that AI task. Please try again.",
+    "TASK_RETRY_FAILED": "Could not re-run that AI task. Please try again.",
+    "TASK_KIND_UNKNOWN": "This kind of AI task does not exist in this version.",
+    "TASK_BUDGET_EXHAUSTED": "Too many AI runs of this kind have been started recently. Try again shortly.",
+    "TASK_NOT_FOUND": "That task no longer exists.",
+    "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",
+    "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it."
   },
   "resilience": {
     "notFoundEyebrow": "404",

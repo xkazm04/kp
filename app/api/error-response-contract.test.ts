@@ -278,9 +278,12 @@ const LEAK_CEILING = new Map<string, number>([
   // seventh hand-listed array: the leak was `results.push({ …, error: err.message })`
   // inside a per-entry loop, not a `NextResponse.json({ error: … })`, so BOTH
   // existing hygiene guards' regexes structurally could not see it.
-  ["tasks/[id]/retry/route.ts", 1],
+  // tasks/route.ts (2) and tasks/[id]/retry/route.ts (1) were here and are FIXED,
+  // not ceilinged — the entries are DELETED so the win is locked and a regression
+  // reads as `undeclared`. Both doors now answer through the chokepoint:
+  // safeJsonError on the two 500s, jsonRefusal + a TASK_* code on every refusal
+  // (/perfect wave 17, background-tasks).
   ["tasks/history/route.ts", 1],
-  ["tasks/route.ts", 2],
   ["tasks/seen/route.ts", 1],
   ["workspace/export/route.ts", 1],
   ["workspace/import/route.ts", 1],

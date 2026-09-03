@@ -1558,7 +1558,15 @@
     "FEEDBACK_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
     "FEEDBACK_MESSAGE_TOO_LONG": "Diese Nachricht ist zu lang. Bitte kürzen Sie sie auf höchstens 2.000 Zeichen.",
     "OPS_STATUS_FAILED": "Der Systemstatus konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "FEEDBACK_READ_FORBIDDEN": "Nur wer Mitglieder verwalten darf, kann den Feedback-Eingang lesen."
+    "FEEDBACK_READ_FORBIDDEN": "Nur wer Mitglieder verwalten darf, kann den Feedback-Eingang lesen.",
+    "TASK_LIST_FAILED": "Die KI-Aufgaben konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "TASK_START_FAILED": "Die Aufgabe konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "TASK_RETRY_FAILED": "Die Aufgabe konnte nicht erneut ausgeführt werden. Bitte versuchen Sie es erneut.",
+    "TASK_KIND_UNKNOWN": "Diese Art von KI-Aufgabe gibt es in dieser Version nicht.",
+    "TASK_BUDGET_EXHAUSTED": "Zu viele KI-Läufe dieser Art wurden kürzlich gestartet. Bitte versuchen Sie es in Kürze erneut.",
+    "TASK_NOT_FOUND": "Diese Aufgabe existiert nicht mehr.",
+    "TASK_NOT_RETRYABLE": "Nur fehlgeschlagene, unterbrochene oder abgebrochene Aufgaben lassen sich erneut ausführen.",
+    "TASK_REPLAY_INPUTS_GONE": "Die hochgeladenen Dateien dieses Laufs wurden bereits gelöscht. Laden Sie sie erneut hoch, um den Lauf zu wiederholen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -60,7 +60,7 @@ test("the live list and the seen-ack are per team", () => {
 
 test("every task route resolves the session workspace and threads it", () => {
   const cases: [string, RegExp[]][] = [
-    ["route.ts", [/listRecentTasks\(recentTaskCutoffIso\(\), undefined, ws\)/, /startTask\(body\.kind, body\.params \?\? \{\}, await currentWorkspace\(\)\)/]],
+    ["route.ts", [/listRecentTasks\(recentTaskCutoffIso\(\), undefined, ws\)/, /const ws = await currentWorkspace\(\);/, /startTask\(body\.kind, body\.params \?\? \{\}, ws\)/]],
     ["history/route.ts", [/countTaskHistory\(before, filter, ws\)/, /listTaskHistory\(before, limit, offset, filter, ws\)/]],
     ["seen/route.ts", [/markTasksSeen\(ids, await currentWorkspace\(\)\)/]],
     ["[id]/route.ts", [/getTask\(id, await currentWorkspace\(\)\)/, /if \(!getTask\(id, ws\)\)/]],

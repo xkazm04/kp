@@ -458,7 +458,7 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 
-Seven decisions are load-bearing:
+Ten decisions are load-bearing:
 
 - **Retry replays the persisted params, but only when they still resolve.**
   `POST /api/tasks/[id]/retry` re-runs a failed/interrupted/canceled row
@@ -471,6 +471,24 @@ Seven decisions are load-bearing:
   the rows `TasksRunsPanel` actually drew — its page slice, already narrowed by the
   column filters. Acking the whole polled window while the table paginates 20 at a
   time acknowledged outcomes on pages the reader never turned to.
+- **One door, many prices.** `POST /api/tasks` fronts every kind in `HANDLERS`, so
+  the budget is per KIND CLASS (`app/_lib/task-budget.ts`): cheap 120/10min per IP,
+  metered 30/10min + 90/hour per workspace, agent 6/10min + 15/hour per workspace.
+  `POST /api/tasks/[id]/retry` applies the same class budget under the SAME keys —
+  a replay costs what the original did and cannot double an allowance. Full
+  reasoning in `docs/architecture/api-contracts.md` §1.4.
+- **Both doors refuse with a code.** Start and retry answer every refusal through
+  `jsonRefusal` with a `TASK_*` code (`TASK_KIND_UNKNOWN`, `TASK_BUDGET_EXHAUSTED`,
+  `TASK_NOT_FOUND`, `TASK_NOT_RETRYABLE`, `TASK_REPLAY_INPUTS_GONE`) and their 500s
+  through `safeJsonError`, so the dock's start-error banner resolves `errors.<CODE>`
+  in the reader's language instead of painting the handler's English. Their rows are
+  DELETED from `error-response-contract.test.ts` rather than lowered.
+- **Terminal is final.** `finishTask` guards on `status IN ('queued','running')`
+  like `markTaskRunning` and `setTaskProgress` always have, and returns whether it
+  wrote. Abort is cooperative — a Python child takes seconds to die — so a handler
+  finishing after a cancel used to overwrite the `canceled` row with `succeeded`
+  and its result, and a run returning after the wall-clock reaper undid the
+  reaper's `interrupted`.
 - **An outcome speaks its kind, or says nothing.** `taskOutcomeSummary(kind, result)`
   (`app/_lib/task-outcome-summary.ts`, pure and unit-tested) returns `(label key,
   value)` lines the drawer translates. Every kind in `HANDLERS` either has a mapper
