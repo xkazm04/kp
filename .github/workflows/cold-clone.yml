@@ -1,0 +1,161 @@
+# Do the documented commands work on a machine that has never built this repo?
+#
+# THE GAP THIS CLOSES: `AGENTS.md` opens by telling an agent to verify a change
+# with three commands, and `npm run guidance:check` proves those commands exist,
+# that every guidance file names them, and that the gate table matches `ci.yml`.
+# All of that compares one list to another list. Nothing ever ran the commands
+# from an empty directory, so their correctness rested on the maintainer's own
+# checkout — where Python, the pipeline dependencies and a warm `.next/cache`
+# have been present for months.
+#
+# The first prerequisite to bite is invisible in the instruction that needs it:
+# `npm run typecheck` runs `schemas:gen` before tsc, `schemas:gen` runs the Python
+# codegen, and the codegen imports the pipeline package. On a cold clone that is
+# a failure about a missing interpreter or a missing module in the middle of a
+# command whose name says "typecheck". `scripts/schemas-gen.mjs` now answers that
+# with the prerequisite instead of a stack trace; this workflow is what keeps the
+# answer true.
+#
+# WHY NIGHTLY AND NOT A GATE, deliberately: nothing here reads the change. It
+# re-runs the documented path against a moving world — a runner image, a Python
+# point release, a transitive dependency that dropped a wheel — so it goes red for
+# reasons that have nothing to do with the commit that would have been blocked.
+# `ci.yml` is where a change is judged, and it deliberately CACHES and installs
+# in the order that is fast rather than the order that is documented. This job is
+# the opposite on purpose: no `cache:`, no restore, the exact steps AGENTS.md
+# names, in the order it names them.
+#
+# WHEN IT FAILS: the `report` job opens (or reuses) an issue saying which of the
+# three commands broke. Fix the tree or fix AGENTS.md — a documented command that
+# does not run from a clean clone is a wrong document, and which of the two is
+# wrong is the thing the issue exists to make somebody decide.
+name: Cold clone
+
+on:
+  schedule:
+    # 03:20 UTC, before the working day in Europe/Prague and clear of the Monday
+    # 04:17 / 05:40 supply-chain jobs.
+    - cron: "20 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cold-clone
+  cancel-in-progress: false
+
+jobs:
+  documented-path:
+    name: The three documented commands, from nothing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # NO `cache: npm` and NO `.next/cache` restore anywhere in this job. ci.yml
+      # has both and should; a cold clone has neither, and a prerequisite that is
+      # only ever satisfied by a warm cache is a prerequisite nobody documented.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      # THE PREREQUISITE, INSTALLED THE WAY THE DOCUMENT NAMES IT. Everything
+      # above is what `git clone && npm ci` gives you. If a future change makes
+      # the three commands need something else, it has to be added here — and to
+      # AGENTS.md in the same edit, which is the point of the job.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      # …and now, verbatim, the block AGENTS.md tells an agent to run.
+      - name: npm run typecheck
+        run: npm run typecheck
+
+      - name: npm run test:unit
+        run: npm run test:unit
+
+      - name: npm run lint
+        run: npm run lint
+
+  legible-prerequisite:
+    name: A missing prerequisite says which one it is
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # No `npm ci` and no `pip install` ON PURPOSE: this job IS the cold machine.
+      # scripts/schemas-gen.mjs is dependency-free node:*, so it runs here exactly
+      # as it would in the first minute of somebody's first clone.
+      #
+      # The assertion is not that it succeeds — it very well may, if the runner
+      # image happens to carry the pipeline's dependencies. It is that WHEN IT
+      # FAILS, the output names the prerequisite rather than leaving a stack trace
+      # inside a command called "typecheck".
+      - name: The failure must name requirements.txt
+        run: |
+          set +e
+          node scripts/schemas-gen.mjs > cold.txt 2>&1
+          STATUS=$?
+          set -e
+          cat cold.txt
+          if [ "$STATUS" -eq 0 ]; then
+            echo "schemas:gen succeeded on a bare runner — nothing to diagnose." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if grep -q "requirements.txt" cold.txt && grep -q "AGENTS.md" cold.txt; then
+            echo "schemas:gen failed and named the prerequisite. That is the documented behaviour." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::schemas:gen failed without naming the prerequisite. A cold clone reads this as a broken repository."
+          exit 1
+
+  report:
+    name: Say on an issue that the documented path is broken
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: failure()
+    needs: [documented-path, legible-prerequisite]
+    permissions:
+      contents: read
+      issues: write # the whole output of this workflow is one issue
+    steps:
+      # Nothing is checked out: this job only talks. `gh` is on the runner.
+      - name: Open or reuse the issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: "The documented commands do not run from a cold clone"
+        run: |
+          EXISTING=$(gh issue list --repo "$REPO" --state open --search "$TITLE in:title" --json number --jq '.[0].number')
+          {
+            echo "\`.github/workflows/cold-clone.yml\` followed AGENTS.md from an empty checkout and one of the"
+            echo "three documented commands did not succeed."
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "Two things can be wrong here and they need different fixes:"
+            echo
+            echo "1. **The tree.** A dependency, a generated file or a prerequisite moved. Fix the code."
+            echo "2. **The document.** The commands need something AGENTS.md does not say they need. Add it"
+            echo "   there AND to the \`documented-path\` job, in the same change — a prerequisite that lives"
+            echo "   only in a workflow is one a human following the README still will not have."
+            echo
+            echo "This job is nightly and deliberately not a required check: it re-runs the documented path"
+            echo "against a moving world, so it can go red for reasons unrelated to any commit."
+          } > body.md
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$REPO" --body-file body.md
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body-file body.md
+          fi

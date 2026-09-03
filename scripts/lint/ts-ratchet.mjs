@@ -42,31 +42,24 @@
 // The honest gate for `any` is the type checker plus the rule that would have to
 // be disabled to introduce one, and THAT disable is counted above.
 //
-// THE FIVE RULES, and which direction each one forces:
+// THE RULES ARE THE SHARED ONES. `scripts/lint/ratchet.mjs` defines what a
+// ratchet is in this repository — the verdict ladder (`undeclared`,
+// `unexplained`, `grew`, `slack`, `met`, and the measurement `zero`), the report,
+// the flags, the exit codes and the "refuses to guess" rule — once, for both this
+// and `ruff-ratchet.mjs`. Read that file for the protocol; this one is the
+// TypeScript half: the `ts-debt.json` ceilings, and a walk of `app/` and
+// `packages/` counting directives.
 //
-//   undeclared   a suppression kind with no entry in ts-debt.json. The first
-//                `@ts-ignore`, the first blanket disable, the first time a NEW
-//                eslint rule is switched off, costs you a number and a sentence —
-//                which is the moment somebody has to look at what is being turned
-//                off and why. BLOCKING.
-//   unexplained  an entry whose `why` is missing or empty. A number on its own
-//                records the size of the debt and nothing about whether it is
-//                debt. BLOCKING.
-//   grew         more occurrences than the ceiling. The list cannot absorb new
-//                suppressions under an old entry. BLOCKING.
-//   slack        fewer than the ceiling. A NOTE: making every removed suppression
-//                a red build taxes the fix rather than the debt. `--tighten`
-//                lowers the number, and autofix.yml runs it on every pull request.
-//   burnt-down   ZERO occurrences against a non-zero ceiling. Also a note, and
+// THE ONE VERDICT THAT IS THIS RATCHET'S OWN, and the reason the shared ladder
+// reports a measurement (`zero`) rather than a verdict:
+//
+//   burnt-down   ZERO occurrences against a non-zero ceiling. A NOTE, and
 //                `--tighten` lowers it to 0 — which LOCKS the win, because 0 is a
 //                ceiling like any other and the next one to arrive is `grew`.
-//
-// WHERE THIS DIVERGES FROM ruff-ratchet, on purpose: there, an ignore that
-// suppresses nothing is `dead` and BLOCKING, because the entry is an ignore and a
-// live ignore that excuses nothing is rot that reads as policy. Here the entry is
-// not a suppression, it is a CEILING on one — so the burnt-down entry is worth
-// keeping at 0, and deleting it would be throwing away the ratchet's teeth at the
-// exact moment they closed.
+//                Here the entry is not a suppression, it is a CEILING on one, so
+//                deleting it would throw the teeth away at the exact moment they
+//                closed. (On the ruff side the entry IS the ignore, so the same
+//                measurement is `dead` and blocking.)
 //
 // WHY IT REFUSES TO GUESS: if `ts-debt.json` cannot be read, or the walk finds no
 // source files at all, this exits 1 saying so. The one thing it must never do is
@@ -83,6 +76,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { BLOCKING, NOTE, classify, finding as makeFinding, main, parseArgs, renderFindings } from './ratchet.mjs';
+
+export { parseArgs };
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const TS_DEBT_PATH = 'ts-debt.json';
@@ -216,9 +213,17 @@ export function parseCeilings(text) {
   return parsed.ceilings;
 }
 
-const finding = (severity, rule, key, message, fix) => ({ severity, rule, key, file: TS_DEBT_PATH, message, fix });
+const finding = (severity, rule, key, message, fix) => makeFinding(severity, rule, TS_DEBT_PATH, message, fix, { key });
 
-/** Pure. `ceilings` is the parsed object, `counts` is a `Map<key, count>`. */
+/**
+ * Pure. `ceilings` is the parsed object, `counts` is a `Map<key, count>`.
+ *
+ * The ladder is `classify()` in ratchet.mjs; this maps each kind to the sentence
+ * a reader of THIS debt file needs. The first loop is this ratchet's own shape of
+ * `undeclared` — it is driven by the TREE (a suppression kind nobody declared)
+ * rather than by an entry, because ts-debt.json has no line for the undeclared
+ * case to be found on.
+ */
 export function runChecks(ceilings, counts) {
   const out = [];
 
@@ -227,7 +232,7 @@ export function runChecks(ceilings, counts) {
     if (!Object.hasOwn(ceilings, key)) {
       out.push(
         finding(
-          'blocking',
+          BLOCKING,
           'undeclared',
           key,
           `\`${key}\` occurs ${count} time(s) and ${TS_DEBT_PATH} declares no ceiling for it.`,
@@ -244,70 +249,69 @@ export function runChecks(ceilings, counts) {
     const why = typeof entry?.why === 'string' ? entry.why.trim() : '';
     const actual = counts.get(key) ?? 0;
 
-    if (!Number.isInteger(max) || max < 0) {
-      out.push(
-        finding(
-          'blocking',
-          'unexplained',
-          key,
-          `\`${key}\` has no integer \`max\`.`,
-          'Every entry is `{ "max": <n>, "why": "<sentence>" }`. A ceiling that is not a number is not a ceiling.',
-        ),
-      );
-      continue;
-    }
-    if (why === '') {
-      out.push(
-        finding(
-          'blocking',
-          'unexplained',
-          key,
-          `\`${key}\` declares a ceiling of ${max} and no \`why\`.`,
-          'Say what the suppression is for and what would retire it. The number records how big the debt is; ' +
-            'the sentence is the only thing that records whether it is debt at all — which is the difference ' +
-            'between a deliberate exception and an old one nobody has re-read.',
-        ),
-      );
-      continue;
-    }
-    if (actual > max) {
-      out.push(
-        finding(
-          'blocking',
-          'grew',
-          key,
-          `\`${key}\` occurs ${actual} time(s), above its declared ceiling of ${max}.`,
-          `Remove the ${actual - max} new one(s), or fix the code under them. Raising the ceiling instead is ` +
-            'editing the gate to pass the change — the move docs/architecture/decisions/0007-repo-laws-are-gates.md ' +
-            'exists to make visible. If it is genuinely right, raise it in its own commit and say why in `why`.',
-        ),
-      );
-      continue;
-    }
-    if (actual === 0 && max > 0) {
-      out.push(
-        finding(
-          'note',
-          'burnt-down',
-          key,
-          `\`${key}\`: nothing left in the tree, ceiling still says ${max}.`,
-          'Run `npm run lint:ts-ratchet -- --tighten` to record the win as a ceiling of 0 (autofix.yml does this ' +
-            'on every pull request). Until then the entry would let the whole class grow straight back.',
-        ),
-      );
-      continue;
-    }
-    if (actual < max) {
-      out.push(
-        finding(
-          'note',
-          'slack',
-          key,
-          `\`${key}\`: ${actual} left, ceiling still says ${max}.`,
-          'Run `npm run lint:ts-ratchet -- --tighten` to record the ground gained (autofix.yml does this on ' +
-            'every pull request). Until then the entry would let the debt grow back to the old number.',
-        ),
-      );
+    switch (classify({ ceiling: max ?? null, actual, explained: why !== '' })) {
+      case 'undeclared':
+      case 'unexplained':
+        out.push(
+          finding(
+            BLOCKING,
+            'unexplained',
+            key,
+            !Number.isInteger(max) || max < 0
+              ? `\`${key}\` has no integer \`max\`.`
+              : `\`${key}\` declares a ceiling of ${max} and no \`why\`.`,
+            !Number.isInteger(max) || max < 0
+              ? 'Every entry is `{ "max": <n>, "why": "<sentence>" }`. A ceiling that is not a number is not a ceiling.'
+              : 'Say what the suppression is for and what would retire it. The number records how big the debt is; ' +
+                'the sentence is the only thing that records whether it is debt at all — which is the difference ' +
+                'between a deliberate exception and an old one nobody has re-read.',
+          ),
+        );
+        break;
+      case 'grew':
+        out.push(
+          finding(
+            BLOCKING,
+            'grew',
+            key,
+            `\`${key}\` occurs ${actual} time(s), above its declared ceiling of ${max}.`,
+            `Remove the ${actual - max} new one(s), or fix the code under them. Raising the ceiling instead is ` +
+              'editing the gate to pass the change — the move docs/architecture/decisions/0007-repo-laws-are-gates.md ' +
+              'exists to make visible. If it is genuinely right, raise it in its own commit and say why in `why`.',
+          ),
+        );
+        break;
+      case 'zero':
+        // A ceiling of 0 with nothing left is the goal state, and silence is the
+        // correct report for it. Anything above 0 is a win that has not been
+        // recorded yet, which is what --tighten is for.
+        if (max > 0) {
+          out.push(
+            finding(
+              NOTE,
+              'burnt-down',
+              key,
+              `\`${key}\`: nothing left in the tree, ceiling still says ${max}.`,
+              'Run `npm run lint:ts-ratchet -- --tighten` to record the win as a ceiling of 0 (autofix.yml does this ' +
+                'on every pull request). Until then the entry would let the whole class grow straight back.',
+            ),
+          );
+        }
+        break;
+      case 'slack':
+        out.push(
+          finding(
+            NOTE,
+            'slack',
+            key,
+            `\`${key}\`: ${actual} left, ceiling still says ${max}.`,
+            'Run `npm run lint:ts-ratchet -- --tighten` to record the ground gained (autofix.yml does this on ' +
+              'every pull request). Until then the entry would let the debt grow back to the old number.',
+          ),
+        );
+        break;
+      default:
+        break; // `met` — exactly at the ceiling, and nothing to say about it
     }
   }
 
@@ -341,65 +345,47 @@ export function tighten(text, counts) {
 }
 
 // --- CLI ----------------------------------------------------------------------
+//
+// The flags, the report, the exit codes and the "a no-op --tighten writes
+// nothing" rule are `runRatchetCli`'s, shared with ruff-ratchet. What is this
+// ratchet's own is named here: which file to read, how to measure, and what to
+// say.
 
-export function parseArgs(argv) {
-  return { tighten: argv.includes('--tighten'), json: argv.includes('--json') };
+export const NAME = 'ts-ratchet';
+
+export const CLEAN = `${NAME}: every suppression in ${ROOTS.join('/ and ')}/ is declared in ${TS_DEBT_PATH}, explained, and no more numerous than it was.`;
+
+export const render = (findings) => renderFindings(findings, CLEAN);
+
+/** The whole spec of this ratchet, exported so a fixture can drive it. */
+export function spec(argv, { root = REPO_ROOT, read = fs.readFileSync, write = fs.writeFileSync, counts = null } = {}) {
+  const file = path.join(root, TS_DEBT_PATH);
+  return {
+    name: NAME,
+    argv,
+    load: () => {
+      const text = read(file, 'utf8');
+      const ceilings = parseCeilings(text);
+      return ceilings === null ? null : { text, entries: ceilings };
+    },
+    unreadable:
+      `${TS_DEBT_PATH} has no readable \`ceilings\` object. The gate reads that file; if it moved or ` +
+      'changed shape, this check is not checking anything.',
+    measure: () => counts ?? treeCounts({ root }),
+    check: ({ entries, counts: c }) => runChecks(entries, c),
+    tighten: ({ text, entries, counts: c }) => ({
+      text: tighten(text, c),
+      log: Object.entries(entries)
+        .filter(([key, entry]) => Number.isInteger(entry?.max) && (c.get(key) ?? 0) < entry.max)
+        .map(([key, entry]) => `  ${TS_DEBT_PATH}: ${key} ${entry.max} -> ${c.get(key) ?? 0}.`),
+    }),
+    write: (text) => write(file, text, 'utf8'),
+    tightenMessages: {
+      none: 'nothing to tighten — every ceiling already matches the tree.',
+      done: 'lowered the ceilings. Re-run without --tighten to confirm.',
+    },
+    clean: CLEAN,
+  };
 }
 
-export function render(findings) {
-  if (findings.length === 0)
-    return `ts-ratchet: every suppression in ${ROOTS.join('/ and ')}/ is declared in ${TS_DEBT_PATH}, explained, and no more numerous than it was.`;
-  const lines = findings.map(
-    (f) => `${f.severity === 'blocking' ? 'BLOCK' : ' note'}  ${f.file}  [${f.rule}] ${f.message}\n        ${f.fix}`,
-  );
-  const blocking = findings.filter((f) => f.severity === 'blocking').length;
-  lines.push('', `${blocking} blocking, ${findings.length - blocking} note(s).`);
-  return lines.join('\n');
-}
-
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const file = path.join(REPO_ROOT, TS_DEBT_PATH);
-  const text = fs.readFileSync(file, 'utf8');
-  const ceilings = parseCeilings(text);
-  if (ceilings === null) {
-    console.error(
-      `ts-ratchet: ${TS_DEBT_PATH} has no readable \`ceilings\` object. The gate reads that file; if it moved or ` +
-        'changed shape, this check is not checking anything.',
-    );
-    process.exit(1);
-  }
-
-  const counts = treeCounts();
-
-  if (args.tighten) {
-    const next = tighten(text, counts);
-    if (next === text) {
-      console.log('ts-ratchet: nothing to tighten — every ceiling already matches the tree.');
-      return;
-    }
-    fs.writeFileSync(file, next, 'utf8');
-    for (const [key, entry] of Object.entries(ceilings)) {
-      const actual = counts.get(key) ?? 0;
-      if (Number.isInteger(entry?.max) && actual < entry.max) {
-        console.log(`  ${TS_DEBT_PATH}: ${key} ${entry.max} -> ${actual}.`);
-      }
-    }
-    console.log('ts-ratchet: lowered the ceilings. Re-run without --tighten to confirm.');
-    return;
-  }
-
-  const findings = runChecks(ceilings, counts);
-  if (args.json) console.log(JSON.stringify(findings, null, 2));
-  else console.log(render(findings));
-  process.exit(findings.some((f) => f.severity === 'blocking') ? 1 : 0);
-}
-
-if (process.argv[1]?.endsWith('ts-ratchet.mjs')) {
-  try {
-    main();
-  } catch (err) {
-    console.error(`ts-ratchet: ${err.message}`);
-    process.exit(1);
-  }
-}
+if (process.argv[1]?.endsWith('ts-ratchet.mjs')) main(spec(process.argv.slice(2)));

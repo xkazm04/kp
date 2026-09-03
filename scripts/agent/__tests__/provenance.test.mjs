@@ -8,11 +8,15 @@
 // partial block is provenance that reads like an answer and is not one).
 import assert from 'node:assert/strict';
 import {
+  COMPACT_FIELDS,
+  COMPACT_KEY,
   PROVENANCE_KEYS,
   agentTrailers,
   checkProvenance,
   parseArgs,
   promptDigest,
+  readProvenance,
+  renderCompact,
   renderProvenance,
 } from '../provenance.mjs';
 
@@ -120,8 +124,94 @@ check('cli args parse', () => {
     prompt: null,
     promptFile: null,
     run: 'local',
+    agent: null,
+    lane: null,
+    task: null,
+    compact: false,
   });
   assert.equal(parseArgs(['--prompt-file', '/tmp/p.txt']).promptFile, '/tmp/p.txt');
+  assert.equal(parseArgs(['--compact', '--lane', 'ascent']).lane, 'ascent');
+});
+
+// --- the compact spelling, and the collision it used to cause ------------------
+//
+// THE REGRESSION THESE PIN. Two modules used to define agent provenance: this
+// one, which refused any `Agent-*` key outside its four, and
+// scripts/release/provenance.mjs, whose compact `Agent-Provenance:` one-liner is
+// what CONTRIBUTING.md tells an outside lane to write. `Agent-Provenance` MATCHES
+// `Agent-*`, so the documented trailer failed the commit-convention gate with
+// five findings — one "undefined key" plus four "missing key" — and no fixture on
+// either side ever put the two rules in the same body to notice.
+
+const COMPACT = `${COMPACT_KEY}: agent=claude-code; model=claude-opus-5; lane=ascent; task=abc123`;
+
+check('THE COLLISION: the documented compact trailer is accepted, not refused', () => {
+  assert.deepEqual(checkProvenance(COMPACT), []);
+  assert.deepEqual(checkProvenance(`Some prose.\n\nRefs #12\n${COMPACT}\n`), []);
+});
+
+check('one pair is enough — a lane says what it knows rather than nothing', () => {
+  assert.deepEqual(checkProvenance(`${COMPACT_KEY}: model=claude-opus-5`), []);
+});
+
+check('a compact trailer with no key=value pair answers no query', () => {
+  const problems = checkProvenance(`${COMPACT_KEY}: written by the overnight run`);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /key=value/);
+});
+
+check('a pair key outside the vocabulary is refused, like an expanded key outside the block', () => {
+  const problems = checkProvenance(`${COMPACT_KEY}: model=m; vibes=excellent`);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /vibes=/);
+});
+
+check('ONE VALUE RULE TABLE: a bad harness/prompt/run fails identically in both spellings', () => {
+  // The point of the merge. Before it, `harness=dispatch.mjs` (no version) was
+  // caught in the four-line form and waved through in the one-line form, because
+  // each module only validated its own half.
+  assert.match(checkProvenance(`${COMPACT_KEY}: harness=scripts/agent/dispatch.mjs`)[0], /<path-or-name>@<version>/);
+  assert.match(checkProvenance(`${COMPACT_KEY}: prompt=v3`)[0], /digest/);
+  assert.match(checkProvenance(`${COMPACT_KEY}: run=somewhere`)[0], /neither a URL nor/);
+  assert.deepEqual(checkProvenance(`${COMPACT_KEY}: harness=d.mjs@1; prompt=${promptDigest('p')}; run=local`), []);
+});
+
+check('mixing the two spellings is refused — two answers to one question', () => {
+  const problems = checkProvenance(`${COMPACT}\n${COMPLETE}`);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /both spellings/);
+});
+
+check('the reader normalises both spellings into one record', () => {
+  assert.equal(readProvenance('').form, 'none');
+  assert.deepEqual(readProvenance(COMPACT), {
+    form: 'compact',
+    agent: 'claude-code',
+    model: 'claude-opus-5',
+    lane: 'ascent',
+    task: 'abc123',
+    harness: null,
+    prompt: null,
+    run: null,
+  });
+  const expanded = readProvenance(COMPLETE);
+  assert.equal(expanded.form, 'expanded');
+  assert.equal(expanded.model, 'claude-opus-5');
+  assert.equal(expanded.harness, 'scripts/agent/dispatch.mjs@1');
+  assert.match(expanded.run, /^https:/);
+});
+
+check('renderCompact emits a line that passes its own check, and refuses one that would not', () => {
+  const line = renderCompact({ agent: 'claude-code', model: 'claude-opus-5', lane: 'ascent', task: 'abc123' });
+  assert.deepEqual(checkProvenance(line), []);
+  assert.equal(line, COMPACT, 'fields render in the declared order');
+  assert.throws(() => renderCompact({}), /refusing to render/);
+  assert.throws(() => renderCompact({ harness: 'no-version' }), /refusing to render/);
+});
+
+check('every compact field is a field the reader has somewhere to put', () => {
+  const record = readProvenance(`${COMPACT_KEY}: ${COMPACT_FIELDS.map((f) => `${f}=x`).join('; ')}`);
+  for (const f of COMPACT_FIELDS) assert.equal(record[f], 'x', `${f} is parsed but not read back`);
 });
 
 console.log(`\nprovenance fixtures: ${passed} checks passed.`);

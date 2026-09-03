@@ -27,6 +27,7 @@ proposing to reverse one; each ends with what would change our mind.
 | [self-hosting.md](self-hosting.md) | Docker / Helm / bare `next start`, air-gap, the edge, production checklist |
 | [releases.md](releases.md) | What an operator pins to, the versioning contract, how a tag becomes an image, and the rollback runbook |
 | [api-contracts.md](api-contracts.md) | **The two interfaces to get right before changing a handler** — the HTTP envelope/auth/limiter contract every `app/api/**` route follows, and the spawned Python pipeline's wire protocol |
+| [api-reference.md](api-reference.md) | **The inventory**: every route, its methods, and whether the fail-closed gate lets an anonymous caller reach it. Generated from `app/api/**` with the auth column computed by `isPublicPath()` itself; `npm run api:check` gates the drift |
 | [app-structure.md](app-structure.md) | Rules and live tree of `app/features/**` |
 | [localization.md](localization.md) | The four-locale contract |
 | [voice-conversation-plane.md](voice-conversation-plane.md), [voice-tts-package.md](voice-tts-package.md) | The two voice planes: live conversation and spoken output |

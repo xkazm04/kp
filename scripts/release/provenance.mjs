@@ -17,24 +17,22 @@
 //
 // Each of those is one `git log` away IF the facts are trailers instead of
 // sentences. `git log` already understands trailers; nothing here had to be
-// invented except the vocabulary, which is below and is documented for humans in
-// CONTRIBUTING.md.
+// invented except the vocabulary.
 //
-// WHAT THIS FILE DOES:
-//   * defines the vocabulary (TRAILERS) and parses it out of a commit body;
-//   * `npm run provenance` — the query, over any range, plain or `--json`;
-//   * `checkTrailers()` — the validation the commit-convention CI job applies
-//     through scripts/release/commit-msg.mjs, so a trailer that is present and
-//     malformed fails rather than being silently unqueryable.
+// WHERE THE VOCABULARY LIVES, AND WHY NOT HERE ANY MORE. It used to be declared
+// twice. This file defined a compact `Agent-Provenance: agent=…; model=…;
+// lane=…; task=…` one-liner; `scripts/agent/provenance.mjs` defined a four-key
+// `Agent-model`/`Agent-harness`/`Agent-prompt`/`Agent-run` block and refused any
+// other `Agent-*` key. Both ran on every commit through commit-msg.mjs, so the
+// trailer CONTRIBUTING.md published was REJECTED by the gate as one undefined
+// key plus four missing ones — and, in the other direction, the four-key block
+// this repository's OWN dispatch lane writes was invisible to the reader below,
+// which classified those commits as human. One question, two vocabularies,
+// each blind to the other.
 //
-// WHAT IT CANNOT DO, STATED PLAINLY: it cannot make a lane write the trailer.
-// The parser reads what history already carries — `Co-Authored-By:` (which the
-// agent lanes here do write) and `Ascent-Resolves:` — so `npm run provenance`
-// answers the questions above on today's history. But the richer facts, model
-// and lane, only become queryable once the lane emits `Agent-Provenance:`. That
-// is a change to the lane's commit template, not to this repository, and this
-// file is deliberately the thing that makes it worth doing: the vocabulary is
-// fixed, the reader exists, and the gate is already wired.
+// `scripts/agent/provenance.mjs` is now the single owner: both spellings, one
+// value-rule table, one reader. This file is the QUERY over it, plus the two
+// trailers that are not about agents at all.
 //
 //   npm run provenance                        # HEAD~20..HEAD, human-readable
 //   node scripts/release/provenance.mjs --base origin/main --head HEAD
@@ -44,25 +42,42 @@
 // judging half lives in commit-msg.mjs, which is already a required check.
 
 import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+
+import { COMPACT_KEY, COMPACT_SHAPE, checkProvenance, parsePairs, readProvenance } from '../agent/provenance.mjs';
 
 export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
+// Re-exported so a caller that already imports the query does not have to know
+// which of the two modules owns the parser. There is one implementation.
+export { parsePairs, readProvenance };
+
 /**
- * THE VOCABULARY. Each entry is a trailer key, whether a well-formed value is
- * required to look like anything in particular, and what a reader gets from it.
+ * THE VOCABULARY, as a reader meets it. The `Agent-*` half is owned by
+ * scripts/agent/provenance.mjs and named here so this table stays the one place
+ * a human looks up what a trailer means; the rules that JUDGE it live with the
+ * owner, so the two cannot disagree again.
  *
  * Deliberately small. A vocabulary nobody can remember is one nobody writes, and
  * an unwritten trailer is worse than prose because it looks like a fact that was
  * checked.
  */
 export const TRAILERS = {
-  'Agent-Provenance': {
-    shape: 'agent=<name>; model=<id>; lane=<name>; task=<id>',
-    means: 'an automated lane committed this on an agent\'s behalf. Semicolon-separated key=value pairs; every key optional, at least one required.',
+  [COMPACT_KEY]: {
+    shape: COMPACT_SHAPE,
+    means:
+      "an automated lane committed this on an agent's behalf. Semicolon-separated key=value pairs; every key " +
+      'optional, at least one required. The one-line spelling, for a lane whose template has room for one trailer.',
+  },
+  'Agent-model': {
+    shape: '<model id> (with Agent-harness, Agent-prompt and Agent-run)',
+    means:
+      'the four-line spelling of the same fact, for a lane that knows all of it: which model, which driver at which ' +
+      'version, a digest of the prompt text, and where the run log is. All four or none — three cannot be joined on.',
   },
   'Co-Authored-By': {
     shape: 'Name <email>',
-    means: 'a second author, agent or human. The one trailer this history already carries.',
+    means: 'a second author, agent or human. The one trailer this history already carries throughout.',
   },
   'Ascent-Resolves': {
     shape: '<task-id>',
@@ -83,16 +98,6 @@ export function parseTrailers(body) {
   return out;
 }
 
-/** `a=1; b=2` → `{a: '1', b: '2'}`. Tolerant of spacing; ignores anything with no `=`. */
-export function parsePairs(value) {
-  const out = {};
-  for (const part of String(value ?? '').split(/\s*;\s*/)) {
-    const m = /^([A-Za-z][\w-]*)\s*=\s*(.+)$/.exec(part.trim());
-    if (m) out[m[1].toLowerCase()] = m[2].trim();
-  }
-  return out;
-}
-
 /**
  * What one commit's trailers say about who wrote it.
  * Pure. `commit` is `{subject, body}`.
@@ -101,49 +106,57 @@ export function provenanceOf(commit) {
   const trailers = parseTrailers(commit?.body ?? '');
   const get = (key) => trailers.filter((t) => t.key.toLowerCase() === key.toLowerCase()).map((t) => t.value);
 
-  const structured = get('Agent-Provenance').map(parsePairs);
+  // BOTH spellings, through the one reader. Before this call, the four-key block
+  // that .github/workflows/agent-dispatch.yml emits was parsed by nothing here,
+  // so every commit this repository's own lane made was counted as a human's.
+  const agentRecord = readProvenance(commit?.body ?? '');
   const coAuthors = get('Co-Authored-By');
   const agentCoAuthors = coAuthors.filter((v) => AGENT_CO_AUTHORS.some((re) => re.test(v)));
 
-  const agents = [...new Set(structured.map((p) => p.agent).filter(Boolean))];
-  const models = [
-    ...new Set([
-      ...structured.map((p) => p.model).filter(Boolean),
-      // `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` carries the model
-      // in the display name. Reading it is what makes today's history queryable
-      // at all, rather than only history written after the lane is changed.
-      ...agentCoAuthors.map((v) => v.replace(/\s*<[^>]*>\s*$/, '').trim()).filter(Boolean),
-    ]),
-  ];
-
   return {
     subject: commit?.subject ?? '',
-    authorship: structured.length || agentCoAuthors.length ? 'agent' : 'human',
+    authorship: agentRecord.form !== 'none' || agentCoAuthors.length ? 'agent' : 'human',
     // `structured` is the difference between "an agent was involved" and "here is
     // the lane, the model and the task". Reported separately so the share of
     // agent commits that are FULLY attributable is visible rather than assumed.
-    structured: structured.length > 0,
-    agents,
-    models,
-    lanes: [...new Set(structured.map((p) => p.lane).filter(Boolean))],
-    tasks: [...new Set([...structured.map((p) => p.task).filter(Boolean), ...get('Ascent-Resolves').filter(Boolean)])],
+    structured: agentRecord.form !== 'none',
+    agents: [...new Set([agentRecord.agent].filter(Boolean))],
+    models: [
+      ...new Set(
+        [
+          agentRecord.model,
+          // `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` carries the model
+          // in the display name. Reading it is what makes today's history queryable
+          // at all, rather than only history written after the lane is changed.
+          ...agentCoAuthors.map((v) => v.replace(/\s*<[^>]*>\s*$/, '').trim()),
+        ].filter(Boolean),
+      ),
+    ],
+    // The compact spelling names the LANE; the expanded one names the DRIVER at a
+    // version, which is the same question asked more precisely. Either answers
+    // "what produced this", so either fills the column.
+    lanes: [...new Set([agentRecord.lane ?? agentRecord.harness].filter(Boolean))],
+    tasks: [...new Set([agentRecord.task, ...get('Ascent-Resolves')].filter(Boolean))],
   };
 }
 
 /**
- * Validation, applied by the commit-convention gate through commit-msg.mjs.
+ * Validation, applied by the commit-convention gate through commit-msg.mjs. THE
+ * ONE ENTRY POINT for a body's trailers: the non-agent vocabulary is judged
+ * here, and every `Agent-*` trailer is handed to its owner, called exactly once
+ * so a malformed block is reported once rather than twice in two wordings.
  *
  * NARROW ON PURPOSE: it fires only on a trailer that is PRESENT and malformed,
  * never on an absent one. A gate that demanded the trailer would go red on every
- * commit written by a lane that does not yet emit it — which is every lane today
- * — and a gate nobody can satisfy is one everybody learns to bypass. Requiring it
- * is the follow-up, once the lanes write it.
+ * commit written by a lane that does not yet emit it, and a gate nobody can
+ * satisfy is one everybody learns to bypass.
  *
  * @returns string[] problems (empty = nothing malformed)
  */
 export function checkTrailers(body) {
   const problems = [];
   for (const { key, value } of parseTrailers(body)) {
+    if (/^agent-/i.test(key)) continue; // owned by scripts/agent/provenance.mjs, below
     const spec = Object.keys(TRAILERS).find((k) => k.toLowerCase() === key.toLowerCase());
     if (!spec) continue;
 
@@ -151,17 +164,11 @@ export function checkTrailers(body) {
       problems.push(`\`${spec}:\` is empty — it should read \`${spec}: ${TRAILERS[spec].shape}\``);
       continue;
     }
-    if (spec === 'Agent-Provenance' && Object.keys(parsePairs(value)).length === 0) {
-      problems.push(
-        `\`Agent-Provenance: ${value}\` holds no \`key=value\` pair, so nothing can read it — ` +
-          `the shape is \`${TRAILERS['Agent-Provenance'].shape}\``,
-      );
-    }
     if (spec === 'Co-Authored-By' && !/<[^>]+>/.test(value)) {
       problems.push(`\`Co-Authored-By: ${value}\` has no \`<email>\`, which is what git's own trailer readers key on`);
     }
   }
-  return problems;
+  return [...problems, ...checkProvenance(body)];
 }
 
 /** Roll a set of commits up into the answers the questions above want. */
@@ -190,7 +197,7 @@ export function render(s, range) {
   const lines = [
     `provenance over ${range} — ${s.total} commit(s)`,
     `  agent-authored:    ${s.agentAuthored} (${pct(s.agentAuthored)})`,
-    `  fully attributed:  ${s.fullyAttributed} of ${s.agentAuthored} carry an Agent-Provenance trailer`,
+    `  fully attributed:  ${s.fullyAttributed} of ${s.agentAuthored} carry a provenance trailer`,
   ];
   if (s.models.length) lines.push('  models:', ...s.models.map(([m, n]) => `    ${n.toString().padStart(4)}  ${m}`));
   if (s.lanes.length) lines.push('  lanes:', ...s.lanes.map(([l, n]) => `    ${n.toString().padStart(4)}  ${l}`));
@@ -199,8 +206,8 @@ export function render(s, range) {
     lines.push(
       '',
       `${s.agentAuthored - s.fullyAttributed} agent commit(s) are recognisable only by their co-author line, so the`,
-      'lane and the task that produced them are not answerable from the log. That is a change to the lane\'s',
-      'commit template (`Agent-Provenance: agent=…; model=…; lane=…; task=…`), not to this repository —',
+      "lane and the task that produced them are not answerable from the log. That is a change to the lane's",
+      `commit template (\`${COMPACT_KEY}: agent=…; model=…; lane=…; task=…\`), not to this repository —`,
       'CONTRIBUTING.md “Provenance trailers” states the shape it should write.',
     );
   }
@@ -236,7 +243,9 @@ export function parseArgs(argv) {
   return out;
 }
 
-if (process.argv[1]?.endsWith('provenance.mjs')) {
+// Resolved-URL comparison, not `endsWith('provenance.mjs')`: the module this file
+// imports is ALSO called provenance.mjs, and a filename guard would fire in both.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = parseArgs(process.argv.slice(2));
   const base = args.base ?? `${args.head}~20`;
   let commits = [];

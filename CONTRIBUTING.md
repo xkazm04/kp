@@ -144,28 +144,9 @@ Deeper guidance for automated agents and humans alike lives in
   Session-interrupted: 45-minute budget reached after the schedule half
   ```
 
-- **If an agent wrote it, say which one — as trailers.** A commit body that
-  claims agent provenance must carry the whole block, and
-  [`scripts/agent/provenance.mjs`](./scripts/agent/provenance.mjs) is what
-  refuses half of one (three of four keys cannot be joined on, so a partial
-  block reads like an answer and is not one):
-
-  ```
-  Agent-model: claude-opus-5
-  Agent-harness: scripts/agent/dispatch.mjs@sha256-1f0c…
-  Agent-prompt: sha256:9ab3…
-  Agent-run: https://github.com/xkazm04/kp/actions/runs/123456789
-  ```
-
-  `Agent-harness` is `<driver>@<version>`, `Agent-prompt` is a digest of the
-  instruction text the run was given (a hand-written version number stops being
-  true the first time somebody edits a prompt without bumping it), and
-  `Agent-run` is a URL or the literal `local`. The point is that provenance
-  becomes a query — `git log --format='%H %(trailers:key=Agent-model,valueonly)'`
-  answers "what else did this model, or this prompt, produce" without reading a
-  single body. `.github/workflows/agent-dispatch.yml` emits the block from the
-  driver, so it never depends on an agent remembering; a commit that claims none
-  is untouched by the rule.
+- **If an agent wrote it, say which one — as trailers.** The vocabulary and both
+  its spellings are below; a commit that claims provenance must carry a whole,
+  single form of it.
 - Present tense, scoped: `feat(billing): unmeter self-hosted installs`.
 - One logical change per PR. If your PR needs a "and also" in the description,
   it's probably two PRs.
@@ -184,29 +165,64 @@ Deeper guidance for automated agents and humans alike lives in
 The rule above fixes the *subject*. It does not make the record queryable: a
 commit body that says "this was produced by an overnight agent run" is honest and
 answers nothing, because no two lanes phrase it the same way. Facts that belong
-in `git log` go in **trailers**, which git already parses and which
-[`scripts/release/provenance.mjs`](./scripts/release/provenance.mjs) reads.
+in `git log` go in **trailers**, which git already parses.
+
+**One vocabulary, owned by
+[`scripts/agent/provenance.mjs`](./scripts/agent/provenance.mjs).** It used to be
+two — a compact one-liner documented here and a four-key block enforced there —
+and they collided: `Agent-Provenance:` is an `Agent-*` trailer, so the trailer
+this file told an outside lane to write was *rejected* by the `commit-convention`
+gate as one undefined key plus four missing ones, while the four-key block the
+repository's own dispatch lane emits was invisible to `npm run provenance` and
+counted as a human's work. One question does not get two answers.
 
 | Trailer | Shape | Says |
 | --- | --- | --- |
-| `Agent-Provenance:` | `agent=<name>; model=<id>; lane=<name>; task=<id>` | an automated lane committed this on an agent's behalf. Every key optional, at least one required. |
+| `Agent-Provenance:` | `agent=<name>; model=<id>; lane=<name>; task=<id>` | **the compact spelling.** An automated lane committed this on an agent's behalf. Every pair optional, at least one required. `harness=`, `prompt=` and `run=` are also accepted, under the same value rules as the block below. |
+| `Agent-model:` + `Agent-harness:` + `Agent-prompt:` + `Agent-run:` | see below | **the expanded spelling**, for a lane that knows all four. All four or none. |
 | `Co-Authored-By:` | `Name <email>` | a second author, agent or human. The one trailer this history already carries throughout. |
 | `Ascent-Resolves:` | `<task-id>` | the dispatched task this change closes. |
 
+```
+Agent-model: claude-opus-5
+Agent-harness: scripts/agent/dispatch.mjs@sha256-1f0c…
+Agent-prompt: sha256:9ab3…
+Agent-run: https://github.com/xkazm04/kp/actions/runs/123456789
+```
+
+`Agent-harness` is `<driver>@<version>` — the path alone is true of every run
+that driver ever made, including the ones before the bug you are looking for.
+`Agent-prompt` is a digest of the instruction text the run was given (a
+hand-written version number stops being true the first time somebody edits a
+prompt without bumping it). `Agent-run` is a URL or the literal `local`, and
+`local` is a real answer. Those three rules apply identically to `harness=`,
+`prompt=` and `run=` in the compact spelling, because it is the same vocabulary.
+
+The point is that provenance becomes a query:
+
 ```bash
+git log --format='%H %(trailers:key=Agent-model,valueonly)'
 npm run provenance                  # the last 20 commits: agent share, models, lanes, tasks
 npm run provenance -- --base v0.1.0 --head HEAD --json
 ```
 
+**Write it from the lane, not from the agent.** The lane that runs `git commit`
+is the part that already knows the model, the driver version and the run URL, so
+it never depends on an agent remembering: `.github/workflows/agent-dispatch.yml`
+renders the block with `node scripts/agent/provenance.mjs` and appends it to the
+message file. `--compact` prints the one-liner instead, for a template with room
+for a single trailer.
+
 An **absent** trailer is never an error — most commits have no reason to carry
 one, and a gate demanding a trailer no lane writes yet would go red on every
 automated commit and be bypassed within a day. A trailer that is **present and
-malformed** *is* an error, caught by the same `commit-convention` job: an empty
-value, an `Agent-Provenance:` with no `key=value` pair, a `Co-Authored-By:` with
-no `<email>`. Those look like a recorded fact and answer no query, which is worse
-than the prose they replaced.
+malformed** *is* an error, caught by the `commit-convention` job: an empty value,
+an `Agent-Provenance:` with no `key=value` pair, a pair or an `Agent-…` key
+outside the vocabulary, half of the four-key block, both spellings in one commit,
+or a `Co-Authored-By:` with no `<email>`. Those look like a recorded fact and
+answer no query, which is worse than the prose they replaced.
 
-If you run an automated lane against this repository, emit `Agent-Provenance:`.
+If you run an automated lane against this repository, emit one of the two forms.
 `npm run provenance` prints how many agent commits are recognisable but not
 attributable, and that number is the size of the gap.
 

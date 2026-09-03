@@ -84,6 +84,7 @@ guidance:
     - i18n:check
     - docs:check
     - guidance:check
+    - api:check
     - deploy:check
     - release:check
     - test:release
@@ -100,6 +101,7 @@ guidance:
     - test:security
     - hooks:check
     - test:bench-driver
+    - test:flake
     - test:unit
     - build
     - lint:ruff-ratchet

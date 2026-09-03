@@ -128,30 +128,51 @@ agent-authored change can be answered without reading each message by hand:
 > agent-authored · is the agent share going up or down?
 
 Each is one `git log` away once the facts are **trailers**, which git already
-parses. [`scripts/release/provenance.mjs`](../../scripts/release/provenance.mjs)
-defines the vocabulary — `Agent-Provenance: agent=…; model=…; lane=…; task=…`,
-`Co-Authored-By:`, `Ascent-Resolves:` (shapes and rationale in
-[CONTRIBUTING.md](../../CONTRIBUTING.md#provenance-trailers--say-who-wrote-it-in-a-form-git-log-can-read))
-— and reads it two ways:
+parses.
+
+**One vocabulary, one owner.** [`scripts/agent/provenance.mjs`](../../scripts/agent/provenance.mjs)
+defines agent provenance in both its spellings — the compact
+`Agent-Provenance: agent=…; model=…; lane=…; task=…` one-liner and the expanded
+`Agent-model` / `Agent-harness` / `Agent-prompt` / `Agent-run` block — with one
+value-rule table and one reader.
+[`scripts/release/provenance.mjs`](../../scripts/release/provenance.mjs) is the
+QUERY over it, plus `Co-Authored-By:` and `Ascent-Resolves:`, which are not about
+agents (shapes and rationale in
+[CONTRIBUTING.md](../../CONTRIBUTING.md#provenance-trailers--say-who-wrote-it-in-a-form-git-log-can-read)):
 
 | Command | Answers |
 | --- | --- |
 | `npm run provenance` | over a range: the agent share, the models, the lanes, the tasks closed, and how many agent commits are recognisable but **not** attributable |
 | `npm run provenance -- --json` | the same, for a script |
 
+> **Why it is one file and not two.** It *was* two, and the two contradicted each
+> other in both directions. `Agent-Provenance` matches `Agent-*`, so the compact
+> trailer CONTRIBUTING.md published failed the `commit-convention` gate — five
+> findings, one "undefined key" plus four "missing key" — while the expanded
+> block `.github/workflows/agent-dispatch.yml` actually emits was parsed by
+> nothing in the reader, so every commit this repository's own lane made was
+> counted as a human's. Neither side's fixtures ever put both rules on one body.
+> A value rule written once now applies to both spellings: `harness=dispatch.mjs`
+> with no version fails exactly as `Agent-harness: dispatch.mjs` does.
+
 The validation rides the existing `commit-convention` job rather than adding a
 gate: an **absent** trailer is never a finding, because a rule demanding one that
 no lane writes yet would go red on every automated commit and be bypassed within
 a day. A trailer that is **present and malformed** is — an empty value, an
-`Agent-Provenance:` carrying no `key=value` pair, a `Co-Authored-By:` with no
-`<email>`. Those look like a recorded fact and answer nothing.
+`Agent-Provenance:` carrying no `key=value` pair, a pair or an `Agent-…` key
+outside the vocabulary, half of the four-key block, both spellings in one commit,
+or a `Co-Authored-By:` with no `<email>`. Those look like a recorded fact and
+answer nothing. It is reached through ONE call: `checkTrailers()` judges the
+non-agent vocabulary and hands every `Agent-*` line to its owner, so a malformed
+block is reported once rather than twice in two wordings.
 
 **The half this repository cannot close by itself.** The reader works on today's
-history, because `Co-Authored-By:` already carries the agent and the model. Lane
-and task only become answerable when the lane emits `Agent-Provenance:`, and a
-lane's commit template is not a file in this tree. `npm run provenance` prints
-the unattributed count precisely so the size of that gap is a number rather than
-an impression.
+history, because `Co-Authored-By:` already carries the agent and the model, and
+on the lane this repository owns, because the dispatch workflow renders the block
+from `scripts/agent/provenance.mjs` rather than trusting an agent to remember it.
+A FOREIGN lane's commit template is still not a file in this tree, so `npm run
+provenance` prints the unattributed count precisely to keep the size of that gap
+a number rather than an impression.
 
 `npm run release:check` runs the same coherence check in CI on **every** push,
 so the three cannot drift between releases: a version with no release notes, or
