@@ -296,6 +296,27 @@ relaxation (a lapsed `canceled`). `STATUS_TONE` in the same file enumerates the 
 `SubscriptionStatus` union for the same reason: `unpaid` used to fall through to the
 neutral chip that also means "no subscription".
 
+### The tab's state machine (`billingTabState.ts`)
+
+Four rules that had shipped as inline refs and timer arrays inside `BillingTab.tsx`,
+untested because `node --test` cannot load a `.tsx`. They are now pure, named and pinned
+by `billingTabState.test.ts`:
+
+- **`createLoadLatch()`** — only the newest `/api/billing` read may land (and its
+  failure). Also adopted by `useSpendData.ts`, which had no latch at all.
+- **`canStartPurchase` / `isPurchaseBusy`** — single-flight checkout. A successful
+  checkout deliberately stays "busy": the page is about to navigate to the provider
+  form, and a button that re-enables in that gap mints a second session.
+- **`isCheckoutReturn`** — the `?billing=success` flag, captured once in lazy initial
+  state because the effect strips the param immediately.
+- **`CHECKOUT_POLL_DELAYS_MS` + `checkoutPollWindowMs()`** — the post-checkout poll now
+  **backs off to a stated one-minute cap** (2s, 6s, 14s, 30s, 60s) instead of three fixed
+  shots that stopped at 5.5s. When the window closes without the plan reflecting the
+  purchase, the banner offers a **manual re-check** (`billing.checkoutRecheck`) rather
+  than freezing on "payment received, updating" with a page reload as the only recourse.
+  The window is DERIVED from the last shot, so "we gave up" can never again sit half a
+  second after "we are still trying".
+
 ### The Usage & cost section (`app/features/settings/billing/spend/`)
 
 The billing tab renders the plan card, then **one** consolidated spend section,
@@ -304,13 +325,25 @@ different tabs:
 
 | Source | Contribution |
 |---|---|
-| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits |
-| `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) |
+| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits — **the caller's org** |
+| `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
 | `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
 
 `useSpendData.ts` owns both fetches, so the section has **one** loading state and
 **one** failure state. The ledger read is the failure that matters; a dead
-`/api/ops` drops the engine lines rather than erroring the section.
+`/api/ops` drops the engine lines rather than erroring the section. Both halves are
+latched to the newest load (`createLoadLatch`, `billingTabState.ts`) — the hook had
+none, so a reload fired over an in-flight pair could let a superseded rejection paint
+the error state over data a newer read had already delivered.
+
+**The two halves of that row answer at different scopes, and the surface now says so.**
+The allowance rail is the caller's org; the AI ledger behind the chart is
+**deployment-wide**, because `llm_usage` (`app/_lib/db/core.ts`) carries no `org_id` or
+`workspace_id` at all — it is tenancy-**exempt** config/metering, and `aggregateLlmUsage`
+has nothing to scope by. Scoping it is a schema change (a column, a backfill, and a
+decision about pre-existing rows), so it is out of scope here; what changed is that the
+chart states its scope (`billing.spend.breakdownScope`, four locales) instead of letting
+a deployment total read as one team's spend against that team's allowance.
 
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage

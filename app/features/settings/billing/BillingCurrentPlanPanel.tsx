@@ -3,7 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
-import { META_LABEL, PANEL, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, DIVIDER, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { PlanPrice } from "./BillingPlanPrice";
 import { STATUS_TONE, type BillingPayload } from "./billingTypes";
 
@@ -56,7 +56,7 @@ export function BillingCurrentPlanPanel({
           className="shrink-0"
         />
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-200 pt-4">
+      <div className={`mt-4 flex flex-wrap items-center gap-3 ${DIVIDER} pt-4`}>
         <button
           type="button"
           onClick={onManage}

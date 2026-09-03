@@ -1498,7 +1498,15 @@
     "BILLING_NO_CUSTOMER": "Zatím nemáte fakturační účet. Nejdřív dokončete objednávku.",
     "BILLING_OVERVIEW_FAILED": "Fakturaci se nepodařilo načíst. Zkuste to prosím znovu.",
     "BILLING_CHECKOUT_FAILED": "Objednávku se nepodařilo zahájit. Zkuste to prosím znovu.",
-    "BILLING_PORTAL_FAILED": "Zákaznický portál se nepodařilo otevřít. Zkuste to prosím znovu."
+    "BILLING_PORTAL_FAILED": "Zákaznický portál se nepodařilo otevřít. Zkuste to prosím znovu.",
+    "APPLY_ROLE_NOT_FOUND": "Tuto pozici se nepodařilo najít. Možná už byla stažena.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Vaše přihláška je příliš velká na odeslání. Zkraťte odpovědi nebo přiložte menší životopis.",
+    "APPLY_NAME_REQUIRED": "Zadejte prosím své jméno.",
+    "APPLY_NAME_TOO_LONG": "Vaše jméno je příliš dlouhé. Použijte prosím nejvýše {max} znaků.",
+    "APPLY_ANSWER_TOO_LONG": "Tato odpověď je příliš dlouhá. Použijte prosím nejvýše {max} znaků.",
+    "APPLY_EMAIL_TOO_LONG": "Vaše e-mailová adresa je příliš dlouhá. Použijte prosím nejvýše {max} znaků.",
+    "APPLY_EMAIL_INVALID": "Zadejte prosím platnou e-mailovou adresu.",
+    "APPLY_SELECTION_INVALID": "Tato možnost mezi nabízenými není. Vyberte prosím jednu z nich."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1822,7 +1830,8 @@
       "skip": "Děkuji, ne",
       "thanks": "Děkujeme. Máme to ve vašem profilu.",
       "saveFailed": "Odpovědi se nám teď nepodařilo uložit. Vaše přihláška je v pořádku uložená, klidně to zkuste znovu."
-    }
+    },
+    "fixAnswer": "Opravit odpověď"
   },
   "interview": {
     "completedTitle": "Děkujeme",
@@ -7151,7 +7160,8 @@
       "allowance": "Zahrnutý limit",
       "breakdown": "Podle případu užití",
       "engineTitle": "Engine",
-      "noSpend": "V tomto období zatím nejsou žádná měřená volání AI."
+      "noSpend": "V tomto období zatím nejsou žádná měřená volání AI.",
+      "breakdownScope": "Napříč všemi pracovními prostory této instalace, na rozdíl od limitu vedle."
     },
     "plans": {
       "title": "Tarify",
@@ -7174,7 +7184,8 @@
       "intro": "Jednorázový balíček, který přidá kredity nad rámec kvóty tarifu. Je dostupný v každém tarifu.",
       "minutes": "{qty} minut",
       "buy": "Koupit balíček"
-    }
+    },
+    "checkoutRecheck": "Zkontrolovat znovu"
   },
   "branding": {
     "eyebrow": "White-label",

@@ -1498,7 +1498,15 @@
     "BILLING_NO_CUSTOMER": "Pas encore de compte de facturation. Finalisez d’abord une commande.",
     "BILLING_OVERVIEW_FAILED": "Impossible de charger la facturation. Réessayez.",
     "BILLING_CHECKOUT_FAILED": "Impossible de démarrer la commande. Réessayez.",
-    "BILLING_PORTAL_FAILED": "Impossible d'ouvrir le portail client. Réessayez."
+    "BILLING_PORTAL_FAILED": "Impossible d'ouvrir le portail client. Réessayez.",
+    "APPLY_ROLE_NOT_FOUND": "Ce poste est introuvable. Il a peut-être été retiré.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Votre candidature est trop volumineuse pour être envoyée. Raccourcissez vos réponses ou joignez un CV plus léger.",
+    "APPLY_NAME_REQUIRED": "Veuillez saisir votre nom.",
+    "APPLY_NAME_TOO_LONG": "Votre nom est trop long. Merci de ne pas dépasser {max} caractères.",
+    "APPLY_ANSWER_TOO_LONG": "Cette réponse est trop longue. Merci de ne pas dépasser {max} caractères.",
+    "APPLY_EMAIL_TOO_LONG": "Votre adresse e-mail est trop longue. Merci de ne pas dépasser {max} caractères.",
+    "APPLY_EMAIL_INVALID": "Veuillez saisir une adresse e-mail valide.",
+    "APPLY_SELECTION_INVALID": "Ce n'est pas l'une des options proposées. Veuillez en choisir une."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1822,7 +1830,8 @@
       "skip": "Non merci",
       "thanks": "Merci. C’est ajouté à votre profil.",
       "saveFailed": "Nous n’avons pas pu enregistrer ces réponses pour le moment. Votre candidature est bien enregistrée, n’hésitez pas à réessayer."
-    }
+    },
+    "fixAnswer": "Corriger la réponse"
   },
   "interview": {
     "completedTitle": "Merci",
@@ -7151,7 +7160,8 @@
       "allowance": "Quota inclus",
       "breakdown": "Par cas d’usage",
       "engineTitle": "Moteur",
-      "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant."
+      "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant.",
+      "breakdownScope": "Sur tous les espaces de travail de ce déploiement, contrairement au quota à côté."
     },
     "plans": {
       "title": "Forfaits",
@@ -7174,7 +7184,8 @@
       "intro": "Un pack ponctuel qui ajoute des crédits en plus du quota de votre forfait. Disponible sur tous les niveaux.",
       "minutes": "{qty} minutes",
       "buy": "Acheter le pack"
-    }
+    },
+    "checkoutRecheck": "Vérifier à nouveau"
   },
   "branding": {
     "eyebrow": "Marque blanche",

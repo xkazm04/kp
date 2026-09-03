@@ -128,7 +128,18 @@ export function BillingSpendPanel({
         {/* The chart. */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <p className={META_LABEL}>{t("breakdown")}</p>
+            {/* The two halves of this row answer at DIFFERENT scopes and nothing said
+                so: the allowance rail on the left is the caller's org (billingOverview
+                → billingOrgForWorkspace), while the AI ledger behind this chart carries
+                no org or workspace column at all (`llm_usage`, app/_lib/db/core.ts — it
+                is tenancy-EXEMPT config/metering), so it is deployment-wide. Reading a
+                deployment total as "my team's spend" against a team's allowance is a
+                wrong number presented as a right one. Scoping the aggregate is not
+                available without a schema change, so the surface states its scope. */}
+            <div>
+              <p className={META_LABEL}>{t("breakdown")}</p>
+              <p className="mt-0.5 text-sm text-steel">{t("breakdownScope")}</p>
+            </div>
             <div className="text-right">
               <p className={META_LABEL}>{t("statCost")}</p>
               <p className="font-serif text-h2 leading-none text-ink nums">

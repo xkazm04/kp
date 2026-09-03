@@ -1498,7 +1498,15 @@
     "BILLING_NO_CUSTOMER": "Noch kein Abrechnungskonto. Schließen Sie zuerst eine Bestellung ab.",
     "BILLING_OVERVIEW_FAILED": "Die Abrechnung konnte nicht geladen werden. Bitte erneut versuchen.",
     "BILLING_CHECKOUT_FAILED": "Die Bestellung konnte nicht gestartet werden. Bitte erneut versuchen.",
-    "BILLING_PORTAL_FAILED": "Das Kundenportal konnte nicht geöffnet werden. Bitte erneut versuchen."
+    "BILLING_PORTAL_FAILED": "Das Kundenportal konnte nicht geöffnet werden. Bitte erneut versuchen.",
+    "APPLY_ROLE_NOT_FOUND": "Diese Stelle wurde nicht gefunden. Möglicherweise wurde sie zurückgezogen.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Ihre Bewerbung ist zu groß zum Senden. Kürzen Sie Ihre Antworten oder hängen Sie einen kleineren Lebenslauf an.",
+    "APPLY_NAME_REQUIRED": "Bitte geben Sie Ihren Namen ein.",
+    "APPLY_NAME_TOO_LONG": "Ihr Name ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_ANSWER_TOO_LONG": "Diese Antwort ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_EMAIL_TOO_LONG": "Ihre E-Mail-Adresse ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_EMAIL_INVALID": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "APPLY_SELECTION_INVALID": "Das ist keine der angebotenen Optionen. Bitte wählen Sie eine davon."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1822,7 +1830,8 @@
       "skip": "Nein, danke",
       "thanks": "Vielen Dank. Das steht jetzt in Ihrem Profil.",
       "saveFailed": "Diese Antworten konnten wir gerade nicht speichern. Ihre Bewerbung ist sicher erfasst, versuchen Sie es gern noch einmal."
-    }
+    },
+    "fixAnswer": "Antwort korrigieren"
   },
   "interview": {
     "completedTitle": "Vielen Dank",
@@ -7151,7 +7160,8 @@
       "allowance": "Enthaltenes Kontingent",
       "breakdown": "Nach Anwendungsfall",
       "engineTitle": "Engine",
-      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe."
+      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe.",
+      "breakdownScope": "Über alle Arbeitsbereiche dieser Installation hinweg, anders als das Kontingent daneben."
     },
     "plans": {
       "title": "Tarife",
@@ -7174,7 +7184,8 @@
       "intro": "Ein einmaliges Paket, das Credits zusätzlich zum Kontingent Ihres Tarifs hinzufügt. Auf jeder Stufe verfügbar.",
       "minutes": "{qty} Minuten",
       "buy": "Paket kaufen"
-    }
+    },
+    "checkoutRecheck": "Erneut prüfen"
   },
   "branding": {
     "eyebrow": "White-Label",

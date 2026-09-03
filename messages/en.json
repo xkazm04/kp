@@ -1498,7 +1498,15 @@
     "BILLING_NO_CUSTOMER": "No billing customer yet. Complete a checkout first.",
     "BILLING_OVERVIEW_FAILED": "Could not load billing. Please try again.",
     "BILLING_CHECKOUT_FAILED": "Could not start the checkout. Please try again.",
-    "BILLING_PORTAL_FAILED": "Could not open the customer portal. Please try again."
+    "BILLING_PORTAL_FAILED": "Could not open the customer portal. Please try again.",
+    "APPLY_ROLE_NOT_FOUND": "That role could not be found. It may have been taken down.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Your application is too large to send. Shorten your answers or attach a smaller CV.",
+    "APPLY_NAME_REQUIRED": "Please enter your name.",
+    "APPLY_NAME_TOO_LONG": "Your name is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_ANSWER_TOO_LONG": "That answer is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_EMAIL_TOO_LONG": "Your email address is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_EMAIL_INVALID": "Please enter a valid email address.",
+    "APPLY_SELECTION_INVALID": "That is not one of the options offered. Please choose one of them."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1822,7 +1830,8 @@
       "skip": "No thanks",
       "thanks": "Thank you. That's on your profile now.",
       "saveFailed": "We couldn't save those answers just now. Your application is safely filed, so feel free to try again."
-    }
+    },
+    "fixAnswer": "Fix this answer"
   },
   "interview": {
     "completedTitle": "Thank you",
@@ -7151,7 +7160,8 @@
       "allowance": "Included allowance",
       "breakdown": "By use case",
       "engineTitle": "Engine",
-      "noSpend": "No metered AI calls in this window yet."
+      "noSpend": "No metered AI calls in this window yet.",
+      "breakdownScope": "Across every workspace on this deployment, unlike the allowance beside it."
     },
     "plans": {
       "title": "Plans",
@@ -7174,7 +7184,8 @@
       "intro": "A one-off pack that adds credits on top of your plan's quota, available on every tier.",
       "minutes": "{qty} minutes",
       "buy": "Buy pack"
-    }
+    },
+    "checkoutRecheck": "Check again"
   },
   "branding": {
     "eyebrow": "White-label",
