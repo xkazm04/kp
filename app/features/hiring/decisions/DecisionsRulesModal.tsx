@@ -99,7 +99,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={save}
-            disabled={saving || !rule || loadFailed}
+            disabled={saving || !rule || loadFailed !== null}
             className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : null} {t("saveRules")}
