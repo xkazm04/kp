@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { extractUploadedText, ingestCvApplication, simCvIntakeTarget } from "@/app/_lib/cv-intake";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -24,26 +24,35 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Every refusal below answers a CODE, like the four sibling sim routes: the
+    // Channels card that drives this door already resolves `code` through
+    // useErrorMessage(), so an English literal here shipped English to cs/de/fr
+    // readers (its `errMsg` fell through to the generic "failed" line). `role_closed`
+    // was a code, but a lowercase ad-hoc one with no catalog entry, so it resolved to
+    // nothing — the one refusal a demo run actually hits.
     const form = await request.formData().catch(() => null);
-    if (!form) return NextResponse.json({ error: "Expected multipart form data." }, { status: 400 });
+    if (!form) return jsonRefusal("SIM_CV_FORM_REQUIRED", 400);
 
     const file = form.get("file");
-    if (!(file instanceof File) || file.size === 0) {
-      return NextResponse.json({ error: "Attach a CV under the field name 'file'." }, { status: 400 });
-    }
+    if (!(file instanceof File) || file.size === 0) return jsonRefusal("SIM_CV_FILE_REQUIRED", 400);
+
     const jobId = String(form.get("jobId") ?? "");
-    if (!jobId) return NextResponse.json({ error: "jobId is required." }, { status: 400 });
+    if (!jobId) return jsonRefusal("SIM_JOB_REQUIRED", 400);
 
     const job = getJob(jobId);
-    if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-    if (!isJobOpenForApplications(getJobStatus(job.id))) {
-      return NextResponse.json({ error: "This role is closed to applications.", code: "role_closed" }, { status: 410 });
-    }
+    if (!job) return jsonRefusal("SIM_JOB_NOT_FOUND", 404);
+    if (!isJobOpenForApplications(getJobStatus(job.id))) return jsonRefusal("SIM_ROLE_CLOSED", 410);
 
     // Parse the CV with the same extractor the CV pipeline uses (PDF/DOCX/TXT/MD).
     const extracted = await extractUploadedText(file, request.signal);
     if (!extracted.ok) {
-      return NextResponse.json({ error: extracted.error }, { status: extracted.status });
+      // extractUploadedText folds THREE different failures into one string: the
+      // client-safe upload validation, the extractor's parsed stderr, and a raw
+      // thrown `.message` from the spawn path (cv-intake.ts:53-64). The last two
+      // carry Python traceback text and the workdir path, so the reader gets one
+      // coded sentence at the same status and the detail goes to the server log.
+      console.error("[api:sim/apply-cv] SIM_CV_UNREADABLE", extracted.status, extracted.error);
+      return jsonRefusal("SIM_CV_UNREADABLE", extracted.status);
     }
 
     const rawLang = String(form.get("lang") ?? "");
@@ -88,7 +97,10 @@ export async function POST(request: NextRequest) {
       stage: "Accepted",
     });
   } catch (error) {
-    return jsonError(error, "CV intake failed.");
+    // ingestCvApplication sits on better-sqlite3 AND the spawned matcher, so the
+    // thrown message can be SQLITE_* constraint text, the absolute db path or a
+    // Python traceback. Same treatment as the sibling /api/sim/inbound.
+    return safeJsonError(error, "api:sim/apply-cv", "SIM_CV_INTAKE_FAILED");
   }
 }
 

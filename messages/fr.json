@@ -1650,7 +1650,14 @@
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Cette action de la salle de contrôle est inconnue de ce déploiement. Rechargez la page.",
     "DEVCASE_FLOOR_INVALID": "Le seuil de promotion doit être un nombre compris entre 0 et 100.",
     "DEVCASE_OUTCOME_INVALID": "Ce résultat n’a pas pu être enregistré. Vérifiez le résultat et l’évaluation de la performance.",
-    "MATCH_REASONING_INPUT_INVALID": "Cette correspondance n'a pas pu être expliquée : la demande n'indiquait ni candidat ni poste."
+    "MATCH_REASONING_INPUT_INVALID": "Cette correspondance n'a pas pu être expliquée : la demande n'indiquait ni candidat ni poste.",
+    "SIM_CV_INTAKE_FAILED": "Impossible d’enregistrer cette candidature simulée. Veuillez réessayer.",
+    "SIM_CV_FORM_REQUIRED": "Envoyez le CV sous forme de données multipart.",
+    "SIM_CV_FILE_REQUIRED": "Joignez un fichier de CV pour simuler une candidature.",
+    "SIM_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
+    "SIM_CV_UNREADABLE": "Ce CV n’a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD.",
+    "DEMO_NOT_PROVISIONED": "La démo en direct n’est pas encore configurée sur ce déploiement.",
+    "DEMO_DISABLED": "La démo en direct est désactivée sur ce déploiement."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4566,7 +4573,8 @@
       "resFailed": "non analysées",
       "cancelRun": "Interrompre",
       "cancelled": "Analyse annulée. Rien n’a été ajouté.",
-      "bulkCancelled": "Interrompu après {done} annonces sur {total}. Les résultats obtenus restent affichés ci-dessous."
+      "bulkCancelled": "Interrompu après {done} annonces sur {total}. Les résultats obtenus restent affichés ci-dessous.",
+      "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rien n’a été ajouté, réessayez."
     },
     "drafts": {
       "heading": "Brouillons en attente de sourcing",
@@ -4838,7 +4846,8 @@
       "couldntReach": "Contact impossible : {error}",
       "assumptions": "Hypothèses :",
       "auditUnder": "selon la pondération de {label}",
-      "auditPoolTruncated": "Échantillon plafonné : le corpus de candidats dépasse les plafonds de classement, cet audit ne couvre donc que le sous-ensemble évalué, pas tout le vivier."
+      "auditPoolTruncated": "Échantillon plafonné : le corpus de candidats dépasse les plafonds de classement, cet audit ne couvre donc que le sous-ensemble évalué, pas tout le vivier.",
+      "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rechargez les candidats."
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",

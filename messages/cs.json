@@ -1650,7 +1650,14 @@
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Tuto akci řídicí místnosti toto nasazení nezná. Načtěte stránku znovu.",
     "DEVCASE_FLOOR_INVALID": "Práh pro postup musí být číslo mezi 0 a 100.",
     "DEVCASE_OUTCOME_INVALID": "Výsledek se nepodařilo zaznamenat. Zkontrolujte výsledek a hodnocení výkonu.",
-    "MATCH_REASONING_INPUT_INVALID": "Tuto shodu nelze vysvětlit: požadavek neuvedl kandidáta ani pozici."
+    "MATCH_REASONING_INPUT_INVALID": "Tuto shodu nelze vysvětlit: požadavek neuvedl kandidáta ani pozici.",
+    "SIM_CV_INTAKE_FAILED": "Simulovanou přihlášku se nepodařilo založit. Zkuste to prosím znovu.",
+    "SIM_CV_FORM_REQUIRED": "Odešlete životopis jako multipart form data.",
+    "SIM_CV_FILE_REQUIRED": "Připojte soubor se životopisem, abyste simulovali přihlášku.",
+    "SIM_ROLE_CLOSED": "Tato pozice je pro nové přihlášky uzavřená.",
+    "SIM_CV_UNREADABLE": "Tento životopis se nepodařilo přečíst. Zkuste soubor PDF, DOCX, TXT nebo MD.",
+    "DEMO_NOT_PROVISIONED": "Živé demo zatím na tomto nasazení není připravené.",
+    "DEMO_DISABLED": "Živé demo je na tomto nasazení vypnuté."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4566,7 +4573,8 @@
       "resFailed": "nepodařilo se zpracovat",
       "cancelRun": "Zrušit běh",
       "cancelled": "Zpracování zrušeno. Nic se nepřidalo.",
-      "bulkCancelled": "Zrušeno po {done} z {total} inzerátů. Dosavadní výsledky zůstávají níže."
+      "bulkCancelled": "Zrušeno po {done} z {total} inzerátů. Dosavadní výsledky zůstávají níže.",
+      "malformedResponse": "Server vrátil odpověď, kterou nelze přečíst. Nic nebylo přidáno, zkuste to prosím znovu."
     },
     "drafts": {
       "heading": "Koncepty čekající na sourcing",
@@ -4838,7 +4846,8 @@
       "couldntReach": "Nepodařilo se oslovit: {error}",
       "assumptions": "Předpoklady:",
       "auditUnder": "podle vah: {label}",
-      "auditPoolTruncated": "Omezený vzorek: korpus kandidátů překračuje limity hodnocení, takže tento audit pokrývá pouze ohodnocenou podmnožinu, nikoli celý fond."
+      "auditPoolTruncated": "Omezený vzorek: korpus kandidátů překračuje limity hodnocení, takže tento audit pokrývá pouze ohodnocenou podmnožinu, nikoli celý fond.",
+      "malformedResponse": "Server vrátil odpověď, kterou nelze přečíst. Zkuste kandidáty načíst znovu."
     },
     "deeplink": {
       "notFound": "Tuto pozici ve svém katalogu nemáte. Mohla být odstraněna, nebo patří jinému týmu.",

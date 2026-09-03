@@ -16,8 +16,37 @@ already exists elsewhere. See "Data model" below.
 | --- | --- | --- |
 | The Candi orb | `SimControlDockOrb.tsx`, bottom-center, always mounted in the workspace | Raises the deck. Carries the awaiting-decisions beacon (coral) and the AI-busy dot (moss) at rest |
 | The guide button | `SimControlDockRail.tsx` (`DockGuide`), outside the panel's right border | The ONE door into the demo. Three honest states — `start` / `open` / `close` (`guideAction()`) |
-| `/?sim=auto` | the localized landing CTA | The page arrives with `useControlMode()` already `sim`, so the deck loads raised on the console |
+| `/?sim=auto` | the localized landing CTA, via `GET /api/demo` | The page arrives with `useControlMode()` already `sim`, so the deck loads raised on the console |
 | Command palette | `WorkspaceCommandPalette.tsx` `action-tour` | Same `sim.start()`. Absent on the deep-link pages, which mount no `SimulationProvider` |
+
+### The public demo door (`GET /api/demo`)
+
+The landing's "Try the live demo" CTA is a plain navigation to `/api/demo`. What
+that door can honestly deliver depends on the deploy, and it now **says so** instead
+of minting a session the walk cannot use:
+
+| Deploy | Answer |
+| --- | --- |
+| **Open** (no `KP_SECRET` / no operator password) | `302 → /?sim=auto`. The proxy passes through and `resolveCaller()` folds to `OWNER_CAPS`, so the scripted run really works. No cookie: `signSession()` would throw without the secret |
+| **Gated**, `KP_DEMO_ENABLED` on | `302 → /?demo=unavailable&code=DEMO_NOT_PROVISIONED` |
+| **Gated**, demo off | `302 → /?demo=unavailable&code=DEMO_DISABLED` |
+
+Both gated answers are refusals because a `demo`-workspace session is
+`{ authed: false, caps: EMPTY_CAPS }` in `app/_lib/auth/current-user.ts`: the walk's
+first write (`POST /api/jds/save`, `jd:write`) answers 401, and so do
+`/api/decisions/screen-wave` and `/api/schedule/invite`. Nothing seeds the `demo`
+workspace either, so even a permitted walk would source zero applicants. Before this,
+the door minted the session anyway and the tour narrated four confident steps over a
+role that was never created.
+
+`DemoUnavailableNotice.tsx` resolves the `code` through `errors.<CODE>` in the
+reader's language — the same vocabulary every coded API refusal uses — and falls back
+to the generic body for an older link with no code. Pinned by
+`app/api/demo/demo-door.test.ts` (all three deploy shapes plus the per-IP limit).
+
+Granting a demo session `pipeline:write` inside the isolated demo tenant, and seeding
+that tenant at first mint, is an **open owner decision** — it re-opens the
+blast-radius question for `jds/save`, `screen-wave` and `schedule/invite`.
 
 `SimBar.tsx` → `SimControlDock.tsx` is mounted by `WorkspaceSimSurfaces.tsx`, a
 DOM sibling of `<main>` inside `SimulationProvider` + `TasksProvider`. The heavy
@@ -121,5 +150,9 @@ an explicit guard rather than a special-case fake:
 - `--sim-bar-h` is published by whichever deck state is mounted, but nothing
   asserts that the two never both publish; the invariant rests on the single
   `usePublishBarHeight` call in `SimControlDock.tsx`.
+- **The guided walk only runs on an OPEN deploy.** A gated deploy refuses at the
+  door (above) rather than pretending. Closing this needs the owner decision on demo
+  capabilities plus a seeded demo tenant; until then the demo is a self-host/dev
+  surface, not a public-SaaS one.
 - The seven `SIM_PHASES` are a fixed script. There is no way to run a subset, and
   no way to replay one phase without a full reset.

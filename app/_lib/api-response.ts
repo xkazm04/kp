@@ -302,6 +302,11 @@ export const STORE_ERRORS = {
   SIM_SCREEN_DRAFT_FAILED: "Could not prepare the screening recommendation. Please try again.",
   SIM_OFFER_DRAFT_FAILED: "Could not prepare the offer draft. Please try again.",
   SIM_OFFER_LINK_FAILED: "Could not read the offer link. Please try again.",
+  // /api/sim/apply-cv's catch (/perfect wave 22, api-guided-simulation): it forwarded
+  // the thrown message through jsonError, and ingestCvApplication sits on
+  // better-sqlite3 AND the spawned matcher — SQLITE_* constraint text, the absolute
+  // db path, a Python traceback. Its four sibling sim routes were already coded.
+  SIM_CV_INTAKE_FAILED: "Could not file that simulated application. Please try again.",
   /** The background-task dock (/perfect wave 17, background-tasks). All three of
    *  these 500s forwarded the thrown message, which on this path is better-sqlite3
    *  detail plus the absolute db path — and the dock renders whatever it is handed,
@@ -966,6 +971,34 @@ export const REFUSAL_ERRORS = {
   SIM_NO_APPLICANT: "No candidate is available to simulate an application from.",
   SIM_ENTRY_REQUIRED: "The simulation needs a pipeline entry to act on.",
   SIM_ENTRY_NOT_FOUND: "That candidate is not on this board.",
+  // ---- /api/sim/apply-cv (/perfect wave 22, api-guided-simulation). The last sim
+  // door answering English literals, and the one the Channels CV card drives — its
+  // `errMsg(data, …)` resolves `code` and otherwise paints a generic sentence, so
+  // every one of these shipped English to cs/de/fr readers.
+  /** The upload did not arrive as multipart form data (400). */
+  SIM_CV_FORM_REQUIRED: "Send the CV as multipart form data.",
+  /** No file under the `file` field, or an empty one (400). */
+  SIM_CV_FILE_REQUIRED: "Attach a CV file to simulate an application.",
+  /** The role no longer accepts applications (410). Was the ad-hoc lowercase code
+   *  `role_closed`, which had no `errors.*` entry and so resolved to nothing — the
+   *  one refusal a real demo run actually hits. */
+  SIM_ROLE_CLOSED: "This role is closed to applications.",
+  /** The extractor could not read the attached file. extractUploadedText folds the
+   *  client-safe validation, the parsed Python stderr and a raw thrown `.message`
+   *  into ONE string, so the detail goes to the server log and the reader gets this.
+   *  Returned at the extractor's own status (400/413/500). */
+  SIM_CV_UNREADABLE: "That CV could not be read. Try a PDF, DOCX, TXT or MD file.",
+  // ---- The public demo door, GET /api/demo (/perfect wave 22). Not a JSON refusal:
+  // the door is a plain navigation from the landing CTA, so it redirects to
+  // `/?demo=unavailable&code=<CODE>` and DemoUnavailableNotice resolves the code in
+  // the reader's language — the same `errors.<CODE>` vocabulary, one renderer.
+  /** The demo is switched on but cannot be delivered: a demo-workspace session
+   *  carries EMPTY_CAPS (current-user.ts) so the walk 401s on its first write, and
+   *  nothing seeds the demo tenant. Nothing the operator can flip today. */
+  DEMO_NOT_PROVISIONED: "The live demo is not set up on this deployment yet.",
+  /** KP_DEMO_ENABLED is off on a gated deploy (workspace-lock.ts) — the operator
+   *  CAN turn this one on. */
+  DEMO_DISABLED: "The live demo is turned off on this deployment.",
   /** GET /api/feedback is a read of colleagues' free-text reports WITH their reply
    *  addresses, so it is `members:manage`-gated (/perfect wave 17, api-workspace).
    *  One code covers both statuses requireCapability produces — 401 with no session,

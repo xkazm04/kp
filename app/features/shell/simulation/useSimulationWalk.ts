@@ -121,7 +121,12 @@ export function useSimulationWalk({
     });
     try {
       log(t("log.resetting"));
-      await fetch("/api/sim/reset", { method: "POST" });
+      // Through okJson like every other step: the reset is the run's FIRST call and
+      // its refusals are the ones a prospect actually meets — a 401 on a gated
+      // deploy, a 500 from the purge transaction. Fired and forgotten, the walk
+      // narrated "clearing previous run" and then failed six steps later with an
+      // unrelated sentence.
+      await okJson(await fetch("/api/sim/reset", { method: "POST" }));
 
       // The columns THIS workspace's board actually has. The axis is per-workspace
       // data (Settings → Hiring composes it: free-form stage ids, extra rounds, an
@@ -164,12 +169,21 @@ export function useSimulationWalk({
         navExtra: clearedTabScopedParams(),
         action: async () => {
           // Save as a DRAFT (no sourcing yet).
-          const save = await fetch("/api/jds/save", {
-            method: "POST",
-            headers: JSON_HEADERS,
-            body: JSON.stringify({ title: SIM_TITLE, body: jdMarkdown, role, salary: SIM_SALARY, company: SIM_COMPANY }),
-          }).then((r) => r.json());
-          jobId = save.jobId ?? jdJobId(save.slug);
+          // The walk's FIRST WRITE, and the one that decides whether the rest of the
+          // tour is real: /api/jds/save is requireOperator + `jd:write`, so an
+          // anonymous or capability-less session answers 401 here. `.then(r =>
+          // r.json())` read that error body as a save, `save.jobId` came back
+          // undefined, `jdJobId(undefined)` produced a jobId that matches nothing, and
+          // the demo narrated "saved as draft" over a role that was never created —
+          // surfacing eleven seconds later as "intake returned none".
+          const save = await okJson<{ jobId?: string; slug?: string }>(
+            await fetch("/api/jds/save", {
+              method: "POST",
+              headers: JSON_HEADERS,
+              body: JSON.stringify({ title: SIM_TITLE, body: jdMarkdown, role, salary: SIM_SALARY, company: SIM_COMPANY }),
+            })
+          );
+          jobId = save.jobId ?? jdJobId(save.slug ?? "");
           log(t("log.savedDraft", { jobId }));
           notifyDataChanged(); // the Jobs tab picks up the new draft
           await beat(900);
@@ -181,7 +195,11 @@ export function useSimulationWalk({
           });
           if (!clicked) {
             log(t("log.draftNotVisible"));
-            await fetch(`/api/jobs/${jobId}/publish`, { method: "POST" });
+            // The API fallback for the real click. It is a fallback, not a
+            // best-effort: if sourcing is refused there is no pool, so let the code
+            // halt the run here rather than in the 12-second poll below with
+            // "sourced 0".
+            await okJson(await fetch(`/api/jobs/${jobId}/publish`, { method: "POST" }));
           }
 
           // Wait for the sourced entries to land.
@@ -208,8 +226,14 @@ export function useSimulationWalk({
         action: async () => {
           // An inbound application arrives via the careers-page channel → Accepted.
           await beat(700);
-          const inbound = await fetch("/api/sim/inbound", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ jobId }) }).then((r) => r.json());
-          if (inbound?.label) log(t("log.inbound", { candidate: inbound.label }));
+          // SIM_NO_APPLICANT (the demo tenant has no candidate corpus to draw from)
+          // and SIM_JOB_NOT_FOUND are both reachable here; `inbound?.label` simply
+          // skipped the log line and walked on, so the run died two beats later on
+          // "no candidate reached screening" — a symptom, never the cause.
+          const inbound = await okJson<{ label?: string }>(
+            await fetch("/api/sim/inbound", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ jobId }) })
+          );
+          if (inbound.label) log(t("log.inbound", { candidate: inbound.label }));
           notifyDataChanged();
           await beat(1400);
 
@@ -314,7 +338,11 @@ export function useSimulationWalk({
           // the survivor to Offer, so the interview step's advanceTo("Offer")
           // bare-accepted an Offer-stage entry into a phantom Hired and the walk
           // crashed at the Interview→Offer seam. One accept, one stage.)
-          await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
+          // The advance() below ACCEPTS this recommendation, so a refused draft makes
+          // the accept advance a bare entry and the calendar gate never appears —
+          // which surfaced as the 9-second `wait.screeningGate` timeout instead of
+          // the server's actual answer.
+          await okJson(await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
           // accept the screening review: one stage forward + the calendar gate.
           // WAIT on the stage the accept ACTUALLY produced, not on the literal
           // "Interview": which column lies one step past screening is workspace data,
@@ -391,7 +419,9 @@ export function useSimulationWalk({
           await beat(2600); // let the viewer read the comparison
           patch({ groupEval: null, screenWave: null });
 
-          await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
+          // Same shape as screen-draft: the click/accept below answers THIS draft, so
+          // a refusal here turned into a `wait.offerExtended` timeout with no code.
+          await okJson(await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
           nav({ tab: "decisions" });
           await beat(600);
           const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="accept"]`, {
