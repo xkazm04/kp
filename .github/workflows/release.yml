@@ -13,8 +13,10 @@
 #   gate      the full verification gate, again, on the tagged commit. A tag
 #             NEVER publishes something CI has not judged — even though the same
 #             commit passed on main, the tag is the thing being certified.
-#   publish   builds the image and pushes it to GHCR as x.y.z, sha-<commit> and
-#             latest, then attaches a build-provenance attestation so
+#   publish   builds the image and pushes it to GHCR as x.y.z and sha-<commit>,
+#             plus `latest` ONLY when the version is a plain semver — a
+#             pre-release (v0.2.0-rc1) never moves the tag an operator gets by
+#             pinning nothing. Then it attaches a build-provenance attestation so
 #             `gh attestation verify` can prove where the image came from, and a
 #             BuildKit SPDX SBOM attestation of the image's own filesystem.
 #             If this fails, nothing is published and no release exists.
@@ -138,6 +140,7 @@ jobs:
       attestations: write # record the provenance attestation
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -162,17 +165,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # `latest` is what an operator gets when they pin nothing, and this step
+      # used to move it on EVERY tag. Cutting v0.2.0-rc1 to try a candidate on a
+      # staging cluster would have re-pointed `latest` at a release candidate for
+      # everyone who never asked for one. The predicate is prepare.mjs's
+      # `releaseKind` (fixture-covered, fail-closed on anything unparseable), not
+      # a shell pattern that would have to be got right here and in `release`.
       - name: Compute tags
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          PRERELEASE=$(node scripts/release/prepare.mjs --prerelease-of "$VERSION")
+          # `sha-<commit>` is the immutable one: a semver tag can in principle
+          # be re-pointed by a re-release, this never is.
+          TAGS="$IMAGE:$VERSION,$IMAGE:sha-${GITHUB_SHA}"
+          if [ "$PRERELEASE" = "false" ]; then
+            TAGS="$TAGS,$IMAGE:latest"
+          else
+            echo "$VERSION is a pre-release — publishing the image without the :latest tag."
+          fi
           {
             echo "image=$IMAGE"
             echo "version=$VERSION"
-            # `sha-<commit>` is the immutable one: a semver tag can in principle
-            # be re-pointed by a re-release, this never is.
-            echo "tags=$IMAGE:$VERSION,$IMAGE:sha-${GITHUB_SHA},$IMAGE:latest"
+            echo "prerelease=$PRERELEASE"
+            echo "tags=$TAGS"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build and push
@@ -268,11 +285,21 @@ jobs:
           helm package deploy/helm/kp --destination dist/
           ls -l dist/
 
+      # A pre-release is marked as one here for the same reason it does not get
+      # the `:latest` image tag: nobody should be upgraded into a candidate by
+      # a tool that reads "the newest release". Through `env:`, never into the
+      # script text — `npm run security:actions` enforces that shape.
       - name: Create the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_PRERELEASE: ${{ needs.publish.outputs.prerelease }}
         run: |
+          FLAGS=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            FLAGS="--prerelease"
+          fi
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --notes-file RELEASE_NOTES.md \
+            $FLAGS \
             dist/*.tgz dist/sbom/*.json

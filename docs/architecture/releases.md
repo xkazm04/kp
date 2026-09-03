@@ -18,6 +18,13 @@ This page is that boundary.
 
 `latest` exists and you should not use it in production. It follows whatever was
 released most recently, including a release you have not read the notes for.
+It does, at least, only follow **finished** releases: a pre-release version
+(`0.2.0-rc1`, `1.0.0-beta.2`) publishes its image and its GitHub release — marked
+as a pre-release — but never moves `latest`. The predicate is `releaseKind()` in
+[`prepare.mjs`](../../scripts/release/prepare.mjs), it is fixture-covered, and it
+fails closed: a version string it cannot parse does not earn the tag either.
+`npm run release:check` prints the status of the version currently in the tree,
+so you learn what a tag would publish before you cut one.
 
 ## Versioning, as it applies here
 
@@ -182,7 +189,8 @@ The tag is what triggers [`.github/workflows/release.yml`](../../.github/workflo
    judged. `npm run test:agent` is in that list for the same reason
    `npm run test:review` is: the tools that judge and produce changes here are
    themselves shipped in this tree, so a tag certifies them too;
-2. builds and pushes the image to GHCR as `x.y.z`, `sha-<commit>` and `latest`;
+2. builds and pushes the image to GHCR as `x.y.z` and `sha-<commit>` — plus
+   `latest` **only when the version is a plain semver**;
 3. attaches a **build-provenance attestation** (`actions/attest-build-provenance`),
    so `gh attestation verify` can prove the image came from this repository at
    that commit, plus BuildKit's **SPDX attestation** of the image filesystem
