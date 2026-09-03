@@ -42,7 +42,10 @@ career-switcher) that other features key off. Downstream ranking is
     as a profile, or edit a saved one). Role, role family and source live in
     `CandidateMatrixFilterBar.tsx` (population filters) and
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
-- **Saved analysis report** — `app/history/[slug]/page.tsx`; history list —
+- **Saved analysis report** — `app/history/[slug]/page.tsx`. Its "Add to pipeline"
+  files the candidate under the JD's REAL title (`loadJd(jd_slug, ws).title`,
+  workspace-scoped, best-effort); the synthetic `JD <slug>` remains only as the
+  fallback for a JD deleted out from under the analysis. History list —
   `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
   seniority/decision filters run CLIENT-side over the rows `/api/analyses`
   returned (a hard `LIMIT 200`, no truncation flag — see Known gaps). The
@@ -50,6 +53,22 @@ career-switcher) that other features key off. Downstream ranking is
   `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
   the canonical slug order is alphabetical only in English, and a locale-less
   `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader.
+- **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
+  keeps its active tab in the URL fragment: selecting a tab rewrites
+  `#report-<tab>` with `history.replaceState`, and the panel reads that fragment on
+  mount and on `hashchange`. So a recruiter can send a colleague the salary read of
+  a report, not just the report. The vocabulary, the hash grammar and the
+  "the selected tab no longer exists" fallback are pure and pinned
+  (`app/_components/results/resultTabs.ts` + `resultTabs.test.ts`); a fragment
+  naming a tab THIS report does not have (a `#report-compare` link opened on a
+  single-CV analysis) falls through to the default rather than painting a blank
+  panel. `initialTab` is the server-side half for a caller that already knows the
+  tab; a fragment in the URL wins over it.
+- **Engine notes in the quality strip** — `QualityStrip.tsx` mixes localized chrome
+  with the engine's own deterministic English check sentences, shown verbatim so a
+  degraded run is not paraphrased. Each list is now headed by a localized
+  `results.quality.engineNote` label (4 locales) that says which half is machine
+  text; before it, a Czech reader had no way to tell.
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out

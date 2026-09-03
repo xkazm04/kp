@@ -1583,7 +1583,10 @@
     "OFFER_RESPONSE_INVALID": "Odpovězte prosím přijetím, nebo odmítnutím nabídky.",
     "STATUS_LINK_INVALID": "Tento odkaz na stav přihlášky už neplatí.",
     "STATUS_NPS_NOT_APPLICABLE": "Tato otázka se otevře, až bude vaše výběrové řízení uzavřeno.",
-    "DATA_LINK_INVALID": "Tento odkaz na vaše údaje už neplatí."
+    "DATA_LINK_INVALID": "Tento odkaz na vaše údaje už neplatí.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "Tuto akci řídicí místnosti toto nasazení nezná. Načtěte stránku znovu.",
+    "DEVCASE_FLOOR_INVALID": "Práh pro postup musí být číslo mezi 0 a 100.",
+    "DEVCASE_OUTCOME_INVALID": "Výsledek se nepodařilo zaznamenat. Zkontrolujte výsledek a hodnocení výkonu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2731,7 +2734,9 @@
       "stageOffBoard": "Fáze {stage} už na této nástěnce není sloupcem. Filtr zůstává aktivní, takže vidíte jen kandidáty, kteří v ní stále stojí.",
       "stageOffBoardClear": "Odebrat tento filtr",
       "slaEditorRange": "{min}–{max} dní; prázdné použije výchozí",
-      "previewCommitFailed": "Průchod se nepodařilo použít."
+      "previewCommitFailed": "Průchod se nepodařilo použít.",
+      "bulkTaskIncomplete": "Úloha psaní skončila bez výsledku. Kandidáti zůstávají vybraní, zkuste to znovu.",
+      "bulkInviteItemsRefused": "Některé pozvánky byly odmítnuty. Důvod zjistíte otevřením kandidáta."
     },
     "today": {
       "eyebrow": "Dnes",
@@ -5660,7 +5665,9 @@
       "trustTitle": "Kontrola pravosti CV: deterministická detekce životopisů generovaných AI / přikrášlených. Viz řádky Pravost níže; vždy ověřte při pohovoru.",
       "trustHigh": "Pravost: vysoká",
       "trustMedium": "Pravost: střední",
-      "trustLow": "Pravost: nízká"
+      "trustLow": "Pravost: nízká",
+      "engineNote": "Poznámky enginu (anglicky, doslovně)",
+      "engineNoteTitle": "Tyto řádky pocházejí přímo z analytického enginu v podobě, v jaké je vytvořil, a nejsou přeložené."
     },
     "softSignals": {
       "title": "Ověřit na pohovoru",
@@ -9367,7 +9374,17 @@
         "raise": "Kandidáti pod {suggested} byli jen zřídka přijati. Práh {current} propouští slabé shody. Zvažte jeho zvýšení na {suggested}.",
         "lower": "Kandidáti od {suggested} do {current} se proměňovali dobře; práh {current} může být příliš přísný. Zvažte jeho snížení na {suggested}.",
         "calibrated": "Práh {current} je dobře kalibrovaný. Leží v prvním pásmu, kde byla většina postoupených kandidátů přijata."
-      }
+      },
+      "applyFailed": "Práh pro postup se nezměnil ({status}).",
+      "applyNetwork": "Chyba sítě. Práh pro postup se nezměnil."
+    },
+    "actionFailed": "Tento ovládací prvek se nepodařilo použít ({status}).",
+    "actionNetwork": "Chyba sítě. Řídicí místnost není dostupná, nic se nezměnilo.",
+    "approveFailed": "Schválení neproběhlo ({status}).",
+    "approveNetwork": "Chyba sítě. Schválení se nezaznamenalo.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Nebylo co obnovovat.} one {Obnoven # životní cyklus.} few {Obnoveny # životní cykly.} other {Obnoveno # životních cyklů.}}",
+      "budgetExhausted": "Byl vyčerpán limit běhů, průchod proto skončil dříve — spusťte jej znovu později a doberte zbytek."
     }
   },
   "feedback": {

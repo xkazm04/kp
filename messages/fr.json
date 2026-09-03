@@ -1583,7 +1583,10 @@
     "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre.",
     "STATUS_LINK_INVALID": "Ce lien de suivi n'est pas valide.",
     "STATUS_NPS_NOT_APPLICABLE": "Cette question s'ouvrira une fois votre candidature terminée.",
-    "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide."
+    "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "Cette action de la salle de contrôle est inconnue de ce déploiement. Rechargez la page.",
+    "DEVCASE_FLOOR_INVALID": "Le seuil de promotion doit être un nombre compris entre 0 et 100.",
+    "DEVCASE_OUTCOME_INVALID": "Ce résultat n’a pas pu être enregistré. Vérifiez le résultat et l’évaluation de la performance."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2731,7 +2734,9 @@
       "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
       "stageOffBoardClear": "Supprimer ce filtre",
       "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut",
-      "previewCommitFailed": "Le passage n’a pas pu être appliqué."
+      "previewCommitFailed": "Le passage n’a pas pu être appliqué.",
+      "bulkTaskIncomplete": "La tâche de rédaction s’est terminée sans résultat. Toujours sélectionnés, réessayez.",
+      "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison."
     },
     "today": {
       "eyebrow": "Aujourd’hui",
@@ -5660,7 +5665,9 @@
       "trustTitle": "Contrôle d’authenticité du CV : une vérification déterministe des CV générés par AI ou enjolivés. Voir les lignes Authenticité ci-dessous. Vérifiez toujours en entretien.",
       "trustHigh": "Authenticité : élevée",
       "trustMedium": "Authenticité : moyenne",
-      "trustLow": "Authenticité : faible"
+      "trustLow": "Authenticité : faible",
+      "engineNote": "Notes du moteur (en anglais, telles quelles)",
+      "engineNoteTitle": "Ces lignes proviennent telles quelles du moteur d’analyse et ne sont pas traduites."
     },
     "softSignals": {
       "title": "À confirmer en entretien",
@@ -9220,7 +9227,17 @@
         "raise": "Les candidats en dessous de {suggested} se sont rarement convertis. Le seuil de {current} laisse passer des correspondances faibles. Envisagez de le relever à {suggested}.",
         "lower": "Les candidats de {suggested} à {current} se sont bien convertis. Le seuil de {current} est peut-être trop strict. Envisagez de l’abaisser à {suggested}.",
         "calibrated": "Le seuil de {current} est bien calibré. Il se situe sur la première tranche où la plupart des candidats avancés ont été recrutés."
-      }
+      },
+      "applyFailed": "Le seuil de promotion n’a pas été modifié ({status}).",
+      "applyNetwork": "Erreur réseau. Le seuil de promotion n’a pas été modifié."
+    },
+    "actionFailed": "Cette commande n’a pas pu être appliquée ({status}).",
+    "actionNetwork": "Erreur réseau. La salle de contrôle est injoignable, rien n’a été modifié.",
+    "approveFailed": "La validation n’a pas abouti ({status}).",
+    "approveNetwork": "Erreur réseau. La validation n’a pas été enregistrée.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Rien à reprendre.} one {# cycle de vie repris.} other {# cycles de vie repris.}}",
+      "budgetExhausted": "Le budget d’exécutions a été atteint, la reprise s’est donc arrêtée avant la fin — relancez-la plus tard pour traiter le reste."
     }
   },
   "legal": {

@@ -9,7 +9,7 @@ import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { RecordRecent } from "@/app/features/shell/RecordRecent";
 import { hasLabelCollision, listAnalysesByCvHash, loadAnalysis, parseStoredGithubAnalysis } from "@/app/_lib/db/analyses";
 import type { PipelineEntry } from "@/app/_lib/db/core";
-import { jdLastEditedAt } from "@/app/_lib/db/jobs";
+import { jdLastEditedAt, loadJd } from "@/app/_lib/db/jobs";
 import { findActiveEntriesByCandidateLabel } from "@/app/_lib/db/pipeline";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -130,6 +130,20 @@ export default async function HistoryDetailPage({
     console.error(`[history] jd-edit lookup failed for "${slug}"`, error);
   }
   const scoreStale = isScoreStale(found.row.created_at, jdEditedAt);
+
+  // The pipeline row this report can create was filed under a SYNTHETIC title —
+  // `JD ${jd_slug}` — so the board lane, the drawer header and every comms
+  // template downstream read "JD senior-backend-2f81" for a role whose real title
+  // has been in the `jds` table all along. Load it (loadJd, workspace-scoped, the
+  // same store jdLastEditedAt above reads) and keep the slug only as the fallback
+  // for a JD that was hard-deleted out from under the analysis. Best-effort like
+  // every other lookup on this page: a store fault costs the title, never the report.
+  let jdTitle: string | null = null;
+  try {
+    if (found.row.jd_slug) jdTitle = loadJd(found.row.jd_slug, ws)?.title?.trim() || null;
+  } catch (error) {
+    console.error(`[history] jd title lookup failed for "${slug}"`, error);
+  }
   const staleDate = jdEditedAt ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(jdEditedAt)) : "";
 
   // Direction 2 (a) — the honest disabled-reason the LIVE tab shows. The saved
@@ -238,7 +252,7 @@ export default async function HistoryDetailPage({
                   matchScore: found.row.score ?? null,
                   roleFamily: found.row.role_family ?? null,
                   jobId: found.row.jd_slug,
-                  jobTitle: `JD ${found.row.jd_slug}`,
+                  jobTitle: jdTitle ?? `JD ${found.row.jd_slug}`,
                 }
               : undefined
           }

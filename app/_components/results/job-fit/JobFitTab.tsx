@@ -7,6 +7,7 @@ import { ScoreDial } from "@/app/_components/ScoreDial";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
 import { PANEL } from "@/app/_components/ui/recipes";
+import { hiddenByCap } from "./jobFitView.ts";
 import { ListBlock } from "../shared";
 import { SkillChips } from "./SkillChips";
 
@@ -242,14 +243,6 @@ function KeywordCoverageBlock({ coverage }: { coverage: KeywordCoverage }) {
       ) : null}
     </div>
   );
-}
-
-// Entries the server-side display cap dropped: total minus what was sent. A
-// missing total (null/undefined) means the analysis predates total-tracking
-// (see KeywordCoverage in pipeline/jobfit/models.py) — treat as "unknown" and
-// show nothing rather than guess.
-function hiddenByCap(total: number | null | undefined, shown: number): number {
-  return total == null ? 0 : Math.max(0, total - shown);
 }
 
 // Renders a quiet "+N more" note so a capped list reads as capped, not complete.

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { authenticityBand, splitSanityChecks } from "@/app/_lib/sanity-checks";
-import { NOTICE } from "@/app/_components/ui/recipes";
+import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 
 // The engine's per-analysis trust ledger (`sanityChecks`), surfaced (SCOR2).
 // The pipeline states every repair, degradation and self-contradiction it
@@ -82,18 +82,28 @@ function TrustBand({ band }: { band: "high" | "medium" | "low" }) {
 }
 
 function CheckList({ items, tone }: { items: string[]; tone: "warn" | "ok" }) {
+  const t = useTranslations("results.quality");
   return (
-    <ul className={`mt-2 space-y-1 text-sm ${tone === "warn" ? "text-amber-900" : "text-steel"}`}>
-      {items.map((check) => (
-        <li key={check} className="flex items-start gap-1.5">
-          {tone === "warn" ? (
-            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
-          ) : (
-            <Check size={13} className="mt-0.5 shrink-0 text-moss" aria-hidden />
-          )}
-          {check}
-        </li>
-      ))}
-    </ul>
+    <>
+      {/* The chrome above is localized; these sentences are NOT — they are the
+          engine's own deterministic English ("Salary range needs manual review"),
+          shown verbatim so a degraded run is not paraphrased. A Czech reader was
+          given no way to tell which half was machine text; this label says so. */}
+      <p className={`mt-2 ${META_LABEL}`} title={t("engineNoteTitle")}>
+        {t("engineNote")}
+      </p>
+      <ul className={`mt-1 space-y-1 text-sm ${tone === "warn" ? "text-amber-900" : "text-steel"}`}>
+        {items.map((check) => (
+          <li key={check} className="flex items-start gap-1.5">
+            {tone === "warn" ? (
+              <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
+            ) : (
+              <Check size={13} className="mt-0.5 shrink-0 text-moss" aria-hidden />
+            )}
+            {check}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

@@ -8,6 +8,8 @@ import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
 import { NOTICE, PANEL } from "./ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 
 // Analysis findings arrive as `{ kind, params }` (app/_lib/github-evidence.ts):
 // the server decides WHAT was observed, this panel decides how it reads, in the
@@ -23,10 +25,28 @@ function useFindingText(): (note: GithubNote) => string {
   };
 }
 
+/** What a failed deep-dive hands the panel.
+ *
+ *  `{ code }` is the shape to write: the failure is named by the machine code the
+ *  route already sent (`{ error, code }`), and the panel resolves it in the
+ *  READER's language — the github catalog first (results.github.errors.*, the
+ *  route's own vocabulary), then the app-wide `errors` namespace for the shared
+ *  doors (throttling, capability), then the generic line. `fallback` is for a
+ *  caller that has an already-localized sentence worth preferring over the
+ *  generic one.
+ *
+ *  A bare string is the LEGACY form: a line the caller already resolved. Two call
+ *  sites still produce one — app/features/tools/analyze (resolveAnalyzeErrorText,
+ *  which folds a Retry-After into the sentence) and
+ *  app/features/tools/devcases/useDevSubmissionRow — both outside this lot's write
+ *  set; neither leaks English today, and both should hand over the code instead
+ *  once their state can carry it. */
+export type GithubPanelError = string | { code: string; fallback?: string | null };
+
 type GithubAnalysisPanelProps = {
   status: "idle" | "loading" | "done" | "error";
   analysis: GithubAnalysis | null;
-  error: string | null;
+  error: GithubPanelError | null;
   /** Non-fatal degradation note shown above the result (e.g. JD-blind run). */
   warning?: string | null;
   /** GH5 — re-fire the deep-dive alone. Rate limits are this route's dominant
@@ -37,6 +57,25 @@ type GithubAnalysisPanelProps = {
 
 export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry }: GithubAnalysisPanelProps) {
   const t = useTranslations("results.github");
+  const ghErrMsg = useGithubErrorMessage();
+  const appErrMsg = useErrorMessage();
+  // A sentinel, not an empty string: "this catalog does not know the code" has to
+  // be distinguishable from "this catalog answers with nothing", or an unknown
+  // code would stop the walk at the first resolver. Same technique as
+  // useAnalyzeForm's nullIfUnknown.
+  const UNKNOWN = "__github_panel_unknown_code__";
+  const errorText =
+    error == null
+      ? null
+      : typeof error === "string"
+        ? error
+        : (() => {
+            const fromGithub = ghErrMsg({ code: error.code }, UNKNOWN);
+            if (fromGithub !== UNKNOWN) return fromGithub;
+            const fromApp = appErrMsg({ code: error.code }, UNKNOWN);
+            if (fromApp !== UNKNOWN) return fromApp;
+            return error.fallback ?? t("errors.ANALYSIS_FAILED");
+          })();
   if (status === "idle") return null;
 
   return (
@@ -65,7 +104,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
 
       {status === "error" ? (
         <div className="mt-4 rounded-md bg-red-50 p-3">
-          <p className="text-base text-red-700">{error}</p>
+          <p className="text-base text-red-700">{errorText}</p>
           {onRetry ? (
             <button
               type="button"

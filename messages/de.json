@@ -1583,7 +1583,10 @@
     "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen.",
     "STATUS_LINK_INVALID": "Dieser Statuslink ist nicht gültig.",
     "STATUS_NPS_NOT_APPLICABLE": "Diese Frage wird freigeschaltet, sobald Ihre Bewerbung abgeschlossen ist.",
-    "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig."
+    "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "Diese Aktion des Kontrollraums kennt diese Installation nicht. Laden Sie die Seite neu.",
+    "DEVCASE_FLOOR_INVALID": "Die Promote-Schwelle muss eine Zahl zwischen 0 und 100 sein.",
+    "DEVCASE_OUTCOME_INVALID": "Das Ergebnis konnte nicht erfasst werden. Prüfen Sie Ergebnis und Leistungsbewertung."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2731,7 +2734,9 @@
       "stageOffBoard": "Phase {stage} ist keine Spalte dieses Boards mehr. Der Filter bleibt aktiv, Sie sehen also nur die Kandidat/innen, die weiterhin auf ihr stehen.",
       "stageOffBoardClear": "Diesen Filter entfernen",
       "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard",
-      "previewCommitFailed": "Der Durchlauf konnte nicht angewendet werden."
+      "previewCommitFailed": "Der Durchlauf konnte nicht angewendet werden.",
+      "bulkTaskIncomplete": "Die Entwurfsaufgabe endete ohne Ergebnis. Weiterhin ausgewählt, bitte erneut versuchen.",
+      "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen."
     },
     "today": {
       "eyebrow": "Heute",
@@ -5660,7 +5665,9 @@
       "trustTitle": "CV-Authentizitätsprüfung: eine deterministische Prüfung auf AI-generierte / geschönte Lebensläufe. Siehe die Authentizitätsangaben unten; überprüfen Sie dies stets im Interview.",
       "trustHigh": "Authentizität: hoch",
       "trustMedium": "Authentizität: mittel",
-      "trustLow": "Authentizität: niedrig"
+      "trustLow": "Authentizität: niedrig",
+      "engineNote": "Engine-Hinweise (Englisch, wörtlich)",
+      "engineNoteTitle": "Diese Zeilen stammen unverändert aus der Analyse-Engine und werden nicht übersetzt."
     },
     "softSignals": {
       "title": "Im Interview bestätigen",
@@ -9367,7 +9374,17 @@
         "raise": "Kandidaten unter {suggested} wurden selten eingestellt; die Schwelle von {current} lässt schwache Matches durch. Erwägen Sie eine Anhebung auf {suggested}.",
         "lower": "Kandidaten von {suggested}–{current} wurden gut eingestellt; die Schwelle von {current} ist womöglich zu streng. Erwägen Sie eine Senkung auf {suggested}.",
         "calibrated": "Die Schwelle von {current} ist gut kalibriert. Sie liegt im ersten Band, in dem die meisten weitergeleiteten Kandidaten eingestellt wurden."
-      }
+      },
+      "applyFailed": "Die Promote-Schwelle wurde nicht geändert ({status}).",
+      "applyNetwork": "Netzwerkfehler. Die Promote-Schwelle wurde nicht geändert."
+    },
+    "actionFailed": "Diese Steuerung konnte nicht angewendet werden ({status}).",
+    "actionNetwork": "Netzwerkfehler. Der Kontrollraum war nicht erreichbar, es wurde nichts geändert.",
+    "approveFailed": "Die Freigabe ist nicht durchgegangen ({status}).",
+    "approveNetwork": "Netzwerkfehler. Die Freigabe wurde nicht erfasst.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Es war nichts wiederherzustellen.} one {# Lebenszyklus fortgesetzt.} other {# Lebenszyklen fortgesetzt.}}",
+      "budgetExhausted": "Das Laufbudget war erschöpft, der Durchlauf endete deshalb vorzeitig — starten Sie ihn später erneut, um den Rest zu erfassen."
     }
   },
   "feedback": {
