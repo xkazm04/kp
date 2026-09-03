@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
+import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
 import { getRedeemableInvite } from "@/app/_lib/db/invites";
 import { getOrganization } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
@@ -74,13 +74,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       org: result.user.orgId,
       role: result.role,
     });
+    const maxAge = Math.floor(SESSION_TTL_MS / 1000);
     res.cookies.set(SESSION_COOKIE, session, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
       path: "/",
-      maxAge: Math.floor(SESSION_TTL_MS / 1000),
+      maxAge,
     });
+    // …and the readable "entered the workspace" marker, exactly as login and
+    // register set it (auth/login/route.ts, auth/register/route.ts). Without it a
+    // redeemed member was signed in and then bounced: AcceptForm redirects to '/',
+    // and in OPEN mode (no KP_OPERATOR_PASSWORD) the '/' gate reads ONLY this
+    // marker (home-gate-server.ts), so it rendered the public landing to somebody
+    // who had just joined the team. Not a credential — the session is.
+    res.cookies.set(ENTERED_COOKIE, "1", { httpOnly: false, secure: true, sameSite: "lax", path: "/", maxAge });
   } catch {
     /* KP_SECRET unavailable — skip auto-login; the account is created either way */
   }

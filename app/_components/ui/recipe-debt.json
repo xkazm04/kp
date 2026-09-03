@@ -1,0 +1,541 @@
+{
+  "$comment": [
+    "The declared per-file ceiling on every HAND-TYPED recipe literal under app/**/*.tsx",
+    "(app/landing/** excluded — the fixed art direction). Read and enforced by",
+    "recipes-literals.test.ts beside it, which runs in the ordinary unit gate",
+    "(`npm run test:unit`) — no script alias, the runner already globs app/**/*.test.ts.",
+    "",
+    "It lives HERE rather than beside ts-debt.json at the repo root because the walker",
+    "is the test, not a scripts/lint/ CLI: config, walker and the recipes they are about",
+    "are one directory, and a file moved out of that directory is a file the next agent",
+    "reads without the recipes open.",
+    "",
+    "RATCHET, not aspiration: these are the counts of the tree TODAY (seeded 2026-09-03,",
+    "panel=107 metaLabel=76 chipQuiet=10 noticeAmber=62 btnAffirm=5 rawDate=15 across 168",
+    "files). A number never goes up. Adopt the recipe, then:",
+    "",
+    "  node --experimental-transform-types app/_components/ui/recipes-literals.test.ts --tighten",
+    "",
+    "A file burnt down to zero loses its entry entirely, which LOCKS the win: the file is",
+    "then undeclared, and the next literal to arrive there is a red build."
+  ],
+  "ceilings": {
+    "_components/AnalysisProgress.tsx": {
+      "btnAffirm": 1
+    },
+    "_components/ErrorBoundary.tsx": {
+      "noticeAmber": 1
+    },
+    "_components/GithubAnalysisPanel.tsx": {
+      "panel": 5
+    },
+    "_components/Modal.tsx": {
+      "panel": 1
+    },
+    "_components/PotentialBadge.tsx": {
+      "panel": 1
+    },
+    "_components/RubricCoverageNote.tsx": {
+      "noticeAmber": 1
+    },
+    "_components/Select.tsx": {
+      "panel": 1
+    },
+    "_components/chat/ChatMiniChart.tsx": {
+      "panel": 1,
+      "metaLabel": 3
+    },
+    "_components/chat/ChatTable.tsx": {
+      "panel": 1,
+      "metaLabel": 2
+    },
+    "_components/puml/PlantUml.tsx": {
+      "panel": 1,
+      "metaLabel": 1
+    },
+    "_components/results/DispositionEditor.tsx": {
+      "btnAffirm": 1
+    },
+    "_components/results/QualityStrip.tsx": {
+      "noticeAmber": 1
+    },
+    "_components/results/ResultPanel.tsx": {
+      "panel": 1
+    },
+    "_components/results/interview/InterviewTab.tsx": {
+      "panel": 3,
+      "btnAffirm": 1
+    },
+    "_components/results/interview/ReadbackEntitiesStrip.tsx": {
+      "chipQuiet": 1
+    },
+    "_components/results/interview/SoftSignalsSection.tsx": {
+      "panel": 1,
+      "chipQuiet": 1
+    },
+    "_components/results/job-fit/JobFitTab.tsx": {
+      "panel": 4
+    },
+    "_components/results/job-fit/MissingSkillsTiers.tsx": {
+      "metaLabel": 1
+    },
+    "_components/results/job-fit/SkillChips.tsx": {
+      "metaLabel": 1
+    },
+    "_components/results/salary/SalaryTab.tsx": {
+      "panel": 5
+    },
+    "_components/results/shared.tsx": {
+      "panel": 2,
+      "metaLabel": 2
+    },
+    "_components/table/FilterMenu.tsx": {
+      "panel": 1
+    },
+    "_components/voice/VoiceSettings.tsx": {
+      "metaLabel": 2
+    },
+    "_components/voice/VoiceTranscript.tsx": {
+      "panel": 1,
+      "metaLabel": 2
+    },
+    "control/AuditPanel.tsx": {
+      "panel": 2
+    },
+    "control/CalibrationPanel.tsx": {
+      "panel": 3
+    },
+    "control/FeedbackSection.tsx": {
+      "panel": 1
+    },
+    "control/GatesPanel.tsx": {
+      "noticeAmber": 1
+    },
+    "data/[token]/DataClient.tsx": {
+      "panel": 2,
+      "rawDate": 1
+    },
+    "devcase/apply/[token]/LiveWorkSurface.tsx": {
+      "panel": 1
+    },
+    "devcase/apply/[token]/page.tsx": {
+      "panel": 1
+    },
+    "diagrams/PipelineExplorer.tsx": {
+      "metaLabel": 1
+    },
+    "diagrams/page.tsx": {
+      "panel": 1
+    },
+    "features/agents-workforce/AgentsWorkforceRoster.tsx": {
+      "metaLabel": 1
+    },
+    "features/hiring/channels/ChannelsCommsMessageModal.tsx": {
+      "chipQuiet": 1
+    },
+    "features/hiring/channels/ChannelsEdgeCard.tsx": {
+      "panel": 1
+    },
+    "features/hiring/channels/ChannelsEmailIntakeWizard.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
+      "panel": 1
+    },
+    "features/hiring/channels/ChannelsSetupGuide.tsx": {
+      "panel": 1
+    },
+    "features/hiring/channels/ChannelsTabWidgets.tsx": {
+      "panel": 1,
+      "metaLabel": 1
+    },
+    "features/hiring/decisions/DecisionsAiReviewCard.tsx": {
+      "rawDate": 2
+    },
+    "features/hiring/decisions/DecisionsAiReviewCardLadder.tsx": {
+      "metaLabel": 1
+    },
+    "features/hiring/decisions/DecisionsAiReviewsSection.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
+      "panel": 1
+    },
+    "features/hiring/decisions/DecisionsHeader.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/decisions/DecisionsRoleRow.tsx": {
+      "panel": 1
+    },
+    "features/hiring/decisions/DecisionsScreenWaveLists.tsx": {
+      "rawDate": 1
+    },
+    "features/hiring/pipeline/PassPreviewModal.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/pipeline/PipelineBoard.tsx": {
+      "metaLabel": 2
+    },
+    "features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
+      "panel": 1
+    },
+    "features/hiring/pipeline/PipelineCandidateResultView.tsx": {
+      "panel": 1
+    },
+    "features/hiring/pipeline/PipelineConsentPanel.tsx": {
+      "rawDate": 1
+    },
+    "features/hiring/pipeline/PipelineDrawerHeader.tsx": {
+      "rawDate": 1
+    },
+    "features/hiring/pipeline/PipelineFilterBar.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/pipeline/PipelineFilterMenu.tsx": {
+      "panel": 1
+    },
+    "features/hiring/pipeline/PipelineHireOutcomeCard.tsx": {
+      "rawDate": 1
+    },
+    "features/hiring/pipeline/PipelineViewDialog.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/pipeline/SchedulerToolbar.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/schedule/ScheduleAiDocket.tsx": {
+      "panel": 3
+    },
+    "features/hiring/schedule/ScheduleAiEvalPreview.tsx": {
+      "chipQuiet": 1
+    },
+    "features/hiring/schedule/ScheduleCalendar.tsx": {
+      "panel": 1,
+      "metaLabel": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepHeader.tsx": {
+      "noticeAmber": 2
+    },
+    "features/hiring/schedule/ScheduleInterviewTranscriptTurns.tsx": {
+      "metaLabel": 1
+    },
+    "features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx": {
+      "panel": 1
+    },
+    "features/hiring/schedule/ScheduleInviteRecruiterControls.tsx": {
+      "noticeAmber": 1
+    },
+    "features/hiring/schedule/ScheduleTabInterviewedList.tsx": {
+      "panel": 1
+    },
+    "features/insights/about/AboutTab.tsx": {
+      "panel": 1
+    },
+    "features/insights/about/scenes/assignments/CaseBaseline.tsx": {
+      "chipQuiet": 1
+    },
+    "features/insights/activity/ActivityDetailModal.tsx": {
+      "metaLabel": 1
+    },
+    "features/insights/activity/ActivityTab.tsx": {
+      "metaLabel": 1
+    },
+    "features/insights/analytics/AnalyticsArchetypePanel.tsx": {
+      "panel": 1
+    },
+    "features/insights/analytics/AnalyticsAutomationPanel.tsx": {
+      "panel": 1
+    },
+    "features/insights/analytics/AnalyticsByRoleTable.tsx": {
+      "panel": 1,
+      "metaLabel": 3
+    },
+    "features/insights/analytics/AnalyticsCalibrationPanel.tsx": {
+      "panel": 1
+    },
+    "features/insights/analytics/AnalyticsComputeCostPanel.tsx": {
+      "panel": 1
+    },
+    "features/insights/analytics/AnalyticsDecisionRecordsPanel.tsx": {
+      "panel": 1,
+      "noticeAmber": 2
+    },
+    "features/insights/analytics/AnalyticsMomentumPanel.tsx": {
+      "panel": 1
+    },
+    "features/insights/analytics/AnalyticsStat.tsx": {
+      "metaLabel": 1
+    },
+    "features/insights/analytics/sections/AnalyticsSectionNav.tsx": {
+      "panel": 1
+    },
+    "features/insights/analytics/sections/DecisionLogTable.tsx": {
+      "metaLabel": 2,
+      "noticeAmber": 1
+    },
+    "features/insights/analytics/sections/DecisionRecordsTable.tsx": {
+      "metaLabel": 1,
+      "noticeAmber": 1
+    },
+    "features/insights/analytics/sections/EconomicsBoard.tsx": {
+      "metaLabel": 1
+    },
+    "features/insights/analytics/sections/PerformanceBriefing.tsx": {
+      "metaLabel": 2
+    },
+    "features/insights/matrix/MatrixDataNotices.tsx": {
+      "noticeAmber": 2
+    },
+    "features/insights/matrix/MatrixGrid.tsx": {
+      "panel": 1
+    },
+    "features/insights/matrix/MatrixReasoningPopover.tsx": {
+      "panel": 1
+    },
+    "features/insights/matrix/focus/MatchJobCompare.tsx": {
+      "panel": 1,
+      "metaLabel": 1
+    },
+    "features/insights/matrix/focus/MatchResultsHeader.tsx": {
+      "noticeAmber": 1,
+      "rawDate": 1
+    },
+    "features/insights/matrix/focus/MatrixCandidateFocus.tsx": {
+      "panel": 1
+    },
+    "features/library/jds/JdsLedgerBuildProvenance.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jds/JdsLedgerCoachTrace.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jds/JdsLedgerFilterMenu.tsx": {
+      "panel": 1
+    },
+    "features/library/jds/JdsLedgerRow.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jds/JdsSavedLedgerPanel.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jds/intake/JdsIntakeAttachmentsPane.tsx": {
+      "panel": 1
+    },
+    "features/library/jds/intake/JdsIntakeDraftPane.tsx": {
+      "panel": 1
+    },
+    "features/library/jds/intake/JdsIntakePanel.tsx": {
+      "panel": 1
+    },
+    "features/library/jobs/JobsAgentFitCoverage.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jobs/JobsCampaignTab.tsx": {
+      "metaLabel": 1,
+      "noticeAmber": 1
+    },
+    "features/library/jobs/JobsCampaignTabVariantCard.tsx": {
+      "metaLabel": 2,
+      "chipQuiet": 1
+    },
+    "features/library/jobs/JobsCompareInterviews.tsx": {
+      "metaLabel": 1
+    },
+    "features/library/jobs/JobsCompareInterviewsCohortTable.tsx": {
+      "metaLabel": 2,
+      "chipQuiet": 1
+    },
+    "features/library/jobs/JobsDraftsPanel.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jobs/JobsIngestAdPanelResults.tsx": {
+      "metaLabel": 1
+    },
+    "features/library/jobs/JobsPostingModal.tsx": {
+      "metaLabel": 1
+    },
+    "features/library/jobs/JobsRecruiterCandidates.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jobs/JobsRecruiterCandidatesFairness.tsx": {
+      "noticeAmber": 1
+    },
+    "features/library/jobs/JobsShared.tsx": {
+      "noticeAmber": 2
+    },
+    "features/library/jobs/JobsTab.tsx": {
+      "panel": 1,
+      "noticeAmber": 1
+    },
+    "features/settings/billing/spend/SpendEngineFacts.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/hiring/HiringTab.tsx": {
+      "noticeAmber": 2
+    },
+    "features/settings/hiring/PipelineStepsEditor.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/hiring/impact/ImpactDecisionsCard.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/hiring/impact/ImpactScheduleCard.tsx": {
+      "metaLabel": 1,
+      "rawDate": 1
+    },
+    "features/settings/hiring/impact/PlanImpactStrip.tsx": {
+      "metaLabel": 1
+    },
+    "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/integrations/IntegrationsCallbackBanner.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/integrations/IntegrationsPersonasPanel.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/models/ModelsKeyAddForm.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/models/ModelsRoutingPanel.tsx": {
+      "metaLabel": 1
+    },
+    "features/settings/organization/OrganizationBackupRestorePlan.tsx": {
+      "noticeAmber": 1
+    },
+    "features/settings/workspace/WorkspaceMembersTable.tsx": {
+      "metaLabel": 1
+    },
+    "features/settings/workspace/WorkspaceTab.tsx": {
+      "noticeAmber": 1
+    },
+    "features/shared/MatchPresentation.tsx": {
+      "noticeAmber": 1
+    },
+    "features/shell/WorkspacePaletteLedger.tsx": {
+      "metaLabel": 1
+    },
+    "features/shell/companion/CompanionProposalCard.tsx": {
+      "panel": 1
+    },
+    "features/shell/palette/PreviewInsightsSettings.tsx": {
+      "panel": 1
+    },
+    "features/shell/palette/previewBits.tsx": {
+      "panel": 1
+    },
+    "features/shell/setup/SetupCompanionStep.tsx": {
+      "noticeAmber": 1
+    },
+    "features/shell/setup/SetupHandoffSummary.tsx": {
+      "panel": 2
+    },
+    "features/shell/setup/SetupPipelineStep.tsx": {
+      "noticeAmber": 1
+    },
+    "features/shell/simulation/SimControlDockSimFace.tsx": {
+      "btnAffirm": 1
+    },
+    "features/shell/simulation/SimSpotlight.tsx": {
+      "panel": 1
+    },
+    "features/shell/tasks/TasksTable.tsx": {
+      "metaLabel": 1
+    },
+    "features/tools/analyze/AnalyzeFileDropZone.tsx": {
+      "panel": 1
+    },
+    "features/tools/analyze/AnalyzeFormFooter.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/analyze/AnalyzeFormOptionalColumns.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/analyze/AnalyzeTab.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/analyze/history/HistoryTable.tsx": {
+      "rawDate": 1
+    },
+    "features/tools/devcases/DevAnalysisDesignCard.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/devcases/DevCaseDetailInternal.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/devcases/DevLifecycleRow.tsx": {
+      "panel": 1
+    },
+    "features/tools/devcases/DevNeedForm.tsx": {
+      "panel": 1,
+      "noticeAmber": 1
+    },
+    "features/tools/devcases/DevProbeStrengthBanner.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/devcases/DevPublishConfirm.tsx": {
+      "noticeAmber": 1
+    },
+    "features/tools/devcases/OutboxRows.tsx": {
+      "panel": 1
+    },
+    "features/tools/interview/InterviewStartPanel.tsx": {
+      "chipQuiet": 1
+    },
+    "features/tools/profile/ArchetypeManager.tsx": {
+      "panel": 1
+    },
+    "features/tools/profile/CandidateMatrix.tsx": {
+      "panel": 1
+    },
+    "features/tools/profile/CandidateMatrixBoard.tsx": {
+      "metaLabel": 1
+    },
+    "features/tools/profile/ProfileEditor.tsx": {
+      "panel": 1,
+      "noticeAmber": 1
+    },
+    "features/tools/profile/ProfileRoster.tsx": {
+      "panel": 1
+    },
+    "features/tools/profile/ProfileRosterRow.tsx": {
+      "chipQuiet": 1,
+      "noticeAmber": 1
+    },
+    "history/[slug]/page.tsx": {
+      "rawDate": 2
+    },
+    "interview-lab/page.tsx": {
+      "panel": 2
+    },
+    "interview/[token]/page.tsx": {
+      "panel": 1
+    },
+    "jds/[slug]/JdBody.tsx": {
+      "panel": 1
+    },
+    "jds/[slug]/page.tsx": {
+      "noticeAmber": 1
+    },
+    "offer/[token]/OfferClient.tsx": {
+      "rawDate": 1
+    },
+    "skill/[token]/page.tsx": {
+      "panel": 1,
+      "metaLabel": 1,
+      "noticeAmber": 1
+    },
+    "status/[token]/StatusClient.tsx": {
+      "btnAffirm": 1,
+      "rawDate": 2
+    },
+    "trust/TrustContent.tsx": {
+      "metaLabel": 2,
+      "noticeAmber": 1
+    }
+  }
+}

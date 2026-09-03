@@ -1568,7 +1568,12 @@
     "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",
     "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
     "FORBIDDEN_CAPABILITY": "Your role does not allow this action.",
-    "forbiddenCapabilityNeeds": "Your role does not allow this action. It needs the “{capability}” permission."
+    "forbiddenCapabilityNeeds": "Your role does not allow this action. It needs the “{capability}” permission.",
+    "TEMPLATE_NOT_FOUND": "That template no longer exists.",
+    "TEMPLATE_LAST_ONE": "This is the last template your team can see. Keep at least one.",
+    "TEMPLATE_IS_DEFAULT": "This is the default template. Set another template as the default before deleting it.",
+    "TEMPLATE_STALE": "Someone else saved this template while you were editing. Reload it and reapply your changes.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Only a template shared with the whole company can be the default."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4370,7 +4375,16 @@
         "heading_apply": "How to apply",
         "offer_note": "Hybrid working, meaningful ownership, and room to grow.",
         "apply_note": "Apply via the link: a short conversation, then a first-round interview."
-      }
+      },
+      "loadFailed": "Couldn't load your templates.",
+      "retry": "Retry",
+      "retrying": "Retrying…",
+      "deleteTitleLastOne": "This is the last template your team can see. Keep at least one.",
+      "reloadLatest": "Reload the saved version",
+      "unsavedTitle": "Discard your unsaved template?",
+      "unsavedBody": "This template has edits you haven't saved yet. Leaving the editor discards them.",
+      "unsavedDiscard": "Discard changes",
+      "unsavedKeep": "Keep editing"
     }
   },
   "jobs": {
@@ -9681,5 +9695,13 @@
     "pillTitleStale": "Automatic refresh of {label} is failing. Last updated {ago}.",
     "refreshFailed": "Couldn't refresh {label}. Showing data from {ago}, retrying…",
     "loadFailed": "Couldn't load {label}. The service may be down, retrying…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Couldn't load the edit history.",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "revertPrompt": "Restore this version?",
+    "revertConfirm": "Restore",
+    "revertCancel": "Cancel"
   }
 }

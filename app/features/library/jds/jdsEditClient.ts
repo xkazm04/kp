@@ -52,3 +52,38 @@ export function classifyJdWriteResponse(
   if (status < 200 || status >= 300) return "error";
   return "ok";
 }
+
+// ---- The two async halves, kept here (and not in the hook) so a fetch stub can
+// pin them. `fetchImpl` defaults to the global fetch; a test passes its own.
+
+export type JdFetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+// One JD write (save or revert) against a route, classified. The hook does the
+// state; the network + classification live here, where a stub can drive every
+// branch — the 401 gate latch and the 409 conflict flag had no test at all.
+export async function performJdWrite(
+  url: string,
+  method: "PATCH" | "POST",
+  payload: unknown,
+  fetchImpl: JdFetch = fetch
+): Promise<{ outcome: JdWriteOutcome; body: { code?: string; error?: string } | null }> {
+  const r = await fetchImpl(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = (await r.json().catch(() => null)) as { code?: string; error?: string } | null;
+  return { outcome: classifyJdWriteResponse(r.status, body), body };
+}
+
+// Load a JD's revision history. THROWS on a failed request or an unusable body —
+// the caller distinguishes "could not load" from "no history", which the old
+// `catch { setRevisions([]) }` made impossible: a dropped fetch and a JD that was
+// never edited rendered the identical "no history yet" line.
+export async function fetchJdRevisions(slug: string, fetchImpl: JdFetch = fetch): Promise<JdRevision[]> {
+  const r = await fetchImpl(`/api/jds/${encodeURIComponent(slug)}/revisions`);
+  if (!r.ok) throw new Error(`revisions ${r.status}`);
+  const p = (await r.json()) as { revisions?: JdRevision[] } | null;
+  if (!p || !Array.isArray(p.revisions)) throw new Error("revisions: unexpected body");
+  return p.revisions;
+}

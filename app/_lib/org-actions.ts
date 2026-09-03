@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/locales";
 import { requireOrgCapability } from "./auth/current-user";
 import { currentWorkspace } from "./auth/current-workspace";
-import { setWorkspaceDefaultLocale } from "./db/workspaces";
+import { getWorkspaceOrgId, listWorkspacesByOrg, setWorkspaceDefaultLocale } from "./db/workspaces";
 import { ORG_NAME_COOKIE, sanitizeOrgName } from "./org-settings";
 
 // One year — the org identity should persist across sessions, matching the
@@ -63,7 +63,17 @@ export async function setOrgName(name: string): Promise<OrgSettingResult> {
  *     (getServerLocale: CV analysis, JD build, match reasoning, on-demand HR tasks);
  *   • the workspace default locale — background automation passes + candidate-comms
  *     fallback (getWorkspaceDefaultLocale), which run with no request cookie.
- *  The caller follows with router.refresh() so the app re-renders under it. */
+ *  The caller follows with router.refresh() so the app re-renders under it.
+ *
+ *  EVERY team in the caller's org gets the second write, not just the one their
+ *  session sits on. This setting is org-wide on every other axis — it lives on the
+ *  Organization tab, it is labelled "App language", and it takes `org:manage`, which
+ *  is resolved across the org precisely so an admin of one team cannot hold it — so
+ *  writing one `workspaces.default_locale` row left every other team's automation
+ *  passes and candidate emails in the previous language while the console reported
+ *  the change as saved. A single-team deployment (the seeded shape) is unaffected:
+ *  its org has exactly one row. The loop is a settings write, small and idempotent;
+ *  a partial failure re-runs to the same end state, so it needs no transaction. */
 export async function setOrgLanguage(locale: Locale): Promise<OrgSettingResult> {
   // A malformed locale is a bad ARGUMENT, not a refused one: it answers its own
   // code rather than borrowing the authority refusal's, so the console can never
@@ -75,6 +85,15 @@ export async function setOrgLanguage(locale: Locale): Promise<OrgSettingResult> 
     maxAge: ONE_YEAR_SECONDS,
     sameSite: "lax",
   });
-  setWorkspaceDefaultLocale(locale, await currentWorkspace());
+  const workspace = await currentWorkspace();
+  // Resolved from the workspace rather than the session's `org` claim so an
+  // operator-password / open-dev caller (no identity claims at all) still writes the
+  // whole org. An unlinked legacy workspace (org_id NULL) has no org to widen to and
+  // keeps the single-row behaviour.
+  const orgId = getWorkspaceOrgId(workspace);
+  const targets = orgId ? listWorkspacesByOrg(orgId).map((w) => w.id) : [];
+  for (const id of targets.includes(workspace) ? targets : [...targets, workspace]) {
+    setWorkspaceDefaultLocale(locale, id);
+  }
   return { ok: true };
 }

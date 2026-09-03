@@ -1568,7 +1568,12 @@
     "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
     "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer.",
     "FORBIDDEN_CAPABILITY": "Votre rôle ne permet pas cette action.",
-    "forbiddenCapabilityNeeds": "Votre rôle ne permet pas cette action : elle requiert l’autorisation « {capability} »."
+    "forbiddenCapabilityNeeds": "Votre rôle ne permet pas cette action : elle requiert l’autorisation « {capability} ».",
+    "TEMPLATE_NOT_FOUND": "Ce modèle n'existe plus.",
+    "TEMPLATE_LAST_ONE": "C'est le dernier modèle visible par votre équipe. Il doit en rester au moins un.",
+    "TEMPLATE_IS_DEFAULT": "C'est le modèle par défaut. Définissez d'abord un autre modèle par défaut avant de le supprimer.",
+    "TEMPLATE_STALE": "Quelqu'un d'autre a enregistré ce modèle pendant votre modification. Rechargez-le et réappliquez vos changements.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Seul un modèle partagé avec toute l'entreprise peut être le modèle par défaut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4370,7 +4375,16 @@
         "heading_apply": "Comment postuler",
         "offer_note": "Travail hybride, de vraies responsabilités et de la place pour progresser.",
         "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour."
-      }
+      },
+      "loadFailed": "Impossible de charger vos modèles.",
+      "retry": "Réessayer",
+      "retrying": "Nouvelle tentative…",
+      "deleteTitleLastOne": "C'est le dernier modèle visible par votre équipe. Il doit en rester au moins un.",
+      "reloadLatest": "Recharger la version enregistrée",
+      "unsavedTitle": "Abandonner le modèle non enregistré ?",
+      "unsavedBody": "Ce modèle contient des modifications non enregistrées. Quitter l'éditeur les supprime.",
+      "unsavedDiscard": "Abandonner les modifications",
+      "unsavedKeep": "Continuer la modification"
     }
   },
   "jobs": {
@@ -9681,5 +9695,13 @@
     "pillTitleStale": "L'actualisation automatique de {label} échoue. Dernière mise à jour {ago}.",
     "refreshFailed": "Impossible d'actualiser {label}. Données affichées de {ago}, nouvelle tentative…",
     "loadFailed": "Impossible de charger {label}. Le service est peut-être indisponible, nouvelle tentative…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Impossible de charger l'historique des modifications.",
+    "retry": "Réessayer",
+    "retrying": "Nouvelle tentative…",
+    "revertPrompt": "Restaurer cette version ?",
+    "revertConfirm": "Restaurer",
+    "revertCancel": "Annuler"
   }
 }

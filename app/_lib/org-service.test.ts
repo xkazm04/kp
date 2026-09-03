@@ -1,6 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { ensureDb } from "./db/core.ts";
 import { DEFAULT_ORG_ID } from "./db/organizations.ts";
 import { createWorkspace, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { verifyCredentials, getUserByEmail, createUser } from "./db/users.ts";
@@ -295,4 +296,57 @@ test("removeMember dry-run reports the last-owner blocker instead of counts", ()
   const owner = createUser({ orgId, email: "blast.blocker@example.test", status: "active", password: "owner-pw-1234" });
   addMemberToWorkspace(owner.id, team.id, "owner");
   assert.deepEqual(removeMember(owner.id, { dryRun: true }), { ok: false, reason: "last_owner" });
+});
+
+// ---- Redeeming the same invite twice ------------------------------------------
+// acceptInvite is a read→compute→write across four stores (invite → user →
+// credential → membership → invite) and it ran unlocked: two callers redeeming one
+// link both read a pending invite, both wrote a password, and only the loser's
+// markInviteAccepted no-op'd. It now runs inside db.transaction(...).immediate()
+// with the redeemable read re-asserted under the lock.
+
+test("the second caller on one link is refused and writes NOTHING", () => {
+  const orgId = "org-race";
+  const team = createWorkspace("Race team", orgId);
+  const invite = mintInvite({ orgId, email: "race.one@example.test", role: "recruiter", workspaceId: team.id });
+
+  const first = acceptInvite({ token: invite.token, name: "First Caller", password: "first-pw-1234" });
+  assert.ok(first.ok);
+  const accepted = getInvite(invite.token)!;
+
+  // The loser: same token, its own name and password.
+  assert.deepEqual(acceptInvite({ token: invite.token, name: "Second Caller", password: "second-pw-999" }), {
+    ok: false,
+    reason: "invalid",
+  });
+  const user = getUserByEmail("race.one@example.test")!;
+  assert.equal(user.name, "First Caller", "the winner's name stands");
+  assert.ok(verifyCredentials("race.one@example.test", "first-pw-1234"), "and the winner's credential still opens the account");
+  assert.equal(verifyCredentials("race.one@example.test", "second-pw-999"), null, "the loser's password was never written");
+  assert.equal(getInvite(invite.token)!.acceptedAt, accepted.acceptedAt, "the consumption record is the winner's");
+});
+
+test("a redeem interrupted after the membership write leaves nothing behind", () => {
+  // A rival consuming the token mid-flight, forced deterministically: a trigger on
+  // the membership insert marks the invite accepted, exactly as a second process
+  // committing between our read and our write would. The guarded markInviteAccepted
+  // then finds nothing pending, and the whole redeem must roll back — without the
+  // transaction the user, the credential and the seat would all have survived under
+  // somebody else's acceptance.
+  const orgId = "org-race-2";
+  const team = createWorkspace("Race team 2", orgId);
+  const invite = mintInvite({ orgId, email: "race.two@example.test", role: "recruiter", workspaceId: team.id });
+  const db = ensureDb();
+  db.exec(
+    `CREATE TRIGGER kp_test_rival_redeem BEFORE INSERT ON memberships BEGIN
+       UPDATE invites SET status = 'accepted' WHERE token = '${invite.token}';
+     END;`
+  );
+  try {
+    assert.throws(() => acceptInvite({ token: invite.token, name: "Interrupted", password: "interrupt-pw-1" }));
+  } finally {
+    db.exec("DROP TRIGGER kp_test_rival_redeem");
+  }
+  assert.equal(getUserByEmail("race.two@example.test"), null, "no half-provisioned account");
+  assert.equal(listOrgMembers(orgId).length, 0, "and no seat on the team");
 });

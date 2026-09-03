@@ -305,6 +305,17 @@ nothing — the console renders the code, and a refused save never ticks over to
 "Saved". Pinned by `app/_lib/org-actions.test.ts`. The org NAME's storage stays a
 per-browser cookie; the gate is about who may write it, not where it lives.
 
+`setOrgLanguage` writes `workspaces.default_locale` for **every team in the caller's
+org**, not only the one their session sits on. The setting is org-wide on every
+other axis — the Organization tab, the label "App language", an `org:manage`
+capability resolved across the org — so writing a single row left a sibling team's
+automation passes and candidate emails in the previous language while the console
+reported "Saved". The org is resolved from the current workspace
+(`getWorkspaceOrgId`), so an operator-password / open-dev caller with no identity
+claims still writes the whole org, and an unlinked legacy workspace (`org_id` NULL)
+keeps the single-row behaviour. A single-team deployment — the seeded shape — is
+unaffected, since its org holds exactly one row.
+
 **Entering** a team is separate from administering it:
 `POST /api/auth/switch-workspace` requires a real membership (plus an org match).
 An org admin can seat people on a team they don't belong to, but cannot park a
@@ -522,6 +533,31 @@ surface to the dead ending rather than leaving a generic line under a form that 
 never succeed again. And both fetches run under a 15 s `AbortController` budget
 (`INVITE_TIMEOUT_MS`), mirroring `LOGIN_TIMEOUT_MS`, so a stalled request cannot
 strand the invitee on a spinner or a dead "Setting up…" button.
+
+**Redeem lands on the dashboard.** A successful `POST` mints the session cookie
+*and* the readable `kp_entered` marker, exactly as `/api/auth/login` and
+`/api/auth/register` do (`app/_lib/auth/session.ts` `ENTERED_COOKIE`). It used to
+set only the session: `AcceptForm` redirects to `/`, and in OPEN mode (no
+`KP_OPERATOR_PASSWORD`) the `/` gate reads **only** that marker
+(`hasEnteredWorkspace`, `app/_lib/auth/home-gate-server.ts`) — so a colleague who
+had just joined the team was handed the public landing page. Both cookies are set
+inside the same best-effort `try`: with no `KP_SECRET` nothing is signed, so
+neither is written and no marker claims a session that does not exist.
+
+**One transaction, not four writes.** `acceptInvite` (`app/_lib/org-service.ts`)
+runs inside `db.transaction(...).immediate()` with the redeemable-invite read
+re-asserted **inside** the lock. It is a read→compute→write over the invite, user,
+credential and membership stores, and it ran unlocked: two processes redeeming one
+link both saw a pending invite and both wrote a password, only the loser's
+`markInviteAccepted` no-op'ing. The second caller is now refused structurally
+(`invalid`) and writes nothing, and a redeem interrupted between the membership
+write and the mark rolls back rather than seating a member on a pending invite.
+The session signing stays in the route, outside the transaction — nothing is
+awaited between BEGIN and COMMIT. Pinned by `app/_lib/org-service.test.ts` (two
+callers on one link; a rival consuming the token mid-flight) and, at HTTP level, by
+`app/api/invite/[token]/invite-accept-route.test.ts` — the reason→status map
+(400 weak / 409 taken / 409 already active / 410 dead), the cookie attributes, and
+the signing-failure-after-consume path that must still answer `ok`.
 
 `GET /api/invite/[token]` answers **`orgName: null`** for an org with no name,
 where it used to answer the English literal `"your organization"` — a server-side

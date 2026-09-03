@@ -8,7 +8,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyJdWriteResponse, jdEditPayload, jdRevertPayload } from "./jdsEditClient.ts";
+import { classifyJdWriteResponse, fetchJdRevisions, jdEditPayload, jdRevertPayload, performJdWrite } from "./jdsEditClient.ts";
 
 test("an edit payload always carries baseBody — the CAS base a stale write is refused against", () => {
   const p = jdEditPayload("New title", "New body", "Loaded body");
@@ -45,4 +45,60 @@ test("any other non-2xx → error, NOT gate (403/404/500 must not latch the oper
   assert.equal(classifyJdWriteResponse(403, null), "error");
   assert.equal(classifyJdWriteResponse(404, { error: "not found" }), "error");
   assert.equal(classifyJdWriteResponse(500, null), "error");
+});
+
+// ---- The async half, driven by a fetch stub. These pin what useJdEditor DOES
+// with a response: the 401 gate latch and the 409 conflict flag had no test at
+// all, and the revision load answered a failure with an empty array.
+
+function stub(responses: { status: number; body?: unknown; ok?: boolean }[]) {
+  const calls: { url: string; init?: RequestInit }[] = [];
+  let i = 0;
+  const impl = async (url: string, init?: RequestInit) => {
+    calls.push({ url, init });
+    const r = responses[Math.min(i++, responses.length - 1)];
+    return {
+      status: r.status,
+      ok: r.ok ?? (r.status >= 200 && r.status < 300),
+      json: async () => {
+        if (r.body === undefined) throw new Error("no body");
+        return r.body;
+      },
+    } as Response;
+  };
+  return { impl, calls };
+}
+
+test("a 401 on save is the GATE outcome — the latch the editor keeps its controls disabled with", async () => {
+  const { impl, calls } = stub([{ status: 401, body: { error: "Unauthorized" } }]);
+  const r = await performJdWrite("/api/jds/x", "PATCH", jdEditPayload("t", "b", "base"), impl);
+  assert.equal(r.outcome, "gate");
+  assert.equal(calls[0].init?.method, "PATCH");
+  assert.equal(JSON.parse(String(calls[0].init?.body)).baseBody, "base", "the CAS base still rides along on a refused write");
+});
+
+test("a 409 on revert is the CONFLICT outcome, not a generic error", async () => {
+  const { impl } = stub([{ status: 409, body: { code: "conflict" } }]);
+  const r = await performJdWrite("/api/jds/x/revisions", "POST", jdRevertPayload(7, "base"), impl);
+  assert.equal(r.outcome, "conflict");
+});
+
+test("a 500 with an unparseable body is an error, and does not throw on the JSON parse", async () => {
+  const { impl } = stub([{ status: 500 }]);
+  const r = await performJdWrite("/api/jds/x", "PATCH", {}, impl);
+  assert.equal(r.outcome, "error");
+  assert.equal(r.body, null);
+});
+
+test("a failed revision load THROWS — 'could not load' is not 'no history'", async () => {
+  for (const bad of [{ status: 500, body: { error: "boom" } }, { status: 200, body: { nope: true } }]) {
+    const { impl } = stub([bad]);
+    await assert.rejects(() => fetchJdRevisions("my-jd", impl));
+  }
+});
+
+test("a successful revision load returns the rows, and an empty history is a real empty array", async () => {
+  const rows = [{ id: 1, title: "T", body: "B", created_at: "2026-01-01T00:00:00.000Z" }];
+  assert.deepEqual(await fetchJdRevisions("my-jd", stub([{ status: 200, body: { revisions: rows } }]).impl), rows);
+  assert.deepEqual(await fetchJdRevisions("my-jd", stub([{ status: 200, body: { revisions: [] } }]).impl), []);
 });

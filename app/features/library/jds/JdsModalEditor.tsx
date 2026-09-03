@@ -9,7 +9,7 @@ import { TextArea } from "@/app/_components/TextArea";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
 import { builderLintFindings } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
-import { JdRevisionList } from "./JdsRevisionList";
+import { JdRevisionPanel } from "./JdsRevisionPanel";
 import { useJdEditor } from "./useJdEditor";
 import { JdsModalEditorStagedBanner } from "./JdsModalEditorStagedBanner";
 
@@ -198,23 +198,24 @@ export function JdModalEditor({
 
       {editor.historyOpen ? (
         <div className="rounded-lg border border-stone-200 bg-paper/40 p-4">
-          {editor.revLoading && editor.revisions === null ? (
-            <p className="text-sm text-steel">{t("editHistoryLoading")}</p>
-          ) : !editor.revisions || editor.revisions.length === 0 ? (
-            <p className="text-sm text-steel">{t("editHistoryEmpty")}</p>
-          ) : (
-            <JdRevisionList
-              revisions={editor.revisions}
-              reverting={editor.reverting}
-              gateBlocked={editor.gateBlocked}
-              onRevert={editor.revert}
-              gateReason={t("editGateReason")}
-              viewLabel={t("editRevisionView")}
-              hideLabel={t("editRevisionHide")}
-              revertLabel={t("editRevert")}
-              revertingLabel={t("editReverting")}
-            />
-          )}
+          {/* Four states, decided once for both editors: loading / could-not-load
+              (with a retry) / no history / the list. */}
+          <JdRevisionPanel
+            revisions={editor.revisions}
+            revLoading={editor.revLoading}
+            revError={editor.revError}
+            onRetry={() => void editor.loadRevisions()}
+            reverting={editor.reverting}
+            gateBlocked={editor.gateBlocked}
+            onRevert={editor.revert}
+            gateReason={t("editGateReason")}
+            loadingLabel={t("editHistoryLoading")}
+            emptyLabel={t("editHistoryEmpty")}
+            viewLabel={t("editRevisionView")}
+            hideLabel={t("editRevisionHide")}
+            revertLabel={t("editRevert")}
+            revertingLabel={t("editReverting")}
+          />
         </div>
       ) : null}
     </div>

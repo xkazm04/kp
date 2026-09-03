@@ -8,7 +8,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import { builderLintFindings } from "@/app/features/library/jds/jdsLibrary";
 import { JdLintPanel } from "@/app/features/library/jds/JdsLintPanel";
-import { JdRevisionList } from "@/app/features/library/jds/JdsRevisionList";
+import { JdRevisionPanel } from "@/app/features/library/jds/JdsRevisionPanel";
 import { useJdEditor } from "@/app/features/library/jds/useJdEditor";
 import { classifyJdWriteResponse } from "@/app/features/library/jds/jdsEditClient";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -144,23 +144,24 @@ export function JdActions({
 
       {editor.historyOpen ? (
         <div className="mt-3 rounded-lg border border-stone-200 bg-paper/40 p-4">
-          {editor.revLoading && editor.revisions === null ? (
-            <p className="text-sm text-steel">{t("historyLoading")}</p>
-          ) : !editor.revisions || editor.revisions.length === 0 ? (
-            <p className="text-sm text-steel">{t("historyEmpty")}</p>
-          ) : (
-            <JdRevisionList
-              revisions={editor.revisions}
-              reverting={editor.reverting}
-              gateBlocked={editor.gateBlocked}
-              onRevert={editor.revert}
-              gateReason={t("editGateReason")}
-              viewLabel={t("view")}
-              hideLabel={t("hide")}
-              revertLabel={t("revert")}
-              revertingLabel={t("reverting")}
-            />
-          )}
+          {/* The SAME four states as the ledger editor — this surface used to
+              render "no history yet" for a failed fetch too. */}
+          <JdRevisionPanel
+            revisions={editor.revisions}
+            revLoading={editor.revLoading}
+            revError={editor.revError}
+            onRetry={() => void editor.loadRevisions()}
+            reverting={editor.reverting}
+            gateBlocked={editor.gateBlocked}
+            onRevert={editor.revert}
+            gateReason={t("editGateReason")}
+            loadingLabel={t("historyLoading")}
+            emptyLabel={t("historyEmpty")}
+            viewLabel={t("view")}
+            hideLabel={t("hide")}
+            revertLabel={t("revert")}
+            revertingLabel={t("reverting")}
+          />
         </div>
       ) : null}
 

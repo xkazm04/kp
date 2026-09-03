@@ -7,6 +7,7 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { hasRenderableComparison, resolveWinnerIndex, type CompareDriver } from "@/app/_lib/comparison";
 import { reconcileScoreTotal, SCORE_COMPONENT_KEYS } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
@@ -69,7 +70,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   // (variants[0], the comparison narrative) meaningless or throw.
   if (!hasRenderableComparison(comparison)) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className={`${PANEL} p-5`}>
         <h3 className="font-serif text-h3 text-ink">{t("compare.emptyTitle")}</h3>
         <p className="mt-3 text-base leading-6 text-steel">{t("compare.emptyBody")}</p>
       </div>
@@ -170,7 +171,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className={`${PANEL} p-5`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-serif text-h3 text-ink">{t("compare.title")}</h3>
@@ -276,7 +277,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.driversTitle")}</h3>
           <BulletList
             items={driverInsights}
@@ -286,7 +287,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           />
         </div>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.mergedTitle")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{mergedSummary}</p>
           <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
@@ -303,7 +304,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.headlineSkillsTitle")}</h3>
           {headlineText ? (
             <div className="mt-3 rounded-md bg-paper p-3">
@@ -319,7 +320,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.bulletsTitle")}</h3>
           <BulletList
             items={comparison.mergedRecommendation.bullets}

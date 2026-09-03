@@ -978,6 +978,27 @@ export const REFUSAL_ERRORS = {
    *  with the bare Unauthorized envelope: a caller with no session has nothing to
    *  be told about capabilities. */
   FORBIDDEN_CAPABILITY: "Your role does not allow this action.",
+  // ---- JD templates (/perfect wave 19, template-manager-fails-loudly). Every one
+  // of these was English prose forwarded straight from the store's `reason` (or a
+  // bare "Template not found."), so the manager painted an English sentence into a
+  // Czech session and had no code to key on.
+  /** The id resolves to nothing this team can see — gone, or another team's private
+   *  draft (404). Deliberately lumped: distinguishing them would confirm which
+   *  template ids exist on other tenants. */
+  TEMPLATE_NOT_FOUND: "That template no longer exists.",
+  /** The only template this team can still see (400). Deleting it would leave the
+   *  JD builder's picker empty, and the org seed only re-runs on an empty tier. */
+  TEMPLATE_LAST_ONE: "This is the last template your team can see. Keep at least one.",
+  /** The org default (400). Promote another template first; a library with zero
+   *  defaults has no baseline to build from. */
+  TEMPLATE_IS_DEFAULT: "This is the default template. Set another template as the default before deleting it.",
+  /** The edit's base `updatedAt` no longer matches the row (409). The winning row
+   *  rides beside the code as `template` so the manager can reload it in place
+   *  instead of re-fetching a list to find out what happened. */
+  TEMPLATE_STALE: "Someone else saved this template while you were editing. Reload it and reapply your changes.",
+  /** Promote-to-default aimed at a team-private draft (400). The default is an
+   *  ORG-wide baseline, so only a shared template can hold it. */
+  TEMPLATE_DEFAULT_ORG_ONLY: "Only a template shared with the whole company can be the default.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

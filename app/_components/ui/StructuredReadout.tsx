@@ -4,6 +4,12 @@
 // what this run produced" surface needs and nobody wants to hand-plumb per
 // payload shape.
 //
+// ONE CONSUMER, ON PURPOSE (re-confirmed 2026-09-03): ActivityDetailModal.
+// Folding 295 lines back into that modal would trade a general renderer for a
+// payload-specific one, and the next surface that shows an arbitrary result blob
+// (a devcase run, an agent task) would hand-plumb its own. The cost of the extra
+// file is one import; the cost of inlining it is the second copy.
+//
 // Built for Insights → Activity, whose row-click detail shows a background
 // task's `result` blob: the shapes differ per task kind (a batch screen's
 // counts, a JD build's sections, an analysis's nested scoring), they change as
@@ -23,6 +29,7 @@
 // read as "that's all there was", the same failure the TablePager comment
 // describes.
 import { useTranslations } from "next-intl";
+import { CHIP_QUIET, META_LABEL } from "./recipes";
 import { labelize } from "@/app/_lib/format";
 
 /** How deep to nest before collapsing to a compact JSON tail. */
@@ -101,7 +108,7 @@ function ChipList({ items }: { items: unknown[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {shown.map((item, i) => (
-        <span key={i} className="rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel dark:rotate-1 dark:inline-block">
+        <span key={i} className={CHIP_QUIET}>
           {chipText(item)}
         </span>
       ))}
@@ -139,7 +146,7 @@ function ObjectTable({ rows, depth }: { rows: Record<string, unknown>[]; depth: 
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
+          <tr className={`border-b border-stone-200 text-left ${META_LABEL}`}>
             {columns.map((c) => (
               <th key={c} className="whitespace-nowrap pb-1.5 pr-3 font-semibold">{humanizeKey(c)}</th>
             ))}
@@ -174,7 +181,7 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
     const empty = Object.keys(value).length === 0;
     return (
       <section className="space-y-1.5">
-        <h4 className="text-meta uppercase text-steel">{label}</h4>
+        <h4 className={META_LABEL}>{label}</h4>
         {empty ? (
           <p className="text-sm text-steel/70">{t("empty")}</p>
         ) : (
@@ -189,7 +196,7 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
     if (value.length === 0) {
       return (
         <section className="space-y-1.5">
-          <h4 className="text-meta uppercase text-steel">{label}</h4>
+          <h4 className={META_LABEL}>{label}</h4>
           <p className="text-sm text-steel/70">{t("empty")}</p>
         </section>
       );
@@ -197,7 +204,7 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
     const objects = value.filter(isPlainObject);
     return (
       <section className="space-y-1.5">
-        <h4 className="text-meta uppercase text-steel">
+        <h4 className={META_LABEL}>
           {label} <span className="font-normal normal-case text-steel/70">({value.length})</span>
         </h4>
         {objects.length === value.length ? (
@@ -211,14 +218,14 @@ function Entry({ label, value, depth }: { label: string; value: unknown; depth: 
   if (isProse(value)) {
     return (
       <section className="space-y-1.5">
-        <h4 className="text-meta uppercase text-steel">{label}</h4>
+        <h4 className={META_LABEL}>{label}</h4>
         <p className="whitespace-pre-wrap text-base leading-relaxed text-ink">{value}</p>
       </section>
     );
   }
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-      <span className="min-w-[9rem] text-meta uppercase text-steel">{label}</span>
+      <span className={`min-w-[9rem] ${META_LABEL}`}>{label}</span>
       <span className="min-w-0 flex-1 break-words text-base"><Scalar value={value} /></span>
     </div>
   );

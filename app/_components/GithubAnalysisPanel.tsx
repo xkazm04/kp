@@ -7,6 +7,7 @@ import { hasEvidenceIncomplete, type GithubNote } from "@/app/_lib/github-eviden
 import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
+import { NOTICE, PANEL } from "./ui/recipes";
 
 // Analysis findings arrive as `{ kind, params }` (app/_lib/github-evidence.ts):
 // the server decides WHAT was observed, this panel decides how it reads, in the
@@ -39,7 +40,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
   if (status === "idle") return null;
 
   return (
-    <section className="animate-fade-in rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`animate-fade-in ${PANEL} p-5`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -78,7 +79,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
       ) : null}
 
       {warning ? (
-        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50/60 p-3 text-base text-amber-800" role="status">
+        <p className={`mt-4 ${NOTICE("amber")} p-3 text-base`} role="status">
           {warning}
         </p>
       ) : null}

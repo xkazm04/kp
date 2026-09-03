@@ -1,46 +1,90 @@
-// State + CRUD handlers for JdsTemplateManager.tsx — extracted verbatim (no
-// behaviour change) so the manager file stays under the 200-line split
-// threshold. Owns: the template list load, the editing draft, save/remove/
-// setDefault, and the localized validation-error mapping.
+// State + CRUD handlers for JdsTemplateManager.tsx — the manager file stays under
+// the 200-line split threshold. Owns: the template list load (and its FAILURE),
+// the editing draft and its unsaved-draft guard, save/remove/setDefault, the
+// stale-save (409) recovery, and the localized validation-error mapping.
+//
+// The React-free half — request shapes, response classification, the list load,
+// the validation-code→key map — lives in jdsTemplateClient.ts so it can be pinned
+// with a fetch stub (this harness cannot render a hook).
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
-  fetchTemplates,
   findUnknownPlaceholders,
   formatTokens,
   SUPPORTED_PLACEHOLDER_LIST,
   validateTemplateFields,
-  type Template,
   type TemplateFieldError,
 } from "@/app/features/shared/renderTemplate";
+import {
+  loadManagedTemplates,
+  sendTemplateWrite,
+  templateSaveRequest,
+  type ManagedTemplate,
+  type TemplateDraft,
+} from "./jdsTemplateClient";
 
-export type Editing = { id?: string; name: string; body: string; scope: Template["scope"] };
+export type Editing = TemplateDraft;
 
-export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }) {
+/** How the manager may be left while a draft is open. Held (rather than acted on)
+ *  until the recruiter answers the discard question. */
+export type PendingExit = "cancel" | "close";
+
+export function useTemplateManagerLogic({ onChanged, onClose }: { onChanged: () => void; onClose: () => void }) {
   const t = useTranslations("library.templates");
   // Same rule as localizeTemplateError below, for the SERVER's failures: resolve
   // from the machine `code`, never the English `error` kept for API consumers.
   const errMsg = useErrorMessage();
   // null = not loaded yet (render a skeleton), [] = genuinely empty (render an empty note),
   // so a slow/failed fetch is no longer indistinguishable from "loaded zero".
-  const [templates, setTemplates] = useState<Template[] | null>(null);
+  const [templates, setTemplates] = useState<ManagedTemplate[] | null>(null);
+  // The list load FAILED. Distinct from `templates === null`, which used to be the
+  // only state a failure could reach: the promise had no rejection path at all, so
+  // the skeleton pulsed forever and the rejection escaped unhandled.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Editing | null>(null);
+  // The draft as it was OPENED. Dirtiness is a comparison, not a flag, so an edit
+  // typed and undone doesn't ask a pointless question on the way out.
+  const [editingBase, setEditingBase] = useState<Editing | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A save refused because someone else saved first (409). The editor offers to
+  // reload the winning row rather than leaving a dead Save button.
+  const [conflict, setConflict] = useState<ManagedTemplate | null>(null);
   // Id of the template whose delete is awaiting inline confirmation (null = none).
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // The exit the recruiter asked for, held while we ask whether to discard.
+  const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
 
-  const load = () => fetchTemplates().then(setTemplates);
-  useEffect(() => {
-    load();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setTemplates(await loadManagedTemplates());
+      setLoadFailed(false);
+    } catch {
+      // Say it, and offer the retry. `templates` keeps whatever it held (null on a
+      // first load) so the panel renders the failure line, never a false "no
+      // templates yet" about a library that may be full.
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  // Deferred kickoff (no synchronous setState in an effect body) — the same shape
+  // jdsHooks and useJdEditor's deep-opened history use.
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
   // one-language-jd — the validators emit stable CODES; the manager maps each to a
-  // localized string (the server keeps the English `error` for API consumers). One
-  // switch mirrors render-template's templateErrorMessage so the two can't drift.
+  // localized string (the server keeps the English `error` for API consumers). The
+  // code→key map is pure (jdsTemplateClient.templateErrorKey) and pinned by a test;
+  // this binds it to the catalog, where ICU values differ per key.
   const localizeTemplateError = (reason: TemplateFieldError): string => {
     switch (reason.code) {
       case "bothRequired":
@@ -61,6 +105,54 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
   // rather than discovering it as raw text on a published JD.
   const unknownTokens = editing ? findUnknownPlaceholders(editing.body) : [];
 
+  /** Open a draft (create or edit) and remember what it looked like. */
+  const beginEdit = (draft: Editing) => {
+    setConfirmingId(null);
+    setConflict(null);
+    setError(null);
+    setEditing(draft);
+    setEditingBase(draft);
+  };
+
+  const closeEditor = () => {
+    setEditing(null);
+    setEditingBase(null);
+    setConflict(null);
+  };
+
+  // A half-written rich-text body used to vanish on Cancel and on closing the
+  // modal — the same silent discard wave 8 fixed for the JD builder, and the same
+  // remedy: an exit with nothing to lose behaves exactly as before.
+  const dirty = Boolean(
+    editing && editingBase && (editing.name !== editingBase.name || editing.body !== editingBase.body || editing.scope !== editingBase.scope)
+  );
+
+  const requestExit = (exit: PendingExit) => {
+    if (dirty) {
+      setPendingExit(exit);
+      return;
+    }
+    if (exit === "close") onClose();
+    else closeEditor();
+  };
+  const keepEditing = () => setPendingExit(null);
+  const discardAndExit = () => {
+    const exit = pendingExit;
+    setPendingExit(null);
+    closeEditor();
+    if (exit === "close") onClose();
+  };
+
+  /** Take the row that won the 409 and continue from it. The recruiter's own text
+   *  is deliberately dropped — this is the "reload latest" recovery, the same one
+   *  the JD editor offers on a conflict. */
+  const reloadConflict = () => {
+    if (!conflict) return;
+    const fresh: Editing = { id: conflict.id, name: conflict.name, body: conflict.body, scope: conflict.scope, updatedAt: conflict.updatedAt };
+    beginEdit(fresh);
+    void load();
+  };
+
   const save = async () => {
     if (!editing) return;
     // Same caps + wording as the write boundary (validateTemplateFields), so the
@@ -79,23 +171,22 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
     }
     setBusy(true);
     setError(null);
+    setConflict(null);
     try {
-      const url = editing.id ? `/api/templates/${editing.id}` : "/api/templates";
-      const r = await fetch(url, {
-        method: editing.id ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        // scope is chosen only at CREATE (publish to the shared org library vs keep it
-        // team-private); an edit leaves the tier untouched, so it's omitted on PUT.
-        body: JSON.stringify(
-          editing.id ? { name: fields.name, body: fields.body } : { name: fields.name, body: fields.body, scope: editing.scope }
-        ),
-      });
+      const { outcome, body } = await sendTemplateWrite(
+        templateSaveRequest(editing, { name: fields.name, body: fields.body })
+      );
       // Template writes are operator-gated (create can publish org-shared) — surface
       // the refusal honestly rather than a generic "save failed".
-      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
-      const p = await r.json();
-      if (!r.ok) throw new Error(errMsg(p, t("saveFailed")));
-      setEditing(null);
+      if (outcome === "gate") throw new Error(t("notPermitted"));
+      if (outcome === "conflict") {
+        // The winning row rides on the refusal, so the recovery is one click.
+        setConflict(body?.template ?? null);
+        setError(errMsg(body, t("saveFailed")));
+        return;
+      }
+      if (outcome === "error") throw new Error(errMsg(body, t("saveFailed")));
+      closeEditor();
       await load();
       onChanged();
     } catch (e) {
@@ -112,12 +203,12 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
     setError(null);
     setConfirmingId(null);
     try {
-      const r = await fetch(`/api/templates/${id}`, { method: "DELETE" });
-      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
-      if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        throw new Error(errMsg(p, t("deleteFailed")));
-      }
+      const { outcome, body } = await sendTemplateWrite({ url: `/api/templates/${encodeURIComponent(id)}`, method: "DELETE" });
+      if (outcome === "gate") throw new Error(t("notPermitted"));
+      // TEMPLATE_LAST_ONE / TEMPLATE_IS_DEFAULT / TEMPLATE_NOT_FOUND resolve from
+      // the code, in the reader's language — the route used to answer with English
+      // prose lifted straight out of the store.
+      if (outcome !== "ok") throw new Error(errMsg(body, t("deleteFailed")));
       await load();
       onChanged();
     } catch (e) {
@@ -128,16 +219,13 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
   const setDefault = async (id: string) => {
     setError(null);
     try {
-      const r = await fetch(`/api/templates/${id}`, {
+      const { outcome, body } = await sendTemplateWrite({
+        url: `/api/templates/${encodeURIComponent(id)}`,
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isDefault: true }),
+        payload: { isDefault: true },
       });
-      if (r.status === 401 || r.status === 403) throw new Error(t("notPermitted"));
-      if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        throw new Error(errMsg(p, t("setDefaultFailed")));
-      }
+      if (outcome === "gate") throw new Error(t("notPermitted"));
+      if (outcome !== "ok") throw new Error(errMsg(body, t("setDefaultFailed")));
       await load();
       onChanged();
     } catch (e) {
@@ -145,5 +233,30 @@ export function useTemplateManagerLogic({ onChanged }: { onChanged: () => void }
     }
   };
 
-  return { t, templates, editing, setEditing, busy, error, confirmingId, setConfirmingId, localizeTemplateError, unknownTokens, save, remove, setDefault };
+  return {
+    t,
+    templates,
+    loading,
+    loadFailed,
+    reload: load,
+    editing,
+    setEditing,
+    beginEdit,
+    dirty,
+    pendingExit,
+    requestExit,
+    keepEditing,
+    discardAndExit,
+    conflict,
+    reloadConflict,
+    busy,
+    error,
+    confirmingId,
+    setConfirmingId,
+    localizeTemplateError,
+    unknownTokens,
+    save,
+    remove,
+    setDefault,
+  };
 }

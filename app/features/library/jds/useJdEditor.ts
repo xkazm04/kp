@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
-  classifyJdWriteResponse,
+  fetchJdRevisions,
   jdEditPayload,
   jdRevertPayload,
+  performJdWrite,
   type JdRevision,
 } from "./jdsEditClient";
 
@@ -60,18 +61,22 @@ export function useJdEditor({
 
   const [historyOpen, setHistoryOpen] = useState(initialHistoryOpen);
   const [revisions, setRevisions] = useState<JdRevision[] | null>(null);
+  // The history FETCH failed (as opposed to "this JD has no revisions"). The two
+  // used to be the same state — `catch { setRevisions([]) }` — so a dropped
+  // request rendered "no edit history yet" about a JD that may well have plenty.
+  const [revError, setRevError] = useState(false);
   const [revLoading, setRevLoading] = useState(false);
   const [reverting, setReverting] = useState<number | null>(null);
 
   const loadRevisions = useCallback(async () => {
     setRevLoading(true);
+    setRevError(false);
     try {
-      const p = (await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`).then((r) => r.json())) as {
-        revisions?: JdRevision[];
-      };
-      setRevisions(p.revisions ?? []);
+      setRevisions(await fetchJdRevisions(slug));
     } catch {
-      setRevisions([]);
+      // Say it. `revisions` stays null so the panel renders the retry line rather
+      // than an empty list that lies about the JD's history.
+      setRevError(true);
     } finally {
       setRevLoading(false);
     }
@@ -100,15 +105,14 @@ export function useJdEditor({
       setError(null);
       setConflict(false);
       try {
-        const r = await fetch(`/api/jds/${encodeURIComponent(slug)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          // Content-CAS: send the body we loaded so a concurrent edit 409s rather
-          // than being silently clobbered.
-          body: JSON.stringify(jdEditPayload(title, body, baseBody)),
-        });
-        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        switch (classifyJdWriteResponse(r.status, p)) {
+        // Content-CAS: send the body we loaded so a concurrent edit 409s rather
+        // than being silently clobbered.
+        const { outcome, body: p } = await performJdWrite(
+          `/api/jds/${encodeURIComponent(slug)}`,
+          "PATCH",
+          jdEditPayload(title, body, baseBody)
+        );
+        switch (outcome) {
           case "gate":
             setGateBlocked(true);
             setError(copy.gateReason);
@@ -137,14 +141,13 @@ export function useJdEditor({
       setError(null);
       setConflict(false);
       try {
-        const r = await fetch(`/api/jds/${encodeURIComponent(slug)}/revisions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // Send the body we loaded so a revert can't bury an edit made meanwhile.
-          body: JSON.stringify(jdRevertPayload(id, baseBody)),
-        });
-        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        switch (classifyJdWriteResponse(r.status, p)) {
+        // Send the body we loaded so a revert can't bury an edit made meanwhile.
+        const { outcome, body: p } = await performJdWrite(
+          `/api/jds/${encodeURIComponent(slug)}/revisions`,
+          "POST",
+          jdRevertPayload(id, baseBody)
+        );
+        switch (outcome) {
           case "gate":
             setGateBlocked(true);
             setError(copy.gateReason);
@@ -174,6 +177,7 @@ export function useJdEditor({
     gateBlocked,
     historyOpen,
     revisions,
+    revError,
     revLoading,
     reverting,
     setError,

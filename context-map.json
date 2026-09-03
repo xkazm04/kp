@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T10:05:31.665Z",
+ "generated_at": "2026-09-03T10:24:19.559Z",
  "provenance": {
-  "git_commit": "24ed6a9dab359fdbb9b4625eed86ac2319df73b8",
-  "git_commit_count": 2286,
+  "git_commit": "5fd2e263ac5efba78b964776d0654f67730c6681",
+  "git_commit_count": 2294,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T10:05:31.665Z"
+  "generated_at": "2026-09-03T10:24:19.559Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2923,
+  "files": 2929,
   "groups": 17,
   "use_cases": 12
  },
@@ -3175,6 +3175,7 @@
     "app/_lib/rejection-feedback.test.ts",
     "app/_lib/rejection-feedback.ts",
     "app/_lib/templates-isolation.test.ts",
+    "app/_lib/templates-store.test.ts",
     "app/_lib/templates-store.ts",
     "app/_lib/templates-tenancy.test.ts"
    ],
@@ -3407,6 +3408,7 @@
     "app/_components/ui/StructuredReadout.tsx",
     "app/_components/ui/defer-policy.test.ts",
     "app/_components/ui/defer-policy.ts",
+    "app/_components/ui/recipes-literals.test.ts",
     "app/_components/ui/recipes-sizing.test.ts",
     "app/_components/ui/recipes.ts",
     "app/_components/ui/useDateFormat.ts",
@@ -5459,6 +5461,7 @@
     "app/_lib/tenancy-coverage.test.ts",
     "app/_lib/tenancy.test.ts",
     "app/_lib/tenancy.ts",
+    "app/api/invite/[token]/invite-accept-route.test.ts",
     "app/api/invite/[token]/route.ts",
     "app/api/org/invites/[token]/route.ts",
     "app/api/org/invites/route.ts",
@@ -6120,8 +6123,10 @@
     "app/features/library/jds/JdsLintPanel.tsx",
     "app/features/library/jds/JdsModalEditor.tsx",
     "app/features/library/jds/JdsModalEditorStagedBanner.tsx",
+    "app/features/library/jds/JdsRevisionPanel.tsx",
     "app/features/library/jds/jdsBuildPoll.test.ts",
-    "app/features/library/jds/jdsBuildPoll.ts"
+    "app/features/library/jds/jdsBuildPoll.ts",
+    "app/features/library/jds/jdsTemplateClient.ts"
    ],
    "group": "Job & JD Management",
    "group_id": "3d0fab8c-b963-4864-a4a0-683577ec221f",
@@ -6179,6 +6184,7 @@
     "app/features/library/jds/jdsLibrary.test.ts",
     "app/features/library/jds/jdsLibrary.ts",
     "app/features/library/jds/jdsLintWiring.test.ts",
+    "app/features/library/jds/jdsTemplateManagerLogic.test.ts",
     "app/features/library/jds/jdsTemplateManagerLogic.ts",
     "app/features/library/jds/useJdEditor.ts"
    ],
