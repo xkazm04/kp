@@ -14,7 +14,7 @@
  */
 import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { ART_TYPE_SCALE, DISPLAY, HAND, STICKER, INK, CORAL, MOSS } from "../tokens";
+import { ART_TYPE_SCALE, DISPLAY, HAND, STICKER, INK } from "../tokens";
 import {
   fmtCzk,
   fmtCzkShort,
@@ -32,17 +32,6 @@ import {
   type JdGroup,
 } from "./data";
 import { familyColor, orgColor } from "./marketColors";
-
-// ── stat tile ────────────────────────────────────────────────────────────────
-export function StatTile({ value, label, hint, tilt = 0 }: { value: string; label: string; hint?: string; tilt?: number }) {
-  return (
-    <div className={`${ART_TYPE_SCALE} ${STICKER} px-5 py-4`} style={{ transform: `rotate(${tilt}deg)` }}>
-      <div className={`${DISPLAY} text-3xl font-extrabold leading-none sm:text-4xl`}>{value}</div>
-      <div className="mt-1.5 text-[17px] font-bold uppercase tracking-wide text-[#42606f]">{label}</div>
-      {hint ? <div className={`${HAND} mt-0.5 text-sm text-[#526b4f]`}>{hint}</div> : null}
-    </div>
-  );
-}
 
 // ── map metric toggle (shared-layout pill, reduced-motion gated) ──────────────
 export function MetricToggle({ metric, onChange }: { metric: MapMetric; onChange: (m: MapMetric) => void }) {
@@ -222,20 +211,6 @@ export function SalaryBands({ families }: { families: RefSalary[] }) {
 // message, and intl-messageformat computes `value - offset` — a pre-formatted
 // "11 571" became NaN and Czech rendered the literal word "NaN". ICU does the
 // number formatting itself, per locale.
-export function MomentumBadge({ m }: { m: number | null }) {
-  const t = useTranslations("jobMarket");
-  // `0` means "we measured no change", which is not an increase — showing it as
-  // a green ▲ 0% would dress up a non-signal as good news.
-  if (!isFigure(m) || m === 0)
-    return <span className={`${ART_TYPE_SCALE} ${HAND} text-sm text-[#42606f]`}>{t("demand.momentumNew")}</span>;
-  const up = m > 0;
-  return (
-    <span className={`${ART_TYPE_SCALE} text-sm font-bold`} style={{ color: up ? MOSS : CORAL }}>
-      {up ? "▲" : "▼"} {Math.abs(m)}%
-    </span>
-  );
-}
-
 export function FamilyDemandList({ families }: { families: FamilyDemand[] }) {
   const t = useTranslations("jobMarket");
   const max = Math.max(...families.map((f) => f.vacancies), 0);
