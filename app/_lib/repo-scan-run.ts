@@ -100,6 +100,60 @@ export function scratchDirFor(scanId: string, tmpdir: string = os.tmpdir()): str
   return path.join(tmpdir, "kp-repo-scan", safe || "scan");
 }
 
+/** MIRROR of `FENCE_STATES` in pipeline/jobfit/repo_scan.py — how much the scan can
+ *  honestly claim about the fence that keeps the in-repo agent out of `.env` and its
+ *  friends. Those deny rules are pinned to ONE verified Claude CLI version in a code
+ *  comment; nothing used to notice when the installed CLI had moved past it, so an
+ *  upstream change to the rule grammar would silently widen what the agent may read.
+ *  It cannot be re-verified without a live session, so the scan discloses instead.
+ *
+ *  Python is the single definition (it knows which CLI actually ran); this copy is
+ *  the narrowing, and `repo-scan-run.test.ts` reads the Python tuple out of the
+ *  source file and asserts set equality — the same guard `REPO_SCAN_FALLBACK_CLASSES`
+ *  carries. */
+export const REPO_SCAN_FENCE_STATES = [
+  "verified",
+  "unverified_version",
+  "version_unknown",
+  "not_applicable",
+] as const;
+export type RepoScanFenceState = (typeof REPO_SCAN_FENCE_STATES)[number];
+
+export function isRepoScanFenceState(value: unknown): value is RepoScanFenceState {
+  return typeof value === "string" && (REPO_SCAN_FENCE_STATES as readonly string[]).includes(value);
+}
+
+/** The scan's disclosure about its own fence. `verified` is a claim about THIS run:
+ *  true when there was nothing to fence (no in-repo agent ran) or the deny rules are
+ *  verified for the CLI that ran, false in both warning states. */
+export type RepoScanFence = {
+  cliVersion: string | null;
+  state: RepoScanFenceState;
+  verified: boolean;
+  /** How many symlinks the heuristic walk refused because they resolved outside the
+   *  scanned root. A walk that quietly skipped half a repo under-reports it. */
+  skippedSymlinks: number;
+};
+
+/** Narrow the envelope's fence block. `null` when the field is absent (a scan run by
+ *  an older build) or unrecognisable — "no claim", never a green one, and never a
+ *  state string the catalogs have no words for. */
+export function toRepoScanFence(value: unknown): RepoScanFence | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const f = value as Record<string, unknown>;
+  if (!isRepoScanFenceState(f.state)) return null;
+  const skipped = typeof f.skippedSymlinks === "number" && Number.isFinite(f.skippedSymlinks) ? f.skippedSymlinks : 0;
+  return {
+    cliVersion: typeof f.cliVersion === "string" && f.cliVersion ? f.cliVersion : null,
+    state: f.state,
+    // Derived from the STATE, not read from the payload: two fields that can
+    // disagree is a green light waiting to happen, and the state is the one the
+    // catalogs render.
+    verified: f.state === "verified" || f.state === "not_applicable",
+    skippedSymlinks: Math.max(0, Math.trunc(skipped)),
+  };
+}
+
 export type RepoScanResult = {
   record: RepoScanRecord;
   source: "llm" | "heuristic";
@@ -107,6 +161,9 @@ export type RepoScanResult = {
   /** The closed class Python assigned to that reason, or `null` when nothing fell
    *  back. A keyless run is NOT a fallback — it is the floor, by design. */
   fallbackClass: RepoScanFallbackClass | null;
+  /** What this run can claim about the secret-file fence. `null` = the envelope
+   *  carried no disclosure at all. */
+  fence: RepoScanFence | null;
 };
 
 type CliEnvelope = {
@@ -115,6 +172,7 @@ type CliEnvelope = {
   perStepSources?: Record<string, string>;
   fallbackReason?: Record<string, string>;
   fallbackClass?: string;
+  fence?: unknown;
 };
 
 /** Shape-check + normalize the CLI envelope (exported pure so the parse contract is
@@ -129,6 +187,7 @@ export function toRepoScanEnvelope(payload: unknown): {
   source: "llm" | "heuristic";
   fallbackReason: Record<string, string>;
   fallbackClass: RepoScanFallbackClass | null;
+  fence: RepoScanFence | null;
 } {
   const p = payload as CliEnvelope | null;
   const r = p?.result;
@@ -148,6 +207,10 @@ export function toRepoScanEnvelope(payload: unknown): {
     // repo_scan.py and asserts the two sets are equal, so the narrowing cannot
     // silently start dropping a class Python began emitting.
     fallbackClass: isRepoScanFallbackClass(p?.fallbackClass) ? p.fallbackClass : null,
+    // The dossier carries its own copy under `scanFence` (that is the one that
+    // survives to the row and to the panel); the top-level block is preferred when
+    // both are present, since it is the envelope's own statement about the run.
+    fence: toRepoScanFence(p?.fence) ?? toRepoScanFence((r as { scanFence?: unknown }).scanFence),
   };
 }
 
@@ -317,6 +380,20 @@ export async function runRepoScan(
       },
       workspaceId
     );
+    if (envelope.fence && !envelope.fence.verified) {
+      // Not a failure: the deny rules were still sent and the redaction backstop
+      // still ran. It is the one thing the server log must not swallow — the fence
+      // this build verified is not the fence this scan actually ran behind.
+      console.warn(
+        `[repo-scan] ${scanId}: the secret-file fence is unverified (${envelope.fence.state}` +
+          `${envelope.fence.cliVersion ? `, Claude CLI ${envelope.fence.cliVersion}` : ""}).`
+      );
+    }
+    if (envelope.fence && envelope.fence.skippedSymlinks > 0) {
+      console.warn(
+        `[repo-scan] ${scanId}: skipped ${envelope.fence.skippedSymlinks} symlink(s) resolving outside the scanned root.`
+      );
+    }
     if (envelope.fallbackClass) {
       // The class is what the operator sees; the reason line is for whoever has to
       // fix it, and it belongs in the log where a stack trace would go.
@@ -331,6 +408,7 @@ export async function runRepoScan(
         source: envelope.source,
         fallbackReason: envelope.fallbackReason,
         fallbackClass: envelope.fallbackClass,
+        fence: envelope.fence,
       };
     }
 
@@ -345,6 +423,7 @@ export async function runRepoScan(
       source: envelope.source,
       fallbackReason: envelope.fallbackReason,
       fallbackClass: envelope.fallbackClass,
+      fence: envelope.fence,
     };
   } catch (error) {
     // The row is the thing the operator polls, so a failure has to land ON it — not

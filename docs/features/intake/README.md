@@ -277,12 +277,37 @@ No provider → the dialog degrades to a deterministic scripted slot script
 the shared `generate_with_fallback` contract. The UI shows a quiet
 "guided checklist" note when a turn came from the deterministic path.
 
+**The script speaks all four app locales.** `_Q`, `_AM_SLOT_FACET`, the facet
+labels, the read-back, the close, the "the scan proposed these" header and the
+attachment acknowledgement carry native `en`/`cs`/`de`/`fr`; the confirm and
+skip vocabularies recognise `ja`/`stimmt`/`oui`/`d'accord` and
+`nein`/`überspringen`/`passer`/`aucune`, so a German "ja" at the read-back
+closes the session instead of being recorded as a stated correction. Keyless is
+the whole product for an operator without a key, and it used to hand a German
+or French one English prose through a silent `.get(lang, ...["en"])`.
+
+`SCRIPT_LANGS` is DERIVED from `_Q` rather than declared, and
+`FourLocaleScriptTest` (`pipeline/jobfit/tests/test_intake.py`) fails when it
+stops matching `i18n.LANG_NAMES` — so adding a fifth app locale without
+scripting it is a red test, not a silent English session. Until it is scripted,
+a request for that locale is DISCLOSED: the turn carries `fallbackLang` (the
+language actually served, `_script_lang`), surfaced on `IntakeExchange` /
+`IntakeVoiceTurn` in `app/_lib/intake-run.ts`. The field is absent whenever the
+requested locale is scripted — an exception report, not a decoration.
+
+Both `intake_cli.py` and `jobs_cli.py` now answer failures with the shared
+`{error, status, code}` envelope from `pipeline/jobfit/_cli.py`
+(`emit_error` / `invalid_input`), so a malformed `--attachments-json` or an
+empty ad reaches `python-runner.ts` as `400 invalid_input` instead of an
+anonymous 500 the runner had to guess a code out of.
+
 ## API / lib surface
 
 | Piece | Path |
 | --- | --- |
 | Dialog engine (persona, extraction, merge, triage, scripted fallback) | `pipeline/jobfit/intake.py` |
-| Per-exchange CLI | `pipeline/jobfit/intake_cli.py` |
+| Per-exchange CLI | `pipeline/jobfit/intake_cli.py` (shared `{error,status,code}` envelope via `_cli.emit_error`) |
+| Four-locale scripted path | `pipeline/jobfit/intake.py` (`_Q`, `SCRIPT_LANGS`, `_script_lang`, `_LABELS`, `_READBACK_STRINGS`, `_CLOSE_STRINGS`); tests: `FourLocaleScriptTest` |
 | LLM use case | `role_intake` (`llm/capabilities.py`, `app/_lib/llm-config.ts`) |
 | TS runner | `app/_lib/intake-run.ts` |
 | Brief → JD-build projection (pure) | `app/_lib/intake-brief.ts` |

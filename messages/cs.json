@@ -4224,7 +4224,9 @@
             "fellBackAgentRefused": "AI agent skončil předčasně, takže jde jen o čtení průchodem souborů.",
             "fellBackAgentOutputTooLarge": "Odpověď AI agenta byla příliš velká, takže jde jen o čtení průchodem souborů.",
             "fellBackProviderError": "Poskytovatel AI selhal, takže jde jen o čtení průchodem souborů.",
-            "fellBackUnknown": "AI agent se vrátil k záloze, takže jde jen o čtení průchodem souborů."
+            "fellBackUnknown": "AI agent se vrátil k záloze, takže jde jen o čtení průchodem souborů.",
+            "fenceUnverified": "AI agent četl toto repo za pravidly pro soubory s tajemstvími, která nejsou ověřená pro zdejší verzi Claude CLI.",
+            "fenceVersionUnknown": "Claude CLI neuvedlo svou verzi, takže pravidla pro soubory s tajemstvími, za kterými tento sken běžel, nešlo ověřit."
           },
           "dossier": {
             "title": "Co sken přečetl",

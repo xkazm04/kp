@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
-import { readRepoScanResponse, scanStateFor, type IntakeSession, type RepoScanView, type ScanState } from "./jdsIntakeLogic";
+import {
+  readRepoScanResponse,
+  scanFenceWarningFor,
+  scanStateFor,
+  type IntakeSession,
+  type RepoScanView,
+  type ScanFenceWarning,
+  type ScanState,
+} from "./jdsIntakeLogic";
 
 // App master (docs/features/app-master/README.md): the client half of the third
 // intake shape. Two jobs, both split out of jdsIntakeLogic so that file stays
@@ -48,6 +56,9 @@ export function useAppMasterLogic(
 ) {
   const { tasks, fetchTask, cancelTask } = useTasks();
   const [scanState, setScanState] = useState<ScanState>(null);
+  // The fence disclosure, held beside `scanState` rather than inside it: they are
+  // two independent facts about the same run (see ScanFenceWarning).
+  const [scanFence, setScanFence] = useState<ScanFenceWarning>(null);
   const [composing, setComposing] = useState(false);
   // The server's machine CODE, never its English `error` string — the card
   // resolves it through the `errors` catalog in the reader's language, exactly
@@ -85,6 +96,9 @@ export function useAppMasterLogic(
         // fallback is hiding behind a "complete". Not `scan.status`, which
         // collapsed both to one word.
         setScanState(scanStateFor(scan));
+        // Read off the SCAN row, not off the dossier the intake keeps: the intake
+        // copy is zod-parsed against repoDossierSchema, which drops `scanFence`.
+        setScanFence(scanFenceWarningFor(scan));
         if (scan.status !== "complete" || !scan.dossier) return;
         posted.current = scanId;
         const post = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/dossier`, {
@@ -253,6 +267,7 @@ export function useAppMasterLogic(
   if (stateForIntake !== intakeId) {
     setStateForIntake(intakeId);
     setScanState(null);
+    setScanFence(null);
     setComposeError(null);
     setDispatchState({ status: "idle" });
     // …and the task this session's scan resolved to. Cancelling the PREVIOUS
@@ -318,6 +333,9 @@ export function useAppMasterLogic(
 
   return {
     scanState,
+    /** What this session's scan can claim about the secret-file fence it ran
+     *  behind. `null` = nothing to disclose. */
+    scanFence,
     /** Cancel this session's scan, or `null` when there is nothing to cancel. */
     cancelScan: cancellable ? cancelScan : null,
     composeAppMaster,

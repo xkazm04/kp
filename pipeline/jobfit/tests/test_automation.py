@@ -655,5 +655,116 @@ class OfferTest(unittest.TestCase):
         self.assertEqual(legacy["language"], "English")
 
 
+class AdverseActionBoundaryTest(unittest.TestCase):
+    """Pin the half of the adverse-action guarantee that PYTHON owns.
+
+    The module docstring splits the guarantee in two: the TS pass
+    (automation-pass.ts) is what makes "no adverse action runs unattended" true,
+    and a caller driving automation_cli directly never reaches it. What such a
+    caller DOES get is the narrowing enforced in this module — and until now
+    nothing pinned it, so removing `result["route"] = "advance" if advance else
+    "hold"` (or widening SCREEN_ROUTES) would have shipped a reject route to a
+    caller with no human gate behind it, with nothing red anywhere.
+    """
+
+    _STAGES = ("Accepted", "Screened", "Interview", "Offer", "Hired", "Sourced")
+    # "unknown-archetype" is deliberate: the Python gate is a membership test, so
+    # an unknown archetype is scored as BAU. That is the caveat the docstring
+    # states — the fail-closed reading lives in TS (automation-fairness.ts) only.
+    _ARCHETYPES = ("bau", "student", "career_switcher", "unknown-archetype")
+
+    def test_screen_routes_exclude_reject(self):
+        self.assertEqual(automation.SCREEN_ROUTES, ("advance", "hold"))
+        self.assertNotIn("reject", automation.SCREEN_ROUTES)
+        # A strict subset of the verdict vocabulary — the narrowing IS the point.
+        self.assertTrue(set(automation.SCREEN_ROUTES) < set(automation.RECOMMENDATIONS))
+
+    def test_screen_never_routes_to_reject_for_any_verdict(self):
+        job = mkjob()
+        weak_bau = MatchCandidate(
+            skills=["HTML"], seniority="junior", role_family="software_engineering",
+            languages=["English"], archetype="bau",
+        )
+        # Every verdict a model can hand back (legal, off-taxonomy, empty), at every
+        # confidence around the auto-advance floor, for a strong BAU, a weak BAU
+        # whose own deterministic verdict IS "reject", and an early-career candidate.
+        for cand in (BAU, weak_bau, STUDENT):
+            m = score_job(cand, job)
+            det, _ = automation.screen_candidate(cand, job, m, provider=None)
+            self.assertIn(det["route"], automation.SCREEN_ROUTES)
+            for verdict in (*automation.RECOMMENDATIONS, "definitely-hire", "", None, 42):
+                for conf in (0, 50, 79, 80, 100):
+                    cap = _CaptureProvider({"recommendation": verdict, "confidence": conf})
+                    result, _ = automation.screen_candidate(cand, job, m, provider=cap)
+                    self.assertIn(
+                        result["route"], automation.SCREEN_ROUTES,
+                        f"{cand.archetype}/{verdict!r}@{conf} routed to {result['route']!r}",
+                    )
+
+    def test_weak_bau_reject_verdict_still_routes_to_hold(self):
+        # The load-bearing case: the recommendation genuinely IS "reject" (the
+        # deterministic builder's own verdict for a 33-point match), and the route
+        # the caller acts on is still "hold" -> the human gate.
+        job = mkjob()
+        weak_bau = MatchCandidate(
+            skills=["HTML"], seniority="junior", role_family="software_engineering",
+            languages=["English"], archetype="bau",
+        )
+        result, source = automation.screen_candidate(weak_bau, job, score_job(weak_bau, job), provider=None)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(result["recommendation"], "reject")
+        self.assertEqual(result["route"], "hold")
+
+    def test_early_career_reject_verdict_is_rewritten_after_the_model(self):
+        job = mkjob()
+        cap = _CaptureProvider({"recommendation": "reject", "confidence": 99})
+        result, _ = automation.screen_candidate(STUDENT, job, score_job(STUDENT, job), provider=cap)
+        self.assertEqual(result["recommendation"], "hold")
+        self.assertEqual(result["route"], "hold")
+
+    def test_evaluate_entry_rejects_only_on_the_one_legal_path(self):
+        # Exhaustive sweep of the snapshot space the TS seam can hand over. Any
+        # "reject" that is NOT the single documented path fails here — this is the
+        # Python mirror of the invariant automation-fairness.ts re-derives in TS.
+        floor = automation.POLICY["bau_reject_score"]
+        seen_reject = False
+        for stage in self._STAGES:
+            for archetype in self._ARCHETYPES:
+                for score in (None, 0, 1, floor - 1, floor, floor + 1, 70, 95):
+                    for days in (0, 3, 25, 40):
+                        for approval in (None, "rejection_review"):
+                            for recent in (False, True):
+                                snap = {
+                                    "stage": stage, "archetype": archetype, "matchScore": score,
+                                    "daysInStage": days, "approvalKind": approval,
+                                    "recentScreening": recent,
+                                }
+                                d = automation.evaluate_entry(snap)
+                                self.assertIn(d["action"], ("advance", "reject", "hold", "none"), snap)
+                                if d["action"] != "reject":
+                                    continue
+                                seen_reject = True
+                                self.assertEqual(stage, "Screened", snap)
+                                self.assertNotIn(archetype, automation._EARLY_CAREER, snap)
+                                self.assertIsNone(approval, snap)
+                                self.assertFalse(recent, snap)
+                                self.assertTrue(score and score > 0, snap)
+                                self.assertLess(score, floor, snap)
+                                # A reject is a decision about the entry, never a stage move.
+                                self.assertIsNone(d["toStage"], snap)
+        # Guard against a sweep that proves nothing because it never hit the path.
+        self.assertTrue(seen_reject, "the sweep never produced a reject — fixture drift")
+
+    def test_early_career_is_never_advanced_or_rejected_at_any_score(self):
+        for archetype in automation._EARLY_CAREER:
+            for score in (0, 10, 39, 41, 99):
+                for days in (0, 30):
+                    d = automation.evaluate_entry({
+                        "stage": "Screened", "archetype": archetype, "matchScore": score,
+                        "daysInStage": days, "approvalKind": None,
+                    })
+                    self.assertEqual(d["action"], "hold", (archetype, score, days))
+
+
 if __name__ == "__main__":
     unittest.main()

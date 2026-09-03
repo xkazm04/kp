@@ -4224,7 +4224,9 @@
             "fellBackAgentRefused": "L'agent IA s'est arrêté trop tôt : ceci est uniquement la lecture par parcours de fichiers.",
             "fellBackAgentOutputTooLarge": "La réponse de l'agent IA était trop volumineuse : ceci est uniquement la lecture par parcours de fichiers.",
             "fellBackProviderError": "Le fournisseur IA a échoué : ceci est uniquement la lecture par parcours de fichiers.",
-            "fellBackUnknown": "L'agent IA est revenu au repli : ceci est uniquement la lecture par parcours de fichiers."
+            "fellBackUnknown": "L'agent IA est revenu au repli : ceci est uniquement la lecture par parcours de fichiers.",
+            "fenceUnverified": "L'agent IA a lu ce dépôt derrière des règles sur les fichiers de secrets qui ne sont pas vérifiées pour la version de Claude CLI installée ici.",
+            "fenceVersionUnknown": "La CLI Claude n'a pas indiqué sa version : les règles sur les fichiers de secrets derrière lesquelles ce scan s'est exécuté n'ont pas pu être vérifiées."
           },
           "dossier": {
             "title": "Ce que l'analyse a lu",

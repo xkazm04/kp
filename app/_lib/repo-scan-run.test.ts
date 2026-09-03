@@ -11,9 +11,11 @@ import {
   classifyRepoScanError,
   REPO_SCAN_PHASE,
   RepoScanFailure,
+  REPO_SCAN_FENCE_STATES,
   runRepoScan,
   scratchDirFor,
   toRepoScanEnvelope,
+  toRepoScanFence,
 } from "./repo-scan-run.ts";
 
 after(() => cleanupUnitDb());
@@ -225,4 +227,65 @@ test("the scratch directory cannot escape its root, whatever the id says", () =>
   const escaped = scratchDirFor("../../etc/passwd", root);
   assert.ok(escaped.startsWith(path.join(root, "kp-repo-scan")), escaped);
   assert.equal(scratchDirFor("///", root), path.join(root, "kp-repo-scan", "scan"));
+});
+
+// ---- The fence disclosure --------------------------------------------------------
+
+test("the TS fence vocabulary equals the Python one, read from the source", () => {
+  // Same guard as the fallback mirror above, for the same reason: Python is the one
+  // that knows which CLI ran, TS is the one that narrows the answer, and a state
+  // only one side knows is either a blank line on somebody's screen or dead copy in
+  // four catalogs.
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const py = readFileSync(path.join(here, "..", "..", "pipeline", "jobfit", "repo_scan.py"), "utf8");
+  const block = /^FENCE_STATES = \(([\s\S]*?)^\)/m.exec(py);
+  assert.ok(block, "FENCE_STATES must still be a tuple literal in repo_scan.py");
+  const fromPython = [...block[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...fromPython].sort(), [...REPO_SCAN_FENCE_STATES].sort());
+});
+
+test("an unverified fence reaches the envelope as an UNVERIFIED claim", () => {
+  // The direction's whole point: the deny rules are pinned to one verified CLI
+  // version in a code comment, and until now nothing noticed when the installed CLI
+  // had moved past it.
+  const unverified = toRepoScanEnvelope({
+    result: ENVELOPE_DOSSIER,
+    fence: { cliVersion: "99.0.0", state: "unverified_version", verified: true, skippedSymlinks: 2 },
+  }).fence;
+  assert.ok(unverified);
+  assert.equal(unverified.state, "unverified_version");
+  // `verified` is DERIVED from the state, so a payload claiming true cannot talk its
+  // way past the narrowing.
+  assert.equal(unverified.verified, false);
+  assert.equal(unverified.cliVersion, "99.0.0");
+  assert.equal(unverified.skippedSymlinks, 2);
+});
+
+test("a verified fence, and one with nothing to fence, both read as verified", () => {
+  for (const state of ["verified", "not_applicable"] as const) {
+    const fence = toRepoScanEnvelope({ result: ENVELOPE_DOSSIER, fence: { state, skippedSymlinks: 0 } }).fence;
+    assert.ok(fence, state);
+    assert.equal(fence.verified, true);
+  }
+  // A version the CLI would not report is NOT a verified fence.
+  const unknown = toRepoScanEnvelope({ result: ENVELOPE_DOSSIER, fence: { state: "version_unknown" } }).fence;
+  assert.equal(unknown?.verified, false);
+});
+
+test("a missing or unrecognisable fence is no claim, never a green one", () => {
+  assert.equal(toRepoScanEnvelope({ result: ENVELOPE_DOSSIER }).fence, null);
+  assert.equal(toRepoScanEnvelope({ result: ENVELOPE_DOSSIER, fence: "verified" }).fence, null);
+  assert.equal(toRepoScanEnvelope({ result: ENVELOPE_DOSSIER, fence: { state: "probably_fine" } }).fence, null);
+  assert.equal(toRepoScanFence(null), null);
+  assert.equal(toRepoScanFence([{ state: "verified" }]), null);
+});
+
+test("the dossier's own scanFence block is read when the envelope has no top-level one", () => {
+  // That copy is the one that survives to the row, so a build that only stamps it
+  // there must still surface the disclosure.
+  const fence = toRepoScanEnvelope({
+    result: { ...ENVELOPE_DOSSIER, scanFence: { state: "unverified_version", cliVersion: "3.0.0", skippedSymlinks: 1 } },
+  }).fence;
+  assert.equal(fence?.state, "unverified_version");
+  assert.equal(fence?.skippedSymlinks, 1);
 });

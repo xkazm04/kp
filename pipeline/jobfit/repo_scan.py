@@ -206,6 +206,104 @@ def repo_scan_settings_json() -> str:
     return json.dumps({"permissions": {"deny": list(claude_deny_rules())}}, ensure_ascii=False)
 
 
+# ---- …and the fence checks ITSELF ------------------------------------------
+#
+# Everything above is pinned to ONE CLI version in a code comment: that a `Read`
+# deny rule also covers Grep and Glob, and that a path rule is anchored the way
+# :func:`claude_deny_rules` assumes, was verified live on 2.1.258. These tools
+# ship weekly. Nothing at runtime noticed when the installed CLI moved past that,
+# so an upstream change to the rule grammar would widen what the in-repo agent may
+# read and the scan would report exactly the same confident nothing.
+#
+# It cannot be re-verified at runtime (that would need a live session), so this
+# does the honest thing instead: it records WHICH CLI the scan ran under and
+# whether that version is one the deny-rule contract was actually checked against.
+# An unverified version is not a failure — the rules are still sent, the redaction
+# backstop still runs, and the old semantics usually still hold — it is a
+# DISCLOSURE, and it rides on the envelope so the operator can see it.
+#
+# Bumping this list is a deliberate act: re-run the live check (ask a bound
+# session to read `.env` and to grep it; both must be refused), refresh the dated
+# comment on :func:`claude_deny_rules`, then add the version here.
+VERIFIED_FENCE_CLI_VERSIONS: tuple[str, ...] = ("2.1.258",)
+
+# The closed vocabulary of fence states. Mirrored by ``REPO_SCAN_FENCE_STATES`` in
+# app/_lib/repo-scan-run.ts, with a guard test reading THIS tuple out of this file
+# and asserting set equality — the same contract FALLBACK_CLASSES carries.
+FENCE_STATES = (
+    # An in-repo agent ran, on a CLI whose deny-rule behaviour is verified.
+    "verified",
+    # An in-repo agent ran on a CLI version nobody has checked the rules against.
+    "unverified_version",
+    # An in-repo agent ran and the CLI would not say which version it is.
+    "version_unknown",
+    # No in-repo agent read the files at all (keyless, --no-llm, or a text-API
+    # adapter answering from the grounding). There is no fence to verify.
+    "not_applicable",
+)
+
+
+def fence_state_for(version: str | None, *, agent_ran: bool) -> str:
+    """Which of :data:`FENCE_STATES` describes this run. Never raises."""
+    if not agent_ran:
+        return "not_applicable"
+    if not version:
+        return "version_unknown"
+    return "verified" if version in VERIFIED_FENCE_CLI_VERSIONS else "unverified_version"
+
+
+def fence_stamp(
+    version: str | None,
+    *,
+    agent_ran: bool,
+    skipped_symlinks: int = 0,
+) -> dict[str, Any]:
+    """The disclosure block the envelope and the dossier both carry.
+
+    ``verified`` is a claim about THIS run, so it is true only when there was
+    nothing to fence (``not_applicable``) or the fence was checked for the CLI that
+    ran. Both warning states answer false, and ``state`` says which — an operator
+    repairs "your CLI moved past the verified version" differently from "your CLI
+    would not report a version at all".
+    """
+    state = fence_state_for(version, agent_ran=agent_ran)
+    return {
+        "cliVersion": version if agent_ran else None,
+        "state": state,
+        "verified": state in ("verified", "not_applicable"),
+        "skippedSymlinks": int(skipped_symlinks),
+    }
+
+
+def provider_cli_version(provider: Any) -> str | None:
+    """The semantic version of the Claude CLI behind ``provider``, or None.
+
+    Reuses ``claude_cli._cli_version`` — one implementation, cached per resolved
+    executable for the process — rather than shelling out a second time. Never
+    raises: a provider that is not the CLI, a binary that is not on PATH and a
+    `--version` that times out all answer None, which reads as ``version_unknown``
+    rather than as a verified fence.
+    """
+    getter = getattr(provider, "cli_version", None)
+    if callable(getter):
+        try:
+            value = getter()
+            return str(value) if value else None
+        except Exception:  # noqa: BLE001 - a probe must never fail a scan
+            return None
+    command = getattr(provider, "command", None)
+    if not command:
+        return None
+    try:
+        from .claude_cli import _cli_version
+
+        resolver = getattr(provider, "_executable", None)
+        executable = resolver() if callable(resolver) else str(command)
+        return _cli_version(executable)
+    except Exception:  # noqa: BLE001 - see above
+        return None
+
+
 # ---- …and secret VALUES are redacted whatever the model says -----------------
 #
 # The deny rules are the fence; this is the backstop, and it exists because the
@@ -429,27 +527,74 @@ def _read_json(path: Path) -> Any:
 # --------------------------------------------------------------------------- #
 
 
-def walk_files(root: Path) -> tuple[int, Counter[str]]:
-    """``(total files, Counter of extension -> count)``, skipping :data:`SKIP_DIRS`.
+def _escapes_root(root_real: str, path: str) -> bool:
+    """Does ``path`` resolve OUTSIDE ``root_real``? Errs toward "yes".
+
+    ``root_real`` must already be a realpath: the scan root itself is very often a
+    link (macOS's ``/var`` → ``/private/var``, a Windows temp junction), and
+    comparing a resolved child against an unresolved root would call the whole
+    tree an escape.
+
+    A path that cannot be resolved at all (a broken link, a permission error) is
+    treated as an escape: the walk is poorer for one file it could not have read
+    anyway, and the reverse mistake follows a link off the fenced tree.
+    """
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        return True
+    return real != root_real and not real.startswith(root_real + os.sep)
+
+
+def walk_files(root: Path) -> tuple[int, Counter[str], int]:
+    """``(total files, Counter of extension -> count, skipped symlinks)``.
+
+    Skips :data:`SKIP_DIRS`, secret files — and anything a symlink points at
+    outside ``root``. The allow-list on the TS side (``app/_lib/repo-scan-target.ts``)
+    fences the ROOT; nothing fenced what the tree inside it points at, so a
+    symlinked `manifest.json` → `/home/op/.aws/credentials` was a file this walk
+    would happily open and count. ``os.walk`` does not follow directory links
+    (``followlinks=False`` is the default), so the directory half of this is about
+    DISCLOSURE — an escaping link is pruned *and counted* rather than silently not
+    descended.
+
+    The third element is that count, and it rides all the way to the envelope: a
+    walk that quietly skipped half a repo is a dossier that under-reports it, and
+    the number is how the operator finds out.
 
     One pass; the caller derives sizes, the stack and the source-file count from
     the counter, so a big repo is walked exactly once.
     """
     total = 0
     by_ext: Counter[str] = Counter()
+    skipped_symlinks = 0
+    root_real = os.path.realpath(root)
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and not d.startswith(".git"))
+        kept: list[str] = []
+        for d in sorted(dirnames):
+            if d in SKIP_DIRS or d.startswith(".git"):
+                continue
+            full = os.path.join(dirpath, d)
+            if os.path.islink(full) and _escapes_root(root_real, full):
+                skipped_symlinks += 1
+                continue
+            kept.append(d)
+        dirnames[:] = kept
         for name in filenames:
             # A secret file is out of scope for the whole walk, not just for the
             # model: its EXTENSION feeds the stack line, so counting `*.pem` would
             # put "the repo has private keys" into the dossier by another door.
             if is_secret_file(name):
                 continue
+            full = os.path.join(dirpath, name)
+            if os.path.islink(full) and _escapes_root(root_real, full):
+                skipped_symlinks += 1
+                continue
             total += 1
             ext = os.path.splitext(name)[1].lower()
             if ext:
                 by_ext[ext] += 1
-    return total, by_ext
+    return total, by_ext, skipped_symlinks
 
 
 def read_context_map(root: Path) -> tuple[list[DossierContext], str | None]:
@@ -735,6 +880,7 @@ def build_heuristic_dossier(
     main_branch: str = "main",
     generated_at: str = "",
     churn_depth: int = 200,
+    diagnostics: dict[str, Any] | None = None,
 ) -> RepoDossier:
     """The deterministic file-walk dossier — the keyless result AND the grounding.
 
@@ -744,9 +890,16 @@ def build_heuristic_dossier(
     fields a walk cannot honestly produce — ``riskAreas`` beyond missing-artifact
     facts, and ``candidateObjectives`` — are left for the LLM path and stamped
     ``unknown`` when it did not run.
+
+    ``diagnostics``, when given, is filled with facts ABOUT the walk that are not
+    facts about the repo — currently ``skippedSymlinks``. They belong on the
+    envelope, not in the dossier schema, so they travel in a caller-owned sink
+    rather than widening the return type for every caller.
     """
     root_path = Path(root)
-    total_files, by_ext = walk_files(root_path)
+    total_files, by_ext, skipped_symlinks = walk_files(root_path)
+    if diagnostics is not None:
+        diagnostics["skippedSymlinks"] = skipped_symlinks
     source_files = sum(count for ext, count in by_ext.items() if ext in SOURCE_EXTENSIONS)
     contexts, context_map_ref = read_context_map(root_path)
     gates = read_declared_gates(root_path)
@@ -1036,6 +1189,7 @@ def scan_repo(
     main_branch: str = "main",
     generated_at: str = "",
     churn_depth: int = 200,
+    diagnostics: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Scan ``root`` and return ``(dossier, source)`` with ``source`` ∈ {llm, heuristic}.
 
@@ -1046,6 +1200,7 @@ def scan_repo(
     (``generate_with_fallback``'s contract, same as every other LLM step here).
     """
     root_path = Path(root)
+    sink: dict[str, Any] = {} if diagnostics is None else diagnostics
     base = build_heuristic_dossier(
         root_path,
         dossier_id=dossier_id,
@@ -1053,13 +1208,26 @@ def scan_repo(
         main_branch=main_branch,
         generated_at=generated_at,
         churn_depth=churn_depth,
+        diagnostics=sink,
     )
+    skipped = int(sink.get("skippedSymlinks") or 0)
     if provider is None:
+        # No in-repo agent reads the files, so there is no fence to verify — say
+        # that, rather than leaving the field absent and letting a reader guess.
+        sink["fence"] = fence_stamp(None, agent_ran=False, skipped_symlinks=skipped)
         return base.model_dump(by_alias=True), SOURCE_HEURISTIC
 
     docs = read_agent_docs(root_path)
     prompt = build_prompt(base, docs, lang=lang)
     bound = bind_provider_to_repo(provider, root_path)
+    # Only a provider that actually took the repo binding reads files off disk; a
+    # text-API adapter answers from the grounding and is `not_applicable`.
+    fenced = getattr(bound, "mode", None) == "repo_scan"
+    sink["fence"] = fence_stamp(
+        provider_cli_version(bound) if fenced else None,
+        agent_ran=fenced,
+        skipped_symlinks=skipped,
+    )
 
     result, source = generate_with_fallback(
         bound,
@@ -1078,6 +1246,11 @@ def scan_repo(
 
 __all__ = [
     "FALLBACK_CLASSES",
+    "FENCE_STATES",
+    "VERIFIED_FENCE_CLI_VERSIONS",
+    "fence_stamp",
+    "fence_state_for",
+    "provider_cli_version",
     "REDACTED",
     "SECRET_FILE_GLOBS",
     "LLM_TIMEOUT_S",

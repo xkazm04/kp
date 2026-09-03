@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from pipeline.jobfit import automation_cli
+from pipeline.jobfit import automation, automation_cli
 from pipeline.jobfit.tests._helpers import mkjob
 
 # A MatchCandidate validates from snake_case (populate_by_name) — only the
@@ -155,6 +155,47 @@ class TestAutomationCliErrorStatus(unittest.TestCase):
         payload = _last_json(err)
         self.assertEqual(payload["status"], 400)
         self.assertEqual(payload["code"], "invalid_input")
+
+
+class TestAutomationCliAdverseActionBoundary(unittest.TestCase):
+    """The CLI is the ONLY surface a non-TypeScript integration has, and the
+    "no adverse action runs unattended" guarantee lives in the TS pass
+    (app/_lib/automation-pass.ts), not here. What such a caller does get is
+    `screen_candidate`'s route narrowing — so it is pinned at the CLI boundary
+    too, on a candidate whose screening verdict genuinely IS a reject.
+    """
+
+    # 33-point match against the Backend Engineer posting -> the deterministic
+    # screener's own recommendation is "reject".
+    _WEAK = {
+        "skills": ["HTML"],
+        "seniority": "junior",
+        "role_family": "software_engineering",
+        "languages": ["English"],
+        "archetype": "bau",
+    }
+
+    def test_screen_over_a_reject_scoring_candidate_routes_to_hold(self):
+        with _fixture(candidate=self._WEAK) as (cand, jobs):
+            code, out, _err = _run(
+                ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID, "--jobs", str(jobs)]
+            )
+        self.assertEqual(code, 0)
+        result = _last_json(out)["result"]
+        # The verdict is honest about what the scorer thinks...
+        self.assertEqual(result["recommendation"], "reject")
+        # ...and the ROUTE the caller acts on is the human gate, never a reject.
+        self.assertEqual(result["route"], "hold")
+        self.assertIn(result["route"], automation.SCREEN_ROUTES)
+
+    def test_screen_route_is_never_reject_for_any_archetype(self):
+        for archetype in ("bau", "student", "career_switcher"):
+            with _fixture(candidate={**self._WEAK, "archetype": archetype}) as (cand, jobs):
+                code, out, _err = _run(
+                    ["screen", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID, "--jobs", str(jobs)]
+                )
+            self.assertEqual(code, 0, archetype)
+            self.assertIn(_last_json(out)["result"]["route"], automation.SCREEN_ROUTES, archetype)
 
 
 if __name__ == "__main__":

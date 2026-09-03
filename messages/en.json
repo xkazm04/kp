@@ -4224,7 +4224,9 @@
             "fellBackAgentRefused": "The AI agent stopped early, so this is the file-walk reading only.",
             "fellBackAgentOutputTooLarge": "The AI agent's answer was too large to accept, so this is the file-walk reading only.",
             "fellBackProviderError": "The AI provider failed, so this is the file-walk reading only.",
-            "fellBackUnknown": "The AI agent fell back, so this is the file-walk reading only."
+            "fellBackUnknown": "The AI agent fell back, so this is the file-walk reading only.",
+            "fenceUnverified": "The AI agent read this repo behind secret-file rules that have not been verified for the Claude CLI version installed here.",
+            "fenceVersionUnknown": "The Claude CLI did not report its version, so the secret-file rules this scan ran behind could not be verified."
           },
           "dossier": {
             "title": "What the scan read",

@@ -5,8 +5,43 @@ ClaudeCliProvider. Every LLM task ships a deterministic fallback (mirroring
 match_reasoning.generate) so the pipeline never blocks when the CLI is absent
 (provider=None => deterministic path). Task 7 (policy pass) is pure-deterministic.
 
-Fairness is enforced in code, not left to the model: early-career candidates
-(student / career_switcher) are never silently advanced or rejected by automation.
+ADVERSE-ACTION BOUNDARY — what THIS module guarantees, and what it does not.
+"Fairness is enforced in code" used to be stated here as one guarantee, but it is
+two, split across two languages, and a caller that drives `automation_cli`
+directly gets only the Python half. So they are stated separately:
+
+  Enforced HERE, for every caller (incl. the CLI):
+    * `screen_candidate` narrows its verdict into a ROUTE in ``SCREEN_ROUTES``
+      ({advance, hold}) — a "reject" recommendation, from the model or from the
+      deterministic fallback, can never leave this module as a reject route.
+    * an early-career candidate (``registry.early_career_archetypes()``) is
+      never auto-advanced and never auto-rejected: ``evaluate_entry`` holds them
+      at Screened, and `screen_candidate` rewrites a "reject" verdict to "hold"
+      AFTER the model, so the model cannot override the gate.
+    * ``evaluate_entry`` emits ``action:"reject"`` on exactly ONE path — stage
+      "Screened", a non-early archetype, no pending approval, no recent
+      screening decision, and a GENUINE match score (absent/0 is an unscored
+      data gap, not a zero match) below ``POLICY["bau_reject_score"]``.
+    * caveat, deliberately pinned rather than fixed here: the early-career gate
+      is a MEMBERSHIP test, so an unknown/renamed archetype scores as BAU and
+      stays rejectable on that path. The fail-closed reading exists only in TS.
+  (tests/test_automation.py::AdverseActionBoundaryTest pins all four; the CLI
+  surface is pinned by tests/test_automation_cli.py.)
+
+  Enforced ONLY by the TypeScript pass — a CLI-only integration does NOT get it:
+    * no adverse action ever runs unattended: ``app/_lib/automation-pass.ts``
+      retired AUTO1 (UAT M6 / GDPR Art. 22) and queues EVERY fairness-cleared
+      reject as a human ``rejection_review`` approval, so a committed pass
+      rejects nobody — preview and commit both report 0 rejections.
+    * a fail-closed re-check at the apply boundary:
+      ``app/_lib/automation-fairness.ts`` re-derives the single legal reject
+      path (its ``isFairnessProtected`` treats an unknown archetype as
+      protected) and downgrades a refused reject to hold + an alert.
+
+Two constants here are hand-mirrored across the language boundary
+(``MAX_SCORECARD_NOTES_CHARS``, and calibration_drift's
+``MIN_CALIBRATION_OUTCOMES`` / ``CALIBRATION_BIN_COUNT``); the drift guard is
+tests/test_automation_constant_sync.py.
 
 See docs/features/pipeline/README.md for the full design.
 """

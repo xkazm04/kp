@@ -5,6 +5,7 @@ import { buildLlmConfigEnv } from "./llm-config";
 import type { RoleBrief } from "./rolespec";
 import type { IntakeAttachment, PopulationFit } from "./db/intakes";
 import type { RepoDossier } from "./schemas.generated";
+import { isLocale, type Locale } from "@/i18n/locales";
 import type { VoiceTurn } from "./voice/types";
 
 // Shared helper: write the attachment list beside the other inputs and push
@@ -34,7 +35,19 @@ export type IntakeExchange = {
   done: boolean;
   source: "llm" | "deterministic";
   fallbackReason?: string;
+  // The keyless scripted path is written in all four locales; when a session
+  // asks for one it does NOT carry, the engine names the language it served
+  // instead of silently substituting English. Present = the operator is
+  // reading a stand-in language, and a surface may say so.
+  fallbackLang?: Locale;
 };
+
+// Only a locale the app actually knows may cross the boundary as `fallbackLang`
+// — an unrecognised value is dropped rather than handed on as a language tag no
+// catalog can resolve.
+function coerceFallbackLang(raw: unknown): { fallbackLang?: Locale } {
+  return isLocale(raw) ? { fallbackLang: raw } : {};
+}
 
 function coerceExchange(payload: unknown): IntakeExchange {
   const raw = (payload ?? {}) as Record<string, unknown>;
@@ -47,6 +60,7 @@ function coerceExchange(payload: unknown): IntakeExchange {
     done: raw.done === true,
     source: raw.source === "llm" ? "llm" : "deterministic",
     ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
+    ...coerceFallbackLang(raw.fallbackLang),
   };
 }
 
@@ -148,6 +162,7 @@ export type IntakeVoiceTurn = {
   // thread and omits it.
   brief?: RoleBrief;
   fallbackReason?: string;
+  fallbackLang?: Locale;
 };
 
 // The FAST voice thread (docs/architecture/voice-conversation-plane.md): one
@@ -190,6 +205,7 @@ export async function runIntakeVoiceTurn(
       source: raw.source === "llm" ? "llm" : "deterministic",
       ...(raw.brief && typeof raw.brief === "object" ? { brief: raw.brief as RoleBrief } : {}),
       ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
+      ...coerceFallbackLang(raw.fallbackLang),
     };
   } finally {
     await cleanupWorkdir(workdir);
