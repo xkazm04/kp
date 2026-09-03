@@ -2,7 +2,7 @@ import path from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
-import { openStore } from "../db-path";
+import { DB_PATH, openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
 import { jdJobId } from "../jd-limits";
 import type { PipelineStage } from "../pipeline-stages";
@@ -229,6 +229,74 @@ const JOB_INGESTS_DDL = `CREATE TABLE IF NOT EXISTS job_ingests (
       PRIMARY KEY (content_hash, workspace_id)
     );`;
 
+/** Code a boot integrity failure is reported under. Log/throw vocabulary ONLY — it
+ *  never reaches the wire as an API `error` code (no route can serve a request at
+ *  all once this fires), so it is deliberately NOT in STORE_ERRORS. */
+export const DB_INTEGRITY_FAILED = "DB_INTEGRITY_FAILED";
+
+/**
+ * Ask SQLite whether the file is structurally sound, ONCE, at boot — and refuse to
+ * serve if it is not.
+ *
+ * Boot pinned WAL, synchronous and busy_timeout but never asked the one question that
+ * distinguishes "a database" from "a file that used to be one": a corrupt page, a
+ * truncated copy, a half-restored backup or a `.sqlite` that is not a database at all
+ * opened cleanly here and served requests until some unrelated query tripped over it —
+ * surfacing as a random 500 in whatever feature happened to read the damaged page
+ * first, hours after the damage. Worse, the boot DDL/migrations below would WRITE to
+ * that file, compounding the damage before anyone noticed.
+ *
+ * `quick_check(1)` is the cheap form: it skips the (expensive) index-vs-table content
+ * cross-check that `integrity_check` does, stops at the FIRST problem, and answers the
+ * single row `ok` on a healthy file. It runs on the memoized boot connection only —
+ * never on the per-request path, and not in openStore(), which ~18 stores call.
+ *
+ * A non-`ok` answer (or a pragma that throws, which is how SQLITE_NOTADB / SQLITE_CORRUPT
+ * arrive) is fatal by design: an operator restoring a backup is a far better outcome
+ * than a studio that half-works over a broken file.
+ */
+function integrityFailure(detail: string, reason: string): Error {
+  console.error(`[db] ${DB_INTEGRITY_FAILED}: ${detail} — ${DB_PATH}: ${reason}`);
+  return new Error(`${DB_INTEGRITY_FAILED}: ${DB_PATH} ${detail} (${reason}) — restore a backup before starting`);
+}
+
+/** better-sqlite3 tags SQLite's own failures with a SQLITE_* code; anything else out of
+ *  openStore() (the test-isolation guard, an unknown KP_DB_BACKEND) is a configuration
+ *  error and must keep its own message rather than be relabelled as file damage. */
+function sqliteErrorCode(error: unknown): string | null {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && code.startsWith("SQLITE_") ? code : null;
+}
+
+/** Open the memoized boot connection, refusing to serve a file that is not an intact
+ *  database. Two damage shapes, one code: a file that is not a database at all (or is
+ *  unreadable) makes the very first pragma in openStore() THROW SQLITE_NOTADB, while a
+ *  corrupt page opens cleanly and is only found by quick_check. */
+function openCheckedBootConnection(): Database.Database {
+  let db: Database.Database;
+  try {
+    db = openStore();
+  } catch (error) {
+    const code = sqliteErrorCode(error);
+    if (!code) throw error; // configuration failure, not a damaged file
+    throw integrityFailure("could not be opened as a SQLite database", `${code}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  let answer: string;
+  try {
+    const rows = db.pragma("quick_check(1)") as { quick_check?: string }[] | string[];
+    const first = rows[0];
+    answer = typeof first === "string" ? first : String(first?.quick_check ?? "");
+  } catch (error) {
+    db.close();
+    throw integrityFailure("failed PRAGMA quick_check", error instanceof Error ? error.message : String(error));
+  }
+  if (answer !== "ok") {
+    db.close();
+    throw integrityFailure("failed PRAGMA quick_check", answer);
+  }
+  return db;
+}
+
 export function ensureDb(): Database.Database {
   if (_dbHolder.__kpDb) return _dbHolder.__kpDb;
   // Canonical isolated-store open (WAL + busy_timeout=5000): the scheduler writes
@@ -236,7 +304,8 @@ export function ensureDb(): Database.Database {
   // while the policy pass writes pipeline_entries/events here — the busy_timeout
   // makes a concurrent writer wait briefly rather than instantly throwing
   // SQLITE_BUSY.
-  const db = openStore();
+  // Before the DDL below writes a single byte: is this actually an intact database?
+  const db = openCheckedBootConnection();
   db.exec(`
     -- Tenant root (P2): one row per workspace. A single default workspace today
     -- (id 'workspace', matching billing's id) — the seam multi-tenancy fills.
