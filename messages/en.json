@@ -1649,7 +1649,8 @@
     "DATA_LINK_INVALID": "This data link is no longer valid.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "That control-room action is not one this deployment knows. Reload the page.",
     "DEVCASE_FLOOR_INVALID": "The promote floor must be a number between 0 and 100.",
-    "DEVCASE_OUTCOME_INVALID": "That outcome could not be recorded. Check the result and the performance score."
+    "DEVCASE_OUTCOME_INVALID": "That outcome could not be recorded. Check the result and the performance score.",
+    "MATCH_REASONING_INPUT_INVALID": "That match could not be explained: the request named no candidate, or no role."
   },
   "resilience": {
     "notFoundEyebrow": "404",

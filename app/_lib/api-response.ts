@@ -744,6 +744,13 @@ export const REFUSAL_ERRORS = {
    *  and the cell being opened. Distinct from MATCH_REASONING_FAILED, which is the
    *  engine falling over: this one is answered by refreshing the grid. */
   MATCH_REASONING_UNAVAILABLE: "That match can no longer be explained — the candidate or role behind it is gone.",
+  /** The reasoning request was MALFORMED rather than stale (400) — it named no job,
+   *  or no candidate the resolver could even look up. Distinct from
+   *  MATCH_REASONING_UNAVAILABLE, which means the pair was named and is gone: the
+   *  remedy there is "refresh the grid", here it is "open the cell again". Both codes
+   *  are reached from the RUNNER's own code (reasoning-run.ts stamps not_found /
+   *  invalid_input at every throw site), not from the HTTP status. */
+  MATCH_REASONING_INPUT_INVALID: "That match could not be explained: the request named no candidate, or no role.",
   /** A decision-rules write with no phase or no config in the body (400). */
   DECISION_CONFIG_FIELDS_REQUIRED: "That rules update named no phase, or carried no rules to save.",
   /** The rules failed the phase's schema (400). The validator's own detail — which

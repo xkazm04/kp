@@ -1649,7 +1649,8 @@
     "DATA_LINK_INVALID": "Tento odkaz na vaše údaje už neplatí.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Tuto akci řídicí místnosti toto nasazení nezná. Načtěte stránku znovu.",
     "DEVCASE_FLOOR_INVALID": "Práh pro postup musí být číslo mezi 0 a 100.",
-    "DEVCASE_OUTCOME_INVALID": "Výsledek se nepodařilo zaznamenat. Zkontrolujte výsledek a hodnocení výkonu."
+    "DEVCASE_OUTCOME_INVALID": "Výsledek se nepodařilo zaznamenat. Zkontrolujte výsledek a hodnocení výkonu.",
+    "MATCH_REASONING_INPUT_INVALID": "Tuto shodu nelze vysvětlit: požadavek neuvedl kandidáta ani pozici."
   },
   "resilience": {
     "notFoundEyebrow": "404",

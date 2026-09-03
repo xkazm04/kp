@@ -1649,7 +1649,8 @@
     "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Diese Aktion des Kontrollraums kennt diese Installation nicht. Laden Sie die Seite neu.",
     "DEVCASE_FLOOR_INVALID": "Die Promote-Schwelle muss eine Zahl zwischen 0 und 100 sein.",
-    "DEVCASE_OUTCOME_INVALID": "Das Ergebnis konnte nicht erfasst werden. Prüfen Sie Ergebnis und Leistungsbewertung."
+    "DEVCASE_OUTCOME_INVALID": "Das Ergebnis konnte nicht erfasst werden. Prüfen Sie Ergebnis und Leistungsbewertung.",
+    "MATCH_REASONING_INPUT_INVALID": "Dieser Match konnte nicht erklärt werden: Die Anfrage nannte weder eine Person noch eine Stelle."
   },
   "resilience": {
     "notFoundEyebrow": "404",

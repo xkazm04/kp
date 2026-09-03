@@ -1649,7 +1649,8 @@
     "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide.",
     "DEVCASE_CONTROL_ACTION_UNKNOWN": "Cette action de la salle de contrôle est inconnue de ce déploiement. Rechargez la page.",
     "DEVCASE_FLOOR_INVALID": "Le seuil de promotion doit être un nombre compris entre 0 et 100.",
-    "DEVCASE_OUTCOME_INVALID": "Ce résultat n’a pas pu être enregistré. Vérifiez le résultat et l’évaluation de la performance."
+    "DEVCASE_OUTCOME_INVALID": "Ce résultat n’a pas pu être enregistré. Vérifiez le résultat et l’évaluation de la performance.",
+    "MATCH_REASONING_INPUT_INVALID": "Cette correspondance n'a pas pu être expliquée : la demande n'indiquait ni candidat ni poste."
   },
   "resilience": {
     "notFoundEyebrow": "404",
