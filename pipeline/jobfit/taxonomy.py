@@ -365,6 +365,22 @@ def normalize_text(text: str) -> str:
 # Internal alias kept for the many existing call sites in this module.
 _normalize = normalize_text
 
+# THE word tokenizer for this engine: alphanumeric runs, UNICODE-aware, underscore
+# treated as a separator (real ad prose has none; underscores appear only in machine
+# skill-ids we must not fuse into a false token like "customer_onboarding").
+#
+# It was compiled independently in three places — matching._WORD_RE, taxonomy_check.
+# _CORPUS_WORD_RE and this module's _FALLBACK_TOKEN_RE — each with a comment saying it
+# mirrored the others. Three copies of "the same primitive" is three chances for the
+# scan that AUDITS the matcher to tokenize differently from the matcher it audits. One
+# object now, aliased at each old name.
+#
+# Why ``[^\W_]+`` and not ``[a-z0-9]+``: under ASCII every Czech diacritic was a
+# SEPARATOR, so "podávání léků" shredded to {pod, v, n, l, k} and "overlapped" an iOS
+# Engineer ad. Measured over the seed corpus the ASCII splitter awarded overlap credit
+# for 39 skill surfaces the whole-word rule rejects, and missed none.
+WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
 
 def _compact(text: str) -> str:
     return re.sub(r"\W+", "", text, flags=re.UNICODE)
@@ -1091,25 +1107,58 @@ def provenance_weight(provenance: str | None) -> float:
 # score that feeds the existing additive machinery as sub-threshold, "adjacency"-
 # grade credit; it never manufactures a "matched" claim.
 
-_FALLBACK_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_FALLBACK_TOKEN_RE = WORD_RE  # the shared tokenizer; see WORD_RE above
 
 # Generic, non-discriminative tokens: an overlap on ONLY these earns no credit, so
 # "management of X" vs "management of Y" (X≠Y) does NOT score — the distinctive
 # tokens (X, Y) carry the meaning and they differ. Deliberately small and
-# conservative: articles/prepositions/conjunctions (EN + common Czech glue) plus the
-# most generic role-noun filler. Anything OUTSIDE this set counts as a distinctive
-# token that can anchor a partial — the required shared "head".
+# conservative: articles/prepositions/conjunctions plus the most generic role-noun
+# filler. Anything OUTSIDE this set counts as a distinctive token that can anchor a
+# partial — the required shared "head".
+#
+# ALL FOUR shipped narrative languages, not two. The set covered EN + CS while
+# i18n.LANG_NAMES has shipped en/cs/de/fr for some time and the pipeline generates
+# narratives in all four — so a German ad's "Entwicklung von X" vs "Entwicklung von Y"
+# and a French "Gestion de X" vs "Gestion de Y" scored a shared head on pure glue,
+# which is precisely the false positive the head-token rule exists to refuse.
+#
+# ``normalize_text`` is NFC + casefold with NO diacritic folding, so the accented
+# surface is what a token actually looks like: "für" and "über" are listed as they
+# normalize, not as "fur"/"uber". (Folding diacritics would change matching across the
+# board and is a measured decision for the eval, not a stopword-list edit.)
+#
+# Two-letter glue ("in", "an", "de", "le", "et", "zu"…) is NOT listed:
+# ``_FALLBACK_MIN_TOKEN_LEN`` already drops every token under 3 chars. And real
+# acronyms that collide with glue ("DES", "EST", "SUR", "PAR") are deliberately left
+# OUT — a stopword can only ever remove credit, and removing it from a genuine
+# acronym pair is the one way this list can do harm.
 _FALLBACK_STOPWORDS: frozenset[str] = frozenset({
     # English glue
     "of", "and", "or", "the", "a", "an", "for", "to", "in", "on", "with", "at",
     "by", "from", "as", "its", "your",
     # Czech glue
     "v", "ve", "na", "pro", "se", "si", "o", "z", "ze", "do", "po", "k", "u", "i", "s",
+    # German glue (articles, prepositions, conjunctions, copulas)
+    "der", "die", "das", "den", "dem", "ein", "eine", "einer", "eines", "einem",
+    "und", "oder", "aber", "für", "mit", "von", "vom", "aus", "als", "auf",
+    "bei", "beim", "nach", "über", "durch", "zur", "zum", "sowie", "ist", "sind",
+    "wird", "werden", "nicht", "sich", "wie", "unter", "gegen", "ohne", "dass",
+    # French glue
+    "les", "une", "des", "dans", "pour", "avec", "aux", "sont", "ainsi", "chez",
+    "sous", "entre", "comme", "leur", "leurs", "notre", "nos", "vos", "votre",
+    "cette", "ces", "afin", "vers", "lors", "tout", "tous", "toute", "toutes",
     # generic role / skill filler (a shared "engineer"/"management" is not a skill)
     "management", "manager", "engineer", "engineering", "developer", "development",
     "specialist", "analyst", "coordinator", "administrator", "officer", "assistant",
     "senior", "junior", "medior", "lead", "principal", "general", "professional",
     "experience", "skills", "knowledge", "work", "working", "team", "support",
+    # generic role / skill filler, German
+    "entwicklung", "entwickler", "ingenieur", "berater", "erfahrung", "kenntnisse",
+    "kenntnis", "leitung", "mitarbeiter", "bereich", "aufgaben", "arbeit",
+    # generic role / skill filler, French
+    "gestion", "développement", "développeur", "ingénieur", "expérience",
+    "connaissances", "compétences", "équipe", "responsable", "consultant",
+    "conseiller", "chargé", "poste", "travail",
 })
 
 # Tokens shorter than this are too ambiguous to anchor a match: they are substrings

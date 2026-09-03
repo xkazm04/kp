@@ -461,6 +461,27 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### The unresolved-pair fallback now refuses glue in all four languages
+When NEITHER surface of a skill pair resolves in the taxonomy,
+`taxonomy.unresolved_pair_score` falls back to a capped Jaccard over the two
+*distinctive* token sets, requiring at least one shared "head" token — which is what
+stops "management of X" vs "management of Y" scoring as related when X and Y differ.
+The discipline lives entirely in `_FALLBACK_STOPWORDS`, and that list covered English
+and Czech while `i18n.LANG_NAMES` has shipped en/cs/de/fr for some time: measured
+before the fix, "Entwicklung von Datenbanken" vs "Entwicklung von Netzwerken" scored
+0.15 and "Gestion de projets" vs "Gestion de risques" scored 0.1 on pure glue, while
+the English equivalent correctly scored 0.0. German and French glue plus their generic
+role nouns (`entwicklung`, `gestion`, `compétences`…) are now listed, in NFC-casefolded
+form because `normalize_text` does not fold diacritics. Acronyms that collide with glue
+(`est`, `sur`, `par`, `son`) are deliberately left OUT — a stopword can only remove
+credit. `pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py` holds one
+glue-only pair and one genuinely-related pair per language, and reddens when a fifth
+locale reaches `LANG_NAMES` without a stopword pass.
+
+The word tokenizer itself is now single-sourced as `taxonomy.WORD_RE`; `matching`'s
+`_WORD_RE` and `taxonomy_check`'s `_CORPUS_WORD_RE` alias it, so the scan that AUDITS
+the matcher can no longer split words differently from the matcher it audits.
+
 ### Three skill buckets on the card, not two
 `matching.py` splits a required skill three ways — `matched_skills` (at or above
 `_MATCH_THRESHOLD`), `unproven_skills` (scored above zero but under it, with

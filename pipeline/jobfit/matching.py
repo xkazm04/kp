@@ -29,6 +29,7 @@ from .jobs import Job
 from .models import _Base
 from .taxonomy import (
     DEFAULT_PROVENANCE,
+    WORD_RE,
     LANGUAGE_ALIASES,
     _one_side_fallback_score,
     normalize_text,
@@ -468,21 +469,12 @@ def score_career(candidate: MatchCandidate, job: Job) -> float:
     return round(0.6 * family + 0.4 * max(0.0, seniority_proximity), 4)
 
 
-# Word splitter for the description-overlap heuristic: word-character runs, so both
-# the description and each candidate token reduce to whole words and matching is
-# never substring-based.
-#
-# UNICODE-AWARE (``[^\W_]+``, the same primitive taxonomy_check's corpus scan uses)
-# rather than the former ASCII ``[a-z0-9]+``. Under ASCII every Czech diacritic was a
-# SEPARATOR, so a Czech skill was shredded into single-letter fragments that trivially
-# all appear in Czech prose: "podávání léků" (administering medication) tokenized to
-# {pod, v, n, l, k} and therefore "overlapped" the *iOS Engineer* ad, and "vývojář" to
-# {v, voj} which hit 24 of the 120 seed ads. Measured over the seed corpus, the ASCII
-# splitter awarded overlap credit for 39 skill surfaces that the whole-word rule
-# rejects, and MISSED none — so this is purely a removal of false credit, no candidate
-# loses a legitimate match. It is the same defect the substring->whole-word fix below
-# closed for English ("Rust" inside "trust"), left open for every accented language.
-_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+# Word splitter for the description-overlap heuristic: whole words, never substrings
+# ("Rust" must not hit the "rust" inside "trust"). THE shared tokenizer, aliased —
+# taxonomy.WORD_RE carries the full rationale, including why it is unicode-aware and
+# what the former ASCII splitter cost accented languages. Not a private fourth copy:
+# the scorer and the taxonomy scan that AUDITS the scorer must split words identically.
+_WORD_RE = WORD_RE
 
 
 def _term_in_words(term: str, desc_words: frozenset[str] | set[str]) -> bool:
