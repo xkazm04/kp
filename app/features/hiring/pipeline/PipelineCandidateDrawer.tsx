@@ -36,7 +36,7 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
   // plain state, and reading them off a shared object during render trips the
   // react-hooks/refs rule (the pre-split component held these as locals).
   const {
-    NOTE_MAX, bundleFailed, busy, candNote, cohortIndex, comms, consent, dialogRef, error, ghBusy, ghErr, github,
+    NOTE_MAX, bundleFailed, busy, candNote, cohortIndex, comms, consent, dialogRef, error, errorDetail, ghBusy, ghErr, github,
     humanSc, intakeErr, ivOutcome, mergedHistory, moveErr, moveStage, movingStage, nextEntry,
     noteDirtyRef, noteStatus, prevEntry, rematchLinks, resolveIntake, resolvingIntake, result,
     revokeLinks, revokeNote, run, runGithubDeepDive, sched, setCandNote, setShowTranscript,
@@ -166,7 +166,14 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
 
           {showLinks ? <PipelineSelfSchedulingPanel entryId={entry.id} sched={sched} /> : null}
 
-          {error ? <p role="alert" className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
+          {/* The sentence is always the LOCALIZED one; the task runner's own English
+              diagnostic (when it has one — it carries no code to resolve) rides along
+              as details for whoever is debugging, never as the line a recruiter reads. */}
+          {error ? (
+            <p role="alert" title={errorDetail ?? undefined} className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
 
           {result ? <ResultView result={result} roleFamily={entry.roleFamily} /> : null}
 

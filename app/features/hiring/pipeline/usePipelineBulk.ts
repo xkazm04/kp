@@ -58,6 +58,10 @@ export function usePipelineBulk({
      *  the code). Data for the bar's localized sentence - one per whole-request
      *  refusal, never per-id: a capability answer is about the seat, not the row. */
     refusalCapability?: string | null;
+    /** The TASK RUNNER's own stored diagnostic for a failed background run. English
+     *  prose with no code to resolve, so it is never the sentence the recruiter reads
+     *  — the bar carries it as details (a `title`) beside the localized line. */
+    diagnostic?: string | null;
   } | null>(null);
   // Bulk outreach runs as a BACKGROUND task (N letters = N LLM calls), so unlike the
   // synchronous move/decide it can't resolve inline — we track the task id and apply
@@ -337,6 +341,9 @@ export function usePipelineBulk({
     let requestReason: string | null = null;
     let requestCodes: string[] = [];
     let requestCapability: string | null = null;
+    // Distinct PER-ITEM refusal codes, deduped — the same channel bulkMove/bulkDecide
+    // use for the batch route's per-id verdicts.
+    const itemCodes = new Set<string>();
     try {
       const r = await fetch("/api/schedule/invite/bulk", {
         method: "POST",
@@ -344,10 +351,23 @@ export function usePipelineBulk({
         body: JSON.stringify({ entryIds: selectedActive.map((e) => e.id) }),
       });
       const d = (await r.json().catch(() => null)) as
-        | { results?: { entryId: string; ok: boolean }[]; code?: string; capability?: string }
+        | { results?: { entryId: string; ok: boolean; code?: string }[]; code?: string; capability?: string }
         | null;
       if (r.ok && d?.results) {
-        for (const res of d.results) (res.ok ? (ok += 1) : failed.add(res.entryId));
+        for (const res of d.results) {
+          if (res.ok) {
+            ok += 1;
+            continue;
+          }
+          failed.add(res.entryId);
+          // gated-doors-clients-read-the-refusal — the per-item branch used to read
+          // NOTHING but `ok`, so a cohort where half the rows were refused rendered
+          // "3 invited · 4 couldn't be invited" with no reason at all: not the cap,
+          // not "no longer active", not a mint failure. A per-item CODE is read the
+          // same way the batch route's is and resolves through the bar's existing
+          // errors.<CODE> fold, in the reader's language.
+          if (res.code) itemCodes.add(res.code);
+        }
       } else {
         for (const e of selectedActive) failed.add(e.id);
         const refusal = batchRequestRefusal({ ok: false, status: r.status, code: d?.code ?? null, capability: d?.capability ?? null });
@@ -367,8 +387,14 @@ export function usePipelineBulk({
       ok,
       failed: failed.size,
       verb: "invited",
-      reason: requestReason,
-      reasonCodes: requestCodes,
+      // A whole-request refusal OVERRIDES the per-item verdicts (no per-item verdict
+      // was ever reached). Otherwise: the server's per-item codes when it sent any,
+      // else — until the invite route mints them (the schedule context's follow-up;
+      // today it answers per-item English prose like "not active", which is NOT
+      // code-resolvable and must never be painted onto a localized board) — one honest
+      // localized line saying the refusals happened and where to read them.
+      reason: requestReason ?? (failed.size > 0 && itemCodes.size === 0 ? t("bulkInviteItemsRefused") : null),
+      reasonCodes: requestCodes.length ? requestCodes : requestReason ? [] : [...itemCodes],
       refusalCapability: requestCapability,
     });
     setBulkBusy(false);
@@ -410,7 +436,18 @@ export function usePipelineBulk({
     if (outreachTask.status === "failed" || outreachTask.status === "interrupted" || outreachTask.status === "canceled") {
       if (lastOutreachApplied.current === outreachTaskId) return;
       lastOutreachApplied.current = outreachTaskId;
-      setBulkResult({ ok: 0, failed: selectedIds.size, verb: "drafted", reason: outreachTask.error });
+      // The runner's `error` is its own ENGLISH diagnostic (useTaskResult passes the
+      // polled record's string through unchanged — there is no code to resolve), and
+      // painting it here put the queue's English onto every localized board. The line
+      // is localized now; the diagnostic rides as details for whoever is debugging.
+      // The runner gaining a CODE is the tasks context's follow-up.
+      setBulkResult({
+        ok: 0,
+        failed: selectedIds.size,
+        verb: "drafted",
+        reason: t("bulkTaskIncomplete"),
+        diagnostic: outreachTask.error,
+      });
       setOutreachTaskId(null);
       return;
     }
@@ -427,7 +464,9 @@ export function usePipelineBulk({
     setBulkResult({ ok: res?.ok ?? 0, failed: failed.size, verb: "drafted", reason: null });
     setOutreachTaskId(null);
     void load();
-  }, [outreachTaskId, outreachTask.status, outreachTask.full, outreachTask.error, selectedIds, load]);
+    // `t` joins the deps for the localized task-incomplete line; it is a stable
+    // next-intl binding per namespace/locale, so it cannot re-fire the completion.
+  }, [outreachTaskId, outreachTask.status, outreachTask.full, outreachTask.error, selectedIds, load, t]);
 
   return {
     selectMode,
