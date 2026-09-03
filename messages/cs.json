@@ -1580,7 +1580,10 @@
     "VOICE_TRANSPORT_AUTH": "Služba pro pohovory toto sezení odmítla. Obraťte se prosím na recruitera, který vám odkaz poslal.",
     "VOICE_TRANSPORT_TIMEOUT": "Služba pro pohovory neodpověděla včas. Zkuste to prosím znovu.",
     "VOICE_TRANSPORT_PROVIDER": "Službě pro pohovory se nepodařilo hovor zahájit. Zkuste to prosím za chvíli znovu.",
-    "OFFER_RESPONSE_INVALID": "Odpovězte prosím přijetím, nebo odmítnutím nabídky."
+    "OFFER_RESPONSE_INVALID": "Odpovězte prosím přijetím, nebo odmítnutím nabídky.",
+    "STATUS_LINK_INVALID": "Tento odkaz na stav přihlášky už neplatí.",
+    "STATUS_NPS_NOT_APPLICABLE": "Tato otázka se otevře, až bude vaše výběrové řízení uzavřeno.",
+    "DATA_LINK_INVALID": "Tento odkaz na vaše údaje už neplatí."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6070,7 +6073,9 @@
     "version": "Standard {version}",
     "stale": "Ověřeno (starší doklad)",
     "staleAge": "Doklad je pravý a nezměněný, ale byl vydán {issued} podle standardu {version}. Pokud záleží na aktuálnosti, vyžádejte si od kandidáta nové hodnocení.",
-    "staleMethodology": "Doklad je pravý a nezměněný, ale byl hodnocen podle standardu {version} (vydán {issued}), který byl mezitím nahrazen. Vyžádejte si od kandidáta hodnocení podle aktuálního standardu."
+    "staleMethodology": "Doklad je pravý a nezměněný, ale byl hodnocen podle standardu {version} (vydán {issued}), který byl mezitím nahrazen. Vyžádejte si od kandidáta hodnocení podle aktuálního standardu.",
+    "throttledTitle": "Právě teď je požadavků příliš mnoho",
+    "throttledBody": "Tento certifikát byl v krátké době otevřen příliš mnohokrát. Počkejte několik minut a stránku načtěte znovu. Samotného certifikátu se to nijak netýká."
   },
   "devApply": {
     "workSurface": {

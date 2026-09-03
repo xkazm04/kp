@@ -62,6 +62,11 @@ const runId = Date.now().toString(36);
 let offerPath = "";
 let dataPath = "";
 let invitePath = "";
+// The two doors added in /perfect wave 20. Both are minted opportunistically —
+// see the mint step — and each sweep skips itself, loudly, when its token could
+// not be produced on this database rather than failing for a data reason.
+let statusPath = "";
+let skillPath = "";
 
 // Same pragmatic axe gate as journey-role-to-schedule.spec.ts and
 // analyze-smoke.spec.ts: fail on serious/critical WCAG A/AA violations only.
@@ -124,6 +129,32 @@ test("recruiter mints an offer, an erasure and an invite token through the app's
   const offerToken = ((await link.json()) as { token: string | null }).token;
   expect(offerToken, "approving the offer_review approval must mint an offer token").toBeTruthy();
   offerPath = `/offer/${offerToken}`;
+
+  // 3b — the candidate's own STATUS link. It has no mint endpoint either: the
+  // token is created by the apply/ack path and travels in a letter, so it is read
+  // back out of the same outbox as the erasure link above. Opportunistic — a
+  // database whose seeded comms carry no status link simply skips that sweep.
+  const statusLink = messages.map((m) => /\/status\/([A-Za-z0-9_%-]+)/.exec(m.body ?? "")).find((m) => m !== null);
+  if (statusLink) statusPath = `/status/${statusLink[1]}`;
+
+  // 3c — the Durable Skill Profile credential. Mintable only from an EVALUATED
+  // dev-case submission (the mint answers 409 otherwise), which a fresh seeded DB
+  // may or may not hold — so every submission is tried and the sweep skips when
+  // none mints. No model call is involved: issueSkillProfile signs what the
+  // evaluation already recorded.
+  const postings = await page.request.get("/api/devcase/postings");
+  if (postings.ok()) {
+    const body = (await postings.json()) as { postings?: { submissions?: { id: string }[] }[] };
+    for (const submission of (body.postings ?? []).flatMap((p) => p.submissions ?? [])) {
+      const minted = await page.request.post("/api/devcase/skill-profile", { data: { submissionId: submission.id } });
+      if (!minted.ok()) continue;
+      const token = ((await minted.json()) as { token?: string }).token;
+      if (token) {
+        skillPath = `/skill/${token}`;
+        break;
+      }
+    }
+  }
 
   // 4 — the colleague's invite. Returns the tokenized accept link.
   const invite = await page.request.post("/api/org/invites", {
@@ -192,6 +223,45 @@ test("/invite/[token] passes axe on the set-your-password form", async ({ browse
     // is one line of loading copy, which is not the state worth gating.
     await expect(colleague.locator('input[type="password"]')).toBeVisible({ timeout: 30_000 });
     await expectNoSeriousA11yViolations(colleague);
+  } finally {
+    await close();
+  }
+});
+
+test("/status/[token] passes axe on the candidate's timeline", async ({ browser }) => {
+  test.skip(!statusPath, "no seeded candidate comm carried a /status/ link on this database");
+  const [candidate, close] = await openAsStranger(browser, statusPath);
+  try {
+    // The timeline is client-fetched; sweeping the skeleton would test the wrong
+    // page, so wait for the resolved heading.
+    await expect(candidate.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
+    await expectNoSeriousA11yViolations(candidate);
+  } finally {
+    await close();
+  }
+});
+
+test("/status/[token] passes axe on a dead link", async ({ browser }) => {
+  // The state a candidate reaches by mistyping or following a revoked link, and
+  // the only one of this door's states that needs no mint. It is an alert region
+  // with its own copy — worth gating precisely because nothing else exercises it.
+  const [stranger, close] = await openAsStranger(browser, "/status/not-a-real-token");
+  try {
+    await expect(stranger.locator('[role="alert"]')).toBeVisible({ timeout: 30_000 });
+    await expectNoSeriousA11yViolations(stranger);
+  } finally {
+    await close();
+  }
+});
+
+test("/skill/[token] passes axe on the credential card", async ({ browser }) => {
+  test.skip(!skillPath, "no evaluated dev-case submission on this database to mint a credential from");
+  // Server-rendered, so the card is in the first paint — but the verdict badge is
+  // the thing worth waiting on: it is what the whole page is about.
+  const [reader, close] = await openAsStranger(browser, skillPath);
+  try {
+    await expect(reader.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
+    await expectNoSeriousA11yViolations(reader);
   } finally {
     await close();
   }

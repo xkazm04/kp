@@ -1675,3 +1675,58 @@ test("every route that enqueues a task throttles first", () => {
   assert.ok(checked >= 5, `expected the enqueueing routes, matched ${checked}`);
   assert.deepEqual(offenders, [], "these routes enqueue a background task with no throttle ahead of it");
 });
+
+// ── the credential PAGE's throttle (/perfect wave 20, token doors) ───────────
+//
+// Every spec above is a route handler, because until now every throttled door was
+// one. /skill/[token] is an RSC PAGE and was the hole that shape left: its sibling
+// GET /api/skill-profile/[token]/verify has been capped at 30/10min per client
+// since the enumeration finding, while the page behind the SAME token space did a
+// sqlite read plus an HMAC verification per hit with no limiter at all — so the
+// cheap way to walk the token space was to ask for the HTML instead of the JSON.
+//
+// Two things differ from a route spec and both are asserted rather than assumed:
+// the client address comes from `headers()` (a page has no NextRequest), and the
+// refusal is a RENDERED STATE, not a 429 — a page cannot answer a status code, so
+// the contract is that the throttled branch renders the throttled copy and never
+// reaches the store.
+const SKILL_PAGE = "../skill/[token]/page.tsx";
+const SKILL_PAGE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
+
+test(`${SKILL_PAGE}: the credential read is throttled per client AND token, before the store`, () => {
+  const src = read(SKILL_PAGE);
+  assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
+
+  const def = "const SKILL_VIEW_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };";
+  const defAt = src.indexOf(def);
+  assert.ok(defAt >= 0, `expected the pinned budget:\n  ${def}`);
+
+  // Keyed per client AND token: with no trusted proxy configured every caller
+  // shares one client key, so an IP-only bucket would let one reader's reloads
+  // spend every other candidate's budget.
+  const call = "rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)";
+  const at = src.indexOf(call);
+  assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
+  assert.ok(defAt < at, "the budget must be defined before the limiter call");
+
+  // Ahead of the expensive work — the sqlite read + signature verification.
+  const expensiveAt = src.indexOf("verifySkillProfileToken(token)");
+  assert.ok(expensiveAt > at, "the limiter must precede verifySkillProfileToken");
+
+  // The refusal a page can actually give: rendered copy, in the reader's language.
+  assert.match(src.slice(at, at + 1200), /t\("throttledTitle"\)/, "the throttled branch must render its own copy");
+});
+
+test(`${SKILL_PAGE}: hit ${SKILL_PAGE_LIMIT.limit + 1} inside one window is refused`, () => {
+  const t0 = 20_000_000;
+  const key = `${SKILL_PAGE}:skill-view:contract`;
+  for (let i = 0; i < SKILL_PAGE_LIMIT.limit; i++) {
+    assert.equal(rateLimit(key, SKILL_PAGE_LIMIT, t0 + i), true, `hit ${i + 1} must pass`);
+  }
+  assert.equal(rateLimit(key, SKILL_PAGE_LIMIT, t0 + SKILL_PAGE_LIMIT.limit), false, "the hit past the limit is refused");
+  assert.equal(
+    rateLimit(key, SKILL_PAGE_LIMIT, t0 + SKILL_PAGE_LIMIT.windowMs + 1),
+    true,
+    "a fresh window admits again — the cap is a rate, not a ban"
+  );
+});

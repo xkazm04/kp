@@ -1580,7 +1580,10 @@
     "VOICE_TRANSPORT_AUTH": "The interview service rejected this session. Please contact the recruiter who sent you this link.",
     "VOICE_TRANSPORT_TIMEOUT": "The interview service did not answer in time. Please try again.",
     "VOICE_TRANSPORT_PROVIDER": "The interview service could not start the call. Please try again in a moment.",
-    "OFFER_RESPONSE_INVALID": "Respond with either accept or decline."
+    "OFFER_RESPONSE_INVALID": "Respond with either accept or decline.",
+    "STATUS_LINK_INVALID": "This status link is not valid.",
+    "STATUS_NPS_NOT_APPLICABLE": "This question opens once your application has finished.",
+    "DATA_LINK_INVALID": "This data link is no longer valid."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6070,7 +6073,9 @@
     "version": "Standard {version}",
     "stale": "Verified (older attestation)",
     "staleAge": "Genuine and untampered, but issued {issued} under standard {version}. Ask the candidate for a current assessment if recency matters.",
-    "staleMethodology": "Genuine and untampered, but scored under standard {version} (issued {issued}), which has since been superseded. Ask the candidate for an assessment on the current standard."
+    "staleMethodology": "Genuine and untampered, but scored under standard {version} (issued {issued}), which has since been superseded. Ask the candidate for an assessment on the current standard.",
+    "throttledTitle": "Too many requests just now",
+    "throttledBody": "This credential was opened too many times in a short period. Wait a few minutes and reload. The credential itself is unaffected."
   },
   "devApply": {
     "workSurface": {

@@ -3,6 +3,7 @@
 import type { KeyboardEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
 
 // W0.6b — the candidate-NPS card on the public status page.
 //
@@ -69,7 +70,11 @@ export function StatusNpsCard({ token }: { token: string }) {
 
   if (state.answered) {
     return (
-      <section className="mt-8 rounded-lg border border-stone-200 bg-paper p-4">
+      // role=status: the thanks REPLACES the whole question card the moment the
+      // POST lands, and the swap used to be silent — a screen-reader user pressed
+      // Send and heard nothing at all, with the question they had just answered
+      // gone from under their cursor.
+      <section role="status" className="mt-8 rounded-lg border border-stone-200 bg-paper p-4">
         <p className="text-base text-steel">{t("thanks")}</p>
       </section>
     );
@@ -119,7 +124,7 @@ export function StatusNpsCard({ token }: { token: string }) {
             }}
             onKeyDown={(e) => onScoreKeyDown(e, i)}
             onClick={() => setScore(n)}
-            className={`focus-ring h-9 w-9 rounded-md border text-base font-semibold transition-colors ${
+            className={`focus-ring h-11 w-11 rounded-md border text-base font-semibold transition-colors ${
               score === n ? "border-coral bg-coral/10 text-coral" : "border-stone-300 bg-white text-steel hover:border-coral/40"
             }`}
           >
@@ -149,11 +154,18 @@ export function StatusNpsCard({ token }: { token: string }) {
           type="button"
           onClick={submit}
           disabled={score == null || submitting}
-          className="focus-ring rounded-md bg-ink px-3 py-1.5 text-base font-semibold text-white disabled:opacity-40"
+          className={`${BTN_PRIMARY_LG} px-4`}
         >
           {submitting ? t("sending") : t("send")}
         </button>
-        {failed ? <span className="text-base text-coral">{t("failed")}</span> : null}
+        {/* The answer was DROPPED. Silently printing that beside the button told a
+            screen-reader user nothing at all — the one message on this card that
+            has to be heard is the one saying their feedback did not land. */}
+        {failed ? (
+          <span role="alert" className="text-base text-coral">
+            {t("failed")}
+          </span>
+        ) : null}
       </div>
     </section>
   );

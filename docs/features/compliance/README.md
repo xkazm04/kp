@@ -125,6 +125,32 @@ sign-in form, the other two doors opened from a link on a phone.
 three: recipe use, the touch-target floor, the alertdialog wiring and the
 Cancel-before-destructive DOM order.
 
+That guard now scans **seven** files, not three: the offer card, the status
+page, its NPS card and the sign-up form joined it (/perfect wave 20), because
+each had hand-rolled the controls the first three had already stopped
+hand-rolling. What changed on the two doors in this document:
+
+- **The status page's retry and refresh** are `BTN_PRIMARY_LG` / `BTN_GHOST` at
+  44px; the NPS scale's eleven cells were 36px and are now 44px (the scale keeps
+  its own selected/unselected tint — no `BTN_*` recipe expresses a scale, and
+  the guard exempts `role="radio"` on that ground alone).
+- **The NPS failure is a `role="alert"` and the thanks swap a `role="status"`.**
+  "That didn't go through" announced nothing: a screen-reader user pressed Send
+  and heard silence over an answer that had been DROPPED, and the success case
+  replaced the whole question card just as silently.
+- **The two status doors and the erasure door answer refusal CODES**, not bare
+  English. `STATUS_LINK_INVALID` (404 on both `/api/status/[token]` and its
+  `/nps` sibling — one refusal for "no such token" and "no such entry", so the
+  door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
+  feedback on a still-running application) and `DATA_LINK_INVALID` (404 for a
+  never-issued or already-spent erasure token). All three are in `REFUSAL_ERRORS`
+  with four catalogue entries each; the page resolves `errors.<CODE>` in the
+  reader's language (`docs/architecture/api-contracts.md` §1.1).
+
+`e2e/token-doors-axe.spec.ts` now sweeps `/status/[token]` in two states — the
+loaded timeline and the dead-link alert — beside the offer, erasure and invite
+doors it already covered.
+
 **Decision sealing + candidate explanation.** Every automated or human
 adverse action is sealed into a per-tenant, hash-chained record
 (`app/_lib/decision-record-store.ts`: `sealDecisionRecord`,

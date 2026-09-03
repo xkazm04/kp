@@ -1580,7 +1580,10 @@
     "VOICE_TRANSPORT_AUTH": "Der Interview-Dienst hat diese Sitzung abgelehnt. Bitte wenden Sie sich an den Recruiter, der Ihnen den Link geschickt hat.",
     "VOICE_TRANSPORT_TIMEOUT": "Der Interview-Dienst hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es erneut.",
     "VOICE_TRANSPORT_PROVIDER": "Der Interview-Dienst konnte das Gespräch nicht starten. Bitte versuchen Sie es gleich noch einmal.",
-    "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen."
+    "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen.",
+    "STATUS_LINK_INVALID": "Dieser Statuslink ist nicht gültig.",
+    "STATUS_NPS_NOT_APPLICABLE": "Diese Frage wird freigeschaltet, sobald Ihre Bewerbung abgeschlossen ist.",
+    "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6070,7 +6073,9 @@
     "version": "Standard {version}",
     "stale": "Verifiziert (älterer Nachweis)",
     "staleAge": "Echt und unverändert, aber ausgestellt am {issued} nach Standard {version}. Bitten Sie die Kandidatin bzw. den Kandidaten bei Bedarf um eine aktuelle Bewertung.",
-    "staleMethodology": "Echt und unverändert, aber bewertet nach Standard {version} (ausgestellt am {issued}), der inzwischen abgelöst wurde. Bitten Sie um eine Bewertung nach dem aktuellen Standard."
+    "staleMethodology": "Echt und unverändert, aber bewertet nach Standard {version} (ausgestellt am {issued}), der inzwischen abgelöst wurde. Bitten Sie um eine Bewertung nach dem aktuellen Standard.",
+    "throttledTitle": "Zurzeit zu viele Anfragen",
+    "throttledBody": "Dieser Nachweis wurde in kurzer Zeit zu oft geöffnet. Warten Sie ein paar Minuten und laden Sie die Seite neu. Der Nachweis selbst ist davon nicht betroffen."
   },
   "devApply": {
     "workSurface": {

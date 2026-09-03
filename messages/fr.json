@@ -1580,7 +1580,10 @@
     "VOICE_TRANSPORT_AUTH": "Le service d’entretien a refusé cette session. Contactez le recruteur qui vous a envoyé ce lien.",
     "VOICE_TRANSPORT_TIMEOUT": "Le service d’entretien n’a pas répondu à temps. Veuillez réessayer.",
     "VOICE_TRANSPORT_PROVIDER": "Le service d’entretien n’a pas pu démarrer l’appel. Veuillez réessayer dans un instant.",
-    "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre."
+    "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre.",
+    "STATUS_LINK_INVALID": "Ce lien de suivi n'est pas valide.",
+    "STATUS_NPS_NOT_APPLICABLE": "Cette question s'ouvrira une fois votre candidature terminée.",
+    "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6070,7 +6073,9 @@
     "version": "Standard {version}",
     "stale": "Vérifié (attestation ancienne)",
     "staleAge": "Authentique et non modifié, mais émis le {issued} selon la norme {version}. Demandez au candidat une évaluation à jour si la récence importe.",
-    "staleMethodology": "Authentique et non modifié, mais évalué selon la norme {version} (émis le {issued}), désormais remplacée. Demandez au candidat une évaluation selon la norme actuelle."
+    "staleMethodology": "Authentique et non modifié, mais évalué selon la norme {version} (émis le {issued}), désormais remplacée. Demandez au candidat une évaluation selon la norme actuelle.",
+    "throttledTitle": "Trop de requêtes pour le moment",
+    "throttledBody": "Ce certificat a été ouvert trop de fois en peu de temps. Patientez quelques minutes puis rechargez la page. Le certificat lui-même n'est pas affecté."
   },
   "devApply": {
     "workSurface": {

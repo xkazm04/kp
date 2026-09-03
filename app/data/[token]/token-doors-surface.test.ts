@@ -84,6 +84,132 @@ for (const rel of [DATA_CLIENT, INVITE_FORM, LOGIN_CLIENT]) {
   });
 }
 
+// ── the other four doors (/perfect wave 20, offer-and-skill-doors-match-their-siblings)
+//
+// The scan above covered three doors and stopped. The four it did NOT scan are
+// where the same defects had survived: the offer card a candidate accepts a JOB
+// on hand-rolled its confirm buttons, the status page hand-rolled its retry and
+// refresh, the NPS card hand-rolled its send and an eleven-cell scale at 36px,
+// and the signup form's only button was `py-2` on `bg-stone-900` — a raw neutral
+// that is not even in the theme-mapped set. A guard that names three files is a
+// guard that watches whichever door was last remembered.
+//
+// The rule differs in ONE way from the loop above, deliberately: these doors
+// compose the TOUCH-SIZED recipes (`BTN_PRIMARY_LG` / `BTN_SECONDARY_LG`), whose
+// h-11 lives in recipes.ts rather than at the call site. So a control satisfies
+// the 44px floor either by carrying `h-11`/`min-h-11` itself OR by composing one
+// of those two recipes — and the recipes' own height is pinned below, so the
+// indirection cannot quietly shrink.
+const OFFER_CLIENT = "../../offer/[token]/OfferClient.tsx";
+const STATUS_CLIENT = "../../status/[token]/StatusClient.tsx";
+const STATUS_NPS = "../../status/[token]/StatusNpsCard.tsx";
+const SIGNUP_CLIENT = "../../signup/SignupClient.tsx";
+
+/** Whole `<button …>` / `<a …>` open tags, so a rule can read the element's role
+ *  as well as its classes. */
+function controlTags(src: string): string[] {
+  // The arrow substitution is load-bearing: a non-greedy scan to the next ">"
+  // stops INSIDE `onClick={() => …}`, so every control with an inline handler —
+  // which on these doors is most of them — yielded a fragment carrying no
+  // className and was silently skipped. Masking the arrows first is what makes
+  // the scan actually see them.
+  const masked = src.replace(/=>/g, "=»");
+  return [...masked.matchAll(/<(?:button|a)\b([^>]*?)>/g)].map((m) => m[1]);
+}
+
+function classOf(tag: string): string | null {
+  const cls = /className=(?:"([^"]*)"|\{`([^`]*)`\})/.exec(tag);
+  return cls ? (cls[1] ?? cls[2] ?? "") : null;
+}
+
+const TOUCH_RECIPES = /\$\{BTN_(?:PRIMARY|SECONDARY)_LG\}/;
+
+test("the touch-sized recipes are what this file's 44px rule leans on — they must BE 44px", () => {
+  const recipes = read("../../_components/ui/recipes.ts");
+  for (const name of ["BTN_PRIMARY_LG", "BTN_SECONDARY_LG"]) {
+    const at = recipes.indexOf(`export const ${name} =`);
+    assert.ok(at >= 0, `${name} must exist — the doors compose it for their touch target`);
+    assert.match(recipes.slice(at, at + 200), /\bh-11\b/, `${name} must carry h-11`);
+  }
+});
+
+for (const rel of [OFFER_CLIENT, STATUS_CLIENT, STATUS_NPS, SIGNUP_CLIENT]) {
+  test(`${rel}: every control clears the 44px touch target`, () => {
+    const src = read(rel);
+    const tags = controlTags(src);
+    assert.ok(tags.length > 0, "expected to find at least one control");
+    for (const tag of tags) {
+      const cls = classOf(tag);
+      if (cls === null) continue;
+      assert.ok(!/\bh-(?:8|9|10)\b/.test(cls), `a control is under 44px: ${cls}`);
+      assert.ok(!/\bpy-(?:1|1\.5|2)\b/.test(cls), `a control still sizes itself with padding: ${cls}`);
+      assert.ok(
+        /\b(?:h-11|min-h-11)\b/.test(cls) || TOUCH_RECIPES.test(cls),
+        `a control declares no 44px height and composes no touch recipe: ${cls}`
+      );
+    }
+  });
+
+  test(`${rel}: button styling comes from recipes.ts, not a hand-rolled class string`, () => {
+    const src = read(rel);
+    assert.match(src, /from "@\/app\/_components\/ui\/recipes"/, "must reuse the shared recipes");
+    for (const tag of controlTags(src)) {
+      const cls = classOf(tag);
+      if (cls === null) continue;
+      // The NPS 0-10 scale is a `radiogroup` of eleven cells, not an action: it is
+      // a SCALE whose selected/unselected tint is its whole meaning, and no BTN_*
+      // recipe expresses that. Sized (44px) by the rule above, tinted by itself.
+      if (/role="radio"/.test(tag)) continue;
+      const paintsItsOwnFill = /\bbg-(?:stone|coral|moss|red|ink)-?\d*\b/.test(cls) || /\bborder-stone-200\b/.test(cls);
+      assert.ok(!paintsItsOwnFill, `a control hand-rolls its own fill/border instead of using a recipe: ${cls}`);
+    }
+  });
+
+  test(`${rel}: no text-xs — the door's floor is the type scale`, () => {
+    // 12px on a page read on a phone, from an email, often by someone who is not
+    // a daily user of this product. `text-meta` is the scale's small step.
+    assert.ok(!/\btext-xs\b/.test(read(rel)), "text-xs must not appear on a public door");
+  });
+}
+
+test("OfferClient: the decline confirm is a real MODAL alertdialog on the shared hook, safe action first", () => {
+  const src = read(OFFER_CLIENT);
+  // It claimed the role and hand-rolled ONE focus() call: no trap, no Escape, no
+  // focus restore, no aria-modal — over an irreversible action, on the door where
+  // the stakes are highest of the four.
+  assert.match(src, /useDialogA11y/, "the confirm must use the shared dialog hook");
+  assert.match(src, /role="alertdialog"/);
+  assert.match(src, /aria-modal="true"/);
+  assert.match(src, /aria-labelledby="decline-confirm-title"/);
+  assert.match(src, /aria-describedby="decline-confirm-desc"/);
+  const after = src.slice(src.indexOf('role="alertdialog"'));
+  const cancelAt = after.indexOf("onClick={onCancel}");
+  const confirmAt = after.indexOf("onClick={onConfirm}");
+  assert.ok(cancelAt >= 0 && confirmAt >= 0, "expected both a cancel and a confirm handler in the dialog");
+  assert.ok(cancelAt < confirmAt, "Cancel must precede the destructive action so focus lands on the safe option");
+});
+
+test("OfferClient: the deadline is formatted in ONE named zone, never the viewer's", () => {
+  const src = read(OFFER_CLIENT);
+  assert.match(src, /formatOfferDeadline\(offer\.expiresAt, locale\)/, "the label must go through the shared formatter");
+  assert.ok(
+    !/dateStyle: "medium", timeStyle: "short"/.test(src),
+    "the viewer-zone Intl call is the bug — one instant read as three calendar days"
+  );
+});
+
+test("StatusNpsCard: the failure is announced, and so is the thanks it swaps to", () => {
+  const src = read(STATUS_NPS);
+  // "That didn't go through" replaced nothing and announced nothing: a screen
+  // reader user pressed Send and heard silence over an answer that was DROPPED.
+  const failedAt = src.indexOf('t("failed")');
+  assert.ok(failedAt >= 0, "expected the failure copy");
+  assert.match(src.slice(Math.max(0, failedAt - 200), failedAt), /role="alert"/, "the failure must be a live region");
+  const thanksAt = src.indexOf('t("thanks")');
+  assert.ok(thanksAt >= 0, "expected the thanks copy");
+  assert.match(src.slice(Math.max(0, thanksAt - 300), thanksAt), /role="status"/, "the thanks swap must be announced");
+});
+
 test("DataClient: the erasure confirm is a real alertdialog on the shared hook, safe action first", () => {
   const src = read(DATA_CLIENT);
   assert.match(src, /useDialogA11y/, "the confirm must use the shared dialog hook (focus move, Escape, trap)");

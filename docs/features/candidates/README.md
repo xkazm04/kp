@@ -62,6 +62,21 @@ career-switcher) that other features key off. Downstream ranking is
   render the badge with no body, because that sentence would be a false claim about
   what kp issued. Per-state body copy is a follow-up — it needs new keys in all four
   locale catalogs.
+  Since /perfect wave 20 the card matches its sibling doors in three further ways:
+  it carries a **`LanguageSwitcher`** (it is shared with employers and reached from
+  a link, so the reader's language is whatever the link carried, and this was the
+  one public door with no way out of a language they do not read); every builder of
+  a `/skill/<token>` link pins it with **`pinLinkLocale`** (today that is one call
+  site, `app/features/tools/devcases/DevSubmissionRowSkillProfile.tsx` — it pins to
+  the locale the link is opened from, and a future mail-out must pin to the
+  candidate's `resolveCommsLocale` instead); and the page **throttles** its own
+  read at 30/10min keyed per client **and** token (`SKILL_VIEW_RATE_LIMIT`, the
+  budget its `/api/skill-profile/[token]/verify` sibling already had). Being an RSC
+  page it takes the client address from `headers()` and cannot answer 429, so the
+  refusal is a rendered "too many requests" state that says the credential itself
+  is unaffected. Pinned by `app/api/rate-limit-contract.test.ts`, and swept by
+  `e2e/token-doors-axe.spec.ts` when the database holds an evaluated submission to
+  mint a credential from.
 
 ## Flows
 
