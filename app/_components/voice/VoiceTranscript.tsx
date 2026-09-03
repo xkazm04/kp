@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Mic, Sparkles, User } from "lucide-react";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 import type { Phase } from "./ui-types";
+import { foldTranscript, shouldFollow, turnKey } from "./transcript-follow";
 
 export function VoiceTranscript({
   turns,
@@ -22,12 +23,27 @@ export function VoiceTranscript({
   const t = useTranslations("interview.voice");
   const logRef = useRef<HTMLDivElement | null>(null);
 
-  // Pin the live transcript to the newest turn so the candidate always sees the
-  // latest exchange without scrolling. Runs on every turn append.
+  // Follow the newest turn — but ONLY while the reader is already at the tail.
+  // This ran unconditionally on every append, so a candidate who scrolled up to
+  // re-read the question they were answering was yanked back to the bottom the
+  // moment the next transcription landed, mid-call, with no way to hold their
+  // place. The decision is taken from the reader's OWN scrolling (below) rather
+  // than re-measured after an append: by then the element is already taller, so
+  // every reader would measure as "scrolled up" and the log would follow nobody.
+  const followRef = useRef(true);
+  const onScroll = () => {
+    const el = logRef.current;
+    if (el) followRef.current = shouldFollow(el.scrollTop, el.scrollHeight, el.clientHeight);
+  };
   useEffect(() => {
     const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && followRef.current) el.scrollTop = el.scrollHeight;
   }, [turns]);
+
+  // The log grew without bound — every turn mounted, and each one announced by the
+  // aria-live region. Render the newest window and SAY how many are folded above;
+  // the full transcript is persisted server-side and shown on the scorecard.
+  const { visible, folded } = foldTranscript(turns);
 
   return (
     <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
@@ -50,6 +66,7 @@ export function VoiceTranscript({
       </div>
       <div
         ref={logRef}
+        onScroll={onScroll}
         role="log"
         aria-live="polite"
         aria-label={t("transcriptLabel")}
@@ -78,15 +95,20 @@ export function VoiceTranscript({
             </div>
           </div>
         ) : (
-          turns.map((turn, i) =>
-            turn.role === "system" ? (
-              <p key={i} className="text-center text-sm text-steel">
-                {turn.text}
-              </p>
-            ) : (
-              <TranscriptTurn key={i} role={turn.role} text={turn.text} />
-            )
-          )
+          <>
+            {folded > 0 ? (
+              <p className="text-center text-sm text-steel">{t("transcriptFolded", { count: folded })}</p>
+            ) : null}
+            {visible.map((placed) =>
+              placed.turn.role === "system" ? (
+                <p key={turnKey(placed)} className="text-center text-sm text-steel">
+                  {placed.turn.text}
+                </p>
+              ) : (
+                <TranscriptTurn key={turnKey(placed)} role={placed.turn.role} text={placed.turn.text} />
+              )
+            )}
+          </>
         )}
       </div>
     </div>

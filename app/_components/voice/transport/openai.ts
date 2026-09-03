@@ -13,6 +13,21 @@
 
 import { parseOaiTranscriptEvent } from "@/app/_lib/voice/openai";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
+import {
+  VoiceTransportError,
+  classifyCallsStatus,
+  classifyThrownTransportFailure,
+} from "./transport-error";
+
+/** How long a "disconnected" ICE state is tolerated before it counts as a drop.
+ *  Long enough to ride out a wifi handover, short enough that a candidate is not
+ *  left talking into a dead pipe (the degraded cue shows IMMEDIATELY, see below). */
+const OAI_DROP_DEBOUNCE_MS = 8000;
+
+/** RMS above which the assistant counts as speaking, for the H3 indicator. Lower
+ *  than the mic test's heard threshold on purpose: this is decoded provider audio,
+ *  not a room microphone, so its noise floor is essentially zero. */
+const OAI_SPEAKING_RMS = 0.02;
 
 /** Every mutable handle the OpenAI path owns. The component keeps them as ten
  *  ordinary useRefs (the React Compiler's immutability rule wants component-side
@@ -176,7 +191,7 @@ export function startOaiSpeakingMeter(refs: OaiRefs, stream: MediaStream, setSpe
         const v = (data[i] - 128) / 128;
         sum += v * v;
       }
-      setSpeaking(Math.sqrt(sum / data.length) > 0.02);
+      setSpeaking(Math.sqrt(sum / data.length) > OAI_SPEAKING_RMS);
       refs.raf.current = requestAnimationFrame(tick);
     };
     refs.raf.current = requestAnimationFrame(tick);
@@ -244,7 +259,7 @@ export async function startOpenAiCall(
           if (refs.pc.current === pc && (pc.connectionState === "disconnected" || pc.connectionState === "failed")) {
             ctx.onDrop();
           }
-        }, 8000);
+        }, OAI_DROP_DEBOUNCE_MS);
       }
     } else if (st === "connected") {
       // bug-ui-scan-2026-07-09 (voice-interview #3): recovered — drop the cue.
@@ -286,14 +301,32 @@ export async function startOpenAiCall(
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  const resp = await fetch(`${c.callsUrl}?model=${encodeURIComponent(c.model)}`, {
-    method: "POST",
-    body: offer.sdp,
-    headers: { Authorization: `Bearer ${c.clientSecret}`, "Content-Type": "application/sdp" },
-  });
+  // Every failure below leaves as a CODED VoiceTransportError. It used to be one
+  // Error whose message was `OpenAI calls ${status}: ${body}` — the provider's own
+  // response body — and the shell rendered that message straight into the
+  // candidate's error banner: English in every locale, sometimes carrying key
+  // fragments, always with no recovery step. The body now goes to the console for
+  // the operator; the candidate gets `errors.<CODE>` in their language.
+  let resp: Response;
+  try {
+    resp = await fetch(`${c.callsUrl}?model=${encodeURIComponent(c.model)}`, {
+      method: "POST",
+      body: offer.sdp,
+      headers: { Authorization: `Bearer ${c.clientSecret}`, "Content-Type": "application/sdp" },
+    });
+  } catch (cause) {
+    throw new VoiceTransportError(
+      classifyThrownTransportFailure(cause),
+      cause instanceof Error ? cause.message : String(cause ?? "")
+    );
+  }
   if (!resp.ok) {
     const detail = await resp.text().catch(() => "");
-    throw new Error(`OpenAI calls ${resp.status}: ${detail.slice(0, 200)}`);
+    const err = new VoiceTransportError(classifyCallsStatus(resp.status), `${resp.status} ${detail.slice(0, 200)}`);
+    // The operator's half of the failure: the real upstream body, once, in the
+    // console — the only place it belongs.
+    console.error(`[voice] OpenAI calls ${resp.status} (${err.code}): ${detail.slice(0, 200)}`);
+    throw err;
   }
   await pc.setRemoteDescription({ type: "answer", sdp: await resp.text() });
   // Same guard as after getUserMedia: if the connect timeout fired (or this pc

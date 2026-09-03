@@ -290,9 +290,11 @@ predicate, source-level for the route contract).
 | `app/_components/voice/timer-registry.ts` | Every delayed callback one call schedules — the 30 s connect timeout, the ElevenLabs disconnect-grace fallback, the finalize poll — in one registry the unmount effect empties. Two of the three were untracked `setTimeout`s that survived unmount and were harmless only because `finalizedRef` latches first. `sleep()` resolves on `clearAll()`, so a tab closed mid-hang-up unwinds the finalize path instead of leaking it |
 | `app/features/tools/interview/simBilling.ts` | What a simulation costs: `simBillableCeilingMin(mode)`, quoted by `InterviewStartPanel` before the recruiter starts. Mirrors `maxBillableInterviewMin` (the client cannot import `billing/enforce.ts` — it reaches better-sqlite3), and `simBilling.test.ts` imports both and asserts the same number mode by mode |
 | `app/_components/voice/useTranscriptPersistence.ts` | POST-with-retries to `/api/interview/complete`, the sessionStorage stash, and the online/visibility re-drive |
-| `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict) |
+| `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict). `micTestFailure` routes every `getUserMedia` rejection through `micErrorText`, so **not-found** and **busy** are no longer both reported as "denied"; `MIC_TEST_DURATION_MS` / `MIC_HEARD_RMS` name what were inline literals |
+| `app/_components/voice/transport/transport-error.ts` | `VoiceTransportError` + the status/throw classifier. Four client-origin codes (`VOICE_TRANSPORT_NETWORK` / `_AUTH` / `_TIMEOUT` / `_PROVIDER`) resolved through `errors.<CODE>`; the provider's response body goes to the console, never to the candidate |
+| `app/_components/voice/transcript-follow.ts` | `shouldFollow` (autoscroll only while the reader is at the tail), `foldTranscript` + `turnKey` (a bounded live log with full-transcript-stable keys) |
 | `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
-| `app/_components/voice/VoiceSettings.tsx`, `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
+| `app/_components/voice/VoiceSettings.tsx` (the provider picker consumes the same `availability-gate` the Start button does — an unchecked provider is disabled, with the same **Check again** line), `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
 
 ## Data model
 
@@ -468,6 +470,48 @@ not `sent`:
 The remedy is the same for both (the link is in the response; hand it over), but the
 recruiter no longer has to guess which happened. Both are `errors.*` catalog keys in
 all four locales.
+
+### The candidate never reads the provider's words
+
+Three failure paths in the live-call shell used to render an upstream string
+straight into the candidate's error banner: the realtime transport threw
+`OpenAI calls ${status}: ${body}` (the provider's response body, sliced to 200
+chars), and the ElevenLabs SDK's own English `message` was shown both on
+`onError` and on a failed `startSession`. All three now resolve a **code**:
+`transport/transport-error.ts` classifies a failure as `VOICE_TRANSPORT_NETWORK`,
+`_AUTH`, `_TIMEOUT` or `_PROVIDER` and the shell renders `errors.<CODE>` through
+`useErrorMessage()`, in the reader's language. The real body still reaches the
+operator — once, on `console.error`.
+
+Those four codes are **client-origin**, so they deliberately do not appear in
+`STORE_ERRORS` / `REFUSAL_ERRORS` (the vocabulary a route handler emits; a code
+there that no handler can return would make the server contract lie). They are
+pinned to all four catalogs by `transport-error.test.ts`, the client-side twin of
+the registry check in `scripts/i18n-check.mjs`.
+
+### A closing answer lost to the grace is in the record
+
+When the OpenAI hang-up grace (`OAI_FINAL_TURN_GRACE_MS`) expires with a candidate
+transcription still in flight and an empty delta buffer, that closing answer is
+gone from the transcript the scorecard is built on. It used to be a
+`console.warn` — invisible to the recruiter reading the scorecard. It is now
+written **in band**, as a `system` turn (`interview.voice.closingTurnLostNote`),
+which is the path `capTranscriptTurns` already uses for its "turns omitted"
+marker: a system turn is persisted by `/api/interview/complete`, read by the
+scorer (`transcriptToNotes` prefixes it `System:`) and rendered by the recruiter's
+transcript modal (`ScheduleInterviewTranscriptTurns`). The console line stays for
+the operator, with the env-var remedy.
+
+### The live transcript keeps the reader's place
+
+`VoiceTranscript` pinned itself to the newest turn on **every** append, so a
+candidate who scrolled up to re-read the question they were answering was pulled
+back mid-call. It now follows only while the reader is at the tail
+(`shouldFollow`, measured from the reader's own scrolling), keys turns by their
+position in the full append-only transcript rather than by index in the rendered
+slice, and renders a bounded window (`MAX_VISIBLE_TURNS`) with a counted "earlier
+turns" line above it. The full transcript is the persisted record; the live log is
+a view of it.
 
 ### Two best-effort catches that now say what was lost
 

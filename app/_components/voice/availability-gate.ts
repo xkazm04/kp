@@ -49,3 +49,25 @@ export function canStart(gate: StartGate): boolean {
 export function probeAvailability(probe: AvailabilityProbe): VoiceAvailability | null {
   return probe.status === "ok" ? probe.availability : null;
 }
+
+/** The picker option's state — the SAME three-outcome rule the Start button got in
+ *  wave 18b, which the provider picker was left out of.
+ *
+ *  The bug: `VoiceSettings` computed `off = availability ? !availability[p] : false`,
+ *  so a null map (probe still loading, or probe FAILED) rendered every provider as
+ *  selectable. On a failed probe that is the identical lie the Start button used to
+ *  tell — "we could not find out" presented as "yes, this works" — one control over.
+ *  Selecting an unchecked provider then walked into the same dead connect.
+ *
+ *  `checking` stays selectable (the probe is fast and the picker only chooses which
+ *  provider Start will dial); `unknown` does not, and the picker shows the same
+ *  check-again line the Start control shows. */
+export function providerPickerGate(probe: AvailabilityProbe, provider: VoiceProviderId): StartGate {
+  return voiceStartGate(probe, provider);
+}
+
+/** May this provider be PICKED? Same predicate as Start, deliberately: two controls
+ *  that gate on the same fact must not disagree about it. */
+export function canPickProvider(probe: AvailabilityProbe, provider: VoiceProviderId): boolean {
+  return canStart(providerPickerGate(probe, provider));
+}

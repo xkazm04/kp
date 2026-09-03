@@ -7,12 +7,19 @@
 // as ref boxes rather than being re-homed — the alternative would have split one
 // piece of state across two owners.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
+import { createTimerRegistry } from "./timer-registry";
 
 /** sessionStorage key prefix for a transcript body the server has not accepted
  *  yet. Shared by the writer (persistTranscript) and the replay pass below. */
 const STASH_PREFIX = "kp.iv.";
+
+/** How many times the transcript POST is retried before the manual-retry banner
+ *  takes over. */
+const PERSIST_ATTEMPTS = 3;
+/** Linear backoff step between those attempts (500ms, 1s, 1.5s). */
+const PERSIST_BACKOFF_STEP_MS = 500;
 
 export type TranscriptPersistenceArgs = {
   /** The link token from props — the fallback when /connect hasn't returned one. */
@@ -32,6 +39,13 @@ export function useTranscriptPersistence({
   turnsRef,
   endedAs,
 }: TranscriptPersistenceArgs) {
+  // Every delayed callback this hook schedules, in the registry unmount empties.
+  const timersRef = useRef(createTimerRegistry());
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => timers.clearAll();
+  }, []);
+
   // M6: the transcript POST failed after retries — surface a manual Retry (the body is stashed in
   // sessionStorage) instead of asking the candidate to babysit a tab with no action to take.
   const [saveFailed, setSaveFailed] = useState(false);
@@ -49,7 +63,7 @@ export function useTranscriptPersistence({
       } catch {
         /* ignore */
       }
-      for (let attempt = 0; attempt < 3; attempt += 1) {
+      for (let attempt = 0; attempt < PERSIST_ATTEMPTS; attempt += 1) {
         try {
           const res = await fetch("/api/interview/complete", {
             method: "POST",
@@ -72,7 +86,18 @@ export function useTranscriptPersistence({
         } catch {
           /* network error — retry */
         }
-        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        // Through the call's timer registry, not a bare setTimeout: this await
+        // sits between the tab's last two frames on a close, and an unmount used
+        // to leave it pending — the retry loop kept running against a torn-down
+        // component, and the promise never settled. The registry cancels the
+        // timer AND resolves the sleeper (timer-registry.ts).
+        await timersRef.current.sleep(PERSIST_BACKOFF_STEP_MS * (attempt + 1));
+        // A cleared registry resolves its sleepers IMMEDIATELY rather than
+        // hanging them, so "we were torn down" and "the backoff elapsed" arrive
+        // the same way — check which it was before spending another attempt.
+        // The body is already stashed in sessionStorage and replayed on the next
+        // mount, so stopping here loses nothing.
+        if (timersRef.current.cleared) break;
       }
       return false;
     },
