@@ -5,15 +5,9 @@ import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { BTN_GHOST, BTN_PRIMARY, EYEBROW, INTRO } from "@/app/_components/ui/recipes";
-import { CompanyStep } from "./SetupCompanyStep";
-import { InviteEditor } from "./SetupInviteEditor";
+import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
-import { SetupPipelineStep } from "./SetupPipelineStep";
-import { SetupCompanionStep } from "./SetupCompanionStep";
-import { WelcomeStep } from "./SetupWelcomeStep";
-import { SetupHandoffSummary } from "./SetupHandoffSummary";
-import { SETUP_PROSE } from "./setupProse";
+import { SetupWizardStepPane } from "./SetupWizardStepPane";
 import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
 
 // Spotlight Wizard — the first-run setup as a centered takeover. A branded left
@@ -128,6 +122,17 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
             <div className="mb-4 md:hidden">
               <SetupLanguageSwitch ctrl={ctrl} compact />
             </div>
+            {/* Step announcement. A PERSISTENT node, deliberately: a live region that
+                mounts with its own content is usually not announced at all, so the
+                crossfaded pane cannot carry this — it only changes the text here.
+                Paired with the focus move in SetupWizardStepPane. */}
+            <p aria-live="polite" className="sr-only">
+              {t("aria.stepAnnounce", {
+                index: ctrl.stepIndex + 1,
+                total: SETUP_STEPS.length,
+                title: t(`steps.${step.id}.title`),
+              })}
+            </p>
             <div className="-mx-3 -my-1 min-w-0 flex-1 overflow-y-auto px-3 py-1">
               <AnimatePresence mode="wait">
                 <motion.div
@@ -137,20 +142,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                   exit={reduced ? { opacity: 0 } : { opacity: 0, y: -8 }}
                   transition={{ duration: reduced ? 0 : 0.2 }}
                 >
-                  <p className={EYEBROW}>{t(`steps.${step.id}.eyebrow`)}</p>
-                  <h2 className={`mt-1 font-serif text-ink ${isWelcome ? "text-display" : "text-h2"}`}>
-                    {t(`steps.${step.id}.title`)}
-                  </h2>
-                  <p className={`mt-2 ${SETUP_PROSE} ${INTRO}`}>{t(`steps.${step.id}.blurb`)}</p>
-
-                  <div className="mt-6">
-                    {step.id === "welcome" ? <WelcomeStep /> : null}
-                    {step.id === "company" ? <CompanyStep ctrl={ctrl} /> : null}
-                    {step.id === "team" ? <InviteEditor ctrl={ctrl} /> : null}
-                    {step.id === "pipeline" ? <SetupPipelineStep ctrl={ctrl} /> : null}
-                    {step.id === "companion" ? <SetupCompanionStep ctrl={ctrl} /> : null}
-                    {step.id === "handoff" ? <SetupHandoffSummary ctrl={ctrl} /> : null}
-                  </div>
+                  <SetupWizardStepPane ctrl={ctrl} stepId={step.id} />
                 </motion.div>
               </AnimatePresence>
             </div>

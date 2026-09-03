@@ -1518,7 +1518,10 @@
     "COMMS_RELAY_STALE": "Někdo uložil novější nastavení relay. Načtěte je znovu a proveďte změnu ještě jednou.",
     "COMMS_RELAY_INVALID": "Tento koncový bod relay není povolený. Použijte veřejnou adresu https://.",
     "COMMS_RELAY_SAVE_FAILED": "Nastavení relay se nepodařilo uložit. Zkuste to prosím znovu.",
-    "PROFILE_STALE": "Tento profil někdo uložil poté, co jste jej otevřeli. Načtěte jej znovu a změny proveďte znovu."
+    "PROFILE_STALE": "Tento profil někdo uložil poté, co jste jej otevřeli. Načtěte jej znovu a změny proveďte znovu.",
+    "ATS_CONFIG_SAVE_FAILED": "Nastavení webhooku se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ATS_CONFIG_STALE": "Někdo mezitím uložil novější nastavení webhooku. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "GROUP_EVAL_READ_FAILED": "Uložené srovnání se nepodařilo načíst. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3399,7 +3402,11 @@
         "cancel": "Zrušit",
         "confirm": "Zamítnout a zaznamenat důvod",
         "sealedToast": "{name} zamítnut(a). Důvod je v auditním záznamu."
-      }
+      },
+      "schemeSkillsShort": "D",
+      "schemeCareerShort": "K",
+      "schemePersonalShort": "O",
+      "schemeWeightsTitle": "Váhy: dovednosti / kariéra / osobnostní"
     },
     "empty": {
       "batonEyebrow": "Štafeta předána",
@@ -3417,7 +3424,8 @@
         "applyFailed": "Provedení selhalo: {detail}. Původní rozhodnutí pravidel: {original}"
       }
     },
-    "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu."
+    "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu.",
+    "evalCacheProbeFailed": "Nepodařilo se ověřit, zda pro tento výběr už existuje uložené srovnání. Spusťte znovu pro nové srovnání; tím začne nový běh AI."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7148,7 +7156,8 @@
       "notDelivered": "Nedoručeno: {reason}.",
       "pingFailed": "Ping selhal.",
       "pullNote": "Načtení jednoho kandidáta na vyžádání: <code>{endpoint}</code> vrátí stejný normalizovaný záznam.",
-      "loadBlockedSave": "Uložené nastavení webhooku se nepodařilo načíst, takže ukládání je vypnuté. Odeslání tohoto prázdného formuláře by přepsalo uložený koncový bod i jeho odběry. Načtěte stránku znovu."
+      "loadBlockedSave": "Uložené nastavení webhooku se nepodařilo načíst, takže ukládání je vypnuté. Odeslání tohoto prázdného formuláře by přepsalo uložený koncový bod i jeho odběry. Načtěte stránku znovu.",
+      "reloadStored": "Načíst uložené nastavení"
     }
   },
   "billing": {
@@ -7559,7 +7568,9 @@
   "setup": {
     "aria": {
       "dialog": "Nastavení pracovního prostoru",
-      "skip": "Přeskočit nastavení"
+      "skip": "Přeskočit nastavení",
+      "stepAnnounce": "Krok {index} z {total}: {title}",
+      "stepPosition": "Krok {index} z {total}:"
     },
     "previewRibbon": "Náhled: nic z toho, co tady uděláte, se neuloží",
     "rail": {
@@ -7727,8 +7738,7 @@
     "toast": {
       "saved": "Váš pracovní prostor je nastavený",
       "partial": "Některé kroky nastavení se nepodařilo uložit. Dokončíte je v Nastavení",
-      "pipelineSaved": "Sloupce vaší nástěnky jsou uložené",
-      "pipelineFailed": "Sloupce nástěnky se nepodařilo uložit. Nastavte je v Nastavení → Náborová pipeline"
+      "partialLead": "Některé kroky nastavení se nepodařilo uložit:"
     },
     "checklist": {
       "title": "První kroky",
@@ -7757,6 +7767,17 @@
           "listening": "Nasloucháme. Ověřte to příjmem testovací přihlášky."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Název firmy",
+        "language": "Jazyk aplikace",
+        "invites": "Pozvánky pro kolegy",
+        "pipeline": "Sloupce nástěnky"
+      },
+      "reasonUnknown": "nepodařilo se uložit. Dokončit to můžete v Nastavení.",
+      "line": "{part}: {reason}",
+      "lineWithAddresses": "{part} ({addresses}): {reason}"
     }
   },
   "devcase": {

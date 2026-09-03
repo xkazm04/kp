@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { Pill } from "./GroupEvalPrimitives";
 import type { Comparison } from "@/app/features/shared/groupEvalTypes";
 
@@ -27,7 +28,10 @@ export function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Com
   const t = useTranslations("decisions.groupEval");
   if (!comparison && !fallback) return null;
   return (
-    <section className="rounded-xl border border-stone-200 bg-paper/40 p-4">
+    // The verdict is a quiet well, not a raised card — on the shared recipe, whose
+    // stone fill actually reads as recessed (the old bg-paper/40 tint was invisible
+    // in light and nearly so in Spark Dark).
+    <section className={`${PANEL_SUNKEN} p-4`}>
       <div className="mb-1.5 flex items-center gap-2">
         <Sparkles size={15} className="text-coral" aria-hidden />
         <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("aiComparison")}</span>

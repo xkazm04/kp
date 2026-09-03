@@ -16,6 +16,7 @@ import {
   EVENT_HEADER,
   SIGNATURE_HEADER,
   signWebhookBody,
+  TIMESTAMP_HEADER,
 } from "./ats-webhook.ts";
 
 // P1-5 — the server-side egress: turn a pipeline entry into the normalized,
@@ -94,8 +95,16 @@ export async function deliver(event: AtsEventType, data: AtsCandidateRecord | { 
   } catch (e) {
     return { delivered: false, reason: e instanceof Error ? e.message : "webhook URL rejected." };
   }
-  const body = JSON.stringify(buildEnvelope(event, data, new Date().toISOString()));
-  const headers: Record<string, string> = { "Content-Type": "application/json", [EVENT_HEADER]: event };
+  // ONE instant, used three ways: it is the envelope's `sentAt`, it rides as
+  // X-Kp-Timestamp, and it is signed WITH the body. Binding it into the HMAC is what
+  // makes a captured delivery unreplayable — without it the signature never expired.
+  const sentAt = new Date().toISOString();
+  const body = JSON.stringify(buildEnvelope(event, data, sentAt));
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    [EVENT_HEADER]: event,
+    [TIMESTAMP_HEADER]: sentAt,
+  };
   // Decrypt the signing secret to sign. Keep deliver() total: a missing/rotated
   // at-rest key surfaces as a delivery failure (→ recorded for retry) rather than a
   // throw, so it never sends the body UNSIGNED behind the operator's back.
@@ -105,7 +114,7 @@ export async function deliver(event: AtsEventType, data: AtsCandidateRecord | { 
   } catch (e) {
     return { delivered: false, reason: `signing secret unavailable: ${e instanceof Error ? e.message : "decrypt failed"}` };
   }
-  if (secret) headers[SIGNATURE_HEADER] = signWebhookBody(secret, body);
+  if (secret) headers[SIGNATURE_HEADER] = signWebhookBody(secret, body, sentAt);
   try {
     // `redirect: "manual"` is part of the SSRF boundary, not a nicety. The guard above
     // vets ONLY the URL we dial; with the default `follow`, a webhook host that passes

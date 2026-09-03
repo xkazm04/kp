@@ -47,7 +47,10 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
         </label>
         <input
           id="setup-org-name"
-          autoFocus
+          // No autoFocus: entering a step moves focus to its HEADING
+          // (SetupWizardStepPane), which is what tells a screen-reader user the
+          // screen changed. Two effects racing for focus on the same commit is a
+          // coin flip, and the one that has to win is the announcement.
           aria-required
           value={ctrl.state.orgName}
           onChange={(e) => ctrl.update({ orgName: e.target.value })}

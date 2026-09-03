@@ -588,10 +588,20 @@ export function useDecisionsQueue() {
     // nothing lists selection rows — a miss simply falls through to a fresh run.
     const tryCache = !rerun && (selectedSet ? true : Boolean(evaluated[g.roleKey]));
     if (tryCache) {
-      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
-        .then((r) => r.json())
+      // A probe that FAILED — offline, a 500, an unparseable body — is NOT a cache
+      // miss, and it used to be indistinguishable from one: the `.catch(() => null)`
+      // fell straight through to a fresh paid run (the full <=8-process pipeline: LLM
+      // weights, embeddings, compare narrative) without ever telling the recruiter the
+      // cached comparison could not be checked. Disclose it and let them choose — the
+      // modal's Re-run button IS the "run fresh" the notice offers.
+      const probe = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
+        .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-      const payload = (p?.evaluation?.payload as GroupEvalPayload) ?? null;
+      if (!probe) {
+        setEvalError(t("evalCacheProbeFailed"));
+        return;
+      }
+      const payload = (probe?.evaluation?.payload as GroupEvalPayload) ?? null;
       // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
       // or removed between the list and this read). Surface an error so the modal doesn't fall
       // through to "No evaluation yet" for a role its own button promised had one. Only for the
@@ -602,7 +612,7 @@ export function useDecisionsQueue() {
       }
       if (payload) {
         setEvalData(payload);
-        setEvalCreatedAt((p?.evaluation?.createdAt as string) ?? null);
+        setEvalCreatedAt((probe?.evaluation?.createdAt as string) ?? null);
         // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
         // evalMode is unpersisted per-mount state that defaults to "recommendation", so
         // without this a rerun of a committee/eligibility role could re-send

@@ -26,6 +26,12 @@ import {
   recordAtsDeliveryStart,
 } from "./ats-delivery-store.ts";
 import { createPipelineEntry } from "./db.ts";
+import {
+  SIGNATURE_HEADER,
+  SIGNATURE_TOLERANCE_SECONDS,
+  TIMESTAMP_HEADER,
+  verifyWebhookSignature,
+} from "./ats-webhook.ts";
 
 after(() => cleanupUnitDb());
 
@@ -237,5 +243,56 @@ test("the retry sweep re-resolves a non-default team's entry instead of declarin
     row?.lastError ?? "",
     /no longer exists/,
     "a LIVE team-b entry must never be finalized with a false terminal reason"
+  );
+});
+
+// D — the delivery is REPLAY-PROOF. The signature used to cover the body alone, so it
+// never expired: a captured delivery could be re-sent verbatim at any later moment and
+// still verify. deliver() now stamps one instant into the envelope's `sentAt`, the
+// X-Kp-Timestamp header AND the HMAC input, and a receiver checks the stated skew.
+//
+// NON-VACUITY: pre-change the header did not exist (the first assert fails) and the
+// signature was `signWebhookBody(secret, body)` with no timestamp, so verifying under
+// the timestamped scheme fails — and the replay assert fails too, because a body-only
+// signature verifies forever, which is the defect.
+test("deliver stamps one instant into sentAt, the timestamp header and the signature — and a replay of it is refused", async () => {
+  // A secret has to be STORED for a signature to be produced at all, and the store
+  // refuses to persist one in clear (ats-secret.ts) — so the at-rest key is set here.
+  process.env.KP_ATS_SECRET_KEY = "unit-test-ats-key";
+  setAtsConfig({ webhookUrl: "https://example.com/hook", webhookSecret: "whsec-unit", events: ["candidate.hired"] });
+  let seen: { headers: Record<string, string>; body: string } | null = null;
+  const r = await withFetch(
+    (async (_url: unknown, init: { headers: Record<string, string>; body: string }) => {
+      seen = { headers: init.headers, body: init.body };
+      return { ok: true, status: 200 };
+    }) as unknown as typeof fetch,
+    () => deliver("ping", { ping: true })
+  );
+  assert.equal(r.delivered, true, "the mocked receiver accepted it (proves fetch was reached)");
+  assert.ok(seen, "fetch must have been called");
+  const { headers, body } = seen as unknown as { headers: Record<string, string>; body: string };
+
+  // The header rides…
+  const stamp = headers[TIMESTAMP_HEADER];
+  assert.ok(stamp, `${TIMESTAMP_HEADER} must be sent on every delivery`);
+  // …and it is the SAME instant the envelope carries, so a receiver can cross-check the
+  // two after parsing.
+  assert.equal(JSON.parse(body).sentAt, stamp);
+
+  // The signature verifies under the timestamped scheme at that instant…
+  const sig = headers[SIGNATURE_HEADER];
+  const now = Date.parse(stamp);
+  assert.equal(verifyWebhookSignature("whsec-unit", body, sig, { timestamp: stamp, nowMs: now }), true);
+  // …and NOT under the old body-only one, so the sender really did move.
+  assert.equal(verifyWebhookSignature("whsec-unit", body, sig), false);
+
+  // THE REPLAY: the identical captured bytes, re-sent past the tolerance window.
+  assert.equal(
+    verifyWebhookSignature("whsec-unit", body, sig, {
+      timestamp: stamp,
+      nowMs: now + (SIGNATURE_TOLERANCE_SECONDS + 1) * 1000,
+    }),
+    false,
+    "a captured delivery replayed past the window must no longer verify",
   );
 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { getGroupEval, listEvaluatedRoles } from "@/app/_lib/group-eval";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -31,6 +32,9 @@ export async function GET(request: NextRequest) {
     const roles = (sp.get("roles") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     return NextResponse.json({ evaluated: listEvaluatedRoles(roles, ws) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    // Both reads sit on better-sqlite3 and JSON.parse a persisted blob, so the thrown
+    // message carries the absolute db path / SQLite constraint text / parser detail.
+    // One code, resolved by the reader's own catalog (useErrorMessage).
+    return safeJsonError(error, "api:decisions/group-eval", "GROUP_EVAL_READ_FAILED");
   }
 }

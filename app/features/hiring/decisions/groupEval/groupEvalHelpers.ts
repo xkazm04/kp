@@ -13,6 +13,18 @@ export function isTopPick(c: EvalCandidate, topPick: GroupEvalPayload["topPick"]
   return topPick.entryId ? candIdentity(c) === topPick.entryId : c.label === topPick.label;
 }
 
+/** Did this candidate FAIL a knock-out requirement?
+ *
+ *  ONE rule for every view. The enriched header enforces it (KO takes precedence over
+ *  the crown, group-evaluation-fairness #1) while the legacy fallback — still reached by
+ *  any payload without a score breakdown: a job-less role, an old saved eval, the
+ *  simulation's loading payload — never rendered it at all, so a KO-failed candidate read
+ *  there as an ordinary contender.
+ *
+ *  Explicit-false ONLY: an absent flag means the candidate was never assessed against the
+ *  knock-outs, which is not the same fact as failing them (REC-03). */
+export const koFailed = (c: EvalCandidate): boolean => c.koPassed === false;
+
 // Returns the catalog key for the source pill; resolved through t() at the call site.
 export const sourceLabelKey = (s?: string) => (s === "llm" ? "sourceLlm" : s === "partial" ? "sourcePartial" : "sourceDeterministic");
 

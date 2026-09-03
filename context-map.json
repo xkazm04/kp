@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T07:55:46.811Z",
+ "generated_at": "2026-09-03T08:19:48.861Z",
  "provenance": {
-  "git_commit": "aabc9ea2131b4ac5890cbb35ae0e31a95cafcaa2",
-  "git_commit_count": 2244,
+  "git_commit": "f1fcbe25db9cf536ba4513f3d43da77687c9d384",
+  "git_commit_count": 2251,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T07:55:46.811Z"
+  "generated_at": "2026-09-03T08:19:48.861Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2857,
+  "files": 2873,
   "groups": 17,
   "use_cases": 12
  },
@@ -219,7 +219,9 @@
     "app/features/settings/integrations/IntegrationsWebhookFields.tsx",
     "app/features/settings/integrations/IntegrationsWebhookPanel.tsx",
     "app/features/settings/integrations/integrationsCatalog.test.ts",
+    "app/features/settings/integrations/integrationsLogic.test.ts",
     "app/features/settings/integrations/integrationsPersonasLogic.ts",
+    "app/features/settings/integrations/integrationsWebhookGate.ts",
     "app/features/settings/integrations/integrationsWebhookIdentifiers.ts"
    ],
    "group": "AI & LLM Infrastructure",
@@ -4426,7 +4428,12 @@
     "app/features/hiring/decisions/groupEval/groupEvalComparisonLeadCrown.test.ts",
     "app/features/hiring/decisions/groupEval/groupEvalHelpers.ts",
     "app/features/hiring/decisions/groupEval/groupEvalRobustness.test.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalSalaryScale.test.ts",
     "app/features/hiring/decisions/groupEval/groupEvalSalaryScale.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalSession.test.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalSession.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalTabKeys.test.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalTabKeys.ts",
     "app/features/hiring/decisions/groupEval/lead-story.test.ts",
     "app/features/hiring/decisions/groupEval/localize.test.ts",
     "app/features/hiring/decisions/groupEval/localize.ts",
@@ -4887,6 +4894,7 @@
    "description": "Pipeline server logic: stages and status, entry actions and commands, the score cache, screening, fairness, the reinstate seal, and the public event projection.",
    "entry_points": [],
    "file_paths": [
+    "app/_lib/ats-config-version.test.ts",
     "app/_lib/attention-tenancy.test.ts",
     "app/_lib/attention.ts",
     "app/_lib/comms-resend-outcome.test.ts",
@@ -7824,6 +7832,7 @@
     "app/features/shell/setup/setupPipelineRoleIcon.ts",
     "app/features/shell/setup/setupProse.ts",
     "app/features/shell/setup/setupStepGlyphs.ts",
+    "app/features/shell/setup/setupSteps.test.ts",
     "app/features/shell/setup/setupSteps.ts",
     "app/features/shell/setup/useSetupPipelineAxis.ts",
     "app/features/shell/workspaceChords.test.ts",
@@ -7999,9 +8008,16 @@
     "app/features/shell/setup/SetupPipelineStageRow.tsx",
     "app/features/shell/setup/SetupPipelineStep.tsx",
     "app/features/shell/setup/SetupWelcomeStep.tsx",
+    "app/features/shell/setup/SetupWizardStepPane.tsx",
+    "app/features/shell/setup/setupDraft.test.ts",
+    "app/features/shell/setup/setupDraft.ts",
+    "app/features/shell/setup/setupFinishOutcome.test.ts",
+    "app/features/shell/setup/setupFinishOutcome.ts",
+    "app/features/shell/setup/setupGettingStartedModel.test.ts",
     "app/features/shell/setup/setupGettingStartedModel.ts",
     "app/features/shell/setup/setupOnboardingFinish.ts",
-    "app/features/shell/setup/setupPipelineEdit.ts"
+    "app/features/shell/setup/setupPipelineEdit.ts",
+    "app/features/shell/setup/useSetupDraft.ts"
    ],
    "group": "Workspace Shell & Onboarding",
    "group_id": "88b642b4-d4f5-4a19-a58c-ec4e3889dd1d",

@@ -43,7 +43,7 @@ test("gated: every ATS handler refuses a non-operator (password set, no operator
       "POST config",
       () => configPost(jsonPost("http://localhost/api/ats/config", { webhookUrl: "https://hooks.example.com/x", events: ["candidate.hired"] })),
     ],
-    ["POST test", () => testPost()],
+    ["POST test", () => testPost(jsonPost("http://localhost/api/ats/test", {}))],
     ["GET candidate", () => candidateReq("pe-any")],
     ["GET deliveries", () => deliveriesGet()],
     ["POST deliveries", () => deliveriesPost()],
@@ -62,7 +62,7 @@ test("open mode (no operator password): the ATS handlers serve the local operato
 
   // No webhook configured yet → deliver short-circuits (no network). Proves the gate
   // let the caller through (400, not 401).
-  const ping = await testPost();
+  const ping = await testPost(jsonPost("http://localhost/api/ats/test", {}));
   assert.notEqual(ping.status, 401);
 
   const candidate = await candidateReq("pe-nonexistent");

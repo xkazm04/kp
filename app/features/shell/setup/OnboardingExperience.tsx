@@ -1,13 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
-import { INITIAL_SETUP, SETUP_STEPS, stepSatisfied, type OnboardingCtrl, type SetupInvite, type SetupState } from "./setupSteps";
+import {
+  INITIAL_SETUP,
+  SETUP_STEPS,
+  reachedCeiling as ceilingOf,
+  stepSatisfied,
+  type OnboardingCtrl,
+  type SetupInvite,
+  type SetupState,
+} from "./setupSteps";
 import { persistOnboardingSetup } from "./setupOnboardingFinish";
+import { describeSetupFailures, type SetupFinishPart } from "./setupFinishOutcome";
+import { mergeSetupDraft, restoredStepIndex, type SetupDraft } from "./setupDraft";
+import { useSetupDraft } from "./useSetupDraft";
 import { useSetupPipelineAxis } from "./useSetupPipelineAxis";
 import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 
@@ -20,13 +33,16 @@ import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 //               them (POST /api/pipeline/stage-migration) — and stamps the
 //               principal "completed"; Escape / X / Skip stamp "skipped" — either
 //               way the '/' gate never re-fires (KP_FORCE_ONBOARDING=1 excepted).
+//               Answers are mirrored into a per-user sessionStorage draft, so a
+//               reload mid-setup resumes instead of starting over (setupDraft.ts).
 //   "preview" — the Settings → Organization walkthrough. NOTHING persists — no
-//               org writes, no invites, no axis write, no stamp (fixes the
-//               ambiguity-ui finding that "Preview" wrote for real). The axis is
-//               still READ, so the walkthrough shows this workspace's real board.
+//               org writes, no invites, no axis write, no stamp, no draft (fixes
+//               the ambiguity-ui finding that "Preview" wrote for real). The axis
+//               is still READ, so the walkthrough shows this workspace's real board.
 export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "live" | "preview"; onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("setup");
+  const resolveError = useErrorMessage();
   const [stepIndex, setStepIndex] = useState(0);
   // Seed the language draft from the locale the app is ACTUALLY running in
   // (cookie, else Accept-Language, else en) rather than the hardcoded "en" in
@@ -34,47 +50,19 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // wizard with "English" selected under Czech copy, and finishing would quietly
   // switch the workspace back to English.
   const appLocale = useLocale();
-  const [state, setState] = useState<SetupState>(() => ({ ...INITIAL_SETUP, language: appLocale }));
+  const initial = useMemo<SetupState>(() => ({ ...INITIAL_SETUP, language: appLocale }), [appLocale]);
+  const [state, setState] = useState<SetupState>(initial);
   const finishing = useRef(false);
-
-  // Stamp the first-run outcome so the '/' gate stops showing the wizard. Fire-
-  // and-forget: a lost stamp only means the wizard offers itself once more.
-  const stamp = useCallback(
-    (status: "completed" | "skipped") => {
-      if (mode !== "live") return;
-      void fetch("/api/me/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      }).catch(() => {});
-    },
-    [mode]
-  );
-
-  // Skip / Escape / X: in live mode this is an explicit "not now" — record it.
-  const dismiss = useCallback(() => {
-    stamp("skipped");
-    onClose();
-  }, [stamp, onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Highest step legitimately reached (Continue / Skip both route through the
   // movers below, so the high-water mark is exactly "reached through the gates").
   const [maxVisited, setMaxVisited] = useState(0);
 
   const canAdvance = stepSatisfied(SETUP_STEPS[stepIndex].id, state);
-
-  // …and the ceiling that mark buys, which the current step can REVOKE. Having
-  // reached step N proves the steps before it were satisfied AT THE TIME; it does
-  // not prove they still are. An operator who typed the org name, pressed
-  // Continue, came back and cleared the field sat on a disabled Continue button
-  // while the rail — reading the raw high-water mark — still offered Team,
-  // Pipeline and Done: finishing that way writes NO org name (setOrgName is
-  // skipped for an empty one) and the workspace silently keeps the seed default
-  // as its identity on every generated JD, offer and candidate mail. Capping the
-  // ceiling at the current step while its required input is unsatisfied closes
-  // goTo and the rail together — they both read this one number — and retyping
-  // the name restores it. Going BACK is never capped, so nobody is stranded.
-  const reachedCeiling = canAdvance ? maxVisited : Math.min(maxVisited, stepIndex);
+  // …and the ceiling that mark buys, which the current step can REVOKE — see
+  // reachedCeiling in setupSteps.ts for why the raw high-water mark is unsafe.
+  const reachedCeiling = ceilingOf(maxVisited, stepIndex, canAdvance);
 
   // Rail navigation is GATED like the Continue button: freely back to anything
   // already reached, forward only one step and only when the current step's
@@ -113,6 +101,51 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     []
   );
 
+  // A restored axis draft has to WAIT for the server's baseline: `pipeline` is
+  // null until the read lands, and setPipelineDraft is a deliberate no-op before
+  // then (the dirty check has nothing to compare against yet).
+  const pendingAxis = useRef<AxisDraft | null>(null);
+  const restore = useCallback(
+    (draft: SetupDraft) => {
+      setState((s) => mergeSetupDraft(s, draft, initial));
+      const at = restoredStepIndex(draft, SETUP_STEPS.length);
+      setStepIndex((s) => (s === 0 ? at.stepIndex : s));
+      setMaxVisited((m) => Math.max(m, at.maxVisited));
+      pendingAxis.current = draft.axisDraft;
+    },
+    [initial]
+  );
+  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex, maxVisited, restore });
+  useEffect(() => {
+    if (!pendingAxis.current || !state.pipeline) return;
+    const draft = pendingAxis.current;
+    pendingAxis.current = null;
+    setPipelineDraft(draft);
+  }, [state.pipeline, setPipelineDraft]);
+
+  // Stamp the first-run outcome so the '/' gate stops showing the wizard. Fire-
+  // and-forget: a lost stamp only means the wizard offers itself once more.
+  const stamp = useCallback(
+    (status: "completed" | "skipped") => {
+      if (mode !== "live") return;
+      void fetch("/api/me/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }).catch(() => {});
+    },
+    [mode]
+  );
+
+  // Skip / Escape / X: in live mode this is an explicit "not now" — record it, and
+  // drop the draft. A dismissal is an answer, not an interruption: resuming a
+  // setup the operator walked away from would re-open a decision they closed.
+  const dismiss = useCallback(() => {
+    stamp("skipped");
+    clearDraft();
+    onClose();
+  }, [stamp, clearDraft, onClose]);
+
   // The board's real columns, read once on mount (both modes — a walkthrough that
   // showed a made-up board would be teaching the wrong thing).
   useSetupPipelineAxis(update);
@@ -122,9 +155,15 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // without the walkthrough having caused it).
   useSetupCompanionBrain(update);
 
-  // Persist everything the wizard collected, then close. Each step is best-effort
-  // (one failing invite must not sink the rest), so a partial network hiccup still
-  // lands what it can and the user isn't trapped.
+  // Persist everything the wizard collected, then close.
+  //
+  // Each write is best-effort (one refused invite must not sink the org name) but
+  // the CLOSING CLAIM is one truthful fold of all of them: the org settings are
+  // refusable (a recruiter without org:manage gets ORG_SETTINGS_FORBIDDEN and
+  // nothing is written), the invite route refuses per address, and the axis write
+  // can 409. Anything that did not land is named — by part and by the server's
+  // machine code, resolved in the reader's language — instead of collapsing into a
+  // green "Your workspace is set up".
   const finish = useCallback(async () => {
     if (finishing.current) return;
     finishing.current = true;
@@ -134,23 +173,33 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       return;
     }
     try {
-      await persistOnboardingSetup(state, t);
+      const outcome = await persistOnboardingSetup(state);
+      if (outcome.ok) toast.success(t("toast.saved"));
+      else {
+        const lines = describeSetupFailures(
+          outcome.failures,
+          (part: SetupFinishPart) => t(`finish.part.${part}`),
+          (code) => resolveError({ code }, t("finish.reasonUnknown")),
+          (p) => t("finish.line", p),
+          (p) => t("finish.lineWithAddresses", p)
+        );
+        toast.error([t("toast.partialLead"), ...lines].join(" "));
+      }
     } catch {
       toast.error(t("toast.partial"));
     } finally {
+      clearDraft();
       stamp("completed");
       router.refresh();
       onClose();
     }
-  }, [state, mode, stamp, onClose, router, t]);
+  }, [state, mode, stamp, clearDraft, onClose, router, t, resolveError]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") dismiss();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [dismiss]);
+  // WCAG dialog behavior — focus in on open, Tab trapped inside, Escape dismisses,
+  // page scroll locked — from the shared implementation every other modal uses, so
+  // this takeover joins the same stack instead of running its own bare keydown
+  // listener beside an `aria-modal` it never actually enforced.
+  useDialogA11y(dialogRef, dismiss);
 
   const ctrl: OnboardingCtrl = {
     mode,
@@ -174,7 +223,14 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   };
 
   return (
-    <div className="fixed inset-0 z-[var(--z-onboarding)]" role="dialog" aria-modal="true" aria-label={t("aria.dialog")}>
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[var(--z-onboarding)]"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("aria.dialog")}
+    >
       <OnboardingWizard ctrl={ctrl} />
     </div>
   );

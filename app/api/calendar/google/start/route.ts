@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { googleConsentUrl, googleOAuthConfig } from "@/app/_lib/calendar/google-oauth";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // W1.4 — begin the Google Calendar authorization.
 //
@@ -20,9 +22,23 @@ export const OAUTH_STATE_COOKIE = "kp_gcal_state";
 export const OAUTH_STATE_COOKIE_PATH = "/api/calendar/google";
 const STATE_TTL_SECONDS = 600;
 
-export async function GET() {
+// The other door on this tab that reaches the network, and it had no bound either.
+// Every hit mints a 32-byte state, SETS A COOKIE and redirects a browser into Google's
+// consent screen — so an unthrottled loop is both a cookie-churn/DoS surface on kp and
+// unattributed traffic aimed at Google's endpoint from this deployment's address. The
+// operator gate above is a documented no-op in open mode, so this is the real bound.
+// 30/10min per IP: a consent round trip is seconds, and an operator who mis-registers
+// the redirect URI legitimately retries a handful of times.
+const OAUTH_START_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
+
+export async function GET(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AFTER the operator gate, and before the state mint + Set-Cookie, so a refused
+  // caller never spends the budget and a throttled one never gets a stale state cookie.
+  if (!rateLimit(`gcal-oauth-start:${clientIpFrom(request.headers)}`, OAUTH_START_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
 
   const base = publicBaseUrl(null);
   const config = googleOAuthConfig(base);

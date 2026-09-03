@@ -1,3 +1,6 @@
+import type { LucideIcon } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import { CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
 import { initials } from "@/app/_lib/initials";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { styleFor } from "@/app/features/shared/decisionsTypes";
@@ -5,7 +8,12 @@ import { styleFor } from "@/app/features/shared/decisionsTypes";
 // ---- Primitives -----------------------------------------------------------
 
 export const PILL_TONE: Record<string, string> = {
-  neutral: "bg-stone-100 text-steel",
+  // The quiet tag IS the shared recipe (CHIP_QUIET) — this local copy of it had
+  // drifted from the seam that re-skins every other quiet chip in both themes.
+  // CHIP_QUIET switches to inline-block in Spark Dark so its tilt applies to a bare
+  // <span>; a Pill is already inline-flex (it carries icons), so the display is put
+  // back — the tilt applies to a flex box just as well.
+  neutral: `${CHIP_QUIET} dark:inline-flex`,
   moss: "bg-moss/15 text-moss",
   coral: "bg-coral/10 text-coral",
   amber: "bg-amber-100 text-amber-700",
@@ -51,6 +59,20 @@ export function ArchetypeTag({ archetype }: { archetype?: string | null }) {
   );
 }
 
+/** The modal's advisory block — pool drift, capped coverage, a governance-mode
+ *  mismatch, an unavailable evaluation. Hand-rolled FOUR times (two here, two in
+ *  GroupEvalModal) with three different paddings and two icon sizes; one component
+ *  now, so a change to the amber advisory lands everywhere at once. Amber's shades
+ *  are token-mapped in both themes (globals.css `[data-theme="dark"]`). */
+export function Notice({ icon: Icon = AlertTriangle, children }: { icon?: LucideIcon; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900 dark:rounded-2xl">
+      <Icon size={18} className="mt-0.5 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </div>
+  );
+}
+
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">{children}</h3>;
+  return <h3 className={META_LABEL}>{children}</h3>;
 }
