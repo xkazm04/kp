@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import {
   CHART_DIR,
   POLICIES,
+  REVIEWED_TEMPLATES,
   blockOf,
   checkEnvContract,
   documentedEnvKeys,
@@ -75,6 +76,8 @@ const GOOD = {
     '    type: Recreate',
     '  template:',
     '    spec:',
+    '      serviceAccountName: kp',
+    '      automountServiceAccountToken: false',
     '      securityContext:',
     '        {{- toYaml .Values.podSecurityContext | nindent 8 }}',
     '      containers:',
@@ -94,7 +97,45 @@ const GOOD = {
   envExample: 'APP_ORIGIN=\n# KP_DB_PATH=\nKP_SECRET=\n',
 };
 
-const broken = (patch) => runPolicies({ ...GOOD, ...patch });
+// The whole-tree view. The named handles above ARE templates — the gate keeps
+// both because a policy that must read the Deployment cannot be handed "some
+// template" — so the fixture holds them once and derives this. Every name here
+// is one REVIEWED_TEMPLATES knows, in both directions: an extra file is a
+// finding, and so is an entry whose file is gone.
+GOOD.templates = {
+  'deployment.yaml': GOOD.deployment,
+  'service.yaml': GOOD.service,
+  'configmap.yaml': GOOD.configmap,
+  'secret.yaml': GOOD.secret,
+  'serviceaccount.yaml': 'apiVersion: v1\nkind: ServiceAccount\nautomountServiceAccountToken: false\n',
+  'ingress.yaml': '{{- if .Values.ingress.enabled }}\nkind: Ingress\n{{- end }}\n',
+  'pvc.yaml': 'kind: PersistentVolumeClaim\n',
+  '_helpers.tpl': '{{- define "kp.name" -}}kp{{- end -}}\n',
+  'NOTES.txt': 'KP is deploying.\n',
+};
+
+/**
+ * Patch the fixture. Patching a named handle patches the template of the same
+ * name too, since they are the same document — otherwise a case would prove a
+ * policy fires on a file the real loader never sees in that state.
+ */
+function patched(patch) {
+  const chart = { ...GOOD, ...patch };
+  if (!patch.templates) {
+    chart.templates = { ...GOOD.templates };
+    for (const [handle, name] of [
+      ['deployment', 'deployment.yaml'],
+      ['service', 'service.yaml'],
+      ['configmap', 'configmap.yaml'],
+      ['secret', 'secret.yaml'],
+    ]) {
+      chart.templates[name] = chart[handle];
+    }
+  }
+  return chart;
+}
+
+const broken = (patch) => runPolicies(patched(patch));
 
 // --- the readers --------------------------------------------------------------
 
@@ -160,6 +201,55 @@ check('privilege escalation and capabilities', () => {
 check('a privileged container or a host namespace anywhere in the templates', () => {
   assert.ok(has(broken({ deployment: `${GOOD.deployment}\n          privileged: true\n` }), 'privileged-pod'));
   assert.ok(has(broken({ deployment: `${GOOD.deployment}\n      hostNetwork: true\n` }), 'privileged-pod'));
+});
+
+check('THE FILE THE GATE USED NOT TO READ: a template nobody named', () => {
+  // This is the hole the five-file allowlist left. A new templates/worker.yaml
+  // with a root container on the host network passed every policy, because no
+  // policy had ever opened it.
+  const withWorker = {
+    templates: { ...GOOD.templates, 'worker.yaml': 'kind: Deployment\nspec:\n  hostNetwork: true\n  privileged: true\n' },
+  };
+  const f = runPolicies({ ...GOOD, ...withWorker });
+  assert.ok(has(f, 'privileged-pod'), 'the hardening rule now reaches a file added after it was written');
+  assert.ok(has(f, 'unreviewed-template'), 'and the file itself is a finding until somebody says what it is');
+
+  // BOTH DIRECTIONS, the discipline .ai/manifest.yaml already applies to CI
+  // gates: listed passes, and an entry whose file is gone fails as stale.
+  const reviewed = new Map([...REVIEWED_TEMPLATES, ['worker.yaml', 'the fixture worker']]);
+  assert.deepEqual(
+    runPolicies({ ...GOOD, ...withWorker, reviewed }).filter((x) => x.rule === 'unreviewed-template'),
+    [],
+    'a template named in REVIEWED_TEMPLATES is not itself a finding',
+  );
+  const stale = runPolicies({ ...GOOD, reviewed: new Map([...REVIEWED_TEMPLATES, ['gone.yaml', 'deleted last week']]) });
+  assert.ok(has(stale, 'unreviewed-template'), 'an entry whose template is gone is stale');
+  assert.match(stale.find((x) => x.rule === 'unreviewed-template').message, /gone\.yaml/);
+});
+
+check('a pod running as the default ServiceAccount, or with its token projected', () => {
+  // kp calls no Kubernetes API, so the token is a credential with no purpose in
+  // a pod holding candidate PII. Each of the four ways to lose it is a finding.
+  const noName = GOOD.deployment.replace('      serviceAccountName: kp\n', '');
+  assert.ok(has(broken({ deployment: noName }), 'service-account-token-mounted'));
+  const mounted = GOOD.deployment.replace('automountServiceAccountToken: false', 'automountServiceAccountToken: true');
+  assert.ok(has(broken({ deployment: mounted }), 'service-account-token-mounted'));
+  const noSa = { ...GOOD.templates };
+  delete noSa['serviceaccount.yaml'];
+  assert.ok(
+    has(runPolicies({ ...GOOD, templates: noSa, reviewed: new Map([...REVIEWED_TEMPLATES].filter(([n]) => n !== 'serviceaccount.yaml')) }), 'service-account-token-mounted'),
+    'no ServiceAccount template at all',
+  );
+  assert.ok(
+    has(
+      runPolicies({
+        ...GOOD,
+        templates: { ...GOOD.templates, 'serviceaccount.yaml': 'kind: ServiceAccount\n' },
+      }),
+      'service-account-token-mounted',
+    ),
+    'a ServiceAccount that leaves token projection on',
+  );
 });
 
 check('a default install does not put itself on a LoadBalancer', () => {

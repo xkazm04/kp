@@ -37,6 +37,16 @@ env:
   # OPENAI_BASE_URL: "http://ollama.default.svc.cluster.local:11434/v1"  # self-hosted model
 extraEnv: {}                     # any additional non-secret env, merged in
 
+# Pod identity. kp calls NO Kubernetes API — it serves HTTP, writes one SQLite file
+# on the mounted volume and spawns a local Python process — so the correct
+# permission set is empty (the chart ships no Role and no RoleBinding) and the
+# correct token count is zero: both the ServiceAccount and the pod spec disable
+# token projection. Without this the pod runs as the namespace's `default` account
+# with a live API credential mounted beside the candidate data.
+serviceAccount:
+  create: true
+  name: ""                       # "" = the release fullname; set to reuse an account you created
+
 persistence:
   enabled: true
   size: 5Gi

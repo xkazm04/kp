@@ -26,6 +26,11 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      # Pod identity: an account with no Role attached, and no API token mounted.
+      # kp talks to no Kubernetes API; the default account's projected token would
+      # be a live cluster credential sitting next to the candidate data.
+      serviceAccountName: {{ include "kp.serviceAccountName" . }}
+      automountServiceAccountToken: false
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
