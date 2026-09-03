@@ -57,7 +57,8 @@ test("the History header composes the editorial type recipes", () => {
 test("both CV/JD drop zones show a keyboard focus ring on the VISIBLE label", () => {
   // The input inside these labels is `sr-only`, so `focus-ring` on the input
   // paints a ring on a clipped element — invisible. `focus-within` on the label is
-  // the fix FileInput.tsx already uses, and DROP_ZONE_FOCUS is the one copy of it.
+  // the fix, and DROP_ZONE_FOCUS is now the one copy of it (the FileInput primitive
+  // that also carried it was retired unused).
   const surfaces = read("analyzeSurfaces.ts");
   assert.match(surfaces, /focus-within:\[box-shadow:/, "DROP_ZONE_FOCUS lost its visible ring");
   for (const rel of ["AnalyzeFileDropZone.tsx", "AnalyzeProfileInput.tsx"]) {

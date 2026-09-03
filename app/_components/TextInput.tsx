@@ -26,7 +26,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
   ref
 ) {
   const size = sizeVariant === "sm" ? "h-9 px-2.5 text-sm" : "h-10 px-3 text-base";
-  // Coral hover-border matches the Select/FileInput affordance so sibling controls
+  // Coral hover-border matches the Select affordance so sibling controls
   // in one form row respond identically to the cursor.
   const border = invalid ? "border-red-400" : "border-stone-200 hover:border-coral/40";
   return <input ref={ref} aria-invalid={invalid || undefined} className={`${BASE} ${size} ${border} ${className}`} {...rest} />;
