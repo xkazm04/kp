@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { track } from "@/app/_lib/analytics/plausible";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { IDLE_STATE, SLOW_FACTOR, SimStop, sleep, type SimCtx, type SimState } from "./simulationProviderTypes";
+import { performReset, runControlFlags } from "./simRunControl";
 import { useSimulationEngine } from "./useSimulationEngine";
 import { useSimulationWalk } from "./useSimulationWalk";
 
@@ -86,7 +87,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   const { run } = useSimulationWalk({ ctrl, patch, log, nav, beat, gate, engine });
 
   const start = useCallback(() => {
-    ctrl.current = { stop: false, paused: false, wake: null };
+    ctrl.current = { ...runControlFlags("start", ctrl.current).flags, wake: null };
     // Everything cleared to IDLE, then the run-starting overrides. stepMode is
     // preserved — it mirrors stepRef.current, the engine's source of truth.
     // explainOpen deliberately NOT forced on: the drawer competes with the tour's
@@ -97,14 +98,17 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   }, [run, t]);
 
   const pause = useCallback(() => {
-    ctrl.current.paused = true;
+    Object.assign(ctrl.current, runControlFlags("pause", ctrl.current).flags);
     patch({ paused: true, status: t("status.paused") });
   }, [patch, t]);
 
   const resume = useCallback(() => {
-    ctrl.current.paused = false;
+    // Order (pinned in simRunControl.test.ts): clear the flag, THEN wake — the woken
+    // walk re-reads `paused` and would immediately re-park itself otherwise.
+    const { flags, wakes } = runControlFlags("resume", ctrl.current);
+    Object.assign(ctrl.current, flags);
     patch({ paused: false });
-    ctrl.current.wake?.();
+    if (wakes) ctrl.current.wake?.();
   }, [patch]);
 
   const next = useCallback(() => {
@@ -112,22 +116,41 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const stop = useCallback(() => {
-    ctrl.current.stop = true;
-    ctrl.current.wake?.();
+    const { flags, wakes } = runControlFlags("stop", ctrl.current);
+    Object.assign(ctrl.current, flags);
+    if (wakes) ctrl.current.wake?.();
   }, []);
 
   const reset = useCallback(async () => {
-    ctrl.current.stop = true;
-    ctrl.current.wake?.();
-    // Wait for the in-flight run to settle BEFORE deleting. The stop flag is only honored at
-    // await checkpoints, so a mutation already in flight (e.g. /api/sim/inbound, which CREATES
-    // SIM rows) would otherwise complete AFTER this delete and re-orphan the rows it removed.
-    // Awaiting the run promise guarantees that mutation finished, so the delete runs last.
-    await runPromiseRef.current?.catch(() => undefined);
-    runPromiseRef.current = null;
-    await fetch("/api/sim/reset", { method: "POST" }).catch(() => undefined);
+    // stop → settle → purge, ordered and reported by performReset (simRunControl.ts).
+    // The settle is load-bearing: the stop flag is only honored at await checkpoints, so
+    // a mutation already in flight (e.g. /api/sim/inbound, which CREATES SIM rows) would
+    // otherwise complete AFTER the delete and re-orphan the rows it removed.
+    const { cleared } = await performReset({
+      requestStop: () => {
+        const { flags, wakes } = runControlFlags("stop", ctrl.current);
+        Object.assign(ctrl.current, flags);
+        if (wakes) ctrl.current.wake?.();
+      },
+      settleRun: async () => {
+        await runPromiseRef.current?.catch(() => undefined);
+        runPromiseRef.current = null;
+      },
+      // 2xx or nothing: a 500 out of the DELETE transaction leaves every (SIM) row on
+      // the board, and the console used to answer that with a green "Reset".
+      purge: async () => (await fetch("/api/sim/reset", { method: "POST" })).ok,
+    });
     // Everything cleared to IDLE; keep the user's stepMode + explain-drawer state.
-    setState((s) => ({ ...IDLE_STATE, stepMode: s.stepMode, explainOpen: s.explainOpen, status: t("status.reset") }));
+    // A FAILED purge is not a clean slate: say so (and in red — SimControlDockSimFace
+    // styles the status line off `error`) so the presenter retries rather than starting
+    // the next run on top of the last one's residue.
+    setState((s) => ({
+      ...IDLE_STATE,
+      stepMode: s.stepMode,
+      explainOpen: s.explainOpen,
+      status: cleared ? t("status.reset") : t("status.resetFailed"),
+      error: cleared ? null : t("status.resetFailed"),
+    }));
   }, [t]);
 
   const toggleStep = useCallback(() => {

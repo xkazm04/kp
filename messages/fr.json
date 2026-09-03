@@ -1521,7 +1521,26 @@
     "PROFILE_STALE": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture. Rechargez-le et réappliquez vos modifications.",
     "ATS_CONFIG_SAVE_FAILED": "Impossible d'enregistrer les paramètres du webhook. Veuillez réessayer.",
     "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification.",
-    "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer."
+    "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer.",
+    "SIM_RESET_FAILED": "Impossible d'effacer les données de la simulation. Veuillez réessayer.",
+    "SIM_INBOUND_FAILED": "Impossible de simuler la candidature entrante. Veuillez réessayer.",
+    "SIM_SCREEN_DRAFT_FAILED": "Impossible de préparer la recommandation de présélection. Veuillez réessayer.",
+    "SIM_OFFER_DRAFT_FAILED": "Impossible de préparer le brouillon d'offre. Veuillez réessayer.",
+    "SIM_OFFER_LINK_FAILED": "Impossible de lire le lien de l'offre. Veuillez réessayer.",
+    "SIM_JOB_REQUIRED": "La simulation a besoin d'un poste sur lequel s'exécuter.",
+    "SIM_JOB_NOT_FOUND": "Ce poste n'existe plus.",
+    "SIM_NO_APPLICANT": "Aucun candidat disponible pour simuler une candidature.",
+    "SIM_ENTRY_REQUIRED": "La simulation a besoin d'une entrée de pipeline sur laquelle agir.",
+    "SIM_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
+    "MODEL_ADMIN_FORBIDDEN": "Seul un propriétaire peut modifier les clés de modèles et le routage de ce déploiement.",
+    "MODEL_KEY_BODY_INVALID": "Cette demande d’enregistrement de clé n’a pas pu être lue.",
+    "MODEL_KEY_PROVIDER_UNKNOWN": "Ce serveur ne peut pas stocker de clé pour ce fournisseur.",
+    "MODEL_KEY_SECRET_REQUIRED": "Ce fournisseur exige une clé d’API.",
+    "MODEL_KEY_LOCATION_REQUIRED": "Indiquez une clé d’API ou une URL de serveur. Une entrée sans l’une ni l’autre ne dit rien.",
+    "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI a besoin du point de terminaison de votre ressource avant de pouvoir stocker sa clé.",
+    "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Ce serveur n’a pas de secret de chiffrement défini : aucune clé de fournisseur ne peut encore être stockée.",
+    "MODEL_KEY_REJECTED": "Cette clé n’a pas pu être enregistrée. Vérifiez le point de terminaison ou l’URL de serveur indiqués.",
+    "MODEL_ROUTING_STALE": "Quelqu’un a réaffecté ce cas d’usage pendant que vous le modifiiez. Le tableau a été rechargé, refaites votre modification."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7493,7 +7512,8 @@
       "testOkNoLatency": "La clé fonctionne. {model} a répondu.",
       "testFailed": "Échec du test.",
       "testModelLabel": "Modèle à appeler",
-      "testModelPlaceholder": "déploiement ou identifiant de modèle"
+      "testModelPlaceholder": "déploiement ou identifiant de modèle",
+      "storeScope": "Ces clés sont enregistrées une fois pour tout le serveur, pas par équipe : tous les espaces de travail d’ici consomment par leur intermédiaire. « BYOM » et « Plateforme » sont deux emplacements de ce stockage partagé, pas deux propriétaires."
     },
     "useCaseDesc": {
       "match_reasoning": "Rédige l’argumentaire destiné au recruteur expliquant pourquoi un candidat convient au poste, ou non.",
@@ -8636,7 +8656,8 @@
       "stopped": "Arrêté",
       "done": "Terminé. Poste pourvu 🎉",
       "failed": "Échec : {message}",
-      "genericError": "La simulation s’est arrêtée de façon inattendue."
+      "genericError": "La simulation s’est arrêtée de façon inattendue.",
+      "resetFailed": "Échec du nettoyage. Réessayez."
     },
     "phase": {
       "design": "Fiche de poste",
@@ -8868,6 +8889,20 @@
         "accepted": "Offre acceptée",
         "move": "Passage à Recruté",
         "handoff": "Transmission\\nATS · SIRH"
+      }
+    },
+    "draft": {
+      "theRole": "ce poste",
+      "theCandidate": "candidat(e)",
+      "screen": {
+        "rationale": "{role} : forte adéquation. Compétences clés présentes, séniorité alignée.",
+        "strengthStack": "Stack et domaine pertinents",
+        "strengthSeniority": "La séniorité correspond au poste"
+      },
+      "offer": {
+        "subject": "Offre : {role}",
+        "body": "Bonjour {name},\n\nnous sommes ravis de vous proposer le poste {role}.",
+        "rationale": "Salaire positionné au milieu de la fourchette du poste, ajusté selon l'adéquation."
       }
     }
   },

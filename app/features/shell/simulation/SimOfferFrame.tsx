@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useSimulation } from "./SimulationProvider";
 
 // Shows a candidate-facing page (offer or self-schedule) in a framed panel so the
@@ -12,47 +13,33 @@ import { useSimulation } from "./SimulationProvider";
 // Responsive: the frame caps at 520px but shrinks on short viewports so it never
 // clips under the sim bar. A shimmer skeleton stands in until the iframe's load
 // event fires, so a slow candidate page never reads as a blank box. It is a real
-// modal (role="dialog"/aria-modal, focus moved in on open) and is always dismissable
-// — Escape, the visible Close button, or a backdrop click — so a viewer is never
-// trapped behind the dim layer; closing just continues the demo via the API path.
+// modal (role="dialog"/aria-modal) and is always dismissable — Escape, the visible
+// Close button, or a backdrop click — so a viewer is never trapped behind the dim
+// layer; closing just continues the demo via the API path.
+//
+// The dialog contract itself is the SHARED one (useDialogA11y — the same hook and
+// the same stack Modal, CandidateDrawer and the explorer drawer use). This file
+// used to hand-roll two thirds of it: a window-level Escape listener with no
+// stack-gating (so Escape closed this frame AND whatever modal sat above it) and a
+// focus-in/restore effect, with no Tab trap at all — the viewer could tab out of an
+// aria-modal dialog onto the controls behind the dim backdrop.
 export function SimOfferFrame() {
   const { frame, closeFrame } = useSimulation();
+  // Mounted only while a frame is open, and remounted per URL, so the hook's
+  // mount-time focus/stack registration matches the dialog's real lifecycle
+  // (calling it on a component that renders null would push a phantom entry onto
+  // the shared stack and swallow Escape for the surface underneath).
+  if (!frame) return null;
+  return <FrameDialog key={frame.url} url={frame.url} title={frame.title} onClose={closeFrame} />;
+}
+
+function FrameDialog({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
   const t = useTranslations("simulation");
   const [loaded, setLoaded] = useState(false);
-  const url = frame?.url ?? null;
-
-  // A fresh page is loading whenever the framed URL changes — reset the shimmer
-  // DURING render (guarded render-phase adjustment) so the old page's "loaded"
-  // state never paints for a frame against the new URL.
-  const [prevUrl, setPrevUrl] = useState(url);
-  if (url !== prevUrl) {
-    setPrevUrl(url);
-    setLoaded(false);
-  }
-
-  // Escape closes the overlay regardless of run state.
-  useEffect(() => {
-    if (!frame) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeFrame();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [frame, closeFrame]);
-
-  // Modal focus management: move focus to Close when the dialog opens (so keyboard /
-  // screen-reader users land INSIDE the dialog rather than on app controls hidden
-  // behind the dim backdrop) and restore it to the prior element on close.
-  const open = Boolean(frame);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    closeButtonRef.current?.focus();
-    return () => previouslyFocused?.focus?.();
-  }, [open]);
-
-  if (!frame) return null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Modal: trap Tab and lock page scroll behind the dim layer (the defaults), plus
+  // stack-gated Escape and focus restore to whatever the presenter last touched.
+  useDialogA11y(dialogRef, onClose);
 
   return (
     <div
@@ -65,24 +52,25 @@ export function SimOfferFrame() {
       // Backdrop dismiss works whether or not the run is paused — the demo continues
       // via the API path, so a viewer who wants out is never trapped behind the dim
       // layer (previously only the tiny X / Escape dismissed while playing).
-      onClick={closeFrame}
+      onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={frame.title}
-        className="my-auto w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-overlay"
+        aria-label={title}
+        tabIndex={-1}
+        className="my-auto w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-overlay focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-stone-200 bg-paper px-3 py-2 text-sm">
           <span className="rounded-full bg-coral/15 px-2 py-0.5 text-meta font-semibold uppercase tracking-wide text-coral">
-            {frame.title}
+            {title}
           </span>
-          <span className="min-w-0 flex-1 truncate text-steel">{frame.url}</span>
+          <span className="min-w-0 flex-1 truncate text-steel">{url}</span>
           <button
-            ref={closeButtonRef}
             type="button"
-            onClick={closeFrame}
+            onClick={onClose}
             title={t("frame.closeTitle")}
             className="focus-ring -mr-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-meta font-semibold text-steel hover:bg-stone-100 hover:text-ink"
           >
@@ -103,7 +91,7 @@ export function SimOfferFrame() {
           ) : null}
           <iframe
             data-sim-frame
-            src={frame.url}
+            src={url}
             title={t("frame.candidatePage")}
             onLoad={() => setLoaded(true)}
             className={`h-full w-full bg-paper transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}

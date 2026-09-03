@@ -287,6 +287,15 @@ export const STORE_ERRORS = {
    *  env var. */
   ATS_CONFIG_SAVE_FAILED: "Could not save the webhook settings. Please try again.",
   BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
+  /** The guided simulation's five routes (/perfect wave 16, guided-simulation-1). All
+   *  sit on better-sqlite3 — the reset runs a DELETE transaction over four tables — and
+   *  the console that reads them is the PUBLIC demo, so a thrown message would be both
+   *  a leak and English prose in an otherwise localized tour. */
+  SIM_RESET_FAILED: "Could not clear the simulation data. Please try again.",
+  SIM_INBOUND_FAILED: "Could not simulate the incoming application. Please try again.",
+  SIM_SCREEN_DRAFT_FAILED: "Could not prepare the screening recommendation. Please try again.",
+  SIM_OFFER_DRAFT_FAILED: "Could not prepare the offer draft. Please try again.",
+  SIM_OFFER_LINK_FAILED: "Could not read the offer link. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -613,6 +622,50 @@ export const REFUSAL_ERRORS = {
    *  recruiter's twin of the candidate confirm-time re-check: only a DEFINITE busy
    *  refuses, an unknown (no calendar, failed lookup) proceeds. */
   SCHEDULE_CALENDAR_BUSY: "Your connected calendar is busy then. Pick another time.",
+  // ---- The RECRUITER's LIFECYCLE actions on the same route (/perfect 2026-09-03,
+  // schedule-ui-2). The book path above was moved onto codes in wave 7; the twelve
+  // OTHER branches of POST/PATCH /api/schedule — cancel, no-show, reschedule,
+  // accept/decline a proposal, reconcile, the meeting link — were left answering bare
+  // English. The lifecycle panel resolves by code and correctly ignores prose, so every
+  // one of them collapsed into the panel's generic "That action didn't go through."
+  // toast: a recruiter whose candidate proposed times that have since passed and one
+  // who clicked cancel on an already-cancelled row read the identical sentence.
+  /** `action` was missing from the recruiter POST body (400). A stale bundle or a
+   *  hand-rolled call; nothing was read or written. */
+  SCHEDULE_ACTION_REQUIRED: "No scheduling action was named.",
+  /** The named action is not one this route performs (400). */
+  SCHEDULE_ACTION_UNKNOWN: "That scheduling action isn't one this app performs.",
+  /** A grid book arrived without an entry id or a target cell (400). */
+  SCHEDULE_BOOK_TARGET_MISSING: "Pick a candidate and a time before booking.",
+  /** A lifecycle action arrived without an invite token (400). */
+  SCHEDULE_TOKEN_REQUIRED: "That interview link is missing — reload the tab and try again.",
+  /** No invite for this token on THIS team's calendar (404). The recruiter route is
+   *  workspace-authenticated, so a foreign token is indistinguishable from a deleted
+   *  one — deliberately, and the remedy is the same reload either way. */
+  SCHEDULE_INVITE_NOT_FOUND: "That interview is no longer on your calendar. Reload the tab.",
+  /** Cancel arrived for an invite with no confirmed booking (409) — the panel is a
+   *  snapshot and the row moved (a candidate rescheduled, another operator cancelled). */
+  SCHEDULE_CANCEL_NOT_CONFIRMED: "Only a confirmed booking can be cancelled. Reload to see where this one stands.",
+  /** No-show arrived for an invite with no confirmed booking (409). */
+  SCHEDULE_NO_SHOW_NOT_CONFIRMED: "Only a confirmed booking can be marked as a no-show. Reload to see where this one stands.",
+  /** A recruiter reschedule arrived for an invite that holds no booking (409) — there
+   *  is nothing to move; the remedy is a fresh invite, not a retry. */
+  SCHEDULE_RESCHEDULE_NOT_CONFIRMED: "Only a confirmed booking can be moved. Send a new scheduling link instead.",
+  /** The accepted time is no longer among the candidate's proposals (409): they
+   *  replaced them, or another operator already accepted or declined the set. */
+  SCHEDULE_PROPOSAL_GONE: "That proposed time is no longer on the invite. Reload to see the current proposals.",
+  /** The proposal is structurally valid but has aged into the past (409). Not a
+   *  retryable fault: the candidate has to suggest new times. */
+  SCHEDULE_PROPOSAL_EXPIRED: "That proposed time has passed. Ask the candidate to suggest new times.",
+  /** Decline-all arrived on an invite carrying no proposals (409). */
+  SCHEDULE_NO_PROPOSALS: "There are no proposed times to decline.",
+  /** Resolve arrived on an invite with no reconcile flag set (409) — already resolved,
+   *  usually by another operator or by a re-book that cleared it. */
+  SCHEDULE_NOTHING_TO_RECONCILE: "There's nothing left to reconcile on this interview.",
+  /** The submitted meeting link is not http(s), or does not parse (400). The link is
+   *  rendered as a trusted "Join" anchor and baked into calendar events, so anything
+   *  else is refused rather than sanitized. */
+  SCHEDULE_MEETING_URL_INVALID: "Enter a valid http(s) meeting link.",
   // ---- The ORGANIZATION's doors (docs/features/organization/README.md).
   // Five refusals that were bare English `{ error }` with no code, so the console
   // resolved every one of them to its own generic "couldn't do that" line — the
@@ -811,8 +864,55 @@ export const REFUSAL_ERRORS = {
    *  replaced (409). Nothing was written: the config is one shared document, and the
    *  remedy is to reload what is stored and re-apply — the panel offers exactly that. */
   ATS_CONFIG_STALE: "Someone saved newer webhook settings. Reload and make your change again.",
+  // ---- The Models admin doors (/perfect 2026-09-03, model-keys-need-the-org-key).
+  // Provider keys and routing pins were written behind `requireOperator()` alone —
+  // "is there a valid session on this deployment?", which every recruiter and viewer
+  // satisfies — so re-pointing every model call in the product, or replacing the
+  // platform key it runs on, was a capability any seat held. And the keys route
+  // answered its four 400s as bare English, which the panel then had to sniff
+  // (`error.includes("KP_SECRET")`) to tell the one fixable case apart.
+  /** A key or routing write by a signed-in caller who is not an owner (403).
+   *  `org:manage` is defined in auth/roles.ts as exactly the owner-only band. */
+  MODEL_ADMIN_FORBIDDEN: "Only an owner can change the model keys and routing for this deployment.",
+  /** The key request body did not parse (400). */
+  MODEL_KEY_BODY_INVALID: "That key request could not be read.",
+  /** The named provider is not one this server can store a key for (400). The
+   *  accepted list rides beside the code in `providers`. */
+  MODEL_KEY_PROVIDER_UNKNOWN: "That isn't a provider this server can store a key for.",
+  /** A keyed provider was saved with no API key (400). `provider` carries its id. */
+  MODEL_KEY_SECRET_REQUIRED: "This provider needs an API key.",
+  /** A KEYLESS provider (a stock local model server authenticates nothing) was saved
+   *  with neither a key nor a server URL (400), so the row would say nothing at all. */
+  MODEL_KEY_LOCATION_REQUIRED: "Give this provider an API key or a server URL. A row with neither says nothing.",
+  /** Azure OpenAI saved without its resource endpoint (400). */
+  MODEL_KEY_ENDPOINT_REQUIRED: "Azure OpenAI needs the endpoint of your resource before its key can be stored.",
+  /** KP_SECRET is not set on the server (400). Keys are encrypted at rest, so there
+   *  is nothing to encrypt with — and storing one in plaintext is refused, never done
+   *  quietly. The remedy is an operator's, hence its own code: the panel prints the
+   *  env-var fix under it instead of pattern-matching the server's English. */
+  MODEL_KEY_ENCRYPTION_UNCONFIGURED: "This server has no encryption secret set, so a provider key can't be stored yet.",
+  /** saveProviderKey refused the row (400): an endpoint that is not an Azure OpenAI
+   *  resource, a server URL that does not parse, a host that resolves to a private
+   *  address. The detail names the host and goes to the server log; the remedy is the
+   *  same for the whole class. */
+  MODEL_KEY_REJECTED: "That key couldn't be stored. Check the endpoint or server URL you gave.",
+  /** A routing pin composed against a version of the row another operator has since
+   *  replaced (409). Nothing was written: the Models table shows the row's own
+   *  `updatedAt` and its editor is a long-lived draft, so a last-writer-wins upsert
+   *  silently undid the other operator's choice. The current rows ride along in
+   *  `rows` so the table reloads itself rather than leaving a stale draft on screen. */
+  MODEL_ROUTING_STALE: "Someone re-pinned this use case while you were editing it. The table has been reloaded, so make your change again.",
   SCHEDULE_RESCHEDULE_LIMIT:
     "You've changed your interview time a few times already. Reply to your confirmation email and we'll help you find a slot.",
+  /** The guided simulation's argument/lookup refusals (/perfect wave 16,
+   *  guided-simulation-1). The demo is PUBLIC (/?sim=auto from the localized
+   *  landing CTA), so its visible "Failed: …" line must resolve in the reader's
+   *  language rather than paint the route's English prose. */
+  SIM_JOB_REQUIRED: "The simulation needs a role to run against.",
+  SIM_JOB_NOT_FOUND: "That role no longer exists.",
+  SIM_NO_APPLICANT: "No candidate is available to simulate an application from.",
+  SIM_ENTRY_REQUIRED: "The simulation needs a pipeline entry to act on.",
+  SIM_ENTRY_NOT_FOUND: "That candidate is not on this board.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
