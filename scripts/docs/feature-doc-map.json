@@ -480,6 +480,13 @@
       ]
     },
     {
+      "_comment": "The Insights -> About explainer deck. Its whole value is being TRUE: every number it prints is a constant in pipeline/jobfit or app/_lib, and chapters.test.ts pins the couplings a machine can check. A change to a scene, a chapter frame or the stage primitives has to reach the doc that records WHICH constant each chapter quotes — otherwise the deck goes on teaching a rule the engine no longer implements, which is the one failure this tab cannot survive.",
+      "doc": "docs/features/about/README.md",
+      "sourceGlobs": [
+        "app/features/insights/about/**"
+      ]
+    },
+    {
       "doc": "docs/architecture/api-contracts.md",
       "sourceGlobs": [
         "app/_lib/api-response.ts",
