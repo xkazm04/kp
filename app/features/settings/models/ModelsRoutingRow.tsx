@@ -58,9 +58,28 @@ export function ModelsRoutingRow({
     if (!provider || busy) return;
     setBusy("save");
     setNote(null);
-    const result = await saveRoutingPin(useCase, provider, model, row?.params, t("saveFailed"), errMsg);
+    // The version this draft was composed against travels with the write. The store
+    // re-asserts it, so a save that another operator (or another tab) has since
+    // superseded is DROPPED with a 409 instead of quietly overwriting their pin —
+    // which is exactly what the row's own "Updated <date>" line could never warn about
+    // while that date only ever travelled one way.
+    const result = await saveRoutingPin(
+      useCase,
+      provider,
+      model,
+      row?.params,
+      row?.updatedAt ?? null,
+      t("saveFailed"),
+      errMsg
+    );
     if (result.ok) onRows(result.rows);
-    else setNote({ text: result.message, ok: false });
+    else {
+      // A stale refusal answers WITH the current table: apply it, so the reload
+      // affordance is the refusal itself rather than a second click. The parent
+      // re-keys this component on new rows, so the draft resets to what is pinned.
+      if (result.rows) onRows(result.rows);
+      setNote({ text: result.message, ok: false });
+    }
     setBusy(null);
   };
 

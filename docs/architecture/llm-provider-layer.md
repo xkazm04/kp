@@ -425,6 +425,61 @@ Save, then test. The key row's Test is a different case and stays enabled: its
 `model` box is an argument of the probe, not stored state, and the key it proves
 is the stored one.
 
+### Who may change the models, and how often (2026-09-03)
+
+Reading the Models tab is operator-gated. **Writing** it is `org:manage` — the
+owner-only band `app/_lib/auth/roles.ts` defines as "billing, org
+profile/settings, delete org" — because a provider key is this deployment's
+spending credential and a routing pin decides where every model call in the
+product goes. `requireOperator()` only answers "is there a valid, non-demo
+session on this deployment?", which every recruiter and viewer also answers yes
+to, so all four write doors now call `requireOrgCapability("org:manage")` after
+it and refuse an under-privileged caller with `MODEL_ADMIN_FORBIDDEN` (403);
+no session at all still answers 401. Open dev mode (no `KP_OPERATOR_PASSWORD`)
+and an operator-password session both fold to owner inside
+`callerOrgCapabilities`, so a self-hosted single-operator install is unchanged.
+Pinned by `app/api/llm/keys/llm-admin-auth.test.ts`.
+
+Both **Test** buttons spend money — each click spawns a Python child that makes a
+real completion — so each carries a per-IP budget after its gate, in the idiom
+`app/api/rate-limit-contract.test.ts` states for every spend door:
+
+| Door | Key | Budget |
+| --- | --- | --- |
+| `POST /api/llm/test` (routing canary) | `llm-canary:<ip>` | 30 / 10 min |
+| `POST /api/llm/keys/test` (key probe) | `llm-key-probe:<ip>` | 20 / 10 min |
+
+Both sit *after* every refusal that spawns nothing, so a malformed or
+unanswerable call consumes no budget, and both answer the shared
+`TOO_MANY_REQUESTS` refusal so the panel says "you're going too fast" in the
+reader's language.
+
+### The key store is DEPLOYMENT-wide, and the routing table has a version
+
+`provider_keys` is keyed `(provider, scope)` with no org or workspace column
+(`app/_lib/db/core.ts`), so a key saved here is the key **every** workspace on
+this install spends through. The BYOM/Platform selector picks which of two
+deployment-wide slots the key fills — it is not a per-tenant choice — and the
+panel now says so out loud (`models.keys.storeScope`). Per-tenant keys remain an
+open product decision, listed under Known gaps.
+
+`llm_config` writes take an `expectedUpdatedAt`: the version the editing tab read.
+`upsertLlmConfig` re-asserts it inside an IMMEDIATE transaction and returns false
+on a mismatch, which the route answers as `MODEL_ROUTING_STALE` (409) **carrying
+the current rows**, so the table reloads itself instead of leaving a dead draft on
+screen. The stamp is nudged forward on a same-millisecond collision so the token
+strictly increases. Omitting the field keeps the old unconditional write for the
+headless/curl path. Pinned by `app/api/llm/config/llm-config-race.test.ts`.
+
+The keys route's refusals are codes, not prose: `MODEL_KEY_BODY_INVALID`,
+`MODEL_KEY_PROVIDER_UNKNOWN`, `MODEL_KEY_SECRET_REQUIRED`,
+`MODEL_KEY_LOCATION_REQUIRED`, `MODEL_KEY_ENDPOINT_REQUIRED`,
+`MODEL_KEY_ENCRYPTION_UNCONFIGURED` and `MODEL_KEY_REJECTED`, each carrying the
+provider (or the accepted provider list) as data. The panel used to detect the
+missing-`KP_SECRET` case by substring-matching the server's English sentence; it
+now reads the code, so the env-var fix appears for a reader in any of the four
+locales.
+
 ## Invariants
 
 1. **Deterministic fallbacks stay** — adapter failure never surfaces as a broken
@@ -449,6 +504,9 @@ is the stored one.
   `app/_lib/voice/minute-prices.ts`; its OpenAI key does not use
   `resolveProviderKey`.
 - Per-tenant `llm_usage` attribution not built (global ledger today).
+- Per-tenant provider KEYS are not built either, deliberately (owner decision):
+  `provider_keys` and `llm_config` are one deployment-wide store. The Models panel
+  states the scope rather than implying a boundary that does not exist.
 - The TS-side github-analysis call honors the BYOM **key** layering and (since
   2026-08-05) a Models-tab **model** re-pin on its gemini row
   (`configuredModelFor`), but it speaks the Gemini SDK only — a provider *swap*

@@ -400,6 +400,40 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runProfileDraft(",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-03 (model-keys-need-the-org-key), WITH the limiters.
+  // The Models tab has TWO Test buttons and neither door was throttled: each click
+  // spawns a Python child that makes a REAL, billable completion through the pinned
+  // provider or the stored key. Both are operator-gated, and open mode makes that
+  // gate a documented no-op for the ENTIRE API - the same rationale that already
+  // put budgets on /api/profile/draft and the two interview mint doors.
+  {
+    rel: "./llm/test/route.ts",
+    key: "`llm-canary:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "CANARY_RATE_LIMIT",
+    optsDef: "const CANARY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "spawnPython(",
+    // The unknown-useCase 400 keeps its place ahead of the budget: a malformed call
+    // spends nothing and must not be counted as traffic.
+    servedBefore: "isLlmUseCase(body.useCase)",
+  },
+  {
+    rel: "./llm/keys/test/route.ts",
+    // TIGHTER than the routing canary on purpose: this panel holds one row per stored
+    // credential (a handful), not one per use case.
+    key: "`llm-key-probe:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "KEY_PROBE_RATE_LIMIT",
+    optsDef: "const KEY_PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "spawnPython(",
+    // The LAST refusal ahead of the budget - unknown provider, model-required and
+    // "no stored key for that provider and scope" all answer before it, so a call
+    // that spawns nothing consumes nothing.
+    servedBefore: "buildProviderKeyProbeEnv(provider, scope)",
+  },
   {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.

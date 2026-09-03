@@ -178,7 +178,9 @@ export function QualityOverview() {
         </div>
       </div>
 
-      <p className="text-xs leading-relaxed text-steel">
+      {/* The method footnote sits on the type scale (text-meta), not on a raw
+          text-xs that undercuts the 14px floor the design system sets. */}
+      <p className="text-meta leading-relaxed text-steel">
         {t("method", {
           date,
           judge: QUALITY_SCORES.judge,

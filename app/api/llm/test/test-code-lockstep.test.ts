@@ -41,6 +41,23 @@ function unionMembers(file: string, typeName: string): string[] {
   return [...source.slice(start + decl.length, end).matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
 }
 
+/** The string-literal members of `export const <NAME> = [ "a", "b", … ] as const;`.
+ *  The client side moved from a hand-written union to a literal array + derived
+ *  union + runtime guard (the shape tabs.ts and i18n/locales.ts use), so that its
+ *  vocabulary exists at RUNTIME and `isModelsTestCode` can refuse an unknown code
+ *  instead of casting it into a catalog lookup. The union is still there, derived
+ *  from the array — but there is no longer a list of literals inside the `type`
+ *  line to read, so this lockstep reads the array that feeds it. */
+function constArrayMembers(file: string, constName: string): string[] {
+  const source = readFileSync(file, "utf-8");
+  const decl = `export const ${constName} = [`;
+  const start = source.indexOf(decl);
+  assert.notEqual(start, -1, `${decl} not found in ${path.basename(file)} — did the declaration change shape?`);
+  const end = source.indexOf("] as const;", start);
+  assert.ok(end > start, `${constName} is not a \`[…] as const\` array any more`);
+  return [...source.slice(start + decl.length, end).matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+}
+
 /** Every `code: "<literal>"` the keys-test route writes into a response. */
 function mintedCodes(file: string): string[] {
   const source = readFileSync(file, "utf-8");
@@ -49,17 +66,17 @@ function mintedCodes(file: string): string[] {
 
 test("the declarations still have the shape this test reads", () => {
   const server = unionMembers(VERDICT, "TestErrorCode");
-  const client = unionMembers(CLIENT, "ModelsTestCode");
+  const client = constArrayMembers(CLIENT, "MODELS_TEST_CODES");
   const keys = mintedCodes(KEYS_ROUTE);
   assert.ok(server.length >= 8, `parsed only ${server.length} members from TestErrorCode`);
-  assert.ok(client.length >= 10, `parsed only ${client.length} members from ModelsTestCode`);
+  assert.ok(client.length >= 10, `parsed only ${client.length} members from MODELS_TEST_CODES`);
   assert.ok(keys.length >= 3, `parsed only ${keys.length} minted codes from the keys-test route`);
   assert.ok(server.includes("provider_error"), "the catch-all must stay a declared member");
 });
 
 test("ModelsTestCode is exactly TestErrorCode plus the keys-route codes", () => {
   const expected = [...new Set([...unionMembers(VERDICT, "TestErrorCode"), ...mintedCodes(KEYS_ROUTE)])].sort();
-  const actual = [...unionMembers(CLIENT, "ModelsTestCode")].sort();
+  const actual = [...constArrayMembers(CLIENT, "MODELS_TEST_CODES")].sort();
   assert.deepEqual(
     actual,
     expected,

@@ -6,7 +6,7 @@
 // Runner: node --test with type stripping (no DOM, no JSX). `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildKeyRequestBody, findExistingKey, keyFormMetaFor } from "./modelsKeysPanelLogic.ts";
+import { buildKeyRequestBody, canSubmitKeyForm, findExistingKey, keyFormMetaFor } from "./modelsKeysPanelLogic.ts";
 
 // A ProviderKeyMeta-shaped fixture (only the fields the helper reads matter here).
 const keys = [
@@ -106,4 +106,34 @@ test("keyFormMetaFor offers Azure's endpoint/apiVersion back, and only to Azure"
 test("#2 Azure with empty endpoint/apiVersion omits them rather than sending blanks", () => {
   const body = buildKeyRequestBody({ provider: "azure_openai", scope: "byom", apiKey: "k", endpoint: "  ", apiVersion: "" });
   assert.deepEqual(body, { provider: "azure_openai", scope: "byom", apiKey: "k" });
+});
+
+// ---- canSubmitKeyForm: the button and the route must agree what a valid row is ----
+// This guard had no test, and it is the ONE place the client re-states a server rule.
+// If it drifts loose the operator meets a 400 they were invited to trigger; if it
+// drifts tight the local-model path (a stock Ollama server authenticates nothing, so
+// a base URL alone IS the row) becomes unreachable from the UI with no error to
+// explain why.
+
+const KEYLESS = ["ollama"] as const;
+
+test("no provider selected is never submittable", () => {
+  assert.equal(canSubmitKeyForm({ provider: "", apiKey: "sk-live", keylessProviders: KEYLESS }), false);
+});
+
+test("a keyed provider needs a key — a base URL alone does not stand in for one", () => {
+  assert.equal(canSubmitKeyForm({ provider: "openai", apiKey: "sk-live", keylessProviders: KEYLESS }), true);
+  assert.equal(canSubmitKeyForm({ provider: "openai", apiKey: "", keylessProviders: KEYLESS }), false);
+  assert.equal(
+    canSubmitKeyForm({ provider: "openai", apiKey: "   ", baseUrl: "https://gw.corp.example/v1", keylessProviders: KEYLESS }),
+    false,
+    "whitespace is not a key, and openai is not keyless"
+  );
+});
+
+test("a KEYLESS provider is satisfied by a base URL alone", () => {
+  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "", baseUrl: "http://localhost:11434/v1", keylessProviders: KEYLESS }), true);
+  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "", keylessProviders: KEYLESS }), false, "neither field = a row that says nothing");
+  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "", baseUrl: "  ", keylessProviders: KEYLESS }), false);
+  assert.equal(canSubmitKeyForm({ provider: "ollama", apiKey: "sk-anything", keylessProviders: KEYLESS }), true, "a key still works");
 });
