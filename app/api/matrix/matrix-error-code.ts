@@ -27,6 +27,12 @@ export type MatrixSurface = { invalid: RefusalErrorCode; failed: StoreErrorCode 
 
 export const MATRIX_GRID_SURFACE: MatrixSurface = { invalid: "MATRIX_INPUT_INVALID", failed: "MATRIX_BUILD_FAILED" };
 export const MATRIX_REASONING_SURFACE: MatrixSurface = { invalid: "MATCH_REASONING_UNAVAILABLE", failed: "MATCH_REASONING_FAILED" };
+/** The candidate-focus ranking (POST /api/match) — the third route in this family and
+ *  the one that was still forwarding `parseStderrError`'s raw stderr, i.e. match_cli's
+ *  traceback and the temp workdir path, straight to the browser. Its own pair, not the
+ *  grid's: "this candidate could not be ranked" and "the fit matrix could not be built"
+ *  are different sentences on different screens. */
+export const MATCH_RUN_SURFACE: MatrixSurface = { invalid: "MATCH_INPUT_INVALID", failed: "MATCH_RUN_FAILED" };
 
 /** Runner codes that name a refusal the registry already carries, mapped onto it.
  *  `parseStderrError` derives `invalid_input` / `not_found` / `engine_error` from the

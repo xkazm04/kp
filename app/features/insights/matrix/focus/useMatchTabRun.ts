@@ -140,7 +140,9 @@ export function useMatchTabRun(t: Translator) {
       // An unknown deep-linked id resolves to 404 (Profile/Analysis not found) —
       // surface an honest, localized message rather than leaking the raw server
       // string or letting a doomed auto-run fail silently.
-      if (r.status === 404) throw new Error(t("candidateNotFound"));
+      // Prefer the route's code (MATCH_INPUT_INVALID since /perfect 2026-09-03) and
+      // keep the more specific "we could not find that candidate" as the fallback.
+      if (r.status === 404) throw new Error(errMsg(payload, t("candidateNotFound")));
       if (!r.ok) throw new Error(errMsg(payload, t("matchFailedStatus", { status: r.status })));
       if (!current()) return; // a newer run owns the screen
       setResult(payload as MatchResponse);

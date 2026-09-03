@@ -271,6 +271,28 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "60_000",
   },
   {
+    // ADDED /perfect 2026-09-03 (match-route-answers-like-its-siblings). The
+    // candidate-focus ranking. No model spend, but every accepted call spawns
+    // match_cli AND first writes the ENTIRE live job corpus to a temp file — a
+    // process and an unbounded disk write per request, which is exactly the
+    // ./extract-text rationale one directory over. Its own reasoning sibling below
+    // was limited for the same reason a week earlier; this door was simply missed.
+    // 60/10min per IP: the focus panel fires ONE request per run, so a recruiter
+    // re-ranking all afternoon never meets it and a scripted loop meets it at once.
+    rel: "./match/route.ts",
+    key: "`match:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "MATCH_RATE_LIMIT",
+    optsDef: "const MATCH_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The FIRST thing that touches the disk. The limiter must precede createWorkdir,
+    // not merely spawnPython: a throttled call must leave no temp dir behind either.
+    expensive: "await createWorkdir()",
+    // The body parse keeps its place ahead of the budget — it costs nothing, and a
+    // malformed request must be refused honestly rather than counted as traffic.
+    servedBefore: "await request.json()",
+  },
+  {
     // ADDED scan-sweep 2026-08-24. The SYNCHRONOUS twin of ./tasks/route.ts kind
     // "reasoning" — same runReasoning, same LLM spend, but reachable directly and
     // unlimited until now. 60/10min is below the batch path's 120 because a matrix
@@ -959,6 +981,55 @@ const ROUTES: RouteSpec[] = [
     // 422 - keeps its semantics ahead of the throttle, so a click that was never going
     // to send costs no budget.
     servedBefore: "getOutboxEntry(id, ws)",
+  },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-03 (analytics-writes-check-authority), with the limiters
+  // themselves. Three expensive analytics READS carried none. They spend CPU and the
+  // shared SQLite connection rather than provider credit, which is exactly why they
+  // were overlooked - and one of them hangs off a download link, which a browser, a
+  // prefetcher or a shared bookmark can pull with no click at all.
+  {
+    // GET, and a DOWNLOAD (?format=md): one hit assembles the whole analytics
+    // aggregate, walks the entire open-role corpus, reads every membership on the team
+    // and summarises the NPS corpus. 30/10min per IP - the pack is a page you read,
+    // then send.
+    rel: "./analytics/metric-pack/route.ts",
+    key: "`metric-pack:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "METRIC_PACK_RATE_LIMIT",
+    optsDef: "const METRIC_PACK_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "pipelineAnalytics(windowDays, undefined, ws)",
+  },
+  {
+    // The decision log. Its `?q=` path abandons SQL paging and refines IN THE HANDLER -
+    // up to MAX_SUBJECT_SCAN rows, diacritic-folded and Intl-collated per request.
+    // 120/10min per IP: the log pages 20 at a time on scroll, so a recruiter working a
+    // long trail legitimately chains pages.
+    rel: "./analytics/decisions/route.ts",
+    key: "`decision-log:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "DECISION_LOG_RATE_LIMIT",
+    optsDef: "const DECISION_LOG_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "countPipelineEvents(filter.kinds, ws)",
+    // A contradictory kind x attribution pair selects nothing and keeps serving freely
+    // ahead of the throttle, so a request that reads no trail costs no budget.
+    servedBefore: "filter.matchesNothing",
+  },
+  {
+    // The threshold strip. Deliberately NOT role-gated (its written justification
+    // stands: policy-level seals only, no candidate PII) - which is precisely why it
+    // needs a budget: two 200-record chain reads plus a full calibration scan and an
+    // effect computation, per hit, from any valid session. 60/10min per IP; the panel
+    // fetches once per family switch.
+    rel: "./analytics/calibration/threshold-history/route.ts",
+    key: "`threshold-history:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "HISTORY_RATE_LIMIT",
+    optsDef: "const HISTORY_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "listDecisionRecords({ candidateRef: policyRef, workspaceId: ws })",
   },
 ];
 

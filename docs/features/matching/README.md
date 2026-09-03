@@ -515,8 +515,8 @@ may already have paid for its spawn and its answer is still worth caching
 server-side — it just must not reach the screen. Pinned by
 `matrixReasoningFetch.test.ts` and `focus/matchRunSequence.test.ts`.
 
-### Both matrix routes answer with a code, and the grid offers a way back
-`GET /api/matrix` and `POST /api/match/reasoning` both spawn Python behind
+### All three matrix-family routes answer with a code, and the grid offers a way back
+`GET /api/matrix`, `POST /api/match/reasoning` and `POST /api/match` all spawn Python behind
 `parseStderrError`, which already produces a machine `code` beside the message
 and status — and both threw it away, answering a bare `{ error: err.message }`.
 Two things followed on screen: `useErrorMessage` had no code to resolve, so every
@@ -530,10 +530,27 @@ because a route handler needs a request scope the unit runner cannot give it)
 decides: a 429 is `TOO_MANY_REQUESTS`; a runner code that names a registered
 refusal is forwarded as that refusal; any other 4xx becomes the surface's own
 refusal (`MATRIX_INPUT_INVALID` / `MATCH_REASONING_UNAVAILABLE`); a 5xx is a
-store error (`MATRIX_BUILD_FAILED` / `MATCH_REASONING_FAILED`) whose real
-message — a traceback, the temp workdir path, provider stderr — is logged and
-withheld. Both routes' rows are gone from `error-response-contract.test.ts`'s
-ceiling rather than lowered.
+store error (`MATRIX_BUILD_FAILED` / `MATCH_REASONING_FAILED` / `MATCH_RUN_FAILED`)
+whose real message — a traceback, the temp workdir path, provider stderr — is
+logged and withheld. All three routes' rows are gone from
+`error-response-contract.test.ts`'s ceiling rather than lowered.
+
+`POST /api/match` — the candidate-focus ranking behind the Match panel — joined
+last, and it had the worst of the three leaks: it forwarded `parseStderrError`'s
+raw stderr, so `match_cli`'s Python traceback and the absolute temp workdir path
+reached the browser verbatim. It now maps through the same
+`matrixEngineAnswer` against `MATCH_RUN_SURFACE`, so a failed run resolves
+`MATCH_INPUT_INVALID` (the profile/analysis the body named is gone),
+`TOO_MANY_REQUESTS`, or `MATCH_RUN_FAILED` in the reader's language.
+
+**It is also rate-limited now**: 60/10min per IP on `match:<ip>`, placed after
+the body parse (a malformed request must still be refused honestly) and before
+`createWorkdir` — the route spawns `match_cli` AND writes the whole live job
+corpus to a temp file per request, so a throttled call must leave neither a child
+process nor a temp directory behind. Pinned in `rate-limit-contract.test.ts`. Its
+two pure input guards moved to `app/api/match/match-request.ts`
+(`resolveMatchLimit`, the 1..200 clamp; `sanitizeMatchWeights`, the finite-number
+type gate) so the boundary is tested rather than only described.
 
 The grid's own fetch was also a dead end: no `AbortController`, so leaving the
 tab left a `setData` waiting for an unmounted tree, and the error state was a
