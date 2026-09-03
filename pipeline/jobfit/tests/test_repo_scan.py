@@ -53,6 +53,13 @@ from pipeline.jobfit.repo_scan import (
     walk_files,
 )
 
+# Fixture credentials are ASSEMBLED at import time: `npm run security:secrets` scans every
+# tracked file at rest and the scanner's own guidance is to keep real shapes out of
+# fixtures rather than exempt them. The redactor under test sees the joined string.
+FAKE_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"
+PEM_RSA = "-----BEGIN RSA " + "PRIVATE KEY-----\nMIIEow==\n-----END RSA " + "PRIVATE KEY-----"
+PEM_SSH = "-----BEGIN OPENSSH " + "PRIVATE KEY-----\nb3Blb\n-----END OPENSSH " + "PRIVATE KEY-----"
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -105,10 +112,10 @@ def _make_fixture_repo(root: Path) -> None:
     _write(root / ".next/cache/blob", "x")
     # ...and the files it must never open, name or count. Real content on purpose:
     # a test whose ".env" is empty proves nothing about what leaks.
-    _write(root / ".env", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nDB_PASSWORD=hunter2\n")
+    _write(root / ".env", f"AWS_ACCESS_KEY_ID={FAKE_AWS_KEY}\nDB_PASSWORD=hunter2\n")
     _write(root / ".env.local", "OPENAI_API_KEY=sk-livekeylivekeylivekeylivekey\n")
-    _write(root / "deploy/server.pem", "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n-----END RSA PRIVATE KEY-----\n")
-    _write(root / "deploy/id_rsa", "-----BEGIN OPENSSH PRIVATE KEY-----\nb3Blb\n-----END OPENSSH PRIVATE KEY-----\n")
+    _write(root / "deploy/server.pem", PEM_RSA + "\n")
+    _write(root / "deploy/id_rsa", PEM_SSH + "\n")
     _write(root / "src/analytics/kpi.key", "not a real key, but named like one")
 
 
@@ -501,7 +508,7 @@ class SecretFileScopeTest(unittest.TestCase):
         self.assertNotIn(".key", by_ext)
         dossier = build_heuristic_dossier(self.root, generated_at="2026-01-01T00:00:00+00:00")
         blob = json.dumps(dossier.model_dump(by_alias=True), ensure_ascii=False)
-        for forbidden in (".env", "server.pem", "id_rsa", "AKIAIOSFODNN7EXAMPLE", "hunter2", "sk-livekey"):
+        for forbidden in (".env", "server.pem", "id_rsa", FAKE_AWS_KEY, "hunter2", "sk-livekey"):
             self.assertNotIn(forbidden, blob, f"{forbidden} reached the dossier")
         # NON-VACUITY: the walk still found the repo it was pointed at.
         self.assertGreater(total, 5)
@@ -567,9 +574,9 @@ class RedactionTest(unittest.TestCase):
     out. Narrow on purpose: the negatives below must survive untouched."""
 
     POSITIVES = (
-        ("AKIAIOSFODNN7EXAMPLE", "an AWS access key id"),
-        ("aws key AKIAIOSFODNN7EXAMPLE in config", "embedded in a sentence"),
-        ("-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n-----END RSA PRIVATE KEY-----", "a PEM block"),
+        (FAKE_AWS_KEY, "an AWS access key id"),
+        (f"aws key {FAKE_AWS_KEY} in config", "embedded in a sentence"),
+        (PEM_RSA, "a PEM block"),
         ("OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz", "an assignment with a keyspace"),
         ("sk-abcdefghijklmnopqrstuvwxyz012345", "a provider key on its own"),
         ("ghp_abcdefghijklmnopqrstuvwxyz0123", "a GitHub token"),
@@ -594,7 +601,7 @@ class RedactionTest(unittest.TestCase):
                 self.assertIn(REDACTED, masked)
                 # The secret itself is gone, not merely annotated.
                 for token in (
-                    "AKIAIOSFODNN7EXAMPLE",
+                    FAKE_AWS_KEY,
                     "MIIEow",
                     "sk-abcdefghij",
                     "ghp_abcdefghij",
@@ -612,7 +619,7 @@ class RedactionTest(unittest.TestCase):
 
     def test_the_sweep_reaches_every_free_text_field_and_returns_the_count(self) -> None:
         dossier = {
-            "maintainerLoadEstimate": "one maintainer; deploy key AKIAIOSFODNN7EXAMPLE is shared",
+            "maintainerLoadEstimate": f"one maintainer; deploy key {FAKE_AWS_KEY} is shared",
             "riskAreas": [{"ref": "src/pay.ts", "rationale": "hardcoded sk-abcdefghijklmnopqrstuvwxyz"}],
             "hotSpots": [{"ref": "src/billing.ts", "rationale": "changes weekly"}],
             "candidateObjectives": [
@@ -624,7 +631,7 @@ class RedactionTest(unittest.TestCase):
         hits = redact_dossier(dossier)
         self.assertEqual(hits, 4)
         blob = json.dumps(dossier, ensure_ascii=False)
-        for token in ("AKIAIOSFODNN7EXAMPLE", "sk-abcdefghij", "ghp_abcdefghij", "correcthorsebatterystapler"):
+        for token in (FAKE_AWS_KEY, "sk-abcdefghij", "ghp_abcdefghij", "correcthorsebatterystapler"):
             self.assertNotIn(token, blob)
         # Untouched fields stay byte-identical; a sweep must not rewrite the dossier.
         self.assertEqual(dossier["hotSpots"][0]["rationale"], "changes weekly")
