@@ -256,6 +256,11 @@ ping (`POST /api/ats/test`).
   which follows the OS: a Czech operator on an en-US machine read `3/4/2026` inside a Czech
   sentence with no way to tell 3 April from 4 March. They resolve through `useFormatter()`
   now, the same idiom as `ProfileRosterRow` and the billing panels.
+- **The `Send test` gate is a pinned rule, not an expression.** `webhookTestable(savedUrl,
+  url)` (`integrationsWebhookGate.ts`) lives outside the component and is asserted by
+  `integrationsLogic.test.ts`, because a rule of that shape loosens quietly during an
+  unrelated edit — and the loosened version reports the *previous* endpoint's 200 under
+  the address on screen.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for
@@ -272,8 +277,79 @@ ping (`POST /api/ats/test`).
   other PII read boundary; `anonymizeExpiredConsents` is a deferred sweep with no
   production caller, so this read-time gate is the enforcement, not an optimization.
 
+### Receiver contract
+
+What a receiver must implement to accept a delivery from kp, and what it may rely on.
+
+| Header | Value |
+| --- | --- |
+| `X-Kp-Event` | the event id (`candidate.hired`, …, or `ping` for the test delivery) |
+| `X-Kp-Timestamp` | the ISO-8601 instant the delivery was signed — the SAME value the envelope carries in `sentAt` |
+| `X-Kp-Signature` | `sha256=<hex>`, present only when a signing secret is configured |
+
+**Verification, in order** (`verifyWebhookSignature` in `app/_lib/ats-webhook.ts` is the
+reference implementation — port it, or read it as the spec):
+
+1. Reject the delivery unless `X-Kp-Timestamp` parses and sits within **300 seconds**
+   (`SIGNATURE_TOLERANCE_SECONDS`) of your clock, in **either** direction. Symmetric on
+   purpose: a receiver whose clock runs ahead must not reject a correct sender, and "the
+   future" is not a safer direction than "the past". The window covers honest skew plus
+   flight time and stays far under the retry ladder's reach (6 attempts, exponential from
+   one minute), so a legitimate retry re-signs rather than arriving stale.
+2. Compute `HMAC-SHA256(secret, "<X-Kp-Timestamp>.<raw body>")` over the **raw request
+   body bytes**, never a re-serialization, and compare it to `X-Kp-Signature` in constant
+   time.
+
+**Why the timestamp is in the signed input and not merely beside it.** The signature used
+to cover the body alone, which made it valid forever: one captured delivery — a proxy log,
+a misconfigured receiver, a retry history — could be replayed verbatim at any later moment
+and it verified. Binding the instant into the HMAC is what makes the window enforceable;
+an attacker who advances the header to beat the window invalidates the signature.
+
+**Migration.** `signWebhookBody(secret, body)` without a timestamp is still the original
+body-only scheme, and `verifyWebhookSignature` without a `timestamp` option still checks
+it — a receiver written against the old contract keeps working. A verifier that *asks* for
+the timestamped scheme and finds no usable header is REFUSED rather than silently
+downgraded to the replayable one: that downgrade is the attack.
+
+> **Consumers of `signWebhookBody`, and where each stands** (grepped 2026-09-03). The
+> helper and the tolerance live here, but three call sites do the actual sending and are
+> outside this change's write set, so none of them attaches `X-Kp-Timestamp` yet:
+> `app/_lib/ats-egress.ts` (`deliver`, the ATS webhook), `app/_lib/comms.ts` (the
+> candidate-comms relay) and `app/api/comms/relay/test/route.ts` (the relay test ping).
+> Each needs the same one-line change — pass the envelope's `sentAt` as the third argument
+> and set the header — and until it lands those deliveries remain replayable. Nothing
+> breaks in the meantime: unchanged senders sign bodies alone, which is exactly what an
+> unchanged receiver verifies.
+
 The envelope, signing and delivery/retry semantics live in
 [../comms/outbound-export.md](../comms/outbound-export.md).
+
+## Personas bridge
+
+The pairing card (`IntegrationsPersonasPanel` + `integrationsPersonasLogic`) is a
+two-phase flow: `POST /api/agents/pair {phase:"start"}` mints a nonce, then a claim poll
+waits for a human to approve in the Personas desktop app (a 300s in-memory TTL on that
+side).
+
+- **The claim poll backs off and stops when nobody is looking.** It was a fixed 2s tick
+  for the full five minutes — 150 identical requests to watch a human decide, on a
+  settings tab the operator has usually walked away from. The gap now grows 2s → ×1.5 →
+  capped at 15s (`CLAIM_POLL_MS` / `CLAIM_POLL_FACTOR` / `CLAIM_POLL_MAX_MS`), so a quick
+  approval is still noticed in seconds while a full TTL costs ~25 rounds; and the poll
+  parks entirely while `document.visibilityState === "hidden"`, resuming *immediately* at
+  the fast gap when the tab comes back — which is exactly when an approval is most likely
+  to be waiting. The cap is deliberately far under the TTL: an unbounded curve would
+  eventually out-wait the deadline.
+- **The three ways the flow ENDS are pure and pinned.** `claimStep()` is the branch table
+  of one round (deadline first, then paired / server error / retry) and
+  `isSupersededAttempt()` is the guard that drops a continuation from an attempt the
+  operator cancelled or restarted. All three used to be inline expressions with nothing
+  asserting them; `integrationsLogic.test.ts` pins them, including that a claim landing
+  *after* the deadline is a timeout even when it says `paired`.
+- **The base-URL field uses the shared `TextInput`**, like every other control on this
+  tab — it was the one bare `<input>` left on the `FIELD` recipe, which the recipe's own
+  note asks new fields not to do.
 
 ## Surface
 
@@ -287,6 +363,8 @@ The envelope, signing and delivery/retry semantics live in
 | `app/features/settings/integrations/IntegrationsAtsRow.tsx` | One stored connection + removal confirm |
 | `app/features/settings/integrations/IntegrationsWebhookPanel.tsx` | Outbound `kp.ats.v1` write-back: endpoint, signing secret, event subscriptions, test ping |
 | `app/features/settings/integrations/IntegrationsWebhookFields.tsx` | That panel's form fields (URL / secret / events) |
+| `app/features/settings/integrations/integrationsWebhookGate.ts` | `webhookTestable` — when "Send test" may be offered |
+| `app/features/settings/integrations/integrationsPersonasLogic.ts` | The Personas pairing hook + its pure backoff / round / attempt-guard helpers |
 | `app/api/ats/config/route.ts`, `app/api/ats/test/route.ts` | Write-back config (secret write-only, versioned, partial) + rate-limited test delivery |
 | `app/_lib/calendar/callback-status.ts` | Canonical callback vocabulary + tone + scope slug |
 | `app/_lib/calendar/google-oauth.ts` | Scopes, consent URL, token exchange, revoke, `missingScopes` |

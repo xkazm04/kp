@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Bot } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, FIELD, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { BridgeConfigPublic } from "@/app/_lib/agent-hire/bridge-store";
 import { usePersonasPairing } from "./integrationsPersonasLogic";
@@ -119,13 +120,17 @@ export function IntegrationsPersonasPanel() {
             <label htmlFor="personas-base-url" className={META_LABEL}>
               {t("baseUrlLabel")}
             </label>
-            <input
+            {/* The shared primitive, like every other field on this tab. A bare <input>
+                on the FIELD recipe was the one control here that skipped it — and the
+                recipe's own note says new fields go through TextInput/TextArea/Select. */}
+            <TextInput
               id="personas-base-url"
               type="url"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder={bridge.baseUrl}
-              className={`${FIELD} mt-1 w-full font-mono text-sm`}
+              sizeVariant="sm"
+              className="mt-1 font-mono"
             />
             <p className="mt-1 text-sm text-steel">{t("baseUrlHint")}</p>
           </div>

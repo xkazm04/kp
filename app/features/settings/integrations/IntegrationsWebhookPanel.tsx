@@ -11,6 +11,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // and a copy here would keep naming the old contract after that bump.
 import { ATS_SCHEMA_VERSION } from "@/app/_lib/ats-record";
 import { IntegrationsWebhookFields } from "./IntegrationsWebhookFields";
+import { webhookTestable } from "./integrationsWebhookGate";
 import { PULL_ENDPOINT, SIGNATURE_HEADER_DISPLAY } from "./integrationsWebhookIdentifiers";
 
 // P1-5 — the ATS/HRIS write-back panel. The only egress used to be a whole-DB JSON
@@ -179,7 +180,7 @@ export function IntegrationsWebhookPanel() {
   // confirmed: on a typed-but-unsaved URL it would ping the previous endpoint and report
   // "Delivered: endpoint responded 200", which the operator reads as proof of the address
   // on screen. Save first, then test what was saved.
-  const testable = !!savedUrl && url === savedUrl;
+  const testable = webhookTestable(savedUrl, url);
 
   const sendTest = async () => {
     setBusy(true);
