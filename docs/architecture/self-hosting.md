@@ -359,11 +359,60 @@ the test.
 | `service-exposed-by-default` | a default `service.type` other than `ClusterIP` |
 | `secret-literal-in-values` | a value in `auth.*` or `providerKeys`, or any credential-shaped literal in `values.yaml` |
 | `no-memory-limit` | a pod with no memory limit — the Python pipeline spawns subprocesses per request |
-| `no-probes` | liveness/readiness declared but not applied, or missing |
+| `no-probes` | liveness/readiness declared but not applied, missing, or **both reading one endpoint** |
+| `unreviewed-template` | a file in `templates/` that `REVIEWED_TEMPLATES` does not name — or an entry whose file is gone |
+| `service-account-token-mounted` | a pod with no `serviceAccountName`, or with a Kubernetes API token projected into it |
+| `no-disruption-budget` | no `PodDisruptionBudget`, so `kubectl drain` takes the only replica silently |
+| `secret-not-in-rollout-checksum` | pod annotations that hash the ConfigMap but not the Secret |
 | `volume-access-mode-shared` | `persistence.accessMode` other than `ReadWriteOnce` |
 | `env-contract-drift` | an env key the chart **sets** that `.env.example` does not document |
 
-The first two and the last are the ones to understand before editing the chart.
+The gate reads **every file in `deploy/helm/kp/templates/`**, not a list of five.
+The five named in `CHART_FILES` stay required — a policy that must read the
+Deployment cannot be handed "some template", and a missing one is exit 2 — but
+the whole-tree rules (`privileged-pod`, `unreviewed-template`) read the
+directory, because a template nobody named used to pass every policy silently.
+
+### Probes: two questions, two answers
+
+`readinessProbe` reads **`/api/health`**, which opens the database, verifies the
+seeds and judges the scheduler clock by age, returning 503 with the failing
+sub-check named. `livenessProbe` is a **TCP connect on the port** and observes
+nothing outside the process, and a `startupProbe` suppresses liveness during the
+first boot. This asymmetry is deliberate: the router's red means *stop sending
+traffic*, the supervisor's red means *restart*, and `/api/health` 503s on
+conditions (a stalled automation clock, a degraded DB) where a restart fixes
+nothing and, at one replica with `Recreate`, is the outage. `no-probes` enforces
+only that the two read **different** endpoints — naming `/api/health` in the
+policy would break the day the route moves.
+
+If you run with `KP_EMPTY=1` (a deliberately blank tenant) the health route counts
+the empty job catalogue as degraded, so the pod stays `NotReady`. A default
+install seeds the catalogue at boot.
+
+### Pod identity, drains, and rotating a secret
+
+The chart ships a **ServiceAccount with no Role, no RoleBinding and no token**:
+kp calls no Kubernetes API, so the correct permission set is empty and a projected
+API credential in a pod holding candidate PII buys nothing. Both the account and
+the pod spec set `automountServiceAccountToken: false`.
+
+A **PodDisruptionBudget** (`podDisruptionBudget.enabled`, default true) with
+`minAvailable: 1` over one replica blocks voluntary eviction entirely, so
+`kubectl drain` on the node is refused with the budget named instead of quietly
+taking the service down. Set it to `false` if you would rather permit drains —
+that is a decision to accept the downtime, not a tuning knob.
+
+The pod annotations hash the **Secret** as well as the ConfigMap, so
+`helm upgrade --set auth.secret=<new>` rolls the pod. Without it the Secret object
+changed, the container kept the old value (`envFrom.secretRef` is read once at
+start) and `helm` reported success — a rotation that appears to have happened.
+**With `existingSecret` the chart renders no Secret and has nothing to hash**: if
+you rotate a pre-created Secret, roll the pod yourself
+(`kubectl rollout restart deploy/<release>`) or carry your own value in
+`podAnnotations`.
+
+The first two and `env-contract-drift` are the ones to understand before editing the chart.
 The replica rules are **data integrity, not a scaling preference**: a change that
 helpfully wires `replicas: {{ .Values.replicaCount }}` back up reads as a tidy-up
 and gives you two writers on one SQLite file. `env-contract-drift` exists because

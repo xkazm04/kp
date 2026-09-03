@@ -39,6 +39,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if .Values.existingSecret -}}{{ .Values.existingSecret }}{{- else -}}{{ include "kp.fullname" . }}{{- end -}}
 {{- end -}}
 
+{{/* The ServiceAccount the pod runs as: the chart-managed one unless the operator
+     named their own. Falls back to `default` only when they turned creation off
+     without naming a replacement — the pod-level automountServiceAccountToken:
+     false in deployment.yaml is what keeps that case tokenless too. */}}
+{{- define "kp.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (include "kp.fullname" .) .Values.serviceAccount.name -}}
+{{- else -}}
+{{- default "default" .Values.serviceAccount.name -}}
+{{- end -}}
+{{- end -}}
+
 {{/* PVC name for /data. */}}
 {{- define "kp.pvcName" -}}
 {{- if .Values.persistence.existingClaim -}}{{ .Values.persistence.existingClaim }}{{- else -}}{{ include "kp.fullname" . }}-data{{- end -}}

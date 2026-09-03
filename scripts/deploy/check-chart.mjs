@@ -49,14 +49,46 @@ export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url
 export const CHART_DIR = 'deploy/helm/kp';
 export const ENV_EXAMPLE = '.env.example';
 
-/** The files the policies read. A missing one is exit 2, never a quiet pass. */
+export const TEMPLATES_DIR = `${CHART_DIR}/templates`;
+
+/**
+ * The files a policy needs BY NAME, because it must read a specific document —
+ * `replicas-not-pinned` reads the Deployment, not "some template". A missing one
+ * is exit 2, never a quiet pass.
+ *
+ * These are handles, not the corpus: every file in `templates/` is read as well
+ * (see `loadChart`), and the whole-tree policies read that. Five names were the
+ * corpus once, which meant a `templates/worker.yaml` carrying a root container on
+ * the host network passed all twelve policies silently.
+ */
 export const CHART_FILES = {
   values: `${CHART_DIR}/values.yaml`,
-  deployment: `${CHART_DIR}/templates/deployment.yaml`,
-  service: `${CHART_DIR}/templates/service.yaml`,
-  configmap: `${CHART_DIR}/templates/configmap.yaml`,
-  secret: `${CHART_DIR}/templates/secret.yaml`,
+  deployment: `${TEMPLATES_DIR}/deployment.yaml`,
+  service: `${TEMPLATES_DIR}/service.yaml`,
+  configmap: `${TEMPLATES_DIR}/configmap.yaml`,
+  secret: `${TEMPLATES_DIR}/secret.yaml`,
 };
+
+/**
+ * Every file `templates/` is known to contain, and what it is. Compared IN BOTH
+ * DIRECTIONS by `unreviewed-template`, the way `.ai/manifest.yaml` compares its
+ * `gates:` block against ci.yml: a file added here without an entry is
+ * `unreviewed`, an entry naming a file that is gone is `stale`. The entry is not
+ * an exemption from the other policies — those read every template regardless —
+ * it is the record that a human looked at this document once and said what it is.
+ */
+export const REVIEWED_TEMPLATES = new Map([
+  ['deployment.yaml', 'the workload: one replica, Recreate, the hardened pod spec every policy above reads'],
+  ['service.yaml', 'ClusterIP in front of the one pod'],
+  ['configmap.yaml', 'non-secret env; half the env contract'],
+  ['secret.yaml', 'KP_OPERATOR_PASSWORD/KP_SECRET + provider keys; the other half'],
+  ['serviceaccount.yaml', 'pod identity with no Role and no token — kp calls no Kubernetes API'],
+  ['ingress.yaml', 'optional (ingress.enabled), routes to the Service by name'],
+  ['pvc.yaml', 'the RWO volume holding the SQLite database, annotated keep'],
+  ['pdb.yaml', 'the single-instance invariant addressed to whoever drains the node'],
+  ['_helpers.tpl', 'names and labels only; renders no object of its own'],
+  ['NOTES.txt', 'post-install prose for the operator; renders no object'],
+]);
 
 // --- reading YAML that is also a Go template ---------------------------------
 //
@@ -103,6 +135,22 @@ export function valueOf(text, key) {
 
 /** True when `key:` appears anywhere in `text` (used for "is it wired at all"). */
 export const hasKey = (text, key) => new RegExp(`^\\s*${key}:`, 'm').test(String(text ?? ''));
+
+/**
+ * What a probe block READS, as a comparable string — `http:/api/health`,
+ * `tcp:http` — or null when the block declares neither form (an `exec` probe, or
+ * no probe at all). Both forms are normalized so the comparison catches two
+ * `tcpSocket` probes on one port as well as two `httpGet` probes on one path:
+ * either way the two probes are asking one question.
+ */
+export function probeEndpoint(values, name) {
+  const block = blockOf(values, name);
+  if (!block) return null;
+  const path = hasKey(block, 'httpGet') ? valueOf(block, 'path') : null;
+  if (path !== null) return `http:${path}`;
+  const port = hasKey(block, 'tcpSocket') ? valueOf(block, 'port') : null;
+  return port === null ? null : `tcp:${port}`;
+}
 
 /** ENV_VAR-shaped keys a YAML block declares, ignoring comments and template lines. */
 export function envKeysIn(text) {
@@ -214,12 +262,56 @@ export const POLICIES = [
   {
     rule: 'privileged-pod',
     why: 'A privileged container, host namespace or host port is a different product than this chart deploys.',
-    check: ({ deployment, service, configmap, secret }) => {
-      const all = [deployment, service, configmap, secret].join('\n');
+    check: ({ templates }) => {
+      const names = Object.keys(templates ?? {});
+      // Loud, not quiet: a reader that found no templates has not cleared the
+      // chart, it has failed to look at it.
+      if (names.length === 0) return `no file under ${TEMPLATES_DIR} was read, so nothing was checked for it.`;
+      const all = Object.values(templates).join('\n');
       const bad = ['privileged', 'hostNetwork', 'hostPID', 'hostIPC'].filter((k) =>
         new RegExp(`^\\s*${k}:\\s*true\\b`, 'm').test(all),
       );
       return bad.length === 0 ? null : `a template sets ${bad.join(', ')} to true.`;
+    },
+  },
+  {
+    rule: 'unreviewed-template',
+    why:
+      'A policy set that reads five named files cannot see the sixth, and this gate claims every rule is anchored ' +
+      'to the tree — which requires the tree.',
+    check: ({ templates, reviewed = REVIEWED_TEMPLATES }) => {
+      const names = Object.keys(templates ?? {});
+      if (names.length === 0) return `no file under ${TEMPLATES_DIR} was read.`;
+      const unlisted = names.filter((n) => !reviewed.has(n));
+      const stale = [...reviewed.keys()].filter((n) => !names.includes(n));
+      const parts = [];
+      if (unlisted.length)
+        parts.push(
+          `${TEMPLATES_DIR} contains ${unlisted.join(', ')}, which REVIEWED_TEMPLATES in this file does not name. ` +
+            'Add an entry saying what the template is — the other policies already read it, and this is the record ' +
+            'that somebody looked',
+        );
+      if (stale.length)
+        parts.push(`REVIEWED_TEMPLATES names ${stale.join(', ')}, which the chart no longer contains`);
+      return parts.length === 0 ? null : `${parts.join('; ')}.`;
+    },
+  },
+  {
+    rule: 'service-account-token-mounted',
+    why:
+      'kp calls no Kubernetes API; a projected token is a credential with no purpose and a real blast radius in a ' +
+      'pod that holds candidate PII and spawns subprocesses on request.',
+    check: ({ deployment, templates }) => {
+      const off = (text) => /^\s*automountServiceAccountToken:\s*false\s*(#.*)?$/m.test(String(text ?? ''));
+      const problems = [];
+      if (!/^\s*serviceAccountName:/m.test(deployment))
+        problems.push('the Deployment names no serviceAccountName, so the pod runs as the namespace `default` account');
+      if (!off(deployment))
+        problems.push('the pod spec does not set `automountServiceAccountToken: false` — the setting that binds when both do');
+      const sa = Object.entries(templates ?? {}).find(([, t]) => /^kind:\s*ServiceAccount\s*$/m.test(String(t)));
+      if (!sa) problems.push('no template declares a ServiceAccount');
+      else if (!off(sa[1])) problems.push(`${sa[0]} does not set \`automountServiceAccountToken: false\``);
+      return problems.length === 0 ? null : `${problems.join('; ')}.`;
     },
   },
   {
@@ -259,13 +351,52 @@ export const POLICIES = [
   },
   {
     rule: 'no-probes',
-    why: 'Without a readiness probe, Recreate hands traffic to a pod that has not opened its database yet.',
+    why:
+      'Without a readiness probe, Recreate hands traffic to a pod that has not opened its database yet — and two ' +
+      'probes reading ONE endpoint have one remedy for two failures, which one replica cannot absorb.',
     check: ({ values, deployment }) => {
       const missing = ['livenessProbe', 'readinessProbe'].filter(
         (p) => !hasKey(values, p) || !deployment.includes(`.Values.${p}`),
       );
-      return missing.length === 0 ? null : `${missing.join(' and ')} is not both declared and applied.`;
+      if (missing.length > 0) return `${missing.join(' and ')} is not both declared and applied.`;
+      // The two probes must not read the same thing. Deliberately weaker than
+      // "readiness must hit /api/health": a policy that names one route breaks the
+      // first time the route moves, while "these two answer different questions"
+      // is the actual rule and survives a rename. The router's red means STOP
+      // SENDING TRAFFIC and the supervisor's red means RESTART; a shared endpoint
+      // gets one of them wrong, and with replicas: 1 + Recreate the wrong one is
+      // a crash loop over a dependency a restart cannot fix.
+      const live = probeEndpoint(values, 'livenessProbe');
+      const ready = probeEndpoint(values, 'readinessProbe');
+      return live && ready && live === ready
+        ? `livenessProbe and readinessProbe both read ${live}. A degraded dependency would then restart the pod ` +
+          'rather than remove it from service.'
+        : null;
     },
+  },
+  {
+    rule: 'no-disruption-budget',
+    why:
+      'One replica on one RWO volume: a node drain is a full outage, and the three in-pod rules that defend the ' +
+      'single-writer invariant cannot see it coming.',
+    check: ({ templates }) => {
+      const pdb = Object.entries(templates ?? {}).find(([, t]) => /^kind:\s*PodDisruptionBudget\s*$/m.test(String(t)));
+      if (!pdb) return 'no template declares a PodDisruptionBudget, so `kubectl drain` evicts the only replica silently.';
+      return hasKey(pdb[1], 'minAvailable') || hasKey(pdb[1], 'maxUnavailable')
+        ? null
+        : `${pdb[0]} declares a PodDisruptionBudget with neither minAvailable nor maxUnavailable, which constrains nothing.`;
+    },
+  },
+  {
+    rule: 'secret-not-in-rollout-checksum',
+    why:
+      '`envFrom.secretRef` is read once at container start, so a rotated credential that does not roll the pod is a ' +
+      'rotation that appears to have happened — after which the old value is treated as retired.',
+    check: ({ deployment }) =>
+      /checksum\/secret:\s*\{\{[^}]*secret\.yaml[^}]*sha256sum/.test(deployment)
+        ? null
+        : 'the pod annotations do not hash secret.yaml. The ConfigMap is hashed, so a config change rolls the pod ' +
+          'and a credential change does not — the quieter of the two failures.',
   },
   {
     rule: 'volume-access-mode-shared',
@@ -316,12 +447,28 @@ export function runPolicies(chart) {
   return [...out, ...checkEnvContract(chart)];
 }
 
+/**
+ * The named handles AND every file in `templates/`.
+ *
+ * The two halves are deliberately different: a NAMED file that is missing is
+ * exit 2 (a policy that must read the Deployment cannot report on a chart that
+ * has none), while the directory is read whole so a template nobody named is
+ * still checked. A glob alone would have no missing files by definition, which
+ * is how the loud-failure contract would have been traded away for the coverage.
+ */
 export function loadChart(root = REPO_ROOT) {
   const chart = {};
   for (const [name, rel] of Object.entries({ ...CHART_FILES, envExample: ENV_EXAMPLE })) {
     const p = path.join(root, rel);
     if (!fs.existsSync(p)) return { error: `${rel} is missing — the chart cannot be checked.` };
     chart[name] = fs.readFileSync(p, 'utf8');
+  }
+  const dir = path.join(root, TEMPLATES_DIR);
+  if (!fs.existsSync(dir)) return { error: `${TEMPLATES_DIR} is missing — the chart cannot be checked.` };
+  chart.templates = {};
+  for (const entry of fs.readdirSync(dir).sort()) {
+    const p = path.join(dir, entry);
+    if (fs.statSync(p).isFile()) chart.templates[entry] = fs.readFileSync(p, 'utf8');
   }
   return { chart };
 }
