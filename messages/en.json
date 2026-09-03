@@ -1567,7 +1567,8 @@
     "TASK_NOT_FOUND": "That task no longer exists.",
     "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",
     "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
-    "FORBIDDEN_CAPABILITY": "Your role does not allow this action."
+    "FORBIDDEN_CAPABILITY": "Your role does not allow this action.",
+    "forbiddenCapabilityNeeds": "Your role does not allow this action. It needs the “{capability}” permission."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1997,7 +1998,9 @@
         "providerGroup": "Provider",
         "chunks": "{spoken} of {total} chunks",
         "truncated": "stopped after {spoken} of {total} chunks. The rest is in the text."
-      }
+      },
+      "availabilityUnknown": "We could not check whether the interview service is reachable.",
+      "availabilityRetry": "Check again"
     }
   },
   "palette": {
@@ -2700,7 +2703,8 @@
       "filterStateLabel": "State",
       "stageOffBoard": "Stage {stage} is no longer a column on this board. The filter is still applied, so you are seeing only the candidates still standing on it.",
       "stageOffBoardClear": "Remove this filter",
-      "slaEditorRange": "{min}–{max} days; blank uses the default"
+      "slaEditorRange": "{min}–{max} days; blank uses the default",
+      "previewCommitFailed": "The pass could not be applied."
     },
     "today": {
       "eyebrow": "Today",
@@ -3019,6 +3023,11 @@
     "scoreKind": {
       "transferShort": "transfer",
       "transferTitle": "A work-sample transfer score, not a match score. It says how well the skills demonstrated on the assignment carry to this role."
+    },
+    "add": {
+      "added": "{name} added to the pipeline.",
+      "failed": "Couldn't add {name} to the pipeline.",
+      "failedAnnounce": "Couldn't add {name} to the pipeline. {reason}"
     }
   },
   "decisions": {
@@ -5563,7 +5572,8 @@
       "failed": "Couldn't attach the session.",
       "loadFailed": "Couldn't load candidates.",
       "retry": "Retry"
-    }
+    },
+    "billableNote": "Starting this demo books a real voice session and bills up to {min} interview minutes from your allowance."
   },
   "history": {
     "eyebrow": "Workspace",

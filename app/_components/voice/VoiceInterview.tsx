@@ -10,6 +10,9 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // pulls the server-only adapters into the bundle); these are type-only, so the
 // import is erased at compile time.
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
+import { BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
+import { canStart, probeAvailability, voiceStartGate, type AvailabilityProbe } from "./availability-gate";
+import { createTimerRegistry } from "./timer-registry";
 // Default + fallback provider order, single-sourced in voice/types (browser-safe
 // pure data) so the picker can't default to a different provider than the server's
 // pickDefaultProvider — they previously kept inverted copies.
@@ -78,11 +81,14 @@ const OAI_FINAL_TURN_GRACE_MS = 3000;
 // if onDisconnect never lands.
 const EL_DISCONNECT_GRACE_MS = 3000;
 
-/** Poll `done` every 100ms until it holds or `timeoutMs` elapses. */
-async function waitUntil(done: () => boolean, timeoutMs: number): Promise<void> {
+/** Poll `done` every 100ms until it holds or `timeoutMs` elapses.
+ *  `sleep` comes from the call's timer registry, so an unmount mid-poll both
+ *  cancels the pending tick and RESOLVES this loop instead of leaving the
+ *  finalize path awaiting a promise nothing will ever settle. */
+async function waitUntil(done: () => boolean, timeoutMs: number, sleep: (ms: number) => Promise<void>): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!done() && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 100));
+    await sleep(100);
   }
 }
 
@@ -109,7 +115,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   // micErrorText is a plain module (useTranslations is a hook), so it takes the
   // three already-translated recovery strings — same keys, same namespace.
   const micCopy = { denied: t("errMicDenied"), notFound: t("errMicNotFound"), busy: t("errMicBusy") };
-  const [availability, setAvailability] = useState<VoiceAvailability | null>(null);
+  // THREE outcomes, not a nullable map: "asked and it failed" is not "have not
+  // asked yet", and neither of them is "available" (availability-gate.ts).
+  const [probe, setProbe] = useState<AvailabilityProbe>({ status: "loading" });
+  const [probeNonce, setProbeNonce] = useState(0);
+  const availability: VoiceAvailability | null = probeAvailability(probe);
   // In locked (candidate) mode the provider is pinned to the session's stored value;
   // the lab starts on the default and lets the user pick.
   const [provider, setProvider] = useState<VoiceProviderId>(pinnedProvider ?? DEFAULT_PROVIDER);
@@ -197,7 +207,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   // finalize knows a final answer is still in flight at hang-up.
   const candBuf = useRef("");
   const pendingCandidateRef = useRef(false);
-  const connectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // EVERY delayed callback this call schedules — the 30s connect timeout, the
+  // ElevenLabs disconnect-grace fallback and the finalize poll — so unmount can
+  // empty all of them instead of the one that happened to have a ref.
+  const timersRef = useRef(createTimerRegistry());
   // M7: focus targets so keyboard/SR users aren't stranded when controls are swapped on a phase change.
   const endBtnRef = useRef<HTMLButtonElement | null>(null);
   const endedCardRef = useRef<HTMLDivElement | null>(null);
@@ -208,10 +221,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   }, [provider]);
 
   const clearConnectTimer = useCallback(() => {
-    if (connectTimerRef.current) {
-      clearTimeout(connectTimerRef.current);
-      connectTimerRef.current = null;
-    }
+    timersRef.current.clearAll();
   }, []);
 
   const pushTurn = useCallback((role: VoiceTurn["role"], text: string) => {
@@ -279,7 +289,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         dcRef.current?.readyState === "open"
       ) {
         micRef.current?.getTracks().forEach((tr) => tr.stop());
-        await waitUntil(() => !pendingCandidateRef.current, OAI_FINAL_TURN_GRACE_MS);
+        await waitUntil(() => !pendingCandidateRef.current, OAI_FINAL_TURN_GRACE_MS, (ms) => timersRef.current.sleep(ms));
       }
       // Flush any AI turn still buffered from output_audio_transcript.delta
       // events. Teardown can fire before the matching .done arrives (the
@@ -435,11 +445,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   useEffect(() => {
     let cancelled = false;
     fetch("/api/interview/connect")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`probe ${r.status}`))))
       .then((d) => {
         if (cancelled) return;
         const avail: VoiceAvailability | null = d.availability ?? null;
-        setAvailability(avail);
+        // A 200 with no availability map tells us nothing either — treat it as a
+        // failed probe rather than silently as "everything is configured".
+        setProbe(avail ? { status: "ok", availability: avail } : { status: "failed" });
         // Never leave the picker on a provider whose keys are missing: if the
         // default (ElevenLabs) isn't configured, drop to the first one that is.
         // Skip in locked (candidate) mode — the recruiter's pinned provider must
@@ -448,17 +460,24 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         if (avail && !lockSettings) setProvider((cur) => (avail[cur] ? cur : (PROVIDER_ORDER.find((p) => avail[p]) ?? cur)));
       })
       .catch(() => {
-        if (!cancelled) setAvailability(null);
+        // The bug this replaced: `setAvailability(null)` here made a failed probe
+        // indistinguishable from "not asked yet", and the render read that as
+        // AVAILABLE — so a keyless or unreachable server showed a normal Start
+        // that died at connect, and the honest unavailable copy was dead code.
+        if (!cancelled) setProbe({ status: "failed" });
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [probeNonce]);
 
   // Teardown on unmount.
   useEffect(() => {
+    // Copied inside the effect: the cleanup must clear THIS call's registry, not
+    // whatever the ref points at by the time React runs the teardown.
+    const timers = timersRef.current;
     return () => {
-      if (connectTimerRef.current) clearTimeout(connectTimerRef.current);
+      timers.clearAll();
       try {
         if (providerRef.current === "elevenlabs") conversation.endSession();
       } catch {
@@ -556,7 +575,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
     clearConnectTimer();
-    connectTimerRef.current = setTimeout(() => {
+    timersRef.current.set(() => {
       finalizedRef.current = true; // don't POST a transcript for a failed connect
       teardownOpenAi();
       try {
@@ -648,7 +667,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       } catch {
         /* noop */
       }
-      window.setTimeout(() => {
+      timersRef.current.set(() => {
         if (!finalizedRef.current) {
           void finalize(currentFinalStatus());
         }
@@ -665,7 +684,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
 
   const isBusy = phase === "connecting" || phase === "live" || phase === "ending";
   const liveProvider = provider;
-  const providerAvailable = availability ? availability[liveProvider] : true;
+  // Three-state (availability-gate.ts): "unknown" is a failed probe and is NOT
+  // permission to render a Start that cannot work.
+  const startGate = voiceStartGate(probe, liveProvider);
+  const providerAvailable = canStart(startGate);
 
   const liveOrEnding = phase === "live" || phase === "ending";
 
@@ -759,7 +781,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 type="button"
                 onClick={start}
                 disabled={!consent || phase === "connecting" || !providerAvailable}
-                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white transition-colors hover:bg-steel disabled:cursor-not-allowed disabled:opacity-50"
+                className={`${BTN_PRIMARY_LG} gap-2 disabled:cursor-not-allowed`}
               >
                 <Mic size={18} />
                 {phase === "connecting" ? t("connecting") : phase === "ended" ? t("startAgain") : t("startCall")}
@@ -768,7 +790,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
               <button
                 type="button"
                 disabled
-                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white opacity-50"
+                className={`${BTN_PRIMARY_LG} gap-2 opacity-50`}
               >
                 <PhoneOff size={18} />
                 {t("ending")}
@@ -779,7 +801,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 <button
                   type="button"
                   onClick={end}
-                  className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                  className={`${BTN_PRIMARY_LG} gap-2`}
                 >
                   <PhoneOff size={18} />
                   {t("endConfirmYes")}
@@ -787,7 +809,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 <button
                   type="button"
                   onClick={() => setConfirmingEnd(false)}
-                  className="focus-ring inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-5 text-base font-semibold text-ink transition-colors hover:bg-paper"
+                  className={`${BTN_SECONDARY_LG} font-semibold`}
                 >
                   {t("endConfirmNo")}
                 </button>
@@ -797,7 +819,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 ref={endBtnRef}
                 type="button"
                 onClick={() => setConfirmingEnd(true)}
-                className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md bg-coral px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                className={`${BTN_PRIMARY_LG} gap-2`}
               >
                 <PhoneOff size={18} />
                 {t("endCall")}
@@ -824,13 +846,30 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
                 onEnableAudio={enableAudio}
               />
             ) : null}
-            {!providerAvailable ? (
+            {startGate === "unavailable" ? (
               // M5: candidates can't fix "keys not configured" (an ops issue) and shouldn't see the
               // internal phrasing — give them an actionable next step. The lab keeps the technical copy.
               <span className="text-meta text-coral">
                 {lockSettings
                   ? t("unavailableCandidate")
                   : t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
+              </span>
+            ) : startGate === "unknown" ? (
+              // The probe FAILED — we do not know whether the call can connect, and
+              // saying nothing while showing a live Start was the lie this replaces.
+              // Say so, and offer the only useful action: ask again.
+              <span className="text-meta text-coral" role="status">
+                {t("availabilityUnknown")}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProbe({ status: "loading" });
+                    setProbeNonce((n) => n + 1);
+                  }}
+                  className="focus-ring font-semibold underline"
+                >
+                  {t("availabilityRetry")}
+                </button>
               </span>
             ) : null}
           </div>

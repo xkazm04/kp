@@ -1567,7 +1567,8 @@
     "TASK_NOT_FOUND": "Diese Aufgabe existiert nicht mehr.",
     "TASK_NOT_RETRYABLE": "Nur fehlgeschlagene, unterbrochene oder abgebrochene Aufgaben lassen sich erneut ausführen.",
     "TASK_REPLAY_INPUTS_GONE": "Die hochgeladenen Dateien dieses Laufs wurden bereits gelöscht. Laden Sie sie erneut hoch, um den Lauf zu wiederholen.",
-    "FORBIDDEN_CAPABILITY": "Ihre Rolle erlaubt diese Aktion nicht."
+    "FORBIDDEN_CAPABILITY": "Ihre Rolle erlaubt diese Aktion nicht.",
+    "forbiddenCapabilityNeeds": "Ihre Rolle erlaubt diese Aktion nicht. Dafür ist die Berechtigung „{capability}“ erforderlich."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1997,7 +1998,9 @@
         "providerGroup": "Anbieter",
         "chunks": "{spoken} von {total} Abschnitten",
         "truncated": "nach {spoken} von {total} Abschnitten abgebrochen. Der Rest steht im Text."
-      }
+      },
+      "availabilityUnknown": "Wir konnten nicht prüfen, ob der Interview-Dienst erreichbar ist.",
+      "availabilityRetry": "Erneut prüfen"
     }
   },
   "palette": {
@@ -2700,7 +2703,8 @@
       "filterStateLabel": "Status",
       "stageOffBoard": "Phase {stage} ist keine Spalte dieses Boards mehr. Der Filter bleibt aktiv, Sie sehen also nur die Kandidat/innen, die weiterhin auf ihr stehen.",
       "stageOffBoardClear": "Diesen Filter entfernen",
-      "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard"
+      "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard",
+      "previewCommitFailed": "Der Durchlauf konnte nicht angewendet werden."
     },
     "today": {
       "eyebrow": "Heute",
@@ -3019,6 +3023,11 @@
     "scoreKind": {
       "transferShort": "Transfer",
       "transferTitle": "Ein Transfer-Score aus der Arbeitsprobe, kein Match-Score. Er sagt, wie gut die in der Aufgabe gezeigten Fähigkeiten auf diese Rolle übertragen."
+    },
+    "add": {
+      "added": "{name} wurde zur Pipeline hinzugefügt.",
+      "failed": "{name} konnte nicht zur Pipeline hinzugefügt werden.",
+      "failedAnnounce": "{name} konnte nicht zur Pipeline hinzugefügt werden. {reason}"
     }
   },
   "decisions": {
@@ -5563,7 +5572,8 @@
       "failed": "Sitzung konnte nicht verknüpft werden.",
       "loadFailed": "Kandidat/innen konnten nicht geladen werden.",
       "retry": "Erneut versuchen"
-    }
+    },
+    "billableNote": "Diese Demo startet eine echte Sprachsitzung und belastet Ihr Kontingent mit bis zu {min} Interview-Minuten."
   },
   "history": {
     "eyebrow": "Arbeitsbereich",
