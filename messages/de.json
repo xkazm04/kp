@@ -500,7 +500,12 @@
       "starSituation": "Situation",
       "starTask": "Aufgabe",
       "starAction": "Aktion",
-      "starResult": "Ergebnis"
+      "starResult": "Ergebnis",
+      "benchmarkVintage": "Benchmark {source}, aktualisiert {date}",
+      "benchmarkVintageUndated": "Benchmark {source}",
+      "benchmarkThin": "kleine Stichprobe (n={count})",
+      "benchmarkNoSample": "keine Stichprobe erfasst — redaktioneller Richtwert",
+      "benchmarkAnchor": "Verankert am Benchmark {source}, aktualisiert {date}"
     }
   },
   "comms": {

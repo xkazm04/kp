@@ -7,6 +7,7 @@ import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { buildSimOfferDraft } from "@/app/features/shell/simulation/simDrafts";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
+import { APP_CURRENCY } from "@/app/_lib/format";
 import { SIM_SALARY } from "@/app/features/shell/simulation/constants";
 
 
@@ -42,7 +43,12 @@ export async function POST(request: NextRequest) {
     // under a Czech-configured brand (simDrafts.ts holds the composition).
     const draft = buildSimOfferDraft(
       await namespaceTranslator(resolveCommsLocale(entry.locale, entry.workspaceId), "simulation"),
-      { role: entry.jobTitle, candidate: entry.candidateLabel, currency: "CZK", recommended, salaryMin: min, salaryMax: max }
+      // The band is a bare [min, max] denominated in APP_CURRENCY by the
+      // salary-comparison contract (format.ts) — the seam that exists to own this
+      // exact question. A re-hardcoded "CZK" here is the same stranded literal the
+      // Python market seam removed twice: it labels a figure it did not price, so a
+      // re-homed app would mail a EUR band under a CZK code.
+      { role: entry.jobTitle, candidate: entry.candidateLabel, currency: APP_CURRENCY, recommended, salaryMin: min, salaryMax: max }
     );
     // The entry we just read is the tenant authority for the write (same row, same
     // team) — an unscoped setApproval matched nothing off the default team, so the

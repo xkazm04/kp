@@ -1,9 +1,12 @@
 "use client";
 
 import { AlertTriangle, GitBranch, Loader2, Lock, RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
+import { formatBenchmarkAsOf, isThinBenchmark } from "@/app/_lib/salary-benchmark";
+import { ConfidenceBadge } from "@/app/_components/Badge";
+import { confidenceGrade } from "@/app/_components/results/salary/salaryGauge.logic";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
@@ -59,11 +62,33 @@ export function FailedPanel({ error, retrying, retryError, onRetry }: { error: s
 // page) — the recruiter-facing surface for the grounded band + its cited sources.
 export function SalaryCard({ salary, sources, source }: { salary: unknown; sources?: string[]; source?: string }) {
   const t = useTranslations("library.tab");
+  // The benchmark vocabulary and the evidence-grade words are SHARED with the
+  // report's salary tab (report.panel.* / report.confidence.*) rather than
+  // duplicated into library.tab: the same quantity read twice in two surfaces must
+  // read the same in all four languages.
+  const tr = useTranslations("report");
+  const locale = useLocale();
   // Reader-locale digit grouping (format.ts number-locale contract).
   const n = useNumberFormat();
   const s = normalizeMarketSalary(salary);
   const links = dedupeBy(safeHttpLinks(sources ?? []), (l) => l.href).slice(0, 3);
   const provenance = source === "llm" ? t("provWebGrounded") : source === "deterministic" ? t("provEstimated") : source ?? t("provEstimated");
+  // The engine's confidence is a free string ("grounded" is a fourth grade the
+  // badge's own token map never knew), so grade it through the SAME helper the
+  // report's gauge uses. This card used to print the raw English word — "medium"
+  // beside a fully localized card, which is also the one place in the app where
+  // this quantity was not a badge.
+  const confidenceLabels = {
+    high: tr("confidence.high"),
+    medium: tr("confidence.medium"),
+    low: tr("confidence.low"),
+    unknown: tr("confidence.unknown"),
+  };
+  // Provenance of the DETERMINISTIC band: which table, how old, how many rows.
+  // Null for a grounded band (the cited sources below are its provenance) and for
+  // any payload built before the field existed.
+  const benchmark = s.benchmark;
+  const asOf = formatBenchmarkAsOf(benchmark?.asOf, locale);
   return (
     <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -71,7 +96,8 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
         {s.available ? (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink">
             <Lock size={12} className="text-steel" aria-hidden />
-            {n.salaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })} · {s.confidence}
+            {n.salaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })}
+            <ConfidenceBadge value={confidenceGrade(s.confidence)} labels={confidenceLabels} />
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel">
@@ -80,6 +106,23 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
         )}
       </div>
       {s.summary ? <p className="mt-1.5 text-sm text-ink">{s.summary}</p> : null}
+      {benchmark ? (
+        <p className="mt-1.5 text-sm text-steel">
+          {asOf
+            ? tr("panel.benchmarkVintage", { source: benchmark.sourceId, date: asOf })
+            : tr("panel.benchmarkVintageUndated", { source: benchmark.sourceId })}
+          {isThinBenchmark(benchmark) ? (
+            <>
+              {" · "}
+              <span className="font-medium text-amber-800">
+                {benchmark.sampleK === null
+                  ? tr("panel.benchmarkNoSample")
+                  : tr("panel.benchmarkThin", { count: benchmark.sampleK })}
+              </span>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       {links.length ? (
         <p className="mt-1 text-sm text-steel">
           {t("sourcesLabel")}{" "}
