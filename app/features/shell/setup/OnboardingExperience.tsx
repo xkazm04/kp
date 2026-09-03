@@ -115,7 +115,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     },
     [initial]
   );
-  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, stepIndex, maxVisited, restore });
+  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex, maxVisited, restore });
   useEffect(() => {
     if (!pendingAxis.current || !state.pipeline) return;
     const draft = pendingAxis.current;

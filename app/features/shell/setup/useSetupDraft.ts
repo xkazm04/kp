@@ -16,11 +16,15 @@ import type { SetupState } from "./setupSteps";
 export function useSetupDraft(opts: {
   enabled: boolean;
   state: SetupState;
+  /** The state a fresh mount starts from — the fallback for any field the stored
+   *  draft is missing. Must be referentially stable (the caller memoizes it), so
+   *  the one-shot restore below can name it in its deps honestly. */
+  base: SetupState;
   stepIndex: number;
   maxVisited: number;
   restore: (draft: SetupDraft) => void;
 }): { clear: () => void } {
-  const { enabled, state, stepIndex, maxVisited } = opts;
+  const { enabled, state, base, stepIndex, maxVisited } = opts;
   // The principal the draft belongs to. `undefined` = the probe has not answered
   // yet (so nothing is written or restored); `null` = an identity-less session,
   // which gets its own key rather than sharing anyone's.
@@ -57,10 +61,9 @@ export function useSetupDraft(opts: {
   useEffect(() => {
     if (!enabled || scope === undefined || restored.current) return;
     restored.current = true;
-    const draft = readSetupDraft(scope, state);
+    const draft = readSetupDraft(scope, base);
     if (draft) restoreRef.current(draft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot restore; `state` is read, not tracked
-  }, [enabled, scope]);
+  }, [enabled, scope, base]);
 
   // Mirror every answer. Cheap (one JSON.stringify of a small object) and it must
   // run on every change, because the reload we are insuring against is unannounced.
