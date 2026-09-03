@@ -227,7 +227,7 @@ test("a JD becomes a job, and an assignment is cut FROM that job", async ({ page
   await expect(page.getByRole("button", { name: "All assignments" })).toBeVisible();
 });
 
-test("the candidate applies through the assignment's own link — and never sees the probes", async ({ browser }) => {
+test("the candidate applies through the assignment's own link — and never sees the probes", async ({ browser, page }) => {
   test.setTimeout(120_000);
   // A NEW context: the candidate holds only the tokenized link — no kp_entered
   // cookie, no recruiter session. Everything below is what Sam can reach.
