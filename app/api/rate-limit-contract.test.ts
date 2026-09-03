@@ -486,6 +486,27 @@ const ROUTES: RouteSpec[] = [
     // Lifecycle guards keep their 404/409 semantics ahead of the throttle.
     servedBefore: 'session0.status === "completed"',
   },
+  {
+    // ADDED /perfect wave 18b, with the limiter itself. /complete was the LAST
+    // public token door in the interview family with no throttle, and it is not a
+    // read: the non-terminal path writes the transcript, debits interview minutes,
+    // and (entry-linked) runs an LLM scorecard that seals a decision record.
+    // Keyed on token AND IP - the token alone lets one flaky candidate exhaust
+    // their own budget, the IP alone throttles a whole NAT of candidates together.
+    // 10/10min; every duplicate POST after the first is answered by the free
+    // already-completed branch that precedes the limiter.
+    rel: "./interview/complete/route.ts",
+    key: "`interview-complete:${token}:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "COMPLETE_RATE_LIMIT",
+    optsDef: "const COMPLETE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The transcript write - the first thing that costs anything - and the gate
+    // for the debit + scorecard that follow it.
+    expensive: "completeInterviewSession(",
+    // The idempotent retry reply must keep answering for free, forever.
+    servedBefore: "alreadyCompleted: true",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it
@@ -1495,24 +1516,89 @@ for (const [cls, limit, windowMs] of [
   });
 }
 
+// ── the DIRECT enqueues: the three dev-case doors (/perfect wave 18b) ───────
+//
+// These three call the runner themselves rather than posting to /api/tasks, so
+// until this direction they enqueued `lifecycle` — the AGENT class, a whole
+// dev-case orchestration — with no limiter at all and were carried on the
+// UNTHROTTLED_ENQUEUE ratchet below. They now go through the SAME helper and the
+// SAME keys as the dock, so a direct enqueue and a dock enqueue share ONE
+// allowance; that is the property these specs pin, not merely "a limiter exists".
+for (const rel of [
+  "./devcase/control/route.ts",
+  "./devcase/lifecycle/route.ts",
+  "./devcase/lifecycle/[id]/approve/route.ts",
+]) {
+  test(`${rel} spends the agent-class task budget before it enqueues a lifecycle`, () => {
+    const src = read(rel);
+    assert.match(src, /from "@\/app\/_lib\/task-budget"/, "must reuse the shared budget table, never a local number");
+    const budgetAt = src.indexOf('enforceTaskBudget("lifecycle"');
+    assert.ok(budgetAt > 0, "expected the shared per-kind budget call for the lifecycle kind");
+    // …against the caller's client key and the tenant, not a constant.
+    assert.match(src.slice(budgetAt, budgetAt + 160), /clientIpFrom\(request\.headers\)|enforceTaskBudget\("lifecycle", ip,/);
+    const spend = src.search(/\bstartTask\(\s*"lifecycle"/);
+    assert.ok(spend > budgetAt, "the budget must precede the enqueue, or a refused start still costs a run");
+    // The refusal carries the code the dev tab localizes (errors.TASK_BUDGET_EXHAUSTED
+    // in all four catalogs) — never a raw message, never the generic throttle copy.
+    assert.match(src, /jsonRefusal\("TASK_BUDGET_EXHAUSTED", 429/, "the refusal must carry the shared code at 429");
+  });
+}
+
+test("the direct enqueues share the task doors' buckets, key for key", () => {
+  const helper = read("../_lib/task-budget.ts");
+  // One producer of the keys, and they are the literals /api/tasks writes inline.
+  for (const key of ["`tasks-start:${cls}:${ip}`", "`tasks-start-ws:${cls}:${workspaceId}`"]) {
+    assert.ok(helper.includes(key), `expected the shared key ${key} in enforceTaskBudget`);
+  }
+  const door = read("./tasks/route.ts");
+  assert.ok(door.includes("`tasks-start:${cls}:${ip}`"), "the dock door must key its IP bucket the same way");
+  assert.ok(door.includes("`tasks-start-ws:${cls}:${ws}`"), "…and its workspace bucket");
+});
+
+test("./devcase/lifecycle/route.ts budgets BEFORE it debits the case_designs meter", () => {
+  const src = read("./devcase/lifecycle/route.ts");
+  const budgetAt = src.indexOf("enforceTaskBudget(");
+  const debitAt = src.indexOf("recordMeterUsage(");
+  assert.ok(budgetAt > 0 && debitAt > budgetAt, "a refused start must not have charged the tenant's design quota");
+});
+
+test("./devcase/lifecycle/[id]/approve/route.ts budgets BEFORE the approve transition", () => {
+  const src = read("./devcase/lifecycle/[id]/approve/route.ts");
+  const budgetAt = src.indexOf("enforceTaskBudget(");
+  const approveAt = src.indexOf("approveLifecycleCase(");
+  assert.ok(budgetAt > 0 && approveAt > budgetAt, "a refused resume must not leave the case approved but unrun");
+  // …and after the cheap refusals: the 404, the 409 and the probe 422 cost no slot.
+  for (const cheap of ['NextResponse.json({ error: "lifecycle not found" }', "enforceProbeGate("]) {
+    assert.ok(src.indexOf(cheap) < budgetAt, `${cheap} must be decided before a slot is spent`);
+  }
+});
+
+test("./devcase/control/route.ts budgets EACH resumed lifecycle in the sweep", () => {
+  const src = read("./devcase/control/route.ts");
+  // The reconcile sweep enqueues up to 50 runs from one POST; a per-REQUEST check
+  // would let one call spend a whole board on a single slot.
+  const loopAt = src.indexOf("for (const lc of listLifecycles(50, workspaceId))");
+  const budgetAt = src.indexOf("enforceTaskBudget(");
+  const spendAt = src.indexOf('startTask("lifecycle"');
+  assert.ok(loopAt > 0 && budgetAt > loopAt && spendAt > budgetAt, "the budget must be inside the sweep, ahead of the enqueue");
+  // A truncated sweep is REPORTED, never a green `resumed` that hides the bound.
+  assert.match(src, /budgetExhausted: true/, "the sweep must say it stopped at the budget");
+  assert.match(src, /resumed === 0 && budgetExhausted/, "…and a sweep that resumed nothing at all is a refusal");
+});
+
 // EVERY startTask has a bucket. The two task doors are pinned by name above, but
 // startTask is reachable from any route file, and each call is a real LLM call
 // and/or a Python spawn. A route that acquires one without a limiter is the exact
 // hole the 2026-08-22 sweep found on ./tasks/route.ts and the 2026-09-03 one found
 // on ./jobs/[id]/agent-fit — both times because nothing walked the tree.
-// Routes that reach startTask with NO limiter ahead of it. Every one is a real
-// gap, not an exemption: all three enqueue `lifecycle`, the heaviest budget class
-// in app/_lib/task-budget.ts (a whole dev-case orchestration, several model steps
-// in sequence), and all three are operator-gated — which open mode makes a
-// documented no-op for the whole API. They are listed rather than fixed here
-// because they belong to the dev-case area and this change owns the task doors;
-// the list is a ratchet in the idiom of error-response-contract.test.ts — a file
-// not on it may not leak at all, and REMOVING a line is the fix.
-const UNTHROTTLED_ENQUEUE = new Set([
-  "devcase/control/route.ts",
-  "devcase/lifecycle/route.ts",
-  "devcase/lifecycle/[id]/approve/route.ts",
-]);
+// Routes that reach startTask with NO limiter ahead of it — a ratchet in the idiom
+// of error-response-contract.test.ts: a file not on it may not enqueue unthrottled
+// at all, and REMOVING a line is the fix (a listed-but-fixed file is also reported,
+// so the list cannot rot). It carried the three dev-case doors that enqueue
+// `lifecycle` directly; /perfect wave 18b routed all three through the shared
+// agent-class budget and the list is now EMPTY. Keep it that way: a new entry here
+// is a hole waiting to be closed, never an exemption.
+const UNTHROTTLED_ENQUEUE = new Set<string>([]);
 
 /** Comments masked out — this repo documents its own call sites in prose, and
  *  ./tasks/[id]/retry/route.ts's header explains the replay as "startTask(kind,
@@ -1530,7 +1616,11 @@ test("every route that enqueues a task throttles first", () => {
     const call = src.search(/\bstartTask\(\s*[^)\s]/);
     if (call < 0) continue;
     checked += 1;
-    const limiter = src.indexOf("rateLimit(");
+    // A limiter is either the raw bucket or the shared per-kind budget helper
+    // (app/_lib/task-budget.ts `enforceTaskBudget`), which IS a rateLimit call under
+    // the task doors' own keys — a route that goes through it is throttled, and a
+    // walk that only knew the raw call would report it as a hole.
+    const limiter = src.search(/\brateLimit\(|\benforceTaskBudget\(/);
     const rel = path.relative(apiDir, file).split(path.sep).join("/");
     if ((limiter < 0 || limiter > call) && !UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(rel);
     if (limiter >= 0 && limiter < call && UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(`${rel} (FIXED — delete it from UNTHROTTLED_ENQUEUE)`);

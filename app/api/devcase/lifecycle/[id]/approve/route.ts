@@ -7,6 +7,8 @@ import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
+import { enforceTaskBudget } from "@/app/_lib/task-budget";
+import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 import { timeboxClamp, type TimeboxClamp } from "@/app/_lib/devcase-timebox";
 
@@ -85,6 +87,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (!gate.ok) {
         return NextResponse.json({ error: gate.error, code: gate.code, verdict: gate.verdict }, { status: gate.status });
       }
+      // TASK BUDGET. Approving RESUMES the automated walk below via `startTask`, i.e.
+      // this door enqueues the AGENT class directly and POST /api/tasks's per-class
+      // budget never saw it. Same helper, same keys (app/_lib/task-budget.ts), so the
+      // dock and this gate draw on ONE allowance. Last of the refusals, after the 404,
+      // the 409 and the 422 — all cheap — and before the approve transition, so a
+      // refused start never leaves a lifecycle approved but not resumed.
+      const overBudget = enforceTaskBudget("lifecycle", clientIpFrom(request.headers), lc.workspaceId);
+      if (overBudget) return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, overBudget);
       const { caseId } = approveLifecycleCase(
         id,
         { need: lc.need, analysis: lc.analysis, role: lc.role, case: approvedCase },

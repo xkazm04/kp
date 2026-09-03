@@ -26,7 +26,10 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
   const t = useTranslations("devcase.review");
   const tProbe = useTranslations("devcase.probeAudit");
   // Resolve API failures from the machine `code`, never from the server's
-  // English `error` — see app/_lib/use-error-message.ts.
+  // English `error` — see app/_lib/use-error-message.ts. Covers the 429
+  // TASK_BUDGET_EXHAUSTED the approve gate answers when the agent-class run budget
+  // is spent (app/_lib/task-budget.ts): nothing was approved, so the panel keeps the
+  // reviewer's edits and says to retry rather than reporting a failed sign-off.
   const errMsg = useErrorMessage();
   // …but the ONE refusal this gate can raise — 422 probe_audit_failed, a case whose
   // probes can't tell a strong submission from a naive one — has no `errors` catalog
