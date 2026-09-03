@@ -441,6 +441,23 @@ win: it is then undeclared, and the next literal to arrive there is red.
 Seeded 2026-09-03 at `panel=107 metaLabel=76 chipQuiet=10 noticeAmber=62
 btnAffirm=5 rawDate=15` over 168 files.
 
+**First burn-down, same day:** `panel` 107 → 92, `metaLabel` 76 → 53,
+`chipQuiet` 10 → 9, `noticeAmber` 62 → 61 (40 lines) across `ExtractionTab`,
+`CompareTab`, `DecisionRecordDetail`, `QualityInstrument`, `StructuredReadout`
+and `GithubAnalysisPanel`. `StructuredReadout` is the shape of the win: its chip
+literal still carried `dark:inline-block`, the exact bug `CHIP_QUIET` had already
+been fixed for — a hand-typed copy does not receive a repair.
+
+The near-dead recipes were re-decided in the same pass rather than left as
+vocabulary nobody speaks: `PAGE_HEADER` had ZERO consumers and two hand-rolled
+headers matching it character for character (Organization, Workspace — now
+composing it); `SECTION` took the last literal `space-y-8`; `ICON_STICKER` keeps
+two consumers because its four twins are deliberate variants (border-ink setup
+steps, a per-channel accent, a hover dock tile), not unmigrated copies; the two
+`KBD` consumers are the entire `<kbd>` population bar one white-on-accent keycap.
+`StructuredReadout` stays a single-consumer component on purpose — the reason is
+in its header.
+
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.

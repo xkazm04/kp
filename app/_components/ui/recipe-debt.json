@@ -27,8 +27,7 @@
       "noticeAmber": 1
     },
     "_components/GithubAnalysisPanel.tsx": {
-      "panel": 6,
-      "noticeAmber": 1
+      "panel": 5
     },
     "_components/Modal.tsx": {
       "panel": 1
@@ -63,12 +62,6 @@
     "_components/results/ResultPanel.tsx": {
       "panel": 1
     },
-    "_components/results/compare/CompareTab.tsx": {
-      "panel": 6
-    },
-    "_components/results/extraction/ExtractionTab.tsx": {
-      "panel": 8
-    },
     "_components/results/interview/InterviewTab.tsx": {
       "panel": 3,
       "btnAffirm": 1
@@ -98,10 +91,6 @@
     },
     "_components/table/FilterMenu.tsx": {
       "panel": 1
-    },
-    "_components/ui/StructuredReadout.tsx": {
-      "metaLabel": 6,
-      "chipQuiet": 1
     },
     "_components/voice/VoiceSettings.tsx": {
       "metaLabel": 2
@@ -287,9 +276,6 @@
       "metaLabel": 2,
       "noticeAmber": 1
     },
-    "features/insights/analytics/sections/DecisionRecordDetail.tsx": {
-      "metaLabel": 10
-    },
     "features/insights/analytics/sections/DecisionRecordsTable.tsx": {
       "metaLabel": 1,
       "noticeAmber": 1
@@ -299,9 +285,6 @@
     },
     "features/insights/analytics/sections/PerformanceBriefing.tsx": {
       "metaLabel": 2
-    },
-    "features/insights/analytics/sections/QualityInstrument.tsx": {
-      "metaLabel": 7
     },
     "features/insights/matrix/MatrixDataNotices.tsx": {
       "noticeAmber": 2

@@ -33,7 +33,9 @@ export const PANEL_SUNKEN = "rounded-lg border border-stone-200 bg-stone-50 dark
  *    padding default, one ruled header, so sections read as a deliberate
  *    editorial grid on the cream canvas instead of ad-hoc clusters. ── */
 
-/** Vertical rhythm between the major sections of a tab/page. */
+/** Vertical rhythm between the major sections of a tab/page. Four consumers:
+ *  the three tab shells and the About deck scene, which was the last literal
+ *  `space-y-8` in app/ — the word is small but it is now the only spelling. */
 export const SECTION = "space-y-8";
 
 /** Default padding for a primary card surface. Compose `${PANEL} ${CARD_PAD}`. */
@@ -43,7 +45,13 @@ export const CARD_PAD = "p-5";
  *  the globals.css ride turns `.border-t` dashed in Spark Dark. */
 export const DIVIDER = "border-t border-stone-200";
 
-/** Page/tab header — eyebrow + display title + intro on the left, actions/stats
+/** Page/tab header — kept rather than deleted at zero consumers (2026-09-03):
+ *  six headers hand-rolled its literal and two of them (Organization, Workspace)
+ *  matched it CHARACTER FOR CHARACTER, which is a recipe nobody knew about, not
+ *  one nobody needs. Those two now compose it. The remaining four are genuinely
+ *  different headers (single-column, or a two-ROW stat header) and stay literal.
+ *
+ *  eyebrow + display title + intro on the left, actions/stats
  *  on the right, ruled off from the content below and generously spaced. Compose
  *  the title trio inside (EYEBROW / TITLE_DISPLAY / INTRO). */
 export const PAGE_HEADER =
@@ -83,7 +91,14 @@ export const CHIP_TOGGLE = (isActive: boolean): string =>
 export const BTN_GHOST =
   "focus-ring inline-flex items-center gap-1 rounded-md font-medium text-steel transition-colors hover:bg-stone-100 hover:text-ink disabled:opacity-50 dark:rounded-lg";
 
-/** Icon sticker — a framed icon container with 2D depth (feature marks, step
+/** Icon sticker — the NEUTRAL default (stone border, `shadow-sticker-sm`). Its
+ *  four literal twins are deliberate variants, not unmigrated copies: the setup
+ *  steps use `border-ink` + `shadow-sticker-xs` + `dark:-rotate-2`, the channels
+ *  stage takes a per-channel accent border, the sim dock adds a hover. Folding
+ *  those in would need three parameters for two call sites, so the recipe stays
+ *  the default and they stay themselves.
+ *
+ *  A framed icon container with 2D depth (feature marks, step
  *  badges, verdict glyphs). Pair with a size (h-10 w-10). */
 export const ICON_STICKER =
   "inline-grid place-items-center rounded-xl border-2 border-stone-200 bg-white shadow-sticker-sm dark:border-stone-300";
@@ -229,6 +244,10 @@ const NOTICE_TONE: Record<NoticeTone, string> = {
 export const NOTICE = (tone: NoticeTone = "amber"): string =>
   `rounded-lg border dark:rounded-2xl ${NOTICE_TONE[tone]}`;
 
-/** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
+/** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay. Two
+ *  consumers is the WHOLE population: every `<kbd>` in app/ composes this except
+ *  the one on the palette's coral selected row, which is white-on-accent and
+ *  cannot take a stone border. A complete vocabulary, not a dying one.
+ *
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
 export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";

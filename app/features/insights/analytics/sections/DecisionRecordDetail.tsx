@@ -27,6 +27,7 @@ import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { DecisionRecord } from "@/app/_lib/decision-record-store";
 import { parseSealTraceability } from "@/app/_lib/decision-attribution";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { formatAuditTime } from "../analyticsDecisionLogTypes";
 
 // The record kinds a group evaluation seals (group_eval_lead / group_eval_advisory) —
@@ -72,18 +73,18 @@ export function DecisionRecordDetail({
       <p className="max-w-prose text-sm text-ink">{localizedRationale}</p>
       {showSealedText ? (
         <p className="max-w-prose text-sm text-steel">
-          <span className="text-meta uppercase text-steel">{t("detailSealedText")}</span>{" "}
+          <span className={META_LABEL}>{t("detailSealedText")}</span>{" "}
           <span className="italic">{record.rationale}</span>
         </p>
       ) : null}
 
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <div className="flex flex-wrap items-baseline gap-2">
-          <dt className="text-meta uppercase text-steel">{t("detailPolicy")}</dt>
+          <dt className={META_LABEL}>{t("detailPolicy")}</dt>
           <dd className="font-mono text-ink">{record.policyVersion || "—"}</dd>
         </div>
         <div className="flex flex-wrap items-baseline gap-2">
-          <dt className="text-meta uppercase text-steel">{t("detailSealedAt")}</dt>
+          <dt className={META_LABEL}>{t("detailSealedAt")}</dt>
           {/* Rendered in the table's zone, with the ISO instant beside it: the two
               values an auditor has to reconcile against an export are both here. */}
           <dd className="text-ink nums">
@@ -91,11 +92,11 @@ export function DecisionRecordDetail({
           </dd>
         </div>
         <div className="flex flex-wrap items-baseline gap-2">
-          <dt className="text-meta uppercase text-steel">{t("detailContentHash")}</dt>
+          <dt className={META_LABEL}>{t("detailContentHash")}</dt>
           <dd className="break-all font-mono text-ink">{record.contentHash}</dd>
         </div>
         <div className="flex flex-wrap items-baseline gap-2">
-          <dt className="text-meta uppercase text-steel">{t("detailPrevHash")}</dt>
+          <dt className={META_LABEL}>{t("detailPrevHash")}</dt>
           <dd className="break-all font-mono text-steel">{record.prevHash || "—"}</dd>
         </div>
       </dl>
@@ -104,7 +105,7 @@ export function DecisionRecordDetail({
              actually said about the one it put first. ── */}
       {showTrace ? (
         <section className="space-y-2 rounded-md border border-stone-200 bg-white px-3 py-2">
-          <h4 className="text-meta uppercase text-steel">{t("traceTitle")}</h4>
+          <h4 className={META_LABEL}>{t("traceTitle")}</h4>
           {!trace ? (
             // The whole pair is absent. Said in one sentence that names BOTH possible
             // causes, because "we did not record it" and "no model was involved" are
@@ -113,7 +114,7 @@ export function DecisionRecordDetail({
           ) : (
             <>
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-meta uppercase text-steel">{t("tracePrompt")}</span>
+                <span className={META_LABEL}>{t("tracePrompt")}</span>
                 {/* Plural by design (see SealTraceability): a cache straddling a prompt
                     bump legitimately mixes two versions, and collapsing that to one would
                     misreport which prompt produced which part of the ranking. */}
@@ -133,7 +134,7 @@ export function DecisionRecordDetail({
 
               {lead ? (
                 <div className="space-y-1">
-                  <p className="text-meta uppercase text-steel">{t("traceLead")}</p>
+                  <p className={META_LABEL}>{t("traceLead")}</p>
                   {/* VERBATIM, and marked as a quotation. This is evidence: an auditor
                       asked what the model said, so paraphrasing it here would answer a
                       different question. Clipped at seal time, never re-narrated. */}
@@ -144,13 +145,13 @@ export function DecisionRecordDetail({
                   ) : null}
                   {lead.strengths.length > 0 ? (
                     <p className="max-w-prose text-sm text-ink">
-                      <span className="text-meta uppercase text-steel">{t("traceStrengths")}</span>{" "}
+                      <span className={META_LABEL}>{t("traceStrengths")}</span>{" "}
                       {lead.strengths.join(" · ")}
                     </p>
                   ) : null}
                   {lead.gaps.length > 0 ? (
                     <p className="max-w-prose text-sm text-ink">
-                      <span className="text-meta uppercase text-steel">{t("traceGaps")}</span> {lead.gaps.join(" · ")}
+                      <span className={META_LABEL}>{t("traceGaps")}</span> {lead.gaps.join(" · ")}
                     </p>
                   ) : null}
                   <p className="text-meta text-steel">{t("traceVerbatim")}</p>

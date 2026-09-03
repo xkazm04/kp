@@ -36,7 +36,7 @@
 import { useTranslations } from "next-intl";
 import { AlertTriangle, Ban, CheckCircle2, HelpCircle } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { Defer } from "@/app/_components/ui/Defer";
 import type { CalibrationLeakage, CalibrationSource } from "@/app/_lib/calibration";
 import {
@@ -191,21 +191,21 @@ export function QualityInstrument() {
                     left for the reader to find in the diagram's footnote. */}
                 <dl className="mt-4 flex flex-wrap gap-x-10 gap-y-3 border-t border-stone-200 pt-3">
                   <div>
-                    <dt className="text-meta uppercase text-steel">{t("statArm")}</dt>
+                    <dt className={META_LABEL}>{t("statArm")}</dt>
                     <dd className="font-serif text-h2 leading-none text-ink">
                       {arm === "holdout" ? t("armHoldout") : t("armPipeline")}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-meta uppercase text-steel">{t("statOutcomes")}</dt>
+                    <dt className={META_LABEL}>{t("statOutcomes")}</dt>
                     <dd className="font-serif text-h2 leading-none text-ink nums">{data.n}</dd>
                   </div>
                   <div>
-                    <dt className="text-meta uppercase text-steel">{t("statAdvanced")}</dt>
+                    <dt className={META_LABEL}>{t("statAdvanced")}</dt>
                     <dd className="font-serif text-h2 leading-none text-ink nums">{data.positives}</dd>
                   </div>
                   <div>
-                    <dt className="text-meta uppercase text-steel">{t("statBrier")}</dt>
+                    <dt className={META_LABEL}>{t("statBrier")}</dt>
                     <dd className="font-serif text-h2 leading-none text-ink nums">
                       {data.brier == null ? "—" : data.brier.toFixed(3)}
                     </dd>
@@ -213,13 +213,13 @@ export function QualityInstrument() {
                   {/* LUC-ANA-2 — the coin-flip tile that used to sit here compared the
                       score against a yardstick this cohort never resembled. */}
                   <div>
-                    <dt className="text-meta uppercase text-steel">{t("statBaseBrier")}</dt>
+                    <dt className={META_LABEL}>{t("statBaseBrier")}</dt>
                     <dd className="font-serif text-h2 leading-none text-steel nums">
                       {baseBrier == null ? "—" : baseBrier.toFixed(3)}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-meta uppercase text-steel">{t("statSkill")}</dt>
+                    <dt className={META_LABEL}>{t("statSkill")}</dt>
                     <dd className="font-serif text-h2 leading-none text-ink nums">
                       {skillPct == null ? "—" : t("skillValue", { pct: skillPct })}
                     </dd>
@@ -251,7 +251,7 @@ export function QualityInstrument() {
 
       {/* ---- Evidence: what it actually decided ------------------------------ */}
       <section className="border-t border-stone-300 pt-6">
-        <p className="text-meta uppercase text-steel">{t("evidenceLabel")}</p>
+        <p className={META_LABEL}>{t("evidenceLabel")}</p>
         <p className="mb-4 mt-1 max-w-2xl text-body leading-relaxed text-steel">{t("evidenceBody")}</p>
         <div className="space-y-6">
           <Defer strategy="visible">

@@ -8,7 +8,7 @@ import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
-import { CHIP, CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
 import { EnginePanel, InlineList, LazyDetails, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
@@ -34,7 +34,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-base font-medium text-steel">{analysis.candidate.name ?? t("panel.candidate")}</p>
@@ -49,7 +49,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         </div>
 
         {hasProfileFacts ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-coral" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.skillsProfile")}</h3>
@@ -91,7 +91,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         ) : null}
 
         {hasCredEvidence ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <div className="flex items-center gap-2">
               <BadgeCheck className="h-5 w-5 text-moss" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.credentialsWork")}</h3>
@@ -146,7 +146,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         ) : null}
 
         {analysis.extractionQuality ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <h3 className="font-serif text-h3 text-ink">{t("panel.extractionQuality")}</h3>
             <p className="mt-1 text-sm leading-5 text-steel">{t("panel.extractionQualityCaption")}</p>
             <p className="mt-3 text-base leading-6 text-ink">{analysis.extractionQuality.recommendation}</p>
@@ -169,7 +169,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
 
       <div className="space-y-5">
         {analysis.extractionComparison ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <h3 className="font-serif text-h3 text-ink">{t("panel.extractorComparison")}</h3>
             {/* The two raw extracted-text dumps are a diagnostic — collapsed by default,
                 and (via LazyDetails) not mounted into the DOM until the first expand so
@@ -187,7 +187,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <div className="flex items-center gap-2">
             <BrainCircuit className="h-5 w-5 text-coral" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("panel.scoreBreakdown")}</h3>
@@ -224,7 +224,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         ) : null}
 
         {analysis.evidenceTrace ? (
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <div className={`${PANEL} p-5`}>
             <h3 className="font-serif text-h3 text-ink">{t("panel.evidenceTrace")}</h3>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <InlineList
@@ -251,7 +251,7 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.llmExplanation")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.explanation}</p>
         </div>

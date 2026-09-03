@@ -4,7 +4,7 @@ import type { ReactNode, RefObject } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { EYEBROW } from "@/app/_components/ui/recipes";
+import { EYEBROW, SECTION } from "@/app/_components/ui/recipes";
 import type { ChapterDef } from "../chapters";
 
 /*
@@ -48,7 +48,7 @@ export function Scene({
           had about 600px and every label inside it truncated. Stacking gives
           the mechanism the full measure and costs only vertical space, which a
           scroll-driven deck has plenty of. */}
-      <div className="space-y-8">
+      <div className={SECTION}>
         <header className="max-w-2xl">
           <p className="flex items-baseline gap-3">
             <span className="nums font-serif text-h2 leading-none text-stone-300" aria-hidden>

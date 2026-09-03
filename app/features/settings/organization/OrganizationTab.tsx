@@ -11,7 +11,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { readClientOrgName } from "@/app/_lib/org-settings";
 import { Defer } from "@/app/_components/ui/Defer";
-import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { EYEBROW, INTRO, PAGE_HEADER, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { OnboardingExperience } from "@/app/features/shell/setup/OnboardingExperience";
 import { OrganizationGeneralPanel } from "./OrganizationGeneralPanel";
 import type { AppLanguage } from "@/app/features/shared/memberUi";
@@ -114,7 +114,7 @@ export function OrganizationTab() {
     // and there is no aria-busy to own. The member roster, which WAS this tab's
     // first-load boundary, now lives in Settings -> Workspaces.
     <div className="stagger-children space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-stone-200 pb-5">
+      <header className={PAGE_HEADER}>
         <div>
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>

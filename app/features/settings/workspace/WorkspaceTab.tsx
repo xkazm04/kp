@@ -6,7 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { EYEBROW, INTRO, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { EYEBROW, INTRO, PAGE_HEADER, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { countActiveMembers } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
@@ -265,7 +265,7 @@ export function WorkspaceTab() {
   // (Workspace.tsx's mx-auto max-w-[108rem] px-4 py-8 wrapper).
   return (
     <section className="stagger-children space-y-6" aria-busy={loading}>
-      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-stone-200 pb-5">
+      <header className={PAGE_HEADER}>
         <div>
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
