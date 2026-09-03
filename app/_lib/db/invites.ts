@@ -104,6 +104,24 @@ export function markInviteAccepted(token: string, now: number = Date.now()): boo
   return Number(info.changes) > 0;
 }
 
+/** Revoke every PENDING invite addressed to one email inside one org, returning how
+ *  many were killed.
+ *
+ *  An invite is a deferred account: redeeming one activates (or creates) the user
+ *  with the invited role and a fresh password. So removing or disabling a member
+ *  without revoking the invites addressed to their email left a live resurrection
+ *  link behind — the admin saw the seat disappear from the roster while an old
+ *  mail in the ex-member's inbox still re-minted the account, with a password only
+ *  they knew. Scoped to ONE org on purpose: a person removed from org A may hold a
+ *  legitimate pending invite from org B, and that link is none of A's business. */
+export function revokePendingInvitesForEmail(orgId: string, email: string): number {
+  const db = ensureDb();
+  const info = db
+    .prepare(`UPDATE invites SET status = 'revoked' WHERE org_id = ? AND email = ? AND status = 'pending'`)
+    .run(orgId, normalizeEmail(email));
+  return Number(info.changes);
+}
+
 export function revokeInvite(token: string): boolean {
   const db = ensureDb();
   const info = db.prepare(`UPDATE invites SET status = 'revoked' WHERE token = ? AND status = 'pending'`).run(token);

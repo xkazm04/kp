@@ -1,5 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { ensureDb } from "./db/core.ts";
 import { DEFAULT_ORG_ID } from "./db/organizations.ts";
@@ -349,4 +351,159 @@ test("a redeem interrupted after the membership write leaves nothing behind", ()
   }
   assert.equal(getUserByEmail("race.two@example.test"), null, "no half-provisioned account");
   assert.equal(listOrgMembers(orgId).length, 0, "and no seat on the team");
+});
+
+// ---- The last-owner guard under concurrency -----------------------------------
+// changeMemberRole / removeMemberFromWorkspace / setMemberStatus / removeMember are
+// each a read→compute→write over `memberships` (read the owner set → decide → write)
+// and every one of them ran UNLOCKED, while acceptInvite beside them has taken
+// db.transaction(...).immediate() since the double-redeem fix. Two operators
+// demoting the org's TWO owners at the same moment therefore both read a two-seat
+// owner set, both concluded "not the last one", and both committed — an org nobody
+// can administer, which is the one invariant the guard exists to protect.
+//
+// better-sqlite3 is synchronous, so a second writer cannot interleave inside a
+// transaction from a single-threaded test. The tests below pin the invariant from
+// the two angles that ARE observable here, in this repo's own idiom: a rival write
+// forced deterministically by a trigger (the acceptInvite race tests above), and a
+// source-level assertion that the lock and the in-lock read are present
+// (db/pipeline-close-guard.test.ts).
+
+test("a write that would leave the org ownerless is rolled back, not committed", () => {
+  // The rival, forced deterministically: a trigger that demotes the OTHER owner as
+  // our demotion lands — exactly the net effect of two concurrent demotions of two
+  // owners. Unguarded, both writes stick and the org is left with zero owners.
+  const orgId = "org-owner-race";
+  const team = createWorkspace("Owner race team", orgId);
+  const a = createUser({ orgId, email: "owner.a@example.test", status: "active", password: "owner-a-pw-12" });
+  const b = createUser({ orgId, email: "owner.b@example.test", status: "active", password: "owner-b-pw-12" });
+  addMemberToWorkspace(a.id, team.id, "owner");
+  addMemberToWorkspace(b.id, team.id, "owner");
+
+  const db = ensureDb();
+  db.exec(
+    `CREATE TRIGGER kp_test_rival_demote AFTER UPDATE ON memberships
+       WHEN new.user_id = '${a.id}' AND new.role <> 'owner'
+     BEGIN
+       UPDATE memberships SET role = 'recruiter' WHERE user_id = '${b.id}';
+     END;`
+  );
+  let result;
+  try {
+    result = changeMemberRole(a.id, team.id, "recruiter");
+  } finally {
+    db.exec("DROP TRIGGER kp_test_rival_demote");
+  }
+  assert.deepEqual(result, { ok: false, reason: "last_owner" }, "the ownerless outcome must be refused");
+  const owners = listOrgMembers(orgId).flatMap((m) => m.teams.filter((t) => t.role === "owner"));
+  assert.ok(owners.length > 0, "the org must never be left without an owner");
+});
+
+test("two demotions of two owners leave exactly one owner", () => {
+  const orgId = "org-owner-pair";
+  const team = createWorkspace("Owner pair team", orgId);
+  const a = createUser({ orgId, email: "pair.a@example.test", status: "active", password: "pair-a-pw-123" });
+  const b = createUser({ orgId, email: "pair.b@example.test", status: "active", password: "pair-b-pw-123" });
+  addMemberToWorkspace(a.id, team.id, "owner");
+  addMemberToWorkspace(b.id, team.id, "owner");
+
+  assert.equal(changeMemberRole(a.id, team.id, "recruiter").ok, true, "the first demotion is allowed");
+  assert.deepEqual(changeMemberRole(b.id, team.id, "recruiter"), { ok: false, reason: "last_owner" });
+  const owners = listOrgMembers(orgId).filter((m) => m.teams.some((t) => t.role === "owner"));
+  assert.equal(owners.length, 1, "exactly one owner survives the pair");
+  assert.equal(owners[0].user.id, b.id);
+});
+
+test("every last-owner-guarded write takes the IMMEDIATE lock with the owner read inside it", () => {
+  const src = readFileSync(fileURLToPath(new URL("./org-service.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  // ONE seam, so a fifth guarded operation cannot be added with its own unlocked shape.
+  assert.match(
+    src,
+    /function underOwnerLock\([\s\S]*?\.transaction\([\s\S]*?\.immediate\(\)/,
+    "underOwnerLock must take the write lock at BEGIN (.immediate())"
+  );
+  for (const name of ["changeMemberRole", "removeMemberFromWorkspace", "setMemberStatus", "removeMember"]) {
+    const start = src.indexOf(`export function ${name}(`);
+    assert.notEqual(start, -1, `${name} not found — did it get renamed?`);
+    const rest = src.slice(start + 1);
+    const end = rest.indexOf("\nexport ");
+    const body = end === -1 ? rest : rest.slice(0, end);
+    assert.match(body, /underOwnerLock\(/, `${name} must run through the shared lock`);
+    // The owner-set read must be INSIDE the callback, never hoisted above it —
+    // a decision computed before BEGIN is exactly the stale read this fixes.
+    const lockAt = body.indexOf("underOwnerLock(");
+    const readAt = body.search(/isSoleOwner\(|ownerSeatCount\(/);
+    assert.ok(readAt === -1 || readAt > lockAt, `${name} reads the owner set before taking the lock`);
+  }
+});
+
+// ---- Removal closes the way back in -------------------------------------------
+// An invite is a DEFERRED ACCOUNT: redeeming one activates (or re-creates) the user
+// with the invited role and whatever password the link-holder types. So a removal or
+// a disable that left the invites addressed to that email pending was reversible by
+// the person it was applied to — the roster showed the seat gone while an old mail
+// still opened the tenant.
+
+test("removing a member revokes the pending invites addressed to them", () => {
+  const orgId = "org-resurrect";
+  const team = createWorkspace("Resurrect team", orgId);
+  const owner = createUser({ orgId, email: "res.owner@example.test", status: "active", password: "res-owner-pw1" });
+  addMemberToWorkspace(owner.id, team.id, "owner");
+  const victim = createUser({ orgId, email: "res.victim@example.test", status: "active", password: "res-victim-p1" });
+  addMemberToWorkspace(victim.id, team.id, "recruiter");
+  // The link that invited them in the first place, still pending in their inbox.
+  const stale = mintInvite({ orgId, email: "res.victim@example.test", role: "owner", workspaceId: team.id });
+
+  assert.equal(removeMember(victim.id).ok, true);
+  assert.equal(getInvite(stale.token)!.status, "revoked", "the old link must not survive the account");
+  // …and it no longer redeems: without this the removed person re-creates their
+  // account with a password only they know, at the role the invite granted.
+  assert.deepEqual(acceptInvite({ token: stale.token, password: "resurrection-1" }), { ok: false, reason: "invalid" });
+  assert.equal(getUserByEmail("res.victim@example.test"), null, "the account stays removed");
+});
+
+test("disabling a member revokes their pending invites too", () => {
+  const orgId = "org-disable-link";
+  const team = createWorkspace("Disable team", orgId);
+  const owner = createUser({ orgId, email: "dis.owner@example.test", status: "active", password: "dis-owner-pw1" });
+  addMemberToWorkspace(owner.id, team.id, "owner");
+  const victim = createUser({ orgId, email: "dis.victim@example.test", status: "active", password: "dis-victim-p1" });
+  addMemberToWorkspace(victim.id, team.id, "recruiter");
+  const stale = mintInvite({ orgId, email: "dis.victim@example.test", role: "recruiter", workspaceId: team.id });
+
+  assert.equal(setMemberStatus(victim.id, "disabled").ok, true);
+  assert.equal(getInvite(stale.token)!.status, "revoked");
+  // Redeem would have flipped the account back to active with a fresh password.
+  assert.deepEqual(acceptInvite({ token: stale.token, password: "undisable-me-1" }), { ok: false, reason: "invalid" });
+  assert.equal(getUserByEmail("dis.victim@example.test")!.status, "disabled", "the lockout holds");
+});
+
+test("a removal PREVIEW revokes nothing — a dry run destroys nothing at all", () => {
+  const orgId = "org-preview-link";
+  const team = createWorkspace("Preview team", orgId);
+  const owner = createUser({ orgId, email: "prev.owner@example.test", status: "active", password: "prev-owner-p1" });
+  addMemberToWorkspace(owner.id, team.id, "owner");
+  const victim = createUser({ orgId, email: "prev.victim@example.test", status: "active", password: "prev-victim-1" });
+  addMemberToWorkspace(victim.id, team.id, "recruiter");
+  const pending = mintInvite({ orgId, email: "prev.victim@example.test", role: "recruiter", workspaceId: team.id });
+
+  assert.equal(removeMember(victim.id, { dryRun: true }).ok, true);
+  assert.equal(getInvite(pending.token)!.status, "pending", "the preview must leave the invite alone");
+});
+
+test("another org's pending invite to the same person is none of this org's business", () => {
+  const orgA = "org-scope-a";
+  const orgB = "org-scope-b";
+  const teamA = createWorkspace("Scope A team", orgA);
+  const teamB = createWorkspace("Scope B team", orgB);
+  const ownerA = createUser({ orgId: orgA, email: "scope.owner@example.test", status: "active", password: "scope-owner1" });
+  addMemberToWorkspace(ownerA.id, teamA.id, "owner");
+  const person = createUser({ orgId: orgA, email: "scope.person@example.test", status: "active", password: "scope-person1" });
+  addMemberToWorkspace(person.id, teamA.id, "recruiter");
+  const fromA = mintInvite({ orgId: orgA, email: "scope.person@example.test", role: "recruiter", workspaceId: teamA.id });
+  const fromB = mintInvite({ orgId: orgB, email: "scope.person@example.test", role: "recruiter", workspaceId: teamB.id });
+
+  assert.equal(removeMember(person.id).ok, true);
+  assert.equal(getInvite(fromA.token)!.status, "revoked", "org A closes its own door");
+  assert.equal(getInvite(fromB.token)!.status, "pending", "…and leaves org B's invitation standing");
 });

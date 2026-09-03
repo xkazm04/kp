@@ -60,6 +60,29 @@ inventing a second scoping dimension.
   `addMemberToWorkspace`. It previously did not, and an `admin` could strip the
   org's only owner with one call while `DELETE` on the same route refused it
   (pinned in `app/api/workspaces/workspaces-route.test.ts`).
+- **…and the backstop holds under concurrency.** All four writes run through ONE
+  seam, `org-service`'s `underOwnerLock`: a `db.transaction(...).immediate()`
+  whose callback performs the owner-set read (`isSoleOwner` / `ownerSeatCount`)
+  **inside** the lock. They used to read, decide and write unlocked, so two
+  operators demoting the org's TWO owners at the same moment both saw a two-seat
+  owner set, both concluded "not the last one", and both committed — the exact
+  state the guard exists to prevent. Under `BEGIN IMMEDIATE` the second caller
+  waits, re-reads a one-seat set and is refused. The seam also re-asserts the
+  invariant AFTER the write and rolls back with `last_owner` if the org would be
+  left ownerless anyway, so a future operation that forgets its pre-check orphans
+  nothing. Pinned by `app/_lib/org-service.test.ts` (a rival demotion forced by a
+  trigger; the sequential pair leaving exactly one owner; a source-level check
+  that each of the four takes the lock and reads inside it).
+- **Removing or disabling a member closes the way back in.** An invite is a
+  deferred account — redeeming one activates or re-creates the user with the
+  invited role and a fresh password — so `removeMember` and
+  `setMemberStatus(id, "disabled")` now also revoke the org's **pending invites
+  addressed to that email** (`revokePendingInvitesForEmail`,
+  `app/_lib/db/invites.ts`), in the same transaction as the removal. Without it
+  an old link in the ex-member's inbox re-minted the account at the invited role
+  while the roster showed the seat gone. Scoped to the acting org: a pending
+  invite to the same person from a DIFFERENT org is untouched. A removal
+  **preview** (`dryRun`) revokes nothing.
 - Open-mode + operator-password sessions fold to `owner` so local dev is
   unchanged.
 - **Disabling a member bites immediately, not at next login.**
