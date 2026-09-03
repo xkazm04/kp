@@ -104,6 +104,22 @@ export function valueOf(text, key) {
 /** True when `key:` appears anywhere in `text` (used for "is it wired at all"). */
 export const hasKey = (text, key) => new RegExp(`^\\s*${key}:`, 'm').test(String(text ?? ''));
 
+/**
+ * What a probe block READS, as a comparable string — `http:/api/health`,
+ * `tcp:http` — or null when the block declares neither form (an `exec` probe, or
+ * no probe at all). Both forms are normalized so the comparison catches two
+ * `tcpSocket` probes on one port as well as two `httpGet` probes on one path:
+ * either way the two probes are asking one question.
+ */
+export function probeEndpoint(values, name) {
+  const block = blockOf(values, name);
+  if (!block) return null;
+  const path = hasKey(block, 'httpGet') ? valueOf(block, 'path') : null;
+  if (path !== null) return `http:${path}`;
+  const port = hasKey(block, 'tcpSocket') ? valueOf(block, 'port') : null;
+  return port === null ? null : `tcp:${port}`;
+}
+
 /** ENV_VAR-shaped keys a YAML block declares, ignoring comments and template lines. */
 export function envKeysIn(text) {
   return [
@@ -259,12 +275,27 @@ export const POLICIES = [
   },
   {
     rule: 'no-probes',
-    why: 'Without a readiness probe, Recreate hands traffic to a pod that has not opened its database yet.',
+    why:
+      'Without a readiness probe, Recreate hands traffic to a pod that has not opened its database yet — and two ' +
+      'probes reading ONE endpoint have one remedy for two failures, which one replica cannot absorb.',
     check: ({ values, deployment }) => {
       const missing = ['livenessProbe', 'readinessProbe'].filter(
         (p) => !hasKey(values, p) || !deployment.includes(`.Values.${p}`),
       );
-      return missing.length === 0 ? null : `${missing.join(' and ')} is not both declared and applied.`;
+      if (missing.length > 0) return `${missing.join(' and ')} is not both declared and applied.`;
+      // The two probes must not read the same thing. Deliberately weaker than
+      // "readiness must hit /api/health": a policy that names one route breaks the
+      // first time the route moves, while "these two answer different questions"
+      // is the actual rule and survives a rename. The router's red means STOP
+      // SENDING TRAFFIC and the supervisor's red means RESTART; a shared endpoint
+      // gets one of them wrong, and with replicas: 1 + Recreate the wrong one is
+      // a crash loop over a dependency a restart cannot fix.
+      const live = probeEndpoint(values, 'livenessProbe');
+      const ready = probeEndpoint(values, 'readinessProbe');
+      return live && ready && live === ready
+        ? `livenessProbe and readinessProbe both read ${live}. A degraded dependency would then restart the pod ` +
+          'rather than remove it from service.'
+        : null;
     },
   },
   {

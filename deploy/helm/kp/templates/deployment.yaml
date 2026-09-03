@@ -47,6 +47,12 @@ spec:
                 name: {{ include "kp.fullname" . }}
             - secretRef:
                 name: {{ include "kp.secretName" . }}
+          {{- with .Values.startupProbe }}
+          # While this passes, the kubelet suppresses liveness and readiness — a
+          # slow first boot (schema + seed) is not a wedged process.
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:

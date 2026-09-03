@@ -22,6 +22,7 @@ import {
   documentedEnvKeys,
   envKeysIn,
   loadChart,
+  probeEndpoint,
   runPolicies,
   valueOf,
 } from '../check-chart.mjs';
@@ -60,11 +61,12 @@ const GOOD = {
     '  capabilities:',
     '    drop: ["ALL"]',
     'livenessProbe:',
-    '  httpGet:',
-    '    path: /',
+    '  tcpSocket:',
+    '    port: http',
     'readinessProbe:',
     '  httpGet:',
-    '    path: /',
+    '    path: /api/health',
+    '    port: http',
   ].join('\n'),
   deployment: [
     'spec:',
@@ -178,6 +180,23 @@ check('an unbounded pod, and probes that are declared but never applied', () => 
   assert.ok(
     has(broken({ deployment: GOOD.deployment.replace('.Values.readinessProbe', '.Values.livenessProbe') }), 'no-probes'),
   );
+});
+
+check('THE OTHER TIDY-UP: both probes pointed at one endpoint', () => {
+  // Declared, applied, and wrong: the restarter and the router now read the same
+  // answer, so a degraded dependency crash-loops the only pod instead of taking
+  // it out of service. Both spellings of the mistake — one path, and one port.
+  const oneHttpPath = GOOD.values.replace('livenessProbe:\n  tcpSocket:\n    port: http', 'livenessProbe:\n  httpGet:\n    path: /api/health\n    port: http');
+  const f = broken({ values: oneHttpPath });
+  assert.ok(has(f, 'no-probes'), 'two httpGet probes on /api/health');
+  assert.match(f.find((x) => x.rule === 'no-probes').message, /http:\/api\/health/);
+
+  const oneTcpPort = GOOD.values.replace('readinessProbe:\n  httpGet:\n    path: /api/health\n    port: http', 'readinessProbe:\n  tcpSocket:\n    port: http');
+  assert.ok(has(broken({ values: oneTcpPort }), 'no-probes'), 'two tcpSocket probes on one port — readiness stopped observing anything');
+
+  // And the shape that must stay clean: different questions, different reads.
+  assert.equal(probeEndpoint(GOOD.values, 'livenessProbe'), 'tcp:http');
+  assert.equal(probeEndpoint(GOOD.values, 'readinessProbe'), 'http:/api/health');
 });
 
 check('a shared volume access mode', () => {
