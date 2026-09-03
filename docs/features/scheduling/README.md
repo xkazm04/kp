@@ -319,6 +319,77 @@ handler and also asserts that every code the route emits has an `errors.<CODE>`
 entry in all four catalogs — a code with no catalog entry silently degrades back
 to the generic fallback.
 
+## What the CANDIDATE is told when their door refuses
+
+The public token route (`/api/schedule/[token]`) answers through the same
+chokepoint, with codes worded for someone holding a link rather than looking at a
+grid. It reuses `SCHEDULE_SLOT_TAKEN` — one vocabulary across both halves of the
+feature, not two — and adds eight of its own:
+
+| Code | Status | Means |
+| --- | --- | --- |
+| `SCHEDULE_LINK_NOT_FOUND` | 404 | No invite for this token (mistyped, truncated, or cleaned up) |
+| `SCHEDULE_LINK_CLOSED` | 410 | The link aged out or the state machine closed it — every mutation refuses |
+| `SCHEDULE_INTERVIEW_UNAVAILABLE` | 409 | The linked entry went terminal since the link was minted |
+| `SCHEDULE_SLOT_NOT_OFFERED` | 400 | The submitted instant is not one the server would offer |
+| `SCHEDULE_SLOT_TAKEN` | 409 | The hour went between page load and submit (kp-side or calendar-side) |
+| `SCHEDULE_NO_BOOKING_YET` | 409 | An RSVP arrived for an invite with no confirmed time |
+| `SCHEDULE_SLOTS_STILL_OPEN` | 409 | "Propose your own times" while the picker still has slots |
+| `SCHEDULE_PROPOSALS_INVALID` | 400 | The proposed instants failed server-side validation |
+| `SCHEDULE_RESCHEDULE_LIMIT` | 409 | Every self-reschedule is spent (`MAX_RESCHEDULES`) |
+
+Before this, all eleven were bare English sentences with no `code`, so
+`useErrorMessage()` had nothing to resolve and `use-schedule-invite.ts` painted
+its own generic `confirmFailed` copy over every one of them — on the one surface
+in the product whose reader is, by construction, not an operator and may not read
+English at all. Pinned by
+`app/api/schedule/[token]/schedule-token-refusals.test.ts`, which drives the real
+handler for seven of them, asserts the four-catalog entry for every code the route
+emits, and fails if a bare `NextResponse.json({ error: "…" })` comes back.
+
+## The candidate's language, and the read budget
+
+**The invite link carries the candidate's locale.** `POST /api/schedule/invite`
+pins `?lang=` onto the EMAILED link via `pinLinkLocale` +
+`resolveCommsLocale(entry.locale, entry.workspaceId)` — the same resolution the
+letter itself is composed with, and the same convention as the status link in the
+application ack, the erasure link in every candidate comm, the voice-interview
+link and the offer link. An absolute link opened from an email carries no
+`NEXT_LOCALE` cookie, so unpinned it resolved from `Accept-Language`: a Czech
+candidate read a Czech invitation and landed on an English booking page. The
+`rescheduleLink` inside the confirmation email is pinned the same way. The
+recruiter-facing `url` in the response stays **bare** — `?lang=` on a link the
+recruiter opens would rewrite their own cookie and flip the console's language.
+`/schedule/[token]` also renders the shared `LanguageSwitcher`, the escape hatch
+for a forwarded link or a stale cookie, like every other public candidate page.
+Pinned by `app/schedule/[token]/schedule-link-locale.test.ts`.
+
+**The token GET is throttled.** It was the last public token READ with no limiter,
+and it is not cheap: every hit runs `proposeFreeSlots`, which queries the
+interviewer's connected calendar for free/busy. `SCHEDULE_READ_RATE_LIMIT` is
+60/min keyed per client **and** token — the same budget and key shape as
+`/api/status/[token]` — so the picker's load + post-action refetches sit an order
+of magnitude below it while one scraped link cannot throttle another candidate
+behind the same NAT. Over the limit answers `jsonRefusal("TOO_MANY_REQUESTS", 429)`.
+The spec lives in `app/api/rate-limit-contract.test.ts`.
+
+## Keyboard and focus on the candidate's page
+
+`/schedule/[token]` replaces its whole body three times over a session: the slot
+grid becomes the booked card, the booked card becomes the grid again after an RSVP
+cancel or a "different time", and any of them becomes the dead-link card when the
+invite closes. Each swap unmounts the element focus was on, so focus fell to
+`<body>` and a keyboard candidate had to tab from the top of the document to learn
+whether their booking landed. `app/schedule/[token]/schedule-focus.ts` is the
+pure decision — `scheduleSurface()` mirrors SchedulePicker's own branch order
+(dead beats booked beats picker unless rescheduling) and `SCHEDULE_FOCUS_ID` names
+each surface's anchor; every surface renders that id with `tabIndex={-1}`, so it
+is programmatically focusable without becoming a tab stop. SchedulePicker focuses
+the anchor only on a **change**, never on the first loaded render, so an arriving
+load cannot steal focus from someone already reading. Pinned by
+`app/schedule/[token]/schedule-focus.test.ts` (the pure ordering directly, the
+wiring as a source guard, like `schedule-picker-recovery.test.ts`).
+
 ## API / lib surface
 
 | Surface | File | Notes |

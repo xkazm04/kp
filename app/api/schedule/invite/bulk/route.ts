@@ -8,6 +8,8 @@ import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
+import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
@@ -114,7 +116,12 @@ export async function POST(request: NextRequest) {
         let dispatched = false;
         let delivery: DeliveryClaim = "failed";
         try {
-          const link = `${publicBaseUrl(origin)}/schedule/${invite.token}`;
+          // Same pin as the single route (wave 14): the EMAILED link carries the
+          // candidate's locale so a Czech letter never lands on an English page.
+          const link = pinLinkLocale(
+            `${publicBaseUrl(origin)}/schedule/${invite.token}`,
+            resolveCommsLocale(entry.locale, entry.workspaceId ?? undefined)
+          );
           const status = await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });
           delivery = deliveryClaim(isRelayConfigured(), status);
           dispatched = delivery !== "failed";

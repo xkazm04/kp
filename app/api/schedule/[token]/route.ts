@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { dispatchInterviewConfirmation, dispatchInterviewerBrief } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
@@ -24,10 +24,12 @@ import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-s
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { isValidTimeZone } from "@/app/_lib/timezone";
 import { logScheduleNoSlots, logScheduleReconcile } from "@/app/_lib/logger";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
+import { resolveCommsLocale } from "@/app/_lib/comms-locale";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // Candidate-facing projection of an invite (idea-69d1e4fd). The route used to
@@ -63,11 +65,26 @@ function publicInviteView(invite: ScheduleInvite) {
   };
 }
 
+// The candidate's own read is the EXPENSIVE call on this route: it runs proposeFreeSlots,
+// which fans out to the interviewer's connected Google calendar (free/busy) on every hit.
+// It was the only public token READ in the product with no limiter — /api/status/[token],
+// /api/offer/[token] and this route's own POST all have one — so an unauthenticated holder
+// of one link could drive unbounded third-party calendar traffic from a loop.
+//
+// Same budget and shape as the status page's read (60/min per client AND token): the picker
+// fetches once on load and re-fetches after a booking, a 409 and an RSVP cancel, so honest
+// use sits an order of magnitude below it, and the per-token half of the key keeps one
+// scraped link from throttling a different candidate behind the same NAT.
+const SCHEDULE_READ_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
+
 // GET → candidate-facing data: the invite + proposed slots.
-export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
+  if (!rateLimit(`sched-read:${clientIpFrom(request.headers)}:${token}`, SCHEDULE_READ_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   const invite = getScheduleInviteByToken(token);
-  if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!invite) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
   // Dead-capability gate (Direction 1): a link that aged out unbooked ('expired',
   // derived), or one the state machine closed ('declined' / 'no_show'), offers no
   // slots. The candidate page renders a localized terminal card from `closed` — the
@@ -158,7 +175,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Side-effect-bearing public endpoint (a confirm dispatches candidate
     // email) — throttle per caller+token (idea-3e49abaf).
     if (!rateLimit(`sched:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as {
       slot?: string;
@@ -179,7 +196,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // dropped to null rather than stored, so it can never make Intl throw later.
     const candidateTz = isValidTimeZone(body.tz) ? body.tz : null;
     const invite = getScheduleInviteByToken(token);
-    if (!invite) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!invite) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
 
     // Dead-capability gate (Direction 1): a stale tab can still POST after the link
     // aged out ('expired') or the state machine closed it ('declined' / 'no_show').
@@ -187,7 +204,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // a closed link book a slot. The GET already renders the terminal card, so this
     // is the server-side safety net; the picker maps the 410 to localized copy.
     if (isScheduleInviteExpired(invite) || isTerminalScheduleInviteStatus(invite.status)) {
-      return NextResponse.json({ error: "This scheduling link is no longer active." }, { status: 410 });
+      return jsonRefusal("SCHEDULE_LINK_CLOSED", 410);
     }
 
     // WITHDRAW (Direction 1): the candidate declines the interview entirely — a
@@ -197,7 +214,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // surfaced to the recruiter, not silently regressed.
     if (body.withdraw === true) {
       const declined = declineScheduleInvite(token);
-      if (!declined) return NextResponse.json({ error: "not found" }, { status: 404 });
+      if (!declined) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
       // The interview is off — take it off the interviewer's calendar too, or the
       // recruiter keeps a block of time for a candidate who withdrew. `invite` (the
       // PRE-decline row) still carries the event id; declineScheduleInvite clears the
@@ -218,7 +235,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       if (invite.entryId) {
         const linkedEntry = getPipelineEntry(invite.entryId, invite.workspaceId);
         if (linkedEntry && linkedEntry.status !== "active") {
-          return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
+          return jsonRefusal("SCHEDULE_INTERVIEW_UNAVAILABLE", 409);
         }
       }
       // "Stuck" MUST be decided by the same slot engine the GET renders from. This used
@@ -242,14 +259,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         ).slots.length === 0;
       const stuckCapped = invite.status === "confirmed" && invite.rescheduleCount >= MAX_RESCHEDULES;
       if (!stuckPending && !stuckCapped) {
-        return NextResponse.json({ error: "There are still open times — please pick one from the list." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_SLOTS_STILL_OPEN", 409);
       }
       const proposed = validateProposedSlots(body.propose);
       if (!proposed) {
-        return NextResponse.json({ error: "Please suggest 1–3 future weekday times during working hours." }, { status: 400 });
+        return jsonRefusal("SCHEDULE_PROPOSALS_INVALID", 400);
       }
       const saved = setScheduleInviteProposals(token, proposed);
-      if (!saved) return NextResponse.json({ error: "not found" }, { status: 404 });
+      if (!saved) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
       return jsonOk({ ok: true, invite: publicInviteView(saved), proposed: true });
     }
 
@@ -260,16 +277,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // can't RSVP.
     if (body.rsvp === "confirm" || body.rsvp === "cancel") {
       if (invite.status !== "confirmed") {
-        return NextResponse.json({ error: "There's no confirmed time to update yet." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_NO_BOOKING_YET", 409);
       }
       if (invite.entryId) {
         const linkedEntry = getPipelineEntry(invite.entryId, invite.workspaceId);
         if (linkedEntry && linkedEntry.status !== "active") {
-          return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
+          return jsonRefusal("SCHEDULE_INTERVIEW_UNAVAILABLE", 409);
         }
       }
       const updated = body.rsvp === "confirm" ? confirmAttendance(token) : cancelAttendance(token);
-      if (!updated) return NextResponse.json({ error: "not found" }, { status: 404 });
+      if (!updated) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
       // "I can't make it" frees the slot in kp; free it on the calendar too. A later
       // re-booking on this same invite creates a fresh event (the id is cleared with
       // the deletion), so the two can't drift into a ghost at the abandoned time.
@@ -298,7 +315,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (invite.entryId) {
       const linkedEntry = getPipelineEntry(invite.entryId, invite.workspaceId);
       if (linkedEntry && linkedEntry.status !== "active") {
-        return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
+        return jsonRefusal("SCHEDULE_INTERVIEW_UNAVAILABLE", 409);
       }
     }
 
@@ -311,7 +328,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // and reschedule.
     const offered = offeredSlotFor(body.slotAt);
     if (!offered) {
-      return NextResponse.json({ error: "That time isn't one of the offered slots — please pick from the list." }, { status: 400 });
+      return jsonRefusal("SCHEDULE_SLOT_NOT_OFFERED", 400);
     }
     const slot = offered.label;
 
@@ -328,10 +345,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // the picker's existing handler refreshes the slot list and re-offers.
     const calendarFree = await slotStillFree(offered.value, invite.workspaceId, invite.durationMin ?? undefined);
     if (calendarFree === false) {
-      return NextResponse.json(
-        { error: "That time was just taken — please pick another.", invite: publicInviteView(invite) },
-        { status: 409 }
-      );
+      return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409, { invite: publicInviteView(invite) });
     }
 
     // Record the chosen slot on the linked pipeline entry and send the
@@ -389,7 +403,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
           durationMin: booked.durationMin,
           // The candidate's one durable way back to reschedule (SCH2) / .ics —
           // the picker page is gone once the tab closes.
-          rescheduleLink: `${publicBaseUrl(new URL(request.url).origin)}/schedule/${token}`,
+          // Pinned to the candidate's own language, exactly like the invite that started
+          // this thread: this ABSOLUTE link is opened from an email, where no NEXT_LOCALE
+          // cookie exists, so unpinned it drops a Czech candidate on an English booking
+          // page from a Czech letter (proxy.ts turns ?lang= back into the cookie). The
+          // locale is the entry's own — the same resolution the letter itself uses.
+          rescheduleLink: pinLinkLocale(
+            `${publicBaseUrl(new URL(request.url).origin)}/schedule/${token}`,
+            resolveCommsLocale(entry.locale, entry.workspaceId ?? undefined)
+          ),
         });
         // Brief the assigned interviewer too (interview-prep #2). Best-effort: a
         // brief failure must never turn the candidate's confirmed booking into an
@@ -449,18 +471,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       const moved = rescheduleScheduleInvite(token, slot, offered.value, candidateTz);
       if (!moved.ok) {
         if (moved.reason === "taken") {
-          return NextResponse.json(
-            { error: "That time was just taken — please pick another.", invite: moved.invite ? publicInviteView(moved.invite) : null },
-            { status: 409 }
-          );
+          return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409, { invite: moved.invite ? publicInviteView(moved.invite) : null });
         }
         if (moved.reason === "limit") {
-          return NextResponse.json(
-            { error: "You've changed your interview time a few times already — reply to your confirmation email and we'll help you find a slot." },
-            { status: 409 }
-          );
+          return jsonRefusal("SCHEDULE_RESCHEDULE_LIMIT", 409);
         }
-        return NextResponse.json({ error: "not found" }, { status: 404 });
+        return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
       }
       const confirmationDelivery = await recordBooking(moved.invite);
       await writeCalendarEvent(moved.invite);
@@ -480,12 +496,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!result.ok) {
       if (result.reason === "taken") {
         // Another candidate confirmed this exact time between page load and submit.
-        return NextResponse.json(
-          { error: "That time was just taken — please pick another.", invite: result.invite ? publicInviteView(result.invite) : null },
-          { status: 409 }
-        );
+        return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409, { invite: result.invite ? publicInviteView(result.invite) : null });
       }
-      return NextResponse.json({ error: "not found" }, { status: 404 });
+      return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
     }
     const confirmationDelivery = await recordBooking(result.invite);
     await writeCalendarEvent(result.invite);

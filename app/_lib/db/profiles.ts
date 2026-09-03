@@ -155,18 +155,46 @@ export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKS
 // Overwrite an existing profile in place (created_at is preserved so the roster
 // keeps its order; the payload is the freshly re-routed/re-scored profile from
 // profile_cli). Returns false when no row matched the id.
-export function updateProfile(id: string, input: SaveProfileInput, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+export function updateProfile(
+  id: string,
+  input: SaveProfileInput,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // OPTIMISTIC-CONCURRENCY PRECONDITION (profiles-stale-cas.test.ts). A profile save is
+  // a read→compute→write that spans a Python spawn (profile_cli re-routes and rescores
+  // the intake), so the editor's form is minutes older than the row by the time this
+  // UPDATE runs. With no precondition the last writer won silently: two tabs, or a
+  // recruiter editing while a rebuild-from-latest re-hydrated the same row, and one set
+  // of changes vanished with nothing on screen to say so. When the caller passes the
+  // `updated_at` it read, it is re-asserted HERE in the WHERE — the
+  // compensating-precondition half of the repo's "a read→compute→write either locks or
+  // re-checks" rule, the same shape as actOnPipelineEntry's expectedStage — and
+  // `changes === 0` becomes the 409 the route answers with. Omitted (undefined) keeps
+  // the previous unconditional write, which is what the GDPR anonymize pass and every
+  // legacy caller want.
+  expectedUpdatedAt?: string | null
+): boolean {
   const db = ensureDb();
   // Stamp updated_at on every content write. lineage_stamped_at is left untouched
   // (only setProfileLineage moves it) — so an edit AFTER a build/rebuild pushes
   // updated_at past lineage_stamped_at, which is exactly the divergence signal a
   // rebuild reads before it clobbers the recruiter's edits.
+  const guarded = expectedUpdatedAt != null;
   const info = db
     .prepare(
       `UPDATE profiles SET label = ?, archetype = ?, role_family = ?, completeness = ?, payload_json = ?, updated_at = ?
-       WHERE id = ? AND workspace_id = ?`
+       WHERE id = ? AND workspace_id = ?${guarded ? " AND updated_at = ?" : ""}`
     )
-    .run(input.label, input.archetype, input.roleFamily, input.completeness, JSON.stringify(input.payload), new Date().toISOString(), id, workspaceId);
+    .run(
+      input.label,
+      input.archetype,
+      input.roleFamily,
+      input.completeness,
+      JSON.stringify(input.payload),
+      new Date().toISOString(),
+      id,
+      workspaceId,
+      ...(guarded ? [expectedUpdatedAt] : [])
+    );
   invalidateProfileRecordsCache();
   return Number(info.changes) > 0;
 }

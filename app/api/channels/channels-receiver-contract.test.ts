@@ -115,6 +115,8 @@ test("receiver creation gates the unscoped getJob read on job visibility", () =>
 test("receiver creation returns the `{ webhook }` envelope and the modal reads its token", () => {
   assert.match(webhooksSrc, /satisfies \{ webhook: ChannelWebhookRecord \}/, "the response shape is tsc-pinned");
   assert.match(modalSrc, /webhook\?: ChannelWebhookRecord/, "the modal types the response it parses");
-  assert.match(modalSrc, /onCreated\(p\.webhook\?\.token \?\? ""\)/, "auto-select reads the token off the envelope");
+  // Either shape reads the token off the envelope: the optional-chain-with-fallback
+  // form, or (wave 14) a `!p?.webhook` guard above followed by the plain read.
+  assert.match(modalSrc, /onCreated\(p\.webhook(\?\.token \?\? ""|\.token)\)/, "auto-select reads the token off the envelope");
   assert.doesNotMatch(modalSrc, /onCreated\(typeof p\.token/, "the dead top-level `token` read must not come back");
 });

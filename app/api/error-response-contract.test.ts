@@ -211,7 +211,6 @@ const LEAK_CEILING = new Map<string, number>([
   // dock resolves both in the reader's language. The row is deleted so the win is locked.
   ["channels/inbound/[token]/route.ts", 1],
   ["channels/webhooks/route.ts", 3],
-  ["comms/relay/route.ts", 1],
   ["comms/relay/test/route.ts", 2],
   // decisions/config's single leak was FIXED, not ceilinged (/perfect 2026-09-02,
   // pipeline-composer): the 500 answers safeJsonError(..., "DECISION_CONFIG_SAVE_FAILED")

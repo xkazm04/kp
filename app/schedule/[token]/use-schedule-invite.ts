@@ -89,7 +89,11 @@ export function useScheduleInvite(token: string) {
       .then((d) => {
         if (!alive) return;
         if (d.error) {
-          setError(t("linkInvalid"));
+          // The LOAD failure resolves by code too, not just the action failures below:
+          // this route now answers SCHEDULE_LINK_NOT_FOUND for an unknown token and
+          // TOO_MANY_REQUESTS when the read budget is spent, and painting "that link
+          // isn't valid" over a throttle told the candidate their link was broken.
+          setError(errMsg(d, t("linkInvalid")));
           return;
         }
         setInvite(d.invite);
@@ -108,7 +112,7 @@ export function useScheduleInvite(token: string) {
     return () => {
       alive = false;
     };
-  }, [token, t]);
+  }, [token, t, errMsg]);
 
   const pick = async (s: Slot) => {
     setPicking(s.value);

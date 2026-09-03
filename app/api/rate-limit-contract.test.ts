@@ -386,6 +386,21 @@ const ROUTES: RouteSpec[] = [
     expensive: "companionBrainStatus(await probeCompanionBrain(), ws)",
   },
   {
+    // ADDED /perfect 2026-09-03 (profile-editor-keeps-hand-edits) WITH the limiter.
+    // The synchronous AI profile-draft door spawns a PAID model child per call and had
+    // neither an operator gate nor a throttle, while the background twin it delegates to
+    // (POST /api/tasks, kind "profile_draft") carries both. In open mode — or through the
+    // anonymous session /api/demo mints — that made drafting an unbounded spend endpoint.
+    // 20/10min per IP: the panel is one click per pasted CV blurb.
+    rel: "./profile/draft/route.ts",
+    key: "`profile-draft:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "DRAFT_RATE_LIMIT",
+    optsDef: "const DRAFT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runProfileDraft(",
+  },
+  {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
     key: "`extract-text:${clientIpFrom(request.headers)}`",
@@ -766,6 +781,30 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "jobVisibleToWorkspace(id, ws)",
   },
   {
+    // ADDED /perfect (schedule-door-speaks-the-candidates-language), with the limiter
+    // itself. The candidate's own READ was the last public token read in the product with
+    // no throttle — and it is not a cheap one: every hit runs proposeFreeSlots, which
+    // queries the interviewer's connected Google calendar for free/busy. A holder of one
+    // link (or anyone who scraped one out of a forwarded email) could drive unbounded
+    // third-party calendar traffic, and the same call is what the POST's own "stuck"
+    // decision re-runs. 60/min per client AND token, the same budget and key shape as
+    // /api/status/[token]: the picker fetches on load and re-fetches after a booking, a
+    // 409 and an RSVP cancel, so honest use sits an order of magnitude under it, while
+    // the per-token half keeps one scraped link from throttling a different candidate
+    // behind the same NAT.
+    rel: "./schedule/[token]/route.ts",
+    key: "`sched-read:${clientIpFrom(request.headers)}:${token}`",
+    limit: 60,
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    optsSrc: "SCHEDULE_READ_RATE_LIMIT",
+    optsDef: "const SCHEDULE_READ_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The free/busy fan-out the limiter exists to bound. The GET's call is the first in
+    // the file, so this also pins that the throttle precedes it rather than the POST's.
+    expensive: "await proposeFreeSlots(",
+  },
+  {
     // ADDED /perfect 2026-09-03 (pipeline-board-3), with the limiter itself. The
     // scheduler dock's "Run now" door: `{"tick": true}` forces a FULL policy pass —
     // the same Python-spawning sweep over every active entry that /api/automation/run
@@ -981,6 +1020,23 @@ const ROUTES: RouteSpec[] = [
     // 422 - keeps its semantics ahead of the throttle, so a click that was never going
     // to send costs no budget.
     servedBefore: "getOutboxEntry(id, ws)",
+  },
+  {
+    // ADDED /perfect 2026-09-03 (channels-1), with the limiter itself. The one
+    // SECRET-WRITE door on the Channels tab: an accepted call replaces the endpoint
+    // every candidate-facing message (PII) is POSTed to and can store a new HMAC
+    // signing secret. Operator-gated, and open mode (KP_OPERATOR_PASSWORD unset) makes
+    // that gate a documented no-op for the ENTIRE API - so the limiter is the real
+    // bound, and without it the door was also an unmetered oracle for probing the SSRF
+    // guard (assertPublicHttpsEndpoint) one candidate host at a time. 30/10min is far
+    // above an operator editing a form.
+    rel: "./comms/relay/route.ts",
+    key: "`comms-relay:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "RELAY_RATE_LIMIT",
+    optsDef: "const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setRelayConfig(body)",
   },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (analytics-writes-check-authority), with the limiters

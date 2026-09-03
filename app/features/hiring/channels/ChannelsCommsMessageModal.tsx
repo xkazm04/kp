@@ -49,7 +49,10 @@ export function ChannelsCommsMessageModal({
         {message.bounced ? (
           <p className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
             <AlertTriangle size={12} aria-hidden />
-            {t("bouncedAt", { time: message.bouncedAt ? new Date(message.bouncedAt).toLocaleString() : "—", detail: message.bounceDetail ?? "—" })}
+            {/* formatRecordedAt, not a bare toLocaleString(): the locale is read three lines
+                up and every other timestamp on this surface already honours it, so the
+                bounce time was the one date rendering in the browser's language. */}
+            {t("bouncedAt", { time: message.bouncedAt ? formatRecordedAt(message.bouncedAt, locale) : "—", detail: message.bounceDetail ?? "—" })}
           </p>
         ) : null}
         {message.status === "failed" && !message.recovered && !message.bounced ? (

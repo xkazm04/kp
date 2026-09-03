@@ -83,6 +83,11 @@ export const STORE_ERRORS = {
   // can surface better-sqlite3 constraint text, the db path, and the spawned pass's
   // Python traceback.
   SCHEDULE_UPDATE_FAILED: "Could not update the automation clock. Please try again.",
+  // POST /api/comms/relay (/perfect 2026-09-03, channels-1). The write encrypts a
+  // signing secret and upserts through better-sqlite3, so its catch can surface
+  // SQLITE_* text, the absolute db path and the crypto helper's key detail — all of
+  // which the handler used to forward as `error.message`.
+  COMMS_RELAY_SAVE_FAILED: "Could not save the relay config. Please try again.",
   // NOT a thrown store error: GET /api/jobs raises this deliberately when the
   // catalog is empty AND the seed health report names a failed jobs seed. The
   // failing PATH and reason are operator detail — they go to the server log
@@ -345,6 +350,13 @@ export const REFUSAL_ERRORS = {
    *  null, so a conversation deleted mid-request refuses here instead of
    *  returning a 200 whose transcript is missing the reply it claims to hold. */
   COMPANION_THREAD_NOT_FOUND: "That conversation no longer exists.",
+  /** A profile save was computed against a version of the row that someone else has
+   *  since replaced (409). The editor spans a Python spawn, so its form is minutes
+   *  older than the row by the time the UPDATE runs; updateProfile re-asserts the
+   *  caller's `expectedUpdatedAt` in the WHERE and a zero-row result lands here. Not a
+   *  fault, and never a 404: the profile exists, it simply moved, and the honest answer
+   *  is "reload" rather than a silent last-write-wins over the other writer's work. */
+  PROFILE_STALE: "This profile was saved by someone else after you opened it. Reload it and re-apply your changes.",
   /** The shared per-IP throttle refused this call (429). The message IS
    *  `RATE_LIMITED_ERROR` — one string, one meaning, wherever the limiter
    *  refuses — and the code is only what lets the client localize it. Distinct
@@ -657,6 +669,17 @@ export const REFUSAL_ERRORS = {
    *  it would send the candidate the same offer/rejection twice. Durable, not
    *  in-process: the check reads the outbox. */
   COMM_ALREADY_RESENT: "Already re-sent. A newer delivery exists for this message.",
+  /** The relay config changed since the editor read it (409). Nothing was written: the
+   *  POST is a full REPLACE (an absent url disables the relay), so a save built on a
+   *  version someone else has since replaced is dropped rather than merged — it used to
+   *  win silently and re-point every candidate-facing message. The CURRENT config rides
+   *  beside the code as DATA so the card can show what is actually stored. */
+  COMMS_RELAY_STALE: "Someone saved a newer relay config. Reload and make your change again.",
+  /** The endpoint failed validation (400) — not https, or an internal/loopback host the
+   *  SSRF guard refuses. The validator's own sentence names WHICH, and rides beside the
+   *  code as `detail`: it is English prose for the log and for API consumers, never the
+   *  thing the card paints. */
+  COMMS_RELAY_INVALID: "That relay endpoint isn't allowed. Use a public https:// URL.",
   /** An approve arrived for a lifecycle that is not at the review gate (409) — a second
    *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
    *  the code as DATA so the panel can say where the case actually is. */
@@ -746,6 +769,37 @@ export const REFUSAL_ERRORS = {
   /** A self-declared archetype that is not one of the offered options (400) — a
    *  scripted POST, since the UI only renders the script's own choices. */
   APPLY_SELECTION_INVALID: "That is not one of the options offered.",
+  // ---- The CANDIDATE's own scheduling door (docs/features/scheduling/README.md).
+  // Eleven refusals on the public token route were bare English prose with no code —
+  // on the one surface whose reader is, by construction, not an operator and may not
+  // read English at all. The recruiter half of the same feature was moved onto codes
+  // first (SCHEDULE_SLOT_TAKEN and friends above); these are the candidate-facing
+  // twins, worded for someone holding a link rather than looking at a grid.
+  /** No invite row for this token (404). Either a mistyped/truncated link or one
+   *  that was cleaned up — the page tells them to ask for a fresh one. */
+  SCHEDULE_LINK_NOT_FOUND: "We couldn't find that scheduling link.",
+  /** The link aged out, or the state machine closed it (410 Gone). A stale tab can
+   *  still POST after the GET has already rendered the terminal card. */
+  SCHEDULE_LINK_CLOSED: "This scheduling link is no longer active.",
+  /** The linked pipeline entry went terminal since the link was minted (409) — the
+   *  candidate was rejected or withdrew, so nothing on this invite may still move. */
+  SCHEDULE_INTERVIEW_UNAVAILABLE: "This interview is no longer available.",
+  /** "Propose your own times" was submitted while the picker still has slots (409).
+   *  The escalation exists for a genuine dead-end; the remedy is the list. */
+  SCHEDULE_SLOTS_STILL_OPEN: "There are still open times. Please pick one from the list.",
+  /** The proposed instants failed server-side validation (400): out of hours, in the
+   *  past, off the horizon, or more than the three the form offers. */
+  SCHEDULE_PROPOSALS_INVALID: "Please suggest 1-3 future weekday times during working hours.",
+  /** An RSVP arrived for an invite with no confirmed booking (409) — a stale tab
+   *  acting on a card the cancel already replaced. */
+  SCHEDULE_NO_BOOKING_YET: "There's no confirmed time to update yet.",
+  /** The submitted instant is not one the server would offer (400). The label is
+   *  re-authored server-side, so this is the structural gate on body.slotAt. */
+  SCHEDULE_SLOT_NOT_OFFERED: "That time isn't one of the offered slots. Please pick from the list.",
+  /** Every self-reschedule is spent (409). Not a fault: the remedy is the reply the
+   *  message names, and the page also offers the propose-your-own-times escalation. */
+  SCHEDULE_RESCHEDULE_LIMIT:
+    "You've changed your interview time a few times already. Reply to your confirmation email and we'll help you find a slot.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

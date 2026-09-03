@@ -13,7 +13,7 @@ import { CandidateMatrix } from "./CandidateMatrix";
 import { ProfileRoster } from "./ProfileRoster";
 import { ProfileTabRebuildWarnModal } from "./ProfileTabRebuildWarnModal";
 import { useProfileTabDeepLinks } from "./useProfileTabDeepLinks";
-import { NOTE_TONE, type EditorState, type NoteTone, type RebuildWarn } from "./ProfileTabTypes";
+import { editorKey, NOTE_TONE, type EditorState, type NoteTone, type RebuildWarn } from "./ProfileTabTypes";
 
 // Tier 3 (docs/design/loading-choreography.md): the editor is a click-only surface (a
 // deep link, "New profile", or a roster/matrix row action) — never the tab's
@@ -75,12 +75,18 @@ export function ProfileTab() {
   if (editor) {
     return (
       <ProfileEditor
+        // Keyed on the editor session, not merely mounted: without it, re-opening the
+        // SAME profile (what a refused stale save asks for) reused the state built from
+        // the FIRST payload, so the reload showed the very version it was meant to replace.
+        key={editorKey(editor)}
         mode={editor.mode}
         editingId={editor.editingId}
         initialPayload={editor.initialPayload}
+        initialUpdatedAt={editor.initialUpdatedAt}
         sourceAnalysisSlug={editor.sourceAnalysisSlug}
         archetypes={archetypes}
         onCancel={() => setEditor(null)}
+        onReload={editor.editingId ? () => void openEditor(editor.editingId!) : undefined}
       />
     );
   }
@@ -160,7 +166,7 @@ export function ProfileTab() {
           }}
           onProceed={(slug, profileId) => {
             setRebuildWarn(null);
-            void openFromAnalysis(slug, profileId);
+            void openFromAnalysis(slug, profileId, rebuildWarn.updatedAt);
           }}
         />
       ) : null}

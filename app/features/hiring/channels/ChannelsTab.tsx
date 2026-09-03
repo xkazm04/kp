@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { type BadgeTone } from "@/app/_components/Badge";
 import { EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CHANNEL_SECTIONS, type ChannelSectionId } from "./channelsSections";
@@ -33,6 +34,9 @@ export function ChannelsTab() {
   // branch. Reused rather than re-worded so a failed intake load reads the same as
   // every other failure in the product, in all four locales.
   const tError = useTranslations("resilience");
+  // Sim refusals resolve from the machine `code`, never the server's English `error`
+  // — see app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const search = useSearchParams();
   const reduced = useReducedMotion();
@@ -86,7 +90,10 @@ export function ChannelsTab() {
     } else {
       setSimNote({
         ok: false,
-        text: result.reason === "noJob" ? t("sim.noJob") : result.message ?? t("sim.failed"),
+        text:
+          result.reason === "noJob"
+            ? t("sim.noJob")
+            : errMsg(result, result.status ? t("sim.failedStatus", { status: result.status }) : t("sim.failed")),
       });
     }
     setSimBusy(false);

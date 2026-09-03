@@ -75,8 +75,11 @@ export function CvSimCard({
         setResult(data);
         onDone?.();
       }
-    } catch (err) {
-      setResult({ error: err instanceof Error ? err.message : t("cvSim.requestFailed") });
+    } catch {
+      // The upload never completed. The thrown Error's message is English network
+      // prose (and, on a parse failure, internal detail) — the localized sentence is
+      // the only honest thing to paint here.
+      setResult({ error: t("cvSim.requestFailed") });
     } finally {
       setBusy(false);
     }

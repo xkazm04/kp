@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { CalendarClock, Check, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { SCHEDULE_FOCUS_ID } from "./schedule-focus";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { AddToCalendar } from "@/app/features/hiring/schedule/ScheduleAddToCalendar";
 import { candidateCalendarEvent } from "@/app/_lib/calendar-links";
@@ -67,7 +68,9 @@ export function BookedCard({
     // action of the page previously swapped in visual-only, leaving SR users with no
     // signal that the slot was booked.
     <div role="status" aria-live="polite" className="rounded-lg border border-moss/40 bg-moss/5 p-5">
-      <p className="flex items-center gap-2 font-serif text-h2 text-ink">
+      {/* The focus anchor for this surface (schedule-focus.ts) — the primary action of
+          the whole page ends here, so this is where focus goes when the picker swaps out. */}
+      <p id={SCHEDULE_FOCUS_ID.booked} tabIndex={-1} className="flex items-center gap-2 font-serif text-h2 text-ink">
         <Check className="text-moss" aria-hidden /> {t("bookedTitle")}
       </p>
       <p className="mt-2 text-body text-ink">

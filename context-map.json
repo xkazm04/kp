@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T07:28:48.818Z",
+ "generated_at": "2026-09-03T07:55:46.811Z",
  "provenance": {
-  "git_commit": "a5c1c958ebf46ae3129cb2dd3347cbbd60a76491",
-  "git_commit_count": 2235,
+  "git_commit": "aabc9ea2131b4ac5890cbb35ae0e31a95cafcaa2",
+  "git_commit_count": 2244,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T07:28:48.818Z"
+  "generated_at": "2026-09-03T07:55:46.811Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2843,
+  "files": 2857,
   "groups": 17,
   "use_cases": 12
  },
@@ -1829,6 +1829,7 @@
    "description": "[auto-seeded — pending sweep enrichment] Profile UI 1: 20 source + 1 test file(s) under app/features/tools/profile.",
    "entry_points": [],
    "file_paths": [
+    "app/features/tools/profile/ArchetypeArchiveConfirmModal.tsx",
     "app/features/tools/profile/ArchetypeManager.tsx",
     "app/features/tools/profile/ArchetypeManagerEditPanel.tsx",
     "app/features/tools/profile/ArchetypeManagerList.tsx",
@@ -1850,6 +1851,9 @@
     "app/features/tools/profile/ProfileFields.tsx",
     "app/features/tools/profile/ProfileForm.test.ts",
     "app/features/tools/profile/ProfileForm.ts",
+    "app/features/tools/profile/profileDraftMerge.test.ts",
+    "app/features/tools/profile/profileDraftMerge.ts",
+    "app/features/tools/profile/profileEditorContracts.test.ts",
     "app/features/tools/profile/useProfileTabDeepLinks.ts"
    ],
    "group": "CV Analysis & Candidate Profiles",
@@ -2456,7 +2460,8 @@
     "app/status/[token]/StatusClient.tsx",
     "app/status/[token]/StatusNpsCard.tsx",
     "app/status/[token]/loading.tsx",
-    "app/status/[token]/page.tsx"
+    "app/status/[token]/page.tsx",
+    "app/status/[token]/status-decision-kinds.test.ts"
    ],
    "group": "Candidate Public Surfaces",
    "group_id": "06166ab3-41d5-4adc-a298-3d0390a492fc",
@@ -2509,6 +2514,9 @@
     "app/schedule/[token]/error.tsx",
     "app/schedule/[token]/loading.tsx",
     "app/schedule/[token]/page.tsx",
+    "app/schedule/[token]/schedule-focus.test.ts",
+    "app/schedule/[token]/schedule-focus.ts",
+    "app/schedule/[token]/schedule-link-locale.test.ts",
     "app/schedule/[token]/schedule-picker-recovery.test.ts",
     "app/schedule/[token]/use-schedule-invite.ts"
    ],
@@ -2868,6 +2876,7 @@
     "app/api/comms/callback/callback-auth.ts",
     "app/api/comms/callback/route.ts",
     "app/api/comms/capability/route.ts",
+    "app/api/comms/relay/relay-version.test.ts",
     "app/api/comms/relay/route.ts",
     "app/api/comms/relay/test/route.ts",
     "app/api/comms/route.ts",
@@ -2911,7 +2920,8 @@
     "app/features/hiring/channels/ChannelsEmpty.tsx",
     "app/features/hiring/channels/ChannelsReceiverTable.tsx",
     "app/features/hiring/channels/ChannelsRelayConfigCard.tsx",
-    "app/features/hiring/channels/ChannelsSetupGuide.tsx"
+    "app/features/hiring/channels/ChannelsSetupGuide.tsx",
+    "app/features/hiring/channels/useCopyState.ts"
    ],
    "group": "Communications & Channels",
    "group_id": "ec7b1429-54d7-4b27-afb2-81287adb903c",
@@ -4879,6 +4889,8 @@
    "file_paths": [
     "app/_lib/attention-tenancy.test.ts",
     "app/_lib/attention.ts",
+    "app/_lib/comms-resend-outcome.test.ts",
+    "app/_lib/comms-resend-outcome.ts",
     "app/_lib/decision-config-version.test.ts",
     "app/_lib/pipeline-axis-server.ts",
     "app/_lib/pipeline-axis.ts",
@@ -5816,6 +5828,7 @@
     "app/api/interview-prep/route.ts",
     "app/api/interview-prep/scorecard/route.ts",
     "app/api/schedule/[token]/route.ts",
+    "app/api/schedule/[token]/schedule-token-refusals.test.ts",
     "app/api/schedule/calendar-conflict.test.ts",
     "app/api/schedule/calendar-writeback.test.ts",
     "app/api/schedule/invite/bulk/route.ts",
@@ -6783,6 +6796,7 @@
     "app/_lib/db/pg-portability.test.ts",
     "app/_lib/db/pg-portability.ts",
     "app/_lib/db/profile-records-cache.test.ts",
+    "app/_lib/db/profiles-stale-cas.test.ts",
     "app/_lib/db/search-tenancy.test.ts",
     "app/_lib/db/seed-analyses-preserve.test.ts",
     "app/_lib/db/seed-benchmark-demo-gate.test.ts",

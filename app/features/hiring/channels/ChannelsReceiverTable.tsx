@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Copy, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, Trash2 } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { Modal } from "@/app/_components/Modal";
 import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
@@ -10,6 +10,7 @@ import { DEFAULT_LOCALE } from "@/i18n/locales";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { useCopyState } from "./useCopyState";
 
 // One receiver per row — the compact table both the Email intake and Ad forms panes
 // render. `endpointFor` yields the per-channel address (an email forwarding address,
@@ -23,24 +24,25 @@ import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TableP
 
 function CopyBtn({ value }: { value: string }) {
   const t = useTranslations("channels");
-  const [copied, setCopied] = useState(false);
+  // A DENIED clipboard says so (useCopyState): this endpoint is what a recruiter
+  // pastes into a forwarding rule, and a silent failure meant pasting a stale one.
+  const { state, copy } = useCopyState();
+  const failed = state === "failed";
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        navigator.clipboard
-          .writeText(value)
-          .then(() => {
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
-          })
-          .catch(() => undefined);
+        copy(value);
       }}
       aria-label={t("receivers.copyEndpoint")}
-      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-ink hover:border-coral/40"
+      aria-live="polite"
+      className={`focus-ring inline-flex items-center gap-1 rounded-md border bg-white px-1.5 py-0.5 text-xs font-semibold hover:border-coral/40 ${
+        failed ? "border-red-300 text-red-700" : "border-stone-200 text-ink"
+      }`}
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copy")}
+      {failed ? <AlertTriangle size={12} /> : state === "copied" ? <Check size={12} /> : <Copy size={12} />}{" "}
+      {failed ? t("copyFailed") : state === "copied" ? t("copied") : t("copy")}
     </button>
   );
 }
