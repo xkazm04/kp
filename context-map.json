@@ -3883,12 +3883,7 @@
     "app/api/devcase/source/route.ts",
     "app/api/devcase/submit/route.ts",
     "app/api/skill-profile/[token]/verify/route.test.ts",
-    "app/api/skill-profile/[token]/verify/route.ts",
-    "pipeline/jobfit/devcase/scenarios.py",
-    "pipeline/jobfit/devcase/seed_materializer.py",
-    "pipeline/jobfit/devcase/source.py",
-    "pipeline/jobfit/devcase/submission_eval.py",
-    "pipeline/jobfit/devcase/submission_scenarios.py"
+    "app/api/skill-profile/[token]/verify/route.ts"
    ],
    "group": "Developer Assessment",
    "group_id": "fa63c298-b710-4e0b-a26d-a0cba381da1f",
@@ -4293,7 +4288,12 @@
     "pipeline/jobfit/devcase/prompt_signals.py",
     "pipeline/jobfit/devcase/provenance.py",
     "pipeline/jobfit/devcase/real_corpus.py",
-    "pipeline/jobfit/devcase/reflect.py"
+    "pipeline/jobfit/devcase/reflect.py",
+    "pipeline/jobfit/devcase/scenarios.py",
+    "pipeline/jobfit/devcase/seed_materializer.py",
+    "pipeline/jobfit/devcase/source.py",
+    "pipeline/jobfit/devcase/submission_eval.py",
+    "pipeline/jobfit/devcase/submission_scenarios.py"
    ],
    "group": "Developer Assessment",
    "group_id": "fa63c298-b710-4e0b-a26d-a0cba381da1f",
