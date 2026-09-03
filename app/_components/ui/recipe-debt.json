@@ -75,18 +75,6 @@
       "panel": 1,
       "metaLabel": 2
     },
-    "control/AuditPanel.tsx": {
-      "panel": 2
-    },
-    "control/CalibrationPanel.tsx": {
-      "panel": 3
-    },
-    "control/FeedbackSection.tsx": {
-      "panel": 1
-    },
-    "control/GatesPanel.tsx": {
-      "noticeAmber": 1
-    },
     "data/[token]/DataClient.tsx": {
       "panel": 2,
       "rawDate": 1

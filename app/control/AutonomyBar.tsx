@@ -40,7 +40,7 @@ export function AutonomyBar({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-ink">{paused ? t("statePaused") : t("stateRunning")}</p>
-        <p className="text-xs text-steel">{paused ? t("pausedBody") : t("runningBody")}</p>
+        <p className="text-micro text-steel">{paused ? t("pausedBody") : t("runningBody")}</p>
       </div>
       {/* AUTHORITY (/perfect wave 21): the state line above stays for every seat - an
           oversight surface must always SAY whether automation is running - but the
