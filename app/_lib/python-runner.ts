@@ -286,11 +286,29 @@ export function parsePythonJson<T>(stdout: string, stderr = ""): T {
   throw new Error(`Python returned non-JSON output${detail ? ` — ${detail}` : ""}.`);
 }
 
+// The engine's failure vocabulary, mirrored from pipeline/jobfit/_cli.py::ERROR_CODES
+// and pinned to it by pipeline/jobfit/tests/test_cli_error_envelope.py. A code outside
+// this set is still forwarded (the CLI family predates the shared scaffold and some
+// members emit their own, e.g. "rate_limited"); the list exists so the DERIVED codes
+// below and the Python side cannot silently disagree on spelling.
+export const PYTHON_ERROR_CODES = ["invalid_input", "not_found", "engine_error", "timeout"] as const;
+
 // Default code derived from status when the CLI didn't emit an explicit one
 // (older CLIs, or argparse usage errors that exit 2 with plain-text stderr).
 function codeForStatus(status: number): string {
   if (status === 404) return "not_found";
+  if (status === 504) return "timeout";
   return status === 400 ? "invalid_input" : "engine_error";
+}
+
+// An EMITTED code wins over the status-derived guess — that is the whole point of the
+// engine naming its own failures. But only a non-blank one: `{"code": ""}` (or a
+// whitespace-only field from a half-built envelope) used to pass the bare
+// `typeof === "string"` test and win, handing the client an empty code that
+// `useErrorMessage` cannot resolve to any `errors.<CODE>` key — strictly worse than
+// the guess it displaced. Blank falls back to the derivation.
+function emittedCode(raw: unknown): string | null {
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
 }
 
 export function parseStderrError(stderr: string, exitCode: number | null): PythonError {
@@ -302,7 +320,7 @@ export function parseStderrError(stderr: string, exitCode: number | null): Pytho
       const record = parsed as Record<string, unknown>;
       const message = typeof record.error === "string" ? record.error : "Pipeline failed.";
       const status = typeof record.status === "number" ? record.status : exitCode === 2 ? 400 : 500;
-      const code = typeof record.code === "string" ? record.code : codeForStatus(status);
+      const code = emittedCode(record.code) ?? codeForStatus(status);
       return { message, status, code };
     }
   } catch {
