@@ -98,8 +98,9 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
      `"Permission denied"`.
    - `useTranscriptPersistence.ts` stashes each transcript POST body in
      `sessionStorage` under `kp.iv.<sessionId>` *before* sending it, and
-     **replays any stash left over on mount**. A 2xx or a 4xx (already
-     completed / bad token / consent) clears the stash; a network failure keeps
+     **replays any stash left over on mount**. A 2xx or a terminal 4xx (already
+     completed / bad token / consent) clears the stash; a network failure — or a
+     429 from `/complete`'s throttle, which is explicitly temporary — keeps
      it for the next mount, so a reload after the "we couldn't save your
      interview" banner recovers the record instead of dropping it.
 4. **Completion.** `app/api/interview/complete/route.ts` persists the
@@ -265,7 +266,7 @@ predicate, source-level for the route contract).
 | `app/api/interview/connect/route.ts` | Mints provider credentials + brief override |
 | `app/api/interview/create/route.ts` | Creates a real candidate session, from an `entryId` **or** a dev-case `submissionId` |
 | `app/api/interview/complete/route.ts` | Persists transcript, status, usage, scorecard |
-| `app/api/interview/simulate/route.ts` + `attach/route.ts` | Recruiter demo/simulation sessions |
+| `app/api/interview/simulate/route.ts` + `attach/route.ts` | Recruiter demo/simulation sessions. `attach` reads the session **scoped to the caller's workspace** and keys its `sim_attached` annotation on `simAttachDetail()` (`attach/sim-session.ts`), which folds an opaque per-session ref into the drawer line — so the store's detail-keyed dedup is idempotent per (session, entry): a repeat POST answers the same `attachRef` and writes nothing, while a genuinely different practice run is no longer swallowed as a duplicate |
 | `app/api/interview/revoke/route.ts`, `by-entry/route.ts`, `compare/route.ts` | Session management + cross-interview compare; `by-entry` also answers `?submission=` (the assignment-side reverse read) |
 | `app/_lib/devcase-interview-entry.ts` | Resolves (or promote-then-resolves) the pipeline entry a dev-case submission's screen hangs off |
 | `app/api/interview-prep/route.ts`, `.../scorecard/route.ts` | Prep chronology + scorecard read APIs |
@@ -285,6 +286,9 @@ predicate, source-level for the route contract).
 | `app/_components/voice/VoiceInterview.tsx` | The live-call shell — phase, consent, finalize/beacon, and the call controls |
 | `app/_components/voice/transport/openai.ts` | OpenAI Realtime over raw WebRTC: connection setup, the H3 speaking meter, the H4 drop debounce, teardown, and the transcript-buffer half of the wire protocol |
 | `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language + `asr.keywords` overrides |
+| `app/_components/voice/availability-gate.ts` | The portal's start gate. The `/api/interview/connect` probe has THREE outcomes — `loading` / `ok` / `failed` — and `voiceStartGate` maps them to `checking` / `available` / `unavailable` / `unknown`. A **failed** probe used to be stored as `null`, the same value as "not asked yet", and the render read that as available: a keyless or unreachable server therefore rendered a normal Start that died at connect, while the `unavailableCandidate` copy written for that moment was unreachable. `unknown` now renders "we could not check" plus a **Check again** control and never a plain Start |
+| `app/_components/voice/timer-registry.ts` | Every delayed callback one call schedules — the 30 s connect timeout, the ElevenLabs disconnect-grace fallback, the finalize poll — in one registry the unmount effect empties. Two of the three were untracked `setTimeout`s that survived unmount and were harmless only because `finalizedRef` latches first. `sleep()` resolves on `clearAll()`, so a tab closed mid-hang-up unwinds the finalize path instead of leaking it |
+| `app/features/tools/interview/simBilling.ts` | What a simulation costs: `simBillableCeilingMin(mode)`, quoted by `InterviewStartPanel` before the recruiter starts. Mirrors `maxBillableInterviewMin` (the client cannot import `billing/enforce.ts` — it reaches better-sqlite3), and `simBilling.test.ts` imports both and asserts the same number mode by mode |
 | `app/_components/voice/useTranscriptPersistence.ts` | POST-with-retries to `/api/interview/complete`, the sessionStorage stash, and the online/visibility re-drive |
 | `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict) |
 | `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
@@ -392,7 +396,7 @@ absent there.
 
 ## Spend doors, throttles and refusal codes
 
-Three doors in this feature cost real money on an accepted call, and until this pass
+Four doors in this feature cost real money on an accepted call, and until this pass
 only one of them was throttled.
 
 | Door | Budget | Guards |
@@ -400,6 +404,18 @@ only one of them was throttled.
 | `POST /api/interview/create` | 20 / 10 min per IP (`CREATE_RATE_LIMIT`) | A model-backed run-of-show build **and** an email to the candidate, per call |
 | `POST /api/interview/simulate` | 20 / 10 min per IP (`SIMULATE_RATE_LIMIT`) | Mints a real billable session; on a self-hosted install it skips `meterGate`, so the limiter is the only bound |
 | `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
+| `POST /api/interview/complete` | 10 / 10 min per **token + IP** (`COMPLETE_RATE_LIMIT`) | The transcript write, the `interview_minutes` debit and the LLM scorecard run + sealed decision |
+
+`/complete` is the odd one out and the reason its budget is keyed on **both**: it is a
+PUBLIC token route (`public-routes.ts`), so there is no operator gate to be a no-op —
+the token in the URL is the whole credential. Keying on the token alone would let one
+candidate's flaky network exhaust their own budget on legitimate retries; keying on the
+IP alone would throttle a whole NAT of candidates together. Its cheap refusals (400 /
+404 / 403 consent, and the idempotent `alreadyCompleted` reply that lets a retrying
+client settle) all run BEFORE the limiter and stay free forever. On the client,
+`useTranscriptPersistence` treats 429 as transient — the one 4xx that will improve on
+retry — so a throttled replay keeps its `sessionStorage` stash instead of discarding
+the candidate's transcript.
 
 Every route here is operator-gated, and open mode (`KP_OPERATOR_PASSWORD` unset) makes
 that gate a documented no-op for the whole API — so the limiter is the real bound, the

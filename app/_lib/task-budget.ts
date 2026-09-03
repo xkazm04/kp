@@ -25,8 +25,11 @@
 // The per-workspace cap is the half that actually bounds spend: it survives an IP
 // rotation, and it is the tenant whose LLM allowance is being drawn down.
 //
-// PURE and dependency-free (no better-sqlite3, no handler graph) so the route, the
-// contract test and the exhaustiveness test can all read the same table.
+// Dependency-light (no better-sqlite3, no handler graph) so the routes, the contract
+// test and the exhaustiveness test can all read the same table; the one import is the
+// in-process limiter, because the CLASS and the BUCKET it opens are the same decision.
+
+import { rateLimit } from "./rate-limit";
 
 export const TASK_BUDGET_CLASSES = ["cheap", "metered", "agent"] as const;
 export type TaskBudgetClass = (typeof TASK_BUDGET_CLASSES)[number];
@@ -102,4 +105,40 @@ export function taskBudgetClass(kind: string): TaskBudgetClass {
 /** The budget for a kind — `TASK_BUDGETS[taskBudgetClass(kind)]`. */
 export function taskBudget(kind: string): TaskBudget {
   return TASK_BUDGETS[taskBudgetClass(kind)];
+}
+
+/** What a refused start knows about itself: the class whose allowance is spent.
+ *  `null` = admitted. */
+export type TaskBudgetRefusal = { budgetClass: TaskBudgetClass };
+
+/** Spend one slot of a kind's budget, or refuse — the whole per-class check in one
+ *  call, so a DIRECT enqueue (a route that calls `startTask` itself rather than going
+ *  through POST /api/tasks) is bounded by the same table AND THE SAME KEYS as the
+ *  dock's door: `tasks-start:<class>:<ip>` and `tasks-start-ws:<class>:<workspace>`.
+ *  Sharing the keys is the point — three dev-case routes enqueued `lifecycle` (the
+ *  agent class: a whole orchestration of model steps) with no limiter at all, so a
+ *  caller who had exhausted the dock's agent allowance could keep spending through
+ *  /api/devcase/lifecycle. One allowance, whichever door the run comes through.
+ *
+ *  Call it AFTER the cheap refusals (a 400/404/409 must not cost a slot) and BEFORE
+ *  any spend or state transition — a refusal that arrives after a meter debit or an
+ *  approval has already charged the tenant for a run that never started.
+ *
+ *  Answer a non-null result with `jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, refusal)`. */
+export function enforceTaskBudget(
+  kind: string,
+  ip: string,
+  workspaceId: string,
+  nowMs: number = Date.now()
+): TaskBudgetRefusal | null {
+  const cls = taskBudgetClass(kind);
+  const budget = TASK_BUDGETS[cls];
+  if (!rateLimit(`tasks-start:${cls}:${ip}`, budget.ip, nowMs)) return { budgetClass: cls };
+  // The per-WORKSPACE half is the one that actually bounds spend: it survives an IP
+  // rotation, and with no trusted proxy configured `clientIpFrom` collapses the whole
+  // deployment into one IP bucket anyway.
+  if (budget.workspace && !rateLimit(`tasks-start-ws:${cls}:${workspaceId}`, budget.workspace, nowMs)) {
+    return { budgetClass: cls };
+  }
+  return null;
 }

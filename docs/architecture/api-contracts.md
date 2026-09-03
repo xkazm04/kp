@@ -247,10 +247,21 @@ it asserts both the source-level guard (key template, limit, the shared
 at the route's exact config. Moving or re-keying a limiter means updating that
 test deliberately — not deleting the assertion. It also walks the whole tree for
 one rule no per-route spec can express: **every route that reaches `startTask` must
-throttle first.** Three dev-case routes (`devcase/control`, `devcase/lifecycle`,
-`devcase/lifecycle/[id]/approve`) enqueue an `agent`-class `lifecycle` run with no
-limiter at all and are listed in that test's `UNTHROTTLED_ENQUEUE` ratchet — a known
-gap, recorded so it cannot grow, and removing a line is the fix.
+throttle first.** Its `UNTHROTTLED_ENQUEUE` ratchet is now **empty**: the three
+dev-case routes it carried (`devcase/control`, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/approve`) enqueue an `agent`-class `lifecycle` run *directly*
+— never through `POST /api/tasks` — and did so with no limiter at all until
+2026-09-03. All three now call the shared
+[`enforceTaskBudget(kind, ip, workspaceId)`](../../app/_lib/task-budget.ts) under the
+**same keys** as the task doors (``tasks-start:${cls}:${ip}`` /
+``tasks-start-ws:${cls}:${ws}``), so a direct enqueue and a dock enqueue draw on one
+allowance and refuse with the same `TASK_BUDGET_EXHAUSTED` 429. Placement is
+per-route and deliberate: after the cheap refusals, before the spend — the create
+door budgets *before* the `case_designs` meter debit, the approve gate *before* the
+approve transition (a refused resume must not leave a case approved but unrun), and
+the reconcile sweep budgets *each* lifecycle it resumes (one POST could otherwise
+enqueue 50 runs on a single slot), reporting `budgetExhausted` when it stops early.
+A new line on that ratchet is a hole waiting to be closed, never an exemption.
 
 ### 1.5 Uploads, timeouts and tenancy
 

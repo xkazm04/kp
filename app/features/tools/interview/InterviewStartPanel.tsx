@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import { DEMO_CASE_SCENARIO } from "@/app/_lib/student-interview";
+import { simBillableCeilingMin } from "./simBilling";
 import type { SimMode } from "./InterviewModeCards";
 
 export function InterviewStartPanel({
@@ -55,6 +56,14 @@ export function InterviewStartPanel({
       ) : (
         <p className="text-base text-ink">{t("regularDesc", { min: QUICK_SCREEN_MIN })}</p>
       )}
+      {/* What this actually costs. Starting a simulation mints a REAL billable
+          voice session: /api/interview/simulate reserves, and /complete debits,
+          up to maxBillableInterviewMin(bookedMin) minutes of the workspace's
+          `interview_minutes` — the one meter with real per-unit cost. The panel
+          quoted the demo's LENGTH and never that number, so the recruiter met it
+          as a 402 on a real candidate screen later. Same number as the gate,
+          pinned by simBilling.test.ts. */}
+      <p className="mt-3 text-sm text-steel">{t("billableNote", { min: simBillableCeilingMin(mode) })}</p>
       {error ? <p className="mt-3 text-sm text-coral">{error}</p> : null}
       <button
         type="button"

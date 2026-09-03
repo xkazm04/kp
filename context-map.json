@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T09:44:46.325Z",
+ "generated_at": "2026-09-03T10:05:31.665Z",
  "provenance": {
-  "git_commit": "1c2bc1a64041a0ee706b9d8ecf5118b16e0ae17d",
-  "git_commit_count": 2279,
+  "git_commit": "24ed6a9dab359fdbb9b4625eed86ac2319df73b8",
+  "git_commit_count": 2286,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T09:44:46.325Z"
+  "generated_at": "2026-09-03T10:05:31.665Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2914,
+  "files": 2923,
   "groups": 17,
   "use_cases": 12
  },
@@ -427,6 +427,7 @@
    ],
    "file_paths": [
     "app/features/settings/models/ModelsKeyAddForm.tsx",
+    "app/features/settings/models/ModelsKeyRow.test.ts",
     "app/features/settings/models/ModelsKeyRow.tsx",
     "app/features/settings/models/ModelsKeysList.tsx",
     "app/features/settings/models/ModelsKeysPanel.tsx",
@@ -4974,6 +4975,7 @@
    "entry_points": [],
    "file_paths": [
     "app/features/hiring/pipeline/CommandBar.tsx",
+    "app/features/hiring/pipeline/PassPreviewModal.test.ts",
     "app/features/hiring/pipeline/PassPreviewModal.tsx",
     "app/features/hiring/pipeline/PipelineActivityFeed.tsx",
     "app/features/hiring/pipeline/PipelineAiActionsGrid.tsx",
@@ -5227,6 +5229,7 @@
     "app/features/hiring/pipeline/result-view-unpriced.test.ts",
     "app/features/hiring/pipeline/usePipelineBoardData.ts",
     "app/features/hiring/pipeline/usePipelineBoardScroll.ts",
+    "app/features/hiring/pipeline/usePipelineBulk.test.ts",
     "app/features/hiring/pipeline/usePipelineBulk.ts",
     "app/features/hiring/pipeline/usePipelineCandidateDrawerState.ts",
     "app/features/hiring/pipeline/usePipelineFilters.ts",
@@ -7258,6 +7261,7 @@
     "app/api/interview/interview-spend-doors.test.ts",
     "app/api/interview/revoke/route.ts",
     "app/api/interview/sessions/route.ts",
+    "app/api/interview/simulate/attach/attach-idempotency.test.ts",
     "app/api/interview/simulate/attach/route.ts",
     "app/api/interview/simulate/attach/sim-session.test.ts",
     "app/api/interview/simulate/attach/sim-session.ts",
@@ -7357,6 +7361,8 @@
     "app/features/tools/interview/InterviewModeCards.tsx",
     "app/features/tools/interview/InterviewSimTab.tsx",
     "app/features/tools/interview/InterviewStartPanel.tsx",
+    "app/features/tools/interview/simBilling.test.ts",
+    "app/features/tools/interview/simBilling.ts",
     "app/interview-lab/page.tsx",
     "app/interview/[token]/error.tsx",
     "app/interview/[token]/loading.tsx",
@@ -7607,12 +7613,15 @@
     "app/_components/voice/VoiceSettings.tsx",
     "app/_components/voice/VoiceStatusPill.tsx",
     "app/_components/voice/VoiceTranscript.tsx",
+    "app/_components/voice/availability-gate.ts",
     "app/_components/voice/micErrorText.ts",
+    "app/_components/voice/timer-registry.ts",
     "app/_components/voice/transport/elevenlabs.ts",
     "app/_components/voice/transport/openai.ts",
     "app/_components/voice/ui-types.ts",
     "app/_components/voice/useMicTest.ts",
-    "app/_components/voice/useTranscriptPersistence.ts"
+    "app/_components/voice/useTranscriptPersistence.ts",
+    "app/_components/voice/voice-portal-gate.test.ts"
    ],
    "group": "Voice Interviews",
    "group_id": "bb3f4552-04d4-4db1-a434-a7796f3c566e",

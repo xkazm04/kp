@@ -15,6 +15,7 @@ import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
 import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 
 type BulkResult = {
   ok: number;
@@ -24,6 +25,9 @@ type BulkResult = {
   reason?: string | null;
   /** The SERVER's per-id refusal codes, resolved here through errors.<CODE>. */
   reasonCodes?: string[];
+  /** The permission a whole-request FORBIDDEN_CAPABILITY refusal named, so the line
+   *  can say WHICH one is missing instead of a flat "not permitted". */
+  refusalCapability?: string | null;
 };
 
 export function PipelineBulkActionBar({
@@ -203,7 +207,11 @@ export function PipelineBulkActionBar({
           {bulkResult.reason ? <span className="block text-steel">{bulkResult.reason}</span> : null}
           {!bulkResult.reason && bulkResult.reasonCodes?.length ? (
             <span className="block text-steel">
-              {bulkResult.reasonCodes.map((code) => errMsg({ code }, t("bulkRequestFailed"))).join(" · ")}
+              {bulkResult.reasonCodes
+                .map((code) =>
+                  capabilityAwareReason(errMsg, { code, capability: bulkResult.refusalCapability }, t("bulkRequestFailed"))
+                )
+                .join(" · ")}
             </span>
           ) : null}
         </span>

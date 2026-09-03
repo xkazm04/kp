@@ -893,6 +893,27 @@ before the first `sendComm`, and `[id]/redesign` re-reads the lifecycle after it
 design call and **409**s rather than overwriting a case another reviewer already approved
 and published.
 
+### The three doors that enqueue a lifecycle run carry the agent budget
+
+`POST /api/devcase/lifecycle` (start), `POST /api/devcase/lifecycle/[id]/approve`
+(resume past the human gate) and `POST /api/devcase/control` (the reconcile sweep)
+start the lifecycle runner by calling `startTask("lifecycle", …)` **directly**, never
+through `POST /api/tasks` — so the per-kind budget that door applies
+(`app/_lib/task-budget.ts`, where `lifecycle` is the `agent` class: 6 per 10 min per
+IP + 15 per hour per workspace) never saw them, and until 2026-09-03 they had no
+limiter at all. All three now call the shared `enforceTaskBudget(kind, ip, workspace)`
+under the **same keys** as the task dock, so a run started here and one started from
+the dock draw on one allowance; over it, the answer is `TASK_BUDGET_EXHAUSTED` (429),
+which the studio and the review panel render in the reader's language like any other
+code. Placement per door: the start door budgets **before** the `case_designs` meter
+debit (a refused start must not have charged the tenant), the approve gate **before**
+the approve transition (never approved-but-unrun), and the reconcile sweep budgets
+**each** lifecycle it resumes — it can otherwise enqueue up to 50 orchestrations from
+one click — stopping at the bound and reporting `budgetExhausted` so a truncated
+sweep is visible; the next call resumes the rest. The autonomy kill-switch release
+itself is never budgeted. Pinned in `app/api/rate-limit-contract.test.ts`, whose
+`UNTHROTTLED_ENQUEUE` ratchet (which carried these three) is now empty.
+
 ## Data model
 
 - `dev_cases` (case scenario, `baseline_json`, `job_id`) — SQLite, via `app/_lib/db/devcase.ts`

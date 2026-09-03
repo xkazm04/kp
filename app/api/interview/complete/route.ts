@@ -10,7 +10,8 @@ import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
 
 
@@ -49,6 +50,23 @@ function publicSessionView(session: InterviewSession | null): PublicSessionView 
     transcript: session.transcript,
   };
 }
+
+// Per-TOKEN + per-IP spend door. This was the only PUBLIC token route in the
+// interview family without one (its siblings: /connect 6/10min per token,
+// /simulate 20/10min per IP, /create per IP). It is not a read: the non-terminal
+// path WRITES the transcript, debits interview minutes, and — for an
+// entry-linked session — spawns an LLM scorecard run that seals a decision
+// record. A stolen or guessed-at token could therefore be POSTed in a loop to
+// spend real model budget, and even the honest client posts twice on a bad
+// unmount (the End fetch plus the sendBeacon).
+//
+// Keyed on BOTH: the token alone would let one candidate's flaky network exhaust
+// their own budget on legitimate retries, and the IP alone would throttle a
+// whole NAT of candidates together (the /devcase reasoning). 10/10min is far
+// above honest pace — a call completes once, and every duplicate after the
+// first is answered by the idempotent `alreadyCompleted` branch ABOVE this
+// limiter, which stays free forever so a retrying client always settles.
+const COMPLETE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
 // POST → end of call: persist the transcript (transcript-only, no audio). When
 // the session is linked to a pipeline entry, also synthesize the scorecard
@@ -102,6 +120,13 @@ export async function POST(request: NextRequest) {
     // the row, not an assumption.
     if (!isPersistConsentSatisfied(session.mode, session.consentAt)) {
       return NextResponse.json({ error: CONSENT_NOT_RECORDED_ERROR }, { status: 403 });
+    }
+
+    // AFTER the cheap refusals above (a 400/404/403 and the idempotent
+    // already-completed reply cost nothing and must keep answering) and BEFORE the
+    // transcript write, the minutes debit and the scorecard run below.
+    if (!rateLimit(`interview-complete:${token}:${clientIpFrom(request.headers)}`, COMPLETE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;

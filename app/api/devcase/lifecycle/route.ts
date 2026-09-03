@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { createLifecycle, listLifecycles } from "@/app/_lib/db/devcase";
 import { startTask } from "@/app/_lib/tasks";
+import { enforceTaskBudget } from "@/app/_lib/task-budget";
+import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -31,6 +33,14 @@ export async function POST(request: NextRequest) {
     // (analyze → role → case). Debited at start; redesigns debit separately.
     // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant.
     const workspace = await currentWorkspace();
+    // TASK BUDGET. This door enqueues `lifecycle` — the AGENT class — by calling the
+    // runner directly, so POST /api/tasks's per-class budget never saw it and a caller
+    // out of agent allowance at the dock could keep spending here. Same helper, same
+    // keys (app/_lib/task-budget.ts): one allowance across both doors. Placed after the
+    // cheap `need` refusal and BEFORE the meter debit below — a refusal that arrives
+    // after `recordMeterUsage` charges the tenant for a run that never started.
+    const overBudget = enforceTaskBudget("lifecycle", clientIpFrom(request.headers), workspace);
+    if (overBudget) return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, overBudget);
     const quota = meterGate("case_designs", { workspace });
     if (quota) return NextResponse.json(quota, { status: 402 });
     recordMeterUsage("case_designs", 1, new Date(), workspace);

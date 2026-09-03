@@ -469,9 +469,18 @@ export function revokeOpenInterviewSessions(entryId: string, workspaceId: string
  *  session WITH a transcript outranks a newer empty one: a reissued link minted
  *  while (or after) a call completed used to become the surfaced row, so
  *  hasTranscript read false and a finished, scored interview turned invisible
- *  on every recruiter surface (voice-interview-runtime #2). */
+ *  on every recruiter surface (voice-interview-runtime #2).
+ *
+ *  Tenant-scoped (wave 18b), like `latestInterviewByEntry` / `liveInterviewByEntry`
+ *  beside it. It was the LAST entry_id read here that took no workspace, and the
+ *  tenancy test carried a blanket entry_id exemption to cover it — so "did this
+ *  candidate sit an interview" (and, through /api/data, what a GDPR self-service
+ *  answer claims we hold about them) was answerable across tenants by entry id
+ *  alone. The exemption is now narrowed to id/token point reads, which are the
+ *  genuinely global capabilities (the candidate token IS the credential). */
 export function interviewStatusByEntries(
-  entryIds: string[]
+  entryIds: string[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> {
   if (entryIds.length === 0) return {};
   const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> = {};
@@ -486,10 +495,10 @@ export function interviewStatusByEntries(
         `SELECT s.id, s.entry_id, s.status, s.ended_at,
                 (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
          FROM interview_sessions s
-         WHERE s.entry_id IN (${placeholders})
+         WHERE s.entry_id IN (${placeholders}) AND s.workspace_id = ?
          ORDER BY has_tr DESC, s.created_at DESC`
       )
-      .all(...ids) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
+      .all(...ids, workspaceId) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
     for (const r of rows) {
       if (out[r.entry_id]) continue; // first = transcript-bearing if any, else latest
       out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
@@ -535,8 +544,21 @@ export function getInterviewSessionById(id: string): InterviewSession | null {
   return r ? rowToInterview(r) : null;
 }
 
-export function getInterviewSessionByToken(token: string): InterviewSession | null {
-  const r = ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ?`).get(token) as InterviewRow | undefined;
+/** Point read by the candidate's capability token.
+ *
+ *  `workspaceId` is OPTIONAL and defaults to no tenant filter — deliberately, and
+ *  unlike the entry-keyed reads above. The public surfaces (`/interview/[token]`,
+ *  /api/interview/connect, /api/interview/complete) have no session and no tenant:
+ *  the token IS the credential, and scoping them to a workspace would break every
+ *  candidate on a non-default team. A GATED recruiter action, on the other hand,
+ *  has a caller whose tenant is the authority and must pass it — see
+ *  /api/interview/simulate/attach, which was reading practice runs across tenants. */
+export function getInterviewSessionByToken(token: string, workspaceId?: string): InterviewSession | null {
+  const r = (
+    workspaceId
+      ? ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ? AND workspace_id = ?`).get(token, workspaceId)
+      : ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ?`).get(token)
+  ) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 

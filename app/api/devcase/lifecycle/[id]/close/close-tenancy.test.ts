@@ -171,7 +171,10 @@ test("the session-derived dev-studio routes resolve currentWorkspace() and threa
 
   const control = code("control/route.ts");
   assert.match(control, /currentWorkspace\(\)/);
-  assert.match(control, /reconcile\(\s*await currentWorkspace\(\)\s*\)/, "reconcile must sweep the caller's workspace");
+  // The tenant stays the FIRST argument; the sweep also takes the client key now that
+  // each resumed lifecycle spends a slot of the agent task budget (wave 18b), so the
+  // trailing arguments are open — what this pins is the workspace, not the arity.
+  assert.match(control, /reconcile\(\s*await currentWorkspace\(\)\s*(,[^)]*)?\)/, "reconcile must sweep the caller's workspace");
   assert.doesNotMatch(control, /listLifecycles\(\)/, "the control room's GET must be workspace-scoped");
   // The reconcile sweep spawns runners: both the dedupe probe and the task must
   // use the workspace being swept, or it checks the default team and duplicates.

@@ -47,7 +47,10 @@ export function useDevTabActions(args: {
       const body = await r.json().catch(() => null);
       if (!r.ok) {
         // The server's `error` string is canonical English written for the log; the
-        // reader gets the machine `code` resolved in their own language, and the
+        // reader gets the machine `code` resolved in their own language — including
+        // the 429 TASK_BUDGET_EXHAUSTED that run/approve now answer when the agent-class
+        // run budget is spent (app/_lib/task-budget.ts), which is a "wait, this weight
+        // of run is spent" and not a failed action — and the
         // localized action sentence when the code is unknown (use-error-message.ts).
         setActionError(errorMessage(body as { code?: string | null } | null, t("actionFailed", { action: name })));
         return false;

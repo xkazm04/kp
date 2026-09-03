@@ -27,3 +27,31 @@ export function readScreeningRule(payload: unknown): ScreeningRule | null {
   if (!isFiniteNumber(s.rejectBottomPercent) || !isFiniteNumber(s.maxMatchToReject)) return null;
   return { ...SCREENING_DEFAULT, ...(s as ScreeningRule) };
 }
+
+/** Why a config read produced no rule, as the MACHINE half the route answered with.
+ *
+ *  gated-doors-clients-read-the-refusal: GET/POST /api/decisions/config are
+ *  capability-gated now, so "the rules could not be read" has a reason a recruiter
+ *  can act on - "your role does not allow this" is a different sentence from "the
+ *  server fell over", and only one of them is worth retrying. This is a pure fold
+ *  (no hook), so the modal that owns the translator resolves `code` through
+ *  useErrorMessage and this module never holds a sentence. */
+export type ScreeningRuleRead =
+  | { rule: ScreeningRule; failure: null }
+  | { rule: null; failure: { code: string | null; capability: string | null; status: number | null } };
+
+/** Fold a config response into "the live rule" or "why not". `status` is null for a
+ *  read that never reached the server (offline, aborted). */
+export function readScreeningRuleResponse(status: number | null, payload: unknown): ScreeningRuleRead {
+  const rule = readScreeningRule(payload);
+  if (rule) return { rule, failure: null };
+  const p = (payload ?? null) as { code?: unknown; capability?: unknown } | null;
+  return {
+    rule: null,
+    failure: {
+      code: typeof p?.code === "string" ? p.code : null,
+      capability: typeof p?.capability === "string" ? p.capability : null,
+      status,
+    },
+  };
+}

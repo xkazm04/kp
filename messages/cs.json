@@ -1567,7 +1567,8 @@
     "TASK_NOT_FOUND": "Tato úloha už neexistuje.",
     "TASK_NOT_RETRYABLE": "Znovu spustit lze jen neúspěšné, přerušené nebo zrušené úlohy.",
     "TASK_REPLAY_INPUTS_GONE": "Nahrané soubory k tomuto běhu už byly smazány. Nahrajte je prosím znovu a běh zopakujte.",
-    "FORBIDDEN_CAPABILITY": "Vaše role tuto akci neumožňuje."
+    "FORBIDDEN_CAPABILITY": "Vaše role tuto akci neumožňuje.",
+    "forbiddenCapabilityNeeds": "Vaše role tuto akci neumožňuje. Vyžaduje oprávnění „{capability}“."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1997,7 +1998,9 @@
         "providerGroup": "Poskytovatel",
         "chunks": "{spoken} z {total} částí",
         "truncated": "zastaveno po {spoken} z {total} částí. Zbytek je v textu."
-      }
+      },
+      "availabilityUnknown": "Nepodařilo se ověřit, zda je služba pro pohovory dostupná.",
+      "availabilityRetry": "Zkusit znovu"
     }
   },
   "palette": {
@@ -2700,7 +2703,8 @@
       "filterStateLabel": "Stav",
       "stageOffBoard": "Fáze {stage} už na této nástěnce není sloupcem. Filtr zůstává aktivní, takže vidíte jen kandidáty, kteří v ní stále stojí.",
       "stageOffBoardClear": "Odebrat tento filtr",
-      "slaEditorRange": "{min}–{max} dní; prázdné použije výchozí"
+      "slaEditorRange": "{min}–{max} dní; prázdné použije výchozí",
+      "previewCommitFailed": "Průchod se nepodařilo použít."
     },
     "today": {
       "eyebrow": "Dnes",
@@ -3019,6 +3023,11 @@
     "scoreKind": {
       "transferShort": "přenos",
       "transferTitle": "Skóre přenosu z pracovní ukázky, nikoli skóre shody. Říká, jak dobře se dovednosti předvedené na zadání přenášejí na tuto roli."
+    },
+    "add": {
+      "added": "{name} přidán(a) do pipeline.",
+      "failed": "{name} se nepodařilo přidat do pipeline.",
+      "failedAnnounce": "{name} se nepodařilo přidat do pipeline. {reason}"
     }
   },
   "decisions": {
@@ -5563,7 +5572,8 @@
       "failed": "Relaci se nepodařilo připojit.",
       "loadFailed": "Kandidáty se nepodařilo načíst.",
       "retry": "Zkusit znovu"
-    }
+    },
+    "billableNote": "Spuštěním ukázky vznikne skutečné hlasové sezení a z vašeho limitu se odečte až {min} minut pohovoru."
   },
   "history": {
     "eyebrow": "Pracovní prostor",

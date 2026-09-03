@@ -1567,7 +1567,8 @@
     "TASK_NOT_FOUND": "Cette tâche n'existe plus.",
     "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
     "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer.",
-    "FORBIDDEN_CAPABILITY": "Votre rôle ne permet pas cette action."
+    "FORBIDDEN_CAPABILITY": "Votre rôle ne permet pas cette action.",
+    "forbiddenCapabilityNeeds": "Votre rôle ne permet pas cette action : elle requiert l’autorisation « {capability} »."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1997,7 +1998,9 @@
         "providerGroup": "Fournisseur",
         "chunks": "{spoken} sur {total} segments",
         "truncated": "arrêté après {spoken} segments sur {total}. Le reste est dans le texte."
-      }
+      },
+      "availabilityUnknown": "Nous n’avons pas pu vérifier si le service d’entretien est joignable.",
+      "availabilityRetry": "Réessayer"
     }
   },
   "palette": {
@@ -2700,7 +2703,8 @@
       "filterStateLabel": "État",
       "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
       "stageOffBoardClear": "Supprimer ce filtre",
-      "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut"
+      "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut",
+      "previewCommitFailed": "Le passage n’a pas pu être appliqué."
     },
     "today": {
       "eyebrow": "Aujourd’hui",
@@ -3019,6 +3023,11 @@
     "scoreKind": {
       "transferShort": "transfert",
       "transferTitle": "Un score de transfert issu de l’exercice, pas un score de correspondance. Il indique dans quelle mesure les compétences démontrées sur l’exercice se transposent à ce poste."
+    },
+    "add": {
+      "added": "{name} a été ajouté(e) au pipeline.",
+      "failed": "Impossible d’ajouter {name} au pipeline.",
+      "failedAnnounce": "Impossible d’ajouter {name} au pipeline. {reason}"
     }
   },
   "decisions": {
@@ -5563,7 +5572,8 @@
       "failed": "Impossible de rattacher la session.",
       "loadFailed": "Impossible de charger les candidats.",
       "retry": "Réessayer"
-    }
+    },
+    "billableNote": "Lancer cette démo crée une véritable session vocale et consomme jusqu’à {min} minutes d’entretien de votre quota."
   },
   "history": {
     "eyebrow": "Espace de travail",

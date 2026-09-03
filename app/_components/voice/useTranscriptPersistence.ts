@@ -65,7 +65,10 @@ export function useTranscriptPersistence({
             }
             return true;
           }
-          if (res.status >= 400 && res.status < 500) break;
+          // 429 is the ONE 4xx that WILL improve on retry (/complete's per-token+IP
+          // throttle): treat it as transient so the backoff below still runs and the
+          // stash survives, unlike consent/token/already-completed which never will.
+          if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
         } catch {
           /* network error — retry */
         }
@@ -128,7 +131,10 @@ export function useTranscriptPersistence({
             headers: { "Content-Type": "application/json" },
             body,
           });
-          if (res.ok || (res.status >= 400 && res.status < 500)) {
+          // Same carve-out as persistTranscript: a throttled (429) replay must KEEP
+          // the stash - dropping it here would discard the candidate's transcript for
+          // a refusal that is explicitly temporary.
+          if (res.ok || (res.status >= 400 && res.status < 500 && res.status !== 429)) {
             try {
               sessionStorage.removeItem(k);
             } catch {

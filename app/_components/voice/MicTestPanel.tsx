@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Mic } from "lucide-react";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import type { MicTestState } from "./useMicTest";
 
 /** H5 follow-up: pre-call mic test — reassurance + early catch of a muted/dead mic. */
@@ -21,7 +22,7 @@ export function MicTestPanel({
         type="button"
         onClick={onTest}
         disabled={micTest === "testing"}
-        className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-base font-medium text-ink transition-colors hover:bg-paper disabled:opacity-50"
+        className={`${BTN_SECONDARY} h-10 justify-center gap-2 bg-white px-4 text-base`}
       >
         <Mic size={16} />
         {micTest === "testing" ? t("micTestListening") : t("micTestBtn")}

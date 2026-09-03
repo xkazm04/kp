@@ -139,6 +139,26 @@ export const BTN_AFFIRM =
 export const BTN_SECONDARY =
   "focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 font-medium text-ink transition-all hover:border-coral/40 disabled:opacity-50 dark:rounded-lg dark:border-stone-300 dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
 
+/** TOUCH-SIZED variants of the two action recipes — h-11 with the roomier
+ *  padding and body-sized label, for a surface a candidate operates once, under
+ *  pressure, often on a phone: the voice portal's Start / End / confirm row and
+ *  the live-call controls beside it.
+ *
+ *  They exist because eight controls there hand-rolled the whole button string
+ *  at that size (`inline-flex h-11 items-center justify-center gap-2 rounded-md
+ *  bg-ink px-5 text-base ...`), which is how they ended up FLAT in Spark Dark:
+ *  no sticker shadow, no press travel, and a `rounded-md` that never became the
+ *  theme's `rounded-lg`. Composing the size onto the recipe keeps the deliberate
+ *  touch target and inherits both themes.
+ *
+ *  Pair as usual: `BTN_PRIMARY_LG` for the surface's main action (Start, End),
+ *  `BTN_SECONDARY_LG` for the alternative beside it (Cancel, mute). A one-off
+ *  fill (the amber autoplay-recovery button) still appends its own colors, the
+ *  same override the schedule controls use. */
+export const BTN_PRIMARY_LG = `${BTN_PRIMARY} h-11 justify-center px-5 text-base`;
+
+export const BTN_SECONDARY_LG = `${BTN_SECONDARY} h-11 justify-center bg-white px-5 text-base`;
+
 /** Text input / textarea / select base. Carries the dual-theme fill/text plus a
  *  steel placeholder and coral caret so a raw field reads correctly in Spark Dark
  *  even before it's migrated to the TextInput/TextArea/Select primitives. New

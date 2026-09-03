@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useErrorMessage, type ApiErrorPayload } from "./use-error-message";
 import type { GithubEvidenceSummary } from "./github-summary";
 
 // One canonical optimistic "add this candidate to the pipeline" flow. Both the
@@ -65,22 +67,52 @@ export function pipelineAddBody(jobId: string, jobTitle: string, c: PipelineAddI
 // two copies kept re-implementing — a non-OK status, a body carrying `{ error }`, a
 // non-JSON (HTML 500) response, and a thrown network error — lives and is tested in
 // one place. Returns a discriminated result; never throws.
+export type PipelineAddFailure = {
+  ok: false;
+  /** The machine refusal the UI renders through `errors.<CODE>` (useErrorMessage),
+   *  null when the door answered prose only. THIS is what a client reads. */
+  code: string | null;
+  /** The capability a FORBIDDEN_CAPABILITY refusal wanted (wave 18a ships it beside
+   *  the code) — data for the localized sentence, never a sentence itself. */
+  capability: string | null;
+  /** The HTTP status, so a caller can tell a refusal (403) from a fault (500). */
+  status: number | null;
+  /** Canonical ENGLISH, for the log and as a last-resort fallback for the call sites
+   *  that have not adopted useErrorMessage yet (AddToPipelineButton, useMatrixTab,
+   *  jobsRediscoveryFeedLogic). A localized surface must prefer `code`. */
+  message: string;
+};
+
 export async function postPipelineAdd(
   jobId: string,
   jobTitle: string,
   c: PipelineAddInput
-): Promise<{ ok: true } | { ok: false; message: string }> {
+): Promise<{ ok: true } | PipelineAddFailure> {
   try {
     const r = await fetch("/api/pipeline", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pipelineAddBody(jobId, jobTitle, c)),
     });
-    const payload = (await r.json().catch(() => null)) as { error?: string } | null;
-    if (!r.ok) return { ok: false, message: payload?.error ?? `Couldn't add (${r.status}).` };
+    const payload = (await r.json().catch(() => null)) as { error?: string; code?: string; capability?: string } | null;
+    if (!r.ok) {
+      return {
+        ok: false,
+        code: payload?.code ?? null,
+        capability: payload?.capability ?? null,
+        status: r.status,
+        message: payload?.error ?? `Couldn't add (${r.status}).`,
+      };
+    }
     return { ok: true };
   } catch (caught) {
-    return { ok: false, message: caught instanceof Error ? caught.message : "Couldn't add to the pipeline." };
+    return {
+      ok: false,
+      code: null,
+      capability: null,
+      status: null,
+      message: caught instanceof Error ? caught.message : "Couldn't add to the pipeline.",
+    };
   }
 }
 
@@ -124,9 +156,13 @@ export type PipelineBatchItem =
  *  language); `reason` is the canonical English beside it, kept for the log and
  *  as a last-resort fallback. The bar must never paint `reason`. */
 export type PipelineBatchOutcome = { id: string; ok: boolean; code?: string; reason?: string };
+/** A whole-request refusal: `code` is the machine reason (the capability gate's
+ *  FORBIDDEN_CAPABILITY, wave 18a) and `capability` the permission it wanted, so the
+ *  bar can say WHICH permission is missing instead of a flat "not permitted". Both
+ *  absent on a transport blip. */
 export type PipelineBatchResult =
   | { ok: true; results: PipelineBatchOutcome[] }
-  | { ok: false; status?: number };
+  | { ok: false; status?: number; code?: string | null; capability?: string | null };
 
 export async function postPipelineBatch(items: PipelineBatchItem[]): Promise<PipelineBatchResult> {
   try {
@@ -135,15 +171,43 @@ export async function postPipelineBatch(items: PipelineBatchItem[]): Promise<Pip
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items }),
     });
-    const d = (await r.json().catch(() => null)) as { results?: PipelineBatchOutcome[] } | null;
+    const d = (await r.json().catch(() => null)) as
+      | { results?: PipelineBatchOutcome[]; code?: string; capability?: string }
+      | null;
     if (r.ok && Array.isArray(d?.results)) return { ok: true, results: d.results };
-    return { ok: false, status: r.status };
+    return { ok: false, status: r.status, code: d?.code ?? null, capability: d?.capability ?? null };
   } catch {
     return { ok: false };
   }
 }
 
+/** The localized sentence for a refusal that may carry a capability.
+ *
+ *  gated-doors-clients-read-the-refusal — the write doors answer a seat without the
+ *  permission with a coded 403 (FORBIDDEN_CAPABILITY) carrying `capability`. The
+ *  code's OWN message (errors.FORBIDDEN_CAPABILITY) is deliberately
+ *  placeholder-free, because a dozen consumers resolve it with no values and a
+ *  required ICU argument would break every one of them; a client that HOLDS the
+ *  data renders the client variant `errors.forbiddenCapabilityNeeds` instead, which
+ *  names the permission the operator has to ask for.
+ *
+ *  Takes the bound resolver rather than calling the hook, so the four other clients
+ *  of these doors fold a refusal exactly the same way from inside a component. */
+export function capabilityAwareReason(
+  resolve: (payload: ApiErrorPayload | null | undefined, fallback: string, values?: Record<string, string | number | Date>) => string,
+  payload: (ApiErrorPayload & { capability?: string | null }) | null | undefined,
+  fallback: string
+): string {
+  const generic = resolve(payload, fallback);
+  if (payload?.code !== "FORBIDDEN_CAPABILITY" || !payload.capability) return generic;
+  return resolve({ code: "forbiddenCapabilityNeeds" }, generic, { capability: payload.capability });
+}
+
 export function useAddToPipeline(jobId: string, jobTitle: string, source?: string | null): AddToPipeline {
+  // The refusal is rendered from its CODE in the reader's language; the server's
+  // English `message` never reaches the card or the aria-live line again.
+  const t = useTranslations("pipeline.add");
+  const errMsg = useErrorMessage();
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [adding, setAdding] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<Map<string, string>>(() => new Map());
@@ -165,10 +229,11 @@ export function useAddToPipeline(jobId: string, jobTitle: string, source?: strin
     const result = await postPipelineAdd(jobId, jobTitle, { source, ...c });
     if (result.ok) {
       setAdded((s) => new Set(s).add(c.candidateId));
-      setAnnounce(`${c.candidateLabel} added to the pipeline.`);
+      setAnnounce(t("added", { name: c.candidateLabel }));
     } else {
-      setFailed((m) => new Map(m).set(c.candidateId, result.message));
-      setAnnounce(`Couldn't add ${c.candidateLabel} to the pipeline. ${result.message}`);
+      const reason = capabilityAwareReason(errMsg, result, t("failed", { name: c.candidateLabel }));
+      setFailed((m) => new Map(m).set(c.candidateId, reason));
+      setAnnounce(t("failedAnnounce", { name: c.candidateLabel, reason }));
     }
     setAdding((s) => {
       const n = new Set(s);
