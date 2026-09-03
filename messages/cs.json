@@ -1573,7 +1573,17 @@
     "TEMPLATE_LAST_ONE": "Tohle je poslední šablona, kterou váš tým vidí. Aspoň jedna musí zůstat.",
     "TEMPLATE_IS_DEFAULT": "Tohle je výchozí šablona. Než ji smažete, nastavte jako výchozí jinou.",
     "TEMPLATE_STALE": "Šablonu mezitím uložil někdo jiný. Načtěte ji znovu a proveďte své úpravy znovu.",
-    "TEMPLATE_DEFAULT_ORG_ONLY": "Výchozí může být jen šablona sdílená s celou firmou."
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Výchozí může být jen šablona sdílená s celou firmou.",
+    "MODEL_KEY_STALE": "Tento klíč mezitím nahradil někdo jiný. Uložené klíče byly načteny znovu, proveďte prosím svou změnu ještě jednou.",
+    "AGENT_REFRESH_NOT_DISPATCHED": "Tento agent se nikdy nedostal do Personas, takže není na co se ptát. Odešlete ho znovu.",
+    "VOICE_TRANSPORT_NETWORK": "Nepodařilo se spojit se službou pro pohovory. Zkontrolujte připojení a zkuste to znovu.",
+    "VOICE_TRANSPORT_AUTH": "Služba pro pohovory toto sezení odmítla. Obraťte se prosím na recruitera, který vám odkaz poslal.",
+    "VOICE_TRANSPORT_TIMEOUT": "Služba pro pohovory neodpověděla včas. Zkuste to prosím znovu.",
+    "VOICE_TRANSPORT_PROVIDER": "Službě pro pohovory se nepodařilo hovor zahájit. Zkuste to prosím za chvíli znovu.",
+    "OFFER_RESPONSE_INVALID": "Odpovězte prosím přijetím, nebo odmítnutím nabídky.",
+    "STATUS_LINK_INVALID": "Tento odkaz na stav přihlášky už neplatí.",
+    "STATUS_NPS_NOT_APPLICABLE": "Tato otázka se otevře, až bude vaše výběrové řízení uzavřeno.",
+    "DATA_LINK_INVALID": "Tento odkaz na vaše údaje už neplatí."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2005,7 +2015,11 @@
         "truncated": "zastaveno po {spoken} z {total} částí. Zbytek je v textu."
       },
       "availabilityUnknown": "Nepodařilo se ověřit, zda je služba pro pohovory dostupná.",
-      "availabilityRetry": "Zkusit znovu"
+      "availabilityRetry": "Zkusit znovu",
+      "notChecked": "neověřeno",
+      "micTestLevel": "Úroveň mikrofonu: {level} %",
+      "transcriptFolded": "Starší repliky jsou skryté (celkem {count}). Celý přepis se ukládá k vašemu pohovoru.",
+      "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]"
     }
   },
   "palette": {
@@ -6059,7 +6073,9 @@
     "version": "Standard {version}",
     "stale": "Ověřeno (starší doklad)",
     "staleAge": "Doklad je pravý a nezměněný, ale byl vydán {issued} podle standardu {version}. Pokud záleží na aktuálnosti, vyžádejte si od kandidáta nové hodnocení.",
-    "staleMethodology": "Doklad je pravý a nezměněný, ale byl hodnocen podle standardu {version} (vydán {issued}), který byl mezitím nahrazen. Vyžádejte si od kandidáta hodnocení podle aktuálního standardu."
+    "staleMethodology": "Doklad je pravý a nezměněný, ale byl hodnocen podle standardu {version} (vydán {issued}), který byl mezitím nahrazen. Vyžádejte si od kandidáta hodnocení podle aktuálního standardu.",
+    "throttledTitle": "Právě teď je požadavků příliš mnoho",
+    "throttledBody": "Tento certifikát byl v krátké době otevřen příliš mnohokrát. Počkejte několik minut a stránku načtěte znovu. Samotného certifikátu se to nijak netýká."
   },
   "devApply": {
     "workSurface": {
@@ -9377,7 +9393,7 @@
   "activity": {
     "eyebrow": "Přehledy",
     "title": "AI aktivita",
-    "intro": "Posledních {window} akcí AI, které tento pracovní prostor spustil, od nejnovější.",
+    "intro": "Posledních {window} akcí AI napříč všemi pracovními prostory této instalace, od nejnovější.",
     "loadError": "Záznam aktivity se nepodařilo načíst.",
     "empty": "Zatím nejsou zaznamenány žádné akce LLM. Objeví se tu hned, jakmile se spustí první funkce s AI.",
     "noMatches": "Aktuálním filtrům neodpovídají žádné akce.",

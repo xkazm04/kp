@@ -457,6 +457,51 @@ const ROUTES: RouteSpec[] = [
     // that spawns nothing consumes nothing.
     servedBefore: "buildProviderKeyProbeEnv(provider, scope)",
   },
+  // The two AGENT-BRIDGE doors. Both spawn real outbound work — a persona request
+  // POSTed to Personas, a pairing key exchange — behind `requireOperator()`, which
+  // open mode (no KP_OPERATOR_PASSWORD) makes a documented no-op for the whole API.
+  // Neither had a limiter until the 2026-09-03 sweep.
+  {
+    rel: "./agents/dispatch/route.ts",
+    // Per-IP. The limiter sits inside `mintAndDispatch`, which is entered only after
+    // EVERY cheap refusal of both origins (job/intake missing, not composed, spec
+    // stale, human population, invalid budget) and after the one-live-agent
+    // idempotency reuse — so a rejected or idempotent call spends no budget. That
+    // ordering is structural, not textual, which is why no `servedBefore` is pinned.
+    key: "`agent-dispatch:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "DISPATCH_RATE_LIMIT",
+    optsDef: "const DISPATCH_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The mint is the first irreversible act: a row, a CSPRNG report token, then the
+    // outbound POST.
+    expensive: "createHiredAgent(",
+  },
+  {
+    rel: "./agents/pair/route.ts",
+    // Phase 1. Ahead of the baseUrl WRITE as well as the outbound call — a throttled
+    // start must not re-point the deployment at someone else's Personas either.
+    key: "`agent-pair:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "PAIR_START_RATE_LIMIT",
+    optsDef: "const PAIR_START_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startPairing()",
+  },
+  {
+    rel: "./agents/pair/route.ts",
+    // Phase 2, and DELIBERATELY the laxer of the pair: the panel polls claim for up
+    // to the 300s TTL along a 2s→15s backoff (~30 requests per pairing), so a budget
+    // sized like start's would refuse a legitimate wait. After the shape refusal, so
+    // a bodyless poll costs nothing.
+    key: "`agent-pair-claim:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "PAIR_CLAIM_RATE_LIMIT",
+    optsDef: "const PAIR_CLAIM_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "claimPairing(nonce)",
+    servedBefore: "if (!nonce)",
+  },
   {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
@@ -1629,4 +1674,59 @@ test("every route that enqueues a task throttles first", () => {
   // walk would report a clean tree it never actually looked at.
   assert.ok(checked >= 5, `expected the enqueueing routes, matched ${checked}`);
   assert.deepEqual(offenders, [], "these routes enqueue a background task with no throttle ahead of it");
+});
+
+// ── the credential PAGE's throttle (/perfect wave 20, token doors) ───────────
+//
+// Every spec above is a route handler, because until now every throttled door was
+// one. /skill/[token] is an RSC PAGE and was the hole that shape left: its sibling
+// GET /api/skill-profile/[token]/verify has been capped at 30/10min per client
+// since the enumeration finding, while the page behind the SAME token space did a
+// sqlite read plus an HMAC verification per hit with no limiter at all — so the
+// cheap way to walk the token space was to ask for the HTML instead of the JSON.
+//
+// Two things differ from a route spec and both are asserted rather than assumed:
+// the client address comes from `headers()` (a page has no NextRequest), and the
+// refusal is a RENDERED STATE, not a 429 — a page cannot answer a status code, so
+// the contract is that the throttled branch renders the throttled copy and never
+// reaches the store.
+const SKILL_PAGE = "../skill/[token]/page.tsx";
+const SKILL_PAGE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
+
+test(`${SKILL_PAGE}: the credential read is throttled per client AND token, before the store`, () => {
+  const src = read(SKILL_PAGE);
+  assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
+
+  const def = "const SKILL_VIEW_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };";
+  const defAt = src.indexOf(def);
+  assert.ok(defAt >= 0, `expected the pinned budget:\n  ${def}`);
+
+  // Keyed per client AND token: with no trusted proxy configured every caller
+  // shares one client key, so an IP-only bucket would let one reader's reloads
+  // spend every other candidate's budget.
+  const call = "rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)";
+  const at = src.indexOf(call);
+  assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
+  assert.ok(defAt < at, "the budget must be defined before the limiter call");
+
+  // Ahead of the expensive work — the sqlite read + signature verification.
+  const expensiveAt = src.indexOf("verifySkillProfileToken(token)");
+  assert.ok(expensiveAt > at, "the limiter must precede verifySkillProfileToken");
+
+  // The refusal a page can actually give: rendered copy, in the reader's language.
+  assert.match(src.slice(at, at + 1200), /t\("throttledTitle"\)/, "the throttled branch must render its own copy");
+});
+
+test(`${SKILL_PAGE}: hit ${SKILL_PAGE_LIMIT.limit + 1} inside one window is refused`, () => {
+  const t0 = 20_000_000;
+  const key = `${SKILL_PAGE}:skill-view:contract`;
+  for (let i = 0; i < SKILL_PAGE_LIMIT.limit; i++) {
+    assert.equal(rateLimit(key, SKILL_PAGE_LIMIT, t0 + i), true, `hit ${i + 1} must pass`);
+  }
+  assert.equal(rateLimit(key, SKILL_PAGE_LIMIT, t0 + SKILL_PAGE_LIMIT.limit), false, "the hit past the limit is refused");
+  assert.equal(
+    rateLimit(key, SKILL_PAGE_LIMIT, t0 + SKILL_PAGE_LIMIT.windowMs + 1),
+    true,
+    "a fresh window admits again — the cap is a rate, not a ban"
+  );
 });

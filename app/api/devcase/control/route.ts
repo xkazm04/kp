@@ -7,6 +7,7 @@ import { startTask } from "@/app/_lib/tasks";
 import { enforceTaskBudget } from "@/app/_lib/task-budget";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
 const TERMINAL = new Set(["promoted", "closed", "awaiting_approval"]);
@@ -47,6 +48,10 @@ function reconcile(workspaceId: string, ip: string): { resumed: number; budgetEx
 }
 
 export async function GET() {
+  // Director gate (2026-09-03): the control room's doors carried no operator check, so a
+  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const lifecycles = listLifecycles(50, await currentWorkspace());
     return NextResponse.json({
@@ -63,6 +68,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Director gate (2026-09-03): the control room's doors carried no operator check, so a
+  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json().catch(() => ({}))) as { action?: string };
     if (body.action === "pause") {

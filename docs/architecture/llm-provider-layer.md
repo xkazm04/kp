@@ -263,6 +263,14 @@ paginated table built from the shared primitives (`ColumnFilter` headers +
 `TablePager` over the bounded `LLM_ACTIVITY_WINDOW` of 500 rows; older spend
 stays in the Models tab's daily rollup).
 
+The tab **states its scope**: `llm_usage` has no org or workspace column, so the
+ledger is deployment-wide, and the intro sentence says so in the same words the
+billing panel uses for the same ledger (`activity.intro` ↔
+`billing.spend.breakdownScope`, pinned across all four locales by
+`app/api/llm/activity/activity-route.test.ts`). It previously read "the last N AI
+actions **this workspace** ran" — a claim, not an omission, and a wrong one on any
+install with more than one team.
+
 #### Row detail: from "what it cost" to "what it produced"
 
 `llm_usage` stores meters, never content — so a row cannot carry the model's
@@ -463,6 +471,19 @@ deployment-wide slots the key fills — it is not a per-tenant choice — and th
 panel now says so out loud (`models.keys.storeScope`). Per-tenant keys remain an
 open product decision, listed under Known gaps.
 
+**Key writes carry the same version token as routing writes.** `saveProviderKey`
+takes an `expectedUpdatedAt` — the `updatedAt` the Models panel rendered for the row
+it is replacing — and `upsertProviderKey` re-asserts it inside `.immediate()`,
+refusing on a mismatch (including a row deleted underneath the caller) instead of
+overwriting. The route answers `MODEL_KEY_STALE` (409) **carrying the current rows**,
+and the panel reloads onto them before showing the message. The stakes are higher
+here than for a routing pin: a stored key is encrypted at rest and unrecoverable, so
+the old last-writer-wins upsert destroyed one of two admins' credentials while
+showing both a green "Saved". `updated_at` is nudged forward on a same-millisecond
+collision so the token strictly increases; omitting the field keeps the
+unconditional write for the headless/curl path. Pinned by
+`app/_lib/db/provider-key-precondition.test.ts`.
+
 `llm_config` writes take an `expectedUpdatedAt`: the version the editing tab read.
 `upsertLlmConfig` re-asserts it inside an IMMEDIATE transaction and returns false
 on a mismatch, which the route answers as `MODEL_ROUTING_STALE` (409) **carrying
@@ -474,7 +495,7 @@ headless/curl path. Pinned by `app/api/llm/config/llm-config-race.test.ts`.
 The keys route's refusals are codes, not prose: `MODEL_KEY_BODY_INVALID`,
 `MODEL_KEY_PROVIDER_UNKNOWN`, `MODEL_KEY_SECRET_REQUIRED`,
 `MODEL_KEY_LOCATION_REQUIRED`, `MODEL_KEY_ENDPOINT_REQUIRED`,
-`MODEL_KEY_ENCRYPTION_UNCONFIGURED` and `MODEL_KEY_REJECTED`, each carrying the
+`MODEL_KEY_ENCRYPTION_UNCONFIGURED`, `MODEL_KEY_REJECTED` and `MODEL_KEY_STALE`, each carrying the
 provider (or the accepted provider list) as data. The panel used to detect the
 missing-`KP_SECRET` case by substring-matching the server's English sentence; it
 now reads the code, so the env-var fix appears for a reader in any of the four

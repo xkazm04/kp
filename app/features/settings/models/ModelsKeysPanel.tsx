@@ -122,6 +122,9 @@ export function KeysPanel() {
     // hint silently stopped appearing the moment that sentence was reworded, and
     // it never appeared at all for a reader whose locale is not English.
     let kpSecret = false;
+    // The row this save REPLACES, as the panel currently renders it. Its `updatedAt`
+    // is the precondition the store re-asserts under the write lock.
+    const replacing = findExistingKey(data?.keys, provider, scope);
     try {
       const r = await fetch("/api/llm/keys", {
         method: "PUT",
@@ -129,11 +132,20 @@ export function KeysPanel() {
         // bug-ui-scan-2026-07-09 (model-api-key-management #2): buildKeyRequestBody
         // includes endpoint/apiVersion ONLY for azure_openai, so a stale (hidden but
         // retained) Azure endpoint never rides along on a non-Azure key.
-        body: JSON.stringify(buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion, baseUrl })),
+        // …plus the row VERSION this panel is rendering, so a save composed against
+        // a row another admin has since replaced is refused (409 MODEL_KEY_STALE)
+        // instead of destroying their unrecoverable key.
+        body: JSON.stringify({
+          ...buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion, baseUrl }),
+          ...(replacing ? { expectedUpdatedAt: replacing.updatedAt } : {}),
+        }),
       });
       const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string; code?: string };
       if (!r.ok || !p.keys) {
         kpSecret = p.code === "MODEL_KEY_ENCRYPTION_UNCONFIGURED";
+        // The stale refusal carries the CURRENT rows: reload onto them before the
+        // message lands, so "make your change again" is against what is stored.
+        if (p.code === "MODEL_KEY_STALE" && p.keys) setData((d) => (d ? { ...d, keys: p.keys! } : d));
         throw new Error(errMsg(p, t("saveFailed")));
       }
       setData((d) => (d ? { ...d, keys: p.keys! } : d));

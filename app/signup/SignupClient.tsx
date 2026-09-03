@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { TextInput } from "@/app/_components/TextInput";
+import { BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
 
 // Self-serve signup form — follows LoginClient's conventions exactly: abort
 // budget, honest non-401 outcomes (toast + re-enable, never a misleading inline
@@ -94,7 +95,7 @@ export function SignupClient() {
           {t("orgLabel")}
           <TextInput autoComplete="organization" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder={t("orgPlaceholder")} className="mt-1" />
         </label>
-        <p className="text-xs text-steel">{t("orgHint")}</p>
+        <p className="text-meta text-steel">{t("orgHint")}</p>
         <label className="block text-sm text-ink">
           {t("emailLabel")}
           <TextInput
@@ -125,7 +126,7 @@ export function SignupClient() {
             className="mt-1"
           />
         </label>
-        <p className="text-xs text-steel">{t("passwordHint")}</p>
+        <p className="text-meta text-steel">{t("passwordHint")}</p>
         {errorCopy ? (
           <p id="signup-error" role="alert" className="text-sm text-coral">
             {errorCopy}
@@ -134,7 +135,7 @@ export function SignupClient() {
         <button
           type="submit"
           disabled={submitting || !password || !email.trim()}
-          className="w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
+          className={`${BTN_PRIMARY_LG} w-full`}
         >
           {submitting ? t("submitting") : t("submit")}
         </button>

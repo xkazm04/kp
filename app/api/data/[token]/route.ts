@@ -3,7 +3,7 @@ import { interviewStatusByEntries } from "@/app/_lib/db/interviews";
 import { getJob } from "@/app/_lib/db/jobs";
 import { anonymizeEntry, findEntryByErasureToken } from "@/app/_lib/db/pipeline";
 import { heldDataCategories } from "@/app/_lib/data-held";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 // Abuse containment (2026-09-01): this was the one public token door with NO
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const entry = findEntryByErasureToken(token);
-    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!entry) return jsonRefusal("DATA_LINK_INVALID", 404);
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
     // #5 — project the "what we hold" list from what this entry ACTUALLY has, so we
     // never claim to hold interview records / scores for a candidate who only applied.
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const entry = findEntryByErasureToken(token);
-    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!entry) return jsonRefusal("DATA_LINK_INVALID", 404);
     // Tenant (P1): erase inside the entry's OWN team. anonymizeEntry scrubs under
     // `WHERE id = ? AND workspace_id = ?`, so the bare call matched NO row for any
     // candidate outside the default workspace — the scrub silently did nothing while

@@ -102,11 +102,11 @@ export function AgentsWorkforceRow({
         onChanged();
         return;
       }
-      // `reason` is canonical English for the log; AGENT_BRIDGE_KEY_INVALID is
-      // the code that carries the actionable half ("re-pair"). The route's other
-      // reason — no requestId to poll — ships no code, so it lands on the
-      // localized generic rather than on English (see the backlog note in the
-      // sweep: that branch wants a code of its own).
+      // `reason` is canonical English for the log; the CODE beside it carries the
+      // actionable half in the reader's language — AGENT_BRIDGE_KEY_INVALID
+      // ("re-pair"), or AGENT_REFRESH_NOT_DISPATCHED ("this agent never reached
+      // Personas — dispatch it again") for the branch that used to ship no code at
+      // all and so landed every operator on the generic sentence.
       setOutcome(
         body?.reason
           ? { tone: "bad", text: errorMessage(body, t("detail.refreshUnpollable")) }

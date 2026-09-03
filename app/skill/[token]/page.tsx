@@ -1,9 +1,21 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+
+// The credential PAGE was the only public token door with no throttle at all: its
+// sibling /api/skill-profile/[token]/verify has had 30/10min per client since the
+// enumeration finding, but the page behind the same token space did a sqlite read
+// plus an HMAC verification per hit, unmetered — so the cheap way to walk the token
+// space was simply to ask for the HTML instead of the JSON. Same budget as the
+// verify route, keyed per client AND token so one candidate reloading their own
+// card can never spend another's bucket.
+const SKILL_VIEW_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
 
 // Durable Skill Profile (moonshot A) — the public, candidate-owned, shareable
@@ -17,10 +29,28 @@ export const instant = false;
 
 export default async function SkillProfilePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const t = await getTranslations("skillProfile");
+  // An RSC page has no NextRequest, so the client address comes off the request
+  // headers the same way a route handler resolves it (clientIpFrom -> the trusted-
+  // proxy-aware resolveClientIp). Nothing here can answer 429 — a page renders a
+  // page — so the refusal is a rendered state that says plainly that the card is
+  // temporarily unavailable and is worth retrying, which is the honest reading of a
+  // throttle and never implies the credential is bad.
+  if (!rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)) {
+    return (
+      <main className="mx-auto max-w-xl px-4 py-12">
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher />
+        </div>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h1 className="mt-1 font-serif text-display text-ink">{t("throttledTitle")}</h1>
+        <p className="mt-2 text-body text-steel">{t("throttledBody")}</p>
+      </main>
+    );
+  }
   const verdict = verifySkillProfileToken(token);
   if (!verdict.found || !verdict.profile) notFound();
 
-  const t = await getTranslations("skillProfile");
   const p = verdict.profile;
   const axes = Object.entries(p.axes);
   const confidencePct = Math.round((p.confidence ?? 0) * 100);
@@ -65,6 +95,14 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      {/* The candidate's own escape hatch, as on every other public door (status,
+          offer, erasure). This card is SHARED with employers by the candidate and
+          reached from a link in a letter, so the reader's language is whatever the
+          link carried — and until now this was the one door with no way out of a
+          language they do not read. */}
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
@@ -165,7 +203,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         </section>
       ) : null}
 
-      <p className="mt-4 text-xs text-stone-400">
+      <p className="mt-4 text-meta text-stone-400">
         {t("methodology")}{" "}
         {/* rel=noreferrer: this page's own URL IS the capability token (no session is
             involved on /skill/[token]), and /about is a TRACKED route — so without

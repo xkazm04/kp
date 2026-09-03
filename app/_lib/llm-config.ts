@@ -119,6 +119,12 @@ export type ProviderKeyInput = {
    *  (Ollama, LM Studio, llama.cpp, vLLM, LiteLLM, an in-VPC gateway). Only
    *  persisted for BASE_URL_PROVIDERS. */
   baseUrl?: string;
+  /** Optimistic-concurrency token: the row version the caller RENDERED before
+   *  editing (ProviderKeyMeta.updatedAt). The store re-asserts it under the write
+   *  lock and refuses a save whose view of the row is stale — see
+   *  `upsertProviderKey`. Omitted by headless callers, which never read a version
+   *  and therefore keep the old last-writer-wins behaviour. */
+  expectedUpdatedAt?: string | null;
 };
 
 /** Validate an OpenAI-compatible base URL.
@@ -167,7 +173,13 @@ function endpointHostAllowlist(): string[] {
     .filter(Boolean);
 }
 
-export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
+/** A refused save carries the CURRENT row version so the panel can reload onto it
+ *  instead of asking the operator to guess what changed. */
+export type SaveProviderKeyResult =
+  | { ok: true; updatedAt: string }
+  | { ok: false; reason: "stale"; updatedAt: string | null };
+
+export async function saveProviderKey(input: ProviderKeyInput): Promise<SaveProviderKeyResult> {
   const meta: Record<string, unknown> = {};
   // bug-ui-scan-2026-07-09 (model-api-key-management #2): endpoint/apiVersion are
   // Azure-only metadata (only the azure_openai adapter consumes them). DROP them
@@ -203,11 +215,12 @@ export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
   if (isBaseUrlProvider(input.provider) && input.baseUrl) {
     meta.baseUrl = assertValidBaseUrl(input.baseUrl);
   }
-  upsertProviderKey({
+  return upsertProviderKey({
     provider: input.provider,
     scope: input.scope ?? "byom",
     keyCiphertext: encryptProviderSecret(input.apiKey),
     meta,
+    expectedUpdatedAt: input.expectedUpdatedAt,
   });
 }
 

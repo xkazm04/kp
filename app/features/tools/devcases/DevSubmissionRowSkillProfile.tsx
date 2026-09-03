@@ -1,7 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
+import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 
 // The "Issue Durable Skill Profile" button + share link, split out of
@@ -24,6 +26,15 @@ export function DevSubmissionRowSkillProfile({
 }) {
   const t = useTranslations("devcase.skillProfile");
   const errMsg = useErrorMessage();
+  // The credential link is the ONE candidate-facing link in the product that was
+  // never ?lang=-pinned, so it resolved from a cookie or Accept-Language and could
+  // open a shared credential in a language its reader does not have. Pinned to the
+  // locale it is opened/copied FROM, the convention every other door follows.
+  // Residual: no candidate locale is threaded into this row, so when the link is
+  // later mailed to the candidate the sender must pin it with resolveCommsLocale
+  // (comms-dispatch.ts) instead of reusing this one.
+  const rawLocale = useLocale();
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-micro">
       <button
@@ -35,7 +46,12 @@ export function DevSubmissionRowSkillProfile({
         {dsp.status === "issuing" ? t("issuing") : dsp.status === "done" ? t("reissue") : t("issue")}
       </button>
       {dsp.status === "done" && dsp.token ? (
-        <a href={`/skill/${dsp.token}`} target="_blank" rel="noreferrer" className="focus-ring rounded text-ink underline">
+        <a
+          href={pinLinkLocale(`/skill/${dsp.token}`, locale)}
+          target="_blank"
+          rel="noreferrer"
+          className="focus-ring rounded text-ink underline"
+        >
           {t("view")}
         </a>
       ) : null}

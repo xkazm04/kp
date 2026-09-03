@@ -1,4 +1,6 @@
 import { can } from "@/app/_lib/auth/current-user";
+import { isOperator } from "@/app/_lib/auth/require-operator";
+import { notFound } from "next/navigation";
 import { ControlRoom } from "./ControlRoom";
 import { FeedbackSection } from "./FeedbackSection";
 
@@ -17,6 +19,9 @@ export default async function ControlPage() {
   // being shown a panel that can only ever 403 at them. Same capability on both
   // sides — `members:manage`, the bar that already gates the member and invite
   // lists — so the UI and the API cannot disagree about who may read this.
+  // Director gate (2026-09-03): a demo cookie is a valid session and the room is not in
+  // the nav - answer the same 404 an unknown route does rather than reveal it.
+  if (!(await isOperator())) notFound();
   const canReadFeedback = await can("members:manage");
   return (
     <>

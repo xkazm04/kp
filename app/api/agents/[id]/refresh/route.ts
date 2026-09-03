@@ -51,7 +51,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const agent = getHiredAgent(id, ws);
     if (!agent) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     if (!agent.requestId) {
-      return NextResponse.json({ agent: safeAgent(agent), refreshed: false, reason: "No Personas request to poll (dispatch failed?)." });
+      // A CODE, not just English prose: this branch is the one an operator can act
+      // on (re-dispatch), and the row resolves `errors.<CODE>` in the reader's
+      // language. Shipping only `reason` landed every non-English operator on the
+      // generic "couldn't refresh" sentence, which names no remedy at all.
+      return NextResponse.json({
+        agent: safeAgent(agent),
+        refreshed: false,
+        reason: "No Personas request to poll (dispatch failed?).",
+        code: "AGENT_REFRESH_NOT_DISPATCHED",
+      });
     }
     const polled = await fetchRequestStatus(agent.requestId);
     if (!polled.ok) {

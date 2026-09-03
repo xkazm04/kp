@@ -14,7 +14,14 @@
 // Runner: node --test with type stripping (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canStart, probeAvailability, voiceStartGate, type AvailabilityProbe } from "./availability-gate.ts";
+import {
+  canPickProvider,
+  canStart,
+  probeAvailability,
+  providerPickerGate,
+  voiceStartGate,
+  type AvailabilityProbe,
+} from "./availability-gate.ts";
 import { createTimerRegistry, type Clock } from "./timer-registry.ts";
 
 const configured = { elevenlabs: true, openai: true };
@@ -108,4 +115,42 @@ test("sleep resolves on clearAll instead of hanging the finalize path", async ()
   await waited;
   assert.equal(settled, true);
   await timers.sleep(100); // already cleared — resolves immediately
+});
+
+// ---- provider picker (wave 20) ---------------------------------------------
+// The picker was left on the pre-18b rule (`availability ? !availability[p] : false`),
+// so a FAILED probe rendered every provider selectable — the same "we could not
+// find out, so assume yes" lie the Start button was fixed for, one control over.
+
+test("a failed probe never enables a provider in the picker", () => {
+  const failed: AvailabilityProbe = { status: "failed" };
+  assert.equal(canPickProvider(failed, "elevenlabs"), false);
+  assert.equal(canPickProvider(failed, "openai"), false);
+  assert.equal(providerPickerGate(failed, "openai"), "unknown", "the picker must show the check-again line");
+});
+
+test("the picker gates on exactly the same fact as Start", () => {
+  const probes: AvailabilityProbe[] = [
+    { status: "loading" },
+    { status: "failed" },
+    { status: "ok", availability: configured },
+    { status: "ok", availability: keyless },
+    { status: "ok", availability: { elevenlabs: false, openai: true } },
+  ];
+  for (const probe of probes) {
+    for (const p of ["elevenlabs", "openai"] as const) {
+      assert.equal(
+        canPickProvider(probe, p),
+        canStart(voiceStartGate(probe, p)),
+        `picker and Start disagreed for ${probe.status}/${p}`
+      );
+    }
+  }
+});
+
+test("an unconfigured provider stays pickable-refused, a configured one pickable", () => {
+  const probe: AvailabilityProbe = { status: "ok", availability: { elevenlabs: false, openai: true } };
+  assert.equal(canPickProvider(probe, "elevenlabs"), false);
+  assert.equal(canPickProvider(probe, "openai"), true);
+  assert.equal(canPickProvider({ status: "loading" }, "elevenlabs"), true, "the fast probe must not block the picker");
 });

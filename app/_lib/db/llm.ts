@@ -110,21 +110,62 @@ export function listProviderKeys(): ProviderKeyRow[] {
   }));
 }
 
+/** The outcome of a provider-key write. `updatedAt` is the row's version either
+ *  way — the one just written, or the CURRENT one a stale caller must reload onto. */
+export type ProviderKeyWriteResult =
+  | { ok: true; updatedAt: string }
+  | { ok: false; reason: "stale"; updatedAt: string | null };
+
+/**
+ * Upsert one (provider, scope) credential.
+ *
+ * OPTIMISTIC CONCURRENCY. A provider key is the deployment's spending credential,
+ * encrypted at rest and unrecoverable once replaced, so a blind upsert makes two
+ * admins rotating the same row in overlapping tabs a silent data loss: the loser
+ * sees "Saved" over a key that was overwritten seconds later. `expectedUpdatedAt`
+ * is the version the caller rendered; it is re-asserted INSIDE `.immediate()` (the
+ * write lock is taken at BEGIN, so the read→compare→write cannot interleave) and a
+ * mismatch — including a row deleted underneath the caller — is refused rather than
+ * written. Omitting it keeps last-writer-wins for headless callers that never read
+ * a version and therefore cannot hold a stale one.
+ *
+ * `updated_at` is that version token, so it is written STRICTLY INCREASING: two
+ * writes inside one millisecond would otherwise share a value and make the second
+ * writer's stale token look current.
+ */
 export function upsertProviderKey(input: {
   provider: string;
   scope: string;
   keyCiphertext: string;
   meta?: Record<string, unknown>;
-}): void {
+  expectedUpdatedAt?: string | null;
+}): ProviderKeyWriteResult {
   const db = ensureDb();
-  db.prepare(
-    `INSERT INTO provider_keys (provider, scope, key_ciphertext, meta_json, updated_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (provider, scope) DO UPDATE SET
-       key_ciphertext = excluded.key_ciphertext,
-       meta_json = excluded.meta_json,
-       updated_at = excluded.updated_at`
-  ).run(input.provider, input.scope, input.keyCiphertext, JSON.stringify(input.meta ?? {}), new Date().toISOString());
+  const metaJson = JSON.stringify(input.meta ?? {});
+  // No await anywhere inside: better-sqlite3 transactions are synchronous.
+  const write = db.transaction((): ProviderKeyWriteResult => {
+    const row = db
+      .prepare(`SELECT updated_at FROM provider_keys WHERE provider = ? AND scope = ?`)
+      .get(input.provider, input.scope) as { updated_at?: string } | undefined;
+    const current = row?.updated_at ?? null;
+    if (input.expectedUpdatedAt != null && current !== input.expectedUpdatedAt) {
+      return { ok: false, reason: "stale", updatedAt: current };
+    }
+    const previous = current ? Date.parse(current) : Number.NaN;
+    const updatedAt = new Date(
+      Number.isFinite(previous) ? Math.max(Date.now(), previous + 1) : Date.now()
+    ).toISOString();
+    db.prepare(
+      `INSERT INTO provider_keys (provider, scope, key_ciphertext, meta_json, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (provider, scope) DO UPDATE SET
+         key_ciphertext = excluded.key_ciphertext,
+         meta_json = excluded.meta_json,
+         updated_at = excluded.updated_at`
+    ).run(input.provider, input.scope, input.keyCiphertext, metaJson, updatedAt);
+    return { ok: true, updatedAt };
+  });
+  return write.immediate();
 }
 
 export function deleteProviderKey(provider: string, scope: string): boolean {

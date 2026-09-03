@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { approveLifecycleCase } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -58,6 +59,10 @@ function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timebo
 // ({ case: { title?, brief?, tasks?, timeboxHours? } }) — the gate's promise
 // was review/EDIT/approve, not a blind sign-off.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  // Director gate (2026-09-03): the control room's doors carried no operator check, so a
+  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { case?: unknown; overrideProbeAudit?: unknown };

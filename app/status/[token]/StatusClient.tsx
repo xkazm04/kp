@@ -6,6 +6,7 @@ import { Bot, Check, RefreshCw, UserRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { BTN_GHOST, BTN_PRIMARY_LG } from "@/app/_components/ui/recipes";
 import { StatusNpsCard } from "./StatusNpsCard";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import {
@@ -186,7 +187,7 @@ export function StatusClient() {
               type="button"
               onClick={() => void load()}
               disabled={refreshing}
-              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
+              className={`${BTN_PRIMARY_LG} mt-3`}
             >
               {refreshing ? tCommon("loading") : tCommon("retry")}
             </button>
@@ -271,7 +272,7 @@ export function StatusClient() {
               type="button"
               onClick={() => void load()}
               disabled={refreshing}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-meta font-semibold text-steel hover:text-ink disabled:opacity-50"
+              className={`${BTN_GHOST} h-11 px-3 text-meta font-semibold`}
             >
               <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} aria-hidden />
               {t("refresh")}

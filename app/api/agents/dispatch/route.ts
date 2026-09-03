@@ -6,7 +6,8 @@ import { createPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeli
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { appMasterSpecSchema, type AppMasterSpec } from "@/app/_lib/schemas.generated";
 import { dispatchPersonaRequest, type DispatchSpec, type KpLink } from "@/app/_lib/agent-hire/bridge-client";
 
@@ -33,6 +34,13 @@ import { dispatchPersonaRequest, type DispatchSpec, type KpLink } from "@/app/_l
 // Step 4 has one App-master carve-out: a hire composed from an INTAKE has no job
 // posting, so there is no board column it belongs in. It is skipped rather than
 // faked — see the note at the call site.
+
+// THROTTLE (rate-limit-contract.test.ts). This door mints a row, POSTs a persona
+// request to Personas and files a board card — real outbound work with a real
+// budget attached — behind `requireOperator()`, which open mode (no
+// KP_OPERATOR_PASSWORD) makes a documented no-op for the whole API. 10/10min per
+// IP: a human dispatches a handful of agents in a sitting, a script does not.
+const DISPATCH_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
 type SpecShape = {
   name?: unknown;
@@ -110,6 +118,14 @@ async function mintAndDispatch(
     appMaster?: AppMasterSpec | null;
   }
 ): Promise<NextResponse> {
+  // The limiter sits HERE rather than at the top of POST on purpose: every cheap
+  // refusal of both origins (unknown job/intake, not composed, spec stale, human
+  // population, no agent block, invalid budget) and the one-live-agent idempotency
+  // reuse answer BEFORE this function is entered, so a rejected or idempotent call
+  // spends no budget. Past this line the request always costs something.
+  if (!rateLimit(`agent-dispatch:${clientIpFrom(request.headers)}`, DISPATCH_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   const agent = createHiredAgent(
     {
       jobId: input.jobId,

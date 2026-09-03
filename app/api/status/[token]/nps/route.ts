@@ -6,7 +6,7 @@ import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor, isTerminalCandidateStatus } from "@/app/_lib/application-status";
 import { parseNpsSubmission } from "@/app/_lib/candidate-nps";
 import { candidateNpsFor, recordCandidateNps } from "@/app/_lib/candidate-nps-store";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 // W0.6b — candidate NPS capture on the public, token-gated status page.
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const resolved = resolve(token);
-    if (!resolved) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!resolved) return jsonRefusal("STATUS_LINK_INVALID", 404);
     return jsonOk({ asked: resolved.asked, answered: candidateNpsFor(resolved.entryId, resolved.workspaceId) });
   } catch (error) {
     return safeJsonError(error, "api:status:nps", "STATUS_NPS_READ_FAILED");
@@ -58,10 +58,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const resolved = resolve(token);
-    if (!resolved) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!resolved) return jsonRefusal("STATUS_LINK_INVALID", 404);
     // Refuse rather than silently store: a response captured mid-process would be folded
     // into a "candidate experience" figure that claims to measure completed journeys.
-    if (!resolved.asked) return NextResponse.json({ error: "not applicable yet" }, { status: 409 });
+    if (!resolved.asked) return jsonRefusal("STATUS_NPS_NOT_APPLICABLE", 409);
 
     const body = (await request.json().catch(() => ({}))) as { score?: unknown; comment?: unknown };
     const parsed = parseNpsSubmission(body);
