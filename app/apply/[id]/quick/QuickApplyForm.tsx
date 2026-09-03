@@ -6,9 +6,11 @@ import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
 // bundle lean — same import discipline as ConversationalApply.
-import { APPLY_EMAIL_RE, isRetryableApplyStatus } from "@/app/_lib/apply-intake";
+import { APPLY_EMAIL_RE } from "@/app/_lib/apply-intake";
 import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_lib/apply-session-client";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { applySubmitFailure } from "../apply-submit-outcome";
 
 type KoStep = { id: string; prompt: string };
 
@@ -42,7 +44,22 @@ export function QuickApplyForm({
 }) {
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
-  const errMsg = useErrorMessage();
+  // Same rule as the conversational door: a refusal is rendered from its machine
+  // CODE in the candidate's language, with the cap the route sent as data. The
+  // status no longer decides the message — it only decides the framing — which is
+  // what used to answer a NAMED refusal with the generic "something went wrong".
+  const tErrors = useTranslations("errors");
+  type ErrorKey = Parameters<typeof tErrors>[0];
+  const hasErrorCode = (code: string) => tErrors.has(code as ErrorKey);
+  const translateErrorCode = (code: string, values: { max: number | string }) =>
+    (tErrors as unknown as (key: string, values: Record<string, unknown>) => string)(code, values);
+  // Jumping to the blocking field is a scroll; honour the OS "reduce motion" ask.
+  const reducedMotion = useReducedMotion();
+  const jumpTo = (id: string) => {
+    const el = document.getElementById(id);
+    el?.focus();
+    el?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+  };
   // The apply funnel's denominator for this surface: record that the candidate
   // opened the form, once per attempt, with the ad attribution so a channel's
   // abandonment is separable from its volume (see apply-session-store.ts).
@@ -103,9 +120,7 @@ export function QuickApplyForm({
     const missing = firstMissingControlId();
     if (missing) {
       setIncompleteError(t("quick.incompleteHint"));
-      const el = document.getElementById(missing);
-      el?.focus();
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      jumpTo(missing);
       return;
     }
     setIncompleteError(null);
@@ -113,9 +128,7 @@ export function QuickApplyForm({
     // fixes it in place instead of bouncing off a 400.
     if (!APPLY_EMAIL_RE.test(email.trim())) {
       setEmailError(t("invalidEmail"));
-      const el = document.getElementById("qa-email");
-      el?.focus();
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      jumpTo("qa-email");
       return;
     }
     setEmailError(null);
@@ -146,9 +159,18 @@ export function QuickApplyForm({
           statusToken: typeof d.statusToken === "string" ? d.statusToken : undefined,
         });
       } else {
-        // The form retains every answer, so both failure classes recover the
-        // same way (edit if needed, tap again); a transient one says so.
-        setSubmitError(isRetryableApplyStatus(res.status) ? t("submitFailed") : errMsg(d, t("submitFailed")));
+        // The form retains every answer, so both failure classes recover the same
+        // way (edit if needed, tap again) — which is why the shared decision's
+        // `fixStepId` is not used here; only its MESSAGE is.
+        setSubmitError(
+          applySubmitFailure({
+            status: res.status,
+            body: d,
+            fallbackMessage: t("submitFailed"),
+            hasErrorCode,
+            translateErrorCode,
+          }).message
+        );
       }
     } catch {
       setSubmitError(t("networkFailed"));
@@ -174,7 +196,7 @@ export function QuickApplyForm({
             <div className="mt-4">
               <a
                 href={`/apply/${jobId}${done.leadToken ? `?lead=${encodeURIComponent(done.leadToken)}` : ""}`}
-                className="focus-ring block rounded-md bg-ink px-4 py-3 text-center text-base font-semibold text-white hover:bg-steel"
+                className={`${BTN_PRIMARY} w-full justify-center px-4 py-3 text-center text-base font-semibold`}
               >
                 {t("quick.enrichCta")}
               </a>
@@ -187,7 +209,7 @@ export function QuickApplyForm({
           {done.result === "accepted" && done.statusToken ? (
             <a
               href={`/status/${done.statusToken}`}
-              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+              className={`${BTN_SECONDARY} mt-3 gap-1.5 bg-white px-3 py-1.5 text-base font-semibold`}
             >
               {t("trackStatus")}
             </a>
@@ -228,6 +250,7 @@ export function QuickApplyForm({
             }}
             placeholder={t("script.namePlaceholder")}
             autoComplete="name"
+            aria-describedby={incompleteError ? "qa-incomplete-error" : undefined}
             disabled={submitting}
             className="mt-1 h-12"
           />
@@ -250,16 +273,19 @@ export function QuickApplyForm({
             autoComplete="email"
             disabled={submitting}
             invalid={Boolean(emailError)}
+            aria-describedby={emailError ? "qa-email-error" : "qa-email-hint"}
             className="mt-1 h-12"
           />
           {emailError ? (
-            <p role="alert" className="mt-1 text-sm text-coral">
+            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral">
               {emailError}
             </p>
           ) : (
             // "We'll send you a confirmation" only when a relay can actually
             // send one; otherwise the honest purpose — identity + follow-up.
-            <p className="mt-1 text-sm text-steel">{t(relayConfigured ? "quick.emailHint" : "quick.emailHintNoRelay")}</p>
+            <p id="qa-email-hint" className="mt-1 text-sm text-steel">
+              {t(relayConfigured ? "quick.emailHint" : "quick.emailHintNoRelay")}
+            </p>
           )}
         </div>
         {koSteps.map((step) => (
@@ -279,10 +305,8 @@ export function QuickApplyForm({
                     setKo((k) => ({ ...k, [step.id]: value }));
                     if (incompleteError) setIncompleteError(null);
                   }}
-                  className={`focus-ring h-12 rounded-md border text-base font-semibold disabled:opacity-50 ${
-                    ko[step.id] === value
-                      ? "border-ink bg-ink text-white"
-                      : "border-stone-200 bg-white text-ink hover:border-coral/50"
+                  className={`${BTN_SECONDARY} h-12 justify-center text-base font-semibold ${
+                    ko[step.id] === value ? "border-ink bg-ink text-white" : "bg-white"
                   }`}
                 >
                   {value ? tCommon("yes") : tCommon("no")}
@@ -294,7 +318,7 @@ export function QuickApplyForm({
       </div>
 
       {submitError ? (
-        <p role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
           {submitError}
         </p>
       ) : null}
@@ -302,7 +326,7 @@ export function QuickApplyForm({
           pre-emptively), alongside the focus/scroll jump — the cue the dead
           disabled button never gave. */}
       {incompleteError ? (
-        <p role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
           {incompleteError}
         </p>
       ) : null}
@@ -312,7 +336,8 @@ export function QuickApplyForm({
         // Disabled ONLY while a POST is in flight. An incomplete form still
         // submits — and gets told what's missing (see `submit`).
         disabled={submitting}
-        className="focus-ring mt-5 h-12 w-full rounded-md bg-ink text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
+        aria-describedby={submitError ? "qa-submit-error" : incompleteError ? "qa-incomplete-error" : undefined}
+        className={`${BTN_PRIMARY} mt-5 h-12 w-full justify-center text-base font-semibold`}
       >
         {submitting ? t("sending") : t("quick.submit")}
       </button>

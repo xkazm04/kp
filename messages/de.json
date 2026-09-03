@@ -1488,7 +1488,25 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "Dieser Vorgang nannte keinen vorgeschlagenen Schwellenwert. Bitte das Panel neu laden und den dort angezeigten Wert übernehmen.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "Die Empfehlung hat sich seit der Anzeige geändert. Bitte neu laden und den aktuellen Vorschlag prüfen.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "Derzeit gibt es keine Kalibrierungsempfehlung zum Übernehmen.",
-    "CALIBRATION_FAMILY_UNKNOWN": "Das ist keine der Rollenfamilien der App."
+    "CALIBRATION_FAMILY_UNKNOWN": "Das ist keine der Rollenfamilien der App.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Nur eine Inhaberin oder ein Inhaber darf die Abrechnung dieser Organisation verwalten.",
+    "BILLING_NOT_CONFIGURED": "Die Abrechnung ist in dieser Installation nicht eingerichtet.",
+    "BILLING_PLAN_CONTACT_SALES": "Dieser Tarif wird individuell bepreist. Sprechen Sie mit unserem Vertriebsteam.",
+    "BILLING_PLAN_WITHDRAWN": "Dieser Tarif wird nicht mehr verkauft. Wählen Sie einen der aktuellen Tarife oder betreiben Sie KP kostenlos selbst mit eigenen Modell-Schlüsseln.",
+    "BILLING_ALREADY_SUBSCRIBED": "Sie haben bereits einen Tarif. Ändern Sie ihn im Kundenportal (Abo verwalten), nicht über eine neue Bestellung.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Diese Bestellung nannte weder einen Tarif noch ein Minutenpaket.",
+    "BILLING_NO_CUSTOMER": "Noch kein Abrechnungskonto. Schließen Sie zuerst eine Bestellung ab.",
+    "BILLING_OVERVIEW_FAILED": "Die Abrechnung konnte nicht geladen werden. Bitte erneut versuchen.",
+    "BILLING_CHECKOUT_FAILED": "Die Bestellung konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "BILLING_PORTAL_FAILED": "Das Kundenportal konnte nicht geöffnet werden. Bitte erneut versuchen.",
+    "APPLY_ROLE_NOT_FOUND": "Diese Stelle wurde nicht gefunden. Möglicherweise wurde sie zurückgezogen.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Ihre Bewerbung ist zu groß zum Senden. Kürzen Sie Ihre Antworten oder hängen Sie einen kleineren Lebenslauf an.",
+    "APPLY_NAME_REQUIRED": "Bitte geben Sie Ihren Namen ein.",
+    "APPLY_NAME_TOO_LONG": "Ihr Name ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_ANSWER_TOO_LONG": "Diese Antwort ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_EMAIL_TOO_LONG": "Ihre E-Mail-Adresse ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_EMAIL_INVALID": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "APPLY_SELECTION_INVALID": "Das ist keine der angebotenen Optionen. Bitte wählen Sie eine davon."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1812,7 +1830,8 @@
       "skip": "Nein, danke",
       "thanks": "Vielen Dank. Das steht jetzt in Ihrem Profil.",
       "saveFailed": "Diese Antworten konnten wir gerade nicht speichern. Ihre Bewerbung ist sicher erfasst, versuchen Sie es gern noch einmal."
-    }
+    },
+    "fixAnswer": "Antwort korrigieren"
   },
   "interview": {
     "completedTitle": "Vielen Dank",
@@ -2970,7 +2989,8 @@
       "rejectConfirm": "{count} ablehnen und benachrichtigen?",
       "rejectConfirmYes": "Ablehnen & benachrichtigen",
       "rejectCancel": "Abbrechen",
-      "rejecting": "Wird abgelehnt…"
+      "rejecting": "Wird abgelehnt…",
+      "accepting": "Wird angenommen…"
     },
     "keyDecisions": "Wichtige Entscheidungen",
     "keyDecisionsHelp": "Eine Zeile pro Stelle. Weiterleiten oder ablehnen direkt aus der Analysezusammenfassung eines Kandidaten.",
@@ -3059,7 +3079,9 @@
       "familyFloorChip": "unter {floor}",
       "familyEditHint": "Diese Werte werden im Kalibrierungs-Panel in Analytics festgelegt. Diese Regel gibt sie nur wieder.",
       "fairnessLabel": "Fairness:",
-      "fairnessBody": "Kandidaten am Karriereanfang (Studierende / Quereinsteiger) werden <b>nie</b> automatisch abgelehnt. Diese Sperre ist im Code verankert."
+      "fairnessBody": "Kandidaten am Karriereanfang (Studierende / Quereinsteiger) werden <b>nie</b> automatisch abgelehnt. Diese Sperre ist im Code verankert.",
+      "loadFailed": "Die aktiven Regeln dieses Workspaces konnten nicht geladen werden. Bis dahin wird nichts angezeigt oder gespeichert.",
+      "loadRetry": "Erneut versuchen"
     },
     "compliance": {
       "title": "Compliance & Fairness",
@@ -3358,7 +3380,8 @@
         "fairnessWouldRefuse": "Auto-Ablehnung würde von der Fairness-Sicherung verweigert: {verdict}. Ursprüngliche Regelentscheidung: {original}",
         "applyFailed": "Ausführung fehlgeschlagen: {detail}. Ursprüngliche Regelentscheidung: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7137,7 +7160,8 @@
       "allowance": "Enthaltenes Kontingent",
       "breakdown": "Nach Anwendungsfall",
       "engineTitle": "Engine",
-      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe."
+      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe.",
+      "breakdownScope": "Über alle Arbeitsbereiche dieser Installation hinweg, anders als das Kontingent daneben."
     },
     "plans": {
       "title": "Tarife",
@@ -7160,7 +7184,8 @@
       "intro": "Ein einmaliges Paket, das Credits zusätzlich zum Kontingent Ihres Tarifs hinzufügt. Auf jeder Stufe verfügbar.",
       "minutes": "{qty} Minuten",
       "buy": "Paket kaufen"
-    }
+    },
+    "checkoutRecheck": "Erneut prüfen"
   },
   "branding": {
     "eyebrow": "White-Label",

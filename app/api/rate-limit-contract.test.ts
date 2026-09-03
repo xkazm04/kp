@@ -1031,6 +1031,61 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "listDecisionRecords({ candidateRef: policyRef, workspaceId: ws })",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-03 (decisions-ui-1), with the limiter itself.
+  {
+    // The screening auto-reject WAVE - the one door in the Decisions tab that queues
+    // real adverse-action email, moves a whole cohort to rejected and seals a record
+    // per candidate. Its dry-run preview runs the same cohort ranking, so both halves
+    // share one budget. Its sibling write doors (pipeline/batch, decisions/config)
+    // were limited; this one, the heaviest, was not. 60/10min per IP: the preview is
+    // debounced at 350ms, so a recruiter working the sliders stays far under it.
+    rel: "./decisions/screen-wave/route.ts",
+    key: "`screen-wave:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "WAVE_RATE_LIMIT",
+    optsDef: "const WAVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await runScreenWave(",
+    // The missing-jobId 400 and the override schema 400 keep their semantics ahead of
+    // the throttle, so a request that could never run a wave costs no budget.
+    servedBefore: "validateScreeningOverride(body.override)",
+  },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-03 (billing-ui), with the limiters themselves. The two
+  // BILLING doors had no throttle at all — the only doors in the app that reach a
+  // MERCHANT OF RECORD. Both were guarded by `requireOperator()` alone, and open mode
+  // (KP_OPERATOR_PASSWORD unset) makes every operator gate a documented no-op for the
+  // ENTIRE API, so an unauthenticated caller could loop live Polar checkout sessions
+  // and customer-portal mints. The capability gate that now precedes each limiter
+  // (org:manage) is the authorization half; this is the abuse-containment half, and
+  // neither substitutes for the other.
+  {
+    rel: "./billing/checkout/route.ts",
+    key: "`billing-checkout:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "CHECKOUT_RATE_LIMIT",
+    optsDef: "const CHECKOUT_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The provider hop. A bare `createCheckout(` would also match nothing else here,
+    // but the awaited call site is what must follow the limiter.
+    expensive: "await gateway.createCheckout(req,",
+    // EVERY cheap refusal keeps its semantics ahead of the throttle — a body that was
+    // never going to buy anything must not consume the window, and a throttled caller
+    // must not be told "slow down" when the real answer is "you are not an owner".
+    servedBefore: 'jsonRefusal("BILLING_ALREADY_SUBSCRIBED", 403)',
+  },
+  {
+    rel: "./billing/portal/route.ts",
+    key: "`billing-portal:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "PORTAL_RATE_LIMIT",
+    optsDef: "const PORTAL_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await gateway.createPortalSession(customerId)",
+    // The "no customer yet" 404 is the calm pre-first-purchase state; it mints nothing.
+    servedBefore: 'jsonRefusal("BILLING_NO_CUSTOMER", 404)',
+  },
 ];
 
 for (const spec of ROUTES) {

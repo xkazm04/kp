@@ -1488,7 +1488,25 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "That apply named no suggested threshold. Reload the panel and apply the number it shows.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "The recommendation changed since it was shown. Reload and review the current suggestion.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "There is no calibration recommendation to apply right now.",
-    "CALIBRATION_FAMILY_UNKNOWN": "That isn't one of the app's role families."
+    "CALIBRATION_FAMILY_UNKNOWN": "That isn't one of the app's role families.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Only an owner can manage billing for this organization.",
+    "BILLING_NOT_CONFIGURED": "Billing is not configured on this deployment.",
+    "BILLING_PLAN_CONTACT_SALES": "That plan is custom-priced. Talk to our sales team to get set up.",
+    "BILLING_PLAN_WITHDRAWN": "That plan is no longer sold. Pick one of the current plans, or self-host KP for free on your own model keys.",
+    "BILLING_ALREADY_SUBSCRIBED": "You already have a plan. Change it in the customer portal (Manage subscription), not with a new checkout.",
+    "BILLING_CHECKOUT_BODY_INVALID": "That checkout named neither a plan nor a minutes pack.",
+    "BILLING_NO_CUSTOMER": "No billing customer yet. Complete a checkout first.",
+    "BILLING_OVERVIEW_FAILED": "Could not load billing. Please try again.",
+    "BILLING_CHECKOUT_FAILED": "Could not start the checkout. Please try again.",
+    "BILLING_PORTAL_FAILED": "Could not open the customer portal. Please try again.",
+    "APPLY_ROLE_NOT_FOUND": "That role could not be found. It may have been taken down.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Your application is too large to send. Shorten your answers or attach a smaller CV.",
+    "APPLY_NAME_REQUIRED": "Please enter your name.",
+    "APPLY_NAME_TOO_LONG": "Your name is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_ANSWER_TOO_LONG": "That answer is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_EMAIL_TOO_LONG": "Your email address is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_EMAIL_INVALID": "Please enter a valid email address.",
+    "APPLY_SELECTION_INVALID": "That is not one of the options offered. Please choose one of them."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1812,7 +1830,8 @@
       "skip": "No thanks",
       "thanks": "Thank you. That's on your profile now.",
       "saveFailed": "We couldn't save those answers just now. Your application is safely filed, so feel free to try again."
-    }
+    },
+    "fixAnswer": "Fix this answer"
   },
   "interview": {
     "completedTitle": "Thank you",
@@ -2970,7 +2989,8 @@
       "rejectConfirm": "Reject {count} and notify them?",
       "rejectConfirmYes": "Reject & notify",
       "rejectCancel": "Cancel",
-      "rejecting": "Rejecting…"
+      "rejecting": "Rejecting…",
+      "accepting": "Accepting…"
     },
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role. Advance or reject from a candidate's analysis summary.",
@@ -3059,7 +3079,9 @@
       "familyFloorChip": "below {floor}",
       "familyEditHint": "These are set on the Calibration panel in Analytics. This rule only reflects them.",
       "fairnessLabel": "Fairness:",
-      "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected. That gate is enforced in code."
+      "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected. That gate is enforced in code.",
+      "loadFailed": "Couldn't load the live rules for this workspace. Nothing is shown or saved until it loads.",
+      "loadRetry": "Try again"
     },
     "compliance": {
       "title": "Compliance & fairness",
@@ -3358,7 +3380,8 @@
         "fairnessWouldRefuse": "Auto-reject would be refused by fairness backstop: {verdict}. Original policy decision: {original}",
         "applyFailed": "Apply failed: {detail}. Original policy decision: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Couldn't put this candidate back. Try again."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7137,7 +7160,8 @@
       "allowance": "Included allowance",
       "breakdown": "By use case",
       "engineTitle": "Engine",
-      "noSpend": "No metered AI calls in this window yet."
+      "noSpend": "No metered AI calls in this window yet.",
+      "breakdownScope": "Across every workspace on this deployment, unlike the allowance beside it."
     },
     "plans": {
       "title": "Plans",
@@ -7160,7 +7184,8 @@
       "intro": "A one-off pack that adds credits on top of your plan's quota, available on every tier.",
       "minutes": "{qty} minutes",
       "buy": "Buy pack"
-    }
+    },
+    "checkoutRecheck": "Check again"
   },
   "branding": {
     "eyebrow": "White-label",

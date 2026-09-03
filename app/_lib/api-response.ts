@@ -266,6 +266,13 @@ export const STORE_ERRORS = {
   // MATRIX_BUILD_FAILED because the reader is looking at ONE candidate's ranking, not
   // at the grid.
   MATCH_RUN_FAILED: "Could not rank that candidate against the roles. Please try again.",
+  // The billing doors (/perfect 2026-09-03, billing-ui). All three answered prose with
+  // no code: the overview's catch hand-rolled its own `{ error }`, and checkout/portal
+  // forwarded the GATEWAY's thrown message — a merchant-of-record HTTP body, i.e. an
+  // upstream provider's internals, in an English nobody in the catalog chose.
+  BILLING_OVERVIEW_FAILED: "Could not load billing. Please try again.",
+  BILLING_CHECKOUT_FAILED: "Could not start the checkout. Please try again.",
+  BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -685,6 +692,60 @@ export const REFUSAL_ERRORS = {
   /** A market-salary lookup with no role family (400). The band is aggregated per
    *  role family, so there is nothing to answer without one. */
   BENCHMARK_ROLE_FAMILY_REQUIRED: "That benchmark named no role family.",
+  // ---- The billing doors (/perfect 2026-09-03, billing-ui). Every refusal here was a
+  // bare English sentence, so the tab computed a genuinely actionable reason ("use the
+  // portal", "that tier is withdrawn", "you are not an owner") and then discarded it
+  // into one generic "Checkout failed". Each now rides as a code the reader resolves in
+  // their own language; where the reason names a tier, the NAME travels beside the code
+  // as data rather than inside the prose.
+  /** The caller holds a seat but not `org:manage` (403). Billing is owner-only by the
+   *  role table's own definition; a recruiter or viewer reaching a billing door is a
+   *  permissions answer, not a failure. */
+  BILLING_ORG_MANAGE_REQUIRED: "Only an owner can manage billing for this organization.",
+  /** No POLAR_* env on this deployment (503). Normal on a self-hosted install. */
+  BILLING_NOT_CONFIGURED: "Billing is not configured on this deployment.",
+  /** A contact-sales tier was posted to checkout (400). `plan` carries its name. */
+  BILLING_PLAN_CONTACT_SALES: "That plan is custom-priced. Talk to our sales team to get set up.",
+  /** A legacy tier, withdrawn from sale, was posted to checkout (400). Distinct from
+   *  the contact-sales refusal on purpose: there is no one to talk to, and the buyer's
+   *  real options are a current plan or self-hosting. `plan` carries its name. */
+  BILLING_PLAN_WITHDRAWN: "That plan is no longer sold. Pick one of the current plans, or self-host KP for free on your own model keys.",
+  /** A plan checkout arrived while a subscription is live (403) — the portal is where
+   *  a change happens; a second checkout would mint a parallel subscription. */
+  BILLING_ALREADY_SUBSCRIBED: "You already have a plan. Change it in the customer portal (Manage subscription), not with a new checkout.",
+  /** A checkout body naming neither a plan nor a pack (400). */
+  BILLING_CHECKOUT_BODY_INVALID: "That checkout named neither a plan nor a minutes pack.",
+  /** The portal was asked for before any completed checkout (404) — a calm
+   *  pre-first-purchase state the tab renders as a hint, not an error. */
+  BILLING_NO_CUSTOMER: "No billing customer yet. Complete a checkout first.",
+  // ---- Public apply door (/perfect 2026-09-03, candidate-apply). Every
+  // validation refusal on the two candidate intake surfaces used to be a bare
+  // English sentence with no code — which the code-only resolver correctly
+  // refused to render, so a Czech applicant whose answer ran two characters over
+  // the cap read "something went wrong" and was offered a restart. The caps ride
+  // beside the code as DATA (`max`), and so does the STEP the refusal is about
+  // (`field`), which is what lets the door re-ask that one question.
+  /** The apply link does not resolve to a role (404). */
+  APPLY_ROLE_NOT_FOUND: "That role could not be found.",
+  /** The submission is over the body cap (413) — an oversized CV extract, usually. */
+  APPLY_PAYLOAD_TOO_LARGE: "That application is too large to accept.",
+  /** The lead form arrived without a name (400). The conversational door does not
+   *  share this: it files a contactless application rather than refusing one. */
+  APPLY_NAME_REQUIRED: "That application named no applicant.",
+  /** Past the name cap (400). Checked BEFORE the knockout gate, because a decline
+   *  persists the label — see the note at that call site. */
+  APPLY_NAME_TOO_LONG: "That name is longer than the applicant-name cap.",
+  /** One free-text answer is past the per-answer cap (400). `field` names WHICH. */
+  APPLY_ANSWER_TOO_LONG: "One of those answers is longer than an answer can be.",
+  /** Past the RFC 5321 address length (400). Kept apart from APPLY_EMAIL_INVALID:
+   *  "shorten it" and "it isn't an address" are different fixes. */
+  APPLY_EMAIL_TOO_LONG: "That email address is longer than an address can be.",
+  /** A malformed address (400). A BLANK email is not this: the conversational door
+   *  files a contactless application, so only junk is refused. */
+  APPLY_EMAIL_INVALID: "That is not a valid email address.",
+  /** A self-declared archetype that is not one of the offered options (400) — a
+   *  scripted POST, since the UI only renders the script's own choices. */
+  APPLY_SELECTION_INVALID: "That is not one of the options offered.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

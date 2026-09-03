@@ -217,7 +217,11 @@ test("checkout: the Enterprise contact-sales tier is rejected 400 and never hits
       new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "enterprise" }) })
     );
     assert.equal(res.status, 400);
-    assert.match((await res.json()).error, /sales/i, "should point the buyer at sales, not a generic error");
+    // The REASON rides as a machine code (the reader gets it in their own language),
+    // and the tier's name rides beside it as data — not smuggled inside English prose.
+    const body = (await res.json()) as { code: string; plan: string };
+    assert.equal(body.code, "BILLING_PLAN_CONTACT_SALES", "should point the buyer at sales, not a generic error");
+    assert.equal(body.plan, "Enterprise");
     assert.equal(providerHit, false, "a contact-sales plan must never reach the payment gateway");
   } finally {
     globalThis.fetch = originalFetch;
@@ -385,7 +389,7 @@ test("checkout: a WITHDRAWN (legacy) tier is refused with its own reason, not th
     new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "byom" }) })
   );
   assert.equal(res.status, 400);
-  const { error } = (await res.json()) as { error: string };
-  assert.doesNotMatch(error, /enterprise|contact-sales/i, "a withdrawn tier must not be described as contact-sales");
-  assert.match(error, /BYOM/, "name the tier the caller actually asked for");
+  const { code, plan } = (await res.json()) as { code: string; plan: string };
+  assert.equal(code, "BILLING_PLAN_WITHDRAWN", "a withdrawn tier must not be described as contact-sales");
+  assert.equal(plan, "BYOM", "name the tier the caller actually asked for");
 });

@@ -11,7 +11,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
@@ -60,10 +60,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     // Throttle BEFORE any DB read so a flood is rejected cheaply.
     if (!rateLimit(`apply-quick:${id}:${clientIpFrom(request.headers)}`, QUICK_APPLY_RATE_LIMIT)) {
+      // Shared codeless 429 envelope (rate-limit-contract.test.ts pins it).
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    if (!job) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
 
     const t = await getTranslations("apply");
     // The language the candidate applied in, persisted on the entry so every
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const contentLength = Number(request.headers.get("content-length") ?? 0);
     if (contentLength > MAX_QUICK_BODY_BYTES) {
-      return NextResponse.json({ error: "Application payload too large." }, { status: 413 });
+      return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -108,13 +109,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // files), the lead form's entire point is a REACHABLE candidate — without an
     // address the enrichment loop can never close, so both fields are required.
     if (!name) {
-      return NextResponse.json({ error: "Please enter your name." }, { status: 400 });
+      return jsonRefusal("APPLY_NAME_REQUIRED", 400, { field: "name" });
     }
     if (name.length > MAX_NAME_LENGTH) {
-      return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
+      return jsonRefusal("APPLY_NAME_TOO_LONG", 400, { field: "name", max: MAX_NAME_LENGTH });
     }
-    if (!email || email.length > MAX_EMAIL_LENGTH || !APPLY_EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+    if (email.length > MAX_EMAIL_LENGTH) {
+      return jsonRefusal("APPLY_EMAIL_TOO_LONG", 400, { field: "email", max: MAX_EMAIL_LENGTH });
+    }
+    if (!email || !APPLY_EMAIL_RE.test(email)) {
+      return jsonRefusal("APPLY_EMAIL_INVALID", 400, { field: "email" });
     }
 
     // ABSOLUTE link to the full conversational apply (the candidate opens it from

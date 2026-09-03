@@ -1488,7 +1488,25 @@
     "CALIBRATION_SUGGESTION_REQUIRED": "Požadavek neuvedl navrhovaný práh. Načtěte panel znovu a použijte číslo, které ukazuje.",
     "CALIBRATION_RECOMMENDATION_CHANGED": "Doporučení se od zobrazení změnilo. Načtěte stránku znovu a projděte si aktuální návrh.",
     "CALIBRATION_RECOMMENDATION_ABSENT": "Momentálně není k dispozici žádné kalibrační doporučení k použití.",
-    "CALIBRATION_FAMILY_UNKNOWN": "Toto není žádná z rodin rolí, které aplikace zná."
+    "CALIBRATION_FAMILY_UNKNOWN": "Toto není žádná z rodin rolí, které aplikace zná.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Fakturaci může spravovat pouze vlastník organizace.",
+    "BILLING_NOT_CONFIGURED": "Fakturace není v této instalaci nastavená.",
+    "BILLING_PLAN_CONTACT_SALES": "Tento tarif má individuální cenu. Domluvte se s naším obchodním týmem.",
+    "BILLING_PLAN_WITHDRAWN": "Tento tarif se už neprodává. Vyberte si některý ze současných tarifů, nebo provozujte KP zdarma na vlastní infrastruktuře s vlastními klíči k modelům.",
+    "BILLING_ALREADY_SUBSCRIBED": "Tarif už máte. Změňte ho v zákaznickém portálu (Spravovat předplatné), ne novou objednávkou.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Objednávka neuvedla tarif ani balíček minut.",
+    "BILLING_NO_CUSTOMER": "Zatím nemáte fakturační účet. Nejdřív dokončete objednávku.",
+    "BILLING_OVERVIEW_FAILED": "Fakturaci se nepodařilo načíst. Zkuste to prosím znovu.",
+    "BILLING_CHECKOUT_FAILED": "Objednávku se nepodařilo zahájit. Zkuste to prosím znovu.",
+    "BILLING_PORTAL_FAILED": "Zákaznický portál se nepodařilo otevřít. Zkuste to prosím znovu.",
+    "APPLY_ROLE_NOT_FOUND": "Tuto pozici se nepodařilo najít. Možná už byla stažena.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Vaše přihláška je příliš velká na odeslání. Zkraťte odpovědi nebo přiložte menší životopis.",
+    "APPLY_NAME_REQUIRED": "Zadejte prosím své jméno.",
+    "APPLY_NAME_TOO_LONG": "Vaše jméno je příliš dlouhé. Použijte prosím nejvýše {max} znaků.",
+    "APPLY_ANSWER_TOO_LONG": "Tato odpověď je příliš dlouhá. Použijte prosím nejvýše {max} znaků.",
+    "APPLY_EMAIL_TOO_LONG": "Vaše e-mailová adresa je příliš dlouhá. Použijte prosím nejvýše {max} znaků.",
+    "APPLY_EMAIL_INVALID": "Zadejte prosím platnou e-mailovou adresu.",
+    "APPLY_SELECTION_INVALID": "Tato možnost mezi nabízenými není. Vyberte prosím jednu z nich."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1812,7 +1830,8 @@
       "skip": "Děkuji, ne",
       "thanks": "Děkujeme. Máme to ve vašem profilu.",
       "saveFailed": "Odpovědi se nám teď nepodařilo uložit. Vaše přihláška je v pořádku uložená, klidně to zkuste znovu."
-    }
+    },
+    "fixAnswer": "Opravit odpověď"
   },
   "interview": {
     "completedTitle": "Děkujeme",
@@ -2970,7 +2989,8 @@
       "rejectConfirm": "Zamítnout {count} a uvědomit je?",
       "rejectConfirmYes": "Zamítnout a uvědomit",
       "rejectCancel": "Zrušit",
-      "rejecting": "Zamítání…"
+      "rejecting": "Zamítání…",
+      "accepting": "Schvaluji…"
     },
     "keyDecisions": "Klíčová rozhodnutí",
     "keyDecisionsHelp": "Jeden řádek na pozici. Postupte nebo zamítněte přímo ze souhrnu analýzy kandidáta.",
@@ -3059,7 +3079,9 @@
       "familyFloorChip": "pod {floor}",
       "familyEditHint": "Nastavují se v panelu Kalibrace v Analytice. Toto pravidlo je jen zobrazuje.",
       "fairnessLabel": "Spravedlnost:",
-      "fairnessBody": "kandidáti na začátku kariéry (student / změna oboru) se <b>nikdy</b> automaticky nezamítají. Tuto bránu vynucuje kód."
+      "fairnessBody": "kandidáti na začátku kariéry (student / změna oboru) se <b>nikdy</b> automaticky nezamítají. Tuto bránu vynucuje kód.",
+      "loadFailed": "Nepodařilo se načíst platná pravidla tohoto pracovního prostoru. Dokud se nenačtou, nic se nezobrazí ani neuloží.",
+      "loadRetry": "Zkusit znovu"
     },
     "compliance": {
       "title": "Soulad a spravedlnost",
@@ -3358,7 +3380,8 @@
         "fairnessWouldRefuse": "Automatické zamítnutí by pojistka spravedlnosti odmítla: {verdict}. Původní rozhodnutí pravidel: {original}",
         "applyFailed": "Provedení selhalo: {detail}. Původní rozhodnutí pravidel: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -7137,7 +7160,8 @@
       "allowance": "Zahrnutý limit",
       "breakdown": "Podle případu užití",
       "engineTitle": "Engine",
-      "noSpend": "V tomto období zatím nejsou žádná měřená volání AI."
+      "noSpend": "V tomto období zatím nejsou žádná měřená volání AI.",
+      "breakdownScope": "Napříč všemi pracovními prostory této instalace, na rozdíl od limitu vedle."
     },
     "plans": {
       "title": "Tarify",
@@ -7160,7 +7184,8 @@
       "intro": "Jednorázový balíček, který přidá kredity nad rámec kvóty tarifu. Je dostupný v každém tarifu.",
       "minutes": "{qty} minut",
       "buy": "Koupit balíček"
-    }
+    },
+    "checkoutRecheck": "Zkontrolovat znovu"
   },
   "branding": {
     "eyebrow": "White-label",

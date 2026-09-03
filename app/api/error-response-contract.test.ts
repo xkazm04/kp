@@ -209,8 +209,6 @@ const LEAK_CEILING = new Map<string, number>([
   // pipeline-board-3): the 500 answers safeJsonError(..., "SCHEDULE_UPDATE_FAILED")
   // and the interval 400 is jsonRefusal("SCHEDULE_INTERVAL_INVALID"), so the control
   // dock resolves both in the reader's language. The row is deleted so the win is locked.
-  ["billing/checkout/route.ts", 1],
-  ["billing/portal/route.ts", 1],
   ["channels/inbound/[token]/route.ts", 1],
   ["channels/webhooks/route.ts", 3],
   ["comms/relay/route.ts", 1],

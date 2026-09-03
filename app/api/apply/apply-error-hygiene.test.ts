@@ -94,14 +94,43 @@ test("the conversational re-apply response gates its tokens on proven ownership"
   );
 });
 
-test("the deliberate human-written 4xx validation copy is untouched", () => {
-  // These are client-safe by construction and tell the applicant what to fix —
-  // adopting safeJsonError must not have swept them up.
-  const conversational = read("[id]/route.ts");
-  assert.match(conversational, /"Your name is too long\."/);
-  assert.match(conversational, /"Please enter a valid email address\."/);
-  assert.match(conversational, /"Application payload too large\."/);
-  const quick = read("[id]/quick/route.ts");
-  assert.match(quick, /"Please enter your name\."/);
-  assert.match(quick, /"Please enter a valid email address\."/);
+test("every validation refusal on both doors carries a CODE, not English prose", () => {
+  // This test used to assert the OPPOSITE — that the hand-written English
+  // sentences ("Your name is too long.") stayed in the routes. They were
+  // client-safe, but they were also the only thing the door had to show: with no
+  // `code`, useErrorMessage fell through to the generic "something went wrong" in
+  // all four languages, on a PUBLIC surface a candidate reaches in their own. The
+  // copy now lives in REFUSAL_ERRORS (canonical English for the log and for API
+  // consumers) and the client renders `errors.<CODE>` instead.
+  const refusals = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  for (const rel of ["[id]/route.ts", "[id]/quick/route.ts"] as const) {
+    const src = read(rel);
+    // Only ONE bare `{ error: … }` may remain per route: the closed-role 410,
+    // whose message is already localized from the `apply` catalog server-side.
+    const bare = [...src.matchAll(/NextResponse\.json\(\{ error: ([^,}]+)/g)].map((m) => m[1].trim());
+    // The throttle keeps the shared codeless envelope on purpose (which limiter
+    // refusals go through jsonRefusal is rate-limit-contract.test.ts's call), and
+    // the closed-role 410's message is already localized from the `apply` catalog.
+    assert.deepEqual(
+      bare,
+      ["RATE_LIMITED_ERROR", 't("roleClosed")'],
+      `${rel} still answers a validation refusal with a codeless body`
+    );
+    for (const [, code] of src.matchAll(/jsonRefusal\("([A-Z_]+)"/g)) {
+      assert.ok(new RegExp(`\n  ${code}:`).test(refusals), `${code} is not declared in REFUSAL_ERRORS`);
+    }
+  }
+});
+
+test("a refusal that names a field carries the cap as DATA", () => {
+  // "Too long" that cannot say how long is a dead end on a public door: the
+  // number is interpolated into the localized message, so it rides beside the
+  // code rather than being baked into an English sentence.
+  const src = read("[id]/route.ts");
+  assert.match(src, /jsonRefusal\("APPLY_NAME_TOO_LONG", 400, \{ field: "name", max: MAX_NAME_LENGTH \}\)/);
+  assert.match(src, /jsonRefusal\("APPLY_ANSWER_TOO_LONG", 400, \{ field: overlong\[0\], max: MAX_TEXT_LENGTH \}\)/);
+  assert.match(src, /jsonRefusal\("APPLY_EMAIL_TOO_LONG", 400, \{ field: "email", max: MAX_EMAIL_LENGTH \}\)/);
+  // …and the rejected answer is named by its STEP ID, which is what lets the door
+  // re-ask that one question instead of restarting the conversation.
+  assert.match(src, /\["student_project", studentProject\]/, "the free-text cap check is keyed by step id");
 });

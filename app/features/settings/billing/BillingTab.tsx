@@ -14,6 +14,13 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BillingCurrentPlanPanel } from "./BillingCurrentPlanPanel";
 import { BillingSelfHostPanel } from "./BillingSelfHostPanel";
 import { BillingStatusBanners } from "./BillingStatusBanners";
+import {
+  canStartPurchase,
+  checkoutPollOffsetsMs,
+  createLoadLatch,
+  isCheckoutReturn,
+  type Purchase,
+} from "./billingTabState";
 import { useBillingPortal } from "./useBillingPortal";
 import type { BillingPayload } from "./billingTypes";
 
@@ -31,11 +38,19 @@ const SpendSection = dynamic(() => import("./spend/BillingSpendSection").then((m
   loading: () => <div className="reveal-quiet min-h-[22rem]" aria-hidden />,
 });
 
-// Billing tab — the GET /api/billing overview rendered for a recruiter: the
-// entitled plan, this period's meter usage (included allowance + pack credits),
-// the plan catalog with checkout, the minute top-up pack, and the provider
-// portal. Checkout/portal URLs come from the server; the client only redirects
-// — entitlement always lands via the webhook, never from here.
+// Billing tab — the GET /api/billing overview rendered for an OWNER: the entitled
+// plan, this period's meter usage (included allowance + pack credits), the plan
+// catalog with checkout, the minute top-up pack, and the provider portal.
+// Checkout/portal URLs come from the server; the client only redirects —
+// entitlement always lands via the webhook, never from here.
+//
+// Every door behind this tab requires `org:manage` (app/api/billing/authority.ts),
+// so a seated non-owner is answered 403 + BILLING_ORG_MANAGE_REQUIRED and reads that
+// reason, in their own language, in the failure banner below — not a bare
+// "couldn't load".
+//
+// The state machine (newest-read latch, single-flight purchase, the once-only return
+// capture, the poll schedule) lives in billingTabState.ts, pure and unit-tested.
 
 export function BillingTab() {
   const t = useTranslations("billing");
@@ -43,11 +58,14 @@ export function BillingTab() {
   // `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
   const [data, setData] = useState<BillingPayload | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  // The localized reason the overview could not be read (a capability refusal, a
+  // store fault), or null. Was a bare boolean, which threw away the code the server
+  // had just computed and rendered one generic sentence for every cause.
+  const [loadError, setLoadError] = useState<string | null>(null);
   // One purchase at a time: which catalog item (plan/pack id) is checking out,
-  // and its inline error. A successful checkout leaves `busy` standing — the
+  // and its inline error. A successful checkout leaves the entry standing — the
   // page is about to navigate to the provider-hosted form.
-  const [purchase, setPurchase] = useState<{ key: string; error: string | null } | null>(null);
+  const [purchase, setPurchase] = useState<Purchase>(null);
   const { portalBusy, portalNote, openPortal } = useBillingPortal();
   // Self-hosted (AGPL) install: no billing provider, no billing history, nothing
   // gated (app/_lib/billing/mode.ts). The plan card, the catalog and the
@@ -61,9 +79,10 @@ export function BillingTab() {
   // mount effect. `useSearchParams` reads the same value on the server and during
   // hydration, so the "confirming" banner paints without a mismatch.
   const searchParams = useSearchParams();
-  const [checkoutReturn] = useState(() => searchParams.get("billing") === "success");
-  // The poll window elapsed — NOT "the plan is confirmed". Confirmation is derived from
-  // the real billing state below, so a timer alone can never assert a plan grant.
+  const [checkoutReturn] = useState(() => isCheckoutReturn(searchParams.get("billing")));
+  // The automatic poll window elapsed — NOT "the plan is confirmed". Confirmation is
+  // derived from the real billing state below, so a timer alone can never assert a
+  // plan grant; once this flips, the banner offers a manual re-check.
   const [pollWindowElapsed, setPollWindowElapsed] = useState(false);
   // The banner is bound to the ACTUAL billing state, not the timer: we only claim
   // "your plan is now X" once /api/billing reflects a paid plan (plans-checkout #2).
@@ -73,48 +92,55 @@ export function BillingTab() {
     planReflectsPaid: Boolean(data && data.plan.id !== "free"),
   });
 
-  // Only the NEWEST /api/billing read may land. The checkout return below fires
-  // three overlapping loads; without this latch a slow earlier response settling
-  // after a faster later one would overwrite the fresher plan — the 2 s poll
-  // returning `free` at t=6.5 s on top of the 5 s poll that already returned
-  // `growth` at t=5.2 s, flipping a confirmed plan card back to Free and the
-  // banner back to "your account is updating", with no further fetch to correct it.
-  const loadSeq = useRef(0);
+  // Only the NEWEST /api/billing read may land — see billingTabState.ts.
+  const latch = useRef(createLoadLatch()).current;
   // State updates only happen in the async callbacks (never synchronously in
-  // the effect body); the retry button clears the failure flag in its event
-  // handler before re-firing.
+  // the effect body); the retry button clears the failure in its event handler
+  // before re-firing.
   const load = useCallback(() => {
-    const seq = ++loadSeq.current;
+    const seq = latch.begin();
     fetch("/api/billing")
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = (await r.json().catch(() => ({}))) as { code?: string; error?: string };
+          // The reason is the server's CODE, resolved in the reader's language: a
+          // recruiter who is simply not an owner should read that, not "try again".
+          throw new Error(errMsg(body, t("loadFailed")));
+        }
+        return (await r.json()) as BillingPayload;
       })
       .then((p) => {
-        if (seq === loadSeq.current) setData(p as BillingPayload);
+        if (latch.isCurrent(seq)) {
+          setData(p);
+          setLoadError(null);
+        }
       })
       // A superseded read's failure is not this view's failure either: a newer
       // load is already in flight (or has landed), so it owns the outcome.
-      .catch(() => {
-        if (seq === loadSeq.current) setLoadFailed(true);
+      .catch((e: unknown) => {
+        if (latch.isCurrent(seq)) setLoadError(e instanceof Error ? e.message : t("loadFailed"));
       });
-  }, []);
+  }, [errMsg, latch, t]);
   useEffect(() => {
     load();
   }, [load]);
 
   // On a checkout return, re-poll the overview (the entitlement lands via the
-  // webhook a beat after redirect), mark done, and strip the flag so a refresh
-  // doesn't re-trigger. Runs once on mount; the banner itself is derived above.
+  // webhook a beat after redirect) with a BACKOFF to a stated one-minute cap, then
+  // hand over to the banner's manual re-check. It used to fire three fixed shots and
+  // stop forever, stranding a buyer whose webhook was merely slow. Runs once on
+  // mount; the banner itself is derived above.
   useEffect(() => {
     if (!checkoutReturn) return;
-    const timers = [
-      setTimeout(load, 2000),
-      setTimeout(load, 5000),
-      // Marks the poll window closed, NOT the plan confirmed — the banner only claims
-      // success once `data.plan` actually reflects it (see checkoutBannerState).
-      setTimeout(() => setPollWindowElapsed(true), 5500),
-    ];
+    const offsets = checkoutPollOffsetsMs();
+    const timers = offsets.map((at, i) =>
+      setTimeout(() => {
+        load();
+        // Marks the automatic window closed, NOT the plan confirmed — the banner only
+        // claims success once `data.plan` actually reflects it (checkoutBannerState).
+        if (i === offsets.length - 1) setPollWindowElapsed(true);
+      }, at)
+    );
     const url = new URL(window.location.href);
     url.searchParams.delete("billing");
     window.history.replaceState(null, "", url.toString());
@@ -133,7 +159,7 @@ export function BillingTab() {
   };
 
   const startCheckout = async (body: { plan: string } | { pack: string }, key: string) => {
-    if (purchase && purchase.error === null) return; // redirect already in flight
+    if (!canStartPurchase(purchase)) return; // redirect already in flight
     // Fire-and-forget analytics (no-op when Plausible isn't configured): the
     // checkout intent, before the provider redirect can navigate away.
     track("checkout_started", { item: key });
@@ -145,6 +171,9 @@ export function BillingTab() {
         body: JSON.stringify(body),
       });
       const p = (await r.json().catch(() => ({}))) as { url?: string; error?: string; code?: string };
+      // Every checkout refusal now carries a BILLING_* code, so the actionable reason
+      // ("use the portal", "that tier is withdrawn", "you are not an owner") survives
+      // to the card instead of collapsing into one generic failure.
       if (!r.ok || !p.url) throw new Error(errMsg(p, t("plans.checkoutFailed")));
       window.location.assign(p.url);
     } catch (e) {
@@ -156,7 +185,7 @@ export function BillingTab() {
     // Tier 1: the header + whatever has arrived cascade in as this section's
     // direct children (stagger-children, globals.css). aria-busy covers the
     // first load only — a later refresh never blanks what is already here.
-    <section className="stagger-children space-y-6" aria-busy={!data && !loadFailed}>
+    <section className="stagger-children space-y-6" aria-busy={!data && loadError === null}>
       <header>
         <p className={EYEBROW}>{t("eyebrow")}</p>
         <SectionTitle className="mt-1">{t("title")}</SectionTitle>
@@ -170,11 +199,12 @@ export function BillingTab() {
       <BillingStatusBanners
         checkout={checkout}
         planName={data?.plan.name ?? ""}
-        loadFailed={loadFailed}
+        loadError={loadError}
         onRetry={() => {
-          setLoadFailed(false);
+          setLoadError(null);
           load();
         }}
+        onRecheck={load}
         hasData={data !== null}
         configured={selfHosted ? true : (data?.configured ?? true)}
       />

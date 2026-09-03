@@ -1,24 +1,25 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { isRetryableApplyStatus } from "@/app/_lib/apply-intake";
 import { readApplySession } from "@/app/_lib/apply-session-client";
 import type { CompletenessGap } from "@/app/_lib/completeness-followup";
-import type { ErrorMessageResolver } from "@/app/_lib/use-error-message";
+import { applyNetworkFailure, applySubmitFailure, type ApplySubmitError } from "./apply-submit-outcome";
 import type { ApplyOutcome } from "./apply-chat-types";
 
 // A FAILED final submit — recoverable, rendered inline so the conversation and
 // every captured answer survive a blip on the last step. The recovery ACTION
-// depends on WHY it failed (see isRetryableApplyStatus):
+// depends on WHY it failed; the decision itself (what we say, whether a re-POST
+// can help, which step to re-ask) is pure — see apply-submit-outcome.ts:
 //   - retryable (network / 5xx / 408 / 429): a "Try again" that re-POSTs the
 //     already-collected answers — the candidate never re-walks the chat.
-//   - not retryable (the server rejected the input — e.g. an answer too long, a
-//     payload too large): re-POSTing the identical payload would fail the same
-//     way forever, so the only honest path is a "Start over" that resets to the
-//     first question in place (no full page reload).
+//   - not retryable but the refusal NAMES the answer it rejected (`field`): the
+//     door re-asks THAT step with the typed answer still in the box, so a name
+//     two characters over the cap costs one edit, not the whole conversation.
+//   - not retryable and unattributable: "Start over", resetting to the first
+//     question in place (no page reload) — the last resort, not the first answer.
 // (There is no longer a fatal load-error state: the script arrives as a prop,
 // server-built.)
-export type ApplySubmitError = { message: string; retryable: boolean };
+export type { ApplySubmitError } from "./apply-submit-outcome";
 
 /**
  * The final POST and everything that hangs off its outcome: the in-flight flag,
@@ -35,14 +36,21 @@ export function useApplySubmit({
   lead,
   submitFailedMessage,
   networkFailedMessage,
-  errMsg,
+  hasErrorCode,
+  translateErrorCode,
+  fixableStepIds,
 }: {
   jobId: string;
   /** The enrichment lead token, or null when this is a first-time visit. */
   lead: string | null;
   submitFailedMessage: string;
   networkFailedMessage: string;
-  errMsg: ErrorMessageResolver;
+  /** The `errors` catalog, unbound from React — a refusal is rendered from its
+   *  CODE in the candidate's language, never from the server's English string. */
+  hasErrorCode: (code: string) => boolean;
+  translateErrorCode: (code: string, values: { max: number | string }) => string;
+  /** Step ids this visit's script asked — the only fields a re-ask can address. */
+  fixableStepIds: readonly string[];
 }) {
   const [done, setDone] = useState<ApplyOutcome | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -90,20 +98,23 @@ export function useApplySubmit({
           followupGaps: Array.isArray(d.followupGaps) ? (d.followupGaps as CompletenessGap[]) : undefined,
         });
       } else {
-        // The server rejected the submit. isRetryableApplyStatus decides whether a
-        // re-POST of the same answers could succeed (5xx / transient) or is futile
-        // (4xx — the input itself was rejected), which selects Try-again vs Start-over.
-        setSubmitError({
-          message: errMsg(d, submitFailedMessage),
-          retryable: isRetryableApplyStatus(res.status),
-        });
+        // The server rejected the submit. What we SAY (the refusal's code,
+        // localized, carrying the cap it sent as data) and what we OFFER (retry /
+        // re-ask one step / start over) are one pure decision.
+        setSubmitError(
+          applySubmitFailure({
+            status: res.status,
+            body: d,
+            fallbackMessage: submitFailedMessage,
+            hasErrorCode,
+            translateErrorCode,
+            fixableStepIds,
+          })
+        );
       }
     } catch {
       // No HTTP response at all (offline / network blip) — always retryable.
-      setSubmitError({
-        message: networkFailedMessage,
-        retryable: true,
-      });
+      setSubmitError(applyNetworkFailure(networkFailedMessage));
     } finally {
       setSubmitting(false);
     }
@@ -127,5 +138,10 @@ export function useApplySubmit({
     setDone(null);
   };
 
-  return { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit };
+  // Drop ONLY the inline failure, keeping the remembered answers and the
+  // conversation — what a "fix this answer" re-ask needs: the door puts the
+  // rejected step back on screen in place of the error block.
+  const clearSubmitError = () => setSubmitError(null);
+
+  return { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit, clearSubmitError };
 }

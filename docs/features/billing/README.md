@@ -172,6 +172,64 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
 
+### Who may open a billing door: `org:manage`, not "any session"
+
+`app/_lib/auth/roles.ts` defines the `org:manage` capability as, verbatim, *"billing,
+org profile/settings, delete org — owner only"*. Until 2026-09-03 not one billing route
+asked for it. Checkout and portal called `requireOperator()`, which answers a different
+question — *is there a valid session on this deployment?* — and every recruiter, hiring
+manager and viewer answers it yes; `GET /api/billing` had no handler gate at all. So any
+seat could start a checkout that charges the org's card, mint a merchant-of-record portal
+URL that **cancels the subscription** and lists invoices, and read the org's plan, metered
+burn and prepaid credit balance.
+
+All three doors now go through `requireBillingAuthority()`
+(`app/api/billing/authority.ts`), a thin wrapper over `requireOrgCapability("org:manage")`:
+
+- **org-level**, not workspace-level — a subscription is bought per ORG
+  (`billingOrgForWorkspace`), so authority over it is org-wide, and an owner administering
+  a second team must still be able to pay for it;
+- **403 + `BILLING_ORG_MANAGE_REQUIRED`** for a signed-in caller without the capability,
+  **plain 401** with no session at all (nothing to localize for yet);
+- unchanged for a single-operator install: open dev mode and an operator-password session
+  both fold to owner inside `callerOrgCapabilities`.
+
+Pinned by `app/api/billing/billing-authority.test.ts`, which runs with
+`KP_OPERATOR_PASSWORD` **set** (billing-routes.test.ts runs open, so the two live in
+separate files — the auth helpers read that env at module scope).
+
+### The two spend doors are rate-limited
+
+Authorization and abuse containment are different jobs and neither substitutes for the
+other: open mode makes every capability gate in the app a documented no-op, so without a
+limiter an unauthenticated caller could loop live Polar checkout sessions and portal
+mints. Per-IP `rateLimit()`, placed **after every cheap refusal and before the provider
+hop** so a body that was never going to buy anything spends none of the window:
+
+| Door | Budget | Why that number |
+| --- | --- | --- |
+| `POST /api/billing/checkout` | 10 / 10 min | a person buys once, or retries a card twice |
+| `POST /api/billing/portal` | 20 / 10 min | one click per visit, plus a re-open after a popup blocker |
+
+Both refuse through the shared chokepoint (`jsonRefusal("TOO_MANY_REQUESTS", 429)`), and
+both call sites — key, constant, budget, ordering — are pinned in
+`app/api/rate-limit-contract.test.ts`.
+
+### Every billing refusal carries a code
+
+The routes used to answer prose with no `code`, so the tab computed a genuinely actionable
+reason — *use the portal*, *that tier is withdrawn*, *you are not an owner* — and then
+discarded it into one generic "Checkout failed", in English, for every locale. Ten codes
+now cover the surface (`REFUSAL_ERRORS` / `STORE_ERRORS` in `app/_lib/api-response.ts`,
+four catalog entries each): `BILLING_ORG_MANAGE_REQUIRED`, `BILLING_NOT_CONFIGURED`,
+`BILLING_PLAN_CONTACT_SALES`, `BILLING_PLAN_WITHDRAWN`, `BILLING_ALREADY_SUBSCRIBED`,
+`BILLING_CHECKOUT_BODY_INVALID`, `BILLING_NO_CUSTOMER`, plus `BILLING_OVERVIEW_FAILED`,
+`BILLING_CHECKOUT_FAILED` and `BILLING_PORTAL_FAILED` for the fault paths. Where a refusal
+names a tier, the tier's **name travels beside the code as data** (`{ plan: "BYOM" }`)
+rather than inside a sentence only English readers can parse. Both checkout and portal are
+off the `error-response-contract.test.ts` ceiling — the gateway's thrown message (a
+merchant-of-record HTTP body) is logged, never forwarded.
+
 ### The webhook reads its raw body under a hard cap
 
 `/api/billing/webhook` is on the public allow-list (`app/_lib/auth/public-routes.ts` —
@@ -238,6 +296,27 @@ relaxation (a lapsed `canceled`). `STATUS_TONE` in the same file enumerates the 
 `SubscriptionStatus` union for the same reason: `unpaid` used to fall through to the
 neutral chip that also means "no subscription".
 
+### The tab's state machine (`billingTabState.ts`)
+
+Four rules that had shipped as inline refs and timer arrays inside `BillingTab.tsx`,
+untested because `node --test` cannot load a `.tsx`. They are now pure, named and pinned
+by `billingTabState.test.ts`:
+
+- **`createLoadLatch()`** — only the newest `/api/billing` read may land (and its
+  failure). Also adopted by `useSpendData.ts`, which had no latch at all.
+- **`canStartPurchase` / `isPurchaseBusy`** — single-flight checkout. A successful
+  checkout deliberately stays "busy": the page is about to navigate to the provider
+  form, and a button that re-enables in that gap mints a second session.
+- **`isCheckoutReturn`** — the `?billing=success` flag, captured once in lazy initial
+  state because the effect strips the param immediately.
+- **`CHECKOUT_POLL_DELAYS_MS` + `checkoutPollWindowMs()`** — the post-checkout poll now
+  **backs off to a stated one-minute cap** (2s, 6s, 14s, 30s, 60s) instead of three fixed
+  shots that stopped at 5.5s. When the window closes without the plan reflecting the
+  purchase, the banner offers a **manual re-check** (`billing.checkoutRecheck`) rather
+  than freezing on "payment received, updating" with a page reload as the only recourse.
+  The window is DERIVED from the last shot, so "we gave up" can never again sit half a
+  second after "we are still trying".
+
 ### The Usage & cost section (`app/features/settings/billing/spend/`)
 
 The billing tab renders the plan card, then **one** consolidated spend section,
@@ -246,13 +325,25 @@ different tabs:
 
 | Source | Contribution |
 |---|---|
-| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits |
-| `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) |
+| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits — **the caller's org** |
+| `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
 | `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
 
 `useSpendData.ts` owns both fetches, so the section has **one** loading state and
 **one** failure state. The ledger read is the failure that matters; a dead
-`/api/ops` drops the engine lines rather than erroring the section.
+`/api/ops` drops the engine lines rather than erroring the section. Both halves are
+latched to the newest load (`createLoadLatch`, `billingTabState.ts`) — the hook had
+none, so a reload fired over an in-flight pair could let a superseded rejection paint
+the error state over data a newer read had already delivered.
+
+**The two halves of that row answer at different scopes, and the surface now says so.**
+The allowance rail is the caller's org; the AI ledger behind the chart is
+**deployment-wide**, because `llm_usage` (`app/_lib/db/core.ts`) carries no `org_id` or
+`workspace_id` at all — it is tenancy-**exempt** config/metering, and `aggregateLlmUsage`
+has nothing to scope by. Scoping it is a schema change (a column, a backfill, and a
+decision about pre-existing rows), so it is out of scope here; what changed is that the
+chart states its scope (`billing.spend.breakdownScope`, four locales) instead of letting
+a deployment total read as one team's spend against that team's allowance.
 
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage

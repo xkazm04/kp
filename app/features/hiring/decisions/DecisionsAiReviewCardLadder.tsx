@@ -77,7 +77,7 @@ export function AiReviewCardLadder({
                 <li key={p.entryId} className={`flex items-center gap-2 rounded px-1.5 py-1 ${self ? "bg-coral/5 ring-1 ring-coral/30" : ""}`}>
                   <span className="nums w-4 shrink-0 text-sm font-semibold text-steel">{rank}</span>
                   <span className={`min-w-0 flex-1 truncate text-sm ${self ? "font-semibold text-ink" : "text-steel"}`}>{p.label}</span>
-                  {!self && p.stage ? <span className="shrink-0 rounded bg-stone-100 px-1 text-[11px] uppercase text-steel">{p.stage}</span> : null}
+                  {!self && p.stage ? <span className="shrink-0 rounded bg-stone-100 px-1 text-meta uppercase text-steel">{p.stage}</span> : null}
                   <ScoreBadge score={p.score} />
                 </li>
               );

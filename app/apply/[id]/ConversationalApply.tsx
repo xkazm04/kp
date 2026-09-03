@@ -15,7 +15,7 @@ import {
 } from "@/app/_lib/apply-intake";
 import { ensureApplySession } from "@/app/_lib/apply-session-client";
 import { cvAutofill } from "@/app/_lib/cv-autofill";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { Msg } from "./apply-chat-types";
 import { ApplyDoneCard } from "./ApplyDoneCard";
 import { ApplyErrorBlock } from "./ApplyErrorBlock";
@@ -50,7 +50,22 @@ export function ConversationalApply({
 
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
-  const errMsg = useErrorMessage();
+  // The `errors` catalog, handed to the submit hook unbound: a refusal is
+  // rendered from its machine CODE in the candidate's language (with the cap the
+  // route sent as data), never from the server's English `error` string.
+  // useErrorMessage() is not usable here because it resolves a code WITHOUT
+  // values, and the apply caps are interpolated — see apply-submit-outcome.ts.
+  const tErrors = useTranslations("errors");
+  type ErrorKey = Parameters<typeof tErrors>[0];
+  const hasErrorCode = (code: string) => tErrors.has(code as ErrorKey);
+  // The code is a runtime string and the values are the same shape for every
+  // apply refusal, so the translator is cast once at this boundary —
+  // hasErrorCode above is the existence guard that makes the cast safe.
+  const translateErrorCode = (code: string, values: { max: number | string }) =>
+    (tErrors as unknown as (key: string, values: Record<string, unknown>) => string)(code, values);
+  // Motion preference: the transcript auto-scrolls after every turn, which for a
+  // motion-sensitive candidate is a smooth sweep on EVERY answer of an 8-step chat.
+  const reducedMotion = useReducedMotion();
   // The localStorage slot for this visit — namespaced by the enrichment lead
   // token (see draftKey) so a first-time draft and an enrichment draft for the
   // same job never share a slot. Stable across renders (both are props).
@@ -78,12 +93,15 @@ export function ConversationalApply({
   // The final POST and its outcome — `done` (accepted / declined, plus the
   // duplicate / enriched nuances), the in-flight flag, and the recoverable
   // failure. See useApplySubmit for why a failure is never terminal.
-  const { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit } = useApplySubmit({
+  const { done, submitting, submitError, submitApplication, retrySubmit, resetSubmit, clearSubmitError } = useApplySubmit({
     jobId,
     lead: prefill ? prefill.leadToken : null,
     submitFailedMessage: t("submitFailed"),
     networkFailedMessage: t("networkFailed"),
-    errMsg,
+    hasErrorCode,
+    translateErrorCode,
+    // Only a question this visit actually asked can be re-asked.
+    fixableStepIds: steps.map((s) => s.id),
   });
   // The post-accept gap questions. Purely additive: the application is ALREADY
   // FILED before that block ever renders, so every state there is a courtesy.
@@ -107,6 +125,11 @@ export function ConversationalApply({
   // start-fresh escape. `hydratedRef` gates the persist effect so it can't write
   // the empty initial state over a saved draft before the restore effect runs.
   const [resumed, setResumed] = useState(false);
+  // The step a REJECTED submit sent us back to (apply-submit-outcome's fixStepId):
+  // while it is set the controls re-ask that ONE question with the rejected answer
+  // still in the box, and answering it re-submits the application directly — the
+  // candidate never re-walks the steps that were already accepted.
+  const [fixStepId, setFixStepId] = useState<string | null>(null);
   const hydratedRef = useRef(false);
   const endRef = useRef<HTMLDivElement | null>(null);
   // Step ids already answered — the synchronous guard that makes advance()
@@ -116,8 +139,10 @@ export function ConversationalApply({
   const stepControlsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, done, submitError]);
+    // "smooth" only when the reader has not asked for less motion; the jump to
+    // the newest turn still happens either way, instantly.
+    endRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
+  }, [msgs, done, submitError, reducedMotion]);
 
   useEffect(() => {
     return () => {
@@ -176,17 +201,19 @@ export function ConversationalApply({
   // and skips text steps, whose <input autoFocus> already handles it.
   useEffect(() => {
     if (done || submitError || transitioning) return;
-    const step = steps[idx];
+    const step = fixStepId ? steps.find((s) => s.id === fixStepId) : steps[idx];
     if (!step || step.type === "text") return;
     stepControlsRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
-  }, [idx, transitioning, done, submitError, steps]);
+  }, [idx, fixStepId, transitioning, done, submitError, steps]);
 
   // Seed a CV-parsed value into the text input on arrival at its step
   // (idea-cddec0bf), only when the candidate hasn't already answered it and the
   // box is empty — so it's an editable default, never an overwrite of their typing.
   useEffect(() => {
     if (done || submitError || transitioning) return;
-    const step = steps[idx];
+    // A step being re-asked after a rejected submit is seeded with the REJECTED
+    // value (see beginFix), never re-seeded from the CV.
+    const step = fixStepId ? undefined : steps[idx];
     if (!step || step.type !== "text" || answeredRef.current.has(step.id)) return;
     const pf = cvDefaults[step.id];
     if (pf && input.trim() === "") {
@@ -194,7 +221,7 @@ export function ConversationalApply({
       setInput(pf);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally not on `input`: seed once per step, don't re-seed after the candidate clears it
-  }, [idx, transitioning, done, submitError, cvDefaults, steps]);
+  }, [idx, fixStepId, transitioning, done, submitError, cvDefaults, steps]);
 
   // The controls are locked while a POST is in flight or while we're mid-hop
   // between steps. advance() is the single entry point and answers each step
@@ -222,6 +249,7 @@ export function ConversationalApply({
       stepTimer.current = null;
     }
     setTransitioning(false);
+    setFixStepId(null);
     answeredRef.current = new Set();
     clearApplyDraft(draftStorageKey);
     setResumed(false);
@@ -238,6 +266,40 @@ export function ConversationalApply({
     setUploadErr(null);
     setIdx(0);
     setMsgs(initialMsgs());
+  };
+
+  // Re-ask ONE rejected step (the refusal named it) instead of restarting the
+  // chat: the rejected value goes back into the input so it is EDITED, not
+  // retyped from nothing.
+  const beginFix = (stepId: string) => {
+    const i = steps.findIndex((s) => s.id === stepId);
+    if (i === -1) {
+      // The refusal named a field this script never asked — nothing to re-ask.
+      restartConversation();
+      return;
+    }
+    clearSubmitError();
+    setStepError(null);
+    setFixStepId(stepId);
+    const prior = answers[stepId];
+    setInput(typeof prior === "string" ? prior : "");
+    setMsgs((m) => [...m, { who: "bot", text: steps[i].prompt }]);
+  };
+
+  // The single entry point for an answered step. During a fix it re-submits the
+  // corrected application straight away — every other answer is already captured
+  // — instead of walking the tail of the script again.
+  const answerStep = async (stepId: string, value: unknown, label: string) => {
+    if (fixStepId) {
+      if (submitting) return;
+      const corrected = { ...answers, [stepId]: value };
+      setAnswers(corrected);
+      setFixStepId(null);
+      setMsgs((m) => [...m, { who: "me", text: label }]);
+      await submitApplication(corrected);
+      return;
+    }
+    await advance(stepId, { ...answers, [stepId]: value }, label);
   };
 
   const advance = async (stepId: string, newAnswers: Record<string, unknown>, label: string) => {
@@ -265,8 +327,8 @@ export function ConversationalApply({
 
   const submitText = () => {
     const v = input.trim();
-    if (!v || busy) return;
-    const step = steps[idx];
+    if (!v || busy || !cur) return;
+    const step = cur;
     // Validate the email at its own step (same regex the server uses). The server allows a
     // blank email but rejects a malformed one only at the FINAL submit — a non-retryable 400
     // that forces "Start over" and wipes every answer. Catching it here fixes a typo in place.
@@ -284,20 +346,20 @@ export function ConversationalApply({
       return;
     }
     setStepError(null);
-    advance(step.id, { ...answers, [step.id]: v }, v);
+    void answerStep(step.id, v, v);
     setInput("");
   };
   const submitKo = (yes: boolean) => {
-    if (busy) return;
-    const step = steps[idx];
+    if (busy || !cur) return;
+    const step = cur;
     // capst-l2-101 — the echoed chat bubble must speak the candidate's language,
     // same catalog keys as the buttons themselves ("Ano"/"Ne" in cs).
-    advance(step.id, { ...answers, [step.id]: yes }, yes ? tCommon("yes") : tCommon("no"));
+    void answerStep(step.id, yes, yes ? tCommon("yes") : tCommon("no"));
   };
   const submitChoice = (value: string, label: string) => {
-    if (busy) return;
-    const step = steps[idx];
-    advance(step.id, { ...answers, [step.id]: value }, label);
+    if (busy || !cur) return;
+    const step = cur;
+    void answerStep(step.id, value, label);
   };
   // CV-upload step: extract the file's text via the same /api/extract-text the
   // recruiter Profile form uses (kept as an inline fetch — importing AnalyzeApi
@@ -320,8 +382,8 @@ export function ConversationalApply({
       // than retypes (idea-cddec0bf). Editable defaults only; never auto-submitted.
       const auto = cvAutofill(d.text);
       if (Object.keys(auto).length > 0) setCvDefaults((p) => ({ ...p, ...auto }));
-      const step = steps[idx];
-      advance(step.id, { ...answers, [step.id]: d.text }, t("attachedFile", { name: file.name }));
+      if (!cur) return;
+      await answerStep(cur.id, d.text, t("attachedFile", { name: file.name }));
     } catch {
       setUploadErr(t("fileReadFailed"));
     } finally {
@@ -332,16 +394,18 @@ export function ConversationalApply({
   // like the GitHub handle): answers "" — which the server reads as "not given"
   // — and moves on.
   const skipStep = () => {
-    if (busy || uploading) return;
-    const step = steps[idx];
+    if (busy || uploading || !cur) return;
+    const step = cur;
     // Drop any half-typed input and its inline validation error — skipping IS
     // the recovery path for a handle the candidate can't get past the gate.
     setInput("");
     setStepError(null);
-    advance(step.id, { ...answers, [step.id]: "" }, t("skippedFile"));
+    void answerStep(step.id, "", t("skippedFile"));
   };
 
-  const cur = !done ? steps[idx] : null;
+  // The step on screen: the one being re-asked after a rejected submit, else the
+  // one the script is on.
+  const cur = !done ? (fixStepId ? (steps.find((s) => s.id === fixStepId) ?? steps[idx]) : steps[idx]) : null;
 
   return (
     <div>
@@ -397,6 +461,7 @@ export function ConversationalApply({
           error={submitError}
           submitting={submitting}
           onRetry={retrySubmit}
+          onFix={beginFix}
           onRestart={restartConversation}
         />
       ) : null}

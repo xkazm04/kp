@@ -28,7 +28,7 @@ export function DecisionsTab() {
     evalRole, setEvalRole, evalMode, setEvalMode, evalData, setEvalData,
     evalGovernanceMismatch,
     evalCreatedAt, setEvalCreatedAt, evalTaskId, setEvalTaskId, evalError, setEvalError,
-    evaluated, reconsider, reinstating, reinstate,
+    evaluated, reconsider, reinstating, reinstate, reinstateErrors,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
     fmtDate, reconsiderReasonText,
     pending, jobOptions, activeFilter,
@@ -162,6 +162,7 @@ export function DecisionsTab() {
         setReconsiderOpen={setReconsiderOpen}
         reinstating={reinstating}
         reinstate={reinstate}
+        reinstateErrors={reinstateErrors}
         fmtDate={fmtDate}
         reconsiderReasonText={reconsiderReasonText}
       />

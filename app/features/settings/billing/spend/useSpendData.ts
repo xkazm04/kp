@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LlmUsageAggregateRow } from "@/app/_lib/db/llm";
 import type { EngineAvailability } from "@/app/_lib/engine-preflight";
+import { createLoadLatch } from "../billingTabState";
 
 // The two server reads the consolidated spend section needs, fetched ONCE for
 // whichever view is on screen. The plan/meter half arrives as a prop — the
@@ -51,25 +52,46 @@ export function useSpendData(): SpendData {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  // Only the NEWEST pair of reads may land (billingTabState.ts). This hook had no
+  // latch at all while the Billing tab above it did — the same asymmetry, in the same
+  // section: a reload fired while the first pair was still in flight let a superseded
+  // ledger REJECTION set `failed` on top of data a newer load had already delivered,
+  // and a superseded /api/ops response null out engine facts that had just arrived.
+  const latch = useRef(createLoadLatch()).current;
   // State updates happen only in the async callbacks, never synchronously in the
   // effect body; the retry button clears `failed` in its own handler.
   const load = useCallback(() => {
+    const seq = latch.begin();
     // The ledger is the section's subject, so its failure is THE failure. Engine
     // telemetry is context: a dead /api/ops leaves those lines out rather than
-    // turning the whole section into an error state.
+    // turning the whole section into an error state. Both halves are latched the
+    // same way — the asymmetry was only ever in what a failure MEANS, never in
+    // whether a stale answer may overwrite a fresh one.
     fetch("/api/llm/usage")
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((p) => setUsage(p as SpendUsage))
-      .catch(() => setFailed(true))
-      .finally(() => setLoading(false));
+      .then((p) => {
+        if (!latch.isCurrent(seq)) return;
+        setUsage(p as SpendUsage);
+        setFailed(false);
+      })
+      .catch(() => {
+        if (latch.isCurrent(seq)) setFailed(true);
+      })
+      .finally(() => {
+        if (latch.isCurrent(seq)) setLoading(false);
+      });
     fetch("/api/ops")
       .then((r) => (r.ok ? r.json() : null))
-      .then((p) => setOps((p as SpendOps | null) ?? null))
-      .catch(() => setOps(null));
-  }, []);
+      .then((p) => {
+        if (latch.isCurrent(seq)) setOps((p as SpendOps | null) ?? null);
+      })
+      .catch(() => {
+        if (latch.isCurrent(seq)) setOps(null);
+      });
+  }, [latch]);
 
   useEffect(() => {
     load();

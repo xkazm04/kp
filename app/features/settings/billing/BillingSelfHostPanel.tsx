@@ -3,7 +3,7 @@
 import { ArrowRight, Infinity as InfinityIcon, Server } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 
 // The Billing tab on a SELF-HOSTED install (`metered: false` — see
 // app/_lib/billing/mode.ts). It replaces the current-plan card and the plan
@@ -40,7 +40,7 @@ export function BillingSelfHostPanel() {
           <p className="text-sm text-steel">{t("selfHost.meters")}</p>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-200 pt-4">
+        <div className={`mt-4 flex flex-wrap items-center gap-3 ${DIVIDER} pt-4`}>
           <Link href="/?tab=models" className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
             {t("selfHost.modelsCta")}
             <ArrowRight size={14} aria-hidden />
