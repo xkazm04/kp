@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db/devcase";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
+import { submissionReference } from "@/app/_lib/devcase-reference";
 
 
 // THROTTLE (route.test.ts). Every accepted call here writes a submission row, sends the
@@ -35,6 +36,8 @@ export async function POST(request: NextRequest) {
       repoRef?: string;
       contact?: string;
       notes?: string;
+      /** The applicant's language, so the acknowledgement is not written in ours. */
+      locale?: string;
     };
     // PUBLIC webhook: the apply token is the ONLY accepted credential. We deliberately do
     // NOT accept a `postingId` shortcut here — posting ids are internal, non-crypto keys
@@ -45,7 +48,9 @@ export async function POST(request: NextRequest) {
     // internal path that takes a postingId directly is /api/devcase/submit.
     const token = request.nextUrl.searchParams.get("token") || body.token || "";
     const posting = token ? getPostingByToken(token) : undefined;
-    if (!posting) return NextResponse.json({ error: "a valid apply token is required." }, { status: 401 });
+    // A code, not prose: the public apply form renders this in the reader's language
+    // (the same refusal the session mint answers when a link stops resolving).
+    if (!posting) return jsonRefusal("DEVCASE_APPLY_TOKEN_REQUIRED", 401);
     // W5-3 — a closed posting answers honestly instead of acknowledging a
     // submission nobody will process ("queued, never ghosts" cuts both ways:
     // a false ack IS a ghost with extra steps).
@@ -57,17 +62,20 @@ export async function POST(request: NextRequest) {
     }
     const postingId = posting.id;
     if (!body.candidate || !body.repoRef) {
-      return NextResponse.json({ error: "candidate and repoRef are required." }, { status: 400 });
+      return jsonRefusal("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400);
     }
 
     // Throttle AFTER the credential (401), lifecycle (410) and validation (400) refusals —
     // those must keep answering honestly without consuming a real applicant's slot — and
     // BEFORE the intake, so a refused call sends no mail, writes no row and starts no run.
+    // Through the refusal CHOKEPOINT, not a hand-rolled envelope: the shared message
+    // still reaches the client (REFUSAL_ERRORS.TOO_MANY_REQUESTS *is* RATE_LIMITED_ERROR)
+    // and the code rides beside it, so a throttled apply form says so in Czech.
     if (!rateLimit(`devcase-inbound:${token}`, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     if (!rateLimit(`devcase-inbound-day:${token}`, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const { submission, isNew } = await intakeSubmission({
@@ -76,11 +84,21 @@ export async function POST(request: NextRequest) {
       repoRef: body.repoRef,
       contact: body.contact,
       notes: body.notes,
+      locale: typeof body.locale === "string" ? body.locale : null,
     });
 
     if (isNew) resumeCollectingLifecycle(postingId);
 
-    return NextResponse.json({ ok: true, submissionId: submission.id, duplicate: !isNew, acknowledged: true });
+    // The candidate is handed an OPAQUE reference (devcase-reference.ts), not the store
+    // id the apply page used to print. `submissionId` still rides for external channels
+    // that correlate their own records against it.
+    return NextResponse.json({
+      ok: true,
+      submissionId: submission.id,
+      reference: submissionReference(submission.id),
+      duplicate: !isNew,
+      acknowledged: true,
+    });
   } catch (error) {
     // Defensive: the pre-check above already 410s a closed posting, but the shared
     // core also guards (e.g. if the posting closes mid-request) — map it to 410 too.

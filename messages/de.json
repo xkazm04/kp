@@ -1663,7 +1663,11 @@
     "SIM_CV_UNREADABLE": "Dieser Lebenslauf konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
     "DEMO_NOT_PROVISIONED": "Die Live-Demo ist auf dieser Installation noch nicht eingerichtet.",
     "DEMO_DISABLED": "Die Live-Demo ist auf dieser Installation deaktiviert.",
-    "SIM_RUN_ACTIVE": "Hier läuft bereits eine geführte Demo. Warten Sie, bis sie fertig ist, oder stoppen Sie sie zuerst."
+    "SIM_RUN_ACTIVE": "Hier läuft bereits eine geführte Demo. Warten Sie, bis sie fertig ist, oder stoppen Sie sie zuerst.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "Dieser Bewerbungslink ist ungültig. Bitten Sie die Recruiterin oder den Recruiter um einen neuen.",
+    "DEVCASE_SESSION_NOT_FOUND": "Diese Arbeitssitzung wurde nicht gefunden. Öffnen Sie Ihren Bewerbungslink erneut, um eine neue zu starten.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Name und Link zu Ihrer Lösung sind beide erforderlich.",
+    "DEVCASE_SESSION_START_FAILED": "Die Arbeitssitzung konnte nicht geöffnet werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6210,7 +6214,14 @@
     "received": "Bewerbung eingegangen",
     "receivedNote": "Wir prüfen Ihre Einreichung und melden uns bei Ihnen. Eine Bestätigung ist unterwegs.",
     "receivedDuplicate": "Für diese Aufgabe lag uns bereits eine Einreichung von Ihnen vor. Diese zählt, ein erneutes Einreichen ist nicht nötig.",
-    "receivedRef": "Einreichungsreferenz: {ref}"
+    "receivedRef": "Einreichungsreferenz: {ref}",
+    "assignment": {
+      "fallbackTitle": "Aufgabe",
+      "timebox": "Zeitrahmen ca. {hours} Std.",
+      "brief": "Aufgabenstellung",
+      "handed": "Was Sie mitbekommen",
+      "tasks": "Aufgaben"
+    }
   },
   "potential": {
     "badge": "Potenzial {pct}",

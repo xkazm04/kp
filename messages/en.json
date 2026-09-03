@@ -1663,7 +1663,11 @@
     "SIM_CV_UNREADABLE": "That CV could not be read. Try a PDF, DOCX, TXT or MD file.",
     "DEMO_NOT_PROVISIONED": "The live demo is not set up on this deployment yet.",
     "DEMO_DISABLED": "The live demo is turned off on this deployment.",
-    "SIM_RUN_ACTIVE": "A guided demo is already running here. Wait for it to finish, or stop it first."
+    "SIM_RUN_ACTIVE": "A guided demo is already running here. Wait for it to finish, or stop it first.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "This apply link isn't valid. Ask the recruiter for a fresh one.",
+    "DEVCASE_SESSION_NOT_FOUND": "This work session can't be found. Open your apply link again to start a new one.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "A name and a link to your solution are both required.",
+    "DEVCASE_SESSION_START_FAILED": "Could not open the work session. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6210,7 +6214,14 @@
     "received": "Application received",
     "receivedNote": "We'll review your submission and get back to you. A confirmation is on its way.",
     "receivedDuplicate": "We already had a submission for you on this assignment. It's the one that counts, so there's no need to resubmit.",
-    "receivedRef": "Submission reference: {ref}"
+    "receivedRef": "Submission reference: {ref}",
+    "assignment": {
+      "fallbackTitle": "Assignment",
+      "timebox": "~{hours}h timebox",
+      "brief": "Brief",
+      "handed": "What you're handed",
+      "tasks": "Tasks"
+    }
   },
   "potential": {
     "badge": "potential {pct}",

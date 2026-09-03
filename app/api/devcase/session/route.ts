@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { countRecentDevSessionsForToken, devSessionWatermark, getPostingByToken, startDevSession } from "@/app/_lib/db/devcase";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // The per-token/day session throttle lives in a sibling module: Next's generated
 // route types reject any non-handler `export const` here (backlog item 57).
 import { MAX_SESSIONS_PER_TOKEN_DAY, SESSION_WINDOW_MS } from "./session-limits";
@@ -12,7 +12,10 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as { token?: unknown; candidateRef?: unknown };
     const token = typeof body.token === "string" ? body.token.trim() : "";
-    if (!token) return NextResponse.json({ error: "token is required" }, { status: 400 });
+    // A PUBLIC door rendered in en/cs/de/fr for someone with no account: "token is
+    // required" was bare English with no code, so the work surface had nothing to
+    // resolve and painted the server's sentence (or nothing at all) at the reader.
+    if (!token) return jsonRefusal("DEVCASE_APPLY_TOKEN_REQUIRED", 400);
     const posting = getPostingByToken(token);
     if (!posting || posting.status === "closed") {
       // A CODE, not English prose: this is a public candidate surface the app renders
@@ -36,6 +39,8 @@ export async function POST(request: Request) {
     // mild note, a foreign mark is the decisive tell.
     return NextResponse.json({ sessionId: session.id, watermark: devSessionWatermark(session.id) });
   } catch (error) {
-    return jsonError(error, "Failed to start the work session.");
+    // The thrown message here is better-sqlite3 detail plus the absolute db path,
+    // on an unauthenticated candidate surface. Log it, answer the code.
+    return safeJsonError(error, "api:devcase/session", "DEVCASE_SESSION_START_FAILED");
   }
 }
