@@ -28,6 +28,10 @@ type BulkResult = {
   /** The permission a whole-request FORBIDDEN_CAPABILITY refusal named, so the line
    *  can say WHICH one is missing instead of a flat "not permitted". */
   refusalCapability?: string | null;
+  /** The background task runner's own English diagnostic, when a drafting run failed.
+   *  It carries no code, so it is never the sentence rendered — it hangs off the
+   *  localized line as a `title` for whoever is debugging. */
+  diagnostic?: string | null;
 };
 
 export function PipelineBulkActionBar({
@@ -204,7 +208,11 @@ export function PipelineBulkActionBar({
               forbidden transition) — so a bulk failure says WHY and what to do, not
               just a count. Resolved from the CODE in the reader's language: this
               line used to paint the server's English sentence onto every locale. */}
-          {bulkResult.reason ? <span className="block text-steel">{bulkResult.reason}</span> : null}
+          {bulkResult.reason ? (
+            <span className="block text-steel" title={bulkResult.diagnostic ?? undefined}>
+              {bulkResult.reason}
+            </span>
+          ) : null}
           {!bulkResult.reason && bulkResult.reasonCodes?.length ? (
             <span className="block text-steel">
               {bulkResult.reasonCodes

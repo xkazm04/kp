@@ -273,7 +273,9 @@ strands nobody, and moving them would rewrite closed history.
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. The wave modal's lifecycle (debounced preview → confirm → commit → 409 → re-preview, with the "the set changed" notice consumed on exactly one preview settle) is the pure reducer `decisionsScreenWaveMachine.ts`; `useDecisionsScreenWave` is only the network around it. Reinstate (the reconsider queue's safety valve) folds every path through `decisionsReinstateOutcome.ts` — a refused or never-landed reinstate keeps the row and prints its `{ code, status }` on it via `useErrorMessage`, instead of the old silent no-else. |
 | `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate drawer. |
 | `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the drawer cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
-| `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
+| `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4, workspace-keyed) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
+| `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace, and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
+| `pipelineBoardMove.ts` / `pipelineDrawerNote.ts` | The two densest state machines, extracted pure: the drag move's apply / reconcile / roll-back decision plus its field-selective merge, and the drawer note's dirty / flush / hydrate bookkeeping. Pinned by their own `*.test.ts`. |
 | `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2) · opening the drawer, profile, job, ranking and Decisions. |
 
 ## Board layout — one panel, one context menu
@@ -388,7 +390,57 @@ and once more on hydration, so a value written by an older build is repaired on 
 The range is stated inline beside the inputs (`tab.slaEditorRange`).
 
 Team-shared SLAs remain an **owner decision, not a gap**: these overrides are
-per-browser `localStorage` with no schema and no server surface.
+per-browser `localStorage` with no schema and no server surface — but they are
+per-browser **per workspace**, see below.
+
+### Board storage is keyed by tenant
+
+The board's two `localStorage` memories — saved views (`kp.pipelineViews`) and the
+per-stage SLA overrides (`kp.pipelineStageSla`) — were browser-wide, and
+`localStorage` is scoped to the ORIGIN, not to the session. So after switching teams
+in Settings -> Workspaces, team A's recruiter-authored view NAMES ("Berlin seniors -
+waiting on Ada") and the stage ids they encode hydrated onto team B's board, and a
+view A had marked DEFAULT auto-applied A's filter combination on B's bare visit.
+
+`pipelineBoardStorage.ts` keys both under the workspace (`kp.pipelineViews:<ws>`),
+and `usePipelineTenant` resolves that workspace ONCE per document from
+`GET /api/workspaces` (`current`) - the same door the shell's Recent list uses
+(`app/features/shell/recents.ts`), because the session cookie carrying the workspace
+is httpOnly. Until it resolves, the board hydrates **nothing**: no views, no
+overrides, and no default view auto-applies. The pre-tenancy global keys are adopted
+ONCE into whichever workspace resolves first (a single-workspace install keeps its
+own configuration) and then removed, so a second tenant can never read them. An
+existing tenant value always wins over the legacy one. The cross-tenant invariant is
+pinned by `pipelineBoardStorage.test.ts`.
+
+### The board poll backs off, and resumes on visibility
+
+The live poll re-armed at a FLAT 30s whether or not the last tick reached the server,
+so a restarting server, a laptop off the network or a 500 loop cost 120 failing round
+trips an hour from every open tab, for ever. `load()` now returns a health verdict (an
+ABORT is not a failure — it is the hook superseding its own request) and the loop is a
+self-rescheduling timeout that backs off on consecutive failures through the same pure
+`nextPollDelay` the scheduler bar uses: 30s -> 60s -> 2m -> 4m -> 5m, reset by one
+success. A hidden tab still polls not at all, and coming BACK to the tab refreshes once
+immediately and resets the counter, rather than waiting out a five-minute backoff.
+
+### A task runner's diagnostic is details, never the line
+
+Two surfaces painted the background-task runner's own stored `error` — English prose
+written by the queue, carrying no code (`useTaskResult` passes the polled record's
+string through unchanged) — as the sentence the recruiter reads: the bulk bar's failed
+drafting run, and the drawer's failed automation task, the latter coalesced OVER its
+localized fallback (`actionError ?? t("taskIncomplete")`), so the English won whenever a
+diagnostic existed. Both now render the localized line and carry the diagnostic as
+details (a `title` on the message), which is the honest shape until the runner mints a
+CODE — that is the tasks context's follow-up, since it is the only place that can.
+
+Bulk invite's per-item branch read nothing but `ok`, so a half-refused cohort rendered
+"3 invited · 4 couldn't be invited" with no reason at all. It reads a per-item `code`
+now, resolved through the bar's existing `errors.<CODE>` fold; until
+`/api/schedule/invite/bulk` mints one (it answers per-item English prose today —
+"not active", "over the cap" — which is not code-resolvable), a refusal without codes
+falls back to one localized line pointing at the candidate.
 
 ### Opening a candidate's live link
 

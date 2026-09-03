@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CalibrationRationale } from "@/app/_lib/dev-outcomes";
 import { floorKey } from "./controlRoomConfirm";
 import type { Guard, Outcome, OutcomeData } from "./types";
@@ -39,12 +39,18 @@ export function CalibrationPanel({
   armed,
   guard,
   reload,
+  canGovern,
+  canOperate,
 }: {
   data: OutcomeData | null;
   armed: string | null;
   guard: Guard;
   /** Re-reads outcomes AND status — applying a floor changes both. */
   reload: () => Promise<void>;
+  /** `org:manage` — the promote floor is one global key, i.e. deployment policy. */
+  canGovern: boolean;
+  /** `pipeline:write` — recording an outcome feeds the floor recommendation. */
+  canOperate: boolean;
 }) {
   const t = useTranslations("control");
   const rel = useRelativeTime();
@@ -130,11 +136,24 @@ export function CalibrationPanel({
     }
   };
 
+  // READ THE ANSWER, like the two handlers above it. This one moves the threshold every
+  // future auto-decision is judged against, and it was the one that never checked: a
+  // refused apply (403, a non-finite floor, SQLITE_BUSY) left the old floor in place
+  // while the panel re-read and showed it, which reads as "the number I picked was
+  // already the number".
   const applyFloor = async (floor: number) => {
     setBusy(true);
+    setErr(null);
     try {
-      await fetch("/api/devcase/outcomes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ setFloor: floor }) });
+      const r = await fetch("/api/devcase/outcomes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ setFloor: floor }) });
+      if (!r.ok) {
+        const p = (await r.json().catch(() => null)) as { error?: string; code?: string; capability?: string } | null;
+        setErr(capabilityAwareReason(errMsg, p, t("calibration.applyFailed", { status: r.status })));
+        return;
+      }
       await reload();
+    } catch {
+      setErr(t("calibration.applyNetwork"));
     } finally {
       setBusy(false);
     }
@@ -145,6 +164,10 @@ export function CalibrationPanel({
       <h2 className="text-meta uppercase tracking-wide text-steel">{t("outcomes.heading")}</h2>
       <p className="mt-1 max-w-2xl text-[11px] text-steel">{t("outcomes.blurb")}</p>
 
+      {/* AUTHORITY (/perfect wave 21): recording an outcome is `pipeline:write`. The
+          calibration READ below stays for every seat - it is the evidence an oversight
+          reader came here for. */}
+      {canOperate ? (
       <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
         {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): a placeholder is
             not an accessible name (it vanishes once a value is typed) — name each
@@ -185,6 +208,7 @@ export function CalibrationPanel({
           {t("outcomes.record")}
         </button>
       </div>
+      ) : null}
 
       {err ? (
         <p role="alert" className="mt-1.5 text-[11px] font-semibold text-coral">
@@ -197,7 +221,7 @@ export function CalibrationPanel({
           <div className="flex items-center gap-2 text-xs">
             <span className="text-steel">{t("calibration.activeFloor")}</span>
             <span className="font-serif text-lg text-ink">{data.activeFloor}</span>
-            {data.calibration.suggestedFloor != null && data.calibration.resolved >= 4 && data.calibration.suggestedFloor !== data.activeFloor ? (
+            {canGovern && data.calibration.suggestedFloor != null && data.calibration.resolved >= 4 && data.calibration.suggestedFloor !== data.activeFloor ? (
               // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): applying the
               // suggested floor changes the promote threshold for every future
               // auto-decision — gate it behind a confirm (two-step, lit while armed).
@@ -276,7 +300,7 @@ export function CalibrationPanel({
                   <td className="text-steel">
                     {row.performance != null ? (
                       row.performance
-                    ) : row.outcome === "hired" ? (
+                    ) : row.outcome === "hired" && canOperate ? (
                       perfFor === row.id ? (
                         // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): name
                         // the rating group and each digit so an SR announces "Rate

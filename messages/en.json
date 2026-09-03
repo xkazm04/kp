@@ -1583,7 +1583,10 @@
     "OFFER_RESPONSE_INVALID": "Respond with either accept or decline.",
     "STATUS_LINK_INVALID": "This status link is not valid.",
     "STATUS_NPS_NOT_APPLICABLE": "This question opens once your application has finished.",
-    "DATA_LINK_INVALID": "This data link is no longer valid."
+    "DATA_LINK_INVALID": "This data link is no longer valid.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "That control-room action is not one this deployment knows. Reload the page.",
+    "DEVCASE_FLOOR_INVALID": "The promote floor must be a number between 0 and 100.",
+    "DEVCASE_OUTCOME_INVALID": "That outcome could not be recorded. Check the result and the performance score."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2731,7 +2734,9 @@
       "stageOffBoard": "Stage {stage} is no longer a column on this board. The filter is still applied, so you are seeing only the candidates still standing on it.",
       "stageOffBoardClear": "Remove this filter",
       "slaEditorRange": "{min}–{max} days; blank uses the default",
-      "previewCommitFailed": "The pass could not be applied."
+      "previewCommitFailed": "The pass could not be applied.",
+      "bulkTaskIncomplete": "The drafting task ended without a result. Still selected, retry.",
+      "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why."
     },
     "today": {
       "eyebrow": "Today",
@@ -5660,7 +5665,9 @@
       "trustTitle": "CV authenticity screen: a deterministic check for AI-generated / embellished résumés. See the Authenticity lines below; always verify in interview.",
       "trustHigh": "Authenticity: high",
       "trustMedium": "Authenticity: medium",
-      "trustLow": "Authenticity: low"
+      "trustLow": "Authenticity: low",
+      "engineNote": "Engine notes (English, as written)",
+      "engineNoteTitle": "These lines come from the analysis engine exactly as it produced them, and are not translated."
     },
     "softSignals": {
       "title": "Confirm in interview",
@@ -9367,7 +9374,17 @@
         "raise": "Candidates below {suggested} rarely converted; the floor of {current} is letting weak matches through. Consider raising it to {suggested}.",
         "lower": "Candidates from {suggested}–{current} converted well; the floor of {current} may be too strict. Consider lowering it to {suggested}.",
         "calibrated": "The floor of {current} is well-calibrated. It sits at the first band where most promoted candidates were hired."
-      }
+      },
+      "applyFailed": "The promote floor was not changed ({status}).",
+      "applyNetwork": "Network error. The promote floor was not changed."
+    },
+    "actionFailed": "That control could not be applied ({status}).",
+    "actionNetwork": "Network error. The control room could not be reached, so nothing was changed.",
+    "approveFailed": "That approval did not go through ({status}).",
+    "approveNetwork": "Network error. The approval was not recorded.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Nothing needed recovering.} one {# lifecycle resumed.} other {# lifecycles resumed.}}",
+      "budgetExhausted": "The run budget was reached, so the sweep stopped early. Run it again later to pick up the rest."
     }
   },
   "feedback": {

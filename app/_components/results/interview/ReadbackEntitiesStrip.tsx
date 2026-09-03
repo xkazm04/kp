@@ -15,6 +15,21 @@ import type { ScorecardEntities } from "@/app/_lib/interview-scorecard";
 // spaces its strips a touch roomier than the drawer bundle. `density` selects that
 // spacing so each surface renders byte-identically to before.
 
+// WHERE THIS RENDERS (it is not the folder it sits in): nothing under
+// app/_components/results/** imports this strip. Its only two consumers are
+// app/features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx and
+// app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx — which is
+// also why it takes `t` bound to the `scheduleTab.transcript` namespace rather
+// than the report catalog its neighbours use.
+//
+// It stays here DELIBERATELY, not by neglect: the two consumers live in two
+// different feature folders, so there is no single "beside" to move it to, and the
+// honest destination is a shared interview folder under app/_components/ — a move
+// that has to rewrite both consumers' imports in one commit. Neither consumer is in
+// this lot's write set (wave 21a), so the move is filed rather than half-done. Do it
+// as one change (new path + both imports, no re-export left behind), or leave this
+// note in place.
+
 type Density = "roomy" | "compact";
 
 // Per-density spacing — the ONLY thing that varied between the two former copies.

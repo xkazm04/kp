@@ -96,11 +96,20 @@ export function DispositionEditor({
     return () => {
       const { disposition: d, note: n } = latest.current;
       if (d && n !== lastSavedNote.current) {
+        // The component is unmounting, so there is nobody left to tell and no
+        // state left to set: a rejected keepalive PATCH (the page is closing, the
+        // network died, the browser refused the beacon) must not surface as an
+        // unhandled rejection in the console of a recruiter who did nothing wrong.
+        // The note is a best-effort flush of something already typed on screen —
+        // dropped here, and recoverable by re-opening the report and typing again.
+        // A stronger promise would need the outbox, not a fetch in a cleanup.
         void fetch(`/api/analyses/${encodeURIComponent(slug)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ disposition: d, note: n }),
           keepalive: true,
+        }).catch((err: unknown) => {
+          console.warn(`[disposition] unmount flush failed for "${slug}"`, err);
         });
       }
     };

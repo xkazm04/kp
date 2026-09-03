@@ -1,4 +1,4 @@
-// Pure, React-free helpers for PipelineTab: localStorage keys, the saved-view
+// Pure, React-free helpers for PipelineTab: the shared-view URL params, the saved-view
 // id minting, and the bulk-action failure-reason reader. Split out so the tab's
 // state hook stays focused on wiring, not these small self-contained utilities.
 
@@ -10,8 +10,9 @@ import type { ApiErrorPayload } from "@/app/_lib/use-error-message";
 // back to the default, a linked visit opens exactly what the link encodes.
 export const VIEW_PARAM_KEYS = ["q", "quick", "score", "source", "sort", "stage"] as const;
 
-export const PIPELINE_VIEWS_KEY = "kp.pipelineViews";
-export const PIPELINE_SLA_KEY = "kp.pipelineStageSla"; // per-stage aging overrides (PIPE4)
+// The board's two localStorage memories used to be declared here as GLOBAL keys.
+// They are now workspace-scoped and live in pipelineBoardStorage.ts — see the leak
+// note there (board-storage-is-keyed-by-tenant).
 
 // A stable, opaque id for a NEW saved view — decoupled from the name so a rename
 // preserves the view's identity (its default marking, its place in the list).

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 
 /**
  * The empty-state vignettes below paint through `var(--color-…)`, NOT the JS
@@ -63,7 +64,7 @@ export function LazyDetails({
 export function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md bg-paper p-3">
-      <p className="text-meta uppercase text-steel">{label}</p>
+      <p className={META_LABEL}>{label}</p>
       <p className="mt-1 font-serif text-h2 text-ink">{value}</p>
     </div>
   );
@@ -230,7 +231,7 @@ export function ListBlock({
     if (ok) window.setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex items-center gap-2">
         {icon ?? null}
         <h3 className="font-serif text-h3 text-ink">{title}</h3>
@@ -268,7 +269,7 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
   const anchorBand = analysis.metadata.deterministicEvidence?.anchorBand;
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <h3 className="font-serif text-h3 text-ink">{t("engineTitle")}</h3>
       <div className="mt-3 space-y-2 text-base leading-6 text-ink">
         <p>{t("engine", { engine: analysis.metadata.analysisEngine })}</p>
@@ -286,7 +287,7 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
         ) : null}
         {groundingSources.length > 0 ? (
           <div>
-            <p className="text-meta uppercase text-steel">{t("groundingTitle")}</p>
+            <p className={META_LABEL}>{t("groundingTitle")}</p>
             <BulletList items={dedupe(groundingSources).slice(0, 5)} listClassName="mt-1 space-y-1" itemClassName="text-sm text-steel" />
           </div>
         ) : null}

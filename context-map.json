@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T11:17:38.507Z",
+ "generated_at": "2026-09-03T12:26:21.522Z",
  "provenance": {
-  "git_commit": "e3c8b90fa6e32d6d55f085ca9b86c5b17130f051",
-  "git_commit_count": 2305,
+  "git_commit": "76f1350b834c4ea868953821a523ec7b5d4f824f",
+  "git_commit_count": 2314,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T11:17:38.507Z"
+  "generated_at": "2026-09-03T12:26:21.522Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2956,
+  "files": 2971,
   "groups": 17,
   "use_cases": 12
  },
@@ -3643,6 +3643,8 @@
     "app/_components/results/ReportActions.tsx",
     "app/_components/results/ResultPanel.tsx",
     "app/_components/results/compare/CompareTab.tsx",
+    "app/_components/results/compare/compareView.test.ts",
+    "app/_components/results/compare/compareView.ts",
     "app/_components/results/extraction/ExtractionTab.tsx",
     "app/_components/results/interview/InterviewTab.tsx",
     "app/_components/results/interview/ReadbackEntitiesStrip.tsx",
@@ -3652,6 +3654,10 @@
     "app/_components/results/job-fit/JobFitTab.tsx",
     "app/_components/results/job-fit/MissingSkillsTiers.tsx",
     "app/_components/results/job-fit/SkillChips.tsx",
+    "app/_components/results/job-fit/jobFitView.test.ts",
+    "app/_components/results/job-fit/jobFitView.ts",
+    "app/_components/results/resultTabs.test.ts",
+    "app/_components/results/resultTabs.ts",
     "app/_components/results/salary/SalaryGauge.tsx",
     "app/_components/results/salary/SalaryTab.tsx",
     "app/_components/results/salary/salaryGauge.logic.test.ts",
@@ -3802,6 +3808,7 @@
    ],
    "file_paths": [
     "app/api/devcase/comms/route.ts",
+    "app/api/devcase/control/control-authz.test.ts",
     "app/api/devcase/control/route.ts",
     "app/api/devcase/devcase-lifecycle-tenancy.test.ts",
     "app/api/devcase/devcase-owned-lifecycle.ts",
@@ -4156,6 +4163,7 @@
    "file_paths": [
     "app/_lib/code-review-status.test.ts",
     "app/_lib/code-review-status.ts",
+    "app/_lib/dev-control.test.ts",
     "app/_lib/dev-control.ts",
     "app/_lib/dev-outcomes-tenancy.test.ts",
     "app/_lib/dev-outcomes.test.ts",
@@ -5010,19 +5018,26 @@
     "app/features/hiring/pipeline/PipelineCandidateResultView.tsx",
     "app/features/hiring/pipeline/PipelineCandidateRow.tsx",
     "app/features/hiring/pipeline/PipelineCommsList.tsx",
+    "app/features/hiring/pipeline/pipelineBoardMove.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardMove.ts",
     "app/features/hiring/pipeline/pipelineBoardPopulation.test.ts",
     "app/features/hiring/pipeline/pipelineBoardPopulation.ts",
     "app/features/hiring/pipeline/pipelineBoardProjection.test.ts",
     "app/features/hiring/pipeline/pipelineBoardRoles.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardStorage.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardStorage.ts",
     "app/features/hiring/pipeline/pipelineDrawerActions.test.ts",
     "app/features/hiring/pipeline/pipelineDrawerActions.ts",
+    "app/features/hiring/pipeline/pipelineDrawerNote.test.ts",
+    "app/features/hiring/pipeline/pipelineDrawerNote.ts",
     "app/features/hiring/pipeline/pipelineFilterMenuKeys.test.ts",
     "app/features/hiring/pipeline/pipelineFilterMenuKeys.ts",
     "app/features/hiring/pipeline/pipelineMovePath.test.ts",
     "app/features/hiring/pipeline/pipelineSla.test.ts",
     "app/features/hiring/pipeline/pipelineSla.ts",
     "app/features/hiring/pipeline/schedulerRunState.test.ts",
-    "app/features/hiring/pipeline/schedulerRunState.ts"
+    "app/features/hiring/pipeline/schedulerRunState.ts",
+    "app/features/hiring/pipeline/usePipelineTenant.ts"
    ],
    "group": "Hiring Pipeline",
    "group_id": "e3cd8c46-b5e7-4fac-ad70-6bcbe21bcfaa",

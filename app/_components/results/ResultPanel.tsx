@@ -1,12 +1,14 @@
 "use client";
 
 import { GitBranch, Plus } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTablist } from "@/app/_components/ui/useTablist";
 import { useTranslations } from "next-intl";
-import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
+import { GithubAnalysisPanel, type GithubPanelError } from "@/app/_components/GithubAnalysisPanel";
 import { hasRenderableComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
+import { PANEL } from "@/app/_components/ui/recipes";
+import { parseResultTabHash, resolveActiveTab, resultTabHash, type ResultTab } from "./resultTabs.ts";
 import { AddToPipelineButton, type PipelineRef } from "./AddToPipelineButton";
 import { ArchetypeBanner } from "./ArchetypeBanner";
 import { QualityStrip } from "./QualityStrip";
@@ -22,7 +24,9 @@ import { SalaryTab } from "./salary/SalaryTab";
 export type ResultPanelGithub = {
   status: "loading" | "done" | "error";
   analysis: GithubAnalysis | null;
-  error: string | null;
+  // A machine code the panel resolves in the reader's language, or a line the
+  // caller already localized (see GithubPanelError).
+  error: GithubPanelError | null;
   warning: string | null;
 };
 
@@ -58,9 +62,15 @@ type ResultPanelProps = {
   // the real interview-prep pack. Absent on off-pipeline reports → no import
   // affordance (a fresh analyze run, or a candidate never added to the board).
   prepEntryId?: string;
+  // Deep link: the tab to open on. A recruiter sending a colleague "look at the
+  // salary read on this report" could only send the report — the active tab lived
+  // in a useState no URL could reach. The panel now also honours (and writes) a
+  // `#report-<tab>` fragment, so the link a recruiter copies out of the address
+  // bar carries the tab. This prop is the server-side half of the same idea (the
+  // report page can open a tab without a client round trip); a hash in the URL
+  // wins over it, because the hash is what the sender actually clicked.
+  initialTab?: ResultTab;
 };
-
-type ResultTab = "extraction" | "compare" | "jobFit" | "salary" | "interview" | "github";
 
 // Format a small USD figure: sub-cent runs keep 4 decimals so they don't read as
 // "$0.00"; larger ones use the usual 2. Non-contractual estimate (see RunCostLine).
@@ -80,13 +90,13 @@ function RunCostLine({
 }) {
   const t = useTranslations("report");
   if (cached) {
-    return <p className="text-xs text-steel">{t("runCost.cached")}</p>;
+    return <p className="text-micro text-steel">{t("runCost.cached")}</p>;
   }
   if (!runCost) return null;
   const model = runCost.model ?? "—";
   if (runCost.costUsd == null) {
     return (
-      <p className="text-xs text-steel" title={t("runCost.titleEstimate")}>
+      <p className="text-micro text-steel" title={t("runCost.titleEstimate")}>
         {t("runCost.unpriced", { model })}
       </p>
     );
@@ -97,7 +107,7 @@ function RunCostLine({
   const cost = formatCostUsd(runCost.costUsd);
   return (
     <p
-      className="text-xs text-steel"
+      className="text-micro text-steel"
       title={runCost.estimated ? t("runCost.titleEstimate") : t("runCost.titleMetered")}
     >
       {runCost.estimated
@@ -107,7 +117,7 @@ function RunCostLine({
   );
 }
 
-export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, prepEntryId }: ResultPanelProps) {
+export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runCached, pipelineDisabledReason, analysisSlug, prepEntryId, initialTab }: ResultPanelProps) {
   // RES2 — the report chrome (tab labels, aria) is bilingual; the tab CONTENT
   // is the LLM narrative, already generated in the recruiter's language.
   const t = useTranslations("report");
@@ -146,25 +156,56 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
     reconcileScoreTotal(analysis.score);
   }, [analysis.score]);
 
-  const [activeTab, setActiveTab] = useState<ResultTab>(hasComparison ? "compare" : "extraction");
-
-  const activeIndex = tabs.findIndex((t) => t.id === activeTab);
+  const [activeTab, setActiveTab] = useState<ResultTab>(initialTab ?? (hasComparison ? "compare" : "extraction"));
 
   // This component instance survives across analyses (rendered without a key),
   // so activeTab can point at a tab that no longer exists — e.g. running a
   // multi-variant compare (defaults to "compare") then a single-CV analysis
-  // drops the Compare tab. Without this, activeIndex is -1 and the panel
-  // renders blank. Fall back to the first available tab when that happens —
-  // adjusted DURING render (the guarded render-phase pattern), so the stale tab
-  // never paints for a frame the way an effect-driven reset would let it.
-  if (activeIndex === -1 && tabs.length > 0) {
-    setActiveTab(tabs[0].id);
+  // drops the Compare tab. Without this the panel renders blank. Fall back to
+  // the first available tab — adjusted DURING render (the guarded render-phase
+  // pattern), so the stale tab never paints for a frame the way an effect-driven
+  // reset would let it. The rule itself is pure (resultTabs.ts, pinned).
+  const ids = tabs.map((tab) => tab.id);
+  const resolved = resolveActiveTab(activeTab, ids);
+  if (resolved && resolved !== activeTab) {
+    setActiveTab(resolved);
   }
+
+  // The URL fragment is the shareable half of the tab state. Read on mount (and
+  // on hashchange, so a second link pasted into the same page still moves the
+  // panel); written on every selection with replaceState, so browsing the tabs
+  // of one report does not bury the previous page under six history entries.
+  // A fragment naming a tab THIS report does not have resolves to null and the
+  // default stands — never a blank panel.
+  // Held in a ref, written in an effect (never during render): the hash listener
+  // is mounted once and must read the CURRENT tab list, not the one that existed
+  // when it was installed. Declared before the listener's effect so the first
+  // applyHash below already sees this render's ids.
+  const idsRef = useRef(ids);
+  useEffect(() => {
+    idsRef.current = ids;
+  });
+  useEffect(() => {
+    const applyHash = () => {
+      const fromHash = parseResultTabHash(window.location.hash, idsRef.current);
+      if (fromHash) setActiveTab(fromHash);
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+  }, []);
+
+  const selectTab = useCallback((id: ResultTab) => {
+    setActiveTab(id);
+    // history, not location.hash: assigning the hash would scroll the fragment
+    // into view (there is no such element) and push a history entry per tab.
+    window.history.replaceState(null, "", resultTabHash(id));
+  }, []);
 
   // Roles + roving tabindex + arrows/Home/End from the shared hook, which also
   // owns the ids — so moving focus no longer needs a document.getElementById
   // round trip against a hand-built `tab-${id}` string.
-  const tablist = useTablist({ ids: tabs.map((tab) => tab.id), active: activeTab, onSelect: setActiveTab });
+  const tablist = useTablist({ ids, active: activeTab, onSelect: selectTab });
 
   // Tailwind needs explicit, statically-known class names for dynamic grid
   // counts to survive purge — so we pick from a small lookup table.
@@ -208,7 +249,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
       <QualityStrip checks={analysis.sanityChecks ?? []} />
       <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
 
-      <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-panel">
+      <div className={`${PANEL} p-2`}>
         <div {...tablist.tablistProps} aria-label={t("sections")} className={`grid gap-1 sm:grid-cols-2 ${lgGridClass}`}>
           {tabs.map((tab) => {
             const selected = activeTab === tab.id;

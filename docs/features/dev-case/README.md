@@ -914,6 +914,69 @@ sweep is visible; the next call resumes the rest. The autonomy kill-switch relea
 itself is never budgeted. Pinned in `app/api/rate-limit-contract.test.ts`, whose
 `UNTHROTTLED_ENQUEUE` ratchet (which carried these three) is now empty.
 
+### The control room asks authority, and reports its writes
+
+`/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
+autonomy kill switch, the Art. 22 gate queue, the audit trail and the promote-floor
+calibration. Until 2026-09-03 its four doors carried **no** check at all; the operator
+gate (identity presence) landed first, and the capability half with it:
+
+| Door | Capability | Why that one |
+| --- | --- | --- |
+| `POST /api/devcase/control` `pause` / `resume` | `org:manage` (org-wide) | `autonomy` is ONE global `dev_control` key — a click halts or releases automation for the whole deployment |
+| `POST /api/devcase/control` `reconcile` | `pipeline:write` | re-enqueues **this team's** orphaned lifecycles |
+| `POST /api/devcase/outcomes` `setFloor` | `org:manage` | `promote_floor` is a global key: the threshold every future auto-decision is judged against |
+| `POST /api/devcase/outcomes` (record) | `pipeline:write` | a recruiter operation on this team's outcome corpus, which feeds the floor recommendation |
+| `POST /api/devcase/lifecycle/[id]/approve` | `pipeline:write` | signing off an Art. 22 gate publishes a case to a candidate and resumes the walk |
+
+Refusals are coded (`FORBIDDEN_CAPABILITY` + the `capability` as data), and `/control`
+**mirrors the same two questions server-side** (`app/control/page.tsx` reads
+`callerOrgCapabilities()` / `can("pipeline:write")`, exactly as it already did for the
+feedback section) so a seat is never shown a control that can only 403 at it. The READ
+half — lifecycle list, audit trail, calibration table — stays available to every operator
+seat: that is what an oversight surface is for. Pinned by
+`app/api/devcase/control/control-authz.test.ts` (viewer 200 → 403 on all five) and by the
+removal of these routes from `route-capability-coverage.test.ts`'s allowlist.
+
+**The three POSTs now read their answer.** `act` (pause/resume/reconcile), `approve` and
+`applyFloor` were fire-and-forget: a refusal — a 403, a 409 `DEVCASE_LIFECYCLE_NOT_AT_GATE`,
+a 429 `TASK_BUDGET_EXHAUSTED` — reappeared on the next poll as if the click had never
+landed. Each now renders the coded reason through `capabilityAwareReason` in a
+`role="alert"` line, and the reconcile sweep's own `resumed` / `budgetExhausted` (on the
+wire since the budget landed, read by nobody) are rendered as a `role="status"` line, so a
+truncated sweep is visible instead of reading as a complete one.
+
+**The audit listing is workspace-scoped.** `dev_audit` is a declared deployment-level
+table, but its rows are not deployment-level data: `outcome_recorded` writes the candidate
+ref straight into `reason`, and the panel rendered every row to every operator — one
+studio's audit panel listed another studio's candidates. `recordAudit` now takes a
+`workspaceId` and `listAudit(limit, workspaceId)` filters on it
+(`app/_lib/dev-control.ts`, pinned by `dev-control.test.ts`). The **kill-switch rows stay
+global** (`GLOBAL_AUDIT_ACTIONS` = `paused`/`resumed`, stored with a NULL workspace):
+autonomy is one global key, so every operator must see that it was pulled, and those rows
+carry no candidate data. A writer that records without a tenant in hand (the orchestrator,
+`db/pipeline.ts`, `offer-finalize.ts`) falls back to the **default** workspace, which is
+where a single-tenant install's rows have always effectively lived — so that deployment's
+panel is unchanged and a newly minted tenant starts from an empty log rather than
+inheriting the deployment's history. Stamping those remaining writers is open work.
+
+**The poll is visibility-gated and backs off.** The room ran a flat 3 s
+`setInterval` over both reads, in a hidden tab and against a dead server alike — 40
+requests/min per open tab, forever. It now rides the tasks dock's schedule
+(`app/_lib/task-poll-state.ts`: 2 s active / 6 s idle, then 4→8→16→32→60 s after
+consecutive failures) and skips the fetch entirely while `document.hidden`, refreshing on
+window focus. Both reads also carry a per-IP limiter (`devcase-control-read`,
+`devcase-outcomes-read`, 900/10 min, `TOO_MANY_REQUESTS`) pinned in
+`app/api/rate-limit-contract.test.ts` — they were unlimited, and open mode makes the
+operator gate a no-op for the whole API, so the limiter is the real bound on scraping the
+lifecycle list, the audit trail and the outcome corpus.
+
+**The outcomes 400s carry codes.** A non-finite `setFloor` (reachable from the wire:
+`1e999` is valid JSON and parses to `Infinity`) answers `DEVCASE_FLOOR_INVALID`; a payload
+that fails `outcomeInputSchema` answers `DEVCASE_OUTCOME_INVALID` with the zod sentence
+riding beside it as `issue` for the log and API consumers. An unknown control action
+answers `DEVCASE_CONTROL_ACTION_UNKNOWN`.
+
 ## Data model
 
 - `dev_cases` (case scenario, `baseline_json`, `job_id`) — SQLite, via `app/_lib/db/devcase.ts`

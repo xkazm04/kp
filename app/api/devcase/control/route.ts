@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { listLifecycles } from "@/app/_lib/db/devcase";
 import { getActiveTaskByDedupe } from "@/app/_lib/db/tasks";
 import { getAutonomy, listAudit, recordAudit, setAutonomy } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
 import { enforceTaskBudget } from "@/app/_lib/task-budget";
-import { clientIpFrom } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability, requireOrgCapability } from "@/app/_lib/auth/current-user";
 
+
+// The room polls this door every 2s (active) / 6s (idle) per open tab, so the ceiling
+// has to sit well above a legitimate reader while still bounding a scripted scrape of
+// the audit log: 900/10min is 1.5 req/s, roughly three tabs polling flat out.
+const CONTROL_READ_RATE_LIMIT = { limit: 900, windowMs: 10 * 60_000 };
 
 const TERMINAL = new Set(["promoted", "closed", "awaiting_approval"]);
 
@@ -47,18 +53,29 @@ function reconcile(workspaceId: string, ip: string): { resumed: number; budgetEx
   return { resumed, budgetExhausted: false };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   // Director gate (2026-09-03): the control room's doors carried no operator check, so a
-  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  // demo cookie could reach them. READ stays at identity presence - the panels a seat may
+  // ACT on are decided by the capability gates on POST (and mirrored by /control's page).
   const denied = await requireOperator();
   if (denied) return denied;
+  // This read is UNPAGINATED and POLLED. Open mode (KP_OPERATOR_PASSWORD unset) makes the
+  // gate above a documented no-op for the entire API, so the limiter is the real bound on
+  // scraping the lifecycle list and the audit trail.
+  if (!rateLimit(`devcase-control-read:${clientIpFrom(request.headers)}`, CONTROL_READ_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
-    const lifecycles = listLifecycles(50, await currentWorkspace());
+    const ws = await currentWorkspace();
+    const lifecycles = listLifecycles(50, ws);
     return NextResponse.json({
       autonomy: getAutonomy(),
       lifecycles: lifecycles.map((l) => ({ id: l.id, title: l.title, stage: l.stage, detail: l.detail })),
       pendingGates: lifecycles.filter((l) => l.stage === "awaiting_approval").map((l) => ({ id: l.id, title: l.title, detail: l.detail })),
-      audit: listAudit(),
+      // SCOPED (/perfect wave 21): the listing used to be deployment-wide, and its rows
+      // carry per-workspace candidate refs in `reason` - so this panel rendered one
+      // studio's candidates to another. The kill-switch rows stay global (dev-control.ts).
+      audit: listAudit(80, ws),
     });
   } catch (error) {
     // The control room sits on better-sqlite3 AND spawns lifecycle runners, so the
@@ -74,6 +91,21 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
   try {
     const body = (await request.json().catch(() => ({}))) as { action?: string };
+    // AUTHORITY (/perfect wave 21). requireOperator answers "is a trusted session
+    // present?", which in open mode is everyone and on a seated deployment is every seat
+    // including a viewer. The two questions this door actually asks are different:
+    //   - pause / resume: the KILL SWITCH. `autonomy` is ONE global dev_control key, so a
+    //     click here halts or releases automation for the WHOLE deployment. That is
+    //     org-level authority (`org:manage`, resolved org-wide, not per-team).
+    //   - reconcile: re-enqueues THIS team's orphaned lifecycles, a recruiter operation
+    //     on the caller's own workspace (`pipeline:write`).
+    if (body.action === "pause" || body.action === "resume") {
+      const forbidden = await requireCapabilityCoded("org:manage", requireOrgCapability);
+      if (forbidden) return forbidden;
+    } else if (body.action === "reconcile") {
+      const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+      if (forbidden) return forbidden;
+    }
     if (body.action === "pause") {
       setAutonomy("paused");
       recordAudit({ actor: "human", action: "paused", reason: "kill switch engaged" });
@@ -91,15 +123,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ autonomy: "on", resumed, budgetExhausted });
     }
     if (body.action === "reconcile") {
-      const { resumed, budgetExhausted } = reconcile(await currentWorkspace(), ip);
+      const ws = await currentWorkspace();
+      const { resumed, budgetExhausted } = reconcile(ws, ip);
       // Nothing resumed AND the budget refused the first enqueue: the sweep did not
       // happen at all, so this is a refusal, not a `{ resumed: 0 }` that reads like
       // "nothing needed recovering".
       if (resumed === 0 && budgetExhausted) return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, { budgetClass: "agent" });
-      recordAudit({ actor: "human", action: "reconciled", reason: `resumed ${resumed}${budgetExhausted ? " (budget reached)" : ""}` });
+      recordAudit({ actor: "human", action: "reconciled", reason: `resumed ${resumed}${budgetExhausted ? " (budget reached)" : ""}`, workspaceId: ws });
       return NextResponse.json({ resumed, budgetExhausted });
     }
-    return NextResponse.json({ error: "unknown action" }, { status: 400 });
+    // A code, never prose: the room renders errors.<CODE> in the reader's language.
+    return jsonRefusal("DEVCASE_CONTROL_ACTION_UNKNOWN", 400, { action: body.action ?? null });
   } catch (error) {
     return safeJsonError(error, "api:devcase/control", "DEVCASE_CONTROL_FAILED");
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { approveLifecycleCase } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -63,6 +64,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   // demo cookie could reach them. Identity presence for now; the capability slice follows.
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORITY (/perfect wave 21, internal-explorers). Signing off an Art. 22 human gate
+  // publishes a case to a candidate and resumes the automated walk - a recruiter
+  // operation, and emphatically not a viewer's. requireOperator above is identity
+  // presence (a no-op in open mode); this is the seat question.
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   const { id } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { case?: unknown; overrideProbeAudit?: unknown };
@@ -122,7 +129,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         ]
           .filter(Boolean)
           .join("; ") || undefined;
-      recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
+      recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason, workspaceId: lc.workspaceId });
       // Answer with the clamp too, so a client that skipped the inline notice (an older
       // tab, a script) still learns the approved number is not the number it sent.
       const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
