@@ -124,9 +124,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
 
     // The candidate gets an OPAQUE reference, not the store id (devcase-reference.ts).
-    // `submissionId` still rides for the token-authorized caller that drives the
-    // internal journey; the surfaces render `reference`.
-    return NextResponse.json({ submissionId: submission.id, reference: submissionReference(submission.id) });
+    // The store id never rides this public wire; an operator reads it from
+    // GET /api/devcase/postings (submissions inlined), which is what the e2e journey does.
+    return NextResponse.json({ reference: submissionReference(submission.id) });
   } catch (error) {
     // Defensive: the pre-check above already 410s a closed posting, but the shared
     // core also guards (e.g. if the posting closes mid-request) — map it to 410 too,

@@ -230,6 +230,7 @@ test("the candidate is handed an OPAQUE reference, never the store id", async ()
   // it — an internal store key on a public wire, and the sole argument of the
   // (then ungated) skill-profile mint.
   assert.match(body.reference ?? "", /^ref-[0-9a-f]{10}$/, "a short one-way hash, not the id");
-  assert.notEqual(body.reference, body.submissionId);
-  assert.equal(body.reference, submissionReference(body.submissionId!), "deterministic, so it is quotable");
+  assert.equal(body.submissionId, undefined, "the store id never rides the public wire");
+  const linked = getDevSession(session.id)!.submissionId!;
+  assert.equal(body.reference, submissionReference(linked), "deterministic, so it is quotable");
 });
