@@ -1566,7 +1566,8 @@
     "TASK_BUDGET_EXHAUSTED": "Too many AI runs of this kind have been started recently. Try again shortly.",
     "TASK_NOT_FOUND": "That task no longer exists.",
     "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",
-    "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it."
+    "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
+    "FORBIDDEN_CAPABILITY": "Your role does not allow this action."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -131,6 +131,31 @@ is now `members:manage`, the same bar as the member and invite lists — and the
 the UI and the API cannot drift apart. Pick the capability by what the data IS,
 not by which role happens to visit the page.
 
+**The same rule binds WRITES, and a ratchet holds the line.** As of 2026-09-03 the
+ten highest-consequence write doors ask a capability before they mutate anything:
+`pipeline:write` for `POST /api/pipeline/{command,batch,stage-migration}`,
+`/api/decisions/{screen-wave,config}`, `/api/automation/{schedule,run,[task]}`,
+`/api/schedule/invite/bulk` and the JD writes (`/api/jds/{save,generate}`, `PATCH
+/api/jds/[slug]`); `org:manage` for the installation-configuration doors
+`/api/comms/relay`, `/api/ats/{connections,config}`, `/api/edge/{drain,pair}` and
+`/api/llm/keys/test`. The gate is
+`requireCapabilityCoded(cap, requireCapability | requireOrgCapability |
+requireWorkspaceCapability)` from `app/_lib/api-response.ts`, which re-shapes the
+auth layer's bare 403 into the coded refusal `FORBIDDEN_CAPABILITY` **carrying the
+capability as data** (`{ error, code, capability }`) so the client can name the
+missing permission in the reader's language; 401 (no session) passes through
+unchanged, and open mode is unaffected because every gate folds to owner there.
+Behaviour is pinned by `app/api/write-capability-gate.test.ts` (real handlers,
+throwaway DB, real signed viewer/recruiter/owner sessions).
+`app/api/route-capability-coverage.test.ts` is the ratchet — the authorisation
+sibling of `route-tenancy-coverage.test.ts`. It walks every `app/api/**/route.ts`
+exporting POST/PUT/PATCH/DELETE and demands either a capability-gate call or a line
+in its `ALLOWED` map with a reason; it was seeded with the 118 mutating doors that
+were ungated the day it landed (31 structural exemptions — public token surfaces,
+webhooks, self-service, the guided-sim sandbox — and 87 marked "slice 2 candidate",
+i.e. not yet judged). The count is printed on every run and may only FALL: closing a
+door means deleting its line, and a NEW ungated mutating route is red immediately.
+
 **A public route's payload is split by that gate, not by convenience.**
 `/api/health` is on the allow-list, so the verdict a monitor gates on
 (`ok`/`db`/`seeds`/`clock` + the status code) is public and everything else rides

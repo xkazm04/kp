@@ -1566,7 +1566,8 @@
     "TASK_BUDGET_EXHAUSTED": "Zu viele KI-Läufe dieser Art wurden kürzlich gestartet. Bitte versuchen Sie es in Kürze erneut.",
     "TASK_NOT_FOUND": "Diese Aufgabe existiert nicht mehr.",
     "TASK_NOT_RETRYABLE": "Nur fehlgeschlagene, unterbrochene oder abgebrochene Aufgaben lassen sich erneut ausführen.",
-    "TASK_REPLAY_INPUTS_GONE": "Die hochgeladenen Dateien dieses Laufs wurden bereits gelöscht. Laden Sie sie erneut hoch, um den Lauf zu wiederholen."
+    "TASK_REPLAY_INPUTS_GONE": "Die hochgeladenen Dateien dieses Laufs wurden bereits gelöscht. Laden Sie sie erneut hoch, um den Lauf zu wiederholen.",
+    "FORBIDDEN_CAPABILITY": "Ihre Rolle erlaubt diese Aktion nicht."
   },
   "resilience": {
     "notFoundEyebrow": "404",

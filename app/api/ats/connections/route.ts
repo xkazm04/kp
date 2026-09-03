@@ -10,6 +10,8 @@ import { AtsFieldMapError } from "@/app/_lib/ats/field-map";
 import { deleteAtsLinksForProvider } from "@/app/_lib/ats/links-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded } from "@/app/_lib/api-response";
 
 // W1.1 — read / update / remove an INBOUND ATS connection (base URL, API token, field map).
 // The GET never returns the token, only `hasToken` — see the secret doctrine in
@@ -30,6 +32,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. This door rewrites INSTALLATION-level configuration,
+  // so it is an org-administration act: `org:manage`, resolved org-wide, which
+  // recruiters and viewers do not hold.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   try {
     // Typed as the store's input rather than a bare Record so a renamed field is a
     // compile error here, not a silently-ignored key in the request body. Every value is
@@ -66,6 +74,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. This door rewrites INSTALLATION-level configuration,
+  // so it is an org-administration act: `org:manage`, resolved org-wide, which
+  // recruiters and viewers do not hold.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   const { searchParams } = new URL(request.url);
   const provider = searchParams.get("provider") ?? "";
   if (!provider) return NextResponse.json({ error: "provider is required." }, { status: 400 });

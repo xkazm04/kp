@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CommsRelayError, CommsRelayStaleError, getRelayConfig, setRelayConfig } from "@/app/_lib/comms-relay-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The outbound comms relay config (RelayConfigCard on the Channels tab) — the
@@ -30,6 +31,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. This door rewrites INSTALLATION-level configuration,
+  // so it is an org-administration act: `org:manage`, resolved org-wide, which
+  // recruiters and viewers do not hold.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   // AFTER the operator gate, so a rejected caller never spends the budget, and before
   // any parsing or store work.
   if (!rateLimit(`comms-relay:${clientIpFrom(request.headers)}`, RELAY_RATE_LIMIT)) {

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildProviderKeyProbeEnv, isKeyableProvider, providerNeedsExplicitModel } from "@/app/_lib/llm-config";
 import { spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "../../test/verdict.ts";
 
@@ -34,6 +35,12 @@ const KEY_PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. This door rewrites INSTALLATION-level configuration,
+  // so it is an org-administration act: `org:manage`, resolved org-wide, which
+  // recruiters and viewers do not hold.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   const body = (await request.json().catch(() => null)) as { provider?: unknown; scope?: unknown; model?: unknown } | null;
   const provider = body?.provider;
   const scope = body?.scope === "platform" ? "platform" : "byom";

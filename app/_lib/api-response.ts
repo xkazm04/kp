@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { RATE_LIMITED_ERROR } from "./rate-limit";
+import type { Capability } from "./auth/roles";
 
 // Shared JSON envelopes for route handlers. The error-shaping ternary
 // `error instanceof Error ? error.message : "…"` was hand-rolled in dozens of
@@ -963,6 +964,20 @@ export const REFUSAL_ERRORS = {
    *  (409). Not a fault: runAnalyze deletes its workdir in a `finally`, so the
    *  honest answer is "upload them again" rather than a second red row. */
   TASK_REPLAY_INPUTS_GONE: "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
+  // ---- Authorization (/perfect wave 18, write-routes-check-a-capability). The
+  // write doors gate on requireOperator, which answers "is a trusted session
+  // present?" — never "may THIS seat do this?". A viewer could seal an adverse
+  // decision, move the thresholds it is judged against or rewrite relay
+  // credentials. The doors now ask the capability, and a refusal must be a CODE:
+  // "Forbidden" is a word, not something a Czech recruiter can act on.
+  /** The caller is authenticated but their seat lacks the capability the door
+   *  requires (403). The capability itself rides beside the code as `capability`
+   *  so the UI can name what is missing ("this needs pipeline:write") and the
+   *  operator knows which permission to ask for — the message alone cannot say it
+   *  without hard-coding one sentence per capability. Unauthenticated stays 401
+   *  with the bare Unauthorized envelope: a caller with no session has nothing to
+   *  be told about capabilities. */
+  FORBIDDEN_CAPABILITY: "Your role does not allow this action.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
@@ -976,6 +991,33 @@ export function jsonRefusal(code: RefusalErrorCode, status: number, extra?: Reco
   // migration left unmapped. It rides beside the code so the client can render a
   // localized message WITH the numbers, instead of painting the server's string.
   return NextResponse.json({ error: REFUSAL_ERRORS[code], code, ...extra }, { status });
+}
+
+/** Capability gate for a write door, with a CODED refusal.
+ *
+ *  The three gates in app/_lib/auth/current-user.ts (`requireCapability`,
+ *  `requireWorkspaceCapability`, `requireOrgCapability`) answer the authority
+ *  question correctly but shape their denial as a bare `{ error: "Forbidden" }` —
+ *  the one thing the client is never allowed to render (see the header of
+ *  STORE_ERRORS). This wraps one of them and re-shapes ONLY the 403 into
+ *  FORBIDDEN_CAPABILITY plus the capability as data; 401 (no session) and 404 (a
+ *  cross-org probe, from the workspace gate) pass through untouched, because
+ *  neither is a capability answer.
+ *
+ *  Usage — the gate is passed in rather than imported here on purpose: this module
+ *  is the pure response vocabulary and must not pull the DB-backed auth layer into
+ *  every route that only wants an envelope.
+ *
+ *      const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
+ *      if (denied) return denied;
+ */
+export async function requireCapabilityCoded(
+  capability: Capability,
+  gate: (cap: Capability) => Promise<NextResponse | null>,
+): Promise<NextResponse | null> {
+  const denied = await gate(capability);
+  if (!denied || denied.status !== 403) return denied;
+  return jsonRefusal("FORBIDDEN_CAPABILITY", 403, { capability });
 }
 
 export function safeJsonError(err: unknown, route: string, code: StoreErrorCode, status = 500): NextResponse {
