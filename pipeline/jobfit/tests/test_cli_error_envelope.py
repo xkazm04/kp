@@ -148,5 +148,26 @@ class VocabularySyncTest(unittest.TestCase):
             )
 
 
+class ConfigureStdioTest(unittest.TestCase):
+    """Each stream is guarded on its own."""
+
+    def test_one_replaced_stream_does_not_crash_the_other(self) -> None:
+        # The old form tested `hasattr(sys.stdout, "reconfigure")` and then called
+        # `sys.stderr.reconfigure` unconditionally — so a harness (or a test) that
+        # captured stderr but left stdout alone died with an AttributeError before the
+        # CLI ran a single line. Found by exactly that: capturing reasoning_cli's error
+        # envelope.
+        import sys
+        from contextlib import redirect_stderr, redirect_stdout
+
+        with redirect_stderr(io.StringIO()):
+            _cli.configure_stdio()  # stdout real, stderr replaced
+        with redirect_stdout(io.StringIO()):
+            _cli.configure_stdio()  # stderr real, stdout replaced
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            _cli.configure_stdio()  # both replaced
+        self.assertTrue(hasattr(sys, "stdout"))
+
+
 if __name__ == "__main__":
     unittest.main()

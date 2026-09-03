@@ -20,12 +20,32 @@ from . import registry
 # change to that wording can't cover the devcase grader while leaving the hiring
 # rationale — the most quotable prose this product emits — unfenced.
 from .devcase.provenance import fenced_untrusted
-from .i18n import language_directive
+from .i18n import DEFAULT_LANG, language_directive, normalize_lang
 from .jobs import Job
 from .matching import MatchCandidate, MatchResult, fit_tier_for
 from .taxonomy import PROVENANCE_RANK, ROLE_FAMILY_DESCRIPTIONS
 
 REASONING_PROMPT_VERSION = "match-reasoning-v4"
+
+# The language the narrative is actually PRODUCED in, which is not always the one that
+# was asked for: :func:`deterministic_reasoning` builds its prose from English string
+# literals in this module, so every fallback answer is English whatever ``lang`` said.
+#
+# That fact used to live only as a sentence in two docstrings, and the TypeScript side
+# re-derived it from `source == "llm"` (reasoning-cache-policy.ts). Two places inferring
+# a property of the text from a sibling field is exactly how the panel's honest "shown
+# in English" note came to be computed from the ASK rather than the answer. The engine
+# states it instead, and TS reads what the engine said.
+NARRATIVE_FALLBACK_LANG = DEFAULT_LANG
+
+
+def narrative_lang_for(source: str, lang: str) -> str:
+    """Locale of the text ``generate`` returned, given its ``source``.
+
+    An ``"llm"`` answer followed ``language_directive(lang)`` and is in that language;
+    anything else came from the English-only deterministic template.
+    """
+    return normalize_lang(lang) if source == "llm" else NARRATIVE_FALLBACK_LANG
 
 # Provenance rungs that genuinely mean "acquired in study or academic/personal
 # projects" (vocabulary: taxonomy.PROVENANCE_RANK). Deliberately EXCLUDES
