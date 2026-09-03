@@ -3,7 +3,7 @@ import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
 import { resolveRelay } from "./comms-relay";
 import { buildCommEnvelope, type CommEnvelope } from "./comms-envelope";
-import { SIGNATURE_HEADER, signWebhookBody } from "./ats-webhook";
+import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webhook";
 import { logComms } from "./logger";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
@@ -120,8 +120,12 @@ class WebhookChannel implements CommsChannel {
   private async deliver(envelope: CommEnvelope): Promise<{ status: OutboxStatus; attempts: number; detail: string }> {
     let detail = "";
     const body = JSON.stringify(envelope);
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.secret) headers[SIGNATURE_HEADER] = signWebhookBody(this.secret, body);
+    // The envelope's own instant rides as X-Kp-Timestamp and is signed with the body,
+    // so a captured relay delivery cannot be replayed later under its own signature.
+    // The retry loop below reuses this instant deliberately: it is the same delivery,
+    // and the bounded ladder finishes far inside the receiver's tolerance window.
+    const headers: Record<string, string> = { "Content-Type": "application/json", [TIMESTAMP_HEADER]: envelope.sentAt };
+    if (this.secret) headers[SIGNATURE_HEADER] = signWebhookBody(this.secret, body, envelope.sentAt);
     for (let attempt = 1; attempt <= COMMS_RELAY_RETRY.maxAttempts; attempt++) {
       try {
         const r = await fetch(this.url, { method: "POST", headers, body });

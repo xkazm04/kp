@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveRelay } from "@/app/_lib/comms-relay";
 import { buildCommEnvelope } from "@/app/_lib/comms-envelope";
-import { SIGNATURE_HEADER, signWebhookBody } from "@/app/_lib/ats-webhook";
+import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "@/app/_lib/ats-webhook";
 import { assertPublicHttpsEndpoint } from "@/app/_lib/safe-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
@@ -35,8 +35,10 @@ export async function POST() {
     new Date().toISOString()
   );
   const body = JSON.stringify(envelope);
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (relay.secret) headers[SIGNATURE_HEADER] = signWebhookBody(relay.secret, body);
+  // Same construction as a real relay delivery (comms.ts), so a receiver wired up
+  // against this ping is wired up against production traffic.
+  const headers: Record<string, string> = { "Content-Type": "application/json", [TIMESTAMP_HEADER]: envelope.sentAt };
+  if (relay.secret) headers[SIGNATURE_HEADER] = signWebhookBody(relay.secret, body, envelope.sentAt);
   try {
     const r = await fetch(relay.url, { method: "POST", headers, body });
     return NextResponse.json({ ok: r.ok, status: r.status });

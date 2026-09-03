@@ -312,15 +312,16 @@ it — a receiver written against the old contract keeps working. A verifier tha
 the timestamped scheme and finds no usable header is REFUSED rather than silently
 downgraded to the replayable one: that downgrade is the attack.
 
-> **Consumers of `signWebhookBody`, and where each stands** (grepped 2026-09-03). The
-> helper and the tolerance live here, but three call sites do the actual sending and are
-> outside this change's write set, so none of them attaches `X-Kp-Timestamp` yet:
-> `app/_lib/ats-egress.ts` (`deliver`, the ATS webhook), `app/_lib/comms.ts` (the
-> candidate-comms relay) and `app/api/comms/relay/test/route.ts` (the relay test ping).
-> Each needs the same one-line change — pass the envelope's `sentAt` as the third argument
-> and set the header — and until it lands those deliveries remain replayable. Nothing
-> breaks in the meantime: unchanged senders sign bodies alone, which is exactly what an
-> unchanged receiver verifies.
+> **Every consumer of `signWebhookBody` sends the timestamp** (grepped 2026-09-03, three
+> senders, all done): `app/_lib/ats-egress.ts` (`deliver`, the ATS webhook — one instant
+> is the envelope's `sentAt`, the header, and the HMAC input), `app/_lib/comms.ts` (the
+> candidate-comms relay; its bounded retry ladder reuses the same instant deliberately —
+> it is the same delivery, and the ladder finishes far inside the window) and
+> `app/api/comms/relay/test/route.ts` (the relay test ping, built exactly like a real
+> delivery so a receiver wired against the ping is wired against production traffic).
+> Pinned by `app/_lib/ats-egress-delivery.test.ts`, which asserts the header rides, the
+> envelope agrees with it, the signature verifies only under the timestamped scheme, and
+> a replay past the window does not.
 
 The envelope, signing and delivery/retry semantics live in
 [../comms/outbound-export.md](../comms/outbound-export.md).
