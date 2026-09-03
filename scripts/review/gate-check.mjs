@@ -37,6 +37,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPO_ROOT } from './diff.mjs';
+import { parseWorkflow } from './workflow-yaml.mjs';
 
 export const RULESET_PATH = '.github/rulesets/main.json';
 export const WORKFLOW_DIR = '.github/workflows';
@@ -46,82 +47,10 @@ export const WORKFLOW_DIR = '.github/workflows';
 // rather than left to the reader to notice in a list of eleven.
 export const REVIEW_CONTEXTS = ['Constitution (deterministic, blocking)', 'Agent review (judgement)'];
 
-// --- a deliberately small YAML reader ---------------------------------------
-// Enough of YAML to answer three questions about a workflow: what triggers it,
-// what its jobs are called, and whether it scopes GITHUB_TOKEN. A real parser
-// would be a dependency, and this script's whole point is that it runs anywhere
-// with no install (CI runs it before `npm ci` in the doc-sync and commit jobs'
-// spirit). It relies on the 2-space block style every workflow here uses; a file
-// it cannot read reports `unparsed-workflow` rather than passing quietly.
-
-const indentOf = (line) => line.length - line.trimStart().length;
-const unquote = (s) => s.trim().replace(/^['"]|['"]$/g, '');
-
-function significantLines(text) {
-  return text
-    .split(/\r?\n/)
-    .filter((l) => l.trim() !== '' && !/^\s*#/.test(l));
-}
-
-/** Collect `key:` entries at exactly `indent`, inside the block starting after `from`. */
-function keysAt(lines, from, indent) {
-  const out = [];
-  for (let i = from; i < lines.length; i++) {
-    const ind = indentOf(lines[i]);
-    if (ind < indent && lines[i].trim() !== '') break;
-    if (ind !== indent) continue;
-    const m = /^([A-Za-z_][\w.-]*)\s*:\s*(.*)$/.exec(lines[i].trim());
-    if (m) out.push({ key: m[1], value: m[2], index: i });
-  }
-  return out;
-}
-
-/** Collect `- item` entries at exactly `indent` inside the block after `from`. */
-function listAt(lines, from, indent) {
-  const out = [];
-  for (let i = from; i < lines.length; i++) {
-    const ind = indentOf(lines[i]);
-    if (ind < indent) break;
-    if (ind === indent && lines[i].trim().startsWith('- ')) out.push(unquote(lines[i].trim().slice(2)));
-  }
-  return out;
-}
-
-/**
- * @returns {{name: string|null, triggers: string[], permissions: boolean, jobs: Array}}
- */
-export function parseWorkflow(text) {
-  const lines = significantLines(text);
-  const wf = { name: null, triggers: [], permissions: false, jobs: [] };
-
-  for (const { key, value, index } of keysAt(lines, 0, 0)) {
-    if (key === 'name') wf.name = unquote(value);
-    else if (key === 'permissions') wf.permissions = true;
-    else if (key === 'on') {
-      // `on: [push, pull_request]` or a block of trigger keys.
-      if (value.startsWith('[')) wf.triggers = value.replace(/[[\]]/g, '').split(',').map((s) => s.trim()).filter(Boolean);
-      else wf.triggers = keysAt(lines, index + 1, 2).map((k) => k.key);
-    } else if (key === 'jobs') {
-      for (const job of keysAt(lines, index + 1, 2)) {
-        const body = keysAt(lines, job.index + 1, 4);
-        const nameEntry = body.find((b) => b.key === 'name');
-        const strategy = body.find((b) => b.key === 'strategy');
-        const matrix = {};
-        if (strategy) {
-          const mx = keysAt(lines, strategy.index + 1, 6).find((b) => b.key === 'matrix');
-          if (mx) for (const dim of keysAt(lines, mx.index + 1, 8)) matrix[dim.key] = listAt(lines, dim.index + 1, 10);
-        }
-        wf.jobs.push({
-          id: job.key,
-          name: nameEntry ? unquote(nameEntry.value) : job.key,
-          permissions: body.some((b) => b.key === 'permissions'),
-          matrix,
-        });
-      }
-    }
-  }
-  return wf;
-}
+// The workflow reader lives in ./workflow-yaml.mjs — ONE reader, shared with
+// scripts/security/check-actions.mjs. Re-exported here because this module is
+// the gate's public surface and its fixtures import `parseWorkflow` from it.
+export { parseWorkflow };
 
 /**
  * The check names a job actually reports. A matrix job reports one per
