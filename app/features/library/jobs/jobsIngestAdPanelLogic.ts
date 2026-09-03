@@ -9,8 +9,19 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MIN_AD_CHARS, splitJobAds } from "@/app/_lib/split-ads";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { foldJsonResponse } from "./jobsResponseFold";
+// The cancel-versus-unmount protocol and the keep-the-paste rule, as a pure
+// decision — pinned by jobsIngestRunOutcome.test.ts (a hook can't be rendered by
+// `node --test`, so the rules that matter live where a test can reach them).
+import {
+  releasesBusy,
+  settleBulkRun,
+  settleSingleRun,
+  type IngestRow,
+  type RowStatus,
+} from "./jobsIngestRunOutcome";
 
-export type RowStatus = "added" | "exists" | "failed";
+export type { RowStatus };
 const firstLine = (ad: string) => (ad.split(/\r?\n/)[0] ?? "").slice(0, 60).trim() || "—";
 
 export type IngestResult = { jobId: string; created: boolean; title: string };
@@ -64,10 +75,21 @@ export function useIngestAdPanelLogic({
       body: JSON.stringify({ adText: text }),
       signal,
     });
-    const data = (await res.json()) as { jobId?: string; created?: boolean; title?: string; error?: string; code?: string };
-    if (!res.ok || !data.jobId) {
-      return { ok: false, error: errMsg(data, t("ingestFailedStatus", { status: res.status })) };
+    // Guarded decode: a proxy's HTML 502 used to throw a SyntaxError out of the
+    // bare `res.json()` and paint "Unexpected token '<'" into the panel, in
+    // English, in every locale. The fold answers a code (or a localized line).
+    const body = (await res.json().catch(() => null)) as unknown;
+    const fold = foldJsonResponse<{ jobId: string; created?: boolean; title?: string }>(
+      res,
+      body,
+      (p) => typeof (p as { jobId?: unknown }).jobId === "string"
+    );
+    if (fold.kind === "failed") {
+      return { ok: false, error: errMsg(fold.payload, t("ingestFailedStatus", { status: res.status })) };
     }
+    // A 200 with no jobId is not a coded refusal — there is no code to resolve.
+    if (fold.kind === "malformed") return { ok: false, error: t("malformedResponse") };
+    const data = fold.data;
     return { ok: true, result: { jobId: data.jobId, created: Boolean(data.created), title: data.title ?? t("defaultTitle") } };
   };
 
@@ -100,15 +122,17 @@ export function useIngestAdPanelLogic({
       setAdText("");
       onIngested?.(result);
     } catch (caught) {
-      if (controller.signal.aborted) {
-        // User cancel: report it (the paste is kept so the ad isn't lost). Unmount
-        // teardown: stay silent.
-        if (cancelledRef.current) setNote(t("cancelled"));
-        return;
-      }
+      const settled = settleSingleRun({
+        aborted: controller.signal.aborted,
+        cancelled: cancelledRef.current,
+      });
+      // User cancel: report it (the paste is kept so the ad isn't lost). Unmount
+      // teardown: stay silent — the component is gone.
+      if (settled.kind === "cancelled") setNote(t("cancelled"));
+      if (settled.kind !== "settled") return;
       setError(caught instanceof Error ? caught.message : t("ingestFailed"));
     } finally {
-      if (!controller.signal.aborted || cancelledRef.current) setBusy(false);
+      if (releasesBusy({ aborted: controller.signal.aborted, cancelled: cancelledRef.current })) setBusy(false);
       abortRef.current = null;
     }
   };
@@ -130,7 +154,7 @@ export function useIngestAdPanelLogic({
     const controller = new AbortController();
     abortRef.current = controller;
     cancelledRef.current = false;
-    const out: { title: string; status: RowStatus }[] = [];
+    const out: IngestRow[] = [];
     try {
       for (let i = 0; i < ads.length; i += 1) {
         setProgress({ done: i, total: ads.length });
@@ -151,17 +175,22 @@ export function useIngestAdPanelLogic({
       // A cancelled run is a real terminal outcome, not a failure: keep the rows that
       // did land, say how far it got, and refresh the corpus if anything was created.
       // (Unmount teardown falls through here silently — no state writes.)
-      if (controller.signal.aborted) {
-        if (cancelledRef.current) {
-          setResults([...out]);
-          setNote(t("bulkCancelled", { done: out.length, total: ads.length }));
-          if (out.some((r) => r.status === "added")) onBulkComplete?.();
-        }
+      // The three-way decision is settleBulkRun's; this block only APPLIES it, so
+      // the rule is pinned by jobsIngestRunOutcome.test.ts rather than by nothing.
+      const settled = settleBulkRun({
+        aborted: controller.signal.aborted,
+        cancelled: cancelledRef.current,
+        rows: out,
+        total: ads.length,
+      });
+      if (settled.kind === "teardown") return;
+      if (settled.kind === "cancelled") {
+        setResults(settled.results);
+        setNote(t("bulkCancelled", { done: settled.done, total: settled.total }));
+        if (settled.refresh) onBulkComplete?.();
         return;
       }
-      const added = out.filter((r) => r.status === "added").length;
-      const exists = out.filter((r) => r.status === "exists").length;
-      const failed = out.filter((r) => r.status === "failed").length;
+      const { added, exists, failed } = settled;
       setNote(t("bulkDone", { added, exists, failed }));
       // One coalesced refresh after the whole run (only if something new landed) — no
       // per-row reload storm, and no auto-open modal over the results table.
@@ -171,12 +200,10 @@ export function useIngestAdPanelLogic({
       // account for it. The paste is the only copy of that text — keep it so the failed
       // ads can be fixed and re-run; the bulkDone note + the per-row table carry the
       // outcome.
-      if (added > 0) {
-        setAdText("");
-        onBulkComplete?.();
-      }
+      if (settled.clearPaste) setAdText("");
+      if (settled.refresh) onBulkComplete?.();
     } finally {
-      if (!controller.signal.aborted || cancelledRef.current) {
+      if (releasesBusy({ aborted: controller.signal.aborted, cancelled: cancelledRef.current })) {
         setBusy(false);
         setProgress(null);
       }
