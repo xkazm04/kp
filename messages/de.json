@@ -9384,7 +9384,7 @@
     "approveNetwork": "Netzwerkfehler. Die Freigabe wurde nicht erfasst.",
     "sweep": {
       "resumed": "{count, plural, =0 {Es war nichts wiederherzustellen.} one {# Lebenszyklus fortgesetzt.} other {# Lebenszyklen fortgesetzt.}}",
-      "budgetExhausted": "Das Laufbudget war erschöpft, der Durchlauf endete deshalb vorzeitig — starten Sie ihn später erneut, um den Rest zu erfassen."
+      "budgetExhausted": "Das Laufbudget war erschöpft, der Durchlauf endete deshalb vorzeitig. Starten Sie ihn später erneut, um den Rest zu erfassen."
     }
   },
   "feedback": {

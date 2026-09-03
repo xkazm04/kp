@@ -9384,7 +9384,7 @@
     "approveNetwork": "Chyba sítě. Schválení se nezaznamenalo.",
     "sweep": {
       "resumed": "{count, plural, =0 {Nebylo co obnovovat.} one {Obnoven # životní cyklus.} few {Obnoveny # životní cykly.} other {Obnoveno # životních cyklů.}}",
-      "budgetExhausted": "Byl vyčerpán limit běhů, průchod proto skončil dříve — spusťte jej znovu později a doberte zbytek."
+      "budgetExhausted": "Byl vyčerpán limit běhů, průchod proto skončil dříve. Spusťte jej znovu později a doberte zbytek."
     }
   },
   "feedback": {

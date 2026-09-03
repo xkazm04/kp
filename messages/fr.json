@@ -9237,7 +9237,7 @@
     "approveNetwork": "Erreur réseau. La validation n’a pas été enregistrée.",
     "sweep": {
       "resumed": "{count, plural, =0 {Rien à reprendre.} one {# cycle de vie repris.} other {# cycles de vie repris.}}",
-      "budgetExhausted": "Le budget d’exécutions a été atteint, la reprise s’est donc arrêtée avant la fin — relancez-la plus tard pour traiter le reste."
+      "budgetExhausted": "Le budget d’exécutions a été atteint, la reprise s’est donc arrêtée avant la fin. Relancez-la plus tard pour traiter le reste."
     }
   },
   "legal": {

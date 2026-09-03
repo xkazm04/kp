@@ -9384,7 +9384,7 @@
     "approveNetwork": "Network error. The approval was not recorded.",
     "sweep": {
       "resumed": "{count, plural, =0 {Nothing needed recovering.} one {# lifecycle resumed.} other {# lifecycles resumed.}}",
-      "budgetExhausted": "The run budget was reached, so the sweep stopped early — run it again later to pick up the rest."
+      "budgetExhausted": "The run budget was reached, so the sweep stopped early. Run it again later to pick up the rest."
     }
   },
   "feedback": {
