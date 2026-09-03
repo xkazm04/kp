@@ -99,7 +99,9 @@ test("two candidates cannot book the same slot: the loser gets a 409 'just taken
   assert.equal((await post(a.invite.token, { slotAt: target })).status, 200);
   const collision = await post(b.invite.token, { slotAt: target });
   assert.equal(collision.status, 409);
-  assert.match((await collision.json()).error, /just taken/);
+  // The refusal is a CODE now, not an English sentence: the candidate page resolves
+  // errors.SCHEDULE_SLOT_TAKEN in the reader's own language (schedule-token-refusals.test.ts).
+  assert.equal((await collision.json()).code, "SCHEDULE_SLOT_TAKEN");
   assert.equal(getScheduleInviteByToken(b.invite.token)!.status, "pending", "the loser's invite stays re-bookable");
 });
 
