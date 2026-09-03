@@ -282,7 +282,7 @@
     "addToPipeline": "Zur Pipeline hinzufügen",
     "adding": "Wird hinzugefügt…",
     "added": "Zur Pipeline hinzugefügt",
-    "addFailed": "Hinzufügen zur Pipeline fehlgeschlagen. {error}",
+    "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden.",
     "importToPrep": "Diese Fragen zur Interviewvorbereitung hinzufügen",
     "importToPrepBusy": "Wird zur Interviewvorbereitung hinzugefügt…",
     "importToPrepDone": "Zur Interviewvorbereitung hinzugefügt",
@@ -2282,7 +2282,15 @@
       "settings": "Einstellungen"
     },
     "openWorkspace": "Arbeitsbereich öffnen",
-    "home": "Startseite"
+    "home": "Startseite",
+    "lockedTab": "Ihre Rolle kann das nicht öffnen. Erforderlich: „{capability}“.",
+    "capabilities": {
+      "orgManage": "Organisation verwalten",
+      "membersManage": "Mitglieder verwalten",
+      "teamManage": "Teams verwalten",
+      "pipelineWrite": "Pipeline bearbeiten",
+      "read": "Ansehen"
+    }
   },
   "enums": {
     "stage": {
@@ -3089,7 +3097,8 @@
       "rejectConfirmYes": "Ablehnen & benachrichtigen",
       "rejectCancel": "Abbrechen",
       "rejecting": "Wird abgelehnt…",
-      "accepting": "Wird angenommen…"
+      "accepting": "Wird angenommen…",
+      "requestFailed": "Der Stapel konnte nicht ausgeführt werden. Es wurde nichts entschieden."
     },
     "keyDecisions": "Wichtige Entscheidungen",
     "keyDecisionsHelp": "Eine Zeile pro Stelle. Weiterleiten oder ablehnen direkt aus der Analysezusammenfassung eines Kandidaten.",
@@ -4664,7 +4673,8 @@
       "dismiss": "Verwerfen",
       "loadFailed": "Silbermedaillisten konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
-      "dismissFailed": "Der Treffer konnte nicht entfernt werden. Er steht wieder in der Liste."
+      "dismissFailed": "Der Treffer konnte nicht entfernt werden. Er steht wieder in der Liste.",
+      "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden."
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",
@@ -9703,5 +9713,14 @@
     "revertPrompt": "Diese Version wiederherstellen?",
     "revertConfirm": "Wiederherstellen",
     "revertCancel": "Abbrechen"
+  },
+  "errorBoundary": {
+    "title": "Hier ist etwas schiefgelaufen",
+    "body": "{what} konnte nicht angezeigt werden. Die Daten haben möglicherweise ein unerwartetes Format; der Rest des Arbeitsbereichs ist nicht betroffen.",
+    "retry": "Erneut versuchen",
+    "labels": {
+      "tab": "Dieser Tab",
+      "panel": "Dieses Panel"
+    }
   }
 }

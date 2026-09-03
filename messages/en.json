@@ -282,7 +282,7 @@
     "addToPipeline": "Add to pipeline",
     "adding": "Adding…",
     "added": "Added to pipeline",
-    "addFailed": "Couldn't add to the pipeline. {error}",
+    "addFailed": "Couldn't add to the pipeline.",
     "importToPrep": "Add these questions to interview prep",
     "importToPrepBusy": "Adding to prep…",
     "importToPrepDone": "Added to interview prep",
@@ -2282,7 +2282,15 @@
       "settings": "Settings"
     },
     "openWorkspace": "Open workspace",
-    "home": "Home"
+    "home": "Home",
+    "lockedTab": "Your role cannot open this. It needs “{capability}”.",
+    "capabilities": {
+      "orgManage": "Manage organization",
+      "membersManage": "Manage members",
+      "teamManage": "Manage teams",
+      "pipelineWrite": "Edit the pipeline",
+      "read": "View"
+    }
   },
   "enums": {
     "stage": {
@@ -3089,7 +3097,8 @@
       "rejectConfirmYes": "Reject & notify",
       "rejectCancel": "Cancel",
       "rejecting": "Rejecting…",
-      "accepting": "Accepting…"
+      "accepting": "Accepting…",
+      "requestFailed": "Couldn't run that batch. Nothing was decided."
     },
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role. Advance or reject from a candidate's analysis summary.",
@@ -4664,7 +4673,8 @@
       "dismiss": "Dismiss",
       "loadFailed": "Couldn't load silver medalists.",
       "retry": "Retry",
-      "dismissFailed": "Couldn't dismiss that match. It's back in the list."
+      "dismissFailed": "Couldn't dismiss that match. It's back in the list.",
+      "addFailed": "Couldn't add to the pipeline."
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",
@@ -9703,5 +9713,14 @@
     "revertPrompt": "Restore this version?",
     "revertConfirm": "Restore",
     "revertCancel": "Cancel"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong here",
+    "body": "{what} could not be displayed. The data may be in an unexpected shape; the rest of the workspace is unaffected.",
+    "retry": "Try again",
+    "labels": {
+      "tab": "This tab",
+      "panel": "This panel"
+    }
   }
 }

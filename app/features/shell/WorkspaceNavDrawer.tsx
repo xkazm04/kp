@@ -9,6 +9,7 @@ import { Menu, X } from "lucide-react";
 import type { RefObject } from "react";
 import type { useTranslations } from "next-intl";
 import type { AttentionCounts } from "@/app/_lib/attention";
+import type { Capability } from "@/app/_lib/auth/roles";
 import { BrandHeader } from "@/app/_components/BrandHeader";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
@@ -47,6 +48,7 @@ export function WorkspaceNavDrawer({
   navActive,
   active,
   attention,
+  capabilities,
   search,
   selectTab,
   onSliceNav,
@@ -61,6 +63,8 @@ export function WorkspaceNavDrawer({
   navActive: WorkspaceTabId;
   active: WorkspaceTabId;
   attention: AttentionCounts | null;
+  /** What this viewer may do here (navCapabilities.ts); null while unknown. */
+  capabilities: readonly Capability[] | null;
   search: string;
   selectTab: (id: WorkspaceTabId) => void;
   onSliceNav: (href: string) => void;
@@ -74,16 +78,24 @@ export function WorkspaceNavDrawer({
         <div className="flex items-center gap-2">
           <BrandHeader markClass="h-7 w-7" showTagline={false} />
         </div>
-        <button
-          type="button"
-          onClick={() => setMobileNavOpen((v) => !v)}
-          aria-expanded={mobileNavOpen}
-          aria-controls="workspace-nav"
-          aria-label={mobileNavOpen ? t("closeMenu") : t("openMenu")}
-          className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-stone-300 text-ink"
-        >
-          {mobileNavOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
-        </button>
+        <div className="flex items-center gap-1">
+          {/* The palette's ONLY door on a phone. Its rail trigger lives inside the
+              off-canvas <aside>, which is `inert` while closed — so below md the
+              global search was reachable by Ctrl/Cmd+K alone, i.e. not at all on a
+              handset. `hotkey={false}`: the rail instance still owns the shortcut,
+              so two mounted palettes never both answer one keypress. */}
+          <CommandPalette variant="bar" hotkey={false} />
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-expanded={mobileNavOpen}
+            aria-controls="workspace-nav"
+            aria-label={mobileNavOpen ? t("closeMenu") : t("openMenu")}
+            className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-md border border-stone-300 text-ink"
+          >
+            {mobileNavOpen ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
+          </button>
+        </div>
       </div>
 
       {/* Scrim behind the open drawer (mobile only) — click to dismiss. */}
@@ -111,6 +123,7 @@ export function WorkspaceNavDrawer({
           groups={NAV_GROUPS}
           navActive={navActive}
           attention={attention}
+          capabilities={capabilities}
           // The React-tracked query string — NavSectionRail composes the badge-slice
           // hrefs off it (i18n + href helpers now resolve inside the shared renderer,
           // so the link-mode deep-link wrapper can be a plain Server Component).

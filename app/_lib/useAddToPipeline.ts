@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useErrorMessage, type ApiErrorPayload } from "./use-error-message";
+import { capabilityAwareReason, useErrorMessage } from "./use-error-message";
 import type { GithubEvidenceSummary } from "./github-summary";
 
 // One canonical optimistic "add this candidate to the pipeline" flow. Both the
@@ -75,13 +75,16 @@ export type PipelineAddFailure = {
   /** The capability a FORBIDDEN_CAPABILITY refusal wanted (wave 18a ships it beside
    *  the code) — data for the localized sentence, never a sentence itself. */
   capability: string | null;
-  /** The HTTP status, so a caller can tell a refusal (403) from a fault (500). */
+  /** The HTTP status, so a caller can tell a refusal (403) from a fault (500), and
+   *  a transport blip (null) from either. */
   status: number | null;
-  /** Canonical ENGLISH, for the log and as a last-resort fallback for the call sites
-   *  that have not adopted useErrorMessage yet (AddToPipelineButton, useMatrixTab,
-   *  jobsRediscoveryFeedLogic). A localized surface must prefer `code`. */
-  message: string;
 };
+// There is deliberately NO `message` here any more. It carried the server's
+// canonical ENGLISH "as a last-resort fallback", and all three remaining call sites
+// used it as the FIRST resort — painting an English sentence onto a Czech, German or
+// French surface while the coded half sat unread beside it. A caller now folds
+// `code`/`capability` through capabilityAwareReason and supplies its own localized
+// fallback; the English still exists where it belongs, in the server log.
 
 export async function postPipelineAdd(
   jobId: string,
@@ -101,18 +104,14 @@ export async function postPipelineAdd(
         code: payload?.code ?? null,
         capability: payload?.capability ?? null,
         status: r.status,
-        message: payload?.error ?? `Couldn't add (${r.status}).`,
       };
     }
     return { ok: true };
-  } catch (caught) {
-    return {
-      ok: false,
-      code: null,
-      capability: null,
-      status: null,
-      message: caught instanceof Error ? caught.message : "Couldn't add to the pipeline.",
-    };
+  } catch {
+    // A thrown fetch is a transport blip, not a verdict: no code, no status. The
+    // caller's own localized "couldn't add" line is the honest thing to show, and
+    // the browser has already logged the network error itself.
+    return { ok: false, code: null, capability: null, status: null };
   }
 }
 
@@ -181,27 +180,11 @@ export async function postPipelineBatch(items: PipelineBatchItem[]): Promise<Pip
   }
 }
 
-/** The localized sentence for a refusal that may carry a capability.
- *
- *  gated-doors-clients-read-the-refusal — the write doors answer a seat without the
- *  permission with a coded 403 (FORBIDDEN_CAPABILITY) carrying `capability`. The
- *  code's OWN message (errors.FORBIDDEN_CAPABILITY) is deliberately
- *  placeholder-free, because a dozen consumers resolve it with no values and a
- *  required ICU argument would break every one of them; a client that HOLDS the
- *  data renders the client variant `errors.forbiddenCapabilityNeeds` instead, which
- *  names the permission the operator has to ask for.
- *
- *  Takes the bound resolver rather than calling the hook, so the four other clients
- *  of these doors fold a refusal exactly the same way from inside a component. */
-export function capabilityAwareReason(
-  resolve: (payload: ApiErrorPayload | null | undefined, fallback: string, values?: Record<string, string | number | Date>) => string,
-  payload: (ApiErrorPayload & { capability?: string | null }) | null | undefined,
-  fallback: string
-): string {
-  const generic = resolve(payload, fallback);
-  if (payload?.code !== "FORBIDDEN_CAPABILITY" || !payload.capability) return generic;
-  return resolve({ code: "forbiddenCapabilityNeeds" }, generic, { capability: payload.capability });
-}
+/** Moved to app/_lib/use-error-message.ts, beside the rule it implements — eight
+ *  surfaces import this fold and only two of them add a candidate. Re-exported here
+ *  for ONE wave so the existing importers keep resolving; import it from
+ *  `use-error-message` in new code. */
+export { capabilityAwareReason };
 
 export function useAddToPipeline(jobId: string, jobTitle: string, source?: string | null): AddToPipeline {
   // The refusal is rendered from its CODE in the reader's language; the server's

@@ -4,7 +4,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveErrorMessage, type ErrorMessageValues } from "./use-error-message.ts";
+import { capabilityAwareReason, resolveErrorMessage, type ErrorMessageValues } from "./use-error-message.ts";
 
 const CATALOG: Record<string, string> = {
   QUOTA_EXCEEDED: "You have used {used} of {limit} analyses.",
@@ -41,4 +41,45 @@ test("placeholder values reach the catalog message", () => {
 
 test("values are ignored when the code is unknown — the fallback is already localized", () => {
   assert.equal(resolveErrorMessage({ code: "NOPE" }, "fallback", has, translate, { used: 3 }), "fallback");
+});
+
+// ---- capabilityAwareReason (wave 19b) ----------------------------------------
+// The capability-aware fold used to live in app/_lib/useAddToPipeline.ts — a
+// transport module about ONE route — even though five surfaces that never add a
+// candidate imported it. It belongs beside the rule it implements: prefer the
+// code, and when the code is FORBIDDEN_CAPABILITY and the client HOLDS the
+// permission it named, render the variant that says which permission.
+const GATE_CATALOG: Record<string, string> = {
+  FORBIDDEN_CAPABILITY: "Your role does not allow this action.",
+  forbiddenCapabilityNeeds: "Your role does not allow this action. It needs the “{capability}” permission.",
+  STORE_WRITE_FAILED: "Could not save.",
+};
+const gateResolve = (
+  payload: { code?: string | null; error?: string | null } | null | undefined,
+  fallback: string,
+  values?: ErrorMessageValues
+) =>
+  resolveErrorMessage(payload, fallback, (c) => c in GATE_CATALOG, (c, v) => {
+    const template = GATE_CATALOG[c] ?? c;
+    return v ? template.replace(/\{(\w+)\}/g, (m, k: string) => (k in v ? String(v[k]) : m)) : template;
+  }, values);
+
+test("capabilityAwareReason names the permission a FORBIDDEN_CAPABILITY refusal wanted", () => {
+  assert.equal(
+    capabilityAwareReason(gateResolve, { code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write", error: "nope" }, "fb"),
+    "Your role does not allow this action. It needs the “pipeline:write” permission."
+  );
+});
+
+test("capabilityAwareReason falls back to the plain code message with no capability", () => {
+  assert.equal(
+    capabilityAwareReason(gateResolve, { code: "FORBIDDEN_CAPABILITY" }, "fb"),
+    "Your role does not allow this action."
+  );
+});
+
+test("capabilityAwareReason is a pass-through for any other code, and never shows `error`", () => {
+  assert.equal(capabilityAwareReason(gateResolve, { code: "STORE_WRITE_FAILED", error: "sqlite: disk I/O" }, "fb"), "Could not save.");
+  assert.equal(capabilityAwareReason(gateResolve, { error: "sqlite: disk I/O" }, "fb"), "fb");
+  assert.equal(capabilityAwareReason(gateResolve, null, "fb"), "fb");
 });

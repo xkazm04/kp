@@ -64,6 +64,7 @@ The client seam is `app/_lib/use-error-message.ts`:
 | `useErrorMessage()` | Components and hooks. Returns `(payload, fallback) => string`. |
 | `resolveErrorMessage(payload, fallback, has, translate)` | The pure form, for plain non-React helper modules. |
 | `ErrorMessageResolver` | The bound resolver's type — thread it into a plain helper as a parameter rather than turning that helper into a hook. |
+| `capabilityAwareReason(resolve, payload, fallback)` | The one refusal that carries **data**: a capability-gated 403 answers `FORBIDDEN_CAPABILITY` plus the `capability` it wanted. `errors.FORBIDDEN_CAPABILITY` stays placeholder-free (a dozen consumers resolve it with no values), so a client that HOLDS the capability renders `errors.forbiddenCapabilityNeeds` instead, which names the permission. Takes a bound resolver, so a helper module folds it identically to a component. |
 
 ```ts
 const errMsg = useErrorMessage();
@@ -93,6 +94,21 @@ That pattern was on **84 call sites across 26 directories**, including surfaces
 the eslint i18n rule already held at `error` level. It could: that rule reads
 **JSX text nodes**, so English arriving through a variable is invisible to it.
 The lint level of an area is not evidence that the area is localized.
+
+### The same trap, one layer down: a transport helper with a `message`
+
+A shared fetch helper that returns `{ code, capability, status, message }` — the
+last field documented as "canonical English, a last-resort fallback" — is the
+84-call-site trap wearing a type. Every remaining caller of `postPipelineAdd`
+used `message` as the **first** resort (the report's add button, the Fit Matrix
+bulk add, the silver-medalist feed), because it is the field that is always
+populated and already a sentence. The field is gone: `postPipelineAdd` and
+`postPipelineBatch` return the machine half only, and each caller supplies its
+own localized fallback. The English still exists where it belongs — the server
+log — and `status` is what distinguishes a refusal from a fault from a blip.
+
+The rule: **a shared client helper never returns a user-facing sentence.** If
+callers need one, give them the code and let them resolve it.
 
 ### Two guards, in `npm run i18n:check`
 

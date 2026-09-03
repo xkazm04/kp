@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T10:24:19.559Z",
+ "generated_at": "2026-09-03T10:44:13.580Z",
  "provenance": {
-  "git_commit": "5fd2e263ac5efba78b964776d0654f67730c6681",
-  "git_commit_count": 2294,
+  "git_commit": "29e81de6a1dcbd155c2b2dbc815dca9c87504190",
+  "git_commit_count": 2298,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T10:24:19.559Z"
+  "generated_at": "2026-09-03T10:44:13.580Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2929,
+  "files": 2941,
   "groups": 17,
   "use_cases": 12
  },
@@ -2037,6 +2037,7 @@
     "app/features/insights/matrix/focus/useMatchCardReasoning.ts",
     "app/features/insights/matrix/focus/useMatchResultsPipeline.ts",
     "app/features/insights/matrix/focus/useMatchTabRun.ts",
+    "app/features/insights/matrix/matrixAddRefusal.test.ts",
     "app/features/insights/matrix/matrixAnchor.test.ts",
     "app/features/insights/matrix/matrixAnchor.ts",
     "app/features/insights/matrix/matrixCellClass.test.ts",
@@ -3394,6 +3395,8 @@
     "app/_components/AnalysisProgress.tsx",
     "app/_components/Badge.tsx",
     "app/_components/BrandHeader.tsx",
+    "app/_components/ErrorBoundary.test.ts",
+    "app/_components/ErrorBoundary.ts",
     "app/_components/auth/SignOutButton.tsx",
     "app/_components/icons/CompareIcon.tsx",
     "app/_components/icons/ExtractionIcon.tsx",
@@ -3457,7 +3460,6 @@
     "app/_components/ChainEmptyState.tsx",
     "app/_components/Checkbox.tsx",
     "app/_components/CompletionCta.tsx",
-    "app/_components/ErrorBoundary.tsx",
     "app/_components/FactorChart.tsx",
     "app/_components/FactorChartBody.tsx",
     "app/_components/FileInput.tsx",
@@ -3625,6 +3627,7 @@
     "app/_components/results/salary/SalaryTab.tsx"
    ],
    "file_paths": [
+    "app/_components/results/AddToPipelineButton.test.ts",
     "app/_components/results/AddToPipelineButton.tsx",
     "app/_components/results/ArchetypeBanner.tsx",
     "app/_components/results/DispositionEditor.tsx",
@@ -4368,6 +4371,7 @@
     "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts",
     "app/features/hiring/decisions/decisionsAnalysisSummaryData.test.ts",
     "app/features/hiring/decisions/decisionsAnalysisSummaryData.ts",
+    "app/features/hiring/decisions/decisionsBatchRefusal.test.ts",
     "app/features/hiring/decisions/decisionsComplianceState.ts",
     "app/features/hiring/decisions/decisionsFloorDisclosure.test.ts",
     "app/features/hiring/decisions/decisionsFloorDisclosure.ts",
@@ -6313,7 +6317,8 @@
     "app/features/library/jobs/jobsPostingModalTabs.test.ts",
     "app/features/library/jobs/jobsPostingModalTabs.ts",
     "app/features/library/jobs/jobsPublishResult.test.ts",
-    "app/features/library/jobs/jobsPublishResult.ts"
+    "app/features/library/jobs/jobsPublishResult.ts",
+    "app/features/library/jobs/jobsRediscoveryAddRefusal.test.ts"
    ],
    "group": "Job & JD Management",
    "group_id": "3d0fab8c-b963-4864-a4a0-683577ec221f",
@@ -8044,6 +8049,10 @@
    "file_paths": [
     "app/_lib/getting-started.test.ts",
     "app/_lib/getting-started.ts",
+    "app/features/shell/attentionPoll.test.ts",
+    "app/features/shell/attentionPoll.ts",
+    "app/features/shell/navCapabilities.test.ts",
+    "app/features/shell/navCapabilities.ts",
     "app/features/shell/setup/GettingStartedCard.tsx",
     "app/features/shell/setup/OnboardingExperience.tsx",
     "app/features/shell/setup/SetupCompanyStep.tsx",
@@ -8069,7 +8078,8 @@
     "app/features/shell/setup/setupGettingStartedModel.ts",
     "app/features/shell/setup/setupOnboardingFinish.ts",
     "app/features/shell/setup/setupPipelineEdit.ts",
-    "app/features/shell/setup/useSetupDraft.ts"
+    "app/features/shell/setup/useSetupDraft.ts",
+    "app/features/shell/useCapabilities.ts"
    ],
    "group": "Workspace Shell & Onboarding",
    "group_id": "88b642b4-d4f5-4a19-a58c-ec4e3889dd1d",
@@ -8178,8 +8188,10 @@
     "app/features/shell/WorkspacePaletteRow.tsx",
     "app/features/shell/WorkspaceSimSurfaces.tsx",
     "app/features/shell/WorkspaceTabChunks.tsx",
+    "app/features/shell/live-refresh.test.ts",
     "app/features/shell/live-refresh.ts",
     "app/features/shell/recents.ts",
+    "app/features/shell/tabChunks.test.ts",
     "app/features/shell/tabChunks.ts",
     "app/features/shell/tabs.test.ts",
     "app/features/shell/tabs.ts",
