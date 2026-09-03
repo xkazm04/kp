@@ -11,7 +11,19 @@ import {
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { ensureDb } from "@/app/_lib/db/core";
+import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
+// Forcing a tick runs a FULL policy pass — a Python-spawning sweep over every
+// active entry that drafts outreach and mutates the board. It is operator-gated,
+// but open mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op
+// for the whole API, so the limiter is the real bound. 10/10min per IP: a pass
+// takes minutes, so ten is far above any human "Run now" pace and well below a
+// scripted loop's. The GET (status + history) and the cheap config writes are
+// deliberately NOT throttled — they spawn nothing.
+const SCHEDULE_TICK_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
 // AUTO6 — both registered jobs ride one payload: the policy pass (schedule/runs,
 // the historical shape) plus the reminders job and its recent send/failure runs.
@@ -32,7 +44,33 @@ async function schedulePayload() {
     reminderRuns: listRuns(5, REMINDERS_JOB, { workspace }),
     scheduleScope: "global" as const,
     decisionsWorkspace: workspace,
+    ...clockLiveness(),
   };
+}
+
+// LIVENESS (/perfect 2026-09-03, pipeline-board-3). `schedule.enabled` is a stored
+// FLAG — the clock is ARMED. Whether the tick chain is still ALIVE is a separate
+// signal that schedulerLiveness() has judged from the heartbeat since
+// bug-ui-scan-2026-07-09, and until now ONLY /api/health and /api/ops consumed it:
+// the control surface an operator actually uses showed a green "On" over a chain
+// that had stopped ticking. The same single indexed read those two probes do, so the
+// toolbar can render armed and alive as the two different facts they are.
+function clockLiveness() {
+  try {
+    const beat = ensureDb()
+      .prepare(`SELECT last_tick_at FROM scheduler_heartbeat WHERE id = 'clock'`)
+      .get() as { last_tick_at?: string } | undefined;
+    const lastTickAt = beat?.last_tick_at ?? null;
+    const liveness = schedulerLiveness(Date.now(), lastTickAt ? Date.parse(lastTickAt) : null, process.uptime() * 1000);
+    return { liveness, livenessReason: schedulerLivenessReason(liveness, lastTickAt), lastTickAt };
+  } catch (error) {
+    // Best-effort: liveness is a decoration on a payload whose primary job is the
+    // schedule itself. A heartbeat read that fails must not take the control bar
+    // down with it — the client renders no chip for a null liveness — but an
+    // operator would want to know, so it is logged rather than swallowed.
+    console.error("[api/automation/schedule] heartbeat read failed", error);
+    return { liveness: null, livenessReason: null, lastTickAt: null };
+  }
 }
 
 // Control surface for the automation clock: read status + recent runs, toggle it
@@ -56,8 +94,15 @@ export async function POST(request: NextRequest) {
       // AUTO6 — pause/resume candidate reminder sends (the job defaults ON).
       remindersEnabled?: boolean;
     };
+    // A CODED refusal, not prose: the dock resolves errors.SCHEDULE_INTERVAL_INVALID
+    // in the reader's language instead of painting the server's English string.
     if (body.intervalMinutes !== undefined && !Number.isFinite(body.intervalMinutes)) {
-      return NextResponse.json({ error: "intervalMinutes must be a finite number." }, { status: 400 });
+      return jsonRefusal("SCHEDULE_INTERVAL_INVALID", 400);
+    }
+    // After the cheap refusal and before ANY write, so a malformed body neither
+    // consumes budget nor is masked by the throttle.
+    if (body.tick && !rateLimit(`schedule-tick:${clientIpFrom(request.headers)}`, SCHEDULE_TICK_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     if (typeof body.intervalMinutes === "number") setIntervalMinutes(POLICY_JOB, body.intervalMinutes);
     if (typeof body.enabled === "boolean") setEnabled(POLICY_JOB, body.enabled);
@@ -68,7 +113,9 @@ export async function POST(request: NextRequest) {
     const tick = body.tick ? await tickScheduler({ force: true, trigger: "manual" }) : undefined;
     return NextResponse.json({ ...(await schedulePayload()), tick });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to update schedule.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The thrown error here is a better-sqlite3 / spawned-pass exception: it quotes
+    // the db file path, SQLite constraint text and Python tracebacks. Server log
+    // keeps the detail; the client gets the code.
+    return safeJsonError(error, "api:automation/schedule", "SCHEDULE_UPDATE_FAILED");
   }
 }
