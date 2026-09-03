@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { isAdverseResend, resendOutcome, type ResendOutcomeKind } from "@/app/_lib/comms-resend-outcome";
 import { BTN_PRIMARY, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 
 export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; defaultRecipient: string | null; onResent: () => void }) {
@@ -18,13 +19,16 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
   // `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
   const [recipient, setRecipient] = useState(defaultRecipient ?? "");
-  const [state, setState] = useState<"idle" | "busy" | "done" | "queued" | "deadLettered" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | ResendOutcomeKind>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const valid = isDeliverableAddress(recipient.trim());
-  // Same honesty fix as ResendButton: surface the server's own refusal reason, and
-  // claim success only when the corrected address actually took.
+  // Settled: the message is out or on its way, so another click could only duplicate
+  // it. The five outcomes themselves are derived once, in comms-resend-outcome.ts —
+  // this fold used to be a verbatim copy of ResendButton's, and both were blind to the
+  // recovered one (a 409 that means "already being delivered", painted red).
+  const settled = state === "sent" || state === "queued" || state === "recovered";
   const resend = async () => {
-    if (state === "busy" || state === "done" || state === "queued" || !valid) return;
+    if (state === "busy" || settled || !valid) return;
     setState("busy");
     setMessage(null);
     try {
@@ -33,41 +37,39 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipient: recipient.trim() }),
       });
-      const payload = (await r.json().catch(() => null)) as
-        | { error?: string; code?: string; entry?: { status?: string; failureDetail?: string | null } }
-        | null;
-      if (!r.ok) {
-        setMessage(t("resendRejected", { reason: errMsg(payload, t("resendFailed")) }));
-        setState("error");
-        return;
+      const payload = await r.json().catch(() => null);
+      const outcome = resendOutcome(r.ok, r.status, payload);
+      setState(outcome.kind);
+      switch (outcome.kind) {
+        case "refused":
+          setMessage(t("resendRejected", { reason: errMsg(outcome, t("resendFailed")) }));
+          return;
+        case "recovered":
+          // The double-click case this control makes easy: the server collapsed the
+          // second POST because the first one IS delivering. Calm, not red.
+          setMessage(t("resendRecovered"));
+          onResent();
+          return;
+        case "deadLettered":
+          setMessage(outcome.detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail: outcome.detail })}` : t("resendDeadLettered"));
+          onResent();
+          return;
+        case "queued":
+          // Recorded, but NOTHING WILL DELIVER IT — `queued` is the terminal
+          // local-outbox state reached when no relay is configured, and the relay can
+          // be gone by the time a recruiter chases a bounce raised while it was wired.
+          setMessage(t("relayNotConfigured"));
+          onResent();
+          return;
+        default:
+          onResent();
       }
-      // Recorded, but NOTHING WILL DELIVER IT. `queued` is the terminal local-outbox
-      // state (comms-status.ts), reached when no relay is configured — and the relay is
-      // a stored, UI-editable capability (comms-relay.ts resolves env ▸ stored ▸
-      // nothing), so it can be gone by the time a recruiter chases a bounce raised while
-      // it was wired. The route still answers 200, so "the call resolved" said nothing:
-      // the absence of this branch was exactly how a corrected offer that never left
-      // the building reported a green "Resent". Four outcomes, as in ResendButton.
-      if (payload?.entry?.status === "queued") {
-        setMessage(t("relayNotConfigured"));
-        setState("queued");
-        onResent();
-        return;
-      }
-      if (payload?.entry?.status === "failed" || payload?.entry?.status === "bounced") {
-        const detail = payload.entry.failureDetail;
-        setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
-        setState("deadLettered");
-        onResent();
-        return;
-      }
-      setState("done");
-      onResent();
     } catch {
       setMessage(t("resendFailed"));
-      setState("error");
+      setState("refused");
     }
   };
+  const adverse = state !== "idle" && state !== "busy" && isAdverseResend(state);
   return (
     <div className="space-y-2 rounded-md border border-red-200 bg-red-50/60 p-3">
       <p className="text-xs text-red-800">{t("bouncedResendHint")}</p>
@@ -80,9 +82,9 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
             setRecipient(e.target.value);
             // NOT while the POST is in flight: clearing `busy` here re-enabled the
             // button mid-request, so editing the address and clicking again fired a
-            // second resend. The server collapses it (resendInFlight → 409), and that
-            // refusal could resolve LAST — reporting "Couldn't resend" over a resend
-            // that had in fact gone out.
+            // second resend. The server collapses it (resendInFlight → 409 with
+            // `recovered`), which now reads as "already being delivered" rather than
+            // as a failure over a resend that had in fact gone out.
             if (state !== "idle" && state !== "busy") setState("idle");
           }}
           placeholder={t("bouncedRecipientPlaceholder")}
@@ -90,25 +92,24 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
         />
       </label>
       <div className="flex items-center justify-between gap-2">
-        <span
-          className={`text-xs ${state === "error" || state === "deadLettered" ? "text-red-800" : "text-steel"}`}
-          role={message ? "alert" : undefined}
-        >
+        <span className={`text-xs ${adverse ? "text-red-800" : "text-steel"}`} role={message ? "alert" : undefined}>
           {message ?? (recipient.trim() && !valid ? t("bouncedResendInvalid") : "")}
         </span>
         <button
           type="button"
           onClick={resend}
-          disabled={!valid || state === "busy" || state === "done" || state === "queued"}
+          disabled={!valid || state === "busy" || settled}
           className={`${BTN_PRIMARY} h-8 px-3 text-sm`}
         >
-          {state === "done"
+          {state === "sent"
             ? t("resent")
-            : state === "queued"
-              ? t("statusQueued")
-              : state === "busy"
-                ? t("resending")
-                : t("resend")}
+            : state === "recovered"
+              ? t("statusRecovered")
+              : state === "queued"
+                ? t("statusQueued")
+                : state === "busy"
+                  ? t("resending")
+                  : t("resend")}
         </button>
       </div>
     </div>

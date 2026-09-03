@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CommsRelayError, getRelayConfig, setRelayConfig } from "@/app/_lib/comms-relay-store";
+import { CommsRelayError, CommsRelayStaleError, getRelayConfig, setRelayConfig } from "@/app/_lib/comms-relay-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The outbound comms relay config (RelayConfigCard on the Channels tab) — the
 // UI-backed twin of COMMS_WEBHOOK_URL. GET never returns the signing secret
@@ -9,6 +11,16 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 //
 // OPERATOR-only (mirrors /api/ats/config): this re-points ALL candidate-facing
 // message egress (PII) and holds an HMAC signing secret.
+
+// Per-IP budget on the WRITE. This is the one secret-write door on the Channels
+// tab: every accepted call replaces the endpoint every candidate-facing message is
+// POSTed to and can store a new HMAC signing secret. It is operator-gated, and open
+// mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for the ENTIRE
+// API — so the limiter is the real bound, and without it the door was also an
+// unmetered oracle for probing the SSRF guard (validateUrl → assertPublicHttpsEndpoint)
+// one candidate host at a time. 30/10min is far above an operator editing a form.
+const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
+
 export async function GET() {
   const denied = await requireOperator();
   if (denied) return denied;
@@ -18,14 +30,32 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AFTER the operator gate, so a rejected caller never spends the budget, and before
+  // any parsing or store work.
+  if (!rateLimit(`comms-relay:${clientIpFrom(request.headers)}`, RELAY_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
-    const body = (await request.json()) as { url?: unknown; secret?: unknown };
+    const body = (await request.json()) as { url?: unknown; secret?: unknown; expectedVersion?: unknown };
+    // `expectedVersion` is the version the editor READ. The write is a full replace, so
+    // without it a second tab (or a second operator) silently overwrote the endpoint
+    // the first had just saved; the store re-asserts it under the write lock.
     const config = setRelayConfig(body);
     return NextResponse.json({ ok: true, config });
   } catch (error) {
-    if (error instanceof CommsRelayError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    // Checked FIRST: a stale write subclasses CommsRelayError, and it is a refusal
+    // (409, nothing written), not a validation failure.
+    if (error instanceof CommsRelayStaleError) {
+      return jsonRefusal("COMMS_RELAY_STALE", 409, { config: getRelayConfig() });
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save the relay config." }, { status: 500 });
+    if (error instanceof CommsRelayError) {
+      // The validator's own sentence — which host was refused, which field — is
+      // English prose written for the log and for API consumers. It rides beside the
+      // code as DATA; the card paints the localized message.
+      return jsonRefusal("COMMS_RELAY_INVALID", 400, { detail: error.message });
+    }
+    // A thrown better-sqlite3 / crypto error carries the db path and internal detail:
+    // it goes to the server log, and the client gets the code.
+    return safeJsonError(error, "api:comms:relay", "COMMS_RELAY_SAVE_FAILED");
   }
 }

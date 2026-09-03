@@ -124,12 +124,17 @@ export function useChannelData() {
 /** Outcome of the inbound simulator. channels-i18n-honesty: this used to return a
  *  ready-made ENGLISH sentence, which is why the Channels tab could never speak the
  *  recruiter's language here. It now returns DATA and the component renders it through
- *  next-intl. A server-side `message` (an honest, specific refusal like "No available
- *  applicant.") is passed through rather than flattened into a generic failure. */
+ *  next-intl.
+ *
+ *  The refusal carries the machine `code` and the HTTP `status` — never the server's
+ *  `error` prose, which the tab rendered verbatim (English, in every locale) three
+ *  lines under a comment claiming this surface no longer does that. The code resolves
+ *  through `useErrorMessage()`; the status is only there so an uncoded failure can say
+ *  which one it was. */
 export type InboundSimResult =
   | { ok: true; label: string; score: number; jobTitle: string }
   | { ok: false; reason: "noJob" }
-  | { ok: false; reason: "failed"; message: string | null };
+  | { ok: false; reason: "failed"; code: string | null; status: number | null };
 
 // Shared inbound simulator (the "receive a test application" action). The route files
 // the applicant into the sim/demo workspace under a `(SIM)`-marked title
@@ -140,16 +145,19 @@ export async function simulateInbound(jobId: string | undefined): Promise<Inboun
   try {
     const r = await fetch("/api/sim/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
     const p = (await r.json().catch(() => null)) as
-      | { label?: unknown; score?: unknown; jobTitle?: unknown; error?: unknown }
+      | { label?: unknown; score?: unknown; jobTitle?: unknown; error?: unknown; code?: unknown }
       | null;
-    if (!r.ok) return { ok: false, reason: "failed", message: typeof p?.error === "string" ? p.error : null };
+    if (!r.ok) return { ok: false, reason: "failed", code: typeof p?.code === "string" ? p.code : null, status: r.status };
     return {
       ok: true,
       label: String(p?.label ?? ""),
       score: Number(p?.score ?? 0),
       jobTitle: String(p?.jobTitle ?? ""),
     };
-  } catch (e) {
-    return { ok: false, reason: "failed", message: e instanceof Error ? e.message : null };
+  } catch {
+    // The request never completed — there is no code and no status to report, so the
+    // caller's own localized "couldn't run the simulation" is the honest answer. The
+    // thrown Error's message was English network prose rendered straight into the tab.
+    return { ok: false, reason: "failed", code: null, status: null };
   }
 }

@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
 import { Modal } from "@/app/_components/Modal";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/i18n/locales";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
@@ -37,6 +38,11 @@ export function AddReceiverModal({
   onCreated: (token: string) => void;
 }) {
   const t = useTranslations("channels");
+  // Mint failures resolve from the machine `code`, never the server's English `error`
+  // — see app/_lib/use-error-message.ts. This modal used to `throw new Error(p.error)`
+  // and render the caught message, which put the route's English prose in front of a
+  // Czech, German or French recruiter.
+  const errMsg = useErrorMessage();
   const router = useRouter();
   const search = useSearchParams();
   // Empty = "nothing picked yet"; the first role is the DERIVED default rather than a
@@ -63,12 +69,17 @@ export function AddReceiverModal({
       // and the CV sim pointed at the OLD one: the recruiter copied the wrong
       // endpoint for the role they had just created. Typed against the record the
       // route actually returns so tsc pins the contract from now on.
-      const p = (await r.json()) as { webhook?: ChannelWebhookRecord; error?: string };
-      if (!r.ok) throw new Error(p.error);
-      onCreated(p.webhook?.token ?? "");
+      const p = (await r.json().catch(() => null)) as { webhook?: ChannelWebhookRecord; error?: string; code?: string } | null;
+      if (!r.ok || !p?.webhook) {
+        setError(errMsg(p, t("add.createFailed")));
+        return;
+      }
+      onCreated(p.webhook.token);
       onClose();
-    } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("add.createFailed"));
+    } catch {
+      // The request never completed (offline, aborted). No code, no body — the
+      // localized generic is the only honest answer.
+      setError(t("add.createFailed"));
     } finally {
       setCreating(false);
     }

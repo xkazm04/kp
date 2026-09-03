@@ -22,7 +22,12 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // three genuinely data-derived bits wait: the on/off badge, the secret badge and
 // the env-override note. A read that never lands leaves a usable form — the POST,
 // not the GET, is what configures the relay.
-type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean };
+// `version` is the store's optimistic-concurrency counter: the save echoes the
+// version this card READ, and the store refuses (409) a write built on an older one
+// rather than merging it. The POST is a full replace, so two operators — or one in two
+// tabs — used to overwrite each other's endpoint with no sign anything had happened,
+// and the loser's outbound mail went to the wrong relay.
+type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean; version: number };
 
 export function RelayConfigCard() {
   const t = useTranslations("channels.relay");
@@ -45,9 +50,16 @@ export function RelayConfigCard() {
     try {
       const r = await fetch("/api/comms/relay");
       if (!r.ok) return null;
-      const d = (await r.json()) as { config?: { url: string | null; hasSecret: boolean }; envConfigured?: boolean } | null;
+      const d = (await r.json()) as
+        | { config?: { url: string | null; hasSecret: boolean; version?: number }; envConfigured?: boolean }
+        | null;
       if (!d?.config) return null;
-      return { url: d.config.url ?? "", hasSecret: d.config.hasSecret, envConfigured: Boolean(d.envConfigured) };
+      return {
+        url: d.config.url ?? "",
+        hasSecret: d.config.hasSecret,
+        envConfigured: Boolean(d.envConfigured),
+        version: d.config.version ?? 0,
+      };
     } catch {
       return null;
     }
@@ -69,10 +81,15 @@ export function RelayConfigCard() {
     setBusy(true);
     setNote(null);
     try {
-      const body: { url: string; secret?: string } = { url: url.trim() };
+      const body: { url: string; secret?: string; expectedVersion?: number } = { url: url.trim() };
       if (secret !== "") body.secret = secret;
+      // Only when the read landed: a version we never read is not a claim we can make,
+      // and omitting it means "no concurrency check" — the same behaviour as before.
+      if (state) body.expectedVersion = state.version;
       const r = await fetch("/api/comms/relay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const d = (await r.json().catch(() => null)) as { config?: { url: string | null; hasSecret: boolean }; error?: string; code?: string } | null;
+      const d = (await r.json().catch(() => null)) as
+        | { config?: { url: string | null; hasSecret: boolean; version?: number }; error?: string; code?: string }
+        | null;
       if (r.ok && d?.config) {
         setSecret("");
         setNote({ ok: true, text: t("saved") });
@@ -84,14 +101,25 @@ export function RelayConfigCard() {
         const next = await readConfig();
         if (next) setState(next);
       } else {
+        // Includes the 409: someone else saved a newer config, so nothing was written.
+        // errMsg resolves COMMS_RELAY_STALE (and COMMS_RELAY_INVALID) in the reader's
+        // language, and the refusal carries the CURRENT config — adopt it so the field
+        // and badges show what is actually stored before the operator tries again.
         setNote({ ok: false, text: errMsg(d, t("saveFailed")) });
+        if (r.status === 409) {
+          const next = await readConfig();
+          if (next) {
+            setState(next);
+            setUrl(next.url);
+          }
+        }
       }
     } catch {
       setNote({ ok: false, text: t("saveFailed") });
     } finally {
       setBusy(false);
     }
-  }, [url, secret, t, errMsg, readConfig]);
+  }, [url, secret, state, t, errMsg, readConfig]);
 
   const testPing = useCallback(async () => {
     setBusy(true);

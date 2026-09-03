@@ -4,9 +4,10 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { Check, Copy, Radio } from "lucide-react";
+import { AlertTriangle, Check, Copy, Radio } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { useCopyState } from "./useCopyState";
 
 // The shared "connect this channel" guide: a status header (endpoint + live/waiting),
 // a client picker (Gmail/Outlook, or LinkedIn/Meta), and the numbered steps for the
@@ -19,25 +20,25 @@ import { SegmentedControl } from "@/app/_components/SegmentedControl";
 
 export function CopyChip({ value }: { value: string }) {
   const t = useTranslations("channels");
-  const [copied, setCopied] = useState(false);
+  // A denied clipboard is VISIBLE here (useCopyState) — the chip's value is the
+  // receiver endpoint the operator is about to paste into Gmail/Outlook or an ad
+  // network, and the code beside the button is what they fall back to selecting.
+  const { state, copy } = useCopyState();
+  const failed = state === "failed";
   return (
     <span className="inline-flex items-center gap-1.5">
       <code className="rounded bg-stone-100 px-1.5 py-0.5 text-sm text-ink">{value}</code>
       <button
         type="button"
-        onClick={() =>
-          navigator.clipboard
-            .writeText(value)
-            .then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            })
-            .catch(() => undefined)
-        }
+        onClick={() => copy(value)}
         aria-label={t("copy")}
-        className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-ink hover:border-coral/40"
+        aria-live="polite"
+        className={`focus-ring inline-flex items-center gap-1 rounded-md border bg-white px-1.5 py-0.5 text-xs font-semibold hover:border-coral/40 ${
+          failed ? "border-red-300 text-red-700" : "border-stone-200 text-ink"
+        }`}
       >
-        {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copy")}
+        {failed ? <AlertTriangle size={12} /> : state === "copied" ? <Check size={12} /> : <Copy size={12} />}{" "}
+        {failed ? t("copyFailed") : state === "copied" ? t("copied") : t("copy")}
       </button>
     </span>
   );

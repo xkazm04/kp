@@ -83,6 +83,11 @@ export const STORE_ERRORS = {
   // can surface better-sqlite3 constraint text, the db path, and the spawned pass's
   // Python traceback.
   SCHEDULE_UPDATE_FAILED: "Could not update the automation clock. Please try again.",
+  // POST /api/comms/relay (/perfect 2026-09-03, channels-1). The write encrypts a
+  // signing secret and upserts through better-sqlite3, so its catch can surface
+  // SQLITE_* text, the absolute db path and the crypto helper's key detail — all of
+  // which the handler used to forward as `error.message`.
+  COMMS_RELAY_SAVE_FAILED: "Could not save the relay config. Please try again.",
   // NOT a thrown store error: GET /api/jobs raises this deliberately when the
   // catalog is empty AND the seed health report names a failed jobs seed. The
   // failing PATH and reason are operator detail — they go to the server log
@@ -345,6 +350,13 @@ export const REFUSAL_ERRORS = {
    *  null, so a conversation deleted mid-request refuses here instead of
    *  returning a 200 whose transcript is missing the reply it claims to hold. */
   COMPANION_THREAD_NOT_FOUND: "That conversation no longer exists.",
+  /** A profile save was computed against a version of the row that someone else has
+   *  since replaced (409). The editor spans a Python spawn, so its form is minutes
+   *  older than the row by the time the UPDATE runs; updateProfile re-asserts the
+   *  caller's `expectedUpdatedAt` in the WHERE and a zero-row result lands here. Not a
+   *  fault, and never a 404: the profile exists, it simply moved, and the honest answer
+   *  is "reload" rather than a silent last-write-wins over the other writer's work. */
+  PROFILE_STALE: "This profile was saved by someone else after you opened it. Reload it and re-apply your changes.",
   /** The shared per-IP throttle refused this call (429). The message IS
    *  `RATE_LIMITED_ERROR` — one string, one meaning, wherever the limiter
    *  refuses — and the code is only what lets the client localize it. Distinct
@@ -657,6 +669,17 @@ export const REFUSAL_ERRORS = {
    *  it would send the candidate the same offer/rejection twice. Durable, not
    *  in-process: the check reads the outbox. */
   COMM_ALREADY_RESENT: "Already re-sent. A newer delivery exists for this message.",
+  /** The relay config changed since the editor read it (409). Nothing was written: the
+   *  POST is a full REPLACE (an absent url disables the relay), so a save built on a
+   *  version someone else has since replaced is dropped rather than merged — it used to
+   *  win silently and re-point every candidate-facing message. The CURRENT config rides
+   *  beside the code as DATA so the card can show what is actually stored. */
+  COMMS_RELAY_STALE: "Someone saved a newer relay config. Reload and make your change again.",
+  /** The endpoint failed validation (400) — not https, or an internal/loopback host the
+   *  SSRF guard refuses. The validator's own sentence names WHICH, and rides beside the
+   *  code as `detail`: it is English prose for the log and for API consumers, never the
+   *  thing the card paints. */
+  COMMS_RELAY_INVALID: "That relay endpoint isn't allowed. Use a public https:// URL.",
   /** An approve arrived for a lifecycle that is not at the review gate (409) — a second
    *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
    *  the code as DATA so the panel can say where the case actually is. */

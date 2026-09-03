@@ -187,15 +187,24 @@ back, keyed by the message's `ref` + `kind`:
   (`candidate-timeline.ts` → `toCandidateComm`); parity locked by
   `comms-delivery-truth.test.ts`.
 - **Resend claims are honest** — both resend clients (Dev outbox
-  `ResendButton`, Comms Center `BouncedResend`) split the same **four** outcomes,
-  because `POST /api/comms/[id]/resend` answers `200` for three of them: refused
-  (non-2xx → the server's own reason, resolved from the machine `code`) ▸
+  `ResendButton`, Comms Center `BouncedResend`) read the same **five** outcomes,
+  derived once in `app/_lib/comms-resend-outcome.ts` (`resendOutcome(ok, status,
+  payload)`; the fold used to be duplicated verbatim in both components).
+  `POST /api/comms/[id]/resend` answers `200` for three of them and `409` for two
+  different things: refused (non-2xx → the machine `code`, resolved in the reader's
+  language) ▸ **refused-but-recovered** (`409` carrying `recovered: true`) ▸
   dead-lettered again (`failed`/`bounced`) ▸ **recorded but undeliverable
   (`queued` — no relay configured)** ▸ actually relayed (`sent`). Only the last
-  may say "Resent". `queued` is the one that bit: the relay is a stored,
+  may say "Resent". `queued` is the one that bit first: the relay is a stored,
   UI-editable capability, so it can be gone by the time a recruiter chases a
   bounce raised while it was wired, and a corrected address that never leaves the
-  building must not report green.
+  building must not report green. **Recovered** is the one both buttons were blind
+  to: the route's two de-dup doors refuse a second dispatch precisely *because* the
+  message is already going out, and folding that `409` into the red "Couldn't
+  resend" told a recruiter who double-clicked a bounce that nothing had been sent.
+  It now renders as a calm "already being delivered" line, never in the failure
+  tone, and the button settles instead of inviting a third click. Five outcomes
+  pinned by `app/_lib/comms-resend-outcome.test.ts`.
 - **Resend is throttled and de-duplicated** — `POST /api/comms/[id]/resend` is
   the one door in the outbox loop that spends real email, so it carries a per-IP
   `rateLimit()` (60 per 10 minutes, after the cheap refusals) and answers
@@ -440,8 +449,10 @@ air-gapped.
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
 | `app/api/channels/webhooks` | Recruiter console: list / mint / revoke inbound receivers. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsBouncedResend.tsx`) | Channels tab UI: relay config, Comms Center table, bounce resend. |
-| `app/features/hiring/channels/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+| `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
+| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. |
+| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
+| `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
 ## Channels tab: paging and the render cascade
 
@@ -478,6 +489,26 @@ section are closed:
 - `CommsTable` held back the caption, the column headers and the filters inside
   them behind the same fetch, although all three depend on nothing but client
   state. They now render immediately with a quiet reserved-height body.
+
+**The relay write is versioned, throttled and coded.** Because the POST is a full
+replace, the config carries a `version` that the card echoes as `expectedVersion`
+and `setRelayConfig` re-asserts inside an `IMMEDIATE` transaction: a save composed
+against a config someone else has since replaced is refused (`409
+COMMS_RELAY_STALE`, nothing written, the current config riding beside the code) and
+the card adopts what is actually stored instead of clobbering it — previously the
+last tab to click Save won, silently, and the loser's outbound mail went to the
+wrong endpoint. The door also carries a per-IP `rateLimit()` (30 per 10 minutes,
+after the operator gate): it stores an HMAC signing secret, and open mode makes the
+operator gate a documented no-op, so without it the SSRF guard could be probed one
+candidate host at a time for free. Its 500 answers `safeJsonError` — the thrown
+better-sqlite3/crypto detail goes to the server log, never onto the wire.
+
+**A denied clipboard says so.** The three copy controls on this tab (receiver row,
+setup-guide endpoint chip, careers link) share `useCopyState`. They used to swallow
+the rejection, so a blocked clipboard looked exactly like a successful copy and the
+operator pasted a *stale* endpoint into a forwarding rule — which loses applications
+with no error anywhere. A denial now flips the button to a visible "copy failed —
+select the text" state that stands until the next attempt.
 
 The status vocabulary stays honest through this: `relayConfigured` seeds `true`,
 so a read in flight never accuses a configured relay of dropping mail, and the

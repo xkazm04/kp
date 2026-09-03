@@ -1514,7 +1514,11 @@
     "SCHEDULE_PROPOSALS_INVALID": "Navrhněte prosím 1-3 budoucí termíny ve všední den v pracovní době.",
     "SCHEDULE_NO_BOOKING_YET": "Zatím není potvrzený žádný termín, který byste mohli změnit.",
     "SCHEDULE_SLOT_NOT_OFFERED": "Tento čas není mezi nabízenými termíny. Vyberte prosím ze seznamu.",
-    "SCHEDULE_RESCHEDULE_LIMIT": "Termín pohovoru jste už několikrát měnili. Odpovězte prosím na potvrzovací e-mail a společně najdeme vhodný čas."
+    "SCHEDULE_RESCHEDULE_LIMIT": "Termín pohovoru jste už několikrát měnili. Odpovězte prosím na potvrzovací e-mail a společně najdeme vhodný čas.",
+    "COMMS_RELAY_STALE": "Někdo uložil novější nastavení relay. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "COMMS_RELAY_INVALID": "Tento koncový bod relay není povolený. Použijte veřejnou adresu https://.",
+    "COMMS_RELAY_SAVE_FAILED": "Nastavení relay se nepodařilo uložit. Zkuste to prosím znovu.",
+    "PROFILE_STALE": "Tento profil někdo uložil poté, co jste jej otevřeli. Načtěte jej znovu a změny proveďte znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2314,7 +2318,31 @@
       "self_declared": "vlastní",
       "open_source": "OSS",
       "certification": "cert",
-      "academic": "akademické"
+      "academic": "akademické",
+      "coursework": "výuka",
+      "academic_project": "školní projekt",
+      "thesis": "závěrečná práce",
+      "personal_project": "vlastní projekt",
+      "extracurricular": "mimoškolní"
+    },
+    "skillLevel": {
+      "foundational": "základní",
+      "working": "praktická",
+      "strong": "pokročilá"
+    },
+    "evidenceKind": {
+      "project": "projekt",
+      "thesis": "závěrečná práce",
+      "internship": "stáž",
+      "course": "kurz",
+      "extracurricular": "mimoškolní aktivita",
+      "certification": "certifikace",
+      "job": "zaměstnání",
+      "other": "jiné"
+    },
+    "scoringModel": {
+      "experienced": "zkušený",
+      "early_career": "začínající"
     }
   },
   "pipeline": {
@@ -5030,7 +5058,14 @@
       "aspirations": "Ambice / cílové pozice",
       "aspirationsPlaceholder": "Juniorní frontend vývojář, ML inženýr",
       "working": "Zpracování…",
-      "checkPreview": "Zkontrolovat (náhled)"
+      "checkPreview": "Zkontrolovat (náhled)",
+      "draftAppliedNote": "Návrh byl použit. Nic se neuloží, dokud nekliknete na Uložit.",
+      "draftKeptEdits": "{count, plural, one {Zachovali jsme # vámi upravené pole} few {Zachovali jsme # vámi upravená pole} other {Zachovali jsme # vámi upravených polí}}. Zbytek doplnil návrh.",
+      "draftUseAnyway": "Přesto použít návrh",
+      "draftUndo": "Vrátit návrh zpět",
+      "draftKeep": "Ponechat",
+      "staleSave": "Tento profil někdo uložil poté, co jste jej otevřeli, takže vaše uložení neproběhlo. Nic zde se neztratilo. Načtěte znovu a uvidíte jeho verzi.",
+      "staleReload": "Načíst profil znovu"
     },
     "archetypes": {
       "eyebrow": "Pracovní prostor",
@@ -5089,7 +5124,14 @@
       "saving": "Ukládání…",
       "createArchetype": "Vytvořit archetyp",
       "saveChanges": "Uložit změny",
-      "cancel": "Zrušit"
+      "cancel": "Zrušit",
+      "archiveConfirmTitle": "Vyřadit {label}?",
+      "archiveConfirmCounting": "Zjišťujeme, kolik profilů sem směřuje…",
+      "archiveConfirmBody": "{count, plural, =0 {K tomuto archetypu nyní nesměřuje žádný profil.} one {K tomuto archetypu nyní směřuje # profil.} few {K tomuto archetypu nyní směřují # profily.} other {K tomuto archetypu nyní směřuje # profilů.}}",
+      "archiveConfirmNote": "Vyřazení jej pouze skryje z výběrů. Profily, které sem již směřují, se dál hodnotí podle jeho vah a kdykoli jej můžete obnovit.",
+      "dimSkills": "Dovednosti",
+      "dimCareer": "Kariéra",
+      "dimPersonal": "Osobní"
     },
     "empty": {
       "specimenLabel": "Každý uložený profil obsahuje",
@@ -5168,7 +5210,8 @@
       "statusQueued": "Ve frontě",
       "statusFailed": "Selhalo",
       "statusRecovered": "Napraveno",
-      "statusBounced": "Nedoručeno"
+      "statusBounced": "Nedoručeno",
+      "resendRecovered": "Už se doručuje. Tato zpráva je na cestě."
     },
     "eyebrow": "Studio příjmu",
     "title": "Kudy kandidáti přicházejí",
@@ -5279,7 +5322,8 @@
       "running": "Přijímání…",
       "noJob": "Nejprve vytvořte pozici. Příchozí přihlášky potřebují, kam dorazit.",
       "filed": "Přijali jsme přihlášku {label}, shoda {score}. Zapsáno do stavu Přijato u pozice {role}.",
-      "failed": "Testovací přihlášku se nepodařilo přijmout."
+      "failed": "Testovací přihlášku se nepodařilo přijmout.",
+      "failedStatus": "Testovací přihlášku se nepodařilo přijmout (HTTP {status})."
     },
     "careers": {
       "empty": "Zatím žádné publikované pozice. Publikujte pozici a její odkaz pro přihlášení se objeví tady.",
@@ -5419,7 +5463,8 @@
         "effort": "Asi 5 minut: jeden přijímač na inzerovanou pozici",
         "waiting": "Přijímač je připravený a zatím nedorazily žádné leady. První se do pipeline založí sám."
       }
-    }
+    },
+    "copyFailed": "Kopírování selhalo. Označte text."
   },
   "interviewSim": {
     "eyebrow": "Simulátor pohovoru",

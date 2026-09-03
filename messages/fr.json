@@ -1514,7 +1514,11 @@
     "SCHEDULE_PROPOSALS_INVALID": "Proposez 1-3 créneaux à venir, en semaine et pendant les heures ouvrées.",
     "SCHEDULE_NO_BOOKING_YET": "Aucun horaire confirmé n'est encore à modifier.",
     "SCHEDULE_SLOT_NOT_OFFERED": "Cet horaire ne fait pas partie des créneaux proposés. Merci de choisir dans la liste.",
-    "SCHEDULE_RESCHEDULE_LIMIT": "Vous avez déjà déplacé votre entretien plusieurs fois. Répondez à votre e-mail de confirmation et nous trouverons un créneau ensemble."
+    "SCHEDULE_RESCHEDULE_LIMIT": "Vous avez déjà déplacé votre entretien plusieurs fois. Répondez à votre e-mail de confirmation et nous trouverons un créneau ensemble.",
+    "COMMS_RELAY_STALE": "Quelqu’un a enregistré une configuration de relais plus récente. Rechargez, puis refaites votre modification.",
+    "COMMS_RELAY_INVALID": "Ce point de terminaison de relais n’est pas autorisé. Utilisez une URL https:// publique.",
+    "COMMS_RELAY_SAVE_FAILED": "Impossible d’enregistrer la configuration du relais. Veuillez réessayer.",
+    "PROFILE_STALE": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture. Rechargez-le et réappliquez vos modifications."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2314,7 +2318,31 @@
       "self_declared": "auto",
       "open_source": "OSS",
       "certification": "cert.",
-      "academic": "études"
+      "academic": "études",
+      "coursework": "cours",
+      "academic_project": "projet académique",
+      "thesis": "mémoire",
+      "personal_project": "projet personnel",
+      "extracurricular": "extrascolaire"
+    },
+    "skillLevel": {
+      "foundational": "notions",
+      "working": "opérationnel",
+      "strong": "avancé"
+    },
+    "evidenceKind": {
+      "project": "projet",
+      "thesis": "mémoire",
+      "internship": "stage",
+      "course": "cours",
+      "extracurricular": "activité extrascolaire",
+      "certification": "certification",
+      "job": "emploi",
+      "other": "autre"
+    },
+    "scoringModel": {
+      "experienced": "expérimenté",
+      "early_career": "début de carrière"
     }
   },
   "pipeline": {
@@ -5030,7 +5058,14 @@
       "aspirations": "Aspirations / postes visés",
       "aspirationsPlaceholder": "développeur frontend junior, ingénieur ML",
       "working": "Traitement…",
-      "checkPreview": "Vérifier (aperçu)"
+      "checkPreview": "Vérifier (aperçu)",
+      "draftAppliedNote": "Brouillon appliqué. Rien n'est enregistré tant que vous ne cliquez pas sur Enregistrer.",
+      "draftKeptEdits": "{count, plural, one {# champ que vous aviez modifié a été conservé} other {# champs que vous aviez modifiés ont été conservés}}. Le brouillon a rempli le reste.",
+      "draftUseAnyway": "Utiliser quand même le brouillon",
+      "draftUndo": "Annuler le brouillon",
+      "draftKeep": "Conserver",
+      "staleSave": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture : votre enregistrement n'a donc pas été appliqué. Rien n'est perdu ici. Rechargez pour voir sa version.",
+      "staleReload": "Recharger le profil"
     },
     "archetypes": {
       "eyebrow": "Espace de travail",
@@ -5089,7 +5124,14 @@
       "saving": "Enregistrement…",
       "createArchetype": "Créer un archétype",
       "saveChanges": "Enregistrer les modifications",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "archiveConfirmTitle": "Retirer {label} ?",
+      "archiveConfirmCounting": "Comptage des profils orientés ici…",
+      "archiveConfirmBody": "{count, plural, =0 {Aucun profil n'est actuellement orienté vers cet archétype.} one {# profil est actuellement orienté vers cet archétype.} other {# profils sont actuellement orientés vers cet archétype.}}",
+      "archiveConfirmNote": "Le retrait le masque seulement dans les listes de choix. Les profils déjà orientés ici continuent d'être notés selon ses pondérations, et vous pouvez le restaurer à tout moment.",
+      "dimSkills": "Compétences",
+      "dimCareer": "Parcours",
+      "dimPersonal": "Personnel"
     },
     "empty": {
       "specimenLabel": "Chaque profil enregistré contient",
@@ -5168,7 +5210,8 @@
       "statusQueued": "En file d’attente",
       "statusFailed": "Échec",
       "statusRecovered": "Rattrapé",
-      "statusBounced": "Non distribué"
+      "statusBounced": "Non distribué",
+      "resendRecovered": "Déjà en cours de remise. Ce message est en route."
     },
     "eyebrow": "Studio des entrées",
     "title": "Par où les candidats arrivent",
@@ -5279,7 +5322,8 @@
       "running": "Réception…",
       "noJob": "Créez d’abord un poste. Les candidatures entrantes ont besoin d’une destination.",
       "filed": "{label} reçu, correspondance {score}. Enregistré à « Accepté » sur {role}.",
-      "failed": "Impossible de recevoir une candidature test."
+      "failed": "Impossible de recevoir une candidature test.",
+      "failedStatus": "Impossible de recevoir une candidature test (HTTP {status})."
     },
     "careers": {
       "empty": "Aucun poste publié pour l’instant. Publiez un poste et son lien de candidature apparaîtra ici.",
@@ -5419,7 +5463,8 @@
         "effort": "Environ 5 minutes : un récepteur par poste mis en avant",
         "waiting": "Le récepteur est prêt et aucun lead n’est encore arrivé. Le premier se déposera tout seul dans le pipeline."
       }
-    }
+    },
+    "copyFailed": "Échec de la copie. Sélectionnez le texte."
   },
   "interviewSim": {
     "eyebrow": "Simulateur d’entretien",

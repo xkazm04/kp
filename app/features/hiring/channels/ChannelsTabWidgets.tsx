@@ -4,29 +4,28 @@
 // stat tile. Split out of ChannelsTab.tsx to keep the tab file under the
 // 200-line cap.
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Copy } from "lucide-react";
+import { AlertTriangle, Check, Copy } from "lucide-react";
+import { useCopyState } from "./useCopyState";
 
 export function CopyLink({ url }: { url: string }) {
   const t = useTranslations("channels");
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard blocked */
-    }
-  };
+  // "clipboard blocked" used to be a comment in an empty catch — the recruiter saw
+  // nothing at all and pasted whatever was already on their clipboard into a job ad.
+  // useCopyState surfaces the denial and tells them to select the link instead.
+  const { state, copy } = useCopyState();
+  const failed = state === "failed";
   return (
     <button
       type="button"
-      onClick={copy}
-      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-ink hover:border-coral/40"
+      onClick={() => copy(url)}
+      aria-live="polite"
+      className={`focus-ring inline-flex items-center gap-1 rounded-md border bg-white px-2 py-1 text-xs font-semibold hover:border-coral/40 ${
+        failed ? "border-red-300 text-red-700" : "border-stone-200 text-ink"
+      }`}
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t("copied") : t("copyLink")}
+      {failed ? <AlertTriangle size={12} /> : state === "copied" ? <Check size={12} /> : <Copy size={12} />}{" "}
+      {failed ? t("copyFailed") : state === "copied" ? t("copied") : t("copyLink")}
     </button>
   );
 }
