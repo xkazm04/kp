@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
 import { getUserById } from "@/app/_lib/db/users";
 import { parseFeedbackSubmission, replyEmailFrom } from "@/app/_lib/feedback";
 import { listFeedback, recordFeedback } from "@/app/_lib/feedback-store";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Recruiter feedback door. Workspace-gated by the fail-closed proxy (this route
 // is deliberately NOT in public-routes.ts): in password mode only a signed
@@ -21,7 +22,24 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 // cheap but unmetered free-text storage is a spam / disk-pressure vector on an
 // open-mode deploy, and 10 messages in 10 minutes is far beyond a human's rate.
 //
-// GET — newest-first read for the operator view on /control. Read-only.
+// GET — newest-first read for the operator view on /control. Read-only, and
+// `members:manage`-GATED (/perfect wave 17, api-workspace). It used to require only
+// a session, which on a team deployment meant ANY signed-in member — a viewer, a
+// hiring manager, a recruiter — could ask for 50 rows of their colleagues' free-text
+// complaints WITH the reply address stamped on each one (feedback-store.ts keeps
+// `email`, taken from the author's session). That is other people's words and other
+// people's addresses, and nothing in the product asked for it to be readable by the
+// whole team.
+//
+// `members:manage`, not `org:manage`: this is a read OF the people in the org, which
+// is exactly the capability that already gates the member list and the invite list
+// (app/api/org/invites/route.ts). `org:manage` is owner-only (roles.ts) and would
+// lock out the admin who actually runs the control room — the wrong bar for a read.
+// A recruiter/hiring-manager/viewer is refused with a CODE, so the console renders
+// the refusal in the reader's language instead of the server's English.
+//
+// /control's own feedback section carries the same gate server-side
+// (app/control/page.tsx), so the panel is not rendered only to 403 on load.
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as unknown;
@@ -29,10 +47,15 @@ export async function POST(request: NextRequest) {
   // consumes budget (the contract's servedBefore convention).
   const parsed = parseFeedbackSubmission(body);
   if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.reason, code: "FEEDBACK_INVALID" }, { status: 400 });
+    // The validator names its refusal; the sentence is the catalogs' to write, in
+    // the sender's language (it used to ship its own English `reason` here).
+    return jsonRefusal(parsed.code, 400);
   }
   if (!rateLimit(`feedback:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    // A CODE, not a bare string: without it the dialog fell through to its generic
+    // "couldn't send, try again", so the recruiter retried straight back into the
+    // wall the catalogs already have a sentence for (errors.TOO_MANY_REQUESTS).
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
     const userId = currentUserId(await currentSession());
@@ -57,6 +80,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const denied = await requireCapability("members:manage");
+  // requireCapability answers 401 unauthenticated / 403 under-privileged. Keep its
+  // status, replace its bare English body with the code the console resolves.
+  if (denied) return jsonRefusal("FEEDBACK_READ_FORBIDDEN", denied.status);
   try {
     return NextResponse.json({ feedback: listFeedback(50, await currentWorkspace()) });
   } catch (error) {

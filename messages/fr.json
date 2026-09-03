@@ -1554,7 +1554,9 @@
     "SCHEDULE_PROPOSAL_EXPIRED": "Cet horaire proposé est passé. Demandez de nouveaux créneaux au candidat.",
     "SCHEDULE_NO_PROPOSALS": "Aucun horaire proposé à refuser.",
     "SCHEDULE_NOTHING_TO_RECONCILE": "Il n'y a plus rien à réconcilier sur cet entretien.",
-    "SCHEDULE_MEETING_URL_INVALID": "Saisissez un lien de réunion http(s) valide."
+    "SCHEDULE_MEETING_URL_INVALID": "Saisissez un lien de réunion http(s) valide.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Rédigez un message avant de l’envoyer.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Ce message est trop long. Veuillez le réduire à 2 000 caractères maximum."
   },
   "resilience": {
     "notFoundEyebrow": "404",

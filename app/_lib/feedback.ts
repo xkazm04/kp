@@ -26,9 +26,22 @@ export type FeedbackSubmission = {
 /** What the CLIENT may say: everything in a submission except who wrote it. */
 export type ParsedFeedback = Omit<FeedbackSubmission, "email">;
 
+/** The refusals this validator can produce. Literal array + derived union + a
+ *  runtime guard, the house shape for a closed vocabulary — and each name is a
+ *  key in `REFUSAL_ERRORS` (app/_lib/api-response.ts) with an `errors.<CODE>`
+ *  entry in all four catalogs, so the dialog paints the sender's OWN language
+ *  instead of the English reason this module used to put on the wire. */
+export const FEEDBACK_REFUSALS = ["FEEDBACK_MESSAGE_REQUIRED", "FEEDBACK_MESSAGE_TOO_LONG"] as const;
+
+export type FeedbackRefusalCode = (typeof FEEDBACK_REFUSALS)[number];
+
+export function isFeedbackRefusalCode(value: unknown): value is FeedbackRefusalCode {
+  return typeof value === "string" && (FEEDBACK_REFUSALS as readonly string[]).includes(value);
+}
+
 export type FeedbackParseResult =
   | { ok: true; value: ParsedFeedback }
-  | { ok: false; reason: string };
+  | { ok: false; code: FeedbackRefusalCode };
 
 /** Minimal deliverability shape — one "@" with something on both sides. A full
  *  RFC parse buys nothing here; the address is a courtesy reply channel. */
@@ -47,11 +60,11 @@ export function replyEmailFrom(email: string | null | undefined): string | null 
 export function parseFeedbackSubmission(body: unknown): FeedbackParseResult {
   const b = (body ?? {}) as { message?: unknown; route?: unknown };
   if (typeof b.message !== "string" || b.message.trim() === "") {
-    return { ok: false, reason: "A message is required." };
+    return { ok: false, code: "FEEDBACK_MESSAGE_REQUIRED" };
   }
   const message = b.message.trim();
   if (message.length > FEEDBACK_MESSAGE_MAX) {
-    return { ok: false, reason: `Message is too long (max ${FEEDBACK_MESSAGE_MAX} characters).` };
+    return { ok: false, code: "FEEDBACK_MESSAGE_TOO_LONG" };
   }
 
   // The route is client-supplied display metadata, not authority: accept only a

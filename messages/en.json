@@ -1554,7 +1554,9 @@
     "SCHEDULE_PROPOSAL_EXPIRED": "That proposed time has passed. Ask the candidate to suggest new times.",
     "SCHEDULE_NO_PROPOSALS": "There are no proposed times to decline.",
     "SCHEDULE_NOTHING_TO_RECONCILE": "There's nothing left to reconcile on this interview.",
-    "SCHEDULE_MEETING_URL_INVALID": "Enter a valid http(s) meeting link."
+    "SCHEDULE_MEETING_URL_INVALID": "Enter a valid http(s) meeting link.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Write a message before sending.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "That message is too long. Please shorten it to 2,000 characters or fewer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

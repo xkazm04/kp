@@ -1554,7 +1554,9 @@
     "SCHEDULE_PROPOSAL_EXPIRED": "Dieser vorgeschlagene Termin ist verstrichen. Bitten Sie um neue Terminvorschläge.",
     "SCHEDULE_NO_PROPOSALS": "Es gibt keine vorgeschlagenen Termine zum Ablehnen.",
     "SCHEDULE_NOTHING_TO_RECONCILE": "Bei diesem Interview gibt es nichts mehr abzugleichen.",
-    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein."
+    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Diese Nachricht ist zu lang. Bitte kürzen Sie sie auf höchstens 2.000 Zeichen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -914,6 +914,13 @@ export const REFUSAL_ERRORS = {
   SIM_NO_APPLICANT: "No candidate is available to simulate an application from.",
   SIM_ENTRY_REQUIRED: "The simulation needs a pipeline entry to act on.",
   SIM_ENTRY_NOT_FOUND: "That candidate is not on this board.",
+  /** The recruiter feedback door's two validator refusals (/perfect wave 17,
+   *  shell-nav). parseFeedbackSubmission used to put its own English sentence in
+   *  the 400 body and the limiter answered 429 with no code at all, so the dialog
+   *  showed its generic "could not send" to a throttled sender in every locale. */
+  FEEDBACK_MESSAGE_REQUIRED: "Write a message before sending.",
+  /** Keep the number in step with FEEDBACK_MESSAGE_MAX (app/_lib/feedback.ts). */
+  FEEDBACK_MESSAGE_TOO_LONG: "That message is too long. Please shorten it to 2,000 characters or fewer.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

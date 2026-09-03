@@ -29,7 +29,7 @@ the local SQLite store, and operators read it (read-only) on `/control`.
 
 | Route | Method | Auth | Behavior |
 | --- | --- | --- | --- |
-| `/api/feedback` | POST | workspace-gated (not in `public-routes.ts` — the fail-closed proxy enforces a session in password mode) | Validates via `parseFeedbackSubmission` (refuses, never coerces), then rate-limits per IP (`feedback:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`), then records with the session workspace, the reply address read from the session user (`currentSession` → `getUserById` → `replyEmailFrom`), and the server's own `npm_package_version`. |
+| `/api/feedback` | POST | workspace-gated (not in `public-routes.ts` — the fail-closed proxy enforces a session in password mode) | Validates via `parseFeedbackSubmission` (refuses, never coerces) and answers a refusal as `jsonRefusal(code, 400)`, then rate-limits per IP (`feedback:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`) and answers `jsonRefusal("TOO_MANY_REQUESTS", 429)`, then records with the session workspace, the reply address read from the session user (`currentSession` → `getUserById` → `replyEmailFrom`), and the server's own `npm_package_version`. |
 | `/api/feedback` | GET | workspace-gated | Newest-first list for the current workspace, for `/control`. |
 
 ## Lib surface
@@ -40,6 +40,14 @@ the local SQLite store, and operators read it (read-only) on `/control`.
   has no `email` field at all. `replyEmailFrom` normalises the SERVER-derived
   address separately: an unreadable identity becomes null rather than blocking
   the report.
+  A refusal carries a CODE and nothing else — `FEEDBACK_REFUSALS`
+  (`FEEDBACK_MESSAGE_REQUIRED`, `FEEDBACK_MESSAGE_TOO_LONG`), each registered in
+  `REFUSAL_ERRORS` with an `errors.<CODE>` entry in all four catalogs. The
+  validator used to put its own English sentence in the 400 body, and the 429
+  carried no code at all, so `FeedbackDialog` (which resolves `code` through
+  `useErrorMessage`) painted its generic "could not send" at a throttled sender
+  and sent them straight back into the same wall. Pinned by
+  `app/_lib/feedback.test.ts`.
 - `app/_lib/feedback-store.ts` — SQL only: `recordFeedback`, `listFeedback`,
   both workspace-scoped.
 

@@ -1554,7 +1554,9 @@
     "SCHEDULE_PROPOSAL_EXPIRED": "Tento navržený čas už uplynul. Požádejte kandidáta o nové termíny.",
     "SCHEDULE_NO_PROPOSALS": "Nejsou tu žádné navržené časy k odmítnutí.",
     "SCHEDULE_NOTHING_TO_RECONCILE": "U tohoto pohovoru už není co srovnávat.",
-    "SCHEDULE_MEETING_URL_INVALID": "Zadejte platný odkaz na schůzku (http nebo https)."
+    "SCHEDULE_MEETING_URL_INVALID": "Zadejte platný odkaz na schůzku (http nebo https).",
+    "FEEDBACK_MESSAGE_REQUIRED": "Před odesláním napište zprávu.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Zpráva je příliš dlouhá. Zkraťte ji prosím na nejvýše 2 000 znaků."
   },
   "resilience": {
     "notFoundEyebrow": "404",
