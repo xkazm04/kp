@@ -324,7 +324,10 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // state: ONE kill-switch + promote-floor and ONE decision log — the sibling of
   // `scheduler`, not per-tenant customer data.
   "dev_control", // autonomy kill-switch + promote-floor (key/value, deployment control)
-  "dev_audit", // the orchestrator's immutable auto/human decision log
+  "dev_audit", // the orchestrator's immutable auto/human decision log. Since wave 21 the
+  // rows carry a workspace_id and the control room LISTS by it (kill-switch rows stay
+  // global) - the column is a listing filter over one deployment-level log, so the
+  // table stays exempt rather than becoming a scoped customer table.
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal
