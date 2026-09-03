@@ -924,3 +924,44 @@ Now (`DecisionsModals.tsx`, `DecisionsGroupEvalRejectModal.tsx`):
 
 Advance is untouched and still one click — this is a bulk-review surface, and
 friction that buys nothing is its own defect.
+
+### The comparison tells the same truth in both of its views
+
+Built /perfect 2026-09-03 (`group-eval-ui`). The modal renders one of two views:
+the enriched comparison table when at least one candidate carries a recruiter
+score breakdown (`isEnriched`, `groupEval/groupEvalSession.ts`), and the compact
+legacy view for everything else — a job-less role, an eval saved before the
+breakdown existed, the simulation's loading payload. They had drifted apart:
+
+- **The knock-out is one rule, stated in both.** The enriched header enforces
+  "KO takes precedence over the crown"; the legacy view rendered no KO pill at
+  all, so a candidate who FAILED a knock-out read there as an ordinary
+  contender. Both now call `koFailed()` (`groupEval/groupEvalHelpers.ts`), which
+  is explicit-`false` only: an absent flag means "never assessed", not "failed".
+- **A failed cache probe is disclosed before it costs anything.**
+  `openGroupEval` probes `GET /api/decisions/group-eval?role=<key>` before
+  spending. A probe that FAILED (offline, a 500, an unparseable body) used to be
+  indistinguishable from a miss and fell straight through to a fresh paid run —
+  the full ≤8-process pipeline. It now surfaces
+  `decisions.evalCacheProbeFailed` ("we couldn't check whether a saved
+  comparison exists — re-running starts a new AI run") and leaves the spend to
+  the recruiter, who takes it with the modal's own **Re-run** button.
+- **The read route answers with a code**, not with the thrown message:
+  `safeJsonError(..., "GROUP_EVAL_READ_FAILED")`, so the modal renders it in the
+  reader's language (its row is deleted from the `error-response-contract`
+  ceiling).
+- **The per-candidate strip is a real tablist.** One tab stop (roving
+  `tabindex`), ←/→/↑/↓ + Home/End, `aria-controls`/`aria-labelledby` and a
+  focusable panel; the movement rule is the pure reducer
+  `groupEval/groupEvalTabKeys.ts`. Before this a keyboard user reached the
+  eighth candidate only by tabbing through seven tabs and the advance/reject
+  buttons behind each.
+- **The weighting matrix's scheme initials are copy, not code**
+  (`schemeSkillsShort` / `schemeCareerShort` / `schemePersonalShort` ×4
+  locales): "S · C · P" spells skills/career/personal only in English.
+
+The modal's surfaces now compose `app/_components/ui/recipes.ts` (the amber
+advisory is one `Notice` primitive instead of four hand-rolled blocks; the quiet
+pill is `CHIP_QUIET`, the section titles `META_LABEL`, the AI verdict
+`PANEL_SUNKEN`), and the "not measured" dash moved off `text-stone-300`, which
+was all but invisible in Spark Dark.

@@ -60,6 +60,10 @@ export const STORE_ERRORS = {
   INTAKE_PROMOTE_FAILED: "Could not create the JD from this brief. Please try again.",
   // Recruiter-side analyzed-candidates read (biz-ui scan 2026-06-12 #1).
   JD_ANALYSES_FAILED: "Could not load candidates for this JD. Please try again.",
+  // The saved group-evaluation read (/perfect 2026-09-03, group-eval-ui): better-sqlite3
+  // plus a JSON.parse of the persisted payload, so the thrown message carries the db path
+  // or parser detail. The Decisions modal shows it verbatim, hence the code.
+  GROUP_EVAL_READ_FAILED: "Could not load the saved comparison. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
   TEMPLATE_LOAD_FAILED: "Could not load the template. Please try again.",
   TEMPLATE_CREATE_FAILED: "Could not save the template. Please try again.",

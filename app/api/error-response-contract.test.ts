@@ -219,7 +219,10 @@ const LEAK_CEILING = new Map<string, number>([
   // pipeline-composer): the 500 answers safeJsonError(..., "DECISION_CONFIG_SAVE_FAILED")
   // and both 400s are jsonRefusal codes, so the Hiring composer resolves them in the
   // reader's language. The row is deleted so the win is locked.
-  ["decisions/group-eval/route.ts", 1],
+  // decisions/group-eval's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
+  // group-eval-ui): the 500 answers safeJsonError(..., "GROUP_EVAL_READ_FAILED"), so the
+  // Decisions modal resolves it in the reader's language. The row is deleted so the win
+  // is locked.
   ["decisions/screen-wave/route.ts", 1],
   // The ten devcase rows that stood here (thirteen leaks across comms, control,
   // inbound, lifecycle + its [id]/approve, [id]/close, [id]/redesign, outcomes,

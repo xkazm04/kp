@@ -11,7 +11,7 @@ import {
   SkillCell,
   SkillsLegend,
 } from "@/app/features/hiring/decisions/groupEval/GroupEvalComparisonCells";
-import { buildDimRows, coverageCount, percentOf, rowLeader, type DimRow } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { buildDimRows, coverageCount, koFailed, percentOf, rowLeader, type DimRow } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
 import { useMatchLabels } from "@/app/features/shared/matchLabels";
 import { computeSalaryScale } from "@/app/features/hiring/decisions/groupEval/groupEvalSalaryScale";
 import { Avatar, Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
@@ -35,7 +35,7 @@ function CandidateHeader({ c, rank, isLead, tiedLead }: { c: EvalCandidate; rank
             never suppress the KO pill. isLead is only ever true when the server
             actually crowned a lead (see `hasLead`), so a legitimate lead never hits
             the KO branch. */}
-        {c.koPassed === false ? (
+        {koFailed(c) ? (
           <Pill tone="coral">{t("ko")}</Pill>
         ) : isLead ? (
           // The crown, and — when the payload says so — the hedge that belongs beside

@@ -16,7 +16,11 @@ export { SalaryCell, type SalaryScale } from "./GroupEvalSalaryCell";
 
 // ---- Value cells of the comparison table (one candidate column each) -------
 
-export const Dash = () => <span className="text-stone-300">—</span>;
+// "Not measured" must still be READABLE: stone-300 sits at ~1.5:1 on the dark
+// theme's surface, so the honest dash the score cells rely on all but vanished
+// exactly where a reader needs to tell "absent" from "zero". text-steel is the
+// muted-but-legible neutral in both themes.
+export const Dash = () => <span className="text-steel">—</span>;
 
 export function FitCell({ c }: { c: EvalCandidate }) {
   const fitLabels = useFitTierLabels();
@@ -132,7 +136,7 @@ export function SkillCell({ skill, c }: { skill: string; c: EvalCandidate }) {
     );
   }
   return (
-    <span className="inline-flex items-center text-stone-300" title={t("notApplicableTitle")} aria-label={t("notApplicableAria")}>
+    <span className="inline-flex items-center text-steel" title={t("notApplicableTitle")} aria-label={t("notApplicableAria")}>
       <Minus size={16} aria-hidden />
     </span>
   );
