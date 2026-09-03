@@ -78,6 +78,9 @@ export function useAutomationPass(onCommitted?: () => void) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [committed, setCommitted] = useState<PassSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The commit refusal as the route answered it (code + capability), for the modal
+  // to resolve in the reader's language - `error` above stays the dock's own line.
+  const [commitError, setCommitError] = useState<{ code?: string | null; capability?: string | null } | null>(null);
 
   const dryRun = useCallback(async () => {
     setBusy(true);
@@ -119,6 +122,7 @@ export function useAutomationPass(onCommitted?: () => void) {
   const commit = useCallback(async () => {
     setBusy(true);
     setError(null);
+    setCommitError(null);
     try {
       const r = await fetch("/api/automation/run", { method: "POST" });
       const p = await r.json().catch(() => null);
@@ -129,6 +133,12 @@ export function useAutomationPass(onCommitted?: () => void) {
         onCommitted?.();
       } else {
         setError(t("errorRun"));
+        // Carry the machine half to the modal: a capability refusal has a reason and
+        // a named permission, where "the pass could not run" has neither.
+        setCommitError({
+          code: typeof p?.code === "string" ? p.code : null,
+          capability: typeof p?.capability === "string" ? p.capability : null,
+        });
       }
     } catch {
       setError(t("errorNetwork"));
@@ -141,9 +151,10 @@ export function useAutomationPass(onCommitted?: () => void) {
     setPreview(null);
     setCommitted(null);
     setError(null);
+    setCommitError(null);
   }, []);
 
-  return { busy, preview, entries, committed, error, dryRun, commit, dismiss };
+  return { busy, preview, entries, committed, error, commitError, dryRun, commit, dismiss };
 }
 
 /** Publish the deck's live height to `--sim-bar-h` so the surfaces that have to

@@ -7,6 +7,8 @@ import { Badge } from "@/app/_components/Badge";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { providerNeedsExplicitModel } from "@/app/_lib/llm-model-defaults";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
 import { useTestReason, type ModelsTestVerdict } from "./modelsTestReason";
 
@@ -41,6 +43,7 @@ export function ModelsKeyRow({
   const t = useTranslations("models.keys");
   const format = useFormatter();
   const reasonFor = useTestReason();
+  const errMsg = useErrorMessage();
   const [testing, setTesting] = useState(false);
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
   // Revealed either by the provider needing a model up front, or by the server
@@ -62,7 +65,7 @@ export function ModelsKeyRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: entry.provider, scope: entry.scope, ...(model.trim() ? { model: model.trim() } : {}) }),
       });
-      const verdict = (await r.json().catch(() => null)) as ModelsTestVerdict | null;
+      const verdict = (await r.json().catch(() => null)) as (ModelsTestVerdict & { capability?: string }) | null;
       if (r.ok && verdict?.ok === true) {
         const tested = verdict.model ?? label;
         setNote({
@@ -77,7 +80,12 @@ export function ModelsKeyRow({
       // The server's own `error` text is never rendered: the reason comes from
       // the machine code it classified (modelsTestReason.ts).
       if (verdict?.code === "model_required") setAskModel(true);
-      setNote({ ok: false, text: reasonFor(verdict, t("testFailed")) });
+      // Two vocabularies meet here: the canary's own codes (modelsTestReason) and
+      // the API's refusal codes. The door is capability-gated (org:manage), and a
+      // refused seat carried NO canary code, so every viewer read a flat "Test
+      // failed" - the API code is the fallback under the canary one now, and a
+      // capability refusal names the permission it wanted.
+      setNote({ ok: false, text: reasonFor(verdict, capabilityAwareReason(errMsg, verdict, t("testFailed"))) });
     } catch {
       setNote({ ok: false, text: t("testFailed") });
     } finally {

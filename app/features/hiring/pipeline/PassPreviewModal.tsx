@@ -3,6 +3,8 @@
 import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
 import { usePassReasonText } from "./passReasonText";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
@@ -29,20 +31,30 @@ type Preview = {
 // Art. 22). The would-be rejects still render first and loudest: they are the
 // rows that will land in the recruiter's approval queue, and the reason each one
 // carries says so ("Would be queued for approval: …").
+/** A refused commit, as the machine half the route answered with (never its English
+ *  sentence). gated-doors-clients-read-the-refusal: POST /api/automation/run is
+ *  capability-gated, and this modal - the screen the commit button lives on - said
+ *  nothing at all when the gate refused; the click simply did nothing. */
+export type PassCommitRefusal = { code?: string | null; capability?: string | null } | null;
+
 export function PassPreviewModal({
   preview,
   entries,
   committing,
+  commitError,
   onCommit,
   onClose,
 }: {
   preview: Preview;
   entries: Entry[];
   committing: boolean;
+  /** The last commit refusal, resolved to the reader's language here. */
+  commitError?: PassCommitRefusal;
   onCommit: () => void;
   onClose: () => void;
 }) {
   const t = useTranslations("pipeline.tab");
+  const errMsg = useErrorMessage();
   // The sealed English `reason` is the fallback; the structured code renders localized.
   const passReason = usePassReasonText();
   const labelById = new Map(entries.map((e) => [e.id, e.candidateLabel]));
@@ -83,6 +95,14 @@ export function PassPreviewModal({
       onClose={onClose}
       footer={
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          {/* A refused commit is named on the screen that asked for it, from its CODE
+              in the reader's language - a capability refusal also names the
+              permission the operator has to ask for. */}
+          {commitError ? (
+            <p role="alert" className="mr-auto basis-full text-sm font-semibold text-coral">
+              {capabilityAwareReason(errMsg, commitError, t("previewCommitFailed"))}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={onClose}
