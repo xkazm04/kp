@@ -16,7 +16,12 @@ career-switcher) that other features key off. Downstream ranking is
   all in the same folder, driven by `app/_lib/apply-intake.ts` and `app/_lib/apply.ts`.
 - **Quick apply** — `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/quick/route.ts`.
 - **Profile editor** — `app/features/tools/profile/ProfileEditor.tsx` (+ `ProfileEditorFields.tsx`,
-  `ProfileEditorArchetypeOptions.tsx`).
+  `ProfileEditorArchetypeOptions.tsx`, `useProfileEditorFields.ts`,
+  `useProfileEditorSubmit.ts`, `profileDraftMerge.ts`). Skill level, provenance,
+  evidence kind and an archetype's scoring model all display through
+  `useEnumLabel` (`enums.*`, 4 locales) — the wire values stay canonical English
+  because the Python scorer branches on them; a new archetype's dimension labels
+  are seeded from the catalog rather than hardcoded English.
 - **Archetypes tab** (`?tab=archetypes`; renamed from `?tab=profile`, which still
   resolves via `LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) —
   `app/features/tools/profile/ProfileTab.tsx`. It carries the archetype registry
@@ -383,7 +388,46 @@ field → save"). `useProfileEditorSubmit` therefore remembers the id the FIRST
 create-mode save returned and PUTs to it on every later save in the same session;
 without that, each pass through the loop POSTed again and each POST inserts, so
 one candidate accumulated a row per click. A `persist:false` preview never claims
-an id (it writes nothing).
+an id (it writes nothing). `profileEditorContracts.test.ts` pins that decision
+(and the deep-link precedence below) at the source level, proved non-vacuous
+against a mutated copy of each hook.
+
+**An AI draft merges; it no longer replaces.** Running "Draft with AI" inside the
+open editor used to set every field from the draft, so a recruiter who had typed
+half the intake first lost it with no diff, no confirm and no undo — while the
+tab-level rebuild path guarded exactly this with a divergence check and a warn
+modal. `mergeDraft` (`profileDraftMerge.ts`, pure, pinned by
+`profileDraftMerge.test.ts`) is that idiom inside the editor: a field the
+recruiter changed **since the form loaded** wins over a differing draft value
+(including a draft that would blank it), every such field is counted back to the
+recruiter, and the panel offers "use the draft anyway" plus a one-click undo to
+the pre-draft form. The form state is therefore one object
+(`ProfileFormState`) rather than seventeen `useState`s; the per-field setters are
+derived from it.
+
+The draft itself runs as the background task kind `profile_draft`; the synchronous
+`POST /api/profile/draft` is the same `runProfileDraft` behind an operator gate and
+a 20/10min per-IP `rateLimit()` (pinned by `rate-limit-contract.test.ts`) — it
+spawns a paid model child, and until then it was the one door to that spend with
+neither guard.
+
+**A save carries a version.** `GET /api/profile?id=` returns `updatedAt` (the
+row's content-write stamp) beside the payload; the editor sends it back as
+`expectedUpdatedAt` and `updateProfile` re-asserts it in the UPDATE's `WHERE`
+(`app/_lib/db/profiles.ts`). Zero rows changed ⇒ `jsonRefusal("PROFILE_STALE",
+409)` ⇒ the editor shows a reload affordance in the reader's language, with the
+typed form left intact. Omitting the field keeps the previous unconditional write
+(the GDPR anonymize pass and scripted callers). The save spans a Python spawn, so
+this is the compensating-precondition half of the repo's read→compute→write rule
+— `profiles-stale-cas.test.ts` proves a silent lost update without it. A
+successful PUT returns the row's new `updatedAt` so the stay-open save loop keeps
+working; `ProfileTab` keys the editor on `mode:id:nonce` so re-opening the SAME
+profile after a refusal genuinely remounts on the fresh payload.
+
+**An abandoned intake survives Back and refresh.** The editor backs its form up to
+`sessionStorage` per profile id (`kp.profileEditor.<id|new>`), restores it after
+mount, and drops it on save or cancel. Every access is wrapped — a private window
+or a full quota costs the safety net, never the edit.
 
 The roster's per-column controls live in the pure `profileRosterView.ts`
 (filter/sort) — the name search folds diacritics and case (`foldForSearch`, the
@@ -420,6 +464,12 @@ no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
 manual review**. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
+
+**Retiring an archetype asks first.** `Retire` used to pull the archetype out of
+every picker on one click with no question and no blast radius. It now opens
+`ArchetypeArchiveConfirmModal`, which names how many profiles currently route
+there (counted from `GET /api/profile`, shown as pending until the read lands —
+never a guessed zero) and states that retiring only hides it from the pickers.
 
 **Registry edits (the write boundary).** The Archetype admin UI writes
 `archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
@@ -539,7 +589,7 @@ Two things on `/status/[token]` that only a test can hold:
 | Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
 | Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
-| Archetype admin UI | `app/features/tools/profile/ArchetypeManager.tsx` + `ArchetypeManagerEditPanel.tsx`/`ArchetypeManagerList.tsx` |
+| Archetype admin UI | `app/features/tools/profile/ArchetypeManager.tsx` + `ArchetypeManagerEditPanel.tsx`/`ArchetypeManagerList.tsx`/`ArchetypeManagerViewPanel.tsx`/`ArchetypeArchiveConfirmModal.tsx` |
 | GitHub evidence | `app/_lib/github-evidence.ts`, `github-handle.ts`, `github-summary.ts`, `repo-activity.ts`, `repo-snapshot.ts` |
 | GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
 | Signal display | `app/_components/Badge.tsx`, `PotentialBadge.tsx`, `FactorChart.tsx`, `ScoreDial.tsx`, `ScoreBadge.tsx`, `ScoreProvenanceLabel.tsx` |

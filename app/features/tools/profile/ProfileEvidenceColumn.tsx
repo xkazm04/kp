@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useTranslations } from "next-intl";
 import type { SkillRow, EvidenceRow } from "@/app/features/shared/profileTypes";
 import { SKILL_LEVELS, PROVENANCE, EVIDENCE_KINDS } from "@/app/features/shared/profileTypes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { Section, Input, Select, Textarea, AddBtn, RemoveBtn, upd } from "./ProfileFields";
 import { rowId } from "./ProfileForm";
 import { FIELD_DOM_ID } from "./profileCompletenessFields";
@@ -18,6 +19,12 @@ export function ProfileEvidenceColumn({
   setEvidence: Dispatch<SetStateAction<EvidenceRow[]>>;
 }) {
   const t = useTranslations("profile.evidence");
+  // The three option lists printed their canonical WIRE values — "self_declared",
+  // "foundational", "extracurricular" — straight into the dropdowns, so a Czech
+  // recruiter picked evidence provenance out of raw English snake_case. The values
+  // stay canonical (the Python scorer branches on them); only the label is resolved,
+  // through the same `enums.*` namespace the rest of the recruiter surface uses.
+  const enumLabel = useEnumLabel();
   return (
     <div className="space-y-4">
       <Section title={t("skillsTitle")} id={FIELD_DOM_ID.skills}>
@@ -35,14 +42,14 @@ export function ProfileEvidenceColumn({
                 onChange={(v) => setSkills(upd(skills, i, { level: v }))}
                 ariaLabel={t("skillLevelAria")}
                 className="px-1 text-sm"
-                options={SKILL_LEVELS.map((l) => ({ value: l, label: l }))}
+                options={SKILL_LEVELS.map((l) => ({ value: l, label: enumLabel("skillLevel", l) }))}
               />
               <Select
                 value={s.provenance}
                 onChange={(v) => setSkills(upd(skills, i, { provenance: v }))}
                 ariaLabel={t("skillProvenanceAria")}
                 className="px-1 text-sm"
-                options={PROVENANCE.map((p) => ({ value: p, label: p }))}
+                options={PROVENANCE.map((p) => ({ value: p, label: enumLabel("provenance", p) }))}
               />
               <RemoveBtn onClick={() => setSkills(skills.filter((_, j) => j !== i))} />
             </div>
@@ -61,7 +68,7 @@ export function ProfileEvidenceColumn({
                   onChange={(v) => setEvidence(upd(evidence, i, { kind: v }))}
                   ariaLabel={t("evidenceKindAria")}
                   className="px-1 text-sm"
-                  options={EVIDENCE_KINDS.map((k) => ({ value: k, label: k }))}
+                  options={EVIDENCE_KINDS.map((k) => ({ value: k, label: enumLabel("evidenceKind", k) }))}
                 />
                 <Input
                   value={e.title}

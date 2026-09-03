@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analysisLineageSource } from "@/app/_lib/db/analyses";
@@ -102,7 +103,16 @@ export async function GET(request: NextRequest) {
       // `divergence` lets the rebuild flow (ProfileTab) detect a profile hand-edited
       // AFTER it was built from its analysis and warn before re-hydrating from the
       // analysis dump — so the recruiter's edits are never silently clobbered.
-      return NextResponse.json({ profile: { ...rec.row, payload: rec.payload }, divergence: profileDivergence(id, ws) });
+      // `updatedAt` is the row's content-write stamp — the version token the editor
+      // sends back as `expectedUpdatedAt` on its PUT so a save can be refused instead
+      // of overwriting someone else's. It is the same column `divergence.editedAt`
+      // reports, read once here rather than twice.
+      const divergence = profileDivergence(id, ws);
+      return NextResponse.json({
+        profile: { ...rec.row, payload: rec.payload },
+        divergence,
+        updatedAt: divergence?.editedAt ?? null,
+      });
     }
     // The list carries a `stale` map (profile id → newer analysis) alongside the
     // rows so the roster / Match candidate select can flag "a newer CV analysis
@@ -164,6 +174,12 @@ export async function PUT(request: NextRequest) {
       // re-pointed at. Refreshes the profile's lineage (clearing its staleness); a
       // plain edit omits it and updateProfile leaves the existing lineage untouched.
       sourceAnalysisSlug?: string;
+      // OPTIMISTIC CONCURRENCY: the `updated_at` the client read (GET carries it as
+      // `updatedAt`). Re-asserted inside the UPDATE's WHERE, so a save computed
+      // against a version that has since been replaced is REFUSED rather than
+      // silently winning the race. Omitted by a legacy/scripted caller → the previous
+      // unconditional overwrite, unchanged.
+      expectedUpdatedAt?: string | null;
     };
     if (!body.id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
@@ -182,8 +198,15 @@ export async function PUT(request: NextRequest) {
     }
     const { data } = outcome;
 
-    const ok = updateProfile(body.id, persistFieldsFrom(data), ws);
+    const expected = typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : undefined;
+    const ok = updateProfile(body.id, persistFieldsFrom(data), ws, expected);
     if (!ok) {
+      // The row was proved to exist above, so with a precondition in play a zero-row
+      // UPDATE means exactly one thing: someone saved this profile between that read
+      // and this write. Answer the LOST UPDATE honestly (409 + a code the editor
+      // resolves in the reader's language) instead of a 404 that says the profile is
+      // gone, or a 200 that quietly discards the other writer's work.
+      if (expected) return jsonRefusal("PROFILE_STALE", 409);
       return NextResponse.json({ error: "Profile not found." }, { status: 404 });
     }
     // A rebuild re-stamps lineage onto the SAME row (no duplicate profile), pointing
@@ -191,7 +214,10 @@ export async function PUT(request: NextRequest) {
     // never touches lineage, so this explicit step is the only refresh path.
     const lineage = resolveLineage(body.sourceAnalysisSlug, ws);
     if (lineage) setProfileLineage(body.id, lineage, ws);
-    return NextResponse.json({ ...data, saved: { id: body.id } });
+    // Hand back the row's NEW version stamp so the still-open editor can keep saving
+    // ("save → click a completeness gap → fill it → save" is the designed loop) without
+    // its own previous write looking like someone else's.
+    return NextResponse.json({ ...data, saved: { id: body.id, updatedAt: profileDivergence(body.id, ws)?.editedAt ?? null } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Profile update failed.";
     return NextResponse.json({ error: message }, { status: 500 });

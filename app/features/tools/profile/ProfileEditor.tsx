@@ -21,13 +21,18 @@ export function ProfileEditor({
   mode,
   editingId,
   initialPayload,
+  initialUpdatedAt,
   sourceAnalysisSlug,
   archetypes,
   onCancel,
+  onReload,
 }: {
   mode: EditorMode;
   editingId: string | null;
   initialPayload: ProfilePayload | null;
+  /** The row's `updated_at` at the moment this editor was opened. Rides into the PUT
+   *  so a save that would clobber a newer version is refused instead. */
+  initialUpdatedAt?: string | null;
   /** When the editor was opened FROM a saved CV analysis (build-from-analysis or a
    *  rebuild-from-latest), the slug of that analysis. Carried into the save so the
    *  route stamps source lineage; the recruiter still reviews before saving. */
@@ -35,6 +40,8 @@ export function ProfileEditor({
   /** Live archetype registry (ProfileTab's /api/archetypes fetch) — drives the routing segments. */
   archetypes: ArchetypeDef[];
   onCancel: () => void;
+  /** Re-open this profile from the server — the answer to a refused (stale) save. */
+  onReload?: () => void;
 }) {
   const t = useTranslations("profile.editor");
   const router = useRouter();
@@ -65,9 +72,24 @@ export function ProfileEditor({
     skills, setSkills,
     evidence, setEvidence,
     applyDraft,
-  } = useProfileEditorFields(initialPayload);
+    acceptDraftFully,
+    undoDraft,
+    dismissDraftNotice,
+    draftApplied,
+    draftConflicts,
+    clearBackup,
+  } = useProfileEditorFields(initialPayload, editingId);
 
-  const { result, loading, error, build: submit } = useProfileEditorSubmit({ t, mode, editingId, sourceAnalysisSlug });
+  const { result, loading, error, stale, build: submit } = useProfileEditorSubmit({
+    t,
+    mode,
+    editingId,
+    sourceAnalysisSlug,
+    initialUpdatedAt,
+    // A persisted intake no longer needs its crash-safety copy; keeping it would
+    // resurrect the saved form the next time this profile is opened.
+    onPersisted: clearBackup,
+  });
 
   // Routing segments are REGISTRY-driven, not the static baseline list — see
   // ProfileEditorArchetypeOptions.tsx for why.
@@ -112,7 +134,12 @@ export function ProfileEditor({
       <header className="border-b border-stone-200 pb-4">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            // Leaving is a decision, not a crash — drop the restore copy so the next
+            // visit starts from the profile, not from an abandoned draft.
+            clearBackup();
+            onCancel();
+          }}
           className="focus-ring -ml-1 inline-flex items-center gap-1 rounded text-sm font-semibold text-steel hover:text-coral"
         >
           <ArrowLeft size={14} /> {t("back")}
@@ -124,6 +151,44 @@ export function ProfileEditor({
       </header>
 
       <ProfileEditorAiDraft onApplied={applyDraft} />
+
+      {/* What the draft was and was NOT allowed to touch. Before this, applyDraft set
+          every field: a recruiter who had typed half the intake and then ran the draft
+          lost it with no diff and no way back. The tab-level rebuild path has warned
+          about exactly this since it shipped (ProfileTabRebuildWarnModal); this is the
+          same idiom inside the editor, plus a one-click undo. */}
+      {draftApplied ? (
+        <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm text-amber-800">
+            {draftConflicts.length ? t("draftKeptEdits", { count: draftConflicts.length }) : t("draftAppliedNote")}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {draftConflicts.length ? (
+              <button
+                type="button"
+                onClick={acceptDraftFully}
+                className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
+              >
+                {t("draftUseAnyway")}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={undoDraft}
+              className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
+            >
+              {t("draftUndo")}
+            </button>
+            <button
+              type="button"
+              onClick={dismissDraftNotice}
+              className="focus-ring h-8 rounded-md px-3 text-sm font-semibold text-steel hover:text-ink"
+            >
+              {t("draftKeep")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
         <ProfileEditorFields
@@ -186,6 +251,26 @@ export function ProfileEditor({
         </button>
       </div>
 
+      {/* A refused save is not an error the recruiter can retry into — the row moved.
+          Say so, and offer the only action that resolves it. The form is left exactly
+          as typed so nothing is lost before they choose. */}
+      {stale ? (
+        <div role="alert" className="mt-3 rounded-md bg-amber-50 p-3 text-base text-amber-800">
+          <p>{t("staleSave")}</p>
+          {onReload ? (
+            <button
+              type="button"
+              onClick={() => {
+                clearBackup();
+                onReload();
+              }}
+              className="focus-ring mt-2 h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
+            >
+              {t("staleReload")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
       {result ? (
         <ResultPanel

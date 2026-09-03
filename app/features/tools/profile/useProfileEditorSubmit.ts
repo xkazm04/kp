@@ -16,8 +16,16 @@ export function useProfileEditorSubmit(args: {
   mode: "create" | "edit";
   editingId: string | null;
   sourceAnalysisSlug?: string | null;
+  /** The row's `updated_at` as the editor LOADED it (GET /api/profile?id= carries it).
+   *  Rides into every PUT as `expectedUpdatedAt`; the store re-asserts it in the
+   *  UPDATE's WHERE, so a save computed against a version someone else has already
+   *  replaced is refused (409) instead of quietly winning the race. */
+  initialUpdatedAt?: string | null;
+  /** Called once a save actually persisted — the editor drops its sessionStorage
+   *  backup there, so a finished intake never springs back into the next session. */
+  onPersisted?: () => void;
 }) {
-  const { t, mode, editingId, sourceAnalysisSlug } = args;
+  const { t, mode, editingId, sourceAnalysisSlug, initialUpdatedAt, onPersisted } = args;
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
@@ -34,6 +42,14 @@ export function useProfileEditorSubmit(args: {
   // PUT it always meant to be. Never set from a persist:false preview (which writes
   // nothing), and irrelevant in edit mode, which already has an editingId.
   const [createdId, setCreatedId] = useState<string | null>(null);
+  // The version this editor is allowed to overwrite. Seeded from the load, advanced by
+  // every successful save (so the "save -> fill a gap -> save again" loop keeps working),
+  // and null for a create, which INSERTs and has nothing to race.
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(initialUpdatedAt ?? null);
+  // True once the server refused a save because the row moved underneath it. The editor
+  // answers with a reload affordance rather than an error string: the recruiter's own
+  // text is still on screen and must not be thrown away by the message explaining it.
+  const [stale, setStale] = useState(false);
 
   const build = async (
     persist: boolean,
@@ -68,16 +84,32 @@ export function useProfileEditorSubmit(args: {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          isEdit ? { id: targetId, profile, signals, ...lineage } : { profile, signals, persist, ...lineage }
+          isEdit
+            ? { id: targetId, profile, signals, expectedUpdatedAt, ...lineage }
+            : { profile, signals, persist, ...lineage }
         ),
       });
       const payload = await r.json();
+      // The lost-update refusal is not a generic failure: the row was saved by someone
+      // (or another tab) after this editor read it, so the honest answer is "reload to
+      // see theirs", never a red sentence over a form still holding unsaved text.
+      if (r.status === 409 && (payload as { code?: string }).code === "PROFILE_STALE") {
+        setStale(true);
+        return;
+      }
       if (!r.ok) throw new Error(errMsg(payload, t("buildFailedStatus", { status: r.status })));
       const built = payload as BuildResult;
       setResult(built);
       if (persist) {
         // Pin the created row so the NEXT save updates it instead of inserting again.
         if (!targetId && built.saved?.id) setCreatedId(built.saved.id);
+        // Advance the version guard to what we just wrote, so the next save in this
+        // session is checked against OUR write rather than a stamp from before it.
+        // `saved` is typed in app/features/shared/profileTypes as `{ id }`; the route
+        // also returns the row's fresh `updated_at` beside it. Read it through a local
+        // widening rather than editing the shared type from this lot.
+        setExpectedUpdatedAt((built.saved as { id: string; updatedAt?: string | null } | null | undefined)?.updatedAt ?? null);
+        onPersisted?.();
         // Stay on the editor and surface the saved result panel — its "Match now"
         // CTA is the one-click build→match loop. (Previously this navigated straight
         // back to the list, so running a match meant 4 clicks across tabs.) The Back
@@ -91,5 +123,5 @@ export function useProfileEditorSubmit(args: {
     }
   };
 
-  return { result, loading, error, build };
+  return { result, loading, error, stale, build };
 }
