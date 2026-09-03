@@ -182,7 +182,7 @@ export function usePipelineSavedViews({ filters }: { filters: PipelineFilters })
   useEffect(() => {
     if (!workspaceId) return;
     const loaded = readStoredViews(localStorage, workspaceId);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tenant-keyed localStorage hydration; an initializer would mismatch the server's empty HTML
     setViews(loaded);
     if (appliedFor.current === workspaceId) return;
     appliedFor.current = workspaceId;

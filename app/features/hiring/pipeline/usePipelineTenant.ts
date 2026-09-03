@@ -55,7 +55,7 @@ export function usePipelineTenant(): string | null {
     // A second mount in a document that already resolved gets the id immediately;
     // the first mount gets it from the EVENT below. (One-time mount set, not the
     // cascading-render case the set-state rule targets.)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot adoption of a module-level id resolved before this mount
     if (workspaceId) setId(workspaceId);
     const onResolved = () => setId(workspaceId);
     window.addEventListener(EVENT, onResolved);
