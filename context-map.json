@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-02T23:26:56.503Z",
+ "generated_at": "2026-09-03T06:48:11.729Z",
  "provenance": {
-  "git_commit": "b09a2be0b17e13cc236ab76228fcc4de06153fd6",
-  "git_commit_count": 2211,
+  "git_commit": "5542c4aaad270254e00c3810a3fd108e8103a90a",
+  "git_commit_count": 2219,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-02T23:26:56.503Z"
+  "generated_at": "2026-09-03T06:48:11.729Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2806,
+  "files": 2821,
   "groups": 17,
   "use_cases": 12
  },
@@ -2846,6 +2846,7 @@
     "app/api/channels/inbound/[token]/route.ts",
     "app/api/channels/webhooks/[token]/route.ts",
     "app/api/channels/webhooks/route.ts",
+    "app/api/comms/[id]/resend/resend-dedup.test.ts",
     "app/api/comms/[id]/resend/route.ts",
     "app/api/comms/callback/callback-auth.test.ts",
     "app/api/comms/callback/callback-auth.ts",
@@ -3766,6 +3767,7 @@
     "app/api/devcase/outcomes/route.ts",
     "app/api/devcase/postings/route.ts",
     "app/api/devcase/promote/route.ts",
+    "app/api/devcase/publish/publish-idempotent.test.ts",
     "app/api/devcase/publish/route.ts",
     "app/api/devcase/session/[id]/chat/route.ts",
     "app/api/devcase/session/[id]/route.ts",
@@ -3933,9 +3935,13 @@
     "app/features/tools/devcases/DevEvalPanel.tsx",
     "app/features/tools/devcases/DevEvalPanelChecks.tsx",
     "app/features/tools/devcases/DevPublishConfirm.tsx",
+    "app/features/tools/devcases/buildNeed.test.ts",
+    "app/features/tools/devcases/buildNeed.ts",
     "app/features/tools/devcases/devcase-studio-i18n.test.ts",
     "app/features/tools/devcases/devcase-studio-robustness.test.ts",
     "app/features/tools/devcases/devcaseStudioCopy.ts",
+    "app/features/tools/devcases/outboxRefresh.test.ts",
+    "app/features/tools/devcases/outboxRefresh.ts",
     "app/features/tools/devcases/useDevTabNeedAnalysis.ts"
    ],
    "group": "Developer Assessment",
@@ -4929,13 +4935,19 @@
     "app/features/hiring/pipeline/PipelineCandidateResultView.tsx",
     "app/features/hiring/pipeline/PipelineCandidateRow.tsx",
     "app/features/hiring/pipeline/PipelineCommsList.tsx",
+    "app/features/hiring/pipeline/pipelineBoardPopulation.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardPopulation.ts",
     "app/features/hiring/pipeline/pipelineBoardProjection.test.ts",
     "app/features/hiring/pipeline/pipelineBoardRoles.test.ts",
     "app/features/hiring/pipeline/pipelineDrawerActions.test.ts",
     "app/features/hiring/pipeline/pipelineDrawerActions.ts",
     "app/features/hiring/pipeline/pipelineFilterMenuKeys.test.ts",
     "app/features/hiring/pipeline/pipelineFilterMenuKeys.ts",
-    "app/features/hiring/pipeline/pipelineMovePath.test.ts"
+    "app/features/hiring/pipeline/pipelineMovePath.test.ts",
+    "app/features/hiring/pipeline/pipelineSla.test.ts",
+    "app/features/hiring/pipeline/pipelineSla.ts",
+    "app/features/hiring/pipeline/schedulerRunState.test.ts",
+    "app/features/hiring/pipeline/schedulerRunState.ts"
    ],
    "group": "Hiring Pipeline",
    "group_id": "e3cd8c46-b5e7-4fac-ad70-6bcbe21bcfaa",
@@ -6212,7 +6224,10 @@
     "app/features/library/jobs/JobsRecruiterCandidates.tsx",
     "app/features/library/jobs/jobsCampaignPackKey.test.ts",
     "app/features/library/jobs/jobsCampaignPackKey.ts",
+    "app/features/library/jobs/jobsCandidatesMemo.test.ts",
     "app/features/library/jobs/jobsCoachPoolCap.test.ts",
+    "app/features/library/jobs/jobsFairnessMatrix.test.ts",
+    "app/features/library/jobs/jobsFairnessMatrix.ts",
     "app/features/library/jobs/jobsLifecycleStrip.test.ts",
     "app/features/library/jobs/jobsPostingLifecycle.test.ts",
     "app/features/library/jobs/jobsPostingLifecycle.ts",
