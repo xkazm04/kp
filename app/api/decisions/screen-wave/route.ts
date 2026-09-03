@@ -4,8 +4,21 @@ import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decis
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 export const maxDuration = 60;
+
+// The heaviest door in the Decisions tab and the only one that was unthrottled: a
+// commit rejects real candidates, seals a record each and QUEUES THEIR ADVERSE-ACTION
+// EMAIL, and the dry-run preview runs the same cohort ranking (a full scored read per
+// hit) — the sibling write doors /api/pipeline/batch and /api/decisions/config both
+// self-limit, this one did not. The operator gate above is a documented no-op in open
+// mode (KP_OPERATOR_PASSWORD unset), so the limiter is the real bound. One budget for
+// preview AND commit on purpose: the preview is the expensive half and a commit is
+// always preceded by one. 60/10min per IP sits far above a recruiter tuning the
+// sliders (the preview is debounced at 350ms) and pins a scripted loop at 6/min.
+const WAVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 // Run the screening auto-reject wave over one role's matched cohort. An optional
 // `override` rule lets the simulation/preview run it without changing the saved
@@ -41,6 +54,12 @@ export async function POST(request: NextRequest) {
     // mutation/comms. Default false (commit), so an old client without the flag
     // behaves exactly as before; only an explicit `true` previews.
     const dryRun = body.dryRun === true;
+    // Placed after every cheap refusal (missing jobId, malformed override) so a request
+    // that was never going to run a wave costs no budget, and before runScreenWave —
+    // the cohort read, the commits, the seals and the comms.
+    if (!rateLimit(`screen-wave:${clientIpFrom(request.headers)}`, WAVE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // Human-approval gate (Art. 22): a commit must carry the approval token the
     // recruiter reviewed in the preview. Missing / no longer matching the live set /
     // older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (the token carries its own issue
