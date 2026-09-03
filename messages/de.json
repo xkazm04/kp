@@ -1518,7 +1518,9 @@
     "COMMS_RELAY_STALE": "Jemand hat eine neuere Relay-Konfiguration gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
     "COMMS_RELAY_INVALID": "Dieser Relay-Endpunkt ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "COMMS_RELAY_SAVE_FAILED": "Die Relay-Konfiguration konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-    "PROFILE_STALE": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert. Laden Sie es neu und wenden Sie Ihre Änderungen erneut an."
+    "PROFILE_STALE": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert. Laden Sie es neu und wenden Sie Ihre Änderungen erneut an.",
+    "ATS_CONFIG_SAVE_FAILED": "Die Webhook-Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7148,7 +7150,8 @@
       "notDelivered": "Nicht zugestellt: {reason}.",
       "pingFailed": "Ping fehlgeschlagen.",
       "pullNote": "Einzelne/n Kandidat/in auf Anfrage abrufen: <code>{endpoint}</code> liefert denselben normalisierten Datensatz.",
-      "loadBlockedSave": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden, deshalb ist Speichern deaktiviert. Dieses leere Formular abzuschicken würde den gespeicherten Endpunkt samt Abonnements überschreiben. Laden Sie die Seite neu."
+      "loadBlockedSave": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden, deshalb ist Speichern deaktiviert. Dieses leere Formular abzuschicken würde den gespeicherten Endpunkt samt Abonnements überschreiben. Laden Sie die Seite neu.",
+      "reloadStored": "Gespeicherte Einstellungen laden"
     }
   },
   "billing": {

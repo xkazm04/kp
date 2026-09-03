@@ -1518,7 +1518,9 @@
     "COMMS_RELAY_STALE": "Quelqu’un a enregistré une configuration de relais plus récente. Rechargez, puis refaites votre modification.",
     "COMMS_RELAY_INVALID": "Ce point de terminaison de relais n’est pas autorisé. Utilisez une URL https:// publique.",
     "COMMS_RELAY_SAVE_FAILED": "Impossible d’enregistrer la configuration du relais. Veuillez réessayer.",
-    "PROFILE_STALE": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture. Rechargez-le et réappliquez vos modifications."
+    "PROFILE_STALE": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture. Rechargez-le et réappliquez vos modifications.",
+    "ATS_CONFIG_SAVE_FAILED": "Impossible d'enregistrer les paramètres du webhook. Veuillez réessayer.",
+    "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7148,7 +7150,8 @@
       "notDelivered": "Non livré : {reason}.",
       "pingFailed": "Échec du ping.",
       "pullNote": "Récupérer un candidat à la demande : <code>{endpoint}</code> renvoie le même enregistrement normalisé.",
-      "loadBlockedSave": "Les paramètres de webhook enregistrés n'ont pas pu être chargés, donc l'enregistrement est désactivé. Soumettre ce formulaire vide écraserait le point de terminaison enregistré et ses abonnements. Rechargez la page."
+      "loadBlockedSave": "Les paramètres de webhook enregistrés n'ont pas pu être chargés, donc l'enregistrement est désactivé. Soumettre ce formulaire vide écraserait le point de terminaison enregistré et ses abonnements. Rechargez la page.",
+      "reloadStored": "Recharger les paramètres enregistrés"
     }
   },
   "billing": {

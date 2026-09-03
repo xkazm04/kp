@@ -1518,7 +1518,9 @@
     "COMMS_RELAY_STALE": "Someone saved a newer relay config. Reload and make your change again.",
     "COMMS_RELAY_INVALID": "That relay endpoint isn’t allowed. Use a public https:// URL.",
     "COMMS_RELAY_SAVE_FAILED": "Could not save the relay config. Please try again.",
-    "PROFILE_STALE": "This profile was saved by someone else after you opened it. Reload it and re-apply your changes."
+    "PROFILE_STALE": "This profile was saved by someone else after you opened it. Reload it and re-apply your changes.",
+    "ATS_CONFIG_SAVE_FAILED": "Could not save the webhook settings. Please try again.",
+    "ATS_CONFIG_STALE": "Someone saved newer webhook settings. Reload and make your change again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7148,7 +7150,8 @@
       "notDelivered": "Not delivered: {reason}.",
       "pingFailed": "Ping failed.",
       "pullNote": "Pull a single candidate on demand: <code>{endpoint}</code> returns the same normalized record.",
-      "loadBlockedSave": "The saved webhook settings could not be loaded, so Save is disabled. Submitting this blank form would overwrite the stored endpoint and its subscriptions. Reload the page to try again."
+      "loadBlockedSave": "The saved webhook settings could not be loaded, so Save is disabled. Submitting this blank form would overwrite the stored endpoint and its subscriptions. Reload the page to try again.",
+      "reloadStored": "Reload what's stored"
     }
   },
   "billing": {

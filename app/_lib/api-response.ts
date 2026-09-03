@@ -277,6 +277,11 @@ export const STORE_ERRORS = {
   // upstream provider's internals, in an English nobody in the catalog chose.
   BILLING_OVERVIEW_FAILED: "Could not load billing. Please try again.",
   BILLING_CHECKOUT_FAILED: "Could not start the checkout. Please try again.",
+  /** The outbound ATS webhook config write (/perfect 2026-09-03, integrations-settings).
+   *  Its 500 forwarded the thrown message, which on this path is better-sqlite3
+   *  constraint text, the absolute db path, or an at-rest crypto failure naming the key
+   *  env var. */
+  ATS_CONFIG_SAVE_FAILED: "Could not save the webhook settings. Please try again.",
   BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
 } as const;
 
@@ -798,6 +803,10 @@ export const REFUSAL_ERRORS = {
   SCHEDULE_SLOT_NOT_OFFERED: "That time isn't one of the offered slots. Please pick from the list.",
   /** Every self-reschedule is spent (409). Not a fault: the remedy is the reply the
    *  message names, and the page also offers the propose-your-own-times escalation. */
+  /** A webhook-config save composed against a version another operator has since
+   *  replaced (409). Nothing was written: the config is one shared document, and the
+   *  remedy is to reload what is stored and re-apply — the panel offers exactly that. */
+  ATS_CONFIG_STALE: "Someone saved newer webhook settings. Reload and make your change again.",
   SCHEDULE_RESCHEDULE_LIMIT:
     "You've changed your interview time a few times already. Reply to your confirmation email and we'll help you find a slot.",
 } as const;

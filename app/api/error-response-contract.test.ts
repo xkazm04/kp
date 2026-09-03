@@ -202,7 +202,10 @@ const LEAK_CEILING = new Map<string, number>([
   ["analytics/route.ts", 1],
   ["archetypes/[id]/route.ts", 2],
   ["archetypes/route.ts", 2],
-  ["ats/config/route.ts", 1],
+  // ats/config's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
+  // integrations-settings): the 500 answers safeJsonError(..., "ATS_CONFIG_SAVE_FAILED")
+  // and the new stale-write 409 is jsonRefusal("ATS_CONFIG_STALE"), so the panel resolves
+  // both in the reader's language. The row is deleted so the win is locked.
   ["automation/[task]/route.ts", 1],
   ["automation/run/route.ts", 1],
   // automation/schedule's single leak was FIXED, not ceilinged (/perfect 2026-09-03,

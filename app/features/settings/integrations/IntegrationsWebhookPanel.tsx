@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Send, Webhook } from "lucide-react";
+import { AlertTriangle, RotateCcw, Send, Webhook } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { toast } from "@/app/_components/toast-store";
@@ -37,7 +37,7 @@ import { PULL_ENDPOINT, SIGNATURE_HEADER_DISPLAY } from "./integrationsWebhookId
 // each one to its authority instead of restating it. Naming them as constants
 // while pointing them at literals was the half-measure this replaces.
 
-type Config = { webhookUrl: string | null; events: string[]; hasSecret: boolean };
+type Config = { webhookUrl: string | null; events: string[]; hasSecret: boolean; version: number };
 
 export function IntegrationsWebhookPanel() {
   const tToast = useTranslations("integrations");
@@ -47,12 +47,23 @@ export function IntegrationsWebhookPanel() {
   // screen (app/_lib/use-error-message.ts).
   const errMsg = useErrorMessage();
   const [url, setUrl] = useState("");
+  // The version the form was composed against — echoed on save so the store can drop a
+  // write built on a config someone else has since replaced (409 ATS_CONFIG_STALE)
+  // instead of clobbering theirs. `null` until the config has been read back.
+  const [version, setVersion] = useState<number | null>(null);
+  // A stale save leaves an offer, not just a message: the server sends the CURRENT
+  // config with its 409, so "reload" is a local re-seed of the form rather than a
+  // second fetch (and a second chance to race).
+  const [stale, setStale] = useState<Config | null>(null);
   // What the server last CONFIRMED is stored. `url` is the edit buffer; the test ping
   // pings whatever is stored, so it is only meaningful while the two agree.
   const [savedUrl, setSavedUrl] = useState("");
   const [secret, setSecret] = useState("");
   const [hasSecret, setHasSecret] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
+  // What the server last confirmed for the SUBSCRIPTIONS, so the save can send only
+  // what actually changed (IntegrationsAtsPanel's contract on the inbound half).
+  const [savedEvents, setSavedEvents] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The ping RESULT, with its verdict. It used to be a bare string rendered in
@@ -62,12 +73,25 @@ export function IntegrationsWebhookPanel() {
   // did not earn. `role={ok ? "status" : "alert"}` is this tab's own convention
   // (IntegrationsAtsForm, IntegrationsCallbackBanner).
   const [test, setTest] = useState<{ text: string; ok: boolean } | null>(null);
-  // Has the stored config actually been read back? Save is a WHOLE-DOCUMENT write
-  // (webhookUrl + events go up on every submit, and an empty URL is a legitimate
-  // "disable delivery"), so the server cannot tell a deliberate clear from a form
-  // that never loaded. Until this is true there is nothing on screen worth
-  // writing, and the button says so instead of offering the destructive click.
+  // Has the stored config actually been read back? The save is a partial now, but the
+  // diff it sends is computed against `savedUrl`/`savedEvents` — which a form that never
+  // loaded holds as blanks, so every field would read as "the operator cleared it", and
+  // an empty URL is a legitimate "disable delivery". Until this is true there is nothing
+  // on screen worth writing, and the button says so instead of offering the destructive
+  // click. (It also gates the `expectedVersion` echo: there is no version to echo yet.)
   const [loaded, setLoaded] = useState(false);
+
+  // Seed every "what the server confirmed" mirror from one config object. Used by the
+  // initial load, by an accepted save, and by the reload affordance a 409 offers.
+  const adopt = (config: Config) => {
+    setUrl(config.webhookUrl ?? "");
+    setSavedUrl(config.webhookUrl ?? "");
+    setEvents(config.events ?? []);
+    setSavedEvents(config.events ?? []);
+    setHasSecret(!!config.hasSecret);
+    setVersion(config.version ?? 0);
+    setSecret("");
+  };
 
   useEffect(() => {
     fetch("/api/ats/config")
@@ -78,10 +102,7 @@ export function IntegrationsWebhookPanel() {
         // old `if (d.config)` shape swallowed it — leaving a blank endpoint field and a
         // "· not set" signing-secret badge over a deployment that has both configured.
         if (!r.ok || !d?.config) throw new Error("ats config load failed");
-        setUrl(d.config.webhookUrl ?? "");
-        setSavedUrl(d.config.webhookUrl ?? "");
-        setEvents(d.config.events ?? []);
-        setHasSecret(!!d.config.hasSecret);
+        adopt(d.config);
         setLoaded(true);
       })
       // A silently-empty form here is dangerous: saving it would overwrite the
@@ -109,23 +130,42 @@ export function IntegrationsWebhookPanel() {
   const save = async () => {
     setBusy(true);
     setError(null);
+    setStale(null);
     try {
-      // Only send webhookSecret when the operator typed a new one — an untouched
-      // field leaves the stored secret in place (write-only; never read back).
-      const body: Record<string, unknown> = { webhookUrl: url, events };
+      // EVERY field is a PARTIAL update (setAtsConfig: omitted = keep), so send only what
+      // the operator actually touched. This panel used to resend `webhookUrl` AND `events`
+      // on every submit, which made each save a blind write of a snapshot taken when the
+      // tab loaded — a second operator's event subscriptions were silently dropped by a
+      // save that only meant to change the endpoint. The inbound ATS panel next to it
+      // already sent partials; this is the same contract on the outbound half.
+      //   • secret blank        → omitted. The store reads "" as CLEAR, so submitting the
+      //                           untouched field would unsign a working integration.
+      //   • url unchanged       → omitted. A blanked url is still sent (as ""), because
+      //                           clearing it is the documented "disable delivery".
+      //   • events unchanged    → omitted.
+      const body: Record<string, unknown> = {};
+      if (url !== savedUrl) body.webhookUrl = url;
+      if (events.length !== savedEvents.length || events.some((e) => !savedEvents.includes(e))) body.events = events;
       if (secret) body.webhookSecret = secret;
+      // The version the form was composed against. Sent even on a no-op save: the point
+      // is to be told the config moved, not to win the write.
+      if (version !== null) body.expectedVersion = version;
       const r = await fetch("/api/ats/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const d = (await r.json().catch(() => null)) as { config?: Config; error?: string; code?: string } | null;
+      // 409: somebody saved first and NOTHING was written. The remedy is to reload what is
+      // stored and re-apply — never to retry the same body, which would just clobber them
+      // one round later. The current config rides with the refusal, so the offer is local.
+      if (r.status === 409 && d?.config) {
+        setStale(d.config);
+        setError(errMsg(d, t("saveFailed")));
+        return;
+      }
       if (!r.ok || !d?.config) throw new Error(errMsg(d, t("saveFailedStatus", { status: r.status })));
-      setUrl(d.config.webhookUrl ?? "");
-      setSavedUrl(d.config.webhookUrl ?? "");
-      setEvents(d.config.events ?? []);
-      setHasSecret(!!d.config.hasSecret);
-      setSecret("");
+      adopt(d.config);
       toast.success(tToast("saved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("saveFailed"));
@@ -206,9 +246,25 @@ export function IntegrationsWebhookPanel() {
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="mt-2 flex items-start gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden /> {error}
-        </p>
+        <div role="alert" className="mt-2 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
+          <p className="flex items-start gap-1.5">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          </p>
+          {stale ? (
+            <button
+              type="button"
+              onClick={() => {
+                adopt(stale);
+                setStale(null);
+                setError(null);
+                setTest(null);
+              }}
+              className={`${BTN_SECONDARY} mt-2 h-8 gap-1.5 px-3 text-sm font-semibold`}
+            >
+              <RotateCcw size={13} aria-hidden /> {t("reloadStored")}
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <p className="mt-4 border-t border-stone-200 pt-3 text-meta text-steel">

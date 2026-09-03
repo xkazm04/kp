@@ -1518,7 +1518,9 @@
     "COMMS_RELAY_STALE": "Někdo uložil novější nastavení relay. Načtěte je znovu a proveďte změnu ještě jednou.",
     "COMMS_RELAY_INVALID": "Tento koncový bod relay není povolený. Použijte veřejnou adresu https://.",
     "COMMS_RELAY_SAVE_FAILED": "Nastavení relay se nepodařilo uložit. Zkuste to prosím znovu.",
-    "PROFILE_STALE": "Tento profil někdo uložil poté, co jste jej otevřeli. Načtěte jej znovu a změny proveďte znovu."
+    "PROFILE_STALE": "Tento profil někdo uložil poté, co jste jej otevřeli. Načtěte jej znovu a změny proveďte znovu.",
+    "ATS_CONFIG_SAVE_FAILED": "Nastavení webhooku se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ATS_CONFIG_STALE": "Někdo mezitím uložil novější nastavení webhooku. Načtěte je znovu a proveďte změnu ještě jednou."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7148,7 +7150,8 @@
       "notDelivered": "Nedoručeno: {reason}.",
       "pingFailed": "Ping selhal.",
       "pullNote": "Načtení jednoho kandidáta na vyžádání: <code>{endpoint}</code> vrátí stejný normalizovaný záznam.",
-      "loadBlockedSave": "Uložené nastavení webhooku se nepodařilo načíst, takže ukládání je vypnuté. Odeslání tohoto prázdného formuláře by přepsalo uložený koncový bod i jeho odběry. Načtěte stránku znovu."
+      "loadBlockedSave": "Uložené nastavení webhooku se nepodařilo načíst, takže ukládání je vypnuté. Odeslání tohoto prázdného formuláře by přepsalo uložený koncový bod i jeho odběry. Načtěte stránku znovu.",
+      "reloadStored": "Načíst uložené nastavení"
     }
   },
   "billing": {

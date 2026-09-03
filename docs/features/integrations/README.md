@@ -169,6 +169,36 @@ ping (`POST /api/ats/test`).
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
 - **An empty URL disables delivery** rather than queuing undeliverable events.
+- **Every field is a partial update, and the document carries a version.** `setAtsConfig`
+  keeps what it is not told about (`webhookUrl` / `events` / `webhookSecret` omitted =
+  keep; `""` or `null` = clear), so a save that only changes the endpoint no longer
+  rewrites the event subscriptions. That was the actual failure: the save was a
+  whole-document write of a snapshot taken when the tab loaded, so two operators editing
+  side by side silently dropped each other's subscriptions — while the inbound ATS panel
+  right next to it already sent partials. On top of that, `ats_config.version` is bumped
+  on every accepted write and rides on the public view; the panel echoes the version it
+  read as `expectedVersion`, and the store re-asserts it inside an IMMEDIATE transaction.
+  A save composed against a config someone else has since replaced is refused —
+  `409 ATS_CONFIG_STALE`, nothing written, the *current* config returned beside the code so
+  the panel can offer "reload what's stored" and let the operator re-apply against it
+  rather than retry the same body one round later. Same doctrine, same shape, as
+  `comms-relay-store.ts` and the decision-config store. Pinned by
+  `app/_lib/ats-config-version.test.ts`.
+- **The config 500 answers a code, never the thrown message.** A better-sqlite3 constraint,
+  the absolute db path, or an at-rest crypto failure naming the key env var used to be
+  forwarded verbatim; it is now `safeJsonError(…, "ATS_CONFIG_SAVE_FAILED")` — the detail
+  goes to the server log, the panel renders the localized message.
+- **Both network doors are throttled per IP.** `POST /api/ats/test` fires a server-side
+  POST at an operator-set URL (20/10min, key `ats-test:<ip>`) and `GET
+  /api/calendar/google/start` mints a state cookie and redirects a browser into Google's
+  consent screen (30/10min, key `gcal-oauth-start:<ip>`). Both sat behind nothing but the
+  operator gate, which open mode (`KP_OPERATOR_PASSWORD` unset) makes a documented no-op
+  for the whole API — so unthrottled, the ping was an amplifier and a reachability oracle
+  aimed at whatever host the config names (the SSRF guard vets the *address*, not the
+  *rate*), and the OAuth start was cookie churn plus unattributed traffic at Google from
+  this deployment's address. Each limiter sits *after* the operator gate (a rejected caller
+  spends no budget) and *before* the expensive work. Pinned in
+  `app/api/rate-limit-contract.test.ts`.
 - **Every team's outcomes mirror through this one endpoint.** `ats_config` and the
   `ats_delivery` ledger are org-level by design (`app/_lib/tenancy.ts`): one deployment-wide
   mirror of every tenant, not one webhook per hiring team. The *record* behind an event is
@@ -197,11 +227,12 @@ ping (`POST /api/ats/test`).
   so treating "no `config` in the answer" as a failure is what keeps a blank endpoint field
   and a "· not set" secret badge from being rendered over a configured deployment. Saying
   so was only half the guard, though: the toast scrolls away and Save stayed live over the
-  blank form. Save is a WHOLE-DOCUMENT write (`webhookUrl` + `events` go up on every
-  submit) and an empty URL is a legitimate "disable delivery", so the server cannot tell a
-  deliberate clear from a form that never loaded — one click would wipe a working endpoint
-  and its subscriptions. Save is now gated on the config having actually been read back,
-  with the reason held on screen beside the button rather than in a toast.
+  blank form. The save is a partial now, but the diff it sends is computed against what
+  the server last confirmed — which a form that never loaded holds as blanks, so every
+  field would read as "the operator cleared it", and an empty URL is a legitimate "disable
+  delivery". Save is gated on the config having actually been read back, with the reason
+  held on screen beside the button rather than in a toast; the same gate is what supplies
+  the `expectedVersion` a save echoes.
 - **A failed outcome announces itself as one.** Every result line on this tab uses
   `role={ok ? "status" : "alert"}` with a failure tone — the convention
   `IntegrationsAtsForm` and `IntegrationsCallbackBanner` already followed and the calendar,
@@ -256,7 +287,7 @@ The envelope, signing and delivery/retry semantics live in
 | `app/features/settings/integrations/IntegrationsAtsRow.tsx` | One stored connection + removal confirm |
 | `app/features/settings/integrations/IntegrationsWebhookPanel.tsx` | Outbound `kp.ats.v1` write-back: endpoint, signing secret, event subscriptions, test ping |
 | `app/features/settings/integrations/IntegrationsWebhookFields.tsx` | That panel's form fields (URL / secret / events) |
-| `app/api/ats/config/route.ts`, `app/api/ats/test/route.ts` | Write-back config (secret write-only) + test delivery |
+| `app/api/ats/config/route.ts`, `app/api/ats/test/route.ts` | Write-back config (secret write-only, versioned, partial) + rate-limited test delivery |
 | `app/_lib/calendar/callback-status.ts` | Canonical callback vocabulary + tone + scope slug |
 | `app/_lib/calendar/google-oauth.ts` | Scopes, consent URL, token exchange, revoke, `missingScopes` |
 | `app/_lib/calendar/token-store.ts` | Encrypted per-workspace grant; `getCalendarConnection` never returns a token |
@@ -276,6 +307,10 @@ The envelope, signing and delivery/retry semantics live in
   `access_token`, `access_expires_at`, `scopes_json`, `missing_scopes_json`, `connected_at`.
 - `ats_connections` — PK `provider`. `base_url`, encrypted `api_token`, `field_map_json`,
   `enabled`, `updated_at`.
+- `ats_config` — the outbound webhook. ONE row (`id = 1`), org-level by design
+  (`app/_lib/tenancy.ts`). `webhook_url`, encrypted `webhook_secret`, `events_json`,
+  `version` (optimistic-concurrency token, bumped on every accepted write; back-filled to
+  `0` by an `ALTER TABLE` on stores created before it existed), `updated_at`.
 
 ## Known gaps
 

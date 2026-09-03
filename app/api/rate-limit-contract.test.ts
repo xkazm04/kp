@@ -1039,6 +1039,37 @@ const ROUTES: RouteSpec[] = [
     expensive: "setRelayConfig(body)",
   },
   // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-03 (integrations-settings), with the limiters themselves. The
+  // two doors on the Integrations tab that REACH THE NETWORK carried none. Both are
+  // operator-gated, and open mode (KP_OPERATOR_PASSWORD unset) makes that gate a
+  // documented no-op for the ENTIRE API - so in each case the limiter is the real bound.
+  {
+    // Every accepted call POSTs a signed ping to an OPERATOR-SET URL. The SSRF guard
+    // vets the address; nothing vetted the RATE, so a loop turned kp into an amplifier
+    // pointed at that host and every answer was a reachability oracle for it. 20/10min
+    // is far above a human clicking "Send test" while wiring an integration up.
+    rel: "./ats/test/route.ts",
+    key: "`ats-test:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "TEST_PING_RATE_LIMIT",
+    optsDef: "const TEST_PING_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'deliver("ping"',
+  },
+  {
+    // The OAuth start: each hit mints a 32-byte state, SETS A COOKIE and redirects a
+    // browser into Google's consent screen - cookie churn on kp plus unattributed
+    // traffic at Google from this deployment's address. The limiter sits before the
+    // state mint, so a throttled caller never gets a stale state cookie either.
+    rel: "./calendar/google/start/route.ts",
+    key: "`gcal-oauth-start:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "OAUTH_START_RATE_LIMIT",
+    optsDef: "const OAUTH_START_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "randomBytes(32)",
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (analytics-writes-check-authority), with the limiters
   // themselves. Three expensive analytics READS carried none. They spend CPU and the
   // shared SQLite connection rather than provider credit, which is exactly why they
