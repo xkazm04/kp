@@ -196,6 +196,12 @@ back, keyed by the message's `ref` + `kind`:
   UI-editable capability, so it can be gone by the time a recruiter chases a
   bounce raised while it was wired, and a corrected address that never leaves the
   building must not report green.
+- **Resend is throttled and de-duplicated** — `POST /api/comms/[id]/resend` is
+  the one door in the outbox loop that spends real email, so it carries a per-IP
+  `rateLimit()` (60 per 10 minutes, after the cheap refusals) and answers
+  `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
+  entry-less KO-decline case) correlates on its own outbox id, so the refless
+  shape can no longer be resent without bound (`resend-dedup.test.ts`).
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
