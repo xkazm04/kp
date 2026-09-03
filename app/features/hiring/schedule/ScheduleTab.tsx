@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { planHasRound, planRounds, type InterviewPlanRule } from "@/app/_lib/decision-config-schema";
+import { RefreshCw } from "lucide-react";
+import { BTN_SECONDARY, CHIP, EYEBROW, TITLE_DISPLAY, INTRO } from "@/app/_components/ui/recipes";
 import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
@@ -53,6 +55,8 @@ export function ScheduleTab() {
     setPrepEntry,
     prepared,
     interviews,
+    liveStale,
+    retryLive,
     creatingIv,
     transcriptEntry,
     setTranscriptEntry,
@@ -119,10 +123,24 @@ export function ScheduleTab() {
     // load only — the error/empty/content swap below never re-triggers it.
     <div data-sim="schedule" className="stagger-children space-y-6" aria-busy={entries == null && !error}>
       <header>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
+        <p className={EYEBROW}>{t("eyebrow")}</p>
+        <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
+        <p className={`mt-1 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
+
+      {/* The live-status poll knows it has stopped working; say so rather than keep
+          rendering an old snapshot as if it were live. Raised from the second
+          consecutive failure (schedulePollBackoff.pollIsStale) — one blip is not worth
+          a banner — and the retry resets the backoff to its 6s base immediately, so a
+          recruiter who has just fixed their connection does not wait out the 60s cap. */}
+      {liveStale ? (
+        <p role="status" className={`${CHIP} w-fit gap-2 text-amber-800`}>
+          <span className="text-meta normal-case">{t("liveStale")}</span>
+          <button type="button" onClick={retryLive} className={`${BTN_SECONDARY} h-6 px-2 text-meta normal-case`}>
+            <RefreshCw size={12} aria-hidden /> {t("liveRetry")}
+          </button>
+        </p>
+      ) : null}
 
       {/* Round switcher: the calendar surface below is the HUMAN round; the AI
           round is the link-out docket. Hidden when the workspace plan runs only

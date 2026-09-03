@@ -61,7 +61,10 @@ export function plannedInterviewMinutes(entry: PipelineEntry): number {
     }
     return STUDENT_SCRIPT_MIN;
   }
-  const prep = (getInterviewPrep(entry.id)?.payload as PrepDurationPayload | undefined) ?? undefined;
+  // The entry's OWN tenant: unscoped this read the default team, so on any other
+  // workspace a grounded 75-minute pack reported the quick-screen floor and the
+  // scheduling link was minted for the wrong length.
+  const prep = (getInterviewPrep(entry.id, entry.workspaceId)?.payload as PrepDurationPayload | undefined) ?? undefined;
   const grounded = (prep?.chronology?.length ?? 0) > 0;
   return grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
 }

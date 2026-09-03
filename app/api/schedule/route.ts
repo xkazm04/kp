@@ -24,7 +24,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // W6-3 (SCH1) — the recruiter's read over the invite lifecycle. The store
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     if (!rateLimit(`sched-manage:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as {
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       dateSlot?: string;
     };
     if (!body.action) {
-      return NextResponse.json({ error: "action is required" }, { status: 400 });
+      return jsonRefusal("SCHEDULE_ACTION_REQUIRED", 400);
     }
     // W1.4, second half — every recruiter action that MOVES a booking keeps the connected
     // calendar in step (one event per interview, PATCHed rather than re-created), and
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     // gap: one atomic recruiter action either advances or is flagged for reconcile.
     if (body.action === "book") {
       if (!body.entryId || (!body.dateSlot && !body.gridSlot)) {
-        return NextResponse.json({ error: "entryId and dateSlot are required" }, { status: 400 });
+        return jsonRefusal("SCHEDULE_BOOK_TARGET_MISSING", 400);
       }
       const entry = getPipelineEntry(body.entryId, ws);
       // Reuses the board's own code: the tab renders "that candidate is no longer on
@@ -253,14 +253,14 @@ export async function POST(request: Request) {
     }
 
     if (!body.token) {
-      return NextResponse.json({ error: "token is required" }, { status: 400 });
+      return jsonRefusal("SCHEDULE_TOKEN_REQUIRED", 400);
     }
     // Tenancy (P1): resolve the invite and refuse anything outside this team's
     // calendar — the token is a candidate capability, but the RECRUITER route is
     // workspace-authenticated, so a cross-team token must 404 here.
     const invite = getScheduleInviteByToken(body.token);
     if (!invite || invite.workspaceId !== ws) {
-      return NextResponse.json({ error: "invite not found" }, { status: 404 });
+      return jsonRefusal("SCHEDULE_INVITE_NOT_FOUND", 404);
     }
 
     switch (body.action) {
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
         // Free the slot and re-open the invite for re-booking (reuses the candidate
         // primitive). Outcome-bearing → seal the recruiter's decision.
         const updated = cancelAttendance(body.token);
-        if (!updated) return NextResponse.json({ error: "Only a confirmed booking can be cancelled." }, { status: 409 });
+        if (!updated) return jsonRefusal("SCHEDULE_CANCEL_NOT_CONFIRMED", 409);
         // `invite` is the PRE-cancel row and still carries the event id (cancelAttendance
         // clears the slot, not the calendar handle) — delete exactly that event.
         await removeInterviewEvent(invite);
@@ -289,7 +289,7 @@ export async function POST(request: Request) {
       }
       case "no_show": {
         const updated = markScheduleInviteNoShow(body.token);
-        if (!updated) return NextResponse.json({ error: "Only a confirmed booking can be marked as a no-show." }, { status: 409 });
+        if (!updated) return jsonRefusal("SCHEDULE_NO_SHOW_NOT_CONFIRMED", 409);
         // A no-show keeps slot_at as the record of the missed time, but the interview is
         // over — the calendar entry should not keep advertising it.
         await removeInterviewEvent(invite);
@@ -312,17 +312,15 @@ export async function POST(request: Request) {
         // via the shared transaction with recruiter authority (no candidate-cap).
         const offered = offeredSlotFor(body.slotAt);
         if (!offered) {
-          return NextResponse.json({ error: "Pick one of the offered reschedule slots." }, { status: 400 });
+          // The candidate door's own code, reused rather than a second vocabulary for
+          // the identical structural gate on body.slotAt.
+          return jsonRefusal("SCHEDULE_SLOT_NOT_OFFERED", 400);
         }
         const moved = rescheduleScheduleInvite(body.token, offered.label, offered.value, null, { recruiter: true });
         if (!moved.ok) {
-          if (moved.reason === "taken") {
-            return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-          }
-          if (moved.reason === "not_confirmed") {
-            return NextResponse.json({ error: "Only a confirmed booking can be rescheduled." }, { status: 409 });
-          }
-          return NextResponse.json({ error: "invite not found" }, { status: 404 });
+          if (moved.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+          if (moved.reason === "not_confirmed") return jsonRefusal("SCHEDULE_RESCHEDULE_NOT_CONFIRMED", 409);
+          return jsonRefusal("SCHEDULE_INVITE_NOT_FOUND", 404);
         }
         // Move the SAME calendar event to the new time (never a second one at it).
         await writeCalendarEvent(moved.invite, invite.entryId);
@@ -343,26 +341,24 @@ export async function POST(request: Request) {
         if (invite.entryId) {
           const linkedEntry = getPipelineEntry(invite.entryId, ws);
           if (linkedEntry && linkedEntry.status !== "active") {
-            return NextResponse.json({ error: "That candidate is no longer active — nothing was booked." }, { status: 409 });
+            return jsonRefusal("SCHEDULE_CANDIDATE_INACTIVE", 409);
           }
         }
         const chosen = (invite.proposals ?? []).find((p) => p.value === body.slotAt);
         if (!chosen) {
-          return NextResponse.json({ error: "That proposed time is no longer on the invite." }, { status: 409 });
+          return jsonRefusal("SCHEDULE_PROPOSAL_GONE", 409);
         }
         const offered = proposedSlotFor(chosen.value);
         if (!offered) {
-          return NextResponse.json({ error: "That proposed time has passed — ask the candidate to suggest new times." }, { status: 409 });
+          return jsonRefusal("SCHEDULE_PROPOSAL_EXPIRED", 409);
         }
         const result =
           invite.status === "confirmed"
             ? rescheduleScheduleInvite(body.token, offered.label, offered.value, null, { recruiter: true })
             : confirmScheduleInvite(body.token, offered.label, offered.value);
         if (!result.ok) {
-          if (result.reason === "taken") {
-            return NextResponse.json({ error: "That time is already booked — pick another." }, { status: 409 });
-          }
-          return NextResponse.json({ error: "Could not book that time." }, { status: 409 });
+          if (result.reason === "taken") return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+          return jsonRefusal("SCHEDULE_BOOK_FAILED", 409);
         }
         // Keep the recruiter board in sync (mirrors the candidate confirm): record the
         // slot on the linked entry, flagging drift rather than swallowing a stage-gate
@@ -401,7 +397,7 @@ export async function POST(request: Request) {
         // the honest 'declined' state the candidate page reads. The booking (if any) is
         // untouched — declining alternatives isn't cancelling a confirmed interview.
         const updated = declineScheduleInviteProposals(body.token);
-        if (!updated) return NextResponse.json({ error: "There are no proposed times to decline." }, { status: 409 });
+        if (!updated) return jsonRefusal("SCHEDULE_NO_PROPOSALS", 409);
         if (invite.entryId) {
           sealDecisionSafe({
             kind: "interview_proposal_declined",
@@ -417,11 +413,11 @@ export async function POST(request: Request) {
       }
       case "resolve_reconcile": {
         const resolved = resolveScheduleInviteReconcile(body.token);
-        if (!resolved) return NextResponse.json({ error: "Nothing to reconcile on this invite." }, { status: 409 });
+        if (!resolved) return jsonRefusal("SCHEDULE_NOTHING_TO_RECONCILE", 409);
         return jsonOk({ invite: getScheduleInviteByToken(body.token) });
       }
       default:
-        return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+        return jsonRefusal("SCHEDULE_ACTION_UNKNOWN", 400);
     }
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_MANAGE_FAILED");
@@ -450,25 +446,25 @@ function normalizeMeetingUrl(raw: unknown): string | null {
 export async function PATCH(request: Request) {
   try {
     if (!rateLimit(`sched-meet:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { token?: string; meetingUrl?: string | null };
-    if (!body.token) return NextResponse.json({ error: "token is required" }, { status: 400 });
+    if (!body.token) return jsonRefusal("SCHEDULE_TOKEN_REQUIRED", 400);
     // Refuse a token outside this team's calendar before writing — mirrors the
     // POST handler's invite.workspaceId !== ws check.
     const invite = getScheduleInviteByToken(body.token);
     if (!invite || invite.workspaceId !== ws) {
-      return NextResponse.json({ error: "invite not found" }, { status: 404 });
+      return jsonRefusal("SCHEDULE_INVITE_NOT_FOUND", 404);
     }
     const raw = typeof body.meetingUrl === "string" ? body.meetingUrl.trim() : "";
     let url: string | null = null;
     if (raw) {
       url = normalizeMeetingUrl(raw);
-      if (!url) return NextResponse.json({ error: "Enter a valid http(s) meeting link." }, { status: 400 });
+      if (!url) return jsonRefusal("SCHEDULE_MEETING_URL_INVALID", 400);
     }
     const updated = setScheduleInviteMeetingUrl(body.token, url);
-    if (!updated) return NextResponse.json({ error: "invite not found" }, { status: 404 });
+    if (!updated) return jsonRefusal("SCHEDULE_INVITE_NOT_FOUND", 404);
     // The meeting link is the calendar event's LOCATION. If kp already wrote an event for
     // this interview, refresh it — otherwise the interviewer opens the entry at call time
     // and finds the placeholder location while the link lives only inside kp. Only ever an
@@ -481,7 +477,7 @@ export async function PATCH(request: Request) {
         baseUrl: publicBaseUrl(new URL(request.url).origin),
       });
     }
-    return NextResponse.json({ invite: getScheduleInviteByToken(body.token) ?? updated });
+    return jsonOk({ invite: getScheduleInviteByToken(body.token) ?? updated });
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }

@@ -57,6 +57,8 @@ dock, in `dock` an action that toggles the left companion window. See
 | `SimControlDockOrb.tsx` / `SimControlDockRail.tsx` | The rest state, and the two elements outside the panel's borders |
 | `simControlCenterKit.ts` | `useControlMode()`, `useAutomationPass()`, `usePublishBarHeight()` |
 | `SimulationProvider.tsx` + `useSimulationEngine.ts` + `useSimulationWalk.ts` | The run: state, the per-phase engine, the tab walk |
+| `simRunControl.ts` | The PURE run-control ordering: `runControlFlags` (start/pause/resume/stop) and `performReset` (stop -> settle -> purge, reporting whether the purge succeeded). Unit-tested beside it |
+| `simDrafts.ts` | The two DETERMINISTIC drafts (screening recommendation, offer letter), composed from the `simulation.draft.*` catalog keys. Unit-tested per locale beside it |
 | `constants.ts` (`SIM_PHASES`) | The seven-phase chronology — design · source · match · screen · interview · offer · hired — each pinned to the tab it walks to |
 
 **`--sim-bar-h`** is the one thing this feature publishes to the rest of the app.
@@ -80,6 +82,34 @@ None. Nothing in this directory owns a table.
 - Keyless: the demo is a product surface that must work with no API key at all —
   the LLM-backed steps degrade to the same deterministic fallbacks the real
   features use, and the walk never blocks on a provider.
+
+## What the demo may never do
+
+The tour drives the REAL paths — that is its whole claim — so three of them carry
+an explicit guard rather than a special-case fake:
+
+- **It never mails anybody.** Every sim artifact's title carries the `(SIM)` marker
+  (`constants.ts`: `markSimTitle` / `isSimTitle`, the same predicate `resetSim` purges
+  by and the analytics filters exclude). `sendCommUnlessSim` in
+  `app/_lib/comms-dispatch.ts` reads that marker off the pipeline entry's
+  **`jobTitle`** and, when it matches, records the outbox row directly on the
+  `simulation` channel with status `queued` instead of handing it to the channel
+  resolver — so on a deploy with a relay configured (`COMMS_WEBHOOK_URL` or the
+  UI-configured one) a demo run cannot POST a schedule invite, an offer letter or an
+  interviewer brief about a seeded profile to the customer's mail relay. The row is
+  still written: the Outbox entry is part of what the tour shows, and `queued` is the
+  outbox's honest "recorded locally, nothing will deliver it" state. Pinned by
+  `app/_lib/comms-dispatch-sim.test.ts`.
+- **It never lies about cleanup.** `reset()` awaits the purge and reports `reset`
+  only on a 2xx; a failed purge renders the localized "cleanup failed" status in red
+  (`simulation.status.resetFailed`, four locales) so the presenter retries instead of
+  starting the next run on the last one's residue. The ordering (stop -> settle ->
+  purge) and the failure reporting are `performReset` in `simRunControl.ts`.
+- **It never answers in English.** The five `/api/sim/*` routes answer
+  `jsonRefusal` / `safeJsonError` with `SIM_*` codes, which the walk resolves through
+  `resolveErrorMessage` in the reader's language; the two deterministic drafts are
+  composed from the catalogs in the entry's own locale (else its team default, the
+  same `resolveCommsLocale` precedence every candidate letter uses).
 
 ## Known gaps
 

@@ -3,6 +3,7 @@ import { getOutboxEntry, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { sendComm } from "@/app/_lib/comms";
+import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -54,6 +55,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!original.recipient || !original.subject || !original.body || !original.kind) {
       return NextResponse.json({ error: "Message is missing fields and can't be resent." }, { status: 422 });
     }
+    // A (SIM) row was recorded on the simulation channel precisely so it never reaches
+    // the relay (wave 16); resending it would. Refuse with a code the outbox renders.
+    if (original.channel === SIM_COMMS_CHANNEL) return jsonRefusal("COMM_SIMULATION_ROW", 409);
     // Per-IP, AFTER the cheap refusals (in-flight, unknown id, missing fields) so a
     // rejected click costs no budget, and BEFORE the dedup read and the relay call.
     if (!rateLimit(`comms-resend:${clientIpFrom(request.headers)}`, RESEND_RATE_LIMIT)) {

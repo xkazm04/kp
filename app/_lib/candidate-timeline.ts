@@ -382,7 +382,7 @@ function candidateHumanScorecard(
   ) {
     return null;
   }
-  const prep = getInterviewPrep(entry.id);
+  const prep = getInterviewPrep(entry.id, entry.workspaceId);
   const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard ?? null;
   return sc;
 }

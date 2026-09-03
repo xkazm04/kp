@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resetSim } from "@/app/_lib/sim-store";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
@@ -15,6 +15,10 @@ export async function POST() {
     const ws = await currentWorkspace();
     return NextResponse.json({ ok: true, cleared: resetSim(ws) });
   } catch (error) {
-    return jsonError(error, "Reset failed.");
+    // The purge runs a DELETE transaction across four tables: a thrown better-sqlite3
+    // error carries the db path and constraint detail, and the sim console is the
+    // reader — so a CODE it resolves in its own language, never the raw message. The
+    // console now also KEYS OFF THE STATUS: it reports "reset" only on a 2xx.
+    return safeJsonError(error, "api:sim/reset", "SIM_RESET_FAILED");
   }
 }

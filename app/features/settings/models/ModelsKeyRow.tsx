@@ -116,7 +116,10 @@ export function ModelsKeyRow({
             disabled={deleting === id}
             title={t("delete")}
             aria-label={t("deleteAria", { provider: label, scope })}
-            className="focus-ring inline-flex items-center rounded-md border border-stone-200 bg-white p-1 text-steel hover:border-coral/40 hover:text-coral disabled:opacity-50"
+            // The recipe, not a hand-typed re-statement of it: this button had its own
+            // copy of BTN_SECONDARY's classes, so it missed the dual-theme border and
+            // the Spark Dark press-down its Test sibling one line up already had.
+            className={`${BTN_SECONDARY} h-7 px-1.5 text-steel hover:text-coral`}
           >
             <Trash2 size={13} aria-hidden />
           </button>

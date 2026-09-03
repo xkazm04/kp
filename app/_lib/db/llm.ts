@@ -26,28 +26,62 @@ export function listLlmConfig(): LlmConfigRow[] {
   }));
 }
 
+/**
+ * Pin (or re-pin) a use case. Returns false ONLY when `expectedUpdatedAt` was
+ * supplied and no longer matches the stored row — nothing was written.
+ *
+ * VERSION PRECONDITION (/perfect 2026-09-03, model-keys-need-the-org-key). The
+ * Models table renders `updatedAt` on every pinned row and its editor is a
+ * long-lived draft — two operators (or two tabs) can sit on the same row for
+ * minutes. The unconditional upsert this used to be made that last-writer-wins:
+ * the second save silently replaced a provider/model the first had just chosen,
+ * with the row's own displayed version proving nothing because it never
+ * travelled back. The caller now echoes what it read and the UPDATE re-asserts
+ * it in the WHERE, so a save composed against a superseded row is DROPPED rather
+ * than applied — the compare-and-swap shape `actOnPipelineEntry` establishes.
+ *
+ * `.immediate()`, because this is a read→compute→write: the INSERT-vs-UPDATE
+ * decision reads the row, so a plain deferred transaction could take its write
+ * lock after another writer had already inserted.
+ *
+ * `expectedUpdatedAt: undefined` means "no opinion" (a headless or first-time
+ * write) and keeps the old unconditional behaviour; `null` means "I read NO row
+ * here", which refuses if a row has since appeared.
+ */
 export function upsertLlmConfig(input: {
   useCase: string;
   provider: string;
   model?: string | null;
   params?: Record<string, unknown>;
-}): void {
+  expectedUpdatedAt?: string | null;
+}): boolean {
   const db = ensureDb();
-  db.prepare(
-    `INSERT INTO llm_config (use_case, provider, model, params_json, updated_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (use_case) DO UPDATE SET
-       provider = excluded.provider,
-       model = excluded.model,
-       params_json = excluded.params_json,
-       updated_at = excluded.updated_at`
-  ).run(
-    input.useCase,
-    input.provider,
-    input.model ?? null,
-    JSON.stringify(input.params ?? {}),
-    new Date().toISOString()
-  );
+  const now = new Date().toISOString();
+  const paramsJson = JSON.stringify(input.params ?? {});
+  const apply = db.transaction((): boolean => {
+    const current = db.prepare(`SELECT updated_at FROM llm_config WHERE use_case = ?`).get(input.useCase) as
+      | { updated_at: string }
+      | undefined;
+    const seen = current?.updated_at ?? null;
+    if (input.expectedUpdatedAt !== undefined && seen !== input.expectedUpdatedAt) return false;
+    // The stamp IS the version token, so it must strictly increase. An ISO string has
+    // millisecond resolution and two writes can land inside one — which would hand the
+    // next writer a token that still matches a row someone else has already replaced,
+    // i.e. exactly the lost update this precondition exists to stop. Nudge past a
+    // collision rather than letting the version stand still.
+    const stamp = seen !== null && seen >= now ? new Date(Date.parse(seen) + 1).toISOString() : now;
+    db.prepare(
+      `INSERT INTO llm_config (use_case, provider, model, params_json, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (use_case) DO UPDATE SET
+         provider = excluded.provider,
+         model = excluded.model,
+         params_json = excluded.params_json,
+         updated_at = excluded.updated_at`
+    ).run(input.useCase, input.provider, input.model ?? null, paramsJson, stamp);
+    return true;
+  });
+  return apply.immediate();
 }
 
 /** Remove a use-case pin — it reverts to the built-in default provider. */

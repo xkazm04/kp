@@ -284,10 +284,34 @@ leave to inference:
 
 Two mechanical notes on the same surface: the derived lists in `useScheduleTab.ts`
 are memoized on `entries` and `ScheduleCalendar` is wrapped in `memo`, so the
-6-second interview-status poll no longer re-renders the whole week grid with
+interview-status poll no longer re-renders the whole week grid with
 byte-identical data (the lists were rebuilt per render, so the memos below them
 could never hit); and the week pager's prev/next buttons are 44x44 rather than
 32x32.
+
+**The live-status poll is visibility-gated and backs off.** It was a flat
+`setInterval(refresh, 6000)` with its failure swallowed, so a tab left open in the
+background made 600 SQLite-backed requests an hour for a surface nobody was looking
+at — and when the server was down, 600 silent failures an hour while the tab kept
+rendering an hour-old snapshot as if it were live. Now (`schedulePollBackoff.ts`,
+consumed by `useScheduleTab.ts`): a hidden tab arms no timer at all and refreshes
+the moment it becomes visible; consecutive failures double the delay 6s → 12 → 24
+→ 48 → **60s and hold there** (capped deliberately — an uncapped exponential stops
+retrying, and a recovered network must be picked up without a reload); a success
+resets to 6s. From the **second** consecutive failure the tab renders a
+`role="status"` pill with a retry that resets the backoff immediately. The curve is
+pinned by `schedulePollBackoff.test.ts`.
+
+The tab's two derived lists — `bookedMarkers` (which hours the grid draws as taken)
+and `interviewedEntries` (who stays visible after a verdict, including the
+transcript-less human-led rounds) — moved out of the hook into
+`scheduleTabDerived.ts` and are pinned by `scheduleTabDerived.test.ts`. The prep
+modal's hydration and completion arithmetic likewise live in
+`scheduleInterviewPrepProgress.ts` (`scheduleInterviewPrepProgress.test.ts`), which
+is where "one hydration rule for both a load and a regeneration" and "a done count
+can never exceed the total" are now enforced rather than assumed. The recruiter's
+cancel and no-show confirms carry a busy label plus `aria-busy` in flight; they
+were disabled-only, so a slow round-trip read as a dead button.
 
 ## What the recruiter is told when a booking is refused
 
@@ -318,6 +342,44 @@ Pinned by `app/api/schedule/schedule-book-refusals.test.ts`, which drives the re
 handler and also asserts that every code the route emits has an `errors.<CODE>`
 entry in all four catalogs — a code with no catalog entry silently degrades back
 to the generic fallback.
+
+### …and when a LIFECYCLE action is refused
+
+The book path was moved onto codes first; the recruiter's other actions on the same
+route — the ones the invite lifecycle panel drives — followed. Every branch of
+`POST`/`PATCH /api/schedule` now answers `jsonRefusal`, so nothing on this route
+returns a bare English `{ error }` any more:
+
+| Code | Status | Means |
+| --- | --- | --- |
+| `SCHEDULE_ACTION_REQUIRED` / `SCHEDULE_ACTION_UNKNOWN` | 400 | No action named, or one this route does not perform |
+| `SCHEDULE_BOOK_TARGET_MISSING` | 400 | A grid book with no entry id or no target cell |
+| `SCHEDULE_TOKEN_REQUIRED` | 400 | A lifecycle action or a meeting-link PATCH with no token |
+| `SCHEDULE_INVITE_NOT_FOUND` | 404 | No invite for this token **on this team's calendar** (a foreign token is indistinguishable from a deleted one, deliberately) |
+| `SCHEDULE_CANCEL_NOT_CONFIRMED` / `SCHEDULE_NO_SHOW_NOT_CONFIRMED` | 409 | The row holds no confirmed booking — the panel is a snapshot and it moved |
+| `SCHEDULE_RESCHEDULE_NOT_CONFIRMED` | 409 | Nothing to move; the remedy is a fresh link, not a retry |
+| `SCHEDULE_PROPOSAL_GONE` | 409 | The accepted time is no longer among the candidate's proposals |
+| `SCHEDULE_PROPOSAL_EXPIRED` | 409 | The proposal aged into the past — the candidate must suggest new times |
+| `SCHEDULE_NO_PROPOSALS` | 409 | Decline-all on an invite carrying no proposals |
+| `SCHEDULE_NOTHING_TO_RECONCILE` | 409 | Already resolved |
+| `SCHEDULE_MEETING_URL_INVALID` | 400 | The join link is not http(s) |
+| `SCHEDULE_SLOT_TAKEN` · `SCHEDULE_SLOT_NOT_OFFERED` · `SCHEDULE_BOOK_FAILED` · `SCHEDULE_CANDIDATE_INACTIVE` | 400/409 | Reused from the book path and the candidate door — one vocabulary, not two spellings of the same refusal |
+| `TOO_MANY_REQUESTS` | 429 | The per-IP limiter on both handlers |
+
+Why it mattered: `useScheduleInviteLifecycle.runAction` resolves failures through
+`useErrorMessage()`, which reads the CODE and correctly ignores the server's prose.
+Every one of these therefore collapsed into the panel's single generic toast — a
+recruiter whose candidate's proposed times had aged into the past and one who
+clicked cancel on a row another operator had already cancelled read the identical
+sentence, in English, in all four locales, and nothing named the remedy either of
+them needed. Pinned by `app/api/schedule/schedule-lifecycle-refusals.test.ts`,
+which drives the real handler for thirteen branches, asserts the four-catalog entry
+for every code the route emits, and fails if any branch reverts to a bare
+`NextResponse.json({ error: … })`.
+
+The only consumers of these two handlers are `useScheduleInviteLifecycle.runAction`
+(POST) and `ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third,
+on the `book` action. All three already resolve by code.
 
 ## What the CANDIDATE is told when their door refuses
 
@@ -522,16 +584,25 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   webhook dead-lettering, the bar therefore still reads "N invited to
   schedule". The remaining edit is client-side: count `delivery === "sent"`
   and fall back to the queued copy otherwise.
-- **`/api/interview-prep` is keyed by entry id with no workspace check.** `GET
-  ?entry=`, `POST`, `PATCH` and `POST /api/interview-prep/scorecard` all reach
-  `getInterviewPrep` / `saveHumanScorecard`, which are by-`entry_id` point ops.
-  `interview_preps` is a deliberate by-id exemption in `app/_lib/tenancy.ts`
-  (pinned by `app/_lib/interview-prep-tenancy.test.ts`), so a foreign id
-  resolves to the right row rather than the wrong one — but nothing refuses it,
-  so an operator holding another team's entry id can read that team's prep
-  notes + human scorecard and overwrite the scorecard. Closing it means a
-  `getPipelineEntry(entry, ws)` gate on all four handlers, which reverses the
-  manifest exemption for this table.
+- ~~`/api/interview-prep` is keyed by entry id with no workspace check.~~
+  **Closed.** `getInterviewPrep(entryId, workspaceId)` carries a `workspace_id`
+  predicate (the column has existed since E0 Phase 1 and `saveInterviewPrep`
+  stamps it from the linked pipeline entry); `GET ?entry=`, `PUT`, `POST`,
+  `PATCH` and `POST /api/interview-prep/scorecard` all pass the workspace they
+  resolved and 404 on a foreign id; and `listPreparedEntries` — whose `IN` query
+  matched entry ids across every team while taking a `workspaceId` only for the
+  JD-staleness join — is scoped the same way. The scorecard verb was the last
+  one that could still WRITE through a foreign id (`saveHumanScorecard` is an
+  unscoped by-`entry_id` point op), so it now refuses before the write. Every
+  production reader passes a tenant too — `interview-planned-minutes.ts` and
+  `candidate-timeline.ts` from `entry.workspaceId`, `interview-run.ts` (both
+  sites) and `interview-prep-run.ts` from the workspace already resolved in the
+  function, and the public `api/schedule/[token]` door from the invite's own
+  entry — so a non-default team keeps its duration hint, its grounded voice
+  brief and its carried-forward prep progress rather than reading `null`. Pinned
+  by `app/api/interview-prep/interview-prep-tenancy.test.ts`, which proves all
+  three halves: the store filters, every handler passes the tenant, and the
+  planned-minutes path reads a non-default team's pack.
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.

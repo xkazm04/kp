@@ -1475,6 +1475,7 @@
     "SCHEDULE_INTERVAL_INVALID": "Das Automatisierungsintervall muss eine Zahl in Minuten sein.",
     "COMM_RESEND_IN_PROGRESS": "Ein erneuter Versand dieser Nachricht läuft bereits.",
     "COMM_ALREADY_RESENT": "Bereits erneut gesendet. Für diese Nachricht gibt es eine neuere Zustellung.",
+    "COMM_SIMULATION_ROW": "Diese Nachricht gehört zur geführten Simulation und wird nie gesendet.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen.",
     "MATCH_RUN_FAILED": "Diese Person konnte nicht gegen die Rollen bewertet werden. Bitte erneut versuchen.",
     "MATCH_INPUT_INVALID": "Diese Person ließ sich nicht auflösen. Das Profil oder die Analyse dahinter existiert nicht mehr.",
@@ -1521,7 +1522,39 @@
     "PROFILE_STALE": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert. Laden Sie es neu und wenden Sie Ihre Änderungen erneut an.",
     "ATS_CONFIG_SAVE_FAILED": "Die Webhook-Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
-    "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen."
+    "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen.",
+    "SIM_RESET_FAILED": "Die Simulationsdaten konnten nicht gelöscht werden. Bitte erneut versuchen.",
+    "SIM_INBOUND_FAILED": "Die eingehende Bewerbung konnte nicht simuliert werden. Bitte erneut versuchen.",
+    "SIM_SCREEN_DRAFT_FAILED": "Die Screening-Empfehlung konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "SIM_OFFER_DRAFT_FAILED": "Der Angebotsentwurf konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "SIM_OFFER_LINK_FAILED": "Der Angebotslink konnte nicht gelesen werden. Bitte erneut versuchen.",
+    "SIM_JOB_REQUIRED": "Die Simulation braucht eine Rolle, auf der sie läuft.",
+    "SIM_JOB_NOT_FOUND": "Diese Rolle existiert nicht mehr.",
+    "SIM_NO_APPLICANT": "Es ist kein Kandidat verfügbar, dessen Bewerbung simuliert werden könnte.",
+    "SIM_ENTRY_REQUIRED": "Die Simulation braucht einen Pipeline-Eintrag, auf den sie sich bezieht.",
+    "SIM_ENTRY_NOT_FOUND": "Dieser Kandidat steht nicht auf diesem Board.",
+    "MODEL_ADMIN_FORBIDDEN": "Nur eine Inhaberin oder ein Inhaber darf Modellschlüssel und Routing dieser Installation ändern.",
+    "MODEL_KEY_BODY_INVALID": "Die Anfrage zum Speichern des Schlüssels konnte nicht gelesen werden.",
+    "MODEL_KEY_PROVIDER_UNKNOWN": "Für diesen Anbieter kann dieser Server keinen Schlüssel speichern.",
+    "MODEL_KEY_SECRET_REQUIRED": "Dieser Anbieter benötigt einen API-Schlüssel.",
+    "MODEL_KEY_LOCATION_REQUIRED": "Geben Sie einen API-Schlüssel oder eine Server-URL an. Ein Eintrag ohne beides sagt nichts aus.",
+    "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI braucht den Endpunkt Ihrer Ressource, bevor der Schlüssel gespeichert werden kann.",
+    "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Auf diesem Server ist kein Verschlüsselungsgeheimnis gesetzt, deshalb lässt sich noch kein Anbieterschlüssel speichern.",
+    "MODEL_KEY_REJECTED": "Der Schlüssel konnte nicht gespeichert werden. Prüfen Sie den angegebenen Endpunkt oder die Server-URL.",
+    "MODEL_ROUTING_STALE": "Jemand hat diesen Anwendungsfall neu zugewiesen, während Sie ihn bearbeitet haben. Die Tabelle wurde neu geladen, nehmen Sie Ihre Änderung noch einmal vor.",
+    "SCHEDULE_ACTION_REQUIRED": "Es wurde keine Planungsaktion angegeben. Laden Sie den Tab neu und versuchen Sie es erneut.",
+    "SCHEDULE_ACTION_UNKNOWN": "Diese Planungsaktion führt die App nicht aus.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Wählen Sie vor der Buchung eine Kandidatin oder einen Kandidaten und eine Zeit.",
+    "SCHEDULE_TOKEN_REQUIRED": "Der Interview-Link fehlt. Laden Sie den Tab neu und versuchen Sie es erneut.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Dieses Interview steht nicht mehr in Ihrem Kalender. Laden Sie den Tab neu.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann storniert werden. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann als Nichterscheinen markiert werden. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann verschoben werden. Senden Sie stattdessen einen neuen Planungslink.",
+    "SCHEDULE_PROPOSAL_GONE": "Dieser vorgeschlagene Termin steht nicht mehr auf der Einladung. Laden Sie die aktuellen Vorschläge neu.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Dieser vorgeschlagene Termin ist verstrichen. Bitten Sie um neue Terminvorschläge.",
+    "SCHEDULE_NO_PROPOSALS": "Es gibt keine vorgeschlagenen Termine zum Ablehnen.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "Bei diesem Interview gibt es nichts mehr abzugleichen.",
+    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3491,7 +3524,9 @@
       "proposalsGroupAria": "Vom Kandidaten vorgeschlagene Termine",
       "acceptProposal": "{time} annehmen",
       "declineProposals": "Alle ablehnen",
-      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?"
+      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?",
+      "cancelling": "Wird storniert…",
+      "markingNoShow": "Wird markiert…"
     },
     "eyebrow": "Entscheidungen · Planung",
     "title": "Interview-Kalender",
@@ -3713,7 +3748,9 @@
       "noteWaiting": "Wartet hier",
       "noteHere": "Sie sind hier",
       "noteNext": "Als Nächstes"
-    }
+    },
+    "liveStale": "Der Live-Status der Interviews ist veraltet.",
+    "liveRetry": "Erneut versuchen"
   },
   "library": {
     "tab": {
@@ -7493,7 +7530,8 @@
       "testOkNoLatency": "Schlüssel funktioniert. {model} hat geantwortet.",
       "testFailed": "Test fehlgeschlagen.",
       "testModelLabel": "Aufzurufendes Modell",
-      "testModelPlaceholder": "Deployment oder Modell-Slug"
+      "testModelPlaceholder": "Deployment oder Modell-Slug",
+      "storeScope": "Diese Schlüssel werden einmal für den gesamten Server gespeichert, nicht pro Team: alle Arbeitsbereiche hier rechnen darüber ab. „BYOM“ und „Plattform“ sind zwei Plätze in diesem gemeinsamen Speicher, nicht zwei Eigentümer."
     },
     "useCaseDesc": {
       "match_reasoning": "Schreibt die Begründung für Recruiter, warum ein Kandidat auf eine Stelle passt oder eben nicht.",
@@ -8636,7 +8674,8 @@
       "stopped": "Gestoppt",
       "done": "Fertig. Stelle besetzt 🎉",
       "failed": "Fehlgeschlagen: {message}",
-      "genericError": "Die Simulation wurde unerwartet beendet."
+      "genericError": "Die Simulation wurde unerwartet beendet.",
+      "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen."
     },
     "phase": {
       "design": "Ausschreibung",
@@ -8868,6 +8907,20 @@
         "accepted": "Angebot angenommen",
         "move": "Nach Eingestellt verschieben",
         "handoff": "Übergabe\\nATS · HRIS"
+      }
+    },
+    "draft": {
+      "theRole": "diese Rolle",
+      "theCandidate": "Kandidat/in",
+      "screen": {
+        "rationale": "{role}: starke Passung. Kernkompetenzen vorhanden, Seniorität passt.",
+        "strengthStack": "Relevanter Stack und Fachbereich",
+        "strengthSeniority": "Seniorität passt zur Rolle"
+      },
+      "offer": {
+        "subject": "Angebot: {role}",
+        "body": "Hallo {name},\n\nwir freuen uns, Ihnen ein Angebot für die Position {role} zu machen.",
+        "rationale": "Gehalt in der Mitte der Rollenspanne, gewichtet nach Passung."
       }
     }
   },

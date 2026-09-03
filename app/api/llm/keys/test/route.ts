@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildProviderKeyProbeEnv, isKeyableProvider, providerNeedsExplicitModel } from "@/app/_lib/llm-config";
 import { spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "../../test/verdict.ts";
 
 export const maxDuration = 90;
+
+// THROTTLE (rate-limit-contract.test.ts). Same spend shape as the routing canary
+// one directory up: a Python child and a real, billable hello-world completion per
+// click, with an operator gate that open mode makes a documented no-op. TIGHTER
+// than the routing canary's 30 on purpose — the keys panel holds one row per stored
+// credential (a handful), not one per use case — so 20/10min is far above proving
+// every key twice and well under a scripted loop.
+const KEY_PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 // Keys panel "Test" button: prove ONE stored credential with a hello-world
 // completion through the real adapter, before any use case is pinned to it.
@@ -43,6 +53,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No stored key for that provider and scope.", code: "not_found" }, { status: 404 });
   }
   const configKeys = extractConfigKeys(configEnv);
+  // Last, after EVERY refusal above (unknown provider, model-required, no stored
+  // key): a rejected call spawns nothing, so it must consume no budget either.
+  if (!rateLimit(`llm-key-probe:${clientIpFrom(request.headers)}`, KEY_PROBE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
 
   try {
     const { result } = spawnPython(

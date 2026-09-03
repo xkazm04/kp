@@ -341,7 +341,9 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
     };
   }
 
-  let prep = (getInterviewPrep(entryId)?.payload as PrepPayload | undefined) ?? undefined;
+  // Same tenant as the entry read above — unscoped, this found no pack on any other
+  // team and fell through to GENERATING one on every single call.
+  let prep = (getInterviewPrep(entryId, ws)?.payload as PrepPayload | undefined) ?? undefined;
   if (!prep || !(prep.chronology && prep.chronology.length)) {
     try {
       // Same tenant as the entry above (3rd arg): the generated pack's task row and
@@ -410,7 +412,8 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
   // read resolved against the DEFAULT team and returned null everywhere else, so
   // every other team's candidate heard the generic ungrounded prompt — no company,
   // no role, none of the run-of-show the recruiter had just built for them.
-  const entry = getPipelineEntry(entryId, getEntryWorkspace(entryId));
+  const briefWs = getEntryWorkspace(entryId);
+  const entry = getPipelineEntry(entryId, briefWs);
   if (!entry) return null;
 
   const job = entry.jobId ? getJob(entry.jobId) : null;
@@ -458,7 +461,9 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
     );
   }
 
-  const prep = (getInterviewPrep(entryId)?.payload as PrepPayload | undefined) ?? undefined;
+  // The entry's own tenant (resolved once at the top of this function): the
+  // candidate-safe brief silently lost its grounded chronology off the default team.
+  const prep = (getInterviewPrep(entryId, briefWs)?.payload as PrepPayload | undefined) ?? undefined;
   const chron = prep?.chronology ?? [];
   if (chron.length === 0) return null;
   const blocks = chron.map(sanitizeChronologyBlock).filter((b): b is CandidateSafeBlock => b !== null);

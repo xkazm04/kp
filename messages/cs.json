@@ -1475,6 +1475,7 @@
     "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách.",
     "COMM_RESEND_IN_PROGRESS": "Odeslání této zprávy už právě probíhá.",
     "COMM_ALREADY_RESENT": "Už bylo odesláno znovu. Pro tuto zprávu existuje novější doručení.",
+    "COMM_SIMULATION_ROW": "Tato zpráva patří k řízené simulaci a nikdy se neodesílá.",
     "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází.",
     "MATCH_RUN_FAILED": "Tohoto kandidáta se nepodařilo porovnat s rolemi. Zkuste to prosím znovu.",
     "MATCH_INPUT_INVALID": "Tohoto kandidáta nelze načíst. Profil nebo analýza za ním už neexistuje.",
@@ -1521,7 +1522,39 @@
     "PROFILE_STALE": "Tento profil někdo uložil poté, co jste jej otevřeli. Načtěte jej znovu a změny proveďte znovu.",
     "ATS_CONFIG_SAVE_FAILED": "Nastavení webhooku se nepodařilo uložit. Zkuste to prosím znovu.",
     "ATS_CONFIG_STALE": "Někdo mezitím uložil novější nastavení webhooku. Načtěte je znovu a proveďte změnu ještě jednou.",
-    "GROUP_EVAL_READ_FAILED": "Uložené srovnání se nepodařilo načíst. Zkuste to prosím znovu."
+    "GROUP_EVAL_READ_FAILED": "Uložené srovnání se nepodařilo načíst. Zkuste to prosím znovu.",
+    "SIM_RESET_FAILED": "Data simulace se nepodařilo smazat. Zkuste to prosím znovu.",
+    "SIM_INBOUND_FAILED": "Příchozí přihlášku se nepodařilo simulovat. Zkuste to prosím znovu.",
+    "SIM_SCREEN_DRAFT_FAILED": "Doporučení ze screeningu se nepodařilo připravit. Zkuste to prosím znovu.",
+    "SIM_OFFER_DRAFT_FAILED": "Návrh nabídky se nepodařilo připravit. Zkuste to prosím znovu.",
+    "SIM_OFFER_LINK_FAILED": "Odkaz na nabídku se nepodařilo načíst. Zkuste to prosím znovu.",
+    "SIM_JOB_REQUIRED": "Simulace potřebuje roli, na které poběží.",
+    "SIM_JOB_NOT_FOUND": "Tato role už neexistuje.",
+    "SIM_NO_APPLICANT": "Není k dispozici žádný kandidát, jehož přihlášku by šlo simulovat.",
+    "SIM_ENTRY_REQUIRED": "Simulace potřebuje záznam v pipeline, se kterým bude pracovat.",
+    "SIM_ENTRY_NOT_FOUND": "Tento kandidát na této nástěnce není.",
+    "MODEL_ADMIN_FORBIDDEN": "Klíče k modelům a jejich směrování může měnit jen vlastník organizace.",
+    "MODEL_KEY_BODY_INVALID": "Požadavek na uložení klíče se nepodařilo přečíst.",
+    "MODEL_KEY_PROVIDER_UNKNOWN": "Pro tohoto poskytovatele tento server klíč ukládat neumí.",
+    "MODEL_KEY_SECRET_REQUIRED": "Tento poskytovatel vyžaduje API klíč.",
+    "MODEL_KEY_LOCATION_REQUIRED": "Zadejte API klíč nebo adresu serveru. Záznam bez obojího nic neříká.",
+    "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI potřebuje endpoint vašeho prostředku, jinak klíč uložit nelze.",
+    "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Server nemá nastavené šifrovací tajemství, takže klíč poskytovatele zatím uložit nelze.",
+    "MODEL_KEY_REJECTED": "Klíč se nepodařilo uložit. Zkontrolujte zadaný endpoint nebo adresu serveru.",
+    "MODEL_ROUTING_STALE": "Někdo toto použití přenastavil, zatímco jste ho upravovali. Tabulka byla znovu načtena, proveďte změnu ještě jednou.",
+    "SCHEDULE_ACTION_REQUIRED": "Nebyla zadána žádná akce plánování. Načtěte kartu znovu a zkuste to znovu.",
+    "SCHEDULE_ACTION_UNKNOWN": "Tuto akci plánování aplikace neprovádí.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Před rezervací vyberte kandidáta a čas.",
+    "SCHEDULE_TOKEN_REQUIRED": "Chybí odkaz na pohovor. Načtěte kartu znovu a zkuste to znovu.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Tento pohovor už ve vašem kalendáři není. Načtěte kartu znovu.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Zrušit lze jen potvrzenou rezervaci. Načtěte znovu a zjistěte, jak na tom je.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Jako neúčast lze označit jen potvrzenou rezervaci. Načtěte znovu a zjistěte, jak na tom je.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Přesunout lze jen potvrzenou rezervaci. Pošlete raději nový odkaz na plánování.",
+    "SCHEDULE_PROPOSAL_GONE": "Tento navržený čas už na pozvánce není. Načtěte znovu aktuální návrhy.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Tento navržený čas už uplynul. Požádejte kandidáta o nové termíny.",
+    "SCHEDULE_NO_PROPOSALS": "Nejsou tu žádné navržené časy k odmítnutí.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "U tohoto pohovoru už není co srovnávat.",
+    "SCHEDULE_MEETING_URL_INVALID": "Zadejte platný odkaz na schůzku (http nebo https)."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3491,7 +3524,9 @@
       "proposalsGroupAria": "Termíny navržené kandidátem",
       "acceptProposal": "Přijmout {time}",
       "declineProposals": "Zamítnout vše",
-      "declineProposalsPrompt": "Zamítnout navržené termíny?"
+      "declineProposalsPrompt": "Zamítnout navržené termíny?",
+      "cancelling": "Ruším…",
+      "markingNoShow": "Označuji…"
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
@@ -3713,7 +3748,9 @@
       "noteWaiting": "Čeká tady",
       "noteHere": "Jste tady",
       "noteNext": "Další"
-    }
+    },
+    "liveStale": "Živý stav pohovorů je zastaralý.",
+    "liveRetry": "Zkusit znovu"
   },
   "library": {
     "tab": {
@@ -7493,7 +7530,8 @@
       "testOkNoLatency": "Klíč funguje. Model {model} odpověděl.",
       "testFailed": "Test selhal.",
       "testModelLabel": "Model k volání",
-      "testModelPlaceholder": "nasazení nebo identifikátor modelu"
+      "testModelPlaceholder": "nasazení nebo identifikátor modelu",
+      "storeScope": "Klíče se ukládají jednou pro celý server, ne pro jednotlivé týmy: čerpají z nich všechny pracovní prostory. „BYOM“ a „Platforma“ jsou dvě místa v tomto sdíleném úložišti, ne dva vlastníci."
     },
     "useCaseDesc": {
       "match_reasoning": "Píše zdůvodnění pro náboráře, proč kandidát na pozici sedí, nebo nesedí.",
@@ -8636,7 +8674,8 @@
       "stopped": "Zastaveno",
       "done": "Hotovo. Pozice obsazena 🎉",
       "failed": "Selhalo: {message}",
-      "genericError": "Simulace se neočekávaně zastavila."
+      "genericError": "Simulace se neočekávaně zastavila.",
+      "resetFailed": "Vyčištění selhalo. Zkuste to znovu."
     },
     "phase": {
       "design": "Popis pozice",
@@ -8868,6 +8907,20 @@
         "accepted": "Nabídka přijata",
         "move": "Přesun do stavu Přijat/a",
         "handoff": "Předání\\nATS · HRIS"
+      }
+    },
+    "draft": {
+      "theRole": "tato role",
+      "theCandidate": "kandidáte",
+      "screen": {
+        "rationale": "{role}: silná shoda. Klíčové dovednosti jsou přítomné, seniorita odpovídá.",
+        "strengthStack": "Relevantní technologie a doména",
+        "strengthSeniority": "Seniorita odpovídá roli"
+      },
+      "offer": {
+        "subject": "Nabídka: {role}",
+        "body": "Dobrý den, {name},\n\ns radostí Vám nabízíme spolupráci na pozici {role}.",
+        "rationale": "Mzda je nastavena na střed mzdového pásma role, upravena podle shody."
       }
     }
   },

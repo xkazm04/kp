@@ -98,7 +98,7 @@ test("an import-style payload write keeps the pack stale (created_at is the GENE
 
   // The exact read-merge-write the import POST / weave PATCH perform: same plan,
   // one extra payload key, no regeneration.
-  const existing = getInterviewPrep(entryId)!;
+  const existing = getInterviewPrep(entryId, WS)!;
   saveInterviewPrep(entryId, existing.candidateLabel, existing.jobTitle, {
     ...existing.payload,
     importedQuestions: ["Describe a system you owned end-to-end."],
@@ -117,7 +117,7 @@ test("a regeneration DOES move the stamp and clears the stale flag", () => {
   tick();
 
   // What runInterviewPrep does: rebuild the plan and declare it a regeneration.
-  const existing = getInterviewPrep(entryId)!;
+  const existing = getInterviewPrep(entryId, WS)!;
   saveInterviewPrep(entryId, existing.candidateLabel, existing.jobTitle, { ...existing.payload, scenario: "rebuilt" }, { regenerated: true });
 
   assert.equal(listPreparedEntries([entryId], WS)[entryId].stale, false, "a rebuilt pack is current again");

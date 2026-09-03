@@ -242,7 +242,12 @@ const LEAK_CEILING = new Map<string, number>([
   // STORE_ERRORS in the same change. The entries are deleted so the win is locked and
   // a regression reads as `undeclared` rather than as budget already granted.
   ["llm/activity/route.ts", 1],
-  ["llm/keys/route.ts", 1],
+  // llm/keys/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,
+  // model-keys-need-the-org-key): its catch forwarded saveProviderKey's own message —
+  // the resolved endpoint host, the rejected URL, the crypto helper's detail — and its
+  // four other 400s were bare English the panel had to substring-sniff. All of them now
+  // answer jsonRefusal("MODEL_KEY_*") with the provider as data. The entry is deleted so
+  // a regression reads as `undeclared` rather than as budget already granted.
   ["llm/keys/test/route.ts", 1],
   ["llm/test/route.ts", 1],
   // match/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,

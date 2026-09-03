@@ -5,7 +5,7 @@
 // everything the tab's render (and its list/aside sub-components) need; no
 // JSX here.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import type { TargetAndTransition } from "framer-motion";
 import { DEFAULT_SLOT, type SchedEntry } from "./ScheduleTypes";
@@ -16,6 +16,9 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { seedGrid, type SlotSource } from "./scheduleGridSeeds";
+// The two derived lists + the poll cadence, extracted and unit-pinned (schedule-ui-2).
+import { bookedMarkersFrom, interviewedEntriesFrom } from "./scheduleTabDerived";
+import { pollDelayMs, pollIsStale } from "./schedulePollBackoff";
 
 export type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
 
@@ -161,25 +164,13 @@ export function useScheduleTab() {
   // out of the pending list) still occupies their slot and can't be double-booked.
   // Entries already rendered as assignable chips are excluded to avoid a double render.
   const calendarEntryIds = useMemo(() => new Set(calendarEntries.map((e) => e.id)), [calendarEntries]);
-  const bookedMarkers = useMemo(
-    () =>
-      invites
-        .filter((i) => i.status === "confirmed" && i.slotAt && (!i.entryId || !calendarEntryIds.has(i.entryId)))
-        .map((i) => ({ id: i.token, dateSlot: isoToDateSlot(i.slotAt), candidateLabel: i.candidateLabel ?? "—" }))
-        .filter((m): m is { id: string; dateSlot: string; candidateLabel: string } => m.dateSlot !== null),
-    [invites, calendarEntryIds]
-  );
+  const bookedMarkers = useMemo(() => bookedMarkersFrom(invites, calendarEntryIds), [invites, calendarEntryIds]);
   // Interviewed = moved past scheduling with either a saved voice transcript or a
   // recruiter-filled human scorecard — a human-led round has no transcript, but its
   // candidate must stay visible (and the prep modal reachable) after the verdict
   // gates the entry to scorecard_review (interview-prep-rubric #2).
   const interviewedEntries = useMemo(
-    () =>
-      pending.filter(
-        (e) =>
-          e.approvalKind === "scorecard_review" &&
-          (interviews[e.id]?.hasTranscript || prepared[e.id]?.hasHumanScorecard)
-      ),
+    () => interviewedEntriesFrom(pending, interviews, prepared),
     [pending, interviews, prepared]
   );
   // entry id → the candidate's own IANA zone, captured when THEY booked
@@ -215,25 +206,79 @@ export function useScheduleTab() {
   }, [entryIds, prepEntry]);
 
   // Poll which candidates have a finished voice interview (transcript ready).
-  // Re-checks on an interval + window focus, since the call happens in a tab the
-  // recruiter opens, then returns from.
+  //
+  // Three properties this loop did NOT have (schedule-ui-2). It was a flat
+  // `setInterval(refresh, 6000)` whose failure was swallowed by `.catch(() => undefined)`:
+  //
+  //  * It ran in a BACKGROUND tab forever — 600 SQLite-backed requests an hour for a
+  //    surface nobody was looking at. Now it is gated on `document.visibilityState`:
+  //    hidden ⇒ no timer at all, and becoming visible refreshes immediately (the same
+  //    "you came back, here is the truth" moment the focus listener already served).
+  //  * A failing server produced 600 silent failures an hour. Now consecutive failures
+  //    back the cadence off 6s → 12 → 24 → 48 → 60s and hold there (schedulePollBackoff.ts
+  //    states the curve); a success resets to 6s, so a recovered network is picked up
+  //    without a reload.
+  //  * Nothing ever SAID the view was old. `liveStale` goes true from the second
+  //    consecutive failure and the tab renders a pill with a retry — the alternative is
+  //    an hour-old snapshot rendered as if it were live.
+  const failuresRef = useRef(0);
+  const [liveStale, setLiveStale] = useState(false);
+  // Bumped by the retry button to re-run the effect (and so poll immediately).
+  const [pollNonce, setPollNonce] = useState(0);
+  const retryLive = useCallback(() => {
+    failuresRef.current = 0;
+    setPollNonce((n) => n + 1);
+  }, []);
   useEffect(() => {
     if (!entryIds) return;
     let alive = true;
-    const refresh = () =>
+    let timer: number | undefined;
+    const arm = () => {
+      if (!alive) return;
+      window.clearTimeout(timer);
+      // A hidden tab arms nothing; the visibilitychange handler below restarts it.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      timer = window.setTimeout(refresh, pollDelayMs(failuresRef.current));
+    };
+    const refresh = () => {
+      if (!alive) return;
       fetch(`/api/interview/by-entry?entries=${encodeURIComponent(entryIds)}`)
-        .then((r) => r.json())
-        .then((d) => alive && setInterviews(d.status ?? {}))
-        .catch(() => undefined);
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        })
+        .then((d) => {
+          if (!alive) return;
+          failuresRef.current = 0;
+          setLiveStale(false);
+          setInterviews(d.status ?? {});
+        })
+        .catch(() => {
+          // Best-effort by design — a failed status poll must never break the tab. What
+          // it may NOT do is stay invisible: the count drives both the backoff and the pill.
+          if (!alive) return;
+          failuresRef.current += 1;
+          setLiveStale(pollIsStale(failuresRef.current));
+        })
+        .finally(arm);
+    };
+    const onVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        window.clearTimeout(timer);
+        return;
+      }
+      refresh();
+    };
     refresh();
-    const timer = setInterval(refresh, 6000);
-    window.addEventListener("focus", refresh);
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
-      clearInterval(timer);
-      window.removeEventListener("focus", refresh);
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [entryIds, transcriptEntry]);
+  }, [entryIds, transcriptEntry, pollNonce]);
 
   const startInterview = async (e: SchedEntry) => {
     setCreatingIv(e.id);
@@ -350,6 +395,8 @@ export function useScheduleTab() {
     setPrepEntry,
     prepared,
     interviews,
+    liveStale,
+    retryLive,
     creatingIv,
     transcriptEntry,
     setTranscriptEntry,

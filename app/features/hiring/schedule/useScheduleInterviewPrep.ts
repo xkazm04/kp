@@ -13,6 +13,8 @@ import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvide
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 import { normImported, type ImportedEntry, type ImportedQuestion, type Prep } from "./scheduleInterviewPrepTypes";
+// The hydration + progress arithmetic, extracted and unit-tested (schedule-ui-2).
+import { hydratePrepState, prepProgress, splitImported, wovenKeyOf as wovenKeyIn } from "./scheduleInterviewPrepProgress";
 
 export function useScheduleInterviewPrep(entry: SchedEntry) {
   const t = useTranslations("scheduleTab.prep");
@@ -77,11 +79,10 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   // run exactly once the GET resolves; React applies these sets before the browser paints.
   if (!hydrated && !generated && data) {
     setHydrated(true);
-    const payload = data?.prep?.payload as Prep | undefined;
-    const up = payload?.userProgress;
-    if (up?.checked) setChecked(up.checked);
-    if (up && typeof up.notes === "string") setNotes(up.notes);
-    if (typeof payload?.interviewer === "string") setInterviewer(payload.interviewer);
+    const seed = hydratePrepState(data?.prep?.payload as Prep | undefined);
+    setChecked(seed.checked);
+    setNotes(seed.notes);
+    setInterviewer(seed.interviewer);
   }
 
   // The single progress-PUT both the debounced save and the unmount flush issue.
@@ -144,10 +145,12 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
     // the server's current copy. Leaving the cleared/old state here would let the
     // next debounce PUT overwrite the carried-forward progress wholesale. dirtyRef
     // stays false: this is hydration, not a user edit, and must not echo back.
-    const up = result?.userProgress;
-    setChecked(up?.checked ?? {});
-    setNotes(typeof up?.notes === "string" ? up.notes : "");
-    setInterviewer(typeof result?.interviewer === "string" ? result.interviewer : "");
+    // The SAME rule as the GET hydration above — one function, so a regenerate can
+    // never seed differently from a load (which is how a carried-forward note got lost).
+    const seed = hydratePrepState(result);
+    setChecked(seed.checked);
+    setNotes(seed.notes);
+    setInterviewer(seed.interviewer);
     // The regenerated result carries importedQuestions forward, so drop any local
     // weave override and read the fresh copy (blockRefs preserved by the merge).
     setImportedOverride(null);
@@ -183,19 +186,14 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
     return raw.map(normImported).filter((e): e is ImportedEntry => e !== null);
   }, [importedOverride, prep]);
   const blockTopics = useMemo(() => new Set((prep?.chronology ?? []).map((b) => b.topic)), [prep]);
-  const wovenList = useMemo(
-    () => importedEntries.filter((e) => e.blockRef && blockTopics.has(e.blockRef)),
-    [importedEntries, blockTopics]
-  );
-  const unassigned = useMemo(
-    () => importedEntries.filter((e) => !e.blockRef || !blockTopics.has(e.blockRef)),
-    [importedEntries, blockTopics]
-  );
+  // ONE pass, one rule (scheduleInterviewPrepProgress.splitImported): the two filters
+  // this replaced were complementary predicates maintained by hand, so a question could
+  // fall into both lists or neither if either was edited alone.
+  const split = useMemo(() => splitImported(importedEntries, blockTopics), [importedEntries, blockTopics]);
+  const wovenList = split.woven;
+  const unassigned = split.unassigned;
   const wovenForBlock = (topic: string) => wovenList.filter((e) => e.blockRef === topic);
-  // Short, stable-enough checkbox key for a woven question (index in wovenList —
-  // like the c-/k- keys; the PUT route caps checked keys at 64 chars, so the raw
-  // question text can't be the key).
-  const wovenKeyOf = (question: string) => `w-${wovenList.findIndex((e) => e.question === question)}`;
+  const wovenKeyOf = (question: string) => wovenKeyIn(wovenList, question);
 
   // Weave an imported question into a block (blockRef = topic) or unassign it
   // (blockRef = null), via the PATCH that only moves the blockRef — the question
@@ -257,24 +255,12 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   // Derived from `prep` alone (no intermediate `?? []` value in the deps, which
   // would re-make a fresh array — and re-fire the memo — every render).
   const signals = prep?.signals ?? [];
-  // Woven imported questions are checkable items too (Direction 3), so they count in
-  // the total alongside the chronology blocks and the signals.
-  const totalItems = useMemo(
-    () => (prep ? prep.chronology.length + (prep.signals ?? []).length + wovenList.length : 0),
-    [prep, wovenList]
-  );
-  // Count only keys that map to a CURRENTLY-rendered item (c-<i> for chronology, k-<i> for
-  // signals, w-<i> for woven imported questions). Counting every truthy key in the stored map
-  // let a payload whose generated body shrank — but kept older userProgress keys — render
-  // "9/6 done" (> total) and a >100% meter.
-  const doneItems = useMemo(() => {
-    if (!prep) return 0;
-    let n = 0;
-    for (let i = 0; i < prep.chronology.length; i++) if (checked[`c-${i}`]) n += 1;
-    for (let i = 0; i < (prep.signals ?? []).length; i++) if (checked[`k-${i}`]) n += 1;
-    for (let i = 0; i < wovenList.length; i++) if (checked[`w-${i}`]) n += 1;
-    return n;
-  }, [prep, checked, wovenList]);
+  // Numerator and denominator from ONE function (scheduleInterviewPrepProgress), so the
+  // meter can never render a done count the total does not admit — see its header for
+  // the "9/6 done" regression this shape exists to prevent.
+  const progress = useMemo(() => prepProgress(prep, wovenList.length, checked), [prep, wovenList, checked]);
+  const totalItems = progress.total;
+  const doneItems = progress.done;
 
   return {
     t,
