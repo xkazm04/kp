@@ -709,6 +709,37 @@ credential. These rules keep that honest, all sized so a real candidate never me
   `app/api/devcase/session/session-limits.ts`) — ~80MB per session, roughly 1,200 full
   resends of a 64KB working tree, against a previous ceiling of ~768GB. All three refusals
   are the shared 429 envelope.
+- **The three operator-side doors of the assignments loop are throttled and idempotent**
+  (/perfect 2026-09-03). Each answered a race with a green lie, and one of them spent real
+  email while doing it:
+  - `POST /api/comms/[id]/resend` — the dead-letter RECOVERY door, and the one place here
+    where a click dispatches on demand — carried **no limiter at all**. It now takes
+    **60/10 min per IP** (`RESEND_RATE_LIMIT`), placed after the cheap refusals (the
+    in-flight 409, the unknown-id 404, the missing-fields 422) so a rejected click costs
+    no budget, and pinned in `app/api/rate-limit-contract.test.ts`. Its recovery dedup
+    also skipped **refless** messages entirely (`if (original.ref)`), so a comm whose ref
+    named no pipeline entry — a KO decline — could be re-dispatched once per click without
+    bound, guarded only by an in-process Set that lives for one request. A refless message
+    now correlates on its **own outbox id**: the recovery row carries it as `ref`, the same
+    query answers both shapes, and a second attempt is refused `409 COMM_ALREADY_RESENT`
+    (localized off the code, like `COMM_RESEND_IN_PROGRESS` for the in-flight collapse).
+    Pinned by `app/api/comms/[id]/resend/resend-dedup.test.ts`.
+  - `POST /api/devcase/lifecycle/[id]/approve` re-asserted the review stage only for a body
+    carrying reviewer **edits**. An edit-less approve — what the studio's own button sends,
+    and what a retried fetch replays — fell through to `startTask("lifecycle")` and answered
+    `{ ok: true }` twice: the walk designs, publishes and dispatches, and startTask's dedup
+    only coalesces runs that are still *active*. The stage is now the precondition for every
+    body; anything off the gate is `409 DEVCASE_LIFECYCLE_NOT_AT_GATE` with the current
+    `stage` (and `editsApplied: false`) as data. `approve-gate.test.ts`.
+  - `POST /api/devcase/publish` is idempotent per (case, channel) and now **says so**. The
+    store had deduped since bug-ui-scan-2026-07-09, but the route reported every call as a
+    fresh mint, so two tabs each got "here is your new posting" for the same apply token.
+    It reads the precondition (`getOpenPosting`) before the adapter and answers
+    `alreadyPublished` — false for a genuine mint, including a deliberate re-publish after a
+    close-out. `createPosting`'s read→insert moved inside `db.transaction(...).immediate()`,
+    so the dedup takes the write lock instead of resting on "Node is single-threaded".
+    `publish-idempotent.test.ts`.
+
 - **The candidate is told when a reply is not a model.** `[id]/chat` returns `source`
   (`"llm"` | `"deterministic"`) alongside `reply`, and the surface prints
   `devApply.workSurface.chatDeterministicNote` under a deterministic bubble. Degrading

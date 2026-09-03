@@ -626,11 +626,11 @@ export const REFUSAL_ERRORS = {
   /** A newer real delivery already exists for this message (409), so re-dispatching
    *  it would send the candidate the same offer/rejection twice. Durable, not
    *  in-process: the check reads the outbox. */
-  COMM_ALREADY_RESENT: "Already re-sent — a newer delivery exists for this message.",
+  COMM_ALREADY_RESENT: "Already re-sent. A newer delivery exists for this message.",
   /** An approve arrived for a lifecycle that is not at the review gate (409) — a second
    *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
    *  the code as DATA so the panel can say where the case actually is. */
-  DEVCASE_LIFECYCLE_NOT_AT_GATE: "This assignment is no longer awaiting review — reload to see where it is now.",
+  DEVCASE_LIFECYCLE_NOT_AT_GATE: "This assignment is no longer awaiting review. Reload to see where it is now.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
