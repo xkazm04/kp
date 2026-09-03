@@ -379,8 +379,20 @@ The reader handles both `run:` forms (inline scalar and block scalar) and
 deliberately does **not** count an adjoining `env:` block as script — otherwise
 the fix would report as the bug. Fixtures, including one that walks every
 workflow in the tree, are in
-[`gate-check.test.mjs`](../../scripts/review/__tests__/gate-check.test.mjs)
-(`npm run test:review`).
+[`check-actions.test.mjs`](../../scripts/security/__tests__/check-actions.test.mjs)
+(`npm run test:security`) — beside the gate they cover, not in the review lens's
+file, so the script whose name says it covers the security gates actually runs them.
+
+### One reader, two gates
+
+`review:gate` and `security:actions` both read `.github/workflows`, and until
+wave 24 each carried its own hand-rolled YAML subset — so a quoted `"on":`, an
+`on: push` scalar or a four-space trigger block was read correctly by one gate
+and silently mis-read by the other, and a fix to one propagated to nothing. Both
+now read through [`workflow-yaml.mjs`](../../scripts/review/workflow-yaml.mjs),
+whose own fixtures (`npm run test:review`) pin every shape either gate ever
+needed and assert that the two gates' views of each committed workflow agree.
+It stays dependency-free on purpose: these gates run in jobs that never `npm ci`.
 
 ### The two sinks that never pass through `run:`
 
@@ -449,9 +461,9 @@ by a **PAT** rather than by `GITHUB_TOKEN`:
 A scope is widened by adding one line to a file most reviewers skim, so the sets
 above are **pinned by a fixture**, not merely commented. `jobPermissions()` in
 `check-actions.mjs` reads a job's `permissions:` block as a scope map, and
-`gate-check.test.mjs` asserts these two jobs against it — plus that every
+`check-actions.test.mjs` asserts these two jobs against it — plus that every
 workflow's *top-level* default is still the `contents: read` floor those job
-blocks are widenings of. Adding a scope turns `npm run test:review` red until it
+blocks are widenings of. Adding a scope turns `npm run test:security` red until it
 is written down there too. This is a pin, not a prohibition: if a step genuinely
 needs more, widen both in the same change and say why in the workflow comment.
 
