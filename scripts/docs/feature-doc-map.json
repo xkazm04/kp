@@ -391,6 +391,8 @@
         "app/globals.css",
         "app/_components/ui/recipes.ts",
         "app/_components/ui/SectionTitle.tsx",
+        "app/_components/ui/useTablist.ts",
+        "app/_components/ui/useDateFormat.ts",
         "app/_components/ui/useTheme.ts",
         "app/_lib/theme.ts"
       ]

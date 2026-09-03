@@ -9662,5 +9662,13 @@
       "details": "Show details",
       "detailsHide": "Hide details"
     }
+  },
+  "loadStatus": {
+    "stale": "stale · {ago}",
+    "offline": "offline",
+    "pillTitle": "Automatic refresh of {label} is failing.",
+    "pillTitleStale": "Automatic refresh of {label} is failing. Last updated {ago}.",
+    "refreshFailed": "Couldn't refresh {label}. Showing data from {ago}, retrying…",
+    "loadFailed": "Couldn't load {label}. The service may be down, retrying…"
   }
 }

@@ -9662,5 +9662,13 @@
       "details": "Details anzeigen",
       "detailsHide": "Details ausblenden"
     }
+  },
+  "loadStatus": {
+    "stale": "veraltet · {ago}",
+    "offline": "offline",
+    "pillTitle": "Die automatische Aktualisierung von {label} schlägt fehl.",
+    "pillTitleStale": "Die automatische Aktualisierung von {label} schlägt fehl. Zuletzt aktualisiert {ago}.",
+    "refreshFailed": "{label} konnte nicht aktualisiert werden. Angezeigt werden Daten von {ago}, neuer Versuch…",
+    "loadFailed": "{label} konnte nicht geladen werden. Der Dienst ist möglicherweise nicht erreichbar, neuer Versuch…"
   }
 }

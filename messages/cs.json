@@ -9662,5 +9662,13 @@
       "details": "Zobrazit detaily",
       "detailsHide": "Skrýt detaily"
     }
+  },
+  "loadStatus": {
+    "stale": "neaktuální · {ago}",
+    "offline": "offline",
+    "pillTitle": "Automatické načítání sekce {label} selhává.",
+    "pillTitleStale": "Automatické načítání sekce {label} selhává. Poslední aktualizace {ago}.",
+    "refreshFailed": "Sekci {label} se nepodařilo obnovit. Zobrazujeme data {ago}, zkoušíme znovu…",
+    "loadFailed": "Sekci {label} se nepodařilo načíst. Služba může být nedostupná, zkoušíme znovu…"
   }
 }

@@ -28,7 +28,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const BARE = /className=\{(BTN_PRIMARY|BTN_SECONDARY|BTN_GHOST)\}/;
+const BARE = /className=\{(BTN_PRIMARY|BTN_AFFIRM|BTN_SECONDARY|BTN_GHOST)\}/;
 
 test("no bare BTN_* recipe usage — sizing must be paired at the call site", () => {
   const offenders: string[] = [];

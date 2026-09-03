@@ -63,16 +63,25 @@ export const META_LABEL = "text-meta uppercase text-steel";
 
 /** Toggle chip — filter pills / quick filters. Active = coral-tinted; inactive
  *  = neutral with a coral hover hint. Replaces the hand-rolled toggle pattern
- *  repeated across the filter bars (pair with aria-pressed at the call site). */
+ *  repeated across the filter bars (pair with aria-pressed at the call site).
+ *
+ *  Dark carries the structural half its siblings (CHIP, BTN_*) already had: the
+ *  16px sticker radius and the off-axis rest that straightens under the cursor.
+ *  Without it a filter bar was the one row on a Spark Dark surface that stayed
+ *  flat and perfectly square. */
 export const CHIP_TOGGLE = (isActive: boolean): string =>
-  `focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-    isActive ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40 hover:text-ink"
+  `focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-colors dark:transition-all ${
+    isActive
+      ? "border-coral bg-coral/10 text-coral dark:shadow-sticker-xs"
+      : "border-stone-200 text-steel hover:border-coral/40 hover:text-ink dark:-rotate-1 dark:hover:rotate-0"
   }`;
 
 /** Tertiary / ghost action — the quiet "cancel" gap between BTN_SECONDARY and a
- *  bare link. No border; a soft hover wash. Pair with a height + padding. */
+ *  bare link. No border; a soft hover wash. Pair with a height + padding.
+ *  Dark rounds to the sticker radius like every other button recipe — it stays
+ *  shadowless on purpose (a ghost has no sticker to press into). */
 export const BTN_GHOST =
-  "focus-ring inline-flex items-center gap-1 rounded-md font-medium text-steel transition-colors hover:bg-stone-100 hover:text-ink disabled:opacity-50";
+  "focus-ring inline-flex items-center gap-1 rounded-md font-medium text-steel transition-colors hover:bg-stone-100 hover:text-ink disabled:opacity-50 dark:rounded-lg";
 
 /** Icon sticker — a framed icon container with 2D depth (feature marks, step
  *  badges, verdict glyphs). Pair with a size (h-10 w-10). */
@@ -95,8 +104,13 @@ export const STAT_VALUE = "font-serif text-h2 leading-none nums";
 export const CHIP =
   "inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel transition-transform dark:-rotate-1 dark:hover:rotate-0";
 
-/** Filled quiet chip: non-semantic tag (semantic tones belong to Badge). */
-export const CHIP_QUIET = "rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel dark:rotate-1 dark:inline-block";
+/** Filled quiet chip: non-semantic tag (semantic tones belong to Badge).
+ *  `inline-block` is unconditional: it used to be `dark:inline-block`, so the
+ *  same chip was an inline box in Studio Light and a block box in Spark Dark —
+ *  the rotate needs a block box, but a display change is not a theme
+ *  difference, and the two themes disagreed about the chip's line box (padding
+ *  and vertical rhythm shifted on the flip). */
+export const CHIP_QUIET = "inline-block rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel dark:rotate-1";
 
 /** Primary action. Pair with a height + horizontal padding (h-10 px-4).
  *  Light gets a restrained tactility — a faint offset that the button presses
@@ -104,6 +118,22 @@ export const CHIP_QUIET = "rounded-full bg-stone-100 px-2 py-0.5 text-sm text-st
  *  landing's BTN: a full sticker shadow that shrinks as the button travels. */
 export const BTN_PRIMARY =
   "focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral font-semibold text-white shadow-sticker-xs transition-all hover:bg-coral/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
+
+/** Affirmative action — the moss twin of BTN_PRIMARY. Same pairing rule, same
+ *  press-down in both registers; only the fill differs.
+ *
+ *  WHICH ONE: coral (`BTN_PRIMARY`) is "the main action of this surface";
+ *  moss (`BTN_AFFIRM`) is "the positive half of a decision" — advance, approve,
+ *  accept, resume — and it always has a coral or ghost counterpart beside it
+ *  (reject, decline, pause). A surface with a single call to action uses
+ *  BTN_PRIMARY even when that action is positive; moss without an opposite
+ *  reads as a second brand color rather than as a verdict.
+ *
+ *  Hand-rolled at 13 sites before this existed, every one of them flat in Spark
+ *  Dark: `bg-moss … hover:opacity-90` carries no sticker shadow and no travel,
+ *  so the advance button sat dead beside a reject button that pressed down. */
+export const BTN_AFFIRM =
+  "focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss font-semibold text-white shadow-sticker-xs transition-all hover:bg-moss/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
 
 /** Secondary action. Same pairing rule + press-down as BTN_PRIMARY. */
 export const BTN_SECONDARY =
@@ -150,6 +180,34 @@ export const railTile = (isActive: boolean): string =>
   `focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${
     isActive ? "bg-coral/10 text-coral dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
   }`;
+
+/* ── Notices ──────────────────────────────────────────────────────────────
+ *  The advisory block: a bordered, tinted strip that says something about the
+ *  data the reader is looking at. 57 of these were hand-rolled across 49 files
+ *  and 56 of them missed `dark:rounded-2xl`, so an amber advisory was the one
+ *  square-cornered box on a Spark Dark surface where everything else had taken
+ *  the sticker radius. The tint families are the sanctioned status scales, all
+ *  luminance-flipped in globals.css's dark block. */
+
+/** Advisory severity. `amber` = a caveat about the data (drift, partial
+ *  coverage, a degraded fallback); `info` = neutral context worth reading;
+ *  `critical` = a failure the reader must act on. Errors that are a REFUSAL
+ *  still go through the error-code path — the tone only picks the paint. */
+export type NoticeTone = "amber" | "info" | "critical";
+
+const NOTICE_TONE: Record<NoticeTone, string> = {
+  amber: "border-amber-300 bg-amber-50 text-amber-900",
+  info: "border-blue-200 bg-blue-50 text-blue-700",
+  critical: "border-red-200 bg-red-50 text-red-800",
+};
+
+/** Advisory block. Sizing and type size stay at the call site, as everywhere
+ *  else here (`${NOTICE()} px-3 py-1.5 text-xs`); the recipe owns the shape,
+ *  the border, the fill and the text tone — in both registers. Pair with
+ *  `role="status"` (a caveat) or `role="alert"` (a failure) at the call site;
+ *  a notice with no live semantics is just a paragraph and needs neither. */
+export const NOTICE = (tone: NoticeTone = "amber"): string =>
+  `rounded-lg border dark:rounded-2xl ${NOTICE_TONE[tone]}`;
 
 /** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */

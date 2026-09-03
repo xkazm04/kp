@@ -358,6 +358,48 @@ behavior, so a `string` keeps JSX shape unchanged, works on any element
 (`section`, `button`, `Link`), and adds zero runtime. Patterns that *do* carry
 behavior (modal focus trap, segmented control keyboard nav) stay components.
 
+### The four words the vocabulary was missing (2026-09-03)
+
+Sixteen waves of builders hand-rolled the same four things, which is what a
+missing word in a design system looks like from the inside:
+
+| Word | Where | What it replaces |
+| --- | --- | --- |
+| `BTN_AFFIRM` (recipes.ts) | the positive half of a decision | 13 hand-rolled `bg-moss … hover:opacity-90` buttons, **all** flat in Spark Dark |
+| `NOTICE(tone)` (recipes.ts) | advisory blocks — `amber` / `info` / `critical` | 57 hand-rolled tinted strips in 49 files, 56 of them missing `dark:rounded-2xl` |
+| `useTablist` (`app/_components/ui/useTablist.ts`) | any `role="tablist"` strip | 4 copies of the roving-tabindex arithmetic + 3 tablists that declared the roles with no keyboard at all |
+| `useDateFormat` (`app/_components/ui/useDateFormat.ts`) | every rendered date | 41 raw `toLocaleDateString` / `new Intl.DateTimeFormat` calls in 30 files, beside 5 files already using `useFormatter()` |
+
+**Affirm vs primary — the rule.** Coral (`BTN_PRIMARY`) means "the main action
+of this surface". Moss (`BTN_AFFIRM`) means "the positive half of a decision" —
+advance, approve, accept, resume — and it always has a counterpart beside it
+(reject, decline, pause). A surface whose single call to action happens to be
+positive still uses `BTN_PRIMARY`; moss with no opposite reads as a second
+brand color instead of as a verdict. Both carry the same press-down in both
+registers, which is exactly what the 13 copies had lost.
+
+`useTablist` is controlled (`ids` + `active` + `onSelect`) because every strip
+already owns its active tab, and it wires the `aria-controls`/`aria-labelledby`
+pair from one `useId`. Pass `controlsPanel: false` when the panel is rendered by
+an ancestor and has no id to point at — a dangling idref is worse than an absent
+optional attribute. The movement rule is the pure `nextTabIndex` reducer,
+pinned by `useTablist.test.ts`; the two per-feature copies it replaced
+(`groupEvalTabKeys.ts` and `nextTabIndex` in `jobsPostingModalTabs.ts`, each
+carrying a note asking for this promotion on the third caller) are gone.
+
+`useDateFormat` carries four shapes — `date`, `dateTime`, `dayTime`, `time` —
+all null-safe with a `fallback` (default `—`), because dates arrive as ISO
+strings that can be absent or malformed and "Invalid Date" in a candidate card
+is the failure the guard exists to prevent.
+
+Alongside them, three smaller repairs in the same pass: `CHIP_QUIET` is
+`inline-block` unconditionally (it was `dark:inline-block`, so the chip changed
+its display box on the theme flip — a display change is not a theme
+difference); `CHIP_TOGGLE` and `BTN_GHOST` gained the dark structural half
+their siblings already had; and `LoadStatus` reads its frame sentences and its
+elapsed time from the catalog + `useFormatter().relativeTime` instead of
+wrapping a localized `label` in English prose.
+
 Two additions from the 2026-09-03 rail pass: `railTile(isActive)` is the
 icon-over-label rail tile shared by the section buttons and the Feedback door
 (`railIconBtn` stays for rail chrome), and `--color-white-fixed` is the one
