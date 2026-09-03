@@ -221,11 +221,16 @@ export function useSimulationEngine({
         .map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
       patch({ groupEval: { roleTitle, payload: null, loading: true, error: null } });
       try {
-        await fetch("/api/tasks", {
-          method: "POST",
-          headers: JSON_HEADERS,
-          body: JSON.stringify({ kind: "group_eval", params: { roleKey: jobId, roleTitle, jobId, candidates } }),
-        });
+        // A refused start (a TASK_BUDGET_EXHAUSTED 429 since wave 17, any 4xx) must not
+        // fall through to a 25 s poll that ends in a timeout sentence: surface the
+        // server's code as the group-eval error now, like every other engine call.
+        await okJson(
+          await fetch("/api/tasks", {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ kind: "group_eval", params: { roleKey: jobId, roleTitle, jobId, candidates } }),
+          })
+        );
         const TIMEOUT_MS = 25_000;
         const deadline = Date.now() + TIMEOUT_MS;
         let payload: GroupEvalPayload | null = null;
