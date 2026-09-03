@@ -62,7 +62,7 @@ rather than a snapshot.
 | `npm run test:release` | fixtures for the release scripts — prepare, commit-msg, sbom, provenance |
 | `npm run sbom` | the bill of materials cannot be built from the lockfile + the pip environment |
 | `npm run test:docs` | fixtures for the doc-sync hook, the ADR gate and the guidance check |
-| `npm run test:review` | fixtures for the review lenses (constitution, gate-check) |
+| `npm run test:review` | fixtures for the review lenses (constitution, gate-check, the shared workflow reader, the agent lens's pure half) |
 | `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written |
 | `npm run test:lint-ratchet` | fixtures for the ruff and ts ignore ratchets |
 | `npm run test:perf` | fixtures for the CI wall-clock budget, including "every job has a ceiling" |
@@ -70,7 +70,7 @@ rather than a snapshot.
 | `npm run review:gate` | a required check in `.github/rulesets/main.json` no longer matches a job name |
 | `npm run security:actions` | a workflow does not scope `GITHUB_TOKEN`, or a NEW action rides a mutable tag |
 | `npm run security:secrets` | a file git tracks carries a credential — the whole tree, not just the diff, and NOT waivable by a commit trailer |
-| `npm run test:security` | fixtures for the credential table: every pattern fires, and the real tracked tree is clean |
+| `npm run test:security` | fixtures for the credential table and the workflow gate: every pattern and every rule class fires, and the real tracked tree + `.github/workflows` are clean |
 | `npm run hooks:check` | `.githooks/*` points at an npm script or a file that no longer exists |
 | `npm run test:bench-driver` | fixtures for the App-master bench driver and its committed baseline |
 | `npm run test:unit` | the node:test suite over `app/**/*.test.ts`, `packages/**/*.test.ts` and `edge/**/*.test.ts` |

@@ -348,10 +348,16 @@ the grounding post-check accepts highlight/summary-grounded strengths, and a
 core-backfilled result reports `source=deterministic`.
 
 `narrativeLang` states the language the rationale was actually **produced** in,
-not the one that was asked for. `runReasoning` derives it through
-`narrativeLangFor` (`reasoning-cache-policy.ts`): only a `source="llm"` answer is
-in the engine language, because the deterministic template is English-only by
-construction. It used to be stamped with the requested locale unconditionally,
+not the one that was asked for. **The engine now says so itself**: `reasoning_cli`
+emits the field from `match_reasoning.narrative_lang_for(source, lang)` — the side
+that produced the words — and `narrativeLangFor` (`reasoning-cache-policy.ts`)
+reads it, validating the code against the app's four locales before forwarding a
+string that came off a subprocess's stdout. The derivation below survives as the
+fallback for verdicts cached before the field existed (the TTL is 168h): only a
+`source="llm"` answer is in the engine language, because the deterministic
+template is English-only by construction. Two places inferring a property of the
+text from a sibling field is what broke this note once already, so the inference
+is now a fallback rather than the contract. It used to be stamped with the requested locale unconditionally,
 which suppressed `MatchReasoningPanel`'s honest "shown in {language}" note — that
 note fires on `narrativeLang !== locale` — so a Czech recruiter whose request
 fell back (no provider, an outage, or past the `ai_candidates` allowance, which
@@ -455,6 +461,27 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### The unresolved-pair fallback now refuses glue in all four languages
+When NEITHER surface of a skill pair resolves in the taxonomy,
+`taxonomy.unresolved_pair_score` falls back to a capped Jaccard over the two
+*distinctive* token sets, requiring at least one shared "head" token — which is what
+stops "management of X" vs "management of Y" scoring as related when X and Y differ.
+The discipline lives entirely in `_FALLBACK_STOPWORDS`, and that list covered English
+and Czech while `i18n.LANG_NAMES` has shipped en/cs/de/fr for some time: measured
+before the fix, "Entwicklung von Datenbanken" vs "Entwicklung von Netzwerken" scored
+0.15 and "Gestion de projets" vs "Gestion de risques" scored 0.1 on pure glue, while
+the English equivalent correctly scored 0.0. German and French glue plus their generic
+role nouns (`entwicklung`, `gestion`, `compétences`…) are now listed, in NFC-casefolded
+form because `normalize_text` does not fold diacritics. Acronyms that collide with glue
+(`est`, `sur`, `par`, `son`) are deliberately left OUT — a stopword can only remove
+credit. `pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py` holds one
+glue-only pair and one genuinely-related pair per language, and reddens when a fifth
+locale reaches `LANG_NAMES` without a stopword pass.
+
+The word tokenizer itself is now single-sourced as `taxonomy.WORD_RE`; `matching`'s
+`_WORD_RE` and `taxonomy_check`'s `_CORPUS_WORD_RE` alias it, so the scan that AUDITS
+the matcher can no longer split words differently from the matcher it audits.
+
 ### Three skill buckets on the card, not two
 `matching.py` splits a required skill three ways — `matched_skills` (at or above
 `_MATCH_THRESHOLD`), `unproven_skills` (scored above zero but under it, with
@@ -523,7 +550,7 @@ server-side — it just must not reach the screen. Pinned by
 
 ### All three matrix-family routes answer with a code, and the grid offers a way back
 `GET /api/matrix`, `POST /api/match/reasoning` and `POST /api/match` all spawn Python behind
-`parseStderrError`, which already produces a machine `code` beside the message
+`parseStderrError`, which produces a machine `code` beside the message
 and status — and both threw it away, answering a bare `{ error: err.message }`.
 Two things followed on screen: `useErrorMessage` had no code to resolve, so every
 failure on the grid and in the popover rendered as the same generic sentence; and
@@ -540,6 +567,19 @@ store error (`MATRIX_BUILD_FAILED` / `MATCH_REASONING_FAILED` / `MATCH_RUN_FAILE
 whose real message — a traceback, the temp workdir path, provider stderr — is
 logged and withheld. All three routes' rows are gone from
 `error-response-contract.test.ts`'s ceiling rather than lowered.
+
+**The code is now chosen where the failure is raised, not guessed from the status.**
+`parseStderrError` derives one (`400 -> invalid_input`, `404 -> not_found`,
+`504 -> timeout`, else `engine_error`) only when the CLI emitted none — and until
+recently the matching CLIs emitted none, because `_cli.emit_error` printed just
+`{error, status: 500}`. So "job not found" and a genuine engine fault left the
+engine identical. `pipeline/jobfit/_cli.py` now owns the vocabulary
+(`ERROR_CODES`) and `CliError` / `not_found()` / `invalid_input()` name it at the
+raise site; an un-annotated pydantic or JSON failure classifies as the caller's
+400 rather than an engine fault. `recruiter_cli` dropped its hand-rolled
+`configure_stdio` + envelope for the shared scaffold at the same time.
+`pipeline/jobfit/tests/test_cli_error_envelope.py` pins the vocabulary against
+`PYTHON_ERROR_CODES` in `python-runner.ts` in both directions.
 
 `POST /api/match` — the candidate-focus ranking behind the Match panel — joined
 last, and it had the worst of the three leaks: it forwarded `parseStderrError`'s

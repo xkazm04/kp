@@ -14,9 +14,9 @@ import argparse
 import json
 from pathlib import Path
 
-from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
+from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg, not_found
 from .llm import emit_deterministic, provider_availability, resolve_provider
-from .match_reasoning import REASONING_PROMPT_VERSION, generate
+from .match_reasoning import REASONING_PROMPT_VERSION, generate, narrative_lang_for
 from .matching import score_job
 
 
@@ -55,7 +55,10 @@ def main(argv: list[str] | None = None) -> int:
         jobs = load_jobs_arg(args.jobs, args.jobs_json)
         job = next((j for j in jobs if j.id == args.job_id), None)
         if job is None:
-            raise ValueError(f"job not found: {args.job_id}")
+            # 404/`not_found`, not the anonymous 500 a bare ValueError became: the
+            # caller named a job the resolved corpus does not carry, and the remedy
+            # ("pick another job") is nothing like "the engine crashed".
+            raise not_found(f"job not found: {args.job_id}")
         m = score_job(candidate, job)
         provider = None if args.no_llm else resolve_provider("match_reasoning", timeout=120)
         descent = "disabled" if args.no_llm else None
@@ -79,6 +82,12 @@ def main(argv: list[str] | None = None) -> int:
                 "title": job.title,
                 "total": m.total,
                 "source": source,
+                # The language the narrative is actually IN, stated by the side that
+                # produced it. The deterministic template is English-only, so a --lang cs
+                # run that fell back answers narrativeLang "en" — and the panel's honest
+                # "shown in English" note fires. TS used to re-derive this from `source`;
+                # now it reads what the engine said (reasoning-cache-policy.ts).
+                "narrativeLang": narrative_lang_for(source, lang),
                 "promptVersion": REASONING_PROMPT_VERSION,
                 "reasoning": reasoning,
             },

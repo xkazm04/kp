@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T17:13:27.586Z",
+ "generated_at": "2026-09-03T17:40:01.616Z",
  "provenance": {
-  "git_commit": "3b72f174ede8a23458d444709bb6e68058b4de7b",
-  "git_commit_count": 2398,
+  "git_commit": "316150fb93fa9e8ba0f064ebef03906d99b6bc31",
+  "git_commit_count": 2413,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T17:13:27.586Z"
+  "generated_at": "2026-09-03T17:40:01.616Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2994,
+  "files": 3004,
   "groups": 17,
   "use_cases": 12
  },
@@ -498,6 +498,7 @@
     "pipeline/jobfit/tests/test_artifact_checks.py",
     "pipeline/jobfit/tests/test_automation_eval.py",
     "pipeline/jobfit/tests/test_byom_coverage.py",
+    "pipeline/jobfit/tests/test_cli_error_envelope.py",
     "pipeline/jobfit/tests/test_credential_capture.py",
     "pipeline/jobfit/tests/test_devcase_analyze.py",
     "pipeline/jobfit/tests/test_devcase_calibrate.py",
@@ -509,8 +510,11 @@
     "pipeline/jobfit/tests/test_devcase_judge_independence.py",
     "pipeline/jobfit/tests/test_devcase_lifecycle.py",
     "pipeline/jobfit/tests/test_devcase_models.py",
+    "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py",
     "pipeline/jobfit/tests/test_fit_threshold_sync.py",
-    "pipeline/jobfit/tests/test_market_salary_cli.py"
+    "pipeline/jobfit/tests/test_market_salary_cli.py",
+    "pipeline/jobfit/tests/test_reasoning_narrative_lang.py",
+    "pipeline/jobfit/tests/test_score_boundaries.py"
    ],
    "group": "AI & LLM Infrastructure",
    "group_id": "a99d0563-6781-424b-a926-0230a68fe2ff",
@@ -4960,6 +4964,7 @@
     "app/_lib/pipeline-status.ts",
     "app/_lib/pipeline-transfer-score.test.ts",
     "app/_lib/pipeline-transfer-score.ts",
+    "app/_lib/python-runner-stderr.test.ts",
     "app/_lib/reasoning-error-code.test.ts",
     "app/_lib/reinstate-seal.test.ts",
     "app/_lib/salary-benchmark.test.ts",
@@ -8775,13 +8780,17 @@
     "scripts/lint/__tests__/ts-ratchet.test.mjs",
     "scripts/lint/ruff-ratchet.mjs",
     "scripts/lint/ts-ratchet.mjs",
+    "scripts/review/__tests__/agent-review.test.mjs",
     "scripts/review/__tests__/constitution-check.test.mjs",
     "scripts/review/__tests__/gate-check.test.mjs",
+    "scripts/review/__tests__/workflow-yaml.test.mjs",
     "scripts/review/agent-review.mjs",
     "scripts/review/constitution-check.mjs",
     "scripts/review/diff.mjs",
     "scripts/review/gate-check.mjs",
     "scripts/review/rubric.mjs",
+    "scripts/review/workflow-yaml.mjs",
+    "scripts/security/__tests__/check-actions.test.mjs",
     "scripts/security/__tests__/secret-scan.test.mjs",
     "scripts/security/check-actions.mjs",
     "scripts/security/secret-scan.mjs"
@@ -8959,6 +8968,7 @@
    "description": "[auto-seeded — pending sweep enrichment] DB Integrity + Gate Tests: seed marks, row health, rollback drill and DB path tests plus the repo's self-guarding gate tests (lint selectors, error contract, health exposure).",
    "entry_points": [],
    "file_paths": [
+    "app/_lib/db/core-integrity.test.ts",
     "app/_lib/db/core-migrations.test.ts",
     "app/_lib/db/core-seed-marks.test.ts",
     "app/_lib/db/db-path-backend.test.ts",

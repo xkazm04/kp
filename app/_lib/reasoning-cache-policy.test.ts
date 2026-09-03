@@ -51,3 +51,48 @@ test("narrativeLangFor: a deterministic fallback is English whatever was asked f
   assert.equal(narrativeLangFor({ reasoning: {} }, "cs"), "en");
   assert.equal(narrativeLangFor(null, "cs"), "en");
 });
+
+// --- the engine now STATES the language, and TS reads it ------------------------
+// reasoning_cli emits `narrativeLang` from match_reasoning.narrative_lang_for — the
+// side that actually produced the words. Deriving it from `source` was a second place
+// inferring a property of the text from a sibling field, and that inference is exactly
+// what the honest "shown in {language}" note had already been broken by once.
+test("narrativeLangFor: the engine's stated language wins over the derivation", () => {
+  // The case the derivation cannot get right on its own: an LLM answer whose engine
+  // lang argument disagrees with what the CLI was actually told to write in.
+  assert.equal(narrativeLangFor({ source: "llm", narrativeLang: "de", reasoning: {} }, "cs"), "de");
+  // …and the reverse: a payload the engine says is English, despite source "llm".
+  assert.equal(narrativeLangFor({ source: "llm", narrativeLang: "en", reasoning: {} }, "cs"), "en");
+});
+
+test("narrativeLangFor: an unsupported or malformed stated language is ignored", () => {
+  // The field comes off a subprocess's stdout; an unknown code would render as no
+  // language at all in the panel, so it must fall through to the derivation.
+  for (const bogus of ["klingon", "", "EN", "cs-CZ", 42, null, {}]) {
+    assert.equal(
+      narrativeLangFor({ source: "llm", narrativeLang: bogus, reasoning: {} }, "cs"),
+      "cs",
+      `stated ${JSON.stringify(bogus)} must not be forwarded`
+    );
+  }
+});
+
+test("narrativeLangFor: a pre-field cached payload still derives correctly", () => {
+  // Verdicts cached before the field existed live on for the full 168h TTL.
+  assert.equal(narrativeLangFor({ source: "llm", reasoning: {} }, "fr"), "fr");
+  assert.equal(narrativeLangFor({ source: "deterministic", reasoning: {} }, "fr"), "en");
+});
+
+test("the accepted narrative languages are exactly the app's locales", async () => {
+  // The set is re-declared in reasoning-cache-policy.ts to keep that module
+  // dependency-free; this is the pin that stops the copy drifting from the source of
+  // truth (and from pipeline/jobfit/i18n.py LANG_NAMES, which normalize_lang uses).
+  const { LOCALES } = await import("../../i18n/locales.ts");
+  for (const locale of LOCALES) {
+    assert.equal(
+      narrativeLangFor({ source: "deterministic", narrativeLang: locale, reasoning: {} }, "en"),
+      locale,
+      `${locale} must be accepted as a stated narrative language`
+    );
+  }
+});

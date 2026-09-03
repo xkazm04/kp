@@ -110,6 +110,15 @@ place a backend adapter slots into. `resolveDbBackend()` lives there:
   running on a local SQLite file they didn't intend for production. Verified in code
   (`app/_lib/db-path.ts:91-106`).
 
+Two SQLite-specific facts a port has to answer for, both documented in
+[workspace-data.md](workspace-data.md): boot runs **`PRAGMA quick_check(1)`** once in
+`ensureDb()` and refuses to serve on damage (`DB_INTEGRITY_FAILED`) — a Postgres backend
+would drop the pragma and get the equivalent from the server's own startup, so the
+refusal must move rather than vanish; and `openStore()` sets **`foreign_keys=ON`** per
+connection, which Postgres enforces unconditionally. Today **no table declares a
+`REFERENCES` clause**, so a port inherits no referential constraints to translate — and
+adding them here first would make that translation strictly easier.
+
 That config surface + the single seam are the concrete groundwork; the sections below
 are the plan for filling it in.
 
