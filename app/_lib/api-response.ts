@@ -1031,6 +1031,20 @@ export const REFUSAL_ERRORS = {
   /** Promote-to-default aimed at a team-private draft (400). The default is an
    *  ORG-wide baseline, so only a shared template can hold it. */
   TEMPLATE_DEFAULT_ORG_ONLY: "Only a template shared with the whole company can be the default.",
+  // ---- The dev-case control room (/perfect wave 21, internal-explorers). All three
+  // were bare English 400s: the room POSTed and never read the body, so a refusal
+  // rendered as success, and once it DID read it there was nothing to key on.
+  /** POST /api/devcase/control with an action outside pause/resume/reconcile (400) -
+   *  a hand-rolled call or a stale tab. The action rides beside the code as data. */
+  DEVCASE_CONTROL_ACTION_UNKNOWN: "That control-room action is not one this deployment knows.",
+  /** A promote floor that is not a finite number (400). typeof NaN is "number", so the
+   *  store would take it, read it back as null and quietly revert to the default while
+   *  the audit trail claimed a calibration that never took effect. */
+  DEVCASE_FLOOR_INVALID: "The promote floor must be a number between 0 and 100.",
+  /** A recorded outcome that fails the canonical vocabulary / 1-5 hired-only scale
+   *  (400). The zod sentence rides beside the code as `issue` for the log and for API
+   *  consumers; the reader gets this one in their own language. */
+  DEVCASE_OUTCOME_INVALID: "That outcome could not be recorded: check the result and the performance score.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

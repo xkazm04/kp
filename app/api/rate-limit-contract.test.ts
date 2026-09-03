@@ -1148,6 +1148,37 @@ const ROUTES: RouteSpec[] = [
     // to send costs no budget.
     servedBefore: "getOutboxEntry(id, ws)",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect 2026-09-03 (internal-explorers), with the limiters themselves. The
+  // control room's TWO READS were unlimited and POLLED: every open /control tab fired
+  // both, forever, and neither carried a throttle of any kind. They are operator-gated,
+  // and open mode (KP_OPERATOR_PASSWORD unset) makes that gate a documented no-op for
+  // the ENTIRE API - so in each case the limiter is the real bound on scraping the
+  // lifecycle list, the audit trail and the outcome corpus. 900/10min is 1.5 req/s,
+  // roughly three tabs polling flat out on the 2s active tick.
+  {
+    rel: "./devcase/control/route.ts",
+    key: "`devcase-control-read:${clientIpFrom(request.headers)}`",
+    limit: 900,
+    optsSrc: "CONTROL_READ_RATE_LIMIT",
+    optsDef: "const CONTROL_READ_RATE_LIMIT = { limit: 900, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The workspace resolve + both store reads sit behind it.
+    expensive: "const lifecycles = listLifecycles(50, ws);",
+    // Identity first: an anonymous demo cookie is refused before it can spend budget.
+    servedBefore: "await requireOperator()",
+  },
+  {
+    rel: "./devcase/outcomes/route.ts",
+    key: "`devcase-outcomes-read:${clientIpFrom(request.headers)}`",
+    limit: 900,
+    optsSrc: "OUTCOMES_READ_RATE_LIMIT",
+    optsDef: "const OUTCOMES_READ_RATE_LIMIT = { limit: 900, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // Every hit re-runs the calibration over the whole corpus, not just a list read.
+    expensive: "calibrate(activeFloor(), ws)",
+    servedBefore: "await requireOperator()",
+  },
   {
     // ADDED /perfect 2026-09-03 (channels-1), with the limiter itself. The one
     // SECRET-WRITE door on the Channels tab: an accepted call replaces the endpoint
