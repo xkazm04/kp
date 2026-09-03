@@ -718,6 +718,34 @@ export const REFUSAL_ERRORS = {
   /** The portal was asked for before any completed checkout (404) — a calm
    *  pre-first-purchase state the tab renders as a hint, not an error. */
   BILLING_NO_CUSTOMER: "No billing customer yet. Complete a checkout first.",
+  // ---- Public apply door (/perfect 2026-09-03, candidate-apply). Every
+  // validation refusal on the two candidate intake surfaces used to be a bare
+  // English sentence with no code — which the code-only resolver correctly
+  // refused to render, so a Czech applicant whose answer ran two characters over
+  // the cap read "something went wrong" and was offered a restart. The caps ride
+  // beside the code as DATA (`max`), and so does the STEP the refusal is about
+  // (`field`), which is what lets the door re-ask that one question.
+  /** The apply link does not resolve to a role (404). */
+  APPLY_ROLE_NOT_FOUND: "That role could not be found.",
+  /** The submission is over the body cap (413) — an oversized CV extract, usually. */
+  APPLY_PAYLOAD_TOO_LARGE: "That application is too large to accept.",
+  /** The lead form arrived without a name (400). The conversational door does not
+   *  share this: it files a contactless application rather than refusing one. */
+  APPLY_NAME_REQUIRED: "That application named no applicant.",
+  /** Past the name cap (400). Checked BEFORE the knockout gate, because a decline
+   *  persists the label — see the note at that call site. */
+  APPLY_NAME_TOO_LONG: "That name is longer than the applicant-name cap.",
+  /** One free-text answer is past the per-answer cap (400). `field` names WHICH. */
+  APPLY_ANSWER_TOO_LONG: "One of those answers is longer than an answer can be.",
+  /** Past the RFC 5321 address length (400). Kept apart from APPLY_EMAIL_INVALID:
+   *  "shorten it" and "it isn't an address" are different fixes. */
+  APPLY_EMAIL_TOO_LONG: "That email address is longer than an address can be.",
+  /** A malformed address (400). A BLANK email is not this: the conversational door
+   *  files a contactless application, so only junk is refused. */
+  APPLY_EMAIL_INVALID: "That is not a valid email address.",
+  /** A self-declared archetype that is not one of the offered options (400) — a
+   *  scripted POST, since the UI only renders the script's own choices. */
+  APPLY_SELECTION_INVALID: "That is not one of the options offered.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

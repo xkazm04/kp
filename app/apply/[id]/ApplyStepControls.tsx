@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { RefObject } from "react";
 import { TextInput } from "@/app/_components/TextInput";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import type { ApplyStep } from "@/app/_lib/apply";
 // The SAME accept list the recruiter-side drop zones render — and the same one
 // the server gate (validateUploadServer) and the Python extractor enforce. This
@@ -54,6 +55,13 @@ export function ApplyStepControls({
 }) {
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
+  // The inline messages are ASSOCIATED with the control they are about: a
+  // screen-reader user reaching the input hears why it was refused, instead of
+  // an unattached alert somewhere after it. `invalid` on TextInput sets
+  // aria-invalid; the file input carries its own.
+  const errorId = `apply-step-error-${step.id}`;
+  const hintId = `apply-step-hint-${step.id}`;
+  const uploadErrorId = `apply-step-upload-error-${step.id}`;
 
   return (
     <div className="mt-4" ref={controlsRef}>
@@ -69,7 +77,7 @@ export function ApplyStepControls({
             // candidate which answer "passes" the eligibility gate before
             // they answered it. moss stays reserved for OUTCOMES (the
             // "You're in" card), never for steering an answer.
-            className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
+            className={`${BTN_SECONDARY} bg-white px-5 py-2 text-base font-semibold`}
           >
             {tCommon("yes")}
           </button>
@@ -77,7 +85,7 @@ export function ApplyStepControls({
             type="button"
             disabled={busy}
             onClick={() => onKo(false)}
-            className="focus-ring rounded-md border border-stone-200 bg-white px-5 py-2 text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
+            className={`${BTN_SECONDARY} bg-white px-5 py-2 text-base font-semibold`}
           >
             {tCommon("no")}
           </button>
@@ -90,7 +98,7 @@ export function ApplyStepControls({
               type="button"
               disabled={busy}
               onClick={() => onChoice(opt.value, opt.label)}
-              className="focus-ring rounded-md border border-stone-200 bg-white px-4 py-2 text-left text-base font-semibold text-ink hover:border-coral/50 disabled:opacity-50"
+              className={`${BTN_SECONDARY} bg-white px-4 py-2 text-left text-base font-semibold`}
             >
               {opt.label}
             </button>
@@ -100,7 +108,7 @@ export function ApplyStepControls({
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <label
-              className={`focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-stone-200 bg-white px-4 py-2 text-base font-semibold text-ink hover:border-coral/50 ${
+              className={`${BTN_SECONDARY} cursor-pointer gap-1.5 bg-white px-4 py-2 text-base font-semibold ${
                 busy || uploading ? "pointer-events-none opacity-50" : ""
               }`}
             >
@@ -109,6 +117,8 @@ export function ApplyStepControls({
                 type="file"
                 accept={ACCEPT_EXTENSIONS}
                 disabled={busy || uploading}
+                aria-invalid={uploadErr ? true : undefined}
+                aria-describedby={uploadErr ? uploadErrorId : undefined}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   e.currentTarget.value = ""; // allow re-picking the same file after an error
@@ -121,12 +131,16 @@ export function ApplyStepControls({
               type="button"
               disabled={busy || uploading}
               onClick={onSkip}
-              className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
+              className={`${BTN_GHOST} px-3 py-2 text-base font-semibold`}
             >
               {t("skip")}
             </button>
           </div>
-          {uploadErr ? <p role="alert" className="text-sm text-coral">{uploadErr}</p> : null}
+          {uploadErr ? (
+            <p id={uploadErrorId} role="alert" className="text-sm text-coral">
+              {uploadErr}
+            </p>
+          ) : null}
         </div>
       ) : (
         <form
@@ -143,24 +157,16 @@ export function ApplyStepControls({
             placeholder={step.placeholder}
             disabled={busy}
             invalid={Boolean(stepError)}
+            aria-describedby={stepError ? errorId : cvPrefilled ? hintId : undefined}
             className="h-11 flex-1"
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || busy}
-            className="focus-ring rounded-md bg-ink px-4 text-base font-semibold text-white hover:bg-steel disabled:opacity-50"
-          >
+          <button type="submit" disabled={!input.trim() || busy} className={`${BTN_PRIMARY} px-4 text-base font-semibold`}>
             {t("send")}
           </button>
           {step.optional ? (
             // Same skip affordance as the file step — an optional text step
             // (the GitHub handle) must never gate the application.
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onSkip}
-              className="focus-ring rounded-md px-3 py-2 text-base font-semibold text-steel hover:text-ink disabled:opacity-50"
-            >
+            <button type="button" disabled={busy} onClick={onSkip} className={`${BTN_GHOST} px-3 py-2 text-base font-semibold`}>
               {t("skip")}
             </button>
           ) : null}
@@ -169,9 +175,15 @@ export function ApplyStepControls({
       {/* idea-cddec0bf — flag a value pre-filled from the CV so the candidate
           knows to check it rather than assuming they typed it. */}
       {step.type === "text" && cvPrefilled && !stepError ? (
-        <p className="mt-1.5 text-sm text-steel">{t("prefilledHint")}</p>
+        <p id={hintId} className="mt-1.5 text-sm text-steel">
+          {t("prefilledHint")}
+        </p>
       ) : null}
-      {stepError ? <p role="alert" className="mt-1.5 text-sm text-coral">{stepError}</p> : null}
+      {stepError ? (
+        <p id={errorId} role="alert" className="mt-1.5 text-sm text-coral">
+          {stepError}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
@@ -169,10 +169,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     // Throttle BEFORE any DB read or Python spawn so a flood is rejected cheaply.
     if (!rateLimit(`apply:${id}:${clientIpFrom(request.headers)}`, APPLY_RATE_LIMIT)) {
+      // Shared codeless 429 envelope (rate-limit-contract.test.ts pins it).
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
     const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    if (!job) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
     // Tenant (P1): a public applicant has no session — file them into the OPENING's team
     // (a corpus job with no owner falls back to the default workspace).
     const workspaceId = getJobWorkspace(id);
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // the only pre-read signal; the per-field caps below backstop an absent/spoofed one.
     const contentLength = Number(request.headers.get("content-length") ?? 0);
     if (contentLength > MAX_APPLY_BODY_BYTES) {
-      return NextResponse.json({ error: "Application payload too large." }, { status: 413 });
+      return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     }
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -230,7 +231,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // activity feed while never reaching the cap. The quick-apply route already
     // validates before its KO verdict; this keeps the two surfaces aligned.
     if (name.length > MAX_NAME_LENGTH) {
-      return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
+      // The refusal names the OFFENDING STEP (`field`) and its cap (`max`) as
+      // data: the door re-asks that one question with the typed answer still in
+      // the box instead of restarting an 8-step chat. See apply-submit-outcome.ts.
+      return jsonRefusal("APPLY_NAME_TOO_LONG", 400, { field: "name", max: MAX_NAME_LENGTH });
     }
 
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
@@ -285,12 +289,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Per-field caps — fail closed BEFORE the dedup query, profile build, intake.json
     // write, or Python spawn. Reject (don't truncate) so the applicant fixes the input.
     // (The name cap runs earlier, above the knockout gate — see the note there.)
-    const freeText = [experience, skills, studentProject, studentEducation, studentAspirations, switchPrior, switchAspirations];
-    if (freeText.some((t) => t.length > MAX_TEXT_LENGTH)) {
-      return NextResponse.json({ error: "One of your answers is too long — please shorten it." }, { status: 400 });
+    // Keyed by STEP ID, not positional: the refusal has to name which answer was
+    // rejected so the door can re-ask that step (the ids are buildApplyScript's).
+    const freeText: [string, string][] = [
+      ["experience", experience],
+      ["skills", skills],
+      ["student_project", studentProject],
+      ["student_education", studentEducation],
+      ["student_aspirations", studentAspirations],
+      ["switch_prior", switchPrior],
+      ["switch_aspirations", switchAspirations],
+    ];
+    const overlong = freeText.find(([, value]) => value.length > MAX_TEXT_LENGTH);
+    if (overlong) {
+      return jsonRefusal("APPLY_ANSWER_TOO_LONG", 400, { field: overlong[0], max: MAX_TEXT_LENGTH });
     }
     if (archetype.length > MAX_ARCHETYPE_LENGTH) {
-      return NextResponse.json({ error: "Invalid selection." }, { status: 400 });
+      return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: "archetype" });
     }
     // Apply doesn't HARD-block on a missing email (the entry still files; comms
     // just stay undeliverable until a contact is captured) — but a clearly
@@ -299,10 +314,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // requires the address. See the decision comment on the `email` step in
     // app/_lib/apply.ts — that step owns the contract.
     if (email.length > MAX_EMAIL_LENGTH) {
-      return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
+      return jsonRefusal("APPLY_EMAIL_TOO_LONG", 400, { field: "email", max: MAX_EMAIL_LENGTH });
     }
     if (email && !APPLY_EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+      return jsonRefusal("APPLY_EMAIL_INVALID", 400, { field: "email" });
     }
 
     // Lead-enrichment hand-off: a valid token resolves DIRECTLY to the lead's

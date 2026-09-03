@@ -275,6 +275,34 @@ enforce. It used to hardcode a wider literal that included `.doc`, which nothing
 downstream reads: the picker offered legacy Word and the server refused it with a
 400 *after* the upload, on a public flow with no support channel.
 
+**A rejected application says what to fix, in the candidate's language.** Both
+doors' validation refusals (`app/api/apply/[id]/route.ts`,
+`.../quick/route.ts`) answer through `jsonRefusal` with an `APPLY_*` code —
+`APPLY_NAME_TOO_LONG`, `APPLY_ANSWER_TOO_LONG`, `APPLY_EMAIL_TOO_LONG`,
+`APPLY_EMAIL_INVALID`, `APPLY_NAME_REQUIRED`, `APPLY_SELECTION_INVALID`,
+`APPLY_PAYLOAD_TOO_LARGE`, `APPLY_ROLE_NOT_FOUND`, plus `TOO_MANY_REQUESTS` on
+the throttle. They used to be bare English prose, which the code-only resolver
+correctly refused to render: the candidate got the generic "something went
+wrong" *and* a "Start over", so an answer two characters over the cap cost them
+the whole conversation. The refusal now carries the cap (`max`) and the offending
+step id (`field`) as DATA beside the code; `apply-submit-outcome.ts` — pure, and
+the only place the precedence lives — resolves the message from `errors.<CODE>`
+with the cap interpolated, decides retry-vs-restart from
+`isRetryableApplyStatus`, and turns a named `field` into a re-ask of THAT step
+with the rejected answer still in the box (`ApplyErrorBlock`'s
+`apply.fixAnswer`). The quick form shares the decision for its message; it keeps
+every answer either way, so it has no restart to offer.
+
+**Both doors honour reduced motion and speak their errors.** The transcript's
+auto-scroll and the quick form's jump-to-the-blocking-field resolve their
+`scrollIntoView` behaviour through `useReducedMotion()`, and every inline
+validation message is `aria-describedby`-linked to the control it is about
+(`aria-invalid` rides on the input via `TextInput`'s `invalid`). The buttons
+compose `BTN_PRIMARY` / `BTN_SECONDARY` / `BTN_GHOST` from
+`app/_components/ui/recipes.ts` rather than hand-rolled class strings, so the
+public door keeps the app's dual-theme treatment. `apply-door-a11y.test.ts` and
+`apply-submit-outcome.test.ts` pin all of it.
+
 An abandoned chat resumes from a localStorage draft (`use-apply-draft.ts`) keyed by
 job (+ lead token) and fingerprinted against the script that recorded it. Two rules
 make a resume safe: a fingerprint mismatch discards the draft outright rather than
