@@ -2980,7 +2980,8 @@
       "rejectConfirm": "Reject {count} and notify them?",
       "rejectConfirmYes": "Reject & notify",
       "rejectCancel": "Cancel",
-      "rejecting": "Rejecting…"
+      "rejecting": "Rejecting…",
+      "accepting": "Accepting…"
     },
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role. Advance or reject from a candidate's analysis summary.",
@@ -3069,7 +3070,9 @@
       "familyFloorChip": "below {floor}",
       "familyEditHint": "These are set on the Calibration panel in Analytics. This rule only reflects them.",
       "fairnessLabel": "Fairness:",
-      "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected. That gate is enforced in code."
+      "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected. That gate is enforced in code.",
+      "loadFailed": "Couldn't load the live rules for this workspace. Nothing is shown or saved until it loads.",
+      "loadRetry": "Try again"
     },
     "compliance": {
       "title": "Compliance & fairness",
@@ -3368,7 +3371,8 @@
         "fairnessWouldRefuse": "Auto-reject would be refused by fairness backstop: {verdict}. Original policy decision: {original}",
         "applyFailed": "Apply failed: {detail}. Original policy decision: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Couldn't put this candidate back. Try again."
   },
   "scheduleTab": {
     "lifecycle": {

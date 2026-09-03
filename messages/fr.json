@@ -2980,7 +2980,8 @@
       "rejectConfirm": "Rejeter {count} et les notifier ?",
       "rejectConfirmYes": "Rejeter et notifier",
       "rejectCancel": "Annuler",
-      "rejecting": "Rejet…"
+      "rejecting": "Rejet…",
+      "accepting": "Acceptation…"
     },
     "keyDecisions": "Décisions clés",
     "keyDecisionsHelp": "Une ligne par poste. Faites avancer ou rejetez depuis le résumé d’analyse d’un candidat.",
@@ -3069,7 +3070,9 @@
       "familyFloorChip": "sous {floor}",
       "familyEditHint": "Ils se définissent dans le panneau Calibrage de l’Analytique. Cette règle ne fait que les refléter.",
       "fairnessLabel": "Équité :",
-      "fairnessBody": "les candidats en début de carrière (étudiant / en reconversion) ne sont <b>jamais</b> rejetés automatiquement. Ce garde-fou est appliqué dans le code."
+      "fairnessBody": "les candidats en début de carrière (étudiant / en reconversion) ne sont <b>jamais</b> rejetés automatiquement. Ce garde-fou est appliqué dans le code.",
+      "loadFailed": "Impossible de charger les règles actives de cet espace. Rien n'est affiché ni enregistré tant qu'elles ne sont pas chargées.",
+      "loadRetry": "Réessayer"
     },
     "compliance": {
       "title": "Conformité et équité",
@@ -3368,7 +3371,8 @@
         "fairnessWouldRefuse": "Le rejet automatique serait refusé par le garde-fou d’équité : {verdict}. Décision initiale des règles : {original}",
         "applyFailed": "Échec de l’exécution : {detail}. Décision initiale des règles : {original}"
       }
-    }
+    },
+    "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez."
   },
   "scheduleTab": {
     "lifecycle": {

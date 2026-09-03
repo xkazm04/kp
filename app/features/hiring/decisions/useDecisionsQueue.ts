@@ -21,6 +21,12 @@ import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./groupE
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
+import {
+  applyReinstateOutcome,
+  foldReinstateResponse,
+  type ReinstateFailure,
+  type ReinstateOutcome,
+} from "./decisionsReinstateOutcome";
 
 export function useDecisionsQueue() {
   const search = useSearchParams();
@@ -120,6 +126,9 @@ export function useDecisionsQueue() {
   // pending queue and refreshed on the same signals.
   const [reconsider, setReconsider] = useState<ReconsiderRow[]>([]);
   const [reinstating, setReinstating] = useState<ReadonlySet<string>>(new Set());
+  // Per-row reinstate failures, keyed by entry id: `{ code, status }`, resolved to
+  // the reader's language at the row (never the server's English `error` string).
+  const [reinstateErrors, setReinstateErrors] = useState<Readonly<Record<string, ReinstateFailure>>>({});
   // reconsider-earns-keep — the queue is a collapsed <details> at the bottom, but a
   // count chip in the header (below) surfaces it; clicking the chip opens the
   // details and scrolls to it. Controlled so the chip can drive it.
@@ -203,18 +212,36 @@ export function useDecisionsQueue() {
     loadReconsider();
   }); // live-update both queues when the simulation / automation acts
 
+  // reinstate-and-rules-say-when-they-fail — the safety valve over irreversible
+  // auto-rejection must say when IT fails. This used to be `if (r.ok) { … }` with
+  // no else and no catch, fired as `void reinstate(item)`: a 409 removed nothing
+  // and said nothing, and a network drop rejected an unhandled promise while the
+  // button spun, re-enabled, and the row stayed. Every path now ends in the pure
+  // fold (decisionsReinstateOutcome.ts) — a removal, or a `{ code, status }` the
+  // row renders through useErrorMessage in the reader's language.
   const reinstate = async (item: ReconsiderRow) => {
     setReinstating((s) => new Set(s).add(item.id));
     try {
-      const r = await fetch(`/api/pipeline/${item.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reinstate" }),
-      });
-      if (r.ok) {
-        setReconsider((cur) => cur.filter((x) => x.id !== item.id));
-        load(); // the candidate is back in the active pipeline at Screened
+      let outcome: ReinstateOutcome;
+      try {
+        const r = await fetch(`/api/pipeline/${item.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "reinstate" }),
+        });
+        // A non-JSON body (a proxy's HTML 502) is not a reason to lose the status.
+        const body = await r.json().catch(() => null);
+        outcome = foldReinstateResponse(item.id, { ok: r.ok, status: r.status }, body);
+      } catch {
+        // The request never landed (offline, aborted, DNS). Folded, not thrown:
+        // an unhandled rejection is exactly the silence this direction removes.
+        outcome = foldReinstateResponse(item.id, null, null);
       }
+      // Both halves come from the same fold, applied as two independent functional
+      // updates (never a setState inside another's updater — that updater must stay pure).
+      setReconsider((cur) => applyReinstateOutcome(cur, {}, outcome).rows);
+      setReinstateErrors((cur) => applyReinstateOutcome([], cur, outcome).failures);
+      if (outcome.ok) load(); // the candidate is back in the active pipeline at Screened
     } finally {
       setReinstating((s) => {
         const n = new Set(s);
@@ -671,7 +698,7 @@ export function useDecisionsQueue() {
     evalTaskId, setEvalTaskId,
     evalError, setEvalError,
     evaluated,
-    reconsider, reinstating, reinstate,
+    reconsider, reinstating, reinstate, reinstateErrors,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
     fmtDate, reconsiderReasonText,
     pending,

@@ -141,7 +141,7 @@ export function DecisionsAiReviewsSection({
                 disabled={bulkBusy}
                 className="focus-ring rounded-md bg-moss px-3 py-1 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50"
               >
-                {t("batch.accept", { count: selectedReviews.length })}
+                {bulkBusy ? t("batch.accepting") : t("batch.accept", { count: selectedReviews.length })}
               </button>
               {confirmingBulkReject ? (
                 <>

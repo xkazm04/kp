@@ -2980,7 +2980,8 @@
       "rejectConfirm": "{count} ablehnen und benachrichtigen?",
       "rejectConfirmYes": "Ablehnen & benachrichtigen",
       "rejectCancel": "Abbrechen",
-      "rejecting": "Wird abgelehnt…"
+      "rejecting": "Wird abgelehnt…",
+      "accepting": "Wird angenommen…"
     },
     "keyDecisions": "Wichtige Entscheidungen",
     "keyDecisionsHelp": "Eine Zeile pro Stelle. Weiterleiten oder ablehnen direkt aus der Analysezusammenfassung eines Kandidaten.",
@@ -3069,7 +3070,9 @@
       "familyFloorChip": "unter {floor}",
       "familyEditHint": "Diese Werte werden im Kalibrierungs-Panel in Analytics festgelegt. Diese Regel gibt sie nur wieder.",
       "fairnessLabel": "Fairness:",
-      "fairnessBody": "Kandidaten am Karriereanfang (Studierende / Quereinsteiger) werden <b>nie</b> automatisch abgelehnt. Diese Sperre ist im Code verankert."
+      "fairnessBody": "Kandidaten am Karriereanfang (Studierende / Quereinsteiger) werden <b>nie</b> automatisch abgelehnt. Diese Sperre ist im Code verankert.",
+      "loadFailed": "Die aktiven Regeln dieses Workspaces konnten nicht geladen werden. Bis dahin wird nichts angezeigt oder gespeichert.",
+      "loadRetry": "Erneut versuchen"
     },
     "compliance": {
       "title": "Compliance & Fairness",
@@ -3368,7 +3371,8 @@
         "fairnessWouldRefuse": "Auto-Ablehnung würde von der Fairness-Sicherung verweigert: {verdict}. Ursprüngliche Regelentscheidung: {original}",
         "applyFailed": "Ausführung fehlgeschlagen: {detail}. Ursprüngliche Regelentscheidung: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen."
   },
   "scheduleTab": {
     "lifecycle": {

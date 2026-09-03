@@ -201,7 +201,16 @@ strands nobody, and moving them would rewrite closed history.
    candidates are excluded from the rejectable cohort entirely, not silently
    coerced to a rejectable score. An optional recruiter-audited holdout sample
    (`screen-wave-holdout.ts`) is carved out of every auto-reject batch for
-   quality review.
+   quality review. `POST /api/decisions/screen-wave` — preview and commit — is
+   operator-gated and then throttled per IP (`screen-wave:<ip>`, 60/10min,
+   pinned in `app/api/rate-limit-contract.test.ts`), after the cheap 400s so a
+   malformed request costs no budget: it is the only door in the tab that
+   queues real adverse-action email, and open mode makes the operator gate a
+   no-op. The Rules modal never substitutes the DEFAULT thresholds for a failed
+   config read — `readScreeningRule` (`decisionsRulesLoad.ts`) refuses a payload
+   that carries no screening rule, and the modal then shows "couldn't load the
+   live rules" with a retry and a disabled save rather than offering to
+   overwrite the workspace's policy with defaults.
 4. **On-demand tasks.** Outreach draft, rejection draft, interview prep pack,
    interview scorecard synthesis, and re-match alternatives are all
    recruiter-triggered, never automatic. One consolidated route dispatches all
@@ -261,7 +270,7 @@ strands nobody, and moving them would rewrite closed history.
 | `app/api/pipeline/[id]/consent/route.ts` | The drawer's GDPR consent snapshot + append-only audit trail. `requireOperator()` first, like every other pipeline PII surface, and pinned in `app/api/pipeline/batch/authz-parity.test.ts`. |
 | `app/api/pipeline/command/route.ts` + `command/execute.ts` | The natural-language command bar. `POST {text}` previews (nothing runs); `POST {text, confirm:true}` executes. An execute answers `{ count, failed, commsFailed }` always — `failed` is every target the guarded write refused (a lost `expectedStage` CAS) or that threw, `commsFailed` is applied rejections the candidate was not notified about — plus `heldAtOffer` / `droppedOut` when non-zero; the counting loop lives in `execute.ts` so each target lands in exactly one bucket. `run policy` runs the same global sweep as `POST /api/automation/run`: operator-gated, then throttled per IP (`pipeline-command-policy:<ip>`, 6/10min, pinned in `app/api/rate-limit-contract.test.ts`), recorded through `recordRun` the same way, and answered with the workspace-scoped `decisions` beside a `summary` explicitly labelled `summaryScope: "global"`. |
 | `app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx` | The drawer card that writes it — a 1..5 button rail, mounted only for a candidate on the terminal-role stage. |
-| `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. |
+| `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. The wave modal's lifecycle (debounced preview → confirm → commit → 409 → re-preview, with the "the set changed" notice consumed on exactly one preview settle) is the pure reducer `decisionsScreenWaveMachine.ts`; `useDecisionsScreenWave` is only the network around it. Reinstate (the reconsider queue's safety valve) folds every path through `decisionsReinstateOutcome.ts` — a refused or never-landed reinstate keeps the row and prints its `{ code, status }` on it via `useErrorMessage`, instead of the old silent no-else. |
 | `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate drawer. |
 | `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the drawer cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
 | `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |

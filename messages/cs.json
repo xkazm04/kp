@@ -2980,7 +2980,8 @@
       "rejectConfirm": "Zamítnout {count} a uvědomit je?",
       "rejectConfirmYes": "Zamítnout a uvědomit",
       "rejectCancel": "Zrušit",
-      "rejecting": "Zamítání…"
+      "rejecting": "Zamítání…",
+      "accepting": "Schvaluji…"
     },
     "keyDecisions": "Klíčová rozhodnutí",
     "keyDecisionsHelp": "Jeden řádek na pozici. Postupte nebo zamítněte přímo ze souhrnu analýzy kandidáta.",
@@ -3069,7 +3070,9 @@
       "familyFloorChip": "pod {floor}",
       "familyEditHint": "Nastavují se v panelu Kalibrace v Analytice. Toto pravidlo je jen zobrazuje.",
       "fairnessLabel": "Spravedlnost:",
-      "fairnessBody": "kandidáti na začátku kariéry (student / změna oboru) se <b>nikdy</b> automaticky nezamítají. Tuto bránu vynucuje kód."
+      "fairnessBody": "kandidáti na začátku kariéry (student / změna oboru) se <b>nikdy</b> automaticky nezamítají. Tuto bránu vynucuje kód.",
+      "loadFailed": "Nepodařilo se načíst platná pravidla tohoto pracovního prostoru. Dokud se nenačtou, nic se nezobrazí ani neuloží.",
+      "loadRetry": "Zkusit znovu"
     },
     "compliance": {
       "title": "Soulad a spravedlnost",
@@ -3368,7 +3371,8 @@
         "fairnessWouldRefuse": "Automatické zamítnutí by pojistka spravedlnosti odmítla: {verdict}. Původní rozhodnutí pravidel: {original}",
         "applyFailed": "Provedení selhalo: {detail}. Původní rozhodnutí pravidel: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu."
   },
   "scheduleTab": {
     "lifecycle": {
