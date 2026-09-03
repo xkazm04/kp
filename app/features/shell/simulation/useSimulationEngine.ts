@@ -263,7 +263,13 @@ export function useSimulationEngine({
         if (e instanceof SimStop) throw e;
         // Same honest-failure treatment as the timeout: show why, don't blank out.
         patch({
-          groupEval: { roleTitle, payload: null, loading: false, error: tSim("error.groupEvalFailed") },
+          groupEval: {
+            roleTitle,
+            payload: null,
+            loading: false,
+            // okJson already resolved the server's code into the reader's language.
+            error: e instanceof Error && e.message ? e.message : tSim("error.groupEvalFailed"),
+          },
           screenWave: null,
         });
       }
