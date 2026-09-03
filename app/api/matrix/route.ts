@@ -58,7 +58,12 @@ export async function GET(request: NextRequest) {
     // silently vanishing from the grid; matrix_cli reports any still-unresolved ids.
     // One IN-query for the whole position set (idea-f946db9d) — this sat on the
     // matrix critical path as M point SELECTs before Python even started.
-    const dbJobs = getJobsByIds(positions.map((p) => p.id));
+    const dbJobs = getJobsByIds(
+      positions.map((p) => p.id),
+      // Tenant scope: the batch now filters (workspace_id IS NULL OR = ?) itself rather
+      // than trusting that its ids were laundered through a scoped list first.
+      ws
+    );
     const jobsJson = JSON.stringify(dbJobs);
 
     // Re-attach titles to unresolved ids + fetch placements on EVERY response
