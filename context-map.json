@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T13:19:50.852Z",
+ "generated_at": "2026-09-03T17:13:27.586Z",
  "provenance": {
-  "git_commit": "266727a2f86ab01da2b209c833815beae3ab693a",
-  "git_commit_count": 2382,
+  "git_commit": "3b72f174ede8a23458d444709bb6e68058b4de7b",
+  "git_commit_count": 2398,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T13:19:50.852Z"
+  "generated_at": "2026-09-03T17:13:27.586Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 2988,
+  "files": 2994,
   "groups": 17,
   "use_cases": 12
  },
@@ -509,7 +509,8 @@
     "pipeline/jobfit/tests/test_devcase_judge_independence.py",
     "pipeline/jobfit/tests/test_devcase_lifecycle.py",
     "pipeline/jobfit/tests/test_devcase_models.py",
-    "pipeline/jobfit/tests/test_fit_threshold_sync.py"
+    "pipeline/jobfit/tests/test_fit_threshold_sync.py",
+    "pipeline/jobfit/tests/test_market_salary_cli.py"
    ],
    "group": "AI & LLM Infrastructure",
    "group_id": "a99d0563-6781-424b-a926-0230a68fe2ff",
@@ -3873,6 +3874,7 @@
     "app/api/devcase/route.test.ts",
     "app/api/devcase/route.ts",
     "app/api/devcase/skill-profile/route.ts",
+    "app/api/devcase/skill-profile/skill-profile-auth.test.ts",
     "app/api/devcase/source/route.ts",
     "app/api/devcase/submit/route.ts",
     "app/api/skill-profile/[token]/verify/route.test.ts",
@@ -4926,6 +4928,7 @@
    "description": "Pipeline server logic: stages and status, entry actions and commands, the score cache, screening, fairness, the reinstate seal, and the public event projection.",
    "entry_points": [],
    "file_paths": [
+    "app/_lib/app-currency-literal.test.ts",
     "app/_lib/ats-config-version.test.ts",
     "app/_lib/attention-tenancy.test.ts",
     "app/_lib/attention.ts",
@@ -4933,6 +4936,7 @@
     "app/_lib/comms-resend-outcome.test.ts",
     "app/_lib/comms-resend-outcome.ts",
     "app/_lib/decision-config-version.test.ts",
+    "app/_lib/devcase-reference.ts",
     "app/_lib/llm-config-probe-env.test.ts",
     "app/_lib/matrix-cache.test.ts",
     "app/_lib/matrix-cache.ts",
@@ -4958,6 +4962,8 @@
     "app/_lib/pipeline-transfer-score.ts",
     "app/_lib/reasoning-error-code.test.ts",
     "app/_lib/reinstate-seal.test.ts",
+    "app/_lib/salary-benchmark.test.ts",
+    "app/_lib/salary-benchmark.ts",
     "app/_lib/task-budget.test.ts",
     "app/_lib/task-budget.ts",
     "app/_lib/task-finish-guard.test.ts",

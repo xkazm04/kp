@@ -314,6 +314,12 @@ export const STORE_ERRORS = {
   TASK_LIST_FAILED: "Could not load the AI tasks. Please try again.",
   TASK_START_FAILED: "Could not start that AI task. Please try again.",
   TASK_RETRY_FAILED: "Could not re-run that AI task. Please try again.",
+  /** The live work-surface session mint's catch (/perfect wave 23,
+   *  devcase-candidate-and-devcase). It forwarded the thrown message from a PUBLIC
+   *  candidate door sitting straight on better-sqlite3 — SQLITE_* codes and the
+   *  absolute db path, painted at an applicant in whatever language the server
+   *  happened to speak. */
+  DEVCASE_SESSION_START_FAILED: "Could not open the work session. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1091,6 +1097,25 @@ export const REFUSAL_ERRORS = {
    *  (400). The zod sentence rides beside the code as `issue` for the log and for API
    *  consumers; the reader gets this one in their own language. */
   DEVCASE_OUTCOME_INVALID: "That outcome could not be recorded: check the result and the performance score.",
+  // ---- The three PUBLIC dev-case candidate doors (/perfect wave 23,
+  // devcase-candidate-and-devcase). Session-start, the live finalize and the
+  // inbound webhook each still answered a handful of bare English sentences with
+  // no code — on a surface the app renders in en/cs/de/fr for someone who is not
+  // logged in and has no way to ask what it meant.
+  /** The apply link was absent or empty on a door that needs it (400/401). One
+   *  refusal for "missing" and "not a token we know", deliberately: the mint's
+   *  DEVCASE_SESSION_UNAVAILABLE note explains why these doors must not be an
+   *  oracle for guessing apply tokens. */
+  DEVCASE_APPLY_TOKEN_REQUIRED: "This apply link isn't valid. Ask the recruiter for a fresh one.",
+  /** The finalize door was handed a session id that resolves to nothing, or to a
+   *  row with no posting behind it (404). Lumped on purpose: both mean "this
+   *  attempt cannot be sealed, start again from your link", and telling them apart
+   *  would confirm which session ids exist. */
+  DEVCASE_SESSION_NOT_FOUND: "This work session can't be found. Open your apply link again to start a new one.",
+  /** An application arrived without a name or without a solution reference (400).
+   *  The public form validates both client-side, so this is a hand-rolled or
+   *  external-channel call — which is exactly the caller who needs a code. */
+  DEVCASE_SUBMISSION_FIELDS_REQUIRED: "A name and a link to your solution are both required.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

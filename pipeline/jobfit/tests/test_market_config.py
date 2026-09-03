@@ -291,26 +291,34 @@ class MarketSeamStragglersTest(unittest.TestCase):
             (de["suggestedMinimum"], de["suggestedMaximum"]),
         )
 
-    def test_cli_fallback_summary_degrades_to_english_for_every_app_locale(self) -> None:
-        """``normalize_lang`` accepts all four app locales but ``_FALLBACK_SUMMARY``
-        only carries en/cs, so ``--lang de|fr`` used to raise KeyError('de') inside
-        ``_fallback`` — which ``_coerce`` calls unconditionally — and main()'s blanket
-        handler turned it into ``{"error": "'de'", "status": 500}`` instead of the band
-        this CLI promises to always return."""
+    def test_cli_fallback_summary_is_native_for_every_app_locale(self) -> None:
+        """``normalize_lang`` accepts all four app locales, and this sentence is baked
+        into a candidate-facing posting, so every one of them gets a NATIVE sentence.
+
+        History: ``_FALLBACK_SUMMARY`` first subscripted the table, so ``--lang de|fr``
+        raised KeyError('de') inside ``_fallback`` — which ``_coerce`` calls
+        unconditionally — and main()'s blanket handler turned it into ``{"error":
+        "'de'", "status": 500}`` instead of the band this CLI promises to always
+        return. ``.get`` stopped the crash but served the ENGLISH sentence inside a
+        German posting; the table now covers de/fr and this test pins that, while
+        ``.get`` stays as the guard for a genuinely unknown code (below).
+        """
         from pipeline.jobfit import market_salary_cli
         from pipeline.jobfit.i18n import LANG_NAMES
 
-        english = market_salary_cli._fallback("software_engineering", "medior", "en")["summary"]
-        czech = market_salary_cli._fallback("software_engineering", "medior", "cs")["summary"]
-        self.assertNotEqual(english, czech)
-        for lang in LANG_NAMES:  # en, cs, de, fr — every locale the pipeline accepts
-            summary = market_salary_cli._fallback("software_engineering", "medior", lang)["summary"]
+        rendered = {
+            lang: market_salary_cli._fallback("software_engineering", "medior", lang)["summary"]
+            for lang in LANG_NAMES  # en, cs, de, fr — every locale the pipeline accepts
+        }
+        for lang, summary in rendered.items():
             self.assertTrue(summary, f"--lang {lang} produced no fallback summary")
-        # An unmapped locale (and a bogus code) resolve to English, never a KeyError.
-        for lang in ("de", "fr", "zz", "de-DE"):
+        # Four locales, four distinct sentences: no locale is quietly served English.
+        self.assertEqual(len(set(rendered.values())), len(rendered), msg=rendered)
+        # An UNKNOWN code still resolves to English rather than raising.
+        for lang in ("zz", "xx-YY"):
             self.assertEqual(
                 market_salary_cli._fallback("software_engineering", "medior", lang)["summary"],
-                english,
+                rendered["en"],
             )
 
 

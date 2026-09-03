@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { draftStorageKey, encodeDraft, decodeDraft, type LiveWorkDraft } from "./liveWorkDraft";
-import { NOTICE } from "@/app/_components/ui/recipes";
+import { BTN_PRIMARY, BTN_SECONDARY, NOTICE, PANEL, PANEL_SUNKEN, toggleBtn } from "@/app/_components/ui/recipes";
 import { useTablist } from "@/app/_components/ui/useTablist";
 
 /** The captured chat channels, in strip order — literal array, derived union. */
@@ -30,8 +30,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const [status, setStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
   // Why the submit failed: a 410 (intake closed) is TERMINAL — telling the
   // candidate to "try again" against it is a retry loop into a wall. Anything
-  // else stays retryable. The reference is the submission id echoed back on
-  // success, so the candidate leaves with a durable handle on their work.
+  // else stays retryable. The reference is the OPAQUE handle the server derives
+  // from the submission id (devcase-reference.ts) — the candidate leaves with a
+  // durable, quotable handle on their work, and the internal id stays off the page.
   const [errorKind, setErrorKind] = useState<"closed" | "generic">("generic");
   const [submissionRef, setSubmissionRef] = useState<string | null>(null);
 
@@ -39,6 +40,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // cases now, so it collects who to reach — a winning evaluation with no address
   // is an unreachable candidate. Labels reuse the repo-form's `devApply` keys.
   const tApply = useTranslations("devApply");
+  // The candidate's own language, sent with the finalize call so the acknowledgement
+  // the shared intake produces is written in it rather than in the server's default.
+  const locale = useLocale();
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
@@ -318,12 +322,12 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       const r = await fetch(`/api/devcase/session/${sid}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, candidate: name.trim(), contact: contact.trim() }),
+        body: JSON.stringify({ token, candidate: name.trim(), contact: contact.trim(), locale }),
       }).catch(() => null);
       const ok = !!(r && r.ok);
       if (r && r.ok) {
-        const payload = (await r.json().catch(() => null)) as { submissionId?: string } | null;
-        setSubmissionRef(typeof payload?.submissionId === "string" ? payload.submissionId : null);
+        const payload = (await r.json().catch(() => null)) as { reference?: string } | null;
+        setSubmissionRef(typeof payload?.reference === "string" ? payload.reference : null);
       } else {
         // The 410 is still what makes this terminal, but the reason now rides a code
         // the catalog can render — the response body used to carry an English sentence
@@ -410,20 +414,22 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const visibleChat = chatMessages.filter((m) => m.channel === chatChannel);
 
   if (status === "submitted") {
+    // moss is the brand's affirmative — the same paint the repo-link form's
+    // "received" panel uses — instead of a raw green ramp with no structural dark half.
     return (
-      <section className="mt-6 rounded-lg border border-green-200 bg-green-50 p-5">
-        <h2 className="font-serif text-h3 text-green-800">{t("submittedTitle")}</h2>
-        <p className="mt-1 text-sm text-green-800">{t("submitted")}</p>
+      <section className="mt-6 rounded-lg border border-moss/40 bg-moss/5 p-5">
+        <h2 className="font-serif text-h3 text-moss">{t("submittedTitle")}</h2>
+        <p className="mt-1 text-body text-ink">{t("submitted")}</p>
         {/* Not a two-line cul-de-sac: say where the reply lands and leave a
             durable reference — the candidate just spent an hour in here. */}
-        {contact.trim() ? <p className="mt-2 text-sm text-green-800">{t("submittedNext", { contact: contact.trim() })}</p> : null}
-        {submissionRef ? <p className="mt-2 text-xs text-green-700">{t("submittedRef", { ref: submissionRef })}</p> : null}
+        {contact.trim() ? <p className="mt-2 text-body text-ink">{t("submittedNext", { contact: contact.trim() })}</p> : null}
+        {submissionRef ? <p className="mt-2 font-mono text-micro text-steel">{t("submittedRef", { ref: submissionRef })}</p> : null}
       </section>
     );
   }
 
   return (
-    <section className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`mt-6 ${PANEL} p-5`}>
       <h2 className="font-serif text-h3 text-ink">{t("heading")}</h2>
       <p className="mt-1 max-w-prose text-sm text-steel">{t("intro")}</p>
       {/* Phone advisory (sm:hidden): a timed case started on a phone is a trap —
@@ -431,27 +437,31 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       <p className={`mt-2 ${NOTICE()} px-3 py-2 text-sm sm:hidden`}>
         {t("phoneAdvisory")}
       </p>
-      {note ? <p className="mt-2 text-xs text-stone-400">{note}</p> : null}
+      {note ? <p className="mt-2 text-micro text-steel">{note}</p> : null}
+      {/* "We restored your draft" is neutral context worth reading — not a caveat
+          and not a failure — so it takes the info tone through the shared notice. */}
       {restored ? (
-        <p className="mt-2 rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-800">
+        <p className={`mt-2 ${NOTICE("info")} px-3 py-1.5 text-micro`} role="status">
           {t("restored")}
         </p>
       ) : null}
       {syncBlocked ? (
-        <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-xs`} role="status">
+        <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-micro`} role="status">
           {t("syncBlocked")}
         </p>
       ) : null}
       {refusal && status !== "error" ? (
-        <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-xs`} role="alert">
+        <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
           {errMsg(refusal, t("error"))}
         </p>
       ) : null}
 
       {perturbation ? (
         <div className={`mt-4 ${NOTICE()} p-4`} role="status">
-          <p className="text-meta uppercase text-amber-700">{t("updateHeading")}</p>
-          <p className="mt-1 text-sm text-amber-900">{perturbation}</p>
+          {/* NOTICE("amber") already carries the tone's text color — restating it
+              here was the one place the two could disagree. */}
+          <p className="text-meta uppercase">{t("updateHeading")}</p>
+          <p className="mt-1 text-body">{perturbation}</p>
         </div>
       ) : null}
 
@@ -462,9 +472,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
               <button
                 type="button"
                 onClick={() => selectFile(f.path)}
-                className={`w-full truncate rounded px-2 py-2 text-left font-mono text-sm ${
-                  f.path === active?.path ? "bg-stone-900 text-white" : "text-ink hover:bg-stone-100"
-                }`}
+                className={`focus-ring w-full truncate rounded px-2 py-2 text-left font-mono text-sm ${toggleBtn(f.path === active?.path)}`}
                 title={f.path}
               >
                 {f.path}
@@ -476,7 +484,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           {/* The full path as visible text: the row buttons truncate, and their
               title= tooltip never fires on touch — without this a phone candidate
               is editing a file they can't fully name. */}
-          <p className="mb-1 break-all font-mono text-xs text-steel">{active?.path}</p>
+          <p className="mb-1 break-all font-mono text-micro text-steel">{active?.path}</p>
           <textarea
             value={active?.contents ?? ""}
             onChange={(e) => active && onEdit(active.path, e.target.value)}
@@ -496,9 +504,9 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         </div>
       </div>
 
-      <div className="mt-5 rounded-lg border border-stone-200 bg-paper/40 p-4">
+      <div className={`mt-5 ${PANEL_SUNKEN} p-4`}>
         <h3 className="text-sm font-semibold text-ink">{t("chatHeading")}</h3>
-        <p className="mt-1 max-w-prose text-xs text-steel">{t("chatIntro")}</p>
+        <p className="mt-1 max-w-prose text-micro text-steel">{t("chatIntro")}</p>
         {/* The roles were declared here with no keyboard behind them: each tab was
             its own Tab stop and no arrow key did anything. The transcript below is
             conditional, so there is no stable panel id these tabs could control —
@@ -510,9 +518,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
               key={ch}
               type="button"
               {...chatTabs.tabProps(ch)}
-              className={`rounded px-3 py-2 text-sm font-medium ${
-                chatChannel === ch ? "bg-stone-900 text-white" : "text-ink hover:bg-stone-100"
-              }`}
+              className={`focus-ring rounded px-3 py-2 text-sm font-medium ${toggleBtn(chatChannel === ch)}`}
             >
               {ch === "assistant" ? t("tabAssistant") : t("tabStakeholder")}
             </button>
@@ -524,12 +530,12 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
               <li
                 key={i}
                 className={`max-w-prose whitespace-pre-wrap rounded-md px-3 py-2 text-sm leading-relaxed ${
-                  m.role === "user" ? "ml-auto bg-stone-900 text-white" : "bg-white text-ink shadow-panel"
+                  m.role === "user" ? "ml-auto bg-ink text-white" : `${PANEL} text-ink`
                 }`}
               >
                 {m.text}
                 {m.role === "model" && m.deterministic ? (
-                  <span className="mt-1 block text-xs text-steel">{t("chatDeterministicNote")}</span>
+                  <span className="mt-1 block text-micro text-steel">{t("chatDeterministicNote")}</span>
                 ) : null}
               </li>
             ))}
@@ -553,14 +559,18 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
             type="button"
             onClick={() => void sendChat()}
             disabled={chatState === "sending" || chatInput.trim().length === 0}
-            className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${BTN_SECONDARY} h-10 px-4 disabled:cursor-not-allowed`}
           >
             {chatState === "sending" ? t("chatSending") : t("chatSend")}
           </button>
         </div>
-        {chatState === "error" ? <p className="mt-2 text-xs text-red-700">{t("chatError")}</p> : null}
+        {chatState === "error" ? (
+          <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
+            {t("chatError")}
+          </p>
+        ) : null}
         {chatState === "limited" ? (
-          <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-xs`} role="status">
+          <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-micro`} role="status">
             {t("chatRateLimited")}
           </p>
         ) : null}
@@ -580,7 +590,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
             placeholder={tApply("fieldContactPlaceholder")}
             className="mt-1"
           />
-          <span className="mt-1 block text-xs font-normal text-steel">{tApply("fieldContactHint")}</span>
+          <span className="mt-1 block text-micro font-normal text-steel">{tApply("fieldContactHint")}</span>
         </label>
       </div>
       <div className="mt-4 flex items-center gap-3">
@@ -588,12 +598,12 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`${BTN_PRIMARY} h-10 px-4 disabled:cursor-not-allowed`}
         >
           {status === "submitting" ? t("submitting") : t("submit")}
         </button>
         {status === "error" ? (
-          <span className="text-sm text-red-700">
+          <span className={`${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
             {errMsg(refusal, t(errorKind === "closed" ? "errorClosed" : "error"))}
           </span>
         ) : null}

@@ -76,3 +76,59 @@ test("the candidate work surface renders the code, never the server's error stri
   // present, so the localized fallback almost never runs.
   assert.doesNotMatch(src, /\.error\s*\?\?\s*t\(/, "never `body.error ?? t(...)` — that ships English to every locale");
 });
+
+// /perfect wave 23 (devcase-candidate-and-devcase). Three doors still answered ENGLISH
+// on the wire after the first pass: the mint's "token is required", the finalize door's
+// "session not found" / "session has no posting token" / "posting not found" / "could
+// not submit", and the webhook's "a valid apply token is required." / "candidate and
+// repoRef are required." Every one of them is read by someone with no account, on a page
+// the app renders in four languages.
+test("no candidate-facing dev-case route answers a bare English sentence", () => {
+  for (const rel of CANDIDATE_ROUTES) {
+    const src = read(rel);
+    // `{ error: "…" }` with a capital-or-lowercase English sentence and no code. The
+    // only NextResponse.json bodies left on these three routes are success payloads.
+    assert.doesNotMatch(
+      src,
+      /NextResponse\.json\(\s*\{\s*error:\s*"/,
+      `${rel}: every refusal goes through jsonRefusal/safeJsonError, so it carries a code`
+    );
+  }
+});
+
+test("the finalize door refuses with codes and hides the store's message", () => {
+  const src = read("session/[id]/submit/route.ts");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_NOT_FOUND", 404\)/, "a dead session id needs a code");
+  assert.match(src, /jsonRefusal\("DEVCASE_SESSION_UNAVAILABLE", 404\)/, "a link that resolves to no posting reuses the mint's code");
+  assert.match(src, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, "the new per-token budget refuses through the chokepoint");
+  assert.match(src, /safeJsonError\(error, "api:devcase\/session\/submit", "DEVCASE_SUBMIT_FAILED"\)/, "the catch logs and codes");
+  assert.doesNotMatch(src, /jsonError\(/, "jsonError forwards .message — never on a public candidate door");
+});
+
+test("the session mint and the webhook name their remaining refusals", () => {
+  assert.match(read("session/route.ts"), /jsonRefusal\("DEVCASE_APPLY_TOKEN_REQUIRED", 400\)/);
+  assert.match(read("session/route.ts"), /safeJsonError\(error, "api:devcase\/session", "DEVCASE_SESSION_START_FAILED"\)/);
+  assert.match(read("inbound/route.ts"), /jsonRefusal\("DEVCASE_APPLY_TOKEN_REQUIRED", 401\)/);
+  assert.match(read("inbound/route.ts"), /jsonRefusal\("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400\)/);
+  // The throttle too: a hand-rolled { error: RATE_LIMITED_ERROR } carries no code, so a
+  // throttled applicant read the server's English.
+  assert.match(read("inbound/route.ts"), /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/);
+});
+
+test("the finalize door goes through the SHARED intake, like its two siblings", () => {
+  const src = read("session/[id]/submit/route.ts");
+  // The whole direction in one assertion: a direct `submitDevSession` and nothing else
+  // meant no acknowledgement and no lifecycle resume on the ONE submit path a workspace
+  // case has. The behavioural half is session-intake-guards.test.ts.
+  assert.match(src, /await intakeSubmission\(\{/, "the ack comes from the shared intake, not a second producer");
+  assert.match(src, /resumeCollectingLifecycle\(posting\.id\)/, "a new arrival resumes a collecting lifecycle");
+});
+
+test("neither candidate surface prints the raw submission id", () => {
+  const dir = path.join(here, "..", "..", "devcase", "apply", "[token]");
+  for (const file of ["LiveWorkSurface.tsx", "DevApplyForm.tsx"] as const) {
+    const src = readFileSync(path.join(dir, file), "utf8");
+    assert.doesNotMatch(src, /payload\??\.submissionId/, `${file}: show the opaque reference, not the store id`);
+    assert.match(src, /\breference\b/, `${file}: the candidate's handle is the opaque reference`);
+  }
+});

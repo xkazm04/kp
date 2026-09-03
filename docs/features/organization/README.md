@@ -60,6 +60,29 @@ inventing a second scoping dimension.
   `addMemberToWorkspace`. It previously did not, and an `admin` could strip the
   org's only owner with one call while `DELETE` on the same route refused it
   (pinned in `app/api/workspaces/workspaces-route.test.ts`).
+- **…and the backstop holds under concurrency.** All four writes run through ONE
+  seam, `org-service`'s `underOwnerLock`: a `db.transaction(...).immediate()`
+  whose callback performs the owner-set read (`isSoleOwner` / `ownerSeatCount`)
+  **inside** the lock. They used to read, decide and write unlocked, so two
+  operators demoting the org's TWO owners at the same moment both saw a two-seat
+  owner set, both concluded "not the last one", and both committed — the exact
+  state the guard exists to prevent. Under `BEGIN IMMEDIATE` the second caller
+  waits, re-reads a one-seat set and is refused. The seam also re-asserts the
+  invariant AFTER the write and rolls back with `last_owner` if the org would be
+  left ownerless anyway, so a future operation that forgets its pre-check orphans
+  nothing. Pinned by `app/_lib/org-service.test.ts` (a rival demotion forced by a
+  trigger; the sequential pair leaving exactly one owner; a source-level check
+  that each of the four takes the lock and reads inside it).
+- **Removing or disabling a member closes the way back in.** An invite is a
+  deferred account — redeeming one activates or re-creates the user with the
+  invited role and a fresh password — so `removeMember` and
+  `setMemberStatus(id, "disabled")` now also revoke the org's **pending invites
+  addressed to that email** (`revokePendingInvitesForEmail`,
+  `app/_lib/db/invites.ts`), in the same transaction as the removal. Without it
+  an old link in the ex-member's inbox re-minted the account at the invited role
+  while the roster showed the seat gone. Scoped to the acting org: a pending
+  invite to the same person from a DIFFERENT org is untouched. A removal
+  **preview** (`dryRun`) revokes nothing.
 - Open-mode + operator-password sessions fold to `owner` so local dev is
   unchanged.
 - **Disabling a member bites immediately, not at next login.**
@@ -85,6 +108,23 @@ inventing a second scoping dimension.
   password" is a user-existence oracle any client can measure.
   `app/_lib/auth/credentials.test.ts` counts the scrypt work rather than the wall
   clock, so the property is pinned without a timing flake.
+- **A stored hash carries its own parameters, and upgrades itself on login.** The
+  format is `v1$scrypt$<N>$<r>$<p>$<saltB64url>$<hashB64url>`
+  (`app/_lib/auth/password.ts`). It used to be a bare `<salt>:<hash>` with the cost
+  implied by node's defaults, so there was no way to ask whether a row was behind:
+  raising the cost later meant either invalidating every password in the install or
+  carrying an undocumented "hashes written before <date> are cheap" rule forever.
+  `needsRehash(stored)` now answers that from the row alone — true for a legacy
+  untagged value or one below `CURRENT`, false for anything unparseable (no caller
+  will ever hold a plaintext proven against it) and for stronger-than-current
+  parameters. `verifyCredentials` rewrites the credential on a **successful** login,
+  the one moment the plaintext is legitimately in hand; a failed login rewrites
+  nothing, and a legacy hash whose password is below today's floor is left alone
+  rather than pushed through a write `setUserPassword` would refuse. Legacy values
+  still verify at node's defaults, so the change logs nobody out. Pinned by
+  `app/_lib/auth/password.test.ts` (both formats, both directions of `needsRehash`,
+  malformed values failing closed) and `credentials.test.ts` (the in-place rewrite,
+  the failed-login no-op, the below-floor no-op).
 - **The password floor is enforced at the store write.** `MIN_PASSWORD_LENGTH`
   lives in `app/_lib/auth/password.ts` (users.ts cannot import `org-service.ts` —
   org-service imports users) and `setUserPassword` throws below it. Signup and
@@ -343,7 +383,7 @@ routes below. The switch route now refuses on the workspace the session came fro
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
-| Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min. Both pinned in `app/api/rate-limit-contract.test.ts` |
+| Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min (both on the in-process limiter, `app/_lib/rate-limit.ts`). `GET`/`POST /api/invite/[token]` — `invite-view:<ip>:<token>` / `invite-redeem:<ip>:<token>`, 10/min each, on the **persisted** store (`app/_lib/auth/login-throttle.ts`) that `/api/auth/login` and `/api/auth/register` use: kp can run as several workers over one `kp.sqlite`, and a per-process Map would hand a flood one full budget per worker on the door that mints a user, a membership and a session. Every attempt counts, success included. All pinned in `app/api/rate-limit-contract.test.ts` |
 | Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts` (`addMemberToWorkspace`, `removeMemberFromWorkspace`), `app/_lib/bulk-invite.ts` |
 | Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin` + the pure `workspaceAdminLoad` fold, `workspaceAdminHelpers`) |
 | Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |

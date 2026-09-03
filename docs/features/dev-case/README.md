@@ -465,6 +465,51 @@ the real handlers, and `app/api/devcase/devcase-candidate-refusals.test.ts` pins
 source: no route may re-type the closed-intake sentence, and the work surface may never
 use the inverted `body.error ?? t(...)` chain.
 
+**The live finalize is a real intake, not a store call.** `POST
+/api/devcase/session/[id]/submit` used to call `submitDevSession` and stop there, while
+both sibling doors — the public webhook `inbound/route.ts` and the internal
+`submit/route.ts` — go through `intakeSubmission` (`app/_lib/distribution.ts`) and then
+`resumeCollectingLifecycle`. So on the ONE submit path a workspace case has, the screen
+said "you'll hear back at <address>" and no acknowledgement was ever produced and no
+evaluation ever ran. The door now: seals the session in its single transaction, resumes a
+collecting lifecycle when *this* call is the one that sealed it, then calls the shared
+intake. The order is deliberate — the ack is driven off a durable outbox marker and stays
+retryable on its own, so a relay outage costs a resend rather than the posting's whole
+evaluation pass, and `intakeSubmission` cannot run inside the transaction (it awaits
+`sendComm`). Calling it on the row the seal just wrote is safe: `createSubmission` is
+idempotent on (posting, candidate, repo) and re-selects, so there is one row and one ack
+however many times a candidate clicks. Both public doors also forward the reader's
+`locale`, so the acknowledgement is written in the candidate's language rather than the
+server's default. Pinned behaviourally in `session-intake-guards.test.ts`.
+
+**The candidate's handle is opaque.** Both intake doors echoed the raw
+`dev_submissions.id` and both surfaces printed it ("Submission reference: sub_…") — an
+internal store key on a public wire, against the rule that a candidate token route carries
+a projection and not the row. They now also return `reference`, a deterministic one-way
+short hash of the id (`ref-` + 10 hex, `app/_lib/devcase-reference.ts`), and that is what
+the two surfaces render. It is not a capability: nothing authorizes on it. The raw
+`submissionId` still rides in the JSON for the token-authorized/external caller that
+correlates its own records (`e2e/journey-one-thread.spec.ts` drives the internal journey
+off it) — dropping it from the wire entirely is the remaining step.
+
+**The skill-profile mint re-verifies the operator.** `POST /api/devcase/skill-profile`
+takes one argument — a submission id — and is not read-only: when the evaluation has moved
+it revokes the live credential and reissues under a new token, breaking every `/skill` link
+already shared. It leaned entirely on `proxy.ts` refusing non-public `/api` paths; it now
+calls `requireOperator()` itself, the defence-in-depth posture the repo asks of a sensitive
+write, while the candidate no longer holds the id at all. In open mode
+(`KP_OPERATOR_PASSWORD` unset) `requireOperator` is a documented no-op for the whole API, so
+there the opacity of the reference is what stands. `skill-profile-auth.test.ts`.
+
+**The assignment reads in the candidate's language.** `caseToMarkdown` hard-coded its
+section headings ("## Brief", "## What you're handed", "## Tasks", "~4h timebox"), so a
+Czech applicant got a Czech page wrapped around an English document. It now takes an
+optional `CaseMarkdownLabels`; the apply page passes the five strings from
+`devApply.assignment` (the timebox arrives as a whole phrase, since "~4h timebox" does not
+survive word order into cs/de/fr, with the CLAMPED figure the caller computes). The two
+INTERNAL readers — the case detail and the review drawer — keep the English defaults: their
+surrounding chrome is the recruiter's.
+
 Two store-backed writes stopped forwarding their thrown message in the same pass:
 `publish/route.ts` (better-sqlite3 + a distribution adapter) and `feedback/route.ts`
 (better-sqlite3 + `buildFeedbackBrief`'s model call) now answer
@@ -793,6 +838,15 @@ credential. These rules keep that honest, all sized so a real candidate never me
   `DAILY_LIMIT` in `app/api/devcase/inbound/route.ts`) — placed after the 401/410/400
   refusals so those keep answering without consuming a real applicant's slot. Never keyed
   by IP, for the same NAT reason as the chat aggregate.
+- **Finalize throttling.** `[id]/submit` was the last public intake door with no bound at
+  all, and it was also the cheapest until it joined the shared intake — it now buys the
+  same acknowledgement and lifecycle resume the webhook does. **60 per 24 h** keyed on the
+  apply token (`devcase-finalize:${token}`), after the 403/404/410 refusals and before the
+  intake, so a refused call sends no mail, writes no row and starts no run. Session-start
+  already caps a posting at 50 sessions/day and a session finalizes once, so a genuine
+  posting cannot reach it. All three doors answer the throttle through
+  `jsonRefusal("TOO_MANY_REQUESTS", 429)` — the shared message plus the code the apply
+  surface localizes — where the webhook used to hand-roll `{ error: RATE_LIMITED_ERROR }`.
 
 Pinned by `app/api/rate-limit-contract.test.ts` (source-level + behavioral),
 `app/api/devcase/session/session-intake-guards.test.ts` and

@@ -79,12 +79,6 @@
       "panel": 2,
       "rawDate": 1
     },
-    "devcase/apply/[token]/LiveWorkSurface.tsx": {
-      "panel": 1
-    },
-    "devcase/apply/[token]/page.tsx": {
-      "panel": 1
-    },
     "features/agents-workforce/AgentsWorkforceRoster.tsx": {
       "metaLabel": 1
     },

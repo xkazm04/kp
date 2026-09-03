@@ -1,7 +1,8 @@
 import unittest
 
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
-from pipeline.jobfit.salary_band import band_error, normalize_band, round_salary
+import pipeline.jobfit.salary_band as salary_band_mod
+from pipeline.jobfit.salary_band import normalize_band, round_salary
 
 # normalize_band REPAIRS an untrusted band (swap reversed, round, reject
 # non-positive) — mirror of salary-band.ts normalizeSalaryBand (+ rounding).
@@ -13,15 +14,6 @@ NORMALIZE_CASES = [
     (0, 60000, None),                # non-positive min -> no usable band
     (60000, 0, None),                # non-positive max
     (-10, -5, None),                 # negative
-]
-
-# band_error VALIDATES for authoring — a reversed range is an error here even
-# though normalize_band would repair it. Mirror of salary-band.ts salaryBandError.
-ERROR_CASES = [
-    (50000, 70000, None),
-    (70000, 50000, "Minimum can't exceed the maximum."),
-    (0, 10, "Enter a positive minimum and maximum."),
-    (60000, 0, "Enter a positive minimum and maximum."),
 ]
 
 
@@ -36,13 +28,20 @@ class SalaryBandTest(unittest.TestCase):
         for lo, hi, expected in NORMALIZE_CASES:
             self.assertEqual(normalize_band(lo, hi), expected, msg=f"normalize_band({lo}, {hi})")
 
-    def test_band_error_matches_fixture(self) -> None:
-        for lo, hi, expected in ERROR_CASES:
-            self.assertEqual(band_error(lo, hi), expected, msg=f"band_error({lo}, {hi})")
-
     def test_non_finite_rejected(self) -> None:
         self.assertIsNone(normalize_band(float("inf"), 50000))
-        self.assertIsNotNone(band_error(float("nan"), 50000))
+        self.assertIsNone(normalize_band(float("nan"), 50000))
+
+    def test_no_authoring_validator_is_exported(self) -> None:
+        """``band_error`` is gone and must not come back by accident.
+
+        It documented itself as a mirror of a ``salaryBandError`` that
+        ``app/_lib/salary-band.ts`` does not export, and had no non-test caller on
+        this side — a cross-language contract with nothing on either end. If an
+        authoring validator is ever genuinely needed here, it lands together with the
+        TS export it mirrors and this assertion is deleted deliberately.
+        """
+        self.assertFalse(hasattr(salary_band_mod, "band_error"))
 
 
 class SalaryStepFollowsMarketTest(unittest.TestCase):

@@ -1,4 +1,5 @@
 import { APP_CURRENCY, formatSalaryRange } from "./format.ts";
+import { normalizeSalaryBenchmark, type SalaryBenchmark } from "./salary-benchmark.ts";
 
 // Salary-band validation shared by the JD authoring form (JdTemplates) and the
 // write trust boundary (ingest-job), so the advertised JD band and the
@@ -126,6 +127,15 @@ export type MarketSalary = {
   currency: string;
   confidence: string;
   summary: string;
+  /**
+   * Where the band came from, when the CLI read it off the internal benchmark
+   * table: `{sourceId, asOf, sampleK}` (see salary-benchmark.ts). `null` for a
+   * GROUNDED band — the model read live web evidence, and stamping the 2025
+   * table's vintage on that would credit the figure to a dataset it never came
+   * from — and for any payload predating this field, which is the same render
+   * decision: say nothing about provenance.
+   */
+  benchmark: SalaryBenchmark | null;
 };
 
 /**
@@ -180,5 +190,9 @@ export function normalizeMarketSalary(payload: unknown): MarketSalary {
     // claim the payload didn't actually make.
     confidence: coerceString(p.confidence, "low"),
     summary: coerceString(p.summary, ""),
+    // Provenance is only ever ADDED by the producer, never inferred here: an
+    // unusable or absent `benchmark` normalizes to null so the renderer stays
+    // silent rather than naming a dataset it is guessing at.
+    benchmark: normalizeSalaryBenchmark(p.benchmark),
   };
 }

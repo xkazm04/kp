@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleDollarSign } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { labelize } from "@/app/_lib/format";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { Analysis } from "@/app/_lib/schemas";
@@ -10,12 +10,14 @@ import { ConfidenceBadge } from "@/app/_components/Badge";
 import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { PANEL } from "@/app/_components/ui/recipes";
+import { ACTIVE_BENCHMARK, formatBenchmarkAsOf } from "@/app/_lib/salary-benchmark";
 import { BulletList, InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
 import { confidenceGrade, growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
 
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
   // Reader-locale digit grouping for every figure on this tab (format.ts
   // number-locale contract) — the currency code still comes from the analysis.
@@ -60,6 +62,15 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const marketLinks = analysis.marketEvidence
     ? dedupeBy(safeHttpLinks(analysis.marketEvidence.sources), (link) => link.href).slice(0, 3)
     : [];
+  // The deterministic pre-pass anchors this estimate on the ACTIVE market's
+  // role-family benchmark table (`role_band` -> `anchorBand`), and the analysis
+  // schema carries the two numbers without saying which table or how old it is —
+  // so a 2025 vintage reads identically today and in three years. Say it, but only
+  // when an anchor was actually used: a two-number band IS the anchor, anything
+  // else (no detected seniority, an unknown family) means the estimate rested on
+  // the model alone and naming a dataset would be a false attribution.
+  const anchored = (analysis.metadata?.deterministicEvidence?.anchorBand ?? []).length === 2;
+  const benchmarkAsOf = formatBenchmarkAsOf(ACTIVE_BENCHMARK.asOf, locale);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
@@ -85,6 +96,13 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
           <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={salaryGrade} labels={confidenceLabels} /></p>
           {analysis.salary.structureNote ? (
             <p className="mt-2 text-sm leading-5 text-steel">+ {analysis.salary.structureNote}</p>
+          ) : null}
+          {anchored ? (
+            <p className="mt-2 text-sm leading-5 text-steel">
+              {benchmarkAsOf
+                ? t("panel.benchmarkAnchor", { source: ACTIVE_BENCHMARK.sourceId, date: benchmarkAsOf })
+                : t("panel.benchmarkVintageUndated", { source: ACTIVE_BENCHMARK.sourceId })}
+            </p>
           ) : null}
           <div className="mt-4 rounded-md bg-limewash p-3 text-base font-medium text-ink">
             {growthPct != null

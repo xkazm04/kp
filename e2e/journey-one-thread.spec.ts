@@ -227,7 +227,7 @@ test("a JD becomes a job, and an assignment is cut FROM that job", async ({ page
   await expect(page.getByRole("button", { name: "All assignments" })).toBeVisible();
 });
 
-test("the candidate applies through the assignment's own link — and never sees the probes", async ({ browser }) => {
+test("the candidate applies through the assignment's own link — and never sees the probes", async ({ browser, page }) => {
   test.setTimeout(120_000);
   // A NEW context: the candidate holds only the tokenized link — no kp_entered
   // cookie, no recruiter session. Everything below is what Sam can reach.
@@ -283,11 +283,24 @@ test("the candidate applies through the assignment's own link — and never sees
       data: { token: applyToken, candidate: CANDIDATE, contact: CANDIDATE_EMAIL },
     });
     expect(submitted.ok(), `POST /api/devcase/session/[id]/submit responded ${submitted.status()}`).toBe(true);
-    submissionId = ((await submitted.json()) as { submissionId: string }).submissionId;
-    expect(submissionId).toBeTruthy();
+    // The candidate is handed an OPAQUE reference, never the store id (wave 23).
+    const receipt = (await submitted.json()) as { reference?: string; submissionId?: string };
+    expect(receipt.reference).toMatch(/^ref-[0-9a-f]{10}$/);
+    expect(receipt.submissionId, "the store id never rides the public wire").toBeUndefined();
   } finally {
     await candidateContext.close();
   }
+
+  // The OPERATOR reads the submission id from the postings feed, where the
+  // received submissions are inlined per posting.
+  const withSubmissions = await page.request.get("/api/devcase/postings");
+  expect(withSubmissions.ok()).toBe(true);
+  const received = ((await withSubmissions.json()) as {
+    postings: Array<{ caseId: string; submissions: Array<{ id: string }> }>;
+  }).postings.find((p) => p.caseId === caseId)?.submissions ?? [];
+  expect(received.length, "the finalize landed as ONE submission on the posting").toBe(1);
+  submissionId = received[0].id;
+  expect(submissionId).toBeTruthy();
 });
 
 test("evaluate and promote join the REAL job and ONE real person", async ({ page }) => {

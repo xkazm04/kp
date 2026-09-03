@@ -500,7 +500,12 @@
       "starSituation": "Situation",
       "starTask": "Tâche",
       "starAction": "Action",
-      "starResult": "Résultat"
+      "starResult": "Résultat",
+      "benchmarkVintage": "Référentiel {source}, mis à jour le {date}",
+      "benchmarkVintageUndated": "Référentiel {source}",
+      "benchmarkThin": "échantillon réduit (n={count})",
+      "benchmarkNoSample": "aucun échantillon enregistré (repère éditorial)",
+      "benchmarkAnchor": "Ancré sur le référentiel {source}, mis à jour le {date}"
     }
   },
   "comms": {
@@ -1658,7 +1663,11 @@
     "SIM_CV_UNREADABLE": "Ce CV n’a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD.",
     "DEMO_NOT_PROVISIONED": "La démo en direct n’est pas encore configurée sur ce déploiement.",
     "DEMO_DISABLED": "La démo en direct est désactivée sur ce déploiement.",
-    "SIM_RUN_ACTIVE": "Une démo guidée est déjà en cours ici. Attendez la fin ou arrêtez-la d’abord."
+    "SIM_RUN_ACTIVE": "Une démo guidée est déjà en cours ici. Attendez la fin ou arrêtez-la d’abord.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "Ce lien de candidature n’est pas valide. Demandez-en un nouveau au recruteur.",
+    "DEVCASE_SESSION_NOT_FOUND": "Cette session de travail est introuvable. Rouvrez votre lien de candidature pour en démarrer une nouvelle.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Un nom et un lien vers votre solution sont tous deux obligatoires.",
+    "DEVCASE_SESSION_START_FAILED": "Impossible d’ouvrir la session de travail. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6205,7 +6214,14 @@
     "received": "Candidature reçue",
     "receivedNote": "Nous examinerons votre soumission et reviendrons vers vous. Une confirmation est en route.",
     "receivedDuplicate": "Nous avions déjà une soumission de votre part pour cet exercice. C’est celle qui compte, inutile de la renvoyer.",
-    "receivedRef": "Référence de la soumission : {ref}"
+    "receivedRef": "Référence de la soumission : {ref}",
+    "assignment": {
+      "fallbackTitle": "Exercice",
+      "timebox": "durée indicative ~{hours} h",
+      "brief": "Énoncé",
+      "handed": "Ce qui vous est fourni",
+      "tasks": "Tâches"
+    }
   },
   "potential": {
     "badge": "potentiel {pct}",

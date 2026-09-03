@@ -177,3 +177,35 @@ test("groundedJdBand reads the persisted analysis band and rejects an unusable o
   assert.equal(groundedJdBand(null), null);
   assert.equal(groundedJdBand("not json"), null);
 });
+
+test("normalizeMarketSalary carries the deterministic band's benchmark provenance", () => {
+  // market_salary_cli attaches this to the DETERMINISTIC result so the surface can
+  // say which table the figure came from and how old it is.
+  const s = normalizeMarketSalary({
+    suggestedMinimum: 103000,
+    suggestedMaximum: 154500,
+    currency: "CZK",
+    confidence: "low",
+    summary: "Estimated from the internal role-family salary table.",
+    benchmark: { sourceId: "cz-ispv-2025", asOf: "2026-07-05T14:31:03.797Z", sampleK: 117 },
+  });
+  assert.deepEqual(s.benchmark, { sourceId: "cz-ispv-2025", asOf: "2026-07-05T14:31:03.797Z", sampleK: 117 });
+});
+
+test("normalizeMarketSalary leaves a grounded band unattributed to the table", () => {
+  // A live-web band carries `benchmark: null` on the wire; a payload predating the
+  // field carries nothing. Both mean "say nothing about provenance".
+  assert.equal(normalizeMarketSalary({ suggestedMinimum: 90000, suggestedMaximum: 120000, benchmark: null }).benchmark, null);
+  assert.equal(normalizeMarketSalary({ suggestedMinimum: 90000, suggestedMaximum: 120000 }).benchmark, null);
+  // Garbage in the slot is not provenance either.
+  assert.equal(normalizeMarketSalary({ suggestedMinimum: 90000, suggestedMaximum: 120000, benchmark: "cz-ispv-2025" }).benchmark, null);
+});
+
+test("normalizeMarketSalary is still idempotent with provenance attached", () => {
+  const once = normalizeMarketSalary({
+    suggestedMinimum: 80000,
+    suggestedMaximum: 110000,
+    benchmark: { sourceId: "cz-ispv-2025", asOf: "2026-07-05T14:31:03.797Z", sampleK: 117 },
+  });
+  assert.deepEqual(normalizeMarketSalary(once), once);
+});

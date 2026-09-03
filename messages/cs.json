@@ -500,7 +500,12 @@
       "starSituation": "Situace",
       "starTask": "Úkol",
       "starAction": "Akce",
-      "starResult": "Výsledek"
+      "starResult": "Výsledek",
+      "benchmarkVintage": "Benchmark {source}, aktualizováno {date}",
+      "benchmarkVintageUndated": "Benchmark {source}",
+      "benchmarkThin": "malý vzorek (n={count})",
+      "benchmarkNoSample": "bez zaznamenaného vzorku (redakční odhad)",
+      "benchmarkAnchor": "Ukotveno na benchmark {source}, aktualizováno {date}"
     }
   },
   "comms": {
@@ -1658,7 +1663,11 @@
     "SIM_CV_UNREADABLE": "Tento životopis se nepodařilo přečíst. Zkuste soubor PDF, DOCX, TXT nebo MD.",
     "DEMO_NOT_PROVISIONED": "Živé demo zatím na tomto nasazení není připravené.",
     "DEMO_DISABLED": "Živé demo je na tomto nasazení vypnuté.",
-    "SIM_RUN_ACTIVE": "Tady už jedno provázené demo běží. Počkejte, až skončí, nebo ho nejdřív zastavte."
+    "SIM_RUN_ACTIVE": "Tady už jedno provázené demo běží. Počkejte, až skončí, nebo ho nejdřív zastavte.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "Tento odkaz pro přihlášení není platný. Požádejte náboráře o nový.",
+    "DEVCASE_SESSION_NOT_FOUND": "Toto pracovní sezení se nepodařilo najít. Otevřete znovu svůj odkaz a začněte nové.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Jméno i odkaz na vaše řešení jsou povinné.",
+    "DEVCASE_SESSION_START_FAILED": "Pracovní sezení se nepodařilo otevřít. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6205,7 +6214,14 @@
     "received": "Přihláška přijata",
     "receivedNote": "Vaše řešení posoudíme a ozveme se vám. Potvrzení je na cestě.",
     "receivedDuplicate": "Pro toto zadání už od vás řešení máme. Počítá se to první, takže není třeba odesílat znovu.",
-    "receivedRef": "Číslo odevzdání: {ref}"
+    "receivedRef": "Číslo odevzdání: {ref}",
+    "assignment": {
+      "fallbackTitle": "Zadání",
+      "timebox": "časový rámec ~{hours} h",
+      "brief": "Zadání",
+      "handed": "Co dostáváte k dispozici",
+      "tasks": "Úkoly"
+    }
   },
   "potential": {
     "badge": "potenciál {pct}",
