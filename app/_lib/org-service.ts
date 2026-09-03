@@ -1,3 +1,4 @@
+import { ensureDb } from "./db/core";
 import { DEFAULT_ORG_ID } from "./db/organizations";
 import {
   createUser,
@@ -103,12 +104,33 @@ export type AcceptResult =
   | { ok: false; reason: "invalid" | "weak_password" | "email_taken" | "already_active" };
 
 /** Redeem a pending invite: activate/create the user, set their password, and add
- *  the team membership. Idempotent-ish — a redeemed invite can't be redeemed again
- *  (markInviteAccepted is guarded). */
+ *  the team membership.
+ *
+ *  ONE transaction, taken IMMEDIATE, with the redeemable read re-asserted inside it.
+ *  This is a read→compute→write over four stores (invite → user → credential →
+ *  membership → invite), and it used to run unlocked: two processes redeeming the
+ *  same link both saw a pending invite, both wrote a password, and only the loser's
+ *  `markInviteAccepted` no-op'd — so the second caller's password silently won an
+ *  account the first caller had just been told was theirs, and a crash between the
+ *  membership write and the mark left a member seated on a still-pending invite.
+ *  Under `.immediate()` the write lock is taken at BEGIN and the invite is read
+ *  behind it, so the second caller is refused structurally (`invalid`) and writes
+ *  nothing. Everything here is synchronous by construction — the session signing
+ *  the route does with the result stays OUTSIDE, where an await belongs. */
 export function acceptInvite(input: AcceptInviteInput, now: number = Date.now()): AcceptResult {
+  // A password that can never be accepted is refused before the lock is taken: a
+  // form retrying "short" must not queue behind (or hold up) real redeems.
+  if (!input.password || input.password.length < MIN_PASSWORD_LENGTH) return { ok: false, reason: "weak_password" };
+  return ensureDb().transaction((): AcceptResult => acceptInviteLocked(input, now)).immediate();
+}
+
+/** The body of acceptInvite, running under the IMMEDIATE write lock. Every refusal
+ *  it returns happens BEFORE the first write, so a refused redeem commits an empty
+ *  transaction and leaves nothing behind. */
+function acceptInviteLocked(input: AcceptInviteInput, now: number): AcceptResult {
+  // Re-asserted INSIDE the lock — this is the check the second caller loses on.
   const invite = getRedeemableInvite(input.token, now);
   if (!invite) return { ok: false, reason: "invalid" };
-  if (!input.password || input.password.length < MIN_PASSWORD_LENGTH) return { ok: false, reason: "weak_password" };
   // Defense in depth for the tenant boundary inviteMember() now enforces at mint
   // time: a row written BEFORE that guard (or by any other createInvite caller)
   // must never seat its redeemer on a team outside the inviting org. Checked here,
@@ -136,7 +158,11 @@ export function acceptInvite(input: AcceptInviteInput, now: number = Date.now())
   // bug-ui-scan-2026-07-09 (organizations-members-invites #3): the accepted team is
   // resolved once above and returned, so the session claims match the invite (not [0]).
   upsertMembership(user.id, workspaceId, invite.role);
-  markInviteAccepted(input.token, now);
+  // Guarded on status='pending'. Under the lock this cannot fail — the invite was
+  // read behind the same BEGIN IMMEDIATE — so a false here means the invariant is
+  // gone; THROW rather than return, so the transaction rolls back the user,
+  // credential and membership writes above instead of committing a half-redeem.
+  if (!markInviteAccepted(input.token, now)) throw new Error("invite consumed concurrently under a write lock");
   return { ok: true, user, workspaceId, role: invite.role };
 }
 
