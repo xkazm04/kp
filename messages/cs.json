@@ -1472,7 +1472,10 @@
     "INTAKE_ATTACHMENT_TOO_LONG": "Tato poznámka je delší, než může jeden podklad být. Zkraťte ji, nebo ji připojte po částech.",
     "JOB_SEED_BROKEN": "Katalog pozic je prázdný, protože se nepodařilo načíst jeho výchozí data. Zkontrolujte protokol serveru.",
     "SCHEDULE_UPDATE_FAILED": "Automatické hodiny se nepodařilo upravit. Zkuste to prosím znovu.",
-    "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách."
+    "SCHEDULE_INTERVAL_INVALID": "Interval automatizace musí být číslo v minutách.",
+    "COMM_RESEND_IN_PROGRESS": "Odeslání této zprávy už právě probíhá.",
+    "COMM_ALREADY_RESENT": "Už bylo odesláno znovu. Pro tuto zprávu existuje novější doručení.",
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Toto zadání už nečeká na schválení. Načtěte stránku znovu a uvidíte, kde se nachází."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4582,7 +4585,8 @@
       "couldntAdd": "Nepodařilo se přidat do pipeline: {error}",
       "couldntReach": "Nepodařilo se oslovit: {error}",
       "assumptions": "Předpoklady:",
-      "auditUnder": "podle vah: {label}"
+      "auditUnder": "podle vah: {label}",
+      "auditPoolTruncated": "Omezený vzorek: korpus kandidátů překračuje limity hodnocení, takže tento audit pokrývá pouze ohodnocenou podmnožinu, nikoli celý fond."
     },
     "deeplink": {
       "notFound": "Tuto pozici ve svém katalogu nemáte. Mohla být odstraněna, nebo patří jinému týmu.",

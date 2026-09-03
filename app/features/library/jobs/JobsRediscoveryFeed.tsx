@@ -2,6 +2,7 @@
 
 import { RefreshCw, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useRediscoveryFeedLogic } from "./jobsRediscoveryFeedLogic";
 import { JobsRediscoveryFeedRow } from "./JobsRediscoveryFeedRow";
 
@@ -14,6 +15,8 @@ export function RediscoveryFeed() {
   // Same localized why-now the on-demand panel tells (RediscoverPanel): reuse the exact
   // jobs.rediscover.whyNow.* keys + enums.stage resolution — never a forked copy.
   const tr = useTranslations("jobs.rediscover");
+  // Hoisted: one `enums` subscription for the feed, not one per alert row.
+  const enumLabel = useEnumLabel();
   const { t, alerts, loadFailed, retryLoad, sweeping, note, added, pending, rowError, sweep, dismiss, addToPipeline } =
     useRediscoveryFeedLogic();
 
@@ -81,6 +84,7 @@ export function RediscoveryFeed() {
                 onDismiss={() => dismiss(a.id)}
                 t={t}
                 tr={tr}
+                enumLabel={enumLabel}
               />
             ))}
           </ul>

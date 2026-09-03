@@ -2,7 +2,7 @@
 
 import { Check, UserPlus, X } from "lucide-react";
 import type { useTranslations } from "next-intl";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import type { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { PRIOR_STYLE, type Alert } from "./jobsRediscoveryFeedTypes";
 
@@ -18,6 +18,7 @@ export function JobsRediscoveryFeedRow({
   onDismiss,
   t,
   tr,
+  enumLabel,
 }: {
   a: Alert;
   added: boolean;
@@ -27,8 +28,10 @@ export function JobsRediscoveryFeedRow({
   onDismiss: () => void;
   t: ReturnType<typeof useTranslations<"jobs.rediscoveryFeed">>;
   tr: ReturnType<typeof useTranslations<"jobs.rediscover">>;
+  // Hoisted out of the row: the labeller is stable and cheap to pass, while
+  // calling the hook here opened one `enums` translator subscription per alert.
+  enumLabel: ReturnType<typeof useEnumLabel>;
 }) {
-  const enumLabel = useEnumLabel();
   return (
     <li className="flex items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2">
       <span className="shrink-0">

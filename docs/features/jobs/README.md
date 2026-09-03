@@ -534,6 +534,33 @@ panel closed with its "+N more" line. The hook now reads the flag (strictly
 `JobsRecruiterCandidates` renders `jobs.candidates.poolTruncatedNote` beside the
 skipped-candidates note, in the same advisory amber.
 
+**The fairness audit repeats it.** That amber note sits ~30 lines above a
+collapsed `<details>`, so a compliance reviewer who opens the audit panel — or
+opens the exported CSV weeks later, having never seen the tab — was reading a
+cross-scheme ranking over a subset with nothing beside it saying so.
+`FairnessAuditPanel` now takes `poolTruncated` and renders
+`jobs.candidates.auditPoolTruncated` INSIDE the panel, and `exportFairness`
+writes the same sentence as the CSV's first line above the header row. The
+caveat travels with the artifact, not with the screen it came from.
+
+### Memo boundaries on this surface, named
+
+Every cohort here was re-derived in a render body: `eligible`, the pool-fit
+filter, the two column splits and the not-eligible list are five walks over the
+whole ranked pool, and the audit panel did a map + full sort in render — all of
+it re-run on every add, every reach-out and every toggle. They are now one
+`cohorts` useMemo keyed on `(data, poolFitOnly)`, a memoized `fairById` /
+`orderRows` / `fairLookup` / pre-ordered column arrays, and `memo()` boundaries on
+`CandidateColumn`, `JobsRecruiterCandidatesCard`, `NotEligibleSection`,
+`FairnessAuditPanel` and `JobRow`. The card and row handlers take the ROW
+(`onAdd(c)`, `onOpen(job)`) rather than being pre-bound by the parent, because an
+inline arrow per row is a fresh identity per render and would leave the memo
+structurally present and behaviourally dead; `useEnumLabel` is hoisted out of
+`JobsRow` and `JobsRediscoveryFeedRow` for the same reason (one `enums`
+subscription per list, not per row). A memo boundary is invisible in a screenshot,
+so the set is pinned by name in
+`app/features/library/jobs/jobsCandidatesMemo.test.ts`.
+
 The **winnability coach's half is now closed too**. `GET /api/jobs/[id]/winnability`
 destructured `{ entries }` only, so the coach graded the same capped pool and
 presented "3 of 40 qualify — loosen this gate" as the whole truth; a recruiter
