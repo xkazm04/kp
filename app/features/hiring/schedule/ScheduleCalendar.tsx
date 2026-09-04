@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { LayoutGroup } from "framer-motion";
 import { useFormatter, useTranslations } from "next-intl";
 import type { SchedEntry } from "./ScheduleTypes";
@@ -166,7 +167,7 @@ function ScheduleCalendarView({
         ref={scrollerRef}
         onScroll={measure}
         tabIndex={0}
-        className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
+        className={`focus-ring overflow-x-auto ${PANEL}`}
       >
         <LayoutGroup>
           {/* role="table" gives SR the day×time spatial structure the CSS grid conveys visually. */}

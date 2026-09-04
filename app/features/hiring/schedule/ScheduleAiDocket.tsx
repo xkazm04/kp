@@ -11,7 +11,7 @@ import { FileSearch, Link2, Loader2, Sparkles } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import type { InterviewSessionSummary } from "@/app/_lib/db/interviews";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { IvStatus } from "./useScheduleTab";
@@ -72,7 +72,7 @@ export function ScheduleAiDocket({
       <Station title={t("awaitingTitle")} count={awaiting.length}>
         {awaiting.length === 0 ? <EmptyNote>{t("awaitingEmpty")}</EmptyNote> : null}
         {awaiting.map((e) => (
-          <div key={e.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
+          <div key={e.id} className={`${PANEL} p-2.5`}>
             <p className="truncate font-semibold text-ink">{e.candidateLabel}</p>
             <p className="truncate text-sm text-steel">{e.jobTitle ?? "—"}</p>
             <button
@@ -93,7 +93,7 @@ export function ScheduleAiDocket({
         {out.map((s) => {
           const live = s.status === "in_progress" || (s.entryId ? interviews[s.entryId]?.status === "in_progress" : false);
           return (
-            <div key={s.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
+            <div key={s.id} className={`${PANEL} p-2.5`}>
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate font-semibold text-ink">{s.candidateLabel ?? "—"}</p>
                 {live ? (
@@ -123,7 +123,7 @@ export function ScheduleAiDocket({
             type="button"
             disabled={!s.entryId || !s.hasTranscript}
             onClick={() => s.entryId && onPreview({ id: s.entryId, candidateLabel: s.candidateLabel ?? "—", jobTitle: s.jobTitle })}
-            className="focus-ring block w-full rounded-lg border border-stone-200 bg-white p-2.5 text-left shadow-panel transition-colors hover:border-moss/50 disabled:opacity-60"
+            className={`focus-ring block w-full ${PANEL} p-2.5 text-left transition-colors hover:border-moss/50 disabled:opacity-60`}
           >
             <div className="flex items-center justify-between gap-2">
               <p className="truncate font-semibold text-ink">{s.candidateLabel ?? "—"}</p>
