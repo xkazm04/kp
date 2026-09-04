@@ -703,6 +703,27 @@ owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
 a `Select` is now a tsc error rather than a second name for the same thing.
 
+### Glyph motion is two layers, and each option has a consumer (2026-09-04)
+
+`MotionizedGlyph` used to compose three layers and an extra flag — `entrance`,
+`ambient`, `hover` and `glow`. Five of those options had no consumer anywhere in
+`app/`, which is the same failure `motionPresets.test.ts` was written for one
+level up: reachable-through-a-prop is not the same as *reached*, and unreached
+options accrue review attention, doc claims and gate budget for behaviour nobody
+sees. Each was resolved rather than left standing:
+
+| Option | Verdict |
+| --- | --- |
+| `entrance="fade-pop"` | **kept** — now used by `AnalyticsEmptyPreview`, whose glyph renders at 80px where a per-path stagger is noise, not a reveal. |
+| `ambient="pulse"` | **kept** — now used by `SetupGettingStartedNextMove` *only* while a step reports `analyzing`. Breathing means work is in flight; on an idle step it would be a lie. |
+| `entrance="draw"` | **removed.** A `pathLength` dash sweep traces a filled region's *boundary*; every traced glyph in the repo is filled, so its own docstring already forbade every existing consumer from using it. |
+| `hover="hover-response"` | **removed.** It needs an interactive parent and no glyph in the app sits inside one — all 14 render sites are empty-state illustrations. |
+| `glow` | **removed.** An emissive `feGaussianBlur` that reads well in Spark Dark and, per the motionize skill, is "usually wrong" in Studio Light — i.e. it wants a per-theme fork no consumer had asked for. |
+
+The renderer is two layers now (`entrance` + `ambient`), and
+`motionPresets.test.ts` still pins the preset union to exactly the records those
+two props read.
+
 ## Public landing (status: BUILT, NOT LAUNCHED)
 
 The marketing landing (`app/landing/spark/SparkHome` — hero, pricing tiers, trust
