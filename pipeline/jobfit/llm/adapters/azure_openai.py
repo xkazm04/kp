@@ -71,16 +71,27 @@ class AzureOpenAIProvider(OpenAIProvider):
     def availability(self) -> tuple[bool, str | None]:
         """Endpoint first, and named: an Azure deployment with a perfectly good key
         cannot route without its resource endpoint, and reporting that as a missing
-        key sends the operator to re-check the one thing that was already right."""
-        if self._offline_blocked():
-            return False, "offline_policy"
+        key sends the operator to re-check the one thing that was already right.
+
+        Shape-check BEFORE the offline gate, for the reason the OpenAI parent
+        documents at length: ``_offline_blocked()`` resolves this same endpoint, so
+        running it first threw ``invalid_base_url`` out of a method whose contract
+        is to return a reason, past ``registry.provider_availability`` and into the
+        caller's catch-all. The reason PRIORITY is unchanged by that reordering -
+        invalid_base_url, then offline_policy, then missing_endpoint - because a
+        seal that would refuse the call anyway is the honest repair to name, and an
+        absent endpoint still reads as offline_policy under the flag (``is_local_url``
+        answers False for None, so the seal holds)."""
         try:
-            if not self._resolved_endpoint():
-                return False, "missing_endpoint"
+            endpoint = self._resolved_endpoint()
         except LLMError as exc:
             if exc.subtype != "invalid_base_url":
                 raise
             return False, "invalid_base_url"
+        if self._offline_blocked():
+            return False, "offline_policy"
+        if not endpoint:
+            return False, "missing_endpoint"
         return super().availability()
 
     def _make_client(self, timeout: int) -> Any:

@@ -82,15 +82,25 @@ class OpenAIProvider(TextProvider):
     def availability(self) -> tuple[bool, str | None]:
         """One rule for the whole family, parameterized by the declarations above.
 
-        Hard no-egress mode FIRST: a base_url that points off-box must not fire even
-        keyless - that is the whole point of KP_OFFLINE, and ``_allowed_offline()``
-        (base) green-lights only a genuinely on-box endpoint. Then, for the
+        Hard no-egress mode gates everything that follows it: a base_url pointing
+        off-box must not fire even keyless - that is the whole point of KP_OFFLINE,
+        and ``_allowed_offline()`` (base) green-lights only a genuinely on-box
+        endpoint. Then, for the
         self-hosted path, a configured endpoint stands in for the key (vLLM/Ollama
         authenticate nothing); the cloud gateways declare
         ``_base_url_implies_keyless = False`` and fall through to the base rule -
-        which is exactly the two-line check OpenRouter and Qwen each hand-wrote."""
-        if self._offline_blocked():
-            return False, "offline_policy"
+        which is exactly the two-line check OpenRouter and Qwen each hand-wrote.
+
+        The endpoint is resolved ONCE, inside the guard. ``_offline_blocked()``
+        resolves the same URL (via ``_offline_egress_url``), so running it before
+        the ``try`` put the shape check outside the only handler that catches it:
+        under KP_OFFLINE an endpoint with credentials in its userinfo threw
+        ``invalid_base_url`` straight out of ``availability()``, past
+        ``registry.provider_availability`` - the door every CLI reads its descent
+        reason from - and into the CLI's catch-all, where a routing question became
+        an engine_error and the deterministic fallback that offline mode exists to
+        preserve never served. ``available()`` masked it (it swallows LLMError), so
+        only the reason-carrying door was affected."""
         try:
             base_url = self._resolved_base_url()
         except LLMError as exc:
@@ -99,7 +109,16 @@ class OpenAIProvider(TextProvider):
             # Degrade rather than raise: availability is a routing yes/no. The
             # actionable error still fires on the call path (_make_client resolves
             # the same URL), so a misconfiguration is never silently swallowed.
+            # Reported ahead of the offline policy deliberately: an unusable
+            # endpoint is the operator's actual repair, and KP_OFFLINE would seal
+            # it off anyway once it parses.
             return False, "invalid_base_url"
+        # Hard no-egress mode, through the base's one seam (never re-implemented
+        # here - a second copy of this rule is how it went missing from an adapter
+        # before). Safe to call now: it re-resolves the same endpoint, which has
+        # just been shown to parse.
+        if self._offline_blocked():
+            return False, "offline_policy"
         if self._base_url_implies_keyless and base_url:
             return (True, None) if self._import_sdk() else (False, "sdk_missing")
         return super().availability()

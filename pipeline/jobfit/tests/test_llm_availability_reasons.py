@@ -166,6 +166,44 @@ class AvailabilityReasonTests(unittest.TestCase):
             provider._make_client(10)
         self.assertEqual(ctx.exception.subtype, "invalid_base_url")
 
+    def test_an_unusable_endpoint_still_degrades_when_the_offline_seal_is_on(self) -> None:
+        """The reason-carrying door must RETURN under KP_OFFLINE, not raise.
+
+        ``_offline_blocked()`` resolves the very endpoint whose shape check fails,
+        so an ordering that ran it before the guard threw ``invalid_base_url`` out
+        of ``availability()`` itself. ``available()`` hid that (it swallows
+        LLMError); ``registry.provider_availability`` - the door every CLI reads
+        its descent reason from - did not, so a routing question reached the CLI's
+        catch-all as an engine_error and the deterministic fallback that offline
+        mode exists to preserve never served."""
+        cases = (
+            _adapter("openai", api_key="k", base_url="https://user:secret@gw.example.com/v1"),
+            ADAPTERS["azure_openai"](model="dep", api_key="k", endpoint="https://u:s@az.example.com"),
+        )
+        for provider in cases:
+            with self.subTest(provider=provider.name), \
+                    mock.patch.object(TextProvider, "_load_env", lambda self: None), \
+                    env(KP_OFFLINE="1"):
+                self.assertEqual(provider.availability(), (False, "invalid_base_url"))
+                # The same question asked through the registry's door - the one the
+                # CLIs actually call - must answer too.
+                self.assertEqual(provider_availability(provider), (False, "invalid_base_url"))
+
+    def test_azure_reports_the_seal_before_a_missing_endpoint(self) -> None:
+        """Reason priority is invalid_base_url -> offline_policy -> missing_endpoint.
+        Naming the absent endpoint under KP_OFFLINE would send the operator to
+        configure the one thing the seal refuses to use anyway."""
+        provider = ADAPTERS["azure_openai"](model="dep", api_key="k")
+        with mock.patch.object(TextProvider, "_load_env", lambda self: None), env(
+            AZURE_OPENAI_ENDPOINT=None, KP_OFFLINE="1"
+        ):
+            self.assertEqual(provider.availability(), (False, "offline_policy"))
+        with mock.patch.object(TextProvider, "_load_env", lambda self: None), env(
+            AZURE_OPENAI_ENDPOINT=None, KP_OFFLINE=None
+        ):
+            # Non-vacuity: with the flag off the same adapter names the endpoint.
+            self.assertEqual(provider.availability(), (False, "missing_endpoint"))
+
     def test_every_reason_an_adapter_can_return_is_in_the_declared_vocabulary(self) -> None:
         """Derived from the SOURCE, not from a second hand-typed list.
 
