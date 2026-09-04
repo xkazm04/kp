@@ -12,20 +12,15 @@
 // (same role, mode AND set) still dedupes.
 
 import { normalizeGovernanceMode } from "./group-eval-governance.ts";
-
-type CandidateIdentity = { entryId?: string | null; candidateId?: string | null };
-
 // FNV-1a (32-bit) — a tiny, dependency-free, deterministic string hash so the
 // candidate-set fingerprint stays BOUNDED (8 hex chars) regardless of pool size,
-// rather than embedding every id verbatim into the dedupe key.
-function fnv1a(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
+// rather than embedding every id verbatim into the dedupe key. This module used to
+// carry its own copy; the SAME feature's selection cache key carried a second one.
+// One helper now, with its digests pinned in hash.test.ts (the fingerprints below
+// are byte-identical to the ones the private copy produced).
+import { fnv1a } from "./hash.ts";
+
+type CandidateIdentity = { entryId?: string | null; candidateId?: string | null };
 
 /**
  * Order-independent fingerprint of a candidate SET by stable identity (candidateId
