@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, recordAgentReportReceipt, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
 import { createPipelineEntry, recordAutomationEvent, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { parseAgentReport, type AgentReport, type LifecycleReport } from "@/app/_lib/agent-hire/report-payload";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   try {
     const { token } = await context.params;
     if (!rateLimit(`agent-report:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Unknown and retired tokens are deliberately indistinguishable (both 404).

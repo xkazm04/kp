@@ -4,7 +4,8 @@ import { getRedeemableInvite } from "@/app/_lib/db/invites";
 import { getOrganization } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
 import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
-import { clientIpFrom, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { isThrottled, recordFailedAttempt, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 
 // PUBLIC (proxy allow-listed): the invited-member accept flow. GET previews a
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   const { token } = await context.params;
   const viewKey = `invite-view:${clientIpFrom(request.headers)}:${token}`;
   if (isThrottled(viewKey, INVITE_THROTTLE)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   recordFailedAttempt(viewKey, INVITE_THROTTLE);
   const invite = getRedeemableInvite(token);
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   // membership and a session, so the flood must be refused at the door.
   const redeemKey = `invite-redeem:${clientIpFrom(request.headers)}:${token}`;
   if (isThrottled(redeemKey, INVITE_THROTTLE)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   recordFailedAttempt(redeemKey, INVITE_THROTTLE);
   const body = (await request.json().catch(() => ({}))) as { name?: unknown; password?: unknown };

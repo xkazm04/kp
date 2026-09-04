@@ -10,8 +10,8 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // POST → recruiter mints a self-scheduling link for a pipeline entry. The
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // (idea-3e49abaf); generous enough for any human recruiter, and a second line
     // of defence behind the operator gate above.
     if (!rateLimit(`invite:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as { entryId?: string };
     if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });

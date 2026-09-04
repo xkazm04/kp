@@ -7,7 +7,8 @@ import {
   persistFile,
   spawnPython,
 } from "@/app/_lib/python-runner";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
 export const maxDuration = 60;
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   // every real cadence — the analyze form and the conversational apply each fire
   // ONE extract per JD/CV file — while capping subprocess churn from a script.
   if (!rateLimit(`extract-text:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
   const form = await request.formData().catch(() => null);

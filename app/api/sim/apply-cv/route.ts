@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractUploadedText, ingestCvApplication, simCvIntakeTarget } from "@/app/_lib/cv-intake";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
@@ -20,7 +20,7 @@ const MAX_EMAIL_LENGTH = 254;
 export async function POST(request: NextRequest) {
   // Spawns a Python subprocess per call; self-limit like /api/extract-text.
   if (!rateLimit(`sim-apply-cv:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
   try {

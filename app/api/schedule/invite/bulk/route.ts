@@ -11,8 +11,8 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
-import { safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
 
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // candidates), not each invite — this IS the one-action-many-candidates path,
     // so the single route's per-invite limit would defeat its purpose.
     if (!rateLimit(`invite-bulk:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as { entryIds?: unknown };
     // A SILENT CAP REPORTED AS A TOTAL. coerceBulkEntryIds truncates at

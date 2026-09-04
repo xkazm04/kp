@@ -16,7 +16,7 @@ import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Throttle BEFORE any DB read or Python spawn so a flood is rejected cheaply.
     if (!rateLimit(`apply:${id}:${clientIpFrom(request.headers)}`, APPLY_RATE_LIMIT)) {
       // Shared codeless 429 envelope (rate-limit-contract.test.ts pins it).
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const job = getJob(id);
     if (!job) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);

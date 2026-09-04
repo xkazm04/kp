@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
 import { registerAccount } from "@/app/_lib/signup-service";
 import { signupEnabled } from "@/app/_lib/workspace-lock";
-import { clientIpFrom, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { isThrottled, recordFailedAttempt, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 
 // Self-serve registration (the /login sibling): email + password → a brand-new
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   // service to existing users, which a full signup bucket does not do.
   const key = `register:ip:${ip}`;
   if (isThrottled(key, REGISTER_THROTTLE)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   recordFailedAttempt(key, REGISTER_THROTTLE);
 

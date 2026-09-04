@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { demoSessionAllowed } from "@/app/_lib/workspace-lock";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 
 
 // Public, anonymous entry to the guided product simulation (B1 / UAT).
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
   // Abuse containment: on an open deploy this lands on a run that seeds rows.
   // Per-IP fixed window, same tool as the public token routes.
   if (!rateLimit(`demo:${clientIpFrom(request.headers)}`, { limit: 12, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
   if (process.env.KP_SECRET) {

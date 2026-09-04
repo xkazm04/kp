@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { appendDevSessionChat, appendDevSessionEvents, getDevCase, getDevSessionChat, getDevSessionMeta, getPostingByToken, lifecycleByPosting } from "@/app/_lib/db/devcase";
 import { runSessionChat } from "@/app/_lib/devcase-run";
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { rateLimit } from "@/app/_lib/rate-limit";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 
 // LLM-era controls #2/#5 — the captured prompt channel. The candidate's assistant
@@ -76,10 +76,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // never consumes budget) and BEFORE any DB write or the model call, so a refused
     // request also can't eat into the 400-message session ceiling.
     if (!rateLimit(`devcase-chat:${id}`, { limit: 30, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     if (session.token && !rateLimit(`devcase-chat-token:${session.token}`, { limit: 3000, windowMs: 24 * 60 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const posting = session.token ? getPostingByToken(session.token) : null;

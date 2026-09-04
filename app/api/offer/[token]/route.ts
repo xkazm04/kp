@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { offerView, respondToOffer } from "@/app/_lib/offer-finalize";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // The GET is not a pure read: offerView runs expireOfferIfDue, a write path, on
@@ -18,7 +18,7 @@ const OFFER_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   if (!rateLimit(`offer-view:${clientIpFrom(request.headers)}:${token}`, OFFER_VIEW_RATE_LIMIT)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   const view = offerView(token);
   // Coded, not prose: this is a PUBLIC door reached from a letter written in the
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Side-effect-bearing public endpoint (accept hires + fires the ATS handoff)
     // — throttle per caller+token (idea-3e49abaf).
     if (!rateLimit(`offer:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json()) as { response?: string };
     const response = body.response;

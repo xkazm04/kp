@@ -5,8 +5,8 @@ import { getProfileRecord } from "@/app/_lib/db/profiles";
 import { coerceLeadTokenParam } from "@/app/_lib/apply-intake";
 import { GAP_FIELDS, mergeGapAnswers } from "@/app/_lib/completeness-followup";
 import { renormalizeApplicantProfile } from "@/app/_lib/applicant-profile";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // The candidate's answers to the profile-completeness gap questions, posted from
 // the done screen of the conversational apply AFTER their application has already
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     // Throttle BEFORE any DB read or Python spawn.
     if (!rateLimit(`apply-followup:${id}:${clientIpFrom(request.headers)}`, FOLLOWUP_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const contentLength = Number(request.headers.get("content-length") ?? 0);
     if (contentLength > MAX_FOLLOWUP_BODY_BYTES) {

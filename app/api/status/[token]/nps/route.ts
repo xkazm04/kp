@@ -7,7 +7,7 @@ import { candidateStatusFor, isTerminalCandidateStatus } from "@/app/_lib/applic
 import { parseNpsSubmission } from "@/app/_lib/candidate-nps";
 import { candidateNpsFor, recordCandidateNps } from "@/app/_lib/candidate-nps-store";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // W0.6b — candidate NPS capture on the public, token-gated status page.
 //
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   try {
     const { token } = await context.params;
     if (!rateLimit(`nps:${clientIpFrom(request.headers)}:${token}`, NPS_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const resolved = resolve(token);
     if (!resolved) return jsonRefusal("STATUS_LINK_INVALID", 404);
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   try {
     const { token } = await context.params;
     if (!rateLimit(`nps:${clientIpFrom(request.headers)}:${token}`, NPS_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const resolved = resolve(token);
     if (!resolved) return jsonRefusal("STATUS_LINK_INVALID", 404);

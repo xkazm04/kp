@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { logGithub, newRequestId } from "@/app/_lib/logger";
 import { parseGithubUsername } from "@/app/_lib/github-handle";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { REFUSAL_ERRORS } from "@/app/_lib/api-response";
 import { githubCacheKey, readGithubCache, writeGithubCache } from "@/app/_lib/github/cache";
 import { buildGithubAnalysis, isTransientlyDegraded } from "@/app/_lib/github/analysis";
 import { GithubAnalysisError } from "@/app/_lib/github/client";
@@ -45,9 +46,19 @@ export async function POST(request: Request) {
   // calls count. 10/10min/IP is generous for a human (GitHub's anonymous 60/hr
   // ceiling binds first anyway) while blunting a scripted cost-amplifier. Note
   // this is a real 429, unlike the 200+{error} GitHub-failure envelope below —
-  // the shared limiter convention wins, and the panel reads `error` either way.
+  // the shared limiter convention wins.
+  //
+  // THE ONE 429 THAT DOES NOT CARRY `TOO_MANY_REQUESTS` (api-contracts.md §1.1).
+  // Every other throttle answers `jsonRefusal("TOO_MANY_REQUESTS", 429)`, which the
+  // client resolves in the app-wide `errors` namespace. This surface's failures live
+  // in their OWN namespace (`results.github.errors`, resolved by useGithubErrorMessage
+  // — the deep dive's codes describe one optional feature) and that namespace's throttle
+  // key is `REQUEST_THROTTLED`. Changing the code here would leave the panel with a code
+  // its catalog does not know. The MESSAGE is still the one registered sentence, taken
+  // from the refusal registry rather than a second import of the limiter's constant, so
+  // the two can never drift.
   if (!rateLimit(`github-analysis:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR, code: "REQUEST_THROTTLED" }, { status: 429 });
+    return NextResponse.json({ error: REFUSAL_ERRORS.TOO_MANY_REQUESTS, code: "REQUEST_THROTTLED" }, { status: 429 });
   }
 
   try {

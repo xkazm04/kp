@@ -59,6 +59,43 @@ API consumers.
 > re-deriving the safe pattern in the handler. That is the whole reason the
 > registries are exported constants and not strings at the call site.
 
+**A 429 is a refusal like any other — `jsonRefusal(code, 429)`, never a
+hand-rolled body.** This is the rule the section above states generally, written
+out for the one status that kept escaping it. Until /perfect wave 38 about
+twenty-five doors answered a throttle with
+`NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 })`: an English
+sentence, no `code`, so `useErrorMessage()` had nothing to resolve and a Czech,
+German or French reader got English on exactly the routes a burst hits — the
+public apply forms, the candidate status page, the data-erasure door, the login
+and invite doors, the dev-case session. All of them now answer through the
+chokepoint. Two codes are legitimate at 429 and they mean different things:
+
+| Code | Refuses | Raised by |
+| --- | --- | --- |
+| `TOO_MANY_REQUESTS` | the fixed-window limiter (§1.4) said this caller is going too fast | every `rateLimit()` / `isThrottled()` call site |
+| `TASK_BUDGET_EXHAUSTED` | this workspace's allowance for an AI-run CLASS is spent, which a slower caller does not fix | [`enforceTaskBudget`](../../app/_lib/task-budget.ts) consumers |
+
+`REFUSAL_ERRORS.TOO_MANY_REQUESTS` **is** `RATE_LIMITED_ERROR` — the same
+constant, imported from `rate-limit.ts`, so the limiter's message and the
+registry's can never drift. That import is the *only* one the codebase may have:
+a route that holds the raw string is a route about to hand-roll an envelope with
+it, and two source guards at the bottom of
+[`rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts) fail on
+either move — a `{ error: RATE_LIMITED_ERROR … }, { status: 429 }` anywhere under
+`app/`, or a second importer of the constant. `errors.RATE_LIMITED` is **not** the
+code for this: it is GitHub's own upstream refusal, a documented collision, and
+minting it for one of our throttles would tell a reader the wrong thing about who
+refused them.
+
+The single exception is `POST /api/github-analysis`, and it is pinned as a spec
+field (`surfaceCode`) rather than left to a comment: that surface resolves its
+failures in its **own** catalog namespace (`results.github.errors`, via
+`useGithubErrorMessage` — its codes describe one optional feature), where the
+throttle key is `REQUEST_THROTTLED`. It carries that code with
+`REFUSAL_ERRORS.TOO_MANY_REQUESTS` as the message, so the sentence is still the
+registry's. A second use of that escape hatch is a design question, not a
+mechanical one.
+
 **What holds this, and what it does not hold yet.**
 [`app/api/error-response-contract.test.ts`](../../app/api/error-response-contract.test.ts)
 walks every module under `app/api/**` and fails when a catch block shapes a
@@ -242,9 +279,11 @@ Pick the key deliberately:
 
 The call sites are **pinned by a contract test**,
 [`app/api/rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts):
-it asserts both the source-level guard (key template, limit, the shared
-`{ error: RATE_LIMITED_ERROR }` 429 envelope) and the real limiter's behaviour
-at the route's exact config. Moving or re-keying a limiter means updating that
+it asserts both the source-level guard (key template, limit, and the ONE
+registered refusal — `jsonRefusal("TOO_MANY_REQUESTS", 429)`, §1.1; `refusalCode`
+is a **required** field on every row, so a new limited route cannot be declared in
+the old hand-rolled shape) and the real limiter's behaviour at the route's exact
+config. Moving or re-keying a limiter means updating that
 test deliberately — not deleting the assertion. It also walks the whole tree for
 one rule no per-route spec can express: **every route that reaches `startTask` must
 throttle first.** Its `UNTHROTTLED_ENQUEUE` ratchet is now **empty**: the three
@@ -458,3 +497,16 @@ needs a key" is never an acceptable reason for a 500.
   follows; finding *which* routes exist is still a walk of `app/api/**`.
 - Request **body** schemas are validated per handler rather than declared, so
   the accepted fields of a given endpoint still come from reading it.
+- One 429 is still raw English prose: `POST /api/devcase/session/[id]/chat`
+  answers `{ error: "chat limit reached for this session" }` when
+  `appendDevSessionChat` refuses past the session's 400-message ceiling. It is a
+  *budget*, not the limiter — "try again shortly" would be a green lie, since the
+  ceiling never resets — so it needs its own `REFUSAL_ERRORS` entry and four
+  catalog keys rather than `TOO_MANY_REQUESTS`. The source guard in
+  `rate-limit-contract.test.ts` does not catch it (it pins the shared *message*,
+  and this site never used it).
+- No route sends `Retry-After`. `rateLimit()` returns a boolean and keeps its
+  window's `resetAt` private, so no call site knows what to promise; the client
+  reads a `Retry-After` when a fronting proxy sends one
+  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it. Surfacing
+  the reset would change the limiter's return shape at ~90 call sites.

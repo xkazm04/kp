@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { startApplySession, type ApplySessionFlow } from "@/app/_lib/apply-session-store";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // Records that a candidate OPENED an application, which is the apply funnel's
 // missing denominator (see apply-session-store.ts). Called once by the client on
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const { id } = await context.params;
     if (!rateLimit(`apply-session:${id}:${clientIpFrom(request.headers)}`, SESSION_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     const sessionId = typeof body?.sessionId === "string" ? body.sessionId : "";

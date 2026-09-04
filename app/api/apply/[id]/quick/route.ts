@@ -8,7 +8,7 @@ import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { intakeLead } from "@/app/_lib/lead-intake";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Throttle BEFORE any DB read so a flood is rejected cheaply.
     if (!rateLimit(`apply-quick:${id}:${clientIpFrom(request.headers)}`, QUICK_APPLY_RATE_LIMIT)) {
       // Shared codeless 429 envelope (rate-limit-contract.test.ts pins it).
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const job = getJob(id);
     if (!job) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
