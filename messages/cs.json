@@ -1388,6 +1388,7 @@
     "AGENT_CATALOG_FAILED": "Nepodařilo se načíst katalog konektorů. Zkuste to prosím znovu.",
     "AGENT_REFRESH_FAILED": "Nepodařilo se obnovit stav agenta. Zkuste to prosím znovu.",
     "AGENT_REPORT_FAILED": "Nepodařilo se zaznamenat hlášení agenta. Zkuste to prosím znovu.",
+    "LLM_ACTIVITY_FAILED": "Nepodařilo se načíst záznam aktivity LLM. Zkuste to prosím znovu.",
     "AGENT_DISPATCH_NOT_COMPOSED": "Než specifikaci App master odešlete, nejdříve ji sestavte.",
     "AGENT_DISPATCH_SPEC_STALE": "Uložená specifikace App master už neodpovídá kontraktu. Sestavte ji znovu a pak odešlete.",
     "AGENT_DISPATCH_HUMAN_POPULATION": "Tato role je složena pro lidského držitele, agenta pro ni tedy nelze odeslat.",

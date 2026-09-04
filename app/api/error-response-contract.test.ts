@@ -252,7 +252,12 @@ const LEAK_CEILING = new Map<string, number>([
   // "api:jobs/<route>", "JOB_*_FAILED")` against the JOB_* codes added to
   // STORE_ERRORS in the same change. The entries are deleted so the win is locked and
   // a regression reads as `undeclared` rather than as budget already granted.
-  ["llm/activity/route.ts", 1],
+  // llm/activity/route.ts stood here at 1 and is FIXED, not ceilinged (scan-sweep
+  // 2026-09-04, llm-config-and-agent-workforce): its catch forwarded the thrown
+  // message from a better-sqlite3 read, which can carry the DB path and the failing
+  // SQL. It answers safeJsonError(..., "LLM_ACTIVITY_FAILED") now. The entry is
+  // deleted so a regression reads as `undeclared` rather than as budget already
+  // granted.
   // llm/keys/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,
   // model-keys-need-the-org-key): its catch forwarded saveProviderKey's own message —
   // the resolved endpoint host, the rejected URL, the crypto helper's detail — and its

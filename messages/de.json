@@ -1388,6 +1388,7 @@
     "AGENT_CATALOG_FAILED": "Der Konnektor-Katalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_REFRESH_FAILED": "Der Agentenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
     "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "LLM_ACTIVITY_FAILED": "Das LLM-Aktivitätsprotokoll konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_DISPATCH_NOT_COMPOSED": "Erstellen Sie die App-Master-Spezifikation, bevor Sie sie senden.",
     "AGENT_DISPATCH_SPEC_STALE": "Die gespeicherte App-Master-Spezifikation passt nicht mehr zum Vertrag. Erstellen Sie sie neu und senden Sie dann.",
     "AGENT_DISPATCH_HUMAN_POPULATION": "Diese Rolle ist für einen menschlichen Inhaber verfasst, daher kann kein Agent dafür gesendet werden.",

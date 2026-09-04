@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listLlmActivity, LLM_ACTIVITY_WINDOW } from "@/app/_lib/db/llm";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 // Row-level read surface of the llm_usage ledger — the Insights → Activity
 // audit table (every individual LLM action: when, which use case, which
@@ -16,9 +17,9 @@ export async function GET() {
   try {
     return NextResponse.json({ rows: listLlmActivity(), window: LLM_ACTIVITY_WINDOW });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to read the activity ledger." },
-      { status: 500 }
-    );
+    // A CODE, never the thrown message: this read sits on better-sqlite3, so the
+    // message can carry the DB path and the failing SQL, and the client renders
+    // `errors.<CODE>` in the reader's own language rather than the server's English.
+    return safeJsonError(error, "api:llm/activity", "LLM_ACTIVITY_FAILED");
   }
 }

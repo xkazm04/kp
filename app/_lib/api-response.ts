@@ -237,6 +237,11 @@ export const STORE_ERRORS = {
   AGENT_CATALOG_FAILED: "Could not load the connector catalog. Please try again.",
   AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
   AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
+  // The LLM usage ledger's row-level read (Insights -> Activity). It sits on
+  // better-sqlite3, so a thrown message can carry the DB path and the failing SQL;
+  // this route was the one door in the Models/Insights surface still forwarding
+  // `error.message` straight to the client.
+  LLM_ACTIVITY_FAILED: "Could not load the LLM activity ledger. Please try again.",
   // App master repo scan (P2) — the start route spawns git + Python, the read route
   // sits on better-sqlite3; both can throw with a local filesystem path inside the
   // message, which is exactly what must not reach the wire.
