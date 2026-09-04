@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3044,
+  "files": 3045,
   "groups": 17,
   "use_cases": 12
  },
@@ -6812,6 +6812,7 @@
     "scripts/dev-empty.mjs",
     "scripts/dev-guard.mjs",
     "scripts/i18n-check.mjs",
+    "scripts/i18n/primitive-copy-defaults.mjs",
     "scripts/interview-brief-grounded.ts",
     "scripts/interview-brief.ts",
     "scripts/interview.py",
