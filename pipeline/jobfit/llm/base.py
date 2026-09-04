@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Sequence
 from urllib.parse import urlsplit
 
-from ..claude_cli import _extract_json
+from ..json_values import extract_json as _extract_json
 from . import monitor
 from .offline import UNIX_SOCKET_SCHEMES, is_local_url, is_offline
 

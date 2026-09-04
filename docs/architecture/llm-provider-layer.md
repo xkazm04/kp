@@ -151,6 +151,103 @@ completion that came back as unusable JSON), the adapter emits the usage line
 **before** raising, so the spend still reaches the ledger and the failure still
 reaches LightTrack — the same success-then-error pair `complete_json` uses.
 
+### The direct `gemini.py` seam has its own typed vocabulary
+
+`cv_analysis` and `profile_extract` reach Gemini through `pipeline/jobfit/gemini.py`
+rather than a `TextProvider` adapter (it needs multimodal file bytes + grounding).
+Its refusals used to be bare `RuntimeError`s carrying English prose only, so a
+caller could not tell an operator-config problem from a model-side failure, and
+`_cli.emit_error` classified every one of them as an anonymous `engine_error`/500.
+
+`GeminiError(subtype=…)` now names the cause, and — by also being a
+`_cli.CliError` — carries the code the process boundary already speaks, so the
+route can render an actionable hint via `useErrorMessage()`. It subclasses
+`RuntimeError` too, so existing `except RuntimeError` call sites are unchanged.
+
+| `GeminiError.subtype` | Raised when | CLI code / status |
+| --- | --- | --- |
+| `missing_key` | no `GEMINI_API_KEY` / `GOOGLE_API_KEY` resolvable | `invalid_input` / 400 |
+| `offline_refused` | `KP_OFFLINE=1` seals this egress path (self-hosting.md §7) | `invalid_input` / 400 |
+| `blind_unavailable` | blind screening requested, no redacted text extractable | `invalid_input` / 400 |
+| `output_truncated` | stopped at `max_output_tokens` and nothing salvageable | `invalid_input` / 400 |
+| `empty_response` | the model returned no text at all | `engine_error` / 500 |
+| `unparseable_json` | text came back, but no JSON payload in it | `engine_error` / 500 |
+| `missing_field` | JSON parsed, but a required field is absent/blank | `engine_error` / 500 |
+
+Pinned by `pipeline/jobfit/tests/test_gemini_errors.py`.
+
+## One JSON scanner, two selection policies (`pipeline/jobfit/json_values.py`)
+
+Every adapter has to find the JSON inside a prose answer. That scan existed
+**twice** — near-verbatim in `claude_cli.py` and `gemini.py` — and `llm/base.py`
+imported the CLI module's *private* `_extract_json` to reach it, so a fix to one
+copy silently left the other behind. It is now one module all three import.
+
+The two selection policies on top of it are genuinely different decisions and stay
+separate, named and tested:
+
+| Function | Used by | Rule | Why |
+| --- | --- | --- | --- |
+| `select_last_matching` | `claude_cli` / `llm.base` (`extract_json`) | last value; last value carrying an `expected_keys` field when given | few-shot prompts make the model echo the example schema **before** the answer |
+| `select_best_scoring` | `gemini._parse_json` | rank by schema-key overlap, then size, document order only as final tiebreak | a grounded answer trails citation blobs and stray objects **after** the payload |
+
+`candidate_values()` is the shared "fenced blocks first, whole text otherwise" scan.
+`pipeline/jobfit/tests/test_json_values.py` pins both policies, asserts each picks
+the WRONG object on the other's corpus (so a future "simplification" that collapses
+them fails loudly), and was mutation-verified: six independent mutations of the
+scanner and both rankers each turn it red.
+
+## Timeouts and the embedding client
+
+`gemini.gemini_timeout_ms()` (env `KP_GEMINI_TIMEOUT_MS`, default 90 s) is the
+per-request network deadline for **every** Gemini client kp builds. The opt-in
+embedding bridge (`embedding_bridge.GeminiEmbeddingProvider`) used to build
+`genai.Client()` with no `http_options` at all, so a stalled embeddings call had no
+wall clock — and the bridge's documented fail-open ("a network error yields `None`
+and the caller falls back to the keyword heuristic") could never fire, because
+nothing ever raised. A whole pool's ranking sat on one hung socket. Both clients
+now read the same function.
+
+## Prompt artifacts are PII, and their retention is explicit
+
+`KP_LOG_PROMPTS=1` captures the full prompt and response for each analysis to
+`tmp/prompts/<request_id>-<suffix>` (`-prompt.txt`, `-response.txt`). The module
+docstring claimed `<request_id>.json` for as long as it existed; no writer ever
+emitted that name.
+
+These artifacts contain a candidate's whole CV. They are off by default, and:
+
+- written **owner-only** (0600), created with that mode rather than chmod'd after,
+  so there is no window where the CV is world-readable. Best-effort — a filesystem
+  without POSIX modes keeps its own;
+- swept on **`KP_LOG_PROMPTS_TTL_H`** (hours; a malformed or non-positive value is
+  treated as unset). The sweep runs before each write, so no cron is needed.
+- **With `KP_LOG_PROMPTS_TTL_H` unset the artifacts are NEVER swept** — they
+  accumulate until an operator removes `tmp/prompts` by hand. That is the honest
+  default, not an omission.
+
+Pinned by `pipeline/jobfit/tests/test_logger.py`.
+
+## Document MIME is sniffed, never taken from the file name
+
+`gemini._mime_type` used to be `mimetypes.guess_type(path.name)`: the uploader's
+file name alone decided what kp told the model a document was, and `mimetypes`
+reads the host's mime database (the Windows registry among others), so the same
+upload could be declared differently on two installs. It now reads the magic bytes
+and answers only from `ALLOWED_MIME` — exactly the formats `extractors.extract_text`
+supports:
+
+| Bytes | Declared |
+| --- | --- |
+| `%PDF-` | `application/pdf` |
+| ZIP whose container holds `word/document.xml` | `…wordprocessingml.document` |
+| decodable, NUL-free text | `text/plain` |
+| anything else, incl. a non-Word ZIP or an unreadable path | `application/octet-stream` |
+
+`application/octet-stream` is the honest answer — "bytes we will not vouch for" —
+so the model treats them as opaque instead of being told a falsehood. Pinned by
+`pipeline/jobfit/tests/test_gemini_mime.py`.
+
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
 LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted):
@@ -552,6 +649,8 @@ locales.
 ## Testing
 
 - `npm run test:unit` for the TS wrapper; `python -m unittest pipeline.jobfit.tests.test_llm_*` for adapters/registry.
+- The direct Gemini seam and its shared parts: `test_json_values`, `test_gemini_errors`,
+  `test_gemini_mime`, `test_logger`, `test_service`, `test_embedding_bridge`.
 - Capability-matrix test: every `llm_config` default must satisfy its use case's required caps.
 - Canary path = the Models-tab **Test** button, runs the same code path as production calls.
 

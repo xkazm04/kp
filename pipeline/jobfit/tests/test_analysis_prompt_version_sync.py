@@ -146,8 +146,16 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # PROMPT_VERSION in app/_lib/cache-key.ts plus EXPECTED_PROMPT_VERSION here;
 # tracked in docs/BACKLOG.md. If this repo has ever served untrusted CV uploads
 # from a public surface, bump it.
+# NOTE (py-llm-runtime, typed Gemini errors): the fingerprint was re-recorded
+# when the four bare ``RuntimeError`` raises inside analyze_profile_with_gemini
+# became ``GeminiError(subtype=...)``. The whole-function source hash is
+# deliberately conservative (its own docstring says so), so an incidental
+# refactor trips it — but not one character of the prompt template, the schema,
+# the rules block or the CV fence changed, verified by diffing the function
+# before/after: only the exception TYPE at the raise sites. No cached analysis
+# output differs, so PROMPT_VERSION is intentionally NOT bumped.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "aaec637476830c73808554117d78c2967f55358f786ef20e2c6cd64fc669fa81"
+EXPECTED_ANALYSIS_FINGERPRINT = "ed2f1e4b3e9a69e38d06f86f6a8907d86cfbf8371de086d01960a14da4acb3aa"
 
 
 def _strip_ts_comments(text: str) -> str:

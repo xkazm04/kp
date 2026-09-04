@@ -69,8 +69,21 @@ class GeminiEmbeddingProvider:
     def embed(self, texts: list[str]) -> list[list[float]]:
         if self._client is None:
             from google import genai
+            from google.genai import types
 
-            self._client = genai.Client()
+            # The SAME wall clock the CV-analysis client carries
+            # (KP_GEMINI_TIMEOUT_MS, default 90s). This client used to be built
+            # with no http_options at all, so a stalled embeddings call had no
+            # deadline: the module's fail-open contract — "a network error yields
+            # None and the caller falls back to the keyword heuristic" — could
+            # never fire, because nothing ever raised. A whole pool's ranking sat
+            # on one hung socket. Imported lazily to keep this leaf module free
+            # of gemini.py's import cost on the deterministic (default) path.
+            from .gemini import gemini_timeout_ms
+
+            self._client = genai.Client(
+                http_options=types.HttpOptions(timeout=gemini_timeout_ms())
+            )
         started = time.monotonic()
         result = self._client.models.embed_content(model=self.model, contents=texts)
         _meter_embeddings(self.model, result, int((time.monotonic() - started) * 1000))
