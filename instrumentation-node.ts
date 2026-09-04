@@ -289,6 +289,23 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] apply-session retention sweep failed:", e);
     }
+    // Rediscovery-alert retention (rediscovery-alert-store.ts) — independent,
+    // best-effort, idempotent. `rediscovery_alerts` likewise had no delete anywhere:
+    // dismissed rows are kept deliberately (the UNIQUE index is what makes dismissal
+    // sticky) and un-acted-on ones simply accrued, each carrying a candidate's NAME
+    // for a re-contact that never happened. This drops both past the store's stated
+    // windows. Sits beside the apply-session sweep and UNDER the autonomy pause for
+    // the same reason: it is storage hygiene on our own bookkeeping, and a paused
+    // machine should do as little as it can.
+    try {
+      const { pruneRediscoveryAlerts } = await import("./app/_lib/rediscovery-alert-store");
+      const { dismissed, stale } = pruneRediscoveryAlerts();
+      if (dismissed || stale) {
+        console.log(`[clock] rediscovery alerts pruned: ${dismissed} dismissed, ${stale} stale`);
+      }
+    } catch (e) {
+      console.error("[clock] rediscovery-alert retention sweep failed:", e);
+    }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();
   };
