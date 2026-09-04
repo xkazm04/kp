@@ -11,7 +11,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeScorecardEntities, isPlaceholderEvidence, isNotAssessedRating } from "./interview-scorecard.ts";
+import { readFileSync } from "node:fs";
+import { normalizeScorecardEntities, isPlaceholderEvidence, isNotAssessedRating, NOT_ASSESSED_RATING } from "./interview-scorecard.ts";
 
 test("a read-back with a correction survives coercion, trimming and dropping junk", () => {
   const out = normalizeScorecardEntities({
@@ -102,4 +103,35 @@ test("isNotAssessedRating does not swallow an unevidenced HUMAN rating of 3", ()
   assert.equal(isNotAssessedRating(3, undefined), false);
   assert.equal(isNotAssessedRating(3, ""), false);
   assert.equal(isNotAssessedRating(null, "Not assessed."), false);
+});
+
+// --- the not-assessed sentinel must not reach a meter -------------------------
+//
+// NOT_ASSESSED_RATING is 3 on a 1..RATING_MAX scale, which projects to 60% — so an
+// axis the interview never touched rendered as a filled, mid-band meter, visually
+// indistinguishable from a genuine middling score, and the candidate was compared on
+// it against peers whose same axis was actually observed. The read-side collapse
+// (isNotAssessedRating -> rating = null) is only half the fix; the other half is that
+// the Meter must sit INSIDE that null guard rather than beside it. A source guard,
+// because the row is a client component with no DOM harness in this suite.
+test("the scorecard row's Meter is inside the not-assessed guard, never beside it", () => {
+  const src = readFileSync(new URL("../features/hiring/schedule/ScheduleInterviewScorecardRow.tsx", import.meta.url), "utf8");
+  assert.equal(/const rating = isNotAssessedRating\(clean, r\.evidence\) \? null : clean;/.test(src), true, "the sentinel collapses to null");
+  // Exactly one Meter, and it is reached only through `rating != null ? … : null`.
+  assert.equal((src.match(/<Meter\b/g) ?? []).length, 1, "one meter in the row");
+  assert.equal(
+    /\{rating != null \? \(\s*<Meter\b[\s\S]*?\) : null\}/.test(src),
+    true,
+    "the Meter is the consequent of the rating != null guard"
+  );
+  // …and the numeric value beside the label takes the same branch, so the row can
+  // never read "3/5" over an empty meter track.
+  assert.equal(/rating != null \? `\$\{rating\}\/\$\{RATING_MAX\}` : t\("notAssessed"\)/.test(src), true);
+});
+
+test("NOT_ASSESSED_RATING is the mid-scale value the synthesis prompt names", () => {
+  // Pinned so a rubric re-gear that moves the scale cannot leave the sentinel behind
+  // (the Python prompt and automation.py's guard both say "rate it 3").
+  assert.equal(NOT_ASSESSED_RATING, 3);
+  assert.equal(isNotAssessedRating(NOT_ASSESSED_RATING, "Not assessed (auto-synthesis unavailable)."), true);
 });

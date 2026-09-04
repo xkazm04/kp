@@ -5,6 +5,7 @@
 // same allow-list sanitizer these tests pin in candidate-brief.test.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { candidateRunOfShow, composeBrief, importedQuestionsForBrief, MAX_BRIEF_IMPORTED_QUESTIONS } from "./interview-run.ts";
 
 const CHRON = [
@@ -121,4 +122,37 @@ test("candidateRunOfShow does NOT scrub the interviewer brief — the annotation
   // public projection strips it); only the candidate-facing agenda is scrubbed.
   const brief = composeBrief("Acme", "Engineer", "Engineer (senior)", { chronology: ANNOTATED, durationMin: 20 }, 20);
   assert.match(brief, /missing must-have/, "the interviewer still sees which must-have the topic covers");
+});
+
+// --- source guards ----------------------------------------------------------
+
+test("runInterviewScorecard REQUIRES a workspace — no default tenant", () => {
+  // It used to read `workspaceId: string = DEFAULT_WORKSPACE_ID`. A caller that
+  // forgot the argument then scored, re-read the entry for telemetry and minted
+  // observed skills against the FIRST team — silently wrong on every other one, and
+  // invisible in a single-tenant install. The default is gone; the shape is asserted
+  // on the source because a required parameter is a compile-time property that no
+  // runtime call can demonstrate (`tsc` is the real enforcement, this is the tripwire
+  // for anyone re-adding the default to "fix" a caller).
+  const src = readFileSync(new URL("./interview-run.ts", import.meta.url), "utf8");
+  assert.match(src, /export async function runInterviewScorecard\(/);
+  assert.equal(/workspaceId: string = DEFAULT_WORKSPACE_ID/.test(src), false, "no default-tenant fallback");
+  assert.equal(/^import .*DEFAULT_WORKSPACE_ID.* from/m.test(src), false, "and the import is gone with it");
+  // The one caller derives the entry's team (token flow, no session workspace).
+  const complete = readFileSync(new URL("../api/interview/complete/route.ts", import.meta.url), "utf8");
+  assert.match(complete, /runInterviewScorecard\(session\.entryId, transcript, ws\)/);
+});
+
+test("each shared prompt paragraph is written once, and both briefs read the same one", () => {
+  const src = readFileSync(new URL("./interview-run.ts", import.meta.url), "utf8");
+  // The no-feedback closing rule and the role-context derivation were byte-duplicated
+  // across the two briefs, so a wording fix landed in one and not the other.
+  assert.equal((src.match(/Do not give feedback, scores, or any hiring decision/g) ?? []).length, 1);
+  assert.equal((src.match(/noJudgementClose\("the (agenda is|questions are)"\)/g) ?? []).length, 2);
+  assert.equal((src.match(/const company = job\?\.company \|\| /g) ?? []).length, 1);
+  assert.equal((src.match(/entryBriefContext\(entry\)/g) ?? []).length, 2);
+  // …and the deduped closer still renders both variants verbatim.
+  const brief = composeBrief("Acme", "Engineer", "Engineer (senior)", { chronology: CHRON, durationMin: 20 }, 20);
+  assert.match(brief, /When the agenda is covered, invite the candidate's questions/);
+  assert.match(brief, /avoid “great”, “impressive”, “exactly right”/);
 });
