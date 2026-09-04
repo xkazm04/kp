@@ -499,6 +499,22 @@ manual review**. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
+**The routing explanation is localized, and the receipt names the profile.** The
+router renders its reasons in English ("currently enrolled", "no strong signal…"),
+so `registry.detect_detailed` emits each one ALSO as a `{kind, params}` code —
+kinds declared in `archetypes.json` (`defaultReasonKind`, `selfDeclaredReasonKind`,
+a `reasonKind` per signal and contradiction; a reason without one raises at
+import), params derived from the reason's own template so they cannot drift from
+the sentence. `profile_cli` ships them as `reasonCodes` beside `reasons` — additive,
+exactly like `missingGaps` beside `missing` — and `ProfileResultPanel` renders them
+through `profile.result.reasons.<kind>` in the four catalogs, falling back per
+reason to the router's English string for a result built before the field existed
+(`profileRoutingReasons.ts`; its test fails when a kind has no catalog entry in any
+of the four). The saved receipt shows the profile's display name (or a short
+opaque reference), not the store id the recruiter cannot act on. The panel is
+`ProfileResultPanel` — it used to export `ResultPanel`, the name
+`app/_components/results/ResultPanel.tsx` already owns for the CV-analysis report.
+
 **Retiring an archetype asks first.** `Retire` used to pull the archetype out of
 every picker on one click with no question and no blast radius. It now opens
 `ArchetypeArchiveConfirmModal`, which names how many profiles currently route

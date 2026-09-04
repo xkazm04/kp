@@ -5190,7 +5190,7 @@
     },
     "result": {
       "confidence": "signals agree {pct}%",
-      "saved": "saved · {id}",
+      "saved": "saved · {name}",
       "preview": "preview (not saved)",
       "routing": "Routing: {reasons}",
       "completeness": "Completeness",
@@ -5210,7 +5210,21 @@
         "has_activity": "an internship, activity, or certification"
       },
       "matchNow": "Match now",
-      "complete": "Profile looks complete for its archetype."
+      "complete": "Profile looks complete for its archetype.",
+      "reasons": {
+        "default": "no strong signal: defaulting to experienced",
+        "self_declared": "self-declared: {archetype}",
+        "signal_enrolled": "currently enrolled",
+        "signal_expected_graduation": "expected graduation: {expected_graduation}",
+        "signal_yre_low": "under a year of relevant experience",
+        "signal_yre_high": "{years_relevant_experience} years of relevant experience",
+        "signal_education_dominant": "education is the dominant CV block",
+        "signal_switch_strong": "wants a domain change and has substantial experience",
+        "signal_switch_weak": "wants a domain change",
+        "contradiction_student_experienced": "contradiction: 3+ years of relevant experience for a student",
+        "contradiction_bau_early_career": "contradiction: enrolment / under a year of experience suggests early-career",
+        "contradiction_switcher_no_experience": "note: a switcher usually implies prior professional experience"
+      }
     },
     "fields": {
       "remove": "Remove"

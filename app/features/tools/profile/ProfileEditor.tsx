@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { ProfilePayload, ArchetypeDef } from "@/app/features/shared/profileTypes";
 import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
-import { ResultPanel } from "./ProfileResultPanel";
+import { ProfileResultPanel } from "./ProfileResultPanel";
 import { ProfileEditorAiDraft } from "./ProfileEditorAiDraft";
 import { ProfileEditorFields } from "./ProfileEditorFields";
 import { buildArchetypeOptions } from "./ProfileEditorArchetypeOptions";
@@ -273,7 +273,7 @@ export function ProfileEditor({
       ) : null}
       {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
       {result ? (
-        <ResultPanel
+        <ProfileResultPanel
           result={result}
           onMatchNow={result.saved?.id ? () => goMatch(result.saved!.id) : undefined}
           onGoToField={focusProfileField}
