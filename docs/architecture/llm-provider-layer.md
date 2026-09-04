@@ -160,9 +160,9 @@ caller could not tell an operator-config problem from a model-side failure, and
 `_cli.emit_error` classified every one of them as an anonymous `engine_error`/500.
 
 `GeminiError(subtype=…)` now names the cause, and — by also being a
-`_cli.CliError` — carries the code the process boundary already speaks, so the
-route can render an actionable hint via `useErrorMessage()`. It subclasses
-`RuntimeError` too, so existing `except RuntimeError` call sites are unchanged.
+`_cli.CliError` — carries the code the process boundary already speaks, so any CLI
+that answers through `_cli.emit_error` emits it. It subclasses `RuntimeError` too,
+so existing `except RuntimeError` call sites are unchanged.
 
 | `GeminiError.subtype` | Raised when | CLI code / status |
 | --- | --- | --- |
@@ -175,6 +175,14 @@ route can render an actionable hint via `useErrorMessage()`. It subclasses
 | `missing_field` | JSON parsed, but a required field is absent/blank | `engine_error` / 500 |
 
 Pinned by `pipeline/jobfit/tests/test_gemini_errors.py`.
+
+**Known gap — the code is carried, not yet read on the analyze path.** The three
+CLIs that reach `gemini.py` directly (`cli.py analyze`, `market_salary_cli.py`,
+`profile_draft_cli.py`) hand-roll their own `{error, status: 500}` envelope
+instead of calling `_cli.emit_error`, so today they still answer 500 for a missing
+key. The typed error is what makes fixing that a one-line change per CLI (swap the
+hand-rolled `print` for `_cli.emit_error(exc)`); until then the branchable cause
+exists in Python but does not reach `useErrorMessage()` from those three.
 
 ## One JSON scanner, two selection policies (`pipeline/jobfit/json_values.py`)
 
