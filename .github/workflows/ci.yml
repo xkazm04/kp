@@ -516,6 +516,7 @@ jobs:
           modal-escape
           profile-builder
           landing
+          public-pages
           journey-role-to-schedule
           journey-one-thread
           --project=chromium

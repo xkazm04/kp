@@ -74,6 +74,9 @@ e2e/                          # Playwright; deterministic keyless subset =
                               # + landing (the public landing: a11y per band, the
                               #   spotlight's focus contract, phone nav — the ONLY
                               #   spec that must not seedDevAuth)
+                              # + public-pages (the OTHER indexed surfaces: axe on
+                              #   /about /trust /privacy /terms /market, plus
+                              #   /about's legal row and phone nav)
                               # + app-master-hire (the App-master battle test —
                               # mock Personas bridge, needs KP_OFFLINE=1 and
                               # KP_APP_MASTER_REPO_ROOTS on the SERVER process)

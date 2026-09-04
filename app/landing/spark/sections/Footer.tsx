@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Languages } from "lucide-react";
 import Wordmark from "../Wordmark";
 import { LandingLangSwitch } from "../LandingLangSwitch";
+import LegalRow from "./LegalRow";
 import { sourceRepoHref } from "@/app/_lib/source-repo";
 
 /*
@@ -11,21 +12,16 @@ import { sourceRepoHref } from "@/app/_lib/source-repo";
  * rule across all three marketing pages, so a visitor learns one place to
  * change language.
  *
- * The legal row (Privacy / Terms / Trust) also lives here: a public product
- * that captures candidate PII must expose its policies from its front door,
- * and /trust is the evidence page behind the landing's headline claims, so it
+ * The legal row (Privacy / Terms / Trust) also renders here — as the shared
+ * ./LegalRow, because /about's footer owes the same row: a public product that
+ * captures candidate PII must expose its policies from EVERY front door, and
+ * /trust is the evidence page behind the landing's headline claims, so it
  * earns a footer link rather than a buried route.
  *
  * The licence line sits beside them. KP is AGPL-3.0, and the footer is where a
  * reader looks for that — stating it here (with a link to the source) is both the
  * conventional courtesy and the practical half of the §13 source-offer.
  */
-const LEGAL_LINKS = [
-  { href: "/privacy", key: "privacy" },
-  { href: "/terms", key: "terms" },
-  { href: "/trust", key: "trust" }
-] as const;
-
 export default function Footer() {
   const t = useTranslations("landing");
   return (
@@ -35,13 +31,7 @@ export default function Footer() {
           <Wordmark size="sm" />
           <span>· {t("footer.tagline")}</span>
         </div>
-        <nav aria-label={t("footer.legalNav")} className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[#42606f]">
-          {LEGAL_LINKS.map((link) => (
-            <a key={link.key} href={link.href} className="font-bold underline-offset-4 hover:text-[#17202a] hover:underline">
-              {t(`footer.${link.key}`)}
-            </a>
-          ))}
-        </nav>
+        <LegalRow />
         <div className="flex items-center gap-3 text-[#42606f]">
           <a
             href={sourceRepoHref()}

@@ -141,6 +141,15 @@ Conventions worth keeping:
   file containing a `repeat: Infinity` loop must gate it. Four pre-existing
   holdouts are listed in that test's `KNOWN_FRAMER_HOOK_HOLDOUTS` — see
   Known gaps.
+  **An entrance is not exempt because it ends.** The loop check was the whole
+  gate for months, so the nine feature previews slammed a `scale: 2.2` stamp
+  onto the page and rotated cards in from ±10° for a reader who had asked for
+  less. Every module under `spark/previews/` now threads the flag through
+  `pop(delay, reduce)` / `stamp(delay, reduce)` / `entrance(reduce, …)` in
+  `previews/shared.tsx`, which swaps the TRANSITION for `{ duration: 0 }` —
+  never the `initial` prop and never the markup, so a still reader lands on the
+  end state with no hydration hazard. A third `AboutCurve.test.ts` check pins
+  it, with an (empty) `KNOWN_UNGATED_ENTRANCES` holdout list.
 
 ## Navigation conventions
 
@@ -171,11 +180,21 @@ The three pages share one rule set, so a visitor learns the chrome once.
     and updates the hash with `replaceState`, not `pushState` — the rail is a
     scrubber, not a trail of destinations, so it must not bury the referring
     page under five back-presses. The `href="#id"` stays as the no-JS fallback.
+- **Phone navigation is one disclosure, with per-page destinations.**
+  `spark/sections/MobileNav.tsx` takes a `destinations` prop (`NavDestination`:
+  a `#band` of this page, or another page). The landing passes its five bands
+  plus `/about`, `/market` and the source; `/about`, which has no bands, passes
+  `/`, `/market` and the source. Below `sm` both pages had NO navigation at all
+  before it — the topbar is `hidden sm:flex` and the rail is `lg:block`.
+  Keyboard behaviour is the shared `useDialogA11y` in its non-modal mode.
 - **The language switcher is footer-only.** `LandingLangSwitch` appears once per
   page, in the footer. It used to sit in the `/market` topbar as well; one place
   to change language beats two.
-- **The landing footer carries the legal row** — `/privacy`, `/terms`, `/trust`
-  (`landing.footer.{privacy,terms,trust}`). A product that captures candidate
+- **Every public footer carries the legal row** — `/privacy`, `/terms`, `/trust`
+  (`landing.footer.{privacy,terms,trust}`), rendered from the shared
+  `spark/sections/LegalRow.tsx` rather than inlined per page. It used to live
+  inside `Footer.tsx`, which made it the LANDING's row: `/about` is in the
+  sitemap and shipped without it. A product that captures candidate
   PII exposes its policies from its front door; `/trust` is the evidence page
   behind the hero's verified-hiring claims (public since 2026-08-05, was
   noindexed). All three are in `app/sitemap.ts` and the public-routes
@@ -369,6 +388,14 @@ the "(planned)" marker), because **a claim whose honesty lives in a qualifier is
 false the moment a translation drops it**, and key-parity cannot see that. The
 tables' key sets are asserted equal to `LOCALES`, so adding a locale fails the
 test rather than silently exempting it.
+
+**End to end**, two keyless specs in the CI subset cover these pages:
+`e2e/landing.spec.ts` audits `/` band by band (axe, the spotlight's focus
+contract, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
+indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and
+`/market` against a per-page, per-rule `A11Y_HOLDOUTS` map (empty today: all
+five are clean), plus `/about`'s legal row and phone disclosure. Both are named
+one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
 
 ## Known gaps
 
