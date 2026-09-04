@@ -136,7 +136,12 @@ function fixedArtRoutes(): string[] {
     } catch {
       continue; // not a route segment with its own page — nothing to classify
     }
-    if (/from "@\/app\/landing\//.test(source)) routes.push(`/${entry.name}`);
+    // A page is fixed-art when it renders a landing SHELL or art module. Importing the
+    // theme-aware LegalRow (which carries a `studio` tone for the token-based legal pages)
+    // is not that signal - /privacy and /terms are dual-theme and must NOT be exempt.
+    const imports = [...source.matchAll(/from "(@\/app\/landing\/[^"]+)"/g)].map((m) => m[1]);
+    const fixedArt = imports.some((spec) => !/\/sections\/LegalRow$/.test(spec));
+    if (fixedArt) routes.push(`/${entry.name}`);
   }
   return routes.sort();
 }
