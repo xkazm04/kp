@@ -59,7 +59,7 @@ export function IntegrationsAtsForm({
             id="ats-provider"
             value={provider}
             onChange={onProviderChange}
-            size="sm"
+            sizeVariant="sm"
             className="mt-1 w-full"
             options={providers.map((p) => ({ value: p, label: providerLabel(p) }))}
           />

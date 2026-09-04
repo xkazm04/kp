@@ -3,7 +3,8 @@ import { getSubmission } from "@/app/_lib/db/devcase";
 import { issueSkillProfile } from "@/app/_lib/db/skill-profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 
 
 // Durable Skill Profile (moonshot A) — mint a signed credential from an evaluated
@@ -25,10 +26,16 @@ export async function POST(request: Request) {
   // no-op for the whole API) — there, the opacity of the reference is what stands.
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORITY (/perfect wave 31). requireOperator above is identity presence, and it
+  // says yes to a VIEWER seat exactly as loudly as to an owner. Minting - and, on a
+  // moved evaluation, REVOKING and reissuing - a candidate's credential is a recruiter
+  // act, so this is the seat question the gate above never asked.
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: unknown };
     const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";
-    if (!submissionId) return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
+    if (!submissionId) return jsonRefusal("DEVCASE_SUBMISSION_ID_REQUIRED", 400);
     // TENANCY: issueSkillProfile resolves the submission with getSubmission — a by-id
     // point read on a globally-unique id — so ownership is checked HERE, exactly as
     // /api/devcase/promote and /api/devcase/feedback do. Unguarded, a known submission
@@ -41,16 +48,19 @@ export async function POST(request: Request) {
     // Same 404 body as a genuinely missing submission — this must not be an oracle.
     const sub = getSubmission(submissionId);
     if (!sub || sub.workspaceId !== (await currentWorkspace())) {
-      return NextResponse.json({ error: "Submission not found." }, { status: 404 });
+      return jsonRefusal("DEVCASE_SUBMISSION_NOT_FOUND", 404);
     }
     const result = issueSkillProfile(submissionId);
     if (!result.ok) {
       return result.reason === "not_found"
-        ? NextResponse.json({ error: "Submission not found." }, { status: 404 })
-        : NextResponse.json({ error: "Only an evaluated submission can mint a Durable Skill Profile." }, { status: 409 });
+        ? jsonRefusal("DEVCASE_SUBMISSION_NOT_FOUND", 404)
+        : jsonRefusal("DEVCASE_SUBMISSION_NOT_EVALUATED", 409);
     }
     return NextResponse.json({ token: result.token, created: result.created });
   } catch (error) {
-    return jsonError(error, "Failed to issue the skill profile.");
+    // issueSkillProfile is a store transaction plus an HMAC mint: `jsonError` forwarded
+    // its message - SQLITE_* detail, the db path, the signing helper's own complaint -
+    // straight to the studio. It is a store path, so it answers with a code.
+    return safeJsonError(error, "api:devcase/skill-profile", "DEVCASE_SKILL_PROFILE_FAILED");
   }
 }

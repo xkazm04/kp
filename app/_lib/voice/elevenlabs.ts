@@ -15,6 +15,14 @@ import { missingVoiceEnv, type ElevenLabsConnect, type VoiceAdapter } from "./ty
 const signedUrlEndpoint = () =>
   `${elevenLabsBaseUrl()}/v1/convai/conversation/get-signed-url`;
 
+/** Timeout for the signed-URL mint. The candidate is watching a 30s connect
+ *  latch in the browser, so a mint still unanswered at 15s has already lost the
+ *  call. It matters most on the SELF-HOSTED path (ELEVENLABS_BASE_URL): a local
+ *  voice service that is up but wedged accepts the socket and never replies, and
+ *  an unbounded fetch then held the route open long after the browser's latch had
+ *  fired — with the session already flipped in_progress by markInterviewStarted. */
+export const ELEVENLABS_MINT_TIMEOUT_MS = 15_000;
+
 export class ElevenLabsVoiceAdapter implements VoiceAdapter {
   readonly id = "elevenlabs" as const;
   readonly requiredEnv = ["ELEVENLABS_API_KEY", "ELEVENLABS_AGENT_ID"] as const;
@@ -31,6 +39,7 @@ export class ElevenLabsVoiceAdapter implements VoiceAdapter {
     const endpoint = signedUrlEndpoint();
     const res = await fetch(`${endpoint}?agent_id=${encodeURIComponent(agentId)}`, {
       headers: { "xi-api-key": key },
+      signal: AbortSignal.timeout(ELEVENLABS_MINT_TIMEOUT_MS),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");

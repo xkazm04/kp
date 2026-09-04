@@ -37,19 +37,18 @@ export function Select({
   value,
   onChange,
   options,
-  placeholder = "Select…",
+  placeholder,
   ariaLabel,
   id,
   name,
   className = "",
-  size = "md",
-  sizeVariant,
+  sizeVariant = "md",
   disabled = false,
   searchable,
   clearable = false,
-  clearLabel = "Clear",
-  searchPlaceholder = "Search…",
-  noMatchesLabel = "No matches",
+  clearLabel,
+  searchPlaceholder,
+  noMatchesLabel,
   invalid = false,
 }: {
   value: string;
@@ -61,9 +60,11 @@ export function Select({
   id?: string;
   name?: string;
   className?: string;
-  /** Compact/standard height. `sizeVariant` is the family-wide name (matches
-   *  TextInput/TextArea); `size` is kept as a back-compat alias. */
-  size?: "sm" | "md";
+  /** Compact/standard height — the family-wide name, matching TextInput/TextArea.
+   *  A `size` alias existed alongside it and was the spelling ALL 34 call sites
+   *  that set a size reached for, so the primitive that owns the app's field
+   *  sizing was the one disagreeing with its siblings about the prop's name.
+   *  One name now: `size` on a Select is a tsc error, not a second spelling. */
   sizeVariant?: "sm" | "md";
   disabled?: boolean;
   /** Show a filter box above the list. Defaults to auto (on when > 8 options). */
@@ -71,15 +72,24 @@ export function Select({
   /** Prepend a row that resets the value to "" (an explicit "no selection"). */
   clearable?: boolean;
   clearLabel?: string;
-  /** Localizable menu microcopy (English defaults). */
+  /** Menu microcopy. Every one of these falls back to the `select.*` catalog, so a
+   *  caller that passes nothing still reads in the reader's language. */
   searchPlaceholder?: string;
   noMatchesLabel?: string;
   invalid?: boolean;
 }) {
-  // The filter box names itself, so unlike the caller-supplied `searchPlaceholder`
-  // / `noMatchesLabel` microcopy there is nobody to localize it — it was English in
-  // all four locales (found by the aria-label expression check in scripts/i18n-check.mjs).
+  // ALL of this component's own copy resolves here, defaults included. The four
+  // props above used to carry English DEFAULTS in the destructure — invisible to
+  // every i18n gate (eslint reads JSX text, the i18n-check greps read JSX
+  // attributes), and for `searchPlaceholder`/`noMatchesLabel` no caller overrode
+  // them at all, so three locales read English on every searchable select in the
+  // product. The props survive as overrides; the default is now a translation.
+  // `scripts/i18n/primitive-copy-defaults.mjs` keeps them from coming back.
   const t = useTranslations("select");
+  const placeholderText = placeholder ?? t("placeholder");
+  const clearText = clearLabel ?? t("clear");
+  const searchPlaceholderText = searchPlaceholder ?? t("searchPlaceholder");
+  const noMatchesText = noMatchesLabel ?? t("noMatches");
   const listId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -90,6 +100,18 @@ export function Select({
   const [query, setQuery] = useState("");
   const typeahead = useRef<{ buffer: string; timer: number | null }>({ buffer: "", timer: null });
 
+  // The typeahead buffer's reset timer is the one thing here that outlives the
+  // component: a 600ms window opened by the last keystroke before a tab switch or
+  // a modal close fired into an unmounted tree. Harmless in effect (it only clears
+  // a ref) but it is a live timer per Select on a page full of them, and the
+  // pattern is the one that DOES bite when the callback later touches state.
+  useEffect(
+    () => () => {
+      if (typeahead.current.timer) window.clearTimeout(typeahead.current.timer);
+    },
+    []
+  );
+
   const withSearch = searchable ?? options.length > 8;
   const selected = options.find((o) => o.value === value) ?? null;
 
@@ -98,8 +120,8 @@ export function Select({
   const rows = useMemo<MenuRow[]>(() => {
     const needle = query.trim().toLowerCase();
     const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
-    return clearable ? [{ value: "", label: clearLabel, __clear: true }, ...shown] : shown;
-  }, [options, query, clearable, clearLabel]);
+    return clearable ? [{ value: "", label: clearText, __clear: true }, ...shown] : shown;
+  }, [options, query, clearable, clearText]);
 
   const openMenu = () => {
     if (disabled) return;
@@ -226,7 +248,7 @@ export function Select({
     }
   };
 
-  const sizeCls = (sizeVariant ?? size) === "sm" ? "h-9 px-2.5 text-sm" : "h-10 px-3 text-base";
+  const sizeCls = sizeVariant === "sm" ? "h-9 px-2.5 text-sm" : "h-10 px-3 text-base";
   const TriggerIcon = selected?.icon;
 
   // Focus never leaves the trigger (or the filter box) — the "active" row is moved
@@ -261,7 +283,7 @@ export function Select({
       >
         <span className={`flex min-w-0 items-center gap-2 truncate ${selected ? "text-ink" : "text-steel"}`}>
           {TriggerIcon ? <TriggerIcon size={15} className="shrink-0 text-steel" aria-hidden /> : null}
-          <span className="truncate">{selected ? selected.label : placeholder}</span>
+          <span className="truncate">{selected ? selected.label : placeholderText}</span>
         </span>
         <ChevronDown size={15} aria-hidden className={`shrink-0 text-steel transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -293,7 +315,7 @@ export function Select({
                         setActive(0);
                       }}
                       onKeyDown={onKeyDown}
-                      placeholder={searchPlaceholder}
+                      placeholder={searchPlaceholderText}
                       // The filter box holds focus while the arrows move the active
                       // row, so it carries the same pointer (and names the list it
                       // drives) — otherwise a searchable Select announces nothing.
@@ -306,7 +328,7 @@ export function Select({
                 ) : null}
                 <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-auto p-1">
                   {rows.length === 0 ? (
-                    <li className="px-2 py-2 text-sm text-steel">{noMatchesLabel}</li>
+                    <li className="px-2 py-2 text-sm text-steel">{noMatchesText}</li>
                   ) : (
                     rows.map((row, idx) => {
                       const isSelected = row.value === value;

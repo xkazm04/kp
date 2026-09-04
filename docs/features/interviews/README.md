@@ -152,6 +152,19 @@ by both the portal page and `/api/interview/connect`:
   — are all skipped, and the link stays dead for `/connect`. Downgrading to
   `failed` instead would be wrong: `failed` is reconnectable by design and would
   hand a revoked credential back to the candidate.
+- **One live call per link.** The token *is* the session, so two browser tabs on
+  the same invite (or a forwarded link, or a reload racing the call it reloads)
+  both used to reach `/connect`, mint their own provider credentials and run two
+  real conversations for one screen — and at hang-up the second to finish was
+  answered `{ok: true, alreadyCompleted: true}`, its transcript discarded behind
+  a saved confirmation. `/connect` now refuses a second dial on a live session
+  with `INTERVIEW_ALREADY_LIVE` (409) plus `retryAfterMin` as data. The window is
+  `isInterviewSessionLive` — `LIVE_INTERVIEW_RECENCY_MIN = 30`, the **same**
+  authority `/create`'s reissue guard uses, so a link can never be at once too
+  live to reissue and free to re-dial. A genuinely dropped call does not wait the
+  grace out: every teardown path (hang-up, ICE drop, tab close via the unmount
+  beacon) POSTs `/complete`, which finalizes a non-substantive call `failed` —
+  reconnectable by design and no longer `in_progress`.
 - **Terminal.** `completed` is single-use: the portal shows the thank-you card
   (with the durable `/status/<token>` link) and `/connect` refuses with 409, both
   backed by the `status != 'completed'` compare-and-swap in
@@ -433,6 +446,32 @@ revoke → the mint. The reservation before the revoke is load-bearing: refusing
 killing the candidate's live link is the worst of both. Pinned by
 `app/api/interview/interview-spend-doors.test.ts`.
 
+### The minted credential is bounded and bound
+
+The ephemeral secret `/connect` hands the browser is the one artifact in this
+flow that can spend money at the provider on its own — a leaked one dials
+`/v1/realtime/calls` with no involvement from this server, and only the per-token
+connect throttle stood in its way. It now carries:
+
+- **A lifetime we state.** The OpenAI mint sends `expires_after`
+  (`OPENAI_SECRET_TTL_SEC = 120` — one dial, not a workday) instead of inheriting
+  the provider default, and the returned `expires_at` is **enforced**: absent,
+  malformed or already past is refused before the secret reaches the browser. It
+  had been parsed into the response type and read by nobody, so an expired
+  credential failed later at the SDP exchange, where it is indistinguishable from
+  a network fault.
+- **A binding to one session.** A truncated SHA-256 of the capability token rides
+  in the provider session's `metadata` (`interviewSessionFingerprint`) — a
+  fingerprint, never the token, which opens the whole interview and never leaves
+  this server. A provider that rejects the field gets exactly one retry without
+  it: an audit convenience must not fail a candidate's interview.
+- **Timeouts on every hop.** Both provider mints (15 s) and the browser's SDP
+  POST (12 s) carry an `AbortSignal.timeout`, all inside the client's 30 s
+  connect latch. Unbounded, a wedged provider — or a wedged *self-hosted* voice
+  service — held a route open on a session already flipped `in_progress`, and the
+  SDP fetch outlived the error card the candidate was already reading. An aborted
+  SDP POST classifies as `VOICE_TRANSPORT_TIMEOUT`, already localized.
+
 ### Refusals answer with a code
 
 Every refusal on `/create` and `/connect` now goes through `jsonRefusal` with an
@@ -448,10 +487,36 @@ completed, consent missing — in hardcoded English.
 `INTERVIEW_LINK_NOT_FOUND`, `INTERVIEW_LINK_INACTIVE`, `INTERVIEW_LINK_EXPIRED`,
 `INTERVIEW_ALREADY_COMPLETED`, `INTERVIEW_CONSENT_REQUIRED`,
 `INTERVIEW_PROVIDER_INVALID`, `INTERVIEW_PROVIDER_UNCONFIGURED`,
-`INTERVIEW_LAB_DISABLED`, plus the shared `TOO_MANY_REQUESTS` and
-`PIPELINE_ENTRY_NOT_FOUND`. Diagnostic detail rides **alongside** the code rather
+`INTERVIEW_LAB_DISABLED`, `INTERVIEW_ALREADY_LIVE`, plus the shared
+`TOO_MANY_REQUESTS` and `PIPELINE_ENTRY_NOT_FOUND`. Diagnostic detail rides **alongside** the code rather
 than inside a sentence: the unconfigured 503 still names the missing env vars in
 `need`, where an operator can read them and a candidate never sees them.
+
+`/api/interview/complete` is now held to the same line. It is the **same
+candidate**, one hang-up later, and its last three refusals were still bare
+English — `"token is required"`, `"session not found"`, and a hardcoded consent
+sentence. They answer `INTERVIEW_LINK_NOT_FOUND` (both no-usable-session cases:
+to the reader they are one fact) and `INTERVIEW_CONSENT_REQUIRED`.
+
+### A discarded transcript is never reported as saved
+
+Every "this session is already finished" branch on `/complete` answered
+`{ok: true, alreadyCompleted: true}`. That is correct for the honest duplicate —
+the End fetch racing its own unload beacon, a network retry, a `sessionStorage`
+stash replayed on the next mount — and a retrying client has to settle rather
+than error. It was a green lie for the loser of a two-tab race, whose own
+conversation is nowhere in the stored record.
+
+`discardedTurnCount` (`app/_lib/voice/discarded-turns.ts`) draws the line by
+comparison, not by counting: a body the stored transcript already contains, in
+order, from its first turn on, is the same call reporting twice and still settles
+`200 {alreadyCompleted: true}`. Anything else — a divergence, or turns the record
+does not have — is a different conversation, refused
+`409 {ok: false, code: "INTERVIEW_ALREADY_COMPLETED", discardedTurns: n}` on both
+the terminal guard and the lost compare-and-swap branch, with a server log naming
+the session. The candidate reads `interview.voice.discardedTurns` in their own
+language instead of the Retry banner, which could only ever be refused again, and
+the stash is dropped so the discarded body is not re-POSTed on every mount.
 
 The id narrowing behind all of it lives once, in `app/api/interview/entry-id.ts`
 (`readEntityId`, `MAX_ID_LEN`) — four doors had re-typed the same "string, trimmed,
@@ -533,7 +598,13 @@ any more, and the choice was a **log, not a status column**:
 `/api/interview/complete` has written every completed call's cost to the usage
 ledger since tiger F1 — `llm_usage.request_id` **is** the session id, use case
 `interview_realtime`, provider + model + a duration-derived estimate from
-`app/_lib/voice/minute-prices.ts`. Voice minutes are the one meter with a real
+`app/_lib/voice/minute-prices.ts` — whose figures are midpoints of **public price
+bands, not contractual rates**, so an operator on a Business tier or a negotiated
+contract sets `KP_VOICE_MINUTE_USD_OPENAI` / `KP_VOICE_MINUTE_USD_ELEVENLABS`
+(USD per conversation minute, read at call time) and the ledger prices at what
+they actually pay. A malformed or negative value is refused with a console
+warning and the estimate stands; a self-hosted session stays $0 regardless.
+Voice minutes are the one meter with a real
 per-unit cost, and the two providers differ by roughly 60% per minute, yet that
 number had **no reader** outside the aggregate Models usage panel: the recruiter
 deciding whether to run another screen could not see what the last one cost.

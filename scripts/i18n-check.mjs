@@ -11,6 +11,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { copyDefaults } from "./i18n/primitive-copy-defaults.mjs";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MESSAGES_DIR = join(REPO_ROOT, "messages");
@@ -374,6 +375,19 @@ for (const file of tsxFiles(PRIMITIVES_DIR)) {
       );
     }
   });
+  // The third face of the same blind spot: English arriving as a PROP DEFAULT.
+  // Neither JSX check above can see `placeholder = "Select…"` in the destructure,
+  // and a default is exactly the value every caller that passes nothing renders —
+  // Select shipped four of them, two with zero overriding callers. See
+  // scripts/i18n/primitive-copy-defaults.mjs for why the rule is "starts with a
+  // capital letter" and nothing wider.
+  for (const finding of copyDefaults(lines.join("\n"))) {
+    problems.push(
+      `${rel}:${finding.line} — English copy as a prop default in a shared primitive ` +
+        `(${finding.prop} = "${finding.value}"); resolve it through useTranslations() inside the ` +
+        `component so all 4 locales get it, and keep the prop as an override`
+    );
+  }
 }
 
 function sourceFiles(dir) {

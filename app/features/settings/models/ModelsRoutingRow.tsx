@@ -143,7 +143,7 @@ export function ModelsRoutingRow({
             value={provider}
             onChange={setProvider}
             ariaLabel={t("providerAria", { useCase: label })}
-            size="sm"
+            sizeVariant="sm"
             className="w-full min-w-36"
             options={[
               { value: "", label: t("providerDefault") },

@@ -106,7 +106,7 @@ export function WorkspaceMembersTable({
                           onChange={(v) => onPatchMember(m.user.id, { workspaceId, role: v })}
                           ariaLabel={t("roleAria", { name: displayName })}
                           disabled={pending}
-                          size="sm"
+                          sizeVariant="sm"
                           options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, t) }))}
                         />
                       ) : (

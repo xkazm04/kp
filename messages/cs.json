@@ -1676,7 +1676,14 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav.",
-    "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu."
+    "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu.",
+    "DEVCASE_CASE_LIST_FAILED": "Schválené případy se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Profil dovedností se nepodařilo vydat. Zkuste to prosím znovu.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Ke schválení je potřeba role i případ.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Je potřeba odkaz na odevzdání.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Trvalý profil dovedností lze vydat jen z vyhodnoceného odevzdání.",
+    "INTERVIEW_ALREADY_LIVE": "Tento pohovor už běží v jiném okně. Než začnete znovu, dokončete ho nebo okno zavřete."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2112,7 +2119,8 @@
       "notChecked": "neověřeno",
       "micTestLevel": "Úroveň mikrofonu: {level} %",
       "transcriptFolded": "Starší repliky jsou skryté (celkem {count}). Celý přepis se ukládá k vašemu pohovoru.",
-      "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]"
+      "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]",
+      "discardedTurns": "Tato nahrávka nebyla uložena: pohovor dříve dokončilo jiné okno, takže {count} promluv z tohoto hovoru v záznamu není."
     }
   },
   "palette": {
@@ -8420,7 +8428,8 @@
       "colCreated": "Vytvořeno",
       "open": "Otevřít",
       "untitledAssignment": "Zadání",
-      "stageAria": "Fáze zadání: {stage}"
+      "stageAria": "Fáze zadání: {stage}",
+      "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují."
     },
     "evalPanel": {
       "capabilityScores": "Skóre schopností",
@@ -9921,6 +9930,10 @@
   },
   "select": {
     "filterFor": "Filtrovat {label}",
-    "filterOptions": "Filtrovat možnosti"
+    "filterOptions": "Filtrovat možnosti",
+    "placeholder": "Vyberte…",
+    "clear": "Zrušit výběr",
+    "searchPlaceholder": "Hledat…",
+    "noMatches": "Žádné výsledky"
   }
 }

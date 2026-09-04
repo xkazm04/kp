@@ -1676,7 +1676,14 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state.",
-    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again."
+    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again.",
+    "DEVCASE_CASE_LIST_FAILED": "Could not load the approved cases. Please try again.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Could not issue the skill profile. Please try again.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "A role and a case are both required to approve.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "A submission reference is required.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "That submission can’t be found.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile.",
+    "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2112,7 +2119,8 @@
       "notChecked": "not checked",
       "micTestLevel": "Mic level: {level}%",
       "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
-      "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]"
+      "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]",
+      "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record."
     }
   },
   "palette": {
@@ -8420,7 +8428,8 @@
       "colCreated": "Created",
       "open": "Open",
       "untitledAssignment": "Assignment",
-      "stageAria": "Assignment stage: {stage}"
+      "stageAria": "Assignment stage: {stage}",
+      "truncated": "Showing the {count} most recent assignments. Older ones are not listed."
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",
@@ -9921,6 +9930,10 @@
   },
   "select": {
     "filterFor": "Filter {label}",
-    "filterOptions": "Filter options"
+    "filterOptions": "Filter options",
+    "placeholder": "Select…",
+    "clear": "Clear",
+    "searchPlaceholder": "Search…",
+    "noMatches": "No matches"
   }
 }

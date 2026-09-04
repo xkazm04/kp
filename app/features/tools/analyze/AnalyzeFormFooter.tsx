@@ -52,7 +52,7 @@ export function AnalyzeFormFooter({
             ariaLabel={t("reportLanguage")}
             value={inputs.reportLang}
             onChange={setReportLang}
-            size="sm"
+            sizeVariant="sm"
             options={REPORT_LANGS.map((l) => ({ value: l, label: l.toUpperCase() }))}
           />
         </label>

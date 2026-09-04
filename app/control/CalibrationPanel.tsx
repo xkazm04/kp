@@ -191,7 +191,7 @@ export function CalibrationPanel({
           value={form.outcome}
           onChange={(v) => setForm({ ...form, outcome: v })}
           ariaLabel={t("outcomes.outcomeLabel")}
-          size="sm"
+          sizeVariant="sm"
           className="h-8"
           options={OUTCOME_VALUES.map((x) => ({ value: x, label: outcomeLabel(x) }))}
         />
@@ -200,7 +200,7 @@ export function CalibrationPanel({
             value={form.perf}
             onChange={(v) => setForm({ ...form, perf: v })}
             ariaLabel={t("outcomes.perfLabel")}
-            size="sm"
+            sizeVariant="sm"
             className="h-8"
             options={PERF_VALUES.map((x) => ({ value: String(x), label: t("outcomes.perfOption", { n: x }) }))}
           />

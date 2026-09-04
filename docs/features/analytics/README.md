@@ -765,6 +765,17 @@ Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 to become executable values. Tables compose `app/_components/table/` (`TablePager`,
 `ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions).
 
+**Filter menus are comboboxes (2026-09-04).** `ColumnFilter mode="select"` and
+`SearchSelect` triggers carry `role="combobox"` + `aria-haspopup="listbox"` +
+`aria-controls`, and the shared `OptionList` is a `role="listbox"` of
+`role="option"` rows with `aria-selected`; the filter box drives them with
+Arrow/Home/End/Enter and announces the current row through `aria-activedescendant`.
+Before this the whole family had no `role=` at all — a div of buttons to a screen
+reader, and unreachable by keyboard past Tab — while the neighbouring `Select`
+primitive had been a full APG listbox for months. `mode="search"` deliberately
+stays a plain button: it opens a free-text box, not a list. Pinned by
+`app/_components/table/filter-a11y.test.ts`.
+
 ## Data model
 
 Read-only over the operational tables, plus three the tab writes:

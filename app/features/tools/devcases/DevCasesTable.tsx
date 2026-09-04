@@ -23,6 +23,7 @@ import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
  *  from its postings. Row click opens the readable detail. */
 export function CasesTable({
   cases,
+  truncated,
   lifecycles,
   postings,
   state,
@@ -30,6 +31,10 @@ export function CasesTable({
   onDefine,
 }: {
   cases: DevCaseDetail[];
+  /** The server cut the page (GET /api/devcase answers `truncated`). Said out loud
+   *  below: a list that silently stops at its page size is indistinguishable from a
+   *  studio that has exactly that many cases. */
+  truncated: boolean;
   lifecycles: Lifecycle[];
   postings: Posting[];
   state: LoadState;
@@ -117,6 +122,11 @@ export function CasesTable({
           "collecting" are the same kind of state, and that "awaiting approval" is
           the one that is about them. Same component, same five words, on every
           surface that carries a status chip. */}
+      {truncated ? (
+        <p role="status" className={`${DIVIDER} bg-paper/40 px-3 py-2 text-micro text-steel`}>
+          {t("truncated", { count: cases.length })}
+        </p>
+      ) : null}
       <StatusLegend className={`${DIVIDER} bg-paper/40 px-3 py-2`} />
     </div>
   );

@@ -1088,6 +1088,61 @@ sweep is visible; the next call resumes the rest. The autonomy kill-switch relea
 itself is never budgeted. Pinned in `app/api/rate-limit-contract.test.ts`, whose
 `UNTHROTTLED_ENQUEUE` ratchet (which carried these three) is now empty.
 
+### The four studio doors ask authority too
+
+The control-room work above left four dev-case doors on
+`route-capability-coverage.test.ts`'s ALLOWED list — the ones the **studio** (dev tab)
+drives rather than `/control`. Three of them asked nothing about the caller at all:
+not the capability, not even identity presence. They leaned entirely on `proxy.ts`
+refusing non-public `/api` paths, which is the single-gate posture the repo's
+convention tells a sensitive write not to take. All four are recruiter operations, so
+all four ask `pipeline:write` after `requireOperator()`:
+
+| Door | Was | Why `pipeline:write` |
+| --- | --- | --- |
+| `POST /api/devcase` | no gate at all | the MANUAL half of the Art. 22 human gate — same `dev_cases` table and audit trail as `/lifecycle/[id]/approve` |
+| `POST /api/devcase/source` | no gate at all | spawns the Python matcher over the candidate pool and writes pipeline entries at Accepted |
+| `POST /api/devcase/submit` | no gate at all | files a submission on the board and mails an acknowledgement from the team's outbox |
+| `POST /api/devcase/skill-profile` | `requireOperator` only | minting a credential re-mints and REVOKES a live one; identity presence says yes to a viewer as loudly as to an owner |
+
+`GET /api/devcase` hands back FULL approved-case records (role/case/need/analysis JSON)
+and asked nothing either; reading the library is a `read` act, so it gains identity
+presence only. Refusals are coded (`FORBIDDEN_CAPABILITY` with the `capability` as
+data) and every studio consumer already resolves the code in the reader's language —
+`runAction` in `useDevTabActions.ts`, `errMsg` in `DevLifecycleRow`/`DevSubmissionForm`,
+and the `dsp.code` the skill-profile button carries. Pinned by
+`app/api/devcase/devcase-doors-capability.test.ts` (viewer 403 / no session 401 /
+recruiter and owner not refused, on all four) and by the removal of these four routes
+from `route-capability-coverage.test.ts`'s allowlist. **Open mode is unchanged**:
+`KP_OPERATOR_PASSWORD` unset folds every caller to owner.
+
+**And the last two unthrottled studio doors are throttled.** `/source` SPAWNS the Python matcher over the whole candidate pool and writes pipeline entries — the most expensive door in the studio — and carried no limiter at all; `POST /api/devcase` writes a `dev_cases` row plus an immutable audit row per call. Both gates above are a documented no-op in open mode, so the limiter is the real bound: `devcase-source` 30/10min per IP, `devcase-approve` 60/10min, both keyed on the caller IP, both answering `jsonRefusal("TOO_MANY_REQUESTS", 429)` after every cheap refusal (the 404 for a case that is not this team's, the probe-strength 422) so a request that was never going to spend anything costs no budget. Pinned in `app/api/rate-limit-contract.test.ts`.
+
+**The refusals are coded and the approval is attributed.** `devcase/route.ts` was the
+last dev-case file on `error-response-contract.test.ts`'s leak ceiling: both catches
+shaped `error.message` into the body (SQLITE_* detail, the absolute db path) and its
+only 400 was bare English. It now answers
+`safeJsonError(..., "DEVCASE_CASE_LIST_FAILED")` on the read,
+`safeJsonError(..., "DEVCASE_APPROVE_FAILED")` on the write (the same code the
+lifecycle sibling uses — it is the same human decision) and
+`jsonRefusal("DEVCASE_CASE_FIELDS_REQUIRED", 400)`; the mint answers
+`DEVCASE_SUBMISSION_ID_REQUIRED` / `DEVCASE_SUBMISSION_NOT_FOUND` (both 404s, never an
+existence oracle) / `DEVCASE_SUBMISSION_NOT_EVALUATED` and
+`DEVCASE_SKILL_PROFILE_FAILED`. The ceiling row is **deleted**, not raised, so
+`devcase/**` now carries none at all. And the manual approve's `recordAudit` call
+finally carries the workspace the case was saved under two lines above: unattributed
+rows fall back to the DEFAULT tenant, so every studio's manual approvals were listing
+in the default team's audit panel (`devcase-approve-audit-tenancy.test.ts`).
+
+**The library read stops truncating silently.** `GET /api/devcase` took the store's
+default of 50 and said nothing about it, so a studio past fifty approved cases showed
+fifty newest and the rest simply did not exist as far as the Cases table was concerned.
+It now takes `?limit` (a positive integer, clamped to 500; anything malformed falls
+back to 50 rather than 400-ing a read), reads one row more than the page, and answers
+`{ cases, limit, truncated }`. `CasesTable` renders `truncated` as a `role="status"`
+line under the table (`devcase.casesTable.truncated`, four locales), so a cut page
+looks different from a studio that has exactly that many cases.
+
 ### The control room asks authority, and reports its writes
 
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the

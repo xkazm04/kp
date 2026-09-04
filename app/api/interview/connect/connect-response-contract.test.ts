@@ -42,7 +42,7 @@ before(() => {
     }
     if (u.includes("openai.com")) {
       openAiPayloads.push(String(init?.body ?? ""));
-      return Response.json({ value: "ek_unit_test_secret" });
+      return Response.json({ value: "ek_unit_test_secret", expires_at: Math.floor(Date.now() / 1000) + 120 });
     }
     throw new Error(`unexpected upstream fetch in test: ${u}`);
   }) as typeof fetch;

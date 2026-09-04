@@ -80,7 +80,7 @@ export function AnalyzeSavedJdPicker({
         ariaLabel={t("fromLibrary")}
         value={selectedSlug ?? ""}
         disabled={loading}
-        size="sm"
+        sizeVariant="sm"
         className="mt-1 w-full"
         onChange={(slug) => {
           if (!slug) {

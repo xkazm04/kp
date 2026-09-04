@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, Filter, Search } from "lucide-react";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
@@ -53,11 +53,16 @@ export function ColumnFilter({
 }) {
   const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
+  const listId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const active = value.trim() !== "";
   const open = () => setAnchor(anchor ? null : ref.current!.getBoundingClientRect());
   const TriggerIcon = mode === "search" ? Search : Filter;
   const label = mode === "search" ? t("filters.searchColumn", { column: title }) : t("filters.filterColumn", { column: title });
+  // Only `mode="select"` opens a listbox. The `mode="search"` menu is a free-text box,
+  // and a combobox whose aria-controls resolves to nothing is worse than a plain button
+  // — so that trigger keeps aria-expanded (a menu does open) and nothing else.
+  const isListbox = mode === "select";
   return (
     <>
       {trigger === "icon" ? (
@@ -65,6 +70,9 @@ export function ColumnFilter({
           ref={ref}
           type="button"
           onClick={open}
+          role={isListbox ? "combobox" : undefined}
+          aria-haspopup={isListbox ? "listbox" : undefined}
+          aria-controls={isListbox && anchor ? listId : undefined}
           aria-expanded={Boolean(anchor)}
           aria-label={label}
           title={label}
@@ -82,6 +90,9 @@ export function ColumnFilter({
           ref={ref}
           type="button"
           onClick={open}
+          role={isListbox ? "combobox" : undefined}
+          aria-haspopup={isListbox ? "listbox" : undefined}
+          aria-controls={isListbox && anchor ? listId : undefined}
           aria-expanded={Boolean(anchor)}
           className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${active ? "text-coral" : "hover:text-ink"}`}
         >
@@ -109,6 +120,7 @@ export function ColumnFilter({
             </div>
           ) : (
             <OptionList
+              listId={listId}
               options={options}
               value={value}
               clearLabel={t("filters.allOf", { column: title })}
@@ -141,6 +153,7 @@ export function SearchSelect({
 }) {
   const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
+  const listId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const selected = options.find((o) => o.value === value);
   return (
@@ -150,6 +163,9 @@ export function SearchSelect({
         ref={ref}
         type="button"
         onClick={() => setAnchor(anchor ? null : ref.current!.getBoundingClientRect())}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-controls={anchor ? listId : undefined}
         aria-expanded={Boolean(anchor)}
         className={`${FIELD} flex w-full items-center justify-between gap-2 text-left`}
       >
@@ -159,6 +175,7 @@ export function SearchSelect({
       {anchor ? (
         <AnchoredMenu anchor={anchor} width={Math.max(anchor.width, 224)} onClose={() => setAnchor(null)}>
           <OptionList
+            listId={listId}
             options={options}
             value={value}
             searchable

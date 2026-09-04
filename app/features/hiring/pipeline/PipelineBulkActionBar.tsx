@@ -131,7 +131,7 @@ export function PipelineBulkActionBar({
           ariaLabel={t("bulkMoveLabel")}
           value={bulkStage}
           onChange={onBulkStageChange}
-          size="sm"
+          sizeVariant="sm"
           className="h-8"
           // retire-erroring-bulk-control — through the SAME helper drag, the row menu
           // and the drawer use, so the bulk bar can't offer a stage the server refuses

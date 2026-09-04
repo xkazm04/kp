@@ -28,6 +28,7 @@ const CaseDetail = dynamic(() => import("./DevCaseDetail").then((m) => ({ defaul
 
 export function DevTabCasesView({
   cases,
+  casesTruncated,
   casesState,
   lifecycles,
   lifecyclesState,
@@ -46,6 +47,7 @@ export function DevTabCasesView({
   loadLifecycles,
 }: {
   cases: DevCaseDetail[];
+  casesTruncated: boolean;
   casesState: LoadState;
   lifecycles: Lifecycle[];
   lifecyclesState: LoadState;
@@ -82,6 +84,7 @@ export function DevTabCasesView({
     <>
       <CasesTable
         cases={cases}
+        truncated={casesTruncated}
         lifecycles={lifecycles}
         postings={postings}
         state={casesState}

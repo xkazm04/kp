@@ -36,7 +36,7 @@ export function DevTab() {
     jds, jd, jdLoading, pickJd, jdsError, reloadJds,
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
-    cases, casesState, loadCases,
+    cases, casesTruncated, casesState, loadCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox,
@@ -127,6 +127,7 @@ export function DevTab() {
       {view === "cases" ? (
         <DevTabCasesView
           cases={cases}
+          casesTruncated={casesTruncated}
           casesState={casesState}
           lifecycles={lifecycles}
           lifecyclesState={lifecyclesState}

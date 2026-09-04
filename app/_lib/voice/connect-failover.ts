@@ -15,7 +15,7 @@ import type { VoiceAvailability, VoiceConnect, VoiceProviderId } from "./types.t
 
 /** The minimal adapter surface failover needs — just connect(). */
 export type ConnectableAdapter = {
-  connect(opts: { instructions: string; language?: string | null }): Promise<VoiceConnect>;
+  connect(opts: { instructions: string; language?: string | null; sessionToken?: string | null }): Promise<VoiceConnect>;
 };
 
 export type FailoverResult = {
@@ -45,6 +45,10 @@ export async function connectWithFailover(opts: {
   preferred: VoiceProviderId;
   instructions: string;
   language: string | null;
+  /** The session's capability token, forwarded so the adapter can bind the minted
+   *  credential to this session (as a hash — see voice/openai.ts). Optional: the
+   *  tokenless lab path has none. */
+  sessionToken?: string | null;
   getAdapter: (id: VoiceProviderId) => ConnectableAdapter;
   availability: VoiceAvailability;
   /** Build the served provider's client-sent prompt (null for a server-grounded
@@ -52,7 +56,11 @@ export async function connectWithFailover(opts: {
   resolveAgentPrompt: (served: VoiceProviderId, connect: VoiceConnect) => string | null;
 }): Promise<FailoverResult> {
   const dial = (id: VoiceProviderId): Promise<VoiceConnect> =>
-    opts.getAdapter(id).connect({ instructions: opts.instructions, language: opts.language });
+    opts.getAdapter(id).connect({
+      instructions: opts.instructions,
+      language: opts.language,
+      sessionToken: opts.sessionToken ?? null,
+    });
 
   let connect: VoiceConnect;
   let failedOver = false;

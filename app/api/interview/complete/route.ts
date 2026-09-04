@@ -10,9 +10,10 @@ import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
+import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
+import { isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
 
 
 // PUBLIC TOKEN ROUTE — the response carries a PROJECTION, not the store row
@@ -90,14 +91,34 @@ export async function POST(request: NextRequest) {
     // interview page — so it is the lookup key; a sessionId, when sent, is
     // cross-checked against the token's session and never trusted alone.
     const token = typeof body.token === "string" && body.token.length <= 200 ? body.token : null;
+    // The last three bare-English refusals on this PUBLIC candidate door. /connect
+    // was held to the coded line in wave 21a — the candidate reached it from an
+    // emailed link rendered in their own language, so painting the server's English
+    // at them was the bug. /complete is the SAME candidate, one hang-up later, and
+    // was still answering "token is required" / "session not found" / a hardcoded
+    // consent sentence. Both no-usable-session cases are one fact to the reader —
+    // this link does not identify an interview we can save — so they share
+    // INTERVIEW_LINK_NOT_FOUND rather than inventing a code for a malformed body
+    // no honest client can send.
     if (!token) {
-      return NextResponse.json({ error: "token is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_LINK_NOT_FOUND", 400);
     }
     const session = getInterviewSessionByToken(token);
     if (!session || (typeof body.sessionId === "string" && body.sessionId !== session.id)) {
-      return NextResponse.json({ error: "session not found" }, { status: 404 });
+      return jsonRefusal("INTERVIEW_LINK_NOT_FOUND", 404);
     }
     const sessionId = session.id;
+
+    // The submitted turns, filtered but not yet clamped. Read BEFORE the terminal
+    // guards below because those guards now have to answer a question they never
+    // asked: is this the same call reporting twice, or a DIFFERENT one whose turns
+    // are about to be dropped? (voice/discarded-turns.ts)
+    const submitted: { role?: string; text?: string }[] = Array.isArray(body.transcript)
+      ? (body.transcript as unknown[]).filter(
+          (t): t is { role?: string; text: string } =>
+            typeof t === "object" && t !== null && typeof (t as { text?: unknown }).text === "string"
+        )
+      : [];
 
     // Idempotency / terminal-state guard (idea-beb71894): a completed session is
     // done — a duplicate POST (network retry, second tab, provider disconnect
@@ -105,6 +126,21 @@ export async function POST(request: NextRequest) {
     // re-run the scorecard that gates Interview→Offer. Return the stored state
     // as success so a retrying client settles instead of erroring.
     if (session.status === "completed") {
+      // A SECOND live call on the same link is not a duplicate POST. Both tabs ran
+      // real conversations; the loser's turns are nowhere in the stored transcript,
+      // and answering it `ok: true` told its candidate their interview was saved
+      // when it was discarded — the one thing a completion door must never say. The
+      // honest duplicate (the End fetch racing its own unload beacon, a network
+      // retry, a replayed stash) still settles green, because its turns ARE the
+      // stored ones. See discardedTurnCount for where that line is drawn.
+      const discardedTurns = discardedTurnCount(session.transcript, submitted);
+      if (discardedTurns > 0) {
+        console.warn(
+          `[interview:complete] refused a second completion for session ${sessionId}: ` +
+            `${discardedTurns} turn(s) from a concurrent call were NOT saved (the stored transcript stands).`
+        );
+        return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409, { ok: false, discardedTurns });
+      }
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
@@ -119,7 +155,7 @@ export async function POST(request: NextRequest) {
     // legacy session — storage only proceeds when "we have consent" is a fact in
     // the row, not an assumption.
     if (!isPersistConsentSatisfied(session.mode, session.consentAt)) {
-      return NextResponse.json({ error: CONSENT_NOT_RECORDED_ERROR }, { status: 403 });
+      return jsonRefusal("INTERVIEW_CONSENT_REQUIRED", 403);
     }
 
     // AFTER the cheap refusals above (a 400/404/403 and the idempotent
@@ -134,18 +170,14 @@ export async function POST(request: NextRequest) {
     // discarded so an abnormally long turn is visible rather than silent.
     let clippedTurns = 0;
     let clippedChars = 0;
-    const clamped: VoiceTurn[] = Array.isArray(body.transcript)
-      ? (body.transcript as unknown[])
-          .filter((t): t is { text: string } => typeof t === "object" && t !== null && typeof (t as { text?: unknown }).text === "string")
-          .map((t) => {
-            const { turn, clippedChars: clip } = clampTurn(t);
-            if (clip > 0) {
-              clippedTurns += 1;
-              clippedChars += clip;
-            }
-            return turn;
-          })
-      : [];
+    const clamped: VoiceTurn[] = submitted.map((t) => {
+      const { turn, clippedChars: clip } = clampTurn(t as { text: string });
+      if (clip > 0) {
+        clippedTurns += 1;
+        clippedChars += clip;
+      }
+      return turn;
+    });
     if (clippedTurns > 0) {
       console.warn(
         `[interview:complete] clamped ${clippedTurns} oversized turn(s) for session ${sessionId} ` +
@@ -212,6 +244,17 @@ export async function POST(request: NextRequest) {
     const { session: persisted, applied } = completeInterviewSession(sessionId, { transcript, status });
     if (!applied) {
       // A concurrent completion won the row-level guard — its transcript stands.
+      // Same question as the terminal guard above: if OUR turns are not in the
+      // transcript that won, they are lost and the caller must be told so rather
+      // than handed a green `ok`.
+      const discardedTurns = discardedTurnCount(persisted?.transcript, transcript);
+      if (discardedTurns > 0) {
+        console.warn(
+          `[interview:complete] lost the completion race for session ${sessionId}: ` +
+            `${discardedTurns} turn(s) were NOT saved (the winning transcript stands).`
+        );
+        return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409, { ok: false, discardedTurns });
+      }
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,

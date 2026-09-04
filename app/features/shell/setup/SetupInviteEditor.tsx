@@ -79,7 +79,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
         <Select
           value={role}
           onChange={(v) => setRole(v as MemberRole)}
-          size="sm"
+          sizeVariant="sm"
           ariaLabel={t("roleAria")}
           options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tRole) }))}
         />

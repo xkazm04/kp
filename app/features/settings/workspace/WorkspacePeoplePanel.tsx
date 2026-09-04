@@ -144,7 +144,7 @@ export function WorkspacePeoplePanel({
                       <Select
                         value={addWorkspaceId}
                         onChange={setAddWorkspaceId}
-                        size="sm"
+                        sizeVariant="sm"
                         ariaLabel={t("addToWorkspaceAria", { name: displayName })}
                         options={[
                           { value: "", label: t("addToWorkspacePlaceholder") },
@@ -154,7 +154,7 @@ export function WorkspacePeoplePanel({
                       <Select
                         value={addRole}
                         onChange={(v) => setAddRole(v as MemberRole)}
-                        size="sm"
+                        sizeVariant="sm"
                         ariaLabel={tm("inviteRoleAria")}
                         options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tm) }))}
                       />

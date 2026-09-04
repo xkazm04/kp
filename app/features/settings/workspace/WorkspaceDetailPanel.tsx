@@ -186,7 +186,7 @@ export function WorkspaceDetailPanel({
                 <Select
                   value={seatUserId}
                   onChange={setSeatUserId}
-                  size="sm"
+                  sizeVariant="sm"
                   ariaLabel={t("addExistingAria")}
                   options={[
                     { value: "", label: t("addExistingPlaceholder") },
@@ -196,7 +196,7 @@ export function WorkspaceDetailPanel({
                 <Select
                   value={role}
                   onChange={(v) => setRole(v as MemberRole)}
-                  size="sm"
+                  sizeVariant="sm"
                   ariaLabel={tm("inviteRoleAria")}
                   options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tm) }))}
                 />
@@ -220,7 +220,7 @@ export function WorkspaceDetailPanel({
                 <Select
                   value={role}
                   onChange={(v) => setRole(v as MemberRole)}
-                  size="sm"
+                  sizeVariant="sm"
                   ariaLabel={tm("inviteRoleAria")}
                   options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tm) }))}
                 />

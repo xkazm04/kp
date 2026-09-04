@@ -125,3 +125,35 @@ test("an unknown submission id answers the same 404 — never an existence oracl
   const res = await POST(mintReq("sub-does-not-exist"));
   assert.equal(res.status, 404);
 });
+
+
+// ---- every refusal answers a CODE, never English prose -------------------------
+//
+// The mint's four refusals were bare English sentences with no code, on a door whose
+// consumer (useDevSubmissionRow -> DevSubmissionRowSkillProfile) resolves `errors.<CODE>`
+// in the reader's language and shows a neutral generic when there is none. So a
+// recruiter working in cs/de/fr got the generic for every one of them, and the
+// difference between "evaluate this first" and "that submission is not yours" was lost.
+test("the missing-id 400 answers DEVCASE_SUBMISSION_ID_REQUIRED", async () => {
+  const res = await POST(mintReq(""));
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code?: string }).code, "DEVCASE_SUBMISSION_ID_REQUIRED");
+});
+
+test("both 404s answer the SAME DEVCASE_SUBMISSION_NOT_FOUND (never an existence oracle)", async () => {
+  const unknown = (await (await POST(mintReq("sub-still-does-not-exist"))).json()) as { code?: string };
+  assert.equal(unknown.code, "DEVCASE_SUBMISSION_NOT_FOUND");
+  const theirs = seedEvaluatedSubmission(WS_THEIRS, "erin");
+  const cross = await POST(mintReq(theirs));
+  assert.equal(cross.status, 404);
+  assert.equal(((await cross.json()) as { code?: string }).code, unknown.code, "the two 404s must be indistinguishable");
+});
+
+test("an unevaluated submission answers 409 DEVCASE_SUBMISSION_NOT_EVALUATED", async () => {
+  const dc = saveDevCase({ need: {}, analysis: {}, role: { title: "Backend Engineer" }, case: { title: "API case" } }, DEFAULT_WORKSPACE_ID);
+  const posting = createPosting({ caseId: dc.id, channel: "link", token: `tok-dsp-raw-${Date.now()}`, roleTitle: "Backend Engineer", caseTitle: "API case" });
+  const { submission } = createSubmission({ postingId: posting.id, candidateRef: "flo", repoRef: "https://example.test/flo" });
+  const res = await POST(mintReq(submission.id));
+  assert.equal(res.status, 409);
+  assert.equal(((await res.json()) as { code?: string }).code, "DEVCASE_SUBMISSION_NOT_EVALUATED");
+});

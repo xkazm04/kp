@@ -60,7 +60,7 @@ export function JdsBuilderFieldsGrid({
           ariaLabel={t("seniority")}
           value={seniority}
           onChange={setSeniority}
-          size="sm"
+          sizeVariant="sm"
           className="w-full"
           options={SENIORITIES.map((s) => ({ value: s, label: enumLabel("seniority", s) }))}
         />
@@ -70,7 +70,7 @@ export function JdsBuilderFieldsGrid({
           ariaLabel={t("field")}
           value={roleFamily}
           onChange={setRoleFamily}
-          size="sm"
+          sizeVariant="sm"
           className="w-full"
           searchable
           options={familyOptions}
@@ -84,7 +84,7 @@ export function JdsBuilderFieldsGrid({
           ariaLabel={t("outputLanguage")}
           value={outputLang}
           onChange={(v) => setOutputLang(isOutputLang(v) ? v : "en")}
-          size="sm"
+          sizeVariant="sm"
           className="w-full"
           options={LOCALES.map((l) =>
             isOutputLang(l)

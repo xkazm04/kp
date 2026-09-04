@@ -1676,7 +1676,14 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est.",
-    "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le."
+    "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le.",
+    "DEVCASE_CASE_LIST_FAILED": "Impossible de charger les cas validés. Veuillez réessayer.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Impossible d’émettre le profil de compétences. Veuillez réessayer.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Un rôle et un cas sont tous deux requis pour valider.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Une référence de soumission est requise.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile.",
+    "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2112,7 +2119,8 @@
       "notChecked": "non vérifié",
       "micTestLevel": "Niveau du micro : {level} %",
       "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
-      "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]"
+      "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]",
+      "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu."
     }
   },
   "palette": {
@@ -8420,7 +8428,8 @@
       "colCreated": "Créé",
       "open": "Ouvrir",
       "untitledAssignment": "Épreuve",
-      "stageAria": "Étape de l’exercice : {stage}"
+      "stageAria": "Étape de l’exercice : {stage}",
+      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées."
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",
@@ -9921,6 +9930,10 @@
   },
   "select": {
     "filterFor": "Filtrer {label}",
-    "filterOptions": "Filtrer les options"
+    "filterOptions": "Filtrer les options",
+    "placeholder": "Sélectionner…",
+    "clear": "Effacer la sélection",
+    "searchPlaceholder": "Rechercher…",
+    "noMatches": "Aucun résultat"
   }
 }
