@@ -7,6 +7,7 @@ import {
   type GoogleOAuthConfig,
 } from "./google-oauth";
 import { getCachedAccessToken, getCalendarConnection, getRefreshToken, updateAccessToken } from "./token-store";
+import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
 
 // W1.4 — the Google Calendar calls themselves. Everything that decides anything lives in
 // free-busy.ts (pure) and google-oauth.ts (pure); this file is the network edge.
@@ -18,7 +19,11 @@ import { getCachedAccessToken, getCalendarConnection, getRefreshToken, updateAcc
 
 const FREEBUSY_ENDPOINT = "https://www.googleapis.com/calendar/v3/freeBusy";
 const EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
-const TIMEOUT_MS = 8000;
+
+// Every call below goes through `calendarFetch` (edge-fetch.ts): it consults KP_OFFLINE
+// before any egress, bounds the attempt at the ONE CALENDAR_TIMEOUT_MS, and retries a
+// 429/503 exactly once honouring a capped Retry-After. `retry: true` on all of them —
+// free/busy and the event writes are the calls Google throttles.
 
 /**
  * Read one stored credential, treating an UNREADABLE one as an absent one.
@@ -87,11 +92,17 @@ export function isCalendarConnected(workspaceId: string): boolean {
   return !!getCalendarConnection(workspaceId)?.connected;
 }
 
+/** An offline install is not a failure: it answers the same "no information" value with
+ *  no request, no error log, and nothing for an operator to go and fix. */
+function offlineIsUnknown(err: unknown): boolean {
+  if (!(err instanceof CalendarOfflineError)) return false;
+  console.info("[calendar] KP_OFFLINE — the calendar was not consulted (no egress attempted).");
+  return true;
+}
+
 async function fetchJson(url: string, init: RequestInit): Promise<unknown | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { ...init, signal: controller.signal });
+    const res = await calendarFetch(url, init, { retry: true });
     const text = await res.text();
     if (!res.ok) {
       console.error(`[calendar] Google returned HTTP ${res.status}: ${text.slice(0, 300)}`);
@@ -99,10 +110,8 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown | null
     }
     return JSON.parse(text);
   } catch (err) {
-    console.error("[calendar] Google request failed", err);
+    if (!offlineIsUnknown(err)) console.error("[calendar] Google request failed", err);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -141,16 +150,11 @@ export async function fetchBusy(
  *  completed — `fetchJson` cannot serve this because a successful DELETE answers 204 with
  *  an empty body, which JSON.parse rejects, turning a success into a reported failure. */
 async function fetchStatus(url: string, init: RequestInit): Promise<number> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { ...init, signal: controller.signal });
-    return res.status;
+    return (await calendarFetch(url, init, { retry: true })).status;
   } catch (err) {
-    console.error("[calendar] Google request failed", err);
+    if (!offlineIsUnknown(err)) console.error("[calendar] Google request failed", err);
     return 0;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -184,8 +188,13 @@ function eventBody(input: InterviewEventInput): Record<string, unknown> {
     summary: input.summary,
     description: input.description,
     location: input.location,
-    start: { dateTime: input.startIso },
-    end: { dateTime: input.endIso },
+    // The instants are ISO-8601 UTC ("…Z"), and the timeZone is stated rather than left
+    // for Google to infer from the calendar's own default: a bare dateTime is interpreted
+    // in the CALENDAR's zone when it carries no offset, so the event was correct only
+    // because every instant kp writes happens to be UTC. Saying it is one word; finding
+    // out it was implied costs an interview at the wrong hour.
+    start: { dateTime: input.startIso, timeZone: "UTC" },
+    end: { dateTime: input.endIso, timeZone: "UTC" },
     // NO `sendUpdates`, on purpose: kp owns the candidate's confirmation email (with the
     // reschedule link and the .ics), and letting Google send a second, un-branded invite
     // for the same interview would be two "you're booked" mails from one action.
@@ -241,15 +250,16 @@ export async function updateInterviewEvent(
   if (!auth) return noAuthResult(workspaceId);
   const calendarId = getCalendarConnection(workspaceId)?.calendarId ?? "primary";
   const url = `${EVENTS_ENDPOINT}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { authorization: `Bearer ${auth.token}`, "content-type": "application/json" },
-      body: JSON.stringify(eventBody(input)),
-      signal: controller.signal,
-    });
+    const res = await calendarFetch(
+      url,
+      {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${auth.token}`, "content-type": "application/json" },
+        body: JSON.stringify(eventBody(input)),
+      },
+      { retry: true }
+    );
     const text = await res.text();
     if (res.status === 404 || res.status === 410) return { ok: false, reason: "gone" };
     if (!res.ok) {
@@ -262,10 +272,8 @@ export async function updateInterviewEvent(
       return { ok: false, reason: "failed" };
     }
   } catch (err) {
-    console.error("[calendar] Google request failed", err);
+    if (!offlineIsUnknown(err)) console.error("[calendar] Google request failed", err);
     return { ok: false, reason: "failed" };
-  } finally {
-    clearTimeout(timer);
   }
 }
 

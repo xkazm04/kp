@@ -121,6 +121,39 @@ stacking a second one).
 query-window derivation); `google-calendar.ts` is the network edge;
 `available-slots.ts` joins them.
 
+Everything that leaves the box goes through **one door**,
+`app/_lib/calendar/edge-fetch.ts` (`calendarFetch`), and it holds four rules:
+
+- **Offline is checked before the network, not after it.** `KP_OFFLINE`
+  (`app/_lib/offline.ts`, `docs/architecture/self-hosting.md` §7) makes every
+  calendar call answer its documented *unknown* — `fetchBusy` → `null`, a write →
+  `failed` — with **no request attempted**. The global fetch guard did already
+  block this egress, by rejecting it, so an air-gapped install logged
+  "Google request failed" at every lookup: an error for a deployment working
+  exactly as the operator configured it. The status a recruiter sees is
+  `unavailable`, never a confidently-empty calendar.
+- **One retry on a throttle.** A `429` or `503` is repeated **exactly once**,
+  after Google's own `Retry-After` (both the delay-seconds and HTTP-date forms),
+  **capped at 2s** — a candidate's booking page is on the other end, and Google
+  may ask for minutes. Nothing else is retried: a `400` is our bug and a second
+  attempt buys nothing. Before this, a single transient throttle collapsed the
+  whole availability check to `unavailable`.
+- **One timeout for the whole chain.** `CALENDAR_TIMEOUT_MS`
+  (`app/_lib/calendar/constants.ts`, 8s per attempt) bounds the Calendar API
+  calls *and* the OAuth token calls, which used to declare separate copies of the
+  same number on a public path (`/schedule/<token>` → free/busy → token refresh)
+  whose bound is only as good as its weakest link.
+- **One interview duration.** `DEFAULT_INTERVIEW_MINUTES` (same file, 45) is the
+  single source behind `free-busy.ts`'s `DEFAULT_SLOT_MINUTES` and
+  `calendar-links.ts`'s `DEFAULT_DURATION_MIN`.
+
+Written events state `timeZone: "UTC"` beside each `dateTime`. A bare `dateTime`
+with no offset is read in the *calendar's* zone, so the event was correct only
+because every instant kp writes happens to be UTC.
+
+Pinned by `app/_lib/calendar/edge-fetch.test.ts` (offline makes no request; 429
+then 200 answers; a second throttle stops; the cap; the time zone on the wire).
+
 **The degradation contract:** `fetchBusy` returns `null` for *"we do not know"*
 and `[]` for *"checked, nothing in the way"*. They are never conflated —
 treating an outage as an empty calendar would confidently offer busy times.

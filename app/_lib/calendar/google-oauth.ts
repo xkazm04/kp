@@ -15,6 +15,9 @@
 //   calendar.events   — create/update the interview event we book. Required to write.
 // Widening these is a trust-surface change, not a convenience: see docs + /trust.
 
+import { CALENDAR_TIMEOUT_MS } from "./constants";
+import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
+
 export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.freebusy",
   "https://www.googleapis.com/auth/calendar.events",
@@ -117,26 +120,19 @@ export function missingScopes(granted: readonly string[]): string[] {
   return GOOGLE_CALENDAR_SCOPES.filter((s) => !granted.includes(s));
 }
 
-/**
- * How long any call to Google's OAuth endpoints may take. Same bound google-calendar.ts
- * puts on the Calendar API calls, and for the same reason — except this one is load
- * bearing on a PUBLIC path: a free/busy lookup refreshes the access token first, so an
- * unbounded fetch here is an unbounded /schedule/<token>. Node's fetch only falls back to
- * undici's 300s header timeout, which is not a bound a candidate's booking page can wear.
- * "Degrade, never block" has to hold for the whole chain, not most of it.
- */
-export const OAUTH_TIMEOUT_MS = 8000;
+// The token calls share the ONE bound the Calendar API calls use (constants.ts) — this
+// half of the chain used to declare its own copy of the same 8000, on a PUBLIC path
+// (/schedule/<token> → free/busy → refresh) whose bound is only as good as its weakest
+// link. They do NOT share the retry: a one-shot authorization code and a best-effort
+// revoke have nothing to gain from a second attempt.
 
-async function postForm(url: string, body: URLSearchParams, timeoutMs: number = OAUTH_TIMEOUT_MS): Promise<unknown> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+async function postForm(url: string, body: URLSearchParams, timeoutMs: number = CALENDAR_TIMEOUT_MS): Promise<unknown> {
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-      signal: controller.signal,
-    });
+    const res = await calendarFetch(
+      url,
+      { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: body.toString() },
+      { timeoutMs }
+    );
     const text = await res.text();
     try {
       return JSON.parse(text);
@@ -147,13 +143,15 @@ async function postForm(url: string, body: URLSearchParams, timeoutMs: number = 
     // Our own parse rejection passes through unchanged; a transport failure (including
     // our abort) becomes the same fact for the caller: Google gave no answer.
     if (err instanceof GoogleOAuthError) throw err;
+    // An air-gapped install said no before any egress — named as such, because "connect a
+    // calendar" is not a repair an offline operator can make.
+    if (err instanceof CalendarOfflineError) throw new GoogleOAuthError("KP_OFFLINE: this deployment does not call Google.");
+    const aborted = err instanceof Error && err.name === "AbortError";
     throw new GoogleOAuthError(
-      controller.signal.aborted
+      aborted
         ? `Google did not answer within ${timeoutMs}ms.`
         : `Google could not be reached (${err instanceof Error ? err.message : String(err)}).`
     );
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -161,7 +159,7 @@ async function postForm(url: string, body: URLSearchParams, timeoutMs: number = 
 export async function exchangeCode(
   config: GoogleOAuthConfig,
   code: string,
-  timeoutMs: number = OAUTH_TIMEOUT_MS
+  timeoutMs: number = CALENDAR_TIMEOUT_MS
 ): Promise<GoogleTokens> {
   return parseTokenResponse(
     await postForm(
@@ -183,7 +181,7 @@ export async function exchangeCode(
 export async function refreshAccessToken(
   config: GoogleOAuthConfig,
   refreshToken: string,
-  timeoutMs: number = OAUTH_TIMEOUT_MS
+  timeoutMs: number = CALENDAR_TIMEOUT_MS
 ): Promise<GoogleTokens> {
   const tokens = parseTokenResponse(
     await postForm(
@@ -205,18 +203,17 @@ export async function refreshAccessToken(
  *  Google that never answers must not leave the operator's Disconnect button spinning
  *  for minutes — a failed revoke is a reportable outcome (`revokedAtGoogle: false`), a
  *  hung one is not an outcome at all. */
-export async function revokeToken(token: string, timeoutMs: number = OAUTH_TIMEOUT_MS): Promise<boolean> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+export async function revokeToken(token: string, timeoutMs: number = CALENDAR_TIMEOUT_MS): Promise<boolean> {
   try {
-    const res = await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
-      method: "POST",
-      signal: controller.signal,
-    });
+    const res = await calendarFetch(
+      `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`,
+      { method: "POST" },
+      { timeoutMs }
+    );
     return res.ok;
   } catch {
+    // Includes KP_OFFLINE, where no revoke was attempted: `false` is already the honest
+    // answer the disconnect renders ("disconnected here, withdraw it at Google yourself").
     return false;
-  } finally {
-    clearTimeout(timer);
   }
 }
