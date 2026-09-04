@@ -383,6 +383,24 @@ A caller may also pass an `AbortSignal` to cancel early — and it is not a
 substitute for a budget: the signal fires when the *caller* gives up, the
 deadline when nobody does.
 
+**Every kill is a TREE kill.** `child.kill()` signals one pid, and the CLIs shell
+out (the Claude CLI adapter, `git` in a repo scan), so a timeout used to leave the
+grandchild running — holding the CPU and the provider connection the kill was
+meant to reclaim. `killProcessTree` signals the child's whole process group on
+POSIX (it is spawned `detached`, so everything it forks inherits the group) and
+runs `taskkill /T /F` on Windows. On Windows the direct kill is the *fallback*,
+not a companion: killing the child first orphans its descendants before taskkill
+can enumerate them.
+
+**And every spawn passes an admission door.** There is one process-wide ceiling —
+`KP_PYTHON_MAX_CONCURRENT`, default 4 — because an unbounded fork-per-request is a
+denial of service against the Node server the other 200 routes share. A caller
+waits up to `KP_PYTHON_QUEUE_WAIT_MS` (default 20 s) for a slot and is then refused
+with a `PipelineError` carrying **503 / `ENGINE_BUSY`**, which the routes forward
+like any other engine refusal. It is a decision, not a fault: the engine is
+healthy, it is saturated, and `errors.ENGINE_BUSY` says so in the reader's
+language. Sizing guidance: [self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
+
 **A route that spawns states its own budget.** Ten minutes is the right bound for
 a repo scan and the wrong one for a Save button: a wedged sub-second CLI
 inheriting the default holds the operator on a spinner for nine minutes past the

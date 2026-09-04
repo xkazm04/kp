@@ -1689,7 +1689,8 @@
     "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat.",
     "INTERVIEW_PREP_NOT_FOUND": "Pro tohoto kandidáta zatím neexistuje příprava na pohovor. Nejdřív ji vygenerujte.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Vyberte alespoň jednu otázku, kterou chcete přidat do přípravy.",
-    "INTERVIEW_PREP_QUESTION_REQUIRED": "Určete, kterou otázku chcete přesunout."
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Určete, kterou otázku chcete přesunout.",
+    "ENGINE_BUSY": "Analytický engine je právě vytížený. Zkuste to prosím za chvíli."
   },
   "resilience": {
     "notFoundEyebrow": "404",

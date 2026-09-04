@@ -1689,7 +1689,8 @@
     "COMMS_SUPPRESSED": "This candidate can no longer be contacted.",
     "INTERVIEW_PREP_NOT_FOUND": "There is no interview prep pack for this candidate yet. Generate it first.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Pick at least one question to add to the prep pack.",
-    "INTERVIEW_PREP_QUESTION_REQUIRED": "Say which question to move."
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Say which question to move.",
+    "ENGINE_BUSY": "The analysis engine is busy right now. Try again in a moment."
   },
   "resilience": {
     "notFoundEyebrow": "404",

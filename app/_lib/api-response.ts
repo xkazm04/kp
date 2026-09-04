@@ -1219,6 +1219,15 @@ export const REFUSAL_ERRORS = {
   INTERVIEW_PREP_QUESTIONS_REQUIRED: "Pick at least one question to add to the prep pack.",
   /** A weave/unassign arrived without naming the question to move (400). */
   INTERVIEW_PREP_QUESTION_REQUIRED: "Say which question to move.",
+  // ---- Engine admission (app/_lib/python-runner.ts). Every request that needed the
+  // Python pipeline used to fork its own interpreter with nothing counting them, so a
+  // burst was a burst of ~150 MB processes and the box — not the request — paid.
+  /** The spawn ceiling (KP_PYTHON_MAX_CONCURRENT) was full and the caller waited out its
+   *  queue budget (503). A DECISION, not a fault: the engine is healthy, it is simply
+   *  saturated, and the honest answer is "in a moment" rather than a 500 or a socket held
+   *  open past the client's own deadline. python-runner.ts carries this sentence as a
+   *  literal (it must not pull next/server in through this module) — keep the two equal. */
+  ENGINE_BUSY: "The analysis engine is busy right now. Try again in a moment.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

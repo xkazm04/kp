@@ -116,11 +116,189 @@ const DEFAULT_MAX_BUFFER_BYTES = positiveNumericEnv("PYTHON_MAX_BUFFER_MB", 64, 
   scale: 1024 * 1024,
 });
 
+// ---- Process-wide spawn ceiling ---------------------------------------------
+//
+// Every request that needs the engine used to fork its OWN CPython interpreter with
+// nothing counting them. One interpreter that imports the jobfit package is ~120-200 MB
+// RSS and saturates a core for the length of an LLM round-trip, so N simultaneous
+// analyze/match/devcase calls are N interpreters — and the failure is not a slow queue,
+// it is the Node server itself being starved or OOM-killed, which takes down every
+// route rather than the one that overcommitted.
+//
+// So spawns run under ONE process-wide semaphore. This is admission control, not a
+// scheduler: a caller waits a bounded time for a slot and is REFUSED (503 ENGINE_BUSY)
+// rather than queued indefinitely, because the callers are HTTP requests whose client
+// has its own deadline — an unbounded queue only converts an overload into a pile of
+// sockets holding memory while their users have already given up.
+//
+// DEFAULT 4. kp self-hosts on small boxes (the chart's request floor is 2 vCPU); 4 lets
+// a recruiter's parallel board actions genuinely overlap while keeping worst-case
+// engine RSS under ~1 GB and leaving a core for Next itself. Raise it on a bigger host
+// with KP_PYTHON_MAX_CONCURRENT; 1 makes the engine strictly serial.
+//
+// SINGLE PROCESS, like rate-limit.ts: the counter lives in this Node process. kp runs as
+// one server, and a horizontally-scaled deployment would need the same swap behind the
+// same function shape (documented in docs/architecture/self-hosting.md).
+const DEFAULT_MAX_CONCURRENT = 4;
+// How long a caller waits for a slot before the door answers "busy". 20s is well inside
+// a normal fetch deadline and far below the 600s hang backstop, so a queued request
+// still has time to run a real spawn after it is admitted.
+const DEFAULT_QUEUE_WAIT_MS = 20_000;
+
+/** The engine's overload code — thrown as a {@link PipelineError} with status 503 so the
+ *  routes' existing PipelineError mapping forwards it like any other engine refusal.
+ *
+ *  UPPERCASE, unlike PYTHON_ERROR_CODES: those are the ENGINE's own vocabulary, emitted
+ *  by _cli.py. This one is KP's — the child never ran, there is no CLI to have named it —
+ *  so it is a REFUSAL_ERRORS code the client resolves as `errors.ENGINE_BUSY` in the
+ *  reader's language. The message below is REFUSAL_ERRORS.ENGINE_BUSY verbatim, kept as a
+ *  literal here so the generic process runner does not pull next/server in through
+ *  api-response.ts; change one and change the other. */
+export const ENGINE_BUSY_CODE = "ENGINE_BUSY";
+
+function maxConcurrentSpawns(): number {
+  return Math.max(1, Math.floor(positiveNumericEnv("KP_PYTHON_MAX_CONCURRENT", DEFAULT_MAX_CONCURRENT)));
+}
+function queueWaitMs(): number {
+  return positiveNumericEnv("KP_PYTHON_QUEUE_WAIT_MS", DEFAULT_QUEUE_WAIT_MS);
+}
+
+type SlotWaiter = { admit: () => void };
+let inFlightSpawns = 0;
+const slotWaiters: SlotWaiter[] = [];
+
+/** Live admission state — for tests, and for an ops surface that wants to say whether
+ *  the engine is saturated rather than merely slow. */
+export function pythonSpawnLoad(): { inFlight: number; queued: number; ceiling: number } {
+  return { inFlight: inFlightSpawns, queued: slotWaiters.length, ceiling: maxConcurrentSpawns() };
+}
+
+/** Hand the freed slot straight to the longest-waiting caller (FIFO), so a burst is
+ *  served in arrival order instead of letting a late caller barge in. `inFlightSpawns`
+ *  is unchanged on a hand-over — the slot never becomes free, it changes owner. */
+function releaseSlot(): void {
+  const next = slotWaiters.shift();
+  if (next) {
+    next.admit();
+    return;
+  }
+  inFlightSpawns = Math.max(0, inFlightSpawns - 1);
+}
+
+function acquireSlot(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new Error("Python process aborted"));
+  if (inFlightSpawns < maxConcurrentSpawns()) {
+    inFlightSpawns += 1;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve, reject) => {
+    let done = false;
+    const drop = (): void => {
+      const i = slotWaiters.indexOf(waiter);
+      if (i >= 0) slotWaiters.splice(i, 1);
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    const waiter: SlotWaiter = {
+      admit: () => {
+        if (done) return;
+        done = true;
+        drop();
+        resolve();
+      },
+    };
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      drop();
+      reject(
+        new PipelineError({
+          message: "The analysis engine is busy right now. Try again in a moment.",
+          status: 503,
+          code: ENGINE_BUSY_CODE,
+        }),
+      );
+    }, queueWaitMs());
+    const onAbort = (): void => {
+      if (done) return;
+      done = true;
+      drop();
+      reject(new Error("Python process aborted"));
+    };
+    slotWaiters.push(waiter);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/** Kill the child AND everything it started.
+ *
+ *  `child.kill()` signals ONE pid. The engine's CLIs routinely shell out — the Claude
+ *  CLI adapter spawns `claude`, repo scans spawn `git` — so a timeout or an abandoned
+ *  request killed the interpreter and left its grandchild running, holding the CPU and
+ *  the provider connection the kill was supposed to reclaim, until the box was
+ *  restarted. Both platforms need their own mechanism:
+ *
+ *  - POSIX: the child is spawned `detached`, which makes it a PROCESS GROUP LEADER, and
+ *    everything it forks inherits that group. `process.kill(-pid, …)` signals the whole
+ *    group. (`detached` here does NOT mean "outlive us" — we never `unref()`, and this
+ *    function is the only thing that reaps it.) A group that has already exited throws
+ *    ESRCH; we fall back to the single-pid kill so an ordinary race is not an error.
+ *  - Windows: there are no process groups to signal, and `detached` would give the child
+ *    its own console. `taskkill /T /F` walks the parent-pid tree instead and is the
+ *    documented way to end a subtree. taskkill must be given the chance to ENUMERATE
+ *    that tree, so the direct `child.kill()` is NOT fired alongside it — measured on
+ *    Windows: killing the child first orphans its descendants before taskkill reads
+ *    them, and a grandchild that detached itself then survives, which is the exact bug
+ *    this function exists to fix. The direct kill is the FALLBACK, run only when
+ *    taskkill cannot start (missing from a stripped image) or exits non-zero.
+ */
+function killProcessTree(child: ChildProcessWithoutNullStreams): void {
+  const pid = child.pid;
+  if (process.platform === "win32") {
+    const fallback = (): void => {
+      try {
+        child.kill("SIGKILL");
+      } catch {
+        /* already gone */
+      }
+    };
+    if (pid == null) return fallback();
+    try {
+      const reaper = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
+      // taskkill missing from PATH must not throw an unhandled 'error' event out of a
+      // kill path — and either failure mode leaves the child alive, so fall back.
+      reaper.on("error", fallback);
+      reaper.on("exit", (code) => {
+        // 128 = "process not found": it already exited, which is the outcome we wanted.
+        if (code !== 0 && code !== 128) fallback();
+      });
+    } catch {
+      fallback();
+    }
+    return;
+  }
+  if (pid != null) {
+    try {
+      process.kill(-pid, "SIGKILL");
+      return;
+    } catch {
+      /* the group is already gone, or the child never became a leader — fall through */
+    }
+  }
+  try {
+    child.kill("SIGKILL");
+  } catch {
+    /* already gone */
+  }
+}
+
 export function spawnPython(
   args: string[],
   opts: SpawnOptions = {},
 ): {
-  child: ChildProcessWithoutNullStreams;
   result: Promise<SpawnResult>;
 } {
   // Per-spawn LLM-usage ledger sidecar: Python's monitor appends one NDJSON line
@@ -139,7 +317,41 @@ export function spawnPython(
   // spawns Python inline, a CLI, a test): the row simply has no linked run, and
   // the Activity detail degrades to the ledger fields alone. Only set when
   // present so a scope-less spawn inherits nothing from a stale parent env.
+  //
+  // READ SYNCHRONOUSLY, before the admission await below: it comes from an
+  // AsyncLocalStorage scope the CALLER owns, and a queued spawn resumes on a
+  // microtask that may no longer be inside it.
   const llmRequestId = currentLlmRequestId();
+  // Admission first, fork second (see the semaphore header): the interpreter is not
+  // started until a slot is held, which is the whole point — counting spawns after
+  // starting them would bound nothing.
+  const result = (async (): Promise<SpawnResult> => {
+    await acquireSlot(opts.signal);
+    try {
+      return await runPythonChild(args, opts, usageLogPath, llmRequestId);
+    } finally {
+      releaseSlot();
+    }
+  })();
+  // Ingest the usage sidecar once the child has settled (close, error, timeout,
+  // or abort — all kill the child, so no further lines are written). Detached
+  // from `result` so it neither delays nor alters what the caller awaits, and its
+  // own rejection is swallowed. A spawn refused at the door (ENGINE_BUSY) wrote no
+  // sidecar, and ingestUsageLog treats a missing file as a no-op.
+  // Skip ingest entirely when the operator opted out — usageLogPath is their token
+  // (e.g. "0"), not a real sidecar, so there is nothing to fold in.
+  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
+  return { result };
+}
+
+/** The actual fork + settle. Split out of {@link spawnPython} so the semaphore can wrap
+ *  it: everything here runs only once a slot is held. */
+function runPythonChild(
+  args: string[],
+  opts: SpawnOptions,
+  usageLogPath: string,
+  llmRequestId: string | null,
+): Promise<SpawnResult> {
   const child = spawn(PYTHON_CMD, args, {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
@@ -155,6 +367,11 @@ export function spawnPython(
       ...(llmRequestId ? { KP_LLM_REQUEST_ID: llmRequestId } : {}),
       ...(opts.env ?? {}),
     },
+    // POSIX only: make the child a process-group leader so killProcessTree can signal
+    // the WHOLE group (the interpreter plus every `claude` / `git` it shells out to).
+    // Never on Windows, where `detached` allocates a console instead and the tree is
+    // reaped by taskkill /T. We never unref(), so this does not outlive us.
+    detached: process.platform !== "win32",
     windowsHide: true,
   });
   // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #3): close the child's
@@ -169,7 +386,7 @@ export function spawnPython(
   // TextDecoder. Encoding is applied once at process close.
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
-  const result = new Promise<SpawnResult>((resolve, reject) => {
+  return new Promise<SpawnResult>((resolve, reject) => {
     let settled = false;
     const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxBufferBytes = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES;
@@ -183,11 +400,8 @@ export function spawnPython(
       if (settled) return;
       settled = true;
       cleanup();
-      try {
-        child.kill("SIGKILL");
-      } catch {
-        /* already gone */
-      }
+      // The child's own descendants die with it — see killProcessTree.
+      killProcessTree(child);
       reject(err);
     };
 
@@ -237,14 +451,6 @@ export function spawnPython(
       });
     });
   });
-  // Ingest the usage sidecar once the child has settled (close, error, timeout,
-  // or abort — all kill the child, so no further lines are written). Detached
-  // from `result` so it neither delays nor alters what the caller awaits, and its
-  // own rejection is swallowed.
-  // Skip ingest entirely when the operator opted out — usageLogPath is their token
-  // (e.g. "0"), not a real sidecar, so there is nothing to fold in.
-  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
-  return { child, result };
 }
 
 /**

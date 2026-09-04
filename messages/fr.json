@@ -1689,7 +1689,8 @@
     "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté.",
     "INTERVIEW_PREP_NOT_FOUND": "Il n'existe pas encore de préparation d'entretien pour ce candidat. Générez-la d'abord.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Choisissez au moins une question à ajouter à la préparation.",
-    "INTERVIEW_PREP_QUESTION_REQUIRED": "Indiquez quelle question déplacer."
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Indiquez quelle question déplacer.",
+    "ENGINE_BUSY": "Le moteur d'analyse est saturé pour le moment. Réessayez dans un instant."
   },
   "resilience": {
     "notFoundEyebrow": "404",
