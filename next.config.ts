@@ -8,45 +8,17 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 // --- Security headers (global) -----------------------------------------------
-// Applied to every route via headers() below. The CSP ships REPORT-ONLY first:
-// it was derived from the app's actual load graph (audited 2026-08-05), but a
-// wrongly-enforced CSP on the interview page kills a candidate's live voice
-// call — so it observes before it enforces. Flip to Content-Security-Policy
-// once report noise is clean in a real deploy.
+// Applied to every route via headers() below. These are the STATIC half — the
+// same value for every request, so a build-time config can hold them.
 //
-// Origin inventory the connect-src encodes (verify when adding an integration):
-//   - ElevenLabs Agents: the browser opens the signed-URL websocket to
-//     wss://api.elevenlabs.io (app/_lib/voice/elevenlabs.ts mints the URL
-//     server-side). A SELF-HOSTED voice deploy (ELEVENLABS_BASE_URL → your own
-//     origin) uses a deploy-specific host — add it to connect-src when enforcing.
-//   - OpenAI Realtime (WebRTC): the browser POSTs its SDP offer to
-//     https://api.openai.com (transport/openai.ts, callsUrl); media then flows
-//     over WebRTC, which CSP does not govern.
-//   - Plausible (forward-compat): env-gated analytics (NEXT_PUBLIC_PLAUSIBLE_DOMAIN,
-//     empty = off) loads its script from and posts events to plausible.io —
-//     included now so enabling it later doesn't silently violate the policy.
-//   - Sentry (forward-compat): browser events go to the DSN's ingest host
-//     (oNNN.ingest.<region>.sentry.io) — *.sentry.io covers every region.
-// script-src needs 'unsafe-inline': the pre-paint THEME_INIT inline <script> in
-// app/layout.tsx (plus Next's own inline bootstrap) runs without nonces. In dev,
-// Turbopack/react-refresh also need 'unsafe-eval' — appended only there.
-const CSP_REPORT_ONLY = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://plausible.io${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
-  // BrandStyle's inline <style> (white-label accent) + next/font's inline CSS.
-  "style-src 'self' 'unsafe-inline'",
-  // next/font self-hosts all three faces; data: for inline SVG-in-CSS glyphs.
-  "font-src 'self' data:",
-  "img-src 'self' data: blob:",
-  "connect-src 'self' https://api.elevenlabs.io wss://api.elevenlabs.io https://api.openai.com https://plausible.io https://*.sentry.io",
-  // Voice playback buffers; audio worklets load from blob: URLs.
-  "media-src 'self' blob:",
-  "worker-src 'self' blob:",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
-
+// The Content-Security-Policy is NOT here. It carries a per-request nonce (the
+// pre-paint THEME_INIT script in app/layout.tsx would otherwise force
+// `'unsafe-inline'` into script-src, which is the allowance that makes a CSP
+// roughly decorative), and a nonce can only be minted per request — so the whole
+// policy lives in `buildCsp()` in proxy.ts and ships from there, report-only.
+// Do not re-add a CSP to this list: two Content-Security-Policy headers on one
+// response are two policies BOTH applying, and the intersection is not what
+// either author wrote. `app/shell-headers.test.ts` pins that.
 const SECURITY_HEADERS = [
   // 2 years, subdomains, preload-list eligible. Ignored by browsers over plain
   // http (dev), so it costs nothing locally and binds only real TLS deploys.
@@ -54,15 +26,16 @@ const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // The app embeds nothing and must not be embedded (clickjacking on the open
-  // operator routes). DENY covers framing; the CSP adds frame-ancestors when
-  // it graduates from report-only (the directive is ignored in report-only).
+  // operator routes). DENY is the legacy half; the CSP in proxy.ts already
+  // declares `frame-ancestors 'none'` for the browsers that read it (the
+  // directive is ignored while the policy is report-only, so this header is what
+  // actually enforces framing today).
   { key: "X-Frame-Options", value: "DENY" },
   // microphone=(self): the voice interview (/interview/[token]) calls
   // getUserMedia from this origin's own top-level documents — 'self' keeps that
   // working while denying the feature to any embedded third-party context.
   // Camera and geolocation are never used anywhere in the app.
   { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
-  { key: "Content-Security-Policy-Report-Only", value: CSP_REPORT_ONLY },
 ];
 
 const nextConfig: NextConfig = {
@@ -73,6 +46,21 @@ const nextConfig: NextConfig = {
         headers: SECURITY_HEADERS,
       },
     ];
+  },
+  // `app/icon.svg` is served at `/icon.svg?<hash>` and linked from every
+  // document — but a browser (and every RSS reader, link unfurler and crawler
+  // ever written) still probes the well-known `/favicon.ico` root path on its
+  // own, which this app answered with a 404 page. One redirect to the real icon,
+  // temporary rather than permanent so swapping the icon convention later is not
+  // fighting a 308 cached in every visitor's browser forever.
+  //
+  // The destination keeps the EXTENSION. A STATIC `app/icon.svg` serves at
+  // `/icon.svg`; the bare `/icon` in Next's app-icons doc is the GENERATED
+  // `icon.tsx` convention, which this app does not use — pointing there redirects
+  // one 404 to another, which is what the first cut of this did until
+  // `e2e/shell.spec.ts` was run against a production build.
+  async redirects() {
+    return [{ source: "/favicon.ico", destination: "/icon.svg", permanent: false }];
   },
   // `npm run dev:empty` (scripts/dev-empty.mjs, KP_EMPTY=1) runs a SECOND dev
   // server — the blank-tenant first-run preview — beside the normal seeded one.

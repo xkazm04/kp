@@ -696,6 +696,51 @@ The journey won a `/prototype` round against a columns-preview of the same axis
 process beat rehearsing a screen. Nothing in the view is uppercase — `text-meta`
 is a form-section marker, and this step is prose.
 
+## The root document — what `app/layout.tsx` decides for every page
+
+Above every tab, every candidate token door and every marketing page sits one
+layout, and four of its decisions are contracts rather than implementation
+details. They had no assertion anywhere until `app/shell-headers.test.ts` (unit,
+source-derived) and `e2e/shell.spec.ts` (over the wire, in the keyless CI subset)
+landed; before that a regression in any of them shipped silently.
+
+**1. `<html lang>` and the language alternates.** `lang` is the per-request
+locale from `i18n/request.ts` (cookie → `Accept-Language` → `en`). Shared
+candidate links carry `?lang=`, which `proxy.ts` translates into the
+`NEXT_LOCALE` cookie, so the second click keeps the language. The document now
+also declares `alternates.languages` for all four locales plus an `x-default` —
+relative, so each route advertises **its own** alternates rather than the site
+root's — which is what stops a crawler reading `/jds/<slug>?lang=cs` as a thin
+duplicate of the English page. `og:locale` maps the same four (`OG_LOCALE`); a
+locale added to `i18n/locales.ts` and forgotten there falls back to `en_US`
+silently, so keep the two in lockstep.
+
+**2. The pre-paint theme bootstrap.** An inline script, evaluated before first
+paint (a React effect would run after it, which is a visible flash): an explicit
+`kp-theme` choice in `localStorage` wins, otherwise `prefers-color-scheme`
+decides. It now carries the request's CSP nonce — see §1.5b of
+[api-contracts.md](api-contracts.md) for where that comes from.
+
+**3. Which pages the dark theme may never reach.** `THEME_FIXED_ART_PATHS` in
+the layout. The membership test is mechanical: **a route whose `page.tsx`
+renders a component out of `app/landing/`** — the one directory
+`npm run design:check` exempts from the token law, i.e. a fixed art direction in
+literal hexes with no `dark:` variants. That is `/about` and `/market` today;
+`/` is the fourth case and cannot be decided by path, since it serves the landing
+only to a visitor without the `kp_entered` cookie (the same signal `app/page.tsx`'s
+server gate reads). `app/shell-headers.test.ts` derives the set from the source
+tree and fails when the list falls behind it — which it had: `/market`
+(MarketPulse, 87 literal hexes) shipped outside the list, so a dark-preference
+visitor got `data-theme="dark"` over artwork that cannot follow. The other three
+indexed pages — `/trust`, `/privacy`, `/terms` — are fully token-based and
+correctly render in both themes.
+
+**4. The icon.** `app/icon.svg` is served at `/icon.svg?<hash>` and linked from every
+document, but browsers, feed readers and unfurlers probe the well-known
+`/favicon.ico` root path unprompted — which answered 404. `next.config.ts`
+`redirects()` sends it to `/icon.svg` (the static-file convention keeps the extension; the bare `/icon` route is the generated `icon.tsx` variant this app does not use), temporary rather than permanent so the icon
+convention can change without fighting a 308 cached in every visitor's browser.
+
 ## Pinned filenames
 
 These are imported by path from outside their owning directory (the shell or

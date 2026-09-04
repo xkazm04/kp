@@ -277,6 +277,41 @@ A new line on that ratchet is a hole waiting to be closed, never an exemption.
   allowlist in [`app/_lib/tenancy.ts`](../../app/_lib/tenancy.ts) is fail-closed
   — a new persistent table is a reported gap until it is scoped and listed.
 
+### 1.5b Response headers every route carries
+
+Two producers, deliberately split, because one of them cannot be static:
+
+| Producer | Headers | Why there |
+| --- | --- | --- |
+| [`next.config.ts`](../../next.config.ts) `headers()` | `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` | Same value for every request, so a build-time config holds them |
+| [`proxy.ts`](../../proxy.ts) `buildCsp()` | `Content-Security-Policy-Report-Only` | Carries a **per-request nonce**, which a build-time config cannot mint |
+
+**Never put a CSP back into `next.config.ts`.** Two `Content-Security-Policy`
+headers on one response are two policies *both* applying, and the effective
+result is neither author's.
+[`app/shell-headers.test.ts`](../../app/shell-headers.test.ts) fails if one
+reappears, and `e2e/shell.spec.ts` asserts exactly one arrives over the wire.
+
+**How the nonce reaches the markup.** `proxy()` mints 16 random bytes per
+request, sets the *forwarded request*'s `Content-Security-Policy` header (Next's
+renderer greps that header for `'nonce-…'` and stamps it onto every script it
+emits — framework bundles, the RSC payload's inline chunks) and an `x-nonce`
+request header, then sets the *response*'s report-only header. `app/layout.tsx`
+reads `x-nonce` for the one inline script this app writes by hand (the pre-paint
+theme bootstrap). Nothing else needs nonc­ing by hand. The policy deliberately
+does **not** use `'strict-dynamic'`: that would ignore the host allow-list and
+block the env-gated Plausible include.
+
+**Why it is still report-only, and what flipping it costs.** The policy is
+otherwise ready to enforce — `script-src` no longer carries `'unsafe-inline'`
+(the theme script was its only reason), and `frame-ancestors 'none'` is declared
+for the enforce day. Enforcement is an **owner decision, not an agent's**: a
+wrongly-enforced policy on `/interview/[token]` kills a candidate's live voice
+call, and a self-hosted voice deploy (`ELEVENLABS_BASE_URL` → your own origin)
+serves from a host `connect-src` does not yet name. To flip: verify report noise
+is clean in a real deploy, add any deploy-specific voice origin, then rename the
+header in `withCsp()` to `Content-Security-Policy`.
+
 ### 1.6 The checklist for a new route
 
 1. `jsonOk` / `safeJsonError` (+ a `STORE_ERRORS` code) / `jsonRefusal` (+ a
