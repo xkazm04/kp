@@ -1449,13 +1449,14 @@ the prose, and **nothing fails when the number goes backwards**.
 ```bash
 npm run bench:app-master     # the sweep
 npm run bench:gate           # the verdict
+npm run bench:gate -- --max-age-days 30   # a wider freshness window, on purpose
 ```
 
 [`gate.mjs`](../../../scripts/app-master-bench/gate.mjs) reads the newest
 `result.json` per scenario, compares it against the committed baseline
 [`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
 writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
-counts four things as a regression:
+counts six things as a regression:
 
 | | |
 | --- | --- |
@@ -1463,6 +1464,12 @@ counts four things as a regression:
 | run incomplete | `result.ok` is false; the failed phase is named |
 | expectation failed | any `expectations[].ok === false`, with its delta |
 | expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
+| `stub` | the run carries `personas.stub: true` — it ran against the in-process stub, so every number it holds is canned (see *Honesty properties* below). The gate was the one reader in the bench that never asked: a whole sweep against canned Personas used to exit 0 while the report beside it printed **EVERYTHING IT REPORTS IS CANNED**. |
+| `stale` | the newest run for that scenario finished *before* the baseline it is compared to was recorded (it cannot certify a bar raised after it), or it is older than `--max-age-days` (default **14**). A run whose `finishedAt` will not parse is undatable, and undatable is not fresh. |
+
+The verdict on a row names the dominant reason — a genuine `fail` outranks
+`stub`, which outranks `stale` — while `reason` still carries every problem
+found, so a row is never quietly re-labelled into something smaller.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
@@ -1479,8 +1486,9 @@ allowed — edit the baseline in the same change and say which number moved.
 - **`--stub-personas` numbers are canned.** The stub
   (`scripts/app-master-bench/stub.mjs`) is a port of the e2e mock plus the three
   routes P6a adds; it does not run an agent, gate a branch or spend a cent. Runs
-  against it are stamped `personas.stub: true` and the report marks the row.
-  They prove the driver's loop, nothing about the App master.
+  against it are stamped `personas.stub: true`, the report marks the row, and
+  **`bench:gate` refuses them** (verdict `stub`). They prove the driver's loop,
+  nothing about the App master.
 - **The driver pairs twice, on purpose.** kp's `pk_` key is stored encrypted
   server-side and never crosses the API, so the driver mints its **own**
   `personas:test` key for the tick calls (cached at
