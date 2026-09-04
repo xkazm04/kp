@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T12:57:48.333Z",
+  "generated_at": "2026-09-04T13:28:18.453Z",
   "provenance": {
-    "git_commit": "b9df97851c8be2db8b92341b895d8158dd597bb0",
-    "git_commit_count": 2709,
+    "git_commit": "6e29709efab18ea2739bdaf1f663eeac7fef3cda",
+    "git_commit_count": 2727,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T12:57:48.333Z"
+    "generated_at": "2026-09-04T13:28:18.453Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3172,
+    "files": 3181,
     "groups": 17,
     "use_cases": 12
   },
@@ -4640,9 +4640,11 @@
         "app/_lib/automation-pass.ts",
         "app/_lib/automation-roi.test.ts",
         "app/_lib/automation-roi.ts",
+        "app/_lib/automation-run.test.ts",
         "app/_lib/automation-run.ts",
         "app/_lib/pull-pass.test.ts",
         "app/_lib/pull-pass.ts",
+        "app/api/automation/[task]/route.test.ts",
         "app/api/automation/[task]/route.ts",
         "app/api/automation/run/route.test.ts",
         "app/api/automation/run/route.ts",
@@ -7085,7 +7087,10 @@
       "entry_points": [],
       "file_paths": [
         "app/_dev-inspector/DevInspector.tsx",
+        "app/_dev-inspector/DevInspectorImpl.tsx",
+        "app/_dev-inspector/dev-inspector-bundle.test.ts",
         "app/_dev-inspector/devInspectorUi.tsx",
+        "app/_dev-inspector/devLocate.test.ts",
         "app/_dev-inspector/devLocate.ts",
         "app/_lib/og-fonts.test.ts",
         "app/_lib/og-fonts.ts",
@@ -7093,9 +7098,13 @@
         "app/_lib/trust-posture.test.ts",
         "app/_lib/trust-posture.ts",
         "i18n/actions.ts",
+        "i18n/cookie.ts",
+        "i18n/locales.test.ts",
         "i18n/locales.ts",
         "i18n/request.ts",
-        "i18n/server.ts"
+        "i18n/server.ts",
+        "i18n/testing/next-headers-hooks.mjs",
+        "i18n/testing/next-headers-shim.mjs"
       ],
       "group": "Platform Infrastructure",
       "group_id": "7345227e-e0bc-493c-a48c-c5106a902f7b",
@@ -7500,10 +7509,12 @@
         "pipeline/jobfit/eval/voice/app_client.py",
         "pipeline/jobfit/eval/voice/audio.py",
         "pipeline/jobfit/eval/voice/el_ws.py",
+        "pipeline/jobfit/eval/voice/seal.py",
         "pipeline/jobfit/eval/voice/session_runner.py",
         "pipeline/jobfit/eval/voice/tts.py",
         "pipeline/jobfit/eval/voice/v0_smoke.py",
-        "pipeline/jobfit/eval/voice/wer.py"
+        "pipeline/jobfit/eval/voice/wer.py",
+        "pipeline/jobfit/tests/test_app_client.py"
       ],
       "group": "Voice Interviews",
       "group_id": "bb3f4552-04d4-4db1-a434-a7796f3c566e",
