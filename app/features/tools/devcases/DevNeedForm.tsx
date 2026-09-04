@@ -56,7 +56,7 @@ export function NeedForm({
         {jds.length === 0 ? (
           <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
             No JDs saved.{" "}
-            <Link href="/?tab=library" className="font-semibold text-coral underline-offset-2 hover:underline">
+            <Link href="/?tab=intake" className="font-semibold text-coral underline-offset-2 hover:underline">
               Save one
             </Link>{" "}
             in the library first — the role and case are designed from it.

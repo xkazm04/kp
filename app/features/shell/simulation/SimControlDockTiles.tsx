@@ -6,13 +6,20 @@
 // error pass strip (AUTO3 look-before-commit). The guided-demo tile that used to
 // live here moved to SimControlDockRail.tsx when round 3 consolidated the demo's
 // two entry points into the ONE button outside the panel's right border.
-import { Check, X, type LucideIcon } from "lucide-react";
+import { Check, ChevronDown, X, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import type { useAutomationPass, PassSummary } from "./simControlCenterKit";
 
 // The Candi power switch. Same element raises the deck (collapsed) and lowers it
 // (expanded) — the one show/hide control the whole variant hangs off.
+//
+// Round 5 makes that sameness legible. The switch used to sit at the row's LEFT
+// edge while the collapsed orb sits bottom-CENTRE, so the one control that owns
+// open/close appeared to move across the screen when it was pressed; the mark is
+// now the dock's top-centre handle (DockBrand), directly above where the orb
+// rests. The chevron badge is the other half of that: identical marks in nearly
+// the same place need one glyph to say which direction this press goes.
 export function CandiSwitch({ open, onClick, busy }: { open: boolean; onClick: () => void; busy: boolean }) {
   const t = useTranslations("pipeline.controlCenter");
   return (
@@ -21,9 +28,17 @@ export function CandiSwitch({ open, onClick, busy }: { open: boolean; onClick: (
       onClick={onClick}
       aria-label={open ? t("close") : t("open")}
       aria-expanded={open}
+      title={open ? t("close") : t("open")}
       className="focus-ring group relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border-2 border-stone-300 bg-white shadow-sticker-sm transition-colors hover:border-coral/50"
     >
       <KandidateMark className="h-7 w-7 text-ink [--k-fg:var(--color-paper)] [--k-accent:var(--color-coral)]" />
+      {open ? (
+        // "Press me to lower the deck" — on the bottom edge, pointing the way the
+        // dock travels. Decorative: the button already carries the close label.
+        <span className="absolute -bottom-2 grid h-4 w-4 place-items-center rounded-full border border-stone-300 bg-white text-steel transition-transform group-hover:translate-y-0.5 motion-reduce:transition-none">
+          <ChevronDown size={11} aria-hidden />
+        </span>
+      ) : null}
       {busy ? (
         <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-coral ring-2 ring-white motion-safe:animate-pulse" />
       ) : null}

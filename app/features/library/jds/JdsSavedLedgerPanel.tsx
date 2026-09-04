@@ -9,11 +9,10 @@ import { JdsLedgerTable } from "./JdsLedgerTable";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
 
-// The "Saved" tab body (coach-handoff trace, ingested-confirmation banner, and
-// the table) — extracted verbatim from JdsSavedLedger.tsx so that file stays
-// under the 200-line split threshold.
+// The library page's body (coach-handoff trace, ingested-confirmation banner, and
+// the table) — extracted from JdsSavedLedger.tsx so that file stays under the
+// 200-line split threshold.
 export function JdsSavedLedgerPanel({
-  active,
   rows,
   error,
   reload,
@@ -45,7 +44,6 @@ export function JdsSavedLedgerPanel({
   onStartGenerate,
   t,
 }: {
-  active: boolean;
   rows: JdRow[] | null;
   error: string | null;
   reload: () => void;
@@ -78,7 +76,10 @@ export function JdsSavedLedgerPanel({
   t: ReturnType<typeof useTranslations<"library.tab">>;
 }) {
   return (
-    <div className={active ? "mt-5" : "hidden"} aria-busy={rows == null && !error}>
+    // The library page IS this panel now (the Saved/Generate/Intake strip moved to
+    // the Job-intake tab), so there is no shown/hidden state left to animate — the
+    // tab's own entrance carries it.
+    <div aria-busy={rows == null && !error}>
       {coachTrace ? (
         <CoachHandoffTrace
           cause={coachTrace}

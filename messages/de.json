@@ -2033,7 +2033,8 @@
       "organization": "Organisation",
       "workspace": "Workspaces",
       "agents": "Agenten",
-      "activity": "Aktivität"
+      "activity": "Aktivität",
+      "intake": "Stellen-Intake"
     },
     "groups": {
       "hiring": "Recruiting",
@@ -2748,7 +2749,7 @@
   "decisions": {
     "eyebrow": "Entscheidungen",
     "title": "Ihre Entscheidungswarteschlange",
-    "intro": "Der Schritt mit menschlicher Kontrolle, nach Stelle gruppiert. Klicken Sie auf einen Kandidaten, um dessen Analysezusammenfassung zu sehen, oder starten Sie eine Gruppenbewertung, um die Kandidaten einer Stelle zu vergleichen. Interview-Termine finden Sie unter <schedule>Planung</schedule>.",
+    "intro": "Der Schritt mit menschlicher Kontrolle, nach Stelle gruppiert.",
     "filterTitle": "Entscheidungen auf eine geöffnete Stellenbeschreibung filtern",
     "govModeTitle": "Governance der Gruppenbewertung: wie der AI-Vergleich verwendet wird",
     "govRecommendation": "AI-Empfehlung",
@@ -2815,7 +2816,6 @@
     "loadFailed": "Laden fehlgeschlagen.",
     "unassignedRole": "Nicht zugewiesene Stelle",
     "evalLoadFailed": "Die gespeicherte Bewertung dieser Stelle konnte nicht geladen werden. Führen Sie sie erneut aus, um die Kandidaten zu vergleichen.",
-    "match": "Match",
     "recAria": "Empfehlung: {label}",
     "recAriaConfidence": "Empfehlung: {label}, {confidence} % Konfidenz",
     "recConfidenceSuffix": "{label} · {confidence} %",
@@ -3646,7 +3646,16 @@
           "niceToHave": "Wünschenswert",
           "learnable": "erlernbar",
           "languages": "Sprachen",
-          "context": "Kontext"
+          "context": "Kontext",
+          "groups": {
+            "general": "Kontext",
+            "codebase_dossier": "Aus dem Code gelesen",
+            "mandate": "Mandat",
+            "objective": "Ziele",
+            "budget": "Budget",
+            "tenure": "Laufzeit",
+            "role": "Rollen-Setup"
+          }
         },
         "provenance": {
           "stated": "Ihre Aussage",
@@ -3705,10 +3714,7 @@
           "materials": "Unterlagen"
         },
         "draft": {
-          "title": "Entwurf der Stellenbeschreibung",
-          "workingChip": "Arbeitsentwurf",
-          "workingNote": "Entsteht laufend aus dem Briefing, während Sie sprechen. Die finale Stellenbeschreibung (inkl. Gehaltsrecherche) wird bei „Stellenbeschreibung erstellen“ generiert.",
-          "workingNoteNoMarket": "Entsteht laufend aus dem Briefing, während Sie sprechen. Die finale Anzeige wird bei „Stellenbeschreibung erstellen“ generiert, ohne Gehaltsrecherche, wie von Ihnen gewählt.",
+          "workingChip": "Entwurf",
           "supersedeNote": "Eine bestehende Anzeige ist angehängt. Die Erstellung aus diesem Briefing erzeugt die aktualisierte Fassung.",
           "empty": "Der Entwurf erscheint hier, sobald das Briefing einen Titel oder Anforderungen hat.",
           "untitled": "Unbenannte Rolle",
@@ -3844,6 +3850,17 @@
           "dispatchError": "Das Senden ist fehlgeschlagen. Es wurde nichts eingestellt.",
           "dispatchHuman": "Diese Spezifikation ist für einen menschlichen Rolleninhaber verfasst. Überführen Sie sie stattdessen in eine Stellenbeschreibung.",
           "dispatchNeedsPairing": "Koppeln Sie Kandi unter Einstellungen → Integrationen mit Personas, um zu entsenden."
+        },
+        "table": {
+          "role": "Rolle",
+          "shape": "Typ",
+          "status": "Status",
+          "turns": "Nachrichten",
+          "updated": "Aktualisiert",
+          "open": "Öffnen",
+          "openSession": "Intake für {title} öffnen",
+          "noMatch": "Keine Sitzung entspricht diesen Filtern.",
+          "clear": "Filter zurücksetzen"
         }
       }
     },
@@ -4002,25 +4019,26 @@
         "offer_note": "Hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
         "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview."
       }
+    },
+    "intakeTab": {
+      "eyebrow": "Arbeitsbereich",
+      "title": "Stellen-Intake",
+      "intro": "Beginnen Sie eine Stelle im Gespräch. Ein kurzer geführter Dialog erfasst, was Sie wirklich brauchen, und entwirft daraus die Stellenbeschreibung. Text schon vorhanden? Übergeben Sie ihn unter „Generieren“.",
+      "modeLabel": "Wie starten",
+      "modeIntake": "Intake-Dialog",
+      "modeGenerate": "Generieren",
+      "toLibrary": "Stellenbeschreibungen"
     }
   },
   "jobs": {
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Stellenkorpus",
-      "intro": "Die strukturierte Stellendatenbank, mit der die Matching-Engine arbeitet. Jede Anzeige wird in Muss- und Kann-Anforderungen zerlegt (jeweils als Voraussetzung oder erlernbar markiert) und trägt eine vorab berechnete <strong>Absolvent/innen-Perspektive</strong>: das Kennzeichen der Einstiegs-Eignung und neu interpretierte Anforderungen, mit denen sich Studierendenprofile mit erfahrungsorientierten Anzeigen vergleichen lassen.",
+      "intro": "Die strukturierte Stellendatenbank, mit der die Matching-Engine arbeitet.",
       "statTotal": "Gesamt",
       "statEntryEligible": "Einstiegsgeeignet",
-      "allFamilies": "Alle Familien",
-      "filterFamily": "Nach Berufsfamilie filtern",
-      "allSeniority": "Alle Senioritäten",
-      "filterSeniority": "Nach Seniorität filtern",
-      "allModes": "Alle Arbeitsmodelle",
-      "filterWorkMode": "Nach Arbeitsmodell filtern",
       "entryOnly": "Nur einstiegsgeeignet",
       "openOnly": "Nur offene Stellen",
-      "searchLabel": "Stellen nach Titel oder Unternehmen suchen",
-      "searchPlaceholder": "Titel oder Unternehmen suchen…",
       "showing": "<b>{shown}</b> von <b>{total}</b> Stellen",
       "clearAll": "Zurücksetzen",
       "noRolesTitle": "Keine Stellen für diese Filter",
@@ -4037,9 +4055,9 @@
         "route1Title": "Aus einer Stellenbeschreibung entwerfen",
         "route1Body": "Wählen Sie eine Stellenbeschreibung in der Bibliothek, passen Sie die Anforderungen an und veröffentlichen Sie sie als offene Stelle.",
         "route1Cta": "Stellenbeschreibungen öffnen",
-        "route2Title": "Vorhandene Anzeige importieren",
-        "route2Body": "Fügen Sie eine bestehende Stellenanzeige ein, und Kandi macht daraus eine strukturierte Stelle: Anforderungen, Seniorität, Arbeitsmodell.",
-        "route2Cta": "Import-Panel oben verwenden",
+        "route2Title": "Vorhandene Stelle importieren",
+        "route2Body": "Fügen Sie eine bestehende Stellenausschreibung ein, und Kandi macht daraus eine strukturierte Stelle: Anforderungen, Seniorität, Arbeitsmodell.",
+        "route2Cta": "„Stelle importieren“ in der Kopfzeile verwenden",
         "unlocksLabel": "Eine Stelle schaltet frei",
         "unlockChannels": "Kanäle offen",
         "unlockPipeline": "Kandidat/innen kommen an",
@@ -4065,22 +4083,22 @@
       "statusClosed": "Geschlossen"
     },
     "ingest": {
-      "minChars": "Fügen Sie die vollständige Stellenanzeige ein, mindestens ~{min} Zeichen.",
+      "minChars": "Fügen Sie die vollständige Stellenausschreibung ein, mindestens ~{min} Zeichen.",
       "ingestFailedStatus": "Einlesen fehlgeschlagen ({status}).",
       "defaultTitle": "Stelle",
       "added": "„{title}“ zum Katalog hinzugefügt.",
       "alreadyExists": "„{title}“ ist bereits im Katalog. Die vorhandene Stelle wurde geöffnet.",
       "ingestFailed": "Einlesen fehlgeschlagen.",
-      "pasteAd": "Stellenanzeige einfügen",
-      "pasteIntro": "Fügen Sie die vollständige Anzeige als Fließtext ein. Sie wird in eine strukturierte, abgleichbare Stelle zerlegt (Muss- und Kann-Anforderungen, Seniorität, Absolvent/innen-Perspektive) und dem Korpus hinzugefügt. Duplikate werden automatisch erkannt.",
-      "pastePlaceholder": "Text der Stellenanzeige hier einfügen…",
-      "parsing": "Anzeige wird analysiert…",
+      "pasteAd": "Stelle importieren",
+      "pasteIntro": "Fügen Sie die vollständige Ausschreibung als Fließtext ein. Sie wird in eine strukturierte, abgleichbare Stelle zerlegt (Muss- und Kann-Anforderungen, Seniorität, Absolvent/innen-Perspektive) und dem Korpus hinzugefügt. Duplikate werden automatisch erkannt.",
+      "pastePlaceholder": "Text der Stellenausschreibung hier einfügen…",
+      "parsing": "Stelle wird analysiert…",
       "addToCatalog": "Zum Katalog hinzufügen",
       "cancel": "Abbrechen",
       "parsingNote": "Die Analyse läuft lokal über die Claude CLI, das kann einen Moment dauern.",
-      "bulkToggle": "Mehrere Anzeigen",
-      "bulkHint": "trennen Sie jede Anzeige mit einer Zeile aus ---",
-      "bulkPlaceholder": "Fügen Sie mehrere Stellenanzeigen ein, jeweils getrennt durch eine Zeile aus Bindestrichen (---)…",
+      "bulkToggle": "Mehrere Stellen",
+      "bulkHint": "trennen Sie jede Stelle mit einer Zeile aus ---",
+      "bulkPlaceholder": "Fügen Sie mehrere Stellenausschreibungen ein, jeweils getrennt durch eine Zeile aus Bindestrichen (---)…",
       "importAll": "Alle importieren ({count})",
       "importing": "Import läuft {done}/{total}…",
       "bulkDone": "{added} hinzugefügt · {exists} bereits im Katalog · {failed} fehlgeschlagen",
@@ -4089,19 +4107,21 @@
       "resFailed": "nicht lesbar",
       "cancelRun": "Lauf abbrechen",
       "cancelled": "Analyse abgebrochen. Es wurde nichts hinzugefügt.",
-      "bulkCancelled": "Abgebrochen nach {done} von {total} Anzeigen. Die bisherigen Ergebnisse bleiben unten stehen."
+      "bulkCancelled": "Abgebrochen nach {done} von {total} Stellen. Die bisherigen Ergebnisse bleiben unten stehen.",
+      "pasteHeading": "Eine Stelle importieren"
     },
     "drafts": {
       "heading": "Entwürfe, die auf Sourcing warten",
       "draftBadge": "Entwurf",
-      "sourceTitle": "Diese Stellenbeschreibung live schalten und passende Kandidat/innen in die Pipeline sourcen",
-      "sourcing": "Sourcing…",
-      "sourceIntoPipeline": "In die Pipeline sourcen",
+      "sourceTitle": "Diese Stelle veröffentlichen und passende Kandidat/innen in die Pipeline sourcen",
+      "sourcing": "Wird veröffentlicht…",
+      "sourceIntoPipeline": "Veröffentlichen",
       "sourcingFailed": "Sourcing fehlgeschlagen.",
       "publishedButFailed": "Veröffentlicht, aber Sourcing fehlgeschlagen: {warning}",
       "sourced": "{count, plural, one {# Kandidat/in in die Pipeline gesourct.} other {# Kandidat/innen in die Pipeline gesourct.}}",
       "quotaNote": "Sie haben das Limit aktiver Stellen Ihres Tarifs erreicht. Führen Sie ein Upgrade durch oder schließen Sie eine Stelle, um eine weitere zu veröffentlichen.",
-      "goToBilling": "Upgrade in der Abrechnung"
+      "goToBilling": "Upgrade in der Abrechnung",
+      "published": "„{title}“ ist live."
     },
     "posting": {
       "copied": "Kopiert",
@@ -8006,7 +8026,8 @@
       "refreshUnchanged": "Keine Änderung: Personas meldet weiterhin „{status}“.",
       "refreshFailed": "kp war für die Aktualisierung dieses Agenten nicht erreichbar. Bitte erneut versuchen.",
       "refreshUnpollable": "Personas hat für diesen Agenten keinen neuen Status geliefert. Prüfen Sie die Personas-App oder die Verbindung unter Einstellungen → Integrationen."
-    }
+    },
+    "inDevelopment": "In Entwicklung"
   },
   "simulation": {
     "status": {

@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { withEditProvenance } from "@/app/_lib/brief-edit";
 import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, FIELD } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
+import { ProvenanceDot } from "./JdsIntakeBriefAtoms";
 
-// The brief's ROLE row — title + seniority, each with its provenance chip, and
+// The brief's ROLE row — title + seniority, each with its provenance dot, and
 // a three-second title correction.
 //
 // UAT L1-TOM-2: spineProvenance.title is tracked end-to-end by the engine and
@@ -18,13 +19,6 @@ import type { RoleBrief } from "@/app/_lib/rolespec";
 // (guardrail G1); it does not alter it. A typed title is `stated` by
 // definition, and withEditProvenance flips only the fields that actually
 // changed, so the correction cannot launder the rest of the brief.
-
-export function ProvenanceChip({ provenance }: { provenance?: string }) {
-  const t = useTranslations("library.tab.intake.provenance");
-  if (provenance === "stated") return <span className={`${CHIP_QUIET} text-moss`}>{t("stated")}</span>;
-  if (provenance === "inferred") return <span className={`${CHIP_QUIET} text-coral`}>{t("inferred")}</span>;
-  return <span className={CHIP_QUIET}>{t("default")}</span>;
-}
 
 export function JdsIntakeBriefTitle({
   brief,
@@ -78,8 +72,11 @@ export function JdsIntakeBriefTitle({
     <div className="flex flex-wrap items-center gap-2 text-body text-ink">
       <span>{brief?.title || "—"}</span>
       {/* Spine provenance (UAT L1-TOM-2): the most prominent value on the
-          surface was the only one without its chip. Missing key = default. */}
-      {brief?.title ? <ProvenanceChip provenance={brief?.spineProvenance?.title ?? "default"} /> : null}
+          surface was the only one without its reading. Missing key = default.
+          A DOT, not a chip: the panel states the vocabulary once in its legend
+          (JdsIntakeBriefAtoms), and the title row is the one place that still
+          spelled a provenance out in words. */}
+      {brief?.title ? <ProvenanceDot provenance={brief?.spineProvenance?.title ?? "default"} /> : null}
       {canEdit ? (
         <button
           type="button"
@@ -97,7 +94,7 @@ export function JdsIntakeBriefTitle({
           <span className={CHIP_QUIET}>{brief.seniority}</span>
           {/* Spine provenance (UAT L1-CONV-3): a defaulted seniority must
               read as "assumed", never as captured. Missing key = default. */}
-          <ProvenanceChip provenance={brief?.spineProvenance?.seniority ?? "default"} />
+          <ProvenanceDot provenance={brief?.spineProvenance?.seniority ?? "default"} />
         </>
       ) : null}
     </div>

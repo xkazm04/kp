@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { BTN_GHOST, CHIP_QUIET, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
 import { JdsIntakeBriefEdit } from "./JdsIntakeBriefEdit";
-import { JdsIntakeBriefTitle, ProvenanceChip } from "./JdsIntakeBriefTitle";
+import { JdsIntakeBriefBody } from "./JdsIntakeBriefBody";
 
 // The live brief — the surface's signature moment: the requestor WATCHES the
 // structure being built while they talk. Every value carries its provenance
@@ -15,85 +15,19 @@ import { JdsIntakeBriefTitle, ProvenanceChip } from "./JdsIntakeBriefTitle";
 // (click → the chat scrolls to and flashes that bubble). Editable in place
 // (UAT drain §2.1) unless the session was promoted — then the JD exists and
 // the brief is frozen.
-
-function TurnChip({ turn, onJump }: { turn?: number | null; onJump?: (turn: number) => void }) {
-  const t = useTranslations("library.tab.intake.defense");
-  if (turn == null) return null;
-  return (
-    <button
-      type="button"
-      className={`${CHIP_QUIET} focus-ring hover:text-ink`}
-      onClick={onJump ? () => onJump(turn) : undefined}
-      title={`${t("fromTurn")} ${turn}`}
-    >
-      {t("fromTurn")} [{turn}]
-    </button>
-  );
-}
-
-function RequirementRow({
-  r,
-  learnableLabel,
-  onJump,
-}: {
-  r: NonNullable<RoleBrief["requirements"]>[number];
-  learnableLabel: string | null;
-  onJump?: (turn: number) => void;
-}) {
-  const t = useTranslations("library.tab.intake.defense");
-  return (
-    <details className="group">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-body text-ink">
-        <span>{r.skill}</span>
-        {learnableLabel ? <span className={CHIP_QUIET}>{learnableLabel}</span> : null}
-        <ProvenanceChip provenance={r.provenance} />
-        <TurnChip turn={r.sourceTurn} onJump={onJump} />
-        <span className="text-meta text-steel opacity-0 transition-opacity group-open:opacity-100 group-hover:opacity-100">
-          {t("details")}
-        </span>
-      </summary>
-      <div className="mt-1 pl-1 text-meta text-steel">
-        {`${t("weight")} ${Math.round((r.weight ?? 0) * 100)}% · ${t("confidence")} ${Math.round((r.confidence ?? 0) * 100)}% — ${
-          r.rationale || t("rationaleNone")
-        }`}
-      </div>
-    </details>
-  );
-}
-
-/** A facet's grading, shown only when the reading is UNCERTAIN.
- *
- *  Requirements have carried weight + confidence since the defensibility pass
- *  (RequirementRow below); facets never did, and one producer depends on them
- *  doing so. `_dossier_facet` in pipeline/jobfit/intake.py grades an App-master
- *  codebase facet 0.8 when Claude Code read the repo and 0.6 when a heuristic
- *  file-walk did, under a comment saying "a heuristic file-walk is a weaker
- *  reading than Claude Code in the repo, and the confidence the panel chips must
- *  say so". The chips could not: both readings are provenance `inferred` by
- *  construction (never "stated" - a machine read this), so the panel rendered the
- *  same chip for both and the number had no consumer.
- *
- *  Confidence 1 renders nothing. A stated value the requestor said out loud is
- *  the common case, and a "100%" chip on every line is noise that would bury the
- *  one number that carries information. */
-function ConfidenceChip({ confidence }: { confidence?: number | null }) {
-  const t = useTranslations("library.tab.intake.defense");
-  if (confidence == null || confidence >= 1) return null;
-  return (
-    <span className={`${CHIP_QUIET} text-steel`} title={t("confidence")}>
-      {t("confidence")} {Math.round(confidence * 100)}%
-    </span>
-  );
-}
-
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className={META_LABEL}>{label}</div>
-      <div className="mt-1.5 space-y-1.5">{children}</div>
-    </div>
-  );
-}
+//
+// This file is the FRAME — the header, the edit/frozen states, the App-master
+// slot and the empty state; JdsIntakeBriefBody.tsx draws the brief itself and
+// jdsIntakeBriefModel.ts owns what counts as a duplicate.
+//
+// The body is "Annotated", the winner of a /prototype round run against the
+// shipped flat sections and a ranked "Scorecard" (both deleted at consolidation,
+// along with the switcher between them). What it changed: one reading column of
+// bulleted sentences with the evidence in a fixed right-hand margin, the
+// provenance vocabulary stated once as a legend instead of a chip per line, and
+// context facets grouped, graded and de-duplicated — the engine emits the 90-day
+// sentence twice (once as a success criterion, once as a facet) and the flat
+// list printed both.
 
 export function JdsIntakeBriefPanel({
   brief,
@@ -101,8 +35,8 @@ export function JdsIntakeBriefPanel({
   saving,
   onSaveBrief,
   onJumpToTurn,
-  // Prototype layouts carry their own column header — suppress the inner title
-  // so "Živé zadání" doesn't render twice (the edit affordance stays).
+  // The Triptych leaf carries its own header — suppress the inner title so
+  // "Živé zadání" doesn't render twice (the edit affordance stays).
   showTitle = true,
   appMasterSlot,
 }: {
@@ -129,6 +63,7 @@ export function JdsIntakeBriefPanel({
   const empty =
     !brief ||
     (!brief.title && musts.length === 0 && nices.length === 0 && (brief.successCriteria ?? []).length === 0 && (brief.facets ?? []).length === 0);
+  const bodyProps = { brief, musts, nices, frozen, saving, onSaveBrief, onJumpToTurn };
 
   return (
     <div className={`${PANEL_SUNKEN} h-full space-y-5 p-4`}>
@@ -158,51 +93,7 @@ export function JdsIntakeBriefPanel({
           onCancel={() => setEditing(false)}
         />
       ) : (
-        <>
-          <Section label={t("role")}>
-            {/* Title + seniority, each chipped, with inline title correction
-                (UAT L1-TOM-2 / L1-CONV-3) — see JdsIntakeBriefTitle. */}
-            <JdsIntakeBriefTitle brief={brief} frozen={frozen} saving={saving} onSaveBrief={onSaveBrief} />
-          </Section>
-          {(brief?.successCriteria ?? []).length > 0 ? (
-            <Section label={t("outcomes")}>
-              {(brief?.successCriteria ?? []).map((s, i) => (
-                <div key={i} className="text-body text-ink">
-                  {s}
-                </div>
-              ))}
-            </Section>
-          ) : null}
-          {musts.length > 0 ? (
-            <Section label={t("dealbreakers")}>
-              {musts.map((r, i) => (
-                <RequirementRow key={i} r={r} learnableLabel={r.hardness === "learnable" ? t("learnable") : null} onJump={onJumpToTurn} />
-              ))}
-            </Section>
-          ) : null}
-          {nices.length > 0 ? (
-            <Section label={t("niceToHave")}>
-              {nices.map((r, i) => (
-                <RequirementRow key={i} r={r} learnableLabel={null} onJump={onJumpToTurn} />
-              ))}
-            </Section>
-          ) : null}
-          {(brief?.languages ?? []).length > 0 ? (
-            <Section label={t("languages")}>
-              <div className="text-body text-ink">{(brief?.languages ?? []).join(", ")}</div>
-            </Section>
-          ) : null}
-          {(brief?.facets ?? []).length > 0 ? (
-            <Section label={t("context")}>
-              {(brief?.facets ?? []).map((f, i) => (
-                <div key={i} className="text-body text-ink">
-                  <span className="text-steel">{f.label || f.key}:</span> {f.value} <ProvenanceChip provenance={f.provenance} />{" "}
-                  <ConfidenceChip confidence={f.confidence} /> <TurnChip turn={f.sourceTurn} onJump={onJumpToTurn} />
-                </div>
-              ))}
-            </Section>
-          ) : null}
-        </>
+        <JdsIntakeBriefBody {...bodyProps} />
       )}
     </div>
   );

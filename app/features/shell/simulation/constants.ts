@@ -113,7 +113,7 @@ if (SIM_SCREEN_POLICY.inboundScoreFloor <= SIM_SCREEN_POLICY.screenWaveOverride.
 export type SimPhaseId = "design" | "source" | "match" | "screen" | "interview" | "offer" | "hired";
 
 export const SIM_PHASES: { id: SimPhaseId; tab: string }[] = [
-  { id: "design", tab: "library" },
+  { id: "design", tab: "intake" },
   { id: "source", tab: "jobs" },
   { id: "match", tab: "channels" },
   { id: "screen", tab: "analytics" },

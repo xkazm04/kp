@@ -1,11 +1,16 @@
-// State + derived data for LibrarySavedJdsLedger.tsx — extracted verbatim (no
-// behaviour change) so the ledger file stays under the 200-line split threshold.
-// Owns: the library fetch + analyzing poll, the saved/generate tab + Duplicate
-// prefill handoff, the winnability-coach one-shot deep link, and the
-// search/field/seniority/status filter state + derived option lists.
+// State + derived data for LibrarySavedJdsLedger.tsx — extracted so the ledger
+// file stays under the 200-line split threshold. Owns: the library fetch +
+// analyzing poll, the Duplicate handoff to the Job-intake tab, the
+// winnability-coach one-shot deep link, and the search/field/seniority/status
+// filter state + derived option lists.
+//
+// The sub-tab state that used to live here went with the authoring panels
+// (JdsIntakeTab.tsx). What is left of the Duplicate handoff is a NAVIGATION: the
+// builder is no longer on this page, so the source slug rides the URL
+// (?tab=intake&duplicate=<slug>) and the destination does the read.
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -20,15 +25,14 @@ import {
   STATUS_FILTERS,
   JD_SORT_ACCESSORS,
   type CoachHandoffBlock,
-  type GeneratePrefill,
   type JdRow,
   type JdSortCol,
   type StatusFilter,
 } from "./jdsLibrary";
 import { parseCoachEditParam, COACH_EDIT_PARAM, type CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
-import { duplicateToBuilder, type LedgerNavState } from "./jdsLedgerNav";
+import { buildUrl } from "@/app/features/shell/tabs";
+import { DUPLICATE_PARAM } from "./jdsIntakeTabEntry";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
-import { readIntentPrompt } from "./jdsLedgerArtifacts";
 
 export function useLedgerLogic() {
   const t = useTranslations("library.tab");
@@ -44,11 +48,7 @@ export function useLedgerLogic() {
     const id = setInterval(refresh, 3500);
     return () => clearInterval(id);
   }, [hasAnalyzing, refresh]);
-  // #2 — both sub-panels stay mounted; `nav.tab` toggles which is visible and
-  // `nav.builderKey` is the builder's React key. A manual tab switch keeps the key
-  // (draft preserved), Duplicate advances it (remount → re-reads prefill).
-  // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #2)
-  const [nav, setNav] = useState<LedgerNavState>({ tab: "saved", builderKey: 0 });
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -99,41 +99,23 @@ export function useLedgerLogic() {
     effectiveOpenRow && coachEdit && !coachDismissed && !openRow && effectiveOpenRow.slug === coachEdit.slug
       ? coachEdit
       : null;
-  const [prefill, setPrefill] = useState<GeneratePrefill | null>(null);
   const [duplicating, setDuplicating] = useState<string | null>(null);
 
-  // Duplicate: seed the Generate form with the source role's known fields (title,
-  // company, seniority, field) AND, as the "Describe the need" starting content,
-  // the recruiter's ORIGINAL prompt when the JD carries one (Generated roles now
-  // persist it) — so regeneration designs from the intent, not the rendered
-  // markdown. Legacy rows (draft saves / pre-migration builds) fall back to the
-  // full body, then the truncated preview. Fetched (the list carries only a
-  // preview). Prefill is cleared on a manual tab switch (below), so it's one-shot.
-  const startDuplicate = async (row: JdRow) => {
+  // Duplicate: open the Job-intake tab's builder seeded from this role. The two
+  // surfaces no longer share a page, so the handoff is a deep link carrying the
+  // SLUG (?duplicate=) and JdsIntakeTab does the `?intent=1` read — which is what
+  // keeps a regenerated role designing from the recruiter's ORIGINAL prompt rather
+  // than from the rendered markdown. `duplicating` still latches so the row's
+  // spinner shows for the frame before the navigation commits.
+  const startDuplicate = (row: JdRow) => {
     if (duplicating) return;
     setDuplicating(row.slug);
-    let need = "";
-    try {
-      const src = (await fetch(`/api/jds/${encodeURIComponent(row.slug)}?intent=1`).then((r) => r.json())) as
-        | { body?: string; build_input_json?: string | null }
-        | null;
-      const prompt = readIntentPrompt(src?.build_input_json);
-      need = prompt || (typeof src?.body === "string" ? src.body : row.preview ?? "");
-    } catch {
-      need = row.preview ?? "";
-    }
-    setPrefill({
-      title: row.title,
-      company: row.company ?? undefined,
-      seniority: row.seniority ?? undefined,
-      roleFamily: row.roleFamily ?? undefined,
-      need,
-    });
-    setDuplicating(null);
     setOpenRow(null);
-    // Advance builderKey so the (already-mounted) builder remounts with this prefill.
-    setNav((s) => duplicateToBuilder(s));
+    router.push(buildUrl({ tab: "intake", [DUPLICATE_PARAM]: row.slug }, search.toString()));
   };
+
+  /** "Write a new one" — the empty state's CTA and the ledger's route into authoring. */
+  const goToIntake = () => router.push(buildUrl({ tab: "intake" }, search.toString()));
 
   const counts = useMemo(() => (rows ? statusCounts(rows) : null), [rows]);
   // Two stages, deliberately: filterAndSortJds still owns FILTERING (and supplies
@@ -218,8 +200,6 @@ export function useLedgerLogic() {
     rows,
     error,
     reload,
-    nav,
-    setNav,
     query,
     setQuery,
     searchOpen,
@@ -241,10 +221,9 @@ export function useLedgerLogic() {
     effectiveOpenRow,
     coachTrace,
     stagedForOpenRow,
-    prefill,
-    setPrefill,
     duplicating,
     startDuplicate,
+    goToIntake,
     visible,
     sort,
     onSort,

@@ -109,14 +109,6 @@ export function Meta({ k, v }: { k: string; v: string }) {
   );
 }
 
-export function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th scope="col" className="px-4 py-3 text-left text-sm font-semibold uppercase tracking-wide text-steel">
-      {children}
-    </th>
-  );
-}
-
 export function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-4 py-3 text-base text-ink ${className}`}>{children}</td>;
 }

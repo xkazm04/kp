@@ -6,8 +6,13 @@
 // now is:
 //
 //   - the header renders exactly ONE fit number, resolved through the canonical
-//     read path (canonicalScoreOf/provenanceOf, app/_lib/match-score.ts) inside
-//     CandidateHead, with its provenance labeled (ScoreProvenanceLabel);
+//     read path (canonicalScoreOf/provenanceOf, app/_lib/match-score.ts), and it
+//     names its provenance. 2026-09: that number moved OUT of CandidateHead into
+//     the card's own header corner (beside the verdict), and its provenance moved
+//     from a printed label to the badge's tooltip — the label cost a line on every
+//     card and the score cost the role line half its width. The contract is
+//     unchanged in substance: ONE number, canonically resolved, saying where it
+//     came from; only its owner moved, so the assertions follow it;
 //   - the pricing basis is a genuinely different producer and renders ONLY
 //     under its own label (the `pricingBasis` catalog key reading the
 //     structured `matchBasis` field) — never as bare prose "Match N/100".
@@ -33,24 +38,31 @@ const head = read(path.join(DIR, "DecisionsShared.tsx"));
 const cardBody = read(path.join(DIR, "DecisionsAiReviewCardBody.tsx"));
 const cardLogic = read(path.join(DIR, "decisionsAiReviewCardLogic.ts"));
 
-test("the offer card's fit number renders only via CandidateHead — no second score renderer in AiReviewCard", () => {
-  assert.ok(card.includes("<CandidateHead"), "the card renders the candidate head (the one score slot)");
-  assert.ok(!/ScoreBadge/.test(card), "AiReviewCard must not render its own ScoreBadge next to CandidateHead's");
+test("the card renders exactly ONE fit number, and the head renders none", () => {
+  assert.ok(card.includes("<CandidateHead"), "the card still renders the candidate head");
+  // One renderer, in the card header. Two would be the original defect (a header
+  // score disagreeing with a body score at the money moment).
+  assert.equal((card.match(/<ScoreBadge/g) ?? []).length, 1, "exactly one ScoreBadge in the card shell");
+  assert.ok(!/ScoreBadge/.test(head), "CandidateHead must not render a second one");
   assert.ok(
-    !/entry\.matchScore/.test(card),
-    "AiReviewCard must not read entry.matchScore directly — the canonical number lives in CandidateHead"
+    !/entry\.matchScore/.test(card) && !/entry\.matchScore/.test(head),
+    "neither may read entry.matchScore directly — the canonical read path is the only door"
   );
 });
 
-test("CandidateHead resolves the score through the canonical read path and labels its provenance", () => {
+test("the card resolves the score through the canonical read path and names its provenance", () => {
   assert.ok(
-    /canonicalScoreOf\(entry\)/.test(head) && /provenanceOf\(entry\)/.test(head),
-    "CandidateHead must resolve via canonicalScoreOf/provenanceOf (app/_lib/match-score.ts)"
+    /canonicalScoreOf\(entry\)/.test(card) && /provenanceOf\(entry\)/.test(card),
+    "the card must resolve via canonicalScoreOf/provenanceOf (app/_lib/match-score.ts)"
   );
+  // The provenance is no longer a printed label; it rides the badge's tooltip,
+  // resolved through the SAME shared catalog the label used, so the wording still
+  // cannot drift between the queue, the drawer and the board.
   assert.ok(
-    /<ScoreProvenanceLabel/.test(head),
-    "CandidateHead must render the provenance label next to the score"
+    /useScoreProvenanceText\(\)/.test(card),
+    "the shown score must still say where it came from (shared scoreProvenance catalog)"
   );
+  assert.ok(/title=\{provenanceText/.test(card), "…as the score badge's tooltip");
 });
 
 test("the pricing basis renders only under its own label (pricingBasis ← structured matchBasis), never a bare second match", () => {

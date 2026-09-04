@@ -26,6 +26,7 @@ export const TAB_CHUNKS = {
   schedule: () => import("../hiring/schedule/ScheduleTab"),
   jobs: () => import("../library/jobs/JobsTab"),
   library: () => import("../library/jds/JdsTab"),
+  intake: () => import("../library/jds/JdsIntakeTab"),
   matrix: () => import("../insights/matrix/MatrixTab"),
   analytics: () => import("../insights/analytics/AnalyticsTab"),
   activity: () => import("../insights/activity/ActivityTab"),

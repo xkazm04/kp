@@ -15,6 +15,10 @@ const firstLine = (ad: string) => (ad.split(/\r?\n/)[0] ?? "").slice(0, 60).trim
 
 export type IngestResult = { jobId: string; created: boolean; title: string };
 
+/** The panel's whole state, as JobsTab holds it: the hook is called ONCE there
+ *  and handed to the header trigger and the form separately (JobsIngestAdPanel). */
+export type IngestAdState = ReturnType<typeof useIngestAdPanelLogic>;
+
 export function useIngestAdPanelLogic({
   onIngested,
   onBulkComplete,

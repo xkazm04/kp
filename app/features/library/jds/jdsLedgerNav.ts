@@ -1,29 +1,34 @@
-// Pure interaction helpers for the saved-JD ledger, kept side-effect-free so the
-// two behaviours the scan flagged are unit-testable in isolation from the .tsx:
+// Pure interaction helpers for the JD surfaces, kept side-effect-free so the two
+// behaviours the scan flagged are unit-testable in isolation from the .tsx:
 //   #2 — a manual sub-tab switch must NOT remount the JD builder (its typed draft
 //        lives in the builder's local state), while a Duplicate MUST remount it so
 //        it re-reads the new prefill at mount.
 //   #4 — the column-header filter menu's roving-focus arrow-key navigation.
 // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #2, #4)
+//
+// #2 moved surfaces without changing: the sub-tabs it describes used to be the
+// library's Saved/Generate/Intake strip and are now the Job-intake tab's
+// Intake/Generate pair (the library is one page again — see JdsIntakeTab.tsx).
+// #4 still belongs to the ledger's filter menu, which stayed.
 
-export type LedgerTab = "saved" | "generate" | "intake";
+export type AuthorTab = "intake" | "generate";
 
 // `builderKey` is the React `key` of the Generate panel. Both panels stay mounted
-// (the ledger toggles visibility, it no longer unmounts one), so the ONLY thing
-// that forces a builder remount is a change to this key.
-export type LedgerNavState = { tab: LedgerTab; builderKey: number };
+// (the tab toggles visibility, it never unmounts one), so the ONLY thing that
+// forces a builder remount is a change to this key.
+export type AuthorNavState = { tab: AuthorTab; builderKey: number };
 
 // A manual sub-tab switch: change the visible tab but keep the SAME builderKey, so
 // the builder is not remounted and a half-typed JD draft survives the swap.
 // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #2)
-export function switchTab(state: LedgerNavState, tab: LedgerTab): LedgerNavState {
+export function switchTab(state: AuthorNavState, tab: AuthorTab): AuthorNavState {
   return { tab, builderKey: state.builderKey };
 }
 
 // Duplicate → Generate: advance builderKey so the builder remounts and re-reads the
 // freshly-set prefill (its seeds are read at mount only).
 // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #2)
-export function duplicateToBuilder(state: LedgerNavState): LedgerNavState {
+export function duplicateToBuilder(state: AuthorNavState): AuthorNavState {
   return { tab: "generate", builderKey: state.builderKey + 1 };
 }
 

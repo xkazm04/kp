@@ -10,6 +10,9 @@ import { Check, CheckSquare, CircleDollarSign, History, Search, Sparkles, Square
 import { useLocale, useTranslations } from "next-intl";
 import { defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
+import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { CandidateHead, RecBadge } from "./DecisionsShared";
 import { AiReviewCardBody } from "./DecisionsAiReviewCardBody";
 import { useAiReviewCardLogic } from "./decisionsAiReviewCardLogic";
@@ -66,6 +69,14 @@ export function AiReviewCard({
   // "45 000" (OfferClient threads the locale), and made the figure differ between
   // the server render and the client one.
   const n = useNumberFormat();
+  // The ONE fit number on this card (REC-01 / OO-L2-10), still resolved through the
+  // canonical read path — it just renders HERE now, in the header corner beside the
+  // verdict, instead of inside CandidateHead where it squeezed the role line. Its
+  // provenance is no longer a printed label ("snapshot at add" cost a line on every
+  // card); it rides the badge's tooltip, so the number still says where it came from
+  // when asked.
+  const score = canonicalScoreOf(entry);
+  const provenanceText = useScoreProvenanceText()(provenanceOf(entry));
   // Selectable exactly when the parent enabled select mode AND passed a toggle
   // (offer_review cards get no toggle, so they stay one-by-one even in select mode).
   const selecting = selectMode && Boolean(onToggleSelect);
@@ -76,7 +87,13 @@ export function AiReviewCard({
   // `unpriced` / `hasBand` — the honest-unpriced-offer state, derived in the logic
   // module (see the UNPRICED DRAFTS note there): an offer draft whose fail-safe
   // proposed no figure must show no figure, and no band meter without a band.
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport } =
+  // `modelSelfReport` is deliberately NOT destructured: the model's own 0-100
+  // rating of its verdict no longer renders on this card. Nothing had measured it
+  // against an outcome, so it added a number a reviewer could weigh but not check;
+  // the MEASURED confidence band still lives one click away in the full analysis
+  // (onInspect). The derivation stays in the logic module under its guard —
+  // app/features/shared/confidence-vocabulary.test.ts.
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard } =
     useAiReviewCardLogic(entry);
   const tag = isOffer
     ? t("tagOffer")
@@ -95,7 +112,7 @@ export function AiReviewCard({
         selecting && selected ? "border-coral ring-1 ring-coral/40" : "border-stone-200"
       }`}
     >
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1.5 flex items-start justify-between gap-2">
         {selecting ? (
           <button
             type="button"
@@ -117,35 +134,42 @@ export function AiReviewCard({
             <Sparkles size={11} /> {tag}
           </span>
         )}
-        {isOffer ? (
-          unpriced ? (
-            // No figure was proposed — say so, in the amber "needs your attention"
-            // grammar this card already uses for the JD-staleness cue. The rationale
-            // in the body carries the server's reason verbatim.
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800"
-              title={t("unpricedTitle")}
-            >
-              <CircleDollarSign size={11} aria-hidden /> {t("unpricedAmount")}
-            </span>
+        {/* The header corner: what the AI proposes (or the money, on an offer) and
+            how well this person fits, in that order, with the score in the corner
+            itself. */}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {isOffer ? (
+            unpriced ? (
+              // No figure was proposed — say so, in the amber "needs your attention"
+              // grammar this card already uses for the JD-staleness cue. The rationale
+              // in the body carries the server's reason verbatim.
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800"
+                title={t("unpricedTitle")}
+              >
+                <CircleDollarSign size={11} aria-hidden /> {t("unpricedAmount")}
+              </span>
+            ) : (
+              // P2-1 / Direction 2c — render only the unit the draft actually carries.
+              // The server path deliberately refuses to fabricate a currency
+              // (pipeline-entry-action.ts extendOffer), so the card must not invent
+              // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
+              <span className="font-serif text-base text-ink">
+                {n.grouped(Number(parsed?.recommended ?? 0))}
+                {parsed?.currency ? ` ${parsed.currency}` : ""}
+              </span>
+            )
           ) : (
-            // P2-1 / Direction 2c — render only the unit the draft actually carries.
-            // The server path deliberately refuses to fabricate a currency
-            // (pipeline-entry-action.ts extendOffer), so the card must not invent
-            // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
-            <span className="font-serif text-base text-ink">
-              {n.grouped(Number(parsed?.recommended ?? 0))}
-              {parsed?.currency ? ` ${parsed.currency}` : ""}
+            // UAT KAT-L1-004 — the badge no longer carries the model's self-reported
+            // number as a bare "· 87%" suffix. The verdict word is what the badge is for.
+            <RecBadge rec={parsed?.recommendation} />
+          )}
+          {score != null ? (
+            <span title={provenanceText ?? undefined}>
+              <ScoreBadge score={score} />
             </span>
-          )
-        ) : (
-          // UAT KAT-L1-004 — the badge no longer carries the model's self-reported
-          // number as a bare "· 87%" suffix. That suffix was the same unlabelled
-          // claim as the meter below, printed twice; the number now appears ONCE,
-          // under a label that says whose number it is. The verdict word is what
-          // the badge is for.
-          <RecBadge rec={parsed?.recommendation} />
-        )}
+          ) : null}
+        </span>
       </div>
       <CandidateHead entry={entry} />
 
@@ -158,27 +182,6 @@ export function AiReviewCard({
         >
           <History size={11} aria-hidden /> {t("jdEditedBadge", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
         </span>
-      ) : null}
-
-      {/* UAT KAT-L1-004 (rec 2) — the model's self-report, no longer dressed as a
-          measurement. It used to render as a tone-banded meter (moss / amber /
-          coral fill, width = the value) under the word "Confidence", announced to
-          screen readers as "AI confidence in this recommendation: 87%". Every one
-          of those is measurement grammar: a filled meter says "this much of a
-          known whole", a tone band says "graded against a threshold", and the
-          aria wording asserted the figure as a property of the recommendation.
-          Nothing measured it — the model wrote it about itself.
-
-          So: no meter, no tone, no assertive ARIA role. What is left is a quoted
-          number under a label naming its author, and the label leads (G1 — the
-          disclosure is the headline, never a footnote under the number). Plain
-          text needs no aria-label; the sentence IS the accessible name. */}
-      {modelSelfReport != null ? (
-        <p className="mt-2 text-meta leading-4 text-steel" title={t("selfReportTitle")}>
-          <span className="font-semibold uppercase tracking-wide">{t("selfReportLabel")}</span>{" "}
-          <span className="nums font-semibold text-ink">{t("selfReportValue", { pct: modelSelfReport })}</span>
-          <span className="mt-0.5 block text-stone-400">{t("selfReportNote")}</span>
-        </p>
       ) : null}
 
       {/* Offer cards keep the band + deadline body (decision-critical); every

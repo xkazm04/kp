@@ -147,12 +147,21 @@ export function ControlDock() {
         // The row is no longer a full-bleed opaque bar, so the transparent strip
         // around it must not swallow clicks meant for the page behind: the frame
         // is pointer-events-none and each of the three parts opts back in.
-        className="animate-fade-in pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sim-bar)] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        //
+        // `pt-14` is not decoration: this element is what usePublishBarHeight
+        // measures into --sim-bar-h, and the open/close handle hangs 50px ABOVE the
+        // row (absolute, so it adds no height of its own). Without the padding the
+        // published height would under-report by exactly that, and the sim overlays
+        // that anchor above the bar would park underneath the handle.
+        className="animate-fade-in pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sim-bar)] px-3 pt-14 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
-        {/* The fixed footer ROW: rail · panel · rail. `items-end` keeps both side
-            elements on the toolbar's baseline while the panel grows upward, and
-            `min-w-0 flex-1` is what stops the box colliding with them. */}
-        <div className="mx-auto flex max-w-[1600px] items-end gap-3">
+        {/* The fixed footer ROW: handle above · panel · demo entry beside.
+            `items-end` keeps the demo button on the toolbar's baseline while the
+            panel grows upward, and `min-w-0 flex-1` is what stops the box
+            colliding with it. `relative` is the anchor for the open/close handle,
+            which hangs off the row's top-centre (DockBrand) so it stays in the
+            same column as the collapsed orb it toggles with. */}
+        <div className="relative mx-auto flex max-w-[1600px] items-end gap-3">
           <DockBrand aiBusy={aiBusy} onCollapse={() => setCollapsed(true)} />
           <div className="pointer-events-auto min-w-0 flex-1 rounded-xl border-2 border-stone-300 bg-white/95 px-4 py-3 shadow-panel backdrop-blur dark:rounded-2xl">
             {/* ── LAYER 2 — the one exclusive panel, above the row that opened it ── */}

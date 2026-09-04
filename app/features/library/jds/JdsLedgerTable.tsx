@@ -99,7 +99,18 @@ export function JdsLedgerTable({
           onSort={onSort}
           t={t}
         />
-        <tbody className={`divide-y divide-stone-200 ${rows && visible.length > 0 ? "animate-arrive-in" : ""}`}>
+        {/* The fade is keyed, not just classed. `animate-arrive-in` only plays when
+            the element is INSERTED, so once the first fetch had painted, changing a
+            filter or a sort swapped the rows underneath a settled tbody with no
+            transition at all — the table just blinked to a different set. Keying on
+            the filter/sort signature remounts the body, so every deliberate
+            re-query fades its result in. The free-text query is deliberately NOT in
+            the key: it re-filters on every keystroke, and restarting a 200ms fade
+            per character reads as flicker, not feedback. */}
+        <tbody
+          key={`${field ?? ""}|${seniority ?? ""}|${status}|${sort.col}|${sort.dir}`}
+          className={`divide-y divide-stone-200 ${rows && visible.length > 0 ? "animate-arrive-in" : ""}`}
+        >
           {rows == null ? (
             // Tier 2: nothing fetched yet — hold the rows' height, invisibly
             // at first, so a fast response never flashes a placeholder at all.

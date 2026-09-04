@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ArrowLeft } from "lucide-react";
 import { briefPromoteBlockers } from "@/app/_lib/intake-brief";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
+import { briefItemCount } from "./jdsIntakeBriefModel";
 import { JdsIntakeAppMasterCard } from "./JdsIntakeAppMasterCard";
 import { JdsIntakeAppMasterStart } from "./JdsIntakeAppMasterStart";
 import { JdsIntakeAttachmentsPane } from "./JdsIntakeAttachmentsPane";
@@ -14,6 +16,7 @@ import { JdsIntakeBriefPanel } from "./JdsIntakeBriefPanel";
 import { JdsIntakeChat } from "./JdsIntakeChat";
 import { JdsIntakeDraftPane } from "./JdsIntakeDraftPane";
 import { JdsIntakeLayoutTriptych } from "./JdsIntakeLayoutTriptych";
+import { JdsIntakeSessionsTable } from "./JdsIntakeSessionsTable";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import { useIntakeLogic } from "./jdsIntakeLogic";
@@ -77,12 +80,17 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const [withMarket, setWithMarket] = useState(true);
 
   if (!active) {
+    // Ledger ⇄ session is a full content swap on one surface, so each side fades
+    // in on arrival: the two views are different shapes, and swapping them in a
+    // single frame reads as the panel being replaced rather than navigated.
     return (
-      <div className={`${PANEL} p-5`}>
+      <div className={`${PANEL} animate-fade-in p-5`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className={META_LABEL}>{t("ledgerTitle")}</div>
-            <p className={`${INTRO} mt-1 max-w-2xl`}>{t("lede")}</p>
+          {/* The lede is a tooltip on the title, not a paragraph under it: it
+              explains the surface to a first-time reader and then repeats itself
+              on every visit above the one thing a returning reader came for. */}
+          <div className={`${META_LABEL} cursor-help underline decoration-stone-300 decoration-dotted underline-offset-4`} title={t("lede")}>
+            {t("ledgerTitle")}
           </div>
           <button
             type="button"
@@ -102,27 +110,14 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
         {error ? (
           <p className="mt-3 text-body text-red-700">{t(error === "appMaster" ? "appMaster.startError" : "error")}</p>
         ) : null}
-        <div className="mt-4 space-y-2">
+        {/* Keyed on the loaded state, so the ledger fades in when the fetch
+            lands (the key changes null → "loaded") instead of appearing under
+            the placeholder it replaces. */}
+        <div key={sessions === null ? "loading" : "loaded"} className="animate-arrive-in">
           {sessions === null ? (
-            <div className="reveal-quiet min-h-[6rem]" aria-hidden />
-          ) : sessions.length === 0 ? (
-            <p className="text-body text-steel">{t("empty")}</p>
+            <div className="reveal-quiet mt-4 min-h-[6rem]" aria-hidden />
           ) : (
-            sessions.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => openSession(s.id)}
-                className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-4 py-3 text-left hover:border-stone-400 dark:rounded-2xl"
-              >
-                <span className="text-body font-medium text-ink">{s.title || t("untitled")}</span>
-                <span className="flex items-center gap-2">
-                  {s.shape ? <span className={CHIP_QUIET}>{t(SHAPE_KEY[s.shape])}</span> : null}
-                  <span className={CHIP_QUIET}>{t(`status.${s.status}`)}</span>
-                  <span className="text-meta text-steel nums">{t("turns", { count: s.turnCount })}</span>
-                </span>
-              </button>
-            ))
+            <JdsIntakeSessionsTable sessions={sessions} onOpen={openSession} />
           )}
         </div>
       </div>
@@ -142,11 +137,14 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const promoteHint = ready ? undefined : blockers.map((b) => t(`promoteMissing.${b}`)).join(" ");
 
   return (
-    <div className={`${PANEL} p-5`}>
+    <div className={`${PANEL} animate-fade-in p-5`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={closeSession}>
-            {t("back")}
+          {/* Leaving the session is a NAVIGATION back to the ledger, so it reads
+              as one: a bordered control with the arrow pointing the way out. As a
+              borderless ghost beside the session title it looked like a label. */}
+          <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} onClick={closeSession}>
+            <ArrowLeft size={14} aria-hidden /> {t("back")}
           </button>
           <span className="text-body font-medium text-ink">{active.title || t("untitled")}</span>
           {active.shape ? <span className={CHIP_QUIET}>{t(SHAPE_KEY[active.shape])}</span> : null}
@@ -284,14 +282,9 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             }
           />
         }
+        draftChip={<span className={`${CHIP_QUIET} shrink-0`}>{t("draft.workingChip")}</span>}
         draft={
-          <JdsIntakeDraftPane
-            brief={active.brief}
-            attachments={active.attachments ?? []}
-            /* UAT L1-HRBP-11: the working note must stop asserting a market read
-               the requestor just declined. */
-            marketResearch={withMarket}
-          />
+          <JdsIntakeDraftPane brief={active.brief} attachments={active.attachments ?? []} />
         }
         materials={
           <JdsIntakeAttachmentsPane
@@ -307,11 +300,11 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           turns: active.transcript.length,
           // UAT L2-CONV-1: `requirements` alone badged 0 over a brief holding a
           // title, a seniority, seven facets and two 90-day criteria — the
-          // extraction rarely fills requirements[]. Count what the brief holds.
-          briefItems:
-            (active.brief?.requirements?.length ?? 0) +
-            (active.brief?.facets?.length ?? 0) +
-            (active.brief?.successCriteria?.length ?? 0),
+          // extraction rarely fills requirements[]. Count what the brief holds —
+          // and, since the panel now drops facets that merely repeat a 90-day
+          // criterion, count what it actually RENDERS (jdsIntakeBriefModel), so
+          // the folded spine can't promise an item the open leaf never shows.
+          briefItems: briefItemCount(active.brief ?? null),
           attachments: (active.attachments ?? []).length,
           // UAT L1-EVA-10 / L1-HRBP-15: computed since the Triptych shipped and
           // never consumed — the draft spine now reads it.

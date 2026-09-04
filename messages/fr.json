@@ -2033,7 +2033,8 @@
       "organization": "Organisation",
       "workspace": "Espaces de travail",
       "agents": "Agents",
-      "activity": "Activité"
+      "activity": "Activité",
+      "intake": "Cadrage du poste"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -2748,7 +2749,7 @@
   "decisions": {
     "eyebrow": "Décisions",
     "title": "Votre file de décisions",
-    "intro": "L’étape avec intervention humaine, regroupée par poste. Cliquez sur un candidat pour son résumé d’analyse, ou lancez une évaluation de groupe pour comparer les candidats d’un poste. Les créneaux d’entretien se trouvent dans <schedule>Planification</schedule>.",
+    "intro": "L’étape avec intervention humaine, regroupée par poste.",
     "filterTitle": "Filtrer les décisions sur une fiche de poste ouverte",
     "govModeTitle": "Gouvernance de l’évaluation de groupe : comment la comparaison AI est utilisée",
     "govRecommendation": "Recommandation AI",
@@ -2815,7 +2816,6 @@
     "loadFailed": "Échec du chargement.",
     "unassignedRole": "Poste non attribué",
     "evalLoadFailed": "L’évaluation enregistrée de ce poste n’a pas pu être chargée. Relancez-la pour comparer les candidats.",
-    "match": "correspondance",
     "recAria": "Recommandation {label}",
     "recAriaConfidence": "Recommandation {label}, {confidence} % de confiance",
     "recConfidenceSuffix": "{label} · {confidence} %",
@@ -3646,7 +3646,16 @@
           "niceToHave": "Atouts",
           "learnable": "apprenable",
           "languages": "Langues",
-          "context": "Contexte"
+          "context": "Contexte",
+          "groups": {
+            "general": "Contexte",
+            "codebase_dossier": "Lu dans le code",
+            "mandate": "Mandat",
+            "objective": "Objectifs",
+            "budget": "Budget",
+            "tenure": "Durée",
+            "role": "Configuration du rôle"
+          }
         },
         "provenance": {
           "stated": "vos mots",
@@ -3705,10 +3714,7 @@
           "materials": "Documents"
         },
         "draft": {
-          "title": "Brouillon de la fiche de poste",
-          "workingChip": "brouillon de travail",
-          "workingNote": "Se construit à partir du brief au fil de la conversation. La fiche finale (avec l’étude de salaire) est générée à « Créer la fiche de poste ».",
-          "workingNoteNoMarket": "Se construit à partir du brief au fil de la conversation. La fiche finale est générée à « Créer la fiche de poste », sans étude de salaire, comme vous l’avez choisi.",
+          "workingChip": "brouillon",
           "supersedeNote": "Une fiche existante est jointe. Créer depuis ce brief en produira la version actualisée.",
           "empty": "Le brouillon apparaît ici dès que le brief a un intitulé ou des exigences.",
           "untitled": "Poste sans titre",
@@ -3844,6 +3850,17 @@
           "dispatchError": "L’envoi a échoué. Personne n’a été recruté.",
           "dispatchHuman": "Cette spécification est composée pour un titulaire humain. Promouvez-la plutôt en fiche de poste.",
           "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer."
+        },
+        "table": {
+          "role": "Rôle",
+          "shape": "Type",
+          "status": "Statut",
+          "turns": "Messages",
+          "updated": "Mis à jour",
+          "open": "Ouvrir",
+          "openSession": "Ouvrir l’entretien de cadrage pour {title}",
+          "noMatch": "Aucune session ne correspond à ces filtres.",
+          "clear": "Effacer les filtres"
         }
       }
     },
@@ -4002,25 +4019,26 @@
         "offer_note": "Travail hybride, de vraies responsabilités et de la place pour progresser.",
         "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour."
       }
+    },
+    "intakeTab": {
+      "eyebrow": "Espace de travail",
+      "title": "Cadrage du poste",
+      "intro": "Commencez un poste par la conversation. Un court dialogue guidé capture ce dont vous avez vraiment besoin, puis en rédige la fiche de poste. Vous avez déjà le texte ? Transmettez-le dans « Générer ».",
+      "modeLabel": "Comment démarrer",
+      "modeIntake": "Dialogue de cadrage",
+      "modeGenerate": "Générer",
+      "toLibrary": "Fiches de poste"
     }
   },
   "jobs": {
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Corpus de postes",
-      "intro": "La base de données structurée de postes sur laquelle s’appuie le moteur de matching. Chaque annonce est analysée en exigences indispensables / souhaitables (chacune marquée prérequis ou à acquérir) et porte un <strong>prisme jeune diplômé</strong> précalculé : l’indicateur d’éligibilité débutant et les exigences réinterprétées qui permettent de comparer des profils étudiants à des annonces orientées expérience.",
+      "intro": "La base de données structurée de postes sur laquelle s’appuie le moteur de matching.",
       "statTotal": "Total",
       "statEntryEligible": "Éligible débutant",
-      "allFamilies": "Toutes les familles",
-      "filterFamily": "Filtrer par famille de postes",
-      "allSeniority": "Toutes les séniorités",
-      "filterSeniority": "Filtrer par séniorité",
-      "allModes": "Tous les modes",
-      "filterWorkMode": "Filtrer par mode de travail",
       "entryOnly": "Éligible débutant uniquement",
       "openOnly": "Postes ouverts uniquement",
-      "searchLabel": "Rechercher un poste par intitulé ou entreprise",
-      "searchPlaceholder": "Rechercher un intitulé ou une entreprise…",
       "showing": "Affichage de <b>{shown}</b> sur <b>{total}</b> postes",
       "clearAll": "Tout effacer",
       "noRolesTitle": "Aucun poste ne correspond à ces filtres",
@@ -4037,9 +4055,9 @@
         "route1Title": "Le rédiger à partir d’un modèle de fiche de poste",
         "route1Body": "Choisissez une fiche de poste dans la bibliothèque, ajustez les exigences et publiez-la comme poste ouvert.",
         "route1Cta": "Ouvrir les fiches de poste",
-        "route2Title": "Importer une annonce que vous avez déjà",
-        "route2Body": "Collez une annonce existante et Kandi en fait un poste structuré : exigences, séniorité, mode de travail.",
-        "route2Cta": "Utilisez le panneau d’import ci-dessus",
+        "route2Title": "Importer un poste que vous avez déjà",
+        "route2Body": "Collez le texte d’un poste existant et Kandi en fait un poste structuré : exigences, séniorité, mode de travail.",
+        "route2Cta": "Utilisez « Importer un poste » dans l’en-tête",
         "unlocksLabel": "Un poste débloque",
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",
@@ -4065,22 +4083,22 @@
       "statusClosed": "Fermé"
     },
     "ingest": {
-      "minChars": "Collez l’annonce complète, au moins ~{min} caractères.",
+      "minChars": "Collez le texte complet du poste, au moins ~{min} caractères.",
       "ingestFailedStatus": "Échec de l’import ({status}).",
       "defaultTitle": "Poste",
       "added": "« {title} » ajouté au catalogue.",
       "alreadyExists": "« {title} » est déjà au catalogue. Le poste existant a été ouvert.",
       "ingestFailed": "Échec de l’import.",
-      "pasteAd": "Coller une annonce",
-      "pasteIntro": "Déposez l’annonce complète en texte libre. Elle est analysée en un poste structuré et matchable (exigences indispensables / souhaitables, séniorité, prisme jeune diplômé) puis ajoutée au corpus. Les doublons sont détectés automatiquement.",
-      "pastePlaceholder": "Collez le texte de l’annonce ici…",
-      "parsing": "Analyse de l’annonce…",
+      "pasteAd": "Importer un poste",
+      "pasteIntro": "Déposez le texte complet du poste. Il est analysé en un poste structuré et matchable (exigences indispensables / souhaitables, séniorité, prisme jeune diplômé) puis ajouté au corpus. Les doublons sont détectés automatiquement.",
+      "pastePlaceholder": "Collez le texte du poste ici…",
+      "parsing": "Analyse du poste…",
       "addToCatalog": "Ajouter au catalogue",
       "cancel": "Annuler",
       "parsingNote": "L’analyse s’exécute via Claude CLI en local, cela peut donc prendre un instant.",
-      "bulkToggle": "Plusieurs annonces",
-      "bulkHint": "séparez chaque annonce par une ligne de ---",
-      "bulkPlaceholder": "Collez plusieurs annonces, chacune séparée par une ligne de tirets (---)…",
+      "bulkToggle": "Plusieurs postes",
+      "bulkHint": "séparez chaque poste par une ligne de ---",
+      "bulkPlaceholder": "Collez plusieurs postes, chacun séparé par une ligne de tirets (---)…",
       "importAll": "Tout importer ({count})",
       "importing": "Import {done}/{total}…",
       "bulkDone": "{added} ajoutées · {exists} déjà au catalogue · {failed} en échec",
@@ -4089,19 +4107,21 @@
       "resFailed": "non analysées",
       "cancelRun": "Interrompre",
       "cancelled": "Analyse annulée. Rien n’a été ajouté.",
-      "bulkCancelled": "Interrompu après {done} annonces sur {total}. Les résultats obtenus restent affichés ci-dessous."
+      "bulkCancelled": "Interrompu après {done} postes sur {total}. Les résultats obtenus restent affichés ci-dessous.",
+      "pasteHeading": "Importer un poste"
     },
     "drafts": {
       "heading": "Brouillons en attente de sourcing",
       "draftBadge": "Brouillon",
-      "sourceTitle": "Publier cette fiche de poste et sourcer les candidats correspondants dans le pipeline",
-      "sourcing": "Sourcing…",
-      "sourceIntoPipeline": "Sourcer dans le pipeline",
+      "sourceTitle": "Publier ce poste et sourcer les candidats correspondants dans le pipeline",
+      "sourcing": "Publication…",
+      "sourceIntoPipeline": "Publier",
       "sourcingFailed": "Échec du sourcing.",
       "publishedButFailed": "Publié, mais le sourcing a échoué : {warning}",
       "sourced": "{count, plural, one {# candidat sourcé dans le pipeline.} other {# candidats sourcés dans le pipeline.}}",
       "quotaNote": "Vous avez atteint la limite de postes actifs de votre forfait. Passez à un forfait supérieur ou fermez un poste pour en publier un autre.",
-      "goToBilling": "Mettre à niveau (Facturation)"
+      "goToBilling": "Mettre à niveau (Facturation)",
+      "published": "« {title} » est en ligne."
     },
     "posting": {
       "copied": "Copié",
@@ -8006,7 +8026,8 @@
       "refreshUnchanged": "Aucun changement : Personas indique toujours « {status} ».",
       "refreshFailed": "Impossible de joindre kp pour actualiser cet agent. Réessayez.",
       "refreshUnpollable": "Personas n'a renvoyé aucun nouvel état pour cet agent. Vérifiez l'application Personas ou la connexion dans Paramètres → Intégrations."
-    }
+    },
+    "inDevelopment": "En développement"
   },
   "simulation": {
     "status": {

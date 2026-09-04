@@ -295,11 +295,17 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
 
 ## Gating & keyless behavior
 
-- **Nav gating**: the Agents tab is visible when `NODE_ENV !== "production"` **or**
-  `NEXT_PUBLIC_KP_AGENT_HIRING=1` (`AGENTS_TAB_IN_NAV` in `app/features/shell/tabs.ts`, the
-  About-tab two-place pattern — a direct `?tab=agents` falls back to the default when off;
-  the `NEXT_PUBLIC_` prefix is required because the flag is read in the client bundle too).
-  The Agent fit tab and the Integrations card are not separately gated.
+- **Nav gating**: the Agents tab is visible ONLY when `NEXT_PUBLIC_KP_AGENT_HIRING`
+  is `1` or `true` (`AGENTS_TAB_IN_NAV` in `app/features/shell/tabs.ts`, the About-tab
+  two-place pattern — a direct `?tab=agents` falls back to the default when off; the
+  `NEXT_PUBLIC_` prefix is required because the flag is read in the client bundle too).
+  The gate used to be `NODE_ENV !== "production" || the flag`, so the module appeared in
+  every dev session whether or not anyone was working on it; this module is unfinished, and
+  an unfinished surface sitting in the sidebar between finished ones reads as shipped. It is
+  documented in `.env.example`, and the tab itself carries an **In development** tag
+  (`agentsWorkforce.inDevelopment`) so a session that enabled the flag long ago is still
+  told what it is looking at. The Agent fit tab and the Integrations card are not
+  separately gated.
 - **Keyless transform**: without a reachable LLM the transform degrades to a keyword
   heuristic — the verdict stays `unassessed` and the UI labels the spec as heuristic.
 - **Bridge-less transform**: the connector catalog degrades to a built-in static list

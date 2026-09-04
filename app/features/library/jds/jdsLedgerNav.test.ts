@@ -1,17 +1,18 @@
 // Pins the two ledger interaction invariants the scan flagged:
 //   #2 — tab switches preserve the builder (its typed draft), Duplicate remounts it.
+//        (The strip moved from the library page to the Job-intake tab; the rule did not.)
 //   #4 — the filter menu's roving arrow-key navigation.
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { switchTab, duplicateToBuilder, nextMenuIndex, type LedgerNavState } from "./jdsLedgerNav.ts";
+import { switchTab, duplicateToBuilder, nextMenuIndex, type AuthorNavState } from "./jdsLedgerNav.ts";
 
 // --- #2: draft-preserving tab navigation -------------------------------------
 
 test("switching sub-tab keeps the SAME builderKey (no remount → draft preserved)", () => {
-  const start: LedgerNavState = { tab: "generate", builderKey: 3 };
-  const toSaved = switchTab(start, "saved");
-  assert.equal(toSaved.tab, "saved");
+  const start: AuthorNavState = { tab: "generate", builderKey: 3 };
+  const toSaved = switchTab(start, "intake");
+  assert.equal(toSaved.tab, "intake");
   assert.equal(toSaved.builderKey, 3);
   // Round-trip back to generate must still be the SAME key — the pre-fix XOR
   // unmounted the builder on every switch (equivalent to a key change), which is
@@ -21,7 +22,7 @@ test("switching sub-tab keeps the SAME builderKey (no remount → draft preserve
 });
 
 test("Duplicate advances builderKey so the builder remounts with the new prefill", () => {
-  const start: LedgerNavState = { tab: "saved", builderKey: 3 };
+  const start: AuthorNavState = { tab: "intake", builderKey: 3 };
   const dup = duplicateToBuilder(start);
   assert.equal(dup.tab, "generate");
   assert.equal(dup.builderKey, 4);

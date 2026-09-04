@@ -26,7 +26,9 @@ export const DISMISS_KEY = "kp-getting-started-dismissed";
  */
 export const STEPS = [
   { key: "company", tab: "organization" },
-  { key: "firstRole", tab: "library" },
+  // The authoring tab, not the ledger: this step is "write your first role", and
+  // the ledger it used to point at is where a role LANDS.
+  { key: "firstRole", tab: "intake" },
   { key: "case", tab: "assignments" },
   { key: "channels", tab: "channels" },
 ] as const;

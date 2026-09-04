@@ -34,6 +34,7 @@ const DecisionsTab = dynamic(() => TAB_CHUNKS.decisions().then((m) => ({ default
 const ScheduleTab = dynamic(() => TAB_CHUNKS.schedule().then((m) => ({ default: m.ScheduleTab })), { loading });
 const JobsTab = dynamic(() => TAB_CHUNKS.jobs().then((m) => ({ default: m.JobsTab })), { loading });
 const JdsTab = dynamic(() => TAB_CHUNKS.library().then((m) => ({ default: m.JdsTab })), { loading });
+const JdsIntakeTab = dynamic(() => TAB_CHUNKS.intake().then((m) => ({ default: m.JdsIntakeTab })), { loading });
 const MatrixTab = dynamic(() => TAB_CHUNKS.matrix().then((m) => ({ default: m.MatrixTab })), { loading });
 const AnalyticsTab = dynamic(() => TAB_CHUNKS.analytics().then((m) => ({ default: m.AnalyticsTab })), { loading });
 const ActivityTab = dynamic(() => TAB_CHUNKS.activity().then((m) => ({ default: m.ActivityTab })), { loading });
@@ -72,6 +73,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         ) : null}
         {navActive === "jobs" ? <JobsTab /> : null}
         {navActive === "library" ? <JdsTab /> : null}
+        {navActive === "intake" ? <JdsIntakeTab /> : null}
         {navActive === "matrix" ? <MatrixTab /> : null}
         {navActive === "analytics" ? <AnalyticsTab /> : null}
         {navActive === "activity" ? <ActivityTab /> : null}

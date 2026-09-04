@@ -2033,7 +2033,8 @@
       "organization": "Organization",
       "workspace": "Workspaces",
       "agents": "Agents",
-      "activity": "Activity"
+      "activity": "Activity",
+      "intake": "Job intake"
     },
     "groups": {
       "hiring": "Hiring",
@@ -2748,7 +2749,7 @@
   "decisions": {
     "eyebrow": "Decisions",
     "title": "Your decision queue",
-    "intro": "The human-in-the-loop step, grouped by role. Click a candidate for their analysis summary, or run a group evaluation to compare a role's candidates. Interview slots live in <schedule>Schedule</schedule>.",
+    "intro": "The human-in-the-loop step, grouped by role.",
     "filterTitle": "Filter decisions to one opened JD",
     "govModeTitle": "Group-evaluation governance: how the AI comparison is used",
     "govRecommendation": "AI recommendation",
@@ -2815,7 +2816,6 @@
     "loadFailed": "Failed to load.",
     "unassignedRole": "Unassigned role",
     "evalLoadFailed": "This role's saved evaluation couldn't be loaded. Re-run it to compare the candidates.",
-    "match": "match",
     "recAria": "{label} recommendation",
     "recAriaConfidence": "{label} recommendation, {confidence}% confidence",
     "recConfidenceSuffix": "{label} · {confidence}%",
@@ -3646,7 +3646,16 @@
           "niceToHave": "Nice to have",
           "learnable": "trainable",
           "languages": "Languages",
-          "context": "Context"
+          "context": "Context",
+          "groups": {
+            "general": "Context",
+            "codebase_dossier": "Read from the codebase",
+            "mandate": "Mandate",
+            "objective": "Objectives",
+            "budget": "Budget",
+            "tenure": "Tenure",
+            "role": "Role setup"
+          }
         },
         "provenance": {
           "stated": "you said",
@@ -3705,10 +3714,7 @@
           "materials": "Materials"
         },
         "draft": {
-          "title": "Job description draft",
-          "workingChip": "working draft",
-          "workingNote": "Builds itself from the brief as you talk. The final JD (with market salary research) is generated at Create JD.",
-          "workingNoteNoMarket": "Builds itself from the brief as you talk. The final JD is generated at Create JD, without salary research, as you chose.",
+          "workingChip": "draft",
           "supersedeNote": "An existing JD is attached. Promoting this brief creates the updated version.",
           "empty": "The draft appears here once the brief has a title or requirements.",
           "untitled": "Untitled role",
@@ -3844,6 +3850,17 @@
           "dispatchError": "The dispatch failed. Nothing was hired.",
           "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
           "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
+        },
+        "table": {
+          "role": "Role",
+          "shape": "Shape",
+          "status": "Status",
+          "turns": "Turns",
+          "updated": "Updated",
+          "open": "Open",
+          "openSession": "Open the intake for {title}",
+          "noMatch": "No session matches these filters.",
+          "clear": "Clear filters"
         }
       }
     },
@@ -4002,25 +4019,26 @@
         "offer_note": "Hybrid working, meaningful ownership, and room to grow.",
         "apply_note": "Apply via the link: a short conversation, then a first-round interview."
       }
+    },
+    "intakeTab": {
+      "eyebrow": "Workspace",
+      "title": "Job intake",
+      "intro": "Start a role by talking it through. A short guided conversation captures what you actually need, then drafts the job description from it. Already have the text? Hand it over in Generate.",
+      "modeLabel": "How to start",
+      "modeIntake": "Intake dialog",
+      "modeGenerate": "Generate",
+      "toLibrary": "Job descriptions"
     }
   },
   "jobs": {
     "tab": {
       "eyebrow": "Workspace",
       "title": "Job corpus",
-      "intro": "The structured job database the matching engine runs against. Each ad is parsed into must / nice-to-have requirements (each tagged prerequisite vs learnable) and carries a precomputed <strong>graduate lens</strong>: the entry-eligibility flag and reinterpreted requirements that let student profiles be compared against experience-oriented postings.",
+      "intro": "The structured job database the matching engine runs against.",
       "statTotal": "Total",
       "statEntryEligible": "Entry-eligible",
-      "allFamilies": "All families",
-      "filterFamily": "Filter by role family",
-      "allSeniority": "All seniority",
-      "filterSeniority": "Filter by seniority",
-      "allModes": "All modes",
-      "filterWorkMode": "Filter by work mode",
       "entryOnly": "Entry-eligible only",
       "openOnly": "Open roles only",
-      "searchLabel": "Search jobs by title or company",
-      "searchPlaceholder": "Search title or company…",
       "showing": "Showing <b>{shown}</b> of <b>{total}</b> roles",
       "clearAll": "Clear all",
       "noRolesTitle": "No roles match these filters",
@@ -4037,9 +4055,9 @@
         "route1Title": "Draft it from a JD template",
         "route1Body": "Pick a job description in the library, tune the requirements, and publish it as an open role.",
         "route1Cta": "Open the JD library",
-        "route2Title": "Import an ad you already have",
-        "route2Body": "Paste an existing job ad and Kandi parses it into a structured role: requirements, seniority, work mode.",
-        "route2Cta": "Use the import panel above",
+        "route2Title": "Import a job position you already have",
+        "route2Body": "Paste an existing job posting and Kandi parses it into a structured role: requirements, seniority, work mode.",
+        "route2Cta": "Use Import position in the header",
         "unlocksLabel": "One role unlocks",
         "unlockChannels": "Channels open",
         "unlockPipeline": "Candidates flow",
@@ -4065,22 +4083,22 @@
       "statusClosed": "Closed"
     },
     "ingest": {
-      "minChars": "Paste the full job ad, at least ~{min} characters.",
+      "minChars": "Paste the full job posting, at least ~{min} characters.",
       "ingestFailedStatus": "Ingest failed ({status}).",
       "defaultTitle": "Role",
       "added": "Added “{title}” to the catalog.",
       "alreadyExists": "“{title}” is already in the catalog. Opened the existing role.",
       "ingestFailed": "Ingest failed.",
-      "pasteAd": "Paste a job ad",
-      "pasteIntro": "Drop in the full prose ad. It's parsed into a structured, matchable role (must / nice-to-have requirements, seniority, the graduate lens) and added to the corpus. Duplicates are detected automatically.",
-      "pastePlaceholder": "Paste the job ad text here…",
-      "parsing": "Parsing the ad…",
+      "pasteAd": "Import position",
+      "pasteIntro": "Drop in the full posting text. It's parsed into a structured, matchable position (must / nice-to-have requirements, seniority, the graduate lens) and added to the corpus. Duplicates are detected automatically.",
+      "pastePlaceholder": "Paste the job posting text here…",
+      "parsing": "Parsing the position…",
       "addToCatalog": "Add to catalog",
       "cancel": "Cancel",
       "parsingNote": "Parsing runs the Claude CLI locally, so it can take a moment.",
-      "bulkToggle": "Multiple ads",
-      "bulkHint": "separate each ad with a line of ---",
-      "bulkPlaceholder": "Paste several job ads, each separated by a line of dashes (---)…",
+      "bulkToggle": "Multiple positions",
+      "bulkHint": "separate each position with a line of ---",
+      "bulkPlaceholder": "Paste several job postings, each separated by a line of dashes (---)…",
       "importAll": "Import all ({count})",
       "importing": "Importing {done}/{total}…",
       "bulkDone": "{added} added · {exists} already in catalog · {failed} failed",
@@ -4089,19 +4107,21 @@
       "resFailed": "couldn't parse",
       "cancelRun": "Cancel run",
       "cancelled": "Parsing cancelled. Nothing was added.",
-      "bulkCancelled": "Cancelled after {done} of {total} ads. The results so far are kept below."
+      "bulkCancelled": "Cancelled after {done} of {total} positions. The results so far are kept below.",
+      "pasteHeading": "Import a job position"
     },
     "drafts": {
       "heading": "Drafts awaiting sourcing",
       "draftBadge": "Draft",
-      "sourceTitle": "Mark this JD live and source matching candidates into the Pipeline",
-      "sourcing": "Sourcing…",
-      "sourceIntoPipeline": "Source into Pipeline",
+      "sourceTitle": "Publish this role and source matching candidates into the Pipeline",
+      "sourcing": "Publishing…",
+      "sourceIntoPipeline": "Publish",
       "sourcingFailed": "Sourcing failed.",
       "publishedButFailed": "Published, but sourcing failed: {warning}",
       "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
       "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
-      "goToBilling": "Upgrade in Billing"
+      "goToBilling": "Upgrade in Billing",
+      "published": "“{title}” is live."
     },
     "posting": {
       "copied": "Copied",
@@ -8006,7 +8026,8 @@
       "refreshUnchanged": "No change: Personas still reports “{status}”.",
       "refreshFailed": "Couldn't reach kp to refresh this agent. Try again.",
       "refreshUnpollable": "Personas returned no new state for this agent. Check the Personas app, or the bridge in Settings → Integrations."
-    }
+    },
+    "inDevelopment": "In development"
   },
   "simulation": {
     "status": {

@@ -38,7 +38,7 @@ function outcomeLink(task: Task): { href: string; key: OutcomeKey } | null {
   // generated JD — a bare /?tab=library landed on an empty builder, because the
   // tab switch had unmounted the component that held the result.
   if (task.kind === "jd_build") {
-    return { href: `/?tab=library&jdTask=${encodeURIComponent(task.id)}`, key: "openJdLibrary" };
+    return { href: `/?tab=intake&jdTask=${encodeURIComponent(task.id)}`, key: "openJdLibrary" };
   }
   // Decision-shaped runs land their output in the Decisions queue: a group eval
   // saves per-role (the ?job= filter isolates it), a batch screen raises

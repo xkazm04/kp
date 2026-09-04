@@ -1,55 +1,39 @@
 import { useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
-import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
 import { StatusChip } from "@/app/_components/StatusChip";
 import { pipelineStageTone } from "@/app/_lib/status-tone";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { INTERVIEW_RECOMMENDATION_FALLBACK, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
-import { STAGES, styleFor, type Entry } from "@/app/features/shared/decisionsTypes";
-import { initials } from "@/app/_lib/initials";
+import { STAGES, type Entry } from "@/app/features/shared/decisionsTypes";
 
 export function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-md border border-dashed border-stone-200 p-3 text-sm text-steel">{children}</p>;
 }
 
+// The candidate identity line: name, then archetype · role · board stage.
+//
+// It used to open with a coloured initials monogram and close with the match
+// score + its provenance label, which left the middle column — the only part
+// carrying words — about half the card's width, so "Data engineer · Senior Java
+// vývojář do platebního týmu" truncated on nearly every card. The monogram
+// identified nobody the name did not (these cards are one candidate each, not a
+// roster), and the score moved to the card's top-right corner beside the verdict
+// (DecisionsAiReviewCard), where it reads as the header fact it is. What is left
+// spans the full width and wraps instead of truncating.
 export function CandidateHead({ entry }: { entry: Entry }) {
-  const t = useTranslations("decisions");
   const enumLabel = useEnumLabel();
-  const s = styleFor(entry.archetype);
-  const monogram = initials(entry.candidateLabel);
-  // Canonical match-score read path (REC-01 / OO-L2-10): ONE number, with its
-  // provenance named right under it, instead of a bare "57 MATCH" that silently
-  // disagreed with the offer rationale and the drawer timeline.
-  const score = canonicalScoreOf(entry);
-  const provenance = provenanceOf(entry);
   return (
-    <div className="flex items-center gap-2">
-      <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold text-white ${s.bg}`}>
-        {monogram}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-base font-semibold text-ink">{entry.candidateLabel}</p>
-        <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-steel">
-          <span className="truncate">{enumLabel("archetype", entry.archetype)} · {entry.jobTitle}</span>
-          {/* ONE THREAD (gap 8) — the decision cards named the role and the
-              archetype but never WHERE on the board this person is standing, which
-              is exactly the fact that tells a reviewer whether "advance" means a
-              screen or an offer. Same chip, same five tones as the board drawer the
-              reviewer just came from. */}
-          <StatusChip tone={pipelineStageTone(entry.stage)} label={enumLabel("stage", entry.stage)} />
-        </p>
-      </div>
-      {score != null ? (
-        <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5">
-          <span className="inline-flex items-center gap-1.5">
-            <ScoreBadge score={score} />
-            <span className="text-sm uppercase text-steel">{t("match")}</span>
-          </span>
-          <ScoreProvenanceLabel provenance={provenance} />
-        </span>
-      ) : null}
+    <div className="min-w-0">
+      <p className="text-base font-semibold text-ink">{entry.candidateLabel}</p>
+      <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-steel">
+        <span>{enumLabel("archetype", entry.archetype)} · {entry.jobTitle}</span>
+        {/* ONE THREAD (gap 8) — the decision cards named the role and the
+            archetype but never WHERE on the board this person is standing, which
+            is exactly the fact that tells a reviewer whether "advance" means a
+            screen or an offer. Same chip, same five tones as the board drawer the
+            reviewer just came from. */}
+        <StatusChip tone={pipelineStageTone(entry.stage)} label={enumLabel("stage", entry.stage)} />
+      </p>
     </div>
   );
 }

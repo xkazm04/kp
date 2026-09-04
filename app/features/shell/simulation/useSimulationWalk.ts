@@ -139,7 +139,9 @@ export function useSimulationWalk({
 
       await step({
         id: "design",
-        tab: "library",
+        // The builder left the library page for the Job-intake tab; the jd* prefill
+        // below is also what makes that tab open on Generate (jdsIntakeTabEntry.ts).
+        tab: "intake",
         target: '[data-sim="jd-builder"]',
         title: t("step.design.title"),
         caption: t("step.design.caption", { title: SIM_TITLE }),

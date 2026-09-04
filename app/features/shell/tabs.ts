@@ -29,6 +29,12 @@ export const WORKSPACE_TAB_IDS = [
   "history",
   "jobs",
   "library",
+  // Job intake: the AUTHORING surface (the intake dialog + the manual JD
+  // builder), split out of the library tab so "the roles I have" and "write a new
+  // role" stopped sharing one page behind a sub-tab strip. Listed here rather
+  // than appended last because it is a Library item; the chord rule is satisfied
+  // by chordOverflow on its NAV_GROUPS entry, not by array position.
+  "intake",
   "matrix",
   "analytics",
   // The LLM activity log (Insights) — the row-level audit trail of every AI
@@ -135,8 +141,15 @@ export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 // The flag itself is deleted rather than pinned to `true`: a constant that is
 // always true still makes every reader check whether it might not be.
 
-// The Agents module (agent-candidate bridge) is experimental: visible in dev, and
-// in production only when the deployment opts in with NEXT_PUBLIC_KP_AGENT_HIRING=1.
+// The Agents module (agent-candidate bridge) is IN DEVELOPMENT, and the gate is
+// now a single explicit opt-in: `NEXT_PUBLIC_KP_AGENT_HIRING=1` (or `=true`) in
+// the environment, in every mode. It used to be `NODE_ENV !== "production" || the
+// flag`, which meant the tab appeared in every dev session whether or not anyone
+// was working on it — an unfinished surface sitting in the sidebar between
+// finished ones, which is exactly what an operator reads as shipped. Nothing
+// hides it from a developer who wants it: one line in `.env.local` (documented in
+// `.env.example`).
+//
 // The NEXT_PUBLIC_ prefix is load-bearing: this module evaluates in the browser
 // too, where plain env vars are undefined — a server-only flag would render the
 // tab in SSR'd nav and drop it after hydration. Gating happens in two places:
@@ -145,7 +158,7 @@ export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 // rejects a direct ?tab=agents when the gate is off. About used the same pattern
 // until it graduated to shipping everywhere.
 export const AGENTS_TAB_IN_NAV =
-  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_KP_AGENT_HIRING === "1";
+  process.env.NEXT_PUBLIC_KP_AGENT_HIRING === "1" || process.env.NEXT_PUBLIC_KP_AGENT_HIRING === "true";
 
 // Grouped structure for the studio left sidebar. A flat tab list, if ever needed
 // (e.g. a deep-link breadcrumb), should be derived from NAV_GROUPS.flatMap(g => g.items)
@@ -176,6 +189,16 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "jobs", label: "Jobs", badgeKey: "jobs" },
       { id: "library", label: "Job descriptions" },
+      // The authoring surface (intake dialog + manual JD builder). chordPin, not
+      // chordOverflow, and the difference is worth a line: this id sits in an EARLY
+      // group, so the plain derivation would hand it `i` — Interview sim's shipped
+      // chord — and cascade from there. chordOverflow would fix that by demoting it
+      // to the two-key pass, but it would enter that pass ahead of Billing and move
+      // `g f i` → `g f l`. Pinning `k` (the letter the derivation itself would reach
+      // for once i/n/t/a are taken) reserves it in Pass 0 and moves nothing at all:
+      // every single-letter chord and both two-key chords are byte-for-byte what
+      // they were, and this tab still gets a one-key chord.
+      { id: "intake", label: "Job intake", chordPin: "k" },
     ],
   },
   {
@@ -401,6 +424,13 @@ export const TAB_SCOPED_PARAM_KEYS = [
   // history.replaceState; tab-scoped like any selection so a bare tab switch
   // can never carry a stale pre-arm along.
   "arm",
+  // The ledger's Duplicate handoff to the Job-intake tab
+  // (?duplicate=<slug>). Authoring left the library page, so the prefill can no
+  // longer be passed in memory: the SLUG travels and JdsIntakeTab does the read.
+  // One-shot like ?arm= / ?coachEdit= — consumed at mount, then stripped via
+  // history.replaceState, and tab-scoped so a bare tab switch can't re-seed a
+  // builder the recruiter has since edited.
+  "duplicate",
   // winnability-apply — the Library ledger's staged JD edit handoff from the
   // winnability coach (?coachEdit=<kind~slug~delta~value>, grammar in
   // sub_jobs/coach-apply.ts). One-shot like ?arm=: LibrarySavedJdsLedger consumes

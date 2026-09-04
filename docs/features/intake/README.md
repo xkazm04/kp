@@ -9,11 +9,28 @@ the existing JD build. Conversation design is normed by
 
 ## Entry points
 
-- **UI**: `/?tab=library` → JDs console → **Intake** sub-tab
-  (`app/features/library/jds/intake/JdsIntakePanel.tsx`, Tier-3
-  dynamic-imported behind the Saved/Generate/Intake `SegmentedControl` in
-  `JdsSavedLedger.tsx`).
-- Operator-internal only — no public token, no candidate exposure.
+- `?tab=intake` — **Job intake**, the authoring tab (sidebar: Library → Job
+  intake). Two modes behind one switcher: the **intake dialog** (default) and
+  **Generate**, the manual JD builder for a recruiter who already has the text.
+  Both panels stay mounted, so switching can never discard a half-typed draft or
+  an in-flight dialog (`jdsLedgerNav.ts` pins that; only a Duplicate advances
+  `builderKey` and remounts the builder).
+- The tab opens on **Generate** instead of the dialog when the URL carries a JD
+  handoff — `?duplicate=<slug>` (the ledger's Duplicate), `?jdTask=<id>` (a
+  finished background build, from the tasks tray) or the `?jdTitle=/?jdNeed=/…`
+  prefill the guided demo's design step uses. The rule is one pure predicate,
+  `opensOnGenerate` (`jdsIntakeTabEntry.ts` + test), because getting it wrong is
+  silent: the builder reads its seeds at MOUNT, so a handoff that lands on the
+  dialog drops what it was carrying.
+- `?tab=library` — the saved-JD ledger. It is the whole library page now; the
+  Saved / Generate / Intake strip that used to sit on top of it is gone.
+- **Duplicate is a navigation, not a prefill.** The ledger and the builder no
+  longer share a page, so the source SLUG rides the URL and `JdsIntakeTab` does
+  the `?intent=1` read itself — which is what keeps a regenerated role designing
+  from the recruiter's ORIGINAL prompt rather than from the rendered markdown.
+  One-shot: the param is stripped via `history.replaceState` at mount, so a
+  refresh can never re-seed a builder the recruiter has since edited.
+- Operator-internal only. No public token, no candidate exposure.
 
 ## User flow
 
@@ -427,7 +444,8 @@ could not: both readings are provenance `inferred` by construction (never
 "stated" — a machine read this), so the panel rendered the identical chip for
 both and the number had no consumer at all. `JdsIntakeBriefPanel` now renders a
 quiet confidence chip on a facet row, reusing the existing
-`library.tab.intake.defense.confidence` key. Confidence `1` renders nothing — a
+`library.tab.intake.defense.confidence` key (as a bare percentage beside the
+label in the two new bodies). Confidence `1` renders nothing — a
 value the requestor stated out loud is the common case, and a "100%" chip on
 every line would bury the one number that carries information.
 
@@ -482,6 +500,85 @@ prefix — a prefix-only test missed an ack-decorated read-back and folded the
 requestor's "ok" into the last scripted slot, inventing a stated
 `budget_band: "ok"` facet and repeating the read-back instead of closing.
 
+## The live brief is an ANNOTATED document
+
+`JdsIntakeBriefPanel.tsx` is the FRAME — header, edit/frozen states, the
+App-master slot, the empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
+The body is the winner of a `/prototype` round run against the shipped flat
+sections and a ranked "Scorecard"; both losers and the switcher between them were
+deleted at consolidation.
+
+**The reading model.** One column of plain bulleted sentences, with every piece of
+evidence about a line — where it came from, how sure the engine is, which turn
+said it — pushed into a narrow right-hand MARGIN that runs the panel's height. The
+eye reads content down the left and glances sideways only when it doubts a line.
+Colour is the SECTION, not the row (moss = the 90-day commitments, coral = the
+hard lines, steel = the flexible ones, stone = context), following the design
+system's own contract; the prose itself is never tinted.
+
+The provenance vocabulary is stated ONCE as a legend and then carried as a 6px dot
+on the toned axis the design system already defines (moss = stated · amber = the
+agent's reading · steel = template fill) — which is what removes the per-line
+"you said" / "assumed" chips, printed 14 times in a live App-master brief. The
+ROLE row follows the same rule: `JdsIntakeBriefTitle` renders dots, and the old
+`ProvenanceChip` is gone.
+
+The shaping rules are pure and pinned (`jdsIntakeBriefModel.ts` +
+`jdsIntakeBriefModel.test.ts`), so the body decides how the brief is DRAWN and
+never what it counts:
+
+- **De-duplication.** The engine emits the 90-day sentence twice — once as a
+  `successCriteria` entry, once as an `objective:*` / `success_90d` facet — so
+  the flat Context list reprinted the requestor's own commitment verbatim a few
+  lines under the first copy (observed in the App-master and Czech backfill
+  briefs alike). `prepareFacets` drops a facet that near-duplicates a criterion
+  or merely restates the role's title/seniority, and drops an exact repeat of a
+  facet it already kept — while KEEPING two different answers under one key
+  (`why_now` really is asked twice in some sessions).
+- **Label trimming.** `objective:gate_pass_rate` carries "gate pass rate — 95%
+  within 60 days" under the label "gate pass rate"; the head is trimmed so the
+  three words print once.
+- **Grouping.** Facet keys are namespaced (`mandate.owner`, `budget.monthlyUsd`,
+  `codebase_dossier.stack`), and the flat list threw that away. They now cluster
+  by namespace — labels from `library.tab.intake.brief.groups`, falling back to
+  `labelize()` for a namespace no catalog names yet — ordered inside each group
+  by the engine's own `importance` grade, with `context`-graded lines dropped to
+  steel.
+- **The spine badge counts what is RENDERED.** `briefItemCount` replaces the
+  panel's inline sum, so a folded brief leaf can never promise an item the open
+  leaf de-duplicated away.
+
+## The ledger is a table on the shared kit
+
+The intake ledger (no session open) was a stack of full-width buttons — one card
+per session, unfiltered, unsorted, unpaged — which reads fine at a demo's
+half-dozen and not at the 19 a working library already holds.
+`JdsIntakeSessionsTable.tsx` puts it in the same register as every other ledger in
+the studio (ProfileRoster, the Channels comms ledger, the Assignments outbox):
+the shared `ColumnHead` (which owns `aria-sort`), spreadsheet-style `ColumnFilter`
+triggers living IN the headers rather than in a toolbar, and the shared 20-row
+`TablePager` — nothing here re-derives paging arithmetic or a comparator. Role
+sorts and searches; Shape and Status filter but do not sort (they are categories,
+not rankings); Turns and Updated sort; a row click opens the session.
+
+`updatedAt` is nullish on a session nothing has touched since it was created, so
+the sort accessor falls back to `createdAt` — handing the comparator a `null`
+would sort every untouched session to the bottom in BOTH directions
+(`compareCells`' missing-value rule), which is right for an unknown and wrong for
+a date we hold.
+
+Two smaller corrections on the same surface:
+
+- **The lede is a tooltip on the title**, not a paragraph under it. It explains
+  the surface to a first-time reader and then repeats itself on every later visit
+  above the one thing a returning reader came for.
+- **App master is an action card.** Its entry was a borderless ghost button over an
+  explanatory paragraph, so the whole block read as a caption — the one route into
+  the third intake shape looked like something to read rather than something to
+  press. It is now one pressable target (icon sticker · name · explanation ·
+  chevron) that lifts its border on hover, and the form's primary action is a
+  primary button.
+
 ## Session layout — chat · brief · JD draft · materials
 
 The session view is the **Triptych** (`JdsIntakeLayoutTriptych.tsx` over the
@@ -489,14 +586,25 @@ shared contract in `intakeLayoutShared.ts`): three foldable leaves — JD draft 
 conversation · live brief — each folding to a clickable spine that still badges
 what THAT leaf holds; materials live in a disclosure at the foot of the draft
 leaf, reachable from the spine and from beside the conversation. Column
-visibility persists per browser in `localStorage`, never server-side. The
-**JD draft** (`JdsIntakeDraftPane.tsx` +
+visibility persists per browser in `localStorage`, never server-side.
+
+Each leaf has ONE title row: the leaf's name and, for the draft, its status tag
+(`draftChip` on `IntakeLayoutProps`). The draft pane used to print its own title
+underneath the leaf header — "Job description" over "Job description draft" —
+followed by a two-line explainer of what the pane was, and only then the posting
+inside a SECOND bordered card. That is three chrome layers between the header and
+the words the requestor came to read, so the pane is now document-only: the chip
+moved up into the leaf header, the explainer is gone, and the markdown renders
+straight into the leaf (`Markdown` emits its own root, so the entrance animation
+rides that instead of a wrapper).
+
+The **JD draft** (`JdsIntakeDraftPane.tsx` +
 `app/_lib/intake-draft.ts`) is a DETERMINISTIC client-side render of the
 current RoleBrief in the posting shape of the real build's `composeMarkdown`
-— it updates after every exchange at zero LLM cost, is labeled a working
-draft (the final JD, with market-salary research, is still generated at
-Promote), never prints a `default`-provenance seniority as a decided level,
-and notes when a JD attachment will be superseded at promote. Motion follows
+— it updates after every exchange at zero LLM cost, is tagged a draft (the
+final JD, with market-salary research, is still generated at Promote), never
+prints a `default`-provenance seniority as a decided level, and notes when a JD
+attachment will be superseded at promote. Motion follows
 the repo standard (AnalyzeWorkspace.tsx): a leaf's width tweens between leaf
 and spine while its content crossfades, chat bubbles and status notes fade in
 and out, the draft crossfades on brief change —

@@ -107,7 +107,17 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
               {isOpen ? (
                 <motion.div key="leaf" className="flex min-h-0 flex-1 flex-col" {...fade}>
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className={EYEBROW}>{label}</span>
+                    {/* One title row per leaf: the leaf's name and — for the draft —
+                        its status tag, rather than the pane repeating the title
+                        underneath with the chip attached to that copy. */}
+                    <span className="flex min-w-0 items-center gap-2">
+                      {/* No wrap: a leaf is a quarter of the desk, and a chip that
+                          drops to a second line rebuilds the two-row header this
+                          consolidation removed. The label truncates instead — it is
+                          the half that also rides the spine when the leaf folds. */}
+                      <span className={`${EYEBROW} truncate`}>{label}</span>
+                      {key === "draft" ? props.draftChip : null}
+                    </span>
                     <button
                       type="button"
                       onClick={() => flip(key)}

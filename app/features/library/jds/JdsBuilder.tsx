@@ -130,10 +130,18 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
       {/* Advisory lint over the editor body — surfaces boilerplate / missing pay·place /
           non-inclusive wording as the recruiter drafts. Hidden at zero findings (no
           empty chrome); never blocks Generate or Save-as-draft. */}
-      {lintFindings.length > 0 ? <JdLintPanel findings={lintFindings} /> : null}
+      {lintFindings.length > 0 ? (
+        // Fresh content arriving under a settled form (the lint engages once the
+        // draft is substantive): fade it in rather than having advice pop into the
+        // page while the recruiter is mid-sentence.
+        <div className="animate-arrive-in">
+          <JdLintPanel findings={lintFindings} />
+        </div>
+      ) : null}
       {/* Codebase enrichment is a dev-role feature — shown only when Field = Software. */}
       {isSoftware ? (
-        <Field label={t("codebaseLabel")} className="mt-2">
+        // Same reason: this field appears the moment Field flips to Software.
+        <Field label={t("codebaseLabel")} className="animate-arrive-in mt-2">
           <TextInput value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder={t("codebasePlaceholder")} sizeVariant="sm" />
         </Field>
       ) : null}

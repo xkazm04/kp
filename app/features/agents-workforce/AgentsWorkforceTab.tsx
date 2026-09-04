@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot } from "lucide-react";
+import { Bot, FlaskConical } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { BTN_SECONDARY, EYEBROW, INTRO, SECTION } from "@/app/_components/ui/recipes";
@@ -26,7 +26,16 @@ export function AgentsWorkforceTab() {
     <section className={`stagger-children ${SECTION}`}>
       <header>
         <p className={EYEBROW}>{t("eyebrow")}</p>
-        <SectionTitle className="mt-1">{t("title")}</SectionTitle>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <SectionTitle>{t("title")}</SectionTitle>
+          {/* This module is unfinished and reachable only behind
+              NEXT_PUBLIC_KP_AGENT_HIRING (tabs.ts). The tag says so ON the surface,
+              so a session that turned the flag on months ago cannot mistake it for
+              a shipped feature — amber is the app's "attention / not settled" tone. */}
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800">
+            <FlaskConical size={11} aria-hidden /> {t("inDevelopment")}
+          </span>
+        </div>
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
 

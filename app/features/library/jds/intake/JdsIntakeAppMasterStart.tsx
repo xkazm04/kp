@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { BTN_GHOST, BTN_SECONDARY, FIELD, META_LABEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { ChevronRight, ScanSearch } from "lucide-react";
+import { BTN_GHOST, BTN_PRIMARY, FIELD, ICON_STICKER, META_LABEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 
 // The App-master start option on the intake ledger
 // (docs/features/app-master/README.md). This shape does not begin with a blank
@@ -29,13 +30,27 @@ export function JdsIntakeAppMasterStart({
   const trimmed = value.trim();
 
   if (!open) {
+    // An ACTION CARD, not a ghost button over a paragraph. The collapsed entry
+    // used to be borderless text with the explanation set below it as prose, so
+    // the whole block read as a caption — the one route into the third intake
+    // shape looked like something to read rather than something to press. The
+    // card puts the mark, the name, the explanation and a chevron inside one
+    // pressable target that lifts its border on hover.
     return (
-      <div className="mt-3">
-        <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={() => setOpen(true)}>
-          {t("start")}
-        </button>
-        <p className="mt-1 text-meta text-steel">{t("startHint")}</p>
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="focus-ring group mt-3 flex w-full items-center gap-3 rounded-lg border border-stone-200 bg-white p-3 text-left transition-colors hover:border-coral/50 dark:rounded-2xl dark:shadow-sticker-sm"
+      >
+        <span className={`${ICON_STICKER} h-10 w-10 shrink-0 text-coral`}>
+          <ScanSearch size={18} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-body font-semibold text-ink">{t("start")}</span>
+          <span className="block text-meta text-steel">{t("startHint")}</span>
+        </span>
+        <ChevronRight size={16} aria-hidden className="shrink-0 text-steel transition-colors group-hover:text-coral" />
+      </button>
     );
   }
 
@@ -61,7 +76,7 @@ export function JdsIntakeAppMasterStart({
       />
       <p className="text-meta text-steel">{mode === "url" ? t("repoHint") : t("pathHint")}</p>
       <div className="flex items-center gap-2">
-        <button type="button" className={`${BTN_SECONDARY} h-9 px-4 text-sm`} disabled={busy || !trimmed} onClick={submit}>
+        <button type="button" className={`${BTN_PRIMARY} h-9 px-4 text-sm`} disabled={busy || !trimmed} onClick={submit}>
           {busy ? t("starting") : t("begin")}
         </button>
         <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} disabled={busy} onClick={() => setOpen(false)}>

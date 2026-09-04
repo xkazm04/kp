@@ -244,17 +244,26 @@ remains, feeding the palette's resting state and recording opens.
 
 `shell/simulation/SimBar.tsx` → `SimControlDock.tsx` is the always-mounted bottom
 deck. Collapsed, it is the Candi orb (`SimControlDockOrb.tsx`) — a haloed mark
-carrying the awaiting-decisions beacon and the aiBusy pulse. Raised, it is a fixed
-footer ROW of three parts: a bordered panel box in the middle, and one element
-outside each of its borders.
+carrying the awaiting-decisions beacon and the aiBusy pulse, at bottom CENTRE.
+Raised, it is a fixed footer ROW: a bordered panel box, the open/close handle
+above it, and the guided-demo button beyond its right border.
 
-- **Outside the borders** (`SimControlDockRail.tsx`) — the identity block on the
-  left (the Candi switch that lowers the deck, "Control center", and the mode
-  subtitle) and the ONE guided-demo button on the right. Neither ever hides,
-  because each is the only route to what it opens; they shed their TEXT instead
-  (brand at `lg`, guide label at `md`), leaving a 44px square that still hits the
-  touch target. The panel between them is `min-w-0 flex-1`, so it absorbs the
-  remaining width and wraps its own row rather than colliding with either side.
+- **Outside the borders** (`SimControlDockRail.tsx`) — `DockBrand`, the Candi
+  switch that lowers the deck, and the ONE guided-demo button. Neither ever hides,
+  because each is the only route to what it opens; the guide sheds its TEXT below
+  `md`, leaving a 44px square that still hits the touch target. The panel is
+  `min-w-0 flex-1`, so it absorbs the remaining width and wraps its own row rather
+  than colliding with the guide.
+- **The handle is the same mark in the same column in both states.** `DockBrand`
+  is absolutely positioned against the footer row's top-CENTRE (`bottom-full`),
+  directly above where the collapsed orb rests, and `CandiSwitch` carries a
+  chevron badge naming the direction the press travels. It used to sit at the
+  row's left edge, which made the one open/close control appear to jump across
+  the screen when pressed and left nothing at the orb's own position marking the
+  way back down. Because the handle hangs above the row and contributes no height
+  of its own, the fixed frame carries `pt-14` — that frame is what
+  `usePublishBarHeight` measures into `--sim-bar-h`, so without the padding the
+  sim overlays that anchor above the bar would park underneath the handle.
 - **Layer 1** (`SimControlDockToolbar.tsx`) — always visible inside the box: the
   "N need you" route into the decisions queue, and a compact `role="toolbar"` icon
   row of four controls. Roving tabindex: one tab stop, arrows/Home/End move FOCUS
@@ -395,6 +404,32 @@ Before the refactor, three things made the tree impossible to split cleanly:
 Anything with more than one feature-group consumer now lives in
 `app/features/shared/`. Nothing in `shared/` may import from a feature group —
 the dependency runs one way.
+
+## Adding a tab is five declarations, and the chord is the one that bites
+
+`WORKSPACE_TAB_IDS` (the id universe + the runtime guard), a `NAV_GROUPS` entry
+(sidebar placement + label), a `TAB_CHUNKS` loader, a `WorkspaceTabChunks` branch,
+and a `nav.tabs.<id>` label in all four catalogs. The **Job intake** tab
+(`?tab=intake`, Library group) is the worked example.
+
+The one non-obvious part is the `g`-chord. Chords derive from the tab id in
+`NAV_GROUPS` order (`workspaceChords.ts`), so an id added to an EARLY group takes
+the first free letter of its own id — and `intake` would have taken `i`, which is
+Interview sim's shipped chord, cascading from there. Two escape hatches exist and
+they are not interchangeable:
+
+- `chordOverflow` demotes the tab to the two-key pass. Correct when the tab has no
+  free letter to claim — but that pass is also ordered, so entering it from an
+  early group shifts the two-key chords of everything after it (`intake` would have
+  moved Billing's `g f i` to `g f l`).
+- `chordPin` reserves a letter in Pass 0, before any derivation runs. `intake` pins
+  `k` — the letter the derivation itself would reach for once `i`/`n`/`t`/`a` are
+  taken — so every existing chord, single and two-key, is byte-for-byte unchanged
+  and the new tab still gets a one-key chord.
+
+`workspaceChords.test.ts` is what makes this checkable: it pins every shipped
+single letter and both two-key chords, so either mistake fails loudly instead of
+silently moving someone's muscle memory.
 
 ## `shell/tasks/` — the AI-tasks surface
 

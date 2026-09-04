@@ -1,13 +1,10 @@
 "use client";
 
-// The Decisions tab header: eyebrow/title/intro (with the Schedule deep-link),
-// the role/governance-mode filters, the pending count, the reconsider chip and
-// the rules button. Split out of DecisionsTab to keep that file's render
-// shell under the 200-line cap.
-import { useRouter, useSearchParams } from "next/navigation";
+// The Decisions tab header: eyebrow/title/intro, the role/governance-mode
+// filters, the pending count, the reconsider chip and the rules button. Split
+// out of DecisionsTab to keep that file's render shell under the 200-line cap.
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
 import { Select } from "@/app/_components/Select";
 import { roleKeyOf } from "./decisionsQueueTypes";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
@@ -37,27 +34,16 @@ export function DecisionsHeader({
   pendingHeaderCount: number;
 }) {
   const t = useTranslations("decisions");
-  const router = useRouter();
-  const search = useSearchParams();
 
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-1 max-w-2xl text-body text-steel">
-          {t.rich("intro", {
-            schedule: (chunks) => (
-              <button
-                type="button"
-                onClick={() => router.push(buildTabSwitchUrl("schedule", search.toString()))}
-                className="focus-ring font-semibold text-coral hover:underline"
-              >
-                {chunks}
-              </button>
-            ),
-          })}
-        </p>
+        {/* One line. The paragraph used to explain the click target, the group-eval
+            button and where interview slots live — three affordances that are all
+            on screen, so the prose was a caption for controls the reader can see. */}
+        <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
       </div>
       <div className="flex items-center gap-2">
         {jobOptions.length > 1 ? (

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { deriveChords, isChordPrefix, matchChord } from "./workspaceChords.ts";
-import { NAV_GROUPS } from "./tabs.ts";
+import { AGENTS_TAB_IN_NAV, NAV_GROUPS } from "./tabs.ts";
 
 const CHORDS = deriveChords();
 const byId = new Map(CHORDS.map((c) => [c.id, c.keys]));
@@ -77,8 +77,19 @@ test("integrations takes the single letter Onboarding freed", () => {
 // Agents sits INSIDE the first (hiring) group but is marked chordOverflow, so it
 // takes a two-key chord instead of stealing `a` from Analyze (which would have
 // cascaded through analytics too). Every pinned single above stays untouched.
-test("agents (chordOverflow) gets a two-key chord and steals no pinned single", () => {
-  assert.deepEqual(byId.get("agents"), ["f", "a"]);
+//
+// The module is unfinished and now gated on NEXT_PUBLIC_KP_AGENT_HIRING in EVERY
+// mode (it used to be visible in dev by default), so which half of this runs
+// depends on the environment the suite is running in. Both halves are real
+// assertions: with the flag on, the overflow chord is what it always was; with it
+// off, the tab must be absent from the derivation entirely rather than lingering
+// as a chord for a tab nobody can see.
+test("agents takes its two-key chord when enabled, and no chord at all when gated off", () => {
+  if (AGENTS_TAB_IN_NAV) {
+    assert.deepEqual(byId.get("agents"), ["f", "a"]);
+  } else {
+    assert.equal(byId.get("agents"), undefined);
+  }
 });
 
 // Collision-free BY CONSTRUCTION: no two chords share a full sequence, and no

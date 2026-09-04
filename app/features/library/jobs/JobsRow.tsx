@@ -38,9 +38,14 @@ export function JobRow({ job, onOpen }: { job: Job; onOpen: () => void }) {
       <Td className="capitalize">{job.seniority ? enumLabel("seniority", job.seniority) : "—"}</Td>
       <Td>{job.roleFamily ? enumLabel("family", job.roleFamily) : "—"}</Td>
       <Td>{formatBand(job.salaryBand)}</Td>
-      <Td>
+      {/* Entry: tick + share are ONE fact and must read as one line. The badge is
+          the table's narrowest column and its content is two tokens separated by a
+          space, so at a normal window width the percentage wrapped under the tick
+          and the cell grew to two rows — `whitespace-nowrap` keeps the pair
+          together and lets the column take the width it needs instead. */}
+      <Td className="whitespace-nowrap">
         {ep?.isEntryEligible ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-green-50 px-2 py-0.5 text-sm font-semibold text-green-700">
             {`✓ ${formatPercent(ep.graduateFriendliness ?? 0, { fraction: true })}`}
           </span>
         ) : (

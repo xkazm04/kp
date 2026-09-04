@@ -15,10 +15,48 @@ path; full mapping in [../README.md](../README.md) § "One vocabulary along the 
 a known, deliberately-deferred gap, because untangling it also touches `roleFamily`,
 the role-intake dialog and the metered `job_posts` allowance.
 
+## The corpus table runs on the shared table kit
+
+`JobsTable.tsx` + `JobsTabResults.tsx` were the one long table in the studio that
+used none of `app/_components/table/`: seven inert `<Th>` labels over a
+`max-h-[70vh]` scroll pane that mounted **all 105 rows** of the demo corpus at
+once, no ordering anywhere, and the filters in a toolbar far above the columns
+they filtered. It now carries the same register as ProfileRoster and the Channels
+ledger:
+
+- **Sorting** — the shared `useTableSort` over accessors in `jobsTableView.ts`
+  (pinned by `jobsTableView.test.ts`). Two rules live there because a hand-rolled
+  accessor gets them wrong: a salary BAND sorts by its floor, and a missing value
+  (no location, no band, not entry-eligible) resolves to `null` so it sorts last
+  in BOTH directions instead of leading an ascending sort. "Not eligible" and
+  "eligible, scored 0%" stay different facts.
+- **Header cells** — the shared `ColumnHead`, which owns `aria-sort`; the local
+  `Th` never claimed it, so a screen-reader user could not learn the table was
+  ordered.
+- **Filtering** — `ColumnFilter` triggers IN the headers (search on Role, selects
+  on Mode / Seniority / Family, a one-option "eligible only" menu on Entry). The
+  toolbar is gone; the filters still write the same `useJobsList` state, so a
+  change re-queries `/api/jobs` after its debounce — filtering stays SERVER-side.
+  The one control with no column to live in — "open roles only", a lifecycle
+  predicate over the whole query rather than a value in any cell — is a toggle
+  chip beside the count it changes.
+- **Paging** — the shared 20-row `TablePager`. `useJobsList` owns the page index
+  beside the filters and every filter setter returns to page 1; `clampPage`
+  catches everything else (a publish that drops a row out of an "open only" view).
+
 ## Entry points
 
-- `?tab=jobs` — the Jobs tab (drafts vs. published/closed, publish action).
-- `app/features/library/jds/**` (`JdsBuilder.tsx` — exported as `JdBuilder` — via `JdsGeneratePanel.tsx`, plus `JdsTab.tsx` / `useJdEditor.ts`) — the AI JD builder (generate → edit → save).
+- `?tab=jobs` — the Jobs tab (drafts vs. published/closed, publish action). Its
+  header carries **Import position** top-right (`IngestAdButton`), which opens
+  the paste form directly under the header. The state is one
+  `useIngestAdPanelLogic()` held by `JobsTab`, handed to the trigger and the form
+  separately, so the two can never disagree about whether the panel is open; the
+  trigger locks while a parse is in flight, because a run costs billed LLM time
+  and its one deliberate exit is the form's **Cancel run**. Copy calls what is
+  pasted a **job position**, not an ad — the corpus is roles, and the ad is only
+  the format one arrived in.
+- `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now.
+- `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`).
 - `/jds/[slug]` — the public JD page (candidate-facing).
 
 ## Lifecycle stages
@@ -27,7 +65,7 @@ the role-intake dialog and the metered `job_posts` allowance.
 | --- | --- | --- | --- |
 | **Generated** | AI has drafted a JD (RoleSpec + market salary + markdown) but nothing is saved. | `JdBuilder` → `JdBuilderResult` (in-memory). | — |
 | **Draft** | The JD is saved and reusable for analysis/matching, but no candidates are sourced and it is not live. | `POST /api/jds/save` (AI builder) or `POST /api/jds` (manual paste). | `jobs.status = 'draft'` |
-| **Live (sourced)** | The JD is live and matching candidates have been sourced into the Pipeline (they land at `Accepted`). | "Source into Pipeline" button (`POST /api/jobs/[id]/publish`). | `jobs.status = 'published'` |
+| **Live (sourced)** | The JD is live and matching candidates have been sourced into the Pipeline (they land at `Accepted`). | "Publish" button (`POST /api/jobs/[id]/publish`) — in the drafts panel and the posting modal. | `jobs.status = 'published'` |
 | **Closed** | The role is retired: its apply link stops accepting applications, it drops out of the open catalog and the matching pool, and its in-flight pipeline entries in the caller's workspace are withdrawn. | `POST /api/jobs/[id]/close` (idempotent mirror of `/publish`). | `jobs.status = 'closed'` |
 | **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`. | — |
 
@@ -100,10 +138,10 @@ templates is the one action that can replace them, and it now always asks.
    the schema foundation of the role-intake concept
    (`docs/concepts/role-intake-dialog.md`).
 
-"Source into Pipeline" (`POST /api/jobs/[id]/publish`) looks up the job by
+"Publish" (`POST /api/jobs/[id]/publish`) looks up the job by
 `getJob('jd-<slug>')`. If ingest failed, that row was never created, so a
 Publish click would 404. The builder reads `jobIngested`: `false` disables
-"Source into Pipeline" with an inline **Retry** that re-POSTs to
+Publish with an inline **Retry** that re-POSTs to
 `/api/jds/save` with the existing `slug` to re-run only the ingest (no
 duplicate draft). When `slug` is supplied, the save route rejects an unknown
 slug (404) so a retry can never mint a `jd-<slug>` Job with no backing draft.
@@ -131,12 +169,40 @@ just missed), and the only other workspace ever read is the caller's own session
 `isOperator() && currentWorkspace() === owner`, where `owner` is whichever of the
 two produced the row.
 
+### Publishing a draft reports its outcome in a toast
+
+A publish spends ~20s in the sourcing matcher, and its outcome used to be an
+inline note under the drafts list — which the success path then deleted:
+publishing the last draft empties `drafts`, `DraftsPanel` early-returns `null`,
+and the note went with the panel. The recruiter saw a label revert and nothing
+else. Outcomes now go to the shared toast queue
+(`app/_components/toast-store.ts`), which outlives the surface that raised them:
+one success toast naming the role plus the sourced count, and — when
+`sourcingWarning` is set — a second, separate error toast, so "the role is live"
+and "sourcing broke" are never merged into one ambiguous line. The 402 quota
+refusal is the one outcome that stays inline, because it carries a Billing CTA
+and the panel is still standing in that branch. The in-flight button carries a
+spinner for the same reason: a static label swap on a disabled button was
+indistinguishable from a click that did nothing.
+
+Both publish paths (`JobsDraftsPanel`, `jobsPostingModalLogic`) also call
+`notifyDataChanged()` (`app/features/shell/live-refresh.ts`) on success. Neither
+did before, and the bus is signal-on-call, not fetch-interception: a publish
+flips a status AND files people into the pipeline, so the sidebar's Jobs badge
+and any open board kept their pre-publish numbers until the 60s attention poll
+came round (`app/features/shell/useAttention.ts`) — in another window, not at
+all.
+
 ## The two meanings of "Publish" — disambiguated
 
-1. **Source into Pipeline** *(internal go-live)* — marks a saved draft live
+1. **Publish** *(internal go-live)* — marks a saved draft live
    and sources matching candidates into the Pipeline
    (`POST /api/jobs/[id]/publish`). Idempotent — re-running does not
-   re-source. UI label: "Source into Pipeline."
+   re-source. UI label: "Publish" (was "Source into Pipeline", which named the
+   side effect rather than the act; the sourcing is reported in the outcome
+   toast instead). One label on both surfaces that call the route —
+   `JobsDraftsPanel.tsx` and `JobsPostingModalFooter.tsx`, which share the
+   `jobs.drafts` message namespace.
 2. **Publish to job boards** *(external distribution)* — not yet
    implemented; the button on `/jds/[slug]` is disabled ("coming soon").
 

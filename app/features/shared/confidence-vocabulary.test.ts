@@ -95,23 +95,35 @@ test("the self-report is clamped and rounded, and absent where no scalar exists"
 // 2. The render grammar at the two sites the findings name (source-level).
 // ---------------------------------------------------------------------------
 
-test("the AI review card quotes the model, it does not meter it", () => {
+test("the AI review card does not render the model's self-report at all", () => {
   const src = readFileSync(path.join(repo, "app", "features", "hiring", "decisions", "DecisionsAiReviewCard.tsx"), "utf8");
-  // Measurement grammar, banned on this number: a proportional fill, a tone
-  // class driven by the value, and an ARIA role that asserts it as a fact.
+  // 2026-09 (operator call): the number came off the card entirely. Nothing had
+  // measured the model's 0-100 rating of its own verdict against an outcome, so it
+  // gave a reviewer a figure to weigh and no way to check it; the MEASURED
+  // confidence band (a real interval, from the analysis) still renders one click
+  // away in the full-analysis modal (DecisionsAnalysisParts).
+  //
+  // This test keeps its original job in the strongest form the change allows: the
+  // finding it guards ("an LLM self-report rendered in measurement grammar") came
+  // back twice, so what is banned here is the GRAMMAR, whether or not the number
+  // returns. If it ever does return, it returns labelled — the label-leads
+  // assertion below is what a re-render has to satisfy.
+  assert.ok(!src.includes('t("selfReportValue"'), "the self-reported number is not on the card");
+  assert.ok(!src.includes('t("selfReportLabel")'), "and neither is its label");
   assert.ok(!src.includes("confidenceTone"), "no tone band on the self-report");
   assert.ok(!/style=\{\{\s*width:/.test(src), "no proportional meter fill on the self-report");
-  assert.ok(!src.includes('role="img"'), "no assertive ARIA role over the self-report");
   assert.ok(!src.includes('t("confidenceAria"'), "the old assertive aria string is gone");
   assert.ok(!src.includes('t("confidencePct"'), "the bare percentage is gone");
-  // And the disclosure leads (G1): the label naming the author of the number is
-  // rendered BEFORE the number itself, not as a footnote under it.
+  // The verdict badge must not smuggle the same unlabelled number back as a suffix.
+  assert.ok(!/RecBadge[^/]*confidence=/.test(src), "RecBadge must not carry the self-report as a bare suffix");
+  // If a future revision re-renders it, the disclosure leads (G1): the label naming
+  // the author of the number before the number itself, never as a footnote under it.
   const label = src.indexOf('t("selfReportLabel")');
   const value = src.indexOf('t("selfReportValue"');
-  assert.ok(label > 0 && value > 0, "the card must render the labelled self-report");
-  assert.ok(label < value, "the self-reported label must lead, never trail the number");
-  // The verdict badge must not re-print the same unlabelled number as a suffix.
-  assert.ok(!/RecBadge[^/]*confidence=/.test(src), "RecBadge must not carry the self-report as a bare suffix");
+  if (label >= 0 || value >= 0) {
+    assert.ok(label >= 0 && value >= 0, "a re-rendered self-report carries BOTH its label and its value");
+    assert.ok(label < value, "the self-reported label must lead, never trail the number");
+  }
 });
 
 test("the Matrix score names its producer and its interval", () => {
@@ -132,6 +144,11 @@ test("the Matrix score names its producer and its interval", () => {
 
 // One representative render string per quantity. If a future change re-merges any
 // two of these onto one word, this fails in every locale at once.
+//
+// `selfReport` currently has no render site (the card dropped the number — see the
+// test above); its catalog entry is kept deliberately, as the reserved word for
+// that quantity, so a future surface that shows it again cannot reach for
+// "confidence" and re-collide the vocabulary.
 const QUANTITIES = {
   interval: "match.jobCompare.confidence",
   selfReport: "decisions.aiReview.selfReportLabel",

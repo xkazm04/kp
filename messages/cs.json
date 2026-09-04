@@ -2033,7 +2033,8 @@
       "organization": "Organizace",
       "workspace": "Pracovní prostory",
       "agents": "Agenti",
-      "activity": "Aktivita"
+      "activity": "Aktivita",
+      "intake": "Vstup pozice"
     },
     "groups": {
       "hiring": "Nábor",
@@ -2748,7 +2749,7 @@
   "decisions": {
     "eyebrow": "Rozhodnutí",
     "title": "Vaše fronta rozhodnutí",
-    "intro": "Krok s člověkem ve smyčce, seskupený podle pozice. Kliknutím na kandidáta zobrazíte souhrn analýzy, nebo spusťte skupinové hodnocení a porovnejte kandidáty pozice. Termíny pohovorů najdete v <schedule>Plánování</schedule>.",
+    "intro": "Krok s člověkem ve smyčce, seskupený podle pozice.",
     "filterTitle": "Filtrovat rozhodnutí na jednu otevřenou pozici",
     "govModeTitle": "Řízení skupinového hodnocení: jak se použije porovnání od AI",
     "govRecommendation": "Doporučení AI",
@@ -2815,7 +2816,6 @@
     "loadFailed": "Načtení selhalo.",
     "unassignedRole": "Nepřiřazená pozice",
     "evalLoadFailed": "Uložené hodnocení této pozice se nepodařilo načíst. Spusťte je znovu a porovnejte kandidáty.",
-    "match": "shoda",
     "recAria": "doporučení {label}",
     "recAriaConfidence": "doporučení {label}, jistota {confidence} %",
     "recConfidenceSuffix": "{label} · {confidence} %",
@@ -3646,7 +3646,16 @@
           "niceToHave": "Výhodou",
           "learnable": "lze doučit",
           "languages": "Jazyky",
-          "context": "Kontext"
+          "context": "Kontext",
+          "groups": {
+            "general": "Kontext",
+            "codebase_dossier": "Načteno z kódu",
+            "mandate": "Mandát",
+            "objective": "Cíle",
+            "budget": "Rozpočet",
+            "tenure": "Působení",
+            "role": "Nastavení role"
+          }
         },
         "provenance": {
           "stated": "řekli jste",
@@ -3705,10 +3714,7 @@
           "materials": "Podklady"
         },
         "draft": {
-          "title": "Návrh popisu pozice",
-          "workingChip": "pracovní návrh",
-          "workingNote": "Skládá se ze zadání průběžně, jak mluvíte. Finální popis pozice (včetně průzkumu mezd) vznikne při „Vytvořit popis pozice“.",
-          "workingNoteNoMarket": "Skládá se ze zadání průběžně, jak mluvíte. Finální inzerát vznikne při akci Vytvořit inzerát, bez průzkumu mezd, jak jste zvolili.",
+          "workingChip": "návrh",
           "supersedeNote": "Je přiložený existující inzerát. Vytvořením z tohoto zadání vznikne jeho aktualizovaná verze.",
           "empty": "Návrh se tu objeví, jakmile má zadání název nebo požadavky.",
           "untitled": "Nepojmenovaná pozice",
@@ -3844,6 +3850,17 @@
           "dispatchError": "Odeslání selhalo. Nikdo nebyl najat.",
           "dispatchHuman": "Tato specifikace je složena pro lidského držitele role. Povyšte ji místo toho na JD.",
           "dispatchNeedsPairing": "Před vysláním spárujte Kandi s Personas v Nastavení → Integrace."
+        },
+        "table": {
+          "role": "Role",
+          "shape": "Typ",
+          "status": "Stav",
+          "turns": "Zprávy",
+          "updated": "Aktualizováno",
+          "open": "Otevřít",
+          "openSession": "Otevřít vstupní rozhovor pro {title}",
+          "noMatch": "Žádný rozhovor neodpovídá filtrům.",
+          "clear": "Zrušit filtry"
         }
       }
     },
@@ -4002,25 +4019,26 @@
         "offer_note": "Hybridní režim práce, smysluplná zodpovědnost a prostor k růstu.",
         "apply_note": "Přihlaste se přes odkaz: krátký rozhovor a potom první kolo pohovoru."
       }
+    },
+    "intakeTab": {
+      "eyebrow": "Pracovní prostor",
+      "title": "Vstup pozice",
+      "intro": "Pozici začnete rozhovorem. Krátký řízený dialog zachytí, co doopravdy potřebujete, a z toho vznikne popis pozice. Text už máte? Předejte ho v záložce Generovat.",
+      "modeLabel": "Jak začít",
+      "modeIntake": "Řízený dialog",
+      "modeGenerate": "Generovat",
+      "toLibrary": "Popisy pozic"
     }
   },
   "jobs": {
     "tab": {
       "eyebrow": "Pracovní prostor",
       "title": "Korpus pozic",
-      "intro": "Strukturovaná databáze pozic, proti které běží párovací engine. Každý inzerát se rozloží na požadavky must / nice-to-have (každý označený jako prerekvizita vs. naučitelné) a nese předpočítanou <strong>absolventskou optiku</strong>: příznak vhodnosti pro juniory a přeformulované požadavky, které umožní porovnat profily studentů s pozicemi zaměřenými na zkušenosti.",
+      "intro": "Strukturovaná databáze pozic, proti které běží párovací engine.",
       "statTotal": "Celkem",
       "statEntryEligible": "Pro juniory",
-      "allFamilies": "Všechny obory",
-      "filterFamily": "Filtrovat podle oboru",
-      "allSeniority": "Všechny seniority",
-      "filterSeniority": "Filtrovat podle seniority",
-      "allModes": "Všechny režimy",
-      "filterWorkMode": "Filtrovat podle režimu práce",
       "entryOnly": "Jen vhodné pro juniory",
       "openOnly": "Jen otevřené pozice",
-      "searchLabel": "Hledat pozice podle názvu nebo společnosti",
-      "searchPlaceholder": "Hledat název nebo společnost…",
       "showing": "Zobrazeno <b>{shown}</b> z <b>{total}</b> pozic",
       "clearAll": "Vymazat vše",
       "noRolesTitle": "Žádné pozice neodpovídají těmto filtrům",
@@ -4037,9 +4055,9 @@
         "route1Title": "Sestavit ji ze šablony popisu pozice",
         "route1Body": "Vyberte popis pozice v knihovně, dolaďte požadavky a zveřejněte ho jako otevřenou pozici.",
         "route1Cta": "Otevřít popisy pozic",
-        "route2Title": "Importovat inzerát, který už máte",
-        "route2Body": "Vložte existující inzerát a Kandi z něj poskládá strukturovanou pozici: požadavky, senioritu i režim práce.",
-        "route2Cta": "Použijte panel importu výše",
+        "route2Title": "Importovat pozici, kterou už máte",
+        "route2Body": "Vložte existující text pozice a Kandi z něj poskládá strukturovanou pozici: požadavky, senioritu i režim práce.",
+        "route2Cta": "Použijte Importovat pozici v záhlaví",
         "unlocksLabel": "Jedna pozice odemkne",
         "unlockChannels": "Otevřené kanály",
         "unlockPipeline": "Příliv kandidátů",
@@ -4065,22 +4083,22 @@
       "statusClosed": "Uzavřeno"
     },
     "ingest": {
-      "minChars": "Vložte celý inzerát, alespoň ~{min} znaků.",
+      "minChars": "Vložte celý text pozice, alespoň ~{min} znaků.",
       "ingestFailedStatus": "Načtení selhalo ({status}).",
       "defaultTitle": "Pozice",
       "added": "„{title}“ přidáno do katalogu.",
       "alreadyExists": "„{title}“ už je v katalogu. Otevřeli jsme stávající pozici.",
       "ingestFailed": "Načtení selhalo.",
-      "pasteAd": "Vložit inzerát",
-      "pasteIntro": "Vložte celý textový inzerát. Rozloží se na strukturovanou, párovatelnou pozici (požadavky must / nice-to-have, seniorita, absolventská optika) a přidá se do korpusu. Duplicity se detekují automaticky.",
-      "pastePlaceholder": "Sem vložte text inzerátu…",
-      "parsing": "Zpracovává se inzerát…",
+      "pasteAd": "Importovat pozici",
+      "pasteIntro": "Vložte celý text pozice. Rozloží se na strukturovanou, párovatelnou pozici (požadavky must / nice-to-have, seniorita, absolventská optika) a přidá se do korpusu. Duplicity se detekují automaticky.",
+      "pastePlaceholder": "Sem vložte text pozice…",
+      "parsing": "Zpracovává se pozice…",
       "addToCatalog": "Přidat do katalogu",
       "cancel": "Zrušit",
       "parsingNote": "Zpracování spouští Claude CLI lokálně, takže může chvíli trvat.",
-      "bulkToggle": "Více inzerátů",
-      "bulkHint": "oddělte každý inzerát řádkem ---",
-      "bulkPlaceholder": "Vložte několik inzerátů, každý oddělený řádkem pomlček (---)…",
+      "bulkToggle": "Více pozic",
+      "bulkHint": "oddělte každou pozici řádkem ---",
+      "bulkPlaceholder": "Vložte několik pozic, každou oddělenou řádkem pomlček (---)…",
       "importAll": "Importovat vše ({count})",
       "importing": "Importování {done}/{total}…",
       "bulkDone": "{added} přidáno · {exists} už v katalogu · {failed} selhalo",
@@ -4089,19 +4107,21 @@
       "resFailed": "nepodařilo se zpracovat",
       "cancelRun": "Zrušit běh",
       "cancelled": "Zpracování zrušeno. Nic se nepřidalo.",
-      "bulkCancelled": "Zrušeno po {done} z {total} inzerátů. Dosavadní výsledky zůstávají níže."
+      "bulkCancelled": "Zrušeno po {done} z {total} pozic. Dosavadní výsledky zůstávají níže.",
+      "pasteHeading": "Import pracovní pozice"
     },
     "drafts": {
       "heading": "Koncepty čekající na sourcing",
       "draftBadge": "Koncept",
-      "sourceTitle": "Označit tento popis pozice jako aktivní a přivést odpovídající kandidáty do Pipeline",
-      "sourcing": "Probíhá sourcing…",
-      "sourceIntoPipeline": "Přivést do Pipeline",
+      "sourceTitle": "Publikovat tuto pozici a přivést odpovídající kandidáty do Pipeline",
+      "sourcing": "Publikuje se…",
+      "sourceIntoPipeline": "Publikovat",
       "sourcingFailed": "Sourcing selhal.",
       "publishedButFailed": "Publikováno, ale sourcing selhal: {warning}",
       "sourced": "{count, plural, one {Do Pipeline přiveden # kandidát.} few {Do Pipeline přivedeni # kandidáti.} many {Do Pipeline přivedeno # kandidáta.} other {Do Pipeline přivedeno # kandidátů.}}",
       "quotaNote": "Dosáhli jste limitu aktivních pozic ve svém tarifu. Upgradujte nebo uzavřete pozici, abyste mohli publikovat další.",
-      "goToBilling": "Upgradovat ve Fakturaci"
+      "goToBilling": "Upgradovat ve Fakturaci",
+      "published": "Pozice „{title}“ je aktivní."
     },
     "posting": {
       "copied": "Zkopírováno",
@@ -8006,7 +8026,8 @@
       "refreshUnchanged": "Beze změny: Personas stále hlásí „{status}“.",
       "refreshFailed": "Nepodařilo se spojit s kp a stav agenta obnovit. Zkuste to znovu.",
       "refreshUnpollable": "Personas nevrátila pro tohoto agenta žádný nový stav. Zkontrolujte aplikaci Personas nebo propojení v Nastavení → Integrace."
-    }
+    },
+    "inDevelopment": "Ve vývoji"
   },
   "simulation": {
     "status": {

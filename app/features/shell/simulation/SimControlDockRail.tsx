@@ -1,9 +1,11 @@
 "use client";
 
-// The two side elements that sit OUTSIDE the control panel's left and right
-// borders, in the same fixed footer row. The footer had spare horizontal space
-// beside the panel; round 3 spends it on the two things that were competing for
-// width inside the row — the product identity and the one guided-demo entry.
+// The two elements that sit OUTSIDE the control panel's own box, in the same
+// fixed footer row: the open/close handle centred ABOVE it (round 5 — see
+// DockBrand) and the guided-demo entry beyond its right border. The footer had
+// spare space around the panel; round 3 spent it on the two things that were
+// competing for width inside the row, and round 5 moved the first of them to the
+// one place that reads as "this is the thing you just pressed".
 //
 // NARROW VIEWPORTS — the rule, stated once here because both elements follow it:
 // neither element ever hides, because both are the only way to reach something
@@ -20,13 +22,23 @@ import { Play } from "lucide-react";
 import { CandiSwitch } from "./SimControlDockTiles";
 import { DOCK_PANEL_DOM_ID, dockTabDomId } from "./simControlDockLayers";
 
-/** OUTSIDE-LEFT — just the power switch now. Round 4 removed the logo + brand
- *  text ("it does not bring value" — operator, 2026-08-24); what must survive is
- *  the CandiSwitch itself, the only control that lowers the deck, still carrying
- *  the aiBusy pulse. Icon-only at every width. */
+/** TOP-CENTRE — the deck's handle. Round 4 had reduced this to the bare power
+ *  switch ("the logo + brand text does not bring value" — operator, 2026-08-24)
+ *  but left it at the row's LEFT edge, and that was the confusion round 5 fixes:
+ *  the collapsed dock is the Candi orb at bottom CENTRE, so pressing it appeared
+ *  to teleport the one open/close control to the far left, where nothing marked
+ *  it as the way back down. It is now pinned above the middle of the footer row —
+ *  the same mark, in the same column, in both states, with a chevron badge
+ *  (CandiSwitch) naming the direction. Icon-only at every width.
+ *
+ *  Absolutely positioned against the footer ROW (SimControlDock gives it
+ *  `relative`), not against the panel: the row's right side carries the guided-demo
+ *  button, so centring on the panel would put the handle off-centre from the orb it
+ *  replaces. `bottom-full` keeps it clear of the panel's own top edge, so it can
+ *  never sit on top of whatever layer-2 opened. */
 export function DockBrand({ aiBusy, onCollapse }: { aiBusy: boolean; onCollapse: () => void }) {
   return (
-    <div className="pointer-events-auto flex shrink-0 items-center pb-3">
+    <div className="pointer-events-auto absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2">
       <CandiSwitch open onClick={onCollapse} busy={aiBusy} />
     </div>
   );

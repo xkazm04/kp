@@ -15,6 +15,12 @@ export type IntakeLayoutProps = {
   brief: ReactNode;
   draft: ReactNode;
   materials: ReactNode;
+  /** Status tag rendered BESIDE the draft leaf's own header title (the
+   *  working-draft chip). The draft pane used to print its own title row under
+   *  the leaf header — two titles for one document — so the chip moved up here
+   *  and the pane became document-only. A variant that draws no leaf header may
+   *  ignore it. */
+  draftChip?: ReactNode;
   // A folded leaf's spine must still say what THAT leaf holds (UAT L1-EVA-10 ·
   // L1-HRBP-15 · L1-TOM-5 convergent, widened by L2-CONV-1). So one field per
   // leaf, each measuring its own content:

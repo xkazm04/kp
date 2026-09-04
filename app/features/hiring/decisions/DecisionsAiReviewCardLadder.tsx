@@ -5,14 +5,16 @@
 // screening/scorecard cards (the narrative moved into the Full-analysis
 // modal's AI-review section). Answers "how does this candidate sit against
 // the rest of this role's pipeline" at the card itself:
-//   • a ranked mini-leaderboard of same-job active peers (self row
-//     highlighted; stage chips carry where each rival currently stands),
+//   • the role's full ranked ladder of scored active peers (self row highlighted
+//     and centred on open; stage chips carry where each rival currently stands),
+//     scrolling past four rows so the card still fits its decision buttons,
 //   • the salary expectation plotted against the role band (peer-context
 //     facts; renders only for a same-currency pair),
 //   • the scorecard rubric dots (the rubric IS data, so it stays).
 // Honest by construction: no ladder without 2+ scored peers, no salary plot
 // without a comparable band. Offer cards never render this — their
 // band + deadline body (DecisionsAiReviewCardBody) is decision-critical.
+import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { APP_CURRENCY, RATING_MAX } from "@/app/_lib/format";
@@ -22,7 +24,12 @@ import { SalaryBandRail } from "./DecisionsPeerViz";
 import type { ParsedApproval } from "./decisionsAiReviewCardLogic";
 
 const RATING_SCALE = Array.from({ length: RATING_MAX }, (_, i) => i + 1);
-const LADDER_CAP = 4;
+/** Rows visible without scrolling. Past this the list scrolls, centred on self. */
+const LADDER_VISIBLE = 4;
+/** 4 rows at ~30px + the list's own padding — the cap that turns the list into a
+ *  scroller. A ladder taller than this pushes the accept/reject buttons off a
+ *  queue card whose whole job is to be decided at a glance. */
+const LADDER_MAX_H = "max-h-[7.5rem]";
 
 /** The scorecard rubric dots — data, not prose, so they survive the ladder. */
 function RatingDots({ parsed }: { parsed: ParsedApproval }) {
@@ -62,19 +69,44 @@ export function AiReviewCardLadder({
   const band = peerFacts?.salaryBand ?? null;
   const scored = peers.filter((p): p is PeerScore & { score: number } => p.score != null).sort((a, b) => b.score - a.score);
   const selfIdx = scored.findIndex((p) => p.entryId === entry.id);
-  // Keep the self row visible even when it ranks below the cap.
-  const rows = scored.slice(0, LADDER_CAP);
-  if (selfIdx >= LADDER_CAP) rows.splice(LADDER_CAP - 1, 1, scored[selfIdx]);
+  // EVERY scored peer is rendered, not a top-4 slice with the self row spliced in.
+  // The slice answered "who leads this role"; a reviewer deciding on THIS person is
+  // asking the neighbouring question — who sits immediately above and below them —
+  // and the splice deleted exactly that: a candidate ranked 7th was shown against
+  // ranks 1-3 and nobody they were actually close to. So the list keeps its full
+  // ranking and scrolls, opening centred on the reviewed candidate (below).
+  const listRef = useRef<HTMLUListElement>(null);
+  const selfRef = useRef<HTMLLIElement>(null);
+  const scrolls = scored.length > LADDER_VISIBLE;
+  useEffect(() => {
+    const list = listRef.current;
+    const self = selfRef.current;
+    if (!scrolls || !list || !self) return;
+    // Centre the self row INSIDE the list. Deliberately not scrollIntoView: that
+    // walks every scrollable ancestor and would drag the whole decisions queue
+    // under the reader on mount.
+    list.scrollTop = Math.max(0, self.offsetTop - list.clientHeight / 2 + self.clientHeight / 2);
+  }, [scrolls, entry.id, scored.length]);
+
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5">
       {scored.length >= 2 && selfIdx >= 0 ? (
         <>
-          <ul className="space-y-0.5">
-            {rows.map((p) => {
+          {/* `relative` so a row's offsetTop is measured against THIS list (the
+              centring maths above), not against some outer positioned ancestor. */}
+          <ul
+            ref={listRef}
+            className={`relative space-y-0.5 ${scrolls ? `${LADDER_MAX_H} overflow-y-auto pr-1` : ""}`}
+          >
+            {scored.map((p) => {
               const self = p.entryId === entry.id;
               const rank = scored.indexOf(p) + 1;
               return (
-                <li key={p.entryId} className={`flex items-center gap-2 rounded px-1.5 py-1 ${self ? "bg-coral/5 ring-1 ring-coral/30" : ""}`}>
+                <li
+                  key={p.entryId}
+                  ref={self ? selfRef : undefined}
+                  className={`flex items-center gap-2 rounded px-1.5 py-1 ${self ? "bg-coral/5 ring-1 ring-coral/30" : ""}`}
+                >
                   <span className="nums w-4 shrink-0 text-sm font-semibold text-steel">{rank}</span>
                   <span className={`min-w-0 flex-1 truncate text-sm ${self ? "font-semibold text-ink" : "text-steel"}`}>{p.label}</span>
                   {!self && p.stage ? <span className="shrink-0 rounded bg-stone-100 px-1 text-[11px] uppercase text-steel">{p.stage}</span> : null}
@@ -85,11 +117,12 @@ export function AiReviewCardLadder({
           </ul>
           {/* "+N more in this pipeline" is counted against ALL active peers on the
               role (peersForEntry's set), not against `scored`: the ladder ranks only
-              candidates that carry a score, so counting the overflow over the scored
-              subset silently dropped every unscored peer from a line whose own label
-              claims the pipeline. A role with 8 active candidates, 6 scored, showing
-              the 4-row cap read "+2 more" when 4 more were in the pipeline. */}
-          {peers.length > rows.length ? <p className="mt-1 px-1.5 text-sm text-steel">{t("moreInPipeline", { count: peers.length - rows.length })}</p> : null}
+              candidates that CARRY a score, and the rest are still in the pipeline.
+              Now that every scored peer is rendered, this line names exactly the
+              unscored remainder rather than a display overflow. */}
+          {peers.length > scored.length ? (
+            <p className="mt-1 px-1.5 text-sm text-steel">{t("moreInPipeline", { count: peers.length - scored.length })}</p>
+          ) : null}
         </>
       ) : (
         <p className="text-sm text-steel">{t("noScoredPeers")}</p>

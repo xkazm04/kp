@@ -85,7 +85,7 @@ export function AddReceiverModal({
           {t("add.noJobs")}{" "}
           <button
             type="button"
-            onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
+            onClick={() => router.push(buildTabSwitchUrl("intake", search.toString()))}
             className="focus-ring font-semibold text-coral hover:underline"
           >
             {t("add.noJobsCta")}

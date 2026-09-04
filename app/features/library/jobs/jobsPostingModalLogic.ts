@@ -11,6 +11,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
+import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import {
@@ -126,6 +127,10 @@ export function useJobPostingModalLogic(
       setPublished(true);
       // Publish AND reopen both land the role at 'published' — refresh the table row.
       onChanged?.("published");
+      // Same signal the drafts panel sends: a publish/reopen moves people into the
+      // pipeline and changes the attention counts, so every other open view (board,
+      // sidebar badges, another window) re-fetches instead of waiting out its poll.
+      notifyDataChanged();
       // Settle the pack-on-publish CTA: does a campaign pack already exist for
       // the language the Campaign tab opens on? Fire-and-forget — a failed/slow
       // check just leaves the CTA hidden, never blocks the publish result.

@@ -640,15 +640,50 @@ salary band rail, coverage meter): `DecisionsPeerViz.tsx`. All copy is in the
 `decisions.summary` catalog (4-locale parity).
 
 The AI-review cards ship the **"Ladder" body** (winner of the same round):
-screening/scorecard cards replaced the AI's prose with a ranked
-mini-leaderboard of same-job active peers (self row highlighted, stage chips,
-canonical scores), the salary expectation plotted against the role band, and —
-on scorecards — the rubric dots. The narrative the cards dropped renders in
-the Full-analysis modal's "AI review" section. Offer cards are unchanged:
-their salary-band + deadline body (`DecisionsAiReviewCardBody.tsx`, now
-offer-only) is decision-critical and stays. Ladder body:
+screening/scorecard cards replaced the AI's prose with the role's ranked
+same-job active peers (self row highlighted, stage chips, canonical scores),
+the salary expectation plotted against the role band, and — on scorecards —
+the rubric dots. The narrative the cards dropped renders in the Full-analysis
+modal's "AI review" section. Offer cards are unchanged: their salary-band +
+deadline body (`DecisionsAiReviewCardBody.tsx`, now offer-only) is
+decision-critical and stays. Ladder body:
 `DecisionsAiReviewCardLadder.tsx`; peer wiring: `useDecisionsQueue`'s
 `peersOf`/`peerFactsOf`.
+
+The ladder shows the NEIGHBOURS, not the leaders. It used to render the top 4
+with the self row spliced into the last slot when it ranked below the cap, which
+answered "who leads this role" — but a reviewer deciding on THIS person is asking
+who sits immediately above and below them, and the splice deleted exactly that (a
+candidate ranked 7th was shown against ranks 1-3 and nobody they were close to).
+Every scored peer is now rendered; past four rows the list scrolls and opens
+centred on the reviewed candidate. The centring sets `scrollTop` on the list
+itself rather than calling `scrollIntoView`, which walks every scrollable ancestor
+and would drag the whole queue under the reader on mount. `+N more in this
+pipeline` now names the UNSCORED remainder, which is the only overflow left.
+
+### What the card header carries (and what it stopped carrying)
+
+The card was over-full, and three of its facts were chrome:
+
+- **The score moved to the header corner**, beside the verdict badge — one fit
+  number, still resolved through the canonical read path
+  (`canonicalScoreOf`/`provenanceOf`), and its provenance moved from a printed
+  label ("snapshot at add", a line on every card) to the badge's tooltip through
+  the same shared `scoreProvenance` catalog. Pinned by
+  `decisionsOfferCardScore.test.ts`.
+- **The initials monogram is gone.** These cards are one candidate each, not a
+  roster; the monogram identified nobody the name did not, and it plus the score
+  left the role line about half the card's width, so
+  "Switcher · Junior Fullstack Engineer (Node.js & AI)" truncated on most cards.
+  `CandidateHead` is now name + archetype · role · stage chip, full width, wrapping
+  rather than truncating.
+- **The model's self-report is gone.** Its 0-100 rating of its own verdict had
+  nothing measuring it against an outcome, so it handed a reviewer a number they
+  could weigh but not check. The MEASURED confidence band still renders one click
+  away in the Full-analysis modal. The derivation stays in
+  `decisionsAiReviewCardLogic.ts` under its guard
+  (`app/features/shared/confidence-vocabulary.test.ts`), which now asserts the card
+  renders NO self-report — and that if one ever returns, it returns labelled.
 
 ## Hybrid handoff (interviewPlan enforcement)
 

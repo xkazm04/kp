@@ -15,15 +15,30 @@ export function useJobsList() {
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
 
-  const [roleFamily, setRoleFamily] = useState("");
-  const [seniority, setSeniority] = useState("");
-  const [workMode, setWorkMode] = useState("");
-  const [entryOnly, setEntryOnly] = useState(false);
+  const [roleFamily, setRoleFamilyState] = useState("");
+  const [seniority, setSeniorityState] = useState("");
+  const [workMode, setWorkModeState] = useState("");
+  const [entryOnly, setEntryOnlyState] = useState(false);
   // Open-for-applications only (NULL/'published' status) — hides drafts and
   // closed roles. Default OFF: the corpus view keeps showing the full catalog
   // unless the recruiter opts in, mirroring entryOnly.
-  const [openOnly, setOpenOnly] = useState(false);
-  const [q, setQ] = useState("");
+  const [openOnly, setOpenOnlyState] = useState(false);
+  const [q, setQState] = useState("");
+  // Zero-based page for the shared TablePager. It lives HERE, beside the filters,
+  // because every filter change re-cuts the result set: staying on page 3 of a
+  // list that just became a different list is disorienting, and clamping alone
+  // only catches the case where the list got shorter. Each setter below resets it.
+  const [page, setPage] = useState(0);
+  const resetPage = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setPage(0);
+  };
+  const setRoleFamily = resetPage(setRoleFamilyState);
+  const setSeniority = resetPage(setSeniorityState);
+  const setWorkMode = resetPage(setWorkModeState);
+  const setEntryOnly = resetPage(setEntryOnlyState);
+  const setOpenOnly = resetPage(setOpenOnlyState);
+  const setQ = resetPage(setQState);
   // Bumped to force a re-fetch with the current filters unchanged — e.g. after a
   // new job is ingested into the catalog from the same screen.
   const [reloadKey, setReloadKey] = useState(0);
@@ -66,12 +81,13 @@ export function useJobsList() {
 
   const anyFilter = Boolean(roleFamily || seniority || workMode || entryOnly || openOnly || q.trim());
   const clearAll = () => {
-    setRoleFamily("");
-    setSeniority("");
-    setWorkMode("");
-    setEntryOnly(false);
-    setOpenOnly(false);
-    setQ("");
+    setRoleFamilyState("");
+    setSeniorityState("");
+    setWorkModeState("");
+    setEntryOnlyState(false);
+    setOpenOnlyState(false);
+    setQState("");
+    setPage(0);
   };
 
   return {
@@ -91,6 +107,8 @@ export function useJobsList() {
     setOpenOnly,
     q,
     setQ,
+    page,
+    setPage,
     anyFilter,
     clearAll,
     reload: () => setReloadKey((k) => k + 1),
