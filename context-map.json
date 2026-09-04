@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T14:25:37.132Z",
+  "generated_at": "2026-09-04T14:50:04.243Z",
   "provenance": {
-    "git_commit": "0dcfab8b8f41b315547ed27064b547e8232570f9",
-    "git_commit_count": 2758,
+    "git_commit": "d8e87b45de483b3878f2d7debed8c60d81fe427f",
+    "git_commit_count": 2768,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T14:25:37.132Z"
+    "generated_at": "2026-09-04T14:50:04.243Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3202,
+    "files": 3209,
     "groups": 17,
     "use_cases": 12
   },
@@ -385,6 +385,7 @@
       ],
       "file_paths": [
         "app/api/agents/[id]/refresh/route.ts",
+        "app/api/agents/agent-hire-board-move.test.ts",
         "app/api/agents/agents-bridge.test.ts",
         "app/api/agents/bridge/bridge-route.test.ts",
         "app/api/agents/bridge/route.ts",
@@ -4334,6 +4335,7 @@
         "app/_lib/devcase-probe-audit.test.ts",
         "app/_lib/devcase-probe-audit.ts",
         "app/_lib/devcase-promote.test.ts",
+        "app/_lib/devcase-reference.test.ts",
         "app/_lib/devcase-reference.ts",
         "app/_lib/devcase-run.ts",
         "app/_lib/devcase-seed-diff.test.ts",
@@ -5068,7 +5070,9 @@
         "app/_lib/attention.ts",
         "app/_lib/matrix-cache.test.ts",
         "app/_lib/matrix-cache.ts",
+        "app/_lib/pipeline-axis-server.test.ts",
         "app/_lib/pipeline-axis-server.ts",
+        "app/_lib/pipeline-axis.test.ts",
         "app/_lib/pipeline-axis.ts",
         "app/_lib/pipeline-command.test.ts",
         "app/_lib/pipeline-command.ts",
@@ -6607,6 +6611,8 @@
         "app/features/library/jobs/jobsRediscoveryAdd.ts",
         "app/features/library/jobs/jobsRediscoveryFeedLogic.ts",
         "app/features/library/jobs/jobsRediscoveryFeedTypes.ts",
+        "app/features/library/jobs/jobsRediscoverySweepNote.test.ts",
+        "app/features/library/jobs/jobsRediscoverySweepNote.ts",
         "app/features/library/jobs/jobsRequestGuard.test.ts",
         "app/features/library/jobs/jobsRequestGuard.ts"
       ],
@@ -6653,6 +6659,7 @@
         "app/_lib/rediscovery-alert-store.ts",
         "app/_lib/rediscovery-alert-story.test.ts",
         "app/_lib/rediscovery-consent-gate.test.ts",
+        "app/_lib/rediscovery-consent-rank.test.ts",
         "app/_lib/rediscovery-prior-link.test.ts",
         "app/_lib/rediscovery-prior-link.ts",
         "app/_lib/rediscovery-rank.test.ts",
