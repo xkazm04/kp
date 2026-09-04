@@ -506,6 +506,35 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### The compared cohort is gated on consent, and says what it removed
+A group evaluation is the PII-densest thing this surface does: every compared
+member's label, archetype, salary expectation, matched/missing skills and
+CV-derived verdict is serialized into a `group_compare_cli` prompt, sent to a
+provider, narrated, persisted into a shared `group_evals` row and — under
+`recommendation` governance — sealed into a decision record. Cohort selection
+consulted no consent state at all, so a candidate anonymized under an Art. 17
+erasure, or one whose consent to be processed had lapsed, was compared, narrated
+and sealed exactly like anyone else. The identical suppression was already
+enforced two doors away, for rediscovery ranking and for outreach.
+
+`runGroupEval` now resolves `suppressedCandidateIds`
+(`app/_lib/rediscovery-alert-store.ts` — workspace-GLOBAL, because an erasure is a
+property of the person not the team; most-restrictive across every entry an
+identity owns; fail-CLOSED, so a broken consent read suppresses everybody) and
+partitions the cohort through the pure `partitionCohortByConsent`
+(`app/_lib/group-eval-cohort.ts`) before selection, capping or ranking. The gate
+applies to an explicit recruiter selection as well: picking a suppressed candidate
+cannot opt them back in. A member with no `candidateId` is kept — suppression is
+keyed to a person and a manually added pipeline row names none.
+
+The removal is disclosed rather than silent. The payload carries
+`consentExcluded: { count, anonymized, consentExpired }` (null when nothing was
+excluded, so legacy payloads and clean cohorts are indistinguishable) so a field
+that shrank because two people were erased cannot read as a field that simply had
+fewer applicants. **Counts only, deliberately** — the row is shared, persisted and
+readable by the whole team, so the gate does not write the excluded people's ids
+back into the very record the erasure removed them from.
+
 ### The unresolved-pair fallback now refuses glue in all four languages
 When NEITHER surface of a skill pair resolves in the taxonomy,
 `taxonomy.unresolved_pair_score` falls back to a capped Jaccard over the two

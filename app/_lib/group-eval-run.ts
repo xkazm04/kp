@@ -18,7 +18,8 @@ import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
 import { eligibleRunnerUp, leadSeparation, separationNote } from "./group-eval-separation";
-import { fairnessCoversCohort, hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
+import { fairnessCoversCohort, hasComparableCohort, partitionCohortByConsent, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
+import { suppressedCandidateIds } from "./rediscovery-alert-store";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
@@ -325,10 +326,32 @@ export async function runGroupEval(
   //     recruiter's chosen subset and `params.cohort` carries the FULL role cohort.
   //     The eval runs over the selection, but every coverage / drift bookkeeping stays
   //     anchored to the full cohort so a narrowed comparison never reads as a shrunk pool.
-  const requested = (params.candidates as GroupEvalCandidate[]) ?? [];
+  const rawRequested = (params.candidates as GroupEvalCandidate[]) ?? [];
   const cohortParam = params.cohort as GroupEvalCandidate[] | undefined;
   const hasSelectionParam = Array.isArray(cohortParam);
-  const cohort = hasSelectionParam ? cohortParam! : requested;
+  const rawCohort = hasSelectionParam ? cohortParam! : rawRequested;
+  // Consent / anonymization gate — BEFORE anything else touches the cohort.
+  //
+  // This is the app's most PII-dense operation: every compared member's label,
+  // archetype, salary expectation and CV-derived verdict is serialized into a prompt,
+  // sent to a provider, narrated, persisted into a shared row and (under
+  // `recommendation` governance) sealed into a decision record. Selection consulted
+  // NO consent state, so a candidate anonymized under a GDPR erasure, or one whose
+  // consent to be processed had lapsed, was compared and sealed like anyone else —
+  // while the very same suppression is enforced for outreach.
+  //
+  // suppressedCandidateIds is that shared predicate: workspace-GLOBAL (erasure is a
+  // property of the person, not the team), most-restrictive across every entry an
+  // identity owns, and fail-CLOSED — a broken consent read suppresses everyone, which
+  // degrades this run to "insufficient sample" rather than re-materializing an erased
+  // person into a model prompt. Applied to the FULL cohort and to an explicit
+  // selection alike: a recruiter cannot opt a suppressed candidate back in by picking
+  // them.
+  const suppressed = suppressedCandidateIds(rawCohort.map((c) => c.candidateId));
+  const { compared: cohort, excluded: consentExclusions } = partitionCohortByConsent(rawCohort, suppressed);
+  const requested = hasSelectionParam
+    ? rawRequested.filter((c) => !(c.candidateId && suppressed.has(c.candidateId.trim())))
+    : cohort;
   const totalCandidates = cohort.length;
   const idOf = (c: GroupEvalCandidate) => c.candidateId || c.entryId;
   // Server-validated membership + cap: a passed selection is filtered to members that
@@ -793,6 +816,22 @@ export async function runGroupEval(
     // the recruiter picked an explicit subset, so the modal can disclose "comparing
     // your selection of {count} of {total}" honestly instead of the top-N wording.
     selection: useSelection ? { count: input.length, total: totalCandidates } : null,
+    // Consent/anonymization exclusions — the honest half of the gate above. A field
+    // that shrank because two people were erased or their consent lapsed must not
+    // read as a field that simply had fewer applicants, so the count and the REASONS
+    // are carried on the payload (an erasure and a lapsed consent are different
+    // facts). COUNTS ONLY, deliberately: this row is shared, persisted and readable
+    // by the whole team, so the gate must not write the excluded people's ids back
+    // into it — that is the thing the erasure removed. Null when nothing was
+    // excluded, so legacy payloads and clean cohorts are indistinguishable.
+    consentExcluded:
+      consentExclusions.length > 0
+        ? {
+            count: consentExclusions.length,
+            anonymized: consentExclusions.filter((e) => e.reason === "anonymized").length,
+            consentExpired: consentExclusions.filter((e) => e.reason === "consent_expired").length,
+          }
+        : null,
     // Every candidate label in the FULL role cohort at eval time — the modal diffs
     // this against the role's current pending entries to warn about pool drift
     // (anchored to the whole cohort, not just a narrowed selection).
