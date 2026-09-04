@@ -23,16 +23,52 @@ export const VOICE_MINUTE_PRICES: Record<VoiceProviderId, number> = {
   elevenlabs: 0.09,
 };
 
+/** The env var an operator sets to replace the estimate above with the rate they
+ *  actually pay. The estimates are midpoints of PUBLIC price bands (see the block
+ *  comment); an operator on an ElevenLabs Business tier, an Azure-brokered
+ *  Realtime contract, or a negotiated rate is priced wrong by construction, and
+ *  the ledger they reconcile spend against was the one number they could not
+ *  correct without a code change. USD per conversation minute. */
+const VOICE_MINUTE_PRICE_ENV: Record<VoiceProviderId, string> = {
+  openai: "KP_VOICE_MINUTE_USD_OPENAI",
+  elevenlabs: "KP_VOICE_MINUTE_USD_ELEVENLABS",
+};
+
+/** The per-minute price in force for `provider`: the operator's override when one
+ *  is set and parses as a finite, non-negative number, otherwise this repo's
+ *  estimate. Read at CALL time (never module load) so a test — and an operator
+ *  restarting with a new value — sees the current env, like openAiRealtimeModel().
+ *
+ *  A malformed override is REFUSED rather than coerced: `Number("")` is 0 and
+ *  `Number("$0.12")` is NaN, and silently pricing every interview at zero (or at
+ *  NaN, which lands as `null` in the ledger) would be a worse lie than the
+ *  estimate it replaced. It says so on the console once per call — the operator
+ *  who typed it is the only person who can fix it. */
+export function voiceMinutePriceUsd(provider: VoiceProviderId): number {
+  const name = VOICE_MINUTE_PRICE_ENV[provider];
+  const raw = process.env[name];
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const parsed = Number(raw.trim());
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+    console.warn(
+      `[voice] ${name}="${raw}" is not a non-negative number — falling back to the built-in ` +
+        `estimate (${VOICE_MINUTE_PRICES[provider]} USD/min) for ${provider}.`
+    );
+  }
+  return VOICE_MINUTE_PRICES[provider];
+}
+
 /** Estimated USD cost of `minutes` on `provider`, rounded to 6 decimals like
  *  base.py's price_usd. Callers pass the SAME clamped minute count the billing
  *  meter was debited with, so the ledger estimate and the metered quantity can
- *  never disagree. */
+ *  never disagree. "Estimated" stays literal on the default path — the
+ *  disclaimer above still applies to every install that sets no override. */
 export function voiceMinuteCostUsd(provider: VoiceProviderId, minutes: number): number {
   // A session served from a machine we run costs no per-minute credits. Leaving
   // the hosted price on those rows would inflate every cost report by the exact
   // spend that moving the workload in-house was meant to remove.
   if (isSelfHostedProvider(provider)) return 0;
-  return Math.round(VOICE_MINUTE_PRICES[provider] * minutes * 1e6) / 1e6;
+  return Math.round(voiceMinutePriceUsd(provider) * minutes * 1e6) / 1e6;
 }
 
 /** The model identity to attribute a session's minutes to. OpenAI sessions run
