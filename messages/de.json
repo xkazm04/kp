@@ -3150,6 +3150,16 @@
       "added": "{name} wurde zur Pipeline hinzugefügt.",
       "failed": "{name} konnte nicht zur Pipeline hinzugefügt werden.",
       "failedAnnounce": "{name} konnte nicht zur Pipeline hinzugefügt werden. {reason}"
+    },
+    "reachOut": {
+      "sent": "{name} wurde angeschrieben. Die Person ist in der Pipeline und eine erste Nachricht ist unterwegs.",
+      "alreadySent": "{name} ist in der Pipeline und wurde für diese Rolle bereits kontaktiert, deshalb ging keine neue Nachricht raus.",
+      "failed": "{name} konnte nicht angeschrieben werden.",
+      "failedAnnounce": "{name} konnte nicht angeschrieben werden. {reason}",
+      "suppressed": {
+        "anonymized": "Es wurde keine Nachricht gesendet. Diese Person wurde anonymisiert.",
+        "suppressed": "Es wurde keine Nachricht gesendet. Die Ansprache dieser Person ist gesperrt (Einwilligung abgelaufen oder die Sequenz wurde gestoppt)."
+      }
     }
   },
   "decisions": {

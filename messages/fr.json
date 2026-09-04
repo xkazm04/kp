@@ -3150,6 +3150,16 @@
       "added": "{name} a été ajouté(e) au pipeline.",
       "failed": "Impossible d’ajouter {name} au pipeline.",
       "failedAnnounce": "Impossible d’ajouter {name} au pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "{name} a été contacté. La personne est dans le pipeline et un premier message part.",
+      "alreadySent": "{name} est dans le pipeline et a déjà été contacté pour ce poste ; aucun nouveau message n’a été envoyé.",
+      "failed": "Impossible de contacter {name}.",
+      "failedAnnounce": "Impossible de contacter {name}. {reason}",
+      "suppressed": {
+        "anonymized": "Aucun message n’a été envoyé. Cette personne a été anonymisée.",
+        "suppressed": "Aucun message n’a été envoyé. La prise de contact avec cette personne est suspendue (consentement expiré, ou séquence arrêtée)."
+      }
     }
   },
   "decisions": {

@@ -3150,6 +3150,16 @@
       "added": "{name} přidán(a) do pipeline.",
       "failed": "{name} se nepodařilo přidat do pipeline.",
       "failedAnnounce": "{name} se nepodařilo přidat do pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "Oslovili jsme kandidáta {name}. Je v pipeline a první zpráva je na cestě.",
+      "alreadySent": "{name} je v pipeline a pro tuto roli už byl osloven, takže se nová zpráva neposílala.",
+      "failed": "Kandidáta {name} se nepodařilo oslovit.",
+      "failedAnnounce": "Kandidáta {name} se nepodařilo oslovit. {reason}",
+      "suppressed": {
+        "anonymized": "Žádná zpráva se neodeslala. Tento kandidát byl anonymizován.",
+        "suppressed": "Žádná zpráva se neodeslala. Oslovení tohoto kandidáta je pozastaveno (vypršel souhlas, nebo byla sekvence zastavena)."
+      }
     }
   },
   "decisions": {

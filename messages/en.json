@@ -3150,6 +3150,16 @@
       "added": "{name} added to the pipeline.",
       "failed": "Couldn't add {name} to the pipeline.",
       "failedAnnounce": "Couldn't add {name} to the pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "Reached out to {name}. They are in the pipeline and a first-touch message is on its way.",
+      "alreadySent": "{name} is in the pipeline and was already contacted for this role, so no new message was sent.",
+      "failed": "Couldn't reach out to {name}.",
+      "failedAnnounce": "Couldn't reach out to {name}. {reason}",
+      "suppressed": {
+        "anonymized": "No message was sent. This candidate has been anonymized.",
+        "suppressed": "No message was sent. Outreach to this candidate is suppressed (consent lapsed, or the sequence was stopped)."
+      }
     }
   },
   "decisions": {
