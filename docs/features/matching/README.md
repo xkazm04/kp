@@ -319,7 +319,52 @@ ranked, a dimension superlative ("the strongest skills match", "the fewest unmet
 must-haves") needs two *measured* candidates to be a comparison at all, and the
 headline says "the *k* scored of *n* candidates" when the field is partly
 unmeasured. The LLM half is told the same rule in `build_prompt`
-(`group-compare-v3`): a null score means never measured, not a zero.
+(`group-compare-v4`): a null score means never measured, not a zero.
+
+**The comparison path now carries the controls its sibling had** (`group-compare-v4`).
+Until wave 26 it was the un-hardened half of the reasoning pair: the whole context
+(candidate labels and per-candidate verdicts, both CV-derived — `group-eval-run.ts`)
+was `json.dumps`'d into the prompt bare, and the answer was whatever top-level JSON
+value came last in the reply. Today:
+
+- The candidate rows go in behind `fenced_untrusted('CANDIDATE_FIELD', …)`, the same
+  fence `match_reasoning` puts around `CANDIDATE_CV`. The binding — helper to real
+  prompt — is `test_prompt_fences._JSON_FENCE_SITES`, which also proves itself
+  non-vacuous by removing the fence and requiring the assertion to fail.
+- `label` and `verdict` are cut at explicit char budgets (`COMPARE_LABEL_MAX_CHARS`,
+  `COMPARE_VERDICT_MAX_CHARS`) with a `[truncated at N chars]` marker; the per-match
+  path bounds `summary` / `experienceHighlights` / `aspirations` / `workLinks` the same
+  way (`match-reasoning-v5`). In-budget prose is byte-identical.
+  Pinned in `tests/test_prompt_budgets.py`.
+- **Both** paths pass `expected_keys` to the JSON extraction, so a trailing object
+  injected through a candidate-authored field cannot beat the genuine answer
+  (`claude_cli._extract_json` returns the *last* value otherwise).
+- The system prompt states the protected-attribute rule where the ranking is made:
+  labels are identifiers, and gender / ethnicity / nationality / age must never be
+  inferred from a name or influence the order. This is the only prompt in the engine
+  that hands the model real names side by side and asks it to rank them.
+- A grounding post-check drops any `keyPoint` that states a number the facts do not
+  carry or **bolds** a candidate who is not in the field; if that leaves nothing, the
+  deterministic synthesis serves (and reports `source="deterministic"`). On the
+  per-match side the same check now covers the **verdict's numbers** — the prompt
+  orders it to quote the match total, and an invented "88/100" over a 77 is a
+  measurement claim, not a phrasing choice.
+- `group_compare_cli` sits on the shared CLI scaffold: `configure_stdio`,
+  `emit_error` (so a malformed payload answers `invalid_input`/400 with a code
+  instead of an anonymous 500), and `normalize_lang`.
+- Both CLIs name a **mid-flight** descent. A provider that passed the availability
+  gate and then timed out used to record a deterministic serve with a blank reason;
+  `generate(..., on_fallback=…)` hands back `describe_fallback(exc)`
+  ("`TimeoutError: timed out after 120s`") and the ledger records it.
+
+**The comparison states its own language.** `group_compare_cli` emits
+`narrativeLang` from `match_reasoning.narrative_lang_for(source, lang)` and
+`group-eval-run.ts` persists it as `comparisonLang` on the saved payload. The
+deterministic synthesis is built from English literals, so a `cs`/`de`/`fr`
+workspace that fell back holds English prose in a **shared, persisted** record —
+`AiVerdict` renders the same honest "shown in {language}" note `MatchReasoningPanel`
+does, instead of every later reader being told the text is in their language.
+Evals saved before the field carry no `comparisonLang` and render no note.
 
 **`group_compare` reports its own provenance honestly.** An under-delivered
 model payload (a headline with no `keyPoints`) is replaced *wholesale* by the
@@ -336,7 +381,7 @@ competencies and early-career candidates on 6 BARS-anchored constructs
 (problem decomposition, learning agility, coachability, conceptual depth,
 motivation & direction, communication & collaboration); every rating requires a
 verbatim transcript quote, and "not assessed" is a legal answer. Match
-reasoning (`pipeline/jobfit/match_reasoning.py`, prompt `match-reasoning-v3`)
+reasoning (`pipeline/jobfit/match_reasoning.py`, prompt `match-reasoning-v5`)
 is archetype-conditional:
 experienced candidates get track-record verification, students get a
 "judge on potential" frame, career-switchers get a bridge narrative (prior-domain
