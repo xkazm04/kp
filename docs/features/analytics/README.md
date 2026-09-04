@@ -360,8 +360,17 @@ it: should this score be allowed to decide at all.
   pipeline arm leads with the `circular` verdict beside the holdout's accrual horizon. A null
   threshold recommendation renders `ThresholdSuggestionAbsent`, naming the gate it failed and
   stating this is absence of evidence, not endorsement of the current floor; an empty
-  `familyFloors` map says every family screens at the global floor; a suggestion off a
+  `familyFloors` map says so explicitly rather than rendering a blank region; a suggestion off a
   high-leakage arm carries its contamination caveat beside the Apply button.
+- **The floor is never shown without its switch.** The route ships
+  `autoRejectEnabled` (`screening.autoRejectEnabled`) beside `currentThreshold`, and the
+  shipped default is **false** — `screen-wave.ts` returns `autoRejectOff` and rejects
+  nobody. With the wave off, `AnalyticsReliabilityDiagram` draws **no** coral floor marker
+  (its screen-reader line says the floor is recorded but not enforced, `srThresholdOff`),
+  the panel legend reads `thresholdLegendOff`, and `AnalyticsFamilyFloorChips` swaps the
+  "every family is screened at the global N" sentence for `familyFloorsNoneOff` plus a
+  `role="status"` notice (`floorNotEnforced`). Both branches are pinned by
+  `analyticsCalibrationFloorGate.test.ts`.
 - **A score band is `[lo, hi)` — except at the top of the scale, where it closes.**
   `recommendScreeningThreshold` builds its above-floor band as `[T, min(100, T + bandWidth))`,
   so any floor at 90+ produced a band that could not see a perfect 100. With a floor at 95,

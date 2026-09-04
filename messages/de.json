@@ -6539,7 +6539,11 @@
       "uncalibratedBodyHired": "Die Kalibrierung benötigt mindestens {min} Kandidaten, die eingestellt oder abgelehnt wurden. Bisher: {n}.",
       "leakageLevelHighRejects": "Vom Score erzeugte Ablehnungen",
       "leakageScoreCausedHiredNote": "Bis zur Einstellung braucht es Interviews, ein Angebot und dessen Annahme. Über nichts davon entscheidet dieser Score, die Erfolge hier hat er also nicht erzeugt. Die Ablehnungen zum Teil schon: Das automatische Screening lehnt anhand des Match-Scores ab, und jede dieser Ablehnungen zählt hier als nicht eingestellt. Diese Achse ist weniger zirkulär als die Screening-Achse, aber nicht sauber.",
-      "leakageScoreCausedHiredCeiling": "Alle, die noch im Prozess sind, bleiben unberücksichtigt, bis sie eingestellt oder abgelehnt werden. Diese Achse füllt sich deshalb langsam und stützt sich auf die früh Ausgeschiedenen. Sie sagt außerdem nichts darüber, wie sich eine Einstellung dann bewährt hat."
+      "leakageScoreCausedHiredCeiling": "Alle, die noch im Prozess sind, bleiben unberücksichtigt, bis sie eingestellt oder abgelehnt werden. Diese Achse füllt sich deshalb langsam und stützt sich auf die früh Ausgeschiedenen. Sie sagt außerdem nichts darüber, wie sich eine Einstellung dann bewährt hat.",
+      "floorNotEnforced": "Die automatische Vorauswahl ist aus, diese Schwellen sind also festgehaltene Regeln und kein aktives Tor: es wird niemand danach abgelehnt.",
+      "familyFloorsNoneOff": "Keine Rollenfamilie hat eine eigene Schwelle, erfasst ist damit nur die globale {global}.",
+      "thresholdLegendOff": "Auto-Ablehnungsschwelle ({threshold}), erfasst, aber nicht aktiv",
+      "srThresholdOff": "Die Auto-Ablehnungsschwelle {threshold} ist erfasst, aber nicht aktiv und deshalb nicht im Diagramm markiert."
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",

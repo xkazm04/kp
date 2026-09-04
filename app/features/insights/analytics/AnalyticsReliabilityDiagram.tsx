@@ -23,6 +23,7 @@ export function ReliabilityDiagram({
   result,
   labels,
   threshold,
+  thresholdEnforced,
   baseRate,
 }: {
   result: CalibrationResult;
@@ -33,6 +34,14 @@ export function ReliabilityDiagram({
    *  it is the signature of a label the score produced; the reader can only see
    *  that if the floor is on the plot. */
   threshold?: number | null;
+  /** Whether that floor is ACTUALLY enforced — `screening.autoRejectEnabled`, which
+   *  the route ships beside the number and whose shipped default is FALSE. The
+   *  marker's whole job is to show where a score-caused step would sit; with the
+   *  wave off there is no step, and drawing the line anyway narrates a gate that
+   *  rejects nobody. `null`/undefined = the arm carries no screening rule at all
+   *  (the analysis producer), which is not the same as "off" and is handled by the
+   *  caller passing no threshold either. */
+  thresholdEnforced?: boolean | null;
   /** Cohort base rate (0..1) — the constant predictor the Brier score is really
    *  competing with, drawn as the horizontal reference the diagonal never was. */
   baseRate?: number | null;
@@ -40,7 +49,12 @@ export function ReliabilityDiagram({
   const t = useTranslations("analytics.calibration");
   const filled = result.bins.filter((b) => b.count > 0);
   const maxCount = filled.reduce((m, b) => Math.max(m, b.count), 1);
-  const floorProb = typeof threshold === "number" && threshold > 0 && threshold < 100 ? threshold / 100 : null;
+  // The floor as a NUMBER (0..100) — announced either way, because a recorded floor
+  // is a fact about the policy — and separately the plot coordinate, which exists
+  // only when the floor is enforced.
+  const floorValue = typeof threshold === "number" && threshold > 0 && threshold < 100 ? threshold : null;
+  const enforced = thresholdEnforced !== false;
+  const floorProb = floorValue != null && enforced ? floorValue / 100 : null;
   const base = typeof baseRate === "number" && baseRate >= 0 && baseRate <= 1 ? baseRate : null;
   return (
     <>
@@ -59,7 +73,13 @@ export function ReliabilityDiagram({
             })}
           </li>
         ))}
-        {floorProb != null ? <li>{t("srThreshold", { threshold: Math.round(floorProb * 100) })}</li> : null}
+        {/* Announced on BOTH branches, from the raw floor rather than the plot
+            coordinate: a floor that is recorded but not enforced is still a fact
+            about the policy, and its absence from the plot is the thing a reader
+            who cannot see the plot most needs told. */}
+        {floorValue != null ? (
+          <li>{enforced ? t("srThreshold", { threshold: floorValue }) : t("srThresholdOff", { threshold: floorValue })}</li>
+        ) : null}
         {base != null ? <li>{t("srBaseRate", { pct: Math.round(base * 100) })}</li> : null}
       </ul>
       {/* Fully tokenized: every stroke/fill resolves through a design-system token

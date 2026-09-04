@@ -6539,7 +6539,11 @@
       "uncalibratedBodyHired": "Calibration needs at least {min} candidates who were hired or rejected. So far: {n}.",
       "leakageLevelHighRejects": "Rejections caused by the score",
       "leakageScoreCausedHiredNote": "Reaching the hire takes interviews, an offer and an acceptance, none of which this score decides, so the successes here were not produced by the score. The rejections partly were: automatic screening rejects on the match score, and each of those counts here as not hired. This axis is less circular than the screening one, not clean.",
-      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed."
+      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed.",
+      "floorNotEnforced": "Automatic screening is off, so these floors are recorded policy rather than a live gate: no candidate is rejected by them.",
+      "familyFloorsNoneOff": "No role family carries its own floor, so the global {global} is the only one on record.",
+      "thresholdLegendOff": "Auto-reject floor ({threshold}), recorded but not enforced",
+      "srThresholdOff": "Auto-reject floor {threshold} is recorded but not enforced, so it is not marked on the plot."
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",

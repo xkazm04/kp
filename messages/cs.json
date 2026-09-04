@@ -6539,7 +6539,11 @@
       "uncalibratedBodyHired": "Kalibrace potřebuje alespoň {min} kandidátů, kteří byli přijati, nebo zamítnuti. Zatím: {n}.",
       "leakageLevelHighRejects": "Zamítnutí způsobilo skóre",
       "leakageScoreCausedHiredNote": "K přijetí vede cesta přes pohovory, nabídku a její přijetí, o nichž toto skóre nerozhoduje, takže úspěchy zde skóre nevytvořilo. Zamítnutí zčásti ano: automatický screening zamítá podle skóre shody a každé takové zamítnutí se zde počítá jako nepřijetí. Tato osa je méně kruhová než screeningová, ne však čistá.",
-      "leakageScoreCausedHiredCeiling": "Všichni, kdo jsou stále v procesu, se nezapočítávají, dokud nejsou přijati nebo zamítnuti, takže se tato osa plní pomalu a opírá se o ty, kdo odešli dřív. Neříká také nic o tom, jak si přijatý člověk následně vedl."
+      "leakageScoreCausedHiredCeiling": "Všichni, kdo jsou stále v procesu, se nezapočítávají, dokud nejsou přijati nebo zamítnuti, takže se tato osa plní pomalu a opírá se o ty, kdo odešli dřív. Neříká také nic o tom, jak si přijatý člověk následně vedl.",
+      "floorNotEnforced": "Automatické předvýběry jsou vypnuté, takže tyto prahy jsou jen zaznamenaná pravidla, ne živá branka: žádný kandidát podle nich není odmítán.",
+      "familyFloorsNoneOff": "Žádná rodina rolí nemá vlastní práh, takže jediný zaznamenaný je globální {global}.",
+      "thresholdLegendOff": "Práh automatického odmítnutí ({threshold}), zaznamenaný, ale nevynucovaný",
+      "srThresholdOff": "Práh automatického odmítnutí {threshold} je zaznamenaný, ale nevynucovaný, proto není v grafu vyznačen."
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",
