@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
-import { parsePuml } from "./parse";
+import { isPumlSourceTooLarge, parsePuml, type PumlDiagram } from "./parse";
 import { isDiagramTooLarge, layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
 import { clickableNodeAria, diagramSvgRole } from "./a11y";
@@ -75,6 +75,16 @@ const CLOUD_PATH =
   "c-9.9,0-17.9,8-17.9,17.9c0,0.6,0,1.2,0.1,1.8C17.8,43.4,13,49.3,13,56.3C13,64.4,19.6,71,27.7,71h53.1" +
   "c7.3,0,13.2-5.9,13.2-13.2C94,52.1,89.4,47.3,83.5,46.7z";
 const CLOUD_BBOX = { x: 13, y: 22, w: 81, h: 49 };
+
+/** A short, log-safe name for a diagram, read from the source's own `@startuml <name>`
+ *  or `title` line. Used to say WHICH diagram failed when the parse never produced
+ *  a model to ask. Only the first 2 KB is scanned — the header is at the top or the
+ *  source is not one we authored. */
+function sourceId(source: string): string {
+  const head = source.slice(0, 2000);
+  const named = head.match(/^\s*@startuml[ \t]+(\S.*)$/im)?.[1] ?? head.match(/^\s*title[ \t]+(\S.*)$/im)?.[1];
+  return named?.trim().slice(0, 80) ?? "untitled";
+}
 
 function Label({
   lines,
@@ -383,13 +393,28 @@ export function PlantUml({
 }) {
   const tDiagram = useTranslations("diagrams.controls");
   const [expanded, setExpanded] = useState(false);
-  const diagram = useMemo(() => {
+  // Which diagram failed. On a PARSE failure there is no parsed title to name it
+  // by, and "[PlantUml] parse failed" on a page rendering four diagrams names
+  // none of them — so scrape the id the source itself carries (`@startuml <name>`
+  // or the `title` line) before parsing. Never the source body: a log line is not
+  // a place to dump a paste.
+  const diagramId = useMemo(() => sourceId(source), [source]);
+  // A parse either succeeds, refuses on size (a CODED refusal — same friendly
+  // "too large" copy the post-parse guard renders), or throws. The last case used
+  // to be `catch { return null }`: the failure was swallowed with no diagnostic
+  // anywhere and the user got a wall of raw PlantUML source, while the SIBLING
+  // layout failure right below logged and rendered a message. Same class of
+  // failure, two behaviours — now one.
+  const parsed = useMemo((): { diagram: PumlDiagram | null; refusal: "tooLarge" | "failed" | null } => {
     try {
-      return parsePuml(source, { strict });
-    } catch {
-      return null;
+      return { diagram: parsePuml(source, { strict }), refusal: null };
+    } catch (err) {
+      if (isPumlSourceTooLarge(err)) return { diagram: null, refusal: "tooLarge" };
+      console.error(`[PlantUml] diagram "${diagramId}" parse failed:`, err instanceof Error ? err.message : err);
+      return { diagram: null, refusal: "failed" };
     }
-  }, [source, strict]);
+  }, [source, strict, diagramId]);
+  const diagram = parsed.diagram;
 
   // Surface mistyped aliases in declared-only diagrams: a strict parse records
   // any endpoint that resolved to no declared node, so a typo no longer ships a
@@ -411,7 +436,10 @@ export function PlantUml({
   const isEmpty = !diagram || (diagram.roots.length === 0 && diagram.edges.length === 0);
   // Derived (pure), like isEmpty: an oversized/adversarial source would freeze the tab
   // if handed to ELK, so we detect it during render and skip layout entirely.
-  const tooLarge = !!diagram && isDiagramTooLarge(diagram);
+  // Two ceilings, ONE user-visible outcome: the parser refuses an oversized SOURCE
+  // (before doing its linear pass) and this refuses an oversized parsed DIAGRAM
+  // (before handing ELK a graph that would freeze the tab). Both render tooLarge.
+  const tooLarge = parsed.refusal === "tooLarge" || (!!diagram && isDiagramTooLarge(diagram));
   const [result, setResult] = useState<{
     key: unknown;
     layout: PositionedDiagram | null;
@@ -429,14 +457,14 @@ export function PlantUml({
         if (!cancelled) {
           // Log the real layout error — the failure was previously swallowed and the user
           // shown raw PlantUML source with no diagnostic anywhere.
-          console.error("[PlantUml] diagram layout failed:", err instanceof Error ? err.message : err);
+          console.error(`[PlantUml] diagram "${diagramId}" layout failed:`, err instanceof Error ? err.message : err);
           setResult({ key: diagram, layout: null, failed: true });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [diagram, isEmpty, tooLarge]);
+  }, [diagram, isEmpty, tooLarge, diagramId]);
 
   const ready = result.key === diagram;
   const layout = ready ? result.layout : null;
@@ -452,10 +480,11 @@ export function PlantUml({
     );
   }
 
-  // A real layout FAILURE shows a friendly message (not a wall of raw PlantUML source,
-  // which read as a broken render to the user). An empty-but-parseable diagram keeps the
-  // source as a reasonable text fallback.
-  if (ready && result.failed) {
+  // A real parse OR layout failure shows a friendly message (not a wall of raw
+  // PlantUML source, which read as a broken render to the user). They are the same
+  // class of failure and now share one branch. An empty-but-PARSEABLE diagram still
+  // keeps the source as a reasonable text fallback.
+  if (parsed.refusal === "failed" || (ready && result.failed)) {
     return (
       <div role="alert" className={`rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel ${className}`}>
         {tDiagram("renderFailed")}

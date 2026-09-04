@@ -363,7 +363,87 @@ function tryEdge(line: string, state: ParseState): boolean {
   return true;
 }
 
-export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiagram {
+// ---------------------------------------------------------------------------
+// Source ceiling.
+//
+// isDiagramTooLarge (layout.ts) only inspects the FINISHED diagram, so it can
+// only spare us the ELK layout — the parser had already done its full linear
+// pass over whatever was pasted, inside PlantUml's render-phase useMemo. That
+// pass is cheap per line but it is synchronous and unbounded: a multi-megabyte
+// paste (or a Markdown ```puml fence fed from model output) blocks the main
+// thread before any guard downstream gets a vote.
+//
+// The ceilings below are deliberately generous — the LARGEST committed source,
+// docs/diagrams/03-domain-model-v2.puml, is 3.4 KB / 150 lines, so this is ~19x
+// headroom on bytes and 20x on lines. Nothing we author can reach them; only a
+// paste or a generated blob can.
+export const MAX_PUML_SOURCE_BYTES = 64_000;
+export const MAX_PUML_SOURCE_LINES = 3_000;
+
+/**
+ * The parser's ONE refusal. It carries a CODE rather than a message because the
+ * renderer must not put a thrown error's text on screen — the code selects the
+ * already-localized `diagrams.controls.tooLarge` copy, the same friendly state a
+ * post-parse `isDiagramTooLarge` renders. Same refusal, same words, whichever
+ * ceiling caught it.
+ */
+export class PumlSourceTooLargeError extends Error {
+  readonly code = "PUML_SOURCE_TOO_LARGE" as const;
+  constructor(
+    /** Which ceiling was hit — for the server/dev log, never for the screen. */
+    readonly limit: "bytes" | "lines",
+    readonly measured: number
+  ) {
+    super(
+      `PlantUML source too large to parse: ${measured} ${limit} ` +
+        `(ceiling ${limit === "bytes" ? MAX_PUML_SOURCE_BYTES : MAX_PUML_SOURCE_LINES})`
+    );
+    this.name = "PumlSourceTooLargeError";
+  }
+}
+
+/** True when `err` is the parser's size refusal (survives a bundler re-instantiating the class). */
+export function isPumlSourceTooLarge(err: unknown): err is PumlSourceTooLargeError {
+  return (
+    err instanceof PumlSourceTooLargeError ||
+    (typeof err === "object" && err !== null && (err as { code?: unknown }).code === "PUML_SOURCE_TOO_LARGE")
+  );
+}
+
+export interface ParsePumlOptions {
+  strict?: boolean;
+  /** Override the byte ceiling. For a source whose size the caller has already
+   *  bounded — and for the linearity fixtures in parse.test.ts, which must still
+   *  be able to hand the parser the adversarial shapes the ceiling now refuses
+   *  (shrunk to fit under it, their O(n²) signal would be ~30 ms, i.e. noise).
+   *  Defaults to {@link MAX_PUML_SOURCE_BYTES}. */
+  maxBytes?: number;
+  /** As `maxBytes`, for the line ceiling. Defaults to {@link MAX_PUML_SOURCE_LINES}. */
+  maxLines?: number;
+}
+
+export function parsePuml(source: string, opts?: ParsePumlOptions): PumlDiagram {
+  // Size checks BEFORE any parsing work, cheapest first.
+  //
+  // UTF-8 never encodes a UTF-16 code unit in less than one byte, so
+  // `source.length > MAX` already PROVES the byte ceiling is blown — and that
+  // short-circuit is what keeps a multi-megabyte paste from being copied into a
+  // Uint8Array just to be refused. Below the ceiling the string is ≤64k units,
+  // so the exact encode that follows is trivially cheap.
+  const maxBytes = opts?.maxBytes ?? MAX_PUML_SOURCE_BYTES;
+  const maxLines = opts?.maxLines ?? MAX_PUML_SOURCE_LINES;
+  if (source.length > maxBytes) throw new PumlSourceTooLargeError("bytes", source.length);
+  const bytes = new TextEncoder().encode(source).length;
+  if (bytes > maxBytes) throw new PumlSourceTooLargeError("bytes", bytes);
+
+  let lineCount = 1;
+  for (let i = 0; i < source.length; i += 1) {
+    if (source.charCodeAt(i) === 10 /* \n */) {
+      lineCount += 1;
+      if (lineCount > maxLines) throw new PumlSourceTooLargeError("lines", lineCount);
+    }
+  }
+
   const diagram: PumlDiagram = {
     direction: "DOWN",
     roots: [],
