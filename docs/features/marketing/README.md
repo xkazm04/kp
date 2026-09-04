@@ -192,7 +192,9 @@ The three pages share one rule set, so a visitor learns the chrome once.
   to change language beats two.
 - **Every public footer carries the legal row** — `/privacy`, `/terms`, `/trust`
   (`landing.footer.{privacy,terms,trust}`), rendered from the shared
-  `spark/sections/LegalRow.tsx` rather than inlined per page. It used to live
+  `spark/sections/LegalRow.tsx` rather than inlined per page. `/market` mounts it
+  beside its language switcher for the same reason `/about` does: a visitor who
+  arrives from a search result must reach the policies without going home first. It used to live
   inside `Footer.tsx`, which made it the LANDING's row: `/about` is in the
   sitemap and shipped without it. A product that captures candidate
   PII exposes its policies from its front door; `/trust` is the evidence page
@@ -355,6 +357,40 @@ has no number, the element is dropped:
 - hero freshness: a missing percentage drops the clause rather than publishing
   "0% posted in the last 90 days".
 
+### Money names its currency, and the survey names its vintage
+
+Every figure on `/market` is CZK read by an audience in four languages, so the
+formatters in `market/data.ts` take the READER's locale and go through `Intl`:
+
+| Helper | cs | en | de | fr |
+| --- | --- | --- | --- | --- |
+| `fmtCzk(81800, l)` | `81 800 Kč` | `CZK 81,800` | `81.800 CZK` | `81 800 CZK` |
+| `fmtCzkShort(28600, l)` | `28,6 tis. Kč` | `CZK 28.6K` | `28.600 CZK` | `28,6 k CZK` |
+| `fmtCompact(117000, l)` | `117 tis.` | `117K` | `117.000` | `117 k` |
+
+The compact form used to be hand-rolled — `"28,6 tis."`, a Czech abbreviation
+with a hard-coded comma decimal and **no currency**, printed in every locale on
+the map legend, the region ranges, every salary band and every job-ad range. The
+`cs` column is byte-identical to what the hand-rolled versions produced (which is
+why `regionLabel.test.ts` compares whole strings unchanged), and `MARKET_LOCALE`
+is the fallback when `Intl` refuses a tag rather than a thrown `RangeError`
+during render. `data.test.ts` pins the currency in all four locales and the
+`—` degradation for `null`/`NaN`/`±Infinity`.
+
+Provenance the snapshot always carried and the page never showed:
+
+- the **basis and vintage** — `salary.subtitleDated` states *gross monthly* and
+  the `meta.ispv_period` survey year, so a reader cannot take a 2025 gross figure
+  for this year's net (no period in the snapshot → the undated sentence, never a
+  guessed year);
+- the **sample size** behind each band — `reference_salaries[].employees_k`,
+  rendered as "based on N employees surveyed". A band drawn from 117 000
+  surveyed employees and one drawn from 4 000 are not the same claim;
+- the **age of the snapshot** — it is committed, not fetched, so past
+  `STALE_AFTER_DAYS` (60) the hero prints how old it is instead of leaving the
+  date to be noticed. Rebuild cadence is an owner decision, not a schedule:
+  nothing rebuilds `data/market_pulse.json` automatically today.
+
 `isFigure()` in `data.ts` is the single gate — `Number.isFinite`, not a null
 check, because `Math.min()` of an empty array is `Infinity` and the ratios
 downstream become `NaN`. `heatColor`/`salaryColor`/`regionScale` clamp
@@ -393,8 +429,13 @@ test rather than silently exempting it.
 `e2e/landing.spec.ts` audits `/` band by band (axe, the spotlight's focus
 contract, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
 indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and
-`/market` against a per-page, per-rule `A11Y_HOLDOUTS` map (empty today: all
-five are clean), plus `/about`'s legal row and phone disclosure. Both are named
+`/market` against a per-page, per-rule `A11Y_HOLDOUTS` map, plus `/about`'s
+legal row and phone disclosure. Each holdout is asserted to STILL fail, so a
+fixed one turns the suite red until its entry is deleted — `/market`'s was the
+eleven gold (`#caa54c`, 2.3:1 on white) rank ticks in the occupation list, now
+deepened to `#7a5f14` and the entry removed. What remains on `/about`,
+`/trust`, `/privacy` and `/terms` is the palette itself (the coral `EYEBROW` at
+3.66:1 on cream; the about-art step badges), which is an owner decision. Both are named
 one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
 
 ## Known gaps

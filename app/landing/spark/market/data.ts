@@ -150,7 +150,41 @@ export const geo = geoJson as unknown as Geo;
 export const FAMILY_ORDER = snapshot.reference_salaries.map((r) => r.family);
 
 // ── formatting ───────────────────────────────────────────────────────────────
-const NBSP = " "; // Czech convention: space as the thousands separator.
+/* Every figure on this page is money in ONE currency (the snapshot's `currency`,
+ * CZK) read by an audience in four languages. The old formatters hand-rolled the
+ * Czech convention — a non-breaking space for thousands, a literal "Kč", and a
+ * compact form that printed the Czech abbreviation "28,6 tis." with a hard-coded
+ * comma decimal — in EVERY locale. A German reader saw a Czech abbreviation and
+ * no currency at all on the map legend, the region ranges, every salary band and
+ * every job-ad range: a bare "28,6 tis." is not a number anyone can act on.
+ *
+ * So: Intl does the work, per reader locale, and the currency is always named.
+ * `cs` output is byte-identical to what the hand-rolled versions produced (NBSP
+ * groups, "81 800 Kč"), which is why the default locale is `cs` and why
+ * regionLabel.test.ts still passes unchanged. */
+export const MARKET_LOCALE = "cs";
+const CURRENCY = snapshot.meta.currency || "CZK";
+
+/** Intl constructors are not cheap and these run per row, so memoise per
+ *  (kind, locale). An unknown tag would throw a RangeError and take the whole
+ *  page down client-side, so fall back to the Czech formatting instead. */
+const FORMATTERS = new Map<string, Intl.NumberFormat>();
+function numberFormat(kind: string, locale: string, opts: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = `${kind}:${locale}`;
+  const hit = FORMATTERS.get(key);
+  if (hit) return hit;
+  let made: Intl.NumberFormat;
+  try {
+    made = new Intl.NumberFormat(locale, opts);
+  } catch {
+    // A locale tag Intl refuses (never from LOCALES, but this is a public page):
+    // print in the data's own language rather than throw during render.
+    made = new Intl.NumberFormat(MARKET_LOCALE, opts);
+  }
+  FORMATTERS.set(key, made);
+  return made;
+}
+
 /** True only for a number we would be willing to print. `Number.isFinite`
  *  rather than a null check: NaN and ±Infinity fall out of the scale maths
  *  below (an empty array makes `Math.min()` return Infinity), and printing
@@ -158,27 +192,64 @@ const NBSP = " "; // Czech convention: space as the thousands separator.
 export function isFigure(n: number | null | undefined): n is number {
   return typeof n === "number" && Number.isFinite(n);
 }
-export function fmtInt(n: number | null | undefined): string {
+export function fmtInt(n: number | null | undefined, locale: string = MARKET_LOCALE): string {
   if (!isFigure(n)) return "—";
-  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  return numberFormat("int", locale, { maximumFractionDigits: 0 }).format(Math.round(n));
 }
-export function fmtCzk(n: number | null | undefined): string {
-  return !isFigure(n) ? "—" : `${fmtInt(n)}${NBSP}Kč`;
+export function fmtCzk(n: number | null | undefined, locale: string = MARKET_LOCALE): string {
+  if (!isFigure(n)) return "—";
+  return numberFormat("czk", locale, { style: "currency", currency: CURRENCY, maximumFractionDigits: 0 }).format(
+    Math.round(n)
+  );
 }
-/** ISO `YYYY-MM-DD` → Czech-style `D. M. YYYY` (e.g. "1. 6. 2026"). */
-export function fmtDate(iso: string | null | undefined): string {
+/** ISO `YYYY-MM-DD` → the reader's own short date (cs "3. 7. 2026", en "7/3/2026"). */
+export function fmtDate(iso: string | null | undefined, locale: string = MARKET_LOCALE): string {
   if (!iso) return "—";
   const [y, m, d] = iso.slice(0, 10).split("-");
   if (!y || !m || !d) return iso;
-  return `${Number(d)}. ${Number(m)}. ${y}`;
+  const at = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+  if (Number.isNaN(at.getTime())) return iso;
+  try {
+    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric", year: "numeric", timeZone: "UTC" }).format(at);
+  } catch {
+    // Same reasoning as numberFormat's fallback: never throw while rendering.
+    return `${Number(d)}. ${Number(m)}. ${y}`;
+  }
 }
 
-/** Compact money for tight chips: 28 600 → "28,6 tis.". */
-export function fmtCzkShort(n: number | null | undefined): string {
+/** Compact money for tight chips, with the currency named: 28 600 →
+ *  cs "28,6 tis. Kč", en "CZK 28.6K", fr "28,6 k CZK". */
+export function fmtCzkShort(n: number | null | undefined, locale: string = MARKET_LOCALE): string {
   if (!isFigure(n)) return "—";
-  const k = n / 1000;
-  const s = k >= 100 ? Math.round(k).toString() : k.toFixed(1).replace(".", ",").replace(",0", "");
-  return `${s}${NBSP}tis.`;
+  return numberFormat("czkShort", locale, {
+    style: "currency",
+    currency: CURRENCY,
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
+/** Compact plain count — the survey's headcount behind a salary band
+ *  (`employees_k` is in thousands): 117 → cs "117 tis.", en "117K". */
+export function fmtCompact(n: number | null | undefined, locale: string = MARKET_LOCALE): string {
+  if (!isFigure(n)) return "—";
+  return numberFormat("compact", locale, {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
+/** Days between the snapshot's data date and `now` — the page says out loud
+ *  when the committed snapshot has gone stale rather than presenting a
+ *  six-month-old register as "the market right now". */
+export const STALE_AFTER_DAYS = 60;
+export function snapshotAgeDays(asOf: string | null | undefined, now: number = Date.now()): number | null {
+  if (!asOf) return null;
+  const at = Date.parse(`${asOf.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(at)) return null;
+  return Math.max(0, Math.floor((now - at) / 86_400_000));
 }
 
 // ── heat scale (pale limewash → amber → coral), on-brand ─────────────────────

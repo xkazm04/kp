@@ -621,22 +621,10 @@
       "title": "Český trh práce, <emph>bez příkras</emph>.",
       "subtitle": "Referenční mzdy, poptávka po náboru ve všech 14 krajích a pozice, které rostou i slábnou. Všechno postavené výhradně na veřejných datech trhu práce.",
       "updated": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date} · {pct} % zveřejněno za posledních 90 dní",
-      "updatedNoPct": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Vedeno mapou, jako příběh",
-      "board": "Přehled",
-      "boardDesc": "Vše na jednom místě"
-    },
-    "stats": {
-      "vacancies": "Volná místa",
-      "median": "Medián v ČR",
-      "regions": "Kraje",
-      "occupations": "Sledované profese"
+      "updatedNoPct": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date}",
+      "stale": "Tento snímek je starý {days, plural, one {# den} few {# dny} other {# dní}}. Živý registr se od jeho pořízení posunul."
     },
     "map": {
-      "title": "Kde jsou volná místa",
       "metricVolume": "Volná místa",
       "metricSalary": "Výdělek",
       "legendVolume": "podle počtu míst",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "Průvodce",
       "title": "Referenční mzdy podle pozice",
-      "subtitle": "Celoekonomické měsíční výdělky z oficiálního mzdového šetření ISPV: od juniora po vedoucího, podle rodiny rolí.",
+      "subtitle": "Celorepublikové hrubé měsíční výdělky z oficiálního mzdového šetření ISPV: od juniora po lead, podle rodiny rolí.",
       "median": "medián {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Celorepublikové hrubé měsíční výdělky z oficiálního mzdového šetření ISPV, data za rok {period}: od juniora po lead, podle rodiny rolí.",
+      "basedOn": "Na základě {v} zaměstnanců v šetření"
     },
     "demand": {
       "eyebrow": "Co se nabírá",
@@ -670,7 +659,6 @@
       "byFamily": "Podle rodiny rolí",
       "byRole": "Top profese",
       "openings": "{n, plural, one {# místo} few {# místa} other {# míst}}",
-      "momentumNew": "výchozí",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },

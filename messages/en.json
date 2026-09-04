@@ -621,22 +621,10 @@
       "title": "The Czech job market, <emph>in the open</emph>.",
       "subtitle": "Reference salaries, hiring demand across all 14 regions, and the roles rising and fading. All of it built entirely on public labour-market data.",
       "updated": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date} · {pct}% posted in the last 90 days",
-      "updatedNoPct": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Map-led, read as a story",
-      "board": "Dashboard",
-      "boardDesc": "Everything at a glance"
-    },
-    "stats": {
-      "vacancies": "Open vacancies",
-      "median": "National median",
-      "regions": "Regions",
-      "occupations": "Occupations tracked"
+      "updatedNoPct": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date}",
+      "stale": "This snapshot is {days, plural, one {# day} other {# days}} old. The live register has moved on since it was taken."
     },
     "map": {
-      "title": "Where the jobs are",
       "metricVolume": "Vacancies",
       "metricSalary": "Earnings",
       "legendVolume": "by open vacancies",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "The field guide",
       "title": "Reference salaries by role",
-      "subtitle": "Economy-wide monthly earnings from the official ISPV wage survey: junior to lead, per role family.",
+      "subtitle": "Economy-wide gross monthly earnings from the official ISPV wage survey: junior to lead, per role family.",
       "median": "median {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Economy-wide gross monthly earnings from the official ISPV wage survey, {period} data: junior to lead, per role family.",
+      "basedOn": "Based on {v} employees surveyed"
     },
     "demand": {
       "eyebrow": "What's hiring",
@@ -670,7 +659,6 @@
       "byFamily": "By role family",
       "byRole": "Top occupations",
       "openings": "{n, plural, one {# opening} other {# openings}}",
-      "momentumNew": "baseline",
       "share": "{pct}%",
       "shareTiny": "<1%"
     },

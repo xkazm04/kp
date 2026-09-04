@@ -621,22 +621,10 @@
       "title": "Le marché de l’emploi tchèque, <emph>au grand jour</emph>.",
       "subtitle": "Salaires de référence, demande de recrutement dans les 14 régions, et les postes en hausse comme en déclin. Le tout entièrement construit à partir des données publiques du marché du travail.",
       "updated": "{n, plural, one {# offre active} other {# offres actives}} au {date} · {pct} % publiées ces 90 derniers jours",
-      "updatedNoPct": "{n, plural, one {# offre active} other {# offres actives}} au {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Guidé par la carte, lu comme un récit",
-      "board": "Tableau de bord",
-      "boardDesc": "Tout d’un coup d’œil"
-    },
-    "stats": {
-      "vacancies": "Offres ouvertes",
-      "median": "Médiane nationale",
-      "regions": "Régions",
-      "occupations": "Métiers suivis"
+      "updatedNoPct": "{n, plural, one {# offre active} other {# offres actives}} au {date}",
+      "stale": "Cet instantané date de {days, plural, one {# jour} other {# jours}}. Le registre en direct a évolué depuis."
     },
     "map": {
-      "title": "Où sont les emplois",
       "metricVolume": "Offres",
       "metricSalary": "Salaire",
       "legendVolume": "selon les offres ouvertes",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "Le guide de terrain",
       "title": "Salaires de référence par poste",
-      "subtitle": "Salaires mensuels à l’échelle de l’économie, issus de l’enquête salariale officielle ISPV : de junior à lead, par famille de postes.",
+      "subtitle": "Salaires bruts mensuels de l’ensemble de l’économie, issus de l’enquête officielle ISPV : du junior au lead, par famille de métiers.",
       "median": "médiane {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Salaires bruts mensuels de l’ensemble de l’économie, issus de l’enquête officielle ISPV, données {period} : du junior au lead, par famille de métiers.",
+      "basedOn": "Sur la base de {v} salariés enquêtés"
     },
     "demand": {
       "eyebrow": "Ce qui recrute",
@@ -670,7 +659,6 @@
       "byFamily": "Par famille de postes",
       "byRole": "Principaux métiers",
       "openings": "{n, plural, one {# poste ouvert} other {# postes ouverts}}",
-      "momentumNew": "référence",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },

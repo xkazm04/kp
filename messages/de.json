@@ -621,22 +621,10 @@
       "title": "Der tschechische Arbeitsmarkt, <emph>offen einsehbar</emph>.",
       "subtitle": "Referenzgehälter, Einstellungsbedarf in allen 14 Regionen und die Positionen im Auf- und Abschwung. Alles vollständig aus öffentlichen Arbeitsmarktdaten.",
       "updated": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date} · {pct} % in den letzten 90 Tagen ausgeschrieben",
-      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Kartenbasiert, als Geschichte erzählt",
-      "board": "Dashboard",
-      "boardDesc": "Alles auf einen Blick"
-    },
-    "stats": {
-      "vacancies": "Offene Stellen",
-      "median": "Landesmedian",
-      "regions": "Regionen",
-      "occupations": "Erfasste Berufe"
+      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}",
+      "stale": "Diese Momentaufnahme ist {days, plural, one {# Tag} other {# Tage}} alt. Das laufende Register hat sich seitdem weiterentwickelt."
     },
     "map": {
-      "title": "Wo die Stellen sind",
       "metricVolume": "Stellen",
       "metricSalary": "Verdienst",
       "legendVolume": "nach offenen Stellen",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "Der Wegweiser",
       "title": "Referenzgehälter nach Position",
-      "subtitle": "Gesamtwirtschaftliche Monatsverdienste aus der offiziellen ISPV-Verdiensterhebung: von Junior bis Lead, je Berufsfamilie.",
+      "subtitle": "Gesamtwirtschaftliche monatliche Bruttoverdienste aus der amtlichen ISPV-Verdiensterhebung: vom Junior bis zum Lead, je Rollenfamilie.",
       "median": "Median {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Gesamtwirtschaftliche monatliche Bruttoverdienste aus der amtlichen ISPV-Verdiensterhebung, Daten {period}: vom Junior bis zum Lead, je Rollenfamilie.",
+      "basedOn": "Auf Basis von {v} befragten Beschäftigten"
     },
     "demand": {
       "eyebrow": "Was gerade gesucht wird",
@@ -670,7 +659,6 @@
       "byFamily": "Nach Berufsfamilie",
       "byRole": "Top-Berufe",
       "openings": "{n, plural, one {# Stelle} other {# Stellen}}",
-      "momentumNew": "Basiswert",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },
