@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, RefreshCw, X } from "lucide-react";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { renderTaskLabel } from "@/app/_lib/task-label";
+import { taskMatchesSearch, taskSearchNeedle } from "./taskSearch";
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { Defer } from "@/app/_components/ui/Defer";
@@ -62,13 +63,16 @@ export function TasksTab() {
   const [textFilter, setTextFilter] = useState("");
   const [kindFilter, setKindFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | null>(null);
-  const text = textFilter.trim().toLowerCase();
+  // Folded once per keystroke, not once per row, and by the SAME function the
+  // history trail below uses (taskSearch.ts) — the tab and the trail answer one
+  // question the user asked, so they cannot be allowed to answer it differently.
+  const text = taskSearchNeedle(textFilter);
   // Free text matches what the user can SEE, so it runs over the resolved
   // (localized) label — the stored one is an encoded catalog reference.
   const matches = (task: Task) =>
     (!kindFilter || task.kind === kindFilter) &&
     (!statusFilter || task.status === statusFilter) &&
-    (!text || renderTaskLabel(t, task).toLowerCase().includes(text) || task.kind.toLowerCase().includes(text));
+    taskMatchesSearch(renderTaskLabel(t, task), task.kind, text);
   const shown = tasks.filter(matches);
   const kinds = [...new Set(tasks.map((task) => task.kind))].sort();
   const filtering = Boolean(text) || Boolean(kindFilter) || statusFilter !== null;

@@ -17,6 +17,7 @@ import { CARD_PAD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { renderTaskLabel } from "@/app/_lib/task-label";
+import { taskMatchesSearch } from "./taskSearch";
 import type { Task, TaskStatus } from "./TasksProvider";
 import { TasksTable } from "./TasksTable";
 import { TasksTableRow } from "./TasksTableRow";
@@ -77,9 +78,10 @@ function TaskHistoryList({ kind, status, text }: { kind: string; status: TaskSta
     errorLabel: t("history.loadFailed"),
   });
 
-  const shown = items.filter(
-    (task) => !text || renderTaskLabel(t, task).toLowerCase().includes(text) || task.kind.toLowerCase().includes(text)
-  );
+  // `text` arrives ALREADY folded from TasksTab (taskSearchNeedle) — the same needle
+  // the live window above is filtered by, so a run cannot match in one half of the
+  // view and vanish in the other at the recent/history boundary.
+  const shown = items.filter((task) => taskMatchesSearch(renderTaskLabel(t, task), task.kind, text));
 
   return (
     <HistoryPanel
