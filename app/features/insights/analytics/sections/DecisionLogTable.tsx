@@ -32,7 +32,7 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
 import type { SortState } from "@/app/_components/table/useTableSort";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import {
   ATTRIBUTION_BADGE,
@@ -252,12 +252,12 @@ export function DecisionLogTable({
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
         <div className="flex flex-wrap items-baseline gap-3">
-          <p className="text-meta uppercase text-steel">
+          <p className={META_LABEL}>
             {total > 0 ? t("countAuditable", { shown: rows.length, total }) : t("subtitle")}
           </p>
           {/* UAT LUC-ANA-7 — the clock this table runs on, named once beside the
               count rather than repeated in every cell. */}
-          <p className="text-meta uppercase text-steel">{t("timeZoneNote", { zone })}</p>
+          <p className={META_LABEL}>{t("timeZoneNote", { zone })}</p>
           <button
             type="button"
             onClick={exportCsv}
@@ -285,7 +285,7 @@ export function DecisionLogTable({
           The scan is bounded (route: SUBJECT_REFINE_MAX); above the bound it read the
           most recent N decisions, which is a scope, not a silent truncation. */}
       {data?.subjectScan?.capped ? (
-        <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className={`mt-2 ${NOTICE()} px-3 py-2 text-sm`}>
           {t("scanCapped", { scanned: data.subjectScan.scanned, total: data.subjectScan.trailTotal })}
         </p>
       ) : null}

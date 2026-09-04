@@ -16,6 +16,7 @@ import { DecisionRecordsTable } from "./sections/DecisionRecordsTable";
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import { NOTICE, PANEL } from "@/app/_components/ui/recipes";
 // Decision System of Record (moonshot D) — the recruiter/auditor view of the
 // sealed decision chain. The point is the VERIFY BADGE: a tamper-evident proof,
 // not just a log. "Export dossier" hands an auditor / right-to-explanation
@@ -121,7 +122,7 @@ export function DecisionRecordsPanel() {
   }
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`${PANEL} p-5`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
@@ -182,7 +183,7 @@ export function DecisionRecordsPanel() {
           ) : data.chain.keylessCount > 0 && data.chain.keylessCount === data.chain.count ? (
             // NEVER keyed — the only state in which the chain protects nothing against
             // an insider, and the state the live deployment is in.
-            <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className={`mt-4 flex items-start gap-2 ${NOTICE()} px-3 py-2 text-sm`}>
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
               <div className="space-y-1">
                 <p className="font-semibold">{t("verifiedKeyless", { count: data.chain.count })}</p>
@@ -200,7 +201,7 @@ export function DecisionRecordsPanel() {
                   first keyed link, which cannot be re-MAC'd — but those links carry no
                   MAC of their own, and the reader is told which ones and from where. */}
               {data.chain.keylessCount > 0 ? (
-                <div className="mt-2 space-y-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <div className={`mt-2 space-y-1 ${NOTICE()} px-3 py-2 text-sm`}>
                   <p>
                     {t("partialKeyless", {
                       keyless: data.chain.keylessCount,

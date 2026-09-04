@@ -3,6 +3,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { Analytics } from "./AnalyticsTab";
+import { PANEL } from "@/app/_components/ui/recipes";
 
 // compute-cost-per-hire — surface the (read-only) LLM usage ledger beside the
 // recruiter-entered channel spend. HONEST by construction: the ledger has no
@@ -46,7 +47,7 @@ export function ComputeCostPanel({
   // hires yet", never as a different population silently standing in.
   const hires = computeCost?.hires ?? 0;
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
         <span className="rounded-full border border-stone-200 px-2 py-0.5 text-meta uppercase tracking-wide text-steel">
@@ -97,7 +98,7 @@ export function ComputeCostPanel({
                         numerator was ledger-time, so the two halves of one ratio
                         described different populations. It now divides by, and states,
                         the hires that CLOSED in the same period. */}
-                    <dd className="text-xs text-steel">
+                    <dd className="text-micro text-steel">
                       {hires <= 0
                         ? t("noHires")
                         : computeCost.windowDays != null
@@ -112,13 +113,13 @@ export function ComputeCostPanel({
                 <dd className="mt-0.5 font-serif text-h3 text-ink">
                   {costPerHireCzk != null ? `${money(costPerHireCzk)} ${t("perHireUnit")}` : "—"}
                 </dd>
-                <dd className="text-xs text-steel">{windowed ? t("manualWindowed") : t("manualAllTime")}</dd>
+                <dd className="text-micro text-steel">{windowed ? t("manualWindowed") : t("manualAllTime")}</dd>
                 {/* UAT KAT-ANA-2 — the manual leg is Σ typed-in channel spend ÷ hires.
                     Nothing about it moves when it goes stale, so it says when it was
                     last entered; "oldest" because a blend is only as current as its
                     stalest input. */}
                 {costPerHireCzk != null && costPerHireAsOf ? (
-                  <dd className="text-xs text-steel">
+                  <dd className="text-micro text-steel">
                     {ta("spendAsOfOldest", { date: shortDate(costPerHireAsOf) })}
                   </dd>
                 ) : null}

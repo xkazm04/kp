@@ -28,6 +28,7 @@ import { ThresholdHistoryStrip } from "./AnalyticsThresholdHistoryStrip";
 import { AnalyticsFamilyFloorChips } from "./AnalyticsFamilyFloorChips";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import { PANEL } from "@/app/_components/ui/recipes";
 // Calibration Engine (moonshot A/C) — the "How accurate are we?" panel. Plots a
 // reliability diagram (predicted probability vs. measured advance rate) against
 // the perfect-calibration diagonal, plus the Brier score. The whole point is
@@ -110,7 +111,7 @@ export function CalibrationPanel() {
   const skillDisplay = skill == null ? null : `${skill > 0 ? "+" : ""}${Math.round(skill * 100)}`;
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`${PANEL} p-5`}>
       <AnalyticsCalibrationHeader
         source={source}
         setSource={setSource}
@@ -184,7 +185,7 @@ export function CalibrationPanel() {
                   <div>
                     <div className="text-3xl font-semibold text-ink">{data.brier!.toFixed(3)}</div>
                     <div className="text-stone-500">{t("brier")}</div>
-                    <div className="mt-1 text-xs text-stone-400">{t("brierHint")}</div>
+                    <div className="mt-1 text-micro text-stone-400">{t("brierHint")}</div>
                   </div>
                   {/* LUC-ANA-2 — the comparison that makes the Brier score mean
                       something: this cohort's own constant predictor, and the skill
@@ -196,7 +197,7 @@ export function CalibrationPanel() {
                         {skillDisplay == null ? "—" : t("skillValue", { pct: skillDisplay })}
                       </div>
                       <div className="text-stone-500">{t("skill")}</div>
-                      <div className="mt-1 text-xs text-stone-400">
+                      <div className="mt-1 text-micro text-stone-400">
                         {t(axis === "hired" ? "skillHintHired" : "skillHint", {
                           base: baseBrier.toFixed(3),
                           pct: Math.round((baseRate ?? 0) * 100),

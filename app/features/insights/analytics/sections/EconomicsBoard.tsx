@@ -25,7 +25,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { ArrowRight, PauseCircle } from "lucide-react";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { labelOr } from "@/app/_lib/use-enum-label";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { Defer } from "@/app/_components/ui/Defer";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { useTableSort } from "@/app/_components/table/useTableSort";
@@ -217,7 +217,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                               fossil reads as this period's cost — which is the whole
                               defect, not a footnote to it. */}
                           {r.spendUpdatedAt ? (
-                            <span className="block text-xs font-normal text-steel">
+                            <span className="block text-micro font-normal text-steel">
                               {ta("spendAsOf", { date: shortDate(r.spendUpdatedAt) })}
                             </span>
                           ) : null}
@@ -241,7 +241,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
             unlike byJob it said so nowhere. Same key, same idiom as AnalyticsByRoleTable:
             a table that silently drops rows reads as a complete list. */}
         {data.byVariantTotal > data.byVariant.length ? (
-          <p className="mt-3 text-meta uppercase text-steel">
+          <p className={`mt-3 ${META_LABEL}`}>
             {tc("topByVolume", { shown: data.byVariant.length, total: data.byVariantTotal })}
           </p>
         ) : null}

@@ -35,6 +35,7 @@ import {
   shortHash,
 } from "../analyticsDecisionLogTypes";
 import { DecisionRecordDetail } from "./DecisionRecordDetail";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 
 type Col = "seq" | "kind" | "subject" | "actor" | "createdAt" | "keyId";
 
@@ -145,7 +146,7 @@ export function DecisionRecordsTable({
 
   return (
     <>
-      <p className="mt-3 text-meta uppercase text-steel">{t("timeZoneNote", { zone })}</p>
+      <p className={`mt-3 ${META_LABEL}`}>{t("timeZoneNote", { zone })}</p>
       {dossierError ? (
         <p role="alert" className="mt-2 text-sm text-red-700">
           {dossierError}

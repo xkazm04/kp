@@ -677,6 +677,16 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**The tab is on the type scale and on the recipes.** The nine `text-xs` classes across the
+automation, calibration, compute-cost and economics panels are now `text-micro` — the 14px floor
+the design system states, rather than a utility that renders below it. Thirteen files carried
+hand-typed `PANEL` / `META_LABEL` / `NOTICE("amber")` literals in
+`app/_components/ui/recipe-debt.json`; twenty-one of the twenty-two now compose the recipe and
+those twelve ceiling entries are DROPPED, which locks the win (the next literal to arrive in one
+of them is `undeclared`, and red). One row is kept on purpose:
+`sections/DecisionRecordsTable.tsx` `noticeAmber=1` is a `rounded` micro badge on a record row,
+and `NOTICE()` carries `rounded-lg dark:rounded-2xl` — the recipe is the wrong shape for it.
+
 **The two export buttons report a code, not a status.** The dossier export
 (`AnalyticsDecisionRecordsPanel`) and the whole-trail export (`sections/DecisionLogTable`) used to
 `throw new Error(String(res.status))` — and the number never reached a reader, because the catch

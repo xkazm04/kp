@@ -11,6 +11,7 @@
 import { useTranslations } from "next-intl";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { ANALYTICS_SECTION_IDS, type AnalyticsSectionId } from "./analyticsSections";
+import { PANEL } from "@/app/_components/ui/recipes";
 
 export function AnalyticsSectionNav({
   section,
@@ -25,7 +26,7 @@ export function AnalyticsSectionNav({
       label={t("label")}
       value={section}
       onChange={onSection}
-      className="flex w-full flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1 shadow-panel sm:w-auto"
+      className={`flex w-full flex-wrap gap-1 ${PANEL} p-1 sm:w-auto`}
       options={ANALYTICS_SECTION_IDS.map((id) => ({
         value: id,
         label: (

@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momentum";
 import { momentumIsQuiet } from "./performanceBands";
+import { PANEL } from "@/app/_components/ui/recipes";
 
 // ANA2 — the weekly trend: grouped mini-bars per rolling week (newest right),
 // one bar per series. Heights normalize against the single largest weekly count
@@ -31,7 +32,7 @@ export function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
   // correct day in every client timezone (see momentumWeekLabel).
   const weekLabel = (iso: string) => momentumWeekLabel(iso, locale);
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-serif text-h2 text-ink">{t("momentum")}</h3>
         <ul className="flex flex-wrap items-center gap-3 text-sm text-steel">
