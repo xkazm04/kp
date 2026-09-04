@@ -303,6 +303,26 @@ built from `previewBits.tsx` (Tiles/Tile, Row, Status dot, Chips, RankList,
 `useFmt`). Copy lives under the `palettePreview` catalog namespace. Adding a
 destination = one union member + one resolver case + one renderer.
 
+**"Cheap" means the read cannot grow with the corpus.** The pane opens on a
+keystroke, so a resolver's cost is a per-keystroke cost, and two of them had
+quietly stopped being cheap in a way no assertion about the ANSWER could see (the
+numbers were always right):
+
+- `resolveAgents` listed the hired agents and then called `getAgentAggregates`
+  **per agent** — one activity query per hire. It now reads
+  `getWorkspaceAgentTotals(ws)`: one grouped read, running the same per-agent
+  precedence rule (a month's rollup row is authoritative for that month; months
+  without one sum their execution events), so the totals are identical.
+- `resolveProfile` did `listPipeline(ws).filter(...).slice(0, 3)` — the whole
+  board hydrated through `rowToEntry`, github JSON and notes included, to keep
+  three rows. It now calls `listCandidatePlacements(id, ws, 3)`, a projection of
+  two columns with the LIMIT in SQL.
+
+[`bounded-reads.test.ts`](../../app/_lib/palette-preview/bounded-reads.test.ts)
+pins the property rather than a number: it counts PREPARED STATEMENTS around a
+resolver call and asserts the count is the same at 2 agents and at 8 (before the
+fix: 3 and 9). A new resolver that loops a store read fails there.
+
 The memo behind it lives in `shell/palette/previewCache.ts` and is keyed on
 **(workspace, query)**, not on the query alone: a palette query says nothing
 about whose numbers it asked for, so a query-only key let one document re-show

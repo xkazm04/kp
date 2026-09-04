@@ -3,7 +3,7 @@
 // from ./types. `attention` is the same AttentionCounts the sidebar badges show,
 // computed once by the dispatcher and shared.
 import type { AttentionCounts } from "@/app/_lib/attention";
-import { getAgentAggregates, listHiredAgents } from "@/app/_lib/db/agents";
+import { getWorkspaceAgentTotals } from "@/app/_lib/db/agents";
 import { listChannelWebhooks } from "@/app/_lib/db/channels";
 import { countPipelineByStage, listJobPipelineStats } from "@/app/_lib/db/pipeline";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
@@ -87,15 +87,17 @@ export function resolveSchedule(ws: string): PalettePreview {
 }
 
 export function resolveAgents(ws: string): PalettePreview {
-  const agents = listHiredAgents(ws);
-  let runs = 0;
-  let successes = 0;
-  let monthCostUsd = 0;
-  for (const a of agents) {
-    const agg = getAgentAggregates(a.id, ws);
-    runs += agg.runs;
-    successes += agg.successes;
-    monthCostUsd += agg.monthCostUsd;
-  }
-  return { view: "agents", agents: agents.length, runs, successRate: runs > 0 ? successes / runs : null, monthCostUsd };
+  // ONE activity read for the workspace, not one per hired agent. This used to list
+  // the agents and call getAgentAggregates in a loop — N+1 queries on a pane that
+  // opens on a keystroke, growing with headcount. getWorkspaceAgentTotals runs the
+  // same per-agent precedence rule (a month's rollup beats that month's executions)
+  // over a single grouped read, so the numbers are identical and the cost is not.
+  const totals = getWorkspaceAgentTotals(ws);
+  return {
+    view: "agents",
+    agents: totals.agents,
+    runs: totals.runs,
+    successRate: totals.successRate,
+    monthCostUsd: totals.monthCostUsd,
+  };
 }
