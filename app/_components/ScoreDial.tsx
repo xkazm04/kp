@@ -4,7 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { clampPercent, scoreTone, scoreToneColor } from "@/app/_lib/format";
-import { SCORE_BANDS, scoreBandIndex } from "./scoreDial.logic";
+import { VERDICT_BANDS, scoreBandIndex } from "./scoreDial.logic";
 
 type ScoreDialProps = {
   score: number;
@@ -64,7 +64,7 @@ export function ScoreDial({ score }: ScoreDialProps) {
   const clamped = Number.isFinite(score) ? clampPercent(score) : 0;
   const displayed = useCountUp(clamped, TOTAL_MS);
   const activeIndex = scoreBandIndex(clamped);
-  const activeBand = SCORE_BANDS[activeIndex];
+  const activeBand = VERDICT_BANDS[activeIndex];
   const bandLabel = t(activeBand.key);
   // Color the central number + label from the app-wide scoreTone (cutoffs 50/75) so the
   // most prominent score reads the SAME tone as ScoreBadge / Meter / FactorChart for a given
@@ -84,7 +84,7 @@ export function ScoreDial({ score }: ScoreDialProps) {
         className="aspect-square w-full"
         aria-hidden="true"
       >
-        {SCORE_BANDS.map((band, i) => {
+        {VERDICT_BANDS.map((band, i) => {
           const segSweep = ((band.to - band.from) / 100) * ARC_SPAN - GAP_DEG;
           const segStart = START_ANGLE + (band.from / 100) * ARC_SPAN + GAP_DEG / 2;
           const arcLen = (segSweep / 360) * CIRCUMFERENCE;
