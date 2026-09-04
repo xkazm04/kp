@@ -29,12 +29,11 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   AMBIENT_PRESETS,
   ENTRANCE_PRESETS,
-  REDUCED_FADE_DURATION_S,
-  REDUCED_FADE_KEYFRAMES,
   ambientStartDelayS,
   type AmbientPresetName,
   type EntrancePresetName,
 } from "./motionPresets";
+import { entranceDelayS, glyphMotionCss } from "./glyphMotionCss";
 import { snapToToken } from "./glyphTokens";
 
 export interface GlyphElement {
@@ -52,6 +51,12 @@ interface Props {
   data: GlyphElement[];
   viewBox: string;
   className?: string;
+  /**
+   * Accessible name. Omitted (the default) the glyph is `aria-hidden` decoration —
+   * correct wherever adjacent text already carries the meaning. Pass a translated
+   * string ONLY where the drawing itself is the information.
+   */
+  label?: string;
   /** Total reveal spread in seconds (a path's 0..1 delay maps into this). */
   spread?: number;
   /** One-shot reveal. See motionPresets.ts. */
@@ -67,6 +72,7 @@ export function MotionizedGlyph({
   data,
   viewBox,
   className = "h-40 w-40",
+  label,
   spread = 1.1,
   entrance = "staggered-draw",
   ambient,
@@ -101,47 +107,39 @@ export function MotionizedGlyph({
 
   const enter = ENTRANCE_PRESETS[entrance];
   const amb = ambient ? AMBIENT_PRESETS[ambient] : null;
-  const enterDelay = (delay: number) => (enter.stagger ? enter.stagger(delay, spread) : 0);
-  const reducedFade = `${cls}-fade ${REDUCED_FADE_DURATION_S}s ${enter.ease} both`;
+  // The whole scoped stylesheet, derived from the presets — including what each
+  // layer does under `prefers-reduced-motion` (see glyphMotionCss.ts).
+  const css = glyphMotionCss({ cls, entrance: enter, ambient: amb });
   // The ambient loop waits for the entrance to finish — sequenced, not overlapped.
   const ambDelay = amb ? ambientStartDelayS(enter, spread) : 0;
 
   return (
-    <svg ref={svgRef} viewBox={viewBox} className={className} aria-hidden role="img">
-      <style>{`
-        @keyframes ${cls}-in { ${enter.keyframes} }
-        @keyframes ${cls}-fade { ${REDUCED_FADE_KEYFRAMES} }
-        .${cls}-el { opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; }
-        .${cls}-run .${cls}-el { animation: ${cls}-in ${enter.durationS}s ${enter.ease} both; }
-${
-  amb
-    ? `        @keyframes ${cls}-amb { ${amb.keyframes} }
-        /* The loop is 'forwards', NOT 'both': under 'both' its backwards fill would apply
-           the from-state (a dimmed accent) during the start delay and fight the entrance. */
-        .${cls}-run .${cls}-amb { animation: ${cls}-in ${enter.durationS}s ${enter.ease} both, ${cls}-amb ${amb.durationS}s ${amb.ease} ${amb.iteration ?? "infinite"} ${amb.direction ?? "alternate"} forwards; }`
-    : ""
-}
-        @media (prefers-reduced-motion: reduce) {
-          .${cls}-run .${cls}-el { animation: ${reducedFade}; }
-${
-  amb
-    ? `          /* ambient loops declare reduced: 'none' — drop the loop entirely */
-          .${cls}-run .${cls}-amb { animation: ${reducedFade}; }`
-    : ""
-}
-        }
-      `}</style>
+    <svg
+      ref={svgRef}
+      viewBox={viewBox}
+      className={className}
+      // A glyph is decorative by default: every render site so far pairs it with a
+      // heading and a body sentence that already say what it depicts, so naming it
+      // again would make a screen reader read the same thing twice. `label` is the
+      // escape hatch for the site where the drawing IS the information — and the
+      // two attributes are mutually exclusive, because `aria-hidden` on an element
+      // that also carries `role="img"` and a name is a contradiction the AT resolves
+      // by dropping the name.
+      {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
+    >
+      <style>{css}</style>
       <g key={runKey} className={`${cls}-run`}>
         {painted.map((p, i) => {
           // Ambient loops ride the accent paths only — traced line-work stays still.
           const loops = !!amb && (amb.accentOnly ? p.accent : true);
+          const delay = entranceDelayS(enter, p.delay, spread);
           return (
             <path
               key={i}
               className={`${cls}-el${loops ? ` ${cls}-amb` : ""}`}
               // Two comma-separated values when a loop rides along: the entrance's
               // per-path stagger, then the loop's post-entrance start.
-              style={{ animationDelay: loops ? `${enterDelay(p.delay)}s, ${ambDelay}s` : `${enterDelay(p.delay)}s` }}
+              style={{ animationDelay: loops ? `${delay}s, ${ambDelay}s` : `${delay}s` }}
               d={p.d}
               fill={p.paint}
             />

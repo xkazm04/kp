@@ -703,6 +703,33 @@ owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
 a `Select` is now a tsc error rather than a second name for the same thing.
 
+### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
+
+Two contracts the glyph renderer declared and did not keep:
+
+- **`aria-hidden` and `role="img"` sat on the same `<svg>`.** One removes the
+  subtree from the accessibility tree, the other declares an image in it, and
+  there was no way for a consumer to supply a name — so a drawing that *is* the
+  information had no route to one, and nothing in `app/_components/glyph/`
+  asserted anything about accessibility. `MotionizedGlyph` now takes `label?:
+  string`: without it the `<svg>` is `aria-hidden` decoration (right for all 14
+  render sites today, each of which pairs the glyph with a heading and a body
+  sentence that already say what it depicts), with it the `<svg>` gets
+  `role="img"` + `aria-label` and no `aria-hidden`. Both states come from one
+  spread so they cannot drift apart, and `MotionizedGlyph.a11y.test.ts` pins the
+  exclusion plus the rule that the renderer never hardcodes a name (it would ship
+  one locale to every reader).
+- **`MotionPreset.reduced` was a comment.** The field has documented the
+  `prefers-reduced-motion` answer — "cross-fade only, or don't run at all" — since
+  the library was written, and the renderer hardcoded the cross-fade for every
+  preset: a preset asking for stillness still faded in. The derivation moved out
+  to [`glyphMotionCss.ts`](../../app/_components/glyph/glyphMotionCss.ts), a pure
+  string function, so `glyphMotionCss.test.ts` can assert it directly: an
+  `opacity-only` layer cross-fades, a `none` layer emits `animation: none` **plus
+  `opacity: 1`** (the resting state is `opacity: 0`, so dropping the animation
+  alone would render an invisible glyph), and an ambient loop is dropped or kept
+  by its own `reduced` value rather than by the renderer's opinion.
+
 ### Glyph motion is two layers, and each option has a consumer (2026-09-04)
 
 `MotionizedGlyph` used to compose three layers and an extra flag — `entrance`,
