@@ -13,19 +13,28 @@ import { FIELD } from "@/app/_components/ui/recipes";
 
 export type Option = { value: string; label: string };
 
-const optionRow = (active: boolean) =>
+const optionRow = (isActive: boolean, isSelected: boolean) =>
   `focus-ring flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${
-    active ? "bg-coral/10 font-semibold text-coral" : "text-ink hover:bg-paper"
+    isActive ? "bg-coral/10 text-coral" : isSelected ? "font-semibold text-ink" : "text-ink hover:bg-paper"
   }`;
 
 // The menu body: an optional search box over a scrollable single-select list, with
 // an optional "clear" row at the top.
+//
+// A11y: this is the APG listbox half of a combobox, built to the same shape as
+// `Select` (its trigger is `role=combobox`, minted here's sibling — see ColumnFilter).
+// It had NO roles at all: to a screen reader it was a div of buttons, and past Tab it
+// had no keyboard at all. Focus stays in the filter box (it autofocuses on open) while
+// the ACTIVE row moves by state, so `aria-activedescendant` is the only channel that
+// says which row Arrow/Home/End reached and which one Enter will pick — the id must
+// therefore always resolve, including after a filter narrows the list to nothing.
 export function OptionList({
   options,
   value,
   onPick,
   searchable = true,
   clearLabel,
+  listId,
 }: {
   options: Option[];
   value: string;
@@ -33,11 +42,55 @@ export function OptionList({
   searchable?: boolean;
   /** When set, shows a top row that resets the filter to "" (e.g. "All roles"). */
   clearLabel?: string;
+  /** Minted by the trigger, which points `aria-controls` at it. */
+  listId: string;
 }) {
   const t = useTranslations("table");
   const [q, setQ] = useState("");
+  const [active, setActive] = useState(0);
+  const listRef = useRef<HTMLUListElement>(null);
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
+  // ONE array for the rows a reader sees. The clear row used to live outside the map,
+  // so any index-based navigation would have been off by one for exactly the menus that
+  // have a clear row (every column filter).
+  const rows: Option[] = clearLabel ? [{ value: "", label: clearLabel }, ...shown] : shown;
+  const optionId = (idx: number) => `${listId}-opt-${idx}`;
+  const activeDescendant = active >= 0 && active < rows.length ? optionId(active) : undefined;
+
+  useEffect(() => {
+    listRef.current?.querySelector<HTMLElement>(`[data-idx="${active}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (rows.length > 0) setActive((i) => (i + 1) % rows.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        if (rows.length > 0) setActive((i) => (i - 1 + rows.length) % rows.length);
+        break;
+      case "Home":
+        e.preventDefault();
+        setActive(0);
+        break;
+      case "End":
+        e.preventDefault();
+        setActive(rows.length - 1);
+        break;
+      case "Enter": {
+        e.preventDefault();
+        const row = rows[active];
+        if (row) onPick(row.value);
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
   return (
     <div>
       {searchable ? (
@@ -46,24 +99,28 @@ export function OptionList({
           <input
             autoFocus
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={onKeyDown}
             placeholder={t("filters.search")}
             aria-label={t("filters.searchOptions")}
+            aria-controls={listId}
+            aria-activedescendant={activeDescendant}
             className={`${FIELD} w-full py-1 pl-7 text-sm`}
           />
         </div>
       ) : null}
-      <ul className="max-h-56 overflow-auto p-1">
-        {clearLabel ? (
-          <li>
-            <button type="button" onClick={() => onPick("")} className={optionRow(value === "")}>
-              <Check size={13} className={value === "" ? "opacity-100" : "opacity-0"} aria-hidden /> {clearLabel}
-            </button>
-          </li>
-        ) : null}
-        {shown.map((o) => (
-          <li key={o.value}>
-            <button type="button" onClick={() => onPick(o.value)} className={optionRow(value === o.value)}>
+      <ul id={listId} ref={listRef} role="listbox" className="max-h-56 overflow-auto p-1">
+        {rows.map((o, idx) => (
+          <li key={`${o.value}-${idx}`} id={optionId(idx)} role="option" aria-selected={value === o.value} data-idx={idx}>
+            <button
+              type="button"
+              onClick={() => onPick(o.value)}
+              onMouseEnter={() => setActive(idx)}
+              className={optionRow(idx === active, value === o.value)}
+            >
               <Check size={13} className={value === o.value ? "opacity-100" : "opacity-0"} aria-hidden /> {o.label}
             </button>
           </li>
