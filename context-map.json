@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T15:17:10.306Z",
+  "generated_at": "2026-09-04T15:46:38.391Z",
   "provenance": {
-    "git_commit": "d27fc7bef6817609c49a1152fb8de48d1b1a3f3c",
-    "git_commit_count": 2786,
+    "git_commit": "9ab99ad5c49a788e3a7cfd06f15cfc43d5f45ecf",
+    "git_commit_count": 2803,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T15:17:10.306Z"
+    "generated_at": "2026-09-04T15:46:38.391Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3216,
+    "files": 3229,
     "groups": 17,
     "use_cases": 12
   },
@@ -4594,6 +4594,8 @@
         "app/features/hiring/decisions/groupEval/fairness-guard.test.ts",
         "app/features/hiring/decisions/groupEval/governanceCacheSync.ts",
         "app/features/hiring/decisions/groupEval/groupEvalComparisonLeadCrown.test.ts",
+        "app/features/hiring/decisions/groupEval/groupEvalDisclosure.test.ts",
+        "app/features/hiring/decisions/groupEval/groupEvalDisclosure.ts",
         "app/features/hiring/decisions/groupEval/groupEvalHelpers.ts",
         "app/features/hiring/decisions/groupEval/groupEvalRobustness.test.ts",
         "app/features/hiring/decisions/groupEval/groupEvalSalaryScale.test.ts",
@@ -4793,9 +4795,12 @@
       "description": "[auto-seeded — pending sweep enrichment] Lib Group Eval: 7 source + 12 test file(s) under app/_lib. Reads/writes group_evals.",
       "entry_points": [],
       "file_paths": [
+        "app/_lib/group-eval-cas.test.ts",
         "app/_lib/group-eval-cohort-run.test.ts",
         "app/_lib/group-eval-cohort.test.ts",
         "app/_lib/group-eval-cohort.ts",
+        "app/_lib/group-eval-consent.test.ts",
+        "app/_lib/group-eval-deadline.test.ts",
         "app/_lib/group-eval-dedupe.test.ts",
         "app/_lib/group-eval-dedupe.ts",
         "app/_lib/group-eval-differentiators.test.ts",
@@ -4804,6 +4809,7 @@
         "app/_lib/group-eval-governance.test.ts",
         "app/_lib/group-eval-governance.ts",
         "app/_lib/group-eval-i18n-facts.test.ts",
+        "app/_lib/group-eval-invalidation.test.ts",
         "app/_lib/group-eval-risk-gate.test.ts",
         "app/_lib/group-eval-run.ts",
         "app/_lib/group-eval-selection-cache.test.ts",
@@ -4811,7 +4817,10 @@
         "app/_lib/group-eval-separation.test.ts",
         "app/_lib/group-eval-separation.ts",
         "app/_lib/group-eval-tenancy.test.ts",
-        "app/_lib/group-eval.ts"
+        "app/_lib/group-eval-timeout.test.ts",
+        "app/_lib/group-eval.ts",
+        "app/_lib/hash.test.ts",
+        "app/_lib/hash.ts"
       ],
       "group": "Hiring Decisions & Automation",
       "group_id": "a461c683-35e6-48d9-a73b-07cc551f453e",
@@ -6053,6 +6062,7 @@
         "app/api/schedule/meeting-url-tenancy.test.ts",
         "app/api/schedule/route.ts",
         "app/api/schedule/schedule-lifecycle-refusals.test.ts",
+        "app/api/schedule/schedule-list-bounds.test.ts",
         "app/api/schedule/token-route.test.ts",
         "app/features/hiring/schedule/useScheduleInviteLifecycle.ts",
         "app/features/hiring/schedule/useSchedulePopoverDismiss.test.ts",
@@ -7029,6 +7039,9 @@
       "file_paths": [
         "app/_lib/db/analytics-window-index.test.ts",
         "app/_lib/db/automation-approval-cas.test.ts",
+        "app/_lib/db/core-boot-tail.test.ts",
+        "app/_lib/db/core-empty-boot.test.ts",
+        "app/_lib/db/core-index-catches.test.ts",
         "app/_lib/db/core.ts",
         "app/_lib/db/db-test-isolation-guard.test.ts",
         "app/_lib/db/dev-session-integrity.test.ts",
