@@ -1596,6 +1596,24 @@ The schemas travel three ways once the later phases land:
 
 ## Known gaps
 
+- **The probation reader in `run.mjs` handles only ONE of the two documented
+  tick shapes.** `mergeTickSummaries` exists precisely because a tick summary
+  arrives either as an array of phase results (the real bridge, §13.6) or as an
+  object map (the stub) — but the probation reader
+  (`run.mjs`, the `Array.isArray(summary?.phases)` branch) reads only the array,
+  so against the stub it finds no details, records `decision: null,
+  decisionSource: "none"`, and the `probation` expectation fails on a tick that
+  plainly answered `"activated"`. That reader was narrowed on 2026-08-26
+  (`31f2851c`) to scope the decision to this hire, and nothing re-ran the stub
+  against it: the recorded fixture predates the change, so no test noticed for
+  nine days while `probation` sat in `baseline.json`'s `requiredExpectations` for
+  four scenarios. The stub now carries the `details` array the reader wants
+  (`stub.mjs`, probation phase); the remaining half is normalising the two
+  shapes in the reader — one `Object.entries(...).map(([phase, body]) => ({phase,
+  ...body}))` fallback, the same normalisation `mergeTickSummaries` already
+  performs. **Until that lands, `--stub-personas` runs cannot measure
+  `probation`** — which the committed fixture now records honestly rather than
+  hiding.
 - **Retranslation passed with machine raters only.** T3 (2026-08-23) used blind
   Sonnet raters, not humans; the residual single-rater misses are all adjacent
   levels (C5 L4↔L5, A2 L4↔L5). A human-rater pass is still owed before the

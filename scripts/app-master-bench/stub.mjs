@@ -681,7 +681,26 @@ export async function startStubPersonas({
             personaName: dispatch.personaName,
             note: verdict.rationale,
           });
-          summary.phases.probation = { ...verdict, delivered: pushed.ok, status: pushed.status };
+          // `details` carries the PER-PERSONA decision, the way the overnight
+          // phase above already does and the way the real bridge's array-shaped
+          // summary does (§13.6). run.mjs's probation reader was scoped to "this
+          // hire only" on 2026-08-26 (31f2851c, after a forced tick's app-wide
+          // decisions were mis-attributed) and looks for exactly this: a details
+          // entry whose personaId is the hire's. The stub never carried one, so
+          // its decision has been unreadable ever since.
+          summary.phases.probation = {
+            ...verdict,
+            delivered: pushed.ok,
+            status: pushed.status,
+            details: [
+              {
+                personaId: dispatch.personaId,
+                personaName: dispatch.personaName,
+                decision: verdict.decision,
+                rationale: verdict.rationale,
+              },
+            ],
+          };
         }
 
         json(res, 200, { success: true, data: summary });
