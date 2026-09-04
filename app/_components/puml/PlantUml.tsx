@@ -35,11 +35,17 @@ import { clickableNodeAria, diagramSvgRole } from "./a11y";
 // stray hex. One map = one edit to re-tone a diagram.
 // (The component status trichotomy in componentStyle lives in ./constants.)
 //
-// TODO(dark-theme): the shape-fill block is still light-only. Giving a sticky-note
-// face, a cloud silhouette and a database cylinder dark tints is a design decision
-// with no token to derive from, so it is deliberately NOT guessed here -- see the
-// /explorer sweep note of 2026-08-29. The token half above covers every component
-// box, container, edge, label and status colour, i.e. the dominant surface.
+// TODO(dark-theme): the shape-fill block is still light-only, and it is now
+// EXACTLY three primitives -- the sticky note, the cloud silhouette and the
+// database cylinder. Giving those dark tints is a design decision with no token
+// to derive from, so it is deliberately NOT guessed here (see the /explorer sweep
+// note of 2026-08-29).
+//
+// The token half above covers every component box, container GROUP box, edge,
+// label and status colour. That sentence used to be written here while the four
+// container-group colours sat in the block below as light-only literals -- the
+// largest painted area on an architecture diagram, claimed as covered. They are
+// tokens now, so the claim is true; keep it true when adding a colour.
 const C = {
   ink: "var(--color-ink)",
   paper: "var(--color-paper)",
@@ -51,6 +57,16 @@ const C = {
   dialStone: "var(--color-dial-stone)",
   dialAmber: "var(--color-dial-amber)",
   white: "var(--color-white)",
+  // Container group box, kind-agnostic: tagged (has a stereotype) vs plain.
+  // These were four LIGHT literals (#9cb394 / #dcd8cf + two rgba fills) sitting
+  // in the block below while the comment above claimed the tokens covered every
+  // container — so Spark Dark framed each phase of every architecture diagram in
+  // near-white on a #141b24 canvas. The tokens are brand-derived (globals.css),
+  // so they now flip with the theme like every other diagram colour.
+  groupTaggedStroke: "var(--color-diagram-group-tagged-stroke)",
+  groupPlainStroke: "var(--color-diagram-group-plain-stroke)",
+  groupTaggedFill: "var(--color-diagram-group-tagged-fill)",
+  groupPlainFill: "var(--color-diagram-group-plain-fill)",
 
   // Database cylinder (body + lid).
   dbFill: "#eef2f3",
@@ -61,11 +77,6 @@ const C = {
   noteFill: "#fbf4e0",
   noteFold: "#efe2ba",
   noteText: "#5b4f2e",
-  // Container group box, kind-agnostic: tagged (has a stereotype) vs plain.
-  groupTaggedStroke: "#9cb394",
-  groupPlainStroke: "#dcd8cf",
-  groupTaggedFill: "rgba(233,241,226,0.45)",
-  groupPlainFill: "rgba(247,245,239,0.55)",
 };
 
 // A hand-tuned cloud silhouette in its own coordinate box (≈ x:13–94, y:22–71);
