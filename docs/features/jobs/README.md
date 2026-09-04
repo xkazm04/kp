@@ -1162,6 +1162,21 @@ to prevent. It now carries `{ truncated, matching, limit }` through to
 and keeps the ordinary `jobs.tab.showing` line otherwise. Truncated and filtered
 read differently on screen because they are different facts.
 
+**And it really cancels now.** The hook's header has claimed since it was written
+that "the in-flight request is cancelled on the next change/unmount". It was not: a
+`cancelled` boolean was flipped and the socket stayed open, so typing eight
+characters into the search box left eight live requests racing to the browser's
+per-host limit, each decoding a full page of jobs nobody would read — and the last
+one to *arrive* was not necessarily the last one *sent*. The effect now owns an
+`AbortController`, hands its signal to `fetch`, and aborts in the cleanup before
+clearing the debounce timer; `controller.signal.aborted` doubles as the "does this
+attempt still own the state?" flag, so there is one cancellation mechanism rather
+than a boolean beside a comment. The query and payload mapping are exported as
+`jobsListQuery` / `readJobsListPayload` and driven by
+`app/features/library/jobs/useJobsList.test.ts`, which also source-guards the abort
+wiring. The Pipeline deep link and the ingest latch beside it are pinned by
+`app/features/library/jobs/jobsTabDeepLink.test.ts`.
+
 The same hook was the one jobs read that bypassed `useJsonFetch`: it threw
 `Load failed (500).` in hardcoded English and the tab rendered it raw. It now keeps
 the failure as `{ code, status }` and resolves it through `useErrorMessage()`, and

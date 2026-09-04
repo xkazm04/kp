@@ -12,6 +12,53 @@ import { mergeJobStatus, type JobLifecycleStatus } from "./jobsStatusMerge";
 // re-runs the query after a 180ms debounce, the in-flight request is cancelled
 // on the next change/unmount, and `fetching` flags a background refetch while
 // the previous results stay on screen. JobsTab consumes this and stays layout.
+
+/** The filter values the corpus query is derived from. Named so the pure pair
+ *  below can be driven directly — the hook itself needs a React renderer this
+ *  repo does not carry, and the query/payload mapping is the half worth pinning. */
+export type JobsListFilters = {
+  roleFamily: string;
+  seniority: string;
+  workMode: string;
+  entryOnly: boolean;
+  openOnly: boolean;
+  q: string;
+};
+
+/** Filter values → the `/api/jobs` query string. The wire names differ from the
+ *  state names (`entryOnly` → `entryEligible`), a false toggle is ABSENT rather
+ *  than `false` (the route reads presence), and a whitespace-only search box is
+ *  not a search. */
+export function jobsListQuery(filters: JobsListFilters): string {
+  const params = new URLSearchParams();
+  if (filters.roleFamily) params.set("roleFamily", filters.roleFamily);
+  if (filters.seniority) params.set("seniority", filters.seniority);
+  if (filters.workMode) params.set("workMode", filters.workMode);
+  if (filters.entryOnly) params.set("entryEligible", "true");
+  if (filters.openOnly) params.set("openOnly", "true");
+  if (filters.q.trim()) params.set("q", filters.q.trim());
+  return params.toString();
+}
+
+/** The route's three honesty fields, or null when the answer did not carry them.
+ *  Null is deliberate: inventing `truncated: false` would be a claim about the
+ *  corpus the server never made. */
+export type JobsListPage = { truncated: boolean; matching: number; limit: number } | null;
+
+/** Read a `/api/jobs` body into what the tab renders. A missing/non-array `jobs`
+ *  is an empty corpus, never `undefined` reaching the table. */
+export function readJobsListPayload(body: unknown): { jobs: Job[]; stats: Stats | null; page: JobsListPage } {
+  const payload = (body ?? {}) as { jobs?: unknown; stats?: unknown; truncated?: unknown; matching?: unknown; limit?: unknown };
+  return {
+    jobs: Array.isArray(payload.jobs) ? (payload.jobs as Job[]) : [],
+    stats: (payload.stats as Stats | null) ?? null,
+    page:
+      typeof payload.matching === "number" && typeof payload.limit === "number"
+        ? { truncated: payload.truncated === true, matching: payload.matching, limit: payload.limit }
+        : null,
+  };
+}
+
 export function useJobsList() {
   const t = useTranslations("jobs.tab");
   // The failure is KEPT as `{ code, status }` and the rendered message derived
@@ -44,53 +91,49 @@ export function useJobsList() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
-    const params = new URLSearchParams();
-    if (roleFamily) params.set("roleFamily", roleFamily);
-    if (seniority) params.set("seniority", seniority);
-    if (workMode) params.set("workMode", workMode);
-    if (entryOnly) params.set("entryEligible", "true");
-    if (openOnly) params.set("openOnly", "true");
-    if (q.trim()) params.set("q", q.trim());
+    // A REAL cancellation. The header above has claimed one since this hook was
+    // written, but the code only flipped a `cancelled` boolean: the socket stayed
+    // open, so typing eight characters into the search box left eight live requests
+    // racing to the browser's per-host limit, each decoding a full page of jobs
+    // nobody would read, and the last one to arrive was not necessarily the last one
+    // sent. The controller both frees the connection and doubles as the
+    // "does this attempt still own the state?" flag, so there is exactly one
+    // cancellation mechanism instead of a boolean beside a comment.
+    const controller = new AbortController();
+    const query = jobsListQuery({ roleFamily, seniority, workMode, entryOnly, openOnly, q });
     const handle = setTimeout(() => {
       setFetching(true);
       setFailure(null);
-      fetch(`/api/jobs?${params.toString()}`)
+      fetch(`/api/jobs?${query}`, { signal: controller.signal })
         .then(async (r) => {
           const body = (await r.json().catch(() => null)) as Record<string, unknown> | null;
-          if (cancelled) return;
+          if (controller.signal.aborted) return;
           const f = jsonFetchFailure(r.ok, r.status, body);
           if (f) {
             setFailure(f);
             return;
           }
-          const payload = body as {
-            jobs?: Job[];
-            stats?: Stats;
-            truncated?: boolean;
-            matching?: number;
-            limit?: number;
-          };
-          setJobs(payload.jobs ?? []);
-          setStats(payload.stats ?? null);
-          setPage(
-            typeof payload.matching === "number" && typeof payload.limit === "number"
-              ? { truncated: payload.truncated === true, matching: payload.matching, limit: payload.limit }
-              : null
-          );
+          const next = readJobsListPayload(body);
+          setJobs(next.jobs);
+          setStats(next.stats);
+          setPage(next.page);
         })
         .catch(() => {
-          if (cancelled) return;
-          // A transport failure carries no HTTP response: status 0 is the honest
-          // "never reached the server", and there is no code to resolve.
+          // An abort is not a failure — the surface is gone or a newer attempt owns
+          // the state. Anything else is a transport failure, which carries no HTTP
+          // response: status 0 is the honest "never reached the server", and there
+          // is no code to resolve.
+          if (controller.signal.aborted) return;
           setFailure({ code: null, status: 0 });
         })
         .finally(() => {
-          if (!cancelled) setFetching(false);
+          if (!controller.signal.aborted) setFetching(false);
         });
     }, 180);
     return () => {
-      cancelled = true;
+      // Abort before clearing the timer so a request already in flight is dropped
+      // too — clearTimeout alone only stops one that has not started.
+      controller.abort();
       clearTimeout(handle);
     };
   }, [roleFamily, seniority, workMode, entryOnly, openOnly, q, reloadKey]);
