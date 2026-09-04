@@ -85,6 +85,7 @@ const { POST: atsConfig } = await import("./ats/config/route.ts");
 const { POST: edgeDrain } = await import("./edge/drain/route.ts");
 const { POST: edgePair } = await import("./edge/pair/route.ts");
 const { POST: llmKeyTest } = await import("./llm/keys/test/route.ts");
+const { POST: llmCanary } = await import("./llm/test/route.ts");
 const { POST: agentsPair } = await import("./agents/pair/route.ts");
 const { DELETE: agentsBridgeDisconnect } = await import("./agents/bridge/route.ts");
 const { POST: agentsDispatch } = await import("./agents/dispatch/route.ts");
@@ -158,6 +159,10 @@ const DOORS: Door[] = [
   { name: "POST /api/edge/drain", capability: "org:manage", call: () => edgeDrain() },
   { name: "POST /api/edge/pair", capability: "org:manage", call: () => edgePair() },
   { name: "POST /api/llm/keys/test", capability: "org:manage", call: () => llmKeyTest(req({ provider: "openai", scope: "byom" })) },
+  // Its sibling on the same panel: /api/llm/keys/test proves a KEY, /api/llm/test
+  // proves a PIN, and both do it by spending a real billable completion. Only the
+  // first asked a capability.
+  { name: "POST /api/llm/test", capability: "org:manage", call: () => llmCanary(req({ useCase: "match_reasoning" })) },
   // scan-sweep (llm-config-and-agent-workforce): the four agent-workforce doors
   // route-capability-coverage.test.ts had carried as "slice 2 candidate - not yet
   // judged" since the ratchet landed. Judged now, and they split along the same

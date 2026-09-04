@@ -3,7 +3,8 @@ import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
 import { spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "./verdict.ts";
 
@@ -28,6 +29,15 @@ const CANARY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority, and in open mode it proves nothing at all. This button
+  // spends a REAL billable completion through whatever provider the Models table
+  // pins — the same act, on the same panel, as POST /api/llm/keys/test, which has
+  // asked `org:manage` since it was judged. Both PUT doors behind that table
+  // (llm/config, llm/keys) ask it too, so a seat that may not CHANGE a pin was the
+  // only one that could still charge the deployment for proving one.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   const body = (await request.json().catch(() => null)) as { useCase?: unknown } | null;
   if (!body || !isLlmUseCase(body.useCase) || body.useCase === "*") {
     return NextResponse.json({ error: "Unknown useCase.", useCases: LLM_USE_CASES }, { status: 400 });

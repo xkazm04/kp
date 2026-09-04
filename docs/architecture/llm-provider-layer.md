@@ -554,6 +554,17 @@ ROUTING, because the two answer different questions: a key can be perfectly vali
 while nothing routes to its provider, which is the normal state right after
 saving one.
 
+**Both canaries ask `org:manage`**, and so do both write doors on the panel
+(`PUT /api/llm/config`, `PUT|DELETE /api/llm/keys`). Pressing either Test spends a
+real billable completion, so it is the same authority question as changing the pin
+that completion runs through — `requireOperator()` answers only "is a session
+present?", which every recruiter and viewer also satisfies, and in open mode
+answers `true` for everyone. `/api/llm/keys/test` was gated when the ratchet's
+slice reached it and `/api/llm/test` was left carrying a *"not yet judged"* marker,
+which meant a seat that could not CHANGE a pin was still the one seat that could
+charge the deployment for proving one. Both GET reads stay operator-gated: spend
+telemetry is operator content, but it costs nothing to look at.
+
 - Python: `registry.probe_provider(name, model=…)` builds an adapter by provider
   NAME, bypassing use-case routing; `test_cli.py --provider` drives it. The probe
   runs under its own `KEY_PROBE_USE_CASE = "key_probe"` so admin traffic lands in

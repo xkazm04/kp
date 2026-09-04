@@ -153,7 +153,6 @@ const ALLOWED = new Map<string, string>([
   ["jobs/[id]/close/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["jobs/[id]/publish/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["jobs/ingest/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["llm/test/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["match/reasoning/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["match/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["me/onboarding/route.ts", "self-service — the caller's own onboarding state, nobody else's"],
