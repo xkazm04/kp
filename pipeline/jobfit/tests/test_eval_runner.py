@@ -215,14 +215,19 @@ class ByteStableFixtureWritesTest(unittest.TestCase):
         self.assertEqual(raw, b"first\nsecond\n")
 
     def test_the_platform_default_is_what_it_is_protecting_against(self):
-        # Pins the premise rather than the fix: on a CRLF platform the old call
-        # really did rewrite the newlines. Skipped where os.linesep is already LF.
-        if os.linesep == "\n":
-            self.skipTest("platform already writes LF; the regression cannot reproduce here")
+        # Pins the premise, not just the fix. The old call passed newline=None, which
+        # translates "\n" to os.linesep — so on a CRLF platform the committed corpus
+        # really was rewritten. Reproduced explicitly rather than by skipping where
+        # os.linesep is already LF: a conditional skip here would be one more line in
+        # the gated suite's skip budget, for a fact that holds on every platform.
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "fixture.txt"
-            target.write_text("first\nsecond\n", encoding="utf-8")
-            self.assertIn(b"\r", target.read_bytes())
+            target.write_text("first\nsecond\n", encoding="utf-8", newline=os.linesep)
+            translated = target.read_bytes()
+            runner.write_text_lf(target, "first\nsecond\n")
+            self.assertNotIn(b"\r", target.read_bytes())
+        if os.linesep != "\n":
+            self.assertIn(b"\r", translated)
 
     def test_regeneration_is_byte_identical_across_two_writes(self):
         with tempfile.TemporaryDirectory() as tmp:
