@@ -3131,7 +3131,10 @@
       },
       "noBand": "No salary band is configured for this role or market, so no figure was proposed. Set the amount when approving.",
       "unpricedAmount": "Amount to be set",
-      "unpricedTitle": "No salary was proposed for this draft. Set the amount when you approve the offer."
+      "unpricedTitle": "No salary was proposed for this draft. Set the amount when you approve the offer.",
+      "reasons": {
+        "rematchSkippedHired": "This candidate is hired. No alternative role was looked for."
+      }
     },
     "applied": {
       "advanced": "Advanced a stage.",
@@ -3214,6 +3217,9 @@
         "anonymized": "No message was sent. This candidate has been anonymized.",
         "suppressed": "No message was sent. Outreach to this candidate is suppressed (consent lapsed, or the sequence was stopped)."
       }
+    },
+    "eventReasons": {
+      "offerAutoExtended": "Offer extended unattended per the hiring plan (offer gate: auto)."
     }
   },
   "decisions": {
@@ -3340,7 +3346,12 @@
       "selfReportLabel": "Self-reported by the model",
       "selfReportValue": "{pct} out of 100",
       "selfReportNote": "the model's own rating of this verdict. Nothing has measured it against real outcomes.",
-      "selfReportTitle": "The model was asked for a verdict and also stated how sure it feels. That statement is evidence about the model, not about the candidate: no outcome, no holdout and no base rate stands behind it. The measured sibling, how often a score range actually advances, is a statistic about a whole cohort and lives in the quality section of Analytics."
+      "selfReportTitle": "The model was asked for a verdict and also stated how sure it feels. That statement is evidence about the model, not about the candidate: no outcome, no holdout and no base rate stands behind it. The measured sibling, how often a score range actually advances, is a statistic about a whole cohort and lives in the quality section of Analytics.",
+      "engineLabel": "Engine",
+      "engineTemplate": "Template (no model was used)",
+      "engineTemplateNote": "Written by the built-in fallback, not by a model. Read it as a starting point and check the reasoning yourself.",
+      "engineTemplateTitle": "The automation ran without a model (no API key, the AI allowance is spent, or the call failed), so a deterministic template produced this verdict.",
+      "engineLlm": "Model · {provider}"
     },
     "rules": {
       "title": "Decision rules · Screening",
@@ -3463,7 +3474,8 @@
         "unscored": "unscored: no match score yet. Excluded from auto-rejection (needs scoring)",
         "holdout": "kept as a calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})",
         "approvedByNote": "Approved by {who}.",
-        "approverUnidentified": "Approver not identified."
+        "approverUnidentified": "Approver not identified.",
+        "autoRatifiedScreening": "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto)."
       }
     },
     "summary": {
@@ -3952,7 +3964,8 @@
       "readbackUnconfirmedFlag": "unconfirmed",
       "readbackUnconfirmedHint": "Mentioned earlier but not reached in the read-back (possibly a transcription error)",
       "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard.",
-      "narrativeInLanguage": "This scorecard summary is shown in {language}."
+      "narrativeInLanguage": "This scorecard summary is shown in {language}.",
+      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}"
     },
     "relay": {
       "label": "Where the baton is",
@@ -4896,7 +4909,8 @@
       "telemetryPause": "pause {dur}",
       "telemetryHintIntegrated": "hint integrated",
       "telemetryHintAcknowledged": "hint acknowledged",
-      "telemetryHintMissed": "hint not taken up"
+      "telemetryHintMissed": "hint not taken up",
+      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}"
     },
     "candidates": {
       "failedStatus": "Failed ({status}).",

@@ -558,6 +558,19 @@ candidate brief's promise and the minted calendar link — is pinned by
 `interview-planned-minutes.test.ts`: the documented 8 + 3-per-question shape,
 monotonic, above the quick-screen floor and capped inside the grounded band.
 
+The **operator-side** telemetry strips leaked the same way, one layer down and in three
+places at once. `formatSpokenDuration` (`app/_lib/voice/telemetry-format.ts`) returned the
+finished string `"12m 30s"`, and `PipelineInterviewTelemetryStrip`,
+`ScheduleInterviewTelemetryStrip` and `JobsCompareInterviewsCohortTable` painted it verbatim
+beside labels next-intl had localized — so a Czech, German or French recruiter read an
+English unit on the longest-pause and spoken-duration signals. The projection now returns
+PARTS (`{ m, s }`) and each strip renders `t("duration", parts)`; the ICU message in all four
+catalogs picks the minutes-and-seconds / minutes-only / seconds-only shape in the reader's
+language (`scheduleTab.transcript.duration`, `jobs.compare.duration`). The unit letters
+cannot come back: `telemetry-format.test.ts` reads its own module and fails on any spliced
+unit or bare `"m"`/`"s"` literal, the same shape as the `interview-duration.test.ts` guard
+above.
+
 `/complete` is the odd one out and the reason its budget is keyed on **both**: it is a
 PUBLIC token route (`public-routes.ts`), so there is no operator gate to be a no-op —
 the token in the URL is the whole credential. Keying on the token alone would let one
