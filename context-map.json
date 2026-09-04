@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T09:32:08.821Z",
+  "generated_at": "2026-09-04T10:02:31.641Z",
   "provenance": {
-    "git_commit": "4614d0fc588a2c990628b6bf70cb0dad68395b00",
-    "git_commit_count": 2597,
+    "git_commit": "4e12a768bb85286cad82cd2f2b162ec2b320954f",
+    "git_commit_count": 2612,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T09:32:08.821Z"
+    "generated_at": "2026-09-04T10:02:31.641Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3093,
+    "files": 3104,
     "groups": 17,
     "use_cases": 12
   },
@@ -3167,12 +3167,15 @@
       "description": "[auto-seeded — pending sweep enrichment] Lib Comms 12: 6 source + 6 test file(s) under app/_lib.",
       "entry_points": [],
       "file_paths": [
+        "app/_lib/comms-receipt.test.ts",
         "app/_lib/comms-receipt.ts",
         "app/_lib/comms-relay.test.ts",
         "app/_lib/comms-relay.ts",
+        "app/_lib/comms-send-gate.test.ts",
         "app/_lib/comms-status.test.ts",
         "app/_lib/comms-status.ts",
         "app/_lib/comms-tenancy.test.ts",
+        "app/_lib/comms-translator-tenant.test.ts",
         "app/_lib/comms-translator.ts",
         "app/_lib/comms-truth.test.ts",
         "app/_lib/comms-truth.ts",
@@ -3475,6 +3478,8 @@
         "app/_components/ui/recipes-literals.test.ts",
         "app/_components/ui/recipes-sizing.test.ts",
         "app/_components/ui/recipes.ts",
+        "app/_components/ui/useCopyFeedback.test.ts",
+        "app/_components/ui/useCopyFeedback.ts",
         "app/_components/ui/useDateFormat.ts",
         "app/_components/ui/useTablist.test.ts",
         "app/_components/ui/useTablist.ts",
@@ -3752,17 +3757,22 @@
       "entry_points": [],
       "file_paths": [
         "app/_components/StatusChip.tsx",
+        "app/_components/glyph/MotionizedGlyph.size.test.ts",
         "app/_components/glyph/MotionizedGlyph.tsx",
         "app/_components/glyph/glyphTokens.test.ts",
         "app/_components/glyph/glyphTokens.ts",
         "app/_components/glyph/motionPresets.test.ts",
         "app/_components/glyph/motionPresets.ts",
+        "app/_components/results/VerdictBanner.test.ts",
         "app/_components/results/VerdictBanner.tsx",
         "app/_components/results/archetypeBannerView.test.ts",
         "app/_components/results/archetypeBannerView.ts",
+        "app/_components/results/shared.test.ts",
         "app/_components/results/shared.tsx",
+        "app/_components/results/sharedLogic.ts",
         "app/_components/results/verdict.test.ts",
-        "app/_components/results/verdict.ts"
+        "app/_components/results/verdict.ts",
+        "app/_components/results/verdictAria.ts"
       ],
       "group": "Design System & Shared UI",
       "group_id": "7b3cdbfe-86b8-4f2c-ad9a-592a575d634a",
@@ -8989,7 +8999,11 @@
       "description": "[auto-seeded — pending sweep enrichment] Motionize Skill Tools: project-owned tooling behind the /motionize skill (image gen, vectorize, validate).",
       "entry_points": [],
       "file_paths": [
+        ".claude/skills/motionize/tools/__tests__/emit-glyph.test.mjs",
+        ".claude/skills/motionize/tools/__tests__/http.test.mjs",
+        ".claude/skills/motionize/tools/__tests__/render-sheet.test.mjs",
         ".claude/skills/motionize/tools/emit-glyph.mjs",
+        ".claude/skills/motionize/tools/http.mjs",
         ".claude/skills/motionize/tools/openai-image.mjs",
         ".claude/skills/motionize/tools/qwen-image.mjs",
         ".claude/skills/motionize/tools/qwen-recognize.mjs",
