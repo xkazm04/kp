@@ -1742,7 +1742,9 @@
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Tento kandidát už na nástěnce není. Načtěte stránku znovu a zkuste to znovu.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Tento kandidát už není aktivní, odkaz pro plánování se neodeslal.",
     "SCHEDULE_BULK_MINT_FAILED": "Pro tohoto kandidáta se nepodařilo vytvořit odkaz pro plánování. Ostatních se to nedotklo.",
-    "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce."
+    "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Než vytvoříte odkaz pro plánování, vyberte kandidáta.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Tento kandidát už není aktivní, pozvánka se neodeslala."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -23,7 +23,8 @@ import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/ev
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
@@ -84,6 +85,14 @@ export async function GET(request: Request) {
 // own team's invites); the two outcome-bearing actions seal a decision record.
 export async function POST(request: Request) {
   try {
+    // AUTHORIZATION (write-routes-check-a-capability). This door cancels interviews,
+    // marks no-shows, moves bookings and books candidates onto the week grid - every
+    // one a recruiter operation that mails the candidate and writes the interviewer’s
+    // calendar. It was workspace-authenticated only, which answers "which team?" and
+    // never "may this seat?": a VIEWER could cancel a booked interview or rewrite the
+    // join link. Ask for `pipeline:write`, the capability its invite siblings ask.
+    const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+    if (under) return under;
     if (!rateLimit(`sched-manage:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
@@ -445,6 +454,14 @@ function normalizeMeetingUrl(raw: unknown): string | null {
 // meetingUrl.) Rate-limited per IP as an additional backstop.
 export async function PATCH(request: Request) {
   try {
+    // AUTHORIZATION (write-routes-check-a-capability). This door cancels interviews,
+    // marks no-shows, moves bookings and books candidates onto the week grid - every
+    // one a recruiter operation that mails the candidate and writes the interviewer’s
+    // calendar. It was workspace-authenticated only, which answers "which team?" and
+    // never "may this seat?": a VIEWER could cancel a booked interview or rewrite the
+    // join link. Ask for `pipeline:write`, the capability its invite siblings ask.
+    const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+    if (under) return under;
     if (!rateLimit(`sched-meet:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }

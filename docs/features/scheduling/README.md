@@ -469,6 +469,36 @@ a regex looking for `NextResponse.json({ error: … })`. Pinned by
 `SCHEDULE_BULK_*` the route emits is declared in `REFUSAL_ERRORS` and present in
 all four catalogs.
 
+### The SINGLE invite door
+
+`POST /api/schedule/invite` is the per-candidate half of the same action, and it was
+the last door on this feature still answering hand-built English. Three sentences —
+`"entryId is required"`, `"pipeline entry not found"` and `"That candidate is no longer
+active"` — went out with no `code`, and the third one is the one a recruiter actually
+meets: `useScheduleInviteLifecycle.reinvite` resolves `code` through `useErrorMessage()`
+and, finding none, painted its own generic `actionFailed` toast over a refusal whose
+reason IS the remedy. All three are now codes:
+
+| Code | Status | Fires when |
+| --- | --- | --- |
+| `SCHEDULE_INVITE_ENTRY_REQUIRED` | 400 | the POST body carries no `entryId` |
+| `PIPELINE_ENTRY_NOT_FOUND` | 404 | the entry is not on **this team’s** board (the board’s own code, reused) |
+| `SCHEDULE_INVITE_ENTRY_INACTIVE` | 409 | hired / rejected / withdrawn — the panel’s `canReinvite` reads a client-side snapshot |
+
+### Both invite doors, and the manage door, ask the SEAT
+
+`requireOperator()` answers "is a trusted, non-demo session present?" — in open mode
+that is true for everyone, and with `KP_OPERATOR_PASSWORD` set it is true for a VIEWER
+seat as well. It is identity, never authority. So `POST /api/schedule/invite` and both
+mutating verbs of `POST`/`PATCH /api/schedule` now ask `pipeline:write` through
+`requireCapabilityCoded(...)`, exactly as `/api/schedule/invite/bulk` has since wave
+18a: a read-only member could otherwise mint a scheduling link and mail it to a
+candidate, cancel a booked interview, mark a no-show or rewrite the join link. A
+refused seat gets `FORBIDDEN_CAPABILITY` (403) carrying `capability` as data, so the UI
+can name the permission to ask for. Open dev mode is unchanged (every caller folds to
+owner). Driven against the real handlers in
+`app/api/schedule/invite/invite-gate-tenancy.test.ts`.
+
 ## What the CANDIDATE is told when their door refuses
 
 The public token route (`/api/schedule/[token]`) answers through the same
