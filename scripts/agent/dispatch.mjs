@@ -113,6 +113,18 @@ export const TRUSTED_ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
  * What a dispatched change may not touch, and why. Written as prefixes so a new
  * file under any of them is covered the day it lands, rather than the day
  * someone remembers to add it here.
+ *
+ * THE SET IS NOT A TASTE. `scripts/agent/__tests__/dispatch.test.mjs` derives the
+ * scripts every CI gate actually runs — from the npm scripts `.github/workflows`
+ * invoke, expanded through their `npm run` chains — and fails if any one of them
+ * is writable here. That is why `scripts/design/`, `scripts/release/` and
+ * `scripts/app-master-bench/` are on this list: they run gates, so protecting
+ * four script folders and not the other five was an omission, not a decision.
+ *
+ * A GATE IS ALSO ITS NUMBERS. A ceiling file an agent may raise is a gate it can
+ * switch off without touching a line of the script that reads it — hence
+ * `ci-budget.json`, `ts-debt.json`, `agent-budget.json` and `package.json`, which
+ * is where every gate command is named in the first place.
  */
 export const PROTECTED_PREFIXES = [
   { prefix: '.git/', why: 'the repository database itself' },
@@ -126,6 +138,19 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/hooks/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/docs/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/lint/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/design/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/deploy/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/perf/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/release/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/app-master-bench/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/i18n-check.mjs', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/run-unit-tests.mjs', why: 'the runner every unit gate goes through' },
+  { prefix: 'package.json', why: 'every gate command is a line in it' },
+  { prefix: 'ci-budget.json', why: 'the pipeline wall-clock ceilings a gate compares against' },
+  { prefix: 'ts-debt.json', why: 'the suppression ratchet a gate compares against' },
+  { prefix: 'agent-budget.json', why: 'what an agent lane may spend — an agent may not raise its own ceiling' },
+  { prefix: 'deploy/helm/', why: 'the deployed shape, judged by the chart policy' },
+  { prefix: '.github/dependabot.yml', why: 'what keeps the actions and dependencies this gate trusts current' },
   { prefix: 'package-lock.json', why: 'a resolved lockfile npm writes, never a model' },
   { prefix: '.env', why: 'secrets' },
 ];
