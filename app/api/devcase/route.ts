@@ -3,10 +3,19 @@ import { listDevCases, saveDevCase } from "@/app/_lib/db/devcase";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded } from "@/app/_lib/api-response";
 
 
 // GET: approved case scenarios. POST: the human gate — approve a designed role+case.
 export async function GET() {
+  // AUTHORITY (/perfect wave 31). This door hands back FULL approved-case records -
+  // role, case, need and analysis JSON - and asked nothing at all about the caller.
+  // Reading the library is a `read` act, so identity presence is the whole gate here;
+  // the POST below asks the seat question.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     // Scoped: an unscoped list showed the DEFAULT team's approved cases — full
     // role/case/need JSON — in every other team's Cases table, beside their own
@@ -18,6 +27,17 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // AUTHORITY (/perfect wave 31). This is the MANUAL half of the Art. 22 human gate -
+  // the sibling of POST /api/devcase/lifecycle/[id]/approve, writing to the same
+  // dev_cases table and the same audit trail - and it carried no gate whatsoever: not
+  // the capability, not even identity presence. A viewer seat could approve a case
+  // into the library, then source a pipeline off it. Same two gates as the lifecycle
+  // sibling, in the same order: identity presence first (a no-op in open mode), then
+  // the seat question. Approving a case is a recruiter operation, so `pipeline:write`.
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as {
       need?: unknown;

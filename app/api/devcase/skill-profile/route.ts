@@ -3,7 +3,8 @@ import { getSubmission } from "@/app/_lib/db/devcase";
 import { issueSkillProfile } from "@/app/_lib/db/skill-profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 
 
 // Durable Skill Profile (moonshot A) — mint a signed credential from an evaluated
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
   // no-op for the whole API) — there, the opacity of the reference is what stands.
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORITY (/perfect wave 31). requireOperator above is identity presence, and it
+  // says yes to a VIEWER seat exactly as loudly as to an owner. Minting - and, on a
+  // moved evaluation, REVOKING and reissuing - a candidate's credential is a recruiter
+  // act, so this is the seat question the gate above never asked.
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: unknown };
     const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";

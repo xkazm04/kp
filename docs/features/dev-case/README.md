@@ -1088,6 +1088,34 @@ sweep is visible; the next call resumes the rest. The autonomy kill-switch relea
 itself is never budgeted. Pinned in `app/api/rate-limit-contract.test.ts`, whose
 `UNTHROTTLED_ENQUEUE` ratchet (which carried these three) is now empty.
 
+### The four studio doors ask authority too
+
+The control-room work above left four dev-case doors on
+`route-capability-coverage.test.ts`'s ALLOWED list — the ones the **studio** (dev tab)
+drives rather than `/control`. Three of them asked nothing about the caller at all:
+not the capability, not even identity presence. They leaned entirely on `proxy.ts`
+refusing non-public `/api` paths, which is the single-gate posture the repo's
+convention tells a sensitive write not to take. All four are recruiter operations, so
+all four ask `pipeline:write` after `requireOperator()`:
+
+| Door | Was | Why `pipeline:write` |
+| --- | --- | --- |
+| `POST /api/devcase` | no gate at all | the MANUAL half of the Art. 22 human gate — same `dev_cases` table and audit trail as `/lifecycle/[id]/approve` |
+| `POST /api/devcase/source` | no gate at all | spawns the Python matcher over the candidate pool and writes pipeline entries at Accepted |
+| `POST /api/devcase/submit` | no gate at all | files a submission on the board and mails an acknowledgement from the team's outbox |
+| `POST /api/devcase/skill-profile` | `requireOperator` only | minting a credential re-mints and REVOKES a live one; identity presence says yes to a viewer as loudly as to an owner |
+
+`GET /api/devcase` hands back FULL approved-case records (role/case/need/analysis JSON)
+and asked nothing either; reading the library is a `read` act, so it gains identity
+presence only. Refusals are coded (`FORBIDDEN_CAPABILITY` with the `capability` as
+data) and every studio consumer already resolves the code in the reader's language —
+`runAction` in `useDevTabActions.ts`, `errMsg` in `DevLifecycleRow`/`DevSubmissionForm`,
+and the `dsp.code` the skill-profile button carries. Pinned by
+`app/api/devcase/devcase-doors-capability.test.ts` (viewer 403 / no session 401 /
+recruiter and owner not refused, on all four) and by the removal of these four routes
+from `route-capability-coverage.test.ts`'s allowlist. **Open mode is unchanged**:
+`KP_OPERATOR_PASSWORD` unset folds every caller to owner.
+
 ### The control room asks authority, and reports its writes
 
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
