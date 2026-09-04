@@ -23,6 +23,13 @@ const DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
  * `/schedule/<token>` that beforeSend strips out of `event.request.url` left the
  * deployment anyway, inside the message of the very error that caused the report.
  *
+ * `redactTokens` is imported from `instrumentation-client.ts` rather than copied. That
+ * file's own comment describes itself and `instrumentation.ts` as the regex's only two
+ * consumers — this module is the THIRD, and the reason a shared copy stays there: the
+ * function is pure string work with no imports, so importing it here adds no dependency
+ * to the error-boundary chunk, while a third literal copy of the token-route denylist
+ * would be the thing that silently drifts. If it ever moves, all three move together.
+ *
  * `redactSecrets` is the second half: an error raised while talking to a provider
  * can echo an auth header or an api-key field, and that string is mirrored from the
  * scan table (redact-secrets.ts), so nothing key-shaped rides out either.

@@ -20,16 +20,23 @@ import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { IDEMPOTENCY_HEADER } from "./comms-envelope.ts";
-import { sendComm } from "./comms.ts";
+import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
 
 after(() => cleanupUnitDb());
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  setRelayHostLookupForTests(undefined);
   delete process.env.COMMS_WEBHOOK_URL;
   delete process.env.KP_COMMS_RELAY_TIMEOUT_MS;
 });
+
+/** A resolver answering with one ordinary public address. Injected because delivery
+ *  now RESOLVES the relay host before it posts (SSRF: the string-level check at the
+ *  config write vets a name, not the address it answers with at delivery time), and
+ *  `relay.example.test` is a fixture no resolver knows. */
+const PUBLIC_LOOKUP = async () => [{ address: "93.184.216.34" }];
 
 type Attempt = { key: string | null; messageId: string | null; hasSignal: boolean };
 
@@ -38,6 +45,7 @@ type Attempt = { key: string | null; messageId: string | null; hasSignal: boolea
 function installRelay(respond: (attempt: Attempt, n: number, signal: AbortSignal | null) => Promise<Response>) {
   const attempts: Attempt[] = [];
   process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setRelayHostLookupForTests(PUBLIC_LOOKUP);
   globalThis.fetch = (async (_url: string, init: RequestInit) => {
     const headers = (init.headers ?? {}) as Record<string, string>;
     const body = JSON.parse(String(init.body)) as { messageId?: string | null };
@@ -103,4 +111,49 @@ test("a hanging receiver is abandoned per attempt and dead-letters with the time
   // A FRESH signal per attempt: one hoisted signal would abort attempts 2 and 3
   // instantly and the whole ladder would finish in ~40ms.
   assert.ok(elapsed >= 120, `three 40ms attempts must actually wait (elapsed ${elapsed}ms)`);
+});
+
+// --- the SSRF boundary ----------------------------------------------------------
+
+test("a relay host that RESOLVES private is a dead letter, and nothing is posted", async () => {
+  // The pivot the string-level check at the config write cannot see: the operator
+  // saved a public NAME, and at delivery time it answers in link-local space. This
+  // request would have carried the candidate's message body and the relay HMAC.
+  const attempts = installRelay(async () => new Response(null, { status: 200 }));
+  setRelayHostLookupForTests(async () => [{ address: "169.254.169.254" }]);
+
+  const row = await sendComm(MSG);
+
+  assert.equal(attempts.length, 0, "no request may leave for a host that resolves into private space");
+  assert.equal(row.status, "failed", "a refused delivery is a dead letter, never a green lie");
+  assert.match(String(row.failureDetail), /non-public address/, "the row carries the reason a recruiter can act on");
+});
+
+test("the refusal is permanent — it does not spend the retry ladder", async () => {
+  // Retrying a rebinding host three times only widens the window in which one
+  // attempt resolves publicly and the next does not.
+  let calls = 0;
+  installRelay(async () => new Response(null, { status: 200 }));
+  setRelayHostLookupForTests(async () => {
+    calls += 1;
+    return [{ address: "127.0.0.1" }];
+  });
+
+  const row = await sendComm(MSG);
+
+  assert.equal(calls, 1, "the host is vetted once, not once per attempt");
+  assert.equal(row.status, "failed");
+});
+
+test("an unresolvable relay host is refused rather than posted to", async () => {
+  const attempts = installRelay(async () => new Response(null, { status: 200 }));
+  setRelayHostLookupForTests(async () => {
+    throw new Error("ENOTFOUND");
+  });
+
+  const row = await sendComm(MSG);
+
+  assert.equal(attempts.length, 0);
+  assert.equal(row.status, "failed");
+  assert.match(String(row.failureDetail), /could not be resolved/);
 });

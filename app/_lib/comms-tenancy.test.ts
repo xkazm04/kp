@@ -16,7 +16,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, listOutboxFiltered, DEFAULT_WORKSPACE_ID } from "./db.ts";
-import { sendComm } from "./comms.ts";
+import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
 import { dispatchKnockoutDecline } from "./comms-dispatch.ts";
 
 after(() => cleanupUnitDb());
@@ -74,12 +74,17 @@ test("a relayed comm on a NON-default team ships the entry's context in the enve
     return new Response("{}", { status: 200 });
   }) as typeof fetch;
   process.env.COMMS_WEBHOOK_URL = "https://relay.invalid/hook";
+  // Delivery now RESOLVES the relay host before it posts (SSRF: the string-level check
+  // at the config write vets a name, not the address it answers with at delivery time).
+  // `relay.invalid` is a fixture no resolver knows, so the lookup is injected.
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
   try {
     // No explicit workspaceId — exactly what sendCandidateComm passes for a
     // pipeline-entry comm.
     await sendComm({ to: "marek@example.cz", subject: "Offer", body: "…", kind: "offer", ref: entry.id });
   } finally {
     delete process.env.COMMS_WEBHOOK_URL;
+    setRelayHostLookupForTests(undefined);
     globalThis.fetch = realFetch;
   }
 

@@ -38,6 +38,7 @@ import { isSealedBody, signEdgePayload, unsealBody } from "./edge-crypto";
 import { ingestInboundLeadByToken, inboundHandled } from "./inbound-lead";
 import { recordDeliveryReceipt } from "./comms-receipt";
 import { publicBaseUrl } from "./public-base-url";
+import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
 
 /** Events applied per PAGE. The edge caps its own answer at 200; 50 keeps one HTTP
  *  round-trip small and the unseal/apply work per response bounded. */
@@ -95,11 +96,35 @@ export type DrainSummary = {
   errorKind: EdgeErrorKind | null;
 };
 
+// SSRF at the EDGE boundary. The edge URL is operator-supplied and stored;
+// `setEdgeConfig` vets it with the string-level `assertPublicHttpsEndpoint`, which
+// vets the literal NAME. This is the moment the name becomes an address, and every
+// call carries the edge HMAC (and, on /ack, the sequence numbers of a candidate's
+// events) — so a stored `https://rebind.attacker.com` that passed the write and now
+// answers 169.254.169.254 walked straight in. The drain runs off a clock, so the gap
+// between the write and this fetch is unbounded: the write-time check is the
+// operator's fast feedback, the resolve here is the gate. Same shared guard the ATS
+// delivery boundary, the pull pass and llm-config use.
+//
+// It THROWS on refusal, which is deliberate: every caller of `edgeFetch` already sits
+// in a try/catch that records the outcome (`runEdgeDrain` files it as `unreachable`
+// with the reason on the drain ledger; pair and heartbeat answer their own error), so
+// a refusal is reported through the path an unreachable edge already uses rather than
+// through a new one nobody renders.
+let edgeHostLookup: HostLookup | undefined;
+
+/** Test seam: override (or, with `undefined`, restore) the resolver the edge egress
+ *  guard uses. Never called by production code. */
+export function setEdgeHostLookupForTests(fn: HostLookup | undefined): void {
+  edgeHostLookup = fn;
+}
+
 async function edgeFetch(
   edge: ResolvedEdge,
   path: string,
   init: { method: "GET" | "POST"; body?: string }
 ): Promise<Response> {
+  await assertPublicHttpsEndpointResolved(edge.url, "edge url", edgeHostLookup);
   const timestamp = String(Date.now());
   // A GET has no body, so the PATH+QUERY is what gets signed — otherwise every GET
   // would carry the same signature and a captured one would fetch any window.

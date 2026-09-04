@@ -7,11 +7,17 @@
 // UNIQUE to the drain — and what would be silently lost in a refactor — is the
 // ORDER of its steps, so that is pinned structurally (the repo's source-guard
 // pattern: channels-receiver-contract.test.ts, rate-limit-contract.test.ts).
-import { test } from "node:test";
+import { after, afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { mailToLead } from "./edge-drain.ts";
+// unit-db.ts MUST be the first project import: the drain resolves its config and
+// writes its ledger through the store.
+import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { drainEdge, mailToLead, setEdgeHostLookupForTests } from "./edge-drain.ts";
+import { getEdgeConfig } from "./edge-config.ts";
+
+after(() => cleanupUnitDb());
 
 const src = readFileSync(fileURLToPath(new URL("./edge-drain.ts", import.meta.url)), "utf8");
 const workerSrc = readFileSync(fileURLToPath(new URL("../../edge/src/index.ts", import.meta.url)), "utf8");
@@ -153,4 +159,55 @@ test("the drain CATCHES UP across pages, under a stated bound", () => {
   assert.match(loop, /if \(held\) break;/, "a hold or a failed ack stops asking for more");
   // What is left over is not lost, and not silent.
   assert.match(src, /pending: summary\.pending/, "the leftover is PERSISTED for the card to show");
+});
+
+// --- the SSRF boundary ----------------------------------------------------------
+// The edge URL is operator-supplied and stored; setEdgeConfig vets it with the
+// string-level guard, which vets the literal NAME. The drain runs off a clock, so the
+// address that answers is resolved fresh here, before a call that carries the edge
+// HMAC and (on /ack) a candidate's event sequence numbers.
+
+const realFetch = globalThis.fetch;
+afterEach(() => {
+  globalThis.fetch = realFetch;
+  setEdgeHostLookupForTests(undefined);
+  delete process.env.KP_EDGE_URL;
+  delete process.env.KP_EDGE_SECRET;
+});
+
+function pairEnvEdge() {
+  process.env.KP_EDGE_URL = "https://edge.example.test";
+  process.env.KP_EDGE_SECRET = "edge-unit-secret";
+}
+
+test("an edge host that RESOLVES private is refused before the drain fetches", async () => {
+  pairEnvEdge();
+  let fetched = 0;
+  globalThis.fetch = (async () => {
+    fetched += 1;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  setEdgeHostLookupForTests(async () => [{ address: "169.254.169.254" }]);
+
+  const summary = await drainEdge();
+
+  assert.equal(fetched, 0, "no signed call may leave for a host that resolves into private space");
+  assert.equal(summary.errorKind, "unreachable", "the refusal reaches the card through the kind it already renders");
+  assert.match(String(summary.error), /non-public address/, "the drain ledger carries the reason");
+  assert.equal(getEdgeConfig().lastErrorKind, "unreachable", "and it is durable, not just returned");
+});
+
+test("a public edge host still drains (the guard is not a blanket refusal)", async () => {
+  pairEnvEdge();
+  let asked: string | null = null;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    asked = String(input);
+    return new Response(JSON.stringify({ events: [], pending: 0 }), { status: 200 });
+  }) as typeof fetch;
+  setEdgeHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+
+  const summary = await drainEdge();
+
+  assert.equal(summary.error, null, "a public host must still be drained");
+  assert.match(String(asked), /^https:\/\/edge\.example\.test\/drain\?since=/);
 });
