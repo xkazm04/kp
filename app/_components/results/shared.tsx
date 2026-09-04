@@ -8,6 +8,14 @@ import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
 import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
+import {
+  GROUNDING_SOURCES_CAP,
+  PARSING_NOTES_CAP,
+  bulletItems,
+  cappedDistinct,
+  isAnchorBand,
+  latchOpen,
+} from "./sharedLogic";
 
 /**
  * The empty-state vignettes below paint through `var(--color-…)`, NOT the JS
@@ -53,7 +61,11 @@ export function LazyDetails({
     <details
       className={className}
       onToggle={(event) => {
-        if (event.currentTarget.open) setHasOpened(true);
+        // `currentTarget` is null once the handler returns — read it before the
+        // updater runs. `latchOpen` is the rule (see sharedLogic.ts): true never
+        // falls back, so a re-collapse keeps the parsed content mounted.
+        const isOpen = event.currentTarget.open;
+        setHasOpened((prev) => latchOpen(prev, isOpen));
       }}
     >
       <summary className={summaryClassName}>{summary}</summary>
@@ -165,7 +177,7 @@ export function BulletList({
   listClassName?: string;
   itemClassName?: string;
 }) {
-  const uniqueItems = dedupe(items);
+  const uniqueItems = bulletItems(items);
   if (!uniqueItems.length) {
     return <>{empty}</>;
   }
@@ -257,6 +269,25 @@ export function ListBlock({
   );
 }
 
+/**
+ * The marker that says "the lines under this are the engine's own English".
+ *
+ * The quality strip beside this panel has carried it since 21a; the engine
+ * panel painted free-form model prose (`parsingNotes`) straight into a Czech,
+ * German or French report with nothing telling the reader which half of the
+ * surface was translated and which was machine text quoted verbatim. Same
+ * label, one component, so the two can never drift apart or say it twice in
+ * two different ways.
+ */
+export function EngineNote({ className }: { className?: string }) {
+  const t = useTranslations("results.quality");
+  return (
+    <p className={className ? `${className} ${META_LABEL}` : META_LABEL} title={t("engineNoteTitle")}>
+      {t("engineNote")}
+    </p>
+  );
+}
+
 export function EnginePanel({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
   if (!analysis.metadata) {
@@ -266,8 +297,9 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
   // rendered: the grounding sources a grounded salary read was built on, and the
   // deterministic Czech-market anchor band. These separate a defensible pay number
   // from an opaque guess — a concrete differentiator, data already on the payload.
-  const groundingSources = analysis.metadata.groundingSources ?? [];
+  const groundingSources = cappedDistinct(analysis.metadata.groundingSources, GROUNDING_SOURCES_CAP);
   const anchorBand = analysis.metadata.deterministicEvidence?.anchorBand;
+  const parsingNotes = cappedDistinct(analysis.metadata.parsingNotes, PARSING_NOTES_CAP);
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -276,20 +308,21 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
         <p>{t("engine", { engine: analysis.metadata.analysisEngine })}</p>
         <p>{t("extractor", { extractor: analysis.metadata.textExtractor })}</p>
         {analysis.metadata.model ? <p>{t("model", { model: analysis.metadata.model })}</p> : null}
-        {/* Dedupe before slicing so the cap of 3 counts distinct notes; BulletList
-            re-dedupes (a no-op here) and renders nothing when the list is empty. */}
-        <BulletList
-          items={dedupe(analysis.metadata.parsingNotes).slice(0, 3)}
-          listClassName="space-y-2"
-          itemClassName=""
-        />
-        {anchorBand && anchorBand.length === 2 ? (
+        {/* Machine prose, quoted verbatim — marked as such, exactly as the
+            quality strip marks its own engine lines. */}
+        {parsingNotes.length > 0 ? (
+          <div>
+            <EngineNote />
+            <BulletList items={parsingNotes} listClassName="mt-1 space-y-2" itemClassName="" />
+          </div>
+        ) : null}
+        {isAnchorBand(anchorBand) ? (
           <p className="text-sm text-steel">{t("anchorBand", { lo: anchorBand[0], hi: anchorBand[1] })}</p>
         ) : null}
         {groundingSources.length > 0 ? (
           <div>
             <p className={META_LABEL}>{t("groundingTitle")}</p>
-            <BulletList items={dedupe(groundingSources).slice(0, 5)} listClassName="mt-1 space-y-1" itemClassName="text-sm text-steel" />
+            <BulletList items={groundingSources} listClassName="mt-1 space-y-1" itemClassName="text-sm text-steel" />
           </div>
         ) : null}
       </div>

@@ -7,6 +7,7 @@ import { scoreTone, type ScoreTone } from "@/app/_lib/format";
 import { VERDICT_BANDS, scoreBandIndex } from "@/app/_components/scoreDial.logic";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { resolveVerdict } from "./verdict";
+import { FRAMING_KEY, verdictAriaLabel } from "./verdictAria";
 
 // Direction 1 (verdict-above-the-fold) — the report LEADS with a colored, glyphed
 // verdict, mirroring the app-wide eval-report standard (pipeline/jobfit/eval/
@@ -30,12 +31,6 @@ const TONE: Record<ScoreTone, { glyph: string; bar: string; text: string; wash: 
   null: { glyph: "–", bar: "border-l-score-null", text: "text-score-null", wash: "bg-score-null/10" },
 };
 
-const FRAMING_KEY: Record<ScoreTone, "verdict.framingStrong" | "verdict.framingMid" | "verdict.framingWeak" | "verdict.framingNone"> = {
-  strong: "verdict.framingStrong",
-  mid: "verdict.framingMid",
-  weak: "verdict.framingWeak",
-  null: "verdict.framingNone",
-};
 
 export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
@@ -55,14 +50,7 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   // exists to deliver — WHICH CV won — was announced nowhere. Compose the label
   // from the same already-localized strings the chips render (no new catalog keys)
   // so the spoken banner says exactly what the painted one does.
-  const ariaLabel = [
-    scored ? t("verdict.aria", { score: overall, band: band as string }) : t("verdict.ariaUnscored"),
-    jobFit != null ? t("verdict.jobFit", { score: jobFit }) : null,
-    winnerLabel ? t("verdict.winner", { label: winnerLabel }) : null,
-    t(FRAMING_KEY[tone]),
-  ]
-    .filter((part): part is string => !!part)
-    .join(". ");
+  const ariaLabel = verdictAriaLabel(t, { overall: scored ? overall : null, band, jobFit, winnerLabel, tone });
 
   return (
     <div
