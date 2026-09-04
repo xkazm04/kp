@@ -45,6 +45,11 @@ body {
 .wz-controls { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .wz-runwrap { display: inline-flex; align-items: center; gap: .4rem; }
 
+/* The advanced drawer wraps onto its own line inside the header's flex row: it
+   is a second thought, never a second primary control. */
+.wz-adv-panel { flex: 1 1 100%; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.wz-adv-note { margin: 0; flex: 1 1 18rem; min-width: 0; }
+
 /* --------------------------------------------------------------- stepper */
 .wz-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .15rem; }
 .wz-step { display: flex; align-items: center; gap: .65rem; }
@@ -71,12 +76,33 @@ body {
 .card-title { margin: 0; }
 .card-body { min-width: 0; }
 .card-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+/* An answered journey card collapses to its kicker, question and resolution.
+   Four long option descriptions are the right weight for a decision and dead
+   weight the moment it is made — and on the short-circuit path they would sit
+   between the operator and the matrix they just asked for. The answer is not
+   lost: it is the resolution line, and a receipt. */
+.card-journey.is-settled .card-body { display: none; }
+
 .opt { display: flex; gap: .6rem; align-items: flex-start; cursor: pointer; }
 .opt input[type=radio], .opt input[type=checkbox] { flex: 0 0 auto; margin-top: .25rem; }
 .opt-text { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
 .opt-free { width: 100%; }
 .field input { width: 100%; }
 pre.cmd, .wz-narr pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+
+/* ------------------------------------------------------ assessment summary */
+/* Sits in the asks column, directly above the journey card it is evidence for. */
+.assess-summary { display: flex; flex-direction: column; align-items: flex-start; }
+.assess-line { margin: 0; }
+.assess-strip { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.assess-item { display: flex; gap: .45rem; align-items: baseline; min-width: 0; }
+.assess-item-d { min-width: 0; overflow-wrap: anywhere; }
+.assess-all { width: 100%; }
+
+/* ------------------------------------------------------------- add-on offer */
+.addons { display: flex; flex-direction: column; }
+.addon-title { margin: 0; }
+.addon-row { display: flex; gap: .5rem; flex-wrap: wrap; }
 
 /* ---------------------------------------------------------------- panels */
 .panel-title { margin: 0; }

@@ -30,6 +30,7 @@ const REPO_ROOT = path.resolve(HERE, "..", "..");
 const ENV_FILE = process.env.KP_ONBOARD_ENV_FILE
   ? path.resolve(process.env.KP_ONBOARD_ENV_FILE)
   : path.join(REPO_ROOT, ".env.local");
+const ENV_BASENAME = path.basename(ENV_FILE);
 const BASE_PORT = 4655;
 const TOKEN = randomBytes(24).toString("hex");
 
@@ -47,6 +48,52 @@ const AUTO_ALLOW = new Set([
 
 /** Tools whose activity means "the agent is reading the project". */
 const INSPECT_TOOLS = new Set(["Read", "Glob", "Grep", "NotebookRead"]);
+
+/* ------------------------------------------------------------------ *
+ * Env-file read guard.
+ *
+ * The host owns secret VALUES: it writes them and answers the agent with a
+ * bare "<NAME> is set". That contract has one hole — Read/Grep/Glob are
+ * auto-allowed, so nothing stopped the agent from simply opening .env.local
+ * and pulling every value into model context. These tools are therefore denied
+ * server-side whenever their path or pattern names the env file (or a bare
+ * `.env`), silently: it is a host policy, not a decision for the operator.
+ * `.env.example` carries no values and stays readable — it is the variable
+ * catalogue the skill needs.
+ * ------------------------------------------------------------------ */
+
+const ENV_GUARD_TOOLS = new Set(["Read", "Grep", "Glob", "NotebookRead"]);
+const ENV_GUARD_MESSAGE =
+  "The host manages the env file — use the HOST INVENTORY in your instructions.";
+
+/** Does this basename (possibly a glob) name a value-carrying env file? */
+function isProtectedEnvName(raw) {
+  const base = String(raw ?? "").trim().replace(/^["'`]+|["'`]+$/g, "");
+  if (!base) return false;
+  if (base === ".env.example") return false;
+  if (base === ENV_BASENAME || base === ".env") return true;
+  // Globs: `.env*`, `.env.*`, `.env.?ocal` — anything that would sweep the
+  // real file in. `.env.example` is already excluded above, and a glob that
+  // matches it also matches the real one, so denying is correct.
+  return /^\.env(\.[A-Za-z0-9_*?[\]-]+)?[*?]?$/.test(base) && base !== ".env.example";
+}
+
+/** Every path-ish token in a tool input that could resolve to the env file. */
+function targetsEnvFile(toolName, input) {
+  if (!ENV_GUARD_TOOLS.has(toolName)) return false;
+  const candidates = [
+    input?.file_path, input?.path, input?.notebook_path, input?.pattern, input?.glob,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || !candidate) continue;
+    const normalized = candidate.replace(/\\/g, "/");
+    for (const token of normalized.split(/[\s,{}()|]+/)) {
+      if (!token) continue;
+      if (isProtectedEnvName(token.split("/").pop())) return true;
+    }
+  }
+  return false;
+}
 
 /** Plain-language framing for the confirm card, per tool. */
 function describeAsk(toolName, input) {
@@ -81,8 +128,17 @@ function shapeKey(toolName, input) {
  * ------------------------------------------------------------------ */
 
 const MARKER_RE = /^\s*\[\[wizard:([a-z]+)((?:\s+[a-z]+=(?:"[^"]*"|[^\s\]]+))*)\s*\]\]\s*$/;
-const PHASES = new Set(["welcome", "mode", "checks", "capabilities", "boot", "voice", "done"]);
+/**
+ * Phase ids used to be a closed set (welcome, mode, checks, capabilities, boot,
+ * voice, done). Since v0.3 the recon-first run DECLARES its own steps with a
+ * plan marker, so the host validates the SHAPE and lets the plan name the
+ * vocabulary; `check` and single-group runs still emit the legacy ids, which
+ * are slug-shaped and pass unchanged.
+ */
+const PHASE_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 const PROBE_STATES = new Set(["ok", "fail", "warn", "running"]);
+/** A plan rail longer than this is a runaway, not a journey. */
+const MAX_PLAN_STEPS = 12;
 
 function parseMarkerAttrs(raw) {
   const out = {};
@@ -92,12 +148,179 @@ function parseMarkerAttrs(raw) {
   return out;
 }
 
+/** `"assess:Looking around,done:Your install"` → `[{id,label}, …]`. */
+function parsePlanSteps(raw) {
+  const steps = [];
+  const seen = new Set();
+  for (const part of String(raw ?? "").split(",")) {
+    const piece = part.trim();
+    if (!piece) continue;
+    const cut = piece.indexOf(":");
+    const id = (cut >= 0 ? piece.slice(0, cut) : piece).trim().toLowerCase();
+    const label = (cut >= 0 ? piece.slice(cut + 1) : piece).trim();
+    if (!PHASE_ID_RE.test(id) || seen.has(id)) continue;
+    seen.add(id);
+    steps.push({ id, label: label || id });
+    if (steps.length >= MAX_PLAN_STEPS) break;
+  }
+  return steps;
+}
+
+/* ------------------------------------------------------------------ *
+ * Host inventory — the cheap facts the agent would otherwise have to go
+ * looking for, and the ONE fact (which variables carry a value) it is not
+ * allowed to look for at all.
+ *
+ * Names only, never values: the whole point is that the agent can reason about
+ * which capability groups are already configured without a secret ever
+ * entering model context.
+ * ------------------------------------------------------------------ */
+
+/** Names of variables in the env file that have a non-empty value. NEVER values. */
+function envVarNames() {
+  const names = [];
+  const seen = new Set();
+  for (const line of readEnvLines()) {
+    const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(line);
+    if (!m) continue;
+    if (m[2].trim() === "") continue;
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    names.push(m[1]);
+  }
+  return names;
+}
+
+/** kp's conventional dev port — the fallback probe when no lock names one. */
+const DEFAULT_DEV_PORT = 3000;
+
+/** The port Next's dev-guard lock names, if it names one. */
+function devLockPort() {
+  const lockPath = path.join(REPO_ROOT, ".next", "dev", "lock");
+  if (!existsSync(lockPath)) return { present: false, port: null };
+  let raw = "";
+  try { raw = readFileSync(lockPath, "utf8"); } catch { return { present: true, port: null }; }
+  // The lock's shape is Next's, not ours, and it has changed across canaries:
+  // accept JSON with a port field, a `port=`/`port:` line, or a bare number.
+  let port = null;
+  try {
+    const parsed = JSON.parse(raw);
+    for (const key of ["port", "appPort", "devPort"]) {
+      const n = Number(parsed?.[key]);
+      if (Number.isInteger(n) && n > 0 && n <= 65535) { port = n; break; }
+    }
+  } catch { /* not JSON — fall through to the text shapes */ }
+  if (port === null) {
+    const m = /port"?\s*[:=]\s*"?(\d{2,5})/i.exec(raw) || /^\s*(\d{2,5})\s*$/.exec(raw);
+    const n = m ? Number(m[1]) : NaN;
+    if (Number.isInteger(n) && n > 0 && n <= 65535) port = n;
+  }
+  return { present: true, port };
+}
+
+/** Does anything answer /api/health on that port? ~1s, never throws. */
+async function probeHealth(port) {
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(1200) });
+    return { answered: true, status: r.status };
+  } catch {
+    return { answered: false, status: null };
+  }
+}
+
+async function hostInventory() {
+  const names = envVarNames();
+  const lock = devLockPort();
+  let devLine;
+  if (lock.port === null) {
+    // No lock, or a lock that names no port. One cheap probe of the default dev
+    // port still separates "nothing is running" from "something is running that
+    // dev-guard did not record" — a `next start`, or a dev server launched
+    // outside the guard. Both are real states on a developer's machine and the
+    // agent must not re-boot over either.
+    const fallback = await probeHealth(DEFAULT_DEV_PORT);
+    const lockNote = lock.present
+      ? ".next/dev/lock exists but names no port"
+      : "no .next/dev/lock";
+    devLine = fallback.answered
+      ? `${lockNote}, but SOMETHING answers /api/health on :${DEFAULT_DEV_PORT} (HTTP ${fallback.status}). Without the lock the host cannot tell whether that is THIS checkout or another app on this machine — confirm which before you treat it as running, and if it is this app do not boot or restart it.`
+      : `${lockNote}, and nothing answered on :${DEFAULT_DEV_PORT} — treat this app as not running.`;
+  } else {
+    const health = await probeHealth(lock.port);
+    devLine = health.answered
+      ? `.next/dev/lock names port ${lock.port} and an app ANSWERS on :${lock.port} (GET /api/health -> ${health.status}). The app is already running: do not boot or restart it unless you changed something that needs a restart.`
+      : `.next/dev/lock names port ${lock.port} but NOTHING answered there — a stale lock. Treat the app as not running.`;
+  }
+  return [
+    "HOST INVENTORY — facts the installer host computed on this machine at startup.",
+    "Treat these as ground truth and do not re-derive them.",
+    "",
+    `- Repository: ${REPO_ROOT}`,
+    `- Env file (${ENV_FILE}): ${existsSync(ENV_FILE) ? "present" : "ABSENT — nothing has been configured here yet"}.`,
+    `- Variables in the env file that hold a non-empty value — NAMES ONLY: ${names.length ? names.join(", ") : "(none)"}.`,
+    "  Their VALUES are deliberately withheld. You must never open, read, grep or print the env",
+    "  file: the host's permission layer denies it, and a value in your context is the exact leak",
+    "  this wizard exists to prevent. A name in that list means the variable is SET; use that to",
+    "  decide which capability groups are already configured, and verify them by their read-only",
+    "  probes rather than by looking at the file.",
+    `- .env.example: ${existsSync(path.join(REPO_ROOT, ".env.example")) ? "present (readable — it carries no values)" : "absent"}.`,
+    `- node_modules/: ${existsSync(path.join(REPO_ROOT, "node_modules")) ? "present — dependencies are installed" : "ABSENT — npm install has not been run"}.`,
+    `- data/kp.sqlite: ${existsSync(path.join(REPO_ROOT, "data", "kp.sqlite")) ? "present — this install has a database already" : "absent — a fresh database will self-seed the demo corpus on first boot"}.`,
+    `- Dev server: ${devLine}`,
+    "",
+    "END HOST INVENTORY",
+    "",
+  ].join("\n");
+}
+
 /* ------------------------------------------------------------------ *
  * The wizard-mode preamble — the contract that keeps the fleet-shared
  * registry skill unedited.
  * ------------------------------------------------------------------ */
 
-function preamble() {
+/** The recon-first flow, appended only for the default (`start`) run. */
+function reconContract() {
+  return [
+    "7. RECON FIRST — this run does NOT open with the skill's step 0, and it does NOT assume a",
+    "   fresh clone. Before you ask the operator anything:",
+    "   a) ASSESS SILENTLY. Emit [[wizard:phase id=assess]] and work out where THIS install",
+    "      actually is, from the HOST INVENTORY below plus the skill's read-only runtime probes,",
+    "      plus — for every capability group whose variables the inventory shows as SET — that",
+    "      group's check-mode verify probe. Ask NOTHING during assessment and spend nothing:",
+    "      read-only commands only, no paid API calls. Keep emitting [[wizard:status …]] and",
+    "      [[wizard:probe …]] as you go, and keep the narration to a couple of short lines.",
+    "   b) CLASSIFY, THEN OFFER A JOURNEY. From what you found, classify this install as exactly",
+    "      one of:",
+    "        fresh    — dependencies and/or the env file are largely absent; a new clone.",
+    "        addon    — a working install where some capability groups are simply unconfigured.",
+    "        repair   — something that WAS configured now fails its verify. Name what, and why.",
+    "        complete — everything configured verifies, and nothing obvious is missing.",
+    "      Then ask ONE AskUserQuestion with header \"Journey\" whose options are GENERATED FROM",
+    "      YOUR FINDINGS — concrete and honest, never a generic menu. Shapes that are right:",
+    "      \"Add voice interviews (not configured)\", \"Fix CV analysis (GEMINI_API_KEY is set but",
+    "      the analysis probe fails)\", \"Just show my capability matrix\", \"Run the full setup",
+    "      anyway\". Each description says what the option will do and what it will ask of them.",
+    "      On the `complete` journey go MATRIX-FIRST: put \"Just show my capability matrix\" first",
+    "      and recommend it, and print the matrix immediately if it is chosen.",
+    "      Ask the skill's install-mode question (developer laptop / team self-host / just",
+    "      evaluating) ONLY on the `fresh` journey — on any other journey this machine has",
+    "      already answered it, and asking again is the bug this contract exists to fix.",
+    "   c) DECLARE THE PLAN. Immediately after the journey answer, emit ONE [[wizard:plan …]]",
+    "      marker naming the steps this journey will really walk, ending in `done`, and use those",
+    "      ids in every later [[wizard:phase]]. If the operator later picks a different group and",
+    "      the journey changes, emit a fresh plan marker for the new steps.",
+    "   d) THEN WALK IT. Everything after that follows the onboarding skill and the contracts",
+    "      above: capability groups in batches, secret VALUES only ever through the host, the",
+    "      voice phase only when spoken output is actually in scope, the capability matrix at the",
+    "      end. Boot verify runs ONLY when the boot state is unknown or when something you",
+    "      changed needs a restart — if the HOST INVENTORY says an app already answers on a port,",
+    "      emit [[wizard:app port=N]] with that port and move on; do not restart it. On a",
+    "      matrix-only journey, skip boot verify altogether.",
+    "",
+  ].join("\n");
+}
+
+function preamble(run) {
   return [
     "You are running as the ENGINE of the kp installer wizard: a local browser UI, not a terminal.",
     "A non-technical operator is watching a web page, not a transcript. Adapt as follows:",
@@ -121,8 +344,14 @@ function preamble() {
     "5. HOST MARKERS. The page shows status cards, not a log, so emit these marker lines inside your",
     "   narration — each ON ITS OWN LINE, never inside a code fence or a table. The host strips the",
     "   line before anything is displayed, so the operator never sees the syntax.",
-    "   - [[wizard:phase id=checks]] whenever you move to a new stage. The ids are: welcome, mode",
-    "     (the install-mode question), checks (runtime prerequisites), capabilities (the capability",
+    "   - [[wizard:plan steps=\"assess:Looking around,voice:Voice interviews,done:Your install\"]]",
+    "     declares the step plan for the journey you are about to walk: comma-separated id:Label",
+    "     pairs, ids lowercase slugs, labels two or three plain words. The page draws it as the",
+    "     progress rail, so name the steps you will ACTUALLY walk — no aspirational ones — and",
+    "     always end with done. Emit a fresh plan marker if the journey changes mid-run.",
+    "   - [[wizard:phase id=checks]] whenever you move to a new stage. Use the ids from your own",
+    "     plan marker; when you have not declared a plan, use the fixed set: welcome, mode (the",
+    "     install-mode question), checks (runtime prerequisites), capabilities (the capability",
     "     groups), boot (boot verify), voice (the spoken-output check), done (the final matrix).",
     "   - [[wizard:status text=\"Checking Python\"]] one short present-tense line whenever what you",
     "     are doing changes.",
@@ -140,13 +369,19 @@ function preamble() {
     "   before that message arrives, and do not ask about it with AskUserQuestion. If the app failed",
     "   to boot, skip the voice phase entirely and go straight to the matrix.",
     "",
+    ...(isStartRun(run) ? [reconContract()] : []),
     "For everything else follow the onboarding skill exactly as written.",
     "",
   ].join("\n");
 }
 
+/** The recon-first default run. `full` is the pre-v0.3 name for the same thing. */
+function isStartRun(run) {
+  return run === "start" || run === "full";
+}
+
 function invocationFor(run) {
-  if (run === "full") return "/onboarding";
+  if (isStartRun(run)) return "/onboarding";
   if (run === "check") return "/onboarding check";
   return `/onboarding ${run}`;
 }
@@ -223,6 +458,8 @@ class Session {
     this.lastStatus = "";
     this.appPort = APP_PORT_OVERRIDE;
     this.stderrTail = "";
+    /** The agent-declared step rail, or null before the first plan marker. */
+    this.plan = null;
   }
 
   emit(type, payload) {
@@ -237,10 +474,22 @@ class Session {
     this.emit("status", { text: t });
   }
 
+  /**
+   * Phase ids are free-form since v0.3 — the recon-first run declares its own
+   * with a plan marker — so the only gate is the slug shape. `check` and
+   * single-group runs keep emitting the legacy fixed ids, which still pass.
+   */
   setPhase(id) {
-    if (!PHASES.has(id) || this.phase === id) return;
+    if (!PHASE_ID_RE.test(id) || this.phase === id) return;
     this.phase = id;
     this.emit("phase", { id });
+  }
+
+  /** A declared step rail. Re-emitted whenever the journey changes mid-run. */
+  setPlan(steps) {
+    if (!steps.length) return;
+    this.plan = steps;
+    this.emit("plan", { steps });
   }
 
   setAppPort(port) {
@@ -250,7 +499,16 @@ class Session {
     this.emit("app", { port: n });
   }
 
-  start(run) {
+  async start(run) {
+    if (this.running) return { ok: false, error: "A session is already running. Stop it first." };
+    // Computed BEFORE the child exists so the very first message the agent sees
+    // already says where this install is — the recon-first flow depends on it.
+    let inventory;
+    try {
+      inventory = await hostInventory();
+    } catch (err) {
+      inventory = `HOST INVENTORY unavailable (${err.message}) — probe the install yourself, but still never read the env file.\n\n`;
+    }
     if (this.running) return { ok: false, error: "A session is already running. Stop it first." };
     const cliPath = process.env.KP_CLAUDE_CLI || "claude";
     const args = [
@@ -278,6 +536,7 @@ class Session {
     this.lastStatus = "";
     this.stderrTail = "";
     this.appPort = APP_PORT_OVERRIDE;
+    this.plan = null;
 
     let child;
     try {
@@ -315,10 +574,10 @@ class Session {
       this.emit("done", { exitCode: code });
     });
 
-    this.setPhase("welcome");
+    this.setPhase(isStartRun(run) ? "assess" : "welcome");
     this.status(`Starting the setup assistant (${invocationFor(run)})…`);
     this.write({ request_id: randomBytes(8).toString("hex"), type: "control_request", request: { subtype: "initialize" } });
-    this.sendUser(`${preamble()}${invocationFor(run)}`);
+    this.sendUser(`${preamble(run)}${inventory}${invocationFor(run)}`);
     return { ok: true };
   }
 
@@ -410,6 +669,7 @@ class Session {
 
   onMarker(kind, attrs, state) {
     if (kind === "phase") return this.setPhase(String(attrs.id || ""));
+    if (kind === "plan") return this.setPlan(parsePlanSteps(attrs.steps));
     if (kind === "status") return this.status(attrs.text ?? "");
     if (kind === "probe") {
       const name = String(attrs.name || "").trim();
@@ -448,6 +708,14 @@ class Session {
     // AskUserQuestion is always intercepted and always allowed — with an answer.
     if (toolName === "AskUserQuestion") {
       this.openQuestions(msg.request_id, input, toolUseID);
+      return;
+    }
+
+    // Host policy, not an operator decision: the env file's VALUES never enter
+    // model context. Denied silently — no card, no status line — because there
+    // is nothing here for the operator to weigh up.
+    if (targetsEnvFile(toolName, input)) {
+      this.respond(msg.request_id, { behavior: "deny", message: ENV_GUARD_MESSAGE, toolUseID });
       return;
     }
 
@@ -584,6 +852,7 @@ class Session {
     this.phase = null;
     this.lastStatus = "";
     this.buffer = "";
+    this.plan = null;
     this.alwaysAllow.clear();
 
     if (child) {
@@ -738,6 +1007,7 @@ const server = createServer(async (req, res) => {
       envFileExists: existsSync(ENV_FILE),
       running: session.running,
       phase: session.phase,
+      plan: session.plan,
       appPort: session.appPort,
     })}\n\n`);
     clients.add(res);
@@ -783,7 +1053,7 @@ const server = createServer(async (req, res) => {
 
   switch (p) {
     case "/start":
-      json(res, 200, session.start(String(body.run || "full")));
+      json(res, 200, await session.start(String(body.run || "start")));
       return;
     case "/answer": {
       const id = String(body.id ?? body.requestId ?? "");

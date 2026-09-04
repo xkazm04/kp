@@ -43,7 +43,14 @@
       blurb: "Refined editorial light",
       copy: {
         "app.title": "Set up KP",
-        "app.sub": "This runs KP's own setup assistant on your machine, on your Claude subscription. Nothing happens without your say-so.",
+        "app.sub": "This runs KP's own setup assistant on your machine, on your Claude subscription. It looks before it asks, and asks before it writes.",
+        "act.start": "Set up kp",
+        "act.advanced": "Advanced",
+        "assess.title": "Looking at what's already here…",
+        "assess.note": "Reading this machine before asking you anything. Nothing is changed while I look.",
+        "reward.title": "Already set up",
+        "reward.note": "Nothing needed doing — this install was configured before you got here. Below is what it can actually do.",
+        "phase.assess": "Looking around",
         "phase.welcome": "Welcome",
         "phase.mode": "Install mode",
         "phase.checks": "System checks",
@@ -62,7 +69,18 @@
       blurb: "Sticker-sheet dark",
       copy: {
         "app.title": "Let's wire up KP",
-        "app.sub": "KP's setup assistant, running right here on your machine and your own Claude subscription. It asks before it touches anything.",
+        "app.sub": "KP's setup assistant, running right here on your machine and your own Claude subscription. It has a look around first, then asks.",
+        "act.start": "Wire it up",
+        "act.advanced": "Advanced",
+        "act.run": "Just that",
+        "assess.title": "Having a look around…",
+        "assess.note": "Poking at your machine to see what's already wired. Nothing gets touched yet.",
+        "assess.more": "Show me everything",
+        "assess.less": "That's enough detail",
+        "reward.title": "Already wired!",
+        "reward.note": "Nothing to do — this one was set up before you arrived. Here's what it can actually do.",
+        "addon.title": "Fancy adding anything?",
+        "phase.assess": "Snooping around",
         "phase.welcome": "Hello there",
         "phase.mode": "How you'll run it",
         "phase.checks": "Kicking the tyres",
@@ -80,6 +98,10 @@
          not jitter when the stage re-renders. */
       decorate(el, kind, index) {
         if (kind === "card" || kind === "panel") {
+          // The journey sticker sets its own lean in CSS and must keep it —
+          // an inline value from the pile rotation would beat the stylesheet
+          // and flatten the one card that is supposed to stand out.
+          if (el.classList.contains("card-journey")) { el.style.removeProperty("--tilt"); return; }
           const lean = [-0.7, 0.5, -0.4, 0.8][(index || 0) % 4];
           el.style.setProperty("--tilt", lean + "deg");
         }
@@ -94,6 +116,19 @@
       copy: {
         "app.title": "Setting up KP",
         "app.sub": "We'll go one question at a time. You can stop at any point — nothing is lost.",
+        "act.start": "Start setting up",
+        "act.advanced": "Other options",
+        "act.run": "Run just this",
+        "adv.label": "Set up only",
+        "adv.note": "A check run looks at your computer and tells you what it found — it asks nothing and changes nothing. Or pick one feature to set up on its own.",
+        "assess.title": "Having a look at your computer…",
+        "assess.note": "Nothing is being changed. This is just a look at what is already installed.",
+        "assess.more": "Show me all the details",
+        "assess.less": "Hide the details",
+        "reward.title": "You're already set up",
+        "reward.note": "Your computer already had everything it needed, so there was nothing to ask you. Here is what KP can do.",
+        "addon.title": "Would you like to add anything else?",
+        "phase.assess": "Having a look",
         "phase.welcome": "Getting started",
         "phase.mode": "How will you use it?",
         "phase.checks": "Checking your computer",

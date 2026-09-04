@@ -55,6 +55,11 @@ body { background: var(--paper); color: var(--ink); }
   font: 600 10px/1 var(--font-body); letter-spacing: .1em;
   text-transform: uppercase; color: var(--steel);
 }
+.btn-start { font-size: 15px; padding: .58rem 1.5rem; }
+.wz-adv-toggle { font-size: 13px; }
+.wz-adv-toggle[aria-expanded=true] { color: var(--ink); background: var(--stone-100); }
+.wz-adv-panel { margin-top: .85rem; padding-top: .8rem; border-top: 1px dashed var(--stone-200); }
+.wz-adv-note { font-size: 12.5px; color: var(--dial-stone); }
 select, input[type=text], input[type=password] {
   padding: .4rem .6rem;
   border: 1px solid var(--stone-300);
@@ -94,6 +99,11 @@ select, input[type=text], input[type=password] {
 .wz-step.is-active { color: var(--ink); background: var(--white); box-shadow: inset 0 0 0 1px var(--stone-200); }
 .wz-step.is-active .wz-steplabel { font-weight: 600; }
 .wz-step.is-active .wz-stepdot { border-color: var(--coral); color: var(--coral); }
+/* A re-plan adds steps to a rail already in progress; the new ones announce
+   themselves once rather than the whole rail flashing as if it had reset. */
+.wz-step.is-new { animation: studio-step-in .45s var(--ease) both; }
+@keyframes studio-step-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+.wz-dot.is-new { animation: studio-step-in .45s var(--ease) both; }
 
 /* ----------------------------------------------------------------- stage */
 .wz-main { background: var(--paper); }
@@ -120,6 +130,20 @@ select, input[type=text], input[type=password] {
 }
 @keyframes studio-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .card-question { border-left: 3px solid var(--steel); }
+/* The journey card is the one decision the whole run turns on: it gets the
+   editorial treatment — wider than its neighbours, a heavier rule, a serif
+   question set two sizes up, and options with room to be read. */
+.card-journey {
+  border-left-width: 4px; border-left-color: var(--coral);
+  max-width: none; margin-right: -3rem;
+  padding: 1.5rem 1.7rem 1.4rem; box-shadow: 0 10px 30px rgba(23, 32, 42, .07);
+}
+.card-journey .card-title { font-size: 24px; line-height: 1.22; }
+.card-journey .card-kicker { color: var(--coral); }
+.card-journey .opt { padding: .75rem .85rem; }
+.card-journey .opt-label { font-size: 15.5px; }
+.card-journey .opt-desc { font-size: 13.5px; line-height: 1.5; }
+@media (max-width: 1100px) { .card-journey { margin-right: 0; } }
 .card-secret { border-left: 3px solid var(--dial-amber); }
 .card-permission { border-left: 3px solid var(--coral); }
 .card.is-settled { opacity: .55; background: var(--stone-50); }
@@ -210,6 +234,35 @@ code { font-family: var(--font-mono); font-size: .92em; }
 .matrix-extra { font-size: 12.5px; color: var(--steel); margin-top: .25rem; }
 .matrix-extra-k { font: 600 10px/1.5 var(--font-body); letter-spacing: .09em; text-transform: uppercase; color: var(--dial-stone); }
 
+/* ------------------------------------------------------ assessment summary */
+.assess-summary {
+  gap: .55rem; padding: .85rem 1.1rem .95rem; border-left: 3px solid var(--moss);
+  background: var(--stone-50); border-radius: 10px;
+  animation: studio-in .3s var(--ease) both;
+}
+.assess-line { font: 600 14.5px/1.45 var(--font-body); color: var(--ink); }
+.assess-strip { gap: .22rem; }
+.assess-item { font-size: 13px; color: var(--steel); }
+.assess-item-n { font-weight: 600; color: var(--ink); }
+.assess-item[data-state=fail] .probe-glyph { color: var(--coral); }
+.assess-item[data-state=warn] .probe-glyph { color: var(--dial-amber); }
+.assess-more { padding: .2rem .5rem; font-size: 12.5px; }
+.assess-all { border-top: 1px dashed var(--stone-300); padding-top: .4rem; }
+.panel.is-assessing { border-left: 3px solid var(--dial-amber); }
+.panel.is-assessing .panel-title::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--coral); margin-left: .5rem; vertical-align: middle;
+  animation: studio-pulse 1.6s var(--ease) infinite;
+}
+
+/* ------------------------------------------------------------ reward state */
+.panel-done.is-reward { border-left: 3px solid var(--moss); background: var(--white); }
+.panel-done.is-reward .panel-title { font-size: 21px; color: var(--moss); }
+.reward-lead { margin: 0 0 1rem; font-size: 14px; color: var(--steel); max-width: 42rem; }
+.addons { margin-top: 1.2rem; gap: .55rem; border-top: 1px dashed var(--stone-300); padding-top: .9rem; }
+.addon-title { font: 600 10px/1.6 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--dial-stone); }
+.addon { font-size: 13px; padding: .35rem .8rem; }
+
 .panel-terminal { border-left: 3px solid var(--steel); }
 .panel-terminal[data-kind=stopped] { border-left-color: var(--dial-amber); }
 .panel-terminal[data-kind=error] { border-left-color: var(--coral); }
@@ -263,3 +316,10 @@ code { font-family: var(--font-mono); font-size: .92em; }
 .wz-meta { border-top: 1px dashed var(--stone-300); padding-top: .7rem; font-size: 12px; color: var(--steel); }
 .wz-meta-k { font: 600 10px/1.6 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--dial-stone); }
 .wz-meta code { font-size: 11.5px; }
+
+/* The pre-plan rail: one live step and an honest placeholder for the plan that
+   has not been proposed yet. It must not look like a step you have to do. */
+.wz-step.is-pending { color: var(--dial-stone); font-style: italic; }
+.wz-step.is-pending .wz-stepdot { border-style: dashed; background: transparent; }
+.wz-step.is-pending .wz-steplabel { font-size: 13px; }
+.wz-dot.is-pending { background: transparent; box-shadow: inset 0 0 0 1.5px var(--stone-300); }

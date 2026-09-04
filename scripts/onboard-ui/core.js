@@ -21,14 +21,23 @@
   const STORE_KEY = "kp-onboard-variant";
 
   /* ---------------------------------------------------------------- phases */
-  /* Driven by {type:"phase"} events ONLY — never by sniffing prose. A phase we
-     have not seen stays "ahead"; phases are ordered, so an out-of-order event
+  /* v0.3: the step plan is DECLARED by the agent ({type:"plan"}) once it has
+     assessed the machine and the operator has picked a journey. Until then — and
+     for the runs that never declare one (a doctor pass, a single-group run) —
+     this fixed list is the fallback stepper. `assess` leads it because assess is
+     the one phase that always arrives BEFORE any plan.
+
+     Driven by {type:"phase"} events ONLY — never by sniffing prose. A phase we
+     have not seen stays "ahead"; the list is ordered, so an out-of-order event
      still lights everything before it. */
-  const PHASES = ["welcome", "mode", "checks", "capabilities", "boot", "voice", "done"];
+  const FALLBACK_PHASES = ["assess", "welcome", "mode", "checks", "capabilities", "boot", "voice", "done"];
+  const PHASES = FALLBACK_PHASES; // kept under the old name for the mock harness
 
   const DEFAULT_COPY = {
     "app.title": "Set up KP",
     "app.sub": "This runs KP's own setup assistant on your machine, on your Claude subscription. Nothing happens without your say-so.",
+    "phase.assess": "Looking around",
+    "phase.__pending": "…then a plan, once I've looked",
     "phase.welcome": "Welcome",
     "phase.mode": "Install mode",
     "phase.checks": "System checks",
@@ -38,6 +47,10 @@
     "phase.done": "Your install",
     "checks.title": "System checks",
     "checks.note": "What this machine already has. Nothing here is changed without asking.",
+    "assess.title": "Looking at what's already here…",
+    "assess.note": "Reading this machine before asking you anything. Nothing is changed while I look.",
+    "assess.more": "Show every check",
+    "assess.less": "Hide the detail",
     "boot.title": "The app",
     "voice.title": "Spoken output",
     "voice.note": "Play a sample from each engine that is ready, then pick the default. Skipping is a complete answer — /api/tts answers an honest 503 and nothing else depends on it.",
@@ -53,7 +66,15 @@
     "act.skip": "Skip",
     "act.keep": "Keep current",
     "act.replace": "Replace",
+    "act.start": "Set up kp",
+    "act.advanced": "Advanced",
+    "act.run": "Run this",
     "perm.title": "KP setup wants to run:",
+    "adv.note": "A check run asks nothing and changes nothing. A single group re-runs one part of setup on its own.",
+    "adv.label": "Run just",
+    "reward.title": "Nothing else needed",
+    "reward.note": "This install was already configured — the assistant only had to look. Everything below is what it can actually do.",
+    "addon.title": "Want to add something while you're here?",
   };
 
   /* ----------------------------------------------------------------- state */
@@ -65,6 +86,11 @@
     stopPending: false,
     phase: null,
     phaseSeen: new Set(),
+    plan: null, // [{id,label}] once the agent declares one; null = fallback stepper
+    lastStep: null, // index of the last step the phase stream actually matched
+    assessing: false,
+    assessSummary: null,
+    sawWork: false, // a secret or permission card was shown -> not a short-circuit
     status: "",
     probes: new Map(), // name -> {status, detail}
     cards: [], // live decision cards, newest last
@@ -209,26 +235,36 @@
         </span>
       </div>
       <div class="wz-controls">
+        <!-- v0.3: ONE way in. The old run-mode picker asked the operator to
+             classify their own machine before anything had looked at it — the
+             decision the agent now makes for them, and then puts back to them as
+             a journey card with the findings attached. Everything else here is
+             the escape hatch, not the road. -->
+        <button class="btn btn-primary btn-start" id="wz-start" data-copy="act.start"></button>
+        <button class="btn btn-quiet" id="wz-stop">Stop</button>
+        <button class="btn btn-quiet wz-adv-toggle" id="wz-adv" aria-expanded="false"
+                aria-controls="wz-adv-panel" data-copy="act.advanced"></button>
+      </div>
+      <div class="wz-adv-panel" id="wz-adv-panel" hidden>
         <label class="wz-runwrap">
-          <span class="wz-runlabel">Run</span>
+          <span class="wz-runlabel" data-copy="adv.label"></span>
           <select class="wz-run" id="wz-run">
-            <option value="full">Full setup</option>
-            <option value="check">Check only (no questions)</option>
-            <option value="llm-engine">Just: LLM engine</option>
-            <option value="gemini">Just: CV analysis (Gemini)</option>
-            <option value="voice">Just: Voice interviews</option>
-            <option value="tts">Just: Spoken output</option>
-            <option value="github-signal">Just: GitHub signal</option>
-            <option value="kp-secret">Just: Key encryption</option>
-            <option value="operator-auth">Just: Operator password</option>
-            <option value="comms">Just: Email sending</option>
-            <option value="calendar">Just: Calendar</option>
-            <option value="edge">Just: Edge relay</option>
-            <option value="observability">Just: Observability</option>
+            <option value="check">Check only — a doctor pass, no questions</option>
+            <option value="llm-engine">LLM engine</option>
+            <option value="gemini">CV analysis (Gemini)</option>
+            <option value="voice">Voice interviews</option>
+            <option value="tts">Spoken output</option>
+            <option value="github-signal">GitHub signal</option>
+            <option value="kp-secret">Key encryption</option>
+            <option value="operator-auth">Operator password</option>
+            <option value="comms">Email sending</option>
+            <option value="calendar">Calendar</option>
+            <option value="edge">Edge relay</option>
+            <option value="observability">Observability</option>
           </select>
         </label>
-        <button class="btn btn-primary" id="wz-start">Start setup</button>
-        <button class="btn btn-quiet" id="wz-stop">Stop</button>
+        <button class="btn btn-outline" id="wz-runbtn" data-copy="act.run"></button>
+        <p class="wz-adv-note" data-copy="adv.note"></p>
       </div>
     </header>
 
@@ -283,6 +319,9 @@
   const startBtn = $("#wz-start", root);
   const stopBtn = $("#wz-stop", root);
   const runSel = $("#wz-run", root);
+  const runBtn = $("#wz-runbtn", root);
+  const advToggle = $("#wz-adv", root);
+  const advPanel = $("#wz-adv-panel", root);
 
   /* Spark's mascot lives in the DOM for every variant; only spark.css shows it. */
   const mascot = el("div", "wz-mascot", window.KP_MASCOT || "");
@@ -325,27 +364,77 @@
   }
 
   /* -------------------------------------------------------------- stepper */
-  function phaseIndex(id) { return PHASES.indexOf(id); }
+  /* The step list is the plan when the agent declared one, and the fixed
+     fallback otherwise. Both are the same shape — {id, label} — so exactly one
+     renderer exists; a plan-less session is not a special case, it is a
+     different list. A fallback step carries no label of its own because its
+     wording is a variant's to choose (copy("phase.<id>")); a plan step's label
+     came from the agent and is used verbatim. */
+  function stepList() {
+    if (state.plan && state.plan.length) return state.plan;
+    // Recon-first means the rail must not promise a pipeline before one has
+    // been decided. While the assessment is the live phase and no plan has
+    // arrived, the honest rail is "I am looking, and what follows is next" —
+    // showing the full fixed list here is precisely the "it just walked Full
+    // setup" complaint that v0.3 exists to answer. The fallback list is for the
+    // runs that MOVE PAST assess without ever declaring a plan.
+    if (state.phase === "assess") {
+      return [{ id: "assess", label: null }, { id: "__pending", label: null, pending: true }];
+    }
+    return FALLBACK_PHASES.map((id) => ({ id, label: null }));
+  }
+  function stepLabel(s) { return s.label != null ? s.label : copy("phase." + s.id); }
+
   function renderSteps() {
-    const cur = phaseIndex(state.phase);
+    const list = stepList();
+    let cur = list.findIndex((s) => s.id === state.phase);
+    if (cur < 0) {
+      // The live phase is not one of the planned steps — `assess` between the
+      // plan landing and the journey being answered is the everyday case. Hold
+      // the last step that DID match rather than blanking the rail.
+      cur = state.lastStep != null ? state.lastStep : (state.plan ? 0 : -1);
+    }
     stepsEl.innerHTML = "";
     dotsEl.innerHTML = "";
-    PHASES.forEach((p, i) => {
-      const done = state.phaseSeen.has(p) && i < cur;
+    list.forEach((s, i) => {
+      const done = state.phaseSeen.has(s.id) && i < cur;
       const active = i === cur;
-      const li = el("li", "wz-step" + (done ? " is-done" : "") + (active ? " is-active" : ""));
+      const li = el("li", "wz-step" + (done ? " is-done" : "") + (active ? " is-active" : "") +
+        (s.isNew ? " is-new" : "") + (s.pending ? " is-pending" : ""));
+      li.dataset.step = s.id;
       li.innerHTML =
-        `<span class="wz-stepdot">${done ? "✓" : i + 1}</span>` +
-        `<span class="wz-steplabel">${esc(copy("phase." + p))}</span>`;
+        `<span class="wz-stepdot">${s.pending ? "?" : done ? "✓" : i + 1}</span>` +
+        `<span class="wz-steplabel">${esc(stepLabel(s))}</span>`;
       if (active) li.setAttribute("aria-current", "step");
       stepsEl.appendChild(li);
 
-      const d = el("span", "wz-dot" + (done ? " is-done" : "") + (active ? " is-active" : ""));
+      const d = el("span", "wz-dot" + (done ? " is-done" : "") + (active ? " is-active" : "") +
+        (s.isNew ? " is-new" : "") + (s.pending ? " is-pending" : ""));
+      d.dataset.step = s.id;
       dotsEl.appendChild(d);
     });
-    const label = cur >= 0 ? copy("phase." + PHASES[cur]) : "";
     dotsEl.setAttribute("aria-hidden", "true");
-    dotsEl.title = label;
+    dotsEl.title = cur >= 0 && list[cur] ? stepLabel(list[cur]) : "";
+  }
+
+  /* A plan may be declared once, or re-declared mid-session when the operator
+     adds another group at the end. A re-plan REBUILDS the rail but never resets
+     it: `phaseSeen` is keyed on step ids, so every id that survives keeps its
+     tick and only the genuinely new steps arrive unvisited. */
+  function applyPlan(rawSteps) {
+    const list = (Array.isArray(rawSteps) ? rawSteps : [])
+      .map((s) => (typeof s === "string" ? { id: s, label: s } : s))
+      .filter((s) => s && s.id != null && s.id !== "")
+      .map((s) => ({ id: String(s.id), label: String(s.label == null ? s.id : s.label) }));
+    if (!list.length) return; // an empty plan is not a plan; keep what we have
+    const before = new Set((state.plan || []).map((s) => s.id));
+    if (state.plan) list.forEach((s) => { if (!before.has(s.id)) s.isNew = true; });
+    state.plan = list;
+    const idx = list.findIndex((s) => s.id === state.phase);
+    state.lastStep = idx >= 0 ? idx : state.lastStep;
+    if (state.lastStep != null && state.lastStep >= list.length) state.lastStep = list.length - 1;
+    root.dataset.planned = "true";
+    renderSteps();
   }
 
   /* --------------------------------------------------------------- status */
@@ -455,9 +544,91 @@
     return b;
   }
 
+  /* -- the assessment summary -------------------------------------------- */
+  /* When the journey card lands, the live probe list stops being the subject and
+     becomes evidence for the decision above it. It collapses to one honest line
+     plus the rows that are NOT fine — the ones the journey options are about —
+     with the full list one click away. The line is derived from the probes the
+     page actually received; if the agent sends its own `summary` on the journey
+     card, that wording wins, because it can say things a status count cannot
+     ("app runs"). */
+  function assessmentHeadline(rows) {
+    const ok = rows.filter((r) => r.status === "ok").length;
+    const bad = rows.filter((r) => r.status === "fail").length;
+    const warn = rows.filter((r) => r.status === "warn").length;
+    const parts = [`${ok} of ${rows.length} checks already good`];
+    if (bad) parts.push(`${bad} not working`);
+    if (warn) parts.push(`${warn} worth a look`);
+    return "Found: " + parts.join(" · ");
+  }
+  function collapseAssessment(summaryText) {
+    state.assessing = false;
+    const rows = [...state.probes.entries()].map(([name, v]) =>
+      ({ name, status: String(v.status || "running"), detail: v.detail || "" }));
+    const p = panels.checks;
+    if (p) { p.hidden = true; dressProbePanel(); }
+    if (!rows.length || state.assessSummary) return;
+
+    const node = el("section", "assess-summary");
+    const head = el("p", "assess-line",
+      esc(summaryText || assessmentHeadline(rows)));
+    node.appendChild(head);
+
+    const notable = rows.filter((r) => r.status !== "ok");
+    if (notable.length) {
+      const strip = el("ul", "assess-strip");
+      notable.forEach((r) => {
+        const li = el("li", "assess-item");
+        li.dataset.state = r.status;
+        li.innerHTML =
+          `<span class="probe-glyph" aria-hidden="true">${glyphFor(r.status)}</span>` +
+          `<span class="assess-item-n">${esc(r.name)}</span>` +
+          (r.detail ? `<span class="assess-item-d">${esc(r.detail)}</span>` : "");
+        strip.appendChild(li);
+      });
+      node.appendChild(strip);
+    }
+
+    const all = el("ul", "probe-list assess-all");
+    all.hidden = true;
+    rows.forEach((r) => {
+      const li = el("li", "probe");
+      li.dataset.probe = r.name;
+      li.dataset.state = r.status;
+      li.innerHTML =
+        `<span class="probe-glyph" aria-hidden="true">${glyphFor(r.status)}</span>` +
+        `<span class="probe-name">${esc(r.name)}</span>` +
+        `<span class="probe-detail">${esc(r.detail)}</span>` +
+        `<span class="probe-state chip chip-${r.status}">${esc(r.status)}</span>`;
+      all.appendChild(li);
+    });
+    const more = el("button", "btn btn-quiet assess-more");
+    more.type = "button";
+    setCopy(more, "assess.more");
+    more.onclick = () => {
+      all.hidden = !all.hidden;
+      setCopy(more, all.hidden ? "assess.more" : "assess.less");
+    };
+    node.appendChild(more);
+    node.appendChild(all);
+
+    asksEl.appendChild(node);
+    state.assessSummary = node;
+    return node;
+  }
+  function isJourney(ev) {
+    return String(ev.header || "").trim().toLowerCase() === "journey";
+  }
+
   /* -- question ---------------------------------------------------------- */
   function questionCard(ev) {
+    // The journey card is the pivot of the whole run: it is where the silent
+    // assessment turns into a proposal. Everything found so far collapses into
+    // the line above it, and the card itself is marked so each variant can give
+    // it the weight it deserves.
+    if (isJourney(ev)) collapseAssessment(typeof ev.summary === "string" ? ev.summary : null);
     const node = cardShell("question", ev.header || "Choice", ev.question || "");
+    if (isJourney(ev)) node.classList.add("card-journey");
     const body = node.querySelector(".card-body");
     const multi = !!ev.multiSelect;
     const type = multi ? "checkbox" : "radio";
@@ -500,6 +671,7 @@
 
   /* -- secret ------------------------------------------------------------ */
   function secretCard(ev) {
+    state.sawWork = true;
     const name = ev.name || ev.id || "SECRET";
     const node = cardShell("secret", "Secure value", name);
     const body = node.querySelector(".card-body");
@@ -555,6 +727,7 @@
 
   /* -- permission -------------------------------------------------------- */
   function permissionCard(ev) {
+    state.sawWork = true;
     const node = cardShell("permission", ev.tool || "Command", copy("perm.title"));
     node.querySelector(".card-title").dataset.copy = "perm.title";
     const body = node.querySelector(".card-body");
@@ -582,27 +755,63 @@
   let panelSeq = 0;
   const panels = {};
   function panel(id, titleKey) {
-    if (panels[id]) return panels[id];
+    if (panels[id]) { setCurrentPanel(panels[id]); return panels[id]; }
     const node = el("section", "panel panel-" + id);
     node.innerHTML = `<h3 class="panel-title" data-copy="${titleKey}"></h3><div class="panel-body"></div>`;
     node.querySelector(".panel-title").textContent = copy(titleKey);
     decorate(node, "panel", panelSeq++);
     panelsEl.appendChild(node);
     panels[id] = node;
+    setCurrentPanel(node);
     return node;
   }
+  /* Guide shows one panel at a time. v0.2 keyed that off `data-phase` and a
+     hard-coded list of phase ids — which stops working the moment phase ids are
+     plan-declared slugs. The panel that is current is now simply the one most
+     recently written to, marked here and styled by guide.css alone. */
+  function setCurrentPanel(node) {
+    panelsEl.querySelectorAll(".panel.is-current").forEach((n) => n.classList.remove("is-current"));
+    node.classList.add("is-current");
+  }
+  function setPanelTitle(node, key) {
+    const h = node.querySelector(".panel-title");
+    h.dataset.copy = key;
+    h.textContent = copy(key);
+  }
 
-  /* -- checks ------------------------------------------------------------ */
+  /* -- checks / assessment ----------------------------------------------- */
+  /* ONE probe panel serves both. During `assess` it wears the assessment's own
+     title and note — the difference between the two is register, not machinery,
+     and a second panel would split one machine's findings across two lists. */
+  function dressProbePanel() {
+    const p = panels.checks;
+    if (!p) return;
+    p.classList.toggle("is-assessing", !!state.assessing);
+    setPanelTitle(p, state.assessing ? "assess.title" : "checks.title");
+    const note = p.querySelector(".panel-note");
+    if (note) setCopy(note, state.assessing ? "assess.note" : "checks.note");
+  }
+  function beginAssess() {
+    state.assessing = true;
+    const p = panel("checks", "assess.title");
+    p.hidden = false;
+    dressProbePanel();
+    setCurrentPanel(p);
+  }
   function upsertProbe(ev) {
-    const p = panel("checks", "checks.title");
+    const p = panel("checks", state.assessing ? "assess.title" : "checks.title");
     let list = p.querySelector(".probe-list");
     if (!list) {
       const note = el("p", "panel-note");
-      setCopy(note, "checks.note");
+      setCopy(note, state.assessing ? "assess.note" : "checks.note");
       p.querySelector(".panel-body").appendChild(note);
       list = el("ul", "probe-list");
       p.querySelector(".panel-body").appendChild(list);
     }
+    // A probe arriving after the assessment collapsed means the run is checking
+    // things again — reopen the panel rather than hide new evidence behind a
+    // summary written before it existed.
+    if (p.hidden) { p.hidden = false; dressProbePanel(); }
     const key = String(ev.name || "");
     state.probes.set(key, { status: ev.status, detail: ev.detail });
     let row = list.querySelector(`[data-probe="${cssEscape(key)}"]`);
@@ -882,6 +1091,22 @@
     const p = panel("done", "done.title");
     const body = p.querySelector(".panel-body");
     body.innerHTML = "";
+    /* Matrix-first short-circuit: an already-configured machine can reach this
+       panel without ever being asked for a key or a command. That run must not
+       end looking like it was cut short — the matrix IS the deliverable, so the
+       panel says so and leads with it. */
+    const short = !state.sawWork;
+    root.dataset.reward = String(short);
+    p.classList.toggle("is-reward", short);
+    // One heading, not two: the panel renames itself rather than growing a
+    // second title above its own.
+    setPanelTitle(p, short ? "reward.title" : "done.title");
+    if (short) {
+      const lead = el("p", "reward-lead");
+      setCopy(lead, "reward.note");
+      body.appendChild(lead);
+    }
+    const offRows = [];
     const lines = String(mdText || "").replace(/\r/g, "").split("\n");
     let table = null;
     for (let i = 0; i < lines.length; i++) {
@@ -913,6 +1138,7 @@
       table.rows.forEach((r) => {
         if (!r[0]) return;
         const kind = classifyState(r[stateCol]);
+        if (kind === "off" || kind === "hidden") offRows.push(String(r[0]).replace(/\*/g, "").trim());
         const cardEl = el("div", "matrix-card");
         cardEl.dataset.state = kind;
         let extra = "";
@@ -930,6 +1156,42 @@
     const note = el("p", "panel-note");
     setCopy(note, "done.note");
     body.appendChild(note);
+    if (offRows.length) body.appendChild(addonBlock(offRows));
+    // On a short-circuit the matrix IS the deliverable, and it arrives while the
+    // decision that produced it is still the tallest thing on the page. Put it
+    // in view — a reward the operator has to scroll to find is not one.
+    if (short) {
+      requestAnimationFrame(() => p.scrollIntoView({
+        block: "start", behavior: prefersReduced() ? "auto" : "smooth",
+      }));
+    }
+  }
+
+  /* The closing offer. Every row the matrix reports as off or hidden is a group
+     the operator could still add, so the end of a short run is an invitation
+     rather than a full stop. It injects a user turn — the same channel the free
+     text box uses — and the agent answers by declaring a NEW plan, which the
+     rail absorbs without losing what is already ticked. */
+  function addonBlock(names) {
+    const box = el("section", "addons");
+    const h = el("p", "addon-title");
+    setCopy(h, "addon.title");
+    box.appendChild(h);
+    const row = el("div", "addon-row");
+    names.slice(0, 4).forEach((name) => {
+      const b = el("button", "btn btn-outline addon", "Set up " + esc(name));
+      b.type = "button";
+      b.dataset.addon = name;
+      b.onclick = async () => {
+        b.disabled = true;
+        b.textContent = "Asked for " + name;
+        setStatus("Asked the assistant to set up " + name + " as well.");
+        await post("/message", { text: "Set up " + name + " as well, before we finish." });
+      };
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    return box;
   }
 
   /* -- terminal ---------------------------------------------------------- */
@@ -939,6 +1201,9 @@
     if (healthTimer) { clearInterval(healthTimer); healthTimer = null; }
     root.dataset.finished = kind;
     setRunning(false);
+    // The add-on offer rides on /message, which only exists while the session
+    // does. Once it is over the buttons are dead controls, so they say so.
+    panelsEl.querySelectorAll("button.addon:not(:disabled)").forEach((b) => { b.disabled = true; });
     const node = el("section", "panel panel-terminal");
     node.dataset.kind = kind;
     node.innerHTML = `<h3 class="panel-title">${esc(
@@ -968,10 +1233,18 @@
     unreadEl.hidden = true;
     state.phase = null;
     state.phaseSeen = new Set();
+    state.plan = null;
+    state.lastStep = null;
+    state.assessing = false;
+    state.assessSummary = null;
+    state.sawWork = false;
     state.finished = null;
     state.app = null;
     state.tts = null;
     delete root.dataset.finished;
+    delete root.dataset.planned;
+    delete root.dataset.reward;
+    delete root.dataset.phase;
     renderSteps();
   }
 
@@ -988,7 +1261,11 @@
           meta.innerHTML = `<span class="wz-meta-k">Repo</span><code>${esc(ev.repo)}</code>` +
             (ev.envFileExists ? `<span class="wz-meta-k">.env.local</span><span>already present</span>` : "");
         }
-        if (ev.phase && PHASES.includes(ev.phase)) handle({ type: "phase", id: ev.phase });
+        // A rejoin may carry a plan-declared phase id this page has never seen —
+        // and may carry none at all. Both are fine: the phase is taken at face
+        // value and the fallback rail holds until a plan arrives (or doesn't).
+        if (Array.isArray(ev.plan)) applyPlan(ev.plan);
+        if (ev.phase) handle({ type: "phase", id: ev.phase });
         if (ev.appPort) appPanel({ port: ev.appPort });
         if (ev.running) {
           setRunning(true);
@@ -996,15 +1273,23 @@
         }
         break;
       }
+      case "plan": applyPlan(ev.steps); break;
       case "phase": {
-        if (PHASES.includes(ev.id)) {
-          state.phase = ev.id;
-          state.phaseSeen.add(ev.id);
-          PHASES.slice(0, PHASES.indexOf(ev.id)).forEach((p) => state.phaseSeen.add(p));
-          root.dataset.phase = ev.id;
-          renderSteps();
-          if (ev.id === "voice") loadVoice();
+        const id = String(ev.id == null ? "" : ev.id);
+        if (!id) break;
+        state.phase = id;
+        state.phaseSeen.add(id);
+        const list = stepList();
+        const idx = list.findIndex((s) => s.id === id);
+        if (idx >= 0) {
+          list.slice(0, idx).forEach((s) => state.phaseSeen.add(s.id));
+          state.lastStep = idx;
         }
+        root.dataset.phase = id;
+        renderSteps();
+        if (id === "assess") beginAssess();
+        if (id === "voice") loadVoice();
+        if (panels[id]) setCurrentPanel(panels[id]);
         break;
       }
       case "status": setStatus(ev.text || ""); break;
@@ -1058,18 +1343,29 @@
     root.dataset.running = String(on);
     startBtn.disabled = on;
     runSel.disabled = on;
+    runBtn.disabled = on;
     // Stop is ALWAYS reachable while a run is live, and never a dead control
     // otherwise: it is disabled only when nothing is running.
     stopBtn.disabled = !on;
     $("#wz-msg", root).disabled = !on;
   }
-  async function start() {
+  /* `run:"start"` is the recon-first entry: the agent assesses the machine and
+     then proposes a journey. The page no longer guesses which journey that is —
+     which is the whole point of v0.3. */
+  async function start(run) {
     setRunning(true);
     setStatus("Starting the setup assistant…");
-    const out = await post("/start", { run: runSel.value });
+    const out = await post("/start", { run: run || "start" });
     if (out && out.error) setRunning(false);
   }
-  startBtn.onclick = start;
+  startBtn.onclick = () => start("start");
+  runBtn.onclick = () => start(runSel.value);
+  advToggle.onclick = () => {
+    const open = advPanel.hidden;
+    advPanel.hidden = !open;
+    advToggle.setAttribute("aria-expanded", String(open));
+    root.dataset.advanced = String(open);
+  };
   stopBtn.onclick = async () => {
     state.stopPending = true;
     stopBtn.disabled = true;
@@ -1098,5 +1394,5 @@
   connect();
 
   // Exposed for the mock harness / DOM assertions. Read-only by convention.
-  window.KPWizard = { state, handle, applyVariant, PHASES };
+  window.KPWizard = { state, handle, applyVariant, PHASES, FALLBACK_PHASES, stepList };
 })();

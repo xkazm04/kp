@@ -56,6 +56,10 @@ body { background: var(--paper); color: var(--ink); }
 .wz-sub { display: none; }
 .wz-controls { gap: .6rem; }
 .wz-runlabel { font-size: 13px; color: var(--steel); }
+.btn-start { font-size: 17px; padding: .75rem 1.8rem; }
+.wz-adv-toggle { font-size: 14px; min-height: 2.4rem; padding: .4rem .9rem; border-color: transparent; }
+.wz-adv-panel { justify-content: center; margin-top: .9rem; padding-top: .85rem; border-top: 1px solid var(--stone-200); }
+.wz-adv-note { flex: 1 1 100%; text-align: center; font-size: 14px; color: var(--dial-stone); }
 
 select, input[type=text], input[type=password] {
   padding: .7rem .8rem; border: 2px solid var(--stone-300); border-radius: 10px;
@@ -103,15 +107,13 @@ select, input[type=text], input[type=password] {
 .card.is-settled { display: none; }
 .card:not(.is-settled) ~ .card:not(.is-settled) { display: none; }
 
-/* One panel at a time, keyed to the phase the server last announced. The
-   terminal panel always shows — it is the end of the road, not a phase. */
+/* One panel at a time: the one core last wrote to. v0.2 keyed this off
+   `data-phase` against a fixed list of phase ids — which cannot survive
+   plan-declared slugs, so the "which panel is live" question moved into core
+   (`.is-current`) and this rule stopped guessing. The terminal panel always
+   shows — it is the end of the road, not a phase. */
 .panel { display: none; }
-.wz[data-phase=checks] .panel-checks,
-.wz[data-phase=capabilities] .panel-checks,
-.wz[data-phase=boot] .panel-boot,
-.wz[data-phase=voice] .panel-voice,
-.wz[data-phase=done] .panel-done,
-.panel-terminal { display: block; }
+.panel.is-current, .panel-terminal { display: block; }
 /* While a decision is open, the panel behind it steps out of the way. */
 .wz-main:has(.card:not(.is-settled)) .wz-panels { display: none; }
 
@@ -131,6 +133,20 @@ select, input[type=text], input[type=password] {
 .card-flag { margin: .8rem 0 0; font-size: 15px; color: #7a611f; background: #fbf1d9; border-radius: 10px; padding: .6rem .8rem; }
 .card-actions { justify-content: center; }
 .card-resolution { font-size: 15px; color: var(--steel); }
+
+/* In Guide the journey card IS the page: no rail, no panels behind it, one
+   question filling the column. So it does not need to be made bigger than its
+   neighbours — it needs the page to stop being a form and start being a
+   proposal. The question is set as a headline, the options read as paragraphs,
+   and the assessment line above is the only other thing on screen. */
+.card-journey { padding: 2.4rem 2.2rem 1.9rem; border-top: 5px solid var(--moss); }
+.card-journey .card-kicker { font-size: 14px; color: var(--moss); font-weight: 700; }
+.card-journey .card-title { font-size: 30px; line-height: 1.2; margin-top: .45rem; }
+.card-journey .card-body { margin: 1.6rem 0 1.5rem; }
+.card-journey .opt { padding: 1.05rem 1.1rem; align-items: flex-start; }
+.card-journey .opt input[type=radio], .card-journey .opt input[type=checkbox] { margin-top: .2rem; }
+.card-journey .opt-label { font-size: 18px; }
+.card-journey .opt-desc { font-size: 15px; line-height: 1.5; margin-top: .2rem; }
 
 .opt {
   padding: .9rem 1rem; border-radius: 12px; border: 2px solid var(--stone-200);
@@ -198,6 +214,32 @@ code { font-family: var(--font-mono); font-size: .95em; }
 .matrix-extra { font-size: 14px; color: var(--steel); margin-top: .3rem; }
 .matrix-extra-k { font: 600 12px/1.4 var(--font-body); color: var(--dial-stone); }
 
+/* ------------------------------------------------------ assessment summary */
+.assess-summary {
+  gap: .7rem; padding: 1.1rem 1.3rem 1.2rem; align-items: center; text-align: center;
+  background: var(--white); border: 1px solid var(--stone-200); border-radius: 14px;
+  max-width: 40rem; margin: 0 auto;
+}
+.assess-line { font-size: 17px; font-weight: 600; color: var(--ink); }
+/* The findings are a list, so they line up as one — centring each row
+   individually would ragged-edge the names it exists to make scannable. */
+.assess-strip { gap: .4rem; align-items: stretch; width: auto; margin: 0 auto; text-align: left; }
+.assess-item { font-size: 15px; color: var(--steel); align-items: baseline; flex-wrap: wrap; }
+.assess-item-n { font-weight: 600; color: var(--ink); }
+.assess-item[data-state=fail] .probe-glyph { color: var(--coral); }
+.assess-item[data-state=warn] .probe-glyph { color: var(--dial-amber); }
+.assess-more { font-size: 14px; min-height: 2.4rem; padding: .4rem 1rem; }
+.assess-all { border-top: 1px solid var(--stone-100); padding-top: .5rem; text-align: left; }
+
+/* ------------------------------------------------------------ reward state */
+.panel-done.is-reward { border-color: var(--moss); }
+.panel-done.is-reward .panel-title { color: var(--moss); }
+.reward-lead { margin: 0 auto 1.3rem; font-size: 16px; color: var(--steel); text-align: center; max-width: 32rem; }
+.addons { margin-top: 1.5rem; gap: .7rem; align-items: center; border-top: 1px solid var(--stone-200); padding-top: 1.2rem; }
+.addon-title { font-size: 15px; color: var(--steel); text-align: center; }
+.addon-row { justify-content: center; }
+.addon { font-size: 15px; }
+
 .panel-terminal .panel-body { text-align: center; }
 
 /* -------------------------------------------------------------- receipts */
@@ -230,3 +272,6 @@ code { font-family: var(--font-mono); font-size: .95em; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Pre-plan dots: one live, one "still to be decided". */
+.wz-dot.is-pending { background: transparent; box-shadow: inset 0 0 0 2px var(--stone-300); }

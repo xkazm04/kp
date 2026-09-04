@@ -66,6 +66,11 @@ body {
 .wz-title { font: 800 24px/1.1 var(--font-display); letter-spacing: -0.035em; }
 .wz-sub { font-size: 13px; color: var(--steel); max-width: 46rem; }
 .wz-runlabel { font: 800 10px/1 var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--dial-amber); }
+.btn-start { font-size: 16px; padding: .55rem 1.7rem; box-shadow: 5px 5px 0 var(--hard); transform: rotate(-1deg); }
+.btn-start:hover:not(:disabled) { transform: rotate(-1deg) translate(-1px, -1px); box-shadow: 6px 6px 0 var(--hard); }
+.wz-adv-toggle { font-size: 13px; }
+.wz-adv-panel { margin-top: .9rem; padding-top: .85rem; border-top: 2px dotted var(--stone-300); }
+.wz-adv-note { font-size: 12.5px; color: var(--stone-400); }
 
 select, input[type=text], input[type=password] {
   padding: .42rem .65rem;
@@ -111,6 +116,10 @@ select, input[type=text], input[type=password] {
   box-shadow: 3px 3px 0 var(--hard); transform: rotate(-1.1deg);
 }
 .wz-step.is-active .wz-stepdot { background: #141b24; border-color: #141b24; color: var(--dial-amber); }
+/* A step added by a re-plan pops in on its own, once. */
+.wz-step.is-new { animation: spark-step-in .5s var(--spring) both; }
+.wz-dot.is-new { animation: spark-step-in .5s var(--spring) both; }
+@keyframes spark-step-in { from { opacity: 0; transform: translateX(-12px) scale(.9); } to { opacity: 1; transform: none; } }
 
 /* ----------------------------------------------------------------- stage */
 .wz-statusbar { padding: 1.05rem 2rem .4rem; }
@@ -139,6 +148,22 @@ select, input[type=text], input[type=password] {
   to { opacity: 1; transform: rotate(var(--tilt)) translateY(0) scale(1); }
 }
 .card-question { border-color: var(--steel); }
+/* The biggest sticker on the sheet. Everything else is a card in a pile; this
+   one is the thing the pile is about — thicker outline, deeper drop, amber
+   kicker, and a lean of its own that overrides the index-derived tilt. */
+.card-journey {
+  --tilt: -1.4deg;
+  border-color: var(--dial-amber); border-width: 3px; border-radius: 22px;
+  padding: 1.5rem 1.6rem 1.4rem;
+  box-shadow: 9px 9px 0 var(--hard);
+  background: linear-gradient(180deg, rgba(229, 189, 98, .07), transparent 42%), var(--surface);
+}
+.card-journey .card-title { font-size: 26px; }
+.card-journey .card-kicker { background: var(--coral); transform: rotate(-3deg); font-size: 11px; }
+.card-journey .opt { padding: .75rem .85rem; }
+.card-journey .opt-label { font-size: 16px; }
+.card-journey .opt-desc { font-size: 13.5px; line-height: 1.5; }
+.card-journey .opt:has(input:checked) { border-color: var(--dial-amber); }
 .card-secret { border-color: var(--dial-amber); }
 .card-permission { border-color: var(--coral); }
 .card.is-settled { opacity: .5; box-shadow: 2px 2px 0 var(--hard); transform: rotate(0deg) scale(.985); }
@@ -227,6 +252,35 @@ code { font-family: var(--font-mono); font-size: .92em; color: var(--dial-amber)
 .matrix-extra { font-size: 12.5px; color: var(--steel); margin-top: .3rem; }
 .matrix-extra-k { font: 800 10px/1.5 var(--font-body); letter-spacing: .13em; text-transform: uppercase; color: var(--stone-400); }
 
+/* ------------------------------------------------------ assessment summary */
+.assess-summary {
+  gap: .6rem; padding: .9rem 1.1rem 1rem;
+  border: 2px dashed var(--moss); border-radius: 16px; background: var(--stone-50);
+  transform: rotate(.5deg);
+}
+.assess-line { font: 800 15px/1.4 var(--font-body); letter-spacing: -0.02em; color: var(--ink); }
+.assess-strip { gap: .25rem; }
+.assess-item { font-size: 13px; color: var(--steel); }
+.assess-item-n { font-weight: 800; color: var(--ink); }
+.assess-item[data-state=fail] .probe-glyph { color: var(--coral); }
+.assess-item[data-state=warn] .probe-glyph { color: var(--dial-amber); }
+.assess-more { padding: .18rem .6rem; font-size: 12px; }
+.assess-all { border-top: 2px dotted var(--stone-200); padding-top: .45rem; }
+.panel.is-assessing { border-color: var(--dial-amber); }
+.panel.is-assessing .panel-title::after {
+  content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 999px;
+  background: var(--coral); border: 2px solid var(--ink); margin-left: .5rem;
+  animation: spark-bounce 1.1s var(--spring) infinite;
+}
+
+/* ------------------------------------------------------------ reward state */
+.panel-done.is-reward { border-color: var(--moss); box-shadow: 8px 8px 0 var(--hard); }
+.panel-done.is-reward .panel-title { font-size: 22px; color: var(--moss); }
+.reward-lead { margin: 0 0 1.1rem; font-size: 14px; color: var(--steel); max-width: 42rem; }
+.addons { margin-top: 1.3rem; gap: .6rem; border-top: 2px dotted var(--stone-300); padding-top: 1rem; }
+.addon-title { font: 800 10px/1.6 var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--dial-amber); }
+.addon { font-size: 13px; padding: .34rem .85rem; }
+
 .panel-terminal { border-color: var(--steel); }
 .panel-terminal[data-kind=stopped] { border-color: var(--dial-amber); }
 .panel-terminal[data-kind=error] { border-color: var(--coral); }
@@ -288,3 +342,9 @@ code { font-family: var(--font-mono); font-size: .92em; color: var(--dial-amber)
 .wz-meta { border-top: 2px dashed var(--stone-300); padding-top: .8rem; font-size: 12px; color: var(--steel); }
 .wz-meta-k { font: 800 10px/1.6 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--stone-400); }
 .wz-meta code { font-size: 11.5px; color: var(--dial-amber); }
+
+/* Pre-plan rail: a live step plus an honest "not decided yet" placeholder. */
+.wz-step.is-pending { color: var(--stone-400); }
+.wz-step.is-pending .wz-stepdot { border-style: dashed; background: transparent; }
+.wz-step.is-pending .wz-steplabel { font-weight: 600; font-size: 13px; }
+.wz-dot.is-pending { background: transparent; border: 2px dashed var(--stone-300); }

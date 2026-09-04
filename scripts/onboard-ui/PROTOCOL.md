@@ -118,7 +118,7 @@ An unsupported subtype is answered with
 On Windows the shell tool is named **`PowerShell`**, not `Bash` — same `command`
 field, different `tool_name`. A host that only special-cases `Bash` renders a raw
 JSON blob on this platform; `server.mjs` handles both names everywhere
-(`describeAsk`, `shapeKey`, `summarizeTool`). A live `/onboarding check` run
+(`describeAsk`, `shapeKey`, `noteToolActivity`). A live `/onboarding check` run
 raised six `PowerShell` permission requests and zero `Bash` ones.
 
 **Not every tool call produces one.** The CLI's own classifier auto-approves
@@ -203,8 +203,9 @@ and `at` (epoch ms); the UI may ignore both.
 
 | Event | Shape |
 | --- | --- |
-| `hello` | `{type, repo, envFileExists, running, phase, appPort}` — sent once on connect, so a reloaded page knows where it is |
-| `phase` | `{type:"phase", id}`, id ∈ `welcome` `mode` `checks` `capabilities` `boot` `voice` `done` |
+| `hello` | `{type, repo, envFileExists, running, phase, plan, appPort}` — sent once on connect, so a reloaded page knows where it is; `plan` is the current step rail or `null` |
+| `plan` | `{type:"plan", steps:[{id,label}]}` — the agent-declared step rail for this journey; re-emitted if the journey changes mid-run |
+| `phase` | `{type:"phase", id}` — **free-form since v0.3**: any id matching `/^[a-z0-9][a-z0-9-]{0,31}$/`, normally one the `plan` event declared. `check` and single-group runs still emit the legacy fixed ids `welcome` `mode` `checks` `capabilities` `boot` `voice` `done`, so a page with no plan can fall back on them |
 | `status` | `{type:"status", text}` — one line of "what is happening now"; deduped against the previous one |
 | `probe` | `{type:"probe", name, status, detail}`, status ∈ `ok` `fail` `warn` `running` |
 | `narration` | `{type:"narration", md}` — the agent's prose, markdown, markers already stripped |
@@ -233,6 +234,7 @@ emit marker lines inside its narration. The host matches them **line-anchored**,
 strips the line before the prose is emitted, and re-emits it as a typed event.
 
 ```
+[[wizard:plan steps="assess:Looking around,voice:Voice interviews,done:Your install"]]
 [[wizard:phase id=checks]]
 [[wizard:status text="Probing the runtime"]]
 [[wizard:probe name="node" status=ok detail="v24.14"]]
@@ -241,7 +243,13 @@ strips the line before the prose is emitted, and re-emits it as a typed event.
 ```
 
 - Attribute values are `"quoted"` or bare. An unknown `probe` status degrades to
-  `warn`; an unknown phase id is ignored.
+  `warn`; a phase id that is not slug-shaped is ignored.
+- `[[wizard:plan steps="…"]]` is comma-separated `id:Label` pairs → one
+  `{type:"plan", steps:[{id,label}]}` event. Ids are lowercased and must match
+  `/^[a-z0-9][a-z0-9-]{0,31}$/`; malformed ids and duplicates are **dropped**
+  rather than failing the marker, a step with no label falls back to its id, and
+  the rail is capped at 12 steps. An empty result emits nothing. A second plan
+  marker replaces the rail (a journey change) and re-emits the event.
 - `[[wizard:matrix]]` switches the rest of **that assistant message** into matrix
   capture — everything after it, across the remaining content blocks, is emitted
   as one `{type:"matrix", md}` and never narrated. It also implies
@@ -255,6 +263,98 @@ Markers are a best effort, so **tool activity is a second, cheaper source**: a
 `Running: <first 60 chars>…`, and `Read`/`Glob`/`Grep`/`NotebookRead` emit
 `Inspecting the project…`. That path needs nothing from the model.
 
+## The recon-first run (v0.3)
+
+Before v0.3 the default run marched a fully-configured machine through "Full
+setup" — the mode question, every capability group, a boot verify of an app that
+was already answering. The flow is now **recon-first**: the host hands the agent
+what it already knows, the agent works out where the install actually is, and
+the journey is proposed from findings rather than assumed.
+
+Three pieces make that possible.
+
+### 1. HOST INVENTORY (host → agent, once, in the preamble)
+
+`hostInventory()` computes cheap facts before the child is spawned and injects
+them between the preamble and the `/onboarding` invocation. Every run gets it —
+`check` included, where it makes the doctor pass sharper.
+
+| Fact | How |
+| --- | --- |
+| Set env variables | **NAMES ONLY** of variables with a non-empty value, parsed out of the env file (`KP_ONBOARD_ENV_FILE` honored). The block says in so many words that values are deliberately withheld |
+| `node_modules/`, `data/kp.sqlite`, `.env.example` | `existsSync` |
+| Dev server | `.next/dev/lock` → a port (JSON `port`, a `port=`/`port:` line, or a bare number) → `GET /api/health` on it with a ~1.2 s timeout. **"an app answers on :N" and "lock present but nothing answered" are different facts** (the second is a stale lock) and the block says which. With no lock — or a lock naming no port — it falls back to one probe of :3000, so a `next start` or a dev server launched outside dev-guard is still seen; that fallback says only that *something* answers, because without the lock the host cannot prove it is this checkout. Observed live: on a shared box a different product answered :3000 and the agent caught it |
+
+A name in that list means the variable is SET — enough to decide which capability
+groups are already configured, without a single value entering model context.
+
+### 2. The env-file read guard (host, silent)
+
+`Read`/`Grep`/`Glob`/`NotebookRead` are auto-allowed, which left the whole secret
+contract with a hole big enough to drive a `Read .env.local` through: the host
+writes values so the agent never sees them, and then the agent could just open
+the file. Those tools are now **denied server-side** whenever any of
+`file_path` / `path` / `notebook_path` / `pattern` / `glob` names the configured
+env file's basename or a bare `.env` (including glob shapes like `.env*`), with:
+
+```
+The host manages the env file — use the HOST INVENTORY in your instructions.
+```
+
+`.env.example` carries no values and stays readable — it is the variable
+catalogue the skill needs. The deny is **silent**: no permission card, no status
+line, because there is nothing here for the operator to weigh up. Shell commands
+are untouched — they already go through a confirm card, where a `cat .env.local`
+is visible to the operator by construction.
+
+Not covered, honestly: a repo-wide `Grep` for a variable NAME. ripgrep honors
+`.gitignore` and the env file is ignored, so it does not surface there — but that
+is ripgrep's behavior, not this guard's.
+
+### 3. The flow contract
+
+On the default run (`/start {run:"start"}`; `"full"` remains an accepted alias
+for the same thing) the preamble prepends a **RECON FIRST** section that runs
+before the skill's step 0:
+
+1. **Assess silently** — `[[wizard:phase id=assess]]`, the HOST INVENTORY plus
+   read-only runtime probes plus the check-mode verify probe of every group whose
+   variables are set. No questions, no spend.
+2. **Classify and offer a journey** — `fresh` / `addon` / `repair` / `complete`,
+   then ONE `AskUserQuestion` with header `Journey` whose options are generated
+   from the findings ("Add voice interviews (not configured)", "Fix CV analysis
+   (GEMINI_API_KEY is set but the analysis probe fails)", "Just show my
+   capability matrix", "Run the full setup anyway"). `complete` leads
+   matrix-first. **The skill's install-mode question is asked only on `fresh`** —
+   that question on a configured machine is the bug this contract fixes.
+3. **Declare the plan** — one `[[wizard:plan …]]` marker naming the steps this
+   journey will really walk, ending in `done`; later `[[wizard:phase]]` markers
+   use those ids.
+4. **Walk it** — the existing contracts unchanged, except that boot verify runs
+   only when the boot state is unknown or something changed needs a restart. If
+   the inventory already says an app answers, the agent emits
+   `[[wizard:app port=N]]` and moves on rather than re-booting.
+
+`check` and single-group runs keep their previous preamble (plus the inventory)
+and their fixed phase ids.
+
+### Verified live
+
+One real-CLI `{run:"start"}` against this configured checkout (2026-09-01,
+claude 2.1.252), answered "Just show my capability matrix":
+
+- the agent assessed first — 9 probes, 10 read-only shell cards, **zero
+  questions** — then asked ONE `Journey` card whose options were built from the
+  findings: *"Start KP and check it (Recommended)"*, *"Set the missing
+  KP_SECRET"*, *"Add email sending or calendar sync"*, *"Just show my capability
+  matrix"*. Not one of them is the old fresh-install march;
+- the install-mode question was **never asked** (this is not a `fresh` journey);
+- `[[wizard:plan steps="assess:Looking around,done:Your install"]]` → one `plan`
+  event, phases `assess → done`, and a 1.8 KB matrix;
+- nothing was booted or restarted, and no card ever proposed reading the env
+  file — the matrix was built from the inventory's variable NAMES plus the live
+  probes, which the agent said out loud in its own narration.
+
 ## HTTP surface
 
 `GET /` and any `.html` / `.js` / `.css` / `.svg` under `scripts/onboard-ui/` are
@@ -265,7 +365,7 @@ Everything else needs `?t=<token>` or an `x-onboard-token` header.
 | Route | Body / result |
 | --- | --- |
 | `GET /events` | the SSE stream above |
-| `POST /start` | `{run}` — `"full"`, `"check"` or a group name |
+| `POST /start` | `{run}` — `"start"` (default; the recon-first flow), `"full"` (accepted alias, same behavior), `"check"` or a group name |
 | `POST /stop` | `{}` → `{ok, wasRunning}`; kills the tree (above) |
 | `POST /answer` | `{id, answer}` — `answer` is a label, a joined multi-select array, or free text |
 | `POST /decision` | `{id, allow, always?, reason?}` |
