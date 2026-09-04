@@ -93,9 +93,84 @@ function registryPath(): string {
   return path.join(process.cwd(), "pipeline", "jobfit", "archetypes.json");
 }
 
+// A registry file that cannot be read, parsed, or validated. Thrown by readRegistry
+// and converted to a structured { error } by every exported entry point, so a broken
+// file answers a CODE the manager localizes instead of a 500 carrying a parser
+// message (or, worse, a merge computed against half a registry).
+//
+// The message is client-safe BY CONSTRUCTION: it names the file relative to the repo
+// and quotes the validator, never the absolute path fs threw (that path is the reason
+// the raw readFile error is caught and replaced rather than rethrown).
+export class ArchetypeRegistryError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "ArchetypeRegistryError";
+    this.code = code;
+  }
+}
+
+// Validate a parsed registry through THE SAME validator every write goes through.
+// Reading was a bare `JSON.parse(raw) as Registry` — a cast, which asserts nothing at
+// runtime — while Python's reader validates the identical file at IMPORT and raises
+// RuntimeError on the same invariant. So a hand-edited archetypes.json (the file is
+// meant to be hand-editable: it is checked in, and the whole taxonomy is data) passed
+// here and took every pipeline spawn down there. Validating on READ makes the two
+// readers agree: what this module will serve is exactly what Python will import.
+function validateRegistry(parsed: unknown): Registry {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new ArchetypeRegistryError("registry_invalid", "pipeline/jobfit/archetypes.json is not a JSON object.");
+  }
+  const reg = parsed as Registry;
+  if (!Array.isArray(reg.archetypes)) {
+    throw new ArchetypeRegistryError("registry_invalid", "pipeline/jobfit/archetypes.json has no `archetypes` array.");
+  }
+  for (const a of reg.archetypes) {
+    if (typeof a !== "object" || a === null || typeof (a as ArchetypeDef).id !== "string" || !(a as ArchetypeDef).id) {
+      throw new ArchetypeRegistryError("registry_invalid", "pipeline/jobfit/archetypes.json contains an archetype with no id.");
+    }
+    const err = validateArchetype(a);
+    if (err) {
+      throw new ArchetypeRegistryError(
+        "registry_invalid",
+        `pipeline/jobfit/archetypes.json: archetype '${(a as ArchetypeDef).id}' is invalid — ${err.message}`
+      );
+    }
+  }
+  return reg;
+}
+
 async function readRegistry(): Promise<Registry> {
-  const raw = await readFile(registryPath(), "utf-8");
-  return JSON.parse(raw) as Registry;
+  let raw: string;
+  try {
+    raw = await readFile(registryPath(), "utf-8");
+  } catch {
+    // Replaced, not rethrown: the fs error carries the deployment's ABSOLUTE path.
+    throw new ArchetypeRegistryError("registry_unreadable", "pipeline/jobfit/archetypes.json could not be read.");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // The parser message quotes the offending bytes; the position is not actionable
+    // to the manager UI and the bytes are file content, so answer the fact only.
+    throw new ArchetypeRegistryError("registry_invalid", "pipeline/jobfit/archetypes.json is not valid JSON.");
+  }
+  return validateRegistry(parsed);
+}
+
+// Every exported entry point funnels its registry read through here, so a broken file
+// becomes the SAME structured refusal at all four doors instead of an exception at one
+// and a 500 at the next. Anything that is not an ArchetypeRegistryError (a disk fault
+// mid-write, a bug) still escapes to the route's catch — this converts the ONE
+// condition it can name.
+async function guarded<T>(fn: () => Promise<T>): Promise<T | { error: ArchetypeError }> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof ArchetypeRegistryError) return { error: { code: err.code, message: err.message } };
+    throw err;
+  }
 }
 
 async function writeRegistry(reg: Registry): Promise<void> {
@@ -208,6 +283,12 @@ function pickEditable(patch: Record<string, unknown>): Partial<ArchetypeDef> {
   return out as Partial<ArchetypeDef>;
 }
 
+// The READ door. Deliberately still THROWS an ArchetypeRegistryError on a broken file
+// rather than returning { error }: its return type is the array the GET route spreads,
+// and the thrown message is client-safe by construction (see ArchetypeRegistryError), so
+// the route's 500 already says which file is broken and why — which is the operator's
+// next action. The WRITE doors convert instead, because a write must not look like a
+// validation failure of the operator's own edit.
 export async function listArchetypes(): Promise<ArchetypeDef[]> {
   return (await readRegistry()).archetypes;
 }
@@ -218,7 +299,7 @@ export async function updateArchetype(
   id: string,
   patch: Record<string, unknown>
 ): Promise<{ archetype: ArchetypeDef } | { error: ArchetypeError }> {
-  return serializeWrite(async () => {
+  return guarded(() => serializeWrite(async () => {
     const reg = await readRegistry();
     const idx = reg.archetypes.findIndex((a) => a.id === id);
     if (idx === -1) return { error: { code: "not_found", message: "Archetype not found." } };
@@ -252,7 +333,7 @@ export async function updateArchetype(
     reg.archetypes[idx] = merged;
     await writeRegistry(reg);
     return { archetype: merged };
-  });
+  }));
 }
 
 // Retire (archive) or restore (unarchive) a CUSTOM archetype. Built-in archetypes are
@@ -267,7 +348,7 @@ export async function setArchetypeArchived(
   if (BUILT_IN.has(id)) {
     return { error: { code: "archive_builtin", message: `'${id}' is a built-in archetype and can't be retired.`, params: { id } } };
   }
-  return serializeWrite(async () => {
+  return guarded(() => serializeWrite(async () => {
     const reg = await readRegistry();
     const idx = reg.archetypes.findIndex((a) => a.id === id);
     if (idx === -1) return { error: { code: "not_found", message: "Archetype not found." } };
@@ -275,7 +356,7 @@ export async function setArchetypeArchived(
     reg.archetypes[idx] = merged;
     await writeRegistry(reg);
     return { archetype: merged };
-  });
+  }));
 }
 
 // Create a new archetype. It is selectable/assignable immediately; without
@@ -299,7 +380,7 @@ export async function createArchetype(
       },
     };
   }
-  return serializeWrite(async () => {
+  return guarded(() => serializeWrite(async () => {
     const reg = await readRegistry();
     if (reg.archetypes.some((a) => a.id === id)) return { error: { code: "id_exists", message: `An archetype with id '${id}' already exists.`, params: { id } } };
 
@@ -326,5 +407,5 @@ export async function createArchetype(
     reg.archetypes.push(def);
     await writeRegistry(reg);
     return { archetype: def };
-  });
+  }));
 }

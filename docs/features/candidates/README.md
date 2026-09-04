@@ -657,6 +657,29 @@ deployment):
 - built-ins (`bau`, `student`, `career_switcher`) additionally refuse edits to
   `fairnessProtected` / `scoringModel` and refuse archival.
 
+**Reading validates too, through the same validator.** `readRegistry` used to be a bare
+`JSON.parse(raw) as Registry` — a cast, which asserts nothing at runtime — so the write
+boundary above was the *only* check on a file that is deliberately hand-editable (it is
+checked in, and the whole taxonomy is data). A hand-edited `archetypes.json` therefore
+passed silently on the TS side and raised `RuntimeError` at import on the Python side, on
+every spawn. Every read now runs each entry through `validateArchetype`, so what this
+module serves is exactly what Python will import. A broken file answers a structured
+`ArchetypeRegistryError`:
+
+- `registry_invalid` — not JSON, no `archetypes` array, an entry with no id, or an entry
+  the write validator would have refused. The message names the file and the archetype,
+  never the parser's own text.
+- `registry_unreadable` — the file is missing or unreadable. The `fs` error is replaced,
+  not rethrown, because it carries the deployment's absolute path.
+
+The three write doors convert it to the same `{ error, code }` shape as a validation
+refusal (so a broken file never looks like a validation failure of the operator's own
+edit); `listArchetypes` keeps its array return type and throws, and its message is
+client-safe by construction. `app/_lib/archetype-registry-lockstep.test.ts` reads
+`registry.py` (and its contract test) and pins the two constants that are *mirrored*
+rather than shared — the `1e-6` tolerance and the `experienced` / `early_career`
+vocabulary — so a drift on either side is a red test rather than a broken deployment.
+
 Errors come back as `{ error (English), code, params }`; the client localizes by
 `code` through the `errors.validation.*` catalog. **Known gap:** `weight_out_of_range`
 and `id_reserved` have no catalog entry yet, so the manager UI falls back to its
