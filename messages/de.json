@@ -1173,7 +1173,9 @@
   "aboutPage": {
     "nav": {
       "home": "Startseite",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "market": "Marktpuls",
+      "source": "Quellcode"
     },
     "hero": {
       "badge": "die Recruiting-Pipeline, von Anfang bis Ende",
@@ -9462,7 +9464,11 @@
       "autoBadge": "auto",
       "addPerf": "Leistung ergänzen",
       "ratingGroup": "Leistungsbewertung, 1 bis 5",
-      "ratePerformance": "Leistung mit {n} von 5 bewerten"
+      "ratePerformance": "Leistung mit {n} von 5 bewerten",
+      "sourceNote": {
+        "auto": "Automatisch erfasst, als die Pipeline eine Endstufe erreichte.",
+        "manual": "Von einer Person erfasst."
+      }
     },
     "calibration": {
       "activeFloor": "Aktive Schwelle für Weiterleitung",
@@ -9482,7 +9488,8 @@
         "calibrated": "Die Schwelle von {current} ist gut kalibriert. Sie liegt im ersten Band, in dem die meisten weitergeleiteten Kandidaten eingestellt wurden."
       },
       "applyFailed": "Die Promote-Schwelle wurde nicht geändert ({status}).",
-      "applyNetwork": "Netzwerkfehler. Die Promote-Schwelle wurde nicht geändert."
+      "applyNetwork": "Netzwerkfehler. Die Promote-Schwelle wurde nicht geändert.",
+      "cappedNote": "Berechnet aus den neuesten {limit} erfassten Ergebnissen. Ältere sind in dieser Stichprobe nicht enthalten."
     },
     "actionFailed": "Diese Steuerung konnte nicht angewendet werden ({status}).",
     "actionNetwork": "Netzwerkfehler. Der Kontrollraum war nicht erreichbar, es wurde nichts geändert.",

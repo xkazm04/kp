@@ -1173,7 +1173,9 @@
   "aboutPage": {
     "nav": {
       "home": "Domů",
-      "signIn": "Přihlásit se"
+      "signIn": "Přihlásit se",
+      "market": "Pulz trhu",
+      "source": "Zdrojový kód"
     },
     "hero": {
       "badge": "náborová pipeline, od začátku do konce",
@@ -9462,7 +9464,11 @@
       "autoBadge": "auto",
       "addPerf": "doplnit výkon",
       "ratingGroup": "Hodnocení výkonu, 1 až 5",
-      "ratePerformance": "Ohodnotit výkon {n} z 5"
+      "ratePerformance": "Ohodnotit výkon {n} z 5",
+      "sourceNote": {
+        "auto": "Zaznamenáno automaticky, když nábor dospěl do koncové fáze.",
+        "manual": "Zaznamenal člověk."
+      }
     },
     "calibration": {
       "activeFloor": "Aktivní práh pro postup",
@@ -9482,7 +9488,8 @@
         "calibrated": "Práh {current} je dobře kalibrovaný. Leží v prvním pásmu, kde byla většina postoupených kandidátů přijata."
       },
       "applyFailed": "Práh pro postup se nezměnil ({status}).",
-      "applyNetwork": "Chyba sítě. Práh pro postup se nezměnil."
+      "applyNetwork": "Chyba sítě. Práh pro postup se nezměnil.",
+      "cappedNote": "Spočítáno z nejnovějších {limit} zaznamenaných výsledků. Starší v tomto vzorku nejsou."
     },
     "actionFailed": "Tento ovládací prvek se nepodařilo použít ({status}).",
     "actionNetwork": "Chyba sítě. Řídicí místnost není dostupná, nic se nezměnilo.",

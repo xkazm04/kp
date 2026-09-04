@@ -1173,7 +1173,9 @@
   "aboutPage": {
     "nav": {
       "home": "Accueil",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "market": "Pouls du marché",
+      "source": "Code source"
     },
     "hero": {
       "badge": "le pipeline de recrutement, de bout en bout",
@@ -9315,7 +9317,11 @@
       "autoBadge": "auto",
       "addPerf": "ajouter perf.",
       "ratingGroup": "Évaluation de la performance, de 1 à 5",
-      "ratePerformance": "Évaluer la performance à {n} sur 5"
+      "ratePerformance": "Évaluer la performance à {n} sur 5",
+      "sourceNote": {
+        "auto": "Enregistré automatiquement lorsque le pipeline a atteint une étape finale.",
+        "manual": "Enregistré par une personne."
+      }
     },
     "calibration": {
       "activeFloor": "Seuil d’avancement actif",
@@ -9335,7 +9341,8 @@
         "calibrated": "Le seuil de {current} est bien calibré. Il se situe sur la première tranche où la plupart des candidats avancés ont été recrutés."
       },
       "applyFailed": "Le seuil de promotion n’a pas été modifié ({status}).",
-      "applyNetwork": "Erreur réseau. Le seuil de promotion n’a pas été modifié."
+      "applyNetwork": "Erreur réseau. Le seuil de promotion n’a pas été modifié.",
+      "cappedNote": "Calculé à partir des {limit} résultats les plus récents. Les plus anciens ne figurent pas dans cet échantillon."
     },
     "actionFailed": "Cette commande n’a pas pu être appliquée ({status}).",
     "actionNetwork": "Erreur réseau. La salle de contrôle est injoignable, rien n’a été modifié.",
