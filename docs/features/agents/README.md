@@ -323,6 +323,12 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   The Agent fit tab and the Integrations card are not separately gated.
 - **Keyless transform**: without a reachable LLM the transform degrades to a keyword
   heuristic — the verdict stays `unassessed` and the UI labels the spec as heuristic.
+- **The spec is drafted in the workspace's language**: `runAgentFit` passes `--lang`
+  (from `getWorkspaceDefaultLocale`) to `agentfit_cli`, like every other runner here.
+  Until /perfect wave 38 the flag was simply never passed, so the CLI took its `en`
+  default and a Czech tenant got an English mission and system-prompt draft.
+  `agentFitArgs()` is exported so the argv is readable without a spawn
+  (`transform-run.test.ts`).
 - **Bridge-less transform**: the connector catalog degrades to a built-in static list
   when Personas is unpaired/down; assessment never depends on the bridge being alive.
   Dispatch does require pairing and says so.
