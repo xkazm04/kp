@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Rappel : votre entretien {slot}",
       "length": " Prévoyez environ {minutes} minutes.",
-      "body": "Bonjour {name},\n\nPetit rappel : votre entretien pour {role} approche, le {slot}.{length} Nous avons hâte d’échanger avec vous. À bientôt !\n\n{team}"
+      "body": "Bonjour {name},\n\nPetit rappel : votre entretien pour {role} approche, le {slot}.{length} Nous avons hâte d’échanger avec vous. À bientôt !\n\n{team}",
+      "slotFallback": "votre créneau convenu"
     },
     "offerReminder": {
       "subject": "Rappel : votre offre pour {role} est toujours ouverte",
@@ -5433,7 +5434,12 @@
         "id_exists": "Un archétype avec l’identifiant « {id} » existe déjà.",
         "not_found": "Archétype introuvable.",
         "archive_builtin": "« {id} » est un archétype intégré et ne peut pas être retiré.",
-        "archived_invalid": "L’indicateur d’archivage doit être true ou false."
+        "archived_invalid": "L’indicateur d’archivage doit être true ou false.",
+        "registry_invalid": "Le fichier du registre des archétypes est invalide et ne peut pas être modifié. Vérifiez pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "Le fichier du registre des archétypes n’a pas pu être lu.",
+        "weight_out_of_range": "Le poids de {slot} doit être compris entre 0 et 100 %.",
+        "id_reserved": "« {id} » est réservé aux candidats non orientés ; choisissez un autre identifiant.",
+        "edit_builtin_shield": "« {id} » est un archétype intégré ; sa protection d’équité et son modèle de scoring ne peuvent pas être modifiés."
       },
       "fairnessProtectedAria": "Protégé par l’équité",
       "weightsSumError": "Les pondérations doivent totaliser 100 % (actuellement {pct} %).",

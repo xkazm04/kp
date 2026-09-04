@@ -154,7 +154,16 @@ const MAX_SLOT_AHEAD_MS = (SLOT_HORIZON_DAYS + 1) * 86_400_000;
 
 /** The one canonical human label for a slot — proposal and validation both mint it
  *  here from the slot's wall-clock IN THE INTERVIEW ZONE, so the stored label is
- *  always server-authored and zone-consistent. */
+ *  always server-authored and zone-consistent.
+ *
+ *  DELIBERATELY ENGLISH, and deliberately no longer what a candidate reads. DOW/MON
+ *  above are hardcoded English abbreviations in the INTERVIEWER's zone with no zone
+ *  marker, which is right for the picker chips, the recruiter agenda and the stored
+ *  `slot` column (one stable, operator-side string), and wrong for a letter: a Czech
+ *  candidate in Prague was told "Tue 9 Jun · 10:00" in a Czech email, in a zone the
+ *  letter never named. Outbound mail formats from `slot_at` in the CANDIDATE's captured
+ *  zone through Intl instead (comms-dispatch.formatSlotForLetter); this label stays as
+ *  the legacy display/audit column the store writes. */
 function slotLabel(ms: number, time: string, tz: string): string {
   const p = zonedParts(ms, tz);
   return `${DOW[p.weekday]} ${p.day} ${MON[p.month - 1]} · ${time}`;

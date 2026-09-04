@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Erinnerung: Ihr Interview {slot}",
       "length": " Planen Sie etwa {minutes} Minuten ein.",
-      "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}"
+      "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}",
+      "slotFallback": "Ihr vereinbarter Termin"
     },
     "offerReminder": {
       "subject": "Erinnerung: Ihr Angebot für {role} ist noch offen",
@@ -5433,7 +5434,12 @@
         "id_exists": "Ein Archetyp mit der ID ‚{id}‘ existiert bereits.",
         "not_found": "Archetyp nicht gefunden.",
         "archive_builtin": "‚{id}‘ ist ein integrierter Archetyp und kann nicht stillgelegt werden.",
-        "archived_invalid": "Das Archiv-Kennzeichen muss true oder false sein."
+        "archived_invalid": "Das Archiv-Kennzeichen muss true oder false sein.",
+        "registry_invalid": "Die Archetyp-Registrierungsdatei ist ungültig und kann nicht bearbeitet werden. Bitte pipeline/jobfit/archetypes.json prüfen.",
+        "registry_unreadable": "Die Archetyp-Registrierungsdatei konnte nicht gelesen werden.",
+        "weight_out_of_range": "Die Gewichtung für {slot} muss zwischen 0 und 100 % liegen.",
+        "id_reserved": "„{id}“ ist für nicht zuordenbare Kandidaten reserviert; bitte eine andere ID wählen.",
+        "edit_builtin_shield": "„{id}“ ist ein integrierter Archetyp; sein Fairness-Schutz und sein Bewertungsmodell lassen sich nicht ändern."
       },
       "fairnessProtectedAria": "Fairness-geschützt",
       "weightsSumError": "Die Gewichtungen müssen zusammen 100 % ergeben (aktuell {pct} %).",

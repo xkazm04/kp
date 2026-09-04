@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Připomínka: váš pohovor {slot}",
       "length": " Počítejte přibližně s {minutes, plural, one {# minutou} few {# minutami} other {# minutami}}.",
-      "body": "Dobrý den, {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi. Na viděnou!\n\n{team}"
+      "body": "Dobrý den, {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi. Na viděnou!\n\n{team}",
+      "slotFallback": "váš domluvený termín"
     },
     "offerReminder": {
       "subject": "Připomínka: vaše nabídka na pozici {role} stále platí",
@@ -5433,7 +5434,12 @@
         "id_exists": "Archetyp s ID „{id}“ už existuje.",
         "not_found": "Archetyp nebyl nalezen.",
         "archive_builtin": "„{id}“ je vestavěný archetyp a nejde ho vyřadit.",
-        "archived_invalid": "Příznak archivace musí být true nebo false."
+        "archived_invalid": "Příznak archivace musí být true nebo false.",
+        "registry_invalid": "Soubor registru archetypů je neplatný, nelze jej upravit. Zkontrolujte pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "Soubor registru archetypů se nepodařilo načíst.",
+        "weight_out_of_range": "Váha pro {slot} musí být mezi 0 a 100 %.",
+        "id_reserved": "„{id}“ je vyhrazeno pro kandidáty, které nebylo možné zařadit; zvolte jiné id.",
+        "edit_builtin_shield": "„{id}“ je vestavěný archetyp; jeho ochranu spravedlnosti ani model hodnocení nelze změnit."
       },
       "fairnessProtectedAria": "Chráněno spravedlností",
       "weightsSumError": "Váhy musí dávat dohromady 100 % (aktuálně {pct} %).",

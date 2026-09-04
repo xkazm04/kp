@@ -494,6 +494,40 @@ of magnitude below it while one scraped link cannot throttle another candidate
 behind the same NAT. Over the limit answers `jsonRefusal("TOO_MANY_REQUESTS", 429)`.
 The spec lives in `app/api/rate-limit-contract.test.ts`.
 
+**The letter states the time in the candidate's own zone.** The stored `slot`
+column is minted by `schedule-slots.slotLabel` from hardcoded English `DOW`/`MON`
+arrays in the **interviewer's** zone, with no zone marker — right for the picker
+chips, the recruiter agenda and the audit ledger, and wrong for mail. It was the
+only thing the localized `comms.interviewConfirmation.*` and
+`comms.interviewReminder.*` templates interpolated, so a Czech candidate in New
+York received a Czech letter whose one load-bearing fact read `Tue 9 Jun · 10:00`
+— English inside Czech prose, on a clock they are not on — while
+`schedule_invites.candidate_tz`, captured at confirm, was never used outbound.
+
+`comms-dispatch.formatSlotForLetter(slotAtIso, locale, tz)` now formats the
+absolute `slot_at` through `Intl.DateTimeFormat` in the reader's language, in the
+candidate's captured zone, **with `timeZoneName: "short"`** so the hour names its
+clock (same component spelling as `formatOfferDeadline` — `dateStyle`/`timeStyle`
+may not be mixed with a zone name). The fallbacks are ordered and none of them
+throws: an absent or malformed `candidate_tz` falls back to `INTERVIEW_TZ`
+(candidate-supplied zones make `Intl` throw), and no usable instant at all falls
+back to the stored English label. `slot` stays a **legacy display/audit column** —
+the store still writes it, the recruiter surfaces still read it, and the ledger
+event (`interview_reminder_sent`) keeps it rather than the per-reader letter text.
+The reminder sweep's old bare-English `"your scheduled time"` substitution is the
+catalog key `comms.interviewReminder.slotFallback` in all four locales. Pinned
+across cs/de/fr by `app/_lib/comms-dispatch-locale.test.ts`.
+
+**The interviewer's calendar hold is the length of the interview.**
+`dispatchInterviewerBrief`'s inline `.ics` inlined `30` minutes while the
+candidate's own `.ics`, the free/busy window and the slot proposer all used
+`calendar/constants.DEFAULT_INTERVIEW_MINUTES` (45) — the hold was quietly 15
+minutes shorter than the call. It reads the shared constant now; a behavioural
+test measures `DTEND − DTSTART` and a source guard keeps the literal from coming
+back. The brief itself (org-side staff) states the slot in the **interview** zone,
+but names that zone in the recruiter's language rather than shipping the bare
+English label.
+
 ## Keyboard and focus on the candidate's page
 
 `/schedule/[token]` replaces its whole body three times over a session: the slot

@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Reminder: your interview {slot}",
       "length": " Plan for about {minutes} minutes.",
-      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}"
+      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}",
+      "slotFallback": "your scheduled time"
     },
     "offerReminder": {
       "subject": "Reminder: your offer for {role} is still open",
@@ -5433,7 +5434,12 @@
         "id_exists": "An archetype with id ‘{id}’ already exists.",
         "not_found": "Archetype not found.",
         "archive_builtin": "‘{id}’ is a built-in archetype and can’t be retired.",
-        "archived_invalid": "The archived flag must be true or false."
+        "archived_invalid": "The archived flag must be true or false.",
+        "registry_invalid": "The archetype registry file is invalid, so it can’t be edited. Check pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "The archetype registry file could not be read.",
+        "weight_out_of_range": "Weight for {slot} must be between 0 and 100%.",
+        "id_reserved": "‘{id}’ is reserved for candidates that could not be routed; choose another id.",
+        "edit_builtin_shield": "‘{id}’ is a built-in archetype; its fairness protection and scoring model can’t be changed."
       },
       "fairnessProtectedAria": "Fairness-protected",
       "weightsSumError": "Weights must total 100% (currently {pct}%).",
