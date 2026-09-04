@@ -1,4 +1,6 @@
 import { COMMITS_PER_REPO, FILES_PER_REPO, README_TRUNCATE } from "@/app/_lib/github-evidence";
+import { isOffline } from "@/app/_lib/offline";
+import { readTextWithLimit } from "@/app/_lib/request-body";
 
 // The GitHub REST layer behind /api/github-analysis: the typed account/repo
 // shapes, the one authenticated fetch helper, the paginated owned-repo read, and
@@ -49,16 +51,76 @@ export type GithubErrorCode =
   | "BAD_SHAPE" // a 200 whose body isn't the documented array
   | "NOT_A_PERSON" // the handle resolves to an organization
   | "REQUEST_THROTTLED" // OUR per-IP limiter, not GitHub's
+  | "JD_TOO_LONG" // the pasted job description exceeds the prompt budget
+  | "RESPONSE_TOO_LARGE" // GitHub answered 200 with a body past the byte cap
+  | "OFFLINE" // KP_OFFLINE — this deployment makes no outbound call
   | "ANALYSIS_FAILED"; // unclassified
 
-/** A GitHub analysis failure carrying its localizable code. */
+// CANONICAL ENGLISH per code, produced ONCE and consumed by everyone
+// (api-contracts.md §1.1, applied to this surface's own code namespace). The route
+// used to answer with the THROWN error's `.message`, so an undici/Node internal
+// string could reach a recruiter's screen and no catalogue entry could ever cover
+// it. Every answer now names a code and takes its English from here — the log line
+// and the API-consumer line — while the panel renders `results.github.errors.<CODE>`
+// in the reader's language.
+export const GITHUB_ERRORS: Record<GithubErrorCode, string> = {
+  HANDLE_REQUIRED: "Enter a GitHub username or profile URL.",
+  PROFILE_NOT_FOUND: "GitHub profile was not found.",
+  RATE_LIMITED:
+    "GitHub rate limit or access policy blocked the request. Configure GITHUB_TOKEN for higher limits.",
+  API_ERROR: "GitHub returned an unexpected error.",
+  BAD_SHAPE: "Unexpected GitHub response shape.",
+  NOT_A_PERSON:
+    "That handle is a GitHub organization, not a personal account. Enter an individual developer's username.",
+  REQUEST_THROTTLED: "Too many requests.",
+  JD_TOO_LONG: "The job description is too long for the GitHub deep dive.",
+  RESPONSE_TOO_LARGE: "GitHub returned a response larger than this route will read.",
+  OFFLINE: "This deployment runs offline (KP_OFFLINE); GitHub was not contacted.",
+  ANALYSIS_FAILED: "The GitHub analysis failed.",
+};
+
+/** A GitHub analysis failure carrying its localizable code.
+ *
+ *  `retryAfterSec` rides along when the boundary told us WHEN to come back — a
+ *  `Retry-After` header, or GitHub's `x-ratelimit-reset` epoch. Without it a
+ *  throttle is an open-ended "try again shortly"; with it the panel can say
+ *  "try again in N minutes", which is the difference between a user retrying
+ *  usefully and a user retrying into the same wall three times. */
 export class GithubAnalysisError extends Error {
   readonly code: GithubErrorCode;
-  constructor(code: GithubErrorCode, message: string) {
+  readonly retryAfterSec?: number;
+  constructor(code: GithubErrorCode, message: string, retryAfterSec?: number) {
     super(message);
     this.name = "GithubAnalysisError";
     this.code = code;
+    this.retryAfterSec = retryAfterSec;
   }
+}
+
+// GitHub's throttle answers name their own reset in two shapes: RFC-7231
+// `Retry-After` (delta-seconds, on a secondary-rate-limit 403/429) and
+// `x-ratelimit-reset` (a UNIX epoch second, on the primary limiter). Read both,
+// prefer whichever is present, and clamp: a negative/absent value is "no hint",
+// and a header claiming a day is not a hint a UI should repeat.
+const RETRY_AFTER_MAX_SEC = 3600;
+export function retryAfterSecondsFrom(headers: Headers, nowMs = Date.now()): number | undefined {
+  const raw = headers.get("retry-after");
+  if (raw) {
+    const delta = Number(raw.trim());
+    if (Number.isFinite(delta)) return clampRetryAfter(delta);
+    // The header also permits an HTTP-date; Date.parse returns NaN on garbage.
+    const at = Date.parse(raw);
+    if (Number.isFinite(at)) return clampRetryAfter((at - nowMs) / 1000);
+  }
+  const reset = Number(headers.get("x-ratelimit-reset") ?? "");
+  if (Number.isFinite(reset) && reset > 0) return clampRetryAfter(reset - nowMs / 1000);
+  return undefined;
+}
+
+function clampRetryAfter(seconds: number): number | undefined {
+  const rounded = Math.ceil(seconds);
+  if (!Number.isFinite(rounded) || rounded <= 0) return undefined;
+  return Math.min(rounded, RETRY_AFTER_MAX_SEC);
 }
 
 // A GitHub fetch failure that also carries the HTTP status, so a caller can tell a
@@ -68,8 +130,8 @@ export class GithubAnalysisError extends Error {
 // mistaken for incomplete coverage, and throttles aren't mistaken for absence.
 export class GithubHttpError extends GithubAnalysisError {
   readonly status: number;
-  constructor(status: number, code: GithubErrorCode, message: string) {
-    super(code, message);
+  constructor(status: number, code: GithubErrorCode, message: string, retryAfterSec?: number) {
+    super(code, message, retryAfterSec);
     this.name = "GithubHttpError";
     this.status = status;
   }
@@ -95,7 +157,25 @@ export function isCoverageLossError(error: unknown): boolean {
 // evidence" — the honest reading of a call we never got an answer to.
 const GITHUB_FETCH_TIMEOUT_MS = 20_000;
 
+// A 200 body is as unbounded as a request body off the network: `response.json()`
+// buffers whatever api.github.com sends (or whatever a hijacked/proxied endpoint
+// sends), and one run makes up to ~31 of these reads inside a single handler. Cap
+// the bytes actually read off the wire with the SAME reader the request side uses
+// (readTextWithLimit's `BoundedBodySource` is structural exactly so the outbound
+// side can reuse it). 4 MB is well past the largest legitimate answer here — a
+// 100-repo page runs ~200 KB — so the cap only ever fires on an anomaly.
+const GITHUB_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
+
 export async function githubFetch<T>(url: string): Promise<T> {
+  // KP_OFFLINE — an air-gapped install makes no outbound call (self-hosting.md §7).
+  // The global fetch guard in instrumentation.ts already blocks this egress, but it
+  // does so by REJECTING the fetch, which reaches the route as an unclassified
+  // ANALYSIS_FAILED carrying a guard's internal message. Consulting the predicate
+  // here turns "we deliberately do not call GitHub" into its own coded answer,
+  // BEFORE a socket is opened.
+  if (isOffline()) {
+    throw new GithubAnalysisError("OFFLINE", GITHUB_ERRORS.OFFLINE);
+  }
   const headers: HeadersInit = {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
@@ -112,30 +192,49 @@ export async function githubFetch<T>(url: string): Promise<T> {
     });
     if (!response.ok) {
       if (response.status === 404) {
-        throw new GithubHttpError(404, "PROFILE_NOT_FOUND", "GitHub profile was not found.");
+        throw new GithubHttpError(404, "PROFILE_NOT_FOUND", GITHUB_ERRORS.PROFILE_NOT_FOUND);
       }
-      if (response.status === 403) {
+      // 403 is GitHub's primary limiter / an access policy; 429 is the secondary
+      // one. Both are the same answer to a caller — come back later — and both name
+      // WHEN in a header we used to drop on the floor.
+      if (response.status === 403 || response.status === 429) {
         throw new GithubHttpError(
-          403,
+          response.status,
           "RATE_LIMITED",
-          "GitHub rate limit or access policy blocked the request. Configure GITHUB_TOKEN for higher limits."
+          GITHUB_ERRORS.RATE_LIMITED,
+          retryAfterSecondsFrom(response.headers)
         );
       }
-      throw new GithubHttpError(response.status, "API_ERROR", `GitHub API returned ${response.status}.`);
+      throw new GithubHttpError(
+        response.status,
+        "API_ERROR",
+        `${GITHUB_ERRORS.API_ERROR} (HTTP ${response.status})`,
+        retryAfterSecondsFrom(response.headers)
+      );
     }
     // Awaited inside the try on purpose: the signal aborts a stalled BODY too, so the
-    // abort can surface from json(), not only from fetch().
-    return (await response.json()) as T;
+    // abort can surface from the body read, not only from fetch(). Read through the
+    // byte-capped reader rather than response.json() — see GITHUB_RESPONSE_MAX_BYTES.
+    const text = await readTextWithLimit(response, GITHUB_RESPONSE_MAX_BYTES);
+    if (text === null) {
+      throw new GithubAnalysisError("RESPONSE_TOO_LARGE", GITHUB_ERRORS.RESPONSE_TOO_LARGE);
+    }
+    if (!text) return null as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // A 200 whose body is not JSON at all is the same class of surprise as a 200
+      // whose body is the wrong shape — the caller's BAD_SHAPE branch, not a raw
+      // SyntaxError reaching the route as ANALYSIS_FAILED.
+      throw new GithubAnalysisError("BAD_SHAPE", GITHUB_ERRORS.BAD_SHAPE);
+    }
   } catch (error) {
     if (error instanceof GithubAnalysisError) throw error; // already classified above
     // The abort carries no HTTP status, so it would otherwise reach the route as an
     // unclassified ANALYSIS_FAILED with a raw "operation was aborted" string. Give it
     // the route's own localizable code instead.
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-      throw new GithubAnalysisError(
-        "API_ERROR",
-        `GitHub did not respond within ${GITHUB_FETCH_TIMEOUT_MS / 1000}s.`
-      );
+      throw new GithubAnalysisError("API_ERROR", `${GITHUB_ERRORS.API_ERROR} (no response within ${GITHUB_FETCH_TIMEOUT_MS / 1000}s)`);
     }
     throw error;
   }

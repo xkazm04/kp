@@ -243,7 +243,6 @@ const LEAK_CEILING = new Map<string, number>([
   // win is locked and a regression reads as `undeclared` rather than as budget already
   // granted - devcase/** now carries no ceiling at all.
   ["extract-text/route.ts", 1],
-  ["github-analysis/route.ts", 1],
   // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect
   // 2026-09-02, api-jobs): every one now answers `safeJsonError(error,
   // "api:jobs/<route>", "JOB_*_FAILED")` against the JOB_* codes added to

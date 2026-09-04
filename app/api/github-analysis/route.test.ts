@@ -119,6 +119,20 @@ function githubResponse(pathname: string): Response {
     case "/repos/pyuser/svc/languages":
       return Response.json({ Python: 1000 });
 
+    // --- throttles that NAME their reset ------------------------------------------
+    case "/users/throttled":
+      // GitHub's secondary limiter: an RFC-7231 delta-seconds Retry-After.
+      return new Response("rate limited", { status: 403, headers: { "retry-after": "42" } });
+    case "/users/resetuser":
+      // The primary limiter names an absolute epoch second instead.
+      return new Response("rate limited", {
+        status: 403,
+        headers: { "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 600) },
+      });
+    case "/users/mutebot":
+      // A throttle with NO hint at all: the panel must then say nothing, not guess.
+      return new Response("rate limited", { status: 403 });
+
     default:
       throw new Error(`unexpected GitHub fetch in test: ${pathname}`);
   }
@@ -146,6 +160,8 @@ function repo(owner: string, name: string, description: string | null, language:
 
 before(() => {
   process.env.KP_LOG_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-gh-log-"));
+  // Trust one forwarding hop so `postFrom` really does key its own limiter bucket.
+  process.env.KP_TRUSTED_PROXY = "1";
   // Deterministic: no Gemini key by default, so the deep review short-circuits to
   // "disabled" (no network) for the org + partial-throttle cases. The empty-account
   // case sets one explicitly to reach the bundle path.
@@ -161,6 +177,7 @@ before(() => {
 
 after(() => {
   globalThis.fetch = realFetch;
+  delete process.env.KP_TRUSTED_PROXY;
   delete process.env.GEMINI_API_KEY;
   delete process.env.GOOGLE_API_KEY;
 });
@@ -174,6 +191,19 @@ function post(body: unknown): Request {
   return new Request("http://localhost/api/github-analysis", {
     method: "POST",
     headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** The same request from a NAMED caller IP, so a test that adds requests gets its own
+ *  per-IP bucket instead of eating the shared 10/10min budget the older tests share.
+ *  `KP_TRUSTED_PROXY` is set in before(): without it every caller collapses onto the
+ *  one SHARED_CLIENT_KEY bucket (rate-limit.ts's documented trap) and these tests
+ *  would meet our own 429 instead of the behaviour they are about. */
+function postFrom(body: unknown, ip: string): Request {
+  return new Request("http://localhost/api/github-analysis", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-forwarded-for": ip },
     body: JSON.stringify(body),
   });
 }
@@ -317,7 +347,11 @@ test("every GitHub call is time-bounded, and a stall answers with a classified c
   const res = await POST(post({ profile: "slowuser", jobDescriptionText: "" }) as never);
   const body = (await res.json()) as { error?: string; code?: string };
   assert.equal(body.code, "API_ERROR", `a stall must classify; saw ${JSON.stringify(body)}`);
-  assert.match(body.error ?? "", /did not respond within/);
+  // The wire now carries the CODE's canonical sentence, not the throw's own text: the
+  // "(no response within 20s)" detail is the log's, so the client answer stays one
+  // message per code (api-contracts.md §1.1). What must never appear is the raw abort.
+  assert.equal(body.error, "GitHub returned an unexpected error.");
+  assert.doesNotMatch(body.error ?? "", /aborted|TimeoutError/i);
   // NON-VACUITY: pre-fix no `signal` was passed (every entry was undefined) and the
   // TimeoutError fell through to the route's catch-all as code ANALYSIS_FAILED.
 });
@@ -342,4 +376,88 @@ test("#4 one JD skill produces ONE gap, not several, across overlapping buckets"
   // NON-VACUITY: against pre-fix aliases, "react" fired the typescript, javascript AND
   // react buckets, so potentialGaps was ["typescript","javascript","react"] — the
   // deepEqual(["react"]) assertion fails.
+});
+
+
+// --- the door itself: authorization, bounds, and honest throttles -------------------
+
+test("the door asks a CAPABILITY: an authenticated-but-unseated caller is refused before any spend", async () => {
+  // Open dev folds every caller to owner, so the question only becomes visible once a
+  // password is configured. With no session cookie the caller is unauthenticated, and
+  // the route must refuse BEFORE it opens a single GitHub connection or a Gemini one.
+  process.env.KP_OPERATOR_PASSWORD = "test-operator-password";
+  try {
+    const res = await POST(postFrom({ profile: "octocat", jobDescriptionText: "" }, "10.0.0.9") as never);
+    assert.equal(res.status, 401, "no session, no analysis");
+    assert.deepEqual(fetchedPaths, [], `the refusal precedes every outbound call; saw ${JSON.stringify(fetchedPaths)}`);
+    const body = (await res.json()) as { username?: string };
+    assert.equal(body.username, undefined, "and certainly no analysis payload");
+  } finally {
+    delete process.env.KP_OPERATOR_PASSWORD;
+  }
+  // NON-VACUITY: before the gate landed this route had NO capability call at all
+  // (route-capability-coverage listed it as unjudged debt), so the same request
+  // returned a full 200 analysis and fetchedPaths was non-empty.
+});
+
+test("an over-long job description is refused with a code and the limit as DATA, spending nothing", async () => {
+  const res = await POST(
+    postFrom({ profile: "octocat", jobDescriptionText: "x".repeat(20_001) }, "10.0.0.10") as never,
+  );
+  assert.equal(res.status, 413);
+  const body = (await res.json()) as { code?: string; max?: number; error?: string };
+  assert.equal(body.code, "JD_TOO_LONG");
+  assert.equal(body.max, 20_000, "the limit rides as data so the panel can name it in any language");
+  assert.deepEqual(fetchedPaths, [], "an over-budget prompt never reaches GitHub or Gemini");
+  // NON-VACUITY: only the CACHE KEY was capped before this; the prompt took the whole
+  // string, so a 2 MB paste ran the full ~31 calls and one paid Gemini completion.
+});
+
+test("a JD exactly at the cap is accepted — the bound is a limit, not an off-by-one", async () => {
+  const res = await POST(postFrom({ profile: "octocat", jobDescriptionText: "x".repeat(20_000) }, "10.0.0.11") as never);
+  assert.notEqual(res.status, 413);
+});
+
+test("a GitHub throttle forwards its own Retry-After as retryAfterSec", async () => {
+  const res = await POST(postFrom({ profile: "throttled", jobDescriptionText: "" }, "10.0.0.12") as never);
+  const body = (await res.json()) as { code?: string; retryAfterSec?: number };
+  assert.equal(body.code, "RATE_LIMITED");
+  assert.equal(body.retryAfterSec, 42, "the boundary said WHEN; the panel gets to say it too");
+});
+
+test("…and reads x-ratelimit-reset when that is the header GitHub sent", async () => {
+  const res = await POST(postFrom({ profile: "resetuser", jobDescriptionText: "" }, "10.0.0.13") as never);
+  const body = (await res.json()) as { code?: string; retryAfterSec?: number };
+  assert.equal(body.code, "RATE_LIMITED");
+  assert.ok(
+    typeof body.retryAfterSec === "number" && body.retryAfterSec > 540 && body.retryAfterSec <= 600,
+    `an epoch reset becomes a delta; saw ${body.retryAfterSec}`,
+  );
+});
+
+test("a throttle with no hint carries no retryAfterSec — the panel must not invent one", async () => {
+  const res = await POST(postFrom({ profile: "mutebot", jobDescriptionText: "" }, "10.0.0.14") as never);
+  const body = (await res.json()) as { code?: string; retryAfterSec?: number };
+  assert.equal(body.code, "RATE_LIMITED");
+  assert.equal(body.retryAfterSec, undefined);
+});
+
+test("KP_OFFLINE: the route answers a code without touching the network", async () => {
+  process.env.KP_OFFLINE = "1";
+  try {
+    const res = await POST(postFrom({ profile: "octocat", jobDescriptionText: "" }, "10.0.0.15") as never);
+    const body = (await res.json()) as { code?: string; error?: string };
+    assert.equal(body.code, "OFFLINE");
+    assert.deepEqual(fetchedPaths, [], "an air-gapped install opens no socket");
+    assert.doesNotMatch(body.error ?? "", /fetch|undici|blocked/i, "a coded refusal, not a guard's internals");
+  } finally {
+    delete process.env.KP_OFFLINE;
+  }
+});
+
+test("a failure answers with the CODE's canonical message, never the thrown error's own", async () => {
+  const res = await POST(postFrom({ profile: "slowuser", jobDescriptionText: "" }, "10.0.0.16") as never);
+  const body = (await res.json()) as { code?: string; error?: string };
+  assert.equal(body.code, "API_ERROR");
+  assert.doesNotMatch(body.error ?? "", /aborted|TimeoutError|DOMException/i);
 });
