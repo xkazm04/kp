@@ -2,8 +2,16 @@
 // end to end before P6a lands (and for keeping the report renderer honest with
 // a real fixture rather than a hand-written one).
 //
-// It is a port of e2e/fixtures/mock-personas-bridge.ts — same routes, same
-// envelopes, same refusals — with the three things P6a adds on top:
+// It answers the SAME contract as e2e/fixtures/mock-personas-bridge.ts — same
+// routes, same envelopes, same refusals. That used to be a claim in this comment
+// and nothing more; it is now checked. Both doubles are driven through
+// `personas-contract.mjs` (derived from app/_lib/agent-hire/{pairing,bridge-client}.ts,
+// not from either double) by `personas-contract.test.mjs`, and the three places
+// they legitimately differ — the headless claim ladder, the `headlessBridge`
+// health flag, and who drives the status ladder — are declared there with their
+// reasons. An undeclared difference is drift and fails that test.
+//
+// On top of the shared contract, this one adds the three things P6a brings:
 //
 //   GET  /health                    → {status:"ok", management:true, headlessBridge:true}
 //   GET  /pair/claim?nonce=…        → the FIRST claim hands the pk_ key over
