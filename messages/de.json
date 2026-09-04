@@ -3516,7 +3516,10 @@
         "holdout": "als Kalibrierungs-Kontrollgruppe behalten: {pct} % der eigentlich automatisch abgelehnten Kandidaten werden bewusst behalten, damit ihre tatsächlichen Ergebnisse die Richtigkeit des Scores prüfen können (Match {score}, Schwelle {threshold})",
         "approvedByNote": "Genehmigt von {who}.",
         "approverUnidentified": "Genehmigende Person nicht identifiziert.",
-        "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch)."
+        "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch).",
+        "sealFailed": "beibehalten: Der manipulationssichere Entscheidungssatz konnte nicht versiegelt werden, die automatische Absage wurde daher nicht ausgeführt",
+        "reinstated": "beibehalten: Eine frühere automatische Absage wurde von einer Recruiterin aufgehoben, die Automatik wiederholt sie nicht",
+        "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm"
       }
     },
     "summary": {

@@ -104,7 +104,12 @@ export async function POST(request: NextRequest) {
     // No human approval (or a token that no longer matches the live set) → 409 so
     // the client re-previews and re-approves the current set before committing.
     if (error instanceof ScreenWaveApprovalError) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+      // `reason` is the machine-readable half of the same refusal (see
+      // SCREEN_WAVE_REFUSAL_REASONS). The five refusals ask the recruiter for five
+      // different things — approve the set / re-preview a changed set / re-preview an
+      // aged review / stop re-committing a review already spent / sign in or set
+      // KP_OPERATOR_NAME — and a client with only the sentence cannot branch on them.
+      return NextResponse.json({ error: error.message, reason: error.reason }, { status: 409 });
     }
     // runScreenWave's backstop throws DecisionConfigError on a bad override —
     // surface it as a 400 too, so a schema violation is never reported as a 500.

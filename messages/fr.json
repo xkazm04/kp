@@ -3516,7 +3516,10 @@
         "holdout": "conservé comme échantillon témoin de calibrage : {pct} % des candidats qui auraient été rejetés automatiquement sont épargnés afin que leurs résultats réels vérifient la justesse du score (correspondance {score}, seuil {threshold})",
         "approvedByNote": "Approuvé par {who}.",
         "approverUnidentified": "Approbateur non identifié.",
-        "autoRatifiedScreening": "Avis de présélection « avancer » validé automatiquement selon le plan de recrutement (porte présélection : automatique)."
+        "autoRatifiedScreening": "Avis de présélection « avancer » validé automatiquement selon le plan de recrutement (porte présélection : automatique).",
+        "sealFailed": "conservé·e : l'enregistrement de décision infalsifiable n'a pas pu être scellé, le refus automatique n'a donc pas été appliqué",
+        "reinstated": "conservé·e : un refus automatique précédent a été annulé par un recruteur, la machine ne le répète pas",
+        "holdoutSealFailed": "conservé·e, mais l'enregistrement du témoin d'étalonnage n'a pas pu être scellé : cette personne n'est pas dans le bras propre"
       }
     },
     "summary": {

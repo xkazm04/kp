@@ -3516,7 +3516,10 @@
         "holdout": "kept as a calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})",
         "approvedByNote": "Approved by {who}.",
         "approverUnidentified": "Approver not identified.",
-        "autoRatifiedScreening": "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto)."
+        "autoRatifiedScreening": "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
+        "sealFailed": "kept: the tamper-evident decision record could not be sealed, so the auto-rejection was not applied",
+        "reinstated": "kept: a recruiter reversed an earlier auto-rejection, so the machine will not re-reject them",
+        "holdoutSealFailed": "kept, but the calibration holdout record could not be sealed, so this candidate is not in the clean arm"
       }
     },
     "summary": {

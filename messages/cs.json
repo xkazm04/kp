@@ -3516,7 +3516,10 @@
         "holdout": "ponecháno jako kalibrační kontrolní vzorek: {pct} % kandidátů určených k automatickému zamítnutí se záměrně ponechává, aby jejich skutečné výsledky ověřily správnost skóre (shoda {score}, práh {threshold})",
         "approvedByNote": "Schválil/a {who}.",
         "approverUnidentified": "Schvalovatel nebyl identifikován.",
-        "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická)."
+        "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická).",
+        "sealFailed": "ponechán(a): záznam rozhodnutí odolný proti manipulaci se nepodařilo zapečetit, automatické zamítnutí se proto neprovedlo",
+        "reinstated": "ponechán(a): personálista dřívější automatické zamítnutí zrušil, stroj ho tedy nezopakuje",
+        "holdoutSealFailed": "ponechán(a), ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi"
       }
     },
     "summary": {

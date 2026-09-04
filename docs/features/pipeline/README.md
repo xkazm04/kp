@@ -207,7 +207,10 @@ strands nobody, and moving them would rewrite closed history.
    modal. The fairness gate is preserved and **fails closed**
    (`isFairnessProtected`): early-career, unknown-archetype, and unscored
    candidates are excluded from the rejectable cohort entirely, not silently
-   coerced to a rejectable score. An optional recruiter-audited holdout sample
+   coerced to a rejectable score. A holdout whose sealed record cannot be written
+   is reported as `reasonCode: "holdoutSealFailed"` and counted into `sealFailures`:
+   the candidate is still spared, but the row does not claim a calibration arm the
+   chain has no record of. An optional recruiter-audited holdout sample
    (`screen-wave-holdout.ts`) is carved out of every auto-reject batch for
    quality review. `POST /api/decisions/screen-wave` — preview and commit — is
    operator-gated and then throttled per IP (`screen-wave:<ip>`, 60/10min,
@@ -306,7 +309,7 @@ strands nobody, and moving them would rewrite closed history.
 | `app/_lib/automation-pass.ts` | Applies Task 7 policy-pass decisions to the DB in one transaction. |
 | `app/_lib/automation-fairness.ts` | `assertAutoRejectFair` — TS-side defense-in-depth fairness re-check before any reject is applied. |
 | `app/_lib/decision-config-store.ts` / `decision-config-schema.ts` | Per-workspace, data-driven screening/compliance rules (Phase 3). |
-| `app/_lib/screen-wave.ts`, `screen-wave-holdout.ts`, `screen-wave-approval.ts` | Configurable bulk auto-reject wave + audited holdout + approval token. |
+| `app/_lib/screen-wave.ts`, `screen-wave-holdout.ts`, `screen-wave-approval.ts` | Configurable bulk auto-reject wave + audited holdout + approval token (single-spend: a commit consumes the token, a re-post gets a 409 with `reason: "spent"`). |
 | `app/_lib/interview-recommendation.ts` | Single-sourced `recommendation`/`route` vocabulary + coercion (TS side). |
 | `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
 | `app/api/pipeline/outcomes/route.ts` | The on-the-job outcome of a hire (UAT `KAT-L1-002`). `GET ?entry=<id>` returns that hire's 1..5 rating (`performance: null` = unrated) plus whether the entry stands on the terminal-role stage; `GET` with no params returns the workspace accrual counter `{ rated, hires, minOutcomes }`. `POST {entryId, performance}` records or corrects the rating. Both handlers `requireOperator()` first and scope every store call to `currentWorkspace()`. |
