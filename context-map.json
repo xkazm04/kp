@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T10:02:31.641Z",
+  "generated_at": "2026-09-04T10:29:27.049Z",
   "provenance": {
-    "git_commit": "4e12a768bb85286cad82cd2f2b162ec2b320954f",
-    "git_commit_count": 2612,
+    "git_commit": "9ec9609bef61657f6409f7728ba0f209a0d4bdb6",
+    "git_commit_count": 2625,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T10:02:31.641Z"
+    "generated_at": "2026-09-04T10:29:27.049Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3104,
+    "files": 3113,
     "groups": 17,
     "use_cases": 12
   },
@@ -7210,6 +7210,7 @@
       "file_paths": [
         "app/_lib/after-response.ts",
         "app/_lib/api-response.ts",
+        "app/_lib/archetypes.test.ts",
         "app/_lib/archetypes.ts",
         "app/_lib/cache-key.test.ts",
         "app/_lib/cache-key.ts",
@@ -7223,6 +7224,7 @@
         "app/_lib/format.test.ts",
         "app/_lib/format.ts",
         "app/_lib/gap-followup-candidate.test.ts",
+        "app/_lib/initials.test.ts",
         "app/_lib/initials.ts",
         "app/_lib/random-id.test.ts",
         "app/_lib/random-id.ts",
@@ -7556,8 +7558,10 @@
         "app/_lib/interview-consent.ts",
         "app/_lib/interview-duration.mjs",
         "app/_lib/interview-duration.test.ts",
+        "app/_lib/interview-lab.test.ts",
         "app/_lib/interview-lab.ts",
         "app/_lib/interview-plan.ts",
+        "app/_lib/interview-planned-minutes.test.ts",
         "app/_lib/interview-planned-minutes.ts",
         "app/_lib/interview-prep-run.test.ts",
         "app/_lib/interview-prep-run.ts",
@@ -7604,10 +7608,12 @@
       "file_paths": [
         "app/_lib/interview-reminder-policy.test.ts",
         "app/_lib/interview-reminder-policy.ts",
+        "app/_lib/interview-reminders.test.ts",
         "app/_lib/interview-reminders.ts",
         "app/_lib/interview-rubric-catalog.test.ts",
         "app/_lib/interview-rubric.test.ts",
         "app/_lib/interview-rubric.ts",
+        "app/_lib/interview-run-locale.test.ts",
         "app/_lib/interview-run.test.ts",
         "app/_lib/interview-run.ts",
         "app/_lib/interview-scorecard.test.ts",
