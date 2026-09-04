@@ -1703,7 +1703,8 @@
     "WORKSPACE_RESTORE_FAILED": "Die Organisationssicherung konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut.",
     "BILLING_PROVIDER_TIMEOUT": "Der Zahlungsanbieter hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es gleich noch einmal.",
     "BILLING_QUOTA_EXCEEDED": "Diese Aktion würde das Monatskontingent Ihres Tarifs überschreiten. Upgraden Sie oder laden Sie unter Abrechnung auf.",
-    "PAYLOAD_TOO_LARGE": "Diese Anfrage war zu groß. Senden Sie weniger auf einmal."
+    "PAYLOAD_TOO_LARGE": "Diese Anfrage war zu groß. Senden Sie weniger auf einmal.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas hat eine Antwort gesendet, die größer ist, als dieser Workspace liest. Sie wurde ungelesen verworfen — prüfen Sie, ob die Personas-App aktuell ist."
   },
   "resilience": {
     "notFoundEyebrow": "404",

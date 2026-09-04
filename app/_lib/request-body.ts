@@ -5,8 +5,14 @@
 // attacker-controlled header. Returns `null` when the budget is exceeded (the caller
 // maps that to 413) and the empty string for an absent body. Used by public,
 // token-only endpoints where an unbounded body is a memory-pressure / DoS vector.
-export async function readTextWithLimit(request: Request, maxBytes: number): Promise<string | null> {
-  const body = request.body;
+/** Anything with a byte stream to read under a budget. Written structurally rather
+ *  than as `Request` because the *outbound* side needs the same cap: a `Response`
+ *  from a bridge kp dials is as unbounded as a request body off the network, and one
+ *  reader with one set of tests beats two that drift (see `agent-hire/bridge-client`). */
+export type BoundedBodySource = { body: Request["body"] };
+
+export async function readTextWithLimit(source: BoundedBodySource, maxBytes: number): Promise<string | null> {
+  const body = source.body;
   if (!body) return "";
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];

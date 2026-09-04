@@ -1703,7 +1703,8 @@
     "WORKSPACE_RESTORE_FAILED": "Zálohu organizace se nepodařilo obnovit. Zkuste to prosím znovu.",
     "BILLING_PROVIDER_TIMEOUT": "Platební poskytovatel neodpověděl včas. Zkuste to prosím za chvíli znovu.",
     "BILLING_QUOTA_EXCEEDED": "Tato akce by překročila měsíční limit vašeho tarifu. Přejděte na vyšší tarif nebo dobijte kredit v sekci Fakturace.",
-    "PAYLOAD_TOO_LARGE": "Tento požadavek byl příliš velký. Pošlete najednou méně dat."
+    "PAYLOAD_TOO_LARGE": "Tento požadavek byl příliš velký. Pošlete najednou méně dat.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas odeslal odpověď větší, než jakou tento pracovní prostor přečte. Byla zahozena bez přečtení — zkontrolujte, že máte aktuální verzi aplikace Personas."
   },
   "resilience": {
     "notFoundEyebrow": "404",

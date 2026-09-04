@@ -1703,7 +1703,8 @@
     "WORKSPACE_RESTORE_FAILED": "Could not restore the organization backup. Please try again.",
     "BILLING_PROVIDER_TIMEOUT": "The payment provider did not respond in time. Please try again in a moment.",
     "BILLING_QUOTA_EXCEEDED": "This action would exceed this month’s allowance on your current plan. Upgrade or top up in Billing.",
-    "PAYLOAD_TOO_LARGE": "That request was too large to accept. Send less at once."
+    "PAYLOAD_TOO_LARGE": "That request was too large to accept. Send less at once.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas sent a response larger than this workspace will read. It was dropped unread — check that the Personas app is up to date."
   },
   "resilience": {
     "notFoundEyebrow": "404",

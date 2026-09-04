@@ -1703,7 +1703,8 @@
     "WORKSPACE_RESTORE_FAILED": "Impossible de restaurer la sauvegarde de l'organisation. Veuillez réessayer.",
     "BILLING_PROVIDER_TIMEOUT": "Le prestataire de paiement n'a pas répondu à temps. Veuillez réessayer dans un instant.",
     "BILLING_QUOTA_EXCEEDED": "Cette action dépasserait le quota mensuel de votre formule. Passez à une formule supérieure ou rechargez dans Facturation.",
-    "PAYLOAD_TOO_LARGE": "Cette requête était trop volumineuse. Envoyez moins de données à la fois."
+    "PAYLOAD_TOO_LARGE": "Cette requête était trop volumineuse. Envoyez moins de données à la fois.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas a envoyé une réponse plus volumineuse que ce que cet espace de travail accepte de lire. Elle a été ignorée sans être lue — vérifiez que l'application Personas est à jour."
   },
   "resilience": {
     "notFoundEyebrow": "404",
