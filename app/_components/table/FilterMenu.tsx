@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
-import { FIELD } from "@/app/_components/ui/recipes";
+import { FIELD, POPOVER } from "@/app/_components/ui/recipes";
 
 export type Option = { value: string; label: string };
 
@@ -150,11 +150,26 @@ export function AnchoredMenu({
   children,
 }: {
   anchor: DOMRect;
-  onClose: () => void;
+  /**
+   * WHY the reason: the owner puts focus back on the trigger when the menu
+   * closes (the reader dismissed it, or picked a row), and must NOT when the
+   * anchor merely went stale. A scroll-close that also called `.focus()` would
+   * scroll the header back under the reader, undoing the scroll that caused it.
+   */
+  onClose: (reason: "dismiss" | "reposition") => void;
   width: number;
   children: React.ReactNode;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
+  // The listeners are registered ONCE and read the latest onClose through a ref
+  // (the `useEvent` shape). They used to depend on `onClose`, which every call
+  // site passes as an inline arrow — so all four window listeners were torn down
+  // and re-added on every render of the surrounding table, for the whole life of
+  // the open menu.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   useEffect(() => {
     // Scroll closes the menu because the anchor rect is measured ONCE — scroll the
     // page or the table and a fixed-position menu would hang in mid-air over the
@@ -172,11 +187,11 @@ export function AnchoredMenu({
     const onScroll = (e: Event) => {
       const target = e.target as Node | null;
       if (target && menuRef.current?.contains(target)) return;
-      onClose();
+      onCloseRef.current("reposition");
     };
-    const close = () => onClose();
+    const close = () => onCloseRef.current("reposition");
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current("dismiss");
     };
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", close);
@@ -186,7 +201,7 @@ export function AnchoredMenu({
       window.removeEventListener("resize", close);
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, []);
   // No document during SSR / the first render pass — nothing to portal into yet.
   if (typeof document === "undefined") return null;
   const vw = window.innerWidth;
@@ -201,8 +216,14 @@ export function AnchoredMenu({
   return createPortal(
     <>
       {/* z above the Modal overlay (z-50) so the menu works inside the Add modal. */}
-      <button type="button" aria-hidden tabIndex={-1} onClick={onClose} className="fixed inset-0 z-[60] cursor-default" />
-      <div ref={menuRef} style={style} className="fixed z-[70] rounded-lg border border-stone-200 bg-white shadow-pop">
+      <button
+        type="button"
+        aria-hidden
+        tabIndex={-1}
+        onClick={() => onClose("dismiss")}
+        className="fixed inset-0 z-[60] cursor-default"
+      />
+      <div ref={menuRef} style={style} className={`${POPOVER} fixed z-[70]`}>
         {children}
       </div>
     </>,

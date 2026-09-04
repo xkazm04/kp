@@ -1,6 +1,7 @@
 import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { STICKY_HEAD } from "@/app/_components/ui/recipes";
 import {
   ConfidenceCell,
   CoverageCell,
@@ -189,12 +190,12 @@ export function ComparisonTable({
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 top-0 z-30 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom text-sm font-semibold uppercase tracking-wide text-steel"
+                className={`${STICKY_HEAD("corner")} px-3 py-2 text-left align-bottom text-sm font-semibold uppercase tracking-wide text-steel`}
               >
                 {t("candidateHeader")}
               </th>
               {candidates.map((c, i) => (
-                <th key={candIdentity(c)} scope="col" className="sticky top-0 z-20 border-b border-stone-200 bg-paper px-3 py-2 text-left align-bottom font-normal">
+                <th key={candIdentity(c)} scope="col" className={`${STICKY_HEAD()} px-3 py-2 text-left align-bottom font-normal`}>
                   <CandidateHeader c={c} rank={i + 1} isLead={hasLead && i === 0} tiedLead={leadSeparation === "overlapping"} />
                 </th>
               ))}

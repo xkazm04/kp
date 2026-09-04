@@ -248,10 +248,10 @@ export function CalibrationPanel({
           <table className="mt-2 w-full text-micro">
             <thead>
               <tr className={`text-left ${META_LABEL}`}>
-                <th className="py-1">{t("calibration.colBand")}</th>
-                <th>{t("calibration.colN")}</th>
-                <th>{t("calibration.colHireRate")}</th>
-                <th>{t("calibration.colMeanPerf")}</th>
+                <th scope="col" className="py-1">{t("calibration.colBand")}</th>
+                <th scope="col">{t("calibration.colN")}</th>
+                <th scope="col">{t("calibration.colHireRate")}</th>
+                <th scope="col">{t("calibration.colMeanPerf")}</th>
               </tr>
             </thead>
             <tbody>
@@ -287,11 +287,11 @@ export function CalibrationPanel({
           <table className="mt-1 w-full text-micro">
             <thead>
               <tr className={`text-left ${META_LABEL}`}>
-                <th className="py-1">{t("outcomes.colCandidate")}</th>
-                <th>{t("outcomes.colScore")}</th>
-                <th>{t("outcomes.colOutcome")}</th>
-                <th>{t("outcomes.colPerf")}</th>
-                <th>{t("outcomes.colRecorded")}</th>
+                <th scope="col" className="py-1">{t("outcomes.colCandidate")}</th>
+                <th scope="col">{t("outcomes.colScore")}</th>
+                <th scope="col">{t("outcomes.colOutcome")}</th>
+                <th scope="col">{t("outcomes.colPerf")}</th>
+                <th scope="col">{t("outcomes.colRecorded")}</th>
               </tr>
             </thead>
             <tbody>

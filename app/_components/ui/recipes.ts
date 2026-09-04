@@ -251,3 +251,48 @@ export const NOTICE = (tone: NoticeTone = "amber"): string =>
  *
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
 export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";
+
+/* ── Layers ───────────────────────────────────────────────────────────────
+ *  Two shapes that float above their own content, and had neither a name nor
+ *  an agreed stacking order: five surfaces hand-rolled a pinned header across
+ *  three z-layers (10/20/30) and three fills, and every anchored menu re-typed
+ *  the popover shell. ── */
+
+/**
+ * Pinned table header. `layer` is the stacking tier, and the two tiers are the
+ * whole vocabulary: `"head"` for a column header row, `"corner"` for the cell
+ * frozen on BOTH axes in a grid with row headers — which must sit ABOVE the
+ * head, or the row-header column scrolls over it.
+ *
+ * Was `z-10` in JobsTable, `z-10`/`z-20` in MatrixGrid and `z-20`/`z-30` in the
+ * group-eval comparison, i.e. the same two tiers spelled three ways, so a table
+ * borrowing a class string from its neighbour got a corner that scrolled under
+ * its own rows. Sizing and text treatment stay at the call site.
+ */
+export const STICKY_HEAD = (layer: "head" | "corner" = "head"): string =>
+  `sticky top-0 border-b border-stone-200 bg-paper ${layer === "corner" ? "left-0 z-30 border-r" : "z-20"}`;
+
+/**
+ * Sticky bar over a scrolling region — a drawer header, a chapter rail. `on`
+ * names the surface it floats above, because the translucent fill has to match
+ * it: `"paper"` over the cream canvas, `"white"` over a PANEL. That is a real
+ * difference; the z-layer and the ruled bottom edge were not, and the three
+ * copies had drifted on both.
+ */
+export const STICKY_BAR = (on: "paper" | "white" = "paper"): string =>
+  `sticky top-0 z-20 border-b border-stone-200 backdrop-blur ${on === "white" ? "bg-white/95" : "bg-paper/95"}`;
+
+/**
+ * The anchored pop layer — dropdown menus, filter/row menus, `Select`,
+ * explainer popovers. Position (fixed/absolute + the rect) and padding stay at
+ * the call site; this owns the shell.
+ *
+ * NOT `PANEL`, and that is the point: `PANEL` hardcodes `shadow-panel`, which
+ * takes the Spark Dark sticker ride in globals.css (2px drawn outline, 16px
+ * radius, offset shadow). A menu that presses out of the page like a sticker
+ * reads as a card someone dropped on the table rather than as a layer hanging
+ * off its trigger — so the pop layer keeps `shadow-pop`, its own token, in both
+ * registers. `recipe-debt.json` deliberately carried `Select`'s `panel: 1` for
+ * exactly this reason until this recipe existed.
+ */
+export const POPOVER = "rounded-lg border border-stone-200 bg-white shadow-pop";

@@ -925,6 +925,16 @@ boots the Personas app — the operator's window down is a recorded `bridge-down
 miss, which is a measurement. Protocol, per-night record shape, the failure
 taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
 
+The runner's *reasoning* — the miss taxonomy (`MISS_CLASSES`, a literal array
+plus a runtime guard, so a typo'd class stops being indistinguishable from a real
+one), the one-record-one-verdict rule, the calendar-gap backfill and reading the
+log — is exported above `main()` and pinned by `soak/night.test.mjs`. Importing
+the module runs nothing; only being the process entry point starts a night. That
+half was the most-revised code in this area, twenty-odd review rounds defended
+entirely by comments, and it had no test. `npm run test:bench-driver` globs
+`scripts/app-master-bench/**/*.test.mjs`, so a test in a subdirectory is picked
+up rather than silently ungated.
+
 ### Tenure mode — hire once, tenure many (c1-exam §1)
 
 The preamble (`scan` → `activate`) is ~14 calls and most of a run's wall clock,
@@ -1449,13 +1459,14 @@ the prose, and **nothing fails when the number goes backwards**.
 ```bash
 npm run bench:app-master     # the sweep
 npm run bench:gate           # the verdict
+npm run bench:gate -- --max-age-days 30   # a wider freshness window, on purpose
 ```
 
 [`gate.mjs`](../../../scripts/app-master-bench/gate.mjs) reads the newest
 `result.json` per scenario, compares it against the committed baseline
 [`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
 writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
-counts four things as a regression:
+counts six things as a regression:
 
 | | |
 | --- | --- |
@@ -1463,6 +1474,12 @@ counts four things as a regression:
 | run incomplete | `result.ok` is false; the failed phase is named |
 | expectation failed | any `expectations[].ok === false`, with its delta |
 | expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
+| `stub` | the run carries `personas.stub: true` — it ran against the in-process stub, so every number it holds is canned (see *Honesty properties* below). The gate was the one reader in the bench that never asked: a whole sweep against canned Personas used to exit 0 while the report beside it printed **EVERYTHING IT REPORTS IS CANNED**. |
+| `stale` | the newest run for that scenario finished *before* the baseline it is compared to was recorded (it cannot certify a bar raised after it), or it is older than `--max-age-days` (default **14**). A run whose `finishedAt` will not parse is undatable, and undatable is not fresh. |
+
+The verdict on a row names the dominant reason — a genuine `fail` outranks
+`stub`, which outranks `stale` — while `reason` still carries every problem
+found, so a row is never quietly re-labelled into something smaller.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
@@ -1477,10 +1494,30 @@ allowed — edit the baseline in the same change and say which number moved.
 ### Honesty properties, and what stays unmeasured
 
 - **`--stub-personas` numbers are canned.** The stub
-  (`scripts/app-master-bench/stub.mjs`) is a port of the e2e mock plus the three
-  routes P6a adds; it does not run an agent, gate a branch or spend a cent. Runs
-  against it are stamped `personas.stub: true` and the report marks the row.
-  They prove the driver's loop, nothing about the App master.
+  (`scripts/app-master-bench/stub.mjs`) answers the same contract as the e2e
+  mock plus the three routes P6a adds; it does not run an agent, gate a branch or
+  spend a cent. Runs against it are stamped `personas.stub: true`, the report
+  marks the row, and **`bench:gate` refuses them** (verdict `stub`). They prove
+  the driver's loop, nothing about the App master.
+- **The two doubles are checked against ONE contract, not against each other.**
+  There are two hand-written stand-ins for the Personas management API —
+  `scripts/app-master-bench/stub.mjs` (bench, in-process) and
+  `e2e/fixtures/mock-personas-bridge.ts` (Playwright) — and the stub's header
+  used to *claim* to be a port of the mock with nothing checking it. Both are now
+  driven through
+  [`scripts/app-master-bench/personas-contract.mjs`](../../../scripts/app-master-bench/personas-contract.mjs),
+  a conformance probe derived from the real callers
+  (`app/_lib/agent-hire/pairing.ts` + `bridge-client.ts`), by
+  `personas-contract.test.mjs` in `npm run test:bench-driver`. Three differences
+  are **declared** there, asserted in both directions, and explained:
+
+  | | mock | stub | |
+  | --- | --- | --- | --- |
+  | `/pair/claim` polls to a token | 2 | 1 | the desktop app waits for a human; the bench stub is a headless bridge, so the first claim carries the key. **The bench therefore never exercises kp's pairing WAIT — only the e2e journey does.** |
+  | `/health` `headlessBridge` | absent | `true` | the flag the soak runner reads to decide it can drive Personas unattended |
+  | status right after dispatch | `pending_approval` | `active` | the mock's ladder is driven by the spec; the stub auto-executes, because a bench night cannot wait on a human |
+
+  Anything else that differs is drift, and fails that test.
 - **The driver pairs twice, on purpose.** kp's `pk_` key is stored encrypted
   server-side and never crosses the API, so the driver mints its **own**
   `personas:test` key for the tick calls (cached at
@@ -1559,6 +1596,24 @@ The schemas travel three ways once the later phases land:
 
 ## Known gaps
 
+- **The probation reader in `run.mjs` handles only ONE of the two documented
+  tick shapes.** `mergeTickSummaries` exists precisely because a tick summary
+  arrives either as an array of phase results (the real bridge, §13.6) or as an
+  object map (the stub) — but the probation reader
+  (`run.mjs`, the `Array.isArray(summary?.phases)` branch) reads only the array,
+  so against the stub it finds no details, records `decision: null,
+  decisionSource: "none"`, and the `probation` expectation fails on a tick that
+  plainly answered `"activated"`. That reader was narrowed on 2026-08-26
+  (`31f2851c`) to scope the decision to this hire, and nothing re-ran the stub
+  against it: the recorded fixture predates the change, so no test noticed for
+  nine days while `probation` sat in `baseline.json`'s `requiredExpectations` for
+  four scenarios. The stub now carries the `details` array the reader wants
+  (`stub.mjs`, probation phase); the remaining half is normalising the two
+  shapes in the reader — one `Object.entries(...).map(([phase, body]) => ({phase,
+  ...body}))` fallback, the same normalisation `mergeTickSummaries` already
+  performs. **Until that lands, `--stub-personas` runs cannot measure
+  `probation`** — which the committed fixture now records honestly rather than
+  hiding.
 - **Retranslation passed with machine raters only.** T3 (2026-08-23) used blind
   Sonnet raters, not humans; the residual single-rater misses are all adjacent
   levels (C5 L4↔L5, A2 L4↔L5). A human-rater pass is still owed before the

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { useTranslations } from "next-intl";
 import { ColumnStats } from "./MatrixShared";
 import { Defer } from "@/app/_components/ui/Defer";
+import { STICKY_HEAD } from "@/app/_components/ui/recipes";
 import { MatrixGridRow } from "./MatrixGridRow";
 import { type Candidate, type Matrix, type Position } from "./matrixTabTypes";
 import { MATRIX_HEADER_ROW } from "./matrixGridKeys";
@@ -96,7 +97,7 @@ export function MatrixGrid({
         >
           <thead>
             <tr aria-rowindex={1}>
-              <th ref={cornerRef} scope="col" role="columnheader" aria-colindex={1} className="sticky left-0 top-0 z-20 border-b border-r border-stone-200 bg-paper p-2 text-left font-semibold text-steel">
+              <th ref={cornerRef} scope="col" role="columnheader" aria-colindex={1} className={`${STICKY_HEAD("corner")} p-2 text-left font-semibold text-steel`}>
                 {t("candidateHeader")}
               </th>
               {cols.map(({ p, i }, ci) => (
@@ -105,7 +106,7 @@ export function MatrixGrid({
                   scope="col"
                   role="columnheader"
                   aria-colindex={ci + 2}
-                  className={`sticky top-0 z-10 border-b bg-paper p-1.5 align-bottom ${sortCol === i ? "border-coral" : "border-stone-100"}`}
+                  className={`${STICKY_HEAD()} p-1.5 align-bottom ${sortCol === i ? "border-b-coral" : ""}`}
                 >
                   {/* Click a column to rank candidates by their fit for THAT role
                       (MAT6); click again to clear back to best-overall. */}

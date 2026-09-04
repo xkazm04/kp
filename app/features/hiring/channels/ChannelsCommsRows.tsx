@@ -69,22 +69,22 @@ export function ChannelsCommsRows({
       <table className="w-full min-w-[36rem] border-collapse text-left">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60">
-            <th className="px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               <ColumnFilter title={t("colName")} mode="search" value={nameQuery} onChange={setNameQuery} />
             </th>
-            <th className="px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               <ColumnFilter title={t("colRole")} value={roleFilter} onChange={setRoleFilter} options={asOptions(roles)} />
             </th>
-            <th className="px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               <ColumnFilter title={t("colChannel")} value={channelFilter} onChange={setChannelFilter} options={channels.map((c) => ({ value: c, label: labelize(c) }))} />
             </th>
-            <th className="px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               <ColumnFilter title={t("colType")} value={kindFilter} onChange={setKindFilter} options={kinds.map((k) => ({ value: k, label: labelize(k) }))} />
             </th>
-            <th className="px-3 py-2">
+            <th scope="col" className="px-3 py-2">
               <ColumnFilter title={t("colStatus")} value={statusFilter} onChange={setStatusFilter} options={asOptions(statuses)} />
             </th>
-            <th title={t("recordedHint")} className={`px-3 py-2 ${META_LABEL}`}>
+            <th scope="col" title={t("recordedHint")} className={`px-3 py-2 ${META_LABEL}`}>
               {t("colRecorded")}
             </th>
           </tr>

@@ -91,9 +91,9 @@ function CriteriaTable({ phase }: { phase: SimPhaseId }) {
         <table className="mt-2 w-full border-collapse text-sm">
           <thead>
             <tr className="text-left text-steel/70">
-              <th className="pb-1.5 font-medium">{t("explainer.colCriterion")}</th>
-              <th className="pb-1.5 font-medium">{t("explainer.colWeight")}</th>
-              <th className="pb-1.5 font-medium">{t("explainer.colSource")}</th>
+              <th scope="col" className="pb-1.5 font-medium">{t("explainer.colCriterion")}</th>
+              <th scope="col" className="pb-1.5 font-medium">{t("explainer.colWeight")}</th>
+              <th scope="col" className="pb-1.5 font-medium">{t("explainer.colSource")}</th>
             </tr>
           </thead>
           <tbody>

@@ -5397,7 +5397,12 @@
       "select": "Sélectionner…",
       "filterColumn": "Filtrer {column}"
     },
-    "sortBy": "Trier par {column}"
+    "sortBy": "Trier par {column}",
+    "status": {
+      "sortedAsc": "Trié par {column}, ordre croissant",
+      "sortedDesc": "Trié par {column}, ordre décroissant",
+      "matched": "{count, plural, =0 {Aucune ligne ne correspond aux filtres} one {# ligne correspond aux filtres} other {# lignes correspondent aux filtres}}"
+    }
   },
   "channels": {
     "comms": {

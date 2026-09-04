@@ -25,26 +25,11 @@
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-/** Rows per page, shared by every table so paging feels identical across surfaces. */
-export const TABLE_PAGE_SIZE = 20;
-
-/** Total pages for `total` rows — at least 1, so an empty table is "page 1 of 1". */
-export function pageCount(total: number, pageSize = TABLE_PAGE_SIZE): number {
-  return Math.max(1, Math.ceil(total / pageSize));
-}
-
-/** The page index actually safe to render. Filters shrink the result set under a
- *  reader who is on page 3, so every caller clamps rather than resetting from an
- *  effect — the clamp is derived state and cannot get out of step with the data. */
-export function clampPage(page: number, total: number, pageSize = TABLE_PAGE_SIZE): number {
-  return Math.min(Math.max(0, page), pageCount(total, pageSize) - 1);
-}
-
-/** The `shown` slice for a clamped page — the other half of the arithmetic every
- *  caller was repeating inline beside clampPage. */
-export function pageSlice<T>(rows: readonly T[], page: number, pageSize = TABLE_PAGE_SIZE): T[] {
-  return rows.slice(page * pageSize, (page + 1) * pageSize);
-}
+// The arithmetic lives in pageWindow.ts (pure, and therefore testable — this
+// file is JSX and the unit runner cannot import it). Re-exported here so the
+// seven consumers keep one import for the pager and its maths.
+export { clampPage, pageCount, pageSlice, TABLE_PAGE_SIZE } from "./pageWindow";
+import { pageCount, TABLE_PAGE_SIZE } from "./pageWindow";
 
 export function TablePager({
   page,

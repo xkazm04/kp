@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CHIP } from "@/app/_components/ui/recipes";
+import { CHIP, STICKY_BAR } from "@/app/_components/ui/recipes";
 import type { ChapterDef } from "./chapters";
 
 /*
@@ -126,7 +126,7 @@ export function ChapterJumpList({ chapters }: { chapters: readonly ChapterDef[] 
   return (
     <nav
       aria-label={t("chaptersNav")}
-      className="sticky top-0 z-20 -mx-5 mt-6 border-b border-stone-200 bg-white/95 px-5 py-2 backdrop-blur sm:-mx-6 sm:px-6 xl:hidden"
+      className={`${STICKY_BAR("white")} -mx-5 mt-6 px-5 py-2 sm:-mx-6 sm:px-6 xl:hidden`}
     >
       <ul className="flex gap-2 overflow-x-auto pb-0.5">
         {chapters.map((c) => {

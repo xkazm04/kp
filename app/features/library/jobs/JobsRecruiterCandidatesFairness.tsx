@@ -95,10 +95,10 @@ export const FairnessAuditPanel = memo(function FairnessAuditPanel({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-steel">
-              <th className="py-1 pr-3 font-semibold">{t("auditCandidate")}</th>
-              <th className="py-1 pr-3 font-semibold">{t("auditOwn")}</th>
-              <th className="py-1 pr-3 font-semibold">{t("auditRobust")}</th>
-              <th className="py-1 font-semibold">{t("auditDelta")}</th>
+              <th scope="col" className="py-1 pr-3 font-semibold">{t("auditCandidate")}</th>
+              <th scope="col" className="py-1 pr-3 font-semibold">{t("auditOwn")}</th>
+              <th scope="col" className="py-1 pr-3 font-semibold">{t("auditRobust")}</th>
+              <th scope="col" className="py-1 font-semibold">{t("auditDelta")}</th>
             </tr>
           </thead>
           <tbody>

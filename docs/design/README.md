@@ -445,10 +445,11 @@ btnAffirm=5 rawDate=15` over 168 files.
 of the win again: the hand-typed advisory was `rounded-md border-amber-200` with no
 `dark:rounded-2xl`, so it was the one square-cornered box on a Spark Dark surface
 after `NOTICE()` had already been given the sticker radius. Its entry is gone from
-`recipe-debt.json`, which locks it. `Select`'s `panel: 1` is deliberately still
-standing: its portalled menu is `shadow-pop`, and `PANEL` hardcodes `shadow-panel`
-plus the dark sticker ride that comes with it, so composing it would restyle the
-open menu. That literal wants a `POPOVER` recipe, not `PANEL`.
+`recipe-debt.json`, which locks it. `Select`'s `panel: 1` stood deliberately until
+2026-09-04: its portalled menu is `shadow-pop`, and `PANEL` hardcodes `shadow-panel`
+plus the dark sticker ride that comes with it, so composing it would have restyled
+the open menu. That literal wanted a `POPOVER` recipe, not `PANEL` — it now has one
+(below), and both it and `table/FilterMenu` are burnt down, their entries dropped.
 
 **First burn-down, same day:** `panel` 107 → 92, `metaLabel` 76 → 53,
 `chipQuiet` 10 → 9, `noticeAmber` 62 → 61 (40 lines) across `ExtractionTab`,
@@ -482,6 +483,36 @@ now its only copy. Single-choice input, when a surface needs one: group native
 top-level primitive with no importer outside itself fails `npm run test:unit`. A
 primitive nobody renders is not free: it is read as live vocabulary, copied by
 new code, and it accrues fixes for bugs no user can hit.
+
+### Three words for the layers above the page (2026-09-04)
+
+| Word | Replaces |
+| --- | --- |
+| `STICKY_HEAD(layer)` | five hand-rolled pinned table headers across **three** z-layers (10/20/30) and three fills |
+| `STICKY_BAR(on)` | three sticky bars (chapter rail, pipeline drawer header, diagram explorer header) drifted on layer AND rule |
+| `POPOVER` | the anchored pop shell, re-typed in `Select`, `table/FilterMenu` and four feature menus |
+
+`STICKY_HEAD` has exactly two tiers because there are exactly two facts:
+`"head"` is a column-header row, `"corner"` is the cell frozen on **both** axes
+in a grid with row headers — and the corner must sit *above* the head, or the
+row-header column scrolls over it. Spelled three ways, a table that borrowed its
+neighbour's class string got a corner that scrolled under its own rows.
+
+`STICKY_BAR` keeps `on: "paper" | "white"` because the translucent fill is a real
+difference (which surface the bar floats above); the z-layer and the ruled edge
+were not.
+
+**`POPOVER` is not `PANEL`, and that is the whole point.** `PANEL` hardcodes
+`shadow-panel`, which takes the Spark Dark sticker ride in `globals.css` — 2px
+drawn outline, 16px radius, offset shadow. A menu that presses out of the page
+like a sticker reads as a card someone dropped on the table rather than as a
+layer hanging off its trigger, so the pop layer keeps `shadow-pop` (its own
+token, a hard offset in *both* registers). That is why the ratchet carried
+`Select`'s `panel: 1` instead of "fixing" it.
+
+Four feature menus (`PipelineCandidateMenu`, `PipelineFilterMenu`,
+`JdsLedgerFilterMenu`, `MatrixReasoningPopover`) still re-type the shell and are
+the recipe's remaining fix-as-you-touch population.
 
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
@@ -605,6 +636,63 @@ the bare `aria-hidden` form — fix-as-you-touch, not a migration.
   which is capitalized. Fixtures:
   [`app/_components/primitive-copy-defaults.test.ts`](../../app/_components/primitive-copy-defaults.test.ts),
   in the unit gate rather than under `scripts/` so it runs without a new alias.
+
+### Tables announce their own changes (2026-09-04)
+
+Sorting a table **reorders** it and filtering **shrinks** it. Both happen entirely
+in the visual channel: the control confirms the press ("Sort by Candidate"), and
+then a different set of rows is silently on screen. Before this pass the only
+`aria-live` anywhere in `app/_components/table/` was `TablePager`'s range line —
+so the Archetypes roster, the decision log, the Activity ledger and the Tasks
+window all changed shape without saying so.
+
+[`TableStatus`](../../app/_components/table/TableStatus.tsx) is the shared
+`sr-only` `role="status"` region every sortable/filterable table mounts:
+
+```tsx
+<TableStatus columnTitle={SORT_TITLE[sort.col]} dir={sort.dir} matched={filtered.length} filtered={anyFilter} />
+```
+
+Three rules it encodes:
+
+- **A region, not a `speak()` call.** The sentence is derived from the state the
+  table already renders, so it cannot drift out of step with the rows — a hook
+  that speaks can be forgotten on one of three filter setters. Re-rendering with
+  different text is what makes a live region fire.
+- **`aria-atomic`**, because the sentence is one fact in two clauses; without it
+  a reader can be handed "descending" with no column named.
+- **An unfiltered table says nothing about matching.** `filtered` gates the count:
+  "174 rows match" on a table nobody narrowed is noise on every render.
+- The column is named by its **visible title**, never its wire key — the sort
+  state carries `createdAt`, the header says *When*.
+
+Copy is `table.status.*` in four locales (`sortedAsc` / `sortedDesc` / a plural
+`matched`). [`table-status.test.ts`](../../app/_components/table/table-status.test.ts)
+pins the region's attributes, the catalog's ICU shapes, and — the half that
+actually rots — the list of surfaces that must MOUNT it: a shared region nobody
+renders announces nothing, and the table still looks correct in review.
+
+### Every `<th>` declares a scope (2026-09-04)
+
+A header cell with no `scope` is one assistive tech has to guess the direction
+of, and the guess is only reliable for the plain single-header-row table — not
+the comparison grids with a frozen first column, not the matrix with headers on
+both axes, not a header row carrying a filter control. Guessing wrong is worse
+than saying nothing: the numbers still get announced, attached to the wrong
+candidate.
+
+`ColumnHead` renders the `<th>` itself for exactly this reason (`scope` and
+`aria-sort` cannot then be omitted) but only reaches the tables that adopted it:
+**70 of the tree's 124 header cells declared nothing**, including six surfaces
+that imported the shared `ColumnFilter` and hand-rolled the headers around it.
+
+[`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
+ratchet — `scope` has no legitimate residual population: it is one attribute
+whose value follows from where the cell sits (`col` in a `<thead>` row, `row`
+for a cell that heads its row), and no table shape here wants neither. It scans
+`app/**/*.tsx` at the source level, blanking comments first so the table kit's
+own prose about `<th>` is not read as markup, and tracking JSX brace depth so an
+attribute holding an arrow function does not end the tag early.
 
 ### One size vocabulary across the field primitives (2026-09-04)
 

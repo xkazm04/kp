@@ -148,7 +148,7 @@ function ObjectTable({ rows, depth }: { rows: Record<string, unknown>[]; depth: 
         <thead>
           <tr className={`border-b border-stone-200 text-left ${META_LABEL}`}>
             {columns.map((c) => (
-              <th key={c} className="whitespace-nowrap pb-1.5 pr-3 font-semibold">{humanizeKey(c)}</th>
+              <th key={c} scope="col" className="whitespace-nowrap pb-1.5 pr-3 font-semibold">{humanizeKey(c)}</th>
             ))}
           </tr>
         </thead>

@@ -84,15 +84,15 @@ export function ReceiverTable({
       <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60">
-            <th className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.role")}</th>
-            <th className={`px-3 py-2 ${META_LABEL}`}>{endpointLabel}</th>
-            <th className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.lang")}</th>
-            <th className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.status")}</th>
+            <th scope="col" className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.role")}</th>
+            <th scope="col" className={`px-3 py-2 ${META_LABEL}`}>{endpointLabel}</th>
+            <th scope="col" className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.lang")}</th>
+            <th scope="col" className={`px-3 py-2 ${META_LABEL}`}>{t("receivers.status")}</th>
             {/* Raw AUTHENTICATED POSTs — connectivity, not leads (db/channels.ts). */}
-            <th title={t("receivers.receivedHint")} className={`px-3 py-2 text-right ${META_LABEL}`}>
+            <th scope="col" title={t("receivers.receivedHint")} className={`px-3 py-2 text-right ${META_LABEL}`}>
               {t("receivers.received")}
             </th>
-            <th className="px-3 py-2" />
+            <th scope="col" className="px-3 py-2" />
           </tr>
         </thead>
         <tbody>
