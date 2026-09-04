@@ -725,6 +725,26 @@ is the point: `npm run i18n:check` only proves the four locales agree *with each
 so deleting a key from all four leaves it green (measured — 4724 keys, "4 locale(s) in
 parity", while the guard test failed).
 
+**The event DETAIL is coded too, not just the verb.** A row's `detail` is painted
+verbatim beside the localized verb, so an English sentence stored there ships English to
+every locale however well the verb is translated. `db/pipeline.ts` used to store seven of
+them ("Role closed — candidate withdrawn from the pipeline.", "intake captured manually",
+"manual", "added to pipeline", …). They are now `reason:<code>` tokens drawn from
+`PIPELINE_REASON_CODES` (`db/pipeline.ts`) and resolved through
+`pipeline.eventReasons.*` — the same record-vs-screen split `automation-run.ts` already
+used for `reason:offerAutoExtended`.
+
+The prefix is duplicated at both ends rather than imported (the store opens SQLite; the
+renderer is a client component), so `pipeline-event-reasons.test.ts` pins the two sides
+together: every code localized in all four catalogs, no locale holding the English string
+verbatim, the prefix identical to the renderer's, every code letters-only so
+`useEventVerb`'s parser accepts it, and **no string literal left in a `detail:` position**
+— including inside a ternary, which is where the seventh one was hiding after the first
+six were converted. **No migration was needed and none was done:** the coded branch is
+taken only on an exact `reason:<letters>` match, so every row already in a deployed
+database — English prose, a slot time, a rematch counterpart handle — renders exactly as
+it did before.
+
 ## The drawer and the Comms Center tell one delivery truth
 
 The candidate drawer's **Messages** list and the Comms Center render the same rows, so

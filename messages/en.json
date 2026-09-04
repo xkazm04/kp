@@ -3242,7 +3242,8 @@
       "autoRejectionReversed": "Auto-rejection reversed for re-review.",
       "intakeCapturedManually": "Intake captured manually.",
       "githubDeepDiveFromDrawer": "GitHub deep-dive run from the candidate drawer.",
-      "manualStageMove": "Moved manually by a recruiter."
+      "manualStageMove": "Moved manually by a recruiter.",
+      "addedToPipeline": "Added to the pipeline."
     }
   },
   "decisions": {

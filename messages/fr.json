@@ -3242,7 +3242,8 @@
       "autoRejectionReversed": "Refus automatique annulé pour réexamen.",
       "intakeCapturedManually": "Informations saisies manuellement.",
       "githubDeepDiveFromDrawer": "Analyse GitHub approfondie lancée depuis la fiche candidat.",
-      "manualStageMove": "Déplacé manuellement par un recruteur."
+      "manualStageMove": "Déplacé manuellement par un recruteur.",
+      "addedToPipeline": "Ajouté au pipeline."
     }
   },
   "decisions": {

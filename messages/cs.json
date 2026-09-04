@@ -3242,7 +3242,8 @@
       "autoRejectionReversed": "Automatické zamítnutí zrušeno k opětovnému posouzení.",
       "intakeCapturedManually": "Údaje doplněny ručně.",
       "githubDeepDiveFromDrawer": "Hloubková analýza GitHubu spuštěna z detailu kandidáta.",
-      "manualStageMove": "Přesunuto ručně náborářem."
+      "manualStageMove": "Přesunuto ručně náborářem.",
+      "addedToPipeline": "Přidáno do náboru."
     }
   },
   "decisions": {

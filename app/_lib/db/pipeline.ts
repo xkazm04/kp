@@ -474,6 +474,9 @@ export const PIPELINE_REASON_CODES = [
   // setPipelineEntryStage — a recruiter dragging a card, as opposed to the
   // automation pass's `auto_advanced`.
   "manualStageMove",
+  // createPipelineEntry — the plain, non-degraded add. The degraded branch beside it
+  // keeps its free-text reason: that one is a real diagnostic, not a fixed sentence.
+  "addedToPipeline",
 ] as const;
 export type PipelineReasonCode = (typeof PIPELINE_REASON_CODES)[number];
 
@@ -1335,7 +1338,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     archetype: input.archetype,
     kind: intakeDegraded ? "intake_degraded" : "added",
     toStage: stage,
-    detail: intakeDegraded ? intakeDegradedReason : "added to pipeline",
+    detail: intakeDegraded ? intakeDegradedReason : pipelineReasonDetail("addedToPipeline"),
   });
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return { entry: rowToEntry(row), created: true };

@@ -3242,7 +3242,8 @@
       "autoRejectionReversed": "Automatische Absage zur erneuten Prüfung aufgehoben.",
       "intakeCapturedManually": "Daten manuell erfasst.",
       "githubDeepDiveFromDrawer": "GitHub-Tiefenanalyse aus der Kandidatenansicht gestartet.",
-      "manualStageMove": "Manuell von einer recruitenden Person verschoben."
+      "manualStageMove": "Manuell von einer recruitenden Person verschoben.",
+      "addedToPipeline": "Zur Pipeline hinzugefügt."
     }
   },
   "decisions": {
