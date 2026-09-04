@@ -791,15 +791,26 @@ a broken template, not as an honest limit.
   (four locales, distinct sentences per locale, the prompt directive, the unsupported-`lang`
   fallback) and by the locale tests in `app/_lib/devcase-feedback.test.ts`.
 
-### Known gap: engine-authored English sentences
+### Known gap: engine-authored English sentences (Python half)
 
-Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
-every `reasons[]` in `app/_lib/devcase-authenticity.ts` and every `evidence[]` in
-`process_events.py` / `prompt_signals.py`. They stay English prose for now — turning
-them into codes+params is one coherent change spanning a TS producer and two Python
-producers plus their consumers, and half-doing it (codes on one side, prose on the
-other) is worse than either end state. The frames around them are translated, so the
-authenticity tooltip is not wholly English. Not in phase 1 scope; do it as one unit.
+**The TS half is closed.** `app/_lib/devcase-authenticity.ts` no longer builds
+sentences: its ten penalties emit `{ kind, params }` findings from the closed
+`AUTHENTICITY_REASON_KINDS` vocabulary, and `DevEvalPanelScores` renders each through
+`devcase.evalPanel.authenticityReason.*` in the reader's language — the same
+codes+params contract as `CalibrationRationale` and `GithubFinding`. Params carry
+numbers only (`fewCommits {n}`, `bulkPaste {chars}`), never a pre-built clause. Bundles
+are persisted, so the panel keeps two fallbacks: a legacy English string renders as
+itself (it is what that run actually produced, and dropping it would hide evidence from
+the interviewer), and a kind this build does not know renders as nothing rather than a
+raw key. Pinned in `app/_lib/devcase-authenticity.test.ts`, including that every
+declared kind is reachable — a kind nothing can emit is dead copy in four catalogs.
+
+What remains is the **Python** producers: every `evidence[]` in `process_events.py` /
+`prompt_signals.py` is still English prose rendered verbatim. The reason the two halves
+were sequenced rather than done together is that they share no producer and no
+consumer; the concern that half-doing it is worse than either end state applied to
+splitting ONE producer, not to finishing one of two. Do the Python side as its own unit,
+with the same `{ kind, params }` shape.
 
 ## Surface
 

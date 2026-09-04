@@ -8435,7 +8435,19 @@
       "inPipeline": "Dans le pipeline",
       "promoting": "Promotion…",
       "promote": "Promouvoir vers le pipeline",
-      "promoteHint": "→ devient une carte à examiner dans Décisions"
+      "promoteHint": "→ devient une carte à examiner dans Décisions",
+      "authenticityReason": {
+        "singleBulkCommit": "Un seul commit global, sans historique progressif.",
+        "fewCommits": "Très peu de commits ({n}) : une trace de développement ténue.",
+        "noCommitHistory": "Aucun historique de commits lisible.",
+        "bulkPaste": "Un collage massif de {chars}+ caractères sans construction progressive, possiblement collé depuis un LLM.",
+        "integrityFailed": "Le contrôle d’intégrité du journal d’événements a échoué (chaîne de hachage rompue ou horodatages antidatés) : la trace observée ne peut être tenue pour fiable.",
+        "noDecisionsLog": "Le journal DECISIONS obligatoire est absent.",
+        "bursty": "Le travail est arrivé en une seule salve plutôt que progressivement.",
+        "bigBang": "Schéma « big bang », sans construction visible.",
+        "unreadableIteration": "Le schéma d’itération n’a pas pu être lu dans la trace.",
+        "lowReadBeforeWrite": "Peu d’indices d’une lecture du code existant avant d’écrire."
+      }
     },
     "jobLink": {
       "linked": "Poste : {title}",

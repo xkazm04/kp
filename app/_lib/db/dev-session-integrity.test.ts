@@ -69,7 +69,7 @@ test("editing a persisted event breaks the chain and lands authenticity in suspe
     integrityCompromised: true,
   });
   assert.equal(scored.band, "suspect", "a manipulated trace is held for the live interview");
-  assert.ok(scored.reasons.some((r) => r.includes("integrity")));
+  assert.ok(scored.reasons.some((r) => r.kind === "integrityFailed"));
 });
 
 test("a backdated client timestamp is flagged without breaking the chain", () => {

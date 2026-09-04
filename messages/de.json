@@ -8435,7 +8435,19 @@
       "inPipeline": "In der Pipeline",
       "promoting": "Wird weitergeleitet…",
       "promote": "In die Pipeline weiterleiten",
-      "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen"
+      "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen",
+      "authenticityReason": {
+        "singleBulkCommit": "Ein einziger Sammel-Commit, ohne schrittweise Historie.",
+        "fewCommits": "Sehr wenige Commits ({n}): eine dünne Entwicklungsspur.",
+        "noCommitHistory": "Keine lesbare Commit-Historie.",
+        "bulkPaste": "Ein Masseneinfügen von {chars}+ Zeichen ohne schrittweisen Aufbau, möglicherweise aus einem LLM eingefügt.",
+        "integrityFailed": "Die Integritätsprüfung des Ereignisprotokolls schlug fehl (gebrochene Hash-Kette oder rückdatierte Zeitstempel), der beobachteten Spur ist daher nicht zu trauen.",
+        "noDecisionsLog": "Das vorgeschriebene DECISIONS-Protokoll fehlt.",
+        "bursty": "Die Arbeit entstand in einem einzigen Schub statt schrittweise.",
+        "bigBang": "Big-Bang-Muster, ohne sichtbaren Aufbau.",
+        "unreadableIteration": "Das Iterationsmuster war aus der Spur nicht lesbar.",
+        "lowReadBeforeWrite": "Wenig Hinweise darauf, dass der bestehende Code vor dem Schreiben gelesen wurde."
+      }
     },
     "jobLink": {
       "linked": "Stelle: {title}",

@@ -8435,7 +8435,19 @@
       "inPipeline": "In pipeline",
       "promoting": "Promoting…",
       "promote": "Promote to pipeline",
-      "promoteHint": "→ becomes a Decisions review card"
+      "promoteHint": "→ becomes a Decisions review card",
+      "authenticityReason": {
+        "singleBulkCommit": "Single bulk commit, with no incremental history.",
+        "fewCommits": "Very few commits ({n}): a thin development trail.",
+        "noCommitHistory": "No readable commit history.",
+        "bulkPaste": "A bulk paste of {chars}+ characters landed with no incremental build-up, a possible paste from an LLM.",
+        "integrityFailed": "The event-log integrity check failed (broken hash chain or backdated timestamps), so the observed trace cannot be trusted.",
+        "noDecisionsLog": "The mandated DECISIONS log is missing.",
+        "bursty": "The work landed in a single burst rather than incrementally.",
+        "bigBang": "Big-bang iteration pattern, with no visible build-up.",
+        "unreadableIteration": "The iteration pattern could not be read from the trace.",
+        "lowReadBeforeWrite": "Little evidence of reading the existing code before writing."
+      }
     },
     "jobLink": {
       "linked": "Role: {title}",

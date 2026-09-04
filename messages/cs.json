@@ -8435,7 +8435,19 @@
       "inPipeline": "V pipeline",
       "promoting": "Probíhá postup…",
       "promote": "Postoupit do pipeline",
-      "promoteHint": "→ vznikne karta k posouzení v Rozhodnutích"
+      "promoteHint": "→ vznikne karta k posouzení v Rozhodnutích",
+      "authenticityReason": {
+        "singleBulkCommit": "Jediný hromadný commit, bez postupné historie.",
+        "fewCommits": "Velmi málo commitů ({n}): tenká stopa vývoje.",
+        "noCommitHistory": "Historii commitů nelze přečíst.",
+        "bulkPaste": "Hromadné vložení {chars}+ znaků bez postupného budování, možné vložení z LLM.",
+        "integrityFailed": "Kontrola integrity záznamu událostí selhala (poškozený řetězec hashů nebo zpětně datované časy), sledované stopě proto nelze věřit.",
+        "noDecisionsLog": "Chybí povinný záznam DECISIONS.",
+        "bursty": "Práce vznikla v jediném nárazu, ne postupně.",
+        "bigBang": "Vzorec „všechno najednou“, bez viditelného postupného budování.",
+        "unreadableIteration": "Způsob iterace nešlo ze stopy vyčíst.",
+        "lowReadBeforeWrite": "Málo dokladů o čtení stávajícího kódu před psaním."
+      }
     },
     "jobLink": {
       "linked": "Pozice: {title}",
