@@ -8,6 +8,7 @@ import { rateLimit } from "@/app/_lib/rate-limit";
 // The flush byte budget lives in a sibling module: Next's generated route types
 // reject any non-handler `export const` here (backlog item 57).
 import { chargeFlushBytes } from "../session-limits";
+import { readTextWithLimit } from "@/app/_lib/request-body";
 
 // Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
 // fires every ~8s per active candidate, and the token→posting→case chain it used
@@ -85,6 +86,10 @@ const KINDS = new Set(["open", "edit", "decision_log", "submit", "paste"]);
 const MAX_EVENTS = 500; // per flush
 const MAX_FILES = 50;
 const MAX_FILE_BYTES = 256 * 1024;
+/** Hard cap on this public door's request body, enforced on the BYTES READ rather
+ *  than on the caller's content-length: MAX_FILES x MAX_FILE_BYTES = 12.8 MB of file
+ *  contents, plus room for the JSON envelope and its escaping. */
+const MAX_FLUSH_BODY_BYTES = 16 * 1024 * 1024;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -97,7 +102,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // Read the body as TEXT first: its byte length is what the per-token daily budget
     // charges, and JSON.parse of the same string costs nothing extra.
-    const raw = await request.text();
+    //
+    // UNDER A HARD CAP, aborting the stream rather than buffering: this is the read
+    // the byte budget below was written for, and until it had one the budget could
+    // only charge for a flush that had ALREADY been buffered whole. An unauthenticated
+    // caller holding an apply link could hand this route a gigabyte and the process
+    // paid for it before a single limiter ran. 16 MB is the route's own admitted
+    // maximum (MAX_FILES 50 x MAX_FILE_BYTES 256 KB = 12.8 MB of file contents) plus
+    // room for the JSON envelope and its escaping, so no legitimate flush meets it.
+    const raw = await readTextWithLimit(request, MAX_FLUSH_BODY_BYTES);
+    if (raw === null) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_FLUSH_BODY_BYTES });
     let parsed: unknown = {};
     try {
       parsed = JSON.parse(raw) as unknown;

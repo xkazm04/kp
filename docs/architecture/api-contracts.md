@@ -321,6 +321,42 @@ A new line on that ratchet is a hole waiting to be closed, never an exemption.
   allowlist in [`app/_lib/tenancy.ts`](../../app/_lib/tenancy.ts) is fail-closed
   — a new persistent table is a reported gap until it is scoped and listed.
 
+### 1.5c Request bodies on public routes are capped on the BYTES READ
+
+Every route reachable without a session — the set `isPublicPath`
+([`app/_lib/auth/public-routes.ts`](../../app/_lib/auth/public-routes.ts))
+answers `true` for — reads its body through
+[`app/_lib/request-body.ts`](../../app/_lib/request-body.ts):
+`readJsonWithLimit(request, MAX_…_BODY_BYTES, fallback)` for a JSON door,
+`readTextWithLimit` where the raw text is what the route needs (the devcase
+flush charges a byte budget against it; the billing webhook signs it).
+
+**`content-length` is not a cap.** It is written by the caller, who may omit it
+(chunked transfer) or declare 10 while streaming 50 MB. A route that checked only
+the header and then called `request.json()` had a cap on honest clients and none
+at all on anyone else — and the buffering happens *before* the handler's rate
+limiter, token check or tenancy gate can run. The helper keeps the header as a
+cheap early-out and enforces the real limit on bytes taken off the wire, aborting
+the stream the moment it is exceeded.
+
+**The refusal is coded.** Over-budget answers `413` with
+`jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes })` — the cap rides as data so
+the reader's own language can name it. Surfaces with a more specific sentence
+keep it (`APPLY_PAYLOAD_TOO_LARGE` tells a candidate to shorten their answers;
+`IMPORT_BODY_TOO_LARGE` tells an operator to check they picked the right file).
+
+**The cap is a named constant** at the top of the route, so what a door accepts
+is answerable by reading it. Sizes are per-route and stated in the constant's
+comment — 4 KB for a one-word RSVP, 16 MB for the devcase flush whose own bounds
+admit 50 x 256 KB of file contents.
+
+[`app/api/public-body-cap-contract.test.ts`](../../app/api/public-body-cap-contract.test.ts)
+DERIVES the route set from `isPublicPath` rather than listing it, so a newly
+public route inherits the obligation the moment it joins the allow-list. Three
+routes are exempt, each with its reason in the test: `/api/auth/logout` and
+`/api/data/[token]` read no body, and `/api/extract-text` takes multipart form
+data bounded by `upload-constraints.ts` instead.
+
 ### 1.5b Response headers every route carries
 
 Two producers, deliberately split, because one of them cannot be static:
@@ -365,7 +401,9 @@ header in `withCsp()` to `Content-Security-Policy`.
    projection. Sensitive? `requireOperator()` at the top.
 4. Spends money or spawns a process on an open path? `rateLimit()`, plus its row
    in the contract test.
-5. Read → compute → write? `db.transaction(...).immediate()` or a compensating
+5. Public and takes a body? `readJsonWithLimit` / `readTextWithLimit` under a
+   named `MAX_…_BODY_BYTES` (§1.5c) — never a bare `request.json()`.
+6. Read → compute → write? `db.transaction(...).immediate()` or a compensating
    `WHERE` plus a `res.changes === 0` skip — and never `await` inside the
    transaction.
 

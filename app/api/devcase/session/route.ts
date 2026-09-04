@@ -4,13 +4,19 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // The per-token/day session throttle lives in a sibling module: Next's generated
 // route types reject any non-handler `export const` here (backlog item 57).
 import { MAX_SESSIONS_PER_TOKEN_DAY, SESSION_WINDOW_MS } from "./session-limits";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Live Work Surface (moonshot E) — start an in-product work session for a dev-case
 // apply token. Validates the token maps to an OPEN posting (don't orphan sessions
 // against a closed/missing posting), then mints a session.
+/** Hard cap on this public door's request body: an apply token and a candidate reference.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_SESSION_MINT_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: Request) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { token?: unknown; candidateRef?: unknown };
+    const body = await readJsonWithLimit<{ token?: unknown; candidateRef?: unknown }>(request, MAX_SESSION_MINT_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SESSION_MINT_BODY_BYTES });
     const token = typeof body.token === "string" ? body.token.trim() : "";
     // A PUBLIC door rendered in en/cs/de/fr for someone with no account: "token is
     // required" was bare English with no code, so the work surface had nothing to

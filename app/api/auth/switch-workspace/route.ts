@@ -15,13 +15,18 @@ import {
 import { getWorkspace, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
 // Workspace switch (P2) — re-mint the session cookie with the chosen workspace, so
 // currentWorkspace() (and the scoped stores) resolve to it. This route is under
 // /api/auth/ (proxy-allow-listed), so it SELF-GUARDS: a valid session is required,
 // and the target workspace must exist (never mint a session for a phantom tenant).
+/** Hard cap on this public door's request body: one workspace id.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_SWITCH_BODY_BYTES = 4 * 1024;
+
 export async function POST(request: Request) {
   try {
     const jar = await cookies();
@@ -45,7 +50,8 @@ export async function POST(request: Request) {
     if (currentWorkspaceId(session) === DEMO_WORKSPACE) {
       return NextResponse.json({ error: "The guided demo cannot switch workspaces." }, { status: 403 });
     }
-    const body = (await request.json().catch(() => ({}))) as { workspaceId?: unknown };
+    const body = await readJsonWithLimit<{ workspaceId?: unknown }>(request, MAX_SWITCH_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SWITCH_BODY_BYTES });
     const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "";
     // Fail-safe lock: with the data layer single-tenant, switching to any non-default
     // workspace would surface the first tenant's unscoped data (tri-scan #1). Only the

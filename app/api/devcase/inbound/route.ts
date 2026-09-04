@@ -5,6 +5,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 import { submissionReference } from "@/app/_lib/devcase-reference";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
 // THROTTLE (route.test.ts). Every accepted call here writes a submission row, sends the
@@ -28,9 +29,13 @@ const DAILY_LIMIT = 300; // per 24h — the aggregate for the link (cf. 50 live 
 // apply form) POSTs a candidate's application here using the posting's apply token; we
 // record it, acknowledge the candidate, and — if a lifecycle is collecting — resume it
 // automatically (evaluate → rank → promote). This removes the manual submission step.
+/** Hard cap on this public door's request body: a work-sample submission: a token, a candidate name, a repo ref and free-text notes.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_DEVCASE_INBOUND_BODY_BYTES = 64 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       token?: string;
       candidate?: string;
       repoRef?: string;
@@ -38,7 +43,10 @@ export async function POST(request: NextRequest) {
       notes?: string;
       /** The applicant's language, so the acknowledgement is not written in ours. */
       locale?: string;
-    };
+    }>(request, MAX_DEVCASE_INBOUND_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_INBOUND_BODY_BYTES });
+    }
     // PUBLIC webhook: the apply token is the ONLY accepted credential. We deliberately do
     // NOT accept a `postingId` shortcut here — posting ids are internal, non-crypto keys
     // (random-id.ts, "Never a security boundary") so accepting one would let an

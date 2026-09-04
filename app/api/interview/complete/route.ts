@@ -14,6 +14,7 @@ import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
 // PUBLIC TOKEN ROUTE — the response carries a PROJECTION, not the store row
@@ -73,6 +74,10 @@ const COMPLETE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 // the session is linked to a pipeline entry, also synthesize the scorecard
 // (Task 5) from the transcript and set the scorecard_review approval, so it
 // lands in the Decisions queue for the human Interview→Offer gate.
+/** Hard cap on this public door's request body: a whole interview transcript. The turn count and per-turn text are clamped below; this is the bound BEFORE the heap holds it.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_COMPLETE_BODY_BYTES = 1024 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
     // Validate at the trust boundary instead of casting request.json() to a
@@ -80,7 +85,8 @@ export async function POST(request: NextRequest) {
     // the transcript a bounded array — turn COUNT is capped below alongside
     // the existing per-turn text clamp, so a crafted multi-thousand-turn POST
     // can't persist a multi-megabyte transcript_json.
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readJsonWithLimit<Record<string, unknown>>(request, MAX_COMPLETE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_COMPLETE_BODY_BYTES });
 
     // Completion must present the session TOKEN, not just a sessionId
     // (idea-5248c3e9). Looking the session up purely by a client-supplied id

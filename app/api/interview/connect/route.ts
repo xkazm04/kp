@@ -28,6 +28,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
 import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // EVERY refusal on this route now carries a code (/perfect 2026-09-02).
 // /connect is a PUBLIC candidate surface reached from an emailed link rendered in
@@ -45,12 +46,17 @@ export async function GET() {
 
 // POST → mint short-lived browser credentials for the chosen provider and
 // create/load the interview session. The browser connects directly afterward.
+/** Hard cap on this public door's request body: a session token, a language tag and a consent flag — every field is coerced below.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_CONNECT_BODY_BYTES = 16 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
     // Validate at the trust boundary instead of casting request.json() to a
     // typed shape (idea-c7df6b55): token must be a plausibly-sized string,
     // language must look like a language tag, consent must be literally true.
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readJsonWithLimit<Record<string, unknown>>(request, MAX_CONNECT_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_CONNECT_BODY_BYTES });
     const token = typeof body.token === "string" && body.token.length <= 200 ? body.token : null;
     const language = coerceLanguage(body.language);
 

@@ -5,6 +5,7 @@ import { signupEnabled } from "@/app/_lib/workspace-lock";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { isThrottled, recordFailedAttempt, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Self-serve registration (the /login sibling): email + password → a brand-new
 // org + team + owner membership (signup-service, one transaction) → signed in
@@ -25,6 +26,10 @@ const REGISTER_THROTTLE: ThrottleOpts = { limit: 10, windowMs: 15 * 60_000 };
 
 const COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
 
+/** Hard cap on this public door's request body: an email, a password, a display name and an org name, on an unauthenticated signup door.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_REGISTER_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: Request) {
   if (!signupEnabled()) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -43,12 +48,13 @@ export async function POST(request: Request) {
   }
   recordFailedAttempt(key, REGISTER_THROTTLE);
 
-  const body = (await request.json().catch(() => ({}))) as {
+  const body = await readJsonWithLimit<{
     email?: unknown;
     password?: unknown;
     name?: unknown;
     orgName?: unknown;
-  };
+  }>(request, MAX_REGISTER_BODY_BYTES, {});
+  if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_REGISTER_BODY_BYTES });
   const result = registerAccount({
     email: typeof body.email === "string" ? body.email : "",
     password: typeof body.password === "string" ? body.password : "",

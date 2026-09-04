@@ -1283,6 +1283,15 @@ export const REFUSAL_ERRORS = {
    *  is executed by design, so a crafted name is refused rather than quoted and hoped
    *  for. */
   RESTORE_UNSAFE_IDENTIFIER: "This backup file contains an unsafe table or column name and was refused.",
+  // ---- Request-body budget (app/_lib/request-body.ts). Every PUBLIC route reads
+  // its body under a hard byte cap enforced on the bytes READ, not on the caller's
+  // content-length; see docs/architecture/api-contracts.md §1.5c.
+  /** The request body exceeded the route's declared cap (413). Generic on purpose:
+   *  it is the answer on doors where the caller is a machine or a form with nothing
+   *  more useful to say. Surfaces with a specific next move keep their own code —
+   *  APPLY_PAYLOAD_TOO_LARGE ("shorten your answers"), IMPORT_BODY_TOO_LARGE ("check
+   *  you picked the right file"). `maxBytes` rides alongside as data. */
+  PAYLOAD_TOO_LARGE: "That request was too large to accept. Send less at once.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

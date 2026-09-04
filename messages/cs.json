@@ -1702,7 +1702,8 @@
     "WORKSPACE_EXPORT_FAILED": "Zálohu organizace se nepodařilo vytvořit. Zkuste to prosím znovu.",
     "WORKSPACE_RESTORE_FAILED": "Zálohu organizace se nepodařilo obnovit. Zkuste to prosím znovu.",
     "BILLING_PROVIDER_TIMEOUT": "Platební poskytovatel neodpověděl včas. Zkuste to prosím za chvíli znovu.",
-    "BILLING_QUOTA_EXCEEDED": "Tato akce by překročila měsíční limit vašeho tarifu. Přejděte na vyšší tarif nebo dobijte kredit v sekci Fakturace."
+    "BILLING_QUOTA_EXCEEDED": "Tato akce by překročila měsíční limit vašeho tarifu. Přejděte na vyšší tarif nebo dobijte kredit v sekci Fakturace.",
+    "PAYLOAD_TOO_LARGE": "Tento požadavek byl příliš velký. Pošlete najednou méně dat."
   },
   "resilience": {
     "notFoundEyebrow": "404",

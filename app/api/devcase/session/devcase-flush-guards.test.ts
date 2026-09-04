@@ -61,8 +61,12 @@ for (const rel of MUTATING) {
 test("./[id]/route.ts charges the flush body against a per-apply-token byte budget", () => {
   const src = read("./[id]/route.ts");
   assert.match(src, /from "\.\.\/session-limits"/, "the budget must come from the shared sibling module");
-  const rawAt = src.indexOf("const raw = await request.text();");
-  assert.ok(rawAt >= 0, "the body must be read as text so its size can be charged");
+  // Read as TEXT so its size can be charged — and UNDER A CAP, aborting the stream:
+  // until it had one, the byte budget could only charge for a flush the process had
+  // already buffered whole (public-body-cap-contract.test.ts).
+  const rawAt = src.indexOf("const raw = await readTextWithLimit(request, MAX_FLUSH_BODY_BYTES);");
+  assert.ok(rawAt >= 0, "the body must be read as capped text so its size can be charged");
+  assert.match(src, /jsonRefusal\("PAYLOAD_TOO_LARGE", 413/, "over the cap is a coded 413, not a buffered body");
   const chargeAt = src.indexOf("chargeFlushBytes(session.token, raw.length)");
   assert.ok(chargeAt > rawAt, "the charge must use the size of THIS request's body");
   // …and it must precede the first write, so a refused flush stores nothing.

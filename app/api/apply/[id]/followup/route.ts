@@ -7,6 +7,7 @@ import { GAP_FIELDS, mergeGapAnswers } from "@/app/_lib/completeness-followup";
 import { renormalizeApplicantProfile } from "@/app/_lib/applicant-profile";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // The candidate's answers to the profile-completeness gap questions, posted from
 // the done screen of the conversational apply AFTER their application has already
@@ -47,14 +48,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!rateLimit(`apply-followup:${id}:${clientIpFrom(request.headers)}`, FOLLOWUP_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_FOLLOWUP_BODY_BYTES) {
-      return NextResponse.json({ error: "Payload too large." }, { status: 413 });
-    }
     const job = getJob(id);
     if (!job) return NextResponse.json(NOT_FOUND, { status: 404 });
 
-    const body = (await request.json().catch(() => ({}))) as { lead?: unknown; answers?: unknown };
+    // The cap is enforced on the BYTES READ, not on content-length: that header is
+    // advisory, so a caller who omits it (chunked) or lies about it walked past the
+    // old check and streamed whatever it liked into the heap.
+    const body = await readJsonWithLimit<{ lead?: unknown; answers?: unknown }>(
+      request,
+      MAX_FOLLOWUP_BODY_BYTES,
+      {}
+    );
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_FOLLOWUP_BODY_BYTES });
+    }
 
     // Shape-gate the token before it touches the DB (never a cast), then resolve
     // it to its entry — and require that entry to belong to THIS job.

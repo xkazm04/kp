@@ -4,6 +4,7 @@ import { runSessionChat } from "@/app/_lib/devcase-run";
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // LLM-era controls #2/#5 — the captured prompt channel. The candidate's assistant
 // and stakeholder chats flow THROUGH the platform: every user message and model
@@ -38,6 +39,10 @@ const MAX_MESSAGE_CHARS = 4_000;
 // "you've reached the limit" line (devApply.workSurface.chatRateLimited) — an exhausted
 // budget must read as a stated limit, never as a failure that looks like lost work.
 
+/** Hard cap on this public door's request body: one chat turn plus the file the candidate has open — the file is what makes it more than a sentence.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_DEVCASE_CHAT_BODY_BYTES = 128 * 1024;
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -46,12 +51,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
     if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
 
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       channel?: unknown;
       message?: unknown;
       currentFile?: unknown;
       token?: unknown;
-    };
+    }>(request, MAX_DEVCASE_CHAT_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_CHAT_BODY_BYTES });
+    }
     // A session id alone is not authority to spend this session's model budget —
     // the caller must present the apply token that minted it (devcase-session-auth.ts).
     //

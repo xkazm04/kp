@@ -19,6 +19,7 @@ import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -193,14 +194,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
     }
 
-    // Reject an oversized body BEFORE buffering it into the heap. Content-Length is
-    // the only pre-read signal; the per-field caps below backstop an absent/spoofed one.
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_APPLY_BODY_BYTES) {
-      return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
-    }
-
-    const body = (await request.json().catch(() => ({}))) as {
+    // Reject an oversized body BEFORE buffering it into the heap. Content-Length used
+    // to be the ONLY signal here — and it is attacker-controlled: omit it (chunked
+    // transfer) or declare 10 while streaming 50 MB and the check waved the request
+    // through to `request.json()`, which then buffered the lot. The per-field caps
+    // below are a backstop on what gets STORED, never on what gets READ. The cap is
+    // now measured on the bytes actually taken off the wire (request-body.ts), with
+    // the header kept inside the helper as a cheap early-out for honest clients.
+    const body = await readJsonWithLimit<{
       answers?: Record<string, unknown>;
       // Lead-enrichment hand-off: the opaque token the apply page threaded
       // through from the ?lead= link. Untrusted — shape-gated and resolved below.
@@ -210,7 +211,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // measurement — it grants nothing, so an absent or bogus value only leaves
       // the attempt looking abandoned.
       applySessionId?: unknown;
-    };
+    }>(request, MAX_APPLY_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     const answers = body.answers ?? {};
     // Close the funnel loop on whichever path files an entry: a first application,
     // the dedupe backstop, or a re-apply that merged onto the original. All three

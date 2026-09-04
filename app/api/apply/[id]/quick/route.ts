@@ -13,6 +13,7 @@ import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
 // already succeeded, so a status-link failure must never turn it into an error
@@ -77,12 +78,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
     }
 
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_QUICK_BODY_BYTES) {
-      return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
-    }
-
-    const body = (await request.json().catch(() => ({}))) as {
+    // Enforced on the BYTES READ, not on content-length: that header is advisory, so
+    // a caller who omits it (chunked) or lies about it walked past the old check and
+    // streamed whatever it liked into the heap. The refusal keeps this surface's own
+    // code — a candidate is told to shorten their answers, not "payload too large".
+    const body = await readJsonWithLimit<{
       answers?: Record<string, unknown>;
       campaign?: unknown;
       variant?: unknown;
@@ -90,7 +90,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // The apply-funnel attempt this submission belongs to — measurement only,
       // grants nothing (see apply-session-store.ts).
       applySessionId?: unknown;
-    };
+    }>(request, MAX_QUICK_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
     // auto-fills every input trips it — drop the submission silently (no lead, no
     // email) and return the normal decline copy, so the bot can't distinguish the

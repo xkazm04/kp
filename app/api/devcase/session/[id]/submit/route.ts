@@ -6,6 +6,7 @@ import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { submissionReference } from "@/app/_lib/devcase-reference";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // THROTTLE (session-intake-guards.test.ts, rate-limit-contract.test.ts). Since this
 // door joined the shared intake below, one accepted call sends the candidate
@@ -25,6 +26,10 @@ import { submissionReference } from "@/app/_lib/devcase-reference";
 
 // Live Work Surface (moonshot E) — finalize a session: resolve the posting from the
 // session's token and create the linked submission (idempotent via submitDevSession).
+/** Hard cap on this public door's request body: the finalize envelope — a candidate name, a contact and a locale; the work itself was flushed earlier.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_DEVCASE_SUBMIT_BODY_BYTES = 32 * 1024;
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -36,12 +41,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // UAT M9 — the live-work surface is now the SOLE submit path for workspace
     // cases, so it carries the candidate's identity (name + contact) the repo form
     // used to, keeping a winning evaluation reachable.
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       candidate?: unknown;
       contact?: unknown;
       token?: unknown;
       locale?: unknown;
-    };
+    }>(request, MAX_DEVCASE_SUBMIT_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_SUBMIT_BODY_BYTES });
+    }
     // A session id alone is not authority to FINALIZE someone's session: sealing it
     // early would end another candidate's attempt mid-work. Same apply-token re-check
     // as the flush and chat routes (devcase-session-auth.ts).

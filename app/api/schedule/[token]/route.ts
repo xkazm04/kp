@@ -30,6 +30,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
 // Candidate-facing projection of an invite (idea-69d1e4fd). The route used to
@@ -169,6 +170,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
 
 // POST → candidate confirms a slot: record it, set it on the pipeline entry
 // (approve_event honors the chosen slot), and send a confirmation + reminder.
+/** Hard cap on this public door's request body: a slot pick, an RSVP or up to MAX_PROPOSALS candidate-proposed ISO instants.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_SCHEDULE_BODY_BYTES = 16 * 1024;
+
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
@@ -177,7 +182,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!rateLimit(`sched:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       slot?: string;
       slotAt?: string;
       reschedule?: boolean;
@@ -189,7 +194,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // "Propose your own times" escalation: 1–MAX_PROPOSALS candidate-suggested ISO
       // instants, validated server-side (proposedSlotFor) before they land on the invite.
       propose?: unknown;
-    };
+    }>(request, MAX_SCHEDULE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SCHEDULE_BODY_BYTES });
     // The candidate's IANA timezone (idea-b51106df), captured so the recruiter
     // agenda can show a cross-border booking in the candidate's real local time.
     // Validated against the runtime's zone table — a spoofed/unknown value is
