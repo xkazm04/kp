@@ -58,7 +58,14 @@ test("every channel row the board draws can carry the editor", () => {
   // label would write spend against a channel that does not exist. Pin the field so a
   // refactor that drops `channelId` from the row shape fails here rather than on a
   // recruiter's screen.
-  const board = read("sections", "EconomicsBoard.tsx");
-  assert.match(board, /channelId:\s*r\.channel\b/, "channel rows carry the stored id");
-  assert.match(board, /<SpendInput\s+channel=\{r\.channelId\}/, "and the editor writes against that id");
+  // The row model moved to sections/economicsRows.ts (pure, so the three taxonomies'
+  // normalization could be tested); the field this guard is about moved with it, so
+  // the guard follows it rather than quietly passing on a file that no longer builds
+  // rows at all.
+  assert.match(read("sections", "economicsRows.ts"), /channelId:\s*r\.channel\b/, "channel rows carry the stored id");
+  assert.match(
+    read("sections", "EconomicsBoard.tsx"),
+    /<SpendInput\s+channel=\{r\.channelId\}/,
+    "and the editor writes against that id"
+  );
 });

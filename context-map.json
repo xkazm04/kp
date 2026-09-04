@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-04T04:59:37.523Z",
+ "generated_at": "2026-09-04T05:22:43.622Z",
  "provenance": {
-  "git_commit": "c3f8a002c03aac45614d75127cfe686cf090a970",
-  "git_commit_count": 2454,
+  "git_commit": "a03c14adb083fb2919066b2b8caf59b677ef3081",
+  "git_commit_count": 2469,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-04T04:59:37.523Z"
+  "generated_at": "2026-09-04T05:22:43.622Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3010,
+  "files": 3019,
   "groups": 17,
   "use_cases": 12
  },
@@ -965,6 +965,7 @@
     "app/api/analytics/spend/route.ts"
    ],
    "file_paths": [
+    "app/api/analytics/analytics-write-invalidates-read.test.ts",
     "app/api/analytics/analytics-writes-authority.test.ts",
     "app/api/analytics/calibration/apply-threshold/route.ts",
     "app/api/analytics/calibration/band/route.ts",
@@ -1024,6 +1025,8 @@
     "app/features/insights/analytics/AnalyticsAutomationPanel.tsx",
     "app/features/insights/analytics/AnalyticsByRoleTable.tsx",
     "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx",
+    "app/features/insights/analytics/analyticsFetchError.test.ts",
+    "app/features/insights/analytics/analyticsFetchError.ts",
     "app/features/insights/analytics/parseLocaleNumber.test.ts",
     "app/features/insights/analytics/parseLocaleNumber.ts",
     "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx",
@@ -1038,6 +1041,8 @@
     "app/features/insights/analytics/sections/QualitySection.tsx",
     "app/features/insights/analytics/sections/analyticsSections.test.ts",
     "app/features/insights/analytics/sections/analyticsSections.ts",
+    "app/features/insights/analytics/sections/economicsRows.test.ts",
+    "app/features/insights/analytics/sections/economicsRows.ts",
     "app/features/insights/analytics/sections/economicsTypes.ts",
     "app/features/insights/analytics/sections/performanceTypes.ts",
     "app/features/insights/analytics/sections/sealTraceabilityRender.test.ts",
@@ -2652,6 +2657,7 @@
     "app/landing/spark/sections/FeatureGrid.tsx",
     "app/landing/spark/sections/Footer.tsx",
     "app/landing/spark/sections/Hero.tsx",
+    "app/landing/spark/sections/LegalRow.tsx",
     "app/landing/spark/sections/Marquee.tsx",
     "app/landing/spark/sections/MobileNav.tsx",
     "app/landing/spark/sections/Proof.tsx",
@@ -4944,6 +4950,7 @@
     "app/_lib/comms-resend-outcome.test.ts",
     "app/_lib/comms-resend-outcome.ts",
     "app/_lib/decision-config-version.test.ts",
+    "app/_lib/dev-outcomes-atomicity.test.ts",
     "app/_lib/devcase-reference.ts",
     "app/_lib/llm-config-probe-env.test.ts",
     "app/_lib/matrix-cache.test.ts",
@@ -6879,6 +6886,7 @@
    "description": "[auto-seeded — pending sweep enrichment] DB Core: 4 source + 14 test file(s) under app/_lib/db. Reads/writes agent_activity, agent_fit_specs, analyses, analytics_targets, ats_links, billing_alerts, ….",
    "entry_points": [],
    "file_paths": [
+    "app/_lib/db/analytics-window-index.test.ts",
     "app/_lib/db/automation-approval-cas.test.ts",
     "app/_lib/db/core.ts",
     "app/_lib/db/db-test-isolation-guard.test.ts",
@@ -6942,6 +6950,7 @@
     "e2e/landing.spec.ts",
     "e2e/modal-escape.spec.ts",
     "e2e/profile-builder.spec.ts",
+    "e2e/public-pages.spec.ts",
     "e2e/quality-tables.spec.ts",
     "e2e/shell-tab-state.spec.ts"
    ],

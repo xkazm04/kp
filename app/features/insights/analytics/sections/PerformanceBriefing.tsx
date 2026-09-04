@@ -22,7 +22,7 @@ import { useTranslations } from "next-intl";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
-import { EYEBROW } from "@/app/_components/ui/recipes";
+import { EYEBROW, META_LABEL } from "@/app/_components/ui/recipes";
 import { DeltaChip } from "../AnalyticsDeltaChip";
 import { GoalsEditor } from "../AnalyticsGoalsEditor";
 import { AnalyticsByRoleTable } from "../AnalyticsByRoleTable";
@@ -321,13 +321,13 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
             <dl className="flex max-w-3xl flex-wrap gap-x-10 gap-y-3">
               {forecast.projected.map((p) => (
                 <div key={p.weeks} className="flex flex-col gap-0.5">
-                  <dt className="text-meta uppercase text-steel">{t("forecast.horizon", { weeks: p.weeks })}</dt>
+                  <dt className={META_LABEL}>{t("forecast.horizon", { weeks: p.weeks })}</dt>
                   <dd className="font-serif text-h2 leading-none text-ink nums">{t("forecast.plusHires", { hires: p.hires })}</dd>
                 </div>
               ))}
               {forecast.etaDays != null ? (
                 <div className="flex flex-col gap-0.5">
-                  <dt className="text-meta uppercase text-steel">{t("briefEtaLabel")}</dt>
+                  <dt className={META_LABEL}>{t("briefEtaLabel")}</dt>
                   <dd className="font-serif text-h2 leading-none text-steel nums">{t("briefEtaValue", { days: forecast.etaDays })}</dd>
                 </div>
               ) : null}

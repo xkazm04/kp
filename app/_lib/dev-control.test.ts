@@ -16,11 +16,16 @@ import { mkdtempSync } from "node:fs";
 process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-devctl-")), "kp.sqlite");
 delete process.env.DATABASE_URL;
 
-let recordAudit: (typeof import("./dev-control.ts"))["recordAudit"];
-let listAudit: (typeof import("./dev-control.ts"))["listAudit"];
+type Ctl = typeof import("./dev-control.ts");
+let recordAudit: Ctl["recordAudit"];
+let listAudit: Ctl["listAudit"];
+let getAutonomy: Ctl["getAutonomy"];
+let setAutonomy: Ctl["setAutonomy"];
+let getPromoteFloor: Ctl["getPromoteFloor"];
+let setPromoteFloor: Ctl["setPromoteFloor"];
 
 before(async () => {
-  ({ recordAudit, listAudit } = await import("./dev-control.ts"));
+  ({ recordAudit, listAudit, getAutonomy, setAutonomy, getPromoteFloor, setPromoteFloor } = await import("./dev-control.ts"));
 });
 
 test("the audit listing never crosses a tenant boundary", () => {
@@ -63,4 +68,54 @@ test("an unattributed write lands on the default workspace, not on everyone", ()
 test("listAudit() with no workspace still returns the whole log (tests + maintenance)", () => {
   const all = listAudit(200).map((a) => a.action);
   assert.ok(all.includes("outcome_recorded") && all.includes("promoted"), "the unscoped read is the maintenance view");
+});
+
+// ── The dev_control key surface (/perfect wave 28) ───────────────────────────
+//
+// `dev_control` is two global keys, and both are consequential: `autonomy` is the KILL
+// SWITCH the orchestrator reads before auto-advancing anything, and `promote_floor` is
+// the threshold every future auto-decision is judged against — the number the control
+// room's "Apply suggested → N" button writes. Until now neither had a single test:
+// `setPromoteFloor` did not appear in one file under app/. These pin the round trip and
+// the two ways a bad value could otherwise become policy.
+
+test("the kill switch round-trips, and an unset store reads as running", () => {
+  // Unset must mean "on": a fresh install that failed closed would silently never
+  // auto-advance, and the operator would see a paused pipeline they never paused.
+  assert.equal(getAutonomy(), "on");
+  setAutonomy("paused");
+  assert.equal(getAutonomy(), "paused");
+  setAutonomy("on");
+  assert.equal(getAutonomy(), "on", "the switch is a switch — resuming must actually resume");
+});
+
+test("an unset promote floor is null, never a fabricated number", () => {
+  // null is how the orchestrator knows to fall back to its DEV_POLICY default. A 0 here
+  // would read as "promote everyone" — the opposite of an unset threshold.
+  assert.equal(getPromoteFloor(), null);
+});
+
+test("the promote floor is clamped into 0..100 and rounded", () => {
+  for (const [given, stored] of [
+    [55, 55],
+    [0, 0],
+    [100, 100],
+    [-20, 0], // below the scale: the floor cannot mean "less than nothing"
+    [140, 100], // above it: nor "more than a perfect score", which would promote no one
+    [72.6, 73], // the column is an integer scale; a fraction is not a finer threshold
+  ] as const) {
+    setPromoteFloor(given);
+    assert.equal(getPromoteFloor(), stored, `setPromoteFloor(${given})`);
+  }
+});
+
+test("a non-finite promote floor is refused, not stringified into the store", () => {
+  setPromoteFloor(64);
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    assert.throws(() => setPromoteFloor(bad), /finite/);
+  }
+  // The real damage was silent, not the throw: "NaN" persisted, read back as null on the
+  // next boot, and the orchestrator quietly reverted to its default floor — a policy
+  // change nobody made and nobody could see. The stored value must be untouched.
+  assert.equal(getPromoteFloor(), 64, "a refused write leaves the live threshold exactly as it was");
 });

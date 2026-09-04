@@ -13,21 +13,47 @@
  * ./index.ts for why these mockups are translated at all.
  */
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { motion, type Transition } from "framer-motion";
 import { INK } from "../tokens";
+import { useStillMotion } from "../useStillMotion";
+
+/*
+ * Reduced motion, for entrances rather than for loops.
+ *
+ * AboutCurve.test.ts used to gate `repeat: Infinity` only, so every preview's
+ * slam-and-stamp choreography — `scale: 2.2` dropping onto the page, cards
+ * rotating in from ±10° — played in full for a reader who had asked the OS for
+ * less. An entrance is not exempt just because it ends.
+ *
+ * The gate is the TRANSITION, never the `initial` prop and never the markup.
+ * `initial` is the style the server writes; branching it would hand the
+ * hydrating render a different inline style than the HTML it is hydrating
+ * (spark/useStillMotion.ts is the long version of why that is fatal). Swapping
+ * the transition for `{ duration: 0 }` instead lands the element on its END
+ * state — the composition the visitor is meant to see, arrived at instantly.
+ *
+ * These mockups mount inside FeatureSpotlight's dialog, i.e. client-side after
+ * a click, so `useStillMotion` already knows the real preference at mount and
+ * a still reader sees no motion at all.
+ */
+const INSTANT: Transition = { duration: 0 };
+
+/** A preview's own inline choreography, gated: `transition={entrance(reduce, {…})}`. */
+export const entrance = (reduce: boolean, transition: Transition): Transition => (reduce ? INSTANT : transition);
+const at = entrance;
 
 /** Pop in with a spring — the default entrance for a line of copy or a chip. */
-export const pop = (delay: number) => ({
+export const pop = (delay: number, reduce = false) => ({
   initial: { opacity: 0, scale: 0.6, y: 14 },
   animate: { opacity: 1, scale: 1, y: 0 },
-  transition: { delay, type: "spring" as const, bounce: 0.45 }
+  transition: at(reduce, { delay, type: "spring" as const, bounce: 0.45 })
 });
 
 /** Slam down oversized and settle askew — for anything that reads as a stamp. */
-export const stamp = (delay: number) => ({
+export const stamp = (delay: number, reduce = false) => ({
   initial: { opacity: 0, scale: 2.2, rotate: 10 },
   animate: { opacity: 1, scale: 1, rotate: -6 },
-  transition: { delay, type: "spring" as const, bounce: 0.45 }
+  transition: at(reduce, { delay, type: "spring" as const, bounce: 0.45 })
 });
 
 /** The white sticker card every preview list-row is built from. */
@@ -46,9 +72,10 @@ export function PreviewNote({
   color: string;
   tilt?: boolean;
 }) {
+  const reduce = useStillMotion();
   return (
     <motion.p
-      {...pop(delay)}
+      {...pop(delay, reduce)}
       className={`mt-4 text-[17px] font-bold ${tilt ? "-rotate-1" : ""}`}
       style={{ color }}
     >
@@ -59,9 +86,10 @@ export function PreviewNote({
 
 /** The uppercase pill that stamps itself onto a mockup header. */
 export function StampChip({ children, background, delay = 0.2 }: { children: ReactNode; background: string; delay?: number }) {
+  const reduce = useStillMotion();
   return (
     <motion.span
-      {...stamp(delay)}
+      {...stamp(delay, reduce)}
       className="rounded-full border-[3px] border-[#17202a] px-3 py-1 text-sm font-extrabold uppercase tracking-wide text-white shadow-[2px_2px_0_#17202a]"
       style={{ background }}
     >
@@ -82,11 +110,12 @@ export function ConfirmBar({
   delay?: number;
   icon: ReactNode;
 }) {
+  const reduce = useStillMotion();
   return (
     <motion.div
       initial={{ opacity: 0, y: 16, rotate: -2 }}
       animate={{ opacity: 1, y: 0, rotate: 0 }}
-      transition={{ delay, type: "spring", bounce: 0.4 }}
+      transition={at(reduce, { delay, type: "spring", bounce: 0.4 })}
       className="mt-4 flex items-center gap-2 rounded-xl border-[3px] border-[#17202a] px-4 py-2.5 text-sm font-bold text-white shadow-[3px_3px_0_#17202a]"
       style={{ background }}
     >
@@ -98,11 +127,12 @@ export function ConfirmBar({
 
 /** A vertical connector, purely decorative. */
 export function Stem({ delay = 0.75 }: { delay?: number }) {
+  const reduce = useStillMotion();
   return (
     <motion.div
       initial={{ opacity: 0, scaleY: 0 }}
       animate={{ opacity: 1, scaleY: 1 }}
-      transition={{ delay, duration: 0.3 }}
+      transition={at(reduce, { delay, duration: 0.3 })}
       className="mx-auto mt-3 h-7 w-1.5 origin-top rounded-full"
       style={{ background: INK }}
       aria-hidden

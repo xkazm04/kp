@@ -86,7 +86,7 @@ test("a bulk paste survives the route and lands the watched submission in suspec
     withoutPaste.score - withPaste.score >= 60,
     `materially lower authenticity (delta ${withoutPaste.score - withPaste.score})`
   );
-  assert.ok(withPaste.reasons.some((r) => r.includes("bulk paste")));
+  assert.ok(withPaste.reasons.some((r) => r.kind === "bulkPaste"));
 });
 
 test("a sub-threshold paste round-trips but does not trip the control", async () => {

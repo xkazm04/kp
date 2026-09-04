@@ -247,7 +247,13 @@ export type ProcessTrace = {
 // (app/_lib/devcase-authenticity.ts): is this genuine incremental work or a likely
 // paste-from-LLM? `band` "suspect" holds the submission for the ownership-verifying
 // interview rather than auto-advancing on transfer score. Absent on older bundles.
-export type Authenticity = { score: number /* SCORE 0..100 */; band: "authentic" | "mixed" | "suspect"; reasons: string[] };
+// The `reasons` are FINDINGS, not copy: `{ kind, params }`, rendered through
+// `devcase.evalPanel.authenticityReason.*` in the reader's language. Bundles are
+// PERSISTED, so a panel is still handed runs saved while the producer pushed English
+// sentences — hence the `| string` arm, which the panel renders verbatim (it is the
+// prose that run actually produced) rather than dropping evidence it cannot re-key.
+export type AuthenticityReason = { kind: string; params?: Record<string, number> };
+export type Authenticity = { score: number /* SCORE 0..100 */; band: "authentic" | "mixed" | "suspect"; reasons: (AuthenticityReason | string)[] };
 // c364a44d — seed-anchored engagement: which planted seam files the submission
 // touched (app/_lib/devcase-seed-diff.ts). Grounded, mechanically comparable
 // evidence beside the LLM probe read. Absent on bundles saved before it / cases

@@ -677,6 +677,57 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**The tab is on the type scale and on the recipes.** The nine `text-xs` classes across the
+automation, calibration, compute-cost and economics panels are now `text-micro` — the 14px floor
+the design system states, rather than a utility that renders below it. Thirteen files carried
+hand-typed `PANEL` / `META_LABEL` / `NOTICE("amber")` literals in
+`app/_components/ui/recipe-debt.json`; twenty-one of the twenty-two now compose the recipe and
+those twelve ceiling entries are DROPPED, which locks the win (the next literal to arrive in one
+of them is `undeclared`, and red). One row is kept on purpose:
+`sections/DecisionRecordsTable.tsx` `noticeAmber=1` is a `rounded` micro badge on a record row,
+and `NOTICE()` carries `rounded-lg dark:rounded-2xl` — the recipe is the wrong shape for it.
+
+**The two export buttons report a code, not a status.** The dossier export
+(`AnalyticsDecisionRecordsPanel`) and the whole-trail export (`sections/DecisionLogTable`) used to
+`throw new Error(String(res.status))` — and the number never reached a reader, because the catch
+downstream painted one flat sentence for every failure. `GET /api/analytics/decisions` answers
+`TOO_MANY_REQUESTS` (429, wait and retry) and `DECISION_LOG_LOAD_FAILED` (500, the read fell
+over) with codes, and those two were indistinguishable. Both paths now resolve the body's code
+through `useErrorMessage()` and throw a `LocalizedFailure`
+(`app/features/insights/analytics/analyticsFetchError.ts`), which the renderer unwraps with its
+own localized fallback; a caught Error's raw `.message` is never painted. `GET
+/api/decisions/records` still answers with `jsonError` (message, no code), so the dossier export
+resolves to its fallback sentence until that route is coded — the client is ready for it.
+
+**One answer to "we have no data" per page.** The Economics board's three taxonomies
+(`byChannel`, `bySource`, `byVariant`) are normalized onto one row model by
+`app/features/insights/analytics/sections/economicsRows.ts`, and `hireRate(hired, total)`
+returns `null` — not `0` — over an empty population, matching the dash `AnalyticsByRoleTable`
+prints for the same case. The board previously computed a variant's rate inline as
+`r.total ? … : 0`, so a creative nobody had ever applied through rendered as a "0 % hire rate"
+verdict, while the sorter beside it already treated the same row as absent. The rate is now a
+value whose empty case is a value; `economicsRows.test.ts` pins all three groups.
+
+**The window queries seek, they do not scan.** `pipeline_entries` and `pipeline_events` carry
+`idx_pipeline_entries_ws_created` / `idx_pipeline_events_ws_created` — `(workspace_id,
+created_at)`, workspace first because it is the equality predicate. Every windowed query in
+`pipelineAnalytics` is `created_at >= ? AND <notSim> AND workspace_id = ?`, and SQLite uses at
+most one index per table: with only the workspace-only and `created_at DESC` indexes the planner
+seeked by tenant and then date-filtered every row that tenant had ever written (it actually
+reached for `idx_pipeline_dev_case`). `app/_lib/db/analytics-window-index.test.ts` asserts the
+plan itself with EXPLAIN QUERY PLAN — an existence check on the index would only prove a CREATE
+ran, and a timing test on a throwaway DB proves nothing.
+
+**A write door retires its workspace's memo.** The TTL reasoning ("a write lands on the next
+read past the TTL") holds for a pipeline write nobody is watching; it does not hold for
+`POST /api/analytics/targets` and `POST /api/analytics/spend`, which are inline editors that
+`reload()` the payload the instant they succeed — inside the TTL. Both now call
+`invalidateAnalyticsWorkspace(ws)` (`app/_lib/analytics-cache.ts`) after the store write. It
+bumps a per-workspace WRITE VERSION that rides in the memo key rather than calling `clear()`, so
+every window of the written workspace is retired at once and no sibling tenant's fresh payload is
+collateral. Pinned end-to-end by `app/api/analytics/analytics-write-invalidates-read.test.ts`,
+which drives the real handlers: write, then read, and the read must carry the new figure.
+
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
 `analytics-cache.ts`, `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,

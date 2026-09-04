@@ -2,6 +2,7 @@
 
 import type { Delta } from "@/app/_lib/analytics-deltas";
 import { DeltaChip } from "./AnalyticsDeltaChip";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 
 // One tile of the Analytics header's compact key-stat cluster. Split out of
 // AnalyticsTab.tsx to keep that file under the 200-line cap.
@@ -34,7 +35,7 @@ export function Stat({
 }) {
   return (
     <div className="bg-white px-4 py-2.5">
-      <p className="text-meta uppercase text-steel">{label}</p>
+      <p className={META_LABEL}>{label}</p>
       <div className="mt-0.5 flex items-baseline gap-1.5">
         <p className="font-serif text-h2 leading-none text-ink">{value}</p>
         {delta ? <DeltaChip delta={delta} lowerIsBetter={lowerIsBetter} unit={unit} /> : null}

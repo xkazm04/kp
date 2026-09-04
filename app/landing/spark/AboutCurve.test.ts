@@ -90,3 +90,72 @@ test("every looping landing animation is gated on reduced motion", () => {
       `(gate the prop, never the markup): ${ungated.join(", ")}`
   );
 });
+
+/* An ENTRANCE is not exempt just because it ends.
+ *
+ * The loop check above was the whole reduced-motion gate for months, so the
+ * nine feature previews slammed `scale: 2.2` stamps onto the page and rotated
+ * cards in from +/-10 degrees for a reader who had asked the OS for less: the
+ * choreography is finite, so `repeat: Infinity` never saw it. Every module
+ * under previews/ that carries an entrance must therefore reach the flag —
+ * `useStillMotion()` directly, or `reduce` threaded into pop/stamp/entrance
+ * from previews/shared.tsx (which gates the TRANSITION, never the markup).
+ *
+ * Modules with no entrance at all (the registry) are not offenders and are not
+ * holdouts; the list below is for a module that has one and cannot yet gate it.
+ * It must only ever shrink. */
+const KNOWN_UNGATED_ENTRANCES = new Set<string>([]);
+
+const PREVIEWS_DIR = path.join(LANDING, "spark", "previews");
+const previewFiles = FILES.filter((f) => f.startsWith(PREVIEWS_DIR + path.sep));
+
+test("the previews tree has modules to check", () => {
+  assert.ok(previewFiles.length >= 10, `expected the nine previews plus shared, found ${previewFiles.length}`);
+});
+
+test("every preview entrance is gated on reduced motion", () => {
+  const ungated = previewFiles
+    .filter((f) => {
+      const src = code(f);
+      // An entrance is a framer `initial` (prop or variant) or one of the two
+      // shared choreographies. `scale:`/`rotate:` are the transforms the rule
+      // exists for, but x/y/width entrances move for the same reader.
+      const hasEntrance = /initial[=:]|pop\(|stamp\(/.test(src);
+      return hasEntrance && !/useStillMotion|reduceMotion|reduce/.test(src);
+    })
+    .map(rel)
+    .filter((f) => !KNOWN_UNGATED_ENTRANCES.has(f));
+  assert.deepEqual(
+    ungated,
+    [],
+    `a preview entrance must gate its TRANSITION on useStillMotion() — pass the flag to ` +
+      `pop/stamp or wrap the transition in entrance(reduce, …) from previews/shared.tsx: ${ungated.join(", ")}`
+  );
+});
+
+/* The voice teaser's speakers are a parallel array to a CATALOG array, and
+ * nothing pinned the two together: `TRANSCRIPT_WHO` has three entries, and a
+ * fourth line added to `landing.voice.transcript` in any locale would render
+ * with `who === undefined` — neither AI nor candidate, so it silently takes the
+ * candidate's styling on the wrong side of the card. Read from source rather
+ * than imported: the module is a "use client" .tsx and this runner strips types
+ * without a JSX transform. */
+test("VoiceTeaser's speaker list covers every locale's transcript", () => {
+  const teaser = readFileSync(path.join(LANDING, "spark", "sections", "VoiceTeaser.tsx"), "utf8");
+  const literal = /const TRANSCRIPT_WHO = \[([^\]]*)\]/.exec(teaser);
+  assert.ok(literal, "TRANSCRIPT_WHO literal not found in VoiceTeaser.tsx");
+  const speakers = literal[1].split(",").map((s) => s.trim()).filter(Boolean);
+  assert.ok(speakers.length > 0, "TRANSCRIPT_WHO parsed empty");
+
+  const messages = path.resolve(LANDING, "..", "..", "messages");
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const catalog = JSON.parse(readFileSync(path.join(messages, `${locale}.json`), "utf8"));
+    const transcript = catalog.landing.voice.transcript as string[];
+    assert.equal(
+      speakers.length,
+      transcript.length,
+      `messages/${locale}.json landing.voice.transcript has ${transcript.length} line(s) but ` +
+        `VoiceTeaser.tsx names ${speakers.length} speaker(s) — an unnamed line renders as the candidate`
+    );
+  }
+});

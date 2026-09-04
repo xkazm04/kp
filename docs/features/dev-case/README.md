@@ -176,6 +176,44 @@ palette. The full mapping table and the five reading states are in
    the same two ways), so the recruiter's rating **updates** the auto-written row
    rather than minting a second decided outcome that `calibrate()` would count twice.
 
+   **An outcome is recorded once, and its provenance is a flag.** Three properties of
+   the store, all added in one pass because they are the same defect seen from three
+   sides:
+
+   - *Atomic.* `recordOutcome` and `recordPipelineOutcome` each run their
+     read→decide→write inside `db.transaction(...).immediate()` — the write lock is
+     taken at BEGIN, so the recruiter drawer rating a hire and the pipeline
+     auto-recording the same terminal transition cannot both read "no row" and both
+     insert. Across the several connections this file is opened on, the partial
+     `UNIQUE (workspace_id, ref, outcome) WHERE ref IS NOT NULL` index in the store's
+     own idempotent migrator is the backstop, and the INSERT is an `ON CONFLICT … DO
+     UPDATE` so a lost race merges rather than throwing out of a hire transition.
+     Partial on purpose: a *refless* control-room entry legitimately repeats (two
+     people, one common name, one outcome). Rows that already violate the constraint
+     are collapsed to the newest per key on first migration — the store's own
+     documented rule. Both layers pinned in `app/_lib/dev-outcomes-atomicity.test.ts`
+     (source contract + the race replayed on two connections, with the pre-change
+     shape as the non-vacuity control).
+   - *Provenance is `source`, not prose.* The column is `"auto" | "manual"`. The two
+     English sentences that used to be persisted into `note` — `"auto-recorded from
+     pipeline …"` and `"on-the-job rating recorded in the pipeline drawer"` — are no
+     longer written; the control room branches on the flag and writes the sentence in
+     the operator's language (`control.outcomes.sourceNote.*`). It previously rendered
+     the stored English verbatim to every locale *and* pattern-matched
+     `note.startsWith("auto-recorded")` as if the prose were an enum. Legacy rows
+     backfill from that very prefix; an unattributable one reads `manual`, never
+     `auto`. An update never rewrites `source` — provenance belongs to the row's first
+     writer, so a human rating an auto-recorded hire does not make the outcome manual.
+   - *Both reads are bounded and say so.* `latestOutcomeByRefs` chunks its IN-list at
+     `REF_CHUNK = 400` (`GET /api/devcase/postings` flattens every submission of every
+     posting into one list; past `SQLITE_MAX_VARIABLE_NUMBER` — a compile-time
+     constant of whichever SQLite the install links — the statement throws rather than
+     degrades, and the Dev tab answers `DEVCASE_POSTINGS_FAILED`). `calibrate()` reads
+     the newest `CALIBRATION_SCAN_LIMIT = 1000` rows and now reports `resolvedOf` when
+     that cap was reached, so the control room can say the sample is *of the newest N*
+     instead of presenting a suffix as the whole corpus. `resolvedOf` is `null` in the
+     ordinary case — a caveat that did not bite is not shown.
+
 ## Anti-delegation controls (shipped)
 
 Six controls, referenced in code comments as "LLM-era controls #1–#6":
@@ -753,15 +791,26 @@ a broken template, not as an honest limit.
   (four locales, distinct sentences per locale, the prompt directive, the unsupported-`lang`
   fallback) and by the locale tests in `app/_lib/devcase-feedback.test.ts`.
 
-### Known gap: engine-authored English sentences
+### Known gap: engine-authored English sentences (Python half)
 
-Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
-every `reasons[]` in `app/_lib/devcase-authenticity.ts` and every `evidence[]` in
-`process_events.py` / `prompt_signals.py`. They stay English prose for now — turning
-them into codes+params is one coherent change spanning a TS producer and two Python
-producers plus their consumers, and half-doing it (codes on one side, prose on the
-other) is worse than either end state. The frames around them are translated, so the
-authenticity tooltip is not wholly English. Not in phase 1 scope; do it as one unit.
+**The TS half is closed.** `app/_lib/devcase-authenticity.ts` no longer builds
+sentences: its ten penalties emit `{ kind, params }` findings from the closed
+`AUTHENTICITY_REASON_KINDS` vocabulary, and `DevEvalPanelScores` renders each through
+`devcase.evalPanel.authenticityReason.*` in the reader's language — the same
+codes+params contract as `CalibrationRationale` and `GithubFinding`. Params carry
+numbers only (`fewCommits {n}`, `bulkPaste {chars}`), never a pre-built clause. Bundles
+are persisted, so the panel keeps two fallbacks: a legacy English string renders as
+itself (it is what that run actually produced, and dropping it would hide evidence from
+the interviewer), and a kind this build does not know renders as nothing rather than a
+raw key. Pinned in `app/_lib/devcase-authenticity.test.ts`, including that every
+declared kind is reachable — a kind nothing can emit is dead copy in four catalogs.
+
+What remains is the **Python** producers: every `evidence[]` in `process_events.py` /
+`prompt_signals.py` is still English prose rendered verbatim. The reason the two halves
+were sequenced rather than done together is that they share no producer and no
+consumer; the concern that half-doing it is worse than either end state applied to
+splitting ONE producer, not to finishing one of two. Do the Python side as its own unit,
+with the same `{ kind, params }` shape.
 
 ## Surface
 

@@ -195,48 +195,8 @@
     "features/insights/activity/ActivityTab.tsx": {
       "metaLabel": 1
     },
-    "features/insights/analytics/AnalyticsArchetypePanel.tsx": {
-      "panel": 1
-    },
-    "features/insights/analytics/AnalyticsAutomationPanel.tsx": {
-      "panel": 1
-    },
-    "features/insights/analytics/AnalyticsByRoleTable.tsx": {
-      "panel": 1,
-      "metaLabel": 3
-    },
-    "features/insights/analytics/AnalyticsCalibrationPanel.tsx": {
-      "panel": 1
-    },
-    "features/insights/analytics/AnalyticsComputeCostPanel.tsx": {
-      "panel": 1
-    },
-    "features/insights/analytics/AnalyticsDecisionRecordsPanel.tsx": {
-      "panel": 1,
-      "noticeAmber": 2
-    },
-    "features/insights/analytics/AnalyticsMomentumPanel.tsx": {
-      "panel": 1
-    },
-    "features/insights/analytics/AnalyticsStat.tsx": {
-      "metaLabel": 1
-    },
-    "features/insights/analytics/sections/AnalyticsSectionNav.tsx": {
-      "panel": 1
-    },
-    "features/insights/analytics/sections/DecisionLogTable.tsx": {
-      "metaLabel": 2,
-      "noticeAmber": 1
-    },
     "features/insights/analytics/sections/DecisionRecordsTable.tsx": {
-      "metaLabel": 1,
       "noticeAmber": 1
-    },
-    "features/insights/analytics/sections/EconomicsBoard.tsx": {
-      "metaLabel": 1
-    },
-    "features/insights/analytics/sections/PerformanceBriefing.tsx": {
-      "metaLabel": 2
     },
     "features/insights/matrix/MatrixDataNotices.tsx": {
       "noticeAmber": 2

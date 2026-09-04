@@ -1173,7 +1173,9 @@
   "aboutPage": {
     "nav": {
       "home": "Domů",
-      "signIn": "Přihlásit se"
+      "signIn": "Přihlásit se",
+      "market": "Pulz trhu",
+      "source": "Zdrojový kód"
     },
     "hero": {
       "badge": "náborová pipeline, od začátku do konce",
@@ -6973,7 +6975,8 @@
     "copyViewLinkTitle": "Odkaz, který otevře tuto sekci ve stejném období, jaké máte na obrazovce",
     "viewLinkManual": "Prohlížeč kopírování zablokoval. Označte odkaz níže a zkopírujte ho ručně.",
     "briefMomentumNoDataClaim": "V těchto týdnech se zatím nic nepohnulo.",
-    "briefRolesNoDataClaim": "Zatím žádná role pipeline netáhne."
+    "briefRolesNoDataClaim": "Zatím žádná role pipeline netáhne.",
+    "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete."
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
@@ -8432,7 +8435,19 @@
       "inPipeline": "V pipeline",
       "promoting": "Probíhá postup…",
       "promote": "Postoupit do pipeline",
-      "promoteHint": "→ vznikne karta k posouzení v Rozhodnutích"
+      "promoteHint": "→ vznikne karta k posouzení v Rozhodnutích",
+      "authenticityReason": {
+        "singleBulkCommit": "Jediný hromadný commit, bez postupné historie.",
+        "fewCommits": "Velmi málo commitů ({n}): tenká stopa vývoje.",
+        "noCommitHistory": "Historii commitů nelze přečíst.",
+        "bulkPaste": "Hromadné vložení {chars}+ znaků bez postupného budování, možné vložení z LLM.",
+        "integrityFailed": "Kontrola integrity záznamu událostí selhala (poškozený řetězec hashů nebo zpětně datované časy), sledované stopě proto nelze věřit.",
+        "noDecisionsLog": "Chybí povinný záznam DECISIONS.",
+        "bursty": "Práce vznikla v jediném nárazu, ne postupně.",
+        "bigBang": "Vzorec „všechno najednou“, bez viditelného postupného budování.",
+        "unreadableIteration": "Způsob iterace nešlo ze stopy vyčíst.",
+        "lowReadBeforeWrite": "Málo dokladů o čtení stávajícího kódu před psaním."
+      }
     },
     "jobLink": {
       "linked": "Pozice: {title}",
@@ -9461,7 +9476,11 @@
       "autoBadge": "auto",
       "addPerf": "doplnit výkon",
       "ratingGroup": "Hodnocení výkonu, 1 až 5",
-      "ratePerformance": "Ohodnotit výkon {n} z 5"
+      "ratePerformance": "Ohodnotit výkon {n} z 5",
+      "sourceNote": {
+        "auto": "Zaznamenáno automaticky, když nábor dospěl do koncové fáze.",
+        "manual": "Zaznamenal člověk."
+      }
     },
     "calibration": {
       "activeFloor": "Aktivní práh pro postup",
@@ -9481,7 +9500,8 @@
         "calibrated": "Práh {current} je dobře kalibrovaný. Leží v prvním pásmu, kde byla většina postoupených kandidátů přijata."
       },
       "applyFailed": "Práh pro postup se nezměnil ({status}).",
-      "applyNetwork": "Chyba sítě. Práh pro postup se nezměnil."
+      "applyNetwork": "Chyba sítě. Práh pro postup se nezměnil.",
+      "cappedNote": "Spočítáno z nejnovějších {limit} zaznamenaných výsledků. Starší v tomto vzorku nejsou."
     },
     "actionFailed": "Tento ovládací prvek se nepodařilo použít ({status}).",
     "actionNetwork": "Chyba sítě. Řídicí místnost není dostupná, nic se nezměnilo.",

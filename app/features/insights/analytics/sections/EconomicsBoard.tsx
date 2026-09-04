@@ -25,7 +25,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { ArrowRight, PauseCircle } from "lucide-react";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { labelOr } from "@/app/_lib/use-enum-label";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { Defer } from "@/app/_components/ui/Defer";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { useTableSort } from "@/app/_components/table/useTableSort";
@@ -34,26 +34,12 @@ import { AutomationPanel, ComputeCostPanel } from "./sectionChunks";
 import { SpendInput } from "../AnalyticsChannelSpendInput";
 import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import type { EconomicsProps } from "./economicsTypes";
+import { economicsRows, type EconomicsKind, type EconomicsRow } from "./economicsRows";
 
-type Kind = "channel" | "source" | "variant";
-type Row = {
-  key: string;
-  kind: Kind;
-  name: string;
-  // The STORED channel id (not the display label) — the write key for the spend
-  // endpoint and the board's `?source=` filter value. Null on the two taxonomies
-  // that have no stored channel of their own.
-  channelId: string | null;
-  total: number;
-  reachedInterview: number;
-  hired: number;
-  hireRatePct: number;
-  spendCzk: number | null;
-  // UAT KAT-ANA-2 — when a human last typed `spendCzk`. Rendered beside the derived
-  // per-hire figure so a six-week-old entry reads as six weeks old.
-  spendUpdatedAt: string | null;
-  costPerHireCzk: number | null;
-};
+// The row model + the one hire-rate rule live in economicsRows.ts, pure, so the
+// three taxonomies' normalization can be driven by a test — see the note there.
+type Row = EconomicsRow;
+type Kind = EconomicsKind;
 type Col = "name" | "kind" | "total" | "hired" | "hireRatePct" | "spendCzk" | "costPerHireCzk";
 
 const KIND_CLASS: Record<Kind, string> = {
@@ -74,54 +60,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
   const sourceName = (s: string) => labelOr(ta, `source.${s}`, s);
   const shortDate = (iso: string) => format.dateTime(new Date(iso), { day: "numeric", month: "short", year: "numeric" });
 
-  const rows: Row[] = [
-    ...data.byChannel.map((r) => ({
-      key: `channel:${r.channel}`,
-      kind: "channel" as const,
-      name: channelName(r.channel),
-      channelId: r.channel,
-      total: r.total,
-      reachedInterview: r.reachedInterview,
-      hired: r.hired,
-      hireRatePct: r.hireRatePct,
-      spendCzk: r.spendCzk,
-      spendUpdatedAt: r.spendUpdatedAt,
-      costPerHireCzk: r.costPerHireCzk,
-    })),
-    ...data.bySource.map((r) => ({
-      key: `source:${r.source}`,
-      kind: "source" as const,
-      name: sourceName(r.source),
-      channelId: null,
-      total: r.total,
-      reachedInterview: r.reachedInterview,
-      hired: r.hired,
-      hireRatePct: r.hireRatePct,
-      // First-touch origin carries no spend of its own — spend is recorded per
-      // CHANNEL. A zero here would read as "free"; null reads as "not measured".
-      spendCzk: null,
-      spendUpdatedAt: null,
-      costPerHireCzk: null,
-    })),
-    ...data.byVariant.map((r) => ({
-      // A creative is only identified WITHIN its campaign/role — two roles can
-      // both run an "A" variant, and merging them would invent a comparison.
-      key: `variant:${r.jobTitle ?? ""}:${r.campaign ?? ""}:${r.variant}`,
-      kind: "variant" as const,
-      name: [r.variant, r.jobTitle].filter(Boolean).join(" · "),
-      channelId: null,
-      total: r.total,
-      reachedInterview: r.reachedInterview,
-      hired: r.hired,
-      // VariantStat carries no rate (the server leaves the ratio to the caller);
-      // computed here on the same basis as the other two groups so the column
-      // means one thing down its whole length.
-      hireRatePct: r.total ? Math.round((r.hired / r.total) * 100) : 0,
-      spendCzk: null,
-      spendUpdatedAt: null,
-      costPerHireCzk: null,
-    })),
-  ];
+  const rows: Row[] = economicsRows(data, { channel: channelName, source: sourceName });
 
   // UAT KAT-L1-S02 / TOM-ANA-1 — every number on this page has to end in a decision,
   // and the consolidation left the board with eight columns and no way out of them
@@ -143,9 +82,11 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
       kind: (r) => r.kind,
       total: (r) => r.total,
       hired: (r) => r.hired,
-      // A surface with nobody in it has no rate to rank; null keeps it out of the
-      // ranking rather than posing as a 0% performer.
-      hireRatePct: (r) => (r.total === 0 ? null : r.hireRatePct),
+      // A surface with nobody in it has no rate to rank; the value IS null now
+      // (economicsRows), so the sorter no longer re-derives the empty case from
+      // `total` — that duplicated guard is what let the rendered value lie while
+      // the ranking stayed honest.
+      hireRatePct: (r) => r.hireRatePct,
       spendCzk: (r) => r.spendCzk,
       costPerHireCzk: (r) => r.costPerHireCzk,
     },
@@ -241,7 +182,10 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                     <td className="py-2 pr-3 text-right text-ink nums">{r.total}</td>
                     <td className="py-2 pr-3 text-right font-semibold text-ink nums">{r.hired}</td>
                     <td className="py-2 pr-3 text-right nums">
-                      {r.total === 0 ? (
+                      {/* The SAME absent marker the roles table prints for the same
+                          situation (AnalyticsByRoleTable) — one page, one answer to
+                          "we have no data". Keyed off the value, not off `total`. */}
+                      {r.hireRatePct == null ? (
                         <span className="text-steel">—</span>
                       ) : (
                         <span className={r.hired > 0 ? "font-semibold text-moss" : "text-steel"}>{r.hireRatePct}%</span>
@@ -273,7 +217,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                               fossil reads as this period's cost — which is the whole
                               defect, not a footnote to it. */}
                           {r.spendUpdatedAt ? (
-                            <span className="block text-xs font-normal text-steel">
+                            <span className="block text-micro font-normal text-steel">
                               {ta("spendAsOf", { date: shortDate(r.spendUpdatedAt) })}
                             </span>
                           ) : null}
@@ -297,7 +241,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
             unlike byJob it said so nowhere. Same key, same idiom as AnalyticsByRoleTable:
             a table that silently drops rows reads as a complete list. */}
         {data.byVariantTotal > data.byVariant.length ? (
-          <p className="mt-3 text-meta uppercase text-steel">
+          <p className={`mt-3 ${META_LABEL}`}>
             {tc("topByVolume", { shown: data.byVariant.length, total: data.byVariantTotal })}
           </p>
         ) : null}

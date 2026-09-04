@@ -1707,6 +1707,17 @@ export function ensureDb(): Database.Database {
   // the link promote writes, and the read the case detail needs. Created AFTER the
   // ALTER loop so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_dev_case ON pipeline_entries (workspace_id, dev_case_id)`);
+  // ANALYTICS WINDOW SCANS. Every query in pipelineAnalytics is the same shape —
+  // `WHERE created_at >= ? AND <notSim> AND workspace_id = ?` over pipeline_entries
+  // (the cohort rows) and pipeline_events (KO discards, momentum, the kind counts,
+  // the hold resolution probe). The two tables carried a workspace-only index and a
+  // `created_at DESC` index, and SQLite picks ONE per table: either it seeks by tenant
+  // and then filters every row that tenant ever wrote by date, or it seeks by date
+  // across every tenant. A composite in the query's own order lets one seek do both.
+  // Workspace FIRST because it is the equality predicate — a range column ahead of an
+  // equality column ends the usable prefix at the range.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_entries_ws_created ON pipeline_entries (workspace_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_ws_created ON pipeline_events (workspace_id, created_at)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the

@@ -1173,7 +1173,9 @@
   "aboutPage": {
     "nav": {
       "home": "Home",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "market": "Market Pulse",
+      "source": "Source"
     },
     "hero": {
       "badge": "the hiring pipeline, end to end",
@@ -6973,7 +6975,8 @@
     "copyViewLinkTitle": "A link that opens this section with the period you are looking at",
     "viewLinkManual": "Your browser blocked the copy. Select the link below and copy it yourself.",
     "briefMomentumNoDataClaim": "Nothing has moved in these weeks yet.",
-    "briefRolesNoDataClaim": "No role is carrying the pipeline yet."
+    "briefRolesNoDataClaim": "No role is carrying the pipeline yet.",
+    "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation."
   },
   "matrix": {
     "loadFailed": "Load failed.",
@@ -8432,7 +8435,19 @@
       "inPipeline": "In pipeline",
       "promoting": "Promoting…",
       "promote": "Promote to pipeline",
-      "promoteHint": "→ becomes a Decisions review card"
+      "promoteHint": "→ becomes a Decisions review card",
+      "authenticityReason": {
+        "singleBulkCommit": "Single bulk commit, with no incremental history.",
+        "fewCommits": "Very few commits ({n}): a thin development trail.",
+        "noCommitHistory": "No readable commit history.",
+        "bulkPaste": "A bulk paste of {chars}+ characters landed with no incremental build-up, a possible paste from an LLM.",
+        "integrityFailed": "The event-log integrity check failed (broken hash chain or backdated timestamps), so the observed trace cannot be trusted.",
+        "noDecisionsLog": "The mandated DECISIONS log is missing.",
+        "bursty": "The work landed in a single burst rather than incrementally.",
+        "bigBang": "Big-bang iteration pattern, with no visible build-up.",
+        "unreadableIteration": "The iteration pattern could not be read from the trace.",
+        "lowReadBeforeWrite": "Little evidence of reading the existing code before writing."
+      }
     },
     "jobLink": {
       "linked": "Role: {title}",
@@ -9461,7 +9476,11 @@
       "autoBadge": "auto",
       "addPerf": "add perf",
       "ratingGroup": "Performance rating, 1 to 5",
-      "ratePerformance": "Rate performance {n} of 5"
+      "ratePerformance": "Rate performance {n} of 5",
+      "sourceNote": {
+        "auto": "Recorded automatically when the pipeline reached a terminal stage.",
+        "manual": "Recorded by a person."
+      }
     },
     "calibration": {
       "activeFloor": "Active promote floor",
@@ -9481,7 +9500,8 @@
         "calibrated": "The floor of {current} is well-calibrated. It sits at the first band where most promoted candidates were hired."
       },
       "applyFailed": "The promote floor was not changed ({status}).",
-      "applyNetwork": "Network error. The promote floor was not changed."
+      "applyNetwork": "Network error. The promote floor was not changed.",
+      "cappedNote": "Computed from the newest {limit} recorded outcomes. Older ones are not in this sample."
     },
     "actionFailed": "That control could not be applied ({status}).",
     "actionNetwork": "Network error. The control room could not be reached, so nothing was changed.",

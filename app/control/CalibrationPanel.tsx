@@ -267,6 +267,14 @@ export function CalibrationPanel({
             </tbody>
           </table>
           <p className="mt-2 text-micro text-ink">{rationaleText(data.calibration.rationale)}</p>
+          {/* The engine reads the newest CALIBRATION_SCAN_LIMIT rows. When that cap
+              actually bit, `resolved` describes a SUFFIX of this workspace's history, not
+              all of it — and this is the screen whose button moves the live promote
+              floor, so the sample it was computed from must not be overstated. Absent in
+              the ordinary case: a caveat that did not bite is noise. */}
+          {data.calibration.resolvedOf != null ? (
+            <p className={`mt-1 ${META_LABEL}`}>{t("calibration.cappedNote", { limit: data.calibration.resolvedOf })}</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -289,10 +297,13 @@ export function CalibrationPanel({
             <tbody>
               {data.outcomes.slice(0, 12).map((row) => (
                 <tr key={row.id} className="border-t border-stone-100">
-                  {/* `note` is the store's own provenance line (e.g. "auto-recorded …") — payload. */}
-                  <td className="py-1 font-semibold text-ink" title={row.note ?? undefined}>
+                  {/* Provenance is the `source` FLAG, and the sentence is written HERE, in
+                      the operator's language. This used to read the store's English
+                      `note` two ways at once — printed raw as the tooltip, and
+                      `startsWith("auto-recorded")` tested as if the prose were an enum. */}
+                  <td className="py-1 font-semibold text-ink" title={t(`outcomes.sourceNote.${row.source}` as Parameters<typeof t>[0])}>
                     {row.candidateRef ?? row.ref ?? "—"}
-                    {row.note?.startsWith("auto-recorded") ? (
+                    {row.source === "auto" ? (
                       <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-meta uppercase text-coral">{t("outcomes.autoBadge")}</span>
                     ) : null}
                   </td>

@@ -10,6 +10,7 @@ import type { AutomationRoi } from "@/app/_lib/automation-roi";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { TargetInput } from "./AnalyticsTargetInput";
 import { RECRUITER_HOURLY_KEY } from "./AnalyticsTypes";
+import { PANEL } from "@/app/_components/ui/recipes";
 
 // ANA3 — "how much is the automation actually doing": the auto/human split plus
 // the rollup rows, all folded through the SAME decision-attribution map the
@@ -37,7 +38,7 @@ export function AutomationPanel({
   const decided = impact.autoCount + impact.humanCount;
   const pct = decided > 0 ? Math.round((impact.autoCount / decided) * 100) : null;
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
       {pct == null ? (
         <p className="mt-3 text-base text-steel">{t("empty")}</p>
@@ -142,19 +143,19 @@ function RoiLedger({
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdTimeSaved")}</dt>
               <dd className="mt-0.5 font-serif text-h3 text-ink">{roi.pctOfManualBaseline != null ? `${roi.pctOfManualBaseline}%` : "—"}</dd>
-              <dd className="text-xs text-steel">{roi.hoursSavedPerHire != null ? t("rdPerHireSub", { hours: roi.hoursSavedPerHire }) : t("rdNoHires")}</dd>
+              <dd className="text-micro text-steel">{roi.hoursSavedPerHire != null ? t("rdPerHireSub", { hours: roi.hoursSavedPerHire }) : t("rdNoHires")}</dd>
             </div>
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdCostPerHire")}</dt>
               <dd className="mt-0.5 font-serif text-h3 text-ink">{costPerHireCzk != null ? t("czkValue", { n: grouped(costPerHireCzk) }) : "—"}</dd>
-              <dd className="text-xs text-steel">{t("rdAllTime")}</dd>
+              <dd className="text-micro text-steel">{t("rdAllTime")}</dd>
             </div>
             <div>
               <dt className="text-meta uppercase tracking-wide text-steel">{t("rdTimeToHire")}</dt>
               <dd className="mt-0.5 font-serif text-h3 text-ink">{timeToHireDays != null ? t("daysValue", { n: timeToHireDays }) : "—"}</dd>
               {/* Labeled "median" — so the ROI ledger is now fed the true
                   medianTimeToHireDays, not the mean (analytics-calibration-dashboards #1). */}
-              <dd className="text-xs text-steel">{t("rdMedian")}</dd>
+              <dd className="text-micro text-steel">{t("rdMedian")}</dd>
             </div>
           </dl>
 

@@ -66,6 +66,7 @@ type Row = {
   outcome: string;
   performance: number | null;
   note: string | null;
+  source: string | null;
   recorded_at: string;
 };
 
@@ -132,7 +133,10 @@ test("a refless manual entry dedupes against the auto-recorded row (trimmed cand
   assert.equal(all[0].ref, "s9"); // the auto row, updated in place
   assert.equal(all[0].performance, 3);
   assert.equal(all[0].predicted_score, 72);
-  assert.equal(all[0].note, "auto-recorded from pipeline hire"); // provenance survives the update
+  // Provenance survives the update — as the `source` FLAG, not as the English sentence
+  // that used to be persisted into `note` and rendered raw to every locale (wave 28).
+  assert.equal(all[0].source, "auto");
+  assert.equal(all[0].note, null, "no English prose is persisted any more");
 });
 
 test("a refless entry with a DIFFERENT outcome is a fresh row, not a correction", () => {
@@ -331,4 +335,70 @@ test("calibrate counts an upserted ref once — a re-record cannot inflate the r
   const cal = calibrate(55);
   assert.equal(cal.resolved, 4); // 5 writes, 4 real outcomes
   assert.equal(cal.bands.reduce((sum, b) => sum + b.count, 0), 4);
+});
+
+// ── Provenance is a flag, not a sentence (/perfect wave 28) ───────────────────
+//
+// Two writers used to stamp an English sentence into `note`; the control room rendered
+// it verbatim to every operator and BRANCHED on `note.startsWith("auto-recorded")` as if
+// the prose were an enum. `source` is the enum. These pin who claims which value — and
+// in particular that an update never rewrites it, because provenance belongs to the
+// row's first writer: a recruiter attaching a rating did not make the outcome manual.
+
+test("the pipeline's auto-record is flagged 'auto' and persists no English prose", () => {
+  assert.equal(recordPipelineOutcome({ candidateId: "ds-src1", candidateLabel: "ada", matchScore: 88 }, "hired"), true);
+  const row = listOutcomes(10).find((o) => o.ref === "src1");
+  assert.ok(row, "the auto-record must land");
+  assert.equal(row.source, "auto");
+  assert.equal(row.note, null, "the sentence the panel used to print in English is gone");
+});
+
+test("a human-entered outcome is flagged 'manual'", () => {
+  recordOutcome({ ref: "src2", candidateRef: "grace", outcome: "rejected" });
+  assert.equal(listOutcomes(10).find((o) => o.ref === "src2")?.source, "manual");
+});
+
+test("the drawer's rating keeps the auto row's provenance and writes no note", () => {
+  recordPipelineOutcome({ candidateId: "ds-src3", candidateLabel: "linus", matchScore: 77 }, "hired");
+  const verdict = recordHirePerformance({ id: "pe-9", candidateId: "ds-src3", candidateLabel: "linus", matchScore: 77 }, 5);
+  assert.equal(verdict, "updated", "the rating completes the auto row rather than minting a second decided one");
+  const row = listOutcomes(10).find((o) => o.ref === "src3");
+  assert.equal(row?.performance, 5);
+  assert.equal(row?.source, "auto", "the OUTCOME was auto-recorded; only the rating on it was human");
+  assert.equal(row?.note, null);
+});
+
+// ── The IN-list is chunked ────────────────────────────────────────────────────
+//
+// latestOutcomeByRefs built one `?` per ref from GET /api/devcase/postings, which flattens
+// every submission of every posting into one list, with no cap anywhere on the path.
+// Past SQLITE_MAX_VARIABLE_NUMBER the statement does not degrade — it throws "too many SQL
+// variables" and the whole Dev studio answers DEVCASE_POSTINGS_FAILED. Not a slow read: a
+// dead tab. REF_CHUNK = 400 per statement.
+//
+// The ceiling is a COMPILE-TIME constant of the SQLite the install happens to link (999
+// historically, 32766 in newer builds, and better-sqlite3 ships whichever it was built
+// with) — which is exactly why an uncapped list is not something to leave to luck. The
+// size below is deliberately past the highest of those, so this test pins the chunking on
+// every build rather than only on the strictest one.
+test("latestOutcomeByRefs survives a ref list far past SQLite's variable limit", () => {
+  const refs = Array.from({ length: 40_000 }, (_, i) => `bulk_${i}`);
+  // Real rows at both ends and on both sides of a chunk boundary, so the test proves every
+  // chunk is READ, not merely that nothing threw.
+  const present = [0, 399, 400, 999, 32_766, 39_999];
+  for (const i of present) recordOutcome({ ref: `bulk_${i}`, outcome: "hired", predictedScore: 80 });
+  const found = latestOutcomeByRefs(refs);
+  assert.equal(found.size, present.length, "every chunk is queried — a row in a later chunk is not silently dropped");
+  for (const i of present) assert.equal(found.get(`bulk_${i}`)?.outcome, "hired");
+});
+
+// ── The calibration scan cap is disclosed, not silent ─────────────────────────
+test("calibrate reports resolvedOf only when the scan cap actually bit", () => {
+  recordOutcome({ ref: "cap1", outcome: "hired", predictedScore: 90 });
+  recordOutcome({ ref: "cap2", outcome: "hired", predictedScore: 88 });
+  recordOutcome({ ref: "cap3", outcome: "rejected", predictedScore: 40 });
+  recordOutcome({ ref: "cap4", outcome: "rejected", predictedScore: 30 });
+  const cal = calibrate(55);
+  assert.equal(cal.resolved, 4);
+  assert.equal(cal.resolvedOf, null, "an ordinary corpus fits — the operator must not be told about a cap that did not bite");
 });
