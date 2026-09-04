@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T14:01:47.598Z",
+  "generated_at": "2026-09-04T14:25:37.132Z",
   "provenance": {
-    "git_commit": "b91fd765f1e2927588dd31692738c3de022898ad",
-    "git_commit_count": 2744,
+    "git_commit": "0dcfab8b8f41b315547ed27064b547e8232570f9",
+    "git_commit_count": 2758,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T14:01:47.598Z"
+    "generated_at": "2026-09-04T14:25:37.132Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3191,
+    "files": 3202,
     "groups": 17,
     "use_cases": 12
   },
@@ -1347,13 +1347,17 @@
         "app/_lib/calibration.ts",
         "app/_lib/distribution.test.ts",
         "app/_lib/distribution.ts",
+        "app/_lib/metric-pack-strings.test.ts",
         "app/_lib/metric-pack-strings.ts",
         "app/_lib/metric-pack.test.ts",
         "app/_lib/metric-pack.ts",
         "app/_lib/source-analytics.test.ts",
         "app/_lib/source-analytics.ts",
+        "app/_lib/source-repo.test.ts",
         "app/_lib/source-repo.ts",
-        "app/_lib/sourcing-attribution.test.ts"
+        "app/_lib/sourcing-attribution.test.ts",
+        "app/_lib/stats.test.ts",
+        "app/_lib/stats.ts"
       ],
       "group": "Analytics & Reporting",
       "group_id": "926019f6-f839-46bb-ae08-1ca786937196",
@@ -4967,15 +4971,20 @@
       "file_paths": [
         "app/_lib/db/consent-read-gate.test.ts",
         "app/_lib/db/ko-decline-tenancy.test.ts",
+        "app/_lib/db/pipeline-automation-input.test.ts",
         "app/_lib/db/pipeline-calibration-band.test.ts",
         "app/_lib/db/pipeline-calibration.test.ts",
+        "app/_lib/db/pipeline-close-stage.test.ts",
+        "app/_lib/db/pipeline-erasure-once.test.ts",
         "app/_lib/db/pipeline-event-actor.test.ts",
+        "app/_lib/db/pipeline-event-reasons.test.ts",
         "app/_lib/db/pipeline-events-sort.test.ts",
         "app/_lib/db/pipeline-events-tenancy.test.ts",
         "app/_lib/db/pipeline-isolation.test.ts",
         "app/_lib/db/pipeline-job-stats.test.ts",
         "app/_lib/db/pipeline-profile-gaps.test.ts",
         "app/_lib/db/pipeline-reopen.test.ts",
+        "app/_lib/db/pipeline-stats.test.ts",
         "app/_lib/db/pipeline-store.test.ts",
         "app/_lib/db/pipeline-tenancy.test.ts",
         "app/_lib/db/pipeline.ts",
@@ -5548,6 +5557,7 @@
       "file_paths": [
         "app/_lib/adverse-impact.test.ts",
         "app/_lib/adverse-impact.ts",
+        "app/_lib/compliance-regimes.test.ts",
         "app/_lib/compliance-regimes.ts",
         "app/_lib/consent-ttl-display.test.ts",
         "app/_lib/consent.test.ts",
@@ -5558,6 +5568,7 @@
         "app/_lib/erasure-full-scrub.test.ts",
         "app/_lib/provenance-dossier.test.ts",
         "app/_lib/provenance-dossier.ts",
+        "app/api/compliance/compliance-route.test.ts",
         "app/api/compliance/route.ts",
         "app/api/data/[token]/route.ts",
         "app/api/data/data-token-route.test.ts"
