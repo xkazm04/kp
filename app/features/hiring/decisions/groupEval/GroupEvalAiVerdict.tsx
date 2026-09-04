@@ -1,4 +1,4 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { Pill } from "./GroupEvalPrimitives";
@@ -24,8 +24,29 @@ function RichText({ text }: { text: string }) {
 
 // ---- AI verdict (formatted, bold) -----------------------------------------
 
-export function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Comparison | null; fallback?: string; aiBacked: boolean }) {
+export function AiVerdict({
+  comparison,
+  fallback,
+  aiBacked,
+  narrativeLang,
+}: {
+  comparison?: Comparison | null;
+  fallback?: string;
+  aiBacked: boolean;
+  narrativeLang?: string | null;
+}) {
   const t = useTranslations("decisions.groupEval");
+  const locale = useLocale();
+  // Honest language note, the same one MatchReasoningPanel renders for the per-match
+  // rationale: the comparison is produced ONCE in the workspace language and saved,
+  // and its deterministic fallback is English-only — so a reader whose locale differs
+  // from the text must be told rather than shown foreign prose as if localized. Only
+  // the LLM narrative carries a language; the `fallback` sentence is composed here in
+  // the reader’s own locale, so it never gets the note.
+  const showLangNote = Boolean(comparison && narrativeLang) && narrativeLang !== locale;
+  const narrativeLangName = showLangNote
+    ? new Intl.DisplayNames([locale], { type: "language" }).of(narrativeLang as string) ?? narrativeLang
+    : null;
   if (!comparison && !fallback) return null;
   return (
     // The verdict is a quiet well, not a raised card — on the shared recipe, whose
@@ -37,6 +58,11 @@ export function AiVerdict({ comparison, fallback, aiBacked }: { comparison?: Com
         <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("aiComparison")}</span>
         <Pill tone={aiBacked ? "info" : "neutral"}>{aiBacked ? t("aiBacked") : t("ruleBased")}</Pill>
       </div>
+      {showLangNote ? (
+        <p className="mb-1.5 text-sm italic text-steel">
+          {t("narrativeInLanguage", { language: narrativeLangName as string })}
+        </p>
+      ) : null}
       {comparison ? (
         <>
           <p className="font-serif text-h3 leading-snug text-ink">

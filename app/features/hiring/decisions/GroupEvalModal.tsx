@@ -119,7 +119,12 @@ export function GroupEvalModal({
           {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
               a banner makes clear it didn't pick or seal a hire. */}
           {governanceText(tt, evaluation) ? <Notice icon={Scale}>{governanceText(tt, evaluation)}</Notice> : null}
-          <AiVerdict comparison={evaluation.comparison} fallback={summaryText(tt, evaluation)} aiBacked={aiBacked} />
+          <AiVerdict
+            comparison={evaluation.comparison}
+            fallback={summaryText(tt, evaluation)}
+            aiBacked={aiBacked}
+            narrativeLang={evaluation.comparisonLang}
+          />
           {evaluation.eligibilityList?.length ? (
             <section className={`${PANEL} p-4`}>
               <p className={META_LABEL}>{t("eligibilityList")}</p>

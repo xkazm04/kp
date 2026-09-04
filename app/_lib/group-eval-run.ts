@@ -230,7 +230,7 @@ async function runGroupCompare(
   candidates: PerCandidate[],
   roleSalaryBand: number[],
   signal?: AbortSignal,
-): Promise<{ comparison: Comparison; source: string } | null> {
+): Promise<{ comparison: Comparison; source: string; narrativeLang: string } | null> {
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
@@ -280,9 +280,22 @@ async function runGroupCompare(
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const parsed = parsePythonJson<{ comparison?: Comparison; source?: string }>(stdout, stderr);
+    const parsed = parsePythonJson<{ comparison?: Comparison; source?: string; narrativeLang?: string }>(
+      stdout,
+      stderr,
+    );
     if (!parsed.comparison?.headline) return null;
-    return { comparison: parsed.comparison, source: parsed.source ?? "deterministic" };
+    // `narrativeLang` is what the ENGINE says the text is written in, not what we asked
+    // for: the deterministic synthesis is English-only, so a workspace on cs/de/fr that
+    // fell back gets English prose. This payload is SHARED and PERSISTED, so re-deriving
+    // the language at render time from `source` (the mistake the per-match path already
+    // fixed) would tell every later reader the wrong thing. Legacy CLIs that predate the
+    // field say nothing, and "en" is what they in fact produced.
+    return {
+      comparison: parsed.comparison,
+      source: parsed.source ?? "deterministic",
+      narrativeLang: parsed.narrativeLang ?? "en",
+    };
   } catch (error) {
     console.warn(`[group-eval] compare summary failed for "${roleTitle}":`, error instanceof Error ? error.message : error);
     return null;
@@ -842,6 +855,10 @@ export async function runGroupEval(
     // Structured, bold-formatted AI comparison (the modal prefers it).
     comparison: compare?.comparison ?? null,
     comparisonSource: compare?.source ?? null,
+    // The language the comparison prose is actually IN — the modal renders an honest
+    // "shown in <language>" note when it differs from the reader's locale, the same way
+    // MatchReasoningPanel does for the per-match rationale.
+    comparisonLang: compare?.narrativeLang ?? null,
   };
 
   // Persist under the run's cache key (roleKey for a top-N run, the selection key for
