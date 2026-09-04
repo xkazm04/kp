@@ -298,6 +298,41 @@ element:
    footer. Pay attention to anything with images, charts, or fixed-color SVG.
 7. **Score colors only via `score-*` tokens / `scoreTone()`** — never re-pick
    rank hues by hand.
+8. **A white-label accent is TWO colors, not one.** An operator's accent
+   overrides `--color-coral` in both theme blocks
+   (`app/_components/BrandStyle.tsx`), and the same rule that makes the product's
+   own coral two values — `#d65a4a` in `:root`, `#ff7e68` under
+   `[data-theme="dark"]` — applies to theirs. Nothing an operator types is
+   legible on both a cream canvas and an ink-blue one by luck: `#0057b8`
+   measures 6.5:1 in Studio Light and 2.5:1 in Spark Dark.
+
+### The custom accent, in both themes
+
+`app/_lib/brand-config.ts` owns the whole rule; nothing else re-derives it.
+
+- **Two grounds per theme, read off `brand.ts`** (`ACCENT_GROUNDS`): the
+  `canvas` the accent is drawn ON as a thin indicator (focus ring, active-nav
+  bar) — `--color-paper` — and the `onAccent` label that sits IN it. `onAccent`
+  is a ROLE, not a color: `--color-white` remaps to `#1d2630` in Spark Dark, so
+  the dark theme's worst case is a DARK label on the accent. Checking "white
+  text" in both themes is how the light-only version of this got it wrong.
+- **The light accent is stored as typed** and must clear 3:1
+  (`MIN_ACCENT_CONTRAST` — AA for large text and for graphical objects; 4.5:1
+  would reject the product's own coral) on both light grounds. It cannot be
+  auto-corrected: it is the operator's brand color in the default skin.
+- **The Spark Dark twin is DERIVED**, never operator-supplied:
+  `deriveDarkAccent()` keeps hue and saturation and lifts lightness in 1% steps
+  until both dark grounds clear 3:1. Both grounds are dark, so contrast rises
+  monotonically with lightness and the first clearing step is the closest one to
+  the operator's color. An accent that already reads on ink (the default coral
+  does, at 3.95:1) is returned unchanged.
+- **The lift is capped** at `MAX_DARK_ACCENT_LIFT` (0.35 absolute HSL
+  lightness), which is what keeps the twin recognizably the same brand. Past it
+  — a near-black accent, whose only legible twin is a mid-grey — the door
+  refuses with `BRAND_ACCENT_ILLEGIBLE_DARK`, naming the theme, rather than
+  shipping either an unreadable dark skin or a color nobody chose.
+- **The Branding tab previews both**, side by side, so the operator sees the
+  Spark Dark twin before saving instead of discovering it after a theme flip.
 
 ## What enforces this
 

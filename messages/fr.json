@@ -1703,7 +1703,14 @@
     "WORKSPACE_RESTORE_FAILED": "Impossible de restaurer la sauvegarde de l'organisation. Veuillez réessayer.",
     "BILLING_PROVIDER_TIMEOUT": "Le prestataire de paiement n'a pas répondu à temps. Veuillez réessayer dans un instant.",
     "BILLING_QUOTA_EXCEEDED": "Cette action dépasserait le quota mensuel de votre formule. Passez à une formule supérieure ou rechargez dans Facturation.",
-    "PAYLOAD_TOO_LARGE": "Cette requête était trop volumineuse. Envoyez moins de données à la fois."
+    "PAYLOAD_TOO_LARGE": "Cette requête était trop volumineuse. Envoyez moins de données à la fois.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas a envoyé une réponse plus volumineuse que ce que cet espace de travail accepte de lire. Elle a été ignorée sans être lue; vérifiez que l'application Personas est à jour.",
+    "BRAND_ACCENT_INVALID": "Cet accent n’est pas une couleur. Utilisez une valeur hexadécimale au format #RRGGBB.",
+    "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Cet accent est trop clair pour Studio Light : le texte des boutons et les anneaux de focus seraient invisibles. Choisissez une couleur plus foncée (au moins 3:1).",
+    "BRAND_ACCENT_ILLEGIBLE_DARK": "Cet accent n’a pas de version lisible en Spark Dark. Il est trop sombre pour être éclairci sans changer de couleur, choisissez donc une teinte plus vive ou plus saturée.",
+    "BRAND_LOGO_INVALID": "Le lien du logo doit être une URL https:// assez courte pour être enregistrée.",
+    "BRAND_LOAD_FAILED": "Impossible de charger l’image de marque. Veuillez réessayer.",
+    "BRAND_SAVE_FAILED": "Impossible d’enregistrer l’image de marque. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7577,7 +7584,12 @@
     "previewName": "Votre marque",
     "previewButton": "Action principale",
     "previewBadge": "Badge",
-    "previewLink": "Un <a>lien mis en valeur</a> dans votre couleur d’accent."
+    "accentContrastDark": "Cet accent n’a pas de version lisible en Spark Dark. L’éclaircir assez pour le fond sombre en ferait une autre couleur, choisissez donc une teinte plus vive ou plus saturée.",
+    "previewBothThemes": "Votre accent dans les deux thèmes. La valeur Spark Dark est dérivée de celle que vous saisissez.",
+    "previewThemeLight": "Studio Light",
+    "previewThemeDark": "Spark Dark",
+    "previewFocus": "Élément ciblé",
+    "previewDarkDerived": "Spark Dark utilise une version éclaircie de votre accent pour qu’il reste lisible sur le fond sombre."
   },
   "models": {
     "quality": {
@@ -7949,7 +7961,8 @@
         "steel": "Bleu acier",
         "ink": "Encre",
         "custom": "Personnalisée",
-        "illegible": "Cette couleur est trop claire pour les boutons et les contours de focus. Choisissez-en une plus foncée."
+        "illegible": "Cette couleur est trop claire pour les boutons et les contours de focus. Choisissez-en une plus foncée.",
+        "illegibleDark": "Cette couleur n’a pas de version lisible en Spark Dark. Choisissez une teinte plus vive ou plus saturée."
       },
       "logoLabel": "URL du logo",
       "logoInvalid": "Saisissez une URL d’image en https://."
@@ -8078,7 +8091,8 @@
         "orgName": "Nom de l’entreprise",
         "language": "Langue de l’application",
         "invites": "Invitations d’équipe",
-        "pipeline": "Colonnes du tableau"
+        "pipeline": "Colonnes du tableau",
+        "brand": "Couleur de marque et logo"
       },
       "reasonUnknown": "n’a pas pu être enregistré. Vous pouvez le terminer dans les Réglages.",
       "line": "{part} : {reason}",

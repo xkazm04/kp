@@ -1,7 +1,15 @@
 import { atsSecretKeyConfigured } from "../ats-secret";
 import { publicBaseUrl } from "../public-base-url";
 import { randomToken } from "../random-id";
-import { isRedirectResponse, REDIRECT_ERROR, resolveBridgeOrFail } from "./bridge-client";
+import {
+  AGENT_BRIDGE_RESPONSE_TOO_LARGE,
+  BRIDGE_RESPONSE_TOO_LARGE_MESSAGE,
+  BRIDGE_TIMEOUT_MS,
+  isRedirectResponse,
+  readBridgeJson,
+  REDIRECT_ERROR,
+  resolveBridgeOrFail,
+} from "./bridge-client";
 import { markBridgeOk, setBridgeConfig } from "./bridge-store";
 
 // Personas pairing (WP1) — the human-approved key exchange.
@@ -18,7 +26,9 @@ import { markBridgeOk, setBridgeConfig } from "./bridge-store";
 // why every bridge call is issued `redirect: "manual"` (the claim response
 // carries the pk_ key, and the request carries the nonce that redeems it).
 
-const TIMEOUT_MS = 5_000;
+// The deadline is BRIDGE_TIMEOUT_MS, imported from bridge-client: this module used
+// to declare its own `TIMEOUT_MS = 5_000` beside that one, so tuning the bridge
+// deadline moved three of the five calls and left both pairing phases behind.
 export const PAIRING_SCOPES = ["personas:read", "personas:build"] as const;
 const NONCE_TTL_MS = 300_000; // mirrors the Personas-side TTL
 
@@ -73,7 +83,7 @@ export async function startPairing(): Promise<PairStartResult> {
       headers: { "Content-Type": "application/json", Origin: publicBaseUrl() },
       body: JSON.stringify({ nonce, scopes: PAIRING_SCOPES, client: "kp" }),
       redirect: "manual",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (!r.ok) return { ok: false, error: `Personas responded ${r.status} to the pairing request.` };
@@ -119,7 +129,7 @@ export async function claimPairing(nonce: string): Promise<PairClaimResult> {
       // Same origin the request phase declared — the claim is origin-checked.
       headers: { Origin: publicBaseUrl() },
       redirect: "manual",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
     // Before the pending checks: an opaque redirect is status 0, and a redirect
     // is neither "still pending" nor a place to hand the nonce to.
@@ -129,12 +139,17 @@ export async function claimPairing(nonce: string): Promise<PairClaimResult> {
     // The REAL bridge answers { token } (probed 2026-08-24); apiKey/key are
     // kept for older builds. The mock now emits { token } so the e2e pins the
     // real shape.
-    const body = (await r.json().catch(() => null)) as {
+    // Bounded, like every other bridge read: the claim answer is a short JSON
+    // object with one key in it, and an unbounded `r.json()` here would buffer
+    // whatever a wedged local process streams back.
+    const read = await readBridgeJson<{
       apiKey?: unknown;
       key?: unknown;
       token?: unknown;
       status?: unknown;
-    } | null;
+    }>(r);
+    if (!read.ok) return { ok: false, error: BRIDGE_RESPONSE_TOO_LARGE_MESSAGE, code: AGENT_BRIDGE_RESPONSE_TOO_LARGE };
+    const body = read.value;
     const key =
       typeof body?.token === "string" && body.token
         ? body.token

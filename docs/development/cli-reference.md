@@ -28,6 +28,21 @@ cv                  Positional — path to the CV/profile file (or 2+ paths for 
 --quiet             Suppress stage progress on stderr.
 ```
 
+Two invocation forms, both supported from any working directory:
+
+```bash
+python scripts/analyze.py samples/sample-cv.txt   # file form
+python -m scripts.analyze samples/sample-cv.txt   # module form
+```
+
+They differ only in the program name argparse prints. The module form used to
+die at import time with `ModuleNotFoundError: No module named '_common'` — under
+`-m`, `sys.path[0]` is the repository root rather than `scripts/`, so the shared
+helper never resolved. `scripts/__init__.py` puts the directory on the path when
+the package is imported; `scripts/_common.py` puts the ROOT on it so
+`pipeline.jobfit` resolves. Both forms of every script are run by
+`python -m unittest pipeline.jobfit.tests.test_scripts_entrypoints`.
+
 ```bash
 python scripts/analyze.py samples/sample-cv.txt --jd path/to/jd.txt
 python scripts/salary.py samples/sample-cv.txt --company-text "Multinational bank in Prague" --grounding
@@ -46,6 +61,17 @@ python -m pipeline.jobfit.devcase.lifecycle_eval --count 5 # dev-case eval harne
 python -m pipeline.jobfit.reasoning_cli                    # match reasoning (Claude CLI)
 ```
 
-Seed regeneration and the DB dump/restore commands are in
+## Operational scripts worth knowing before you need them
+
+| Command | Note |
+| --- | --- |
+| `npm run db:dump` | Dumps **every** table — password hashes, provider keys, calendar and webhook tokens, the edge sealing private key. It warns on stderr and writes the file `0600`. |
+| `npm run db:dump -- --redact` | The shareable dump: schema, row counts and business rows kept, every credential replaced by a `[redacted:…]` marker. Still restores. |
+| `npm run db:load -- <dump> --dry-run` | Rehearses a restore — prints the per-table plan, predicts the real exit code (including the no-`--replace` refusal), writes nothing. |
+| `npm run market:build` / `market:earnings` | Rebuild the committed Market Pulse snapshot. 20 s per-request timeout; both refuse under `KP_OFFLINE`. Rebuild cadence is sixty days, by hand. |
+| `node scripts/perf/devbench.mjs <label>` | Measures what `next dev` costs and compares it to `scripts/perf/devbench-baseline.json`; `--record` moves the baseline. Takes port 3000 for the duration. |
+
+Seed regeneration and the full DB dump/restore semantics are in
 [`../architecture/workspace-data.md`](../architecture/workspace-data.md); the eval
-runners in [testing-and-evaluation.md](testing-and-evaluation.md).
+runners in [testing-and-evaluation.md](testing-and-evaluation.md); the dev-server
+budget in [performance-budget.md](performance-budget.md).

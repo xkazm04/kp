@@ -33,6 +33,12 @@ const PAIR_CLAIM_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
  *  the misconfiguration as 502 read as "Personas is down" and sent operators
  *  restarting a desktop app that was answering perfectly. */
 function refusal(result: PairFailure): NextResponse {
+  // One coded failure is the FAR END's doing: an oversized bridge answer (wave 38c
+  // bounds every bridge read) says nothing about kp's env, so it keeps the code the
+  // UI localizes but carries the 502 the status contract means by "upstream".
+  if (result.code === "AGENT_BRIDGE_RESPONSE_TOO_LARGE") {
+    return NextResponse.json({ error: result.error, code: result.code }, { status: 502 });
+  }
   return result.code
     ? NextResponse.json({ error: result.error, code: result.code }, { status: 503 })
     : NextResponse.json({ error: result.error }, { status: 502 });

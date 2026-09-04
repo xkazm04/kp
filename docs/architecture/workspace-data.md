@@ -48,10 +48,12 @@ stores are picked up automatically) plus its DDL into one portable JSON file;
 npm run db:dump                                   # → data/dumps/kp-dump-<timestamp>.json (gitignored)
 npm run db:dump -- --out my-dump.json             # explicit path
 npm run db:dump -- --skip gemini_cache,tasks      # leave out the LLM cache / task bookkeeping
+npm run db:dump -- --redact                       # blank every credential (shareable, still restores)
 
 npm run db:load -- my-dump.json                   # restore into data/kp.sqlite
 npm run db:load -- my-dump.json --replace         # overwrite tables that already have rows
 npm run db:load -- my-dump.json --db other.sqlite # restore into a different workspace file
+npm run db:load -- my-dump.json --dry-run         # print the plan, write nothing
 ```
 
 Load semantics are deliberately conservative: missing/empty tables are always
@@ -63,6 +65,59 @@ app's own boot migrations on next start. **Stop the app before restoring into it
 live workspace.** (For a quick same-machine copy you can also just copy
 `data/kp.sqlite` while the app is stopped — the dump format is for portability,
 partial loads, and surviving schema drift.)
+
+### A plain dump is a credential file
+
+"Every table" is literal. An unredacted dump contains the operator password hashes
+in `user_credentials`, the encrypted provider keys in `provider_keys`, calendar
+refresh and access tokens, the bearer tokens in `invites` and `channel_webhooks`,
+and the whole `ORG_CONFIG_NOT_PORTABLE` set — including the edge pairing's HMAC
+secret and this install's sealing **private** key. It is plain JSON with no
+encryption. It used to be produced silently; `db-dump.mjs` now prints a warning on
+stderr naming every table and column it found, and creates the file `0600` (POSIX;
+on Windows the mode is advisory and the directory ACL applies).
+
+`--redact` is the shareable variant, and it is what you want for a bug report, a
+support hand-off, or a copy of "the demo data":
+
+| | Plain dump | `--redact` |
+| --- | --- | --- |
+| Schema, indexes, row counts | kept | kept |
+| Ordinary business rows (jobs, pipeline, analyses) | kept | kept |
+| `ORG_CONFIG_NOT_PORTABLE` tables + the credential stores | in the clear | every non-key column blanked |
+| Any column named `*password*`, `*secret*`, `*token*`, `*ciphertext*`, `private_jwk`, … | in the clear | blanked, in **every** table |
+
+A blanked cell becomes `[redacted:<table>.<column>#<row>]`, not `NULL` and not a
+constant — so a `NOT NULL` or `UNIQUE` column still restores. A redacted dump loads
+exactly like a plain one (`db-load.mjs` says so up front when it sees the
+`redacted: true` flag in the payload); the restored install simply cannot
+authenticate or reach its integrations until those are re-entered, which is the
+same re-entry `ORG_CONFIG_NOT_PORTABLE` already demands after any move.
+
+The column-name rule is applied to every table, listed or not, so a store that lands
+tomorrow with an `api_token` column is covered on day one. The table list itself is
+duplicated in the script (it runs under bare `node` and cannot import
+`app/_lib/tenancy.ts`), and `app/_lib/db/rollback-drill.test.ts` asserts the two
+sets are identical — a table added to `ORG_CONFIG_NOT_PORTABLE` and not to the
+script would be dumped in the clear by a `--redact` run reporting itself clean.
+
+### Rehearsing a restore: `--dry-run`
+
+The rollback runbook (`docs/architecture/releases.md`, "Going back") is executed
+exactly once, under pressure, against a workspace that is already wrong. `--dry-run`
+prints what the load would do — per table: create, recreate an empty one, or
+`REPLACE (drops it)` with the number of existing rows it would discard — and writes
+nothing at all. Not the rows, not the WAL mode, and not the workspace file itself:
+a dry run against a path that does not exist yet creates neither the file nor its
+directory.
+
+It **predicts** rather than describes: a dry run against a populated workspace with
+no `--replace` prints the same refusal and exits 1, exactly as the real command
+would. An operator who dry-runs and sees exit 0 can trust that the restore lands.
+
+All of the above is exercised by `app/_lib/db/rollback-drill.test.ts` in
+`npm run test:unit` — the same suite that rehearses the full dump → wreck → restore
+round trip.
 
 ## Boot integrity — the file is checked once, before anything writes to it
 

@@ -35,13 +35,15 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import Database from "better-sqlite3";
 import { ensureDb } from "./core.ts";
+import { ORG_CONFIG_NOT_PORTABLE } from "../tenancy.ts";
+import { CREDENTIAL_TABLES, ORG_CONFIG_TABLES, redactionPlan } from "../../../scripts/db-dump.mjs";
 
 after(() => cleanupUnitDb());
 
@@ -319,6 +321,206 @@ test("restoring into an EMPTY target needs no flag and is a faithful copy, index
     const loaded = runScript(LOAD_SCRIPT, [dumpPath, "--db", target]);
     assert.equal(loaded.status, 0, `restoring into a fresh path needs no flag and failed:\n${loaded.out}`);
     assert.equal(snapshot(target), snapshot(source), "a restore into an empty target is not a faithful copy");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+
+// ---------------------------------------------------------------------------
+// 3. THE DUMP IS A CREDENTIAL FILE — and there is a shareable variant.
+//
+//    "Every table" is literal: password hashes, encrypted provider keys, calendar
+//    refresh tokens, invite and webhook bearer tokens, and the whole
+//    ORG_CONFIG_NOT_PORTABLE set including the edge pairing's HMAC secret and
+//    sealing PRIVATE key — into one plain JSON file with no encryption. The
+//    operator running the rollback runbook is entitled to be told that, and to
+//    have a way to produce a dump they can hand to someone.
+// ---------------------------------------------------------------------------
+
+const CREDENTIAL_SQL = [
+  "CREATE TABLE user_credentials (user_id TEXT PRIMARY KEY, password_hash TEXT NOT NULL, updated_at TEXT);",
+  "INSERT INTO user_credentials VALUES ('u-1','scrypt$16384$8$1$c0ffee','2024-01-01T00:00:00.000Z');",
+  "CREATE TABLE edge_config (id INTEGER PRIMARY KEY, edge_url TEXT, edge_secret TEXT, private_jwk TEXT);",
+  "INSERT INTO edge_config VALUES (1,'https://edge.example','hmac-s3cr3t','{\"d\":\"private-key-material\"}');",
+  "CREATE TABLE calendar_connections (workspace_id TEXT PRIMARY KEY, provider TEXT, refresh_token TEXT, access_token TEXT);",
+  "INSERT INTO calendar_connections VALUES ('w-1','google','1//refresh-abc','ya29.access-def');",
+  "CREATE TABLE jobs (id TEXT PRIMARY KEY, title TEXT NOT NULL, city TEXT);",
+  "INSERT INTO jobs VALUES ('job-1','Site Reliability Engineer','Praha');",
+].join("\n");
+
+/** Every credential literal planted above, in one list: what must NOT survive a
+ *  redacted dump. Substring search over the raw file, because a leak through a
+ *  nested JSON string or a column nobody thought about is still a leak. */
+const SECRET_LITERALS = [
+  "scrypt$16384$8$1$c0ffee",
+  "hmac-s3cr3t",
+  "private-key-material",
+  "1//refresh-abc",
+  "ya29.access-def",
+];
+
+test("the script's redaction list still mirrors ORG_CONFIG_NOT_PORTABLE", () => {
+  // db-dump.mjs runs under bare `node` and cannot import tenancy.ts, so the list is
+  // duplicated. A table added to ORG_CONFIG_NOT_PORTABLE and not to the script is a
+  // config table full of secrets that a `--redact` run dumps in the clear while
+  // reporting itself clean — the worst of the three possible states.
+  assert.deepEqual(
+    [...ORG_CONFIG_TABLES].sort(),
+    [...ORG_CONFIG_NOT_PORTABLE].sort(),
+    "scripts/db-dump.mjs ORG_CONFIG_TABLES has drifted from app/_lib/tenancy.ts ORG_CONFIG_NOT_PORTABLE"
+  );
+  // The second list is deliberately NOT in tenancy's set (those tables ARE portable
+  // and do move with a restore) — which is exactly why dumping them is the leak.
+  for (const table of CREDENTIAL_TABLES) {
+    assert.equal(
+      ORG_CONFIG_NOT_PORTABLE.has(table),
+      false,
+      `${table} is in both lists — one of them is wrong about whether it survives a restore`
+    );
+  }
+});
+
+test("redactionPlan blanks a secret column wherever it appears, and keeps the key", () => {
+  // An unlisted table is judged by column NAME, so a store that lands tomorrow with
+  // a `*_token` column is covered on day one rather than on the day someone lists it.
+  assert.deepEqual(
+    [...redactionPlan("some_new_store", [
+      { name: "id", pk: 1 },
+      { name: "label", pk: 0 },
+      { name: "webhook_secret", pk: 0 },
+      { name: "api_token", pk: 0 },
+    ])].sort(),
+    ["api_token", "webhook_secret"]
+  );
+  // A listed table is blanked whole except its key, because every non-key column of
+  // an integration config is either the endpoint or the credential for it.
+  assert.deepEqual(
+    [...redactionPlan("edge_config", [
+      { name: "id", pk: 1 },
+      { name: "edge_url", pk: 0 },
+      { name: "cursor", pk: 0 },
+    ])].sort(),
+    ["cursor", "edge_url"]
+  );
+  // And a table of ordinary business data is untouched — a redacted dump has to stay
+  // worth restoring.
+  assert.equal(redactionPlan("jobs", [{ name: "id", pk: 1 }, { name: "title", pk: 0 }]).size, 0);
+});
+
+test("a plain dump WARNS that it carries credentials, and names the tables", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-dump-warn-"));
+  try {
+    const dbPath = path.join(dir, "kp.sqlite");
+    const dumpPath = path.join(dir, "plain.json");
+    const db = new Database(dbPath);
+    db.exec(CREDENTIAL_SQL);
+    db.close();
+
+    const dumped = runScript(DUMP_SCRIPT, ["--db", dbPath, "--out", dumpPath]);
+    assert.equal(dumped.status, 0, dumped.out);
+    assert.match(dumped.out, /CREDENTIALS IN THE CLEAR/, "an unredacted dump was produced with no warning");
+    for (const table of ["user_credentials", "edge_config", "calendar_connections"]) {
+      assert.match(dumped.out, new RegExp(table), `the warning does not name ${table}`);
+    }
+    // A generic "may contain secrets" teaches nobody anything; naming the column is
+    // what tells an operator whether the file is safe to hand over.
+    assert.match(dumped.out, /password_hash/);
+    assert.match(dumped.out, /--redact/, "the warning must name the flag that fixes it");
+
+    // The warning is honest: those secrets really are in the file, verbatim.
+    const raw = readFileSync(dumpPath, "utf-8");
+    for (const secret of SECRET_LITERALS) assert.ok(raw.includes(secret), `${secret} was expected in a plain dump`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("--redact removes every credential and the dump still restores", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-dump-redact-"));
+  try {
+    const dbPath = path.join(dir, "kp.sqlite");
+    const dumpPath = path.join(dir, "redacted.json");
+    const target = path.join(dir, "restored.sqlite");
+    const db = new Database(dbPath);
+    db.exec(CREDENTIAL_SQL);
+    db.close();
+
+    const dumped = runScript(DUMP_SCRIPT, ["--db", dbPath, "--out", dumpPath, "--redact"]);
+    assert.equal(dumped.status, 0, dumped.out);
+    assert.doesNotMatch(dumped.out, /CREDENTIALS IN THE CLEAR/, "a redacted dump still warned");
+
+    const raw = readFileSync(dumpPath, "utf-8");
+    for (const secret of SECRET_LITERALS) {
+      assert.equal(raw.includes(secret), false, `--redact leaked ${secret}`);
+    }
+    // Not a scorched dump: the business rows an operator actually wants are intact.
+    assert.ok(raw.includes("Site Reliability Engineer"), "--redact blanked ordinary business data");
+
+    // The whole reason redaction is a marker rather than NULL: a NOT NULL column has
+    // to keep restoring, or nobody will ever use the flag.
+    const loaded = runScript(LOAD_SCRIPT, [dumpPath, "--db", target]);
+    assert.equal(loaded.status, 0, `a redacted dump did not restore:\n${loaded.out}`);
+    const restored = new Database(target, { fileMustExist: true });
+    const hash = restored.prepare("SELECT password_hash AS h FROM user_credentials").get() as { h: string };
+    const job = restored.prepare("SELECT title AS t FROM jobs").get() as { t: string };
+    restored.close();
+    assert.match(hash.h, /^\[redacted:user_credentials\.password_hash#0\]$/);
+    assert.equal(job.t, "Site Reliability Engineer");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 4. THE REHEARSAL. The restore command is executed once, under pressure, against
+//    a workspace that is already wrong. --dry-run is how an operator finds out
+//    what it will do BEFORE it does it, so it must predict the real outcome —
+//    exit code included — and must itself write nothing at all.
+// ---------------------------------------------------------------------------
+
+test("--dry-run reports the plan, predicts the refusal, and writes nothing", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-load-dryrun-"));
+  try {
+    const dbPath = path.join(dir, "kp.sqlite");
+    const dumpPath = path.join(dir, "dump.json");
+    const pre = new Database(dbPath);
+    pre.exec(PRE_UPGRADE_SQL);
+    pre.close();
+    const before = snapshot(dbPath);
+    assert.equal(runScript(DUMP_SCRIPT, ["--db", dbPath, "--out", dumpPath]).status, 0);
+
+    // (a) Against a path that does not exist yet, a dry run must not CREATE the
+    //     workspace — `new Database(path)` would, and an empty file left behind is
+    //     the one thing that makes the next real load behave differently.
+    const fresh = path.join(dir, "nested", "fresh.sqlite");
+    const planned = runScript(LOAD_SCRIPT, [dumpPath, "--db", fresh, "--dry-run"]);
+    assert.equal(planned.status, 0, planned.out);
+    assert.equal(existsSync(fresh), false, "a dry run created the target workspace file");
+    assert.equal(existsSync(path.dirname(fresh)), false, "a dry run created the target directory");
+    assert.match(planned.out, /pipeline_entries/, "the plan does not name the tables it would write");
+    assert.match(planned.out, /Nothing was written/);
+
+    // (b) Against a POPULATED workspace with no --replace, the dry run has to fail
+    //     the same way the real run fails. A rehearsal that reports success for a
+    //     command that will refuse is worse than no rehearsal.
+    const refusedDry = runScript(LOAD_SCRIPT, [dumpPath, "--db", dbPath, "--dry-run"]);
+    assert.notEqual(refusedDry.status, 0, "--dry-run reported success for a load that will refuse");
+    assert.match(refusedDry.out, /--replace/);
+    assert.equal(snapshot(dbPath), before, "a dry run modified the database");
+
+    // (c) With --replace, the plan says what it will destroy — the word an operator
+    //     needs to see before typing the real command.
+    const replaceDry = runScript(LOAD_SCRIPT, [dumpPath, "--db", dbPath, "--dry-run", "--replace"]);
+    assert.equal(replaceDry.status, 0, replaceDry.out);
+    assert.match(replaceDry.out, /REPLACE/);
+    assert.match(replaceDry.out, /existing row\(s\) discarded/);
+    assert.equal(snapshot(dbPath), before, "a --dry-run --replace modified the database");
+
+    // (d) And the prediction holds: the real run it rehearsed succeeds.
+    const real = runScript(LOAD_SCRIPT, [dumpPath, "--db", dbPath, "--replace"]);
+    assert.equal(real.status, 0, real.out);
+    assert.equal(snapshot(dbPath), before, "the rehearsed restore did not reproduce the dumped workspace");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -9,8 +9,13 @@
 // leaks in).
 import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { GET } from "./route.ts";
+
+/** The door is per-IP throttled (60/10 min, pinned in rate-limit-contract.test.ts),
+ *  so it reads the caller's headers — a handful of calls stays far under. */
+const req = () => new NextRequest("http://localhost/api/agents/catalog");
 
 after(() => cleanupUnitDb());
 
@@ -25,7 +30,7 @@ type CatalogBody = { connectors: Array<{ name: string; description: string }>; s
 
 test("an unreachable Personas degrades to the built-in list, and SAYS so", async () => {
   globalThis.fetch = (() => Promise.reject(new Error("ECONNREFUSED"))) as typeof fetch;
-  const r = await GET();
+  const r = await GET(req());
   assert.equal(r.status, 200, "the catalog never fails the tab — the chips must render");
   const body = (await r.json()) as CatalogBody;
   assert.equal(body.source, "builtin");
@@ -44,7 +49,7 @@ test("a paired Personas serves ITS catalog, labelled personas", async () => {
       )
     )) as typeof fetch;
 
-  const body = (await (await GET()).json()) as CatalogBody;
+  const body = (await (await GET(req())).json()) as CatalogBody;
   assert.equal(body.source, "personas");
   assert.deepEqual(body.connectors, [{ name: "HubSpot", description: "CRM" }]);
 });
@@ -55,7 +60,7 @@ test("a Personas that answers with an EMPTY catalog falls back rather than offer
   globalThis.fetch = (() =>
     Promise.resolve(new Response(JSON.stringify({ connectors: [] }), { status: 200, headers: { "content-type": "application/json" } }))) as typeof fetch;
 
-  const body = (await (await GET()).json()) as CatalogBody;
+  const body = (await (await GET(req())).json()) as CatalogBody;
   assert.equal(body.source, "builtin", "an empty answer is not a catalog");
   assert.ok(body.connectors.length > 0);
 });

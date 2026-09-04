@@ -327,7 +327,15 @@ npm run db:dump > kp-dump-$(date +%F).json
 2. **Check the app comes up**: `GET /api/health` reports `db`, `seeds`, `clock`,
    engine availability and a `degradedReasons` list.
 3. **If the data is wrong, not just the code**, restore the dump: stop the
-   container, restore the volume tarball (or `npm run db:load`), start it.
+   container, rehearse with `npm run db:load -- --dry-run <dump>` (prints the
+   per-table plan and the exit code the real run would take, writes nothing),
+   then restore the volume tarball (or `npm run db:load -- --replace <dump>`),
+   start it.
+   - A dump holds every credential row the deployment has (the dumper warns on
+     stderr and writes the file `0600`). Hand a dump to anyone outside the
+     deployment only as `npm run db:dump -- --redact`, which blanks the
+     `ORG_CONFIG_NOT_PORTABLE` tables and every password/secret/token column
+     with a `[redacted:table.column#n]` marker that still restores.
 4. **Say what happened** in the CHANGELOG of the next release. A rollback that
    is not written down repeats.
 

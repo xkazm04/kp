@@ -1703,7 +1703,14 @@
     "WORKSPACE_RESTORE_FAILED": "Die Organisationssicherung konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut.",
     "BILLING_PROVIDER_TIMEOUT": "Der Zahlungsanbieter hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es gleich noch einmal.",
     "BILLING_QUOTA_EXCEEDED": "Diese Aktion würde das Monatskontingent Ihres Tarifs überschreiten. Upgraden Sie oder laden Sie unter Abrechnung auf.",
-    "PAYLOAD_TOO_LARGE": "Diese Anfrage war zu groß. Senden Sie weniger auf einmal."
+    "PAYLOAD_TOO_LARGE": "Diese Anfrage war zu groß. Senden Sie weniger auf einmal.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas hat eine Antwort gesendet, die größer ist, als dieser Workspace liest. Sie wurde ungelesen verworfen; prüfen Sie, ob die Personas-App aktuell ist.",
+    "BRAND_ACCENT_INVALID": "Dieser Akzent ist keine Farbe. Verwenden Sie einen Hex-Wert im Format #RRGGBB.",
+    "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Dieser Akzent ist für Studio Light zu hell: Button-Text und Fokusrahmen wären unsichtbar. Wählen Sie eine dunklere Farbe (mindestens 3:1).",
+    "BRAND_ACCENT_ILLEGIBLE_DARK": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Er ist zu dunkel, um ihn ohne Farbwechsel aufzuhellen, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
+    "BRAND_LOGO_INVALID": "Der Logo-Link muss eine https://-URL sein und kurz genug zum Speichern.",
+    "BRAND_LOAD_FAILED": "Branding konnte nicht geladen werden. Bitte erneut versuchen.",
+    "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7577,7 +7584,12 @@
     "previewName": "Ihre Marke",
     "previewButton": "Primäre Aktion",
     "previewBadge": "Badge",
-    "previewLink": "Ein <a>hervorgehobener Link</a> in Ihrer Akzentfarbe."
+    "accentContrastDark": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Genug aufgehellt, um auf dunklem Grund zu lesen, wäre es eine andere Farbe, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
+    "previewBothThemes": "Ihr Akzent in beiden Themes. Der Spark-Dark-Wert wird aus dem eingegebenen abgeleitet.",
+    "previewThemeLight": "Studio Light",
+    "previewThemeDark": "Spark Dark",
+    "previewFocus": "Fokussiertes Element",
+    "previewDarkDerived": "Spark Dark verwendet eine aufgehellte Variante Ihres Akzents, damit er auf dunklem Grund lesbar bleibt."
   },
   "models": {
     "quality": {
@@ -7949,7 +7961,8 @@
         "steel": "Stahlblau",
         "ink": "Tinte",
         "custom": "Eigene",
-        "illegible": "Diese Farbe ist für Buttons und Fokusringe zu hell. Wählen Sie eine dunklere."
+        "illegible": "Diese Farbe ist für Buttons und Fokusringe zu hell. Wählen Sie eine dunklere.",
+        "illegibleDark": "Diese Farbe hat keine lesbare Spark-Dark-Variante. Wählen Sie einen helleren oder kräftigeren Ton."
       },
       "logoLabel": "Logo-URL",
       "logoInvalid": "Geben Sie eine https://-Bild-URL ein."
@@ -8078,7 +8091,8 @@
         "orgName": "Firmenname",
         "language": "App-Sprache",
         "invites": "Team-Einladungen",
-        "pipeline": "Board-Spalten"
+        "pipeline": "Board-Spalten",
+        "brand": "Markenfarbe und Logo"
       },
       "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
       "line": "{part}: {reason}",

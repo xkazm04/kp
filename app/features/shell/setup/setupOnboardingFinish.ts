@@ -37,37 +37,61 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
   const lang = await setOrgLanguage(state.language);
   results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
 
-  // Brand (optional): merge over the current config — PUT replaces the whole
-  // record, and onboarding must not clobber a displayName set elsewhere. Not part
-  // of the fold: the accent and the logo are decoration the operator can redo in
-  // Settings in one click, and naming them in the closing sentence would crowd out
-  // the writes that decide who can do what.
-  const logo = state.logoUrl.trim();
-  if (state.accentColor || logo) {
-    try {
-      const current = (await fetch("/api/brand").then((r) => (r.ok ? r.json() : null)).catch(() => null)) as {
-        displayName?: string | null;
-        accentColor?: string | null;
-        logoUrl?: string | null;
-      } | null;
-      await fetch("/api/brand", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          displayName: current?.displayName ?? null,
-          accentColor: state.accentColor ?? current?.accentColor ?? null,
-          logoUrl: logo || current?.logoUrl || null,
-        }),
-      });
-    } catch {
-      /* brand is a nice-to-have — the rest of the setup still lands */
-    }
-  }
+  results.push(await persistSetupBrand(state));
 
   results.push(inviteBatchResult(await sendSetupInvites(state.invites)));
   results.push(await persistPipelineAxis(state));
   await persistCompanionConsent(state);
   return foldSetupOutcome(results);
+}
+
+/**
+ * The optional first brand touch (accent + logo), merged over the current config —
+ * PUT replaces the whole record, so onboarding must not clobber a displayName set
+ * elsewhere.
+ *
+ * REPORTED, not fire-and-forget. This used to `await fetch(...)` and discard the
+ * response inside a catch that said "brand is a nice-to-have", which was true of a
+ * FAILURE and false of a REFUSAL: `PUT /api/brand` now answers 400 with a code when
+ * the accent cannot be painted legibly in both themes
+ * (`BRAND_ACCENT_ILLEGIBLE_LIGHT` / `BRAND_ACCENT_ILLEGIBLE_DARK`) or the logo URL
+ * is not storable (`BRAND_LOGO_INVALID`) — and `fetch` RESOLVES on all of those.
+ * The wizard closed green over a brand the server had never stored, and the
+ * operator's next clue was the app still wearing the default color.
+ *
+ * A landed brand still says nothing (see setupFinishOutcome.ts): only the refusal
+ * reaches the closing sentence, where the component resolves the code through
+ * `useErrorMessage` like every other surface.
+ */
+export async function persistSetupBrand(state: SetupState): Promise<SetupPartResult> {
+  const logo = state.logoUrl.trim();
+  if (!state.accentColor && !logo) return { part: "brand", status: "skipped" };
+  try {
+    const current = (await fetch("/api/brand").then((r) => (r.ok ? r.json() : null)).catch(() => null)) as {
+      displayName?: string | null;
+      accentColor?: string | null;
+      logoUrl?: string | null;
+    } | null;
+    const res = await fetch("/api/brand", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: current?.displayName ?? null,
+        accentColor: state.accentColor ?? current?.accentColor ?? null,
+        logoUrl: logo || current?.logoUrl || null,
+      }),
+    });
+    if (res.ok) return { part: "brand", status: "landed" };
+    // The code is the information; the server's English `error` never reaches the
+    // reader. A refusal with no parseable body still refuses — with a null code the
+    // toast renders as its generic reason, rather than as a success.
+    const body = (await res.json().catch(() => null)) as { code?: string } | null;
+    return { part: "brand", status: "refused", code: body?.code ?? null };
+  } catch {
+    // A network fault is not "nice-to-have" either: nothing was stored, so the
+    // wizard must not imply the brand was applied.
+    return { part: "brand", status: "refused", code: null };
+  }
 }
 
 /**

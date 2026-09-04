@@ -59,6 +59,25 @@ API consumers.
 > re-deriving the safe pattern in the handler. That is the whole reason the
 > registries are exported constants and not strings at the call site.
 
+**One code per REASON, not per endpoint.** The temptation on a validating door is
+a single code — "that value is invalid" — because it is one refusal in the
+handler. It is not one answer to the caller. `PUT /api/brand` refuses a bad
+accent four ways and each names a different next move: `BRAND_ACCENT_INVALID`
+(not a hex color at all), `BRAND_ACCENT_ILLEGIBLE_LIGHT` (readable hex, but
+button labels and focus rings vanish on the cream Studio Light canvas) and
+`BRAND_ACCENT_ILLEGIBLE_DARK` (fine in Studio Light, no derivable Spark Dark twin
+— see docs/design/README.md). Collapsing the last two would tell half the callers
+to do the opposite of what would fix it: "pick a darker color" is exactly wrong
+for an accent that is already too dark for the dark theme. `BRAND_LOGO_INVALID`
+is the fourth.
+
+That door is also the shape to copy for a write that used to *sanitize
+silently*. `saveBrand` still drops a bad value to the product default on the READ
+path — a row already at rest must degrade, never throw — but the WRITE path
+refuses. Answering 200 with the operator's color quietly replaced by `null` told
+them their brand had been applied when it had not, and gave them nothing to act
+on. Sanitize on read, refuse on write.
+
 **A 429 is a refusal like any other — `jsonRefusal(code, 429)`, never a
 hand-rolled body.** This is the rule the section above states generally, written
 out for the one status that kept escaping it. Until /perfect wave 38 about

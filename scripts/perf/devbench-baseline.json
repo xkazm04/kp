@@ -1,0 +1,28 @@
+{
+  "_doc": "Committed dev-server baseline for scripts/perf/devbench.mjs. Keyed by VARIANT (warm/cold, +burst), not by run label. A run more than `tolerance` worse than its entry exits non-zero. Move a number with `node scripts/perf/devbench.mjs <label> --record`, and review the diff — that is the whole ratchet.",
+  "_provenance": "Seeded by transcription from the dated measurement table in docs/architecture/app-structure.md § 'Dev compile cost' (measured 2026-08-07 with this same tool, win32, next@16.3.0-canary). They are the only durable dev-server numbers this repo had, which is precisely the problem the baseline file exists to fix: the tool appended to a gitignored .next/devbench.jsonl that every --cold run wiped. Treat them as the starting ratchet, not as gospel — the first `--record` on a machine supersedes them with a measurement rather than a transcription, and `tolerance` is wide enough that the transcription cannot fail an honest run.",
+  "tolerance": 0.35,
+  "entries": {
+    "warm": {
+      "recordedAt": "2026-08-07T00:00:00.000Z",
+      "label": "app-structure.md restart, persistent cache intact",
+      "platform": "win32",
+      "bootMs": 700,
+      "firstMs": 4200,
+      "warmMs": 140,
+      "totalMs": 4900
+    },
+    "cold": {
+      "recordedAt": "2026-08-07T00:00:00.000Z",
+      "label": "app-structure.md restart, .next/dev/cache/turbopack wiped",
+      "platform": "win32",
+      "bootMs": 700,
+      "firstMs": 10900,
+      "warmMs": 140,
+      "totalMs": 13000,
+      "assetCount": 24,
+      "assetKB": 6554,
+      "assetMs": 1500
+    }
+  }
+}

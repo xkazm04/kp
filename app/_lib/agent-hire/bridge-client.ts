@@ -1,3 +1,4 @@
+import { readTextWithLimit } from "../request-body";
 import { markBridgeOk, resolveBridge, type ResolvedBridge } from "./bridge-store";
 
 // Personas bridge client (WP1) — server-side fetch helpers, NEVER from the
@@ -22,9 +23,58 @@ import { markBridgeOk, resolveBridge, type ResolvedBridge } from "./bridge-store
 // session. Not following also matches what the local app actually does (a JSON
 // management API never redirects).
 
-const TIMEOUT_MS = 5_000;
+/** The one bridge deadline. Exported because `pairing.ts` dials the SAME local app
+ *  over the same two phases and had declared its own `TIMEOUT_MS = 5_000` beside
+ *  this one — two constants for one property, which is how a tuned timeout ends up
+ *  applying to three of five calls. */
+export const BRIDGE_TIMEOUT_MS = 5_000;
+
+/** Every bridge RESPONSE is read under this cap. Personas is a local app kp trusts
+ *  to be running, not to be well-behaved: `await r.json()` buffers whatever the
+ *  socket sends, so a wedged or hostile process on 127.0.0.1:9420 could stream
+ *  gigabytes into the Node heap of a route that has already passed its own body
+ *  cap. 256 KiB is ~4x the largest real payload here (a full connector catalog);
+ *  the same number the public report door uses on the way in. */
+export const MAX_BRIDGE_BODY_BYTES = 256 * 1024;
 
 export type BridgeFailure = { ok: false; error: string; status?: number; code?: string };
+
+/** A bridge body that blew the cap. Its own reason rather than a generic parse
+ *  failure: "Personas sent more than kp will read" is an operator-actionable fact
+ *  about the OTHER side, not a malformed-response guess. */
+export const AGENT_BRIDGE_RESPONSE_TOO_LARGE = "AGENT_BRIDGE_RESPONSE_TOO_LARGE";
+
+export const BRIDGE_RESPONSE_TOO_LARGE_MESSAGE =
+  `Personas answered with more than kp will read (${Math.round(MAX_BRIDGE_BODY_BYTES / 1024)} KB). The response was dropped unread — check the Personas app version.`;
+
+export type BridgeBody<T> = { ok: true; value: T | null } | { ok: false; reason: "too_large" };
+
+/**
+ * The bounded read every bridge call goes through, in place of `await r.json()`.
+ * Structured on purpose — three outcomes, none of them a throw:
+ *   • over budget → `{ok:false, reason:"too_large"}`, and the caller answers with
+ *     `AGENT_BRIDGE_RESPONSE_TOO_LARGE` (or, for the catalog, degrades to builtin).
+ *   • absent / not JSON → `{ok:true, value:null}`, which is exactly what the old
+ *     `.catch(() => null)` produced, so each caller's own shape refusal still runs.
+ *   • otherwise → the parsed value.
+ */
+export async function readBridgeJson<T>(r: Response): Promise<BridgeBody<T>> {
+  const raw = await readTextWithLimit(r, MAX_BRIDGE_BODY_BYTES);
+  if (raw === null) return { ok: false, reason: "too_large" };
+  if (!raw) return { ok: true, value: null };
+  try {
+    return { ok: true, value: (JSON.parse(raw) ?? null) as T | null };
+  } catch {
+    // Not JSON at all — the same answer as an empty body, refused by the caller's
+    // own shape check rather than by a parser message the operator cannot act on.
+    return { ok: true, value: null };
+  }
+}
+
+/** `readBridgeJson`'s over-budget outcome, as the module's structured failure. */
+function tooLargeFailure(): BridgeFailure {
+  return { ok: false, code: AGENT_BRIDGE_RESPONSE_TOO_LARGE, error: BRIDGE_RESPONSE_TOO_LARGE_MESSAGE };
+}
 
 function failure(e: unknown): BridgeFailure {
   if (e instanceof Error && e.name === "TimeoutError") return { ok: false, error: "Personas did not respond within 5s." };
@@ -154,10 +204,14 @@ export async function fetchConnectorCatalog(): Promise<ConnectorCatalogResult> {
     const r = await fetch(`${bridge.baseUrl}/api/kp/connector-catalog`, {
       headers: headers(bridge.apiKey),
       redirect: "manual",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
     if (r.ok) {
-      const body = unwrapEnvelope(await r.json()) as { connectors?: unknown } | unknown[];
+      // A catalog that blows the cap is treated exactly like a catalog that failed:
+      // this helper never fails, it degrades to the built-in list (and says so).
+      const read = await readBridgeJson<unknown>(r);
+      if (!read.ok) return { ok: true, connectors: BUILTIN_CONNECTOR_CATALOG, source: "builtin" };
+      const body = unwrapEnvelope(read.value) as { connectors?: unknown } | unknown[];
       const list = Array.isArray(body) ? body : Array.isArray((body as { connectors?: unknown }).connectors) ? ((body as { connectors: unknown[] }).connectors) : [];
       const connectors = list
         .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
@@ -227,13 +281,15 @@ export async function dispatchPersonaRequest(
       headers: headers(bridge.apiKey),
       body: JSON.stringify({ kp, spec, reportToken, ...(appMaster ? { appMaster } : {}) }),
       redirect: "manual",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
     // Checked BEFORE `!r.ok`: a redirect is not an HTTP status to report back
     // (status 0), and it must never read as an acceptance of the hire.
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (!r.ok) return upstreamFailure(r.status);
-    const body = unwrapEnvelope(await r.json().catch(() => null)) as { requestId?: unknown } | null;
+    const read = await readBridgeJson<unknown>(r);
+    if (!read.ok) return tooLargeFailure();
+    const body = unwrapEnvelope(read.value) as { requestId?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
     if (!requestId) return { ok: false, error: "Personas accepted the request but returned no requestId." };
     markBridgeOk();
@@ -257,11 +313,13 @@ export async function fetchRequestStatus(requestId: string): Promise<RequestStat
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests/${encodeURIComponent(requestId)}`, {
       headers: headers(bridge.apiKey),
       redirect: "manual",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (!r.ok) return upstreamFailure(r.status);
-    const body = unwrapEnvelope(await r.json().catch(() => null)) as
+    const read = await readBridgeJson<unknown>(r);
+    if (!read.ok) return tooLargeFailure();
+    const body = unwrapEnvelope(read.value) as
       | { status?: unknown; personaId?: unknown; personaName?: unknown }
       | null;
     const status = typeof body?.status === "string" ? body.status : "";

@@ -18,9 +18,23 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-# Make the project root importable so the scripts can be launched from
-# anywhere — both ``python scripts/analyze.py ...`` and
-# ``python -m scripts.analyze ...`` work.
+# Make the project ROOT importable so ``pipeline.jobfit`` resolves no matter which
+# directory the script was launched from. This is only half of what the two
+# supported invocation forms need, and for years the comment here claimed it was
+# the whole thing:
+#
+#   python scripts/analyze.py ...   Python puts scripts/ on sys.path itself (a
+#                                   script's own directory), so ``from _common
+#                                   import ...`` resolves; this line then adds the
+#                                   root so ``pipeline.jobfit`` does too.
+#   python -m scripts.analyze ...   sys.path[0] is the ROOT, not scripts/, so
+#                                   ``from _common import ...`` raised
+#                                   ModuleNotFoundError before argv was parsed.
+#                                   scripts/__init__.py now puts scripts/ on the
+#                                   path when the package is imported, which is
+#                                   what makes this form work at all.
+#
+# Both forms are exercised by pipeline/jobfit/tests/test_scripts_entrypoints.py.
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

@@ -14,7 +14,7 @@
 // is unit-testable under `node --test`.
 
 /** The writes finish() performs, in the order the toast should name them. */
-export const SETUP_FINISH_PARTS = ["orgName", "language", "invites", "pipeline"] as const;
+export const SETUP_FINISH_PARTS = ["orgName", "language", "invites", "brand", "pipeline"] as const;
 export type SetupFinishPart = (typeof SETUP_FINISH_PARTS)[number];
 
 /**
@@ -24,6 +24,15 @@ export type SetupFinishPart = (typeof SETUP_FINISH_PARTS)[number];
  * untouched board axis and a blank org name are all legitimate answers (each step
  * ships a working default), and folding them as failures would make the honest
  * path the loud one.
+ *
+ * `brand` is here for the REFUSAL only, and that is the whole reason it was added.
+ * A brand that lands still says nothing in the closing sentence — the accent and
+ * the logo are decoration the operator can redo in Settings in one click, and
+ * naming them would crowd out the writes that decide who can do what. But
+ * PUT /api/brand now refuses an accent it cannot paint legibly in both themes
+ * (BRAND_ACCENT_ILLEGIBLE_LIGHT / _DARK, BRAND_LOGO_INVALID), and the wizard used
+ * to fire that write and discard the response — closing green over a brand the
+ * server never stored. A wizard must not claim what it did not save.
  */
 export type SetupPartResult =
   | { part: SetupFinishPart; status: "landed" | "skipped" }

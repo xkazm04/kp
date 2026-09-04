@@ -40,6 +40,15 @@
  *              `factor` in data/salary_benchmarks.json solves to it. The header
  *              used to say 0.5, so anyone regenerating from the doc rather than
  *              the code silently re-levelled every shipped band.)
+ *
+ * STALENESS CONTRACT. This script reads a COMMITTED snapshot; it makes no network
+ * call and cannot tell you the snapshot is old. Nothing rebuilds
+ * data/market_pulse.json automatically — the /market page calls it stale past
+ * STALE_AFTER_DAYS = 60 (app/landing/spark/market/data.ts), and applying a stale
+ * snapshot re-levels every shipped salary band from figures the page itself is
+ * apologising for. Check `meta.generated_at` before running this, and rebuild
+ * (`npm run market:build && npm run market:earnings`) if it is past sixty days.
+ * The cadence is stated in docs/features/marketing/README.md.
  */
 
 const BLEND = Math.min(1, Math.max(0, Number(process.env.MARKET_BLEND ?? 0.7)));

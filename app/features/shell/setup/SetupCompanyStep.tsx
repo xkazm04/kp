@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
-import { accentIsLegible, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
+import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import { SETUP_PROSE } from "./setupProse";
 import type { OnboardingCtrl } from "./setupSteps";
@@ -29,7 +29,11 @@ const ACCENT_PRESETS = [
 
 export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.company");
-  const [customWarn, setCustomWarn] = useState(false);
+  // WHICH theme the picked color fails in, or null. The wizard used to ask
+  // `accentIsLegible(hex)` — the light grounds only — and then hand the value to a
+  // door that now refuses an accent with no Spark Dark twin, so the wizard accepted
+  // colors the save would reject and said nothing. Same rule as the Branding tab.
+  const [customWarn, setCustomWarn] = useState<"light" | "dark" | null>(null);
   const logo = ctrl.state.logoUrl.trim();
   const logoInvalid = logo !== "" && sanitizeLogoUrl(logo) === null;
   const isPreset = ACCENT_PRESETS.some((p) => p.hex === ctrl.state.accentColor);
@@ -71,7 +75,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
                 key={key}
                 type="button"
                 onClick={() => {
-                  setCustomWarn(false);
+                  setCustomWarn(null);
                   ctrl.update({ accentColor: hex });
                 }}
                 aria-pressed={active}
@@ -102,11 +106,13 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
               value={normalizeHex6(ctrl.state.accentColor ?? "") ?? CORAL}
               onChange={(e) => {
                 const hex = e.target.value;
-                if (accentIsLegible(hex)) {
-                  setCustomWarn(false);
+                // Both themes: legible as typed in Studio Light, AND with a
+                // derivable Spark Dark twin. Either failure blocks the pick.
+                if (!accentIsLegible(hex, "light")) setCustomWarn("light");
+                else if (deriveDarkAccent(hex) === null) setCustomWarn("dark");
+                else {
+                  setCustomWarn(null);
                   ctrl.update({ accentColor: hex });
-                } else {
-                  setCustomWarn(true);
                 }
               }}
               className="absolute inset-0 cursor-pointer opacity-0"
@@ -114,7 +120,11 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             />
           </label>
         </div>
-        {customWarn ? <p className="mt-1.5 text-sm text-coral">{t("accent.illegible")}</p> : null}
+        {customWarn ? (
+          <p role="alert" className="mt-1.5 text-sm text-coral">
+            {customWarn === "dark" ? t("accent.illegibleDark") : t("accent.illegible")}
+          </p>
+        ) : null}
 
         <div className="mt-3 max-w-md">
           <label htmlFor="setup-logo-url" className={`${META_LABEL} block`}>

@@ -342,6 +342,13 @@ export const STORE_ERRORS = {
    *  SQLITE_* code and the absolute db path were what the Backup panel painted. */
   WORKSPACE_EXPORT_FAILED: "Could not build the organization backup. Please try again.",
   WORKSPACE_RESTORE_FAILED: "Could not restore the organization backup. Please try again.",
+  /** The white-label brand door (/perfect wave 38, brand-theming). Both handlers sit
+   *  straight on better-sqlite3 (a lazily-created table in an isolated store), so the
+   *  thrown message carries SQLITE_* text and the absolute db path — which the save
+   *  handler used to answer with an English sentence of its own and the Branding tab
+   *  rendered verbatim in every locale. */
+  BRAND_LOAD_FAILED: "Could not load branding. Please try again.",
+  BRAND_SAVE_FAILED: "Could not save branding. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1292,6 +1299,28 @@ export const REFUSAL_ERRORS = {
    *  APPLY_PAYLOAD_TOO_LARGE ("shorten your answers"), IMPORT_BODY_TOO_LARGE ("check
    *  you picked the right file"). `maxBytes` rides alongside as data. */
   PAYLOAD_TOO_LARGE: "That request was too large to accept. Send less at once.",
+  // ---- White-label brand (/perfect wave 38, brand-theming). PUT /api/brand used to
+  // answer 200 with a bad accent or logo QUIETLY REPLACED BY NULL, so the operator was
+  // told their brand had been applied when it had not. Each reason is its own code
+  // because each has a different fix, and a legibility failure NAMES ITS THEME:
+  // Studio Light and Spark Dark ask for opposite corrections.
+  /** The accent is not a hex color (400) — including the CSS-injection shapes the
+   *  store has always refused, which reach a server-rendered <style>. */
+  BRAND_ACCENT_INVALID: "That accent is not a color. Use a hex value in the form #RRGGBB.",
+  /** A valid hex that cannot be read in STUDIO LIGHT (400): below 3:1 against the
+   *  button label sitting on it or against the cream canvas its focus ring is drawn
+   *  on (WCAG 1.4.3 / 2.4.7). */
+  BRAND_ACCENT_ILLEGIBLE_LIGHT: "That accent is too light for Studio Light: button text and focus rings would be invisible. Pick a darker color (at least 3:1).",
+  /** A valid hex, legible in Studio Light, with no SPARK DARK twin (400). The dark
+   *  accent is derived by lifting lightness at a fixed hue, and the lift is capped so
+   *  the twin stays the operator's brand — a near-black accent has no legible twin
+   *  that is still near-black. "Darker" is exactly the wrong advice here, which is
+   *  why this is not the same code as the light failure. */
+  BRAND_ACCENT_ILLEGIBLE_DARK: "That accent has no readable Spark Dark version. It is too dark to lift without becoming a different color, so pick a brighter or more saturated one.",
+  /** The logo URL is not an `https://` link, or is past the storable length (400).
+   *  Both used to store as null behind a green "Saved": a truncated signed CDN URL is
+   *  still a valid https URL, so it round-tripped happily and 403'd forever. */
+  BRAND_LOGO_INVALID: "That logo link must be an https:// URL, short enough to store.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

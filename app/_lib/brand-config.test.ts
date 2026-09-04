@@ -1,8 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  ACCENT_GROUNDS,
   accentIsLegible,
   contrastRatio,
+  deriveDarkAccent,
+  isHexColor,
+  MAX_DARK_ACCENT_LIFT,
+  resolveAccent,
   EXTERNAL_LOGO_IMG_ATTRS,
   isBrandFormDirty,
   MAX_BRAND_NAME,
@@ -72,9 +77,10 @@ test("sanitizeBrand validates every field together", () => {
   assert.deepEqual(sanitizeBrand({ displayName: "  Acme  ", accentColor: "nope", logoUrl: "https://x/l.png" }), {
     displayName: "Acme",
     accentColor: null,
+    accentDark: null,
     logoUrl: "https://x/l.png",
   });
-  assert.deepEqual(sanitizeBrand(null), { displayName: null, accentColor: null, logoUrl: null });
+  assert.deepEqual(sanitizeBrand(null), { displayName: null, accentColor: null, accentDark: null, logoUrl: null });
 });
 
 test("contrastRatio matches known WCAG values", () => {
@@ -171,4 +177,128 @@ test("isBrandFormDirty tracks divergence from the loaded/saved baseline", () => 
   const empty = { name: "", accent: "", logo: "" };
   assert.equal(isBrandFormDirty(empty, empty), false);
   assert.equal(isBrandFormDirty({ ...empty, name: "New" }, empty), true);
+});
+
+// -- The Spark Dark half of the accent contract ------------------------------
+// Everything below pins the second theme. Before this, the accent was validated
+// against the LIGHT paper only and then written verbatim into BOTH theme blocks
+// by BrandStyle.tsx, so a hex that passed here still painted an illegible
+// Spark Dark - and nothing in the app could tell you.
+
+test("isHexColor is the ONE owner of the accent syntax rule", () => {
+  // BrandingTab used to re-type this regex; the editor now asks this function, so
+  // the warning it shows and the value the store accepts cannot drift apart.
+  assert.equal(isHexColor("#d65a4a"), true);
+  assert.equal(isHexColor("  #ABC  "), true);
+  assert.equal(isHexColor("#12"), false);
+  assert.equal(isHexColor("red"), false);
+  assert.equal(isHexColor(""), false);
+});
+
+test("ACCENT_GROUNDS reads BOTH themes off brand.ts, and dark's label is NOT white", () => {
+  // `text-white` is a ROLE: globals.css remaps --color-white to #1d2630 under
+  // [data-theme="dark"], so the dark theme's on-accent label is DARK. Checking a
+  // white label in both themes is precisely the bug this replaces.
+  assert.equal(ACCENT_GROUNDS.light.canvas, "#fdf8ee");
+  assert.equal(ACCENT_GROUNDS.light.onAccent, "#ffffff");
+  assert.equal(ACCENT_GROUNDS.dark.canvas, "#141b24");
+  assert.equal(ACCENT_GROUNDS.dark.onAccent, "#1d2630");
+  assert.notEqual(ACCENT_GROUNDS.dark.onAccent, ACCENT_GROUNDS.light.onAccent);
+});
+
+test("accentIsLegible judges the theme it is asked about", () => {
+  // The store's own round-trip accent. Measured: 6.87:1 white-on-accent and 6.49:1
+  // against the cream canvas -> fine in Studio Light. On the dark grounds the SAME
+  // literal is 2.23:1 (label) and 2.52:1 (canvas) -> below the 3:1 bar, which is
+  // what shipping one hex into both blocks was doing.
+  assert.equal(accentIsLegible("#0057b8", "light"), true);
+  assert.ok(contrastRatio("#0057b8", ACCENT_GROUNDS.dark.canvas) < 3);
+  assert.equal(accentIsLegible("#0057b8", "dark"), false);
+  // A pale accent is the mirror image: unusable on the cream canvas, fine on ink.
+  assert.equal(accentIsLegible("#ffff88", "light"), false);
+  assert.equal(accentIsLegible("#ffff88", "dark"), true);
+  // Absence is the product default in either theme; junk is legible in neither.
+  for (const theme of ["light", "dark"] as const) {
+    assert.equal(accentIsLegible(null, theme), true);
+    assert.equal(accentIsLegible("", theme), true);
+    assert.equal(accentIsLegible("chartreuse", theme), false);
+  }
+  // Default argument = light, so every pre-existing caller keeps its meaning.
+  assert.equal(accentIsLegible("#0057b8"), accentIsLegible("#0057b8", "light"));
+});
+
+test("deriveDarkAccent gives #0057b8 a legible dark twin at the same hue", () => {
+  const twin = deriveDarkAccent("#0057b8");
+  assert.ok(twin, "a mid-blue brand accent must have a Spark Dark twin");
+  assert.notEqual(twin, "#0057b8", "the twin must actually move - that was the bug");
+  // How this was checked: the WCAG ratio is COMPUTED here against both real dark
+  // grounds, not eyeballed. The raw accent measures 2.23 / 2.52; the twin clears 3.
+  assert.ok(
+    contrastRatio(twin!, ACCENT_GROUNDS.dark.onAccent) >= MIN_ACCENT_CONTRAST,
+    `the dark label must read on the twin (got ${contrastRatio(twin!, ACCENT_GROUNDS.dark.onAccent)})`
+  );
+  assert.ok(
+    contrastRatio(twin!, ACCENT_GROUNDS.dark.canvas) >= MIN_ACCENT_CONTRAST,
+    `the twin must read as a focus ring on the dark canvas (got ${contrastRatio(twin!, ACCENT_GROUNDS.dark.canvas)})`
+  );
+  assert.equal(accentIsLegible(twin, "dark"), true);
+  // Same hue family: blue stays blue (b is the dominant channel in both).
+  assert.ok(twin!.startsWith("#00"), `expected a blue twin, got ${twin}`);
+});
+
+test("deriveDarkAccent leaves an accent that already reads on ink alone", () => {
+  // The product's own coral measures 3.95 / 4.47 on the dark grounds, so there is
+  // nothing to lift - the twin is the accent, normalized to 6 digits.
+  assert.equal(deriveDarkAccent("#d65a4a"), "#d65a4a");
+  assert.equal(deriveDarkAccent("#ABC"), deriveDarkAccent("#aabbcc"));
+  assert.equal(deriveDarkAccent(null), null);
+  assert.equal(deriveDarkAccent("not-a-color"), null);
+});
+
+test("deriveDarkAccent refuses rather than shipping a color the operator never chose", () => {
+  // Near-black is perfectly legible in Studio Light (21:1 on white) and has NO
+  // legible dark twin that is still near-black: reaching 3:1 on #141b24 needs a
+  // mid-grey, past MAX_DARK_ACCENT_LIFT away from what was typed. The honest
+  // answer is a refusal naming Spark Dark, not a silent substitution.
+  assert.equal(accentIsLegible("#000000", "light"), true);
+  assert.equal(deriveDarkAccent("#000000"), null);
+  assert.equal(deriveDarkAccent("#111111"), null);
+  // The cap is what makes that a refusal rather than a lift to grey.
+  assert.equal(MAX_DARK_ACCENT_LIFT, 0.35);
+});
+
+test("resolveAccent is the write-door verdict: one reason per BRAND_* code", () => {
+  const ok = resolveAccent("#0057B8");
+  assert.equal(ok.ok, true);
+  assert.equal(ok.ok && ok.accent, "#0057b8", "the light accent is stored AS TYPED");
+  assert.equal(ok.ok && ok.accentDark, deriveDarkAccent("#0057b8"));
+
+  // Absent / empty is "use the product default", never a refusal.
+  for (const empty of [undefined, null, "", "   ", 42, {}]) {
+    const v = resolveAccent(empty as unknown);
+    assert.equal(v.ok, true, `${String(empty)} must be accepted as "no accent"`);
+    assert.equal(v.ok && v.accent, null);
+    assert.equal(v.ok && v.accentDark, null);
+  }
+
+  assert.deepEqual(resolveAccent("chartreuse"), { ok: false, reason: "invalid" });
+  assert.deepEqual(resolveAccent("#000; } body { display:none"), { ok: false, reason: "invalid" });
+  assert.deepEqual(resolveAccent("#ffff88"), { ok: false, reason: "illegible-light" });
+  assert.deepEqual(resolveAccent("#000000"), { ok: false, reason: "illegible-dark" });
+});
+
+test("sanitizeBrand carries the derived twin and stays FAIL-SAFE on a bad value", () => {
+  const b = sanitizeBrand({ accentColor: "#0057b8" });
+  assert.equal(b.accentColor, "#0057b8");
+  assert.equal(b.accentDark, deriveDarkAccent("#0057b8"));
+  assert.notEqual(b.accentDark, b.accentColor, "the two theme blocks must not get the same literal");
+  // The READ path degrades (the write path refuses): a stored value that predates a
+  // rule must never throw its way out of getBrand().
+  for (const bad of ["#ffff88", "#000000", "nope"]) {
+    const dropped = sanitizeBrand({ accentColor: bad });
+    assert.equal(dropped.accentColor, null, `${bad} must drop to the product default on read`);
+    assert.equal(dropped.accentDark, null, "no accent means no twin");
+  }
+  // A caller cannot inject a twin: it is DERIVED from the light accent, always.
+  assert.equal(sanitizeBrand({ accentColor: "#0057b8", accentDark: "#ff0000" }).accentDark, deriveDarkAccent("#0057b8"));
 });

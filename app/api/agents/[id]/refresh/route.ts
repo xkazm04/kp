@@ -3,7 +3,8 @@ import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type Agent
 import { createPipelineEntry, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 
 // Agent-candidate bridge — POST polls Personas for the request's state (the PULL
@@ -15,6 +16,17 @@ import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 // projection: report_token is the ONLY auth on the public report endpoint, so it
 // never crosses the wire — a client holding it could POST lifecycle/execution
 // reports for this agent with no session at all.
+
+// Per IP, and the same reasoning as the catalog door beside it: this is the PULL
+// half of the bridge, so every call dials the Personas app (and, on a state change,
+// writes the roster row and files a pipeline card). `requireOperator()` is a
+// documented no-op in open mode, so the budget is the real bound.
+//
+// 120/10 min, deliberately laxer than dispatch's 10 and matching the pairing CLAIM
+// poll: this door is POLLED. The roster refreshes a row per operator click and the
+// panel walks several rows while a hire is being approved, so a dispatch-sized
+// ceiling would refuse the honest wait it exists for.
+const REFRESH_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 
 /** The wire projection of a hired agent — everything except the report token. */
 function safeAgent(agent: HiredAgentRecord | null): Omit<HiredAgentRecord, "reportToken"> | null {
@@ -61,6 +73,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         reason: "No Personas request to poll (dispatch failed?).",
         code: "AGENT_REFRESH_NOT_DISPATCHED",
       });
+    }
+    // AFTER the two cheap refusals above (unknown agent, never dispatched): a call
+    // that could never reach Personas must not spend the window, and an operator
+    // whose real answer is "re-dispatch it" must not be told to slow down.
+    if (!rateLimit(`agent-refresh:${clientIpFrom(request.headers)}`, REFRESH_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const polled = await fetchRequestStatus(agent.requestId);
     if (!polled.ok) {

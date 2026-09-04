@@ -221,6 +221,27 @@ that only `ci.yml` blocks the loop this budget exists to protect.
   provider time — neither is stable enough on a shared runner to block a merge.
   Measure it with `scripts/perf/devbench.mjs` and record the result in
   `../architecture/app-structure.md`, which is where the dated measurements live.
+
+  That tool now carries **its own** small ratchet, deliberately outside this
+  budget: it compares each run to `scripts/perf/devbench-baseline.json` (keyed by
+  variant — `warm` / `cold` / `+burst`, never by the free-text run label) and
+  exits non-zero when `bootMs`, `firstMs`, `warmMs` or `totalMs` is more than
+  **35%** worse than its entry. Before the baseline existed, devbench appended to
+  a gitignored `.next/devbench.jsonl` that every `--cold` run wipes, so a
+  dev-server regression was invisible between sessions — the tool could tell you
+  today's number and never that it had doubled.
+
+  Thirty-five percent is wide on purpose: these are wall-clock numbers off a
+  developer's machine with a browser open, and a gate that cries wolf is a gate
+  people learn to ignore. It catches a doubling, not jitter. Move a number with
+  `node scripts/perf/devbench.mjs <label> --record` and review the diff — that is
+  the whole ratchet, and it is why this stays a local tool rather than a CI step.
+  The committed entries were seeded by transcription from the dated table in
+  `../architecture/app-structure.md`; the file says so, and the first `--record`
+  on a machine replaces a transcription with a measurement. The pure half is
+  pinned by `scripts/perf/__tests__/devbench.test.mjs` (11 checks) in
+  `npm run test:perf`, which also validates the committed file — a ratchet whose
+  committed state is malformed is a gate that silently never fires.
 - **Client bundle bytes.** A worthwhile second metric, and it needs a build
   (`.next/`), which puts it in a different CI tier from this one.
 - **SQLite write throughput.** Already measured, with its result written down:

@@ -65,15 +65,21 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
    leaves the roster row marked `failed` and the board untouched
    (`agents-bridge.test.ts`).
-   **Both agent doors are throttled per IP.** Dispatch and pairing spawn real outbound
-   work behind `requireOperator()`, which open mode (no `KP_OPERATOR_PASSWORD`) makes a
+   **Every bridge door is throttled per IP.** Dispatch, pairing, the connector catalog
+   and the status refresh poll all spawn real outbound work behind `requireOperator()`,
+   which open mode (no `KP_OPERATOR_PASSWORD`) makes a
    documented no-op for the whole API — so each self-limits, in the idiom
    `app/api/rate-limit-contract.test.ts` states for every spend door:
    `agent-dispatch:<ip>` 10 / 10 min (inside `mintAndDispatch`, i.e. after every cheap
    refusal and after the one-live-agent idempotency reuse, so a rejected or idempotent
    call costs nothing), `agent-pair:<ip>` 10 / 10 min for the start phase, and
    `agent-pair-claim:<ip>` 120 / 10 min for the claim poll — laxer because the panel
-   polls claim for the full 300s TTL along a 2s→15s backoff. All three answer the shared
+   polls claim for the full 300s TTL along a 2s→15s backoff. `agent-catalog:<ip>`
+   60 / 10 min (the Agent fit tab fetches the catalog once per open) and
+   `agent-refresh:<ip>` 120 / 10 min (the roster polls a row per click while a hire is
+   being approved, so it is sized like the pairing claim, not like dispatch — and it
+   sits AFTER the "never dispatched" answer, which could not reach Personas anyway)
+   closed the last two, which had no budget at all until /perfect wave 38. All five answer the shared
    `TOO_MANY_REQUESTS` code, so the card says it in the reader's language. The public
    report receiver keeps its own per token+IP budget (60 / 60 s), now pinned
    behaviourally by `app/api/agents/report/[token]/report-throttle.test.ts`.
@@ -317,6 +323,12 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   The Agent fit tab and the Integrations card are not separately gated.
 - **Keyless transform**: without a reachable LLM the transform degrades to a keyword
   heuristic — the verdict stays `unassessed` and the UI labels the spec as heuristic.
+- **The spec is drafted in the workspace's language**: `runAgentFit` passes `--lang`
+  (from `getWorkspaceDefaultLocale`) to `agentfit_cli`, like every other runner here.
+  Until /perfect wave 38 the flag was simply never passed, so the CLI took its `en`
+  default and a Czech tenant got an English mission and system-prompt draft.
+  `agentFitArgs()` is exported so the argv is readable without a spawn
+  (`transform-run.test.ts`).
 - **Bridge-less transform**: the connector catalog degrades to a built-in static list
   when Personas is unpaired/down; assessment never depends on the bridge being alive.
   Dispatch does require pairing and says so.
@@ -328,6 +340,18 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   `ats-egress.deliver()`: a followed 307/308 replays method **and body** to wherever the
   answer points, and the dispatch body carries the `reportToken` — the only auth on the
   public report route. A 3xx is reported as a redirect, never as an acceptance.
+  Loopback is also why `KP_OFFLINE` does **not** gate these calls: 127.0.0.1 is not
+  egress, and gating it would turn "no internet" into "no local Personas".
+- **Bounded on the way back**: kp trusts Personas to be *running*, not to be
+  well-behaved, so every bridge answer is read through `readBridgeJson`
+  (`bridge-client.ts`) under `MAX_BRIDGE_BODY_BYTES` = **256 KiB** — the same cap the
+  public report door applies on the way in, and ~4x the largest real payload (a full
+  connector catalog). Over it, the read answers the structured
+  `{ok:false, reason:"too_large"}`: the catalog degrades to the built-in list, while
+  dispatch, the status poll and the pairing claim answer code
+  **`AGENT_BRIDGE_RESPONSE_TOO_LARGE`** rather than mining a half-buffered body for a
+  `requestId` and reporting the hire as accepted. One deadline (`BRIDGE_TIMEOUT_MS`,
+  5s) is exported from `bridge-client.ts` and imported by `pairing.ts`.
 
 ## Known gaps
 

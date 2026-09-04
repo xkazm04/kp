@@ -4,6 +4,15 @@
 //   node scripts/db-load.mjs data/dumps/kp-dump-….json              # into data/kp.sqlite
 //   node scripts/db-load.mjs dump.json --replace                    # overwrite non-empty tables
 //   node scripts/db-load.mjs dump.json --db path/to.sqlite          # into a non-default workspace
+//   node scripts/db-load.mjs dump.json --dry-run                    # print the plan, write nothing
+//
+// --dry-run is the rehearsal. The rollback runbook (docs/architecture/releases.md
+// "Going back") is executed exactly once, under pressure, against a workspace
+// that is already wrong — and until this flag existed there was no way to find
+// out what the command was about to do except by letting it do it. A dry run
+// reports the same refusal, with the same exit code, as the real run: it PREDICTS
+// the outcome rather than describing the happy path, so an operator who dry-runs
+// and sees 0 knows the restore will land.
 //
 // Semantics — deliberately conservative so a restore can't half-eat a live
 // workspace:
@@ -29,24 +38,27 @@ const DUMP_FORMAT = "kp-db-dump";
 const DUMP_VERSION = 1;
 
 function parseArgs(argv) {
-  const args = { db: DEFAULT_DB_PATH, dump: null, replace: false };
+  const args = { db: DEFAULT_DB_PATH, dump: null, replace: false, dryRun: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--db") args.db = argv[++i];
     else if (a === "--replace") args.replace = true;
+    else if (a === "--dry-run") args.dryRun = true;
     else if (!a.startsWith("--") && !args.dump) args.dump = a;
     else {
       console.error(`Unknown argument: ${a}`);
-      console.error("Usage: node scripts/db-load.mjs <dump.json> [--db PATH] [--replace]");
+      console.error(USAGE);
       process.exit(2);
     }
   }
   if (!args.dump) {
-    console.error("Usage: node scripts/db-load.mjs <dump.json> [--db PATH] [--replace]");
+    console.error(USAGE);
     process.exit(2);
   }
   return args;
 }
+
+const USAGE = "Usage: node scripts/db-load.mjs <dump.json> [--db PATH] [--replace] [--dry-run]";
 
 /** Inverse of db-dump.mjs encodeCell: revive tagged BLOB wrappers. */
 function decodeCell(value) {
@@ -70,26 +82,73 @@ function main() {
     process.exit(1);
   }
 
-  mkdirSync(path.dirname(args.db), { recursive: true });
-  const db = new Database(args.db);
-  // Same pragmas the app uses, so a load against a workspace an app instance
-  // still has open waits instead of instantly failing on SQLITE_BUSY.
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
+  // "Writes nothing" has to include the workspace FILE. `new Database(path)` and
+  // mkdirSync would both create one, so a dry run against a path that does not
+  // exist yet opens no database at all and plans every table as a create.
+  const targetExists = existsSync(args.db);
+  if (!args.dryRun) mkdirSync(path.dirname(args.db), { recursive: true });
+  const db = args.dryRun && !targetExists ? null : new Database(args.db);
+  if (db) {
+    // Same pragmas the app uses, so a load against a workspace an app instance
+    // still has open waits instead of instantly failing on SQLITE_BUSY. A dry run
+    // skips the journal_mode change: it inspects, it does not convert.
+    if (!args.dryRun) db.pragma("journal_mode = WAL");
+    db.pragma("busy_timeout = 5000");
+  }
 
-  const tableExists = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?");
+  const tableExistsStmt = db ? db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?") : null;
+  const tableExists = { get: (name) => (tableExistsStmt ? tableExistsStmt.get(name) : undefined) };
+  const rowCount = (name) => (db ? db.prepare(`SELECT COUNT(*) AS n FROM "${name}"`).get().n : 0);
+  const tag = args.dryRun ? "[dry-run] " : "";
+  if (args.dryRun) {
+    console.log(
+      `${tag}nothing will be written. Target: ${args.db}${targetExists ? "" : " (does not exist yet)"}`
+    );
+    if (payload.redacted) {
+      console.log(`${tag}NOTE: this dump was taken with --redact — every credential column is a marker,`);
+      console.log(`${tag}      so the restored install cannot authenticate or reach its integrations.`);
+    }
+  }
 
   // Up-front safety sweep: no row is written unless EVERY populated table was
   // explicitly authorized with --replace.
-  const populated = payload.tables.filter((t) => {
-    if (!tableExists.get(t.name)) return false;
-    return db.prepare(`SELECT COUNT(*) AS n FROM "${t.name}"`).get().n > 0;
-  });
+  const populated = payload.tables.filter((t) => Boolean(tableExists.get(t.name)) && rowCount(t.name) > 0);
   if (populated.length > 0 && !args.replace) {
-    console.error("Refusing to load: these tables already contain rows —");
+    // A dry run must predict the REAL outcome, exit code included: an operator who
+    // rehearses and sees 0 has to be able to trust that the restore lands.
+    console.error(`${tag}Refusing to load: these tables already contain rows —`);
     for (const t of populated) console.error(`  ${t.name}`);
     console.error("Re-run with --replace to drop and restore them (the dump wins), or load into a fresh --db path.");
+    db?.close();
     process.exit(1);
+  }
+
+  if (args.dryRun) {
+    // The plan, per table, in the loader's own vocabulary: what it would do and to
+    // how many rows. `replace` is the destructive one, and it is named as such.
+    let created = 0;
+    let replaced = 0;
+    let totalRows = 0;
+    console.log(`${tag}plan for ${payload.tables.length} table(s) from ${args.dump}:`);
+    for (const t of payload.tables) {
+      const exists = Boolean(tableExists.get(t.name));
+      const existingRows = exists ? rowCount(t.name) : 0;
+      const action = !exists ? "create" : existingRows > 0 ? "REPLACE (drops it)" : "recreate (empty)";
+      if (existingRows > 0) replaced += 1;
+      else created += 1;
+      totalRows += t.rows.length;
+      console.log(
+        `  ${t.name.padEnd(22)} ${String(t.rows.length).padStart(7)} rows  ${action}` +
+          (existingRows > 0 ? `  [${existingRows} existing row(s) discarded]` : "")
+      );
+    }
+    db?.close();
+    console.log(
+      `${tag}would write ${totalRows} row(s): ${created} table(s) created or refilled, ` +
+        `${replaced} table(s) dropped and replaced. Nothing was written.`
+    );
+    console.log(`${tag}re-run without --dry-run to perform it.`);
+    return;
   }
 
   const loadAll = db.transaction(() => {

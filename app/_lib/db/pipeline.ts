@@ -624,6 +624,40 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
   return rows.map(rowToEntry);
 }
 
+/** The active placements of ONE candidate, newest-scoring first, CAPPED.
+ *
+ *  Exists because the caller that wants this (the command palette's profile preview)
+ *  was doing `listPipeline(ws).filter(e => e.candidateId === id).slice(0, 3)`: the
+ *  whole board hydrated through `rowToEntry` — every entry's github JSON, notes and
+ *  source attribution — to keep at most three rows, on a pane that opens on a
+ *  keystroke. This asks SQLite the question instead, and the LIMIT is in the query
+ *  rather than in the caller's `.slice`.
+ *
+ *  Projection, not entries: a preview needs a job title and a stage id, so this
+ *  returns exactly those two columns rather than a PipelineEntry the caller would
+ *  throw most of away. Same TERMINAL_STATUS exclusion as `listPipeline`, so "active"
+ *  means the same thing on both reads. */
+export function listCandidatePlacements(
+  candidateId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  limit = 3
+): Array<{ jobTitle: string | null; stage: string }> {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT job_title, stage
+         FROM pipeline_entries
+        WHERE candidate_id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
+        ORDER BY match_score DESC, job_title
+        LIMIT ?`
+    )
+    .all(candidateId, workspaceId, Math.max(0, Math.min(limit, 50)))
+    .map((r) => {
+      const row = r as { job_title: string | null; stage: string };
+      return { jobTitle: row.job_title, stage: row.stage };
+    });
+}
+
 /** JOB2 — when a recruiter closes a role, withdraw its still-IN-FLIGHT candidates so a
  *  filled role stops being chased and stops inflating the active funnel. Marks every
  *  `active`, non-Hired entry for the job `role_closed` (a DISTINCT terminal status — they
