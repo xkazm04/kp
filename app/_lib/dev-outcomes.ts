@@ -97,9 +97,61 @@ function db(): Database.Database {
   // Every read is now (workspace_id, …); created after the ALTER so it also covers a
   // migrated legacy table.
   d.exec(`CREATE INDEX IF NOT EXISTS idx_dev_outcomes_ws ON dev_outcomes (workspace_id, id DESC)`);
+
+  // PROVENANCE AS A FLAG, not as English prose (/perfect wave 28). Two writers used to
+  // stamp an English sentence into `note` — "auto-recorded from pipeline hire" and
+  // "on-the-job rating recorded in the pipeline drawer" — and the control room both
+  // RENDERED that sentence to every operator regardless of locale and BRANCHED on
+  // `note.startsWith("auto-recorded")` as if the prose were an enum. A note is free text;
+  // an enum is a contract. `source` is the contract. Legacy rows backfill from the very
+  // prefix the panel used to test, so no historical row loses its provenance.
+  const cols2 = (d.prepare(`PRAGMA table_info(dev_outcomes)`).all() as { name: string }[]).map((c) => c.name);
+  if (!cols2.includes("source")) {
+    d.exec(`ALTER TABLE dev_outcomes ADD COLUMN source TEXT`);
+    d.exec(
+      `UPDATE dev_outcomes SET source = CASE WHEN COALESCE(note, '') LIKE 'auto-recorded%' THEN 'auto' ELSE 'manual' END WHERE source IS NULL`
+    );
+  }
+
+  // THE BACKSTOP under recordOutcome's transaction. The upsert below reads then writes;
+  // wrapping it in an IMMEDIATE transaction closes the window between the two on THIS
+  // process's connection, but the store is opened by several connections on one file
+  // (db.ts, dev-control, and this module each hold their own), and a constraint is the
+  // only thing that holds across all of them. `ref` is the row's real identity by
+  // contract, so (workspace_id, ref, outcome) is unique wherever a ref exists —
+  // PARTIAL, because a refless control-room entry legitimately repeats (two different
+  // people, same name, same outcome; see the refless-dedup note on recordOutcome).
+  //
+  // Rows predating the constraint may already violate it — that IS the bug this
+  // direction fixes, and calibrate() has been counting each of those duplicates as its
+  // own decided outcome. Collapse them to the newest per key first, which is exactly
+  // the store's own documented rule ("the latest recorded reality wins"), and only when
+  // the index is still absent so an established DB never re-pays for the scan.
+  const hasRefUnique = d
+    .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_dev_outcomes_ref_unique'`)
+    .get();
+  if (!hasRefUnique) {
+    d.exec(
+      `DELETE FROM dev_outcomes WHERE ref IS NOT NULL AND id NOT IN (
+         SELECT MAX(id) FROM dev_outcomes WHERE ref IS NOT NULL GROUP BY workspace_id, ref, outcome
+       )`
+    );
+  }
+  d.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_dev_outcomes_ref_unique ON dev_outcomes (workspace_id, ref, outcome) WHERE ref IS NOT NULL`
+  );
   _db = d;
   return d;
 }
+
+// Where an outcome row came from. `auto` = the pipeline recorded it from a terminal
+// transition (recordPipelineOutcome); `manual` = a human wrote it, through the control
+// room form or the recruiter drawer's rating. The panel branches on THIS, and renders a
+// sentence in the operator's language — the prose that used to live in `note` was
+// English-only on a screen that ships in four locales.
+export const OUTCOME_SOURCES = ["auto", "manual"] as const;
+export type OutcomeSource = (typeof OUTCOME_SOURCES)[number];
+const isOutcomeSource = (v: unknown): v is OutcomeSource => OUTCOME_SOURCES.includes(v as OutcomeSource);
 
 export type OutcomeRecord = {
   id: number;
@@ -109,6 +161,10 @@ export type OutcomeRecord = {
   outcome: Outcome;
   performance: number | null; // PERFORMANCE_MIN..PERFORMANCE_MAX, only set when outcome === "hired"
   note: string | null;
+  /** Provenance. Legacy rows that predate the column and carried no recognizable note
+   *  read as "manual" — a human-entered outcome is what the store's only other writer
+   *  produced, and claiming "auto" for a row we cannot attribute would be a fabrication. */
+  source: OutcomeSource;
   recordedAt: string;
 };
 
@@ -135,8 +191,35 @@ export type OutcomeRecord = {
 // TENANT SCOPE (D5): the dedup lookups AND the insert are workspace-scoped, so one team's
 // re-record can never update — nor be blocked by — another team's row for the same ref or
 // candidate name.
-export function recordOutcome(input: OutcomeInput, workspaceId: string = DEFAULT_WORKSPACE_ID): "inserted" | "updated" {
+//
+// ATOMIC (/perfect wave 28): the SELECT that decides insert-vs-update and the write it
+// decides on used to be two statements with the event loop and every other connection
+// free to run between them. A recruiter rating a hire in the pipeline drawer while the
+// pipeline auto-records the SAME terminal transition therefore both read "no row" and
+// both inserted — two decided rows for one real-world fact, and calibrate() counts each
+// (at MIN RESOLVED = 4 one duplicate moves suggestedFloor a whole tier, per the note
+// above). The read→compute→write now runs inside `.immediate()`, which takes the write
+// lock at BEGIN rather than at the first write, so the loser of the race waits (the
+// store's busy_timeout=5000) and then SEES the winner's row and updates it. Nothing in
+// the body awaits — better-sqlite3 is synchronous and an await here would silently give
+// the atomicity away. The partial UNIQUE index in db() is the cross-connection backstop.
+export function recordOutcome(
+  input: OutcomeInput,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  source: OutcomeSource = "manual"
+): "inserted" | "updated" {
   const d = db();
+  return d.transaction(() => upsertOutcome(d, input, workspaceId, source)).immediate();
+}
+
+/** The body of recordOutcome. Split out only so the transaction wrapper above reads as
+ *  one line — it is never called outside it, and must stay free of any await. */
+function upsertOutcome(
+  d: Database.Database,
+  input: OutcomeInput,
+  workspaceId: string,
+  source: OutcomeSource
+): "inserted" | "updated" {
   const candidate = input.candidateRef?.trim();
   let existing = (
     input.ref != null
@@ -178,7 +261,21 @@ export function recordOutcome(input: OutcomeInput, workspaceId: string = DEFAULT
     );
     return "updated";
   }
-  d.prepare(`INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+  // ON CONFLICT against the partial UNIQUE index, not a bare INSERT: if a second
+  // connection won the race to this key between our lock and this statement (or a
+  // pre-constraint caller sneaks past), the duplicate must COLLAPSE into the existing
+  // row, not throw SQLITE_CONSTRAINT out of a hire transition. The DO UPDATE mirrors
+  // the update branch above — absent fields keep the stored value, and `source` is
+  // never rewritten, because provenance belongs to the row's first writer.
+  d.prepare(
+    `INSERT INTO dev_outcomes (ref, candidate_ref, predicted_score, outcome, performance, note, recorded_at, workspace_id, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (workspace_id, ref, outcome) WHERE ref IS NOT NULL DO UPDATE SET
+       predicted_score = COALESCE(excluded.predicted_score, dev_outcomes.predicted_score),
+       performance = COALESCE(excluded.performance, dev_outcomes.performance),
+       note = COALESCE(excluded.note, dev_outcomes.note),
+       recorded_at = excluded.recorded_at`
+  ).run(
     input.ref ?? null,
     input.candidateRef ?? null,
     input.predictedScore ?? null,
@@ -186,7 +283,8 @@ export function recordOutcome(input: OutcomeInput, workspaceId: string = DEFAULT
     input.performance ?? null,
     input.note ?? null,
     new Date().toISOString(),
-    workspaceId
+    workspaceId,
+    source
   );
   return "inserted";
 }
@@ -296,9 +394,11 @@ export function recordHirePerformance(
     predictedScore: predicted,
     outcome: "hired",
     performance,
-    note: "on-the-job rating recorded in the pipeline drawer",
+    // No `note`. This used to persist the English sentence "on-the-job rating recorded
+    // in the pipeline drawer", which the control room then rendered verbatim to a French
+    // or Czech operator. Provenance is the `source` flag; the surface writes the sentence.
   });
-  return recordOutcome(input, workspaceId);
+  return recordOutcome(input, workspaceId, "manual");
 }
 
 /** How many hires in this workspace carry an on-the-job rating.
@@ -345,22 +445,39 @@ export function recordPipelineOutcome(
   // would have silently defaulted anyway and every auto-recorded outcome would land in
   // the default tenant's calibration corpus regardless of whose hire it was.
   const workspaceId = workspaceForSubmissionRef(ref);
-  // Idempotent across re-transitions (a re-add later re-rejected must not
-  // double-count in the calibration bands).
-  const existing = db().prepare(`SELECT 1 FROM dev_outcomes WHERE workspace_id = ? AND ref = ? AND outcome = ? LIMIT 1`).get(workspaceId, ref, outcome);
-  if (existing) return false;
   const predicted =
     typeof entry.matchScore === "number" && entry.matchScore >= 0 && entry.matchScore <= 100
       ? entry.matchScore
       : undefined;
-  recordOutcome({
-    ref,
-    candidateRef: entry.candidateLabel ?? undefined,
-    predictedScore: predicted,
-    outcome,
-    note: `auto-recorded from pipeline ${outcome === "hired" ? "hire" : "rejection"}`,
-  }, workspaceId);
-  return true;
+  // ATOMIC (/perfect wave 28): the "already recorded?" SELECT and the write it guards
+  // were a check-then-act — a re-transition racing the recruiter drawer's rating of the
+  // same hire passed the check twice and minted two decided rows. Both statements now
+  // sit in ONE IMMEDIATE transaction (recordOutcome's own transaction nests as a
+  // SAVEPOINT, which is what better-sqlite3 does with a nested transaction function),
+  // so the check and the insert cannot be separated. Synchronous throughout — no await.
+  const d = db();
+  return d.transaction(() => {
+    // Idempotent across re-transitions (a re-add later re-rejected must not
+    // double-count in the calibration bands).
+    const existing = d
+      .prepare(`SELECT 1 FROM dev_outcomes WHERE workspace_id = ? AND ref = ? AND outcome = ? LIMIT 1`)
+      .get(workspaceId, ref, outcome);
+    if (existing) return false;
+    upsertOutcome(
+      d,
+      {
+        ref,
+        candidateRef: entry.candidateLabel ?? undefined,
+        predictedScore: predicted,
+        outcome,
+        // No English `note`: "auto-recorded from pipeline hire" was prose the panel
+        // both printed untranslated and pattern-matched as an enum. `source` is the enum.
+      },
+      workspaceId,
+      "auto"
+    );
+    return true;
+  }).immediate();
 }
 
 // The workspace a promoted submission belongs to. dev_submissions lives on db/core.ts's
@@ -391,6 +508,7 @@ export function listOutcomes(limit = 80, workspaceId: string = DEFAULT_WORKSPACE
     outcome: r.outcome as Outcome,
     performance: r.performance == null ? null : Number(r.performance),
     note: (r.note as string) ?? null,
+    source: isOutcomeSource(r.source) ? r.source : "manual",
     recordedAt: r.recorded_at as string,
   }));
 }
@@ -406,19 +524,36 @@ export type OutcomeSummary = { outcome: Outcome; performance: number | null; rec
 // ref going forward, but rows written before that (or a legacy import) can repeat a
 // ref — scanning in id order and letting the map overwrite makes the newest row win
 // either way. Unknown refs are simply absent from the result.
+//
+// CHUNKED (/perfect wave 28). The caller is GET /api/devcase/postings, which flattens
+// EVERY submission of every posting into one ref list and builds one `?` placeholder per
+// entry. SQLite's compiled default SQLITE_MAX_VARIABLE_NUMBER is 999, so a workspace with
+// a thousand submissions did not degrade — it threw "too many SQL variables" and the
+// whole Dev studio answered DEVCASE_POSTINGS_FAILED, with no cap anywhere on the path to
+// say so. 400 refs per statement is the chunk: comfortably under the 999 ceiling with the
+// workspace_id parameter and any future predicate accounted for, and large enough that a
+// realistic corpus is one or two round trips. Chunks are scanned in order and each chunk
+// in ascending id, so "the newest row for a ref wins" still holds — a ref only ever
+// appears in the one chunk its own value landed in.
+const REF_CHUNK = 400;
+
 export function latestOutcomeByRefs(refs: string[], workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, OutcomeSummary> {
   const latest = new Map<string, OutcomeSummary>();
   if (refs.length === 0) return latest;
-  const placeholders = refs.map(() => "?").join(", ");
-  const rows = db()
-    .prepare(`SELECT ref, outcome, performance, recorded_at FROM dev_outcomes WHERE workspace_id = ? AND ref IN (${placeholders}) ORDER BY id ASC`)
-    .all(workspaceId, ...refs) as Array<Record<string, unknown>>;
-  for (const r of rows) {
-    latest.set(r.ref as string, {
-      outcome: r.outcome as Outcome,
-      performance: r.performance == null ? null : Number(r.performance),
-      recordedAt: r.recorded_at as string,
-    });
+  const d = db();
+  for (let i = 0; i < refs.length; i += REF_CHUNK) {
+    const chunk = refs.slice(i, i + REF_CHUNK);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const rows = d
+      .prepare(`SELECT ref, outcome, performance, recorded_at FROM dev_outcomes WHERE workspace_id = ? AND ref IN (${placeholders}) ORDER BY id ASC`)
+      .all(workspaceId, ...chunk) as Array<Record<string, unknown>>;
+    for (const r of rows) {
+      latest.set(r.ref as string, {
+        outcome: r.outcome as Outcome,
+        performance: r.performance == null ? null : Number(r.performance),
+        recordedAt: r.recorded_at as string,
+      });
+    }
   }
   return latest;
 }
@@ -459,8 +594,22 @@ export type CalibrationBand = { label: string; lo: number; count: number; hireRa
 export type CalibrationRationaleKind = "insufficient" | "weak" | "raise" | "lower" | "calibrated";
 export type CalibrationRationale = { kind: CalibrationRationaleKind; params?: Record<string, number> };
 
+// How many of the newest outcome rows calibrate() reads. It is a CAP, not the corpus:
+// past this many rows the bands are computed from a suffix of the workspace's history
+// and `resolved` describes that suffix, not "all outcomes ever". Before wave 28 the cap
+// was an unnamed literal and the panel reported `resolved` with no hint that anything
+// had been left out — the operator read a floor suggestion as if it were derived from
+// everything they had ever recorded. `resolvedOf` below makes the cap visible when, and
+// only when, it actually bit.
+export const CALIBRATION_SCAN_LIMIT = 1000;
+
 export type Calibration = {
   resolved: number;
+  /** The scan cap, when it was reached — i.e. calibration read the newest
+   *  CALIBRATION_SCAN_LIMIT rows and older ones are NOT in `resolved`. `null` when the
+   *  whole workspace corpus fit, which is the ordinary case; the control room only
+   *  writes the "of the newest N" line when this is set. */
+  resolvedOf: number | null;
   bands: CalibrationBand[];
   predictive: boolean | null;
   currentFloor: number;
@@ -507,7 +656,12 @@ export type Calibration = {
 // recruiter's "Apply suggested → N" button moved their live promote floor to a number
 // derived from another team's hires — the algorithm below is unchanged, only its input set.
 export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WORKSPACE_ID): Calibration {
-  const all = listOutcomes(1000, workspaceId);
+  const all = listOutcomes(CALIBRATION_SCAN_LIMIT, workspaceId);
+  // Exactly CALIBRATION_SCAN_LIMIT rows came back → there may be older ones the bands
+  // never saw. (A corpus of exactly the cap reports the caveat too: the reader cannot
+  // tell "exactly 1000" from "the newest 1000 of more", and over-disclosing a limit is
+  // the honest side of that coin.)
+  const resolvedOf = all.length >= CALIBRATION_SCAN_LIMIT ? CALIBRATION_SCAN_LIMIT : null;
   const decided = all.filter((o) => o.outcome === "hired" || o.outcome === "rejected"); // exclude pending/withdrawn
   // Only decided outcomes whose predicted score lands inside the banded range
   // [RANGE_LO, RANGE_HI) inform calibration. A null/absent score — or a legacy,
@@ -552,6 +706,7 @@ export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WO
   if (inRange.length < MIN_RESOLVED) {
     return {
       resolved: inRange.length,
+      resolvedOf,
       bands,
       predictive: null,
       currentFloor,
@@ -602,5 +757,5 @@ export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WO
     rationale = { kind: "calibrated", params: { current: currentFloor } };
   }
 
-  return { resolved: inRange.length, bands, predictive, currentFloor, suggestedFloor, rationale };
+  return { resolved: inRange.length, resolvedOf, bands, predictive, currentFloor, suggestedFloor, rationale };
 }
