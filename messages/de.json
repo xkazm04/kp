@@ -3410,7 +3410,10 @@
       "anyAdverse": "Mögliche Benachteiligung: Mindestens eine Gruppe liegt unter der 80-%-Schwelle.",
       "insufficientSample": "Unzureichende Stichprobe: Keine Gruppe erreicht {min} Bewerbende, daher ist das Vier-Fünftel-Verhältnis nicht aussagekräftig. Das ist kein Nachweis, dass keine Benachteiligung vorliegt.",
       "noAdverse": "Keine Gruppe liegt unter der 80-%-Vier-Fünftel-Schwelle.",
-      "parseIgnored": "{read} von {total} Zeilen gelesen. {ignored} ignoriert (Zeilen: {rows}). Jede Zeile benötigt: Gruppe, ausgewählt, gesamt. Das Ergebnis unten wird nur aus den erfolgreich gelesenen Zeilen berechnet."
+      "parseIgnored": "{read} von {total} Zeilen gelesen. {ignored} ignoriert (Zeilen: {rows}). Jede Zeile benötigt: Gruppe, ausgewählt, gesamt. Das Ergebnis unten wird nur aus den erfolgreich gelesenen Zeilen berechnet.",
+      "jurisdictionUnconfirmed": "Für diesen Workspace ist keine Rechtsordnung gespeichert. Unten gilt die Voreinstellung, bestätigt hat sie niemand.",
+      "jurisdictionReadFailed": "Die gespeicherte Rechtsordnung konnte nicht geladen werden. Angezeigt wird die Voreinstellung, nicht zwingend das, was Ihre Hinweise an Bewerbende nennen.",
+      "covered5Unconfirmed": "Personenbezogene Daten werden nach {dataLaw} verarbeitet, mit Löschung in Eigenregie. Die Aufbewahrungsfrist konnte nicht geladen werden, daher wird hier keine Zahl genannt."
     },
     "wave": {
       "title": "Screening-Welle · {role}",
@@ -5508,7 +5511,11 @@
       "statusBounced": "Unzustellbar",
       "resendRecovered": "Wird bereits zugestellt. Diese Nachricht ist unterwegs.",
       "receiptSubject": "Zustellbestätigung",
-      "receiptRecipient": "Relay-Rückmeldung"
+      "receiptRecipient": "Relay-Rückmeldung",
+      "olderExist": "{count, plural, one {# Nachricht} other {# Nachrichten}} angezeigt. Es gibt ältere.",
+      "loadOlder": "Ältere laden",
+      "loadingOlder": "Ältere werden geladen…",
+      "beyondWindow": "Es gibt ältere Nachrichten, sie liegen aber außerhalb dieser Ansicht."
     },
     "eyebrow": "Eingangsstudio",
     "title": "Wo Kandidat/innen hereinkommen",
@@ -5625,7 +5632,9 @@
     "careers": {
       "empty": "Noch keine veröffentlichten Stellen. Veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier.",
       "applyLink": "Bewerbungslink",
-      "publishRole": "Stelle veröffentlichen"
+      "publishRole": "Stelle veröffentlichen",
+      "showingOf": "{shown} von {total} angezeigt",
+      "viewAllRoles": "Alle Stellen"
     },
     "receivers": {
       "role": "Stelle",
@@ -5918,7 +5927,10 @@
         "BAD_SHAPE": "GitHub hat eine unerwartete Antwort zurückgegeben. Bitte gleich erneut versuchen.",
         "NOT_A_PERSON": "Dieses Handle gehört zu einer GitHub-Organisation, nicht zu einem persönlichen Konto. Geben Sie den Benutzernamen einer einzelnen Person ein.",
         "REQUEST_THROTTLED": "Zu viele Anfragen. Bitte gleich erneut versuchen.",
-        "ANALYSIS_FAILED": "Die GitHub-Analyse ist fehlgeschlagen. Bitte gleich erneut versuchen."
+        "ANALYSIS_FAILED": "Die GitHub-Analyse ist fehlgeschlagen. Bitte gleich erneut versuchen.",
+        "JD_TOO_LONG": "Die Stellenbeschreibung ist für die GitHub-Tiefenanalyse zu lang. Kürzen Sie sie und versuchen Sie es erneut.",
+        "OFFLINE": "Diese Installation läuft offline, GitHub wurde daher nicht kontaktiert.",
+        "RESPONSE_TOO_LARGE": "GitHub hat eine unerwartet große Antwort geliefert. Versuchen Sie es in Kürze erneut."
       },
       "review": {
         "partial": "Teilweise Belege: Ein Teil der Repository-Daten war in diesem Lauf nicht abrufbar (vermutlich Rate-Limiting), behandeln Sie dies daher als unvollständige Auswertung.",
@@ -5929,7 +5941,8 @@
         "throttled": "Öffentliche Repo-Signale konnten nicht erfasst werden. GitHub drosselt vermutlich die Anfragen (nicht feststellbar). Bitte gleich erneut versuchen.",
         "noSignals": "Die geprüften Repositories bieten keine öffentlichen README-, Commit- oder Dateisignale zur Bewertung.",
         "malformed": "Gemini hat ein fehlerhaftes Repo-Signal-Review geliefert.",
-        "requestFailed": "Die Anfrage für das Gemini-Repo-Signal-Review ist fehlgeschlagen."
+        "requestFailed": "Die Anfrage für das Gemini-Repo-Signal-Review ist fehlgeschlagen.",
+        "offline": "Diese Installation läuft offline (KP_OFFLINE); die Gemini-Prüfung der Repository-Signale wurde nicht durchgeführt."
       },
       "finding": {
         "signal": {
@@ -5970,7 +5983,9 @@
           "metadata": "Hauptsprache und Repository-Topics aus den GitHub-Metadaten.",
           "notRead": "Nicht gelesen: Dateiinhalte, verschachtelte Verzeichnisbäume, private Repos und andere als die Standard-Branches."
         }
-      }
+      },
+      "retryAfterSeconds": "Sie können es in etwa {seconds, plural, one {# Sekunde} other {# Sekunden}} erneut versuchen.",
+      "retryAfterMinutes": "Sie können es in etwa {minutes, plural, one {# Minute} other {# Minuten}} erneut versuchen."
     }
   },
   "workspaceAdmin": {

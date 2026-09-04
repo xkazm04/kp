@@ -3410,7 +3410,10 @@
       "anyAdverse": "Možný nepříznivý dopad: alespoň jedna skupina je pod prahem 80 %.",
       "insufficientSample": "Nedostatečný vzorek: žádná skupina nedosahuje {min} uchazečů, takže poměr čtyř pětin nemá vypovídací hodnotu. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
       "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
-      "parseIgnored": "Načteno {read} z {total} řádků. {ignored} ignorováno (řádky: {rows}). Každý řádek musí mít: skupina, vybráno, celkem. Výsledek níže je spočítaný jen z řádků, které se podařilo načíst."
+      "parseIgnored": "Načteno {read} z {total} řádků. {ignored} ignorováno (řádky: {rows}). Každý řádek musí mít: skupina, vybráno, celkem. Výsledek níže je spočítaný jen z řádků, které se podařilo načíst.",
+      "jurisdictionUnconfirmed": "Pro tento pracovní prostor není uložena žádná jurisdikce. Níže platí výchozí, ale nikdo ji nepotvrdil.",
+      "jurisdictionReadFailed": "Uloženou jurisdikci se nepodařilo načíst. Zobrazená hodnota je výchozí, nemusí odpovídat tomu, co uvádějí vaše sdělení kandidátům.",
+      "covered5Unconfirmed": "Osobní údaje se zpracovávají podle {dataLaw} s možností samoobslužného výmazu. Dobu uchování se nepodařilo načíst, proto zde není uveden žádný údaj."
     },
     "wave": {
       "title": "Vlna screeningu · {role}",
@@ -5508,7 +5511,11 @@
       "statusBounced": "Nedoručeno",
       "resendRecovered": "Už se doručuje. Tato zpráva je na cestě.",
       "receiptSubject": "Potvrzení o doručení",
-      "receiptRecipient": "Hlášení od relay"
+      "receiptRecipient": "Hlášení od relay",
+      "olderExist": "Zobrazeno {count, plural, one {# zpráva} few {# zprávy} other {# zpráv}}. Starší existují.",
+      "loadOlder": "Načíst starší",
+      "loadingOlder": "Načítám starší…",
+      "beyondWindow": "Starší zprávy existují, ale tento přehled na ně už nedosáhne."
     },
     "eyebrow": "Studio příjmu",
     "title": "Kudy kandidáti přicházejí",
@@ -5625,7 +5632,9 @@
     "careers": {
       "empty": "Zatím žádné publikované pozice. Publikujte pozici a její odkaz pro přihlášení se objeví tady.",
       "applyLink": "odkaz na přihlášku",
-      "publishRole": "Publikovat pozici"
+      "publishRole": "Publikovat pozici",
+      "showingOf": "Zobrazeno {shown} z {total}",
+      "viewAllRoles": "Všechny pozice"
     },
     "receivers": {
       "role": "Pozice",
@@ -5918,7 +5927,10 @@
         "BAD_SHAPE": "GitHub vrátil neočekávanou odpověď. Zkuste to za chvíli znovu.",
         "NOT_A_PERSON": "Tento účet je organizace na GitHubu, ne osobní profil. Zadejte uživatelské jméno konkrétního vývojáře.",
         "REQUEST_THROTTLED": "Příliš mnoho požadavků. Zkuste to prosím za chvíli.",
-        "ANALYSIS_FAILED": "Analýza GitHubu selhala. Zkuste to za chvíli znovu."
+        "ANALYSIS_FAILED": "Analýza GitHubu selhala. Zkuste to za chvíli znovu.",
+        "JD_TOO_LONG": "Popis pozice je pro hloubkovou analýzu GitHubu příliš dlouhý. Zkraťte jej a zkuste to znovu.",
+        "OFFLINE": "Tato instalace běží v offline režimu, GitHub proto nebyl kontaktován.",
+        "RESPONSE_TOO_LARGE": "GitHub vrátil neočekávaně velkou odpověď. Zkuste to prosím za chvíli."
       },
       "review": {
         "partial": "Neúplné důkazy: část dat o repozitářích se v tomto běhu nepodařilo načíst (pravděpodobně kvůli omezení počtu požadavků). Berte to proto jako neúplné čtení.",
@@ -5929,7 +5941,8 @@
         "throttled": "Veřejné signály z repozitářů se nepodařilo získat. GitHub pravděpodobně omezuje počet požadavků (nedá se to určit). Zkuste to za chvíli znovu.",
         "noSignals": "Prošlé repozitáře neposkytují žádné veřejné README, commity ani soubory k posouzení.",
         "malformed": "Gemini vrátilo poškozená data revize signálů z repozitářů.",
-        "requestFailed": "Požadavek na revizi signálů z repozitářů přes Gemini selhal."
+        "requestFailed": "Požadavek na revizi signálů z repozitářů přes Gemini selhal.",
+        "offline": "Tato instalace běží v offline režimu (KP_OFFLINE), kontrola signálů repozitářů přes Gemini proto neproběhla."
       },
       "finding": {
         "signal": {
@@ -5970,7 +5983,9 @@
           "metadata": "Hlavní jazyk a témata repozitáře z metadat GitHubu.",
           "notRead": "Nečteno: obsah souborů, vnořené adresářové stromy, soukromé repozitáře a jiné než výchozí větve."
         }
-      }
+      },
+      "retryAfterSeconds": "Zkusit znovu můžete asi za {seconds, plural, one {# sekundu} few {# sekundy} other {# sekund}}.",
+      "retryAfterMinutes": "Zkusit znovu můžete asi za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}."
     }
   },
   "workspaceAdmin": {

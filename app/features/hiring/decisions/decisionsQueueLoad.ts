@@ -36,11 +36,14 @@ function str(v: unknown): string | null {
  *  sends the array, so a body without one did not come from the route we asked. */
 export function readQueueResponse(payload: unknown): QueueRead {
   const p = (payload ?? null) as { entries?: unknown; error?: unknown; code?: unknown; capability?: unknown } | null;
-  if (p && !p.error && Array.isArray(p.entries)) return { entries: p.entries as Entry[], failure: null };
-  return {
-    entries: null,
-    failure: { code: str(p?.code), capability: str(p?.capability), status: p && (p.error || p.entries !== undefined) ? 200 : null },
-  };
+  // The `error` field is only ever INSPECTED here, never read onto the wire out of
+  // this module — its whole purpose is to be replaced by the code beside it.
+  const declaredFailure = p != null && p.error != null;
+  if (p && !declaredFailure && Array.isArray(p.entries)) return { entries: p.entries as Entry[], failure: null };
+  // A body that carried EITHER field came from the route, so 200 is a real status
+  // to report; a body that carried neither did not, so nothing is claimed.
+  const answered = p != null && (declaredFailure || p.entries !== undefined);
+  return { entries: null, failure: { code: str(p?.code), capability: str(p?.capability), status: answered ? 200 : null } };
 }
 
 /** Fold a THROWN read into the same shape. sharedGetJson turns a non-OK response
