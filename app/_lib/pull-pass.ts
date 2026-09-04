@@ -30,7 +30,7 @@
 import { listPullSources, recordPullResult, type PullSource } from "./db/channels";
 import { ingestInboundLeadByToken, inboundHandled } from "./inbound-lead";
 import { publicBaseUrl } from "./public-base-url";
-import { assertPublicHttpsEndpoint } from "./safe-url";
+import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard.ts";
 
 /** Hard bound on one pull's response body. A source that answers with more than
  *  this is misconfigured (or hostile); we refuse it rather than buffering it. */
@@ -89,14 +89,28 @@ export function parsePullEvents(body: PullEnvelope): { id: string | null; payloa
  *  nonsense is recorded on its own row and cannot take the sweep (or the tick) with
  *  it. `failure-not-empty-success`: a failed pull leaves the cursor exactly where it
  *  was, so the same window is re-asked next tick rather than skipped. */
-export async function pullOneSource(source: PullSource, origin: string): Promise<PullSourceOutcome> {
+export async function pullOneSource(
+  source: PullSource,
+  origin: string,
+  lookupFn?: HostLookup
+): Promise<PullSourceOutcome> {
   const outcome: PullSourceOutcome = { token: source.token, channel: source.channel, fetched: 0, applied: 0, rejected: 0, error: null };
   let url: string;
   try {
     // Same SSRF posture as the outbound relay: https, public host. A pull is an
     // outbound call made by the server on a stored, operator-supplied URL — the
     // trust boundary the ATS/relay endpoints already stand on.
-    const validated = new URL(assertPublicHttpsEndpoint(source.url, "pull_url"));
+    //
+    // RESOLVED, not string-level, and resolved HERE rather than only at the write in
+    // setChannelPull: the string check vets the literal name, so a stored
+    // `https://rebind.attacker.com` that passed setChannelPull and now answers
+    // 169.254.169.254 walks straight past it — and this call carries the source's
+    // bearer secret to whatever it reaches. The pull is on a CLOCK, so the gap
+    // between the write and the fetch is unbounded by construction; the write-time
+    // check stays as the operator's immediate feedback, this one is the security
+    // boundary. Same shared guard the ATS delivery boundary and llm-config use
+    // (ats-egress-guard.ts), which is why this is a swap and not a new rule.
+    const validated = new URL(await assertPublicHttpsEndpointResolved(source.url, "pull_url", lookupFn));
     if (source.cursor) validated.searchParams.set("since", source.cursor);
     url = validated.toString();
   } catch (e) {
