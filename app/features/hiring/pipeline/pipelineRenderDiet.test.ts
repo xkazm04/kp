@@ -206,11 +206,19 @@ test("boardSignature: stays O(n) over a 2000-entry board, inside the documented 
   // Warm the JIT on throwaway boards so the measurement below is steady state.
   for (let i = 0; i < 3; i++) msFor(boardOf(200), now);
 
-  const small = boardOf(250);
   const large = boardOf(2000); // fresh objects: the signature cache is cold for both
 
-  const tSmall = Math.max(msFor(small, now), 0.05);
-  const tLarge = msFor(large, now);
+  // Each size is measured as the BEST of several cold runs (fresh objects each time):
+  // a single sub-millisecond sample at 250 entries is dominated by timer noise and
+  // GC, and under a parallel gate one slow sample made the ratio read 27x on a loop
+  // that is linear. Min-of-N keeps the shape check about the algorithm, not the box.
+  const best = (size: number) => {
+    let t = Infinity;
+    for (let i = 0; i < 5; i++) t = Math.min(t, msFor(boardOf(size), now));
+    return t;
+  };
+  const tSmall = Math.max(best(250), 0.05);
+  const tLarge = best(2000);
 
   // Budget: the whole 2000-entry tick, cold cache, under 100ms.
   assert.ok(tLarge < 100, `2000-entry boardSignature took ${tLarge.toFixed(1)}ms (budget 100ms)`);
