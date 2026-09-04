@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T15:46:38.391Z",
+  "generated_at": "2026-09-04T16:16:06.333Z",
   "provenance": {
-    "git_commit": "9ab99ad5c49a788e3a7cfd06f15cfc43d5f45ecf",
-    "git_commit_count": 2803,
+    "git_commit": "6e141264fbcca46f487879761dac99f3be0d1162",
+    "git_commit_count": 2822,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T15:46:38.391Z"
+    "generated_at": "2026-09-04T16:16:06.333Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3229,
+    "files": 3243,
     "groups": 17,
     "use_cases": 12
   },
@@ -1182,13 +1182,22 @@
         "app/features/insights/analytics/analyticsDecisionLogTypes.ts",
         "app/features/insights/analytics/analyticsFunnelEmptyState.ts",
         "app/features/insights/analytics/analyticsFunnelGuard.test.ts",
+        "app/features/insights/analytics/analyticsPayloadMirror.test.ts",
         "app/features/insights/analytics/analyticsRenderMap.test.ts",
+        "app/features/insights/analytics/analyticsSaveFailure.test.ts",
+        "app/features/insights/analytics/analyticsSaveFailure.ts",
         "app/features/insights/analytics/analyticsViewLink.test.ts",
         "app/features/insights/analytics/analyticsViewLink.ts",
         "app/features/insights/analytics/analyticsWindowScope.test.ts",
         "app/features/insights/analytics/auditRow.test.ts",
         "app/features/insights/analytics/calibrationVerdict.test.ts",
-        "app/features/insights/analytics/calibrationVerdict.ts"
+        "app/features/insights/analytics/calibrationVerdict.ts",
+        "app/features/insights/analytics/stageDwellGate.test.ts",
+        "app/features/insights/analytics/stageDwellGate.ts",
+        "app/features/insights/analytics/statGoalChip.test.ts",
+        "app/features/insights/analytics/statGoalChip.ts",
+        "app/features/insights/analytics/thresholdHistoryRows.test.ts",
+        "app/features/insights/analytics/thresholdHistoryRows.ts"
       ],
       "group": "Analytics & Reporting",
       "group_id": "926019f6-f839-46bb-ae08-1ca786937196",
@@ -2974,6 +2983,7 @@
         "app/api/comms/callback/callback-auth.ts",
         "app/api/comms/callback/route.ts",
         "app/api/comms/capability/route.ts",
+        "app/api/comms/relay/relay-health.test.ts",
         "app/api/comms/relay/relay-version.test.ts",
         "app/api/comms/relay/route.ts",
         "app/api/comms/relay/test/route.ts",
@@ -3162,6 +3172,7 @@
       "description": "[auto-seeded — pending sweep enrichment] Lib Comms 11: 6 source + 7 test file(s) under app/_lib. Reads/writes comms_relay_config.",
       "entry_points": [],
       "file_paths": [
+        "app/_lib/catalog-translator.test.ts",
         "app/_lib/catalog-translator.ts",
         "app/_lib/comms-delivery-truth.test.ts",
         "app/_lib/comms-dispatch-links.test.ts",
@@ -3175,6 +3186,7 @@
         "app/_lib/comms-locale.ts",
         "app/_lib/comms-recipient.test.ts",
         "app/_lib/comms-recipient.ts",
+        "app/_lib/comms-relay-store.test.ts",
         "app/_lib/comms-relay-store.ts"
       ],
       "group": "Communications & Channels",
@@ -3872,6 +3884,8 @@
         "app/_components/table/table-status.test.ts",
         "app/_components/table/useTableSort.test.ts",
         "app/_components/table/useTableSort.ts",
+        "app/_lib/date-format.test.ts",
+        "app/_lib/date-format.ts",
         "app/_lib/use-enum-label.ts",
         "app/_lib/use-error-message.test.ts",
         "app/_lib/use-error-message.ts",
