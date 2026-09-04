@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3066,
+  "files": 3070,
   "groups": 17,
   "use_cases": 12
  },
@@ -7234,6 +7234,8 @@
    "description": "[auto-seeded — pending sweep enrichment] Root Config: 10 source + 3 test file(s) under . Reads/writes scheduler_heartbeat.",
    "entry_points": [],
    "file_paths": [
+    ".gitattributes",
+    ".npmrc",
     "app/api/rate-limit-contract.test.ts",
     "app/api/route-tenancy-coverage.test.ts",
     "app/api/upload-size-contract.test.ts",
@@ -7244,9 +7246,11 @@
     "instrumentation.ts",
     "next-env.d.ts",
     "next.config.ts",
+    "package.json",
     "playwright.config.ts",
     "postcss.config.mjs",
-    "proxy.ts"
+    "proxy.ts",
+    "tsconfig.json"
    ],
    "group": "Platform Infrastructure",
    "group_id": "7345227e-e0bc-493c-a48c-c5106a902f7b",
