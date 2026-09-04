@@ -339,6 +339,37 @@ and, on any problem, refuses to overwrite `data/market_pulse.json` and exits 1 �
 so the documented `market:build && market:apply` chain cannot re-level every
 shipped salary band from a broken feed. `--force` writes anyway, deliberately.
 
+#### Rebuild cadence — sixty days, by hand
+
+Nothing rebuilds the snapshot automatically; there is no cron, no CI job, no
+scheduled workflow. An owner runs `market:build` / `market:earnings`. The page
+carries the consequence rather than hiding it: past `STALE_AFTER_DAYS` (60, in
+`app/landing/spark/market/data.ts`) the hero prints the snapshot's age instead of
+leaving the date to be noticed. Sixty days is therefore the contract those
+scripts owe, and all three script headers now state it — `market:apply` most of
+all, because it makes no network call, cannot tell a stale snapshot from a fresh
+one, and re-levels every shipped salary band from whatever it is handed.
+
+#### Network contract — a build that cannot hang, and refuses offline
+
+Every GET the market scripts make runs through `fetchJson()` in
+`scripts/lib/market-earnings.mjs`, which is the seam both properties hang off:
+
+- **`FETCH_TIMEOUT_MS` = 20 s**, applied as an `AbortSignal.timeout` on every
+  request (Pumper's five exports, the three MPSV codelists, both ISPV files).
+  A bare `await fetch(url)` has no timeout at all — an endpoint that accepts the
+  connection and then says nothing hangs the build until a human notices. The
+  failure now names the budget it exceeded rather than surfacing `AbortError`.
+- **`KP_OFFLINE` refuses before the socket is touched**, and says why: the
+  snapshot is committed, so an air-gapped install
+  (`docs/architecture/self-hosting.md` §7) needs no rebuild. `market:build`
+  additionally refuses once up front rather than letting six parallel fetches
+  each reject with the same sentence. Truthiness matches `isOffline()` in
+  `app/_lib/offline.ts` (`1`/`true`/`yes`/`on`).
+
+Both are pinned by `scripts/__tests__/market-fetch.test.mjs` (7 checks, no
+network — the fetch is injected), which runs in `npm run test:docs`.
+
 ### Gaps are hidden, never stated
 
 The page never prints a placeholder where a figure should be. Where the survey
