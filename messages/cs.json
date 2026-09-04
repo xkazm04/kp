@@ -1686,7 +1686,10 @@
     "INTERVIEW_ALREADY_LIVE": "Tento pohovor už běží v jiném okně. Než začnete znovu, dokončete ho nebo okno zavřete.",
     "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
     "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu.",
-    "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat."
+    "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat.",
+    "INTERVIEW_PREP_NOT_FOUND": "Pro tohoto kandidáta zatím neexistuje příprava na pohovor. Nejdřív ji vygenerujte.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Vyberte alespoň jednu otázku, kterou chcete přidat do přípravy.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Určete, kterou otázku chcete přesunout."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2032,7 +2035,8 @@
       "beforeTitle": "Než začnete",
       "tipQuiet": "Najděte si klidné místo s minimem hluku v pozadí.",
       "tipHeadphones": "Pokud můžete, použijte sluchátka. Udrží to střídání mluvčích čisté.",
-      "tipMic": "Až vás prohlížeč vyzve, povolte přístup k mikrofonu."
+      "tipMic": "Až vás prohlížeč vyzve, povolte přístup k mikrofonu.",
+      "durationChip": "~{min} min"
     },
     "voice": {
       "loading": "Načítá se hlasový pohovor…",
@@ -2131,6 +2135,11 @@
       "debriefCounterfactuals": "Co kdyby",
       "debriefQuestions": "Vaše otázky",
       "recruiterAddedQuestions": "Otázky doplněné náborářem"
+    },
+    "lab": {
+      "eyebrow": "Interní · hlasové MVP",
+      "title": "Laboratoř hlasového pohovoru",
+      "disabledBody": "Laboratoř je v produkci vypnutá: vytváří živé přístupové údaje k poskytovateli bez tokenu relace. Zapněte ji nastavením <flag>INTERVIEW_LAB_ENABLED=1</flag>, nebo použijte náborovou simulaci, která běží přes tokenizovanou relaci."
     }
   },
   "palette": {

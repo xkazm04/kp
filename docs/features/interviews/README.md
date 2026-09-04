@@ -504,7 +504,8 @@ The de/fr transcript detectors in the interview eval harness remain a follow-up.
 ## Spend doors, throttles and refusal codes
 
 Four doors in this feature cost real money on an accepted call, and until this pass
-only one of them was throttled.
+only one of them was throttled. Two more — the prep artifact's write verbs — cost no
+money but were the last unmetered writes on the surface, and are now bounded too.
 
 | Door | Budget | Guards |
 |---|---|---|
@@ -512,6 +513,50 @@ only one of them was throttled.
 | `POST /api/interview/simulate` | 20 / 10 min per IP (`SIMULATE_RATE_LIMIT`) | Mints a real billable session; on a self-hosted install it skips `meterGate`, so the limiter is the only bound |
 | `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
 | `POST /api/interview/complete` | 10 / 10 min per **token + IP** (`COMPLETE_RATE_LIMIT`) | The transcript write, the `interview_minutes` debit and the LLM scorecard run + sealed decision |
+| `PUT` / `POST` / `PATCH /api/interview-prep` | 600 / 10 min per IP, ONE shared bucket (`PREP_WRITE_RATE_LIMIT`) | Three read-merge-writes against the same prep artifact |
+| `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation also sets the `scorecard_review` approval, records an automation event and seals a decision |
+
+The prep budget looks loose next to its neighbours and the reason is pinned in
+`rate-limit-contract.test.ts` so nobody tightens it into a bug: the interviewer's
+checklist/notes `PUT` is debounced at 600 ms and fires all through a live interview,
+and with `KP_TRUSTED_PROXY` unset `clientIpFrom` collapses the whole deployment into
+one bucket — so a tight ceiling would throttle the interviewer the door exists for,
+and every colleague beside them, mid-call. It still caps a script at one write a
+second. The scorecard door is tighter because one save per interview (plus an edit or
+two) is the honest shape. On both, the "you did not say which candidate" 400 is served
+BEFORE the limiter: a request that was never going to write must not spend the window.
+
+**Every refusal on these five verbs is now a code, not a sentence.**
+`INTERVIEW_ENTRY_REQUIRED` (400), `INTERVIEW_PREP_QUESTIONS_REQUIRED` (400, an empty
+import), `INTERVIEW_PREP_QUESTION_REQUIRED` (400, a weave with no question),
+`INTERVIEW_PREP_NOT_FOUND` (404) and `TOO_MANY_REQUESTS` (429). The 404 is deliberately
+ONE code for "never generated" and "belongs to another team" — indistinguishable to a
+caller who does not hold the entry, which is the tenancy property those routes were
+built around. `ScheduleHumanScorecardPanel` already resolves through
+`useErrorMessage`, so the recruiter now reads the refusal in their own language
+instead of the server's English.
+
+Three English constants used to shadow this contract — `CONSENT_REQUIRED_ERROR` and
+`CONSENT_NOT_RECORDED_ERROR` in `interview-consent.ts`, `INTERVIEW_LAB_DISABLED_ERROR`
+in `interview-lab.ts`. Their doc-comments claimed the routes shared them; grep says no
+route had read any of them since the refusals moved onto `jsonRefusal`, and all three
+are gone. Those two modules are the PREDICATE and the GATE; the wording is the
+catalog's. `interview-lab.test.ts` now pins the gate itself — production closed by
+default, open only on the exact `INTERVIEW_LAB_ENABLED=1` opt-in (not "true", not
+`0`), read per call rather than captured at import, and actually consulted by
+`/connect` before it mints. The lab page's disabled-state copy comes from
+`interview.lab.*` in all four catalogs.
+
+The candidate sidebar's duration chip was the other English leak: `durationChip` /
+`durationLabel` composed "~20 min" / "About 20 minutes" inside
+`interview-duration.mjs` and `InterviewSidebar` painted the chip verbatim beside an
+agenda next-intl had already localized. Both helpers are deleted; the chip resolves
+`interview.sidebar.durationChip` (`{min}` interpolated), and
+`interview-duration.test.ts` asserts every export of that module is a number, so a
+phrase cannot come back. `debriefDurationMin` — the arithmetic behind both the
+candidate brief's promise and the minted calendar link — is pinned by
+`interview-planned-minutes.test.ts`: the documented 8 + 3-per-question shape,
+monotonic, above the quick-screen floor and capped inside the grounded band.
 
 `/complete` is the odd one out and the reason its budget is keyed on **both**: it is a
 PUBLIC token route (`public-routes.ts`), so there is no operator gate to be a no-op —

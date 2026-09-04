@@ -1686,7 +1686,10 @@
     "INTERVIEW_ALREADY_LIVE": "Dieses Interview läuft bereits in einem anderen Fenster. Beenden oder schließen Sie es, bevor Sie erneut starten.",
     "PROFILE_BUILD_TIMEOUT": "Die Verarbeitung des Profils hat zu lange gedauert und wurde abgebrochen. Versuchen Sie erneut zu speichern.",
     "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut.",
-    "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden."
+    "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden.",
+    "INTERVIEW_PREP_NOT_FOUND": "Für diese Kandidatin bzw. diesen Kandidaten gibt es noch keine Interviewvorbereitung. Erstellen Sie sie zuerst.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Wählen Sie mindestens eine Frage aus, die in die Vorbereitung übernommen werden soll.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Geben Sie an, welche Frage verschoben werden soll."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2032,7 +2035,8 @@
       "beforeTitle": "Bevor Sie beginnen",
       "tipQuiet": "Suchen Sie sich einen ruhigen Ort mit wenig Hintergrundgeräuschen.",
       "tipHeadphones": "Verwenden Sie nach Möglichkeit Kopfhörer. Das hält den Sprecherwechsel sauber.",
-      "tipMic": "Erlauben Sie den Mikrofonzugriff, wenn Ihr Browser danach fragt."
+      "tipMic": "Erlauben Sie den Mikrofonzugriff, wenn Ihr Browser danach fragt.",
+      "durationChip": "~{min} Min."
     },
     "voice": {
       "loading": "Voice-Interview wird geladen…",
@@ -2131,6 +2135,11 @@
       "debriefCounterfactuals": "Was-wäre-wenn-Szenarien",
       "debriefQuestions": "Ihre Fragen",
       "recruiterAddedQuestions": "Vom Recruiter ergänzte Fragen"
+    },
+    "lab": {
+      "eyebrow": "Intern · Voice-MVP",
+      "title": "Labor für Sprachinterviews",
+      "disabledBody": "Das Labor ist in der Produktion deaktiviert: Es erzeugt echte Anbieter-Zugangsdaten ohne Sitzungstoken. Setzen Sie <flag>INTERVIEW_LAB_ENABLED=1</flag>, um es zu aktivieren, oder nutzen Sie die Recruiting-Simulation, die über eine tokenisierte Sitzung läuft."
     }
   },
   "palette": {
