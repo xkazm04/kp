@@ -19,6 +19,7 @@ import type { Locale } from "@/i18n/locales";
 import { pinLinkLocale } from "./candidate-link-locale";
 import { INTERVIEW_TZ } from "./schedule-slots";
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+import { dateFormatter } from "./date-format.ts";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -753,7 +754,10 @@ function formatOfferDeadline(iso: string | null, locale: string | null | undefin
   // own language.
   // (dateStyle/timeStyle may not be combined with individual component options —
   // Intl THROWS on the mix — so every part is spelled out explicitly.)
-  return new Intl.DateTimeFormat(loc, {
+  // Memoized: the sweep writes this line for every open offer in the reminder
+  // window, and a fresh Intl.DateTimeFormat per letter was the most expensive thing
+  // in an otherwise trivial function (date-format.ts).
+  return dateFormatter(loc, {
     day: "numeric",
     month: "short",
     year: "numeric",
