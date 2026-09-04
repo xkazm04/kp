@@ -506,6 +506,37 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### Every AI stage of a group evaluation has a deadline, and says when it fell back
+One evaluation fans out to up to **eight** Python processes: the recruiter ranker
+(`--weights-llm` **and** `--embeddings`, so two provider round-trips inside one
+child), the `group_compare_cli` narrative, and up to `GROUP_EVAL_CAP` = 6
+concurrent per-candidate reasoning runs. None of them passed a timeout, so each
+inherited `python-runner.ts`'s `DEFAULT_TIMEOUT_MS` — a ten-minute **hang
+backstop** its own comment calls "not a deadline". A stalled provider parked the
+modal spinner and a background task slot for ten minutes before falling back to a
+deterministic result it could have produced in seconds.
+
+`group-eval-run.ts` now states one deadline per stage —
+`GROUP_EVAL_RANK_TIMEOUT_MS` (240s, the two-enrichment child),
+`GROUP_EVAL_COMPARE_TIMEOUT_MS` (150s) and `GROUP_EVAL_REASONING_TIMEOUT_MS`
+(150s, **per candidate**, so one stalled call does not hold the other five).
+`KP_GROUP_EVAL_STAGE_TIMEOUT_MS` overrides all three for a slow self-hosted
+provider. The compare spawn — the one this module owns directly — hands
+`spawnPython` an explicit `timeoutMs`, so its deadline is a SIGKILL rather than
+only an abort; the two indirect stages get a composed `stageSignal` (the caller's
+cancellation OR the stage's deadline), which returns the deadline signal
+separately so a caller cancellation is never mis-reported as a timeout.
+
+Deadlines are safe here because every stage already degrades **soft** into a
+deterministic twin — passing one costs fidelity, never the result. That is also
+what made the old behaviour unreadable: an evaluation whose ranking, narrative and
+rationales had all fallen back was shaped exactly like a full AI comparison. The
+payload now carries `degradedStages: [{ stage, reason }]` — `ranking` |
+`comparison` | `reasoning`, each `timeout` or `failed` — and is null when every
+stage delivered, so its presence always means something really degraded. A field
+below the min-cohort floor reports nothing: its narrative was **declined** by
+policy, not lost, and is already disclosed as "insufficient sample".
+
 ### The compared cohort is gated on consent, and says what it removed
 A group evaluation is the PII-densest thing this surface does: every compared
 member's label, archetype, salary expectation, matched/missing skills and
