@@ -1731,7 +1731,12 @@
     "COMPLIANCE_LOOKUP_FAILED": "Impossible de charger les informations de conformité. Veuillez réessayer.",
     "OFFER_SALARY_INVALID": "Ce montant ne peut pas être un salaire. Vérifiez le chiffre avant d’envoyer l’offre.",
     "OFFER_CURRENCY_UNSUPPORTED": "Une offre ne peut pas être faite dans cette devise ici.",
-    "OFFER_NOTES_TOO_LONG": "Cette note d’offre est trop longue. Raccourcissez-la et renvoyez l’offre."
+    "OFFER_NOTES_TOO_LONG": "Cette note d’offre est trop longue. Raccourcissez-la et renvoyez l’offre.",
+    "PROFILE_LIST_FAILED": "Impossible de charger vos profils enregistrés. Veuillez réessayer.",
+    "PROFILE_BUILD_FAILED": "Impossible de créer ce profil. Veuillez réessayer.",
+    "PROFILE_UPDATE_FAILED": "Impossible d’enregistrer vos modifications sur ce profil. Veuillez réessayer.",
+    "PROFILE_DELETE_FAILED": "Impossible de supprimer ce profil. Veuillez réessayer.",
+    "PROFILE_CANDIDATES_FAILED": "Impossible de charger la matrice des candidats. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

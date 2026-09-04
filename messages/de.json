@@ -1731,7 +1731,12 @@
     "COMPLIANCE_LOOKUP_FAILED": "Die Compliance-Informationen konnten nicht geladen werden. Bitte erneut versuchen.",
     "OFFER_SALARY_INVALID": "Dieser Betrag kann kein Gehalt sein. Prüfen Sie die Zahl, bevor Sie das Angebot senden.",
     "OFFER_CURRENCY_UNSUPPORTED": "In dieser Währung kann hier kein Angebot gemacht werden.",
-    "OFFER_NOTES_TOO_LONG": "Diese Angebotsnotiz ist zu lang. Kürzen Sie sie und senden Sie das Angebot erneut."
+    "OFFER_NOTES_TOO_LONG": "Diese Angebotsnotiz ist zu lang. Kürzen Sie sie und senden Sie das Angebot erneut.",
+    "PROFILE_LIST_FAILED": "Die gespeicherten Profile konnten nicht geladen werden. Bitte erneut versuchen.",
+    "PROFILE_BUILD_FAILED": "Das Profil konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "PROFILE_UPDATE_FAILED": "Die Änderungen am Profil konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "PROFILE_DELETE_FAILED": "Das Profil konnte nicht gelöscht werden. Bitte erneut versuchen.",
+    "PROFILE_CANDIDATES_FAILED": "Die Kandidatenmatrix konnte nicht geladen werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

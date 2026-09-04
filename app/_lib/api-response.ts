@@ -371,6 +371,15 @@ export const STORE_ERRORS = {
    *  rendered verbatim in every locale. */
   BRAND_LOAD_FAILED: "Could not load branding. Please try again.",
   BRAND_SAVE_FAILED: "Could not save branding. Please try again.",
+  /** The profile SAVE door and the matrix read behind it. Both sit on better-sqlite3
+   *  (SQLITE_* text + the absolute db path) and the save additionally spawns
+   *  profile_cli, whose failures carry the temp workdir path and PYTHON_CMD — all of
+   *  which the five handlers used to answer with, verbatim, in every locale. */
+  PROFILE_LIST_FAILED: "Could not load your saved profiles. Please try again.",
+  PROFILE_BUILD_FAILED: "Could not build that profile. Please try again.",
+  PROFILE_UPDATE_FAILED: "Could not save your changes to that profile. Please try again.",
+  PROFILE_DELETE_FAILED: "Could not delete that profile. Please try again.",
+  PROFILE_CANDIDATES_FAILED: "Could not load the candidate matrix. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

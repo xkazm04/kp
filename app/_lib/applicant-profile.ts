@@ -50,7 +50,10 @@ const DEGRADED_REASON_MAX = 280;
 // this module's catch and returns the ordinary degraded outcome — so the entry
 // still files, flagged intakeDegraded with the timeout as its recruiter-visible
 // reason. The applicant never sees a 500.
-const PROFILE_BUILD_TIMEOUT_MS = 60_000;
+// EXPORTED because /api/profile bounds the SAME CLI on the recruiter's Save button and
+// had its own hand-copied 60_000 — one CLI, one budget, and a copy is a budget that
+// drifts the moment one side is tuned.
+export const PROFILE_BUILD_TIMEOUT_MS = 60_000;
 
 // Keep the persisted reason short and single-line: it lands in a DB column and a
 // compact recruiter UI, and raw Python stderr can be huge/multiline.

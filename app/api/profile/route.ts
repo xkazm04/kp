@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analysisLineageSource } from "@/app/_lib/db/analyses";
@@ -14,6 +14,9 @@ import {
 import type { ProfileCliOutput } from "@/app/features/shared/profileTypes";
 import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { PROFILE_BUILD_TIMEOUT_MS } from "@/app/_lib/applicant-profile";
 
 
 type RouteOutcome =
@@ -29,9 +32,26 @@ type RouteOutcome =
 // logic (archetype router + completeness, no model call) and answers in well under a
 // second, so a wedged child previously held the recruiter's save open for nine minutes
 // past the point the answer was useful, with their unsaved intake still in the form.
-// Same value as PROFILE_BUILD_TIMEOUT_MS in app/_lib/applicant-profile.ts, which bounds
-// the SAME CLI on the applicant path — one CLI, one budget.
-const PROFILE_ROUTE_TIMEOUT_MS = 60_000;
+// The SAME constant applicant-profile.ts bounds the SAME CLI with — imported, not
+// re-typed: the two used to be hand-copied 60_000s, so tuning one silently left the
+// other on the old budget.
+const PROFILE_ROUTE_TIMEOUT_MS = PROFILE_BUILD_TIMEOUT_MS;
+
+// THROTTLE (rate-limit-contract.test.ts). Every accepted POST/PUT here SPAWNS A
+// PYTHON CHILD (profile_cli) and writes a row — the one subprocess door in the app
+// that carried no budget at all. The route is not operator-gated, and in open mode
+// (KP_OPERATOR_PASSWORD unset) or through the anonymous session /api/demo mints,
+// that made profile saving an unbounded process-spawn endpoint. 60/10min per IP:
+// the editor saves on a click and the "save → fill a completeness gap → save"
+// loop is a handful of writes, so a recruiter never meets it while a script does
+// at once.
+const PROFILE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
+
+// A profile payload is text: display name, aspirations, skill claims and evidence
+// blurbs. 128 KB is far above the largest real intake and still bounds the bytes
+// this route buffers before it JSON.stringifies them into a child's input file.
+// `content-length` is advisory, so the cap is measured on the bytes actually read.
+const MAX_PROFILE_BODY_BYTES = 128_000;
 
 // The request body is a TS cast, not validated. Reject a non-object profile/signals at this
 // trust boundary BEFORE it is JSON.stringified into the Python intake — a string/array/number
@@ -154,14 +174,19 @@ export async function GET(request: NextRequest) {
     const profiles = cachedProfileRecords(ws).map((r) => r.row);
     return NextResponse.json({ profiles, stale: profileStaleness(ws) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to list profiles.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // better-sqlite3 throws with the absolute db path inside SQLITE_* text; it goes to
+    // the server log and the caller gets the code (api-contracts.md §1.1).
+    return safeJsonError(error, "api:profile:list", "PROFILE_LIST_FAILED");
   }
 }
 
 export async function POST(request: NextRequest) {
+  // Before the body read and before the spawn, so a throttled caller costs neither.
+  if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
-    const body = (await request.json()) as {
+    const body = await readJsonWithLimit<{
       profile?: Record<string, unknown>;
       signals?: Record<string, unknown>;
       persist?: boolean;
@@ -170,7 +195,8 @@ export async function POST(request: NextRequest) {
       // route resolves the authoritative cv_hash + analyzed-at from it and stamps
       // source lineage so staleness becomes detectable.
       sourceAnalysisSlug?: string;
-    };
+    }>(request, MAX_PROFILE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_PROFILE_BODY_BYTES });
 
     const invalid = validateProfileBody(body);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
@@ -190,14 +216,17 @@ export async function POST(request: NextRequest) {
     const saved = saveProfile(persistFieldsFrom(data), ws, resolveLineage(body.sourceAnalysisSlug, ws));
     return NextResponse.json({ ...data, saved });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Profile build failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // A spawn/store fault carries the temp workdir path, PYTHON_CMD and SQLITE_* text.
+    return safeJsonError(error, "api:profile:create", "PROFILE_BUILD_FAILED");
   }
 }
 
 export async function PUT(request: NextRequest) {
+  if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
-    const body = (await request.json()) as {
+    const body = await readJsonWithLimit<{
       id?: string;
       profile?: Record<string, unknown>;
       signals?: Record<string, unknown>;
@@ -211,7 +240,8 @@ export async function PUT(request: NextRequest) {
       // silently winning the race. Omitted by a legacy/scripted caller → the previous
       // unconditional overwrite, unchanged.
       expectedUpdatedAt?: string | null;
-    };
+    }>(request, MAX_PROFILE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_PROFILE_BODY_BYTES });
     if (!body.id) {
       return NextResponse.json({ error: "Profile id is required." }, { status: 400 });
     }
@@ -251,8 +281,7 @@ export async function PUT(request: NextRequest) {
     // its own previous write looking like someone else's.
     return NextResponse.json({ ...data, saved: { id: body.id, updatedAt: profileDivergence(body.id, ws)?.editedAt ?? null } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Profile update failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:profile:update", "PROFILE_UPDATE_FAILED");
   }
 }
 
@@ -268,7 +297,6 @@ export async function DELETE(request: NextRequest) {
     }
     return NextResponse.json({ deleted: id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Profile delete failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:profile:delete", "PROFILE_DELETE_FAILED");
   }
 }

@@ -1731,7 +1731,12 @@
     "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu.",
     "OFFER_SALARY_INVALID": "Tato částka nemůže být mzdou. Před odesláním nabídky zkontrolujte číslo.",
     "OFFER_CURRENCY_UNSUPPORTED": "V této měně zde nabídku vytvořit nelze.",
-    "OFFER_NOTES_TOO_LONG": "Poznámka k nabídce je příliš dlouhá. Zkraťte ji a nabídku odešlete znovu."
+    "OFFER_NOTES_TOO_LONG": "Poznámka k nabídce je příliš dlouhá. Zkraťte ji a nabídku odešlete znovu.",
+    "PROFILE_LIST_FAILED": "Uložené profily se nepodařilo načíst. Zkuste to prosím znovu.",
+    "PROFILE_BUILD_FAILED": "Profil se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "PROFILE_UPDATE_FAILED": "Změny v profilu se nepodařilo uložit. Zkuste to prosím znovu.",
+    "PROFILE_DELETE_FAILED": "Profil se nepodařilo smazat. Zkuste to prosím znovu.",
+    "PROFILE_CANDIDATES_FAILED": "Matici kandidátů se nepodařilo načíst. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
