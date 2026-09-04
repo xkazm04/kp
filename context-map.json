@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3073,
+  "files": 3074,
   "groups": 17,
   "use_cases": 12
  },
@@ -7298,11 +7298,13 @@
     "app/_lib/testing/next-server-shim.test.ts",
     "app/_lib/testing/unit-db.test.ts",
     "app/_lib/testing/unit-db.ts",
+    "scripts/__tests__/schemas-gen.test.mjs",
     "scripts/dev-guard.mjs",
     "scripts/polar-setup.mjs",
     "scripts/refresh-market-earnings.mjs",
     "scripts/run-unit-tests.mjs",
     "scripts/salary.py",
+    "scripts/schemas-gen.mjs",
     "scripts/seed-group-eval-seals.mjs",
     "scripts/setup-eleven-agent.mjs",
     "scripts/test-alias-loader.mjs"
@@ -8732,8 +8734,7 @@
     "scripts/app-master-bench/stub.mjs",
     "scripts/app-master-bench/stub.test.mjs",
     "scripts/app-master-bench/tenures.mjs",
-    "scripts/app-master-bench/tenures.test.mjs",
-    "scripts/schemas-gen.mjs"
+    "scripts/app-master-bench/tenures.test.mjs"
    ],
    "group": "Platform Infrastructure",
    "group_id": "7345227e-e0bc-493c-a48c-c5106a902f7b",
