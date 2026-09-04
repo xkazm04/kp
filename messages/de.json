@@ -1717,7 +1717,11 @@
     "AUTOMATION_TASK_UNKNOWN": "Diesen Automatisierungsschritt gibt es nicht.",
     "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
-    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll."
+    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
+    "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
+    "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Dieser Profil-Link ist ungültig. Ihre Bewerbung ist sicher hinterlegt. Bitten Sie um einen neuen Link.",
+    "ANALYZE_TIMEOUT": "Die Analyse hat zu lange gedauert und wurde abgebrochen. Versuchen Sie es erneut oder mit weniger Lebensläufen auf einmal."
   },
   "resilience": {
     "notFoundEyebrow": "404",

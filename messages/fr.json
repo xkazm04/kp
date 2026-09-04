@@ -1717,7 +1717,11 @@
     "AUTOMATION_TASK_UNKNOWN": "Cette étape d'automatisation n'existe pas.",
     "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
-    "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape."
+    "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
+    "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
+    "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Ce lien de profil n’est pas valide. Votre candidature est bien conservée. Demandez-en un nouveau au recruteur.",
+    "ANALYZE_TIMEOUT": "L’analyse a pris trop de temps et a été interrompue. Réessayez, ou avec moins de CV à la fois."
   },
   "resilience": {
     "notFoundEyebrow": "404",

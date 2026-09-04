@@ -1717,7 +1717,11 @@
     "AUTOMATION_TASK_UNKNOWN": "Takový krok automatizace neexistuje.",
     "AUTOMATION_ENTRY_NOT_FOUND": "Tento kandidát není na této nástěnce.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
-    "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit."
+    "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit.",
+    "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
+    "APPLY_SESSION_INVALID": "Tento pokus o přihlášku se nepodařilo zahájit. Načtěte stránku znovu a zkuste to prosím ještě jednou.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Tento odkaz na profil není platný. Vaše přihláška je v bezpečí uložená. Požádejte náboráře o nový.",
+    "ANALYZE_TIMEOUT": "Analýza trvala příliš dlouho a byla zastavena. Zkuste to znovu, nebo s méně životopisy najednou."
   },
   "resilience": {
     "notFoundEyebrow": "404",

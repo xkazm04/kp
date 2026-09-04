@@ -298,7 +298,26 @@ hash on the survivor's report and send History grouping (`listAnalyses` keys on
 `cv_hash`), the cross-job "also analyzed for" list (`listAnalysesByCvHash`) and
 profile CV lineage (`analysisLineageSource`) to the wrong CV. One AI-candidate
 meter unit is debited per delivered, non-cached run — variants of the same person
-count once, and a fully-cached re-run debits nothing.
+count once, and a fully-cached re-run debits nothing. That debit fires **after** the
+row is persisted, never before: `persistAnalysis` can fail (it catches, logs
+"Failed to persist analysis" and hands back `persistence: null`), and the meter
+ledger is append-only with no refund path, so charging first spent a prepaid unit on
+a result the recruiter could not re-open. Pinned by `analyze-run.test.ts`.
+
+**The engine spawn has a five-minute deadline.** `runAnalyze` passes
+`ANALYZE_TIMEOUT_MS` (300 000) rather than inheriting `python-runner`'s 600 000 ms
+hang backstop. That backstop bounds a leak, not a wait — and since spawns now run
+under a process-wide admission ceiling (`KP_PYTHON_MAX_CONCURRENT`, default 4), one
+wedged run held a quarter of the box's engine concurrency for ten minutes and
+answered everyone else `ENGINE_BUSY`. Overrunning it is a **decision**, so it is
+answered by name: 504 + `ANALYZE_TIMEOUT`, which `useErrorMessage()` resolves in the
+reader's language, instead of the child's own command line
+("Python process timed out after 300s: -m pipeline.jobfit.cli …") reaching a
+recruiter. The deadline is recognised through the one shared predicate
+`isSpawnTimeoutMessage` (`intake-run.ts`); any other rejection is still a fault and
+escapes verbatim. Residual: `tasks` rows carry no error CODE column, so the
+background-task surface currently shows the canonical English sentence rather than
+the localized one.
 
 **One cohort, one ranking axis.** The compare winner (`resolveWinnerIndex` in
 `app/_lib/comparison.ts` — the single rule `buildComparison`'s `bestLabel`, the

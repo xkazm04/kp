@@ -962,6 +962,20 @@ export const REFUSAL_ERRORS = {
   /** A self-declared archetype that is not one of the offered options (400) — a
    *  scripted POST, since the UI only renders the script's own choices. */
   APPLY_SELECTION_INVALID: "That is not one of the options offered.",
+  /** The role stopped accepting applications (410 Gone) — closed, or back to draft.
+   *  Was the ONLY refusal left on either door carrying a body without a code: the
+   *  `apply` catalog's own sentence, localized server-side from the request, which
+   *  the client cannot render because it resolves what it shows from the CODE. The
+   *  page-level gate still renders t("roleClosed"); this is the API's half. */
+  APPLY_ROLE_CLOSED: "This role is no longer accepting applications.",
+  /** The apply-funnel attempt id or flow failed its shape gate (400) — a scripted
+   *  POST, since the client mints both (apply-session-client.ts). Measurement only,
+   *  so nothing the candidate did is lost by it. */
+  APPLY_SESSION_INVALID: "That application attempt could not be started. Reload the page and try again.",
+  /** The profile-gap follow-up's capability token did not resolve (404). ONE code for
+   *  "no such token", "token for another job" and "entry has no profile row" — a
+   *  public capability route must not let a caller probe which it hit. */
+  FOLLOWUP_LINK_NOT_FOUND: "This profile link isn't valid. Your application is safely filed. Ask the recruiter for a fresh one.",
   // ---- The CANDIDATE's own scheduling door (docs/features/scheduling/README.md).
   // Eleven refusals on the public token route were bare English prose with no code —
   // on the one surface whose reader is, by construction, not an operator and may not
@@ -1281,6 +1295,16 @@ export const REFUSAL_ERRORS = {
    *  open past the client's own deadline. python-runner.ts carries this sentence as a
    *  literal (it must not pull next/server in through this module) — keep the two equal. */
   ENGINE_BUSY: "The analysis engine is busy right now. Try again in a moment.",
+  /** The CV analysis overran ANALYZE_TIMEOUT_MS (app/_lib/analyze-run.ts) and its child
+   *  was killed (504). A DECISION, not a store fault: the spawn used to inherit
+   *  python-runner's ten-minute hang backstop, which — now that spawns run under the
+   *  admission semaphore above — meant one wedged run held a quarter of the engine's
+   *  concurrency for ten minutes and pushed everyone else to ENGINE_BUSY. analyze-run.ts
+   *  carries this sentence as a literal (it runs inside the task runner and must not pull
+   *  next/server in through this module) — keep the two equal; analyze-run.test.ts fails
+   *  if they drift. The advice names the one lever the recruiter actually has, since a
+   *  multi-CV comparison spawns a child per variant against the same ceiling. */
+  ANALYZE_TIMEOUT: "The analysis took too long and was stopped. Try again, or with fewer CVs at once.",
   // ---- Organization backup / restore (app/_lib/db-portability.ts + the two
   // /api/workspace routes). The engine refused in English prose and the routes
   // forwarded it: "Refusing to load — these tables already contain rows: …" was what a

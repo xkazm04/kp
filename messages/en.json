@@ -1717,7 +1717,11 @@
     "AUTOMATION_TASK_UNKNOWN": "That automation step does not exist.",
     "AUTOMATION_ENTRY_NOT_FOUND": "That candidate is not on this board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
-    "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for."
+    "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
+    "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
+    "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
+    "FOLLOWUP_LINK_NOT_FOUND": "This profile link isn't valid. Your application is safely filed. Ask the recruiter for a fresh one.",
+    "ANALYZE_TIMEOUT": "The analysis took too long and was stopped. Try again, or with fewer CVs at once."
   },
   "resilience": {
     "notFoundEyebrow": "404",
