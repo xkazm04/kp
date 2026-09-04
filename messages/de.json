@@ -3705,7 +3705,13 @@
       "schemeCareerShort": "K",
       "schemePersonalShort": "P",
       "schemeWeightsTitle": "Gewichtung: Fähigkeiten / Karriere / Persönliches",
-      "narrativeInLanguage": "Dieser Vergleich wird auf {language} angezeigt."
+      "narrativeInLanguage": "Dieser Vergleich wird auf {language} angezeigt.",
+      "consentExcludedNote": "{count, plural, one {# Kandidat wurde aus diesem Vergleich ausgenommen} other {# Kandidaten wurden aus diesem Vergleich ausgenommen}}, weil sie gelöscht wurden oder ihre Einwilligung abgelaufen ist. Die Rangfolge unten umfasst das übrige Feld.",
+      "degradedNote": "Eingeschränkt: {stages}. Diese Schritte sind auf das deterministische Ergebnis zurückgefallen, der Vergleich ist daher dünner als ein vollständiger KI-Lauf.",
+      "degradedNoteTimeout": "Eingeschränkt (Zeitüberschreitung): {stages}. Diese Schritte sind auf das deterministische Ergebnis zurückgefallen, der Vergleich ist daher dünner als ein vollständiger KI-Lauf.",
+      "degradedStageRanking": "Rangfolge",
+      "degradedStageComparison": "KI-Vergleich",
+      "degradedStageReasoning": "Begründungen der Kandidaten"
     },
     "empty": {
       "batonEyebrow": "Staffelstab übergeben",

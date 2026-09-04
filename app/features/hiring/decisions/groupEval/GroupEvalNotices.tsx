@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Notice } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { coverageNote } from "@/app/features/hiring/decisions/groupEval/groupEvalSession";
+import { disclosureNotes, type DegradedStageName } from "./groupEvalDisclosure";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 import type { GovernanceCacheMismatch } from "./governanceCacheSync";
 
@@ -11,6 +12,15 @@ const MODE_LABEL_KEY = {
   committee: "govCommittee",
   eligibility_list: "govEligibility",
 } as const;
+
+// Same reason as MODE_LABEL_KEY: next-intl keys are typed, so a stage name cannot be
+// interpolated into one. The map is exhaustive over DegradedStageName, so adding a
+// stage to that closed vocabulary is a tsc error here until it has a label.
+const DEGRADED_STAGE_KEY: Record<DegradedStageName, "degradedStageRanking" | "degradedStageComparison" | "degradedStageReasoning"> = {
+  ranking: "degradedStageRanking",
+  comparison: "degradedStageComparison",
+  reasoning: "degradedStageReasoning",
+};
 
 // Staleness banners above the evaluation: pool drift since the eval ran, the
 // "top N of M compared" coverage note for capped runs, and the governance-mode
@@ -37,6 +47,11 @@ export function Notices({
   // of M"; the default top-N run discloses the capped coverage. Mutually exclusive,
   // and the rule is now a pinned function rather than a JSX ternary.
   const coverage = coverageNote(evaluation);
+  // The two honesty disclosures the server records on every saved evaluation — who
+  // was withheld for consent, and which AI stages fell back. Both were persisted and
+  // neither reached a reader; the rule is pinned in groupEvalDisclosure.test.ts and
+  // this component owes only the sentence.
+  const disclosure = disclosureNotes(evaluation);
   return (
     <>
       {governanceMismatch ? (
@@ -50,6 +65,21 @@ export function Notices({
       ) : null}
       {drift > 0 ? (
         <Notice>{t.rich("driftNotice", { count: drift, when: ranAt ? ` (${ranAt})` : "", b: (chunks) => <b>{chunks}</b> })}</Notice>
+      ) : null}
+      {/* Consent/erasure exclusions and AI-stage fallbacks ride in the SAME
+          amber Notice the drift and governance warnings use: each is a caveat on
+          the comparison below, not a success, so neither may read in a calm or
+          confirming tone. Count only for consent — the payload deliberately does
+          not carry the excluded people's ids. */}
+      {disclosure.consentExcluded !== null ? (
+        <Notice>{t("consentExcludedNote", { count: disclosure.consentExcluded })}</Notice>
+      ) : null}
+      {disclosure.degraded ? (
+        <Notice>
+          {t(disclosure.degraded.timedOut ? "degradedNoteTimeout" : "degradedNote", {
+            stages: disclosure.degraded.stages.map((s) => t(DEGRADED_STAGE_KEY[s])).join(", "),
+          })}
+        </Notice>
       ) : null}
       {coverage?.kind === "selection" ? (
         <p className="text-sm text-steel">{t("selectionNote", { count: coverage.count, total: coverage.total })}</p>

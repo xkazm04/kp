@@ -3705,7 +3705,13 @@
       "schemeCareerShort": "C",
       "schemePersonalShort": "P",
       "schemeWeightsTitle": "Weighting: skills / career / personal",
-      "narrativeInLanguage": "This comparison is shown in {language}."
+      "narrativeInLanguage": "This comparison is shown in {language}.",
+      "consentExcludedNote": "{count, plural, one {# candidate was withheld} other {# candidates were withheld}} from this comparison because they were erased or their consent has lapsed. The ranking below covers the rest of the field.",
+      "degradedNote": "Degraded: {stages}. Those stages fell back to the deterministic result, so the comparison is thinner than a full AI run.",
+      "degradedNoteTimeout": "Degraded (timed out): {stages}. Those stages fell back to the deterministic result, so the comparison is thinner than a full AI run.",
+      "degradedStageRanking": "ranking",
+      "degradedStageComparison": "AI comparison",
+      "degradedStageReasoning": "candidate rationales"
     },
     "empty": {
       "batonEyebrow": "Baton passed",

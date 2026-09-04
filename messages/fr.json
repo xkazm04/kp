@@ -3705,7 +3705,13 @@
       "schemeCareerShort": "Ca",
       "schemePersonalShort": "Pe",
       "schemeWeightsTitle": "Pondération : compétences / carrière / personnel",
-      "narrativeInLanguage": "Cette comparaison est affichée en {language}."
+      "narrativeInLanguage": "Cette comparaison est affichée en {language}.",
+      "consentExcludedNote": "{count, plural, one {# candidat a été écarté de cette comparaison} other {# candidats ont été écartés de cette comparaison}} car ils ont été effacés ou leur consentement a expiré. Le classement ci-dessous couvre le reste du champ.",
+      "degradedNote": "Dégradé : {stages}. Ces étapes se sont repliées sur le résultat déterministe, la comparaison est donc plus pauvre qu'une exécution IA complète.",
+      "degradedNoteTimeout": "Dégradé (délai dépassé) : {stages}. Ces étapes se sont repliées sur le résultat déterministe, la comparaison est donc plus pauvre qu'une exécution IA complète.",
+      "degradedStageRanking": "classement",
+      "degradedStageComparison": "comparaison IA",
+      "degradedStageReasoning": "justifications des candidats"
     },
     "empty": {
       "batonEyebrow": "Témoin passé",

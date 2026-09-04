@@ -3705,7 +3705,13 @@
       "schemeCareerShort": "K",
       "schemePersonalShort": "O",
       "schemeWeightsTitle": "Váhy: dovednosti / kariéra / osobnostní",
-      "narrativeInLanguage": "Toto srovnání je zobrazeno v jazyce {language}."
+      "narrativeInLanguage": "Toto srovnání je zobrazeno v jazyce {language}.",
+      "consentExcludedNote": "{count, plural, one {# kandidát byl z tohoto srovnání vynechán} few {# kandidáti byli z tohoto srovnání vynecháni} other {# kandidátů bylo z tohoto srovnání vynecháno}}, protože byli vymazáni nebo jim vypršel souhlas. Pořadí níže pokrývá zbytek pole.",
+      "degradedNote": "Omezeno: {stages}. Tyto fáze se vrátily k deterministickému výsledku, srovnání je proto slabší než plný běh AI.",
+      "degradedNoteTimeout": "Omezeno (vypršel čas): {stages}. Tyto fáze se vrátily k deterministickému výsledku, srovnání je proto slabší než plný běh AI.",
+      "degradedStageRanking": "řazení",
+      "degradedStageComparison": "srovnání AI",
+      "degradedStageReasoning": "zdůvodnění kandidátů"
     },
     "empty": {
       "batonEyebrow": "Štafeta předána",
