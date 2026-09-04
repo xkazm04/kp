@@ -217,6 +217,16 @@ this kind of surface", not "free", and the rule says so.
   spend but **no attributed candidates still gets a row** (volume 0, per-unit figures `—`) —
   otherwise a stored figure divides into the blended cost-per-hire while being unreachable by
   any editor. `spend-write-path.test.ts` pins the chain.
+- **A failed spend write says which failure it was, out loud.** The editor resolves the
+  route's code (`ANALYTICS_POLICY_FORBIDDEN` 403 / `ANALYTICS_SPEND_SAVE_FAILED` 500) through
+  `useErrorMessage()` and throws a `LocalizedFailure`; `AnalyticsInlineNumberSave` renders it
+  in a `role="alert"` line beside the field (`announceFailure`, opt-in — the goals editor
+  keeps the border-only report in its tight label/input/suffix row). Previously a bare
+  `new Error()` made a policy refusal and a store outage the same coral outline plus a
+  keyboard-unreachable `title` tooltip.
+- **The save decision is a pure module.** `inlineNumberSavePlan.ts` owns the locale-aware
+  parse, the zero-is-no-value rule, the unchanged short-circuit and the canonical re-seed,
+  so `inlineNumberSavePlan.test.ts` EXECUTES them instead of reading the `.tsx` for them.
 - **A typed `0` is a clear, and the field now says so immediately.** `setChannelSpend` and
   `setAnalyticsTarget` both DELETE the row when `!(v > 0)` and the routes still answer 200, so
   zero is never a stored value. `AnalyticsInlineNumberSave` mirrors that rule before it posts:

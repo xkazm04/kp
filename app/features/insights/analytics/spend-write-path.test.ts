@@ -69,3 +69,43 @@ test("every channel row the board draws can carry the editor", () => {
     "and the editor writes against that id"
   );
 });
+
+// ─── The failure half of the same chain ───────────────────────────────────────
+//
+// The route answers a failed write with a CODE (`ANALYTICS_SPEND_SAVE_FAILED`, or
+// `ANALYTICS_POLICY_FORBIDDEN` when the seat may not run recruiter operations —
+// api-contracts.md §1.1). The editor threw a BARE `new Error()` for every one of
+// them, and the only rendering was a coral border plus a `title` tooltip carrying one
+// flat sentence. So "your role can't change this" and "the write fell over" were the
+// same silent red outline, a tooltip is unreachable by keyboard and unannounced by a
+// screen reader, and the recruiter's correction to the cost-per-hire denominator
+// vanished with no statement that it had.
+
+test("the spend editor resolves the server's CODE instead of throwing a bare Error", () => {
+  const input = read("AnalyticsChannelSpendInput.tsx");
+  assert.doesNotMatch(input, /throw new Error\(\)/, "a bare Error carries nothing a reader can be told");
+  assert.match(input, /apiErrorPayload\(/, "the failed response's {error, code} body must be read");
+  assert.match(input, /useErrorMessage\(\)/, "…and resolved in the reader's language");
+  assert.match(input, /new LocalizedFailure\(/, "…and handed to the input as an already-localized failure");
+});
+
+test("a failed save is announced, not only painted", () => {
+  const inline = read("AnalyticsInlineNumberSave.tsx");
+  assert.match(inline, /role="alert"/, "a lost write is a failure, so it is assertive — not role=status");
+  assert.match(
+    inline,
+    /localizedFailureMessage\(/,
+    "the announced sentence is the resolved code, falling back to the caller's own localized title",
+  );
+  assert.match(
+    read("AnalyticsChannelSpendInput.tsx"),
+    /announceFailure/,
+    "the spend editor opts into the announcement",
+  );
+});
+
+test("the save decision is a pure module the test runner can execute", () => {
+  const inline = read("AnalyticsInlineNumberSave.tsx");
+  assert.match(inline, /planInlineSave\(/, "the parse/normalize/short-circuit rules must not live in the .tsx");
+  assert.doesNotMatch(inline, /parsed > 0 \?/, "…and must not be duplicated back into it");
+});
