@@ -62,7 +62,7 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // Lot D2: the wave spared the candidate but the holdout record could NOT be sealed,
   // so the event names the failure, not the arm (screen-wave.ts). Still a machine
   // decision about that candidate; amber because an operator should retry the seal.
-  screen_wave_holdout_unsealed: { auto: true, tone: "text-amber-700" },
+  screen_wave_holdout_unsealed: { auto: true, tone: "text-amber-600" },
   // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
   // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
   ko_declined: { auto: true, tone: "text-coral" },

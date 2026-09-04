@@ -111,6 +111,9 @@ export const EVENT_KINDS = [
   // uncontaminated calibration arm. A machine decision about a person, so it is a feed
   // event like any other (UAT LUC-ANA-6).
   "screen_wave_holdout",
+  // screen-wave.ts — spared, but the holdout record could not be sealed: the event
+  // names the failure, never the arm membership that does not exist (lot D2).
+  "screen_wave_holdout_unsealed",
   // pipeline-entry-action.ts — the AI round passed and the hiring plan handed the
   // candidate to a human round. The human-oversight hand-off itself.
   "human_round_queued",
@@ -218,6 +221,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   auto_rejected: { Icon: XCircle, tone: "text-coral" },
   screening_hold: { Icon: PauseCircle, tone: "text-amber-600" },
   screen_wave_holdout: { Icon: Scale, tone: "text-steel" },
+  screen_wave_holdout_unsealed: { Icon: Scale, tone: "text-amber-600" },
   human_round_queued: { Icon: UserCheck, tone: "text-moss" },
   interview_scorecard: { Icon: ClipboardList, tone: "text-steel" },
   interview_prep_generated: { Icon: ClipboardList, tone: "text-steel" },
