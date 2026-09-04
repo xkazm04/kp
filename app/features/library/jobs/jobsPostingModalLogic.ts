@@ -148,7 +148,7 @@ export function useJobPostingModalLogic(
     },
     [job.id]
   );
-  // tone "quota" = hit the plan's active-job cap (402 quota_exceeded): a monetization
+  // tone "quota" = hit the plan's active-job cap (402 BILLING_QUOTA_EXCEEDED): a monetization
   // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
   // This state now carries FAILURES only — a successful publish is a list of
   // sentences (publishOutcome below), not one interpolated string.
@@ -195,7 +195,7 @@ export function useJobPostingModalLogic(
       if (!r.ok || !p) {
         // The plan's active-job cap (402): the highest-intent upsell moment — show a
         // distinct quota state with a Billing link, not a generic sourcing-failed warn.
-        if (p?.code === "quota_exceeded") {
+        if (p?.code === "BILLING_QUOTA_EXCEEDED") {
           setPublishNote({ text: td("quotaNote"), tone: "quota" });
           return;
         }

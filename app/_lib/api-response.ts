@@ -894,6 +894,17 @@ export const REFUSAL_ERRORS = {
   BILLING_ALREADY_SUBSCRIBED: "You already have a plan. Change it in the customer portal (Manage subscription), not with a new checkout.",
   /** A checkout body naming neither a plan nor a pack (400). */
   BILLING_CHECKOUT_BODY_INVALID: "That checkout named neither a plan nor a minutes pack.",
+  /** A metered action was refused because the plan's monthly allowance would not
+   *  cover it (402) — the app's highest-intent upsell moment, and until now the one
+   *  refusal that answered an UNREGISTERED code (`quota_exceeded`) beside a hand-built
+   *  English sentence naming the meter. The METER and the PLAN ride beside the code as
+   *  data (`{ meter, plan }`) so the reader's own sentence can name them. Produced by
+   *  `meterGate` (app/_lib/billing/enforce.ts), whose verdict is shaped exactly like
+   *  this helper's body; QUOTA_MESSAGE there is pinned equal to this string.
+   *  The corresponding 429 is TASK_BUDGET_EXHAUSTED — see api-contracts.md §1.1 for
+   *  why a spent allowance never claims TOO_MANY_REQUESTS. */
+  BILLING_QUOTA_EXCEEDED:
+    "This action would exceed this month’s allowance on your current plan. Upgrade or top up in Billing.",
   /** The portal was asked for before any completed checkout (404) — a calm
    *  pre-first-purchase state the tab renders as a hint, not an error. */
   BILLING_NO_CUSTOMER: "No billing customer yet. Complete a checkout first.",

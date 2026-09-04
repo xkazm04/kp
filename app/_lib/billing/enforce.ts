@@ -12,29 +12,39 @@
 //   drafting) falls back to the deterministic templates — the same paths that
 //   run when a provider is down — so reads never hard-fail mid-pipeline.
 //
-// Wire format: { error, code: "quota_exceeded", meter } — code is the stable
-// branch key for the UI (i18n happens client-side), error is the English
-// operator-readable fallback.
+// Wire format: { error, code: "BILLING_QUOTA_EXCEEDED", meter, plan } — byte-identical
+// to what `jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter, plan })` produces, so a
+// route may return the verdict directly. The code is REGISTERED (REFUSAL_ERRORS in
+// api-response.ts) and carries four catalog entries, which is the whole change: it used
+// to be the unregistered string "quota_exceeded" with a hand-built English sentence
+// naming the meter, so `useErrorMessage()` had nothing to resolve and every locale read
+// English on the app's highest-intent upsell moment. The meter and the plan now ride
+// beside the code as DATA — the reader's own sentence can name them.
 
 import { getBillingState } from "../db/billing";
 import { billingOrgForWorkspace, entitledPlan, meterAllowance, meterOverview } from "./entitlements";
 import type { Meter } from "./plans";
 
-export const QUOTA_CODE = "quota_exceeded" as const;
+export const QUOTA_CODE = "BILLING_QUOTA_EXCEEDED" as const;
+
+/** The canonical English sentence for QUOTA_CODE. It is DECLARED here rather than
+ *  imported because `api-response.ts` pulls in `next/server`, and this module is
+ *  reachable from client components through `billing/index.ts` — so the registry
+ *  cannot be imported without dragging a server module into the browser bundle.
+ *  The two copies are pinned equal by `app/_lib/billing-gate.test.ts`, which CAN
+ *  import both; a drift is a red test, not a wrong sentence on the wire.
+ *
+ *  Meter-agnostic on purpose: the meter and plan travel as data, so the reader's
+ *  own catalog can compose "your AI candidate allowance on Free" in their language
+ *  instead of receiving one English string per meter. */
+export const QUOTA_MESSAGE =
+  "This action would exceed this month’s allowance on your current plan. Upgrade or top up in Billing.";
 
 export type QuotaVerdict = {
-  error: string;
+  error: typeof QUOTA_MESSAGE;
   code: typeof QUOTA_CODE;
   meter: Meter;
   plan: string;
-};
-
-const METER_LABELS: Record<Meter, string> = {
-  job_posts: "published role allowance",
-  hires: "hire allowance",
-  ai_candidates: "AI candidate allowance",
-  case_designs: "case design allowance",
-  interview_minutes: "interview minutes",
 };
 
 /** Null = proceed; a verdict = respond 402 with it.
@@ -76,7 +86,7 @@ export function meterGate(
   const remaining = meterOverview(meter, plan, now, orgId).remaining;
   if (remaining === null || remaining - inFlight >= minUnits) return null;
   return {
-    error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan won't cover this action — upgrade or top up in Billing.`,
+    error: QUOTA_MESSAGE,
     code: QUOTA_CODE,
     meter,
     plan: plan.id,

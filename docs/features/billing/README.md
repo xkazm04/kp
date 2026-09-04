@@ -154,7 +154,7 @@ friction at zero users.
 | Webhook signature | `app/_lib/billing/webhook-verify.ts` | Standard Webhooks scheme, verified in-house. |
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
-| Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`quota_exceeded`) at metered-work creation points. |
+| Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`BILLING_QUOTA_EXCEEDED`) at metered-work creation points. |
 | DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
@@ -266,6 +266,29 @@ names a tier, the tier's **name travels beside the code as data** (`{ plan: "BYO
 rather than inside a sentence only English readers can parse. Both checkout and portal are
 off the `error-response-contract.test.ts` ceiling — the gateway's thrown message (a
 merchant-of-record HTTP body) is logged, never forwarded.
+
+### The 402 is a registered refusal too
+
+`meterGate` used to answer `{ error: "This month's AI candidate allowance on the Free
+plan won't cover this action…", code: "quota_exceeded" }` — an English sentence built
+per meter, under a code no registry and no catalog knew. `useErrorMessage()` therefore
+had nothing to resolve on the app's **highest-intent upsell moment**, and every Czech,
+German and French recruiter read English there.
+
+The verdict is now `{ error, code: "BILLING_QUOTA_EXCEEDED", meter, plan }` — byte-
+identical to `jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter, plan })`, so the six
+routes that return the verdict directly (`analyze`, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/redesign`, `interview/create`, `interview/simulate`,
+`jobs/[id]/publish`) put the chokepoint's exact body on the wire. The meter and the
+plan travel as **data**, so a catalog can name them in the reader's language instead of
+receiving one English string per meter.
+
+One wrinkle is worth knowing before you "clean it up": `enforce.ts` declares the
+sentence (`QUOTA_MESSAGE`) instead of importing `REFUSAL_ERRORS`, because
+`api-response.ts` pulls in `next/server` while `enforce.ts` is reachable from client
+components through `billing/index.ts`. The two copies are pinned equal by
+`app/_lib/billing-gate.test.ts`, which asserts the code is registered, the sentences
+match, and the verdict deep-equals the `jsonRefusal` body.
 
 ### The webhook reads its raw body under a hard cap
 
