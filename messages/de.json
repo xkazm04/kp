@@ -6407,10 +6407,9 @@
     "briefNoDataClaim": "Bisher ist noch niemand durch den Funnel gelaufen.",
     "briefNoDataContext": "Legen Sie eine Rolle an und sammeln Sie Kandidaten; dieser Bericht füllt sich, sobald sie sich bewegen.",
     "briefBandForecast": "Was ansteht",
-    "briefForecastClaim": "Rund {hires} Einstellungen sind bereits unterwegs.",
+    "briefForecastClaim": "Geschätzt {hires} Einstellungen sind bereits unterwegs.",
     "briefForecastContext": "Basierend auf {velocity} neuen Kandidaten pro Woche und {conv} % Gesamtkonversion.",
     "briefForecastNoSignalClaim": "Für eine Prognose fehlt noch die Historie.",
-    "briefForecastNoSignalContext": "Eine Prognose braucht mindestens eine abgeschlossene Einstellung als Kalibrierung. Bis dahin wäre Raten schlechter als Schweigen.",
     "briefEtaLabel": "Erwarteter Verzug",
     "briefEtaValue": "{days} T",
     "briefBandMomentum": "Momentum",
@@ -6743,9 +6742,12 @@
       "basis": "Basierend auf {velocity} neu/Woche und {conv} % Gesamtkonversion.",
       "acceptBasis": "Unter Annahme der beobachteten {pct} % Angebotsannahme (n={n}).",
       "inFlight": "Erwartet aus laufendem Bestand",
-      "horizon": "Nächste {weeks} Wochen",
       "plusHires": "+{hires}",
-      "eta": "Durchschnittliche Time-to-Hire: {days} Tage."
+      "eta": "Durchschnittliche Time-to-Hire: {days} Tage.",
+      "horizonEstimate": "Nächste {weeks} Wochen (Schätzung)",
+      "range": "Spanne {low}–{high}",
+      "method": "Methode: {velocity} neue Kandidaten pro Woche × {conv}% Gesamtkonversion, fortgeschrieben. Die Spanne ist eine Standardabweichung des wöchentlichen Zulaufs (±{sd}) nach beiden Seiten.",
+      "floorNote": "Eine Prognose braucht mindestens {minHires} Einstellungen und {minWeeks} Wochen mit neuen Kandidaten. Bisher: {hires} Einstellungen in {weeks} solchen Wochen. Bis dahin wäre Raten schlechter als Schweigen."
     },
     "offers": {
       "title": "Angebotsphase",

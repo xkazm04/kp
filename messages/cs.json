@@ -6407,10 +6407,9 @@
     "briefNoDataClaim": "Trychtýřem zatím nikdo neprošel.",
     "briefNoDataContext": "Přidejte roli a začněte sbírat kandidáty; tento souhrn se doplní, jak se budou posouvat.",
     "briefBandForecast": "Co přichází",
-    "briefForecastClaim": "Přibližně {hires} náborů je už rozjednáno.",
+    "briefForecastClaim": "Odhadem {hires} náborů už je rozjetých.",
     "briefForecastContext": "Vychází z {velocity} nových kandidátů týdně a celkové konverze {conv} %.",
     "briefForecastNoSignalClaim": "Zatím není dost historie na předpověď.",
-    "briefForecastNoSignalContext": "Předpověď potřebuje aspoň jeden dokončený nábor, podle kterého se dá kalibrovat. Do té doby by odhad byl horší než mlčení.",
     "briefEtaLabel": "Očekávané zpoždění",
     "briefEtaValue": "{days} d",
     "briefBandMomentum": "Dynamika",
@@ -6743,9 +6742,12 @@
       "basis": "Na základě {velocity} nových/týden a celkové konverze {conv} %.",
       "acceptBasis": "Za předpokladu pozorované {pct}% akceptace nabídek (n={n}).",
       "inFlight": "Očekáváno z aktuální pipeline",
-      "horizon": "{weeks, plural, one {Příští # týden} few {Příští # týdny} other {Příštích # týdnů}}",
       "plusHires": "+{hires}",
-      "eta": "Průměrná doba do přijetí: {days, plural, one {# den} few {# dny} other {# dní}}."
+      "eta": "Průměrná doba do přijetí: {days, plural, one {# den} few {# dny} other {# dní}}.",
+      "horizonEstimate": "Následujících {weeks} týdnů (odhad)",
+      "range": "rozpětí {low}–{high}",
+      "method": "Metoda: {velocity} nových kandidátů týdně × {conv}% celkové konverze, promítnuto dopředu. Rozpětí je jedna směrodatná odchylka týdenního přílivu (±{sd}) na obě strany.",
+      "floorNote": "Projekce potřebuje aspoň {minHires} nábory a {minWeeks} týdny s novými kandidáty. Zatím: {hires} náborů za {weeks} takových týdnů. Do té doby by hádání bylo horší než mlčet."
     },
     "offers": {
       "title": "Fáze nabídky",

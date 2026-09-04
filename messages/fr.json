@@ -6407,10 +6407,9 @@
     "briefNoDataClaim": "Personne n’a encore traversé l’entonnoir.",
     "briefNoDataContext": "Ajoutez un poste et commencez à recueillir des candidats ; ce point se remplit à mesure qu’ils avancent.",
     "briefBandForecast": "Ce qui arrive",
-    "briefForecastClaim": "Environ {hires} recrutements sont déjà engagés.",
+    "briefForecastClaim": "Environ {hires} recrutements sont déjà en cours (estimation).",
     "briefForecastContext": "D’après {velocity} nouveaux candidats par semaine et {conv} % de conversion globale.",
     "briefForecastNoSignalClaim": "L’historique ne suffit pas encore pour une projection.",
-    "briefForecastNoSignalContext": "Une projection a besoin d’au moins un recrutement abouti pour se calibrer. En attendant, deviner serait pire que se taire.",
     "briefEtaLabel": "Délai attendu",
     "briefEtaValue": "{days} j",
     "briefBandMomentum": "Dynamique",
@@ -6743,9 +6742,12 @@
       "basis": "Sur la base de {velocity} nouveaux/semaine et d’une conversion globale de {conv} %.",
       "acceptBasis": "En supposant le taux d’acceptation observé de {pct} % (n={n}).",
       "inFlight": "Attendus des dossiers en cours",
-      "horizon": "{weeks} prochaines semaines",
       "plusHires": "+{hires}",
-      "eta": "Délai moyen de recrutement : {days} jours."
+      "eta": "Délai moyen de recrutement : {days} jours.",
+      "horizonEstimate": "{weeks} prochaines semaines (estimation)",
+      "range": "fourchette {low}–{high}",
+      "method": "Méthode : {velocity} nouveaux candidats par semaine × {conv}% de conversion globale, projeté dans le temps. La fourchette vaut un écart type du flux hebdomadaire (±{sd}) de part et d'autre.",
+      "floorNote": "Une projection exige au moins {minHires} recrutements et {minWeeks} semaines avec de nouveaux candidats. À ce jour : {hires} recrutements sur {weeks} semaines de ce type. D'ici là, deviner serait pire que se taire."
     },
     "offers": {
       "title": "Phase d’offre",

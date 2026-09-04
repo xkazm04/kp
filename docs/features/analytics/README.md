@@ -820,7 +820,15 @@ calibration payload types.
 
 Load-bearing, not stylistic: an unknown cost renders as `—`, never `$0` ("free" and "unpriced"
 are different facts) · no verdict colour without a goal the org set · a ratio over 100 % is shown,
-not capped · the forecast refuses to project below its signal floor (`forecastHires().hasSignal`)
+not capped · the forecast **names its method and its floor**: `MIN_FORECAST_HIRES = 3` completed
+hires AND `MIN_FORECAST_INFLOW_WEEKS = 4` weeks that actually received candidates before it will
+project at all (both inputs are gated because both are multiplied — one hire in one burst week
+used to license a twelve-week projection to one decimal place, beside siblings gating at 3, 5 and
+20), the refusal states how far this workspace is from each (`forecast.signal`, rendered as
+`forecast.floorNote`), every horizon is labelled an *estimate* and carries the band at velocity ∓
+one standard deviation of the weekly buckets (floored at zero), and `forecast.method` prints the
+arithmetic — velocity × conversion, projected forward — under the figures · the forecast refuses
+to project below that floor (`forecastHires().hasSignal`)
 and **names the acceptance basis it substituted**: when an observed offer-accept rate applies,
 `forecastHires` rebuilds the offer→hire leg as `(offerReached / firstReached) × acceptRate`, so
 the horizons are NOT `overallConversionPct` — the figure the band's context sentence names — and

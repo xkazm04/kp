@@ -6407,10 +6407,9 @@
     "briefNoDataClaim": "Nothing has come through the funnel yet.",
     "briefNoDataContext": "Add a role and start collecting candidates; this brief fills in as they move.",
     "briefBandForecast": "What is coming",
-    "briefForecastClaim": "About {hires} hires are already in flight.",
+    "briefForecastClaim": "An estimated {hires} hires are already in flight.",
     "briefForecastContext": "Based on {velocity} new candidates a week and {conv}% overall conversion.",
     "briefForecastNoSignalClaim": "There is not enough history to project yet.",
-    "briefForecastNoSignalContext": "A projection needs at least one completed hire to calibrate against. Until then, guessing would be worse than saying nothing.",
     "briefEtaLabel": "Expected lag",
     "briefEtaValue": "{days}d",
     "briefBandMomentum": "Momentum",
@@ -6743,9 +6742,12 @@
       "basis": "Based on {velocity} new/week and a {conv}% overall conversion.",
       "acceptBasis": "Assuming the observed {pct}% offer acceptance (n={n}).",
       "inFlight": "Expected from in-flight",
-      "horizon": "Next {weeks} weeks",
       "plusHires": "+{hires}",
-      "eta": "Average time to hire: {days} days."
+      "eta": "Average time to hire: {days} days.",
+      "horizonEstimate": "Next {weeks} weeks (estimate)",
+      "range": "range {low}–{high}",
+      "method": "Method: {velocity} new candidates a week × {conv}% overall conversion, projected forward. The range is one standard deviation of weekly inflow (±{sd}) either side.",
+      "floorNote": "A projection needs at least {minHires} hires and {minWeeks} weeks with new candidates behind it. So far: {hires} hires across {weeks} such weeks. Until then, guessing would be worse than saying nothing."
     },
     "offers": {
       "title": "Offer leg",
