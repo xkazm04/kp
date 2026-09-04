@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { countAnalysesByJd } from "@/app/_lib/db/analyses";
 import { listJobPipelineStats } from "@/app/_lib/db/pipeline";
-import { listJdsPage, saveJd } from "@/app/_lib/db/jobs";
+import { jdLibraryStats, listJdsPage, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -20,6 +20,10 @@ export async function GET(request: Request) {
     const requested = Number(new URL(request.url).searchParams.get("limit") ?? "");
     const page = listJdsPage(Number.isFinite(requested) ? requested : undefined, ws);
     const rows = page.jds;
+    // The library's REAL size, unbounded, beside the page. `truncated` says the
+    // slice was cut; `total` says by how much — the ledger footer needs both to
+    // say "200 of 240" instead of presenting the page as the library.
+    const total = jdLibraryStats(ws).total;
     // W8-3 (JDL3) — each row's linked-job status (one query for all rows): the
     // library can show which JDs are matchable and offer "Ingest as job" on the
     // rest. null = no jd-<slug> job exists yet (analysis-only JD).
@@ -62,7 +66,7 @@ export async function GET(request: Request) {
     // `truncated` + `limit` beside the rows, the same honest page contract
     // /api/jobs has answered since listJobsPage: a caller can say "first N of more"
     // instead of presenting a cut slice as the whole library.
-    return NextResponse.json({ jds, truncated: page.truncated, limit: page.limit });
+    return NextResponse.json({ jds, truncated: page.truncated, limit: page.limit, total });
   } catch (error) {
     return safeJsonError(error, "api:jds", "JD_LIST_FAILED");
   }

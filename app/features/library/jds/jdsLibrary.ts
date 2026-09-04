@@ -345,3 +345,27 @@ export function coachHandoffBlock(slug: string | null | undefined, rows: JdRow[]
   if (row.analysis_status === "failed") return "failed";
   return null;
 }
+// ---- What the ledger footer may claim about the library's size --------------
+// The footer printed `entryCount` over `visible.length` while GET /api/jds answered
+// a 200-row page: a workspace holding 240 non-archived JDs read "200 entries" — a
+// page's size presented as the library — and the Role search silently could not
+// reach the other 40. The route now carries `total` (the unbounded jdLibraryStats
+// count) beside `truncated`, and this fold is where the two become one line.
+export type JdLedgerFooter =
+  | { key: "entryCount"; count: number }
+  | { key: "entryCountOfTotal"; count: number; total: number };
+
+export function jdLibraryFooter(visible: number, total: number | null, truncated: boolean): JdLedgerFooter {
+  // No total means no M to state. "N of ?" is not a line, and inventing an M is
+  // exactly the claim this fold exists to prevent — so an older route, a failed
+  // load or a payload without the field falls back to the bare count it always had.
+  if (typeof total !== "number" || !Number.isFinite(total)) return { key: "entryCount", count: visible };
+  // "N of M" whenever M is a bigger claim than N: the filters narrowed the table,
+  // or the route cut the page. `truncated` is asserted INDEPENDENTLY of the
+  // arithmetic — the route said rows were dropped, so a total that happens to equal
+  // the visible count (a stale count, a delete between the two reads) must not
+  // silently read as a complete library. `Math.max` keeps the pair coherent: an M
+  // below the N beside it is never stated.
+  if (total > visible || truncated) return { key: "entryCountOfTotal", count: visible, total: Math.max(total, visible) };
+  return { key: "entryCount", count: visible };
+}

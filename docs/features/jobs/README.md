@@ -1269,17 +1269,19 @@ include `workspace_id`).
   server's latest body beside the draft (or at minimum offering the draft for
   copy) — new copy in all four locales, and it belongs in the shared hook so the
   public page's `JdActions` gets it too.
-- **The JD Ledger still renders the page as the library.** The SERVER half of this
-  is closed (see "The JD library answers its own size" above): `GET /api/jds` reads
-  `?limit=`, `listJdsPage` clamps it and the response carries `{ jds, truncated,
-  limit }`. What remains is client-side: `useJdLibrary` stores the array,
-  `filterAndSortJds` filters it in memory, and `JdsSavedLedgerPanel`'s footer prints
-  `entryCount` over `visible.length` — none of them read `truncated` yet, so a
-  workspace holding 240 non-archived JDs still sees a footer reading "200 entries"
-  and a Role search that silently cannot find the 40 oldest. `useAnalyzeJdLibrary`
-  exposes `jdLibraryTruncated` for the analyze picker and nothing renders it either.
-  Closing it is a "showing N of M" line in the ledger footer and the picker (new
-  `library.tab.*` copy across all four locales), or real paging.
+- **The JD Ledger states its size honestly, but still has no pager.** `GET /api/jds`
+  answers `{ jds, truncated, limit, total }` (`total` from `jdLibraryStats`), and
+  both surfaces now read it: `JdsSavedLedgerPanel`'s footer resolves through
+  `jdLibraryFooter(visible, total, truncated)` (`jdsLibrary.ts`) and prints
+  `library.tab.entryCountOfTotal` — *"200 entries of 240 saved"* — whenever an M is
+  bigger than the N beside it or the route said the page was cut, falling back to
+  the bare `entryCount` when there is no total to state. The analyze picker prints
+  `analyze.jdLibraryTruncated` above the dropdown. Both folds are pinned by
+  `app/features/library/jds/jdsLibrary.test.ts`.
+  What is still open is REACHABILITY, not honesty: `filterAndSortJds` filters the
+  page in memory and there is no pager, so a workspace holding 240 non-archived JDs
+  is now correctly told it is seeing 200 of them but still cannot search the other
+  40 from this screen. That needs server-side search or a load-more, not more copy.
 - The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
   rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
   `campaign.py` spends them internally to suppress unstated facts but the pack it

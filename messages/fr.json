@@ -4465,7 +4465,8 @@
       "unsavedTitle": "Abandonner vos modifications non enregistrées ?",
       "unsavedBody": "Cette fiche contient des modifications que vous n'avez pas encore enregistrées. Quitter l'éditeur les supprime.",
       "unsavedDiscard": "Abandonner les modifications",
-      "unsavedKeep": "Continuer l'édition"
+      "unsavedKeep": "Continuer l'édition",
+      "entryCountOfTotal": "{count, plural, one {# entrée} other {# entrées}} sur {total} enregistrées"
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",
@@ -7370,7 +7371,8 @@
     "selectCvFirst": "Sélectionnez d’abord un CV ou un export PDF LinkedIn.",
     "jdLibraryLoading": "Chargement de votre bibliothèque de fiches de poste…",
     "jdLibraryFailed": "Impossible de charger votre bibliothèque de fiches de poste.",
-    "jdLibraryRetry": "Réessayer"
+    "jdLibraryRetry": "Réessayer",
+    "jdLibraryTruncated": "Affichage des {count, plural, one {# fiche de poste enregistrée la plus récente} other {# fiches de poste enregistrées les plus récentes}}. Les plus anciennes sont dans la Bibliothèque."
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés. Les valeurs affichées peuvent différer de celles stockées.",

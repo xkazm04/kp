@@ -11,6 +11,12 @@ import type { JdDetail, JdRow } from "./jdsLibrary";
 // styling variants read one list and one reload path.
 export function useJdLibrary() {
   const [rows, setRows] = useState<JdRow[] | null>(null);
+  // The library's real size and whether the route cut the page it answered. `rows`
+  // is one PAGE (GET /api/jds clamps at JDS_PAGE_MAX_LIMIT), so `rows.length` was
+  // never a library total — the footer said so anyway until these two arrived.
+  // Null total = an answer that did not carry the field; the footer then states no M.
+  const [total, setTotal] = useState<number | null>(null);
+  const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The banner this `error` paints (JdsSavedLedgerPanel) sits in a fully localized
   // console, so the copy must be too. It used to be two hand-written ENGLISH
@@ -44,6 +50,8 @@ export function useJdLibrary() {
         const payload = await res.json();
         if (signal?.aborted) return;
         setRows((payload.jds as JdRow[]) ?? []);
+        setTotal(typeof payload.total === "number" ? payload.total : null);
+        setTruncated(payload.truncated === true);
       } catch (caught) {
         if (signal?.aborted || (caught instanceof DOMException && caught.name === "AbortError")) return;
         // A dropped connection / unparseable 200 body throws the BROWSER's own
@@ -73,7 +81,7 @@ export function useJdLibrary() {
     void load(undefined, { silent: true });
   }, [load]);
 
-  return { rows, error, reload, refresh };
+  return { rows, total, truncated, error, reload, refresh };
 }
 
 // Detail fetch behind the modal: keyed on the open slug. The modal only mounts

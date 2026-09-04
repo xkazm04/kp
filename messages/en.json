@@ -4465,7 +4465,8 @@
       "unsavedTitle": "Discard your unsaved changes?",
       "unsavedBody": "This JD has edits you haven't saved yet. Leaving the editor discards them.",
       "unsavedDiscard": "Discard changes",
-      "unsavedKeep": "Keep editing"
+      "unsavedKeep": "Keep editing",
+      "entryCountOfTotal": "{count, plural, one {# entry} other {# entries}} of {total} saved"
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -7370,7 +7371,8 @@
     "selectCvFirst": "Select a CV or LinkedIn PDF export first.",
     "jdLibraryLoading": "Loading your JD library…",
     "jdLibraryFailed": "Couldn’t load your JD library.",
-    "jdLibraryRetry": "Retry"
+    "jdLibraryRetry": "Retry",
+    "jdLibraryTruncated": "Showing the newest {count, plural, one {# saved JD} other {# saved JDs}}. Older ones live in the Library."
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",
