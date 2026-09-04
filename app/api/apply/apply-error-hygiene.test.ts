@@ -87,10 +87,19 @@ test("the conversational re-apply response gates its tokens on proven ownership"
   );
   // Proof is the ?lead= capability token resolving to THIS entry — the emailed
   // enrichment walk, which must keep working — never the submitted name/email.
+  // The unproven duplicate now RETURNS before the merge (the write gate,
+  // behaviourally pinned by [id]/reapply-capability-gate.test.ts), so the only
+  // acknowledgeReapply call left in that branch is the tokenless early exit.
   assert.match(
     conversational,
-    /followup,\s*\n\s*\/\/[\s\S]{0,220}?\n\s*leadEntry !== null\s*\n\s*\);/,
-    "the name/email-matched duplicate passes `leadEntry !== null` as its proof"
+    /if \(!leadEntry\) \{[\s\S]{0,600}?acknowledgeReapply\(existing\.id, t\("alreadyMessage"\), \[\], false, workspaceId, \{\}, false\);/,
+    "a duplicate without the lead token must return the tokenless acknowledgement BEFORE any merge"
+  );
+  // The event is a write too, so it rides the same proof.
+  assert.match(
+    fn[0],
+    /if \(proven\) recordAutomationEvent\(entryId, "re_applied"/,
+    "an unproven repeat must not write a `re_applied` line onto the matched person's timeline"
   );
 });
 

@@ -431,6 +431,22 @@ still told honestly that they already applied, and their links reach them
 through the address on file. `leadToken` on the quick-apply duplicate branch was
 already unread — `QuickApplyForm` renders the enrichment CTA only when `fresh`.
 
+**And a duplicate no longer *writes* without that proof either** (pinned by
+`app/api/apply/[id]/reapply-capability-gate.test.ts`, which drives the real
+handler). The read side above was closed while the write side stayed open: the
+same name-only match authorized the whole merge — contact backfill (the address
+every future comm is sent to), GitHub-handle backfill, a full profile rebuild
+over the matched candidate id from the POST's own CV text, a `re_applied` line on
+that person's timeline and a consent refresh that re-extends their retention
+clock. Knowing that someone applied was enough to become their contact of record.
+The mutating half now runs only when `leadEntry !== null` — the `?lead=`
+capability token resolving to this entry. Without it the response is the same
+tokenless "you already applied" acknowledgement and **no column of the original
+entry moves**; the funnel back-link (`linkApplySession`) still runs because it
+writes to `apply_sessions` under the caller's own attempt id, never to the entry.
+A returning applicant who lost their link is not stranded — the enrichment link
+is re-sent to the address on file, the one channel that can be authenticated.
+
 Consequently the **"newly reachable" re-acknowledgement carries the status
 link** too (`app/api/apply/[id]/route.ts`, pinned by
 `apply-ack-after-response.test.ts`). That ack is the only one a candidate whose
