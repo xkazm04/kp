@@ -57,8 +57,17 @@ class AzureOpenAIProvider(OpenAIProvider):
         return validate_base_url(value, setting="AZURE_OPENAI_ENDPOINT") if value else None
 
     def _resolved_api_version(self) -> str:
+        """Through ``self._load_env()``, like its sibling above.
+
+        This was the last env read in the adapter that did not. It happens to work
+        today only because ``_make_client`` evaluates ``api_key=self._resolved_key()``
+        first and Python evaluates arguments left to right, so .env is already
+        loaded by the time this runs — reorder those kwargs and an api-version set
+        only in .env.local silently becomes the hardcoded default below, with
+        nothing naming the version in the failure."""
         if self.api_version:
             return self.api_version
+        self._load_env()
         return os.getenv("AZURE_OPENAI_API_VERSION") or _DEFAULT_API_VERSION
 
     def _offline_egress_url(self) -> str | None:

@@ -401,6 +401,22 @@ class EnvLoadedOncePerInstanceTests(unittest.TestCase):
             provider._resolved_endpoint()
         self.assertEqual(len(seen), 1)
 
+    def test_every_azure_env_read_goes_through_the_seam_including_the_api_version(self) -> None:
+        """_resolved_api_version was the last read that did not.
+
+        It worked only by accident of argument-evaluation order: _make_client
+        evaluates `api_key=self._resolved_key()` before `api_version=...`, and
+        _resolved_key loads .env. Called on its own - which any future caller or a
+        kwarg reorder makes happen - an api-version living only in .env.local
+        silently became the hardcoded _DEFAULT_API_VERSION, with nothing in the
+        resulting failure naming the version. Assert it standalone."""
+        provider = ADAPTERS["azure_openai"](model="dep", api_key="k")
+        with mock.patch(
+            "pipeline.jobfit.llm.adapters.azure_openai.load_local_env",
+            side_effect=lambda: os.environ.__setitem__("AZURE_OPENAI_API_VERSION", "2099-01-01"),
+        ), env(AZURE_OPENAI_API_VERSION=None):
+            self.assertEqual(provider._resolved_api_version(), "2099-01-01")
+
 
 class ResultShapeGuard(unittest.TestCase):
     """Non-vacuity for the module: LLMResult still imports and the adapters are real."""
