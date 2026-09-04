@@ -21,6 +21,7 @@ import { createPipelineEntry } from "./db/pipeline.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
 import { SIM_COMMS_CHANNEL, dispatchOffer, dispatchRejection, dispatchScheduleInvite } from "./comms-dispatch.ts";
 import { markSimTitle } from "../features/shell/simulation/constants.ts";
+import { setRelayHostLookupForTests } from "./comms.ts";
 
 after(() => cleanupUnitDb());
 
@@ -45,10 +46,15 @@ async function withStubbedRelay(fn: () => Promise<void>): Promise<string[]> {
     return new Response("{}", { status: 200 });
   }) as typeof fetch;
   process.env.COMMS_WEBHOOK_URL = "https://relay.invalid/hook";
+  // Delivery now RESOLVES the relay host before it posts (SSRF: the string-level check
+  // at the config write vets a name, not the address it answers with at delivery time).
+  // `relay.invalid` is a fixture no resolver knows, so the lookup is injected.
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
   try {
     await fn();
   } finally {
     delete process.env.COMMS_WEBHOOK_URL;
+    setRelayHostLookupForTests(undefined);
     globalThis.fetch = realFetch;
   }
   return posted;

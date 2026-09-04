@@ -5,6 +5,8 @@
 // buildIcs in export-utils.ts (this module deliberately does NOT re-implement it).
 // A later Solution Ⓐ (OAuth two-way sync) can reuse the same CalendarEvent shape.
 
+import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+
 export type CalendarEvent = {
   title: string;
   /** ISO instant of the start. */
@@ -68,7 +70,9 @@ export type InterviewLike = {
 // used to inline `durationMin ?? 30` while this file used 45, so an invite with no
 // planned length blocked 30 min on the candidate's calendar and 45 on the
 // recruiter's for one interview. One constant, one duration.
-export const DEFAULT_DURATION_MIN = 45;
+// … and it now IMPORTS that constant rather than re-typing it: free-busy.ts declared its
+// own 45 under another name, so one number lived in two files that never met.
+export const DEFAULT_DURATION_MIN = DEFAULT_INTERVIEW_MINUTES;
 
 // Neutral location when no real join link is attached — shared fallback so the
 // candidate and recruiter events agree on the location text too (bug-ui-scan

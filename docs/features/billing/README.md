@@ -154,7 +154,7 @@ friction at zero users.
 | Webhook signature | `app/_lib/billing/webhook-verify.ts` | Standard Webhooks scheme, verified in-house. |
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
-| Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`quota_exceeded`) at metered-work creation points. |
+| Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`BILLING_QUOTA_EXCEEDED`) at metered-work creation points. |
 | DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
@@ -210,25 +210,88 @@ hop** so a body that was never going to buy anything spends none of the window:
 | --- | --- | --- |
 | `POST /api/billing/checkout` | 10 / 10 min | a person buys once, or retries a card twice |
 | `POST /api/billing/portal` | 20 / 10 min | one click per visit, plus a re-open after a popup blocker |
+| `POST /api/billing/webhook` | 600 / 10 min | the provider, not a person — see below |
+
+The webhook is the third money door and the only one with **no session and no
+capability gate at all**: a machine posts there, so it sits on the public allow-list
+and an anonymous caller could loop 256 KB bodies through an HMAC verify and a SQLite
+transaction for free. Its ceiling is deliberately far above the other two and the
+reason is pinned rather than left to taste: provider bursts are legitimate (a plan
+change fans out to several subscription events; a redelivery storm after an outage
+replays a backlog), and with `KP_TRUSTED_PROXY` unset `clientIpFrom` collapses every
+caller into ONE bucket — so a tight ceiling would drop real money events. 600/10 min
+is one delivery per second sustained. Its limiter runs **before the body read** (the
+allocation is what is being bounded), and the "billing is not configured" 503 keeps
+answering ahead of it. A refused delivery is 429 — non-2xx, so Polar re-delivers it
+rather than losing it.
 
 Both refuse through the shared chokepoint (`jsonRefusal("TOO_MANY_REQUESTS", 429)`), and
 both call sites — key, constant, budget, ordering — are pinned in
 `app/api/rate-limit-contract.test.ts`.
 
+### Both provider calls are BOUNDED, and only one of them may be retried
+
+`fetch` had no budget on either money call, so a merchant of record that accepted the
+connection and then stalled held the purchase page open indefinitely — a spinner with no
+end state. Every POST in `polar.ts` now carries `AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS)`
+= **10 s**, covering the round trip *and* the body read, and an abort is raised as
+`BillingProviderTimeoutError` — a different answer from "the provider said no".
+
+Whether a failed call may be tried again is a property of the **endpoint**, not of the
+failure, so it is opt-in per call site:
+
+| Call | Retry | Why |
+| --- | --- | --- |
+| `POST /v1/checkouts/` | **never** | not idempotent and Polar has no idempotency key here: a second attempt after a timeout or a 5xx can mint a second live session — two payable links for one purchase. The buyer clicking *Buy* again is the safe retry, because it is a decision rather than a guess |
+| `POST /v1/customer-sessions/` | **once**, on 429/5xx | a read-shaped mint for an existing customer: charges nothing, supersedes nothing, and saves the owner a dead *Manage subscription* button |
+
+A timeout is not a transient *status*, so it never consumes the portal's one retry —
+the budget is spent once, not twice. Both routes answer a timeout as
+`BILLING_PROVIDER_TIMEOUT` at **504** (not 502: nothing was refused, and the honest
+advice is "try again in a moment"). Pinned by `app/_lib/billing/polar-gateway.test.ts`
+(hanging fake, retry counts) and `app/api/billing/billing-routes.test.ts` (the 504).
+
 ### Every billing refusal carries a code
 
 The routes used to answer prose with no `code`, so the tab computed a genuinely actionable
 reason — *use the portal*, *that tier is withdrawn*, *you are not an owner* — and then
-discarded it into one generic "Checkout failed", in English, for every locale. Ten codes
+discarded it into one generic "Checkout failed", in English, for every locale. Eleven codes
 now cover the surface (`REFUSAL_ERRORS` / `STORE_ERRORS` in `app/_lib/api-response.ts`,
 four catalog entries each): `BILLING_ORG_MANAGE_REQUIRED`, `BILLING_NOT_CONFIGURED`,
 `BILLING_PLAN_CONTACT_SALES`, `BILLING_PLAN_WITHDRAWN`, `BILLING_ALREADY_SUBSCRIBED`,
 `BILLING_CHECKOUT_BODY_INVALID`, `BILLING_NO_CUSTOMER`, plus `BILLING_OVERVIEW_FAILED`,
-`BILLING_CHECKOUT_FAILED` and `BILLING_PORTAL_FAILED` for the fault paths. Where a refusal
+`BILLING_CHECKOUT_FAILED`, `BILLING_PORTAL_FAILED` and `BILLING_PROVIDER_TIMEOUT` for the
+fault paths. Where a refusal
 names a tier, the tier's **name travels beside the code as data** (`{ plan: "BYOM" }`)
 rather than inside a sentence only English readers can parse. Both checkout and portal are
 off the `error-response-contract.test.ts` ceiling — the gateway's thrown message (a
 merchant-of-record HTTP body) is logged, never forwarded.
+
+### The 402 is a registered refusal too
+
+`meterGate` used to answer `{ error: "This month's AI candidate allowance on the Free
+plan won't cover this action…", code: "quota_exceeded" }` — an English sentence built
+per meter, under a code no registry and no catalog knew. `useErrorMessage()` therefore
+had nothing to resolve on the app's **highest-intent upsell moment**, and every Czech,
+German and French recruiter read English there.
+
+The verdict is now `{ error, code: "BILLING_QUOTA_EXCEEDED", meter, plan }`, and no
+handler serializes it: all six metered doors (`analyze` ×2, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/redesign`, `interview/create` ×2, `interview/simulate`,
+`jobs/[id]/publish`) answer `jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter, plan })`.
+Returning the decision object directly made every one of its fields a wire contract by
+accident, which is how the refusal kept an unregistered code for so long. The meter and
+the plan travel as **data**, so a catalog can name them in the reader's language instead
+of receiving one English string per meter. `app/api/billing-quota-shape.test.ts` walks
+every module under `app/api/**` and fails on a serialized verdict, a hand-rolled body
+around the code or its sentence, or any 402 that skips the chokepoint.
+
+One wrinkle is worth knowing before you "clean it up": `enforce.ts` declares the
+sentence (`QUOTA_MESSAGE`) instead of importing `REFUSAL_ERRORS`, because
+`api-response.ts` pulls in `next/server` while `enforce.ts` is reachable from client
+components through `billing/index.ts`. The two copies are pinned equal by
+`app/_lib/billing-gate.test.ts`, which asserts the code is registered, the sentences
+match, and the verdict deep-equals the `jsonRefusal` body.
 
 ### The webhook reads its raw body under a hard cap
 
@@ -242,6 +305,40 @@ enforced on bytes actually read off the wire (`readTextWithLimit`, the same cont
 **413**; non-2xx, so a genuine oversized delivery (there is no such Polar payload — an
 event is one subscription or order object) is retried and stays visible in the dashboard
 rather than being silently swallowed. Pinned by `app/api/billing/billing-routes.test.ts`.
+
+### The displayed price is checked against the charged price DAILY
+
+Plan and pack prices live in two independent sources of truth: the TS catalog
+(`plans.ts`, what the UI shows) and the Polar product objects (what is actually
+settled). A dashboard edit or a currency mismatch silently drifts one from the other,
+and a money-trust break of that kind surfaces only after a real charge.
+
+`price-reconcile.ts` has always held the invariant, but its only caller was
+`scripts/polar-setup.mjs` — a preflight an operator runs when they FIRST configure the
+products, i.e. exactly once, before the edit that introduces the drift. It now also
+runs from the server clock, as a registered scheduler job (`price_reconcile`, daily,
+under the autonomy pause with the other discretionary passes because it is outbound
+provider egress on a timer):
+
+- `runPriceReconcile` (`sync.ts`) does the reads and the write. It answers `skipped`
+  and touches nothing when billing is unconfigured or `KP_OFFLINE` is set — a
+  self-hosted install does nothing at all.
+- The decision is pure (`priceTargets` + `reconcileFetchedProducts`): targets are
+  DERIVED from `plans.ts` plus the configured ids, so an unset product drops out and a
+  legacy tier stays in (BYOM cannot be bought but is still charged monthly).
+- **A product it could not read is unknown, never drift.** A blip, an expired token or
+  a deleted product must not raise "you are charging the wrong price" — an alarm that
+  lies gets muted.
+- **Only an `error` alerts.** A `warn` (the catalog shows a CZK price the product has
+  no CZK price for) is a note the preflight prints.
+- A drift lands in the SAME `billing_alerts` worklist as an unmapped product
+  (`kind: "price_drift"`), with a `providerRef` derived from the drifting product ids —
+  so a standing misconfiguration is ONE open alert rather than one a day, while a new
+  product drifting opens its own.
+
+`claimDueRun` gates the pass to one run per cadence across restarts, and a non-skipped
+run is recorded in `scheduler_runs`. The job has no UI toggle yet — `/api/automation/
+schedule` surfaces only the policy and reminder jobs.
 
 ### Settled money we cannot map is an ALERT, never a silent ignore
 
@@ -470,7 +567,10 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   both idempotency layers, plan upgrade via webhook, revoke-to-free, the
   canceled-until-period-end rule.
 - `app/_lib/billing/price-reconcile.test.ts` — the price-drift check used by
-  `polar-setup.mjs`.
+  `polar-setup.mjs` AND by the clock's daily pass: target derivation, the
+  unreadable-product rule, the warn-does-not-alert rule, and the stable alert ref.
+- `app/_lib/billing-gate.test.ts` also drives `runPriceReconcile` end to end against a
+  fake provider and the real `billing_alerts` table.
 - `app/api/billing/billing-routes.test.ts` — the handlers themselves against real
   standard-webhooks signatures: the signature/idempotency/grant path, the bounded
   body read (413 on both the declared and the chunked oversize), and every checkout

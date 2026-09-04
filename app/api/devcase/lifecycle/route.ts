@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const overBudget = enforceTaskBudget("lifecycle", clientIpFrom(request.headers), workspace);
     if (overBudget) return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, overBudget);
     const quota = meterGate("case_designs", { workspace });
-    if (quota) return NextResponse.json(quota, { status: 402 });
+    if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     recordMeterUsage("case_designs", 1, new Date(), workspace);
     // DEVP5 — the candidate-facing artifact language. Prefer an explicit body
     // choice (validated), else the recruiter's active locale; persisted on the

@@ -83,7 +83,7 @@ export function DraftsPanel({ onPublished }: { onPublished?: (jobId: string) => 
       const p = (await r.json().catch(() => null)) as (PublishResponse & { code?: string }) | null;
       if (!r.ok || !p) {
         // Plan's active-job cap (402): distinct upgrade prompt, not a sourcing-failed warn.
-        if (p?.code === "quota_exceeded") {
+        if (p?.code === "BILLING_QUOTA_EXCEEDED") {
           setDraftNote({ text: t("quotaNote"), tone: "quota" });
           return;
         }

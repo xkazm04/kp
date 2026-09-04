@@ -8,6 +8,7 @@ import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webho
 import { logComms } from "./logger";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { outreachHaltFor } from "./outreach-state-store";
+import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
 // fallback pattern: a durable local OUTBOX by default (always works, also serves as the
@@ -97,6 +98,28 @@ class OutboxChannel implements CommsChannel {
 // exhausting the retries, dead-letters the message (status `failed`) and raises a loud
 // alert — a dropped offer/rejection must never look as benign as a local `queued` row.
 //
+// SSRF at the DELIVERY boundary. The relay URL is operator-supplied and stored;
+// `setRelayConfig` vets it with the string-level `assertPublicHttpsEndpoint`, which
+// vets the literal NAME. This fetch is the moment the name is turned into an
+// address, and it carries the candidate's message body (PII) plus the relay HMAC —
+// so a stored `https://rebind.attacker.com` that passed the write and now answers
+// 169.254.169.254 exfiltrated both. Comms run off a clock and a queue, so the gap
+// between the write and this fetch is unbounded by construction: the write-time
+// check is the operator's fast feedback, the resolve below is the gate. Same shared
+// guard the ATS delivery boundary, the pull pass and llm-config use.
+//
+// The lookup is injectable so the delivery tests can drive a fixture host that no
+// resolver knows. Module-scoped rather than a constructor argument because the
+// channel is built inside `getCommsChannel()`, which the tests reach through
+// `sendComm` — the same shape as resetSttForTests / resetTtsCacheForTests.
+let relayHostLookup: HostLookup | undefined;
+
+/** Test seam: override (or, with `undefined`, restore) the resolver the relay
+ *  delivery guard uses. Never called by production code. */
+export function setRelayHostLookupForTests(fn: HostLookup | undefined): void {
+  relayHostLookup = fn;
+}
+
 // E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
 // documented in docs/features/comms/outbound-export.md): the flat legacy fields verbatim, plus
 // candidate/job/stage context enriched from the pipeline entry the message
@@ -155,6 +178,20 @@ class WebhookChannel implements CommsChannel {
   // attempts ran and the last failure detail (for the dead-letter alert / audit).
   private async deliver(envelope: CommEnvelope): Promise<{ status: OutboxStatus; attempts: number; detail: string }> {
     let detail = "";
+    // Vetted ONCE, before the ladder: a host that resolves into private space is a
+    // permanent refusal, and retrying it three times only widens the window in which
+    // a rebinding host answers publicly on one attempt and privately on the next.
+    // A refusal here is a dead letter, not a silent drop — `send` escalates every
+    // `failed` through alertDeadLetter, and the reason rides the outbox row.
+    try {
+      await assertPublicHttpsEndpointResolved(this.url, "relay url", relayHostLookup);
+    } catch (err) {
+      return {
+        status: "failed",
+        attempts: 0,
+        detail: err instanceof Error ? err.message : "relay url is not an allowed endpoint",
+      };
+    }
     const body = JSON.stringify(envelope);
     // The envelope's own instant rides as X-Kp-Timestamp and is signed with the body,
     // so a captured relay delivery cannot be replayed later under its own signature.

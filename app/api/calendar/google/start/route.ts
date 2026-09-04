@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { googleConsentUrl, googleOAuthConfig } from "@/app/_lib/calendar/google-oauth";
+import {
+  createPkceVerifier,
+  encodeOAuthState,
+  googleConsentUrl,
+  googleOAuthConfig,
+  pkceChallenge,
+} from "@/app/_lib/calendar/google-oauth";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -12,7 +18,8 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // OPERATOR-only, like the ATS credential routes: this grants kp ongoing access to a real
 // person's calendar, and the resulting refresh token does not expire.
 
-/** The CSRF state cookie. Short-lived — a consent round trip is seconds, not hours, and a
+/** The CSRF state cookie — which also carries the PKCE verifier (`<state>.<verifier>`,
+ *  see encodeOAuthState). Short-lived: a consent round trip is seconds, not hours, and a
  *  long-lived state is a longer window for a forged callback to land. */
 export const OAUTH_STATE_COOKIE = "kp_gcal_state";
 /** The cookie's Path, scoped to this integration's routes. Exported because a cookie is
@@ -59,13 +66,19 @@ export async function GET(request: NextRequest) {
   // 32 random bytes, held in an httpOnly cookie and echoed by Google. The callback refuses
   // a mismatch, so a forged callback cannot bind an attacker's calendar to this workspace.
   const state = randomBytes(32).toString("base64url");
+  // PKCE (S256). The verifier stays here — only its SHA-256 goes to Google — so an
+  // authorization code that leaks in transit (a referrer, a proxy log, a pasted URL)
+  // cannot be redeemed by whoever picks it up. It shares the state cookie because the two
+  // have identical lifetime, path and one-shot deletion, and two cookies that must expire
+  // together are two chances to expire only one.
+  const verifier = createPkceVerifier();
   const jar = await cookies();
-  jar.set(OAUTH_STATE_COOKIE, state, {
+  jar.set(OAUTH_STATE_COOKIE, encodeOAuthState(state, verifier), {
     httpOnly: true,
     sameSite: "lax", // must survive the top-level redirect back from Google
     secure: base.startsWith("https://"),
     path: OAUTH_STATE_COOKIE_PATH,
     maxAge: STATE_TTL_SECONDS,
   });
-  return NextResponse.redirect(googleConsentUrl(config, state));
+  return NextResponse.redirect(googleConsentUrl(config, state, pkceChallenge(verifier)));
 }

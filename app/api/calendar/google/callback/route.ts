@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { exchangeCode, googleOAuthConfig, missingScopes } from "@/app/_lib/calendar/google-oauth";
+import { decodeOAuthState, exchangeCode, googleOAuthConfig, missingScopes } from "@/app/_lib/calendar/google-oauth";
 import { saveCalendarConnection } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import type { CalendarCallbackStatus } from "@/app/_lib/calendar/callback-status";
@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
   const base = publicBaseUrl(null);
   const { searchParams } = new URL(request.url);
   const jar = await cookies();
-  const expectedState = jar.get(OAUTH_STATE_COOKIE)?.value ?? "";
+  // The cookie carries the CSRF state AND the PKCE verifier (start/route.ts).
+  const held = decodeOAuthState(jar.get(OAUTH_STATE_COOKIE)?.value);
+  const expectedState = held?.state ?? "";
   // One-shot: clear it whatever happens, so a replayed callback cannot reuse it. The PATH
   // must be repeated — a cookie is keyed by (name, path), and `delete(name)` defaults the
   // path to "/" (@edge-runtime/cookies normalizeCookie), which expires a cookie that never
@@ -69,7 +71,10 @@ export async function GET(request: NextRequest) {
   if (!config) return back(base, "not_configured");
 
   try {
-    const tokens = await exchangeCode(config, code);
+    // The verifier proves this deployment is the party that asked for the code — a leaked
+    // code alone cannot be redeemed. Empty only for a round trip that began before PKCE,
+    // whose authorization request carried no challenge either.
+    const tokens = await exchangeCode(config, code, { codeVerifier: held?.verifier });
     if (!tokens.refreshToken) {
       // Without a refresh token the connection dies within the hour. Refusing to store it
       // is the honest move: a UI that says "connected" and stops working tomorrow is worse

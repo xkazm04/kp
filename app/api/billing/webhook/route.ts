@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { BillingConfigError, ingestBillingWebhook, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { WebhookVerificationError } from "@/app/_lib/billing/webhook-verify";
 import { readTextWithLimit } from "@/app/_lib/request-body";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // Provider → us. The ONLY write path for money state (billing_state /
@@ -15,10 +17,31 @@ import { readTextWithLimit } from "@/app/_lib/request-body";
  *  bounding what an anonymous caller can make us allocate. */
 const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
 
+/** The one money door with no session and no capability gate: a MACHINE posts here,
+ *  so the operator gate would 401 Polar and the public allow-list lets anyone reach
+ *  it. Every other spend door is limited; this one was not, which left an anonymous
+ *  caller free to loop 256 KB bodies through an HMAC verify and a SQLite transaction.
+ *
+ *  DELIBERATELY GENEROUS. Bursts from the provider are legitimate — a plan change
+ *  fans out to several subscription events, and a redelivery storm after an outage
+ *  replays a backlog — and with KP_TRUSTED_PROXY unset `clientIpFrom` collapses every
+ *  caller into ONE shared bucket, so a tight ceiling would drop real money events.
+ *  600/10 min is one delivery per second sustained: unreachable by any real Polar
+ *  traffic, and still a bound on an attacker. A refused delivery answers 429, which
+ *  is non-2xx, so the provider re-delivers it rather than losing it. */
+const WEBHOOK_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
+
 export async function POST(request: NextRequest) {
   const gateway = polarGatewayFromEnv();
   if (!gateway) {
     return NextResponse.json({ error: "Billing is not configured." }, { status: 503 });
+  }
+  // BEFORE the body read, not after: bounding what an anonymous caller can make us
+  // ALLOCATE is the point — the 256 KB cap below bounds ONE request, this bounds the
+  // RATE of them. The unconfigured 503 above keeps serving freely: it costs an env
+  // read and tells an operator their setup is incomplete.
+  if (!rateLimit(`billing-webhook:${clientIpFrom(request.headers)}`, WEBHOOK_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   // Raw body required: any re-serialization changes the bytes and breaks the MAC.
   //

@@ -147,7 +147,7 @@ test("confirming a slot writes a real event, and its id + link land on the invit
 
   assert.equal(writes().length, 1, "exactly one event is created for one booking");
   const body = writes()[0].body!;
-  assert.deepEqual(body.start, { dateTime: slot }, "the event starts at the confirmed instant");
+  assert.deepEqual(body.start, { dateTime: slot, timeZone: "UTC" }, "the event starts at the confirmed instant");
   assert.match(String(body.summary), /Writeback Candidate/, "the event names the candidate");
   assert.deepEqual(body.attendees, [{ email: `wb-c${seq}@example.com` }], "the candidate joins as an attendee");
   assert.equal(
@@ -177,7 +177,7 @@ test("a reschedule UPDATES the same event — it never leaves a ghost at the old
   assert.equal(writes().length, 1, "the reschedule must NOT create a second event");
   assert.equal(patches().length, 1, "it patches the one that exists");
   assert.match(patches()[0].url, new RegExp(`/events/${firstEventId}$`), "and patches exactly kp's event");
-  assert.deepEqual(patches()[0].body!.start, { dateTime: moveTo }, "moved to the new instant");
+  assert.deepEqual(patches()[0].body!.start, { dateTime: moveTo, timeZone: "UTC" }, "moved to the new instant");
   const stored = getScheduleInviteByToken(invite.token)!;
   assert.equal(stored.calendarEventId, firstEventId, "one event for the whole life of the interview");
   assert.equal(stored.calendarEventState, "written");

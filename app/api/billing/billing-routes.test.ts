@@ -13,6 +13,7 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as webhookPost } from "./webhook/route.ts";
 import { POST as checkoutPost } from "./checkout/route.ts";
+import { POST as portalPost } from "./portal/route.ts";
 import { creditBalance, getBillingState, upsertBillingState } from "../../_lib/db/billing.ts";
 
 after(() => cleanupUnitDb());
@@ -392,4 +393,61 @@ test("checkout: a WITHDRAWN (legacy) tier is refused with its own reason, not th
   const { code, plan } = (await res.json()) as { code: string; plan: string };
   assert.equal(code, "BILLING_PLAN_WITHDRAWN", "a withdrawn tier must not be described as contact-sales");
   assert.equal(plan, "BYOM", "name the tier the caller actually asked for");
+});
+
+// ---- the provider hop is BOUNDED --------------------------------------------------
+//
+// Both money calls used to `fetch` with no signal, so a merchant of record that
+// accepted the connection and then said nothing held the purchase page open for as
+// long as it cared to — a spinner with no end state and no advice. The gateway now
+// carries an AbortSignal.timeout (POLAR_REQUEST_TIMEOUT_MS) and raises its own
+// timeout error, which these routes answer as BILLING_PROVIDER_TIMEOUT at 504: the
+// one provider failure whose honest next step is "try again in a moment".
+
+test("checkout: a provider that never answers is a coded 504, not an open-ended wait", async () => {
+  configurePolarEnv();
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  const originalFetch = globalThis.fetch;
+  const realTimeout = AbortSignal.timeout;
+  // Shorten the CLOCK, not the code: the real signal is still built, handed to fetch
+  // and converted by the gateway — a unit test just must not sit out ten seconds.
+  AbortSignal.timeout = (() => realTimeout.call(AbortSignal, 20)) as typeof AbortSignal.timeout;
+  let calls = 0;
+  globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
+    calls += 1;
+    const signal = init?.signal as AbortSignal;
+    return new Promise<Response>((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
+  }) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "starter" }) })
+    );
+    assert.equal(res.status, 504);
+    assert.equal(((await res.json()) as { code: string }).code, "BILLING_PROVIDER_TIMEOUT");
+    // A checkout create is not idempotent: the timeout must not have been retried.
+    assert.equal(calls, 1, "a timed-out checkout must never be re-attempted for the buyer");
+  } finally {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = realTimeout;
+  }
+});
+
+test("portal: a provider that never answers is the same coded 504", async () => {
+  configurePolarEnv();
+  upsertBillingState({ plan: "starter", status: "active", provider: "polar", providerCustomerId: "cus_timeout" });
+  const originalFetch = globalThis.fetch;
+  const realTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = (() => realTimeout.call(AbortSignal, 20)) as typeof AbortSignal.timeout;
+  globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
+    const signal = init?.signal as AbortSignal;
+    return new Promise<Response>((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
+  }) as typeof fetch;
+  try {
+    const res = await portalPost(new NextRequest("http://localhost/api/billing/portal", { method: "POST" }));
+    assert.equal(res.status, 504);
+    assert.equal(((await res.json()) as { code: string }).code, "BILLING_PROVIDER_TIMEOUT");
+  } finally {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = realTimeout;
+  }
 });

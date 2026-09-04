@@ -95,7 +95,7 @@ test("near-cap interview meter refuses a run whose worst-case debit exceeds rema
   // case, 20 remaining is NOT enough → the create gate must 402.
   assert.equal(
     meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(20) })?.code,
-    "quota_exceeded"
+    "BILLING_QUOTA_EXCEEDED"
   );
 
   // NON-VACUITY: the pre-fix create route reserved only the 20-min constant, which
@@ -121,7 +121,7 @@ test("one in-flight analyze reservation blocks the last unit (no gate/debit dive
   // yet debited): remaining(1) − inFlight(1) = 0 < 1 → refused.
   // NON-VACUITY: pre-fix meterGate has no `inFlight` param and ignores it, so this same
   // call returned null (the burst overrun) — this assertion fails against pre-fix code.
-  assert.equal(meterGate("ai_candidates", { inFlight: 1 })?.code, "quota_exceeded");
+  assert.equal(meterGate("ai_candidates", { inFlight: 1 })?.code, "BILLING_QUOTA_EXCEEDED");
 });
 
 test("N concurrent analyze submits: exactly `remaining` pass, the next is refused", () => {
@@ -135,7 +135,7 @@ test("N concurrent analyze submits: exactly `remaining` pass, the next is refuse
   assert.equal(meterGate("ai_candidates", { inFlight: 1 }), null); // submit 2
   assert.equal(meterGate("ai_candidates", { inFlight: 2 }), null); // submit 3
   // The 4th would push the collective total to 4 against a cap of 3 → refused.
-  assert.equal(meterGate("ai_candidates", { inFlight: 3 })?.code, "quota_exceeded");
+  assert.equal(meterGate("ai_candidates", { inFlight: 3 })?.code, "BILLING_QUOTA_EXCEEDED");
 });
 
 test("an unlimited (null) meter proceeds regardless of in-flight or worst-case reserve", () => {

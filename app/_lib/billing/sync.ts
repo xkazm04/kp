@@ -5,6 +5,8 @@ import { billingOrgForProviderRefs, getBillingState, grantBillingCredits, insert
 import { ensureDb } from "../db/core";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import type { BillingEvent, BillingGateway } from "./gateway";
+import { polarGatewayFromEnv } from "./polar";
+import { priceTargets, reconcileFetchedProducts, type ReconcileSource } from "./price-reconcile";
 import {
   clearSubscriptionIsStale,
   reduceBillingEvent,
@@ -168,4 +170,46 @@ export function ingestBillingWebhook(
     const detail = applyBillingAction(action, gateway.provider, orgId);
     return { eventId: event.id, type: event.type, action: action.kind, duplicate: false, detail };
   })();
+}
+
+/** The price-drift check as a STANDING guard rather than a manual preflight.
+ *
+ *  The invariant is "the price the catalog DISPLAYS equals the price the provider
+ *  CHARGES" (price-reconcile.ts). It was only ever checked by `scripts/polar-setup.mjs`,
+ *  which an operator runs when they set the products up — i.e. exactly once, before the
+ *  drift a later dashboard edit introduces. A money-trust break that only surfaces
+ *  after a real charge needs a check that runs on its own.
+ *
+ *  Safe to call unconditionally. It answers `skipped` and touches nothing when billing
+ *  is not configured or the deployment is offline (`polarGatewayFromEnv` returns null
+ *  in both cases, by design — see its header), and a product it cannot read is treated
+ *  as unknown rather than as drift.
+ *
+ *  `gateway` is injectable for tests; production passes nothing. */
+export async function runPriceReconcile(
+  gateway: ReconcileSource | null = polarGatewayFromEnv()
+): Promise<{ skipped: boolean; checked: number; drifts: number; alerted: boolean }> {
+  if (!gateway) return { skipped: true, checked: 0, drifts: 0, alerted: false };
+  const targets = priceTargets(gateway.configuredProducts());
+  if (targets.length === 0) return { skipped: true, checked: 0, drifts: 0, alerted: false };
+  // The reads happen HERE, outside the decision and outside any transaction: the
+  // pure half below takes what came back and never knows how it was obtained.
+  const fetched = new Map<string, unknown>();
+  for (const target of targets) {
+    const product = await gateway.fetchProduct(target.productId);
+    if (product !== null) fetched.set(target.productId, product);
+  }
+  const outcome = reconcileFetchedProducts(targets, fetched);
+  let alerted = false;
+  if (outcome.alert) {
+    // Same durable channel the unmapped-product alarm uses, so an operator has ONE
+    // worklist for "money is not behaving" instead of a log line nobody reads.
+    console.error(`[billing:reconcile] PRICE DRIFT — the catalog and the provider disagree: ${outcome.alert.detail}`);
+    alerted = recordBillingAlert({
+      kind: "price_drift",
+      detail: outcome.alert.detail,
+      providerRef: outcome.alert.providerRef,
+    });
+  }
+  return { skipped: false, checked: fetched.size, drifts: outcome.drifts.length, alerted };
 }

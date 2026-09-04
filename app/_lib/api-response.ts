@@ -299,6 +299,11 @@ export const STORE_ERRORS = {
    *  env var. */
   ATS_CONFIG_SAVE_FAILED: "Could not save the webhook settings. Please try again.",
   BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
+  /** The merchant of record accepted the request and then said nothing until the
+   *  gateway's AbortSignal budget (POLAR_REQUEST_TIMEOUT_MS) ran out — answered at 504,
+   *  not 502, because nothing was refused and the advice is genuinely "try again".
+   *  A store error by classification: the raw abort names our own internals. */
+  BILLING_PROVIDER_TIMEOUT: "The payment provider did not respond in time. Please try again in a moment.",
   /** The guided simulation's five routes (/perfect wave 16, guided-simulation-1). All
    *  sit on better-sqlite3 — the reset runs a DELETE transaction over four tables — and
    *  the console that reads them is the PUBLIC demo, so a thrown message would be both
@@ -889,6 +894,17 @@ export const REFUSAL_ERRORS = {
   BILLING_ALREADY_SUBSCRIBED: "You already have a plan. Change it in the customer portal (Manage subscription), not with a new checkout.",
   /** A checkout body naming neither a plan nor a pack (400). */
   BILLING_CHECKOUT_BODY_INVALID: "That checkout named neither a plan nor a minutes pack.",
+  /** A metered action was refused because the plan's monthly allowance would not
+   *  cover it (402) — the app's highest-intent upsell moment, and until now the one
+   *  refusal that answered an UNREGISTERED code (`quota_exceeded`) beside a hand-built
+   *  English sentence naming the meter. The METER and the PLAN ride beside the code as
+   *  data (`{ meter, plan }`) so the reader's own sentence can name them. Produced by
+   *  `meterGate` (app/_lib/billing/enforce.ts), whose verdict is shaped exactly like
+   *  this helper's body; QUOTA_MESSAGE there is pinned equal to this string.
+   *  The corresponding 429 is TASK_BUDGET_EXHAUSTED — see api-contracts.md §1.1 for
+   *  why a spent allowance never claims TOO_MANY_REQUESTS. */
+  BILLING_QUOTA_EXCEEDED:
+    "This action would exceed this month’s allowance on your current plan. Upgrade or top up in Billing.",
   /** The portal was asked for before any completed checkout (404) — a calm
    *  pre-first-purchase state the tab renders as a hint, not an error. */
   BILLING_NO_CUSTOMER: "No billing customer yet. Complete a checkout first.",
@@ -1267,6 +1283,15 @@ export const REFUSAL_ERRORS = {
    *  is executed by design, so a crafted name is refused rather than quoted and hoped
    *  for. */
   RESTORE_UNSAFE_IDENTIFIER: "This backup file contains an unsafe table or column name and was refused.",
+  // ---- Request-body budget (app/_lib/request-body.ts). Every PUBLIC route reads
+  // its body under a hard byte cap enforced on the bytes READ, not on the caller's
+  // content-length; see docs/architecture/api-contracts.md §1.5c.
+  /** The request body exceeded the route's declared cap (413). Generic on purpose:
+   *  it is the answer on doors where the caller is a machine or a form with nothing
+   *  more useful to say. Surfaces with a specific next move keep their own code —
+   *  APPLY_PAYLOAD_TOO_LARGE ("shorten your answers"), IMPORT_BODY_TOO_LARGE ("check
+   *  you picked the right file"). `maxBytes` rides alongside as data. */
+  PAYLOAD_TOO_LARGE: "That request was too large to accept. Send less at once.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

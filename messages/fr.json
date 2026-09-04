@@ -1700,7 +1700,10 @@
     "RESTORE_SCOPE_TAKEN": "Un élément de cette sauvegarde appartient désormais à une autre organisation ; elle ne peut donc pas être restaurée.",
     "RESTORE_UNSAFE_IDENTIFIER": "Ce fichier de sauvegarde contient un nom de table ou de colonne non sûr et a été refusé.",
     "WORKSPACE_EXPORT_FAILED": "Impossible de créer la sauvegarde de l'organisation. Veuillez réessayer.",
-    "WORKSPACE_RESTORE_FAILED": "Impossible de restaurer la sauvegarde de l'organisation. Veuillez réessayer."
+    "WORKSPACE_RESTORE_FAILED": "Impossible de restaurer la sauvegarde de l'organisation. Veuillez réessayer.",
+    "BILLING_PROVIDER_TIMEOUT": "Le prestataire de paiement n'a pas répondu à temps. Veuillez réessayer dans un instant.",
+    "BILLING_QUOTA_EXCEEDED": "Cette action dépasserait le quota mensuel de votre formule. Passez à une formule supérieure ou rechargez dans Facturation.",
+    "PAYLOAD_TOO_LARGE": "Cette requête était trop volumineuse. Envoyez moins de données à la fois."
   },
   "resilience": {
     "notFoundEyebrow": "404",

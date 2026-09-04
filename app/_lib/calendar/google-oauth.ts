@@ -15,6 +15,10 @@
 //   calendar.events   — create/update the interview event we book. Required to write.
 // Widening these is a trust-surface change, not a convenience: see docs + /trust.
 
+import { createHash, randomBytes } from "node:crypto";
+import { CALENDAR_TIMEOUT_MS } from "./constants";
+import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
+
 export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.freebusy",
   "https://www.googleapis.com/auth/calendar.events",
@@ -46,6 +50,51 @@ export function googleOAuthConfig(baseUrl: string, env: NodeJS.ProcessEnv = proc
   return { clientId, clientSecret, redirectUri: `${baseUrl.replace(/\/+$/, "")}${GOOGLE_OAUTH_CALLBACK_PATH}` };
 }
 
+// PKCE (RFC 7636), which Google now recommends for every OAuth client including
+// confidential ones.
+//
+// WHAT IT BUYS US HERE. The `state` cookie already stops a FORGED callback binding an
+// attacker's calendar to this workspace. PKCE covers the other direction: an authorization
+// code that leaks in transit — a referrer, a proxy log, a browser extension, an operator
+// pasting a URL into a chat — is useless to whoever holds it, because redeeming it also
+// requires the verifier, which never leaves this deployment. The code is a bearer token
+// for a person's calendar for the seconds it lives, and it travels through a browser.
+//
+// The verifier rides in the SAME httpOnly state cookie rather than a second one: they have
+// exactly the same lifetime, the same path and the same one-shot deletion, and two cookies
+// that must be expired together are two chances to expire only one.
+
+/** A fresh code verifier: 32 random bytes, base64url — inside RFC 7636's 43..128 chars. */
+export function createPkceVerifier(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/** The S256 challenge for a verifier: base64url(SHA-256(verifier)). Never `plain` — a
+ *  plain challenge is the verifier, so an intercepted authorization request hands over
+ *  everything needed to redeem the code. */
+export function pkceChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
+/** What the state cookie holds: the CSRF state and the PKCE verifier, in one value.
+ *  `.` is safe as the separator — both halves are base64url, which excludes it. */
+export function encodeOAuthState(state: string, verifier: string): string {
+  return `${state}.${verifier}`;
+}
+
+/** Read the cookie back. A cookie minted before PKCE existed (no separator) still decodes,
+ *  with an empty verifier, so a consent round trip already in flight across the deploy
+ *  completes instead of failing with a state mismatch the operator cannot explain — its
+ *  authorization request carried no challenge either, so Google demands no verifier. */
+export function decodeOAuthState(cookieValue: string | null | undefined): { state: string; verifier: string } | null {
+  const raw = (cookieValue ?? "").trim();
+  if (!raw) return null;
+  const dot = raw.indexOf(".");
+  if (dot < 0) return { state: raw, verifier: "" };
+  const state = raw.slice(0, dot);
+  return state ? { state, verifier: raw.slice(dot + 1) } : null;
+}
+
 /**
  * The consent URL to send an operator to.
  *
@@ -58,7 +107,7 @@ export function googleOAuthConfig(baseUrl: string, env: NodeJS.ProcessEnv = proc
  * `include_granted_scopes=false`: we ask for exactly our two scopes and do not inherit
  * whatever else this Google account has previously granted to this client.
  */
-export function googleConsentUrl(config: GoogleOAuthConfig, state: string): string {
+export function googleConsentUrl(config: GoogleOAuthConfig, state: string, codeChallenge?: string): string {
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
@@ -69,6 +118,10 @@ export function googleConsentUrl(config: GoogleOAuthConfig, state: string): stri
     include_granted_scopes: "false",
     state,
   });
+  if (codeChallenge) {
+    params.set("code_challenge", codeChallenge);
+    params.set("code_challenge_method", "S256");
+  }
   return `${AUTH_ENDPOINT}?${params.toString()}`;
 }
 
@@ -117,26 +170,19 @@ export function missingScopes(granted: readonly string[]): string[] {
   return GOOGLE_CALENDAR_SCOPES.filter((s) => !granted.includes(s));
 }
 
-/**
- * How long any call to Google's OAuth endpoints may take. Same bound google-calendar.ts
- * puts on the Calendar API calls, and for the same reason — except this one is load
- * bearing on a PUBLIC path: a free/busy lookup refreshes the access token first, so an
- * unbounded fetch here is an unbounded /schedule/<token>. Node's fetch only falls back to
- * undici's 300s header timeout, which is not a bound a candidate's booking page can wear.
- * "Degrade, never block" has to hold for the whole chain, not most of it.
- */
-export const OAUTH_TIMEOUT_MS = 8000;
+// The token calls share the ONE bound the Calendar API calls use (constants.ts) — this
+// half of the chain used to declare its own copy of the same 8000, on a PUBLIC path
+// (/schedule/<token> → free/busy → refresh) whose bound is only as good as its weakest
+// link. They do NOT share the retry: a one-shot authorization code and a best-effort
+// revoke have nothing to gain from a second attempt.
 
-async function postForm(url: string, body: URLSearchParams, timeoutMs: number = OAUTH_TIMEOUT_MS): Promise<unknown> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+async function postForm(url: string, body: URLSearchParams, timeoutMs: number = CALENDAR_TIMEOUT_MS): Promise<unknown> {
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-      signal: controller.signal,
-    });
+    const res = await calendarFetch(
+      url,
+      { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: body.toString() },
+      { timeoutMs }
+    );
     const text = await res.text();
     try {
       return JSON.parse(text);
@@ -147,35 +193,35 @@ async function postForm(url: string, body: URLSearchParams, timeoutMs: number = 
     // Our own parse rejection passes through unchanged; a transport failure (including
     // our abort) becomes the same fact for the caller: Google gave no answer.
     if (err instanceof GoogleOAuthError) throw err;
+    // An air-gapped install said no before any egress — named as such, because "connect a
+    // calendar" is not a repair an offline operator can make.
+    if (err instanceof CalendarOfflineError) throw new GoogleOAuthError("KP_OFFLINE: this deployment does not call Google.");
+    const aborted = err instanceof Error && err.name === "AbortError";
     throw new GoogleOAuthError(
-      controller.signal.aborted
+      aborted
         ? `Google did not answer within ${timeoutMs}ms.`
         : `Google could not be reached (${err instanceof Error ? err.message : String(err)}).`
     );
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-/** Exchange the one-time authorization code for tokens. */
+/** Exchange the one-time authorization code for tokens. `codeVerifier` is the PKCE proof
+ *  the callback read out of the state cookie; omitted only for a round trip that began
+ *  before PKCE (see decodeOAuthState), where no challenge was sent either. */
 export async function exchangeCode(
   config: GoogleOAuthConfig,
   code: string,
-  timeoutMs: number = OAUTH_TIMEOUT_MS
+  opts: { codeVerifier?: string; timeoutMs?: number } = {}
 ): Promise<GoogleTokens> {
-  return parseTokenResponse(
-    await postForm(
-      TOKEN_ENDPOINT,
-      new URLSearchParams({
-        code,
-        client_id: config.clientId,
-        client_secret: config.clientSecret,
-        redirect_uri: config.redirectUri,
-        grant_type: "authorization_code",
-      }),
-      timeoutMs
-    )
-  );
+  const params = new URLSearchParams({
+    code,
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    redirect_uri: config.redirectUri,
+    grant_type: "authorization_code",
+  });
+  if (opts.codeVerifier) params.set("code_verifier", opts.codeVerifier);
+  return parseTokenResponse(await postForm(TOKEN_ENDPOINT, params, opts.timeoutMs ?? CALENDAR_TIMEOUT_MS));
 }
 
 /** Trade the stored refresh token for a fresh access token. Google does NOT return a new
@@ -183,7 +229,7 @@ export async function exchangeCode(
 export async function refreshAccessToken(
   config: GoogleOAuthConfig,
   refreshToken: string,
-  timeoutMs: number = OAUTH_TIMEOUT_MS
+  timeoutMs: number = CALENDAR_TIMEOUT_MS
 ): Promise<GoogleTokens> {
   const tokens = parseTokenResponse(
     await postForm(
@@ -205,18 +251,17 @@ export async function refreshAccessToken(
  *  Google that never answers must not leave the operator's Disconnect button spinning
  *  for minutes — a failed revoke is a reportable outcome (`revokedAtGoogle: false`), a
  *  hung one is not an outcome at all. */
-export async function revokeToken(token: string, timeoutMs: number = OAUTH_TIMEOUT_MS): Promise<boolean> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+export async function revokeToken(token: string, timeoutMs: number = CALENDAR_TIMEOUT_MS): Promise<boolean> {
   try {
-    const res = await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
-      method: "POST",
-      signal: controller.signal,
-    });
+    const res = await calendarFetch(
+      `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`,
+      { method: "POST" },
+      { timeoutMs }
+    );
     return res.ok;
   } catch {
+    // Includes KP_OFFLINE, where no revoke was attempted: `false` is already the honest
+    // answer the disconnect renders ("disconnected here, withdraw it at Google yourself").
     return false;
-  } finally {
-    clearTimeout(timer);
   }
 }

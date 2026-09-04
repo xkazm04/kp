@@ -232,6 +232,45 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer reminder sweep failed:", e);
     }
+    // Price drift (billing) — the ONE daily pass here, registered as a scheduler job
+    // beside the reminders one so it shares their bookkeeping: claimDueRun gates it to
+    // a single run per cadence (and survives restarts), and scheduler_runs records what
+    // it found instead of leaving it in server logs. The invariant it guards is "the
+    // price the catalog DISPLAYS equals the price the provider CHARGES", which until
+    // now was checked only by a setup script an operator runs once — i.e. never again
+    // after the dashboard edit that introduces the drift.
+    //
+    // Sits UNDER the autonomy pause with the other discretionary passes: it is an
+    // outbound provider read on a timer, and a stop control that leaves egress running
+    // is not one. Self-safe besides — runPriceReconcile answers `skipped` when billing
+    // is unconfigured or KP_OFFLINE is set, so a self-hosted install does nothing.
+    try {
+      const { ensureSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+      const PRICE_RECONCILE_JOB = "price_reconcile";
+      // Daily. The drift it looks for is a human dashboard edit, not an event — hourly
+      // would spend provider quota to learn the same thing 23 more times.
+      ensureSchedule(PRICE_RECONCILE_JOB, { enabled: true, intervalMinutes: 24 * 60 });
+      if (claimDueRun(PRICE_RECONCILE_JOB)) {
+        const startedAt = new Date().toISOString();
+        try {
+          const { runPriceReconcile } = await import("./app/_lib/billing/sync");
+          const r = await runPriceReconcile();
+          // A skipped run (no provider configured) records nothing: at a daily cadence
+          // that would be a row a day saying "billing is off" on every self-host.
+          if (!r.skipped) recordRun({ job: PRICE_RECONCILE_JOB, status: "ok", summary: r, startedAt });
+        } catch (e) {
+          recordRun({
+            job: PRICE_RECONCILE_JOB,
+            status: "error",
+            error: e instanceof Error ? e.message : String(e),
+            startedAt,
+          });
+          console.error("[clock] price reconcile failed:", e);
+        }
+      }
+    } catch (e) {
+      console.error("[clock] price reconcile bookkeeping failed:", e);
+    }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();
   };

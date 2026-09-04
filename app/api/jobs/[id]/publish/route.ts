@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // role's close withdrew are restored explicitly below (not left to sourcing).
       return { already: false, wasClosed: transition.wasClosed, quota };
     })();
-    if (gate.quota) return NextResponse.json(gate.quota, { status: 402 });
+    if (gate.quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: gate.quota.meter, plan: gate.quota.plan });
     const already = gate.already;
 
     // REOPEN (job-postings-lifecycle #1): reopening a CLOSED role is an explicit,

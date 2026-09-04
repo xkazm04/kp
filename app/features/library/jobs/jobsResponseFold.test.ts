@@ -39,10 +39,10 @@ test("a well-formed 200 folds to ok and carries the payload through", () => {
 });
 
 test("a refusal keeps its code so the caller can resolve errors.<code>", () => {
-  const f = foldJsonResponse<Payload>({ ok: false, status: 402 }, { error: "Quota exceeded", code: "quota_exceeded" }, hasCandidates);
+  const f = foldJsonResponse<Payload>({ ok: false, status: 402 }, { error: "Quota exceeded", code: "BILLING_QUOTA_EXCEEDED" }, hasCandidates);
   assert.equal(f.kind, "failed");
   if (f.kind !== "failed") return;
-  assert.equal(f.payload?.code, "quota_exceeded");
+  assert.equal(f.payload?.code, "BILLING_QUOTA_EXCEEDED");
   assert.equal(f.status, 402);
 });
 

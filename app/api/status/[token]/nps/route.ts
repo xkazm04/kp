@@ -8,6 +8,7 @@ import { parseNpsSubmission } from "@/app/_lib/candidate-nps";
 import { candidateNpsFor, recordCandidateNps } from "@/app/_lib/candidate-nps-store";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // W0.6b — candidate NPS capture on the public, token-gated status page.
 //
@@ -51,6 +52,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   }
 }
 
+/** Hard cap on this public door's request body: a 0-10 score and a short free-text comment, which the store clamps again.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_NPS_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
@@ -63,7 +68,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // into a "candidate experience" figure that claims to measure completed journeys.
     if (!resolved.asked) return jsonRefusal("STATUS_NPS_NOT_APPLICABLE", 409);
 
-    const body = (await request.json().catch(() => ({}))) as { score?: unknown; comment?: unknown };
+    const body = await readJsonWithLimit<{ score?: unknown; comment?: unknown }>(request, MAX_NPS_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_NPS_BODY_BYTES });
     const parsed = parseNpsSubmission(body);
     if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: 400 });
 

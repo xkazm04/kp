@@ -121,6 +121,65 @@ stacking a second one).
 query-window derivation); `google-calendar.ts` is the network edge;
 `available-slots.ts` joins them.
 
+Everything that leaves the box goes through **one door**,
+`app/_lib/calendar/edge-fetch.ts` (`calendarFetch`), and it holds four rules:
+
+- **Offline is checked before the network, not after it.** `KP_OFFLINE`
+  (`app/_lib/offline.ts`, `docs/architecture/self-hosting.md` §7) makes every
+  calendar call answer its documented *unknown* — `fetchBusy` → `null`, a write →
+  `failed` — with **no request attempted**. The global fetch guard did already
+  block this egress, by rejecting it, so an air-gapped install logged
+  "Google request failed" at every lookup: an error for a deployment working
+  exactly as the operator configured it. The status a recruiter sees is
+  `unavailable`, never a confidently-empty calendar.
+- **One retry on a throttle.** A `429` or `503` is repeated **exactly once**,
+  after Google's own `Retry-After` (both the delay-seconds and HTTP-date forms),
+  **capped at 2s** — a candidate's booking page is on the other end, and Google
+  may ask for minutes. Nothing else is retried: a `400` is our bug and a second
+  attempt buys nothing. Before this, a single transient throttle collapsed the
+  whole availability check to `unavailable`.
+- **One timeout for the whole chain.** `CALENDAR_TIMEOUT_MS`
+  (`app/_lib/calendar/constants.ts`, 8s per attempt) bounds the Calendar API
+  calls *and* the OAuth token calls, which used to declare separate copies of the
+  same number on a public path (`/schedule/<token>` → free/busy → token refresh)
+  whose bound is only as good as its weakest link.
+- **One interview duration.** `DEFAULT_INTERVIEW_MINUTES` (same file, 45) is the
+  single source behind `free-busy.ts`'s `DEFAULT_SLOT_MINUTES` and
+  `calendar-links.ts`'s `DEFAULT_DURATION_MIN`.
+
+Written events state `timeZone: "UTC"` beside each `dateTime`. A bare `dateTime`
+with no offset is read in the *calendar's* zone, so the event was correct only
+because every instant kp writes happens to be UTC.
+
+Pinned by `app/_lib/calendar/edge-fetch.test.ts` (offline makes no request; 429
+then 200 answers; a second throttle stops; the cap; the time zone on the wire).
+
+### Connecting a calendar — the OAuth door
+
+`GET /api/calendar/google/start` (operator-only, 30/10min per IP) mints a CSRF
+state **and a PKCE verifier**, stores both in one httpOnly `kp_gcal_state` cookie
+(`<state>.<verifier>`, `SameSite=Lax`, `Secure` on https, `Path=/api/calendar/google`,
+10-minute `maxAge`) and redirects to Google with `code_challenge` =
+base64url(SHA-256(verifier)) and `code_challenge_method=S256`. The callback
+decodes the cookie, deletes it **at that path** (a cookie's identity is name +
+path), constant-time-compares the state, and redeems the code **with the
+verifier**.
+
+The state cookie alone stopped a *forged callback* binding someone else's
+calendar to this workspace. PKCE covers the other direction: an authorization
+code that leaks in transit — a referrer, a proxy log, a pasted URL — is a bearer
+token for a real person's calendar, and is now useless without the verifier,
+which never leaves the deployment. One cookie for both halves, because two
+cookies that must expire together are two chances to expire only one; a round
+trip that began before PKCE still completes (its cookie has no verifier, and its
+authorization request carried no challenge either).
+
+Pinned by `app/api/calendar/google/start/route.test.ts` (cookie flags, the
+challenge derivation, a fresh state per authorization, the 503 for an
+unconfigured deployment, and the limiter — which mints no cookie when it
+refuses), `app/_lib/calendar/google-oauth.test.ts` (RFC 7636's own S256 vector)
+and `app/api/calendar/google/callback/route.test.ts` (the one-shot delete).
+
 **The degradation contract:** `fetchBusy` returns `null` for *"we do not know"*
 and `[]` for *"checked, nothing in the way"*. They are never conflated —
 treating an outage as an empty calendar would confidently offer busy times.

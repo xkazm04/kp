@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { billingOrgForWorkspace, polarGatewayFromEnv } from "@/app/_lib/billing";
+import { billingOrgForWorkspace, BillingProviderTimeoutError, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db/billing";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -40,6 +40,12 @@ export async function POST(request: NextRequest) {
   try {
     return jsonOk(await gateway.createPortalSession(customerId));
   } catch (error) {
+    // Already retried once inside the gateway on a transient status; a timeout here
+    // means two full budgets elapsed, so say "the provider did not answer" rather
+    // than the generic "could not open the portal".
+    if (error instanceof BillingProviderTimeoutError) {
+      return safeJsonError(error, "api/billing/portal", "BILLING_PROVIDER_TIMEOUT", 504);
+    }
     return safeJsonError(error, "api/billing/portal", "BILLING_PORTAL_FAILED", 502);
   }
 }

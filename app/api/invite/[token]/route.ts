@@ -7,6 +7,7 @@ import { acceptInvite, MIN_PASSWORD_LENGTH } from "@/app/_lib/org-service";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { isThrottled, recordFailedAttempt, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // PUBLIC (proxy allow-listed): the invited-member accept flow. GET previews a
 // redeemable invite; POST redeems it (sets the password, adds the membership) and
@@ -57,6 +58,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   });
 }
 
+/** Hard cap on this public door's request body: a display name and a password — an unauthenticated account-creation door.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_INVITE_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   // Throttle BEFORE the body is even read: the redeem path writes a user, a
@@ -66,7 +71,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   recordFailedAttempt(redeemKey, INVITE_THROTTLE);
-  const body = (await request.json().catch(() => ({}))) as { name?: unknown; password?: unknown };
+  const body = await readJsonWithLimit<{ name?: unknown; password?: unknown }>(request, MAX_INVITE_BODY_BYTES, {});
+  if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_INVITE_BODY_BYTES });
   const password = typeof body.password === "string" ? body.password : "";
   const name = typeof body.name === "string" ? body.name : null;
 
