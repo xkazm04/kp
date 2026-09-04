@@ -22,7 +22,7 @@ from pipeline.jobfit.devcase.provenance import (
 from pipeline.jobfit.devcase.scenarios import generate_scenarios
 from pipeline.jobfit.devcase.submission_scenarios import generate_submissions
 from pipeline.jobfit.devcase.chat import chat_reply
-from pipeline.jobfit.devcase.evaluate import evaluate_submission, mint_followups
+from pipeline.jobfit.devcase.evaluate import evaluate_submission, mint_followups, score_transfer
 from pipeline.jobfit.devcase.provenance import fenced_untrusted
 from pipeline.jobfit.devcase.reflect import assess_tooling, reflect_commits
 from pipeline.jobfit.match_reasoning import build_prompt
@@ -253,6 +253,12 @@ class UntrustedFenceReachesEveryPromptTest(unittest.TestCase):
              lambda p: assess_tooling(reflection, commits, case["coverProbes"], submission=work, provider=p)),
             ("evaluate.evaluate_submission", INJECTION,
              lambda p: evaluate_submission(reflection, tooling, case, role, submission=work, provider=p)),
+            # score_transfer's context carries `evaluation.summary` — a MODEL-authored
+            # sentence written from fenced candidate content, so an injection can be
+            # LAUNDERED through the honest evaluate step into this one, whose number the
+            # promote gate reads. It was the last devcase prompt inlining its ctx raw.
+            ("evaluate.score_transfer", INJECTION,
+             lambda p: score_transfer({"dimensionScores": {}, "summary": INJECTION}, role, provider=p)),
             ("evaluate.mint_followups", INJECTION,
              lambda p: mint_followups(reflection, tooling, evaluation, case, role, provider=p)),
             ("chat.chat_reply", INJECTION,
