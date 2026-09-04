@@ -17,6 +17,7 @@ from unittest import mock
 
 from pipeline.jobfit.devcase import devcase_cli
 from pipeline.jobfit.devcase.models import LOW_CONFIDENCE
+from pipeline.jobfit import _cli
 from pipeline.jobfit.devcase.provenance import combine_source
 
 
@@ -517,6 +518,47 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
         # No emitted artifact leaks the transient key.
         for art in payload["result"].values():
             self.assertNotIn("fallbackReason", art)
+
+
+
+class TestDevcaseCliSharedErrorVocabulary(unittest.TestCase):
+    """devcase_cli hand-rolled its own `{error, status, code}` print and its own two
+    code literals, so the shared scaffold's RAISE-SITE vocabulary (_cli.CliError,
+    not_found, invalid_input — the closed set python-runner.ts mirrors) could not
+    reach the bridge from ANY devcase command: a genuinely not-found record left the
+    engine as invalid_input or engine_error, and the UI could only render the wrong
+    remedy. It now emits through _cli.emit_error, so the code chosen where the failure
+    is RAISED is the code the browser resolves."""
+
+    def test_a_raise_site_code_survives_to_the_envelope(self):
+        # not_found is in ERROR_CODES but appears nowhere in devcase_cli's own guards —
+        # the point is that a code from the shared vocabulary now rides through at all.
+        with mock.patch(
+            "pipeline.jobfit.devcase.source.source_candidates",
+            side_effect=_cli.not_found("that role is not in the corpus"),
+        ):
+            with tempfile.TemporaryDirectory() as d:
+                role, cands = Path(d) / "role.json", Path(d) / "cands.json"
+                role.write_text("{}", encoding="utf-8")
+                cands.write_text("[]", encoding="utf-8")
+                code, _out, err = _run(["source", "--role-json", str(role), "--candidates-json", str(cands)])
+        payload = _last_json(err)
+        self.assertEqual(payload["code"], "not_found")
+        self.assertEqual(payload["status"], 404)
+        self.assertEqual(code, 1)  # not user-fixable input -> the engine exit code
+
+    def test_every_emitted_code_is_in_the_shared_closed_set(self):
+        cases = [
+            (["source"], "invalid_input", 400, 2),
+        ]
+        for argv, expected_code, expected_status, expected_exit in cases:
+            with self.subTest(argv=argv):
+                exit_code, _out, err = _run(argv)
+                payload = _last_json(err)
+                self.assertIn(payload["code"], _cli.ERROR_CODES)
+                self.assertEqual(payload["code"], expected_code)
+                self.assertEqual(payload["status"], expected_status)
+                self.assertEqual(exit_code, expected_exit)
 
 
 if __name__ == "__main__":

@@ -39,10 +39,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-from .._cli import configure_stdio
+from .._cli import CliError, _classify as _classify_failure, configure_stdio, emit_error, invalid_input
 from ..llm import emit_deterministic, provider_availability, resolve_provider
 from . import analyze as _analyze
 from . import design as _design
@@ -68,12 +67,25 @@ _USE_CASE_BY_COMMAND = {
     "baseline-solve": "devcase_seed",
 }
 
-# Stable, machine-readable error codes the UI branches on. INVALID_INPUT is a
-# user-correctable problem (missing/garbled --*-json arg, failed pydantic
-# validation) → 400; ENGINE_ERROR is an unexpected failure in the pipeline
-# itself (provider crash, bug) → 500, signalling retry/escalate.
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
+# The failure vocabulary is NOT redeclared here. It lives once in .._cli
+# (ERROR_CODES + CliError + the not_found/invalid_input raise-site helpers), which is
+# also what python-runner.ts mirrors. This module used to hand-roll the same two
+# literals and its own `{error, status, code}` print, so the shared scaffold's
+# raise-site codes were unreachable from every devcase command: a genuinely
+# not-found record could only leave as invalid_input or engine_error. Guards now
+# raise `invalid_input(...)` (or a CliError naming its own code) and `emit_error`
+# writes the one envelope the bridge parses.
+#
+# Exit codes keep jobfit/cli.py's convention — 2 = user-fixable input, 1 = engine
+# fault — because python-runner.ts falls back on the exit code when it cannot parse
+# the envelope. `_classify_failure` is the SAME reading emit_error just used, so the
+# code and the exit status can never disagree.
+_INPUT_EXIT = 2
+_ENGINE_EXIT = 1
+
+
+def _exit_code(exc: Exception) -> int:
+    return _INPUT_EXIT if _classify_failure(exc)[1] == 400 else _ENGINE_EXIT
 
 
 def _require_list_of_dicts(value: object, flag: str) -> list:
@@ -83,7 +95,7 @@ def _require_list_of_dicts(value: object, flag: str) -> list:
     AttributeError) and the bare ``except Exception`` would misroute it to 500 engine_error. Raise
     ValueError so it lands as 400 invalid_input / exit 2 — the documented 'fix your input' signal."""
     if not isinstance(value, list) or not all(isinstance(x, dict) for x in value):
-        raise ValueError(f"{flag} must be a JSON array of objects")
+        raise invalid_input(f"{flag} must be a JSON array of objects")
     return value
 
 
@@ -91,7 +103,7 @@ def _require_object(value: object, flag: str) -> dict:
     """Guard a --*-json input that must be a JSON object (case/role/repo) — see
     :func:`_require_list_of_dicts` for why wrong-shape input must be 400, not 500."""
     if not isinstance(value, dict):
-        raise ValueError(f"{flag} must be a JSON object")
+        raise invalid_input(f"{flag} must be a JSON object")
     return value
 
 
@@ -246,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
             from . import source as _source
 
             if not args.role_json or not args.candidates_json:
-                raise ValueError("source requires --role-json and --candidates-json")
+                raise invalid_input("source requires --role-json and --candidates-json")
             role = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
             candidates = _require_list_of_dicts(json.loads(args.candidates_json.read_text(encoding="utf-8")), "--candidates-json")
             # result = {"candidates": [...], "skipped": int, "skippedReasons": [...]} — the
@@ -265,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
             from .models import CaseScenario, RoleSpec
 
             if not (args.case_json and args.role_json and args.scorecard_json and args.profile_json):
-                raise ValueError("observed-interview requires --case-json, --role-json, --scorecard-json and --profile-json")
+                raise invalid_input("observed-interview requires --case-json, --role-json, --scorecard-json and --profile-json")
             case = CaseScenario.model_validate(_require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json"))
             role = RoleSpec.model_validate(_require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json"))
             scorecard = _require_object(json.loads(args.scorecard_json.read_text(encoding="utf-8")), "--scorecard-json")
@@ -289,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
             from .models import CaseEvaluation, CaseScenario, RoleSpec, TransferAssessment
 
             if not (args.case_json and args.role_json and args.evaluation_json and args.transfer_json and args.profile_json):
-                raise ValueError(
+                raise invalid_input(
                     "observed-skills requires --case-json, --role-json, --evaluation-json, --transfer-json and --profile-json"
                 )
             case = CaseScenario.model_validate(_require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json"))
@@ -326,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
             from . import chat as _chat
 
             if not args.case_json or not args.role_json or not args.message:
-                raise ValueError("session-chat requires --case-json, --role-json and --message")
+                raise invalid_input("session-chat requires --case-json, --role-json and --message")
             channel = args.channel if args.channel in ("assistant", "stakeholder") else "assistant"
             case_obj = _require_object(json.loads(args.case_json.read_text(encoding="utf-8")), "--case-json")
             role_obj = _require_object(json.loads(args.role_json.read_text(encoding="utf-8")), "--role-json")
@@ -353,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
             from .models import CaseScenario, RoleSpec
 
             if not args.case_json or not args.role_json:
-                raise ValueError("baseline-solve requires --case-json and --role-json")
+                raise invalid_input("baseline-solve requires --case-json and --role-json")
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed_obj = _require_object(json.loads(args.seed_json.read_text(encoding="utf-8")), "--seed-json") if args.seed_json else None
@@ -367,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
             from .models import CaseScenario, RoleSpec
 
             if not args.case_json or not args.role_json:
-                raise ValueError("interview-scenario requires --case-json and --role-json")
+                raise invalid_input("interview-scenario requires --case-json and --role-json")
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             scenario, src = _scenario.scenario_from_case(case, role, lang=lang, provider=provider)
@@ -381,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
             from .models import CaseScenario, RoleSpec
 
             if not args.case_json or not args.role_json:
-                raise ValueError("materialize-seed requires --case-json and --role-json")
+                raise invalid_input("materialize-seed requires --case-json and --role-json")
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed, src = _seed.materialize_seed(case, role, lang=lang, provider=provider)
@@ -390,12 +402,12 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command in ("reflect-commits", "evaluate-submission"):
             if not args.commits_json:
-                raise ValueError(f"{args.command} requires --commits-json")
+                raise invalid_input(f"{args.command} requires --commits-json")
             # Require the rubric + role for evaluation: defaulting them to {} runs the scorer on
             # an empty rubric and a titleless role and exits 0 with a confident-looking but
             # ungrounded evaluation (success theater). Fail loudly (400 invalid_input) instead.
             if args.command == "evaluate-submission" and (not args.case_json or not args.role_json):
-                raise ValueError("evaluate-submission requires --case-json and --role-json")
+                raise invalid_input("evaluate-submission requires --case-json and --role-json")
             commits = _require_list_of_dicts(json.loads(args.commits_json.read_text(encoding="utf-8")), "--commits-json")
             probes = (
                 _require_list_of_dicts(json.loads(args.probes_json.read_text(encoding="utf-8")), "--probes-json")
@@ -515,7 +527,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if not args.need_json:
-            raise ValueError(f"{args.command} requires --need-json")
+            raise invalid_input(f"{args.command} requires --need-json")
         need = DevNeed.model_validate(json.loads(args.need_json.read_text(encoding="utf-8")))
 
         if args.command == "analyze-need":
@@ -532,7 +544,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "design-artifacts":
             if not args.analysis_json:
-                raise ValueError("design-artifacts requires --analysis-json")
+                raise invalid_input("design-artifacts requires --analysis-json")
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider, lang=lang)
             if args.role_only:
@@ -556,18 +568,15 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        raise ValueError(f"unhandled command {args.command}")  # pragma: no cover
-    except ValueError as exc:
-        # Our explicit input guards above AND pydantic's ValidationError (a
-        # ValueError subclass, raised by the model_validate calls) are both
-        # user-correctable, so they map to 400. Exit 2 matches jobfit/cli.py and
-        # python-runner's parseStderrError fallback.
-        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
-        return 2
+        raise CliError(f"unhandled command {args.command}")  # pragma: no cover — engine bug, 500
     except Exception as exc:
-        # Genuine engine failure — the caller should retry/escalate, not edit input.
-        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        # ONE envelope, from the shared scaffold. The code is chosen at the RAISE site
+        # (invalid_input / CliError) or read off the exception by _cli._classify —
+        # pydantic's ValidationError and a JSONDecodeError are the caller's input (400
+        # invalid_input, exit 2); anything else is an engine fault the caller should
+        # retry/escalate rather than edit (500 engine_error, exit 1).
+        emit_error(exc)
+        return _exit_code(exc)
 
 
 if __name__ == "__main__":
