@@ -40,10 +40,34 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LLM_PROVIDERS, LLM_USE_CASES } from "./llm-config.ts";
 import { BENCH_OPS } from "./llm-quality.ts";
+import { TRANSIENT_HTTP_CODES, TRANSIENT_MARKERS } from "./gemini-retry.ts";
 
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CAPABILITIES = path.join(REPO_ROOT, "pipeline", "jobfit", "llm", "capabilities.py");
 const SCENARIOS = path.join(REPO_ROOT, "pipeline", "jobfit", "llm", "bench", "scenarios.py");
+const BASE = path.join(REPO_ROOT, "pipeline", "jobfit", "llm", "base.py");
+const MONITOR = path.join(REPO_ROOT, "pipeline", "jobfit", "llm", "monitor.py");
+// Three more mirrors live in modules this test must NOT import: llm-lighttrack.ts
+// resolves env at import time and llm-quality.ts is client-safe, and both keep
+// their tables module-private on purpose. Reading them as SOURCE pins the mirror
+// without widening either module's public surface.
+const LIGHTTRACK_TS = path.join(REPO_ROOT, "app", "_lib", "llm-lighttrack.ts");
+const QUALITY_TS = path.join(REPO_ROOT, "app", "_lib", "llm-quality.ts");
+
+/** The `"key": "value"` pairs of an object/dict literal declared as `declaration`
+ *  (same literal shape in TS and Python, so one reader serves both). */
+function stringMap(file: string, declaration: string, closer = "}"): Record<string, string> {
+  const source = readFileSync(file, "utf-8");
+  const start = source.indexOf(declaration);
+  assert.notEqual(start, -1, `${declaration} not found in ${path.basename(file)} - did it move or get renamed?`);
+  const open = source.indexOf("{", start);
+  const close = source.indexOf(closer, open);
+  assert.ok(open !== -1 && close > open, `${declaration} is not an object literal any more`);
+  const body = source.slice(open, close);
+  const out: Record<string, string> = {};
+  for (const match of body.matchAll(/(?:^|[{,])\s*"?([a-z_]+)"?\s*:\s*"([a-zA-Z0-9_.-]+)"/gm)) out[match[1]] = match[2];
+  return out;
+}
 
 /** The keys of a top-level Python dict literal, in declaration order.
  *  `declaration` is matched literally up to the opening brace, so a renamed or
@@ -114,5 +138,93 @@ test("every bench op rolls up to a use case that actually exists", () => {
   const known = new Set<string>(LLM_USE_CASES);
   for (const op of BENCH_OPS) {
     assert.ok(known.has(op.useCase), `bench op ${op.id} rolls up to "${op.useCase}", which is not an LLM use case`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Three MORE hand-mirrors, each carrying a header that ASKS for sync and, until
+// now, no test doing the asking. Same failure mode as the catalogs above: silent,
+// and in a direction neither the type system nor any other test can see.
+// ---------------------------------------------------------------------------
+
+/** The string / 3-digit-int literals between `opener` and `closer` after `marker`. */
+function pythonLiterals(file: string, marker: string, opener: string, closer: string): string[] {
+  const source = readFileSync(file, "utf-8");
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `${marker} not found in ${path.basename(file)} - did it change shape?`);
+  const open = source.indexOf(opener, start);
+  const close = source.indexOf(closer, open);
+  assert.ok(open !== -1 && close > open, `${marker} is not delimited by ${opener} ... ${closer} any more`);
+  return [...source.slice(open, close).matchAll(/"([^"]+)"|\b(\d{3})\b/g)].map((m) => m[1] ?? m[2]);
+}
+
+test("gemini-retry's transient HTTP codes match base.py is_transient_error", () => {
+  // A code Python retries and TS does not = the github-analysis review hard-fails on
+  // a blip every other kp call rides out; the reverse burns attempts on a permanent
+  // error. Neither is visible in a type, and no other test reads both sides.
+  const python = pythonLiterals(BASE, "def is_transient_error", "{408", "}").map(Number);
+  assert.ok(python.length >= 5, `parsed only ${python.length} status codes from is_transient_error`);
+  assert.deepEqual([...TRANSIENT_HTTP_CODES].sort(), python.sort());
+});
+
+test("gemini-retry's transient message markers match base.py is_transient_error", () => {
+  const python = pythonLiterals(BASE, "def is_transient_error", "for marker in (", ")");
+  assert.ok(python.length >= 10, `parsed only ${python.length} markers from is_transient_error`);
+  assert.deepEqual([...TRANSIENT_MARKERS].sort(), python.sort());
+});
+
+test("the LightTrack alias table folds every provider monitor.py folds, the same way", () => {
+  const aliases = stringMap(LIGHTTRACK_TS, "const PROVIDER_ALIASES", "};");
+  assert.ok(Object.keys(aliases).length >= 5, `parsed only ${Object.keys(aliases).length} aliases`);
+  // monitor.py's _TRACK_PROVIDER is the authoritative fold (LightTrack's SDK does the
+  // vendor ones itself). A pair Python folds and TS does not means TS-direct spend
+  // lands in a bucket the Python spend for the SAME credential never uses.
+  const python = stringMap(MONITOR, "_TRACK_PROVIDER = ");
+  assert.ok(Object.keys(python).length >= 1, "parsed no pairs from _TRACK_PROVIDER");
+  for (const [provider, bucket] of Object.entries(python)) {
+    assert.equal(aliases[provider], bucket, `TS must fold ${provider} -> ${bucket} like monitor.py does`);
+  }
+  // Normalizing twice must not move the bucket: every target is itself a key mapping
+  // to itself. Without this, a future `google: "gemini"` row would split one vendor's
+  // spend by which spelling the call site happened to use.
+  for (const bucket of new Set(Object.values(aliases))) {
+    assert.equal(aliases[bucket], bucket, `"${bucket}" is an alias target, so it must map to itself`);
+  }
+  // Every kp provider id in the table must be one Python declares - a rename on the
+  // Python side otherwise leaves an alias row that can never match again.
+  const declared = new Set(pythonDictKeys(CAPABILITIES, "PROVIDER_CAPABILITIES"));
+  // Non-kp spellings deliberately carried so an SDK-shaped provider string still folds.
+  const SDK_SPELLINGS = new Set(["google", "vertex", "claude", "openai", "anthropic"]);
+  for (const provider of Object.keys(aliases)) {
+    assert.ok(
+      declared.has(provider) || SDK_SPELLINGS.has(provider),
+      `alias row "${provider}" is neither a declared provider nor a known SDK spelling`
+    );
+  }
+});
+
+test("the matrix prefix table covers every direct-vendor default and agrees with the alias table", () => {
+  const prefixes = stringMap(QUALITY_TS, "const PROVIDER_PREFIX", "};");
+  const declared = new Set(pythonDictKeys(CAPABILITIES, "PROVIDER_CAPABILITIES"));
+  assert.ok(Object.keys(prefixes).length >= 3, `parsed only ${Object.keys(prefixes).length} prefixes`);
+  for (const provider of Object.keys(prefixes)) {
+    assert.ok(declared.has(provider), `prefix row "${provider}" is not a provider capabilities.py declares`);
+  }
+  // A provider with a built-in DEFAULT_MODEL is one an operator can pin WITHOUT
+  // typing a slug; with no prefix, matrixSlug() hands the scorecard a bare model name
+  // the OpenRouter-run matrix never measured, so the Models tab silently shows no
+  // recommendation for exactly the providers that are easiest to select.
+  const defaults = stringMap(CAPABILITIES, "DEFAULT_MODELS: dict");
+  assert.ok(Object.keys(defaults).length >= 3, `parsed only ${Object.keys(defaults).length} default models`);
+  for (const provider of Object.keys(defaults)) {
+    assert.ok(prefixes[provider], `${provider} has a default model but no matrix slug prefix`);
+  }
+  // The two tables must name the same vendor namespace (gemini -> google,
+  // azure_openai -> openai): disagreeing means one model is metered under one bucket
+  // and measured under another, and the Models tab's recommendation stops being about
+  // the model the operator is actually paying for.
+  const aliases = stringMap(LIGHTTRACK_TS, "const PROVIDER_ALIASES", "};");
+  for (const [provider, prefix] of Object.entries(prefixes)) {
+    if (aliases[provider]) assert.equal(prefix, aliases[provider], `${provider}: prefix and LightTrack alias disagree`);
   }
 });
