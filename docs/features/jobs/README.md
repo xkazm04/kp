@@ -40,9 +40,17 @@ ledger:
   The one control with no column to live in — "open roles only", a lifecycle
   predicate over the whole query rather than a value in any cell — is a toggle
   chip beside the count it changes.
-- **Paging** — the shared 20-row `TablePager`. `useJobsList` owns the page index
-  beside the filters and every filter setter returns to page 1; `clampPage`
-  catches everything else (a publish that drops a row out of an "open only" view).
+- **Paging** — the shared 20-row `TablePager`. `useJobsList` owns the index beside
+  the filters and every filter setter returns to page 1; `clampPage` catches
+  everything else (a publish that drops a row out of an "open only" view).
+
+  It is called **`pageIndex`, not `page`**, and the name is load-bearing: `page` on
+  that hook is already the ROUTE's honesty triple (`truncated` / `matching` /
+  `limit` — was the server's answer cut, and at what size), which is a different
+  fact from which 20-row slice the client is showing. `JobsTabResults` reads both:
+  the summary line renders `showingCut` against `matching` when the slice was cut,
+  the pager renders the index. They were briefly both named `page` after a merge,
+  which is a redeclaration the type checker catches but a reader would not.
 
 ## Entry points
 
