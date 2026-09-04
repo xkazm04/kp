@@ -21,6 +21,12 @@ import { useAnalyzeCvFiles } from "./useAnalyzeCvFiles";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./analyzeRunAnalysis";
 import { resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
 import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
+import {
+  ANALYZE_DRAFT_KEY,
+  parseAnalyzeDraft,
+  restoreDraftValue,
+  serializeAnalyzeDraft,
+} from "./analyzeDraft";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 
@@ -28,12 +34,9 @@ export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 // view can re-attach to the still-running (or finished) server-side task.
 const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 
-// Typed-but-not-yet-run inputs. The Workspace unmounts this tab on every sidebar
-// switch, so without this a pasted 5,000-word JD is gone the moment the user
-// hops to Pipeline to check a name. Text inputs only — File objects can't be
-// stashed in sessionStorage (attachments must be re-added after a switch).
-const ANALYZE_DRAFT_KEY = "kp.analyzeDraft";
-type AnalyzeDraft = { jd?: string; company?: string; github?: string };
+// The draft's key, codec and restore rule live in analyzeDraft.ts — pure, and so
+// testable against the one input nobody here controls (sessionStorage can hold
+// any JSON another tab or an older build left behind).
 
 // A message no catalog will ever produce, used as the "this code is unknown"
 // signal from resolvers whose only failure mode is silently returning a fallback.
@@ -193,7 +196,8 @@ export function useAnalyzeForm() {
     try {
       sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
     } catch {
-      /* ignore */
+      /* best-effort: sessionStorage throws in a private window or with site data
+         blocked, and there is then no persisted draft to remove either. */
     }
   }
 
@@ -201,7 +205,8 @@ export function useAnalyzeForm() {
     try {
       sessionStorage.removeItem(ANALYZE_TASK_KEY);
     } catch {
-      /* ignore */
+      /* best-effort: no storage means no stashed task id to clear. The run is
+         already halted by the abort above — this only drops the resume crumb. */
     }
   };
 
@@ -290,7 +295,8 @@ export function useAnalyzeForm() {
         try {
           sessionStorage.setItem(ANALYZE_TASK_KEY, id);
         } catch {
-          /* ignore */
+          /* best-effort: the crumb only buys re-attachment after a refresh. Without
+             it the run still completes in this tab; a reload just loses the thread. */
         }
       },
     };
@@ -300,19 +306,20 @@ export function useAnalyzeForm() {
   // empty initial state). Only fills fields that are still empty — a saved-JD
   // pick or prop-seeded value from this mount always wins over the stale draft.
   useEffect(() => {
-    let draft: AnalyzeDraft | null = null;
+    let draft: ReturnType<typeof parseAnalyzeDraft> = null;
     try {
-      const raw = sessionStorage.getItem(ANALYZE_DRAFT_KEY);
-      draft = raw ? (JSON.parse(raw) as AnalyzeDraft) : null;
+      draft = parseAnalyzeDraft(sessionStorage.getItem(ANALYZE_DRAFT_KEY));
     } catch {
-      /* ignore */
+      /* best-effort: a private window or blocked site data makes sessionStorage
+         throw on read; the form simply starts empty, which is the pre-draft
+         behaviour and nothing an operator would act on. */
     }
     if (!draft) return;
     const { jd, company, github } = draft;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch
-    if (jd) setJobDescriptionText((prev) => prev || jd);
-    if (company) setCompanyText((prev) => prev || company);
-    if (github) setGithubProfile((prev) => prev || github);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
+    if (jd) setJobDescriptionText((prev) => restoreDraftValue(prev, jd));
+    if (company) setCompanyText((prev) => restoreDraftValue(prev, company));
+    if (github) setGithubProfile((prev) => restoreDraftValue(prev, github));
   }, []);
 
   // Persist the draft (debounced) so it survives the tab unmount. An all-empty
@@ -320,16 +327,19 @@ export function useAnalyzeForm() {
   useEffect(() => {
     const id = setTimeout(() => {
       try {
-        if (!jobDescriptionText && !companyText && !githubProfile) {
-          sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
-        } else {
-          sessionStorage.setItem(
-            ANALYZE_DRAFT_KEY,
-            JSON.stringify({ jd: jobDescriptionText, company: companyText, github: githubProfile } satisfies AnalyzeDraft)
-          );
-        }
+        // null means REMOVE: an all-empty draft must not be written back, or a
+        // reset resurrects itself as a stale-looking entry.
+        const payload = serializeAnalyzeDraft({
+          jd: jobDescriptionText,
+          company: companyText,
+          github: githubProfile,
+        });
+        if (payload === null) sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
+        else sessionStorage.setItem(ANALYZE_DRAFT_KEY, payload);
       } catch {
-        /* ignore */
+        /* best-effort: sessionStorage throws in a private window or with site
+           data blocked. The draft is a convenience, never the request — the form
+           keeps working and simply does not survive the next tab switch. */
       }
     }, 300);
     return () => clearTimeout(id);
@@ -348,7 +358,8 @@ export function useAnalyzeForm() {
     try {
       stored = sessionStorage.getItem(ANALYZE_TASK_KEY);
     } catch {
-      /* ignore */
+      /* best-effort: no storage means no crumb to resume from, which is the same
+         path as a first visit — `stored` stays null and the effect returns. */
     }
     if (!stored) return;
     const resumeStored = stored;

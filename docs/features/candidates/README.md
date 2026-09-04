@@ -134,6 +134,21 @@ actually succeeded may claim "No JDs saved". The list fetch is bounded by
 and carries an `AbortSignal`, so unmounting the tab or hitting Retry cancels the
 outstanding request instead of leaving it to land on a surface that has moved on.
 
+**One CV variant means one set of bytes, and the draft refuses junk.** The intake
+verdict is `admitCvFile` (`analyzeCvIntake.ts`): the cap, then content dedupe via
+the shared `cvVariantHash` the server intake also uses, and — deliberately — a
+hash that cannot run (no secure context, so no `crypto.subtle`) ADMITS the file
+and leaves the server as the authoritative deduper, since dropping a recruiter's
+upload is the worse failure. `useAnalyzeCvFiles` keeps the parts that are about
+React: adds are serialized on a promise chain, and the cap is re-checked against
+the live ref after the hash await, because a sibling add can take the last slot
+in that window. The typed draft's codec is `analyzeDraft.ts` — `sessionStorage`
+can hold anything another tab or an older build left behind, so a non-string
+field is dropped rather than pushed into a controlled `<textarea>` (a corrupted
+`github` never costs the recruiter their JD), an all-empty draft removes the key
+instead of writing a hollow one, and a restore only fills a field still empty so
+a saved-JD pick always beats a stale draft.
+
 **The drop highlight is counted, and the zones announce themselves.** A zone is a
 `<label>` wrapping an icon, a title and a hint, and `dragenter`/`dragleave` fire
 for each of them — so `useDropZoneHighlight`'s old boolean flipped off the moment

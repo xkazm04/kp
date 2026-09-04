@@ -3,8 +3,8 @@
 // serialized-queue guard against two near-simultaneous drops of the same file
 // both passing a stale dedupe check.
 import { useCallback, useRef, useState } from "react";
-import { isDuplicateCvVariant } from "@/app/_lib/cv-variant";
 import { MAX_CV_VARIANTS } from "./AnalyzeTypes";
+import { admitCvFile, fitsWithinCap } from "./analyzeCvIntake";
 
 export function useAnalyzeCvFiles() {
   const [cvFiles, setCvFiles] = useState<File[]>([]);
@@ -31,25 +31,18 @@ export function useAnalyzeCvFiles() {
   }
 
   async function addCvFileInner(file: File): Promise<void> {
-    const current = cvFilesRef.current;
-    if (current.length >= MAX_CV_VARIANTS) return;
-    // Same-variant identity is by CONTENT, via the one cvVariantHash helper that
-    // the server intake (collectCvFiles) also uses, so the two sides can't
-    // disagree on what a duplicate is. The old rule here — name && size match —
-    // silently merged two different CVs that shared a filename and byte length;
-    // content hashing only merges true byte-for-byte clones.
-    let duplicate = false;
-    try {
-      duplicate = await isDuplicateCvVariant(file, current);
-    } catch {
-      // Hashing needs crypto.subtle (a secure context). If it's unavailable we
-      // must not silently drop the file — add it and let the server, which can
-      // always hash, be the authoritative dedupe.
-      duplicate = false;
-    }
-    if (duplicate) return;
+    // The verdict — cap, content dedupe, and the admit-on-hash-failure rule —
+    // lives in admitCvFile, which is pure over a snapshot and therefore testable
+    // over real Files without a renderer. This function keeps only the parts that
+    // are genuinely about React: reading the live ref before and after the await,
+    // and committing.
+    const result = await admitCvFile(cvFilesRef.current, file, MAX_CV_VARIANTS);
+    if (result.outcome !== "added") return;
+    // Re-check against the LIVE ref, not the snapshot admitCvFile saw: a sibling
+    // add can fill the last slot while this one awaits the hash, and the
+    // pre-check alone would let the list overflow by one.
+    if (!fitsWithinCap(cvFilesRef.current, MAX_CV_VARIANTS)) return;
     const merged = [...cvFilesRef.current, file];
-    if (merged.length > MAX_CV_VARIANTS) return;
     cvFilesRef.current = merged; // advance synchronously so the next queued add sees it
     setCvFiles(merged);
   }
