@@ -81,7 +81,16 @@ export interface VoiceAdapter {
   // `relay` (optional; OpenAI honors it, others may ignore): transport-only
   // mode — VAD + transcription stay on, the provider NEVER speaks on its own;
   // utterances are injected by the caller (voice-conversation-plane.md).
-  connect(opts: { instructions: string; language?: string | null; relay?: boolean }): Promise<VoiceConnect>;
+  // `sessionToken` (optional): the interview session's capability token. Only a
+  // FINGERPRINT of it is ever sent to a provider (voice/openai.ts), so a minted
+  // credential is bound to one session without handing a third party the
+  // credential that opens the whole interview.
+  connect(opts: {
+    instructions: string;
+    language?: string | null;
+    relay?: boolean;
+    sessionToken?: string | null;
+  }): Promise<VoiceConnect>;
 }
 
 /** Which of an adapter's requiredEnv vars are currently unset — empty when the

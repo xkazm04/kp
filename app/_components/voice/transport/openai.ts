@@ -29,6 +29,17 @@ const OAI_DROP_DEBOUNCE_MS = 8000;
  *  not a room microphone, so its noise floor is essentially zero. */
 const OAI_SPEAKING_RMS = 0.02;
 
+/** How long the browser waits for OpenAI to answer its SDP offer before giving
+ *  up. The only bound on this exchange used to be the component's 30s connect
+ *  latch, which tears the call down but leaves the fetch itself pending — so a
+ *  provider that accepted the POST and never answered kept a mic-holding
+ *  RTCPeerConnection and a live promise behind an error card the candidate was
+ *  already reading. Aborting at 12s keeps the failure inside the latch, so it
+ *  arrives as VOICE_TRANSPORT_TIMEOUT ("the provider did not answer in time" —
+ *  classifyThrownTransportFailure maps AbortError) instead of a generic
+ *  "couldn't start the call" that never says who was slow. */
+const OAI_SDP_TIMEOUT_MS = 12_000;
+
 /** Every mutable handle the OpenAI path owns. The component keeps them as ten
  *  ordinary useRefs (the React Compiler's immutability rule wants component-side
  *  writes to be plain ref writes) and bundles them into this shape on demand. */
@@ -313,6 +324,9 @@ export async function startOpenAiCall(
       method: "POST",
       body: offer.sdp,
       headers: { Authorization: `Bearer ${c.clientSecret}`, "Content-Type": "application/sdp" },
+      // Bounded (see OAI_SDP_TIMEOUT_MS): an abort rejects the fetch and is
+      // classified as VOICE_TRANSPORT_TIMEOUT by the catch below.
+      signal: AbortSignal.timeout(OAI_SDP_TIMEOUT_MS),
     });
   } catch (cause) {
     throw new VoiceTransportError(
