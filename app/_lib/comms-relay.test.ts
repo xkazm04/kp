@@ -1,4 +1,83 @@
-// The relay resolver's HEALTH vocabulary.
+import "./testing/unit-db.ts";
+import { test, after } from "node:test";
+import assert from "node:assert/strict";
+import { isRelayConfigured, relayHealth, resolveRelay } from "./comms-relay.ts";
+import { cleanupUnitDb } from "./testing/unit-db.ts";
+
+after(() => cleanupUnitDb());
+import { getRelayConfig, setRelayConfig, getRelaySecret, CommsRelayError } from "./comms-relay-store.ts";
+
+// The relay capability bit (env → stored config → nothing) AND the health word
+// the operator surfaces read. This is the ONE source every "sent" claim and the
+// comms channel selection key off, so its precedence contract is locked here
+// (moved from comms-truth.test.ts when the env-only isRelayConfigured grew the
+// stored-config leg).
+
+test("unconfigured: no env, no stored config → not configured", () => {
+  delete process.env.COMMS_WEBHOOK_URL;
+  assert.equal(isRelayConfigured(), false);
+  assert.equal(resolveRelay(), null);
+});
+
+test("COMMS_WEBHOOK_URL env keeps precedence over stored config", () => {
+  try {
+    setRelayConfig({ url: "https://relay.example/stored" });
+    process.env.COMMS_WEBHOOK_URL = "https://relay.example/env";
+    const relay = resolveRelay();
+    assert.equal(relay?.url, "https://relay.example/env");
+    assert.equal(relay?.source, "env");
+  } finally {
+    delete process.env.COMMS_WEBHOOK_URL;
+    setRelayConfig({ url: "" });
+  }
+});
+
+test("stored config configures the relay when env is unset", () => {
+  delete process.env.COMMS_WEBHOOK_URL;
+  try {
+    setRelayConfig({ url: "https://relay.example/hook" });
+    assert.equal(isRelayConfigured(), true);
+    const relay = resolveRelay();
+    assert.equal(relay?.url, "https://relay.example/hook");
+    assert.equal(relay?.source, "config");
+    // Clearing the URL disables it again.
+    setRelayConfig({ url: "" });
+    assert.equal(isRelayConfigured(), false);
+  } finally {
+    setRelayConfig({ url: "" });
+  }
+});
+
+test("secret doctrine: public view exposes hasSecret only; omit keeps, empty clears", () => {
+  // At-rest encryption needs a key (shared ats-secret helpers).
+  process.env.KP_ATS_SECRET_KEY = "unit-test-relay-key";
+  try {
+    setRelayConfig({ url: "https://relay.example/hook", secret: "topsecret" });
+    const pub = getRelayConfig();
+    assert.equal(pub.hasSecret, true);
+    assert.ok(!("secret" in pub), "public view must not carry the secret");
+    assert.equal(getRelaySecret(), "topsecret");
+    // Omitted secret → kept.
+    setRelayConfig({ url: "https://relay.example/hook2" });
+    assert.equal(getRelaySecret(), "topsecret");
+    // Empty string → cleared.
+    setRelayConfig({ url: "https://relay.example/hook2", secret: "" });
+    assert.equal(getRelaySecret(), null);
+    assert.equal(getRelayConfig().hasSecret, false);
+  } finally {
+    setRelayConfig({ url: "", secret: "" });
+    delete process.env.KP_ATS_SECRET_KEY;
+  }
+});
+
+test("write boundary rejects non-https and internal endpoints (SSRF guard)", () => {
+  assert.throws(() => setRelayConfig({ url: "http://relay.example/hook" }), CommsRelayError);
+  assert.throws(() => setRelayConfig({ url: "https://127.0.0.1/hook" }), CommsRelayError);
+  assert.throws(() => setRelayConfig({ url: "not a url" }), CommsRelayError);
+});
+
+// ---------------------------------------------------------------------------
+// HEALTH — the word the operator surfaces read.
 //
 // WHY: a deployment whose KP_SECRET / KP_ATS_SECRET_KEY was rotated (or restored
 // onto a host with a rebuilt env) can no longer decrypt the stored relay signing
@@ -7,20 +86,8 @@
 // said "Not configured", and nothing anywhere named the cause. An operator's only
 // signal was that mail stopped.
 //
-// NON-VACUITY: against the old resolver both assertions below fail — health is
-// "unconfigured" and the catch logs nothing.
-//
-// unit-db is the FIRST project import (it points KP_DB_PATH at a throwaway file).
-import "./testing/unit-db.ts";
-import { test, after } from "node:test";
-import assert from "node:assert/strict";
-import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { relayHealth, resolveRelay } from "./comms-relay.ts";
-import { setRelayConfig } from "./comms-relay-store.ts";
-
-process.env.KP_ATS_SECRET_KEY = "unit-test-relay-key";
-
-after(() => cleanupUnitDb());
+// NON-VACUITY: against the old resolver both halves fail — health is "unconfigured"
+// and the catch logs nothing.
 
 /** Capture console.error for the duration of `fn`. */
 function captureErrors(fn: () => void): string[] {
@@ -46,6 +113,8 @@ test("an empty store is 'unconfigured' — and says nothing", () => {
 });
 
 test("a readable stored relay is 'configured', secret and all", () => {
+  // At-rest encryption needs a key, and the secret-doctrine test above deletes it.
+  process.env.KP_ATS_SECRET_KEY = "unit-test-relay-key";
   setRelayConfig({ url: "https://relay.example/live", secret: "sign-me" });
   assert.equal(relayHealth(), "configured");
   assert.deepEqual(resolveRelay(), { url: "https://relay.example/live", secret: "sign-me", source: "config" });
