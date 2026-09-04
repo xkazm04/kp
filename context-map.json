@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T13:28:18.453Z",
+  "generated_at": "2026-09-04T14:01:47.598Z",
   "provenance": {
-    "git_commit": "6e29709efab18ea2739bdaf1f663eeac7fef3cda",
-    "git_commit_count": 2727,
+    "git_commit": "b91fd765f1e2927588dd31692738c3de022898ad",
+    "git_commit_count": 2744,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T13:28:18.453Z"
+    "generated_at": "2026-09-04T14:01:47.598Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3181,
+    "files": 3191,
     "groups": 17,
     "use_cases": 12
   },
@@ -1308,7 +1308,9 @@
         "app/_lib/analytics-momentum.test.ts",
         "app/_lib/analytics-momentum.ts",
         "app/_lib/analytics-offer.test.ts",
-        "app/_lib/analytics-offer.ts"
+        "app/_lib/analytics-offer.ts",
+        "app/_lib/ttl-cache.test.ts",
+        "app/_lib/ttl-cache.ts"
       ],
       "group": "Analytics & Reporting",
       "group_id": "926019f6-f839-46bb-ae08-1ca786937196",
@@ -1785,7 +1787,9 @@
         "app/api/analyze/route.ts"
       ],
       "file_paths": [
+        "app/_lib/analyze-phases.test.ts",
         "app/_lib/analyze-phases.ts",
+        "app/_lib/analyze-run.test.ts",
         "app/_lib/analyze-run.ts",
         "app/_lib/analyze-settle.test.ts",
         "app/_lib/completeness-followup.test.ts",
@@ -1797,6 +1801,7 @@
         "app/_lib/cv-variant.test.ts",
         "app/_lib/cv-variant.ts",
         "app/api/analyses/[slug]/route.ts",
+        "app/api/analyses/analyses-routes.test.ts",
         "app/api/analyses/route.ts",
         "app/api/analyze/analyze-gate-tenancy.test.ts",
         "app/api/analyze/route.ts"
@@ -2827,6 +2832,7 @@
         "app/api/apply/[id]/session/route.ts"
       ],
       "file_paths": [
+        "app/_lib/application-status-store.test.ts",
         "app/_lib/application-status-store.ts",
         "app/_lib/application-status-tenancy.test.ts",
         "app/_lib/application-status.test.ts",
@@ -2837,10 +2843,12 @@
         "app/_lib/apply-profile-result.test.ts",
         "app/_lib/apply-profile-result.ts",
         "app/_lib/apply-session-client.ts",
+        "app/_lib/apply-session-store.test.ts",
         "app/_lib/apply-session-store.ts",
         "app/_lib/apply.ts",
         "app/api/apply/[id]/followup/route.ts",
         "app/api/apply/[id]/quick/route.ts",
+        "app/api/apply/[id]/reapply-capability-gate.test.ts",
         "app/api/apply/[id]/route.ts",
         "app/api/apply/[id]/session/route.ts",
         "app/api/apply/apply-ack-after-response.test.ts",
