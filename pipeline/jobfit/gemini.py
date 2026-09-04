@@ -25,7 +25,7 @@ from .json_values import candidate_values, scan_json_values, select_best_scoring
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
 
 
-GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_MODEL = "gemini-3.8-flash"
 
 
 # --------------------------------------------------------------------------- #

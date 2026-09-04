@@ -116,6 +116,22 @@ jobs:
       # run an npm script package.json no longer defines.
       - run: npm run guidance:check
 
+      # THE HTTP SURFACE vs THE DOCUMENT THAT DESCRIBES IT
+      # (docs/architecture/api-reference.md). 206 route files, and until this
+      # existed the only description of any of them was the handler — so a new
+      # route arrived with a commit message and the next agent learned its
+      # methods, and whether the fail-closed gate lets an anonymous caller reach
+      # it, by reading source.
+      #
+      # The reference is GENERATED, and its auth column is computed by calling
+      # `isPublicPath()` — the same predicate proxy.ts consults — rather than by
+      # keeping a second list that agrees with it today. So `auth-drift` here is
+      # not a documentation nit: it means a route changed side of the gate.
+      #
+      # WHEN IT FAILS: `npm run api:docs` and commit the rewritten table with the
+      # route. It compares the SET of (path, methods, auth), never the prose.
+      - run: npm run api:check
+
       # POLICY OVER THE DEPLOYED SHAPE (deploy/helm/kp/).
       #
       # The release path is signed, attested and rehearsed; the chart it deploys
@@ -248,6 +264,15 @@ jobs:
       # unmeasured. Includes gate.test.mjs, which pins the committed bench baseline
       # to the committed scenarios.
       - run: npm run test:bench-driver
+
+      # Fixtures for the flake policy (scripts/test/). `npm run test:unit` below
+      # now re-runs the files that failed and labels each BROKEN / FLAKE /
+      # QUARANTINE, and holds test-quarantine.json to a ceiling, a reason and an
+      # expiry date. Those rules decide whether a red suite blocks, so they are
+      # gated like every other rule table here — and the last case runs the
+      # policy over the committed register and the real tree, which is what
+      # catches an entry whose file was deleted or whose quarantine came due.
+      - run: npm run test:flake
 
       - run: npm run test:unit
 

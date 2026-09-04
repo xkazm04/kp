@@ -17,11 +17,13 @@ import assert from 'node:assert/strict';
 import {
   CHART_DIR,
   POLICIES,
+  REVIEWED_TEMPLATES,
   blockOf,
   checkEnvContract,
   documentedEnvKeys,
   envKeysIn,
   loadChart,
+  probeEndpoint,
   runPolicies,
   valueOf,
 } from '../check-chart.mjs';
@@ -60,11 +62,12 @@ const GOOD = {
     '  capabilities:',
     '    drop: ["ALL"]',
     'livenessProbe:',
-    '  httpGet:',
-    '    path: /',
+    '  tcpSocket:',
+    '    port: http',
     'readinessProbe:',
     '  httpGet:',
-    '    path: /',
+    '    path: /api/health',
+    '    port: http',
   ].join('\n'),
   deployment: [
     'spec:',
@@ -72,7 +75,13 @@ const GOOD = {
     '  strategy:',
     '    type: Recreate',
     '  template:',
+    '    metadata:',
+    '      annotations:',
+    '        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}',
+    '        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}',
     '    spec:',
+    '      serviceAccountName: kp',
+    '      automountServiceAccountToken: false',
     '      securityContext:',
     '        {{- toYaml .Values.podSecurityContext | nindent 8 }}',
     '      containers:',
@@ -96,7 +105,46 @@ const GOOD = {
   envExample: 'APP_ORIGIN=\n# KP_DB_PATH=\nKP_SECRET=\nKP_OPERATOR_PASSWORD=\n# KP_ALLOW_OPEN=0\n',
 };
 
-const broken = (patch) => runPolicies({ ...GOOD, ...patch });
+// The whole-tree view. The named handles above ARE templates — the gate keeps
+// both because a policy that must read the Deployment cannot be handed "some
+// template" — so the fixture holds them once and derives this. Every name here
+// is one REVIEWED_TEMPLATES knows, in both directions: an extra file is a
+// finding, and so is an entry whose file is gone.
+GOOD.templates = {
+  'deployment.yaml': GOOD.deployment,
+  'service.yaml': GOOD.service,
+  'configmap.yaml': GOOD.configmap,
+  'secret.yaml': GOOD.secret,
+  'serviceaccount.yaml': 'apiVersion: v1\nkind: ServiceAccount\nautomountServiceAccountToken: false\n',
+  'ingress.yaml': '{{- if .Values.ingress.enabled }}\nkind: Ingress\n{{- end }}\n',
+  'pvc.yaml': 'kind: PersistentVolumeClaim\n',
+  'pdb.yaml': 'kind: PodDisruptionBudget\nspec:\n  minAvailable: 1\n',
+  '_helpers.tpl': '{{- define "kp.name" -}}kp{{- end -}}\n',
+  'NOTES.txt': 'KP is deploying.\n',
+};
+
+/**
+ * Patch the fixture. Patching a named handle patches the template of the same
+ * name too, since they are the same document — otherwise a case would prove a
+ * policy fires on a file the real loader never sees in that state.
+ */
+function patched(patch) {
+  const chart = { ...GOOD, ...patch };
+  if (!patch.templates) {
+    chart.templates = { ...GOOD.templates };
+    for (const [handle, name] of [
+      ['deployment', 'deployment.yaml'],
+      ['service', 'service.yaml'],
+      ['configmap', 'configmap.yaml'],
+      ['secret', 'secret.yaml'],
+    ]) {
+      chart.templates[name] = chart[handle];
+    }
+  }
+  return chart;
+}
+
+const broken = (patch) => runPolicies(patched(patch));
 
 // --- the readers --------------------------------------------------------------
 
@@ -164,6 +212,55 @@ check('a privileged container or a host namespace anywhere in the templates', ()
   assert.ok(has(broken({ deployment: `${GOOD.deployment}\n      hostNetwork: true\n` }), 'privileged-pod'));
 });
 
+check('THE FILE THE GATE USED NOT TO READ: a template nobody named', () => {
+  // This is the hole the five-file allowlist left. A new templates/worker.yaml
+  // with a root container on the host network passed every policy, because no
+  // policy had ever opened it.
+  const withWorker = {
+    templates: { ...GOOD.templates, 'worker.yaml': 'kind: Deployment\nspec:\n  hostNetwork: true\n  privileged: true\n' },
+  };
+  const f = runPolicies({ ...GOOD, ...withWorker });
+  assert.ok(has(f, 'privileged-pod'), 'the hardening rule now reaches a file added after it was written');
+  assert.ok(has(f, 'unreviewed-template'), 'and the file itself is a finding until somebody says what it is');
+
+  // BOTH DIRECTIONS, the discipline .ai/manifest.yaml already applies to CI
+  // gates: listed passes, and an entry whose file is gone fails as stale.
+  const reviewed = new Map([...REVIEWED_TEMPLATES, ['worker.yaml', 'the fixture worker']]);
+  assert.deepEqual(
+    runPolicies({ ...GOOD, ...withWorker, reviewed }).filter((x) => x.rule === 'unreviewed-template'),
+    [],
+    'a template named in REVIEWED_TEMPLATES is not itself a finding',
+  );
+  const stale = runPolicies({ ...GOOD, reviewed: new Map([...REVIEWED_TEMPLATES, ['gone.yaml', 'deleted last week']]) });
+  assert.ok(has(stale, 'unreviewed-template'), 'an entry whose template is gone is stale');
+  assert.match(stale.find((x) => x.rule === 'unreviewed-template').message, /gone\.yaml/);
+});
+
+check('a pod running as the default ServiceAccount, or with its token projected', () => {
+  // kp calls no Kubernetes API, so the token is a credential with no purpose in
+  // a pod holding candidate PII. Each of the four ways to lose it is a finding.
+  const noName = GOOD.deployment.replace('      serviceAccountName: kp\n', '');
+  assert.ok(has(broken({ deployment: noName }), 'service-account-token-mounted'));
+  const mounted = GOOD.deployment.replace('automountServiceAccountToken: false', 'automountServiceAccountToken: true');
+  assert.ok(has(broken({ deployment: mounted }), 'service-account-token-mounted'));
+  const noSa = { ...GOOD.templates };
+  delete noSa['serviceaccount.yaml'];
+  assert.ok(
+    has(runPolicies({ ...GOOD, templates: noSa, reviewed: new Map([...REVIEWED_TEMPLATES].filter(([n]) => n !== 'serviceaccount.yaml')) }), 'service-account-token-mounted'),
+    'no ServiceAccount template at all',
+  );
+  assert.ok(
+    has(
+      runPolicies({
+        ...GOOD,
+        templates: { ...GOOD.templates, 'serviceaccount.yaml': 'kind: ServiceAccount\n' },
+      }),
+      'service-account-token-mounted',
+    ),
+    'a ServiceAccount that leaves token projection on',
+  );
+});
+
 check('a default install does not put itself on a LoadBalancer', () => {
   assert.ok(has(broken({ values: GOOD.values.replace('type: ClusterIP', 'type: LoadBalancer') }), 'service-exposed-by-default'));
 });
@@ -182,6 +279,49 @@ check('an unbounded pod, and probes that are declared but never applied', () => 
   assert.ok(
     has(broken({ deployment: GOOD.deployment.replace('.Values.readinessProbe', '.Values.livenessProbe') }), 'no-probes'),
   );
+});
+
+check('THE OTHER TIDY-UP: both probes pointed at one endpoint', () => {
+  // Declared, applied, and wrong: the restarter and the router now read the same
+  // answer, so a degraded dependency crash-loops the only pod instead of taking
+  // it out of service. Both spellings of the mistake — one path, and one port.
+  const oneHttpPath = GOOD.values.replace('livenessProbe:\n  tcpSocket:\n    port: http', 'livenessProbe:\n  httpGet:\n    path: /api/health\n    port: http');
+  const f = broken({ values: oneHttpPath });
+  assert.ok(has(f, 'no-probes'), 'two httpGet probes on /api/health');
+  assert.match(f.find((x) => x.rule === 'no-probes').message, /http:\/api\/health/);
+
+  const oneTcpPort = GOOD.values.replace('readinessProbe:\n  httpGet:\n    path: /api/health\n    port: http', 'readinessProbe:\n  tcpSocket:\n    port: http');
+  assert.ok(has(broken({ values: oneTcpPort }), 'no-probes'), 'two tcpSocket probes on one port — readiness stopped observing anything');
+
+  // And the shape that must stay clean: different questions, different reads.
+  assert.equal(probeEndpoint(GOOD.values, 'livenessProbe'), 'tcp:http');
+  assert.equal(probeEndpoint(GOOD.values, 'readinessProbe'), 'http:/api/health');
+});
+
+check('a node drain that nothing refuses', () => {
+  const noPdb = { ...GOOD.templates };
+  delete noPdb['pdb.yaml'];
+  const reviewed = new Map([...REVIEWED_TEMPLATES].filter(([n]) => n !== 'pdb.yaml'));
+  assert.ok(has(runPolicies({ ...GOOD, templates: noPdb, reviewed }), 'no-disruption-budget'));
+  // The decorative form: the object exists and constrains nothing, which is the
+  // failure the values/Deployment pairing above exists to catch elsewhere.
+  assert.ok(
+    has(runPolicies({ ...GOOD, templates: { ...GOOD.templates, 'pdb.yaml': 'kind: PodDisruptionBudget\nspec: {}\n' } }), 'no-disruption-budget'),
+  );
+});
+
+check('a credential rotation the running pod never sees', () => {
+  // The ConfigMap is hashed and the Secret is not: `helm upgrade --set
+  // auth.secret=<new>` then reports success while the container still holds the
+  // old value, because envFrom.secretRef is read once at start.
+  const noHash = GOOD.deployment.replace(
+    '        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}\n',
+    '',
+  );
+  assert.ok(has(broken({ deployment: noHash }), 'secret-not-in-rollout-checksum'));
+  // Hashing the ConfigMap twice under the secret's name is not the same fact.
+  const wrongFile = GOOD.deployment.replace('"/secret.yaml"', '"/configmap.yaml"');
+  assert.ok(has(broken({ deployment: wrongFile }), 'secret-not-in-rollout-checksum'));
 });
 
 check('a shared volume access mode', () => {

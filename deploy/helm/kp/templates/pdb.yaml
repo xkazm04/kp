@@ -1,0 +1,21 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "kp.fullname" . }}
+  labels:
+    {{- include "kp.labels" . | nindent 4 }}
+spec:
+  # The SAME invariant as `replicas: 1` and `Recreate`, addressed to a different
+  # person. Those two tell the operator running `helm install`; this tells the
+  # administrator running `kubectl drain`, who has no reason to know that this
+  # workload is a single writer on one volume and cannot be moved without
+  # downtime. minAvailable over one replica blocks voluntary eviction ENTIRELY,
+  # which is the point: a refused command with a name attached is better than a
+  # silent outage plus a PVC reattach. Set podDisruptionBudget.enabled=false to
+  # allow drains — that is a decision to take the service down to move it.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "kp.selectorLabels" . | nindent 6 }}
+{{- end }}

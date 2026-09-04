@@ -15,6 +15,7 @@ npm run test:eval:ci      # both of the above; this is the CI gate
 npm run bench:gate        # App-master sweep verdict vs the committed baseline
 npm run review:constitution   # deterministic gate-integrity pass over the diff
 npm run docs:check        # decision-record integrity
+npm run test:flake        # fixtures for the flake policy + quarantine register
 ```
 
 ## Which of these are gates, and which are probes
@@ -113,6 +114,65 @@ log — it is not a failed run.
 ```bash
 python -m pipeline.jobfit.eval.interview_optimize --rounds 3 --max-calls 120 --max-minutes 20 --strict
 ```
+
+## When a test fails once and passes on re-run
+
+799 test files answered with one bit — the exit code. When the suite went red,
+nothing in the run distinguished *this test is broken* from *this test failed
+once and passes when you press the button again*, so the cheapest available move
+for an agent that did not cause the failure was to press the button. That is a
+lesson learned once and applied to every red build afterwards, including the real
+ones.
+
+`npm run test:unit` now answers the question instead of leaving it open. A second,
+machine-readable reporter ([`scripts/test/flake-reporter.mjs`](../../scripts/test/flake-reporter.mjs))
+rides alongside node's own — the console output is unchanged — and records which
+files failed. Exactly those files are re-run once, in a fresh runner with the
+same flags and the same scrubbed environment, and each is labelled:
+
+| Verdict | Means | Blocks? |
+| --- | --- | --- |
+| `BROKEN` | failed twice | yes, exactly as before |
+| `FLAKE` | failed, then **passed** on the immediate re-run | **yes** — see below |
+| `QUARANTINE` | declared in [`test-quarantine.json`](../../test-quarantine.json) | no |
+| `FAILED … not re-run` | more than 20 files failed, or `KP_FLAKE_RERUN=0` | yes — there is no evidence either way and none is invented |
+
+The block is printed and appended to the GitHub step summary, which is where a
+flake gets *recorded* rather than disappearing into "the suite was red and then
+it wasn't".
+
+**A flake still fails the build, on purpose.** Retrying until green converts a
+flake from a visible cost into an invisible one, and the suite's own sensitivity
+falls with nothing reporting it. The two real moves are to fix the test, or to
+quarantine it — which is an entry in `test-quarantine.json` carrying a `file`, a
+`why`, a `since` and an `expires`, in a commit a reviewer can disagree with.
+Re-running is not a decision; quarantining is.
+
+**The register is a ratchet**, on the shared protocol in
+[`scripts/lint/ratchet.mjs`](../../scripts/lint/ratchet.mjs) that `ruff.toml` and
+`ts-debt.json` already use — so a reader who learned one has learned this one.
+The list is empty and the ceiling is **0**, which is the state to keep it in: the
+first entry that arrives without someone raising the number is a red build. Three
+rules are this register's own, and all three block:
+
+- **dead** — the entry names a file that is not in the tree. A quarantine that
+  excuses nothing reads as policy.
+- **unexplained** — no `why` (under 20 characters counts as none), or no dates.
+- **expired** — `expires` is in the past, or more than 30 days after `since`. A
+  quarantine is a loan with a due date; the expiry is what forces the renewal to
+  be a decision rather than a thing nobody looked at for a quarter.
+
+The register is validated **before** the suite starts, so a dead or expired entry
+is a red build even on a run where nothing fails — which is the only kind of run
+those two rot on. The rules themselves are fixture-covered by `npm run test:flake`
+([`scripts/test/__tests__/flake-policy.test.mjs`](../../scripts/test/__tests__/flake-policy.test.mjs)),
+whose last case runs the policy over the committed register and the real tree.
+
+**What this does not cover.** The Python suite (`test:python:gate`) has its own
+pawl — the `KP_SKIP_BASELINE` skip count — and no flake classification; the
+Playwright job is a single deterministic keyless subset against a production
+build, where a re-run is a whole build. Both are honest gaps rather than
+oversights: this covers the suite that is large enough for a flake to hide in.
 
 ## Route-handler tests and `next/server`
 

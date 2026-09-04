@@ -137,18 +137,43 @@ export function evaluate(editedArr, map) {
   return { hits, missing: !docsTouched && hits.size > 0 };
 }
 
+// 3 — could NOT check. Any non-zero other than 2 is surfaced to the human as a
+// non-blocking error, which is the right audience: an operator has to fix the
+// instrument, and the model cannot. Never blocks; it only separates a green
+// that means something from a green that means nobody looked.
+export const EXIT_CANNOT_CHECK = 3;
+
+function cannotCheck(reason) {
+  process.stderr.write(
+    `doc-sync: CANNOT CHECK — ${reason}.\n` +
+      `This is not a pass: no doc-drift check ran for this turn. Fix the instrument ` +
+      `(scripts/docs/feature-doc-map.json, and the Stop hook wiring in .claude/settings.json).\n`,
+  );
+  process.exit(EXIT_CANNOT_CHECK);
+}
+
 function main() {
   const payload = safeJson(readStdin()) || {};
   if (payload.stop_hook_active) process.exit(0);
 
+  // A missing target is a broken trigger, not a clean turn.
+  if (!payload.transcript_path) cannotCheck('no transcript_path in the hook payload');
+  if (!fs.existsSync(payload.transcript_path)) {
+    cannotCheck(`the transcript does not exist: ${payload.transcript_path}`);
+  }
+
   const edited = collectEditedFilesFromTranscript(payload.transcript_path);
   if (edited.size === 0) process.exit(0);
 
+  // A rule map that will not load, or loads empty, would pass every turn forever.
   let map;
   try {
     map = JSON.parse(fs.readFileSync(MAP_PATH, 'utf8'));
-  } catch {
-    process.exit(0);
+  } catch (e) {
+    cannotCheck(`the rule map could not be read or parsed (${e.message})`);
+  }
+  if (!Array.isArray(map?.entries) || map.entries.length === 0) {
+    cannotCheck('the rule map loaded with zero entries, so nothing could be matched');
   }
 
   const { hits, missing } = evaluate([...edited], map);

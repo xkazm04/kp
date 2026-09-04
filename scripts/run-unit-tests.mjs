@@ -36,14 +36,59 @@
 //    code is non-zero. KP_TEST_TIMEOUT_MS overrides the default (the exit-code
 //    fixture drives a deliberately hanging file with a short one).
 //
+// ─────────────────────────────────────────────────────────────────────────────
+// AND ONE MORE THING THE EXIT CODE COULD NOT SAY: WAS IT A FLAKE?
+//
+// 799 test files answered with one bit. When the suite went red, nothing in the
+// run distinguished "this test is broken" from "this test failed once and passes
+// when you press the button again" — so the cheapest available move for an agent
+// that did not cause the failure was to press the button, and that is a lesson
+// learned once and applied to every red build afterwards, including the real
+// ones.
+//
+// So a failing run now answers the question instead of leaving it open:
+//
+//   1. A second, machine-readable reporter rides alongside the human one
+//      (scripts/test/flake-reporter.mjs) and records WHICH FILES failed. The
+//      console output is unchanged — the human reporter is still node's own
+//      default, chosen the same way node chooses it.
+//   2. Exactly those files are re-run, once, in a fresh runner with the same
+//      flags and the same scrubbed environment.
+//   3. Each is labelled BROKEN (failed twice), FLAKE (failed, then passed) or
+//      QUARANTINE (declared in test-quarantine.json), and the block is printed
+//      and appended to the CI step summary when there is one. That is where a
+//      flake gets recorded, which is the thing that was missing.
+//
+// A FLAKE STILL FAILS THE BUILD. Retrying until green would convert a flake from
+// a visible cost into an invisible one and let the suite's sensitivity fall with
+// nothing reporting it. The two real moves are to fix the test or to quarantine
+// it deliberately — scripts/test/flake-policy.mjs holds the register to a
+// ceiling, a reason and an expiry date.
+//
+// KP_FLAKE_RERUN=0 turns step 2 off (the run then reports `FAILED … not re-run`
+// rather than guessing) for a caller that only wants the first verdict.
+//
 // Args: none → the full suite (the two default globs). Any argv → run exactly
 // those files/patterns instead: `npm run test:unit -- app/_lib/offline.test.ts`.
-import { spawn } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import {
+  checkRegister,
+  classifyRun,
+  loadRegister,
+  registerBlocks,
+  renderRegister,
+  renderRun,
+} from "./test/flake-policy.mjs";
 
 for (const key of ["NODE_TEST_CONTEXT", "DATABASE_URL", "KP_DB_BACKEND", "KP_OFFLINE"]) {
   delete process.env[key];
 }
 
+const REPO_ROOT = process.cwd();
 // edge/** is the Cloudflare Worker: its tests run on node:test with D1/fetch doubles
 // and no wrangler, so the same runner gates them (they were green-but-ungated once).
 // i18n/** is the locale universe + the ONE server-side resolution path (cookie >
@@ -58,6 +103,10 @@ const DEFAULT_PATTERNS = [
 ];
 const patterns = process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_PATTERNS;
 
+// A tree this broken is not a flake question. Re-running fifty files to learn
+// that fifty files are broken doubles the slowest gate in CI to say nothing.
+const MAX_RERUN_FILES = 20;
+
 // Per-test ceiling. 120 s is far above the slowest real test here (the exit-code
 // fixtures, which each spawn a whole runner, land around 5 s) and far below any CI
 // job budget, so it only ever fires on a genuine hang.
@@ -68,26 +117,132 @@ const testTimeoutMs =
     ? overriddenTimeout
     : DEFAULT_TEST_TIMEOUT_MS;
 
-const child = spawn(
-  process.execPath,
-  [
-    "--import",
-    "./scripts/test-alias-loader.mjs",
-    "--experimental-transform-types",
-    "--disable-warning=ExperimentalWarning",
-    "--test-isolation=process",
-    `--test-timeout=${testTimeoutMs}`,
-    "--test",
-    ...patterns,
-  ],
-  { stdio: "inherit" }
-);
 
-child.on("error", (err) => {
-  console.error("test:unit launcher could not spawn the runner:", err);
-  process.exitCode = 1;
-});
-child.on("exit", (code, signal) => {
+/**
+ * The register is checked BEFORE the suite runs, so an entry that names a
+ * deleted file or a quarantine that came due is a red build even on a run where
+ * nothing fails — which is the only kind of run those two rot on.
+ */
+const register = loadRegister(REPO_ROOT);
+const registerFindings = checkRegister(register, (p) => fs.existsSync(path.join(REPO_ROOT, p)));
+if (registerBlocks(registerFindings)) {
+  console.error(`test:unit — the quarantine register is not in a state the gate can read:\n${renderRegister(registerFindings)}`);
+  process.exit(1);
+}
+const registerNotes = renderRegister(registerFindings);
+if (registerNotes) console.log(registerNotes);
+
+// Node's own default: `spec` on a TTY, `tap` otherwise. Named explicitly because
+// passing ANY --test-reporter means passing all of them, and the console output
+// of this gate must not change because a second, silent reporter was added.
+const humanReporter = process.stdout.isTTY ? "spec" : "tap";
+// A cwd-relative specifier, the form node's own documentation uses for a custom
+// reporter — and the same assumption `--import ./scripts/test-alias-loader.mjs`
+// below already makes, which npm satisfies by running scripts from the root.
+const FLAKE_REPORTER = "./scripts/test/flake-reporter.mjs";
+
+/** The failures the machine reporter recorded. `[]` for a run it could not attribute. */
+function readFailures(file) {
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    return []; // no failures were attributable — a crash, or a green run
+  }
+  const out = [];
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    // Per line, not per file: a runner killed mid-write leaves one truncated
+    // record, and losing every failure because the last one was cut short is
+    // exactly the misreading the whole classification exists to avoid.
+    try {
+      out.push(JSON.parse(line));
+    } catch {
+      /* a partial record proves nothing about the ones that parsed */
+    }
+  }
+  return out;
+}
+
+function runSuite(files, destination) {
+  return spawnSync(
+    process.execPath,
+    [
+      "--import",
+      "./scripts/test-alias-loader.mjs",
+      "--experimental-transform-types",
+      "--disable-warning=ExperimentalWarning",
+      "--test-isolation=process",
+      `--test-timeout=${testTimeoutMs}`,
+      "--test-reporter",
+      humanReporter,
+      "--test-reporter-destination",
+      "stdout",
+      "--test-reporter",
+      FLAKE_REPORTER,
+      "--test-reporter-destination",
+      destination,
+      "--test",
+      ...files,
+    ],
+    { stdio: "inherit" }
+  );
+}
+
+/** The whole run, as a code. Kept a function so the temp dir is cleaned by the
+ *  caller — `process.exit()` abandons the stack, so a `finally` around it never
+ *  runs and the directory would leak once per red build. */
+function run(workdir) {
+  const firstDest = path.join(workdir, "first.ndjson");
+  const first = runSuite(patterns, firstDest);
+  if (first.error) {
+    console.error("test:unit launcher could not spawn the runner:", first.error);
+    return 1;
+  }
   // A signal death is a failure, not a pass — never let it map to 0.
-  process.exitCode = code ?? (signal ? 1 : 0);
-});
+  const firstCode = first.status ?? (first.signal ? 1 : 0);
+  if (firstCode === 0) return 0;
+
+  const failures = readFailures(firstDest);
+  const files = [...new Set(failures.map((f) => f.file))];
+  const rerun = process.env.KP_FLAKE_RERUN !== "0" && files.length > 0 && files.length <= MAX_RERUN_FILES;
+
+  let second = [];
+  if (rerun) {
+    console.log(`\ntest:unit — re-running ${files.length} failing file(s) once, to tell a flake from a break…`);
+    const secondDest = path.join(workdir, "second.ndjson");
+    const res = runSuite(files, secondDest);
+    // A re-run that could not start proves nothing. Treat every file as still
+    // failing rather than reporting a fleet of flakes the runner never observed.
+    second = res.error ? failures : readFailures(secondDest);
+  }
+
+  const outcome = classifyRun({ first: failures, second, register, rerun });
+  const report = renderRun(outcome);
+  if (report) {
+    console.log(report);
+    // Where CI actually keeps a record. A flake written only to a temp file on a
+    // runner that is about to be destroyed has not been recorded anywhere.
+    const summary = process.env.GITHUB_STEP_SUMMARY;
+    if (summary) {
+      try {
+        fs.appendFileSync(summary, `\n\`\`\`\n${report}\n\`\`\`\n`);
+      } catch {
+        /* the record is already on stdout; a summary that cannot be written is not a gate failure */
+      }
+    }
+  }
+
+  // Every failure quarantined ⇒ green, and it says so above. Anything else keeps
+  // the original exit code: this classifies failures, it never absolves them.
+  return failures.length && !outcome.blocking ? 0 : firstCode;
+}
+
+const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "kp-flake-"));
+let code = 1;
+try {
+  code = run(workdir);
+} finally {
+  fs.rmSync(workdir, { recursive: true, force: true });
+}
+process.exit(code);

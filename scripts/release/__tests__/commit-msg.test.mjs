@@ -283,6 +283,21 @@ check('a complete provenance block passes, and a commit claiming none is untouch
   assert.equal(review([{ subject: 'fix(db): stop the double write', body: 'Refs #12' }]).ok, true);
 });
 
+check('THE DOCUMENTED COMPACT TRAILER PASSES THE GATE', () => {
+  // The regression. `Agent-Provenance:` is what CONTRIBUTING.md tells an outside
+  // lane to write, and it matched the four-key block rule's `Agent-*` trigger —
+  // so the gate answered a conforming commit with five findings: one "not a
+  // provenance trailer this repository defines" plus four "missing key". Two
+  // vocabularies for one fact; there is now one, in scripts/agent/provenance.mjs.
+  const body = 'Agent-Provenance: agent=claude-code; model=claude-opus-5; lane=ascent; task=abc123';
+  const verdict = review([{ subject: 'fix(db): stop the double write', body }]);
+  assert.equal(verdict.ok, true, verdict.report);
+  // …and a malformed one still fails, exactly once rather than in two wordings.
+  const bad = review([{ subject: 'fix(db): stop the double write', body: 'Agent-Provenance: written by the overnight run' }]);
+  assert.equal(bad.ok, false);
+  assert.equal(bad.report.match(/key=value/g)?.length, 1, 'one rule, one message');
+});
+
 check('one bad subject fails the whole range and names it', () => {
   const verdict = review([
     { subject: 'feat(a): fine', body: '' },

@@ -51,6 +51,26 @@ env:
   # OPENAI_BASE_URL: "http://ollama.default.svc.cluster.local:11434/v1"  # self-hosted model
 extraEnv: {}                     # any additional non-secret env, merged in
 
+# A node drain evicts the only replica, and kp is down for a reschedule plus a PVC
+# reattach. Every other statement of the single-instance rule is addressed to
+# whoever runs `helm install`; a PodDisruptionBudget is addressed to whoever runs
+# `kubectl drain`, and they are frequently different people on different days.
+# Blocking voluntary eviction outright is the correct behaviour for a database
+# that cannot be moved without downtime. Turn it off to permit drains — which is a
+# decision to accept the outage, taken deliberately rather than discovered.
+podDisruptionBudget:
+  enabled: true
+
+# Pod identity. kp calls NO Kubernetes API — it serves HTTP, writes one SQLite file
+# on the mounted volume and spawns a local Python process — so the correct
+# permission set is empty (the chart ships no Role and no RoleBinding) and the
+# correct token count is zero: both the ServiceAccount and the pod spec disable
+# token projection. Without this the pod runs as the namespace's `default` account
+# with a live API credential mounted beside the candidate data.
+serviceAccount:
+  create: true
+  name: ""                       # "" = the release fullname; set to reuse an account you created
+
 persistence:
   enabled: true
   size: 5Gi
@@ -94,21 +114,52 @@ securityContext:
   capabilities:
     drop: ["ALL"]
 
-# httpGet probes: any 2xx–3xx is healthy, so `/` works even with auth on (it 307s to /login).
-livenessProbe:
-  httpGet:
-    path: /
+# TWO PROBES, TWO QUESTIONS. The router asks "can this pod serve a request right
+# now" and the supervisor asks "is this process wedged"; one endpoint answering
+# both gets one of them wrong, and with replicas: 1 + Recreate there is no second
+# pod to absorb the wrong remedy.
+#
+#   readiness -> /api/health. It opens the DB, verifies the seeds and judges the
+#   scheduler clock BY AGE, returning 503 with the failing sub-check named
+#   (app/api/health/route.ts). The route is public (public-routes.ts), and the
+#   payload split there only drops DETAIL for an untrusted caller — the STATUS
+#   CODE, which is all a probe reads, is the same for the kubelet as for an
+#   operator. `/` is a server-rendered auth gate: it 307s to /login just as
+#   happily while the database is locked, which is exactly when readiness matters.
+#
+#   liveness -> a TCP connect on the port. It observes NOTHING outside the
+#   process, deliberately: /api/health 503s on a stalled automation clock and on
+#   a degraded DB, and the remedy for both is to stop routing traffic and tell
+#   someone — never to restart the container. A liveness probe holding a
+#   dependency verdict turns a brownout into a crash loop. tcpSocket also cannot
+#   quietly acquire a dependency later the way a page can.
+#
+#   startup -> the boot form of the liveness question, and the piece that lets
+#   the two thresholds be independent: while it is running, the kubelet suppresses
+#   liveness entirely, so a long first boot (schema + seed) and a wedged
+#   steady-state process stop competing for one initialDelaySeconds.
+#
+# NOTE for an install that sets KP_EMPTY=1 (a deliberately blank tenant): the
+# health route counts an empty job catalogue as degraded, so such a pod stays
+# NotReady until the catalogue has rows. The default install seeds it at boot.
+startupProbe:
+  tcpSocket:
     port: http
-  initialDelaySeconds: 25
+  periodSeconds: 5
+  failureThreshold: 30           # ~150s of first boot before liveness applies at all
+livenessProbe:
+  tcpSocket:
+    port: http
   periodSeconds: 20
   timeoutSeconds: 5
+  failureThreshold: 3
 readinessProbe:
   httpGet:
-    path: /
+    path: /api/health
     port: http
-  initialDelaySeconds: 10
-  periodSeconds: 10
+  periodSeconds: 10              # unchanged cadence: this change moves the path, not the load
   timeoutSeconds: 5
+  failureThreshold: 6            # ~1 min of a degraded dependency before traffic is cut
 
 podAnnotations: {}
 nodeSelector: {}

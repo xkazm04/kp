@@ -92,7 +92,7 @@ DEFAULT_MODELS: dict[str, str | None] = {
     "anthropic": "claude-haiku-4-5",
     # gpt-5.4-mini (2026-03-17) superseded gpt-5-mini — same tier, current version.
     "openai": "gpt-5.4-mini",
-    "gemini": "gemini-3.6-flash",
+    "gemini": "gemini-3.8-flash",
     "azure_openai": None,
     "claude_cli": None,  # the CLI's configured default
     # OpenRouter models are addressed by slug — always explicit, like Azure deployments.
