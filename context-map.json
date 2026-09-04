@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T11:22:12.341Z",
+  "generated_at": "2026-09-04T11:57:54.808Z",
   "provenance": {
-    "git_commit": "0c2d042078b5abda85c6d7af66e313375547148a",
-    "git_commit_count": 2658,
+    "git_commit": "8bc3c20f4961eed74493820867335707a416cb3d",
+    "git_commit_count": 2678,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T11:22:12.341Z"
+    "generated_at": "2026-09-04T11:57:54.808Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3138,
+    "files": 3148,
     "groups": 17,
     "use_cases": 12
   },
@@ -1440,6 +1440,7 @@
         "app/_lib/billing/mode.test.ts",
         "app/_lib/billing/mode.ts",
         "app/_lib/billing/plans.ts",
+        "app/_lib/billing/polar-gateway.test.ts",
         "app/_lib/billing/polar.ts",
         "app/_lib/billing/price-reconcile.test.ts",
         "app/_lib/billing/price-reconcile.ts",
@@ -5746,9 +5747,15 @@
       "file_paths": [
         "app/_lib/calendar-links.test.ts",
         "app/_lib/calendar-links.ts",
+        "app/_lib/calendar/available-slots.test.ts",
         "app/_lib/calendar/available-slots.ts",
+        "app/_lib/calendar/calendar-connections-tenancy.test.ts",
         "app/_lib/calendar/calendar-status-i18n.test.ts",
         "app/_lib/calendar/callback-status.ts",
+        "app/_lib/calendar/constants.ts",
+        "app/_lib/calendar/edge-fetch.test.ts",
+        "app/_lib/calendar/edge-fetch.ts",
+        "app/_lib/calendar/event-sync.test.ts",
         "app/_lib/calendar/event-sync.ts",
         "app/_lib/calendar/free-busy.test.ts",
         "app/_lib/calendar/free-busy.ts",
@@ -5760,6 +5767,7 @@
         "app/api/calendar/google/callback/route.test.ts",
         "app/api/calendar/google/callback/route.ts",
         "app/api/calendar/google/route.ts",
+        "app/api/calendar/google/start/route.test.ts",
         "app/api/calendar/google/start/route.ts"
       ],
       "group": "Interview Scheduling",
@@ -7169,15 +7177,15 @@
       "file_paths": [
         "app/_lib/redact-secrets.test.ts",
         "app/_lib/redact-secrets.ts",
+        "app/_lib/request-body.test.ts",
         "app/_lib/request-body.ts",
-        "app/_lib/retry-sync.test.ts",
-        "app/_lib/retry-sync.ts",
         "app/_lib/safe-url.test.ts",
         "app/_lib/safe-url.ts",
         "app/_lib/sanity-checks.test.ts",
         "app/_lib/sanity-checks.ts",
         "app/_lib/schemas-null-contract.test.ts",
         "app/_lib/schemas.ts",
+        "app/_lib/sentry-client.test.ts",
         "app/_lib/sentry-client.ts",
         "app/_lib/site-url.ts",
         "app/_lib/upload-constraints.test.ts",
@@ -7281,6 +7289,8 @@
       "description": "[auto-seeded — pending sweep enrichment] Root Config: 10 source + 3 test file(s) under . Reads/writes scheduler_heartbeat.",
       "entry_points": [],
       "file_paths": [
+        "app/api/billing-quota-shape.test.ts",
+        "app/api/public-body-cap-contract.test.ts",
         "app/api/rate-limit-contract.test.ts",
         "app/api/route-tenancy-coverage.test.ts",
         "app/api/upload-size-contract.test.ts",
