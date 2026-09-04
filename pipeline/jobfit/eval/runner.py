@@ -105,7 +105,7 @@ class Report:
         return all(agg.get(k, 0.0) >= v for k, v in PASS_THRESHOLDS.items())
 
 
-def _range_overlap(actual: tuple[int, int], expected: tuple[int, int]) -> float:
+def range_overlap(actual: tuple[int, int], expected: tuple[int, int]) -> float:
     """Containment-aware salary band score in [0, 1].
 
     - Returns 1.0 when ``actual`` is fully inside ``expected`` (Gemini being
@@ -128,23 +128,23 @@ def _range_overlap(actual: tuple[int, int], expected: tuple[int, int]) -> float:
     return (inter_hi - inter_lo) / (union_hi - union_lo)
 
 
-def _salary_band(salary: Any) -> tuple[int, int, bool]:
+def salary_band(salary: Any) -> tuple[int, int, bool]:
     """Pull ``(minimum, maximum, present)`` out of a payload's ``salary`` block.
 
     ``present`` is what separates a *coverage* miss — Gemini emitted no usable
     salary figure at all (block missing/``None``, both bounds null/garbage, or a
     degenerate ``0``) — from an *accuracy* miss, where it emitted a real band
     that simply doesn't overlap the expected one. Both previously collapsed to
-    ``_range_overlap((0, 0), expected) == 0.0`` and were indistinguishable; the
+    ``range_overlap((0, 0), expected) == 0.0`` and were indistinguishable; the
     flag keeps them apart so a fall in emission isn't read as an accuracy dip.
 
     A band counts as present when either bound coerces to a positive int — the
-    same :func:`_safe_int` coercion the overlap uses, so the two never disagree.
+    same :func:`safe_int` coercion the overlap uses, so the two never disagree.
     """
     if not isinstance(salary, dict):
         return 0, 0, False
-    a_min = _safe_int(salary.get("minimum"))
-    a_max = _safe_int(salary.get("maximum"))
+    a_min = safe_int(salary.get("minimum"))
+    a_max = safe_int(salary.get("maximum"))
     return a_min, a_max, (a_min > 0 or a_max > 0)
 
 
@@ -152,7 +152,7 @@ def _normalize_skill(skill: str) -> str:
     return skill.strip().lower().replace(".", "").replace("-", " ").replace("_", " ")
 
 
-def _skill_recall(actual_skills: list[str], expected_subset: list[str]) -> float:
+def skill_recall(actual_skills: list[str], expected_subset: list[str]) -> float:
     if not expected_subset:
         return 1.0
     actual_norm = {_normalize_skill(s) for s in actual_skills}
@@ -174,7 +174,7 @@ def _signals_recall(actual_signals: list[str], expected_subset: list[str] | None
     return matched / len(expected_subset)
 
 
-def _safe_int(value: Any, default: int = 0) -> int:
+def safe_int(value: Any, default: int = 0) -> int:
     """Coerce a possibly-null/missing/garbage value to int without raising.
 
     A fixture key present but JSON-null made ``int(None)`` raise ``TypeError``
@@ -227,7 +227,7 @@ def _run_fixture(cv_path: Path, expected: dict[str, Any]) -> FixtureResult:
         actual_skills = candidate.get("skills", [])
         actual_education = candidate.get("educationLevel")
         actual_signals = evidence.get("detectedSignals", [])
-        actual_min, actual_max, salary_present = _salary_band(salary)
+        actual_min, actual_max, salary_present = salary_band(salary)
 
         expected_seniority_set = expected.get("expected_seniority")
         if isinstance(expected_seniority_set, str):
@@ -240,7 +240,7 @@ def _run_fixture(cv_path: Path, expected: dict[str, Any]) -> FixtureResult:
         expected_range = expected.get("expected_salary_range") or [0, 0]
         if not (isinstance(expected_range, (list, tuple)) and len(expected_range) >= 2):
             expected_range = [0, 0]
-        overlap = _range_overlap((actual_min, actual_max), (_safe_int(expected_range[0]), _safe_int(expected_range[1])))
+        overlap = range_overlap((actual_min, actual_max), (safe_int(expected_range[0]), safe_int(expected_range[1])))
 
         education_match: bool | None
         if expected.get("expected_education"):
@@ -256,7 +256,7 @@ def _run_fixture(cv_path: Path, expected: dict[str, Any]) -> FixtureResult:
             seniority_match=actual_seniority in (expected_seniority_set or []),
             salary_overlap=overlap,
             salary_present=salary_present,
-            skill_recall=_skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
+            skill_recall=skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
             education_match=education_match,
             signals_recall=_signals_recall(actual_signals, expected.get("expected_signals_subset")),
             actual={
@@ -456,7 +456,7 @@ def _eval_banner(report: Report, s) -> str:
     return verdict_banner(parts, passed=report.passes(), s=s)
 
 
-def _format_markdown(report: Report, load_errors: list[str] | None = None, *, color: bool = False) -> str:
+def format_markdown(report: Report, load_errors: list[str] | None = None, *, color: bool = False) -> str:
     s = _make_styler(color)
     lines: list[str] = []
     agg = report.aggregate()
@@ -618,7 +618,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         print(json.dumps(out, indent=2, ensure_ascii=False))
     else:
-        print(_format_markdown(report, load_errors, color=use_color))
+        print(format_markdown(report, load_errors, color=use_color))
 
     # A malformed fixture is a data-integrity failure: fail the run regardless of
     # --strict (which only governs the soft pass-threshold gate).
@@ -627,6 +627,29 @@ def main(argv: list[str] | None = None) -> int:
     if args.strict and not report.passes():
         return 1
     return 0
+
+
+# The five helpers the fixture seeder needs. They were private for years, so
+# seed_cv_fixtures reached into `runner._salary_band` & co — five imports across a
+# module boundary that no signature promised and any refactor here would have
+# broken silently. They are the module's public API now; the underscore names
+# remain as aliases so an older caller keeps working.
+_range_overlap = range_overlap
+_salary_band = salary_band
+_skill_recall = skill_recall
+_safe_int = safe_int
+_format_markdown = format_markdown
+
+
+def write_text_lf(path: Path, text: str) -> None:
+    """Write UTF-8 with LF line endings, whatever the platform's default is.
+
+    Every fixture and report this suite emits goes through here. `write_text(...,
+    encoding="utf-8")` uses os.linesep on Windows, so the committed corpus flipped
+    to CRLF the moment it was regenerated there and back to LF on a Linux
+    regeneration — a whole-file diff that says nothing about the data.
+    """
+    path.write_text(text, encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

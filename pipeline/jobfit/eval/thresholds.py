@@ -104,7 +104,7 @@ _MATCH = dict(measured_at="2026-09-04", source="matching_eval --json", corpus="d
 # salary is gated on two axes: salary_coverage (did Gemini emit a band at all)
 # and salary_overlap (how close the bands it *did* emit were). Keeping them apart
 # stops a coverage regression from hiding behind an accuracy number averaged only
-# over emitted bands — see runner._salary_band / Report.aggregate.
+# over emitted bands — see runner.salary_band / Report.aggregate.
 PASS_BARS: dict[str, Bar] = {
     "role_family": Bar(
         value=0.85,
