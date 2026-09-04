@@ -210,6 +210,20 @@ hop** so a body that was never going to buy anything spends none of the window:
 | --- | --- | --- |
 | `POST /api/billing/checkout` | 10 / 10 min | a person buys once, or retries a card twice |
 | `POST /api/billing/portal` | 20 / 10 min | one click per visit, plus a re-open after a popup blocker |
+| `POST /api/billing/webhook` | 600 / 10 min | the provider, not a person — see below |
+
+The webhook is the third money door and the only one with **no session and no
+capability gate at all**: a machine posts there, so it sits on the public allow-list
+and an anonymous caller could loop 256 KB bodies through an HMAC verify and a SQLite
+transaction for free. Its ceiling is deliberately far above the other two and the
+reason is pinned rather than left to taste: provider bursts are legitimate (a plan
+change fans out to several subscription events; a redelivery storm after an outage
+replays a backlog), and with `KP_TRUSTED_PROXY` unset `clientIpFrom` collapses every
+caller into ONE bucket — so a tight ceiling would drop real money events. 600/10 min
+is one delivery per second sustained. Its limiter runs **before the body read** (the
+allocation is what is being bounded), and the "billing is not configured" 503 keeps
+answering ahead of it. A refused delivery is 429 — non-2xx, so Polar re-delivers it
+rather than losing it.
 
 Both refuse through the shared chokepoint (`jsonRefusal("TOO_MANY_REQUESTS", 429)`), and
 both call sites — key, constant, budget, ordering — are pinned in

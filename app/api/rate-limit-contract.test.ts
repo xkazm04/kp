@@ -1423,6 +1423,30 @@ const ROUTES: RouteSpec[] = [
   // (org:manage) is the authorization half; this is the abuse-containment half, and
   // neither substitutes for the other.
   {
+    // ADDED /perfect wave 38 (billing-core). The LAST money door outside this
+    // contract, and the only one with no session and no capability gate: a MACHINE
+    // posts here, so it sits on the public allow-list and an anonymous caller could
+    // loop 256 KB bodies through an HMAC verify and a SQLite transaction for free.
+    //
+    // The ceiling is deliberately far above its neighbours, and the reason is pinned
+    // so nobody "tightens" it into dropped money events: provider bursts are
+    // legitimate (a plan change fans out; a redelivery storm replays a backlog), and
+    // with KP_TRUSTED_PROXY unset every caller shares ONE bucket. 600/10 min is one
+    // delivery per second sustained. The 429 is non-2xx, so Polar re-delivers.
+    rel: "./billing/webhook/route.ts",
+    key: "`billing-webhook:${clientIpFrom(request.headers)}`",
+    limit: 600,
+    optsSrc: "WEBHOOK_RATE_LIMIT",
+    optsDef: "const WEBHOOK_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The limiter precedes the BODY READ, not just the ingest: what an anonymous
+    // caller can make us allocate is the whole point of throttling this door.
+    expensive: "await readTextWithLimit(request, MAX_WEBHOOK_BODY_BYTES)",
+    // "Billing is not configured" costs an env read and tells an operator their
+    // setup is incomplete — it must keep answering while the window is spent.
+    servedBefore: '{ error: "Billing is not configured." }',
+  },
+  {
     rel: "./billing/checkout/route.ts",
     key: "`billing-checkout:${clientIpFrom(request.headers)}`",
     limit: 10,
