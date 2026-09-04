@@ -34,6 +34,7 @@ import {
   type EntrancePresetName,
 } from "./motionPresets";
 import { entranceDelayS, glyphMotionCss } from "./glyphMotionCss";
+import { GLYPH_SIZE } from "./glyphSizes";
 import { snapToToken } from "./glyphTokens";
 
 export interface GlyphElement {
@@ -50,6 +51,8 @@ export interface TracedGlyph {
 interface Props {
   data: GlyphElement[];
   viewBox: string;
+  /** Sizing + layout classes. Defaults to `GLYPH_SIZE.lg`; pass another step
+   *  from `./glyphSizes` rather than a hand-typed `h-N w-N` pair. */
   className?: string;
   /**
    * Accessible name. Omitted (the default) the glyph is `aria-hidden` decoration —
@@ -71,7 +74,9 @@ interface Props {
 export function MotionizedGlyph({
   data,
   viewBox,
-  className = "h-40 w-40",
+  // The scale, not a fifth size: `glyphSizes.ts` is the vocabulary every call
+  // site draws from, and a hand-typed default is the one size nobody chose.
+  className = GLYPH_SIZE.lg,
   label,
   spread = 1.1,
   entrance = "staggered-draw",
