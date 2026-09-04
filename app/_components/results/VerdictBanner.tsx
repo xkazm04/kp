@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, type ScoreTone } from "@/app/_lib/format";
 import { VERDICT_BANDS, scoreBandIndex } from "@/app/_components/scoreDial.logic";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { resolveVerdict } from "./verdict";
 
 // Direction 1 (verdict-above-the-fold) — the report LEADS with a colored, glyphed
@@ -65,23 +66,25 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
 
   return (
     <div
-      className={`rounded-lg border border-stone-200 border-l-4 ${skin.bar} bg-white p-4 shadow-panel`}
+      // PANEL composed, not re-typed: the accent rail is a separate modifier on
+      // top of the recipe, so a restyle of the panel surface reaches the banner.
+      className={`${PANEL} border-l-4 ${skin.bar} p-4`}
       role="img"
       aria-label={ariaLabel}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span aria-hidden className={`text-2xl font-bold leading-none ${skin.text}`}>
+        <span aria-hidden className={`text-h2 font-bold leading-none ${skin.text}`}>
           {skin.glyph}
         </span>
         <p className="text-meta uppercase tracking-wide text-steel">{t("verdict.heading")}</p>
         {scored ? (
           <span className={`inline-flex items-baseline gap-1.5 ${skin.text}`}>
-            <span className="text-2xl font-bold leading-none nums dark:font-serif">{overall}</span>
+            <span className="text-display font-bold leading-none nums dark:font-serif">{overall}</span>
             <span className="text-sm text-steel">{t("verdict.outOf")}</span>
             <span className="text-sm font-semibold uppercase tracking-wide">{band}</span>
           </span>
         ) : (
-          <span className="text-2xl font-bold leading-none text-score-null">—</span>
+          <span className="text-display font-bold leading-none text-score-null">—</span>
         )}
         {jobFit != null ? (
           <span

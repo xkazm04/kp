@@ -69,7 +69,15 @@ const DEBT_FILE = path.join(HERE, "recipe-debt.json");
 
 /** Literal forms of recipes that already exist. Line-matched. */
 const RULES = {
-  panel: /rounded-lg border border-stone-200 bg-white/,
+  // Interposed classes do not launder a re-typed recipe. The literal used to be
+  // matched contiguously, so `rounded-lg border border-stone-200 border-l-4
+  // ${accent} bg-white` — the panel string with an accent modifier spliced into
+  // the middle — read as "not a panel" and two such surfaces (the report's
+  // verdict banner and the job-fit coverage card) sat outside the ratchet
+  // entirely. Up to four intervening class tokens are tolerated, none of which
+  // may itself be a `bg-` utility: the first background named on the line has to
+  // be `bg-white` for this to be the PANEL surface rather than some other card.
+  panel: /rounded-lg border border-stone-200(?:\s+(?!bg-)[^\s"'`]+){0,4}\s+bg-white/,
   metaLabel: /text-meta uppercase text-steel/,
   chipQuiet: /rounded-full bg-stone-100 px-2 py-0\.5/,
   noticeAmber: /border-amber-\d+ bg-amber-50/,

@@ -228,6 +228,7 @@
       "panel": 1
     },
     "features/library/jobs/JobsAgentFitCoverage.tsx": {
+      "panel": 1,
       "noticeAmber": 1
     },
     "features/library/jobs/JobsCampaignTab.tsx": {
