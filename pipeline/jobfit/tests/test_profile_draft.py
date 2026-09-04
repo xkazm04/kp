@@ -11,9 +11,10 @@ import io
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
-from pipeline.jobfit import profile_draft_cli
+from pipeline.jobfit import _cli, profile_draft_cli
 from pipeline.jobfit.profile_draft_cli import build_draft
 
 
@@ -118,6 +119,36 @@ class DraftCliErrorTaxonomyTest(unittest.TestCase):
         self.assertEqual(rc, 2)
         self.assertEqual(env["status"], 400)
         self.assertEqual(env["code"], "invalid_input")
+
+    def test_an_ai_fault_is_still_a_500_with_a_code(self) -> None:
+        # The other half of the taxonomy, previously untested here: an empty structured
+        # draft (or a provider outage) is NOT the recruiter's notes — retry/escalate.
+        with mock.patch.object(profile_draft_cli, "_extract", side_effect=RuntimeError("gemini down")):
+            rc, env = self._run(json.dumps({"text": "Ten years of Python in Brno."}))
+        self.assertEqual(rc, 1)
+        self.assertEqual((env["status"], env["code"]), (500, "engine_error"))
+
+    def test_every_code_it_emits_is_in_the_shared_vocabulary(self) -> None:
+        # profile_draft_cli used to spell its own ERR_* literals; it now imports them,
+        # which is what let it leave the LOCAL_ERR_HOLDOUTS ratchet. A word outside the
+        # closed set resolves to no errors.<CODE> catalog key in any of the 4 locales.
+        _rc, bad_json = self._run("{ not json")
+        with mock.patch.object(profile_draft_cli, "_extract", side_effect=RuntimeError("x")):
+            _rc2, fault = self._run(json.dumps({"text": "notes"}))
+        for env in (bad_json, fault):
+            self.assertIn(env["code"], _cli.ERROR_CODES)
+
+    def test_it_declares_no_local_error_words_of_its_own(self) -> None:
+        source = Path(profile_draft_cli.__file__).read_text(encoding="utf-8")
+        self.assertNotRegex(source, r'(?m)^ERR_[A-Z_]+\s*=\s*"')
+
+    def test_one_replaced_stream_does_not_crash_the_cli(self) -> None:
+        # The open-coded pair this CLI carried reconfigured sys.stderr unconditionally
+        # after testing sys.stdout, so capturing one stream killed it before line one.
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):  # stdout real, stderr replaced
+            profile_draft_cli.configure_stdio()
+        self.assertEqual(buf.getvalue(), "")
 
 
 if __name__ == "__main__":
