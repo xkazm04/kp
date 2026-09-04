@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-04T07:12:23.301Z",
+ "generated_at": "2026-09-04T07:37:55.672Z",
  "provenance": {
-  "git_commit": "654e30c838d5862cb44c06e44a468e742db9a5b2",
-  "git_commit_count": 2514,
+  "git_commit": "6db677594bce3d116d590426de9b070b3330bb2c",
+  "git_commit_count": 2531,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-04T07:12:23.301Z"
+  "generated_at": "2026-09-04T07:37:55.672Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3045,
+  "files": 3056,
   "groups": 17,
   "use_cases": 12
  },
@@ -513,11 +513,13 @@
     "pipeline/jobfit/tests/test_devcase_models.py",
     "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py",
     "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py",
+    "pipeline/jobfit/tests/test_fault_eval.py",
     "pipeline/jobfit/tests/test_fit_threshold_sync.py",
     "pipeline/jobfit/tests/test_group_compare_cli.py",
     "pipeline/jobfit/tests/test_market_salary_cli.py",
     "pipeline/jobfit/tests/test_reasoning_narrative_lang.py",
-    "pipeline/jobfit/tests/test_score_boundaries.py"
+    "pipeline/jobfit/tests/test_score_boundaries.py",
+    "pipeline/jobfit/tests/test_thresholds.py"
    ],
    "group": "AI & LLM Infrastructure",
    "group_id": "a99d0563-6781-424b-a926-0230a68fe2ff",
@@ -3772,8 +3774,12 @@
     "app/_components/table/ColumnHead.tsx",
     "app/_components/table/FilterMenu.tsx",
     "app/_components/table/TablePager.tsx",
+    "app/_components/table/TableStatus.tsx",
     "app/_components/table/filter-a11y.test.ts",
+    "app/_components/table/pageWindow.ts",
     "app/_components/table/table-i18n.test.ts",
+    "app/_components/table/table-pager.test.ts",
+    "app/_components/table/table-status.test.ts",
     "app/_components/table/useTableSort.test.ts",
     "app/_components/table/useTableSort.ts",
     "app/_lib/use-enum-label.ts",
@@ -4995,6 +5001,7 @@
     "app/_lib/repo-snapshot-ref.test.ts",
     "app/_lib/salary-benchmark.test.ts",
     "app/_lib/salary-benchmark.ts",
+    "app/_lib/slot-label.test.ts",
     "app/_lib/task-budget.test.ts",
     "app/_lib/task-budget.ts",
     "app/_lib/task-finish-guard.test.ts",
@@ -5002,7 +5009,8 @@
     "app/_lib/task-outcome-summary.ts",
     "app/_lib/task-poll-state.test.ts",
     "app/_lib/task-poll-state.ts",
-    "app/shell-headers.test.ts"
+    "app/shell-headers.test.ts",
+    "app/th-scope.test.ts"
    ],
    "group": "Hiring Pipeline",
    "group_id": "e3cd8c46-b5e7-4fac-ad70-6bcbe21bcfaa",
@@ -8694,6 +8702,8 @@
     "scripts/app-master-bench/gate.mjs",
     "scripts/app-master-bench/gate.test.mjs",
     "scripts/app-master-bench/lib.mjs",
+    "scripts/app-master-bench/personas-contract.mjs",
+    "scripts/app-master-bench/personas-contract.test.mjs",
     "scripts/app-master-bench/report.mjs",
     "scripts/app-master-bench/report.test.mjs",
     "scripts/app-master-bench/run.mjs",
@@ -8701,6 +8711,7 @@
     "scripts/app-master-bench/scenarios.mjs",
     "scripts/app-master-bench/scenarios.test.mjs",
     "scripts/app-master-bench/soak/night.mjs",
+    "scripts/app-master-bench/soak/night.test.mjs",
     "scripts/app-master-bench/stub.mjs",
     "scripts/app-master-bench/stub.test.mjs",
     "scripts/app-master-bench/tenures.mjs",
