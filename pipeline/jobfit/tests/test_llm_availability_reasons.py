@@ -18,6 +18,7 @@ Three properties that were prose (or nothing) before:
 
 from __future__ import annotations
 
+import ast
 import io
 import json
 import os
@@ -37,6 +38,46 @@ from ..llm.base import (
     validate_base_url,
 )
 from ..llm.registry import provider_availability
+
+# The modules whose ``availability()`` a ROUTABLE provider can answer from:
+# the shared base, every adapter in ADAPTERS, and the Claude CLI engine. NOT
+# ``llm/fault.py`` (a harness fake, absent from ADAPTERS by construction — see its
+# "DELIBERATELY NOT ROUTABLE" note) and NOT ``llm/registry.py``, whose generic
+# "unavailable" is the floor for a duck-typed object with no ``availability()`` at
+# all rather than a reason any adapter returns.
+_LLM_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "llm")
+_REASON_SOURCE_FILES = (
+    os.path.join(_LLM_DIR, "base.py"),
+    *sorted(
+        os.path.join(_LLM_DIR, "adapters", f)
+        for f in os.listdir(os.path.join(_LLM_DIR, "adapters"))
+        if f.endswith(".py")
+    ),
+    os.path.join(os.path.dirname(_LLM_DIR), "claude_cli.py"),
+)
+
+
+def _returned_availability_reasons() -> set[str]:
+    """Every descent reason ``availability()`` literally returns, read off the AST.
+
+    Ground truth for the closed vocabulary: parse each module, find the
+    ``availability`` methods, and collect the second element of every
+    ``return <bool>, "<reason>"``. Derived from the code that answers rather than
+    from a second list a human keeps in step by hand."""
+    reasons: set[str] = set()
+    for path in _REASON_SOURCE_FILES:
+        with open(path, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read(), filename=path)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef) or node.name != "availability":
+                continue
+            for inner in ast.walk(node):
+                if not isinstance(inner, ast.Return) or not isinstance(inner.value, ast.Tuple):
+                    continue
+                for element in inner.value.elts:
+                    if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                        reasons.add(element.value)
+    return reasons
 
 
 @contextmanager
@@ -126,12 +167,32 @@ class AvailabilityReasonTests(unittest.TestCase):
         self.assertEqual(ctx.exception.subtype, "invalid_base_url")
 
     def test_every_reason_an_adapter_can_return_is_in_the_declared_vocabulary(self) -> None:
-        observed = {
-            "missing_key", "sdk_missing", "offline_policy", "missing_endpoint", "invalid_base_url",
-        }
-        self.assertTrue(observed.issubset(set(AVAILABILITY_REASONS)))
-        # not_installed is claude_cli's; it belongs to the same closed set.
-        self.assertIn("not_installed", AVAILABILITY_REASONS)
+        """Derived from the SOURCE, not from a second hand-typed list.
+
+        This assertion used to compare one literal set against another, so it could
+        not see a reason an adapter newly returns (the vocabulary silently gains an
+        undeclared member) NOR a member of the vocabulary nothing produces any more
+        (a dead reason whose operator hint outlives it). Both are the failure the
+        closed vocabulary exists to prevent, and both passed. Scan the modules that
+        actually answer ``availability()`` and compare what they return.
+        """
+        observed = _returned_availability_reasons()
+        # Non-vacuity: the scan found the reasons, not an empty set.
+        self.assertIn("offline_policy", observed)
+        self.assertGreaterEqual(len(observed), 5)
+        self.assertEqual(
+            observed,
+            set(AVAILABILITY_REASONS),
+            "availability() returns a reason the vocabulary does not declare, or the "
+            "vocabulary declares one nothing returns",
+        )
+
+    def test_the_canary_has_an_operator_hint_for_every_declared_reason(self) -> None:
+        """``test_cli._REASON_HINT`` is the operator-facing half of the same closed
+        set, and it was hand-maintained with nothing pinning it. A reason with no
+        hint falls back to "missing key or SDK/CLI" — the exact all-descents-look-
+        like-a-missing-key message this whole module exists to have retired."""
+        self.assertEqual(set(test_cli._REASON_HINT), set(AVAILABILITY_REASONS))
 
     def test_provider_availability_threads_the_adapter_reason_through(self) -> None:
         provider = _adapter("openrouter", api_key="k")
