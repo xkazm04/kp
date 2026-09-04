@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T10:56:56.093Z",
+  "generated_at": "2026-09-04T11:22:12.341Z",
   "provenance": {
-    "git_commit": "74a5d316ab2a39914943938ab8b4c3c3b94bc343",
-    "git_commit_count": 2639,
+    "git_commit": "0c2d042078b5abda85c6d7af66e313375547148a",
+    "git_commit_count": 2658,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T10:56:56.093Z"
+    "generated_at": "2026-09-04T11:22:12.341Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3124,
+    "files": 3138,
     "groups": 17,
     "use_cases": 12
   },
@@ -1609,14 +1609,24 @@
       "description": "[auto-seeded — pending sweep enrichment] Analyze UI 2: 10 source + 4 test file(s) under app/features/tools/analyze.",
       "entry_points": [],
       "file_paths": [
+        "app/features/tools/analyze/analyzeCvIntake.test.ts",
+        "app/features/tools/analyze/analyzeCvIntake.ts",
+        "app/features/tools/analyze/analyzeDraft.ts",
+        "app/features/tools/analyze/analyzeDragCounter.test.ts",
+        "app/features/tools/analyze/analyzeDragCounter.ts",
         "app/features/tools/analyze/analyzeDropRouting.test.ts",
         "app/features/tools/analyze/analyzeDropRouting.ts",
         "app/features/tools/analyze/analyzeFileIntakeGate.test.ts",
+        "app/features/tools/analyze/analyzeGithubRun.ts",
         "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts",
         "app/features/tools/analyze/analyzeGithubRunPolicy.ts",
+        "app/features/tools/analyze/analyzeJdLibraryState.test.ts",
+        "app/features/tools/analyze/analyzeJdLibraryState.ts",
         "app/features/tools/analyze/analyzePipelineRef.test.ts",
         "app/features/tools/analyze/analyzePipelineRef.ts",
         "app/features/tools/analyze/analyzeRunAnalysis.ts",
+        "app/features/tools/analyze/analyzeRunDelivery.test.ts",
+        "app/features/tools/analyze/analyzeRunDelivery.ts",
         "app/features/tools/analyze/useAnalyzeCvFiles.ts",
         "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts",
         "app/features/tools/analyze/useAnalyzeFileAccept.ts",
@@ -3338,7 +3348,9 @@
         "app/features/shared/MatchPresentation.tsx",
         "app/features/shared/MatchReasoningPanel.tsx",
         "app/features/shared/PipelineStepRow.tsx",
+        "app/features/shared/archetypeTone.ts",
         "app/features/shared/confidence-vocabulary.test.ts",
+        "app/features/shared/decisionsEntrySubset.test.ts",
         "app/features/shared/decisionsTypes.ts",
         "app/features/shared/groupEvalArm.test.ts",
         "app/features/shared/groupEvalArm.ts",
@@ -3355,6 +3367,8 @@
         "app/features/shared/renderTemplate.test.ts",
         "app/features/shared/renderTemplate.ts",
         "app/features/shared/sharedGet.ts",
+        "app/features/shared/templatesClient.test.ts",
+        "app/features/shared/templatesClient.ts",
         "app/features/shared/usePipelineAxisCopy.ts"
       ],
       "group": "Design System & Shared UI",
