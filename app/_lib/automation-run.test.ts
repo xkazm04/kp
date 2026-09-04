@@ -202,6 +202,51 @@ test("an UNPRICED offer draft parks for a human even with the offer gate on 'aut
   setGate(f.ws, "offer", "human");
 });
 
+test("a REFUSED auto-extend parks the draft and never claims the offer was sent", async () => {
+  // RED FIRST (before this change): extendDraftedOffer answers a business-rule
+  // refusal by RETURNING { status, body } — it does not throw — and this block
+  // ignored the return, so every non-200 still stamped `offer_auto_extended` and
+  // reported `applied: "offer_sent"`. A recruiter was told an offer went out that
+  // never did. Driven live through a NEGATIVE figure, which offer-policy's
+  // validateOfferTerms now refuses with OFFER_SALARY_INVALID (400) before a token
+  // can be minted.
+  const f = fixture();
+  setGate(f.ws, "offer", "auto");
+  seedVerdict(f, "offer", { recommended: -5000, currency: "CZK", rationale: "a figure nobody can be offered" }, "llm");
+
+  const out = await runAutomationTask(f.entry.id, "offer", "", undefined, undefined);
+  assert.equal(out.applied, "offer_ready", "a refusal must not report the offer as sent");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "offer_review", "the draft parks for a human");
+
+  const kinds = listPipelineEventsForEntry(f.entry.id, 50, f.ws).map((e) => e.kind);
+  assert.ok(!kinds.includes("offer_auto_extended"), "no phantom offer_auto_extended on the timeline");
+  const failed = listPipelineEventsForEntry(f.entry.id, 50, f.ws).find((e) => e.kind === "offer_comms_failed");
+  assert.ok(failed, "the refusal is recorded, not swallowed");
+  // The refusal CODE is the record; the screen resolves the kind's own localized
+  // verb (the detail is UPPER_SNAKE, which the renderer's letters-only parser
+  // deliberately does not claim — see pipeline-event-reasons.test.ts).
+  assert.equal(failed!.detail, `${AUTOMATION_REASON_PREFIX}offerAutoExtendRefused:OFFER_SALARY_INVALID`);
+  setGate(f.ws, "offer", "human");
+});
+
+test("the park-on-refusal branch is keyed on the STATUS, so the 409 and 502 take it too", () => {
+  // The 400 above is driven live. The two refusals that predate it cannot be
+  // reached without a mid-dispatch race — OFFER_SENT_APPROVAL_CHANGED (409: the
+  // letter WENT OUT but the approval moved while it did) and OFFER_NOT_DISPATCHED
+  // (502) — so what is pinned is that the branch discriminates on the status rather
+  // than on any one code, which is what makes them take the same park path.
+  const s = src("./automation-run.ts");
+  const guard = s.indexOf("if (extended.status !== 200) {");
+  const claim = s.indexOf('applied = "offer_sent";');
+  assert.ok(guard > 0, "the auto-extend must inspect the status extendDraftedOffer returns");
+  assert.ok(claim > guard, "the offer_sent claim sits in the ELSE of that guard, never before it");
+  assert.match(s, /const extended = await extendDraftedOffer\(fresh,/, "the return value is bound, not discarded");
+  // Both pre-existing refusals are answered by extendDraftedOffer itself.
+  const action = src("./pipeline-entry-action.ts");
+  assert.match(action, /"OFFER_SENT_APPROVAL_CHANGED"/, "the 409 this branch now parks on still exists upstream");
+  assert.match(action, /"OFFER_NOT_DISPATCHED"/, "…and so does the 502");
+});
+
 test("the offer gate 'human' drafts and parks, extending nothing", async () => {
   const f = fixture();
   seedVerdict(f, "offer", { recommended: 90000, currency: "CZK" }, "llm");
