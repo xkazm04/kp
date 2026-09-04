@@ -532,6 +532,14 @@ jobs:
       # decision. (`shell.spec`, not `shell` — a bare `shell` would also pull in
       # shell-tab-state.spec.ts, which is the widening this note warns about.) Both journeys are keyless by construction — see each file's
       # header for which endpoint on its path degrades deterministically.
+      #
+      # THIS LIST IS PINNED. The same eight names are declared as KEYLESS_SPECS
+      # in playwright.config.ts, and scripts/docs/__tests__/keyless-e2e-pin
+      # .test.mjs (npm run test:docs) fails when the two diverge in EITHER
+      # direction — so the release gate's contents are visible from the suite
+      # itself instead of living only inside this YAML step. Change both here
+      # and there in the same commit; .claude/CLAUDE.md's subset line is pinned
+      # to the same array.
       - name: Run deterministic specs
         run: >-
           npx playwright test

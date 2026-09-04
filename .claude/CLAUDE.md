@@ -69,8 +69,13 @@ app/
 pipeline/jobfit/              # Python side: extraction, scoring, LLM registry,
 │                             # codegen (schemas:gen keeps TS/Python schemas in sync)
 messages/{en,cs,de,fr}.json   # next-intl catalogs — en is the source of truth
-e2e/                          # Playwright; deterministic keyless subset =
-                              # journey-role-to-schedule + modal-escape + profile-builder
+e2e/                          # Playwright. The subset below is DECLARED as
+                              # KEYLESS_SPECS in playwright.config.ts and pinned
+                              # to ci.yml's release job AND to this line by
+                              # scripts/docs/__tests__/keyless-e2e-pin.test.mjs —
+                              # restate the whole list here when it changes.
+                              # deterministic keyless subset =
+                              # modal-escape + profile-builder
                               # + profile-roster (the saved-profile ledger: column
                               #   filters, the 20-row pager, the confirm-guarded
                               #   delete — fixtures created THROUGH /api/profile,
@@ -81,14 +86,19 @@ e2e/                          # Playwright; deterministic keyless subset =
                               # + public-pages (the OTHER indexed surfaces: axe on
                               #   /about /trust /privacy /terms /market, plus
                               #   /about's legal row and phone nav)
-                              # + shell (the root document's response contract:
+                              # + shell.spec (the root document's response contract:
                               #   security headers, ONE nonce'd report-only CSP,
                               #   <html lang> per ?lang= and cookie, hreflang
                               #   alternates, no theme flash — filtered as
                               #   `shell.spec`, not `shell`)
-                              # + app-master-hire (the App-master battle test —
-                              # mock Personas bridge, needs KP_OFFLINE=1 and
-                              # KP_APP_MASTER_REPO_ROOTS on the SERVER process)
+                              # + journey-role-to-schedule + journey-one-thread
+                              #
+                              # NOT in that subset, though this line used to claim
+                              # it was: app-master-hire (the App-master battle test
+                              # — mock Personas bridge, needs KP_OFFLINE=1 and
+                              # KP_APP_MASTER_REPO_ROOTS on the SERVER process, so
+                              # it is not keyless by construction and the release
+                              # job does not run it).
 ```
 
 Recurring patterns worth imitating: literal-array + derived-union + runtime

@@ -160,7 +160,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/teramaresova/studyplanner"
+        "link": "https://github.com/example-teramaresova/studyplanner"
       },
       {
         "kind": "extracurricular",
@@ -259,7 +259,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/terezamarkova/ds-microservice-demo"
+        "link": "https://github.com/example-terezamarkova/ds-microservice-demo"
       },
       {
         "kind": "extracurricular",
@@ -633,7 +633,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/terkamarkova/studybuddy-case"
+        "link": "https://github.com/example-terkamarkova/studybuddy-case"
       },
       {
         "kind": "extracurricular",
@@ -819,7 +819,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/tmaresova/campus-events-redesign"
+        "link": "https://github.com/example-tmaresova/campus-events-redesign"
       },
       {
         "kind": "extracurricular",
@@ -905,7 +905,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/tmaresova/study-planner"
+        "link": "https://github.com/example-tmaresova/study-planner"
       },
       {
         "kind": "extracurricular",
@@ -1015,7 +1015,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/terezah-dev/genetrack"
+        "link": "https://github.com/example-terezah-dev/genetrack"
       },
       {
         "kind": "course",
@@ -1028,7 +1028,7 @@
         ],
         "provenance": "coursework",
         "confidence": 0.6,
-        "link": "https://github.com/terezah-dev/cvut-backend-exercises"
+        "link": "https://github.com/example-terezah-dev/cvut-backend-exercises"
       }
     ],
     "learningSignals": [],
@@ -1121,7 +1121,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/ondrejbenes-dev/kvizplus"
+        "link": "https://github.com/example-ondrejbenes-dev/kvizplus"
       },
       {
         "kind": "course",
@@ -1479,7 +1479,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://gitlab.com/tmaresova/studyplan"
+        "link": "https://gitlab.com/example-tmaresova/studyplan"
       },
       {
         "kind": "extracurricular",
@@ -2029,7 +2029,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/kdolezalova/energy-forecast"
+        "link": "https://github.com/example-kdolezalova/energy-forecast"
       },
       {
         "kind": "extracurricular",
@@ -2209,7 +2209,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://gitlab.com/tmaresova/skripta-share"
+        "link": "https://gitlab.com/example-tmaresova/skripta-share"
       },
       {
         "kind": "extracurricular",
@@ -2295,7 +2295,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/vhruska/short-dist"
+        "link": "https://github.com/example-vhruska/short-dist"
       },
       {
         "kind": "extracurricular",
@@ -2393,7 +2393,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/lucie-ticha/labtrack-api"
+        "link": "https://github.com/example-lucie-ticha/labtrack-api"
       },
       {
         "kind": "course",
@@ -2481,7 +2481,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/marketa-dvorakova/brno-mhd-delays"
+        "link": "https://github.com/example-marketa-dvorakova/brno-mhd-delays"
       },
       {
         "kind": "extracurricular",
@@ -2755,7 +2755,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/klara-benesova/energy-forecast"
+        "link": "https://github.com/example-klara-benesova/energy-forecast"
       },
       {
         "kind": "extracurricular",
@@ -2853,7 +2853,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/adelaproch/rehabtrack"
+        "link": "https://github.com/example-adelaproch/rehabtrack"
       },
       {
         "kind": "course",
@@ -2953,7 +2953,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/vsykora/dorm-energy-forecast"
+        "link": "https://github.com/example-vsykora/dorm-energy-forecast"
       },
       {
         "kind": "extracurricular",
@@ -3045,7 +3045,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/tmaresova/studygroup-matcher"
+        "link": "https://github.com/example-tmaresova/studygroup-matcher"
       },
       {
         "kind": "extracurricular",
@@ -3244,7 +3244,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/tmaresova/brno-transit-delays"
+        "link": "https://github.com/example-tmaresova/brno-transit-delays"
       },
       {
         "kind": "extracurricular",
@@ -3424,7 +3424,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/tmaresova/skriptashare"
+        "link": "https://github.com/example-tmaresova/skriptashare"
       },
       {
         "kind": "extracurricular",
@@ -3522,7 +3522,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/vmaresova/lab-report-tracker"
+        "link": "https://github.com/example-vmaresova/lab-report-tracker"
       },
       {
         "kind": "course",
@@ -4244,7 +4244,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/skovarik-vse/skolni-burza"
+        "link": "https://github.com/example-skovarik-vse/skolni-burza"
       },
       {
         "kind": "extracurricular",
@@ -4348,7 +4348,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/lpokorna/physiotrack-capstone"
+        "link": "https://github.com/example-lpokorna/physiotrack-capstone"
       },
       {
         "kind": "course",
@@ -4636,7 +4636,7 @@
         ],
         "provenance": "personal_project",
         "confidence": 0.6,
-        "link": "https://github.com/marketa-dvorakova/seedswap"
+        "link": "https://github.com/example-marketa-dvorakova/seedswap"
       },
       {
         "kind": "course",

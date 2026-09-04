@@ -1,2 +1,40 @@
+# ── Line endings ────────────────────────────────────────────────────────────
+# This is a Windows-primary checkout with `core.autocrlf=true`, so the working
+# tree is CRLF while the index is LF. That worked by accident, not by contract:
+# nothing here said so, an agent or an editor on another platform could commit
+# CRLF blobs, and a multi-line patch written against `\n` silently matches
+# nothing (it has cost this repo two no-op'd patches). `* text=auto` makes the
+# LF-in-the-index rule the repository's, independent of anyone's git config.
+* text=auto
+
+# Files that are EXECUTED or PARSED by tools that are LF-only or LF-happier —
+# pinned rather than left to `text=auto`'s heuristic, so a checkout with
+# `core.autocrlf=true` still gets LF on disk for these.
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.py    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+
 # Git hooks run under sh — they must stay LF even on Windows checkouts.
 .githooks/* text eol=lf
+
+# Lockfiles and generated bundles: never diffed by hand, always LF.
+package-lock.json text eol=lf
+
+# Binary assets — never touched by EOL conversion, never diffed as text.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.mp3   binary
+*.wav   binary
+*.sqlite binary

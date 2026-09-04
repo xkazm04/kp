@@ -21,6 +21,7 @@ import { ArrowRight, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PANEL_SUNKEN, EYEBROW, BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { PIPELINE_GLYPH } from "@/app/_components/glyph/glyphs/pipelineGlyph";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -85,7 +86,7 @@ export function PipelineEmptyFirstCandidate({ title, body, links, extraAction }:
         <MotionizedGlyph
           data={PIPELINE_GLYPH.data}
           viewBox={PIPELINE_GLYPH.viewBox}
-          className="h-24 w-24 shrink-0"
+          className={`${GLYPH_SIZE.md} shrink-0`}
         />
         <div className="min-w-0">
           <p className={EYEBROW}>{t("emptyBoardWaiting")}</p>

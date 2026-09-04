@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-04T08:42:36.428Z",
+ "generated_at": "2026-09-04T09:02:48.340Z",
  "provenance": {
-  "git_commit": "1fb5fad00d262b67c4ebe2caa139f9a98c873b87",
-  "git_commit_count": 2562,
+  "git_commit": "ef924586f259a0d159eaa2a3d7e739c725e0769a",
+  "git_commit_count": 2581,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-04T08:42:36.428Z"
+  "generated_at": "2026-09-04T09:02:48.340Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3074,
+  "files": 3083,
   "groups": 17,
   "use_cases": 12
  },
@@ -526,6 +526,9 @@
     "pipeline/jobfit/tests/test_market_salary_cli.py",
     "pipeline/jobfit/tests/test_reasoning_narrative_lang.py",
     "pipeline/jobfit/tests/test_score_boundaries.py",
+    "pipeline/jobfit/tests/test_seed_data_hygiene.py",
+    "pipeline/jobfit/tests/test_seed_interview_calendar.py",
+    "pipeline/jobfit/tests/test_seed_pipeline.py",
     "pipeline/jobfit/tests/test_service.py",
     "pipeline/jobfit/tests/test_thresholds.py"
    ],
@@ -3380,6 +3383,11 @@
    "description": "[auto-seeded — pending sweep enrichment] UI Glyphs 1: 20 source + 0 test file(s) under app/_components/glyph/glyphs.",
    "entry_points": [],
    "file_paths": [
+    "app/_components/glyph/MotionizedGlyph.a11y.test.ts",
+    "app/_components/glyph/glyphMotionCss.test.ts",
+    "app/_components/glyph/glyphMotionCss.ts",
+    "app/_components/glyph/glyphSizes.test.ts",
+    "app/_components/glyph/glyphSizes.ts",
     "app/_components/glyph/glyphs/analyticsGlyph.ts",
     "app/_components/glyph/glyphs/channelAdsGlyph.ts",
     "app/_components/glyph/glyphs/channelCareersGlyph.ts",
@@ -3388,10 +3396,10 @@
     "app/_components/glyph/glyphs/decisionsGlyph.ts",
     "app/_components/glyph/glyphs/devCasesGlyph.ts",
     "app/_components/glyph/glyphs/glyphData.test.ts",
+    "app/_components/glyph/glyphs/glyphsHaveConsumers.test.ts",
     "app/_components/glyph/glyphs/jobsGlyph.ts",
     "app/_components/glyph/glyphs/libraryGlyph.ts",
     "app/_components/glyph/glyphs/matrixGlyph.ts",
-    "app/_components/glyph/glyphs/onboardingRunGlyph.ts",
     "app/_components/glyph/glyphs/pipelineGlyph.ts",
     "app/_components/glyph/glyphs/profileMatrixGlyph.ts",
     "app/_components/glyph/glyphs/profileRosterGlyph.ts",
@@ -3399,8 +3407,7 @@
     "app/_components/glyph/glyphs/stepCaseGlyph.ts",
     "app/_components/glyph/glyphs/stepChannelsGlyph.ts",
     "app/_components/glyph/glyphs/stepCompanyGlyph.ts",
-    "app/_components/glyph/glyphs/stepFirstRoleGlyph.ts",
-    "app/_components/glyph/glyphs/stepTeamGlyph.ts"
+    "app/_components/glyph/glyphs/stepFirstRoleGlyph.ts"
    ],
    "group": "Design System & Shared UI",
    "group_id": "7b3cdbfe-86b8-4f2c-ad9a-592a575d634a",
@@ -8891,6 +8898,8 @@
     "scripts/docs/__tests__/check-adrs.test.mjs",
     "scripts/docs/__tests__/check-doc-sync.test.mjs",
     "scripts/docs/__tests__/check-guidance.test.mjs",
+    "scripts/docs/__tests__/keyless-e2e-pin.test.mjs",
+    "scripts/docs/__tests__/toolchain-pin.test.mjs",
     "scripts/docs/check-adrs.mjs",
     "scripts/docs/check-doc-sync-diff.mjs",
     "scripts/docs/check-doc-sync.mjs",

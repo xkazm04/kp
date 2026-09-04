@@ -703,6 +703,71 @@ owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
 a `Select` is now a tsc error rather than a second name for the same thing.
 
+### One size vocabulary for traced glyphs (2026-09-04)
+
+The 14 `MotionizedGlyph` render sites had hand-typed **five** sizes between them
+(80 / 96 / 112 / 128 / 144px) with nothing saying which surface earned which — a
+centred empty-state hero at 128 next to another at 144 is two guesses, not a
+decision. [`GLYPH_SIZE`](../../app/_components/glyph/glyphSizes.ts) is four steps
+named for the surface rather than the pixels: `sm` (`h-20`) an inline aside beside
+a paragraph, `md` (`h-24`) a row-leading illustration, `lg` (`h-28`) a boxed or
+column-leading one, `xl` (`h-36`) a centred hero in a `text-center` panel.
+`GLYPH_SIZE_SM` holds the same steps at the `sm:` breakpoint, for the two shelf
+empty states that grow once there is room.
+
+The one visible change: the three 128px centred heroes (`DecisionsEmptyHandoff`
+and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — every
+centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
+just the record, so a fifteenth site cannot quietly invent a sixth size.
+
+### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
+
+Two contracts the glyph renderer declared and did not keep:
+
+- **`aria-hidden` and `role="img"` sat on the same `<svg>`.** One removes the
+  subtree from the accessibility tree, the other declares an image in it, and
+  there was no way for a consumer to supply a name — so a drawing that *is* the
+  information had no route to one, and nothing in `app/_components/glyph/`
+  asserted anything about accessibility. `MotionizedGlyph` now takes `label?:
+  string`: without it the `<svg>` is `aria-hidden` decoration (right for all 14
+  render sites today, each of which pairs the glyph with a heading and a body
+  sentence that already say what it depicts), with it the `<svg>` gets
+  `role="img"` + `aria-label` and no `aria-hidden`. Both states come from one
+  spread so they cannot drift apart, and `MotionizedGlyph.a11y.test.ts` pins the
+  exclusion plus the rule that the renderer never hardcodes a name (it would ship
+  one locale to every reader).
+- **`MotionPreset.reduced` was a comment.** The field has documented the
+  `prefers-reduced-motion` answer — "cross-fade only, or don't run at all" — since
+  the library was written, and the renderer hardcoded the cross-fade for every
+  preset: a preset asking for stillness still faded in. The derivation moved out
+  to [`glyphMotionCss.ts`](../../app/_components/glyph/glyphMotionCss.ts), a pure
+  string function, so `glyphMotionCss.test.ts` can assert it directly: an
+  `opacity-only` layer cross-fades, a `none` layer emits `animation: none` **plus
+  `opacity: 1`** (the resting state is `opacity: 0`, so dropping the animation
+  alone would render an invisible glyph), and an ambient loop is dropped or kept
+  by its own `reduced` value rather than by the renderer's opinion.
+
+### Glyph motion is two layers, and each option has a consumer (2026-09-04)
+
+`MotionizedGlyph` used to compose three layers and an extra flag — `entrance`,
+`ambient`, `hover` and `glow`. Five of those options had no consumer anywhere in
+`app/`, which is the same failure `motionPresets.test.ts` was written for one
+level up: reachable-through-a-prop is not the same as *reached*, and unreached
+options accrue review attention, doc claims and gate budget for behaviour nobody
+sees. Each was resolved rather than left standing:
+
+| Option | Verdict |
+| --- | --- |
+| `entrance="fade-pop"` | **kept** — now used by `AnalyticsEmptyPreview`, whose glyph renders at 80px where a per-path stagger is noise, not a reveal. |
+| `ambient="pulse"` | **kept** — now used by `SetupGettingStartedNextMove` *only* while a step reports `analyzing`. Breathing means work is in flight; on an idle step it would be a lie. |
+| `entrance="draw"` | **removed.** A `pathLength` dash sweep traces a filled region's *boundary*; every traced glyph in the repo is filled, so its own docstring already forbade every existing consumer from using it. |
+| `hover="hover-response"` | **removed.** It needs an interactive parent and no glyph in the app sits inside one — all 14 render sites are empty-state illustrations. |
+| `glow` | **removed.** An emissive `feGaussianBlur` that reads well in Spark Dark and, per the motionize skill, is "usually wrong" in Studio Light — i.e. it wants a per-theme fork no consumer had asked for. |
+
+The renderer is two layers now (`entrance` + `ambient`), and
+`motionPresets.test.ts` still pins the preset union to exactly the records those
+two props read.
+
 ## Public landing (status: BUILT, NOT LAUNCHED)
 
 The marketing landing (`app/landing/spark/SparkHome` — hero, pricing tiers, trust

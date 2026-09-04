@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { CARD_PAD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { CHANNEL_EMPTY_SPECS, type ChannelEmptySpec } from "./channelsEmptySpecs";
 import type { ChannelSectionId } from "./channelsSections";
@@ -53,7 +54,7 @@ function BriefEmpty({ spec, connected, action }: { spec: ChannelEmptySpec; conne
         </div>
 
         <div className="shrink-0 self-center rounded-xl border border-stone-200 bg-paper/60 p-3 md:self-start">
-          <MotionizedGlyph data={spec.glyph.data} viewBox={spec.glyph.viewBox} className="h-28 w-28" />
+          <MotionizedGlyph data={spec.glyph.data} viewBox={spec.glyph.viewBox} className={GLYPH_SIZE.lg} />
         </div>
       </div>
     </div>

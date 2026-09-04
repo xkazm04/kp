@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { PANEL_SUNKEN } from "./ui/recipes";
 import { MotionizedGlyph, type TracedGlyph } from "./glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "./glyph/glyphSizes";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
 // Chain-aware empty state: an empty tab explains WHERE its data comes from and
@@ -40,7 +41,7 @@ export function ChainEmptyState({
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-center`}>
       {glyph ? (
-        <MotionizedGlyph data={glyph.data} viewBox={glyph.viewBox} className="mx-auto h-28 w-28" />
+        <MotionizedGlyph data={glyph.data} viewBox={glyph.viewBox} className={`mx-auto ${GLYPH_SIZE.lg}`} />
       ) : Icon ? (
         <Icon className="mx-auto text-moss" size={28} aria-hidden />
       ) : null}

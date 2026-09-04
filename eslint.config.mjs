@@ -26,9 +26,17 @@ import i18next from "eslint-plugin-i18next";
 // once; there is nothing left to forget to restate. The layering rule is the
 // only thing left to get right, and it is stated at the config array below.
 //
-// scripts/lint/__tests__/eslint-gates.test.mjs is the other half: it feeds each
-// law a snippet that must be rejected, at each layer that must reject it, through
-// the real ESLint. A law that stops firing fails a test instead of going quiet.
+// app/lint-selector-coverage.test.ts is the other half: it asks the real ESLint
+// what it RESOLVES for a file at each layer, so a law that stops firing fails a
+// test instead of going quiet. It also derives the whole tracked TypeScript
+// surface from `git ls-files` and requires every file in it to match at least
+// one block — the gap that let e2e/, i18n/, edge/ and the root modules sit
+// outside every law with lint green.
+//
+// (This note used to point at `scripts/lint/__tests__/eslint-gates.test.mjs`,
+// which has never existed in this tree. A pointer to a guard that is not there
+// reads exactly like a guard that is — which is the failure mode the guard was
+// written to prevent, one level up.)
 // ===========================================================================
 
 /** Every block's `no-restricted-syntax` is built here, never hand-listed. */
@@ -134,8 +142,9 @@ const UI_NO_DB_VALUE_IMPORT = {
 const PACKAGES_NO_APP_IMPORT = {
   selector: "ImportDeclaration[source.value=/^(@\\x2f|(\\.\\.\\x2f)+)app\\x2f/]",
   message:
-    "a package importing from app/. packages/** is the portable lane — it is meant to be liftable out of " +
-    "this repo, so the dependency only ever points app/ -> packages/. Move the shared value INTO the package " +
+    "a portable-lane module importing from app/. packages/** and edge/** are meant to be liftable out of " +
+    "this repo — edge/ is deployed to the operator's OWN Cloudflare account and is excluded from the root " +
+    "tsconfig — so the dependency only ever points app/ -> packages/. Move the shared value INTO the lane " +
     "(and import it from app/), or take it as a parameter/config the app passes in."
 };
 
@@ -436,7 +445,33 @@ const config = [
     // set through `restrict()` rather than inheriting it. Read them top to
     // bottom: every file lands in exactly one, and it is the last one that
     // matches it.
-    files: ["app/**/*.ts", "app/**/*.tsx", "scripts/**/*.mjs", "packages/**/*.ts"],
+    //
+    // THE FLOOR IS THE WHOLE TRACKED SURFACE, and it was not: these globs used
+    // to read `app/**/*.ts`, `app/**/*.tsx`, `scripts/**/*.mjs`,
+    // `packages/**/*.ts`, which left 38 tracked TypeScript files — every e2e
+    // spec, all of i18n/, the edge Worker, the root modules (proxy.ts,
+    // next.config.ts, the instrumentation entry points), the `.d.mts` ambient
+    // files and the two TypeScript scripts — matching NO block at all. eslint
+    // resolved no options for them, so the transaction law never applied there
+    // and `npm run lint` was green over them by omission rather than by
+    // compliance. `.mts` is listed explicitly because `**/*.ts` does not match
+    // it. app/lint-selector-coverage.test.ts now derives the list from
+    // `git ls-files` and fails naming any file that falls outside every block.
+    files: [
+      "app/**/*.ts",
+      "app/**/*.tsx",
+      "app/**/*.mts",
+      "scripts/**/*.mjs",
+      "scripts/**/*.ts",
+      "scripts/**/*.mts",
+      "packages/**/*.ts",
+      "packages/**/*.mts",
+      "e2e/**/*.ts",
+      "i18n/**/*.ts",
+      "edge/**/*.ts",
+      "*.ts",
+      "*.mts"
+    ],
     rules: restrict(...TRANSACTION_SELECTORS)
   },
   {
@@ -512,6 +547,52 @@ const config = [
     files: ["packages/**/*.ts"],
     ignores: ["packages/**/*.test.ts"],
     rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS, PACKAGES_NO_APP_IMPORT)
+  },
+  {
+    // ---------------------------------------------------------------------
+    // The SERVER EDGE of the app that is not under app/: the root modules
+    // (proxy.ts — the middleware that fails closed on a keyless production
+    // boot; next.config.ts; the three instrumentation entry points) and i18n/,
+    // which resolves the request locale and is imported by every server render.
+    //
+    // They owe the module-graph laws for the same reason app/_lib does, and more
+    // sharply: proxy.ts runs on EVERY request, so a db-barrel value import there
+    // is the most expensive one in the repo. No colour law — none of these
+    // render, and none is a .tsx file.
+    // ---------------------------------------------------------------------
+    files: ["i18n/**/*.ts", "*.ts", "*.mts"],
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS)
+  },
+  {
+    // ---------------------------------------------------------------------
+    // The OTHER portable lane. edge/ is a Cloudflare Worker deployed to the
+    // operator's own account, with its own package.json and tsconfig (the root
+    // tsconfig excludes it), and its whole design claim is that it "holds no
+    // truth and no secrets". An import of app/ — of any kind, `import type`
+    // included, because the breakage is to portability rather than to bundle
+    // size — is what would quietly make it unliftable, and until now the rule
+    // that says so reached packages/ only.
+    //
+    // Its own tests are in edge/test/ and land here too: the app-import wall is
+    // a source-portability rule, so it binds a test exactly as it binds the
+    // Worker. The mirror of this protocol lives in app/_lib/edge-*.ts, which is
+    // app/ importing the shared shape — the direction that is allowed.
+    // ---------------------------------------------------------------------
+    files: ["edge/**/*.ts"],
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS, PACKAGES_NO_APP_IMPORT)
+  },
+  {
+    // ---------------------------------------------------------------------
+    // The e2e suite. A spec is never compiled into a route, so it carries the
+    // graph laws no more than app/**/*.test.ts does, and it asserts about
+    // rendered colour often enough that the design law would be actively wrong
+    // here. What it DOES owe is the transaction law (the fixtures in
+    // e2e/fixtures/ talk to the same better-sqlite3 stores) and the
+    // route-handler wall: a spec drives the app over HTTP — importing a handler
+    // and calling it in-process is a test of something the browser never does.
+    // ---------------------------------------------------------------------
+    files: ["e2e/**/*.ts"],
+    rules: restrict(...TRANSACTION_SELECTORS, NO_ROUTE_HANDLER_IMPORT)
   }
 ];
 

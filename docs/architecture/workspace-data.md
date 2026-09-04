@@ -31,6 +31,13 @@ python -m pipeline.jobfit.seed_pipeline                       # pipeline board r
 python -m pipeline.jobfit.seed_interview_calendar             # extra interview slots, written straight into the DB
 ```
 
+`seed_interview_calendar` is a **one-shot** seeder: it records `python:interview-calendar`
+in the same `seed_marks` table the TypeScript loaders use (`app/_lib/db/seed-marks.ts`)
+and re-runs are a no-op, so a calendar an operator has deliberately purged is never
+refilled by the next run. A database seeded before the mark existed adopts it (any
+existing `approval_kind='calendar'` row ⇒ stamp and stop). Use `--force` to rebuild the
+demo fixture on purpose.
+
 ## Dump & restore (move / share / back up a live workspace)
 
 `scripts/db-dump.mjs` exports *every* table (discovered from `sqlite_master`, so new

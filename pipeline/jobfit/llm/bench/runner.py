@@ -13,10 +13,11 @@ import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from ...claude_cli import ClaudeCliProvider
 from ..adapters import ADAPTERS
+from ..base import price_usd
 from ..capabilities import default_max_tokens, default_model
 from ..monitor import MonitoredClaudeCli
 from .scenarios import REGISTRY_USE_CASE, Scenario, scenarios_for
@@ -62,6 +63,119 @@ class BenchRecord:
     judge_detail: dict[str, Any] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
     payload: Any = None
+
+
+# --- spend ceiling -------------------------------------------------------------
+#
+# The matrix spends REAL provider tokens, and until now cost was only ever known
+# AFTERWARDS: the scorecard printed $/task once every call had been paid for. A
+# fat-fingered `--limit 200` across five targets was a bill, discovered late. Two
+# pieces answer that, and they are deliberately separate:
+#
+#   * a PRE-RUN ESTIMATE (pure, no I/O) so the operator sees the order of magnitude
+#     before authorising anything, and
+#   * a RUNNING CEILING that stops the matrix mid-flight, because an estimate is an
+#     estimate — a model that rambles, a retry storm, or an unpriced target all put
+#     the real number somewhere else.
+#
+# The estimate is deliberately a CEILING, not a mean: it assumes every call fills
+# its output budget. A guard that under-promises spend is the dangerous direction.
+NOMINAL_INPUT_TOKENS = 3500  # bench prompts carry a full JD + candidate profile
+NOMINAL_OUTPUT_TOKENS = 900  # when the use case declares no max_tokens ceiling
+
+
+@dataclass(frozen=True)
+class EstimateRow:
+    use_case: str
+    target: str
+    model: str
+    calls: int
+    input_tokens: int
+    output_tokens: int
+    # None when the model has no row in MTOK_PRICES — an Azure deployment, a local
+    # Ollama model, the subscription-billed Claude CLI. Unpriced is NOT free; it is
+    # unknown, and the ceiling cannot bind on it (see BudgetGuard.unpriced_calls).
+    usd: float | None
+
+
+@dataclass(frozen=True)
+class MatrixEstimate:
+    rows: list[EstimateRow]
+    total_usd: float
+    unpriced: list[str]
+
+    def to_lines(self) -> list[str]:
+        out = [
+            f"  {r.target:<38} {r.use_case:<20} {r.calls:>4} calls  "
+            + (f"~${r.usd:.2f}" if r.usd is not None else "cost unknown")
+            for r in self.rows
+        ]
+        out.append(f"  {'TOTAL (priced targets, upper bound)':<59} ~${self.total_usd:.2f}")
+        if self.unpriced:
+            out.append(f"  unpriced targets (no list price known): {', '.join(self.unpriced)}")
+        return out
+
+
+def estimate_matrix_usd(
+    scenario_counts: Mapping[str, int],
+    targets: Sequence[BenchTarget],
+    *,
+    input_tokens: int = NOMINAL_INPUT_TOKENS,
+) -> MatrixEstimate:
+    """Upper-bound cost of a matrix, WITHOUT running or building anything.
+
+    Pure: takes the scenario count per use case (the CLI gets it from
+    ``scenarios_for``) so it can be tested without the seed corpus or a provider.
+    """
+    rows: list[EstimateRow] = []
+    unpriced: list[str] = []
+    total = 0.0
+    for use_case, count in scenario_counts.items():
+        registry_use_case = REGISTRY_USE_CASE.get(use_case, use_case)
+        output_tokens = default_max_tokens(registry_use_case) or NOMINAL_OUTPUT_TOKENS
+        for target in targets:
+            model = target.model or default_model(registry_use_case, target.provider) or ""
+            usd = price_usd(model, input_tokens * count, output_tokens * count) if model else None
+            rows.append(
+                EstimateRow(
+                    use_case=use_case,
+                    target=target.label,
+                    model=model or "default",
+                    calls=count,
+                    input_tokens=input_tokens * count,
+                    output_tokens=output_tokens * count,
+                    usd=usd,
+                )
+            )
+            if usd is None:
+                if target.label not in unpriced:
+                    unpriced.append(target.label)
+            else:
+                total += usd
+    return MatrixEstimate(rows=rows, total_usd=round(total, 4), unpriced=unpriced)
+
+
+@dataclass
+class BudgetGuard:
+    """The running ceiling. ``max_usd`` None means "no ceiling" — which the CLI
+    refuses to default to, so an unbounded run is always an explicit choice."""
+
+    max_usd: float | None = None
+    spent_usd: float = 0.0
+    stopped: bool = False
+    # Calls whose cost we could not price. They are counted, never charged: silently
+    # treating unknown as $0 would let an unpriced target run the whole matrix under a
+    # ceiling that can never trip, which is the one failure mode a budget must not have.
+    unpriced_calls: int = 0
+
+    def charge(self, cost_usd: float | None) -> None:
+        if cost_usd is None:
+            self.unpriced_calls += 1
+        else:
+            self.spent_usd = round(self.spent_usd + cost_usd, 6)
+
+    def exhausted(self) -> bool:
+        return self.max_usd is not None and self.spent_usd >= self.max_usd
 
 
 def build_provider(target: BenchTarget, use_case: str) -> Any:
@@ -117,11 +231,24 @@ def run_matrix(
     lang: str = "en",
     include_payload: bool = False,
     provider_factory: Callable[[BenchTarget, str], Any] = build_provider,
+    budget: "BudgetGuard | None" = None,
 ) -> list[BenchRecord]:
+    """Runs the full matrix unless ``budget`` trips.
+
+    The ceiling is checked AFTER each record is priced, so a run always keeps what it
+    paid for (the records are the receipt) and the next call is the one that does not
+    happen. ``budget.stopped`` is how the caller learns the matrix is partial — the
+    records themselves carry no synthetic "stopped" row, which would otherwise land in
+    ``summarize`` as an error and corrupt the very numbers the run is for.
+    """
     records: list[BenchRecord] = []
     for use_case in use_cases:
+        if budget is not None and budget.stopped:
+            break
         scenarios: list[Scenario] = scenarios_for(use_case, limit=limit, lang=lang)
         for target in targets:
+            if budget is not None and budget.stopped:
+                break
             provider = provider_factory(target, use_case)
             model = _model_label(target, provider)
             if not provider.available():
@@ -164,6 +291,11 @@ def run_matrix(
                 costs = [c.cost_usd for c in calls if getattr(c, "cost_usd", None)]
                 record.cost_usd = round(sum(costs), 6) if costs else None
                 records.append(record)
+                if budget is not None:
+                    budget.charge(record.cost_usd)
+                    if budget.exhausted():
+                        budget.stopped = True
+                        break
     return records
 
 
@@ -280,10 +412,16 @@ def write_outputs(records: Sequence[BenchRecord], out_dir: Path) -> dict[str, Pa
 
 
 __all__ = [
+    "NOMINAL_INPUT_TOKENS",
+    "NOMINAL_OUTPUT_TOKENS",
     "BenchRecord",
     "BenchTarget",
+    "BudgetGuard",
     "ClaudeCliProvider",  # re-export for tests that stub the CLI column
+    "EstimateRow",
+    "MatrixEstimate",
     "build_provider",
+    "estimate_matrix_usd",
     "record_calls",
     "run_matrix",
     "summarize",

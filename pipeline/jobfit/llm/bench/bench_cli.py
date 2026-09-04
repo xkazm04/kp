@@ -16,13 +16,43 @@ LightTrack's judge/benchmark engine can score the traffic server-side;
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
-from .runner import BenchTarget, run_matrix, summarize, to_markdown, write_outputs
-from .scenarios import SCENARIO_BUILDERS
+from .runner import (
+    BenchTarget,
+    BudgetGuard,
+    estimate_matrix_usd,
+    run_matrix,
+    summarize,
+    to_markdown,
+    write_outputs,
+)
+from .scenarios import SCENARIO_BUILDERS, scenarios_for
+
+# The matrix spends real provider tokens, so it does not start without a declared
+# ceiling. Sourced from the environment as well as the flag: the operator who sets it
+# once in their shell (or a Makefile) does not re-decide it on every invocation.
+MAX_USD_ENV = "KP_BENCH_MAX_USD"
+
+
+def resolve_max_usd(flag: float | None, env: Mapping[str, str]) -> float | None:
+    """``--max-usd`` wins over ``KP_BENCH_MAX_USD``; an unparseable or non-positive
+    env value is treated as UNSET (→ the run is refused with the estimate printed)
+    rather than silently becoming a ceiling nobody chose."""
+    if flag is not None:
+        return flag if flag > 0 else None
+    raw = (env.get(MAX_USD_ENV) or "").strip()
+    if not raw:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        return None
+    return value if value > 0 else None
 
 
 def judge_scope(records: Sequence[Any]) -> tuple[int, int]:
@@ -53,6 +83,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Comma-separated provider[:model] specs, e.g. anthropic:claude-haiku-4-5,gemini",
     )
     parser.add_argument("--limit", type=int, default=8, help="Scenarios per use case.")
+    parser.add_argument(
+        "--max-usd",
+        type=float,
+        default=None,
+        help=f"Spend ceiling in USD; the matrix stops when the running cost reaches it. "
+        f"Defaults to ${MAX_USD_ENV}. With neither set the run is REFUSED and the "
+        f"pre-run estimate is printed instead.",
+    )
     parser.add_argument("--lang", default="en", choices=["en", "cs"])
     parser.add_argument("--out", type=Path, default=None, help="Output dir (default tmp/bench/<timestamp>).")
     parser.add_argument(
@@ -79,11 +117,48 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"unknown use case(s) {unknown}; known: {sorted(SCENARIO_BUILDERS)}")
     targets = [BenchTarget.parse(t) for t in args.targets.split(",") if t.strip()]
 
+    # Cost, before anything is spent. scenarios_for is deterministic and offline, so
+    # the estimate counts the calls the matrix will ACTUALLY make (a use case with
+    # fewer seeded scenarios than --limit does not get billed for the difference).
+    counts = {u: len(scenarios_for(u, limit=args.limit, lang=args.lang)) for u in use_cases}
+    estimate = estimate_matrix_usd(counts, targets)
+    max_usd = resolve_max_usd(args.max_usd, os.environ)
+    print("pre-run cost estimate (upper bound — assumes every call fills its output budget):")
+    for line in estimate.to_lines():
+        print(line)
+    if max_usd is None:
+        print(
+            f"\nrefusing to run without a spend ceiling: pass --max-usd or set {MAX_USD_ENV}.",
+            file=sys.stderr,
+        )
+        return 2
+    if estimate.total_usd > max_usd:
+        print(
+            f"\nnote: the estimate (~${estimate.total_usd:.2f}) exceeds --max-usd ${max_usd:.2f} — "
+            "the matrix will stop partway through.",
+            file=sys.stderr,
+        )
+    print(f"\nceiling: ${max_usd:.2f}\n")
+
     # The judge scores the served payload, so it must be kept.
     include_payloads = args.include_payloads or args.judge
+    budget = BudgetGuard(max_usd=max_usd)
     records = run_matrix(
-        use_cases, targets, limit=args.limit, lang=args.lang, include_payload=include_payloads
+        use_cases, targets, limit=args.limit, lang=args.lang, include_payload=include_payloads,
+        budget=budget,
     )
+    if budget.stopped:
+        print(
+            f"BUDGET STOP: spent ${budget.spent_usd:.4f} of the ${max_usd:.2f} ceiling — the matrix "
+            f"is PARTIAL ({len(records)} row(s)); the scorecard below covers only what ran.",
+            file=sys.stderr,
+        )
+    if budget.unpriced_calls:
+        print(
+            f"note: {budget.unpriced_calls} row(s) had no known list price (subscription CLI, Azure "
+            "deployment, local model) and could not be charged against the ceiling.",
+            file=sys.stderr,
+        )
     if args.judge:
         from .judge import default_judge_provider, judge_records
 

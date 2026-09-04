@@ -16,6 +16,7 @@
 import { useTranslations } from "next-intl";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { SCHEDULE_GLYPH } from "@/app/_components/glyph/glyphs/scheduleGlyph";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 
@@ -61,7 +62,7 @@ export function ScheduleEmptyRelay() {
         <MotionizedGlyph
           data={SCHEDULE_GLYPH.data}
           viewBox={SCHEDULE_GLYPH.viewBox}
-          className="mx-auto h-24 w-24 sm:mx-0"
+          className={`mx-auto ${GLYPH_SIZE.md} sm:mx-0`}
         />
         <ChainEmptyState
           title={t("emptyTitle")}
