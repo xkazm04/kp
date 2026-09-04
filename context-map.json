@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-04T05:22:43.622Z",
+ "generated_at": "2026-09-04T05:48:15.695Z",
  "provenance": {
-  "git_commit": "a03c14adb083fb2919066b2b8caf59b677ef3081",
-  "git_commit_count": 2469,
+  "git_commit": "622fafce20fd74e7622a9b339ead4e637bdb4a31",
+  "git_commit_count": 2484,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-04T05:22:43.622Z"
+  "generated_at": "2026-09-04T05:48:15.695Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3019,
+  "files": 3027,
   "groups": 17,
   "use_cases": 12
  },
@@ -1025,8 +1025,11 @@
     "app/features/insights/analytics/AnalyticsAutomationPanel.tsx",
     "app/features/insights/analytics/AnalyticsByRoleTable.tsx",
     "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx",
+    "app/features/insights/analytics/analyticsCalibrationFloorGate.test.ts",
     "app/features/insights/analytics/analyticsFetchError.test.ts",
     "app/features/insights/analytics/analyticsFetchError.ts",
+    "app/features/insights/analytics/inlineNumberSavePlan.test.ts",
+    "app/features/insights/analytics/inlineNumberSavePlan.ts",
     "app/features/insights/analytics/parseLocaleNumber.test.ts",
     "app/features/insights/analytics/parseLocaleNumber.ts",
     "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx",
@@ -4227,6 +4230,7 @@
    "file_paths": [
     "app/_lib/devcase-interview-kit.test.ts",
     "app/_lib/devcase-interview-kit.ts",
+    "app/_lib/devcase-orchestrator.test.ts",
     "app/_lib/devcase-orchestrator.ts",
     "app/_lib/devcase-probe-audit.test.ts",
     "app/_lib/devcase-probe-audit.ts",
@@ -4952,6 +4956,8 @@
     "app/_lib/decision-config-version.test.ts",
     "app/_lib/dev-outcomes-atomicity.test.ts",
     "app/_lib/devcase-reference.ts",
+    "app/_lib/devcase-transitions.test.ts",
+    "app/_lib/devcase-transitions.ts",
     "app/_lib/llm-config-probe-env.test.ts",
     "app/_lib/matrix-cache.test.ts",
     "app/_lib/matrix-cache.ts",
@@ -4986,7 +4992,8 @@
     "app/_lib/task-outcome-summary.test.ts",
     "app/_lib/task-outcome-summary.ts",
     "app/_lib/task-poll-state.test.ts",
-    "app/_lib/task-poll-state.ts"
+    "app/_lib/task-poll-state.ts",
+    "app/shell-headers.test.ts"
    ],
    "group": "Hiring Pipeline",
    "group_id": "e3cd8c46-b5e7-4fac-ad70-6bcbe21bcfaa",
@@ -6952,7 +6959,8 @@
     "e2e/profile-builder.spec.ts",
     "e2e/public-pages.spec.ts",
     "e2e/quality-tables.spec.ts",
-    "e2e/shell-tab-state.spec.ts"
+    "e2e/shell-tab-state.spec.ts",
+    "e2e/shell.spec.ts"
    ],
    "group": "Platform Infrastructure",
    "group_id": "7345227e-e0bc-493c-a48c-c5106a902f7b",
