@@ -1675,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "INTAKE_TURN_TIMEOUT": "Dieser Beitrag hat zu lange gedauert und wurde abgebrochen. Senden Sie ihn erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4323,7 +4324,11 @@
           "dispatchError": "Das Senden ist fehlgeschlagen. Es wurde nichts eingestellt.",
           "dispatchHuman": "Diese Spezifikation ist für einen menschlichen Rolleninhaber verfasst. Überführen Sie sie stattdessen in eine Stellenbeschreibung.",
           "dispatchNeedsPairing": "Koppeln Sie Kandi unter Einstellungen → Integrationen mit Personas, um zu entsenden."
-        }
+        },
+        "degradedNoProvider": "Es ist kein AI-Modell konfiguriert, deshalb läuft die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
+        "degradedProviderFailed": "Das Modell hat nicht geantwortet, deshalb hat die geführte Checkliste übernommen. Ihre Antworten werden erfasst. Versuchen Sie es gleich noch einmal.",
+        "standInLanguage": "Die Checkliste gibt es noch nicht in der Sprache dieser Sitzung, deshalb antwortet sie auf {language}.",
+        "compactedNote": "{count} ältere Beiträge sind aus diesem Verlauf herausgefallen. Was darin gesagt wurde, hält das Briefing fest."
       },
       "buildHeldChip": "Ergebnis als Revision abgelegt",
       "buildHeldBody": "Sie haben diese Stellenbeschreibung während der Erstellung bearbeitet. Ihr eigener Text bleibt erhalten, der generierte Entwurf wurde im Bearbeitungsverlauf abgelegt.",

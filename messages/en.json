@@ -1675,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state.",
+    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4323,7 +4324,11 @@
           "dispatchError": "The dispatch failed. Nothing was hired.",
           "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
           "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
-        }
+        },
+        "degradedNoProvider": "No AI model is configured, so the guided checklist runs instead. Your answers are captured all the same.",
+        "degradedProviderFailed": "The model didn't answer, so the guided checklist took over. Your answers are captured. Try again in a moment.",
+        "standInLanguage": "The checklist isn't written in this session's language yet, so it is answering in {language}.",
+        "compactedNote": "{count} earlier turns rolled off this transcript. What was said in them is kept in the brief."
       },
       "buildHeldChip": "Build held as a revision",
       "buildHeldBody": "You edited this JD while the build was running, so your own text was kept and the generated draft was filed in the edit history.",

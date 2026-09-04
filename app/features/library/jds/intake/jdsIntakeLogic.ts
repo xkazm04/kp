@@ -253,6 +253,12 @@ export function foldVoiceExchange(
   };
 }
 
+/** The two facts a degraded turn carries: WHY the engine fell back (a raw
+ *  diagnostic line, classified for display - never rendered verbatim) and, when
+ *  the scripted path could not answer in the session's language, WHICH language
+ *  it answered in instead. Both come straight off /message and /voice-turn. */
+export type IntakeDegradation = { reason: string | null; lang: string | null };
+
 /** What went wrong, and the machine CODE the server gave for it.
  *
  *  `kind` is which affordance failed (the panel decides where the line goes and
@@ -284,7 +290,14 @@ export function useIntakeLogic(onPromoted?: () => void) {
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [promoting, setPromoting] = useState(false);
-  const [degraded, setDegraded] = useState(false);
+  // WHAT degraded, not just THAT it did. The engine has always answered both
+  // facts and this hook kept a bare boolean, so the pane could only ever say
+  // "AI is offline" - identical for a keyless install (a settings trip) and for
+  // a provider that fell over (worth one retry). `lang` is the OTHER discarded
+  // fact: the scripted path exists in four locales and serves a stand-in when
+  // the session asks for one it does not carry.
+  const [degradation, setDegradation] = useState<IntakeDegradation | null>(null);
+  const degraded = degradation !== null;
   const [error, setError] = useState<IntakeError | null>(null);
   // Guards a stale exchange response from landing after the user switched sessions.
   const activeIdRef = useRef<string | null>(null);
@@ -349,7 +362,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
       const data = (await res.json()) as IntakeSession;
       activeIdRef.current = data.id;
       setActive(data);
-      setDegraded(false);
+      setDegradation(null);
     } catch {
       setError({ kind: "create", code: null });
     } finally {
@@ -382,7 +395,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
       const data = (await res.json()) as IntakeSession;
       activeIdRef.current = data.id;
       setActive(data);
-      setDegraded(false);
+      setDegradation(null);
     } catch {
       // The scan never started (bad repo, unreachable path, rate limit) — say
       // so instead of opening a session bound to a scan that does not exist.
@@ -427,8 +440,14 @@ export function useIntakeLogic(onPromoted?: () => void) {
           shape: IntakeSession["shape"];
           done: boolean;
           source: "llm" | "deterministic";
+          fallbackReason?: string;
+          fallbackLang?: string;
         };
-        setDegraded(data.source === "deterministic");
+        setDegradation(
+          data.source === "deterministic"
+            ? { reason: data.fallbackReason ?? null, lang: data.fallbackLang ?? null }
+            : null
+        );
         // Landed server-side, just not on screen any more (the requestor moved
         // to another session) — a success, so the composer must NOT re-offer
         // this text into the session now open.
@@ -664,6 +683,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
     creating,
     promoting,
     degraded,
+    degradation,
     error,
     startNew,
     startAppMaster,

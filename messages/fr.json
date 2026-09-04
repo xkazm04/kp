@@ -1675,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "Cette URL de récupération n’est pas autorisée. Utilisez une URL https:// publique.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est.",
+    "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4323,7 +4324,11 @@
           "dispatchError": "L’envoi a échoué. Personne n’a été recruté.",
           "dispatchHuman": "Cette spécification est composée pour un titulaire humain. Promouvez-la plutôt en fiche de poste.",
           "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer."
-        }
+        },
+        "degradedNoProvider": "Aucun modèle d’AI n’est configuré, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
+        "degradedProviderFailed": "Le modèle n’a pas répondu, la liste guidée a pris le relais. Vos réponses sont enregistrées. Réessayez dans un instant.",
+        "standInLanguage": "La liste guidée n’existe pas encore dans la langue de cette session ; elle répond donc en {language}.",
+        "compactedNote": "{count} échanges plus anciens ont quitté cette transcription. Ce qui y a été dit reste dans le brief."
       },
       "buildHeldChip": "Résultat conservé en révision",
       "buildHeldBody": "Vous avez modifié cette fiche pendant la génération : votre texte a été conservé et le brouillon généré a été classé dans l'historique des modifications.",

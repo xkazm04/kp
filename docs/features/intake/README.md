@@ -275,7 +275,13 @@ JD has ever had.
 No provider → the dialog degrades to a deterministic scripted slot script
 (same RoleBrief target, requestor answers land as `provenance: stated`), via
 the shared `generate_with_fallback` contract. The UI shows a quiet
-"guided checklist" note when a turn came from the deterministic path.
+"guided checklist" note when a turn came from the deterministic path — and
+that note now says WHICH degradation. `/message` and `/voice-turn` forward the
+engine's `fallbackReason`, `JdsIntakePanel` classifies it with the same
+`companionFallbackClass` the companion dock uses, and the three outcomes read
+differently: no model configured (a settings trip), the model did not answer
+(worth one retry), and an unrecognised diagnostic (the generic sentence). The
+raw diagnostic is never rendered — it is classified, then localized.
 
 **The script speaks all four app locales.** `_Q`, `_AM_SLOT_FACET`, the facet
 labels, the read-back, the close, the "the scan proposed these" header and the
@@ -293,7 +299,42 @@ scripting it is a red test, not a silent English session. Until it is scripted,
 a request for that locale is DISCLOSED: the turn carries `fallbackLang` (the
 language actually served, `_script_lang`), surfaced on `IntakeExchange` /
 `IntakeVoiceTurn` in `app/_lib/intake-run.ts`. The field is absent whenever the
-requested locale is scripted — an exception report, not a decoration.
+requested locale is scripted — an exception report, not a decoration. Both turn
+routes put it on the wire and the tri-pane renders a stand-in-language line
+naming the served language (through `Intl.DisplayNames`, in the reader's own
+language), so "you are reading German because the checklist has no Polish" is a
+stated fact rather than a silent substitution. Pinned by
+`app/api/intake/intake-degradation-contract.test.ts`.
+
+### Per-turn budgets
+
+Every intake spawn used to inherit `python-runner`'s ten-minute HANG backstop.
+That is the right bound for a repo scan and the wrong one for a conversation: a
+stalled provider held the requestor on a spinner for nine minutes past the point
+the answer was worth having, with the paid completion still running behind it.
+`app/_lib/intake-run.ts` now routes every spawn through one `runIntakeSpawn`
+helper and states a budget per thread — opening 30 s (deterministic), dialog
+turn 120 s, voice turn 45 s (speech pace), transcript extraction 180 s,
+app-master sync 180 s. Overrunning one throws `IntakeTimeoutError`, which
+`/message` and `/voice-turn` answer as `INTAKE_TURN_TIMEOUT` (504) — a named
+decision the composer can offer a retry for, not a generic store error.
+
+### The stored transcript is bounded
+
+`pipeline/jobfit/intake.py` renders only the newest `MAX_TRANSCRIPT_TURNS = 48`
+turns into any prompt, so a turn older than that has had zero influence on the
+conversation for as long as it has been stored — yet every turn was appended
+forever, re-serialized into the spawn workdir twice per exchange and returned
+whole on every session read. `app/_lib/intake-transcript.ts` caps the stored
+transcript at exactly that window (`MAX_STORED_TURNS = 48`), applied inside
+`updateIntakeDialog`, `updateIntakeVoiceSweep` and the re-open write; the spawn
+writes `transcriptWindow(...)`, the same bound. Equal windows are what keeps
+`sourceTurn` citations numbered identically on both sides of the boundary.
+
+Compaction is DISCLOSED, never silent: one leading `system` turn carries the
+machine token `kp:transcript-compacted:<n>`, which `JdsIntakeChat` resolves into
+the reader's language. A second compaction absorbs the count instead of stacking
+markers. Pinned by `app/_lib/intake-transcript.test.ts`.
 
 Both `intake_cli.py` and `jobs_cli.py` now answer failures with the shared
 `{error, status, code}` envelope from `pipeline/jobfit/_cli.py`

@@ -1675,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "Tato adresa pro stahování není povolená. Použijte veřejnou adresu https://.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav.",
+    "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4323,7 +4324,11 @@
           "dispatchError": "Odeslání selhalo. Nikdo nebyl najat.",
           "dispatchHuman": "Tato specifikace je složena pro lidského držitele role. Povyšte ji místo toho na JD.",
           "dispatchNeedsPairing": "Před vysláním spárujte Kandi s Personas v Nastavení → Integrace."
-        }
+        },
+        "degradedNoProvider": "Není nastavený žádný AI model, takže pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
+        "degradedProviderFailed": "Model neodpověděl, takže se ujal vedený dotazník. Vaše odpovědi se ukládají. Za chvíli to zkuste znovu.",
+        "standInLanguage": "Dotazník zatím není v jazyce této konzultace, proto odpovídá v jazyce {language}.",
+        "compactedNote": "Starších replik ({count}) z přepisu odpadlo. Co v nich zaznělo, drží brief."
       },
       "buildHeldChip": "Výstup uložen jako revize",
       "buildHeldBody": "Během generování jste tuto nabídku upravili, takže váš text zůstal zachován a vygenerovaný návrh se uložil do historie úprav.",

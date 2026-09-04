@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { ChatTranscript, type ChatSide } from "@/app/_components/chat/ChatTranscript";
+import { compactedTurnCount } from "@/app/_lib/intake-transcript";
 import type { IntakeTurn } from "./jdsIntakeLogic";
 
 // The conversation column: transcript bubbles + composer. The agent speaks
@@ -54,9 +55,22 @@ export function JdsIntakeChat({
   statusNote?: string | null;
 }) {
   const t = useTranslations("library.tab.intake");
+  // The stored transcript is capped at the engine's own prompt window, and the
+  // compaction it did is DISCLOSED rather than hidden: the leading marker turn
+  // carries a machine token (`kp:transcript-compacted:<n>`) which resolves here
+  // into the reader's language. A transcript that silently began mid-sentence
+  // would read as data loss; saying how many turns rolled off does not.
   const turns = useMemo(
-    () => transcript.map((turn, i) => ({ id: String(i), role: turn.role, content: turn.text })),
-    [transcript]
+    () =>
+      transcript.map((turn, i) => {
+        const compacted = compactedTurnCount(turn);
+        return {
+          id: String(i),
+          role: turn.role,
+          content: compacted > 0 ? t("compactedNote", { count: compacted }) : turn.text,
+        };
+      }),
+    [transcript, t]
   );
   const labels = useMemo(
     () => ({

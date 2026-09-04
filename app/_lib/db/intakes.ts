@@ -9,6 +9,7 @@ import { repoDossierSchema } from "../schemas.generated.ts";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { capTranscript } from "../intake-transcript";
 
 // Role-intake dialogs (docs/concepts/role-intake-dialog.md, Phase 1) — the
 // stored conversation with a hiring requestor plus the evolving RoleBrief.
@@ -24,6 +25,11 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 export type IntakeStatus = "open" | "complete" | "promoted";
 
+export { MAX_STORED_TURNS, COMPACTED_TURN_PREFIX, compactedTurnCount, capTranscript } from "../intake-transcript";
+
+// The transcript cap + its compaction marker live in the React-free, DB-free
+// `intake-transcript` module: the CHAT renders the marker, and a client
+// component may not import this file (it pulls better-sqlite3 in with it).
 // Session shape detected by the dialog engine: "power_unit" = a known role
 // slotting into an existing team (fast path, few questions); "story" = a
 // complex/ambiguous need that warrants the exploratory register; null = not
@@ -265,7 +271,8 @@ export function updateIntakeDialog(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): IntakeCasResult {
   const params = [
-    JSON.stringify(patch.transcript),
+    // Bounded at the write, so a long session cannot grow the row without limit.
+    JSON.stringify(capTranscript(patch.transcript)),
     patch.brief ? JSON.stringify(patch.brief) : null,
     patch.shape ?? null,
     patch.title?.trim() ? patch.title.trim().slice(0, 200) : null,
@@ -448,7 +455,7 @@ export function updateIntakeVoiceSweep(
       .get(id, workspaceId) as IntakeRow | undefined;
     if (!row) return { result: "missing", transcript: [] };
     const moved = (row.updated_at ?? null) !== (patch.expectedUpdatedAt ?? null);
-    const transcript = [...fromRow(row).transcript, ...patch.turns];
+    const transcript = capTranscript([...fromRow(row).transcript, ...patch.turns]);
     d.prepare(
       `UPDATE role_intakes
        SET transcript_json = ?, brief_json = COALESCE(?, brief_json), shape = COALESCE(?, shape),
@@ -543,7 +550,10 @@ export function reopenIntake(
       .get(id, workspaceId) as IntakeRow | undefined;
     if (!row) return null;
     const intake = fromRow(row);
-    const transcript = [...intake.transcript, { role: "system" as const, text: systemNote, at: new Date().toISOString() }];
+    const transcript = capTranscript([
+      ...intake.transcript,
+      { role: "system" as const, text: systemNote, at: new Date().toISOString() },
+    ]);
     d.prepare(
       `UPDATE role_intakes SET status = 'open', transcript_json = ?, updated_at = ?
        WHERE id = ? AND workspace_id = ?`
