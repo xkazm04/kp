@@ -5,6 +5,7 @@ import { jdJobId } from "../jd-limits";
 import type { DevNeed } from "../devcase-run";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { canTransition, IllegalLifecycleTransition } from "../devcase-transitions";
 
 // ---- Dev extension — approved case scenarios (Phase D3) -------------------
 
@@ -325,12 +326,35 @@ export function lifecycleByPosting(postingId: string): LifecycleRecord | null {
   return r ? rowToLifecycle(r) : null;
 }
 
-/** Patch a lifecycle record (stage + any artifact columns) and stamp updated_at. */
+/** Patch a lifecycle record (stage + any artifact columns) and stamp updated_at.
+ *  Returns whether a row was actually written — `false` means the compare-and-set
+ *  below refused, never that the id was wrong (an unknown id also returns false).
+ *
+ *  `opts.expectedStage` is the read→compute→write precondition, the compensating
+ *  half of the repo's rule (the same shape as `actOnPipelineEntry`'s expectedStage,
+ *  and as `claimLifecycleClose` just below). Every stage write the orchestrator
+ *  makes is computed across an `await` — an LLM chain or a Python spawn measured in
+ *  minutes — during which a human can approve, redesign or CLOSE the lifecycle from
+ *  the UI. With an unconditional UPDATE the stale runner won: it wrote `ranked` over
+ *  a `closed` a recruiter had just decided, or re-published a case a redesign had
+ *  pulled back to `awaiting_approval`.
+ *
+ *  Passing it ALSO turns on the transition table (devcase-transitions.ts): an
+ *  expected → next move outside the machine throws `IllegalLifecycleTransition`,
+ *  which carries a code a route answers with. Enforcement rides on `expectedStage`
+ *  rather than on a re-read because a caller that did not read the stage cannot
+ *  honestly claim to know where the row is coming FROM; the tests and the
+ *  maintenance paths that legitimately place a lifecycle at an arbitrary stage keep
+ *  the historical unconditional write by simply not declaring one. */
 export function updateLifecycle(
   id: string,
-  patch: { stage?: string; analysis?: unknown; role?: unknown; case?: unknown; caseId?: string; postingId?: string; detail?: string }
-): void {
+  patch: { stage?: string; analysis?: unknown; role?: unknown; case?: unknown; caseId?: string; postingId?: string; detail?: string },
+  opts?: { expectedStage?: string }
+): boolean {
   const db = ensureDb();
+  if (opts?.expectedStage !== undefined && patch.stage !== undefined && !canTransition(opts.expectedStage, patch.stage)) {
+    throw new IllegalLifecycleTransition(opts.expectedStage, patch.stage);
+  }
   const sets: string[] = ["updated_at = ?"];
   const vals: unknown[] = [new Date().toISOString()];
   const set = (column: string, value: unknown) => {
@@ -345,7 +369,12 @@ export function updateLifecycle(
   if (patch.postingId !== undefined) set("posting_id", patch.postingId);
   if (patch.detail !== undefined) set("detail", patch.detail);
   vals.push(id);
-  db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+  const guarded = opts?.expectedStage !== undefined;
+  if (guarded) vals.push(opts!.expectedStage);
+  const info = db
+    .prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?${guarded ? " AND stage = ?" : ""}`)
+    .run(...vals);
+  return Number(info.changes) > 0;
 }
 
 /**

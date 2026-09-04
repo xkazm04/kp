@@ -94,7 +94,7 @@ const read = (...p: string[]) => readFileSync(path.join(HERE, ...p), "utf8");
 test("every sourcing caller scopes the pool read and the seed write to the same team", () => {
   const cases: [string, string[]][] = [
     ["api/devcase/source/route.ts", ["runSourceForRole(role, { workspaceId: ws })", "workspaceId: ws"]],
-    ["_lib/devcase-orchestrator.ts", ["workspaceId: lc.workspaceId"]],
+    ["_lib/devcase-orchestrator.ts", ["runSourceForRole(lc.role ?? {}, { workspaceId: lc.workspaceId })"]],
     ["api/jobs/[id]/publish/route.ts", ["workspaceId: ws"]],
   ];
   for (const [file, needles] of cases) {
@@ -102,6 +102,44 @@ test("every sourcing caller scopes the pool read and the seed write to the same 
     for (const n of needles) assert.ok(src.includes(n), `${file}: expected \`${n}\``);
     assert.doesNotMatch(src, /runSourceForRole\((?:role|lc\.role \?\? \{\})\)/, `${file}: no bare sourcing call may remain`);
   }
+});
+
+test("EVERY audit row the orchestrator writes carries a tenant — counted, not sampled", () => {
+  // This file used to assert `src.includes("workspaceId: lc.workspaceId")` for the
+  // orchestrator, which was true of ONE line (the sourcing call) while eighteen
+  // recordAudit calls beside it carried no tenant at all and fell back to the DEFAULT
+  // workspace. A needle that a single line satisfies cannot see a file-wide omission,
+  // so the assertion is now a COUNT: as many stamped audit calls as audit calls.
+  const src = read("devcase-orchestrator.ts");
+  const calls = src.match(/recordAudit\(\{/g) ?? [];
+  assert.ok(calls.length >= 18, `expected the orchestrator's audit calls, found ${calls.length}`);
+  // Each call's object literal, up to its closing `});` — every one must name a workspace.
+  const unstamped: string[] = [];
+  for (const m of src.matchAll(/recordAudit\(\{([\s\S]*?)\}\);/g)) {
+    if (!/workspaceId:/.test(m[1])) unstamped.push(m[1].slice(0, 80).replace(/\s+/g, " "));
+  }
+  assert.deepEqual(unstamped, [], "an unstamped audit row is filed in the DEFAULT team's control room");
+});
+
+test("promote's three writes are one transaction, derived from the submission's tenant", () => {
+  // The pipeline entry, the reviewer's screening card and the automation-trail row are
+  // ONE decision. As three loose statements, a failure between them left a promoted
+  // candidate on the board with no card explaining them and no trail saying where they
+  // came from. Synchronous by construction — an await inside would silently un-atomize
+  // it (eslint's no-restricted-syntax catches that half).
+  const src = read("devcase-run.ts");
+  assert.match(src, /return ensureDb\(\)\.transaction\(\(\): PromoteResult => \{/, "promoteSubmission wraps its writes");
+  assert.match(src, /\}\)\.immediate\(\);/, "…and takes the write lock at BEGIN");
+});
+
+test("the observed-skills mint re-checks the profile it read across its subprocess", () => {
+  // read → spawn devcase_cli → write back the WHOLE payload. Unconditional, that
+  // overwrote any edit made during the spawn (a recruiter's, a rebuild's, the GDPR
+  // anonymize pass's) with a payload derived from the pre-edit row.
+  const src = read("devcase-run.ts");
+  assert.match(src, /const expectedUpdatedAt = profileDivergence\(rec\.row\.id, sub\.workspaceId\)\?\.editedAt \?\? null;/);
+  assert.match(src, /const wrote = updateProfile\(/);
+  assert.match(src, /if \(!wrote\) return \{ credited: \[\], applied: false \};/, "a lost race is reported, not claimed");
 });
 
 test("promote derives its writes from the submission's own tenant", () => {
