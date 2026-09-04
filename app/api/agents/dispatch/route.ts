@@ -6,7 +6,8 @@ import { createPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeli
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { appMasterSpecSchema, type AppMasterSpec } from "@/app/_lib/schemas.generated";
 import { dispatchPersonaRequest, type DispatchSpec, type KpLink } from "@/app/_lib/agent-hire/bridge-client";
@@ -196,6 +197,19 @@ async function mintAndDispatch(
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority — and in open mode it proves nothing at all. This door
+  // mints a hire, commits a monthly USD budget to it, and files a card on the
+  // pipeline board at Offer. That is a recruiter act, so it asks the recruiter
+  // capability: `pipeline:write`, which viewers do not hold. NOT org:manage — the
+  // hire is hiring work, not installation configuration, and the two doors that
+  // ARE installation configuration (pair, bridge) ask for that instead.
+  //
+  // Ahead of the body parse and of every refusal below, so an unauthorized caller
+  // reaches no store read at all; the spend throttle stays where it is, at the
+  // point past which the request always costs something.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => null)) as {
       jobId?: unknown;

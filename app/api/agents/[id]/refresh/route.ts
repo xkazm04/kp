@@ -3,7 +3,8 @@ import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type Agent
 import { createPipelineEntry, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
@@ -63,6 +64,15 @@ const STATUS_MAP: Record<string, AgentStatus> = {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). A poll reads like a read, but
+  // its whole point is the write on the other side: an `active` reply flips the
+  // roster row AND files/moves the agent's pipeline entry into the terminal column.
+  // A viewer must not be able to land a hire on the board by clicking Refresh, so
+  // this asks the same capability the push path's own board move would need —
+  // `pipeline:write`. The dial-out throttle stays below, after the two cheap
+  // refusals it was placed after.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const { id } = await context.params;
     const ws = await currentWorkspace();

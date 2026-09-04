@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { getBridgeConfig, setBridgeConfig } from "@/app/_lib/agent-hire/bridge-store";
 
 // Agent-candidate bridge — GET the Personas connection status (base URL, key
@@ -25,6 +26,13 @@ export async function GET() {
 export async function DELETE() {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). Disconnecting drops the pk_ key
+  // every agent dispatch authenticates with — INSTALLATION-level configuration, and
+  // the destructive half of the pairing door beside it. `org:manage`, same as
+  // POST /api/comms/relay, which rewrites the equivalent credential for the other
+  // outbound relay. The GET stays operator-gated: it reads status and never the key.
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   try {
     if (getBridgeConfig().source === "env") {
       return NextResponse.json(

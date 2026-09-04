@@ -75,10 +75,6 @@ export function mutatingVerbs(src: string): string[] {
 // write-capability-gate.test.ts, DELETE the line here. Never add a line to a route
 // that used to be gated.
 const ALLOWED = new Map<string, string>([
-  ["agents/[id]/refresh/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["agents/bridge/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["agents/dispatch/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["agents/pair/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["agents/report/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["analytics/calibration/apply-threshold/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["analytics/spend/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

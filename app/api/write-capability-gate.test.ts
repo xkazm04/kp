@@ -85,6 +85,10 @@ const { POST: atsConfig } = await import("./ats/config/route.ts");
 const { POST: edgeDrain } = await import("./edge/drain/route.ts");
 const { POST: edgePair } = await import("./edge/pair/route.ts");
 const { POST: llmKeyTest } = await import("./llm/keys/test/route.ts");
+const { POST: agentsPair } = await import("./agents/pair/route.ts");
+const { DELETE: agentsBridgeDisconnect } = await import("./agents/bridge/route.ts");
+const { POST: agentsDispatch } = await import("./agents/dispatch/route.ts");
+const { POST: agentsRefresh } = await import("./agents/[id]/refresh/route.ts");
 
 const { createWorkspace } = await import("../_lib/db/workspaces.ts");
 const { createUser } = await import("../_lib/db/users.ts");
@@ -154,6 +158,20 @@ const DOORS: Door[] = [
   { name: "POST /api/edge/drain", capability: "org:manage", call: () => edgeDrain() },
   { name: "POST /api/edge/pair", capability: "org:manage", call: () => edgePair() },
   { name: "POST /api/llm/keys/test", capability: "org:manage", call: () => llmKeyTest(req({ provider: "openai", scope: "byom" })) },
+  // scan-sweep (llm-config-and-agent-workforce): the four agent-workforce doors
+  // route-capability-coverage.test.ts had carried as "slice 2 candidate - not yet
+  // judged" since the ratchet landed. Judged now, and they split along the same
+  // line every other door does. `pair` persists the base URL this deployment points
+  // at and redeems the pk_ key every dispatch authenticates with, and `bridge`
+  // DELETE drops that same key: installation configuration, exactly like the edge
+  // pairing door and the comms relay - `org:manage`. `dispatch` commits a monthly
+  // USD budget and files a card on the board, and `refresh` can move that card into
+  // the terminal column: recruiter acts - `pipeline:write`. A viewer could do all
+  // four.
+  { name: "POST /api/agents/pair", capability: "org:manage", call: () => agentsPair(req({ phase: "start", baseUrl: "http://127.0.0.1:9999" })) },
+  { name: "DELETE /api/agents/bridge", capability: "org:manage", call: () => agentsBridgeDisconnect() },
+  { name: "POST /api/agents/dispatch", capability: "pipeline:write", call: () => agentsDispatch(req({ jobId: "job-1" })) },
+  { name: "POST /api/agents/[id]/refresh", capability: "pipeline:write", call: () => agentsRefresh(req(), params({ id: "agent-1" })) },
 ];
 
 // ---- a viewer is refused, with a CODE that names the capability ----------------

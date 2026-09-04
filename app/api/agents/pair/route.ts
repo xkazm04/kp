@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { setBridgeConfig } from "@/app/_lib/agent-hire/bridge-store";
 import { claimPairing, startPairing, type PairFailure } from "@/app/_lib/agent-hire/pairing";
@@ -47,6 +48,15 @@ function refusal(result: PairFailure): NextResponse {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
+  // session, not authority. Both phases rewrite INSTALLATION-level configuration:
+  // `start` persists the base URL this deployment points at (the write the throttle
+  // note below already worries about) and `claim` redeems and stores the pk_ key
+  // every dispatch then authenticates with. That is an org-administration act —
+  // `org:manage`, resolved org-wide — and it is the same judgement the identical
+  // door one plane over already makes (POST /api/edge/pair).
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => null)) as {
       phase?: unknown;

@@ -65,10 +65,32 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
    leaves the roster row marked `failed` and the board untouched
    (`agents-bridge.test.ts`).
+   **Every write door asks the SEAT, not just the session.** `requireOperator()` proves a
+   session is present; in open mode it proves nothing at all, and even with a password set
+   it says yes to any signed-in member regardless of role. The four mutating bridge doors
+   split along the same line every other write door in the API does
+   (`write-routes-check-a-capability`), and they sat on
+   `route-capability-coverage.test.ts`'s allowlist as *"not yet judged"* until this slice
+   judged them:
+
+   | Door | Capability | Why |
+   | --- | --- | --- |
+   | `POST /api/agents/pair` | `org:manage` | persists the base URL this deployment points at and redeems the `pk_` key every dispatch authenticates with — installation configuration, the same call `POST /api/edge/pair` makes |
+   | `DELETE /api/agents/bridge` | `org:manage` | drops that same key; the destructive half of pairing, and the same class as `POST /api/comms/relay` |
+   | `POST /api/agents/dispatch` | `pipeline:write` | mints a hire, commits a monthly USD budget to it, files a card on the board — a recruiter act, not org administration |
+   | `POST /api/agents/[id]/refresh` | `pipeline:write` | a poll that WRITES: an `active` reply moves the agent's entry into the terminal column, so a viewer must not be able to land a hire by clicking Refresh |
+
+   A viewer is refused with `FORBIDDEN_CAPABILITY` carrying the capability as data;
+   a recruiter is refused on the two `org:manage` doors; an owner passes all four; with no
+   session at all the answer is still `requireOperator()`'s 401. Open mode is unchanged —
+   with no `KP_OPERATOR_PASSWORD` every caller folds to owner. Driven against the real
+   handlers by `app/api/write-capability-gate.test.ts`. `GET /api/agents/bridge` stays
+   operator-gated: it reads connection status and never the key.
+
    **Every bridge door is throttled per IP.** Dispatch, pairing, the connector catalog
-   and the status refresh poll all spawn real outbound work behind `requireOperator()`,
-   which open mode (no `KP_OPERATOR_PASSWORD`) makes a
-   documented no-op for the whole API — so each self-limits, in the idiom
+   and the status refresh poll all spawn real outbound work; the capability gate above
+   decides *who* may knock, and the throttle bounds *how often* — so each self-limits,
+   in the idiom
    `app/api/rate-limit-contract.test.ts` states for every spend door:
    `agent-dispatch:<ip>` 10 / 10 min (inside `mintAndDispatch`, i.e. after every cheap
    refusal and after the one-live-agent idempotency reuse, so a rejected or idempotent
@@ -156,12 +178,12 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | Path | Role |
 | --- | --- |
 | `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server) |
-| `GET/DELETE /api/agents/bridge` | Connection status (key presence only) / disconnect (clears the stored key; 409 for env-driven config) |
-| `POST /api/agents/pair` | Two-phase pairing: `{phase:"start", baseUrl?}` → `{nonce}`; `{phase:"claim", nonce}` → pending/paired |
+| `GET/DELETE /api/agents/bridge` | Connection status (key presence only) / disconnect (clears the stored key; 409 for env-driven config). DELETE is `org:manage` |
+| `POST /api/agents/pair` | Two-phase pairing: `{phase:"start", baseUrl?}` → `{nonce}`; `{phase:"claim", nonce}` → pending/paired. `org:manage` |
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
 | `POST + GET /api/jobs/[id]/agent-fit` | Start the backgrounded transform (returns `{taskId}`) / read the latest stored spec |
-| `POST /api/agents/dispatch` | `{jobId, overrides?}` → merge overrides onto the stored spec, mint the hire, POST the persona request. **Or `{intakeId}`** — the App-master path (below) |
-| `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path |
+| `POST /api/agents/dispatch` | `{jobId, overrides?}` → merge overrides onto the stored spec, mint the hire, POST the persona request. **Or `{intakeId}`** — the App-master path (below). `pipeline:write` |
+| `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path. `pipeline:write` (the poll can move a board entry) |
 | `POST /api/agents/report/[token]` | PUBLIC inbound report route — the CSPRNG token is the capability |
 | `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
 | `app/_lib/app-master/backbone.ts` | The performance backbone scored in TS — a pinned port of `pipeline/jobfit/appmaster.py::backbone_score` (parity fixtures in `__fixtures__/`, generated by the Python function itself) |
