@@ -332,6 +332,11 @@ export const STORE_ERRORS = {
    *  the Add-receiver modal painted, in every locale. */
   CHANNEL_WEBHOOK_CREATE_FAILED: "Could not create the receiver. Please try again.",
   CHANNEL_WEBHOOK_UPDATE_FAILED: "Could not update the receiver. Please try again.",
+  /** The two organization-backup handlers (/perfect wave 37, lib-infra-runtime).
+   *  Both sat straight on better-sqlite3 and forwarded the thrown message, so a
+   *  SQLITE_* code and the absolute db path were what the Backup panel painted. */
+  WORKSPACE_EXPORT_FAILED: "Could not build the organization backup. Please try again.",
+  WORKSPACE_RESTORE_FAILED: "Could not restore the organization backup. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1228,6 +1233,34 @@ export const REFUSAL_ERRORS = {
    *  open past the client's own deadline. python-runner.ts carries this sentence as a
    *  literal (it must not pull next/server in through this module) — keep the two equal. */
   ENGINE_BUSY: "The analysis engine is busy right now. Try again in a moment.",
+  // ---- Organization backup / restore (app/_lib/db-portability.ts + the two
+  // /api/workspace routes). The engine refused in English prose and the routes
+  // forwarded it: "Refusing to load — these tables already contain rows: …" was what a
+  // Czech administrator read while deciding whether to overwrite their whole company.
+  /** The uploaded body is larger than the import route accepts (413). Named rather than
+   *  generic: the operator's next move is to check they picked the backup file and not
+   *  something else, which a bare "payload too large" does not suggest. */
+  IMPORT_BODY_TOO_LARGE: "That file is larger than a workspace backup can be. Check you picked the right file.",
+  /** The request carried no `dump` field at all (400). */
+  IMPORT_DUMP_REQUIRED: "Send the JSON content of a kp-org-dump backup file.",
+  /** The dump failed structural validation (400) — wrong format/version, a malformed
+   *  table, an identifier that is not a plain identifier. `detail` rides alongside for
+   *  the operator's console; the surface renders this sentence. */
+  IMPORT_DUMP_MALFORMED: "That file is not a valid kp-org-dump backup.",
+  /** There is no database file to read yet (503). Reachable on a deployment whose
+   *  volume was mounted empty — a state to fix, not a fault in the request. */
+  PORTABILITY_NO_DATABASE: "There is no workspace database yet. Start the app, then try again.",
+  /** The whole-database load found tables that already hold rows and no explicit
+   *  replace authorization (409). */
+  PORTABILITY_TABLES_POPULATED: "Some tables already contain rows. Confirm the replace before loading this file.",
+  /** A workspace or account id the backup claims is now owned by a DIFFERENT
+   *  organization (409). Refused rather than skipped: skipping would leave the delete
+   *  out and still insert the file's rows, injecting them into a bystander's tenant. */
+  RESTORE_SCOPE_TAKEN: "Something in this backup now belongs to another organization, so it cannot be restored.",
+  /** A table or column name in the file is not a plain identifier (400). The file's DDL
+   *  is executed by design, so a crafted name is refused rather than quoted and hoped
+   *  for. */
+  RESTORE_UNSAFE_IDENTIFIER: "This backup file contains an unsafe table or column name and was refused.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

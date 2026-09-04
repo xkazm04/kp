@@ -1690,7 +1690,16 @@
     "INTERVIEW_PREP_NOT_FOUND": "Pro tohoto kandidáta zatím neexistuje příprava na pohovor. Nejdřív ji vygenerujte.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Vyberte alespoň jednu otázku, kterou chcete přidat do přípravy.",
     "INTERVIEW_PREP_QUESTION_REQUIRED": "Určete, kterou otázku chcete přesunout.",
-    "ENGINE_BUSY": "Analytický engine je právě vytížený. Zkuste to prosím za chvíli."
+    "ENGINE_BUSY": "Analytický engine je právě vytížený. Zkuste to prosím za chvíli.",
+    "IMPORT_BODY_TOO_LARGE": "Tento soubor je větší, než může být záloha pracovního prostoru. Zkontrolujte, zda jste vybrali správný soubor.",
+    "IMPORT_DUMP_REQUIRED": "Odešlete obsah JSON ze zálohy typu kp-org-dump.",
+    "IMPORT_DUMP_MALFORMED": "Tento soubor není platná záloha kp-org-dump.",
+    "PORTABILITY_NO_DATABASE": "Databáze pracovního prostoru zatím neexistuje. Spusťte aplikaci a zkuste to znovu.",
+    "PORTABILITY_TABLES_POPULATED": "Některé tabulky už obsahují záznamy. Před načtením souboru potvrďte přepsání.",
+    "RESTORE_SCOPE_TAKEN": "Něco z této zálohy nyní patří jiné organizaci, takže ji nelze obnovit.",
+    "RESTORE_UNSAFE_IDENTIFIER": "Tato záloha obsahuje nebezpečný název tabulky nebo sloupce a byla odmítnuta.",
+    "WORKSPACE_EXPORT_FAILED": "Zálohu organizace se nepodařilo vytvořit. Zkuste to prosím znovu.",
+    "WORKSPACE_RESTORE_FAILED": "Zálohu organizace se nepodařilo obnovit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
