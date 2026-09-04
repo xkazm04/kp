@@ -21,7 +21,8 @@ import path from "node:path";
 //
 // So exemptions are now an EXPLICIT ALLOWLIST of literal statements, each with its
 // reason — widening it is a visible diff on a specific query, never a category.
-// Today the list is EMPTY: every statement touching rediscovery_alerts is scoped.
+// It holds exactly the two RETENTION deletes, joined deliberately (see EXEMPT):
+// every other statement touching rediscovery_alerts is scoped.
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(dir, "rediscovery-alert-store.ts"), "utf8");
 // Strip SQL line comments so a `-- workspace_id` note can never satisfy the scoping
@@ -31,8 +32,23 @@ const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1].replace(/--.*$
 const TOUCHING = /\b(from|into|update|delete\s+from)\s+rediscovery_alerts\b/i;
 
 /** Statements deliberately allowed to skip the workspace predicate. Each entry
- *  pins ONE literal statement plus the reason it is safe. Empty by design. */
-const EXEMPT: { why: string; match: RegExp }[] = [];
+ *  pins ONE literal statement plus the reason it is safe. */
+const EXEMPT: { why: string; match: RegExp }[] = [
+  {
+    why:
+      "pruneRediscoveryAlerts' dismissed-retention DELETE. Cross-tenant BY DESIGN and safe " +
+      "in the one direction that matters: it runs from the process clock (instrumentation-node), " +
+      "which has no session workspace to bind, and its ONLY predicate is age — so unlike the " +
+      "dismiss UPDATE it can neither surface nor suppress one team's alert inside another's " +
+      "feed. It is data minimisation on a row carrying a candidate name, not an authorization " +
+      "decision. A REQUEST-scoped caller must never reuse it.",
+    match: /DELETE\s+FROM\s+rediscovery_alerts\s+WHERE\s+dismissed_at\s+IS\s+NOT\s+NULL\s+AND\s+dismissed_at\s*<\s*\?/i,
+  },
+  {
+    why: "pruneRediscoveryAlerts' stale-undismissed DELETE — same clock-scoped, age-only retention sweep.",
+    match: /DELETE\s+FROM\s+rediscovery_alerts\s+WHERE\s+dismissed_at\s+IS\s+NULL\s+AND\s+created_at\s*<\s*\?/i,
+  },
+];
 
 /** A read/update/delete must FILTER on workspace_id with a real bound comparison —
  *  not merely mention the column somewhere (a SELECT-list column, a comment, an
@@ -45,8 +61,8 @@ const stampsWorkspace = (sql: string) => /\bworkspace_id\b/i.test(sql) && /[@:$]
 
 test("every rediscovery_alerts statement is workspace-scoped (exemptions are an explicit allowlist)", () => {
   const touching = sqlBlocks.filter((s) => TOUCHING.test(s));
-  // record INSERT + list SELECT + dismiss UPDATE.
-  assert.equal(touching.length, 3, `expected exactly 3 rediscovery_alerts statements, found ${touching.length}`);
+  // record INSERT + list SELECT + dismiss UPDATE + the two retention DELETEs.
+  assert.equal(touching.length, 5, `expected exactly 5 rediscovery_alerts statements, found ${touching.length}`);
 
   // A stale exemption (one that no longer matches any statement) is itself a failure —
   // it would silently widen the guard for whatever query drifts into its shape next.

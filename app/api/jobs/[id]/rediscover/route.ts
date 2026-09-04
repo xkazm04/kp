@@ -35,7 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     // Threads the request's AbortSignal so abandoning rediscovery (clicking to the
     // next role, closing the panel) promptly SIGKILLs the recruiter_cli child.
-    const { rediscovered, skipped, more } = await rediscoverForJob(job, {
+    const { rediscovered, skipped, more, suppressed } = await rediscoverForJob(job, {
       signal: request.signal,
       workspaceId: ws,
     });
@@ -47,6 +47,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       // candidates fall through the cracks" — never silently drops them.
       skipped,
       more,
+      // Pool members withheld by the consent gate (anonymized/erased, or every
+      // grant lapsed). A COUNT, never a list — naming them would put the identity
+      // back on the wire the suppression exists to keep off it. The panel says so:
+      // an unexplained short list is the one thing this surface, whose promise is
+      // that nobody falls through the cracks, must never show.
+      suppressed,
     });
   } catch (error) {
     return safeJsonError(error, "api:jobs/rediscover", "JOB_REDISCOVER_FAILED");

@@ -1728,7 +1728,10 @@
     "ANALYSIS_NOT_FOUND": "Tato analýza v tomto pracovním prostoru není.",
     "ANALYSIS_GITHUB_INVALID": "Analýzu GitHubu se nepodařilo přečíst a nebyla připojena.",
     "ANALYSIS_GITHUB_TOO_LARGE": "Analýza GitHubu je příliš velká na připojení.",
-    "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu."
+    "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu.",
+    "OFFER_SALARY_INVALID": "Tato částka nemůže být mzdou. Před odesláním nabídky zkontrolujte číslo.",
+    "OFFER_CURRENCY_UNSUPPORTED": "V této měně zde nabídku vytvořit nelze.",
+    "OFFER_NOTES_TOO_LONG": "Poznámka k nabídce je příliš dlouhá. Zkraťte ji a nabídku odešlete znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4733,7 +4736,8 @@
       "publishStopWaiting": "Přestat čekat",
       "publishAbandoned": "Čekání ukončeno. Pozice už nejspíš je zveřejněná, ale vyhledávání kandidátů bylo zrušeno. Otevřete ji znovu a zkontrolujte to.",
       "publishLastResult": "Poslední zveřejnění",
-      "retry": "Zkusit znovu"
+      "retry": "Zkusit znovu",
+      "publishSilverFailed": "Znovuobjevení se pro tuto pozici nepodařilo spustit, takže nikdo z dřívějších kandidátů nebyl označen. Neznamená to, že nikdo nevyhovuje."
     },
     "posting": {
       "copied": "Zkopírováno",
@@ -4880,7 +4884,8 @@
         "closed": "Došel/došla až do finále na pozici, která se mezitím uzavřela. Prověřený, dostupný kandidát s {score}% shodou pro {jobTitle}.",
         "elsewhere": "Už je v procesu na jiné pozici; zároveň {score}% shoda pro {jobTitle}. Přesun stojí za zvážení.",
         "reached": "Minule došel/došla až do fáze {stage}. Řadí se před kandidáty s mělčím postupem."
-      }
+      },
+      "suppressed": "{count, plural, one {# dřívější kandidát byl vynechán: vypršel mu souhlas nebo byla jeho data smazána.} few {# dřívější kandidáti byli vynecháni: vypršel jim souhlas nebo byla jejich data smazána.} other {# dřívějších kandidátů bylo vynecháno: vypršel jim souhlas nebo byla jejich data smazána.}}"
     },
     "rediscoveryFeed": {
       "title": "Stříbrní medailisté",
@@ -4899,7 +4904,8 @@
       "loadFailed": "Stříbrné medailisty se nepodařilo načíst.",
       "retry": "Zkusit znovu",
       "dismissFailed": "Shodu se nepodařilo odstranit. Vrátila se zpět do seznamu.",
-      "addFailed": "Kandidáta se nepodařilo přidat do pipeline."
+      "addFailed": "Kandidáta se nepodařilo přidat do pipeline.",
+      "sweptIncomplete": "{count, plural, one {# pozici se nepodařilo vyhodnotit, seznam proto není úplný.} few {# pozice se nepodařilo vyhodnotit, seznam proto není úplný.} other {# pozic se nepodařilo vyhodnotit, seznam proto není úplný.}}"
     },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",

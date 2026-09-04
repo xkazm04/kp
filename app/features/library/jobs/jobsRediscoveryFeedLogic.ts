@@ -14,6 +14,9 @@ import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-mes
 import { applyAddResult, ADDED_BADGE_MS } from "./jobsRediscoveryAdd";
 // The reversible-dismiss transitions, pure + pinned by jobsRediscoveryDismiss.test.ts.
 import { dropAddedMark, extractRow, restoreRow, type RemovedRow } from "./jobsRediscoveryDismiss";
+// What the sweep should SAY it did — pure, so "0 new matches" and "every ranking
+// broke" can never render as the same reassuring green line.
+import { sweepNote } from "./jobsRediscoverySweepNote";
 import type { Alert } from "./jobsRediscoveryFeedTypes";
 
 /** A status line plus the tone it must be painted in. A failure rendered in this
@@ -108,18 +111,26 @@ export function useRediscoveryFeedLogic() {
     try {
       const r = await fetch("/api/rediscovery/alerts", { method: "POST" });
       const body = (await r.json().catch(() => null)) as
-        | { alerts?: Alert[]; newAlerts?: number; jobsSwept?: number }
+        | { alerts?: Alert[]; newAlerts?: number; jobsSwept?: number; failedJobs?: number }
         | null;
       if (r.ok && body?.alerts) {
         setAlerts(body.alerts);
         // A successful sweep is also the answer to a failed initial load.
         setLoadFailed(false);
+        const n = sweepNote(body);
         setNote({
-          text:
-            body.jobsSwept === 0
-              ? t("noPublished")
-              : t("swept", { jobs: body.jobsSwept ?? 0, found: body.newAlerts ?? 0 }),
-          tone: "ok",
+          // One line per key the fold selected, in its order: what the sweep found,
+          // then — only when roles actually failed — that the list is incomplete.
+          text: n.keys
+            .map((k) =>
+              k === "noPublished"
+                ? t("noPublished")
+                : k === "swept"
+                  ? t("swept", { jobs: n.jobs, found: n.found })
+                  : t("sweptIncomplete", { count: n.failed })
+            )
+            .join(" "),
+          tone: n.tone,
         });
       } else {
         setNote({ text: t("sweepFailed"), tone: "error" });

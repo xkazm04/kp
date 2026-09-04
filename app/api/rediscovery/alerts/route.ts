@@ -98,9 +98,16 @@ export async function POST(request: Request) {
     // this POST is the feed's Refresh, fired from one team's session, so the roles
     // swept and the alerts raised must match the feed the same request returns below.
     const ws = await currentWorkspace();
-    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal, workspaceId: ws });
+    const { jobsSwept, newAlerts, truncated, failedJobs } = await sweepRediscoveryAlerts({
+      signal: request.signal,
+      workspaceId: ws,
+    });
     const alerts = relevantAlerts(ws);
-    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated });
+    // `failedJobs` is the honest half of `newAlerts`: a sweep whose rankings all died
+    // used to return the same `newAlerts: 0` as a sweep that ran perfectly and found
+    // nobody, so the Refresh reported a clean "nothing new" over a broken pipeline.
+    // Additive on the wire — existing consumers keep reading jobsSwept/newAlerts.
+    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated, failedJobs });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }

@@ -21,6 +21,10 @@ export type PublishResponse = {
    *  the localized "sourcing failed" sentence. */
   sourcingWarning?: string | null;
   silverMedalists?: number;
+  /** True when the rediscovery raise itself broke (the ranking child died, or the
+   *  request was abandoned mid-raise). Distinct from `silverMedalists: 0`, which is
+   *  the honest 'ranked fine, nobody qualified'. */
+  silverMedalistsFailed?: boolean;
   alreadyPublished?: boolean;
   reopened?: number;
 };
@@ -32,6 +36,7 @@ export const PUBLISH_SENTENCE_KEYS = [
   "sourced",
   "skipped",
   "silverMedalists",
+  "silverMedalistsFailed",
   "sourcingFailed",
 ] as const;
 export type PublishSentenceKey = (typeof PUBLISH_SENTENCE_KEYS)[number];
@@ -62,6 +67,16 @@ export function publishNoteSentences(p: PublishResponse): PublishNote {
 
   sentences.push({ key: "sourced", count: p.sourced ?? 0 });
   if ((p.skipped ?? 0) > 0) sentences.push({ key: "skipped", count: p.skipped });
+  // The rediscovery raise, told honestly. A broken raise used to arrive as
+  // `silverMedalists: 0` and simply printed nothing — identical to a clean run that
+  // flagged nobody — so a recruiter whose ranker was down read a quiet, complete
+  // success. The failure REPLACES the count line (the count is meaningless when the
+  // step never ran) and, like sourcingFailed, tips the whole note amber: the role IS
+  // live, but one thing it promised did not happen.
+  if (p.silverMedalistsFailed) {
+    sentences.push({ key: "silverMedalistsFailed" });
+    return { tone: "warn", sentences };
+  }
   if ((p.silverMedalists ?? 0) > 0) sentences.push({ key: "silverMedalists", count: p.silverMedalists });
   return { tone: "ok", sentences };
 }

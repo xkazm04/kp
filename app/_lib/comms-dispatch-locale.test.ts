@@ -84,11 +84,26 @@ test("the dispatched offer letter states the response deadline (localized) + the
   const rows = listOutboxFiltered({ ref: entry.id, kind: "offer" });
   assert.equal(rows.length, 1);
   const body = rows[0].body ?? "";
-  const deadline = new Intl.DateTimeFormat("cs", { dateStyle: "medium", timeStyle: "short" }).format(new Date(expiresAt));
+  // The deadline NAMES ITS TIMEZONE (perfect: an-offer-carries-validated-terms):
+  // offer expiry is elapsed time, so a window crossing a DST boundary lands an hour
+  // off the local time it was minted at, and a bare "10. 7. 2026 18:00" in a letter
+  // read in another country is ambiguous besides. Same components as
+  // formatOfferDeadline — dateStyle/timeStyle cannot be mixed with timeZoneName.
+  const deadline = new Intl.DateTimeFormat("cs", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(expiresAt));
   assert.ok(
     body.includes(catalog("cs")("offer.deadlineLine", { deadline })),
     `the letter must state the offer's actual deadline (looked for "${deadline}") — got:\n${body}`
   );
+  // …and the zone is really in the letter, not just in this test's expectation.
+  const zone = new Intl.DateTimeFormat("cs", { timeZoneName: "short" }).format(new Date(expiresAt)).split(" ").pop()!;
+  assert.ok(body.includes(zone), `the stated deadline must name its timezone (looked for "${zone}") — got:\n${body}`);
   assert.ok(body.includes(catalog("cs")("offer.startLine", { date: "1. 9. 2026" })), "the letter states the known start date");
   assert.ok(body.includes("https://kp.example.com/offer/tk-unit"), "the response link footer still rides the letter");
 });

@@ -173,19 +173,27 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // fdb45cd0 — the moment a role goes live, raise standing rediscovery alerts:
     // rank the pool against it and persist "a candidate you rejected from Role X
     // clears the bar for this new role" hits to the dismissable feed. Best-effort
-    // (raiseRediscoveryAlertsForJob swallows its own failures) and only on the
+    // (raiseRediscoveryAlertsForJob contains its own failures) and only on the
     // genuine go-live, not idempotent re-publishes. The just-sourced candidates
-    // are excluded by rediscoverForJob (they're now active in this role).
+    // are excluded by rediscoverForJob (they're now active in this role), as is
+    // anyone the consent gate suppresses (anonymized/erased or lapsed consent).
     let silverMedalists = 0;
+    // Report the raise HONESTLY, the same way `sourcingWarning` distinguishes "found
+    // nobody" from "sourcing broke". The raise used to swallow a ranking failure into
+    // a 0 that the response then presented as "0 silver medalists" — a green lie about
+    // a step that never ran. false = the raise ran cleanly (even if it found nobody).
+    let silverMedalistsFailed = false;
     if (!already) {
-      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
+      const raise = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
+      silverMedalists = raise.raised;
+      silverMedalistsFailed = raise.failed;
     }
 
     // `skipped` = candidates whose payload failed to parse (not low matches), so an empty
     // pipeline after publish can be told apart from a pool that failed to load.
     // `sourcingWarning` (non-null) = the sourcing step errored; the UI shows it instead of
     // a misleading "sourced 0" success.
-    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished: already, reopened });
+    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, silverMedalistsFailed, alreadyPublished: already, reopened });
   } catch (error) {
     return safeJsonError(error, "api:jobs/publish", "JOB_PUBLISH_FAILED");
   }

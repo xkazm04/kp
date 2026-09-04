@@ -283,6 +283,10 @@ const ROUTES: RouteSpec[] = [
     rel: "./offer/[token]/route.ts",
     key: "`offer:${clientIpFrom(request.headers)}:${token}`",
     limit: 10,
+    // NAMED 2026-09-04 (perfect: an-offer-carries-validated-terms). The budget was
+    // an inline literal beside a named GET sibling on the same door.
+    optsSrc: "OFFER_RESPOND_RATE_LIMIT",
+    optsDef: "const OFFER_RESPOND_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "respondToOffer(",
     windowMs: 60_000,

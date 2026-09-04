@@ -55,9 +55,20 @@ test("the shared entry action answers every refusal with a registered REFUSAL co
     "err() must take a refusal CODE — a message parameter is how prose gets back in"
   );
 
-  const calls = [...src.matchAll(/\berr\(\s*(\d{3}),\s*("?)([A-Za-z_]+)\2/g)];
+  const calls = [...src.matchAll(/\berr\(\s*(\d{3}),\s*("?)([A-Za-z_.]+)\2/g)];
   assert.ok(calls.length >= 8, `expected the helper's refusals to be found, saw ${calls.length}`);
+  // The ONE expression the chokepoint may take: the offer-terms validator's own
+  // code (lot OF). Its union is closed, so every member is checked against the
+  // registry here instead — any other expression is still the door prose would
+  // walk back in through.
+  const policyCodes = [
+    ...read("../../_lib/offer-policy.ts").matchAll(/export type OfferTermsRefusalCode = ([^;]+);/g),
+  ].flatMap(([, union]) => [...union!.matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]!));
+  assert.ok(policyCodes.length >= 3, "offer-policy's refusal union should have been found");
+  for (const code of policyCodes) assert.ok(known.has(code), `offer-policy's "${code}" is not a code REFUSAL_ERRORS declares`);
+  assert.match(src, /const terms = validateOfferTerms\(/, "terms.code must come from validateOfferTerms, nothing else");
   for (const [, status, quoted, code] of calls) {
+    if (quoted === "" && code === "terms.code") continue;
     assert.equal(quoted, '"', `err(${status}, …) must pass a code literal, not an expression`);
     assert.ok(known.has(code!), `err(${status}, "${code}") is not a code REFUSAL_ERRORS declares`);
   }

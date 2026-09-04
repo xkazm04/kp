@@ -1728,7 +1728,10 @@
     "ANALYSIS_NOT_FOUND": "Cette analyse ne se trouve pas dans cet espace de travail.",
     "ANALYSIS_GITHUB_INVALID": "Cette analyse GitHub était illisible et n’a pas été jointe.",
     "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe.",
-    "COMPLIANCE_LOOKUP_FAILED": "Impossible de charger les informations de conformité. Veuillez réessayer."
+    "COMPLIANCE_LOOKUP_FAILED": "Impossible de charger les informations de conformité. Veuillez réessayer.",
+    "OFFER_SALARY_INVALID": "Ce montant ne peut pas être un salaire. Vérifiez le chiffre avant d’envoyer l’offre.",
+    "OFFER_CURRENCY_UNSUPPORTED": "Une offre ne peut pas être faite dans cette devise ici.",
+    "OFFER_NOTES_TOO_LONG": "Cette note d’offre est trop longue. Raccourcissez-la et renvoyez l’offre."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4733,7 +4736,8 @@
       "publishStopWaiting": "Arrêter d’attendre",
       "publishAbandoned": "Attente interrompue. Le poste est probablement déjà en ligne, mais la recherche de profils a été annulée. Rouvrez le poste pour vérifier.",
       "publishLastResult": "Dernière mise en ligne",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "publishSilverFailed": "La redécouverte n’a pas pu s’exécuter pour ce poste, aucun ancien profil n’a donc été signalé. Cela ne veut pas dire qu’aucun ne convient."
     },
     "posting": {
       "copied": "Copié",
@@ -4880,7 +4884,8 @@
         "closed": "Est allé jusqu’au bout d’un poste fermé en cours de route. Un candidat éprouvé et disponible, avec {score} % de correspondance pour {jobTitle}.",
         "elsewhere": "Déjà engagé sur un autre poste, et également {score} % de correspondance pour {jobTitle}. Un redéploiement à envisager.",
         "reached": "Est allé jusqu’à {stage} la dernière fois. Classé avant les parcours antérieurs moins avancés."
-      }
+      },
+      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}"
     },
     "rediscoveryFeed": {
       "title": "Médaillés d’argent",
@@ -4899,7 +4904,8 @@
       "loadFailed": "Impossible de charger les médaillés d'argent.",
       "retry": "Réessayer",
       "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste.",
-      "addFailed": "Impossible d'ajouter au pipeline."
+      "addFailed": "Impossible d'ajouter au pipeline.",
+      "sweptIncomplete": "{count, plural, one {# poste n’a pas pu être évalué, cette liste est donc incomplète.} other {# postes n’ont pas pu être évalués, cette liste est donc incomplète.}}"
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",

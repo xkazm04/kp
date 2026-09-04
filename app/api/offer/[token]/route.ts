@@ -34,12 +34,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
  *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
 const MAX_OFFER_BODY_BYTES = 4 * 1024;
 
+// The budget on the most consequential candidate action in the product: accept
+// hires and fires the ATS handoff, decline closes the entry irreversibly. 10/min
+// is generous for a decision a candidate makes once; keyed by token AND client
+// like the GET above. NAMED rather than inline so the two limiters on this door
+// read the same way and the contract test pins the definition, not a literal.
+const OFFER_RESPOND_RATE_LIMIT = { limit: 10, windowMs: 60_000 };
+
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   try {
     // Side-effect-bearing public endpoint (accept hires + fires the ATS handoff)
     // — throttle per caller+token (idea-3e49abaf).
-    if (!rateLimit(`offer:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
+    if (!rateLimit(`offer:${clientIpFrom(request.headers)}:${token}`, OFFER_RESPOND_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = await readJsonWithLimit<{ response?: string }>(request, MAX_OFFER_BODY_BYTES, {});

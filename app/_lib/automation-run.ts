@@ -506,9 +506,37 @@ export async function runAutomationTask(
       const fresh = getPipelineEntry(entry.id, workspaceId);
       if (fresh && fresh.approvalKind === "offer_review") {
         try {
-          await extendDraftedOffer(fresh, workspaceId, "", null, "auto:interview-plan");
-          recordAutomationEvent(entry.id, "offer_auto_extended", automationReasonDetail("offerAutoExtended"), workspaceId, engineActor);
-          applied = "offer_sent";
+          const extended = await extendDraftedOffer(fresh, workspaceId, "", null, "auto:interview-plan");
+          // A REFUSAL IS NOT A SEND. extendDraftedOffer never throws for a business
+          // rule — it RETURNS { status, body } — and this block used to ignore that
+          // entirely, so a 400 (invalid offer terms), a 502 (the letter did not
+          // dispatch) or a 409 (the approval moved while it sent) all stamped
+          // `offer_auto_extended` on the timeline and reported `applied: "offer_sent"`
+          // to the caller. The recruiter was told an offer went out that did not.
+          // Now the draft parks exactly as it does for a thrown error: `applied` is
+          // left as the "offer_ready" the branch above set, so the card stays at
+          // offer_review for a human, and the timeline records WHY.
+          if (extended.status !== 200) {
+            const code = typeof extended.body.code === "string" ? extended.body.code : "OFFER_NOT_EXTENDED";
+            // The refusal CODE is the record; the SCREEN shows the kind's own
+            // localized verb. Deliberately NOT a resolvable `reason:<code>` — the
+            // renderer's parser accepts letters only (pipeline-event-reasons.test.ts
+            // §3), so a detail carrying an UPPER_SNAKE refusal code falls through to
+            // the localized kind label instead of painting English prose at a Czech
+            // recruiter. Same kind extendDraftedOffer's own 502 path writes: nothing
+            // went out, the approval is still open, approving again retries.
+            recordAutomationEvent(
+              entry.id,
+              "offer_comms_failed",
+              `${AUTOMATION_REASON_PREFIX}offerAutoExtendRefused:${code}`,
+              workspaceId,
+              engineActor
+            );
+            console.error(`[automation:offer] auto-extend refused (${extended.status} ${code}); draft parked for human approval`);
+          } else {
+            recordAutomationEvent(entry.id, "offer_auto_extended", automationReasonDetail("offerAutoExtended"), workspaceId, engineActor);
+            applied = "offer_sent";
+          }
         } catch (error) {
           // The draft is parked at offer_review as if the gate were human — an
           // auto-extend failure must never lose the draft.

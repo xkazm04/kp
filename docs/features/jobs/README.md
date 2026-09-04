@@ -699,8 +699,64 @@ permanently suppress another team's silver-medalist alert. The write now filters
 `workspace_id` too; `changes > 0` answers "already dismissed", "never existed", and
 "not yours" identically. The source guard (`rediscovery-tenancy.test.ts`) used to
 strip every statement containing `id = ?` before asserting — that blanket carve-out
-is what let the unscoped write ship — and now keeps an explicit, currently-empty
-allowlist of literal exempted statements instead.
+is what let the unscoped write ship — and now keeps an explicit allowlist of literal
+exempted statements instead. It holds exactly the two retention `DELETE`s below —
+clock-scoped, age-only sweeps that can neither surface nor suppress one team's alert
+inside another's feed.
+
+## Rediscovery honors consent before it ranks, and its alerts expire
+
+Consent gated rediscovery at ONE door — the *Reach out* send in
+`app/api/candidates/[id]/outreach/route.ts`. Everything upstream ran on the whole
+pool, so an anonymized (Art. 17 erased) or lapsed-consent person was still ranked,
+still persisted as a `rediscovery_alerts` row carrying their **label**, and still
+rendered in the standing feed and the Rediscover panel. The predicate that would
+have excluded them — `candidateOutreachSuppression` — lives in the very module that
+writes the row and was never called there, so an erasure removed a person's data
+from the pipeline and rediscovery put their name straight back on a shared screen.
+
+Two walls close it, both in the rediscovery module:
+
+- **At rank time.** `rediscoverForJob` resolves `suppressedCandidateIds` (the batch
+  form of the same person-level gate: one SELECT for the whole pool, most-restrictive
+  across every entry the `candidate_id` owns) and ranks only the eligible remainder.
+  Their data is not processed for this purpose at all, and the payload handed to
+  `recruiter_cli` shrinks with it. The result reports a **count** (`suppressed`), never
+  a list — naming them in `skipped` would put the identity back on the wire the
+  suppression exists to keep off it.
+- **At write time.** `recordRediscoveryAlerts` refuses a suppressed candidate, so no
+  future caller can persist an unconsented alert past the first wall.
+
+A read error still fails **closed** (surface nobody rather than everybody); the one
+exception is a missing `pipeline_entries` table, which is a logical identity — no
+table means no entries means no consent record can suppress anyone — not a loophole.
+
+**Retention.** `rediscovery_alerts` had no `DELETE` anywhere in the tree: dismissed
+rows are kept deliberately (the `UNIQUE (job_id, candidate_id)` index is what makes
+dismissal sticky) and un-acted-on ones simply accrued, each holding a candidate's
+name for a re-contact that never happened. `pruneRediscoveryAlerts` now drops
+dismissed rows past `ALERT_DISMISSED_RETENTION_DAYS` (30) and undismissed ones past
+`ALERT_STALE_RETENTION_DAYS` (90), from the clock in `instrumentation-node.ts`
+beside the apply-session retention sweep and under the same autonomy pause.
+
+## A failed ranking is reported, not folded into a zero
+
+`raiseRediscoveryAlertsForJob` swallowed every failure into `return 0`, with no log
+line — so a publish whose `recruiter_cli` died told the recruiter *"0 silver
+medalists"*, indistinguishable from a clean run that found nobody, and the sweep did
+the same across every role. It now logs with the job id (an abort — the per-role
+timeout or a client hang-up — warns quietly; anything else is `console.error` with
+the stack) and returns `{ raised, failed }`. `POST /api/jobs/[id]/publish` adds
+`silverMedalistsFailed` and `POST /api/rediscovery/alerts` adds `failedJobs` to its
+`{ jobsSwept, newAlerts, truncated }` — both additive, so existing consumers are
+unchanged, and neither is rendered yet (`jobsPublishResult.ts` /
+`jobsRediscoveryFeedLogic.ts` still read the counts alone).
+
+An **unscored** candidate is likewise no longer a low-scoring one: a missing/
+non-finite `result.total` folded to `0` and lost to `SCORE_FLOOR` silently, so a
+candidate whose scoring *failed* vanished instead of joining the `skipped` list that
+exists to say "this person was not evaluated". Such rows now join `skipped` with
+reason `unscored`; only a real number is compared against the floor.
 
 ## The sweep ceiling defers, it does not exclude
 

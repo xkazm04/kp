@@ -110,7 +110,21 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    `dispatched → pending_approval → onboarding → active` (terminal: `rejected`,
    `failed`, `retired`). The push path is the token-authed public report route; the
    *Refresh* button is the pull fallback (`POST /api/agents/[id]/refresh`). Activation
-   auto-moves the pipeline entry to Hired.
+   auto-moves the pipeline entry to the board's **terminal** column.
+
+   **Both stages are resolved by ROLE, off the workspace's own axis** — `stageForRole`
+   (`app/_lib/pipeline-axis-server.ts`), never the literals `"Offer"`/`"Hired"`. A team
+   that renamed its final column to *Signed* has no stage called `Hired`, and the store
+   validates a move against that team's axis, so the hardcoded id was a silent no-op that
+   left the agent parked on the offer column while the roster read *active*. A board
+   carrying no `offer` role files the card at its `entry` column instead. The move also
+   carries the `expectedStage` compare-and-swap and an `actorRef` of `auto:agent-bridge`:
+   a recruiter move that landed between the entry read and the write is no longer
+   overwritten, a repeat `activated` report (Personas retries) moves nothing a second
+   time, and the board's audit column names the machine rather than reading *not
+   identified*. When the CAS loses, the automation event says the board move was skipped
+   — the lifecycle report is still accepted, because the roster status is the authority
+   on the hire. Pinned by `app/api/agents/agent-hire-board-move.test.ts`.
    **The button answers.** The route's reply is a typed non-continuation, not a bare 200:
    `refreshed:true` with the new `personasStatus`, or `refreshed:false` with either a
    `reason` (+ `code`) or the unchanged `personasStatus`. The row rendered all of them
@@ -188,8 +202,8 @@ see [docs/features/app-master/README.md](../app-master/README.md) — so
 migrated in `db/agents.ts`, one owner per table). `job_id` stays `NOT NULL` in the DDL and
 is the **empty string** for an intake-originated hire; every read that would navigate to a
 job checks for it (the roster renders the role as plain text, `getActiveHiredAgentForJob`
-excludes it, and the activation → Hired move in both the report and refresh routes is
-skipped).
+excludes it, and the activation → terminal-stage move in both the report and refresh
+routes is skipped).
 
 The dispatch payload kp sends:
 

@@ -107,6 +107,23 @@ export function recordRediscoveryAlerts(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): number {
   if (rows.length === 0) return 0;
+  // CONSENT IS A WRITE GATE HERE, not only a send gate. An alert row carries the
+  // person's LABEL (their name) and is shown to every recruiter in the feed, so
+  // persisting one for a candidate who was anonymized/erased or whose consent
+  // lapsed re-materializes exactly the identifiable data the erasure removed —
+  // rediscoverForJob already filters the pool, and this is the second wall so no
+  // future caller can write an unconsented alert past it. Suppression is resolved
+  // BEFORE the transaction (it is a read on another table; better-sqlite3 is
+  // synchronous so there is no await either way, but keeping the read out of the
+  // write keeps the transaction the pure INSERT loop it claims to be).
+  const suppressed = suppressedCandidateIds(rows.map((r) => r.candidateId));
+  const admissible = suppressed.size === 0 ? rows : rows.filter((r) => !suppressed.has((r.candidateId ?? "").trim()));
+  if (admissible.length < rows.length) {
+    console.warn(
+      `[rediscovery] ${rows.length - admissible.length} of ${rows.length} silver medalists for job "${jobId}" were NOT persisted — consent suppressed (anonymized or lapsed).`
+    );
+  }
+  if (admissible.length === 0) return 0;
   const d = db();
   const now = new Date().toISOString();
   const insert = d.prepare(`
@@ -136,7 +153,62 @@ export function recordRediscoveryAlerts(
     }
     return added;
   });
-  return tx(rows);
+  return tx(admissible);
+}
+
+// ---- Retention (rediscovery-excludes-the-unconsented) -----------------------
+//
+// `rediscovery_alerts` had no delete anywhere in the tree. A dismissed row is kept
+// on purpose — the UNIQUE (job_id, candidate_id) index is what makes dismissal
+// STICKY, so deleting it the moment it is dismissed would let the very next sweep
+// re-raise the alert the recruiter just waved away. But "sticky" only has to
+// outlive the reason it was dismissed for, and an alert row is not archival
+// provenance: it carries a candidate LABEL (a name) for a re-contact that never
+// happened, so keeping it forever is data minimisation running the wrong way.
+//
+// Two windows, both stated rather than implied:
+//  - a DISMISSED row is kept for ALERT_DISMISSED_RETENTION_DAYS. Long enough that
+//    a re-sweep of the same role cannot resurrect it in any realistic cadence
+//    (the on-demand sweep is per-Refresh, the publish trigger per go-live), and
+//    after that a genuinely still-eligible candidate SHOULD be re-offered — the
+//    role, the pool and the bar have all had a month to change.
+//  - an UNDISMISSED row past ALERT_STALE_RETENTION_DAYS is dead weight: nobody
+//    acted on it in a quarter. It is already invisible in most cases (the feed
+//    filters relevance against live job/pipeline state, so an unpublished role's
+//    alerts stop rendering long before this), and if the role is still live the
+//    next sweep re-raises it with a fresh timestamp.
+
+/** How long a DISMISSED alert is kept so re-sweeps cannot resurrect it. */
+export const ALERT_DISMISSED_RETENTION_DAYS = 30;
+/** How long an un-acted-on alert is kept before it is dropped as stale. */
+export const ALERT_STALE_RETENTION_DAYS = 90;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Drop dismissed alerts past their retention window and undismissed ones that
+ *  went stale. Idempotent, best-effort, and deliberately workspace-GLOBAL — this
+ *  runs from the process clock, which has no session tenant, and it deletes by AGE
+ *  alone: it can neither surface nor suppress one team's alert in another's feed
+ *  (that is the explicit exemption recorded in rediscovery-tenancy.test.ts).
+ *  `nowMs`/windows are injectable so the windows are testable without waiting. */
+export function pruneRediscoveryAlerts(
+  opts: { nowMs?: number; dismissedDays?: number; staleDays?: number } = {}
+): { dismissed: number; stale: number } {
+  const nowMs = opts.nowMs ?? Date.now();
+  const dismissedDays = opts.dismissedDays ?? ALERT_DISMISSED_RETENTION_DAYS;
+  const staleDays = opts.staleDays ?? ALERT_STALE_RETENTION_DAYS;
+  const d = db();
+  const dismissedCutoff = new Date(nowMs - dismissedDays * DAY_MS).toISOString();
+  const staleCutoff = new Date(nowMs - staleDays * DAY_MS).toISOString();
+  // Two statements rather than one OR'd DELETE so the caller (and the clock log)
+  // can report the two windows honestly instead of one opaque total.
+  const dismissed = d
+    .prepare(`DELETE FROM rediscovery_alerts WHERE dismissed_at IS NOT NULL AND dismissed_at < ?`)
+    .run(dismissedCutoff).changes;
+  const stale = d
+    .prepare(`DELETE FROM rediscovery_alerts WHERE dismissed_at IS NULL AND created_at < ?`)
+    .run(staleCutoff).changes;
+  return { dismissed, stale };
 }
 
 /** All un-dismissed alerts, newest (and within a timestamp, highest-scoring)
@@ -234,6 +306,72 @@ export function candidateConsentSnapshots(candidateId: string): ConsentSnapshot[
     expiresAt: r.consent_expires_at,
     anonymizedAt: r.anonymized_at,
   }));
+}
+
+/** The BATCH form of candidateOutreachSuppression, for the rank-time filter: which
+ *  of these candidate identities may NOT be re-contacted, and why. One SELECT per
+ *  chunk instead of one per candidate (the pool is capped near 160, so the
+ *  per-candidate form would be 160 round-trips on every publish and every swept
+ *  role). Same semantics as the singular gate: workspace-GLOBAL (a person's
+ *  consent/erasure is a property of the person), most-restrictive across every
+ *  entry the identity owns, and an id with no entry anywhere is contactable.
+ *
+ *  FAIL CLOSED on a read error: every id is reported suppressed, so a broken
+ *  consent read surfaces NOBODY rather than surfacing everybody. A rediscovery
+ *  that finds no one is recoverable on the next sweep; re-materializing an erased
+ *  person's name in a shared feed is not. */
+export function suppressedCandidateIds(
+  candidateIds: readonly (string | null | undefined)[],
+  nowMs: number = Date.now()
+): Map<string, "anonymized" | "consent_expired"> {
+  const out = new Map<string, "anonymized" | "consent_expired">();
+  const ids = [...new Set(candidateIds.map((c) => (c ?? "").trim()).filter(Boolean))];
+  if (ids.length === 0) return out;
+  try {
+    const grouped = new Map<string, ConsentSnapshot[]>();
+    // Chunked so the parameter list stays well under SQLite's SQLITE_MAX_VARIABLE_NUMBER
+    // however large a future pool cap gets.
+    const CHUNK = 400;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const rows = db()
+        .prepare(
+          `SELECT candidate_id, consent_given_at, consent_expires_at, anonymized_at
+             FROM pipeline_entries WHERE candidate_id IN (${slice.map(() => "?").join(",")})`
+        )
+        .all(...slice) as {
+        candidate_id: string;
+        consent_given_at: string | null;
+        consent_expires_at: string | null;
+        anonymized_at: string | null;
+      }[];
+      for (const r of rows) {
+        const list = grouped.get(r.candidate_id) ?? [];
+        list.push({ givenAt: r.consent_given_at, expiresAt: r.consent_expires_at, anonymizedAt: r.anonymized_at });
+        grouped.set(r.candidate_id, list);
+      }
+    }
+    for (const [id, snaps] of grouped) {
+      const reason = outreachSuppressionReason(resolveCandidateConsent(snaps), nowMs);
+      if (reason) out.set(id, reason);
+    }
+    return out;
+  } catch (err) {
+    // ONE exception to fail-closed, and it is a logical identity rather than a
+    // loophole: if `pipeline_entries` does not exist yet (this isolated connection
+    // opened on a database whose core schema db/pipeline.ts has not created — a
+    // fresh install, or a test that only touches the alert store), then there are no
+    // entries, so there are no consent records, so nobody CAN be suppressed by one.
+    // Treating that as "suppress everyone" would make rediscovery return nobody on a
+    // brand-new deployment and read as a broken feature.
+    if (err instanceof Error && /no such table/i.test(err.message)) return out;
+    console.error(
+      `[rediscovery] consent gate could not resolve ${ids.length} candidate identities — suppressing all of them (fail-closed):`,
+      err
+    );
+    for (const id of ids) out.set(id, "consent_expired");
+    return out;
+  }
 }
 
 /** THE candidate-level outreach compliance gate (GDPR / e-privacy). Resolves the
