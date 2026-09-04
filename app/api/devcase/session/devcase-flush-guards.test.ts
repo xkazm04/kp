@@ -68,7 +68,11 @@ test("./[id]/route.ts charges the flush body against a per-apply-token byte budg
   // …and it must precede the first write, so a refused flush stores nothing.
   const writeAt = src.indexOf("appendDevSessionEvents(id, events)");
   assert.ok(writeAt > chargeAt, "the byte budget must be charged before the first write");
-  assert.match(src.slice(chargeAt, chargeAt + 200), /RATE_LIMITED_ERROR/, "the refusal is the shared 429 envelope");
+  assert.match(
+    src.slice(chargeAt, chargeAt + 200),
+    /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/,
+    "the refusal is the ONE registered 429 — a candidate mid-assessment reads it in their own language",
+  );
 });
 
 test("./[id]/chat/route.ts forwards the request's abort signal to the model run", () => {

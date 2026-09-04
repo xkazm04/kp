@@ -108,12 +108,15 @@ test("every validation refusal on both doors carries a CODE, not English prose",
     // Only ONE bare `{ error: … }` may remain per route: the closed-role 410,
     // whose message is already localized from the `apply` catalog server-side.
     const bare = [...src.matchAll(/NextResponse\.json\(\{ error: ([^,}]+)/g)].map((m) => m[1].trim());
-    // The throttle keeps the shared codeless envelope on purpose (which limiter
-    // refusals go through jsonRefusal is rate-limit-contract.test.ts's call), and
-    // the closed-role 410's message is already localized from the `apply` catalog.
+    // The throttle used to be the second survivor here — a codeless
+    // `{ error: RATE_LIMITED_ERROR }` on a PUBLIC door. It now answers
+    // `jsonRefusal("TOO_MANY_REQUESTS", 429)` like every other limited route
+    // (rate-limit-contract.test.ts owns that contract), so the ONLY bare body left is
+    // the closed-role 410, whose message is already localized from the `apply` catalog
+    // server-side.
     assert.deepEqual(
       bare,
-      ["RATE_LIMITED_ERROR", 't("roleClosed")'],
+      ['t("roleClosed")'],
       `${rel} still answers a validation refusal with a codeless body`
     );
     for (const [, code] of src.matchAll(/jsonRefusal\("([A-Z_]+)"/g)) {

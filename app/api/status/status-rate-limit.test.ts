@@ -32,7 +32,11 @@ test("the status route throttles before it reads the store, keyed by token AND c
     /rateLimit\(`status:\$\{clientIpFrom\(request\.headers\)\}:\$\{token\}`, STATUS_RATE_LIMIT\)/,
     "sibling-pattern key: per token AND client, so the untrusted-proxy shared client key still gives each candidate their own bucket"
   );
-  assert.match(routeSrc, /RATE_LIMITED_ERROR \}, \{ status: 429 \}/, "over the limit answers the shared 429 envelope");
+  assert.match(
+    routeSrc,
+    /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/,
+    "over the limit answers the ONE registered refusal, so the status page can say so in the candidate's language"
+  );
   const limitAt = routeSrc.indexOf("rateLimit(");
   const readAt = routeSrc.indexOf("getEntryIdByStatusToken(");
   assert.ok(limitAt > 0 && limitAt < readAt, "a flood must be rejected before the store reads");

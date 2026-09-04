@@ -152,7 +152,7 @@ test("the follow-up route is capability-token-authenticated, never keyed off a c
 
 test("the follow-up route throttles like its public siblings, before any read or spawn", () => {
   assert.match(routeSrc, /const FOLLOWUP_RATE_LIMIT = \{ limit: \d+, windowMs: [\d_]+ \}/, "an explicit bound");
-  assert.match(routeSrc, /RATE_LIMITED_ERROR \}, \{ status: 429 \}/, "the shared 429 envelope");
+  assert.match(routeSrc, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, "the ONE registered 429 refusal");
   const limitAt = routeSrc.indexOf("rateLimit(");
   const readAt = routeSrc.indexOf("findEntryByLeadToken(");
   const spawnAt = routeSrc.indexOf("renormalizeApplicantProfile(");

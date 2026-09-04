@@ -53,7 +53,10 @@ test("erasure POST: the limiter runs before the token lookup — unknown tokens 
   }
   const refused = await erase(token, "203.0.113.7");
   assert.equal(refused.status, 429, "the next hit inside the window is refused before any lookup");
-  assert.deepEqual(await refused.json(), { error: RATE_LIMITED_ERROR });
+  // The CODED refusal, not a bare English sentence: this is a PUBLIC door a candidate
+  // reaches from an email written in their own language, so the wire carries the code
+  // the client resolves and the canonical message only as the log/API-consumer copy.
+  assert.deepEqual(await refused.json(), { error: RATE_LIMITED_ERROR, code: "TOO_MANY_REQUESTS" });
 });
 
 test("erasure POST: a real token still erases once, and the bucket is per token — a sibling link is unaffected", async () => {
