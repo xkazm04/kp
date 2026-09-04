@@ -12,7 +12,7 @@
 <!-- personas:context-map:start -->
 ## Project Context Map
 
-This project is organized into **161 contexts** across **17 groups**, covering **3056 source and test files**. The full machine-readable map lives in `context-map.json` at the project root — read it at task start to scope your edits to the relevant context’s files.
+This project is organized into **161 contexts** across **17 groups**, covering **3066 source and test files**. The full machine-readable map lives in `context-map.json` at the project root — read it at task start to scope your edits to the relevant context’s files.
 
 Contexts are sized for one agent to hold whole: **8–24 files each, median 17**. Every tracked `.ts/.tsx/.py/.mjs` file belongs to exactly one context — there is no unmapped remainder.
 
