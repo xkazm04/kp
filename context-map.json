@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T11:57:54.808Z",
+  "generated_at": "2026-09-04T12:31:41.739Z",
   "provenance": {
-    "git_commit": "8bc3c20f4961eed74493820867335707a416cb3d",
-    "git_commit_count": 2678,
+    "git_commit": "b1ddbd00aabfc3558c60762d039685d3bea1d4a4",
+    "git_commit_count": 2697,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T11:57:54.808Z"
+    "generated_at": "2026-09-04T12:31:41.739Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3148,
+    "files": 3156,
     "groups": 17,
     "use_cases": 12
   },
@@ -164,6 +164,7 @@
         "app/_lib/agent-hire/bridge-store.ts",
         "app/_lib/agent-hire/pairing.ts",
         "app/_lib/agent-hire/report-payload.ts",
+        "app/_lib/agent-hire/transform-run.test.ts",
         "app/_lib/agent-hire/transform-run.ts",
         "app/features/agents-workforce/AgentsWorkforceRoster.tsx",
         "app/features/agents-workforce/AgentsWorkforceRow.tsx",
@@ -3301,6 +3302,7 @@
         "app/_lib/brand-store.test.ts",
         "app/_lib/brand-store.ts",
         "app/_lib/brand.ts",
+        "app/_lib/palette-preview/bounded-reads.test.ts",
         "app/_lib/palette-preview/index.ts",
         "app/_lib/palette-preview/palette-preview.test.ts",
         "app/_lib/palette-preview/resolve-entities.ts",
@@ -3308,7 +3310,9 @@
         "app/_lib/palette-preview/resolve-insights-settings.ts",
         "app/_lib/palette-preview/resolve-library-tools.ts",
         "app/_lib/palette-preview/types.ts",
+        "app/_lib/theme.test.ts",
         "app/_lib/theme.ts",
+        "app/api/brand/brand-route.test.ts",
         "app/api/brand/route.ts",
         "app/api/palette/preview/route.ts",
         "app/features/settings/branding/BrandingEditorForm.tsx",
@@ -6863,6 +6867,9 @@
       "description": "[auto-seeded — pending sweep enrichment] Build Scripts 1: 19 source + 1 test file(s) under scripts, scripts/design, scripts/docs (+2 more).",
       "entry_points": [],
       "file_paths": [
+        "pipeline/jobfit/tests/test_scripts_entrypoints.py",
+        "scripts/__init__.py",
+        "scripts/__tests__/market-fetch.test.mjs",
         "scripts/_common.py",
         "scripts/analyze.py",
         "scripts/apply-market-salaries.mjs",
@@ -6879,6 +6886,7 @@
         "scripts/interview.py",
         "scripts/jobfit.py",
         "scripts/lib/market-earnings.mjs",
+        "scripts/perf/__tests__/devbench.test.mjs",
         "scripts/perf/devbench.mjs",
         "scripts/pg-portability-audit.mjs",
         "scripts/secrets-rotate.mjs"
