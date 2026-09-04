@@ -15,6 +15,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BillingProviderTimeoutError } from "@/app/_lib/billing/polar";
 import { requireBillingAuthority } from "../authority";
 
 
@@ -110,6 +111,12 @@ export async function POST(request: NextRequest) {
     const checkout = await gateway.createCheckout(req, { successUrl, orgId });
     return jsonOk(checkout);
   } catch (error) {
+    // A provider that ran out of time is a DIFFERENT answer from a provider that said
+    // no: the buyer's next move is "try again in a moment", and the checkout was never
+    // retried for them (createCheckout is not idempotent), so nothing is pending.
+    if (error instanceof BillingProviderTimeoutError) {
+      return safeJsonError(error, "api/billing/checkout", "BILLING_PROVIDER_TIMEOUT", 504);
+    }
     // The gateway's thrown message is its upstream HTTP body — internal detail, and
     // in a language nobody here chose. Log it server-side, answer the stable code.
     return safeJsonError(error, "api/billing/checkout", "BILLING_CHECKOUT_FAILED", 502);

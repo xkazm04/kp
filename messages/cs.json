@@ -1700,7 +1700,8 @@
     "RESTORE_SCOPE_TAKEN": "Něco z této zálohy nyní patří jiné organizaci, takže ji nelze obnovit.",
     "RESTORE_UNSAFE_IDENTIFIER": "Tato záloha obsahuje nebezpečný název tabulky nebo sloupce a byla odmítnuta.",
     "WORKSPACE_EXPORT_FAILED": "Zálohu organizace se nepodařilo vytvořit. Zkuste to prosím znovu.",
-    "WORKSPACE_RESTORE_FAILED": "Zálohu organizace se nepodařilo obnovit. Zkuste to prosím znovu."
+    "WORKSPACE_RESTORE_FAILED": "Zálohu organizace se nepodařilo obnovit. Zkuste to prosím znovu.",
+    "BILLING_PROVIDER_TIMEOUT": "Platební poskytovatel neodpověděl včas. Zkuste to prosím za chvíli znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",

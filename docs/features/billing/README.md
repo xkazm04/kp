@@ -215,16 +215,39 @@ Both refuse through the shared chokepoint (`jsonRefusal("TOO_MANY_REQUESTS", 429
 both call sites — key, constant, budget, ordering — are pinned in
 `app/api/rate-limit-contract.test.ts`.
 
+### Both provider calls are BOUNDED, and only one of them may be retried
+
+`fetch` had no budget on either money call, so a merchant of record that accepted the
+connection and then stalled held the purchase page open indefinitely — a spinner with no
+end state. Every POST in `polar.ts` now carries `AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS)`
+= **10 s**, covering the round trip *and* the body read, and an abort is raised as
+`BillingProviderTimeoutError` — a different answer from "the provider said no".
+
+Whether a failed call may be tried again is a property of the **endpoint**, not of the
+failure, so it is opt-in per call site:
+
+| Call | Retry | Why |
+| --- | --- | --- |
+| `POST /v1/checkouts/` | **never** | not idempotent and Polar has no idempotency key here: a second attempt after a timeout or a 5xx can mint a second live session — two payable links for one purchase. The buyer clicking *Buy* again is the safe retry, because it is a decision rather than a guess |
+| `POST /v1/customer-sessions/` | **once**, on 429/5xx | a read-shaped mint for an existing customer: charges nothing, supersedes nothing, and saves the owner a dead *Manage subscription* button |
+
+A timeout is not a transient *status*, so it never consumes the portal's one retry —
+the budget is spent once, not twice. Both routes answer a timeout as
+`BILLING_PROVIDER_TIMEOUT` at **504** (not 502: nothing was refused, and the honest
+advice is "try again in a moment"). Pinned by `app/_lib/billing/polar-gateway.test.ts`
+(hanging fake, retry counts) and `app/api/billing/billing-routes.test.ts` (the 504).
+
 ### Every billing refusal carries a code
 
 The routes used to answer prose with no `code`, so the tab computed a genuinely actionable
 reason — *use the portal*, *that tier is withdrawn*, *you are not an owner* — and then
-discarded it into one generic "Checkout failed", in English, for every locale. Ten codes
+discarded it into one generic "Checkout failed", in English, for every locale. Eleven codes
 now cover the surface (`REFUSAL_ERRORS` / `STORE_ERRORS` in `app/_lib/api-response.ts`,
 four catalog entries each): `BILLING_ORG_MANAGE_REQUIRED`, `BILLING_NOT_CONFIGURED`,
 `BILLING_PLAN_CONTACT_SALES`, `BILLING_PLAN_WITHDRAWN`, `BILLING_ALREADY_SUBSCRIBED`,
 `BILLING_CHECKOUT_BODY_INVALID`, `BILLING_NO_CUSTOMER`, plus `BILLING_OVERVIEW_FAILED`,
-`BILLING_CHECKOUT_FAILED` and `BILLING_PORTAL_FAILED` for the fault paths. Where a refusal
+`BILLING_CHECKOUT_FAILED`, `BILLING_PORTAL_FAILED` and `BILLING_PROVIDER_TIMEOUT` for the
+fault paths. Where a refusal
 names a tier, the tier's **name travels beside the code as data** (`{ plan: "BYOM" }`)
 rather than inside a sentence only English readers can parse. Both checkout and portal are
 off the `error-response-contract.test.ts` ceiling — the gateway's thrown message (a

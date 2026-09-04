@@ -1700,7 +1700,8 @@
     "RESTORE_SCOPE_TAKEN": "Ein Teil dieser Sicherung gehört inzwischen einer anderen Organisation und kann daher nicht wiederhergestellt werden.",
     "RESTORE_UNSAFE_IDENTIFIER": "Diese Sicherungsdatei enthält einen unsicheren Tabellen- oder Spaltennamen und wurde abgelehnt.",
     "WORKSPACE_EXPORT_FAILED": "Die Organisationssicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-    "WORKSPACE_RESTORE_FAILED": "Die Organisationssicherung konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut."
+    "WORKSPACE_RESTORE_FAILED": "Die Organisationssicherung konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut.",
+    "BILLING_PROVIDER_TIMEOUT": "Der Zahlungsanbieter hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es gleich noch einmal."
   },
   "resilience": {
     "notFoundEyebrow": "404",

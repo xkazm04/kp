@@ -299,6 +299,11 @@ export const STORE_ERRORS = {
    *  env var. */
   ATS_CONFIG_SAVE_FAILED: "Could not save the webhook settings. Please try again.",
   BILLING_PORTAL_FAILED: "Could not open the customer portal. Please try again.",
+  /** The merchant of record accepted the request and then said nothing until the
+   *  gateway's AbortSignal budget (POLAR_REQUEST_TIMEOUT_MS) ran out — answered at 504,
+   *  not 502, because nothing was refused and the advice is genuinely "try again".
+   *  A store error by classification: the raw abort names our own internals. */
+  BILLING_PROVIDER_TIMEOUT: "The payment provider did not respond in time. Please try again in a moment.",
   /** The guided simulation's five routes (/perfect wave 16, guided-simulation-1). All
    *  sit on better-sqlite3 — the reset runs a DELETE transaction over four tables — and
    *  the console that reads them is the PUBLIC demo, so a thrown message would be both

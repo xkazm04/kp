@@ -22,6 +22,38 @@ const SERVERS = {
   sandbox: "https://sandbox-api.polar.sh",
 } as const;
 
+/** Wall-clock budget for ONE provider call — the round trip AND the body read.
+ *  A checkout or portal click is a person waiting on a button, so the bound is a
+ *  human-patience number rather than a network one: past ten seconds the honest
+ *  answer is "the provider did not respond, try again", not a spinner held open
+ *  for as long as Polar cares to take. Before this existed, `fetch` had no budget
+ *  at all and a stalled MoR held the purchase page open indefinitely. */
+export const POLAR_REQUEST_TIMEOUT_MS = 10_000;
+
+/** The provider ran out of time — distinct from BillingConfigError (our setup is
+ *  wrong) and from a thrown provider error (the provider answered, with a no).
+ *  The routes turn this into BILLING_PROVIDER_TIMEOUT at 504, which is the one
+ *  failure whose honest advice is "try again in a moment". */
+export class BillingProviderTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BillingProviderTimeoutError";
+  }
+}
+
+/** An abort raised by our own `AbortSignal.timeout` (`TimeoutError`) or by the
+ *  platform tearing the request down (`AbortError`). Matched by name because undici
+ *  and Node disagree on the constructor and neither exports it. */
+function isAbortLike(error: unknown): boolean {
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+}
+
+/** Worth exactly one more try: the provider throttled us or had a bad moment.
+ *  A 4xx other than 429 is OUR request being wrong and will fail identically. */
+function isTransientStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
 export type PolarConfig = {
   accessToken: string;
   server: keyof typeof SERVERS;
@@ -112,20 +144,56 @@ export class PolarGateway implements BillingGateway {
     return map;
   }
 
-  private async post(path: string, body: unknown): Promise<Record<string, unknown>> {
-    const res = await fetch(`${SERVERS[this.cfg.server]}${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.cfg.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(`Polar ${path} failed (${res.status}): ${text.slice(0, 300)}`);
+  /** ONE attempt at a POST, bounded end-to-end (connect, response AND body read) by
+   *  POLAR_REQUEST_TIMEOUT_MS. Returns the parsed body on 2xx and the failing
+   *  status+text otherwise, so `post` below can decide whether that status is worth
+   *  a second try; an abort is raised as BillingProviderTimeoutError because a
+   *  timeout is a different answer to the caller than "the provider said no". */
+  private async attempt(
+    path: string,
+    body: unknown
+  ): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; status: number; text: string }> {
+    try {
+      const res = await fetch(`${SERVERS[this.cfg.server]}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.cfg.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        // The signal covers `res.text()` as well as the round trip, so a provider
+        // that answers headers and then stalls the body is bounded too.
+        signal: AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS),
+      });
+      const text = await res.text();
+      if (!res.ok) return { ok: false, status: res.status, text };
+      return { ok: true, data: JSON.parse(text) as Record<string, unknown> };
+    } catch (error) {
+      if (isAbortLike(error)) {
+        throw new BillingProviderTimeoutError(
+          `Polar ${path} did not answer within ${POLAR_REQUEST_TIMEOUT_MS}ms.`
+        );
+      }
+      throw error;
     }
-    return JSON.parse(text) as Record<string, unknown>;
+  }
+
+  /** `retryTransient` is opt-in PER CALL SITE and never a default: whether a second
+   *  attempt is safe is a property of the endpoint, not of the failure. See the two
+   *  call sites below for which one gets it and why. */
+  private async post(
+    path: string,
+    body: unknown,
+    opts: { retryTransient?: boolean } = {}
+  ): Promise<Record<string, unknown>> {
+    const first = await this.attempt(path, body);
+    if (first.ok) return first.data;
+    if (opts.retryTransient && isTransientStatus(first.status)) {
+      const second = await this.attempt(path, body);
+      if (second.ok) return second.data;
+      throw new Error(`Polar ${path} failed (${second.status}): ${second.text.slice(0, 300)}`);
+    }
+    throw new Error(`Polar ${path} failed (${first.status}): ${first.text.slice(0, 300)}`);
   }
 
   private productFor(req: CheckoutRequest): string {
@@ -146,6 +214,11 @@ export class PolarGateway implements BillingGateway {
   }
 
   async createCheckout(req: CheckoutRequest, opts: { successUrl: string; orgId?: string | null }): Promise<Checkout> {
+    // NEVER RETRIED, deliberately: creating a checkout is not idempotent (Polar has
+    // no idempotency key on this endpoint), so a second attempt after a timeout or a
+    // 5xx can mint a SECOND live session for the same intent — two payable links for
+    // one purchase. The buyer clicking "Buy" again is the safe retry, because it is a
+    // decision rather than a guess about whether the first one landed.
     const data = await this.post("/v1/checkouts/", {
       products: [this.productFor(req)],
       success_url: opts.successUrl,
@@ -162,7 +235,11 @@ export class PolarGateway implements BillingGateway {
   }
 
   async createPortalSession(customerId: string): Promise<{ url: string }> {
-    const data = await this.post("/v1/customer-sessions/", { customer_id: customerId });
+    // RETRIED ONCE on a transient status. A customer-session is a read-shaped mint:
+    // it creates a short-lived token for an EXISTING customer, charges nothing and
+    // supersedes nothing, so a second attempt after a 429/5xx costs one extra session
+    // token and saves the owner a dead "Manage subscription" button.
+    const data = await this.post("/v1/customer-sessions/", { customer_id: customerId }, { retryTransient: true });
     const url =
       (typeof data.customer_portal_url === "string" && data.customer_portal_url) ||
       (typeof data.url === "string" && data.url) ||

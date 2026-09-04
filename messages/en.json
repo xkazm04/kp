@@ -1700,7 +1700,8 @@
     "RESTORE_SCOPE_TAKEN": "Something in this backup now belongs to another organization, so it cannot be restored.",
     "RESTORE_UNSAFE_IDENTIFIER": "This backup file contains an unsafe table or column name and was refused.",
     "WORKSPACE_EXPORT_FAILED": "Could not build the organization backup. Please try again.",
-    "WORKSPACE_RESTORE_FAILED": "Could not restore the organization backup. Please try again."
+    "WORKSPACE_RESTORE_FAILED": "Could not restore the organization backup. Please try again.",
+    "BILLING_PROVIDER_TIMEOUT": "The payment provider did not respond in time. Please try again in a moment."
   },
   "resilience": {
     "notFoundEyebrow": "404",
