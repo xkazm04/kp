@@ -677,6 +677,15 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**One answer to "we have no data" per page.** The Economics board's three taxonomies
+(`byChannel`, `bySource`, `byVariant`) are normalized onto one row model by
+`app/features/insights/analytics/sections/economicsRows.ts`, and `hireRate(hired, total)`
+returns `null` — not `0` — over an empty population, matching the dash `AnalyticsByRoleTable`
+prints for the same case. The board previously computed a variant's rate inline as
+`r.total ? … : 0`, so a creative nobody had ever applied through rendered as a "0 % hire rate"
+verdict, while the sorter beside it already treated the same row as absent. The rate is now a
+value whose empty case is a value; `economicsRows.test.ts` pins all three groups.
+
 **The window queries seek, they do not scan.** `pipeline_entries` and `pipeline_events` carry
 `idx_pipeline_entries_ws_created` / `idx_pipeline_events_ws_created` — `(workspace_id,
 created_at)`, workspace first because it is the equality predicate. Every windowed query in
