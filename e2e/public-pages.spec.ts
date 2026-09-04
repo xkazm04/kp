@@ -26,20 +26,33 @@ const PAGES = ["/about", "/trust", "/privacy", "/terms", "/market"] as const;
  *
  * The list must only ever SHRINK: a page whose holdout is no longer needed
  * fails the "still needed?" assertion below until its entry is deleted. */
-// Recorded contrast debt, measured against kp's own dev server on 2026-09-04 (the lot
-// that wrote this file had audited a DIFFERENT app on :3000 and believed the list empty):
+// Recorded contrast debt, measured against kp's own production build on 2026-09-04
+// (the lot that first wrote this file had audited a DIFFERENT app on :3000 and believed
+// the list empty; the re-measure that replaced it named /market's nodes wrongly, which
+// is why each entry below now says which ELEMENT fails and at what ratio):
 //   /about   36 about-art step badges (.w-10.h-10.rounded-xl) - white on the art colours
-//   /trust   one .text-coral link on the cream ground
-//   /privacy one .text-meta line; /terms one .text-meta line
-//   /market  11 gold (#caa54c) rank ticks in the JD gallery
-// Palette choices are an OWNER decision (docs/harness; Perfect vault). Each entry is
-// asserted to STILL fail below, so fixing one deletes it here.
+//   /trust, /privacy, /terms  ONE node each, and it is the same element on all three:
+//            the EYEBROW recipe (`text-meta uppercase text-coral`), coral #d65a4a at
+//            14px on the cream paper, 3.65:1 against a 4.5:1 bar. Axe selects it as
+//            `.text-coral` on /trust (where other .text-meta nodes exist) and as
+//            `.text-meta` on the other two. One token pairing, three pages.
+// Whether coral stays legible-on-cream is a PALETTE decision and therefore the owner's
+// (docs/harness; Perfect vault) - it is the brand's accent on the brand's ground, and
+// darkening it moves every eyebrow in the product.
+//
+// /market had its own entry and no longer does: eleven gold (#caa54c, 2.33:1) occupation
+// rank ticks and eight org-type labels drawn in the encoding colour (coral 3.87:1, amber
+// 2.33:1) were LOCAL choices, not palette ones, and were fixed in market/parts.tsx - the
+// ticks deepened, and the org colour moved off the text onto a swatch beside it. The page
+// now reports zero serious violations.
+//
+// The list must only ever SHRINK; each entry is asserted to STILL fail below, so fixing
+// one turns this suite red until the entry is deleted.
 const A11Y_HOLDOUTS: Record<string, string[]> = {
   "/about": ["color-contrast"],
   "/trust": ["color-contrast"],
   "/privacy": ["color-contrast"],
-  "/terms": ["color-contrast"],
-  "/market": ["color-contrast"]
+  "/terms": ["color-contrast"]
 };
 
 /** Serious/critical WCAG violations — the same pragmatic bar the rest of the

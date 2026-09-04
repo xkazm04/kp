@@ -431,11 +431,14 @@ contract, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
 indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and
 `/market` against a per-page, per-rule `A11Y_HOLDOUTS` map, plus `/about`'s
 legal row and phone disclosure. Each holdout is asserted to STILL fail, so a
-fixed one turns the suite red until its entry is deleted — `/market`'s was the
-eleven gold (`#caa54c`, 2.3:1 on white) rank ticks in the occupation list, now
-deepened to `#7a5f14` and the entry removed. What remains on `/about`,
-`/trust`, `/privacy` and `/terms` is the palette itself (the coral `EYEBROW` at
-3.66:1 on cream; the about-art step badges), which is an owner decision. Both are named
+fixed one turns the suite red until its entry is deleted. `/market` no longer has
+an entry: its nineteen serious findings were the eleven gold (`#caa54c`, 2.33:1)
+occupation rank ticks, now deepened to `#7a5f14`, and eight org-type labels drawn
+in the encoding colour (coral 3.87:1, amber 2.33:1) — the colour said nothing the
+words did not, so it moved to a swatch beside a readable label. Both were LOCAL
+choices. What remains on `/about`, `/trust`, `/privacy` and `/terms` is the
+palette itself — one node per legal page, and on all three it is the same
+element, the coral `EYEBROW` at 3.65:1 on cream — which is an owner decision. Both are named
 one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
 
 ## Known gaps

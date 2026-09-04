@@ -301,7 +301,15 @@ export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
         const pay = isFigure(o.medianSalary) ? o.medianSalary : null;
         return (
           <div key={o.orgType} className={`${STICKER} px-4 py-4`}>
-            <div className={`${HAND} text-sm`} style={{ color: orgColor(o.orgType) }}>
+            {/* The org colour used to BE the label text: 18px hand-font in coral
+                (3.87:1) and amber (2.33:1) on white, which axe records as a serious
+                contrast failure and a reader with low vision simply cannot read. The
+                colour carries nothing the words do not — it only ties the tile to its
+                bar — so it moves to a swatch (decorative, aria-hidden) and the label
+                takes a readable ink-blue. The encoding survives; the text becomes
+                legible. Same change on the JD cards below. */}
+            <div className={`${HAND} flex items-center gap-2 text-sm text-[#42606f]`}>
+              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full border-[2px] border-[#17202a]" style={{ background: orgColor(o.orgType) }} />
               {t(`orgTypes.${o.orgType}`)}
             </div>
             {pay != null ? (
@@ -368,7 +376,8 @@ export function JdCard({ item }: { item: JdGroup["items"][number] }) {
           ))}
         </div>
       )}
-      <span className={`${HAND} mt-auto pt-1 text-sm`} style={{ color: orgColor(item.orgType) }}>
+      <span className={`${HAND} mt-auto flex items-center gap-2 pt-1 text-sm text-[#42606f]`}>
+        <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full border-[2px] border-[#17202a]" style={{ background: orgColor(item.orgType) }} />
         {t(`orgTypes.${item.orgType}`)}
       </span>
     </div>
