@@ -5616,7 +5616,9 @@
       "saveFailed": "Impossible d’enregistrer le relais",
       "test": "Envoyer un ping de test",
       "testOk": "Distribué (HTTP {status})",
-      "testFailed": "Échec du test : {reason}"
+      "testFailed": "Échec du test : {reason}",
+      "statusUnreadable": "Clé de signature illisible",
+      "unreadableNote": "Un point de terminaison relais est enregistré, mais sa clé de signature ne peut pas être déchiffrée avec la clé de ce déploiement : les messages restent donc dans la boîte d'envoi locale. Saisissez à nouveau la clé de signature ci-dessous, ou restaurez la clé sous laquelle elle a été enregistrée."
     },
     "edge": {
       "title": "Relais toujours actif",

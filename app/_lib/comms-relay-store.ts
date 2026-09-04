@@ -22,6 +22,17 @@ export type CommsRelayPublic = {
   version: number;
 };
 
+/** The stored signing secret exists but cannot be read back — a rotated
+ *  KP_ATS_SECRET_KEY/KP_SECRET, or a restore onto a host with a different env.
+ *  Deliberately NOT a CommsRelayError: it is not a caller's validation problem and
+ *  must not be answered as a 400 by the config route. */
+export class CommsRelaySecretError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CommsRelaySecretError";
+  }
+}
+
 export class CommsRelayError extends Error {
   constructor(message: string) {
     super(message);
@@ -83,7 +94,18 @@ export function getRelayConfig(): CommsRelayPublic {
 export function getRelaySecret(): string | null {
   const stored = readRow()?.relay_secret ?? null;
   if (stored === null) return null;
-  return isEncryptedAtsSecret(stored) ? decryptAtsSecret(stored) : stored;
+  if (!isEncryptedAtsSecret(stored)) return stored;
+  try {
+    return decryptAtsSecret(stored);
+  } catch (e) {
+    // A rotated KP_SECRET / KP_ATS_SECRET_KEY, or a DB restored onto a host with a
+    // rebuilt env. Rethrown as OUR error with the crypto reason folded in, so the
+    // resolver can say "unreadable" and name the cause instead of the caller having
+    // to pattern-match a node:crypto message (comms-relay.ts).
+    throw new CommsRelaySecretError(
+      `the stored ciphertext did not decrypt under the current key (${e instanceof Error ? e.message : String(e)}).`
+    );
+  }
 }
 
 function validateUrl(raw: unknown): string | null {

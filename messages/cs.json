@@ -5616,7 +5616,9 @@
       "saveFailed": "Relé se nepodařilo uložit",
       "test": "Odeslat testovací ping",
       "testOk": "Doručeno (HTTP {status})",
-      "testFailed": "Test selhal: {reason}"
+      "testFailed": "Test selhal: {reason}",
+      "statusUnreadable": "Podpisový klíč nelze přečíst",
+      "unreadableNote": "Koncový bod relay je uložený, ale jeho podpisový klíč se klíčem tohoto nasazení nepodařilo dešifrovat, takže zprávy zůstávají v místní frontě. Zadejte podpisový klíč znovu níže, nebo obnovte klíč, pod kterým byl uložen."
     },
     "edge": {
       "title": "Trvale dostupný okraj",

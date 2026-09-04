@@ -5616,7 +5616,9 @@
       "saveFailed": "Couldn't save the relay",
       "test": "Send test ping",
       "testOk": "Delivered (HTTP {status})",
-      "testFailed": "Test failed: {reason}"
+      "testFailed": "Test failed: {reason}",
+      "statusUnreadable": "Signing secret unreadable",
+      "unreadableNote": "A relay endpoint is saved, but its signing secret can't be decrypted with this deployment's key, so messages stay in the local outbox. Re-enter the signing secret below, or restore the key it was saved under."
     },
     "edge": {
       "title": "Always-on edge",

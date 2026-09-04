@@ -5616,7 +5616,9 @@
       "saveFailed": "Relay konnte nicht gespeichert werden",
       "test": "Test-Ping senden",
       "testOk": "Zugestellt (HTTP {status})",
-      "testFailed": "Test fehlgeschlagen: {reason}"
+      "testFailed": "Test fehlgeschlagen: {reason}",
+      "statusUnreadable": "Signaturschlüssel nicht lesbar",
+      "unreadableNote": "Ein Relay-Endpunkt ist gespeichert, aber sein Signaturschlüssel lässt sich mit dem Schlüssel dieser Installation nicht entschlüsseln, sodass Nachrichten im lokalen Postausgang bleiben. Geben Sie den Signaturschlüssel unten neu ein oder stellen Sie den Schlüssel wieder her, unter dem er gespeichert wurde."
     },
     "edge": {
       "title": "Dauerhaft erreichbarer Rand",
