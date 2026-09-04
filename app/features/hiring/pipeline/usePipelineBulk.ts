@@ -388,11 +388,11 @@ export function usePipelineBulk({
       failed: failed.size,
       verb: "invited",
       // A whole-request refusal OVERRIDES the per-item verdicts (no per-item verdict
-      // was ever reached). Otherwise: the server's per-item codes when it sent any,
-      // else — until the invite route mints them (the schedule context's follow-up;
-      // today it answers per-item English prose like "not active", which is NOT
-      // code-resolvable and must never be painted onto a localized board) — one honest
-      // localized line saying the refusals happened and where to read them.
+      // was ever reached). Otherwise: the server's per-item codes, which the bulk
+      // invite route now mints for every refused row (SCHEDULE_BULK_* — /perfect wave
+      // 40, lib-scheduling; it used to answer English prose like "not active", which is
+      // NOT code-resolvable and must never be painted onto a localized board). The
+      // honest localized line below stays as the floor for a server that sends none.
       reason: requestReason ?? (failed.size > 0 && itemCodes.size === 0 ? t("bulkInviteItemsRefused") : null),
       reasonCodes: requestCodes.length ? requestCodes : requestReason ? [] : [...itemCodes],
       refusalCapability: requestCapability,

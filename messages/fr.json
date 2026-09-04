@@ -1737,7 +1737,12 @@
     "PROFILE_BUILD_FAILED": "Impossible de créer ce profil. Veuillez réessayer.",
     "PROFILE_UPDATE_FAILED": "Impossible d’enregistrer vos modifications sur ce profil. Veuillez réessayer.",
     "PROFILE_DELETE_FAILED": "Impossible de supprimer ce profil. Veuillez réessayer.",
-    "PROFILE_CANDIDATES_FAILED": "Impossible de charger la matrice des candidats. Veuillez réessayer."
+    "PROFILE_CANDIDATES_FAILED": "Impossible de charger la matrice des candidats. Veuillez réessayer.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Sélectionnez au moins un candidat avant d’envoyer des liens de planification.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Ce candidat ne figure plus sur ce tableau. Rechargez la page et réessayez.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucun lien de planification n’a été envoyé.",
+    "SCHEDULE_BULK_MINT_FAILED": "Impossible de créer un lien de planification pour ce candidat. Les autres n’ont pas été affectés.",
+    "SCHEDULE_BULK_OVER_CAP": "Trop de candidats pour un seul envoi, celui-ci n’a pas été invité. Envoyez le reste dans un second lot."
   },
   "resilience": {
     "notFoundEyebrow": "404",

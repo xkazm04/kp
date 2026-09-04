@@ -1737,7 +1737,12 @@
     "PROFILE_BUILD_FAILED": "Das Profil konnte nicht erstellt werden. Bitte erneut versuchen.",
     "PROFILE_UPDATE_FAILED": "Die Änderungen am Profil konnten nicht gespeichert werden. Bitte erneut versuchen.",
     "PROFILE_DELETE_FAILED": "Das Profil konnte nicht gelöscht werden. Bitte erneut versuchen.",
-    "PROFILE_CANDIDATES_FAILED": "Die Kandidatenmatrix konnte nicht geladen werden. Bitte erneut versuchen."
+    "PROFILE_CANDIDATES_FAILED": "Die Kandidatenmatrix konnte nicht geladen werden. Bitte erneut versuchen.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Wählen Sie mindestens eine Person aus, bevor Sie Terminlinks senden.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Diese Person steht nicht mehr auf diesem Board. Laden Sie neu und versuchen Sie es erneut.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde kein Terminlink gesendet.",
+    "SCHEDULE_BULK_MINT_FAILED": "Für diese Person konnte kein Terminlink erstellt werden. Die übrigen sind davon nicht betroffen.",
+    "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang."
   },
   "resilience": {
     "notFoundEyebrow": "404",

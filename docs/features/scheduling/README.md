@@ -440,6 +440,35 @@ The only consumers of these two handlers are `useScheduleInviteLifecycle.runActi
 (POST) and `ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third,
 on the `book` action. All three already resolve by code.
 
+### The BULK invite door
+
+`POST /api/schedule/invite/bulk` fans one recruiter action out to up to
+`BULK_INVITE_CAP` (100) candidates and reports each outcome separately — one bad
+entry never aborts the batch. Every refusal it answers is now a **code**, at both
+levels. It used to answer English sentences to a localized board: a hand-built
+whole-request 400 (`"entryIds must be a non-empty array (max 100)."`) and four
+per-entry prose strings in `results[]`. `usePipelineBulk.bulkInvite` already folded
+a per-item `code` through the same `errors.<CODE>` resolution it uses for
+`/api/pipeline/batch` — it simply never received one, so a half-refused cohort
+collapsed into a single generic "some couldn't be invited" line.
+
+| Code | Level | Fires when |
+| --- | --- | --- |
+| `SCHEDULE_BULK_NO_ENTRIES` | request (400) | no usable entry ids at all; `max` carries the cap |
+| `SCHEDULE_BULK_ENTRY_NOT_FOUND` | per entry | the id is not on **this team's** board (deleted, or another workspace) |
+| `SCHEDULE_BULK_ENTRY_INACTIVE` | per entry | hired / rejected / withdrawn — never invite a terminal candidate |
+| `SCHEDULE_BULK_MINT_FAILED` | per entry | `createScheduleInvite` threw; the raw store message stays in the server log |
+| `SCHEDULE_BULK_OVER_CAP` | per entry | past the cap, reported (not dropped) so the row stays selected; `max` carries the cap |
+
+The per-entry `error` field is **gone** from the response shape, so a
+better-sqlite3 message can no longer ride out of the mint catch — the leak that
+made `app/api/error-response-contract.test.ts` a repo-wide scan rather than a
+hand-listed array, because `results.push({ error: err.message })` is invisible to
+a regex looking for `NextResponse.json({ error: … })`. Pinned by
+`app/api/schedule/invite/invite-gate-tenancy.test.ts`, which also asserts every
+`SCHEDULE_BULK_*` the route emits is declared in `REFUSAL_ERRORS` and present in
+all four catalogs.
+
 ## What the CANDIDATE is told when their door refuses
 
 The public token route (`/api/schedule/[token]`) answers through the same

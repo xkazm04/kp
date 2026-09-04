@@ -1737,7 +1737,12 @@
     "PROFILE_BUILD_FAILED": "Profil se nepodařilo sestavit. Zkuste to prosím znovu.",
     "PROFILE_UPDATE_FAILED": "Změny v profilu se nepodařilo uložit. Zkuste to prosím znovu.",
     "PROFILE_DELETE_FAILED": "Profil se nepodařilo smazat. Zkuste to prosím znovu.",
-    "PROFILE_CANDIDATES_FAILED": "Matici kandidátů se nepodařilo načíst. Zkuste to prosím znovu."
+    "PROFILE_CANDIDATES_FAILED": "Matici kandidátů se nepodařilo načíst. Zkuste to prosím znovu.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Nejprve vyberte alespoň jednoho kandidáta, kterému se má odkaz poslat.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Tento kandidát už na nástěnce není. Načtěte stránku znovu a zkuste to znovu.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Tento kandidát už není aktivní, odkaz pro plánování se neodeslal.",
+    "SCHEDULE_BULK_MINT_FAILED": "Pro tohoto kandidáta se nepodařilo vytvořit odkaz pro plánování. Ostatních se to nedotklo.",
+    "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce."
   },
   "resilience": {
     "notFoundEyebrow": "404",
