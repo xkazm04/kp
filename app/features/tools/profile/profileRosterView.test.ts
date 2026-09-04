@@ -3,7 +3,7 @@
 // new ledger table adds, tested on the pure view model rather than through a render.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rosterFacets, rosterRows, rosterStatus } from "./profileRosterView.ts";
+import { pruneStale, rosterFacets, rosterRows, rosterStatus } from "./profileRosterView.ts";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes.ts";
 
 const P = (id: string, label: string, archetype: string | null, family: string | null, c: number | null): RosterProfile => ({
@@ -118,4 +118,30 @@ test("rosterRows never mutates the input array", () => {
   const order = PROFILES.map((p) => p.id);
   rosterRows(PROFILES, { ...base, filters: { q: "", archetype: "", family: "", status: "" }, sort: { col: "completeness", dir: "desc" } });
   assert.deepEqual(PROFILES.map((p) => p.id), order);
+});
+
+// --- pruneStale: the sidecar map a delete used to leave behind -----------------
+
+test("deleting a staled profile drops its entry from the stale map", () => {
+  const stale: StaleMap = {
+    "1": { newerSlug: "a", newerAnalyzedAt: "2026-01-01" },
+    "2": { newerSlug: "b", newerAnalyzedAt: "2026-01-02" },
+  };
+  const next = pruneStale(stale, "1");
+  assert.deepEqual(Object.keys(next), ["2"]);
+  // The input is untouched — this feeds a setState updater, which must stay pure.
+  assert.deepEqual(Object.keys(stale), ["1", "2"]);
+});
+
+test("deleting a current profile returns the SAME map, so nothing re-renders", () => {
+  const stale: StaleMap = { "1": { newerSlug: "a", newerAnalyzedAt: "2026-01-01" } };
+  assert.equal(pruneStale(stale, "9"), stale);
+});
+
+test("a pruned id cannot resurrect a stale badge on a later profile", () => {
+  // Ids are content-free: the next row keyed "1" would have inherited the deleted
+  // profile's "Newer CV" badge from the map the delete never cleaned.
+  const stale = pruneStale({ "1": { newerSlug: "a", newerAnalyzedAt: "2026-01-01" } }, "1");
+  const reused: RosterProfile = { id: "1", label: "Someone Else", archetype: "bau", role_family: null, completeness: 0.5 };
+  assert.equal(rosterStatus(reused, stale, new Set()), "current");
 });

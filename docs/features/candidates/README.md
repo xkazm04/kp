@@ -470,6 +470,12 @@ type `Č` on their keyboard still finds `Čapek`. `candidateMatrixView.ts` uses 
 same fold for the matrix's name filter; the two projections search one population,
 so a name findable in one and invisible in the other would be the bug.
 
+The roster's own load is cancelled, not just ignored: `GET /api/profile` carries an
+`AbortController` signal aborted on unmount and before a refetch, and an abort is
+never reported as a load failure. A delete prunes BOTH client maps — the rows and
+the `stale` sidecar keyed by profile id (`pruneStale`) — so a deleted profile's
+"Newer CV" state cannot outlive its row.
+
 Rebuild-from-latest (the roster's amber "Newer CV" action) is a CALLBACK into
 `ProfileTab`'s `openRebuild`, not a `?fromAnalysis=…&rebuild=…` URL push. The
 roster only ever renders inside the tab that owns the deep-link effect, and that
