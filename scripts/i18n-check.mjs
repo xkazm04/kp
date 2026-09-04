@@ -428,12 +428,82 @@ for (const dir of SEALED_ATTR_DIRS) {
   }
 }
 
-// Every machine error code the server can return must have a localized message,
-// or useErrorMessage() silently falls through to the caller's generic fallback and
-// the specific reason is lost in all four locales. Two registries emit codes and
-// both are pinned to the `errors` namespace:
-//   STORE_ERRORS   — safe generics for store-backed 500s (the real error is logged, not sent)
-//   REFUSAL_ERRORS — deliberate 4xx business rules, where the message IS the information
+// Every machine error code the app can put on the wire must have a localized
+// message, or useErrorMessage()/resolveErrorMessage silently falls through to the
+// caller's generic fallback and the specific reason is lost in all four locales.
+//
+// Until wave 37 this check saw ONLY the two central registries in api-response.ts,
+// so the twenty-odd codes declared anywhere else resolved by luck: deleting one of
+// their four catalog entries produced a green build and a generic message. Codes
+// reach the wire in three shapes and all three are swept now:
+//
+//   1. CENTRAL registries — STORE_ERRORS (safe generics for store-backed 500s, the
+//      real error is logged not sent) and REFUSAL_ERRORS (deliberate 4xx business
+//      rules, where the message IS the information), both in api-response.ts.
+//   2. SATELLITE registries — a vocabulary deliberately declared away from
+//      api-response.ts (a CLIENT-origin transport code no route handler can ever
+//      return; a validator's own union type) and therefore not written as a
+//      `code:` literal. Listed in SATELLITE_ERROR_SOURCES because a declaration
+//      shape cannot be guessed; each entry fails loudly if its file moves or its
+//      shape changes, on the SEALED_ATTR_DIRS precedent — a scan whose scope
+//      silently evaporates is worse than no scan.
+//   3. INLINE codes — `code: "SOMETHING"` written at the emit site in a route
+//      handler. Swept out of the whole app tree, which is the half that makes this
+//      gate SELF-EXTENDING: a new route cannot add an unlocalized code without
+//      also adding its copy, and no manifest edit is needed to notice it.
+//
+// A code counts as localized when it resolves under any of ERROR_NAMESPACES. Nearly
+// all live in the app-wide `errors` namespace; the GitHub deep-dive keeps its codes
+// in its own surface namespace on purpose (app/_lib/use-github-error.ts). Adding a
+// namespace here widens what counts as localized — a deliberate act, not a workaround.
+const ERROR_NAMESPACES = ["errors", "results.github.errors"];
+const SATELLITE_ERROR_SOURCES = [
+  {
+    // `export const VOICE_TRANSPORT_ERRORS = { VOICE_TRANSPORT_NETWORK: "…", … } as const;`
+    // Client-origin: the browser transport classifies its OWN failure, so these can
+    // never appear in the server's store/refusal vocabulary. See the file's header.
+    file: "app/_components/voice/transport/transport-error.ts",
+    declaration: "VOICE_TRANSPORT_ERRORS",
+    codes: (src) => {
+      const block = src.match(/export const VOICE_TRANSPORT_ERRORS = \{([\s\S]*?)\n\} as const;/);
+      return block ? [...block[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]) : null;
+    }
+  },
+  {
+    // `export type JdFieldsErrorCode = "JD_FIELDS_REQUIRED" | …;` — a union, not an
+    // object: validateJdFields returns the code beside its canonical-English `error`.
+    file: "app/_lib/jd-limits.ts",
+    declaration: "JdFieldsErrorCode",
+    codes: (src) => {
+      const block = src.match(/export type JdFieldsErrorCode =([^;]*);/);
+      return block ? [...block[1].matchAll(/"([A-Z_0-9]+)"/g)].map((m) => m[1]) : null;
+    }
+  },
+  {
+    // A single exported constant, shared by the pairing route and its client poller.
+    file: "app/_lib/agent-hire/pairing.ts",
+    declaration: "PAIR_NO_SECRET_CODE",
+    codes: (src) => {
+      const hit = src.match(/export const PAIR_NO_SECRET_CODE = "([A-Z_0-9]+)";/);
+      return hit ? [hit[1]] : null;
+    }
+  }
+];
+
+/** Where a code is localized, or null when no declared namespace carries it. */
+function errorNamespaceFor(code) {
+  return ERROR_NAMESPACES.find((ns) => baseKeys.includes(`${ns}.${code}`)) ?? null;
+}
+function requireLocalizedCode(code, origin) {
+  if (errorNamespaceFor(code)) return;
+  problems.push(
+    `${origin} emits the error code \`${code}\`, which has no message in messages/${DEFAULT_LOCALE}.json ` +
+      `under any of ${ERROR_NAMESPACES.map((ns) => `\`${ns}\``).join(" / ")} — add it (in all 4 catalogs) so the ` +
+      `code resolves to real copy instead of a generic fallback`
+  );
+}
+
+// 1. The central registries.
 const apiResponseSrc = readFileSync(join(REPO_ROOT, "app", "_lib", "api-response.ts"), "utf8");
 for (const registry of ["STORE_ERRORS", "REFUSAL_ERRORS"]) {
   const block = apiResponseSrc.match(new RegExp(`export const ${registry} = \\{([\\s\\S]*?)\\n\\} as const;`));
@@ -446,11 +516,70 @@ for (const registry of ["STORE_ERRORS", "REFUSAL_ERRORS"]) {
     problems.push(`app/_lib/api-response.ts — ${registry} parsed to zero codes (did its shape change?)`);
     continue;
   }
+  for (const code of codes) requireLocalizedCode(code, `${registry} (app/_lib/api-response.ts)`);
+}
+
+// 2. The satellite registries.
+let satelliteCodeCount = 0;
+for (const source of SATELLITE_ERROR_SOURCES) {
+  const abs = join(REPO_ROOT, ...source.file.split("/"));
+  if (!existsSync(abs)) {
+    problems.push(
+      `scripts/i18n-check.mjs — SATELLITE_ERROR_SOURCES names ${source.file}, which is not on disk; ` +
+        `its error codes are no longer being checked. Update the list in the same change that moved it.`
+    );
+    continue;
+  }
+  const codes = source.codes(readFileSync(abs, "utf8"));
+  if (!codes || !codes.length) {
+    problems.push(
+      `${source.file} — could not read any error code out of ${source.declaration} (did its shape change?). ` +
+        `Fix the extractor in scripts/i18n-check.mjs rather than leaving the registry unchecked.`
+    );
+    continue;
+  }
   for (const code of codes) {
-    if (!baseKeys.includes(`errors.${code}`)) {
+    satelliteCodeCount++;
+    requireLocalizedCode(code, `${source.declaration} (${source.file})`);
+  }
+}
+
+// 3. Codes written inline at the emit site. sourceFiles() already skips *.test.* —
+// test files mint deliberately unknown codes ("NOT_IN_CATALOG") to prove the
+// resolver's fallback, and pinning those would invert the test.
+let inlineCodeCount = 0;
+const seenInlineCodes = new Set();
+for (const file of sourceFiles(join(REPO_ROOT, "app"))) {
+  const rel = relative(REPO_ROOT, file).split("\\").join("/");
+  for (const hit of readFileSync(file, "utf8").matchAll(/\bcode:\s*"([A-Z][A-Z0-9_]{3,})"/g)) {
+    const code = hit[1];
+    inlineCodeCount++;
+    if (seenInlineCodes.has(code)) continue;
+    seenInlineCodes.add(code);
+    requireLocalizedCode(code, rel);
+  }
+}
+
+// The archetype vocabulary is the same contract in a different namespace. The
+// recruiter surfaces render an archetype through `enums.archetype.<id>` (wave 37
+// deleted ARCHETYPE_BADGE, the raw-English export two of those cards still used),
+// and useEnumLabel falls back to labelize(id) for a missing entry — English, silently.
+// The shared registry is the id vocabulary for BOTH languages, so a new archetype
+// must arrive with its four labels. `unrouted` is not in the registry: it is the
+// fail-closed display key archetypeDisplayKey stamps for anything unrecognized.
+const archetypeRegistryPath = join(REPO_ROOT, "pipeline", "jobfit", "archetypes.json");
+if (!existsSync(archetypeRegistryPath)) {
+  problems.push(
+    `scripts/i18n-check.mjs — pipeline/jobfit/archetypes.json is not on disk, so archetype display labels ` +
+      `are no longer being checked. Update the path in the same change that moved it.`
+  );
+} else {
+  const registryIds = JSON.parse(readFileSync(archetypeRegistryPath, "utf8")).archetypes.map((a) => a.id);
+  for (const id of [...registryIds, "unrouted"]) {
+    if (!baseKeys.includes(`enums.archetype.${id}`)) {
       problems.push(
-        `${registry}.${code} has no \`errors.${code}\` message in messages/${DEFAULT_LOCALE}.json — ` +
-          `add it so the code resolves to real copy instead of a generic fallback`
+        `archetype \`${id}\` has no \`enums.archetype.${id}\` label in messages/${DEFAULT_LOCALE}.json — ` +
+          `add it (in all 4 catalogs) so the recruiter surfaces show a localized badge instead of labelize("${id}")`
       );
     }
   }
@@ -491,5 +620,7 @@ if (problems.length) {
 
 console.log(
   `[i18n-check] OK — ${baseKeys.length} keys, ${files.length} locale(s) in parity; ` +
-    `${primitiveFileCount} shared primitive(s) + ${sealedFileCount} marketing file(s) free of hardcoded attributes; ${uiFileCount} UI file(s) free of English API-error leaks.`
+    `${primitiveFileCount} shared primitive(s) + ${sealedFileCount} marketing file(s) free of hardcoded attributes; ` +
+    `${uiFileCount} UI file(s) free of English API-error leaks; ` +
+    `${satelliteCodeCount} satellite + ${seenInlineCodes.size} inline error code(s) localized (${inlineCodeCount} emit site(s)).`
 );
