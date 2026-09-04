@@ -131,6 +131,7 @@ export default function AboutCurve() {
   ];
 
   return (
+    <>
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
       {/* ── Topbar ─────────────────────────────────────────────── */}
       {/* `relative` anchors MobileNav's disclosure panel (absolute, top-full). */}
@@ -215,8 +216,11 @@ export default function AboutCurve() {
         </button>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────────── */}
-      <footer className="mt-20 border-t-[3px] border-[#17202a]">
+    </main>
+      {/* Footer: OUTSIDE <main> so it keeps its contentinfo landmark - a footer inside main,
+          article or section has no role, and the public-pages spec (and screen readers)
+          look for the landmark. */}
+      <footer className="mt-20 border-t-[3px] border-[#17202a] bg-[#fdf8ee] text-[#17202a] font-[family-name:var(--font-spark-body)]">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[17px]">
           <div className="flex items-center gap-2 font-bold">
             <Wordmark size="sm" />
@@ -234,6 +238,6 @@ export default function AboutCurve() {
           </div>
         </div>
       </footer>
-    </main>
+    </>
   );
 }
