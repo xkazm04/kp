@@ -3,6 +3,18 @@
     "Per-job wall-clock ceilings for .github/workflows/ci.yml, checked by the",
     "'Pipeline budget' job against what the run actually took (scripts/perf/ci-budget.mjs).",
     "",
+    "TWO WORKFLOWS. ci.yml is not the whole wall-clock: review.yml s two lenses are",
+    "REQUIRED contexts in .github/rulesets/main.json, so a pull request is not green",
+    "until they are. Every entry names its `workflow`, which is what lets one run be",
+    "judged against its own entries instead of reporting the other workflow s jobs as",
+    "renamed. `run` is ci.yml s wall-clock and says so.",
+    "",
+    "THE REVIEW.YML CEILINGS ARE ENFORCED OFFLINE ONLY, today. review.yml has no",
+    "budget job, so nothing measures those two against a real run; what holds them is",
+    "the fixture in scripts/perf/__tests__/ci-budget.test.mjs — each ceiling must stay",
+    "under the job s own timeout-minutes, and every required check that is a job in a",
+    "budgeted workflow must have one. Add the budget step to review.yml to close it.",
+    "",
     "Keys are job NAMES — the `name:` in the workflow, which is also what the API",
     "reports and what .github/rulesets/main.json requires. Renaming a job without",
     "renaming it here is reported as a stale entry, not silently ignored.",
@@ -30,28 +42,44 @@
   "slackPercent": 25,
   "run": {
     "maxMinutes": 24,
+    "workflow": "ci.yml",
     "why": "wall-clock from the first job starting to the last one finishing — the number 'how long does a pull request take to go green' actually asks about. Not the sum of the jobs: they run in parallel, and a sum would grow every time a gate was moved OFF the critical path onto its own runner, which is an improvement. Seeded just above the longest single job (E2E, 18) plus room for staggered runner acquisition."
   },
   "jobs": {
     "Node quality (typecheck, lint, unit, build)": {
       "maxMinutes": 15,
+      "workflow": "ci.yml",
       "why": "the long pole and the one that grows: schemas:gen + tsc + eslint + two ratchets + design/i18n/docs/guidance/release gates + five fixture suites + test:unit + next build. Seeded from its 25-minute timeout. Every new `- run:` line in this job spends from here."
     },
     "E2E deterministic (chromium, keyless)": {
       "maxMinutes": 18,
+      "workflow": "ci.yml",
       "why": "a full production build, a standalone runtime assembled the way the Dockerfile assembles it, a chromium install and four specs. Seeded from its 30-minute timeout; the Next build cache is what keeps it under, so a cache-key change shows up here first."
     },
     "Python gated suite": {
       "maxMinutes": 6,
+      "workflow": "ci.yml",
       "why": "pip install + the gated unittest suite. Seeded from its 10-minute timeout; pip resolution is the variable part."
     },
     "Doc sync (changed source vs coupled doc)": {
       "maxMinutes": 3,
+      "workflow": "ci.yml",
       "why": "a full-history checkout and one dependency-free script over the diff. Seeded from its 5-minute timeout; if this ever approaches it, the checkout is the cost, not the check."
     },
     "Commit convention (subjects the changelog is cut from)": {
       "maxMinutes": 3,
+      "workflow": "ci.yml",
       "why": "a full-history checkout and one dependency-free script over the range. Same shape and same seed as doc-sync."
+    },
+    "Constitution (deterministic, blocking)": {
+      "maxMinutes": 3,
+      "workflow": "review.yml",
+      "why": "a required check on every pull request: a full-history checkout and one dependency-free lens over the diff, with no npm ci and no model call. Seeded from its 5-minute timeout at RATIO_OF_TIMEOUT; if this approaches it, the checkout is the cost, not the lens."
+    },
+    "Agent review (judgement)": {
+      "maxMinutes": 9,
+      "workflow": "review.yml",
+      "why": "the other required check, and the only job in either workflow whose duration is a THIRD PARTY: one model call over the rubric plus a diff capped at KP_REVIEW_DIFF_BUDGET. Seeded from its 15-minute timeout. This is the number that moves when the provider is slow, which is exactly why a pull request s wall-clock could not be described without it."
     }
   }
 }
