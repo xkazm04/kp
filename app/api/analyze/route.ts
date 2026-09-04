@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   // before the multi-MB formData parse); the AUTHORITATIVE, in-flight-aware reservation
   // that closes the concurrent-burst window runs just before startTask below.
   const quota = meterGate("ai_candidates", { workspace });
-  if (quota) return NextResponse.json(quota, { status: 402 });
+  if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
 
   const form = await request.formData();
   const grounding = form.get("grounding") === "true";
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
     (t) => t.kind === "analyze" && (t.status === "queued" || t.status === "running")
   ).length;
   const reserve = meterGate("ai_candidates", { inFlight: inFlightAnalyze, workspace });
-  if (reserve) return NextResponse.json(reserve, { status: 402 });
+  if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: reserve.meter, plan: reserve.plan });
 
   // No debit here — runAnalyze charges the unit only on a delivered, non-cached result.
   const task = startTask("analyze", params as unknown as Record<string, unknown>, workspace);

@@ -275,13 +275,16 @@ per meter, under a code no registry and no catalog knew. `useErrorMessage()` the
 had nothing to resolve on the app's **highest-intent upsell moment**, and every Czech,
 German and French recruiter read English there.
 
-The verdict is now `{ error, code: "BILLING_QUOTA_EXCEEDED", meter, plan }` — byte-
-identical to `jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter, plan })`, so the six
-routes that return the verdict directly (`analyze`, `devcase/lifecycle`,
-`devcase/lifecycle/[id]/redesign`, `interview/create`, `interview/simulate`,
-`jobs/[id]/publish`) put the chokepoint's exact body on the wire. The meter and the
-plan travel as **data**, so a catalog can name them in the reader's language instead of
-receiving one English string per meter.
+The verdict is now `{ error, code: "BILLING_QUOTA_EXCEEDED", meter, plan }`, and no
+handler serializes it: all six metered doors (`analyze` ×2, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/redesign`, `interview/create` ×2, `interview/simulate`,
+`jobs/[id]/publish`) answer `jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter, plan })`.
+Returning the decision object directly made every one of its fields a wire contract by
+accident, which is how the refusal kept an unregistered code for so long. The meter and
+the plan travel as **data**, so a catalog can name them in the reader's language instead
+of receiving one English string per meter. `app/api/billing-quota-shape.test.ts` walks
+every module under `app/api/**` and fails on a serialized verdict, a hand-rolled body
+around the code or its sentence, or any 402 that skips the chokepoint.
 
 One wrinkle is worth knowing before you "clean it up": `enforce.ts` declares the
 sentence (`QUOTA_MESSAGE`) instead of importing `REFUSAL_ERRORS`, because

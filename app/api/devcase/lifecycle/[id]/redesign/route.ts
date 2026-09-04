@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { updateLifecycle } from "@/app/_lib/db/devcase";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -46,7 +46,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant - the very
     // one the ownership guard above already proved owns this lifecycle.
     const quota = meterGate("case_designs", { workspace });
-    if (quota) return NextResponse.json(quota, { status: 402 });
+    if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     recordMeterUsage("case_designs", 1, new Date(), workspace);
 
     // DEVP5 — a redesign keeps the lifecycle's candidate-facing language.

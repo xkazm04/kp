@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Org attribution (org-plan Phase 3): both gates read the caller's tenant.
     const workspace = await currentWorkspace();
     const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN, workspace });
-    if (quota) return NextResponse.json(quota, { status: 402 });
+    if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     // Validate at the trust boundary instead of casting request.json() to a
     // typed shape (idea-c7df6b55): entryId must be a plausibly-sized string and
     // language must look like a language tag — anything else is rejected or
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     // pass with 20 minutes left and drive the priciest meter negative. Reserving the true
     // ceiling closes that under-reservation.
     const reserve = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(grounded.durationMin), workspace });
-    if (reserve) return NextResponse.json(reserve, { status: 402 });
+    if (reserve) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: reserve.meter, plan: reserve.plan });
 
     // W6-4 (VOX1) — reissue semantics: a fresh link kills the prior ones.
     // Re-clicking "Create link" used to mint a SECOND live session (and email a

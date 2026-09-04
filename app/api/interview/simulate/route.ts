@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     const workspace = await currentWorkspace();
     if (!isSelfHostedProvider(provider)) {
       const quota = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(durationMin), workspace });
-      if (quota) return NextResponse.json(quota, { status: 402 });
+      if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     }
 
     // AFTER the 402 above (a refused meter costs no budget and must not be masked

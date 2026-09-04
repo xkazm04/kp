@@ -1,10 +1,9 @@
 import { NextRequest } from "next/server";
-import { billingOrgForWorkspace, polarGatewayFromEnv } from "@/app/_lib/billing";
+import { billingOrgForWorkspace, BillingProviderTimeoutError, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db/billing";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { BillingProviderTimeoutError } from "@/app/_lib/billing/polar";
 import { requireBillingAuthority } from "../authority";
 
 

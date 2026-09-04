@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import {
+  BillingProviderTimeoutError,
   billingOrgForWorkspace,
   entitledPlan,
   hasActiveSubscription,
@@ -15,7 +16,6 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { BillingProviderTimeoutError } from "@/app/_lib/billing/polar";
 import { requireBillingAuthority } from "../authority";
 
 
