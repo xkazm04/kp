@@ -80,6 +80,7 @@
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt",
     "db:dump": "node scripts/db-dump.mjs",
     "db:load": "node scripts/db-load.mjs",
+    "secrets:rotate": "node scripts/secrets-rotate.mjs",
     "db:pg-audit": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/pg-portability-audit.mjs"
   },
   "dependencies": {

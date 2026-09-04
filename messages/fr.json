@@ -1689,7 +1689,17 @@
     "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté.",
     "INTERVIEW_PREP_NOT_FOUND": "Il n'existe pas encore de préparation d'entretien pour ce candidat. Générez-la d'abord.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Choisissez au moins une question à ajouter à la préparation.",
-    "INTERVIEW_PREP_QUESTION_REQUIRED": "Indiquez quelle question déplacer."
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Indiquez quelle question déplacer.",
+    "ENGINE_BUSY": "Le moteur d'analyse est saturé pour le moment. Réessayez dans un instant.",
+    "IMPORT_BODY_TOO_LARGE": "Ce fichier est plus volumineux qu'une sauvegarde d'espace de travail ne peut l'être. Vérifiez que vous avez choisi le bon fichier.",
+    "IMPORT_DUMP_REQUIRED": "Envoyez le contenu JSON d'un fichier de sauvegarde kp-org-dump.",
+    "IMPORT_DUMP_MALFORMED": "Ce fichier n'est pas une sauvegarde kp-org-dump valide.",
+    "PORTABILITY_NO_DATABASE": "Il n'y a pas encore de base de données d'espace de travail. Démarrez l'application, puis réessayez.",
+    "PORTABILITY_TABLES_POPULATED": "Certaines tables contiennent déjà des lignes. Confirmez le remplacement avant de charger ce fichier.",
+    "RESTORE_SCOPE_TAKEN": "Un élément de cette sauvegarde appartient désormais à une autre organisation ; elle ne peut donc pas être restaurée.",
+    "RESTORE_UNSAFE_IDENTIFIER": "Ce fichier de sauvegarde contient un nom de table ou de colonne non sûr et a été refusé.",
+    "WORKSPACE_EXPORT_FAILED": "Impossible de créer la sauvegarde de l'organisation. Veuillez réessayer.",
+    "WORKSPACE_RESTORE_FAILED": "Impossible de restaurer la sauvegarde de l'organisation. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

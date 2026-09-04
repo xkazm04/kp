@@ -522,8 +522,20 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 | `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal. What the drawer SAYS is `app/_lib/task-outcome-summary.ts` |
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
+| `taskSearch.ts` (+ `.test.ts`) | The free-text predicate — `taskSearchNeedle` folds what was typed, `taskMatchesSearch` tests it against the RENDERED label and the raw kind |
 
-Ten decisions are load-bearing:
+Eleven decisions are load-bearing:
+
+- **The search box is one predicate, and it speaks the reader's language.** The live
+  window and the history trail below it are a single question, so the filter is a
+  shared pure function (`taskSearch.ts`) rather than the same expression typed out in
+  `TasksTab.tsx` and `TasksHistory.tsx` — two copies is how a run matches above the
+  recent/history boundary and vanishes below it. It matches the label AS RENDERED
+  (`renderTaskLabel`), never the stored `kp.tl:{…}` catalog reference, with the raw
+  kind kept as a second haystack for an operator who knows the internal name. Needle
+  and haystack are BOTH diacritic-folded, so a Czech reader searching "prubeh" finds
+  "Průběh" — the previous `.toLowerCase()` made search in three of the four catalogs
+  worse than in English. The needle is folded once per keystroke, not once per row.
 
 - **Retry replays the persisted params, but only when they still resolve.**
   `POST /api/tasks/[id]/retry` re-runs a failed/interrupted/canceled row

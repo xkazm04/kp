@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { dumpOrg } from "@/app/_lib/db-portability";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { dumpOrg, PortabilityError } from "@/app/_lib/db-portability";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireOrgCapability } from "@/app/_lib/auth/current-user";
@@ -63,8 +63,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[api/workspace/export] dump failed", error);
-    const message = error instanceof Error ? error.message : "Failed to export the organization.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // "There is no database yet" is a DECISION with its own code and status; anything
+    // else is an accident whose message carries table names and the absolute db path.
+    if (error instanceof PortabilityError) return jsonRefusal(error.code, error.status);
+    return safeJsonError(error, "api:workspace/export", "WORKSPACE_EXPORT_FAILED");
   }
 }

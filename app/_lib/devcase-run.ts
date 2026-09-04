@@ -591,9 +591,15 @@ export type SubmissionEvaluation = {
 
 // D6 core: the full incoming-evaluation chain for one submission — trace -> reflect +
 // tooling -> CaseEvaluation -> TransferAssessment. Persists the result on the submission.
-export async function runEvaluateSubmission(submissionId: string, signal?: AbortSignal): Promise<SubmissionEvaluation> {
+/** `workspaceId` is the team the RUN was enqueued for (the background task's tenant).
+ *  Everything below already scopes to `sub.workspaceId`, but the submission is fetched
+ *  by an id that is not a secret, so passing it turns "wrong team's submission" from a
+ *  successful evaluation billed to the wrong tenant into a refusal. Optional because
+ *  the orchestrator evaluates submissions it has already read out of one lifecycle. */
+export async function runEvaluateSubmission(submissionId: string, signal?: AbortSignal, workspaceId?: string): Promise<SubmissionEvaluation> {
   const sub = getSubmission(submissionId);
   if (!sub) throw new Error("submission not found");
+  if (workspaceId && sub.workspaceId !== workspaceId) throw new Error("submission belongs to another workspace");
   if (!sub.repoRef) throw new Error("submission has no repo");
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;

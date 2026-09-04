@@ -92,7 +92,16 @@ const MAX_COLLECT_PASSES = 50;
 
 // Drive a lifecycle from its current stage as far as policy + readiness allow, stopping at a
 // human gate (awaiting_approval), at collecting (no submissions yet), or at promoted (done).
-export async function runLifecycle(id: string, progress?: Progress, signal?: AbortSignal): Promise<{ stage: string; detail: string }> {
+export async function runLifecycle(id: string, progress?: Progress, signal?: AbortSignal, workspaceId?: string): Promise<{ stage: string; detail: string }> {
+  // Ownership, asserted ONCE before the walk: every stage below drives on
+  // `lc.workspaceId` (sourcing another team's pool, promoting into their board,
+  // mailing their candidates), and getLifecycle reads by a non-secret id with no
+  // tenant predicate. `workspaceId` is the team the background task was enqueued for;
+  // optional so in-process callers that already own the record can omit it.
+  if (workspaceId) {
+    const owner = getLifecycle(id);
+    if (owner && owner.workspaceId !== workspaceId) throw new Error("lifecycle belongs to another workspace");
+  }
   for (let step = 0; step < MAX_LIFECYCLE_STEPS; step += 1) {
     // Stop advancing on cancel (the heaviest steps — analyze/design — also forward
     // the signal so their Python child is killed; the loop break stops further stages).

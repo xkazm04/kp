@@ -501,6 +501,19 @@
         "app/_lib/auth/require-operator.ts",
         "proxy.ts"
       ]
+    },
+    {
+      "doc": "docs/architecture/README.md",
+      "sourceGlobs": [
+        "app/_lib/tasks.ts",
+        "app/_lib/task-pump.ts",
+        "app/_lib/task-label.ts",
+        "app/_lib/task-dedupe.ts",
+        "app/_lib/task-maintenance.ts",
+        "app/_lib/task-view.ts",
+        "app/_lib/tasks-window.ts",
+        "app/api/tasks/**"
+      ]
     }
   ]
 }

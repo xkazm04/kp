@@ -121,7 +121,13 @@ test("the finalize door goes through the SHARED intake, like its two siblings", 
   // meant no acknowledgement and no lifecycle resume on the ONE submit path a workspace
   // case has. The behavioural half is session-intake-guards.test.ts.
   assert.match(src, /await intakeSubmission\(\{/, "the ack comes from the shared intake, not a second producer");
-  assert.match(src, /resumeCollectingLifecycle\(posting\.id\)/, "a new arrival resumes a collecting lifecycle");
+  // The posting's OWN workspace, never a default: resumeCollectingLifecycle now
+  // requires the tenant, because this is a public token surface with no session.
+  assert.match(
+    src,
+    /resumeCollectingLifecycle\(posting\.id, posting\.workspaceId\)/,
+    "a new arrival resumes a collecting lifecycle, in the posting's team"
+  );
 });
 
 test("neither candidate surface prints the raw submission id", () => {

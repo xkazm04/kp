@@ -21,12 +21,23 @@ export type EngineAvailability = {
   claudeCli: boolean;
 };
 
-// Once-per-process cache: PATH and the installed CLI don't change under a
-// running server, and the probe scans every PATH entry.
-let cachedClaudeCli: boolean | null = null;
+/** How long a PATH probe result is trusted, in ms.
+ *
+ *  This cache used to be FOR THE PROCESS LIFETIME, on the reasoning that PATH does not
+ *  change under a running server. It does — the operator installing the Claude CLI to
+ *  fix exactly the "running on deterministic fallbacks" state this preflight reports
+ *  is the single most likely thing to happen right after they read it, and until now
+ *  /api/health and /api/ops kept saying "absent" until someone restarted the server.
+ *  A minute is short enough that the fix is visible while they are still looking at
+ *  the page, and long enough that a polling ops dashboard is not re-scanning every
+ *  PATH entry on every request. */
+export const ENGINE_PREFLIGHT_TTL_MS = 60_000;
 
-function probeClaudeCli(): boolean {
-  if (cachedClaudeCli != null) return cachedClaudeCli;
+let cachedClaudeCli: boolean | null = null;
+let cachedAt = 0;
+
+function probeClaudeCli(now: number): boolean {
+  if (cachedClaudeCli != null && now - cachedAt < ENGINE_PREFLIGHT_TTL_MS) return cachedClaudeCli;
   // Mirror claude_cli.py's _executable note: on Windows the CLI is claude.CMD/
   // .EXE etc. — a bare extensionless name only resolves on POSIX.
   const exts =
@@ -43,12 +54,14 @@ function probeClaudeCli(): boolean {
       }
     })
   );
+  cachedAt = now;
   return cachedClaudeCli;
 }
 
-export function engineAvailability(): EngineAvailability {
+/** The clock is injectable so the TTL can be tested without waiting a minute. */
+export function engineAvailability(now: number = Date.now()): EngineAvailability {
   return {
     gemini: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
-    claudeCli: probeClaudeCli(),
+    claudeCli: probeClaudeCli(now),
   };
 }

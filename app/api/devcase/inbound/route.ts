@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       locale: typeof body.locale === "string" ? body.locale : null,
     });
 
-    if (isNew) resumeCollectingLifecycle(postingId);
+    if (isNew) resumeCollectingLifecycle(postingId, posting.workspaceId);
 
     // The candidate is handed an OPAQUE reference (devcase-reference.ts), not the store
     // id the apply page used to print. `submissionId` still rides for external channels

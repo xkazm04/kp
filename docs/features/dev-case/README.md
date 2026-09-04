@@ -520,6 +520,21 @@ however many times a candidate clicks. Both public doors also forward the reader
 `locale`, so the acknowledgement is written in the candidate's language rather than the
 server's default. Pinned behaviourally in `session-intake-guards.test.ts`.
 
+**The resume carries the posting's team.** All three doors are public or token-scoped
+surfaces with no session, so `resumeCollectingLifecycle(postingId)` fell through to the
+DEFAULT workspace: on any non-default team the lifecycle task was filed in a tray that
+team could not see, and the run was attributed to the wrong tenant. The signature is now
+`resumeCollectingLifecycle(postingId, workspaceId)` — required, never defaulted — and
+each door passes `posting.workspaceId`, which it has already resolved to answer the
+request. The function re-checks that the lifecycle it found belongs to that workspace and
+drops the resume otherwise, so a mismatched caller loses a run rather than driving another
+team's board. Downstream, `runLifecycle` and `runEvaluateSubmission` take the task's
+workspace as an ownership assertion and throw on a mismatch: both are reached by a
+non-secret id, and a wrong-team run would have sourced, mailed and promoted against a
+board the caller cannot see while spending its own model budget.
+(`app/_lib/tasks.ts`, `app/_lib/devcase-orchestrator.ts`, `app/_lib/devcase-run.ts`;
+pinned by `app/api/tasks/tasks-route-tenancy.test.ts` and `app/_lib/tasks-pump.test.ts`.)
+
 **The candidate's handle is opaque.** Both intake doors echoed the raw
 `dev_submissions.id` and both surfaces printed it ("Submission reference: sub_…") — an
 internal store key on a public wire, against the rule that a candidate token route carries

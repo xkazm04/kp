@@ -1,5 +1,6 @@
 import { closeSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
+import { logDir } from "./logger";
 
 // DATA2 — readers for the append-only JSONL telemetry the app has always
 // written and never read: analyze.log (cache_hit/duration per run, logger.ts),
@@ -7,7 +8,6 @@ import path from "node:path";
 // (dead-letter records). Every read is BOUNDED — a tail window of bytes, never
 // the whole file — so a months-old log can't balloon an ops request.
 
-const LOG_DIR = process.env.KP_LOG_DIR ?? path.join(process.cwd(), "tmp");
 const TAIL_BYTES = 256 * 1024; // plenty for a few hundred JSONL lines
 const SAMPLE_LINES = 200;
 const WEEK_MS = 7 * 86_400_000;
@@ -16,7 +16,9 @@ const WEEK_MS = 7 * 86_400_000;
 // IO/parse fault degrades to [] / skipped lines — telemetry must never error an
 // ops request that the health half of the payload could still answer.
 export function tailJsonl(filename: string, maxLines = SAMPLE_LINES): Record<string, unknown>[] {
-  const file = path.join(LOG_DIR, filename);
+  // logDir() is logger.ts's — writer and reader must never derive the directory
+  // separately (they did, and any drift between them would have been silent).
+  const file = path.join(logDir(), filename);
   let fd: number | null = null;
   try {
     const size = statSync(file).size;
@@ -29,18 +31,24 @@ export function tailJsonl(filename: string, maxLines = SAMPLE_LINES): Record<str
     const lines = buf.toString("utf-8").split("\n");
     // A mid-file start almost certainly bisects a line — drop the partial head.
     if (start > 0) lines.shift();
-    const out: Record<string, unknown>[] = [];
-    for (const line of lines.slice(-maxLines)) {
+    // Slice AFTER parsing, not before. Slicing the raw lines spends slots on the
+    // things that are not records — every JSONL file ends in a newline, so the last
+    // raw "line" is always the empty string and `maxLines` silently delivered
+    // maxLines-1; a torn or corrupt line cost another. The window is already bounded
+    // by TAIL_BYTES, so parsing it whole and taking the newest N is both cheap and
+    // the only way the cap means what it says.
+    const parsed: Record<string, unknown>[] = [];
+    for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       try {
-        const parsed = JSON.parse(trimmed) as unknown;
-        if (parsed && typeof parsed === "object") out.push(parsed as Record<string, unknown>);
+        const record = JSON.parse(trimmed) as unknown;
+        if (record && typeof record === "object") parsed.push(record as Record<string, unknown>);
       } catch {
         /* torn or corrupt line — skip it */
       }
     }
-    return out;
+    return parsed.length > maxLines ? parsed.slice(-maxLines) : parsed;
   } catch {
     return []; // no log yet (fresh workspace) or unreadable — report empty
   } finally {

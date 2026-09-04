@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Event trigger: if an automated lifecycle is collecting for this posting, resume it.
-    if (isNew) resumeCollectingLifecycle(postingId);
+    if (isNew) resumeCollectingLifecycle(postingId, posting.workspaceId);
 
     // `isNew` is the difference between "we recorded your submission" and "we already
     // had this one" — the intake absorbs a duplicate rather than filing a second row,

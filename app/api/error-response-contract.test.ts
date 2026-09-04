@@ -293,8 +293,6 @@ const LEAK_CEILING = new Map<string, number>([
   // (/perfect wave 17, background-tasks).
   ["tasks/history/route.ts", 1],
   ["tasks/seen/route.ts", 1],
-  ["workspace/export/route.ts", 1],
-  ["workspace/import/route.ts", 1],
 ]);
 
 test("no NEW route shapes a thrown error's own message into a client response", (t) => {

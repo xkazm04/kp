@@ -5,15 +5,29 @@ import crypto from "node:crypto";
 import type { CodeReviewStatus } from "./code-review-status";
 import type { OutboxStatus } from "./comms-status";
 
-const LOG_DIR = process.env.KP_LOG_DIR ?? path.join(process.cwd(), "tmp");
+/** Where the append-only JSONL telemetry lives: KP_LOG_DIR, else <cwd>/tmp.
+ *
+ *  ONE declaration. The writer (this file) and the reader (ops-telemetry.ts) each
+ *  used to derive the same expression independently, so a rename or a relocation had
+ *  to be made twice and missing one produced the quietest possible bug: the ops
+ *  surface reporting a healthy "no telemetry yet" while the app wrote its logs
+ *  somewhere else entirely.
+ *
+ *  A function, not a frozen const: the env is read per call, so a test (and a process
+ *  that sets KP_LOG_DIR after this module loads) points both halves at the same
+ *  directory instead of at whatever cwd happened to be at import time. */
+export function logDir(): string {
+  return process.env.KP_LOG_DIR ?? path.join(process.cwd(), "tmp");
+}
 
-let logDirReady = false;
+let ensuredDir: string | null = null;
 
 function ensureLogDir(): void {
-  if (logDirReady) return;
+  const dir = logDir();
+  if (ensuredDir === dir) return;
   try {
-    mkdirSync(LOG_DIR, { recursive: true });
-    logDirReady = true;
+    mkdirSync(dir, { recursive: true });
+    ensuredDir = dir;
   } catch {
     // Disk full / permissions issue; subsequent appendFile errors are
     // already swallowed by appendLine.
@@ -48,7 +62,7 @@ async function appendLine(filename: string, payload: Record<string, unknown>): P
   ensureLogDir();
   try {
     const line = JSON.stringify({ ts: new Date().toISOString(), ...payload }) + "\n";
-    await appendFile(path.join(LOG_DIR, filename), line, "utf-8");
+    await appendFile(path.join(logDir(), filename), line, "utf-8");
   } catch {
     // Logging must never break the request; swallow.
   }

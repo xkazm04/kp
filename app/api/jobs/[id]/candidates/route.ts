@@ -95,7 +95,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // status/code (e.g. a 400 invalid_input), so a user-fixable failure stays a
     // 400 instead of collapsing to 500 — preserving the prior inline behavior.
     if (error instanceof PipelineError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
     }
     return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");
   }

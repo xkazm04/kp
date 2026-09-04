@@ -1689,7 +1689,17 @@
     "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden.",
     "INTERVIEW_PREP_NOT_FOUND": "Für diese Kandidatin bzw. diesen Kandidaten gibt es noch keine Interviewvorbereitung. Erstellen Sie sie zuerst.",
     "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Wählen Sie mindestens eine Frage aus, die in die Vorbereitung übernommen werden soll.",
-    "INTERVIEW_PREP_QUESTION_REQUIRED": "Geben Sie an, welche Frage verschoben werden soll."
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Geben Sie an, welche Frage verschoben werden soll.",
+    "ENGINE_BUSY": "Die Analyse-Engine ist gerade ausgelastet. Bitte versuchen Sie es gleich noch einmal.",
+    "IMPORT_BODY_TOO_LARGE": "Diese Datei ist größer, als eine Workspace-Sicherung sein kann. Prüfen Sie, ob Sie die richtige Datei gewählt haben.",
+    "IMPORT_DUMP_REQUIRED": "Senden Sie den JSON-Inhalt einer kp-org-dump-Sicherungsdatei.",
+    "IMPORT_DUMP_MALFORMED": "Diese Datei ist keine gültige kp-org-dump-Sicherung.",
+    "PORTABILITY_NO_DATABASE": "Es gibt noch keine Workspace-Datenbank. Starten Sie die App und versuchen Sie es erneut.",
+    "PORTABILITY_TABLES_POPULATED": "Einige Tabellen enthalten bereits Zeilen. Bestätigen Sie das Ersetzen, bevor Sie diese Datei laden.",
+    "RESTORE_SCOPE_TAKEN": "Ein Teil dieser Sicherung gehört inzwischen einer anderen Organisation und kann daher nicht wiederhergestellt werden.",
+    "RESTORE_UNSAFE_IDENTIFIER": "Diese Sicherungsdatei enthält einen unsicheren Tabellen- oder Spaltennamen und wurde abgelehnt.",
+    "WORKSPACE_EXPORT_FAILED": "Die Organisationssicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "WORKSPACE_RESTORE_FAILED": "Die Organisationssicherung konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
