@@ -11,6 +11,9 @@ import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { appMasterSpecSchema, type AppMasterSpec } from "@/app/_lib/schemas.generated";
 import { dispatchPersonaRequest, type DispatchSpec, type KpLink } from "@/app/_lib/agent-hire/bridge-client";
+// ONE authority for the two spend bounds, because TWO projections below build the
+// same DispatchSpec and only the job path used to enforce them (spec-bounds.ts).
+import { boundedBudget, boundedTurns } from "./spec-bounds";
 
 // Agent-candidate bridge — POST dispatches a spec to Personas as a persona
 // request. TWO origins, one tail:
@@ -51,6 +54,7 @@ type SpecShape = {
   maxTurns?: unknown;
 };
 
+
 function mergedSpec(stored: unknown, overrides: SpecShape, budgetUsd: number | null): DispatchSpec {
   const base = (stored ?? {}) as SpecShape;
   const pick = (o: unknown, b: unknown, fallback: string): string =>
@@ -61,8 +65,7 @@ function mergedSpec(stored: unknown, overrides: SpecShape, budgetUsd: number | n
       ? (base.connectors as unknown[]).filter((c): c is string => typeof c === "string" && !!c.trim())
       : [];
   const rawTurns = overrides.maxTurns !== undefined ? overrides.maxTurns : base.maxTurns;
-  const maxTurns =
-    typeof rawTurns === "number" && Number.isInteger(rawTurns) && rawTurns > 0 && rawTurns <= 1000 ? rawTurns : null;
+  const maxTurns = boundedTurns(rawTurns);
   return {
     name: pick(overrides.name, base.name, "Agent"),
     mission: pick(overrides.mission, base.mission, ""),
@@ -84,13 +87,13 @@ function mergedSpec(stored: unknown, overrides: SpecShape, budgetUsd: number | n
  *  metrics are the objectives: the value ledger IS what this role is measured on. */
 function specFromAppMaster(appMaster: AppMasterSpec): DispatchSpec {
   const agent = appMaster.agent;
-  const maxTurns = typeof agent?.maxTurns === "number" && Number.isInteger(agent.maxTurns) && agent.maxTurns > 0 ? agent.maxTurns : null;
+  const maxTurns = boundedTurns(agent?.maxTurns);
   return {
     name: (agent?.name || appMaster.role.title || "App master").trim(),
     mission: (agent?.mission ?? "").trim(),
     systemPromptDraft: (agent?.systemPromptDraft ?? "").trim(),
     connectors: (agent?.connectors ?? []).filter((c): c is string => typeof c === "string" && !!c.trim()),
-    maxBudgetUsd: Number.isFinite(appMaster.budget.monthlyUsd) ? appMaster.budget.monthlyUsd : null,
+    maxBudgetUsd: boundedBudget(appMaster.budget.monthlyUsd),
     ...(maxTurns !== null ? { maxTurns } : {}),
     successMetrics: appMaster.objectives.map((o) => ({
       key: o.kpiKey,

@@ -57,7 +57,15 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    `POST /api/agents/dispatch` now 400s a `budgetUsd` that is present but unusable
    (negative, non-numeric, non-finite) instead of silently swapping in the stored
    suggestion — an *omitted* budget still falls back to `suggestedMonthlyUsd`, which is
-   what a blank field sends. A `hired_agents` row is minted (idempotent — one live agent per
+   what a blank field sends. **Both spend bounds now live in one place**
+   (`app/api/agents/dispatch/spec-bounds.ts`), because two projections build the same
+   `DispatchSpec` and only the job path enforced them: `maxTurns` is capped at 1000 and a
+   monthly cap must be a non-negative finite number. The App-master projection checked
+   neither ceiling and the codegen'd contract bounds neither field, so a composed spec
+   carrying 5,000,000 turns and a negative monthly cap validated and went out on the wire.
+   Out of range answers **null** rather than clamping — an absent field means "no limit
+   declared", where substituting the ceiling would invent a spend authorization nobody
+   gave. A `hired_agents` row is minted (idempotent — one live agent per
    job) and, **once Personas has accepted the request**, the agent enters the pipeline at
    Offer (`candidateId agent-<id>`, `sourceChannel agent-bridge`). The board write is
    deliberately last: a failed dispatch mints a fresh agent id on every retry, so filing
