@@ -9,7 +9,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { builderLintFindings, type GeneratePrefill } from "./jdsLibrary";
-import { fetchTemplates, type Template } from "@/app/features/shared/renderTemplate";
+import type { Template } from "@/app/features/shared/renderTemplate";
+import { fetchTemplates } from "@/app/features/shared/templatesClient";
 import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { compareCells } from "@/app/_components/table/useTableSort";
@@ -85,9 +86,19 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   const [manageOpen, setManageOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // A template list that could not be LOADED is not the same as a workspace with
+  // no templates, and the difference is visible: with no list the select offers
+  // only "AI default format", which reads as a deliberate choice. Held separately
+  // from `error` (the submit failure) because it never blocks the build — it is a
+  // caveat about the options on offer, so the form stays usable.
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+
   const loadTemplates = () =>
-    fetchTemplates().then((list) => {
+    fetchTemplates().then(({ templates: list, failed }) => {
       setTemplates(list);
+      // Resolved from the machine code in the reader's language, never from the
+      // server's English — see app/_lib/use-error-message.ts.
+      setTemplatesError(failed ? errMsg(failed, t("templatesLoadFailed")) : null);
       // Keep the current selection if it still exists; else default to the marked
       // default, else the first (matches JdTemplates' reconciliation).
       setTemplateId((cur) => (list.some((tp) => tp.id === cur) ? cur : list.find((tp) => tp.isDefault)?.id ?? list[0]?.id ?? ""));
@@ -252,6 +263,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
     manageOpen,
     setManageOpen,
     error,
+    templatesError,
     loadTemplates,
     isSoftware,
     familyOptions,

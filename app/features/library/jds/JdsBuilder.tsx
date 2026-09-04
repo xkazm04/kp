@@ -7,7 +7,7 @@ import { JdLintPanel } from "./JdsLintPanel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { Select } from "@/app/_components/Select";
-import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { useJdBuilderLogic } from "./jdsBuilderLogic";
 import { JdsBuilderChecklist } from "./JdsBuilderChecklist";
@@ -49,6 +49,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
     manageOpen,
     setManageOpen,
     error,
+    templatesError,
     loadTemplates,
     isSoftware,
     familyOptions,
@@ -102,6 +103,17 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           <Settings2 size={14} /> {t("manage")}
         </button>
       </div>
+
+      {/* The template list failed to load — a CAVEAT, not a refusal: the build
+          still runs on the AI default format, so this is role="status" beside the
+          select rather than the form's role="alert" error line. Without it the
+          select silently offered one option and the reader had no way to tell a
+          workspace with no templates from a list we could not fetch. */}
+      {templatesError ? (
+        <p role="status" className={`${NOTICE("amber")} mt-2 px-3 py-1.5 text-sm`}>
+          {templatesError}
+        </p>
+      ) : null}
 
       <JdsBuilderFieldsGrid
         t={t}

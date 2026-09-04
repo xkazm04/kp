@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { History } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { META_LABEL } from "@/app/_components/ui/recipes";
-import { fetchTemplates } from "@/app/features/shared/renderTemplate";
+import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
+import { fetchTemplates } from "@/app/features/shared/templatesClient";
+import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { BuildIntent } from "./jdsLedgerArtifacts";
 
 // What produced this JD, said out loud in the detail modal — the two halves of a
@@ -43,32 +44,40 @@ export function BuildHeldBand({ onOpenDraft }: { onOpenDraft: () => void }) {
 export function BuildIntentLine({ intent }: { intent: BuildIntent }) {
   const t = useTranslations("library.tab");
   const enumLabel = useEnumLabel();
+  // The client never renders the server's English — app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   // The template's NAME is not in the intent (only its stable id is, deliberately —
   // a renamed template must not rewrite history). Resolved from the live list, and
   // only when this JD actually named one: an AI-default build costs no request.
   const [templateName, setTemplateName] = useState<string | null>(null);
+  // The list could not be READ — a different fact from "the template is gone",
+  // and this line's whole job is to be truthful about what produced the JD. The
+  // dash used to cover both, so an unreachable service read on screen as a
+  // deleted template. Resolved from the machine code in the reader's language.
+  const [lookupFailed, setLookupFailed] = useState<ApiErrorPayload | null>(null);
   const wantsTemplate = Boolean(intent.templateId);
   useEffect(() => {
     if (!wantsTemplate) return;
     let cancelled = false;
-    void fetchTemplates()
-      .then((list) => {
-        if (cancelled) return;
-        setTemplateName(list.find((tpl) => tpl.id === intent.templateId)?.name ?? null);
-      })
-      .catch(() => {
-        // Best-effort provenance: an unreachable template list leaves the row
-        // showing the honest "unknown" dash rather than blocking the modal.
-        if (!cancelled) setTemplateName(null);
-      });
+    void fetchTemplates().then(({ templates, failed }) => {
+      if (cancelled) return;
+      // The PAYLOAD is stored, not a resolved sentence: `t`/`errMsg` would then
+      // have to be effect dependencies, and re-running this effect on a
+      // translator identity change is a refetch loop waiting to happen. The
+      // message is resolved at render, where the reader's locale already is.
+      setLookupFailed(failed);
+      setTemplateName(templates.find((tpl) => tpl.id === intent.templateId)?.name ?? null);
+    });
     return () => {
       cancelled = true;
     };
   }, [wantsTemplate, intent.templateId]);
 
-  // A template that no longer exists (deleted since the build) and an unreachable
-  // list both resolve to null — the JD was still built through SOMETHING we can no
-  // longer name, so the dash is the truthful answer, not "AI default format".
+  // A template that no longer exists (deleted since the build) resolves to null —
+  // the JD was still built through SOMETHING we can no longer name, so the dash is
+  // the truthful answer, not "AI default format". An unreachable LIST used to land
+  // on the same dash and therefore read as a deletion; it now says so on its own
+  // line below, so the dash means exactly one thing again.
   const template = intent.templateId ? templateName ?? "—" : t("buildIntentAiDefault");
   const facts: [string, string][] = [[t("buildIntentTemplate"), template]];
   if (intent.lang) facts.push([t("buildIntentLanguage"), intent.lang.toUpperCase()]);
@@ -85,6 +94,11 @@ export function BuildIntentLine({ intent }: { intent: BuildIntent }) {
           </div>
         ))}
       </dl>
+      {lookupFailed ? (
+        <p role="status" className={`${NOTICE("amber")} mt-2 px-3 py-1.5 text-sm`}>
+          {errMsg(lookupFailed, t("buildIntentTemplateUnknown"))}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -115,6 +115,28 @@ it). Contract:
 Edits live only in memory until **Save as draft** persists them; switching
 templates is the one action that can replace them, and it now always asks.
 
+### A template list that could not load says so
+
+`fetchTemplates` (`app/features/shared/templatesClient.ts`) answers
+`{ templates, failed }` — it used to swallow every failure into `[]`, which made
+"this workspace has no templates yet" and "the template service is down" the
+same value to both of its readers:
+
+- **`JdBuilder`** then offered only *AI default format*, which reads as a
+  deliberate choice. It now shows an amber `role="status"` line beside the
+  selector. The build still runs (the AI default is a real format), so this is a
+  caveat, not the form's `role="alert"` submit error.
+- **`BuildIntentLine`** (the ledger's build-provenance row) printed the same
+  "—" it uses for a template *deleted since the build*, so an unreachable
+  service read on screen as a deletion. The dash now means only the deletion;
+  the unreachable list gets its own line.
+
+Both resolve the message from the machine code (`TEMPLATE_LIST_FAILED`) through
+`useErrorMessage()`, never from the server's English. The load goes through
+`sharedGetJson`, so a builder and a provenance modal opening together make one
+request. `app/features/shared/templatesClient.test.ts` pins the distinction — an
+empty list is a success, a 500 and a transport failure are not.
+
 ## Save vs. ingest — a draft can exist without a matchable Job
 
 `POST /api/jds/save` does two things, and only the first is authoritative:
