@@ -3236,7 +3236,13 @@
       }
     },
     "eventReasons": {
-      "offerAutoExtended": "Angebot gemäß Einstellungsplan automatisch versendet (Angebots-Gate: automatisch)."
+      "offerAutoExtended": "Angebot gemäß Einstellungsplan automatisch versendet (Angebots-Gate: automatisch).",
+      "roleClosedWithdrawn": "Stelle geschlossen. Kandidat aus der Pipeline genommen.",
+      "roleReopenedRestored": "Stelle wieder geöffnet. Kandidat zurück in der Pipeline.",
+      "autoRejectionReversed": "Automatische Absage zur erneuten Prüfung aufgehoben.",
+      "intakeCapturedManually": "Daten manuell erfasst.",
+      "githubDeepDiveFromDrawer": "GitHub-Tiefenanalyse aus der Kandidatenansicht gestartet.",
+      "manualStageMove": "Manuell von einer recruitenden Person verschoben."
     }
   },
   "decisions": {

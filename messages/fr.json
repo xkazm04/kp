@@ -3236,7 +3236,13 @@
       }
     },
     "eventReasons": {
-      "offerAutoExtended": "Offre envoyée automatiquement selon le plan de recrutement (porte offre : automatique)."
+      "offerAutoExtended": "Offre envoyée automatiquement selon le plan de recrutement (porte offre : automatique).",
+      "roleClosedWithdrawn": "Poste clôturé. Candidat retiré du pipeline.",
+      "roleReopenedRestored": "Poste rouvert. Candidat réintégré au pipeline.",
+      "autoRejectionReversed": "Refus automatique annulé pour réexamen.",
+      "intakeCapturedManually": "Informations saisies manuellement.",
+      "githubDeepDiveFromDrawer": "Analyse GitHub approfondie lancée depuis la fiche candidat.",
+      "manualStageMove": "Déplacé manuellement par un recruteur."
     }
   },
   "decisions": {

@@ -3236,7 +3236,13 @@
       }
     },
     "eventReasons": {
-      "offerAutoExtended": "Offer extended unattended per the hiring plan (offer gate: auto)."
+      "offerAutoExtended": "Offer extended unattended per the hiring plan (offer gate: auto).",
+      "roleClosedWithdrawn": "Role closed. Candidate withdrawn from the pipeline.",
+      "roleReopenedRestored": "Role reopened. Candidate restored to the pipeline.",
+      "autoRejectionReversed": "Auto-rejection reversed for re-review.",
+      "intakeCapturedManually": "Intake captured manually.",
+      "githubDeepDiveFromDrawer": "GitHub deep-dive run from the candidate drawer.",
+      "manualStageMove": "Moved manually by a recruiter."
     }
   },
   "decisions": {

@@ -56,6 +56,18 @@ scorecard, comms outbox, offer payload, interview-prep payload, the retired
 onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
+
+**An erasure happens exactly once, under concurrency.** Two doors reach
+`anonymizeEntry` — the consent-expiry sweep and the candidate's own
+`/data/[token]` request — and the "already scrubbed" check used to be a bare read
+on a DEFERRED transaction, so both could pass it before either wrote. The second
+pass then masked an already-masked label, re-ran the whole linked-PII scrub, and
+logged a **second** `consent_events` row, so the accountability record (Art. 5(2))
+showed one candidate erased twice. The transaction now runs `.immediate()` and its
+claiming UPDATE re-asserts `anonymized_at IS NULL`, returning the row unchanged on
+`changes === 0`. The candidate-facing guarantee is unchanged — an erasure was
+always meant to be idempotent; the implementation now matches it, and
+`pipeline-erasure-once.test.ts` pins the single consent event.
 `decision_records` is **deliberately excluded** from the scrub — the code
 comment at `pipeline.ts:1332-1335` states the GDPR Art. 17(3)(b)/(e)
 legal-claims/compliance basis for retaining the sealed chain post-erasure.
