@@ -31,9 +31,12 @@ import {
   createLifecycle,
   createPosting,
   createSubmission,
+  getDevCase,
   getLifecycle,
   listOutbox,
   saveDevCase,
+  saveDevCaseScenarioIfAbsent,
+  saveDevCaseSeedIfAbsent,
   saveSubmissionEvaluation,
   updateLifecycle,
 } from "./db/devcase.ts";
@@ -216,4 +219,47 @@ test("a lifecycle already at a terminal stage is reported, not re-driven", async
   assert.equal(out.stage, "closed");
   assert.equal(out.detail, "closed by a human");
   assert.equal(listAudit(200, WS).filter((r) => r.lifecycleId === lifecycleId).length, 0, "no decisions were made");
+});
+
+test("freeze-at-publish is idempotent: a resumed `approved` run never re-mints the assignment", async () => {
+  // The freeze boundary is the live token. Once `postingId` is set, the whole
+  // materialize-and-publish block is skipped on ANY resume — otherwise a re-enqueued
+  // run would re-run the (non-deterministic) LLM and swap the seed, the interview
+  // scenario and the submit channel under candidates already working on the case.
+  // A separate team keeps the sourcing pool empty, so runSourceForRole returns before
+  // its subprocess and what this exercises is the resume path itself.
+  const WS_FREEZE = "team-orchestrator-freeze";
+  const kase = saveDevCase(
+    { need: null, analysis: null, role: {}, case: { title: "Frozen case" } },
+    WS_FREEZE
+  );
+  saveDevCaseScenarioIfAbsent(kase.id, { probes: ["the frozen probe"], source: "llm" });
+  saveDevCaseSeedIfAbsent(kase.id, { files: [{ path: "src/index.ts", contents: "// frozen" }], source: "llm" });
+  const posting = createPosting({
+    caseId: kase.id,
+    channel: "local",
+    token: "tok-frozen",
+    roleTitle: "Frozen role",
+    caseTitle: "Frozen case",
+  });
+  const lc = createLifecycle({ title: "Frozen role" }, true, "en", WS_FREEZE);
+  updateLifecycle(lc.id, { stage: "approved", caseId: kase.id, postingId: posting.id });
+
+  const out = await runLifecycle(lc.id);
+
+  assert.equal(out.stage, "collecting", "the resume advances past publishing");
+  assert.equal(out.detail, "awaiting submissions", "…and parks, because nobody has submitted");
+  assert.equal(getLifecycle(lc.id)?.postingId, posting.id, "the live token is not re-minted");
+  const after = getDevCase(kase.id);
+  assert.deepEqual((after?.scenario as { probes: string[] }).probes, ["the frozen probe"], "the scenario is untouched");
+  assert.deepEqual(
+    (after?.seed as { files: { path: string }[] }).files.map((f) => f.path),
+    ["src/index.ts"],
+    "…and so is the materialized seed"
+  );
+  // Nothing about the resume is recorded as a fresh generation.
+  const actions = listAudit(200, WS_FREEZE).filter((r) => r.lifecycleId === lc.id).map((r) => r.action);
+  assert.ok(!actions.includes("interview_scenario"), "no scenario was regenerated");
+  assert.ok(!actions.includes("seed_materialized"), "no seed was regenerated");
+  assert.deepEqual(actions, ["published"], "one row: the publish that resumed");
 });
