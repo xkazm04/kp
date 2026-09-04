@@ -496,6 +496,22 @@ Behavioral coverage: `app/_lib/db/campaign-tenancy.test.ts`. The real fix is a
 `(job_id, lang, workspace_id)` key — a `campaign_packs` rebuild in `core.ts`,
 listed under Known gaps.
 
+**The read is validated; the write is not, on purpose.** `getCampaignPack` decoded
+its JSON column with `safeRowParse<unknown>(…)` and no validator, while `intakes.ts`
+beside it passes a schema for every column it reads — so the type assertion in
+`JobsCampaignTab` was the only thing between the column and the screen, and a
+truncated write, a hand-edited row or a pack from an older `campaign_cli` painted
+`undefined` into ad copy a recruiter was about to publish. The read now parses
+against `campaignPackSchema` (`app/_lib/schemas.ts`): a pack that does not clear the
+floor the tab dereferences — `hookType` / `hook` / `adCopy` / a complete
+`videoScript` per variant, warning **codes** as strings — reads as ABSENT ("no pack
+yet, generate one") instead. The schema is a floor, not a filter: `z.looseObject`,
+so unknown keys `campaign.py` adds (`defaulted_fields` is queued) survive the round
+trip. `saveCampaignPack` stays unvalidated, deliberately — refusing at write time
+would throw away the only copy of a paid LLM run, and a pack that cannot be read
+back is a decode failure the read reports (and books in the decode ledger), not a
+lost artifact. Pinned by `app/_lib/db/campaign-store.test.ts`.
+
 Generation is a background task, so the tab hands `jobTitle` to `startTask` purely
 to name the run — `tasks.kind.campaign` is `"Campaign pack · {job}"` and
 `detail(p.jobTitle, p.jobId)` otherwise falls through to the raw `jd-<slug>` id in
