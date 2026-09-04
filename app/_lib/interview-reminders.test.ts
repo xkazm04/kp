@@ -19,12 +19,12 @@
 // the same thing the passage of 60 seconds does.
 //
 // testing/unit-db.ts MUST be the first project import — it sets KP_DB_PATH before
-// db-path.ts is evaluated by the transitive `@/app/_lib/db` import.
+// db-path.ts is evaluated by the transitive `./db/*` slice imports.
 import { cleanupUnitDb, UNIT_DB_PATH } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
-import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry } from "./db.ts";
+import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
 import { confirmScheduleInvite, createScheduleInvite, getScheduleInviteByToken } from "./schedule-store.ts";
 import { REMINDER_MAX_ATTEMPTS, reminderRetryDelayMs } from "./interview-reminder-policy.ts";
 import { sendDueInterviewReminders, type ReminderDispatch } from "./interview-reminders.ts";

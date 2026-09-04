@@ -15,11 +15,12 @@
 // nothing between `pipeline_entries.locale` and the stored agenda ever consulted it.
 //
 // testing/unit-db.ts MUST be the first project import — it sets KP_DB_PATH before
-// db-path.ts is evaluated by the transitive `@/app/_lib/db` import.
+// db-path.ts is evaluated by the transitive `./db/*` slice imports.
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPipelineEntry, createPosting, createSubmission, saveSubmissionEvaluation } from "./db.ts";
+import { createPipelineEntry } from "./db/pipeline.ts";
+import { createPosting, createSubmission, saveSubmissionEvaluation } from "./db/devcase.ts";
 import { LOCALES } from "@/i18n/locales";
 import { interviewBriefStrings } from "./interview-prep-strings.ts";
 import { buildCandidateSafeBrief, buildGroundedInterview, OPENING_LANGUAGE_NAMES } from "./interview-run.ts";
