@@ -108,7 +108,16 @@ export function useAnalyzeForm() {
   // (null until the poll reports it); drives the honest progress bar.
   const [variantProgress, setVariantProgress] = useState<VariantProgress | null>(null);
 
-  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading, jdLoadFailed } =
+  const {
+    jdLibrary,
+    jdLibraryState,
+    reloadJdLibrary,
+    selectedJdSlug,
+    setSelectedJdSlug,
+    pickJd,
+    jdLoading,
+    jdLoadFailed,
+  } =
     useAnalyzeJdLibrary(setJobDescriptionText);
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
@@ -597,7 +606,7 @@ export function useAnalyzeForm() {
     // full fan-out (idea-8367f051).
     flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
+    library: { jdLibrary, jdLibraryState, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress },
   };
 }

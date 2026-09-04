@@ -2,9 +2,31 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JdSummary } from "./AnalyzeTypes";
+import {
+  JD_LIBRARY_LIMIT,
+  readJdLibraryPayload,
+  type JdLibraryState,
+} from "./analyzeJdLibraryState";
 
 export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => void) {
   const [jdLibrary, setJdLibrary] = useState<JdSummary[]>([]);
+  // The library's honest load state. It used to be inferred from `jdLibrary.length`,
+  // which cannot tell "still loading" from "this workspace has no saved JDs" from
+  // "the request failed" — and the picker told every one of them the same thing.
+  const [jdLibraryState, setJdLibraryState] = useState<JdLibraryState>("loading");
+  // Refetch nonce: bumping it re-runs the load effect, which is how the picker's
+  // Retry works without duplicating the fetch or leaking an AbortController.
+  const [libraryAttempt, setLibraryAttempt] = useState(0);
+  // Which attempt `jdLibraryState` describes. Paired with the render-time
+  // adjustment below — React's "adjust state when a prop changes" shape — so a
+  // Retry shows "loading" from that very render. Flipping it in the effect
+  // instead would paint the stale failed state for a frame AND need a
+  // set-state-in-effect suppression; the state is derived, so it does not.
+  const [stateForAttempt, setStateForAttempt] = useState(0);
+  if (stateForAttempt !== libraryAttempt) {
+    setStateForAttempt(libraryAttempt);
+    setJdLibraryState("loading");
+  }
   const [selectedJdSlug, setSelectedJdSlug] = useState<string | null>(null);
   // True while a picked JD's body fetch is in flight. The textarea is populated only AFTER
   // this resolves, and the server never resolves the slug→body itself — so submitting before
@@ -22,19 +44,35 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   // load in flight can't last-write-win over a fresh manual pick.
   const jdPickSeqRef = useRef(0);
 
+  // Load the saved-JD library. Bounded (JD_LIBRARY_LIMIT, matching the route's own
+  // listJds(200) cap) and aborted on unmount, and — the part that changed — a
+  // failure is REPORTED. The old `.catch(() => {})` swallowed a 500, a network
+  // drop and an offline tab alike into the initial empty array, which the picker
+  // rendered as "No JDs saved": a claim about the recruiter's own library that the
+  // client had never confirmed.
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/jds")
+    const controller = new AbortController();
+    fetch(`/api/jds?limit=${JD_LIBRARY_LIMIT}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
-        if (cancelled || !payload?.jds) return;
-        setJdLibrary(payload.jds as JdSummary[]);
+        if (controller.signal.aborted) return;
+        const result = readJdLibraryPayload<JdSummary>(payload);
+        setJdLibrary(result.jds);
+        setJdLibraryState(result.state);
       })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      .catch(() => {
+        // An unmount/refetch abort is not a failure — the surface is gone or a
+        // newer attempt owns the state. Anything else genuinely failed, and the
+        // picker must say so rather than showing an empty library.
+        if (controller.signal.aborted) return;
+        setJdLibrary([]);
+        setJdLibraryState("failed");
+      });
+    return () => controller.abort();
+  }, [libraryAttempt]);
+
+  /** Re-run the library load — the picker's Retry on the failed state. */
+  const reloadJdLibrary = useCallback(() => setLibraryAttempt((n) => n + 1), []);
 
   // The single JD-by-slug loader. Both the dropdown and the ?jd= deep link route
   // through here, so the preview-to-full-body fetch, the error handling, and the
@@ -105,6 +143,8 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
 
   return {
     jdLibrary,
+    jdLibraryState,
+    reloadJdLibrary,
     selectedJdSlug,
     setSelectedJdSlug: setSelectedJdSlugExternal,
     pickJd,

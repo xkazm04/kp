@@ -4392,6 +4392,7 @@
       "buildIntentTemplate": "Vorlage",
       "buildIntentLanguage": "Sprache",
       "buildIntentSeniority": "Senioritätsstufe",
+      "buildIntentTemplateUnknown": "Vorlagen konnten nicht geladen werden; die Vorlage dieses Builds lässt sich daher nicht benennen.",
       "buildIntentAiDefault": "KI-Standardformat",
       "caseTaskFallback": "Aufgabe",
       "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung. Den Live-Status zeigt die Aufgaben-Leiste.",
@@ -4419,6 +4420,7 @@
       "intro": "Wählen Sie eine Unternehmensvorlage, beschreiben Sie den Bedarf in eigenen Worten, und die AI füllt die Vorlage. Sie klärt den Bedarf, gestaltet die Position (bei Dev-Positionen optional durch Analyse eines öffentlichen Repos) und recherchiert das Marktgehalt.",
       "templateLabel": "Vorlage",
       "aiDefaultFormat": "AI-Standardformat (keine Vorlage)",
+      "templatesLoadFailed": "Vorlagen konnten nicht geladen werden. Das AI-Standardformat steht weiterhin zur Verfügung.",
       "defaultSuffix": " (Standard)",
       "manage": "Verwalten",
       "manageTitle": "Unternehmensvorlagen erstellen, bearbeiten oder löschen",
@@ -7274,7 +7276,10 @@
     "removeVariantAria": "Variante {letter} entfernen",
     "addVariant": "Variante hinzufügen ({current}/{max})",
     "variantLimitReached": "Variantenlimit erreicht.",
-    "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus."
+    "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus.",
+    "jdLibraryLoading": "Bibliothek der Stellenbeschreibungen wird geladen…",
+    "jdLibraryFailed": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden.",
+    "jdLibraryRetry": "Erneut versuchen"
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden. Die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",

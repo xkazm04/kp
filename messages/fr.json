@@ -4392,6 +4392,7 @@
       "buildIntentTemplate": "Modèle",
       "buildIntentLanguage": "Langue",
       "buildIntentSeniority": "Séniorité",
+      "buildIntentTemplateUnknown": "Impossible de charger les modèles ; le modèle de cette génération ne peut donc pas être nommé.",
       "buildIntentAiDefault": "Format par défaut de l'IA",
       "caseTaskFallback": "Tâche",
       "pollStalledNote": "Analyse toujours en cours. Aucune nouvelle de cette génération depuis un moment. Le tiroir Tâches en donne le statut en direct.",
@@ -4419,6 +4420,7 @@
       "intro": "Choisissez un modèle d’entreprise, décrivez le besoin avec vos propres mots, et l’AI remplit le modèle. Elle clarifie le besoin, conçoit le poste (avec analyse facultative d’un dépôt public pour les postes de développeur) et recherche le salaire du marché.",
       "templateLabel": "Modèle",
       "aiDefaultFormat": "Format AI par défaut (sans modèle)",
+      "templatesLoadFailed": "Impossible de charger vos modèles. Le format AI par défaut reste disponible.",
       "defaultSuffix": " (par défaut)",
       "manage": "Gérer",
       "manageTitle": "Créer, modifier ou supprimer des modèles d’entreprise",
@@ -7274,7 +7276,10 @@
     "removeVariantAria": "Retirer la variante {letter}",
     "addVariant": "Ajouter une variante ({current}/{max})",
     "variantLimitReached": "Limite de variantes atteinte.",
-    "selectCvFirst": "Sélectionnez d’abord un CV ou un export PDF LinkedIn."
+    "selectCvFirst": "Sélectionnez d’abord un CV ou un export PDF LinkedIn.",
+    "jdLibraryLoading": "Chargement de votre bibliothèque de fiches de poste…",
+    "jdLibraryFailed": "Impossible de charger votre bibliothèque de fiches de poste.",
+    "jdLibraryRetry": "Réessayer"
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés. Les valeurs affichées peuvent différer de celles stockées.",

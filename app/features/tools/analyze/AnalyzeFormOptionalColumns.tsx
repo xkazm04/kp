@@ -38,6 +38,8 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
         />
         <AnalyzeSavedJdPicker
           jds={library.jdLibrary}
+          libraryState={library.jdLibraryState}
+          onRetryLibrary={library.reloadJdLibrary}
           selectedSlug={library.selectedJdSlug}
           loading={flags.jdLoading}
           loadFailed={library.jdLoadFailed}

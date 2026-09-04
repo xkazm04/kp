@@ -123,6 +123,17 @@ design. The saved-JD picker distinguishes an empty library from a failed load �
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
+**And the library itself reports its own load.** `useAnalyzeJdLibrary` answers a
+`jdLibraryState` of `loading` / `ready` / `failed` (the closed vocabulary in
+`analyzeJdLibraryState.ts`) rather than a bare array whose emptiness meant all
+three at once. A store fault or a dropped connection renders the `JD_LIST_FAILED`
+line — resolved through `useErrorMessage`, so it is in the reader's language, not
+the route's English — beside a Retry that re-runs the fetch; only a load that
+actually succeeded may claim "No JDs saved". The list fetch is bounded by
+`JD_LIBRARY_LIMIT` (200, the client-side twin of the route's own `listJds(200)`)
+and carries an `AbortSignal`, so unmounting the tab or hitting Retry cancels the
+outstanding request instead of leaving it to land on a surface that has moved on.
+
 **The poll is cheap when nothing is happening, and honest when it fails.**
 `watchAnalysis` (`AnalyzeApi.ts`) polls `/api/tasks/{id}` at 1500 ms while the
 run is moving; after 20 consecutive polls that report the same phase, the same
