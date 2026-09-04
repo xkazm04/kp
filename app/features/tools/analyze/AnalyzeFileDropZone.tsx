@@ -34,6 +34,12 @@ export function AnalyzeFileDropZone({
   // failing after the upload POST. No path here calls onFileChange directly.
   const { error, accept } = useFileAccept();
   const { isOver, dragProps } = useDropZoneHighlight((file) => accept(file, onFileChange));
+  // The zone is a <label>, which assistive tech announces as the input's name and
+  // nothing more: a screen-reader user heard the field label and never learned
+  // that the box is also a drop target, nor what it accepts. role="button" makes
+  // the interaction it really offers announceable, and aria-describedby points at
+  // the localized format/size hint that was previously decorative text only.
+  const hintId = `${inputId}-hint`;
 
   const errorRow = error ? (
     <p className="mt-1 text-sm text-coral" role="alert">{error}</p>
@@ -90,6 +96,8 @@ export function AnalyzeFileDropZone({
     <>
       <label
         htmlFor={inputId}
+        role="button"
+        aria-describedby={hintId}
         {...ownedDropZoneProps}
         {...dragProps}
         className={`${DROP_ZONE_FOCUS} flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-3 text-center transition-colors ${
@@ -102,7 +110,7 @@ export function AnalyzeFileDropZone({
         <span className="mt-1 text-sm font-semibold text-ink">
           {isOver ? t("dropHere") : t("dropFileOrClick")}
         </span>
-        <span className="text-sm text-steel">{hintText}</span>
+        <span id={hintId} className="text-sm text-steel">{hintText}</span>
       </label>
       {errorRow}
       <input
@@ -110,6 +118,11 @@ export function AnalyzeFileDropZone({
         ref={inputRef}
         type="file"
         accept={ACCEPT_EXTENSIONS}
+        // The wrapping <label> above carries role="button" so the drop affordance
+        // is announceable, and an element with an explicit role no longer labels
+        // its input. Name the input outright rather than rely on that association.
+        aria-label={t("dropFileOrClick")}
+        aria-describedby={hintId}
         className="sr-only"
         onChange={(event) => {
           const next = event.target.files?.[0];

@@ -134,6 +134,19 @@ actually succeeded may claim "No JDs saved". The list fetch is bounded by
 and carries an `AbortSignal`, so unmounting the tab or hitting Retry cancels the
 outstanding request instead of leaving it to land on a surface that has moved on.
 
+**The drop highlight is counted, and the zones announce themselves.** A zone is a
+`<label>` wrapping an icon, a title and a hint, and `dragenter`/`dragleave` fire
+for each of them — so `useDropZoneHighlight`'s old boolean flipped off the moment
+the cursor crossed onto the zone's own icon, strobing "will not accept" at a user
+still squarely inside the target. It now keeps a depth through
+`analyzeDragCounter.ts` (`enter` +1, `leave` −1 clamped at zero, `drop`/`dragend`
+terminal resets — `dragover` deliberately not counted), matching what
+`useAnalyzeGlobalFileDrag` already did window-wide. For assistive tech both zones
+carry `role="button"` plus `aria-describedby` on the localized `uploadHint`, with
+the file input named explicitly (an element with an explicit role stops labelling
+its input); the full-window drop-anywhere scrim stays `aria-hidden` and the fact
+it conveys is announced through an always-mounted polite live region instead.
+
 **The poll is cheap when nothing is happening, and honest when it fails.**
 `watchAnalysis` (`AnalyzeApi.ts`) polls `/api/tasks/{id}` at 1500 ms while the
 run is moving; after 20 consecutive polls that report the same phase, the same
