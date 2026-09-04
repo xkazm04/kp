@@ -1676,7 +1676,13 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est.",
-    "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le."
+    "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le.",
+    "DEVCASE_CASE_LIST_FAILED": "Impossible de charger les cas validés. Veuillez réessayer.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Impossible d’émettre le profil de compétences. Veuillez réessayer.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Un rôle et un cas sont tous deux requis pour valider.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Une référence de soumission est requise.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1676,7 +1676,13 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state.",
-    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again."
+    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again.",
+    "DEVCASE_CASE_LIST_FAILED": "Could not load the approved cases. Please try again.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Could not issue the skill profile. Please try again.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "A role and a case are both required to approve.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "A submission reference is required.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "That submission can’t be found.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -236,7 +236,12 @@ const LEAK_CEILING = new Map<string, number>([
   // locked and a regression reads as `undeclared` rather than as budget already
   // granted. Two devcase leaks remain in devcase/route.ts, still ceilinged below;
   // source and submit burnt theirs down in wave 9 and their entries are gone.
-  ["devcase/route.ts", 2],
+  // devcase/route.ts's last two leaks were FIXED, not ceilinged (/perfect wave 31,
+  // api-devcase-2): the list read answers safeJsonError(..., "DEVCASE_CASE_LIST_FAILED")
+  // and the manual approve safeJsonError(..., "DEVCASE_APPROVE_FAILED"), the same code
+  // its lifecycle sibling uses for the same human decision. The row is deleted so the
+  // win is locked and a regression reads as `undeclared` rather than as budget already
+  // granted - devcase/** now carries no ceiling at all.
   ["extract-text/route.ts", 1],
   ["github-analysis/route.ts", 1],
   // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect

@@ -158,6 +158,12 @@ export const STORE_ERRORS = {
   // spawn). Both were forwarding the thrown message whole.
   DEVCASE_SUBMIT_FAILED: "Could not record that submission. Please try again.",
   DEVCASE_SOURCE_FAILED: "Could not source candidates for this assignment. Please try again.",
+  /** GET /api/devcase - the approved-case library read. Its catch forwarded the store's
+   *  own message (SQLITE_* detail, the absolute db path) to the studio verbatim. */
+  DEVCASE_CASE_LIST_FAILED: "Could not load the approved cases. Please try again.",
+  /** POST /api/devcase/skill-profile - the credential mint. A store transaction plus an
+   *  HMAC sign, both of whose messages `jsonError` used to forward. */
+  DEVCASE_SKILL_PROFILE_FAILED: "Could not issue the skill profile. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",
@@ -1127,6 +1133,23 @@ export const REFUSAL_ERRORS = {
    *  The public form validates both client-side, so this is a hand-rolled or
    *  external-channel call — which is exactly the caller who needs a code. */
   DEVCASE_SUBMISSION_FIELDS_REQUIRED: "A name and a link to your solution are both required.",
+  // ---- The four studio doors (/perfect wave 31, api-devcase-2). The manual approve
+  // and the credential mint answered bare English for every refusal, on doors whose
+  // consumers (useDevTabActions.runAction, DevSubmissionRowSkillProfile) resolve
+  // errors.<CODE> in the reader's language and show a neutral generic without one.
+  /** POST /api/devcase without both halves of the design (400). Approving persists a
+   *  role AND a case; either alone is not a case anyone can be sent. */
+  DEVCASE_CASE_FIELDS_REQUIRED: "A role and a case are both required to approve.",
+  /** POST /api/devcase/skill-profile with no submission reference (400). */
+  DEVCASE_SUBMISSION_ID_REQUIRED: "A submission reference is required.",
+  /** The mint was handed a submission id that resolves to nothing, or to another
+   *  team's row (404). ONE refusal for both on purpose: telling them apart would
+   *  confirm which submission ids exist outside the caller's team. */
+  DEVCASE_SUBMISSION_NOT_FOUND: "That submission can’t be found.",
+  /** The submission exists and is the caller's, but carries no evaluation yet (409) -
+   *  a credential is EARNED, so there is nothing to sign. Distinct from the 404 because
+   *  the remedy is different: evaluate it, then mint. */
+  DEVCASE_SUBMISSION_NOT_EVALUATED: "Only an evaluated submission can mint a Durable Skill Profile.",
   // ---- Inbound channel receivers (/perfect wave 27, api-comms). The Channels-tab
   // receiver doors answered bare English prose for every refusal, and they are now
   // capability-gated and throttled, so the modal and the receiver list have two more

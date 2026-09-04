@@ -1676,7 +1676,13 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen.",
-    "INTAKE_TURN_TIMEOUT": "Dieser Beitrag hat zu lange gedauert und wurde abgebrochen. Senden Sie ihn erneut."
+    "INTAKE_TURN_TIMEOUT": "Dieser Beitrag hat zu lange gedauert und wurde abgebrochen. Senden Sie ihn erneut.",
+    "DEVCASE_CASE_LIST_FAILED": "Die freigegebenen Cases konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Das Skill-Profil konnte nicht ausgestellt werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Zum Freigeben werden sowohl eine Rolle als auch ein Case benötigt.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Eine Referenz auf die Einreichung ist erforderlich.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Nur eine bewertete Einreichung kann ein Durable Skill Profile erzeugen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

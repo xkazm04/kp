@@ -6,7 +6,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 
 
 // The manual approve writes a dev_cases row and an immutable audit row per call, and
@@ -29,7 +29,9 @@ export async function GET() {
     // postings. The sibling routes (/postings, /lifecycle, /comms) already scope.
     return NextResponse.json({ cases: listDevCases(undefined, await currentWorkspace()) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list cases." }, { status: 500 });
+    // better-sqlite3's SQLITE_* detail and the absolute db path rode this message to
+    // the studio verbatim; they stay in the server log and the reader gets the code.
+    return safeJsonError(error, "api:devcase", "DEVCASE_CASE_LIST_FAILED");
   }
 }
 
@@ -54,7 +56,9 @@ export async function POST(request: NextRequest) {
       overrideProbeAudit?: unknown;
     };
     if (!body.role || !body.case) {
-      return NextResponse.json({ error: "role and case are required to approve." }, { status: 400 });
+      // Coded, not English prose: the approve banner (useDevTabActions.runAction)
+      // resolves errors.<CODE> in the reader's language.
+      return jsonRefusal("DEVCASE_CASE_FIELDS_REQUIRED", 400);
     }
     // Quality GATE (bug-ui-scan-2026-07-09): the manual approve path is a parallel write
     // to the same dev_cases table as the lifecycle approve route, so it MUST enforce the
@@ -87,6 +91,8 @@ export async function POST(request: NextRequest) {
     recordAudit({ lifecycleId: null, actor: "human", action: "approved", ref: saved.id, reason: gate.auditReason ?? undefined });
     return NextResponse.json({ ok: true, ...saved });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Approve failed." }, { status: 500 });
+    // saveDevCase is a store transaction: the thrown message carries SQLITE_* codes and
+    // the db path. Same code as the lifecycle sibling - it is the same human decision.
+    return safeJsonError(error, "api:devcase/approve", "DEVCASE_APPROVE_FAILED");
   }
 }

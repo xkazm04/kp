@@ -1676,7 +1676,13 @@
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
     "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav.",
-    "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu."
+    "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu.",
+    "DEVCASE_CASE_LIST_FAILED": "Schválené případy se nepodařilo načíst. Zkuste to prosím znovu.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Profil dovedností se nepodařilo vydat. Zkuste to prosím znovu.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Ke schválení je potřeba role i případ.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Je potřeba odkaz na odevzdání.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Trvalý profil dovedností lze vydat jen z vyhodnoceného odevzdání."
   },
   "resilience": {
     "notFoundEyebrow": "404",

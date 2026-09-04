@@ -69,3 +69,16 @@ test("a case with load-bearing probes approves 200 with a clean (non-override) a
   assert.ok(row, "approve must write an audit row");
   assert.doesNotMatch(row.reason ?? "", /OVERRIDDEN/i);
 });
+
+
+// ---- the two doors answer CODES, never the thrown message ----------------------
+//
+// The case route was the last devcase file on the response-envelope ratchet: both of
+// its catches shaped `error.message` into the body (SQLITE_* detail, the absolute db
+// path), and its only 400 was bare English on a door whose banner
+// (useDevTabActions.runAction) resolves `errors.<CODE>` in the reader's language.
+test("approving without a role and a case answers DEVCASE_CASE_FIELDS_REQUIRED", async () => {
+  const res = await POST(post({ role, case: undefined }) as never);
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code?: string }).code, "DEVCASE_CASE_FIELDS_REQUIRED");
+});
