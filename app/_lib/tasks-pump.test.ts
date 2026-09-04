@@ -65,7 +65,11 @@ test("FIFO survives inside a workspace when that workspace is the fair pick", ()
 // ---- 2. every handler declares what it does with the tenant ----------------
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const tasksSrc = readFileSync(path.join(HERE, "tasks.ts"), "utf8");
+// Normalized to LF before parsing: this checkout is CRLF on Windows and the
+// ^...$ anchors below would otherwise see zero handler blocks (the wave-37c
+// merge went red on main for exactly that).
+const lf = (s: string) => s.replace(/\r\n/g, "\n");
+const tasksSrc = lf(readFileSync(path.join(HERE, "tasks.ts"), "utf8"));
 
 /** The HANDLERS object literal, split into one text block per kind. The table is a
  *  flat two-space-indented literal, so the block boundary is unambiguous. */
@@ -89,7 +93,7 @@ function delegateSource(symbol: string): string | null {
   if (!imp) return null;
   for (const ext of [".ts", ".tsx", "/index.ts"]) {
     try {
-      return readFileSync(path.join(HERE, `.${imp[1]}${ext}`), "utf8");
+      return lf(readFileSync(path.join(HERE, `.${imp[1]}${ext}`), "utf8"));
     } catch {
       // Try the next extension — a miss here is not an error until every form has failed.
     }
