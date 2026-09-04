@@ -491,6 +491,25 @@ copy is fully localized (`workspaceAdmin.org.backup`) — comprehension is a saf
 property here, not a nicety — while the table names it lists stay verbatim, being
 schema identifiers.
 
+**The upload is bounded, and every refusal carries a code.** `POST /api/workspace/import`
+caps the body at **32 MB** (`MAX_IMPORT_BODY_BYTES`): `content-length` is an advisory
+fast-reject and `readTextWithLimit` is the enforcing read, the same contract the public
+machine endpoints use. It replaced a bare `request.json()`, which parsed the whole upload
+into the heap before anything judged it — so a restore could take down the server every
+other route shares. Over the cap answers `IMPORT_BODY_TOO_LARGE` (413).
+
+The engine's own refusals are `PortabilityError`s carrying a code and a status, not prose:
+`PORTABILITY_NO_DATABASE` (503), `RESTORE_FOREIGN_ORG` / `RESTORE_SCOPE_TAKEN` /
+`PORTABILITY_TABLES_POPULATED` (409), `RESTORE_UNSAFE_IDENTIFIER` (400), plus
+`IMPORT_DUMP_REQUIRED` / `IMPORT_DUMP_MALFORMED` (400) at the door. Both routes answer a
+decision with `jsonRefusal` and an accident with `safeJsonError`
+(`WORKSPACE_EXPORT_FAILED` / `WORKSPACE_RESTORE_FAILED`) — before this, a
+better-sqlite3 message with `SQLITE_*` codes and the absolute db path reached the panel,
+in English, in every locale. `OrganizationBackupPanel` resolves `body.code` through
+`useErrorMessage`, so each one renders in the reader's language;
+`import-body-limit.test.ts` pins the cap, the coded answers, and that every
+`PortabilityErrorCode` has a `REFUSAL_ERRORS` entry.
+
 Round-trip behaviour is pinned by `app/_lib/db-portability-org.test.ts` (multi-org:
 scope, refusal, rollback, the bystander org, and that a dual-tier table's team-private
 rows come back while its shared tier stays untouched) and
