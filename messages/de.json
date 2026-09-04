@@ -3902,7 +3902,8 @@
       "readbackCorrectedHint": "Im Transkript gehört → was es laut Kandidat/in heißen sollte",
       "readbackUnconfirmedFlag": "unbestätigt",
       "readbackUnconfirmedHint": "Früher erwähnt, aber beim Zurücklesen nicht bestätigt (möglicherweise ein Transkriptionsfehler)",
-      "readbackNote": "Aus der abschließenden Wiederholung: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert."
+      "readbackNote": "Aus der abschließenden Wiederholung: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert.",
+      "narrativeInLanguage": "Diese Scorecard-Zusammenfassung wird auf {language} angezeigt."
     },
     "relay": {
       "label": "Wo der Staffelstab liegt",

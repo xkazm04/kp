@@ -148,6 +148,57 @@ class VocabularySyncTest(unittest.TestCase):
             )
 
 
+    # The CLIs that still declare their own ERR_* literals instead of importing the
+    # shared vocabulary. A RATCHET, not a permanent list: it may only shrink. The
+    # spelling test above catches a divergent VALUE, but only after somebody writes
+    # one — importing the constant makes the divergence unrepresentable, which is the
+    # form every other closed vocabulary in this repo takes (RECOMMENDATIONS,
+    # PROVENANCE_RANK, the tab ids). automation_cli and agentfit_cli were converted
+    # first because they are the two whose failures reach a user-facing route.
+    LOCAL_ERR_HOLDOUTS = frozenset(
+        {"campaign_cli.py", "profile_cli.py", "profile_draft_cli.py", "repo_scan_cli.py"}
+    )
+
+    def _clis_declaring_local_codes(self) -> set[str]:
+        pkg = REPO_ROOT / "pipeline" / "jobfit"
+        out: set[str] = set()
+        for path in sorted(pkg.rglob("*_cli.py")):
+            if path.name == "_cli.py":
+                continue  # the home of the vocabulary, not a re-declaration
+            if re.search(r'^ERR_[A-Z_]+\s*=\s*"', path.read_text(encoding="utf-8"), re.M):
+                out.add(path.name)
+        return out
+
+    def test_no_cli_outside_the_shrinking_holdout_list_spells_its_own_codes(self) -> None:
+        local = self._clis_declaring_local_codes()
+        self.assertEqual(
+            local - self.LOCAL_ERR_HOLDOUTS,
+            set(),
+            "a CLI declares its own ERR_* literals instead of importing from _cli — "
+            "import the constants (see automation_cli.py) rather than re-spelling them",
+        )
+        # Ratchet: a holdout that has since been converted must leave the list, or the
+        # list stops describing reality and quietly re-permits the pattern.
+        self.assertEqual(
+            self.LOCAL_ERR_HOLDOUTS - local,
+            set(),
+            "LOCAL_ERR_HOLDOUTS names a CLI that no longer declares its own codes — "
+            "drop it from the list",
+        )
+
+    def test_the_converted_clis_use_the_shared_constants_themselves(self) -> None:
+        # Non-vacuity for the pair above: they must still EMIT the codes, and the
+        # objects they emit must be the very ones _cli exports (an identity check, so
+        # a re-declared local with the same value does not pass as an import).
+        from pipeline.jobfit import agentfit_cli, automation_cli
+
+        self.assertIs(automation_cli.ERR_NOT_FOUND, _cli.ERR_NOT_FOUND)
+        self.assertIs(automation_cli.ERR_INVALID_INPUT, _cli.ERR_INVALID_INPUT)
+        self.assertIs(automation_cli.ERR_ENGINE, _cli.ERR_ENGINE)
+        self.assertIs(agentfit_cli.ERR_INVALID_INPUT, _cli.ERR_INVALID_INPUT)
+        self.assertIs(agentfit_cli.ERR_ENGINE, _cli.ERR_ENGINE)
+
+
 class ConfigureStdioTest(unittest.TestCase):
     """Each stream is guarded on its own."""
 

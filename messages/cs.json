@@ -3902,7 +3902,8 @@
       "readbackCorrectedHint": "Zaznamenáno v přepisu → jak to podle kandidáta mělo znít",
       "readbackUnconfirmedFlag": "nepotvrzeno",
       "readbackUnconfirmedHint": "Zmíněno dříve, ale při zopakování nepotvrzeno (možná chyba přepisu)",
-      "readbackNote": "Ze závěrečného zopakování: kandidát potvrdil nebo opravil technologie, které tazatel slyšel."
+      "readbackNote": "Ze závěrečného zopakování: kandidát potvrdil nebo opravil technologie, které tazatel slyšel.",
+      "narrativeInLanguage": "Toto shrnutí hodnoticí karty se zobrazuje v jazyce {language}."
     },
     "relay": {
       "label": "Kde je štafeta",
