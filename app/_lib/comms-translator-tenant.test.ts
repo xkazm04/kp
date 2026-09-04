@@ -61,3 +61,18 @@ test("the dev-case feedback brief resolves its language against the submission's
   const tCs = await commsTranslator("cs");
   assert.equal(cz.subject, tCs("devcaseFeedback.subject"));
 });
+
+// The ROUTE is the half the library fix could not reach on its own: buildFeedbackBrief
+// grew a `workspaceId`, but POST /api/devcase/feedback did not pass one, so the letter
+// still fell back to the DEFAULT team's language for a candidate who is not theirs —
+// while the row it writes one line later WAS filed under sub.workspaceId. The two
+// disagreed about whose candidate this is. Pinned at the source, because driving the
+// route needs the auth shim and the question here is only which argument is passed.
+test("POST /api/devcase/feedback hands the submission's team to the letter", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../api/devcase/feedback/route.ts", import.meta.url), "utf8");
+  const call = src.indexOf("buildFeedbackBrief({");
+  assert.ok(call >= 0, "the route still drafts through buildFeedbackBrief");
+  const args = src.slice(call, src.indexOf("});", call));
+  assert.match(args, /workspaceId: sub\.workspaceId/, "the letter resolves its locale against the submission's team");
+});

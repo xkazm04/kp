@@ -44,6 +44,12 @@ export async function POST(request: NextRequest) {
       concerns: bundle.evaluation?.concerns ?? [],
       gaps: bundle.transfer?.gaps ?? [],
       narrativeLang: bundle.evaluation?.narrativeLang ?? null,
+      // The candidate's language resolves through THEIR team's default_locale when the
+      // submission records none (comms-locale.resolveCommsLocale). Without the tenant
+      // the letter fell back to the DEFAULT team's language — the same tenant the row
+      // below is filed under, so the two would have disagreed about whose candidate
+      // this is.
+      workspaceId: sub.workspaceId,
     });
 
     const entry = recordOutbox({

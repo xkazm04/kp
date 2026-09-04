@@ -10,6 +10,10 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { CommsVerdict } from "@/app/_lib/comms-view";
+// Cross-feature, deliberately: the receipt labels are ONE wording, and the Comms
+// Center's copy is the one that already exists in four locales (precedent:
+// DevVoiceScreenPanel reaching into features/hiring/pipeline).
+import { commsReceiptLabels, displayRecipient, displaySubject } from "@/app/features/hiring/channels/channelsCommsHelpers";
 import { ResendButton } from "./ResendButton";
 import { isDeadLetter, type OutboxFacets, type OutboxFilters, type OutboxRowView } from "./outboxView";
 
@@ -70,6 +74,11 @@ export function OutboxRows({
   onResent?: () => void;
 }) {
   const t = useTranslations("devcase.outbox");
+  // A delivery-receipt row stores CODES where a message stores a subject and a
+  // recipient (comms-view.ts RECEIPT_*_CODE) — this table rendered them raw, so a new
+  // receipt read as the bare word "receipt" and an old one as English in every locale.
+  const tComms = useTranslations("channels.comms");
+  const receiptLabels = commsReceiptLabels(tComms);
   const rel = useRelativeTime();
 
   if (emptyFiltered) {
@@ -140,8 +149,8 @@ export function OutboxRows({
                   {kindLabel(m.kind ?? "")}
                 </span>
               </td>
-              <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{m.recipient}</td>
-              <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{m.subject}</td>
+              <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{displayRecipient(m, receiptLabels)}</td>
+              <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{displaySubject(m, receiptLabels)}</td>
               <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${VERDICT_STYLE[m.verdict] ?? "text-steel"}`}>
                 <span className="inline-flex items-center gap-1.5">
                   {m.verdict === "queued" ? m.channel ?? statusLabel(m.verdict) : statusLabel(m.verdict)}

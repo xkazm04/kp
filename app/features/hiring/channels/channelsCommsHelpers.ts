@@ -95,12 +95,16 @@ export function commsReceiptLabels(t: (key: "receiptSubject" | "receiptRecipient
   return { subject: t("receiptSubject"), recipient: t("receiptRecipient") };
 }
 
+// Typed on the ONE field each reads, not on `Message`: the Assignments outbox
+// (features/tools/devcases) renders the same rows through its own `OutboxRowView`,
+// and a whole-row parameter would have made that table's copy a second definition.
+
 /** The subject to SHOW for a row — the stored one, or the localized receipt label. */
-export const displaySubject = (m: Message, labels: ReceiptLabels): string | null =>
+export const displaySubject = (m: { subject: string | null }, labels: ReceiptLabels): string | null =>
   isReceiptSubject(m.subject) ? labels.subject : m.subject;
 
 /** …and the recipient, for the name column, the search index and the modal subtitle. */
-export const displayRecipient = (m: Message, labels: ReceiptLabels): string | null =>
+export const displayRecipient = (m: { recipient: string | null }, labels: ReceiptLabels): string | null =>
   isReceiptRecipient(m.recipient) ? labels.recipient : m.recipient;
 
 // RECORDED, not "Sent". The header said Sent over EVERY row — including the queued

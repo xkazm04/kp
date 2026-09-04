@@ -23,6 +23,8 @@ import { register } from "node:module";
 // module-eval time and must run BEFORE any module that transitively touches db-path.
 import { cleanupUnitDb } from "../../../../_lib/testing/unit-db.ts";
 import { getDevCase, listOutboxFiltered, recordOutbox } from "../../../../_lib/db/devcase.ts";
+import { createPipelineEntry } from "../../../../_lib/db/pipeline.ts";
+import { ensureDb } from "../../../../_lib/db/core.ts";
 
 register(new URL("../../../../_lib/testing/next-server-hooks.mjs", import.meta.url));
 
@@ -118,4 +120,34 @@ test("a (SIM) outbox row is refused before the relay is reached", () => {
   const relay = src.indexOf("await sendComm(");
   assert.ok(guard >= 0, "the simulation guard exists");
   assert.ok(relay >= 0 && guard < relay, "the guard precedes the relay call");
+});
+
+// The recovery door is one of the three that call sendComm DIRECTLY, bypassing the
+// dispatcher that used to hold the compliance gate. The gate now lives at the channel
+// (comms.ts commsSendSuppression), and its refusal must reach the recruiter as a
+// refusal — the catch answered it through safeJsonError, painting a correct decision
+// as a 500 that the button invites you to retry.
+test("resending to a candidate who may not be contacted is a 409 refusal, not a 500", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-resend-suppressed",
+    candidateLabel: "Jana",
+    jobId: "job-resend-suppressed",
+    jobTitle: "Backend Engineer",
+  });
+  const original = deadLetter(entry.id);
+  // Consent EXPIRED rather than anonymized: erasure also scrubs this row's recipient
+  // and body, so the route's own missing-fields guard (422) would answer first and the
+  // send gate would never be reached. Expiry leaves the message intact, which is
+  // exactly the case where the gate is the only thing standing in the way.
+  ensureDb()
+    .prepare(`UPDATE pipeline_entries SET consent_given_at = ?, consent_expires_at = ? WHERE id = ?`)
+    .run("2024-01-01T00:00:00Z", "2024-06-01T00:00:00Z", entry.id);
+
+  const res = await resend(original.id);
+  assert.equal(res.status, 409, "the door works; the candidate's state forbids the send");
+  assert.equal(res.body.code, "COMMS_SUPPRESSED", "the reader localizes the refusal off the code");
+  assert.equal(res.body.ok, undefined);
+  // Nothing was dispatched: the ledger still holds only the dead letter itself.
+  const rows = listOutboxFiltered({ ref: entry.id, kind: "rejection" });
+  assert.deepEqual(rows.map((m) => m.id), [original.id], "no recovery row for a send that must not happen");
 });

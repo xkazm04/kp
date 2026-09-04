@@ -208,7 +208,11 @@ back, keyed by the message's `ref` + `kind`:
   `RECEIPT_RECIPIENT_CODE` (`comms-view.ts`) and the ledger renders
   `channels.comms.receiptSubject` / `receiptRecipient` in the reader's language
   (`channelsCommsHelpers.displaySubject` / `displayRecipient`, which also recognise
-  the pre-code literals so existing rows localize too).
+  the pre-code literals so existing rows localize too). BOTH ledgers render them — the
+  Comms Center and the Assignments outbox (`features/tools/devcases/OutboxRows.tsx`),
+  which reaches across for the same two catalog entries rather than keeping a second
+  wording. The helpers are typed on the one field each reads, not on a whole row, so
+  the two tables' different row types share one definition.
 - **Bounce-class outcomes** (`isBounceOutcome`) record an append-only
   `bounced` outbox receipt row. Positive/soft outcomes are accepted with
   `{ recorded: false }` (stops relay retries) but not yet surfaced.
@@ -269,7 +273,12 @@ It is now re-asserted at the channel handoff, in `comms.ts`:
   report the reason to its caller and record the suppression event — and re-asserting is
   idempotent.
 
-Locked by `comms-send-gate.test.ts`.
+The recovery door answers the refusal as one: `POST /api/comms/[id]/resend` maps
+`CommsSuppressedError` to `jsonRefusal("COMMS_SUPPRESSED", 409)` rather than letting it
+fall into `safeJsonError` and paint a correct decision as a retryable 500. (Erasure
+also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earlier, by
+the route's own 422 missing-fields check; expired consent is the case the gate answers.)
+Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
 ## 8. One delivery truth, on every surface
 
