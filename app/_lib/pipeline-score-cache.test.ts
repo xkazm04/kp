@@ -12,7 +12,8 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, listPipeline } from "./db/pipeline.ts";
 import { saveAnalysis } from "./db/analyses.ts";
 import { withCanonicalScores } from "./match-score-resolve.ts";
-import { createCachedScoreResolver } from "./pipeline-score-cache.ts";
+import { createCachedScoreResolver, scoreCacheKey } from "./pipeline-score-cache.ts";
+import { invalidateAnalyticsWorkspace } from "./analytics-cache.ts";
 
 after(() => cleanupUnitDb());
 
@@ -69,4 +70,40 @@ test("the memo never crosses tenants", () => {
   assert.equal(y[0].canonicalScore, 88, "ws-y sees its own analysis");
   const x = resolver.withCanonicalScores(listPipeline("ws-x"), "ws-x");
   assert.equal(x[0].canonicalScore, 30, "ws-x's memo never inherited ws-y's fit");
+});
+
+test("an analytics settings write leaves the score memo intact", () => {
+  // The regression this memo's split from analytics-cache closes. It used to be built
+  // on `createAnalyticsCache`, whose key carries a per-workspace ANALYTICS write
+  // version — so saving a conversion goal or a channel spend figure on the Insights
+  // tab (both call invalidateAnalyticsWorkspace) named a key nothing had stored and
+  // the next board poll re-ran buildFreshestFits() for a write about neither scores
+  // nor analyses. Fresh is not wrong, but it is a full analyses re-query per settings
+  // save, and the two subsystems share no data at all.
+  createPipelineEntry({ candidateId: "sc-inv", candidateLabel: "Dana", jobId: "jd-inv", jobTitle: "Inv Role", matchScore: 44, workspaceId: "ws-inv" });
+  const entries = listPipeline("ws-inv");
+
+  const resolver = createCachedScoreResolver({ ttlMs: 100_000, now: () => 0 });
+  assert.equal(resolver.withCanonicalScores(entries, "ws-inv")[0].canonicalScore, 44, "warm the memo");
+
+  // An analysis lands, then the analytics write door fires. If the score memo still
+  // rode the analytics write version, the bump would retire it and the new analysis
+  // would surface immediately — which is exactly how we detect the shared key.
+  saveAnalysis({ candidateLabel: "Dana", jdSlug: "inv", score: 97, roleFamily: null, seniority: null, payload: {} }, "ws-inv");
+  invalidateAnalyticsWorkspace("ws-inv");
+
+  assert.equal(
+    resolver.withCanonicalScores(entries, "ws-inv")[0].canonicalScore,
+    44,
+    "the analytics write did not retire the score memo — it is served for its own TTL"
+  );
+});
+
+test("the score memo key is the workspace and nothing else", () => {
+  assert.notEqual(scoreCacheKey("ws-a"), scoreCacheKey("ws-b"));
+  assert.equal(scoreCacheKey("ws-a"), scoreCacheKey("ws-a"));
+  // No analytics write version in the key: it is stable across a settings write.
+  const before = scoreCacheKey("ws-stable");
+  invalidateAnalyticsWorkspace("ws-stable");
+  assert.equal(scoreCacheKey("ws-stable"), before);
 });

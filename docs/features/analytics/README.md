@@ -695,8 +695,21 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
 | `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
+**The TTL core is not an analytics module.** `createTtlCache` lives in
+`app/_lib/ttl-cache.ts` — dependency-free, TTL + entry bound and *no invalidation policy of its
+own*. It used to be an export of `analytics-cache.ts`, and every consumer that reached for "the
+TTL idiom" reached for the analytics module with it: `pipeline-score-cache.ts` was built on
+`createAnalyticsCache`, whose key carries the per-workspace analytics write version, so saving a
+conversion goal or a channel spend figure retired the canonical-score fit map too and the next
+board poll paid a full `buildFreshestFits()` for a write about neither scores nor analyses.
+`analytics-cache.ts` now *composes* the core (and re-exports it, so the analytics, calibration and
+decision-records routes import their cache from the module whose keys they use); the score memo
+and `db/profiles.ts` take the core directly and are coupled to nobody. Pinned by
+`app/_lib/ttl-cache.test.ts` and by "an analytics settings write leaves the score memo intact"
+in `app/_lib/pipeline-score-cache.test.ts`.
+
 **The short-TTL memos are bounded, not just expiring.** `createTtlCache`
-(`app/_lib/analytics-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
+(`app/_lib/ttl-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
 whose key was not requested again. Three routes key it on raw query params — `?candidate` on
 `/api/decisions/records`, `?roleFamily` on both calibration routes — none of them a closed
 vocabulary, and `maxDuration` is serverless-only here, so a self-hosted process retained one
@@ -759,7 +772,7 @@ which drives the real handlers: write, then read, and the read must carry the ne
 
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
-`analytics-cache.ts`, `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
+`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
 `decision-attribution.ts` — each with a colocated `.test.ts`. On the client,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
 to become executable values. Tables compose `app/_components/table/` (`TablePager`,
