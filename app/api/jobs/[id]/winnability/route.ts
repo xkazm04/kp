@@ -5,6 +5,7 @@ import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
   cleanupWorkdir,
@@ -14,6 +15,14 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 
+
+// spawnPython's default is a TEN-MINUTE hang backstop — the right bound for a repo scan
+// and the wrong one for a panel the recruiter is watching. winnability_cli is
+// deterministic scoring over the (capped) pool with no model call, so it answers in well
+// under a second; without an explicit bound a wedged child held the coach's spinner for
+// nine minutes past the point the grade was useful, and the abandoned request's SIGKILL
+// only ever arrived if the recruiter closed the panel.
+const WINNABILITY_TIMEOUT_MS = 60_000;
 
 // idea-aa039d0c — pre-publish winnability coach. Grades a (draft) JD against the
 // SAME shared pool the recruiter ranking scores, reusing the production ko_filter
@@ -64,7 +73,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // child instead of letting it run to the backstop and pile up.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.winnability_cli", "--input-json", inputPath, "--job-json", jobPath],
-      { signal: request.signal },
+      { signal: request.signal, timeoutMs: WINNABILITY_TIMEOUT_MS },
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
@@ -82,6 +91,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // would make for a reason that isn't true.
     return NextResponse.json({ ...payload, poolTruncated: truncated });
   } catch (error) {
+    // python-runner delivers its deadline as a REJECTION carrying a message, not a typed
+    // error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place that reading
+    // lives. A deadline WE set is a decision, not a store fault — so it is named, and the
+    // panel's existing retry affordance is the honest next step. Everything else is still
+    // a logged fault behind the generic code.
+    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+      return jsonRefusal("JOB_WINNABILITY_TIMEOUT", 504);
+    }
     return safeJsonError(error, "api:jobs/winnability", "JOB_WINNABILITY_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);

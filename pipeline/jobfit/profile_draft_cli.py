@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from ._cli import configure_stdio, emit_error, invalid_input
 from .archetype import detect_archetype
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .taxonomy import PROVENANCE_WEIGHTS, ROLE_FAMILIES
@@ -35,8 +36,8 @@ from .taxonomy import PROVENANCE_WEIGHTS, ROLE_FAMILIES
 #                         that fails validation (pydantic ValidationError); both
 #                         ValueError subclasses and user-correctable
 #   500 / engine_error  — an unexpected fault / AI outage (retry/escalate)
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
+# The WORDS come from `_cli.ERROR_CODES` (imported, never re-spelled here): a local
+# literal is how a lone typo ships a code no errors.<CODE> catalog key resolves.
 
 # Sanitization vocabularies — sourced from the single source of truth (profile.py
 # / taxonomy.py) so a kind/level/provenance added there is accepted here too,
@@ -253,9 +254,10 @@ def _extract(text: str, lang: str = "en") -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    # The guarded scaffold, not the open-coded pair this replaced: that form tested
+    # sys.stdout and then reconfigured sys.stderr unconditionally, so a caller which
+    # replaced one stream and not the other crashed before the CLI ran a line.
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Draft a candidate intake from free-text notes via AI.")
     parser.add_argument("--input-json", type=Path, help="Input JSON file. Reads stdin if omitted.")
@@ -272,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
             # user-correctable, so emit the same 400/invalid_input + exit 2 as the
             # ValueError branch below — the prior exit-1/status-400 mismatch made the TS
             # seam (parseStderrError) read exit 1 as a 500.
-            print(json.dumps({"error": "No notes supplied.", "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+            emit_error(invalid_input("No notes supplied."))
             return 2
         payload = _extract(text, lang=args.lang)
         draft = build_draft(payload)
@@ -282,12 +284,11 @@ def main(argv: list[str] | None = None) -> int:
         # ValidationError) — both ValueError subclasses — is user-correctable, so map it
         # to 400/invalid_input (exit 2) as profile_cli does, instead of collapsing every
         # failure into a scary engine_error 500 the recruiter can't act on.
-        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+        emit_error(invalid_input(str(exc)))
         return 2
     except Exception as exc:
         # Genuine engine/AI fault (Gemini outage, empty structured draft) — retry/escalate.
-        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        return emit_error(exc)
 
     print(json.dumps(draft, ensure_ascii=False))
     return 0

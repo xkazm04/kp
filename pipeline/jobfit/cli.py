@@ -5,7 +5,8 @@ import json
 import sys
 from pathlib import Path
 
-from ._cli import configure_stdio
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT, CliError, configure_stdio, emit_error
+from .i18n import normalize_lang
 from .service import analyze
 
 
@@ -18,7 +19,31 @@ def _emit_event(event: dict) -> None:
     sys.stdout.buffer.flush()
 
 
-def main() -> int:
+def _fail(exc: Exception, status: int, code: str, *, stream: bool) -> int:
+    """One failure path for BOTH framings of this entry point.
+
+    The analyze CLI answers in two shapes — a single JSON dump (the seam
+    app/_lib/analyze-run.ts parses) and an SSE event stream (``--stream``) — and each
+    used to hand-roll its own envelope: the plain path printed ``{error, status}`` with
+    no ``code`` at all, so python-runner.parseStderrError had to GUESS one back out of
+    the status, and the stream path emitted a differently-shaped error event that could
+    not carry a code even in principle. Both now name the SAME code, chosen at the raise
+    site, from the SAME closed vocabulary (:data:`_cli.ERROR_CODES`).
+
+    The stream framing still exits 0: its error was already DELIVERED on stdout as an
+    event, and a non-zero exit would make the seam report a spawn failure on top of the
+    error the consumer has already read.
+    """
+    if stream:
+        _emit_event({"type": "error", "message": str(exc), "status": status, "code": code})
+        return 0
+    emit_error(exc, status=status, code=code)
+    # 2 for a client mistake, 1 for an engine fault — the exit-code half of the
+    # contract parseStderrError falls back on when stderr is not JSON.
+    return 2 if status == 400 else 1
+
+
+def main(argv: list[str] | None = None) -> int:
     configure_stdio()
 
     parser = argparse.ArgumentParser(description="Analyze a CV and estimate job fit salary.")
@@ -52,10 +77,17 @@ def main() -> int:
         action="store_true",
         help="Emit SSE-formatted progress and result events on stdout instead of a single JSON dump.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.cv_path is None:
         parser.error("Provide a CV/profile path.")
+
+    # Normalise at the BOUNDARY, once. `--lang` arrives from a cookie-derived locale on
+    # the TS side, so a regional tag or a shouted code ("cs-CZ", "CS", "de_DE") used to
+    # ride raw through analyze() into the persisted pipeline-log record — canonical data
+    # keyed on a value that was never canonical. Every prompt site downstream normalises
+    # for itself, so this changes no narrative; it makes what we STORE match what we ask.
+    lang = normalize_lang(args.lang)
 
     progress = (lambda stage, status: _emit_event({"type": "stage", "stage": stage, "status": status})) if args.stream else None
 
@@ -68,22 +100,20 @@ def main() -> int:
             job_json_path=args.job_json,
             company_path=args.company_path,
             company_text=args.company_text,
-            lang=args.lang,
+            lang=lang,
             progress=progress,
             blind=args.blind,
         )
+    except CliError as exc:
+        # A raise site that already named its own code (not_found / invalid_input).
+        return _fail(exc, exc.status, exc.code, stream=args.stream)
     except ValueError as exc:
-        if args.stream:
-            _emit_event({"type": "error", "message": str(exc), "status": 400})
-            return 0
-        print(json.dumps({"error": str(exc), "status": 400}, ensure_ascii=False), file=sys.stderr)
-        return 2
+        # json.JSONDecodeError and pydantic's ValidationError are both ValueError:
+        # the caller's file/argument is wrong, and the form can say which.
+        return _fail(exc, 400, ERR_INVALID_INPUT, stream=args.stream)
     except Exception as exc:
-        if args.stream:
-            _emit_event({"type": "error", "message": str(exc), "status": 500})
-            return 0
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        # A genuine engine fault — retry/escalate, don't edit the input.
+        return _fail(exc, 500, ERR_ENGINE, stream=args.stream)
 
     if args.stream:
         _emit_event({"type": "result", "data": payload})

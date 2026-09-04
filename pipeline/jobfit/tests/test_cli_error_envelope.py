@@ -155,9 +155,7 @@ class VocabularySyncTest(unittest.TestCase):
     # form every other closed vocabulary in this repo takes (RECOMMENDATIONS,
     # PROVENANCE_RANK, the tab ids). automation_cli and agentfit_cli were converted
     # first because they are the two whose failures reach a user-facing route.
-    LOCAL_ERR_HOLDOUTS = frozenset(
-        {"campaign_cli.py", "profile_cli.py", "profile_draft_cli.py", "repo_scan_cli.py"}
-    )
+    LOCAL_ERR_HOLDOUTS = frozenset({"campaign_cli.py", "repo_scan_cli.py"})
 
     def _clis_declaring_local_codes(self) -> set[str]:
         pkg = REPO_ROOT / "pipeline" / "jobfit"

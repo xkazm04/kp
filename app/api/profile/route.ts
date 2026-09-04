@@ -12,10 +12,26 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 import type { ProfileCliOutput } from "@/app/features/shared/profileTypes";
+import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
-type RouteOutcome = { data: ProfileCliOutput } | { error: { message: string; status: number } };
+type RouteOutcome =
+  | { data: ProfileCliOutput }
+  | { error: { message: string; status: number } }
+  // The spawn overran PROFILE_ROUTE_TIMEOUT_MS: a DECISION (we stopped waiting), not a
+  // store fault, so it is carried as its own outcome and answered by NAME rather than
+  // collapsing into the catch-all 500 whose generic sentence offers no next step.
+  | { timeout: true };
+
+// spawnPython's default is a TEN-MINUTE hang backstop — the right bound for a repo scan
+// and the wrong one for the editor's Save button. profile_cli is pure deterministic
+// logic (archetype router + completeness, no model call) and answers in well under a
+// second, so a wedged child previously held the recruiter's save open for nine minutes
+// past the point the answer was useful, with their unsaved intake still in the form.
+// Same value as PROFILE_BUILD_TIMEOUT_MS in app/_lib/applicant-profile.ts, which bounds
+// the SAME CLI on the applicant path — one CLI, one budget.
+const PROFILE_ROUTE_TIMEOUT_MS = 60_000;
 
 // The request body is a TS cast, not validated. Reject a non-object profile/signals at this
 // trust boundary BEFORE it is JSON.stringified into the Python intake — a string/array/number
@@ -48,8 +64,22 @@ async function routeAndScore(
 
     // Forward the caller's abort signal so an abandoned request SIGKILLs the child +
     // reaches finally→cleanupWorkdir instead of orphaning it + leaking the temp dir.
-    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath], { signal: abortSignal });
-    const { stdout, stderr, exitCode } = await result;
+    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath], {
+      signal: abortSignal,
+      timeoutMs: PROFILE_ROUTE_TIMEOUT_MS,
+    });
+    let spawned;
+    try {
+      spawned = await result;
+    } catch (err) {
+      // python-runner delivers its deadline as a REJECTION carrying a message, not a
+      // typed error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place
+      // that reading lives. Anything else — an ENOENT on PYTHON_CMD, a killed child —
+      // is a real fault and still escapes to the caller's catch.
+      if (err instanceof Error && isSpawnTimeoutMessage(err.message)) return { timeout: true };
+      throw err;
+    }
+    const { stdout, stderr, exitCode } = spawned;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
       return { error: { message: err.message, status: err.status } };
@@ -146,6 +176,7 @@ export async function POST(request: NextRequest) {
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
+    if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
       return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
     }
@@ -193,6 +224,7 @@ export async function PUT(request: NextRequest) {
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
+    if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
       return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
     }

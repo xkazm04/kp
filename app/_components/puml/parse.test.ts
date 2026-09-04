@@ -10,7 +10,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parsePuml } from "./parse.ts";
+import {
+  isPumlSourceTooLarge,
+  MAX_PUML_SOURCE_BYTES,
+  MAX_PUML_SOURCE_LINES,
+  parsePuml,
+  type PumlSourceTooLargeError,
+} from "./parse.ts";
 import { STEP_DETAILS } from "../../diagrams/pipelineSteps.ts";
 
 // app/_components/puml/ -> repo root (three levels up).
@@ -334,9 +340,14 @@ second body
 // and ~3-5x below the pre-fix cost, so they only trip on a return to O(n²).
 // ---------------------------------------------------------------------------
 
+// These fixtures are DELIBERATELY past the source ceiling ("Source ceiling"
+// below): the ceiling bounds what the renderer will accept, but it does not make
+// the parser linear, and shrunk to fit under it their O(n²) signal would be
+// ~30 ms — indistinguishable from noise. So they opt out of the ceiling and keep
+// measuring the shape the lookahead memos fixed.
 function parseMs(source: string, opts?: { strict?: boolean }): { ms: number; diagram: ReturnType<typeof parsePuml> } {
   const t0 = performance.now();
-  const diagram = parsePuml(source, opts);
+  const diagram = parsePuml(source, { ...opts, maxBytes: Infinity, maxLines: Infinity });
   return { ms: performance.now() - t0, diagram };
 }
 
@@ -378,3 +389,73 @@ test("contract: the declared-only funnel diagrams have zero unresolved endpoints
     .map(([name, unresolved]) => `${name}: ${unresolved.join(", ")}`);
   assert.deepEqual(dirty, [], `mistyped alias(es) in the interactive funnel:\n  ${dirty.join("\n  ")}`);
 });
+
+// --- Source ceiling -------------------------------------------------------
+// The post-parse isDiagramTooLarge guard (layout.ts) only sees a FINISHED
+// diagram, so until these ceilings existed the parser did its full linear pass
+// over whatever was pasted -- synchronously, inside PlantUml's render memo.
+// These pin the refusal AND its shape: a CODE, not a message the renderer could
+// put on screen.
+
+test("a source at the byte and line ceilings still parses", () => {
+  // Near the BYTE ceiling without tripping the line one: ~100-byte comment lines.
+  const wide = "' " + "w".repeat(96) + NLQ; // 100 bytes incl. the newline
+  const nearBytes = "@startuml" + NLQ + wide.repeat(600) + "@enduml";
+  assert.ok(new TextEncoder().encode(nearBytes).length <= MAX_PUML_SOURCE_BYTES);
+  assert.ok(nearBytes.split(NLQ).length < MAX_PUML_SOURCE_LINES);
+  assert.doesNotThrow(() => parsePuml(nearBytes));
+
+  // Exactly AT the line ceiling: the guard is `>`, so this must be accepted.
+  const atLines = "@startuml" + NLQ.repeat(MAX_PUML_SOURCE_LINES - 1) + "@enduml";
+  assert.equal(atLines.split(NLQ).length, MAX_PUML_SOURCE_LINES);
+  assert.doesNotThrow(() => parsePuml(atLines));
+});
+
+test("an oversized source is refused with a code, before any parsing work", () => {
+  const huge = "@startuml" + NLQ + "x".repeat(MAX_PUML_SOURCE_BYTES + 1);
+  const err = assertThrows(() => parsePuml(huge));
+  assert.ok(isPumlSourceTooLarge(err), `expected the size refusal, got ${err}`);
+  assert.equal((err as PumlSourceTooLargeError).code, "PUML_SOURCE_TOO_LARGE");
+  assert.equal((err as PumlSourceTooLargeError).limit, "bytes");
+  // The message is for the log, never the screen: it must not carry the paste.
+  assert.ok(!(err as Error).message.includes("xxxx"));
+});
+
+test("a multibyte source is measured in BYTES, not UTF-16 units", () => {
+  // 3 bytes per char in UTF-8: under the ceiling by `.length`, over it by bytes.
+  const chars = Math.floor(MAX_PUML_SOURCE_BYTES / 2);
+  const multibyte = "@startuml" + NLQ + "你".repeat(chars);
+  assert.ok(multibyte.length < MAX_PUML_SOURCE_BYTES, "a .length check would have let this through");
+  const err = assertThrows(() => parsePuml(multibyte));
+  assert.ok(isPumlSourceTooLarge(err));
+  assert.equal((err as PumlSourceTooLargeError).limit, "bytes");
+});
+
+test("too many lines is refused even when the source is small", () => {
+  const manyLines = "@startuml" + NLQ.repeat(MAX_PUML_SOURCE_LINES + 5) + "@enduml";
+  assert.ok(new TextEncoder().encode(manyLines).length < MAX_PUML_SOURCE_BYTES, "small by bytes");
+  const err = assertThrows(() => parsePuml(manyLines));
+  assert.ok(isPumlSourceTooLarge(err));
+  assert.equal((err as PumlSourceTooLargeError).limit, "lines");
+});
+
+test("every committed diagram source is comfortably inside the ceilings", () => {
+  // The ceilings are a guard against a paste, never against our own authoring.
+  for (const [id, detail] of Object.entries(STEP_DETAILS)) {
+    const bytes = new TextEncoder().encode(detail.puml).length;
+    assert.ok(bytes < MAX_PUML_SOURCE_BYTES / 4, `STEP_DETAILS.${id} is ${bytes} bytes — too close to the ceiling`);
+  }
+});
+
+/** node:assert has no "throws and hand me the error" — this is that. */
+function assertThrows(fn: () => unknown): unknown {
+  try {
+    fn();
+  } catch (err) {
+    return err;
+  }
+  assert.fail("expected a refusal, but the call returned");
+}
+
+/** A newline, named so the ceiling fixtures below read as line counts. */
+const NLQ = "\n";

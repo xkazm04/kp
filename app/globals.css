@@ -79,6 +79,27 @@
   --color-diagram-gap-text: #6b6557;
 
   /*
+   * Container GROUP boxes — the `package`/`folder`/`database { … }` frames that
+   * wrap a diagram's phases. Kind-agnostic: `tagged` = the group carries a
+   * <<stereotype>>, `plain` = it does not.
+   *
+   * These were four raw literals in PlantUml.tsx (#9cb394 / #dcd8cf and two
+   * rgba() fills) while the comment three lines above them claimed the tokens
+   * already covered "every component box, CONTAINER, edge, label and status
+   * colour". They did not — and a group box is the LARGEST painted area on an
+   * architecture diagram, so Spark Dark drew a near-white frame on a #141b24
+   * canvas around every phase.
+   *
+   * Derived, not re-picked: each mixes brand tokens the dark block already
+   * re-tunes, so the frames flip with the theme for free — the same indirection
+   * as the status trichotomy above, and the reason no dark override is needed.
+   */
+  --color-diagram-group-tagged-stroke: color-mix(in srgb, var(--color-moss) 55%, var(--color-limewash));
+  --color-diagram-group-plain-stroke: var(--color-stone-300);
+  --color-diagram-group-tagged-fill: color-mix(in srgb, var(--color-limewash) 45%, transparent);
+  --color-diagram-group-plain-fill: color-mix(in srgb, var(--color-paper) 55%, transparent);
+
+  /*
    * The shadow tokens point at a SECOND variable instead of holding their value
    * directly, and that indirection is load-bearing.
    *

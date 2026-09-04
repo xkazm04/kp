@@ -1183,6 +1183,19 @@ export const REFUSAL_ERRORS = {
    *  provider held the requestor on a spinner for nine minutes past the point the
    *  answer was useful. Named so the composer can offer a retry. */
   INTAKE_TURN_TIMEOUT: "That turn took too long and was stopped. Send it again.",
+  /** The profile router (pipeline.jobfit.profile_cli) overran PROFILE_ROUTE_TIMEOUT_MS
+   *  in app/api/profile/route.ts and was stopped (504). A DECISION, not a store fault:
+   *  the spawn used to inherit python-runner’s ten-minute hang backstop, so a wedged
+   *  child held the editor’s Save open for nine minutes past the point the answer was
+   *  useful — with the recruiter’s unsaved intake still in the form. Named so the editor
+   *  can offer a retry instead of painting a generic failure over live text. */
+  PROFILE_BUILD_TIMEOUT: "Routing that profile took too long and was stopped. Try saving again.",
+  /** The winnability coach (pipeline.jobfit.winnability_cli) overran
+   *  WINNABILITY_TIMEOUT_MS in app/api/jobs/[id]/winnability/route.ts and was stopped
+   *  (504). Deterministic sub-second scoring, so an overrun means the child wedged —
+   *  the honest answer is “we stopped waiting, try again”, which the coach panel’s
+   *  existing retry affordance already offers. */
+  JOB_WINNABILITY_TIMEOUT: "Grading this role took too long and was stopped. Try again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

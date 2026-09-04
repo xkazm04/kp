@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit import winnability_cli
+from pipeline.jobfit import _cli, winnability_cli
 from pipeline.jobfit.jobs import Job, JobRequirement
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
@@ -291,6 +291,85 @@ class WinnabilityCliSkippedTest(unittest.TestCase):
         rc, out = self._run(payload, job)
         self.assertEqual(rc, 0)
         self.assertEqual(out["skipped"], [])
+
+
+class WinnabilityCliErrorEnvelopeTest(unittest.TestCase):
+    """The coach's failure vocabulary.
+
+    Every failure in this CLI used to leave as one bare ``{error, status: 500}`` with no
+    ``code`` at all — so "you graded a job the corpus no longer carries" (remedy: pick
+    another) and a real engine fault were the same red box, and the missing job read as
+    "the engine failed". The codes are now chosen at the raise site, from the shared
+    ``_cli.ERROR_CODES``.
+    """
+
+    def _run(self, argv: list[str]) -> tuple[int, dict]:
+        err = io.StringIO()
+        # BOTH streams replaced (neither has .reconfigure): the guarded configure_stdio
+        # must skip each on its own — the open-coded pair this CLI used to carry
+        # reconfigured stderr unconditionally and died here with an AttributeError.
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            rc = winnability_cli.main(argv)
+        lines = [ln for ln in err.getvalue().splitlines() if ln.strip()]
+        return rc, json.loads(lines[-1])
+
+    @contextlib.contextmanager
+    def _input(self, payload: dict | str):
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "in.json"
+            inp.write_text(payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8")
+            yield str(inp)
+
+    def test_a_job_the_corpus_does_not_carry_is_a_404_not_an_engine_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            jobs = Path(d) / "jobs.json"
+            jobs.write_text("[]", encoding="utf-8")
+            with self._input({"jobId": "no-such-job", "candidates": []}) as inp:
+                rc, env = self._run(["--input-json", inp, "--jobs", str(jobs)])
+        self.assertEqual((env["status"], env["code"]), (404, "not_found"))
+        self.assertIn("no-such-job", env["error"])
+        self.assertEqual(rc, 1)
+
+    def test_a_malformed_input_payload_is_a_400_the_caller_can_fix(self) -> None:
+        with self._input("{not json at all") as inp:
+            rc, env = self._run(["--input-json", inp])
+        self.assertEqual((env["status"], env["code"]), (400, "invalid_input"))
+        self.assertEqual(rc, 2, "a client mistake exits 2, matching the rest of the family")
+
+    def test_a_job_record_that_fails_validation_is_a_400(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            jobp = Path(d) / "job.json"
+            # `title` must be a string — a partially-ingested draft is the caller's
+            # payload, not an engine fault.
+            jobp.write_text(json.dumps({"id": "j1", "title": {"oops": True}}), encoding="utf-8")
+            with self._input({"jobId": "j1", "candidates": []}) as inp:
+                rc, env = self._run(["--input-json", inp, "--job-json", str(jobp)])
+        self.assertEqual((env["status"], env["code"]), (400, "invalid_input"))
+        self.assertEqual(rc, 2)
+
+    def test_every_code_it_emits_is_in_the_shared_vocabulary(self) -> None:
+        # Non-vacuity: a word outside ERROR_CODES resolves to no errors.<CODE> catalog
+        # key, so the reader would get the server's raw English in every locale.
+        with self._input("{nope") as inp:
+            _rc, bad_json = self._run(["--input-json", inp])
+        with tempfile.TemporaryDirectory() as d:
+            jobs = Path(d) / "jobs.json"
+            jobs.write_text("[]", encoding="utf-8")
+            with self._input({"jobId": "ghost", "candidates": []}) as inp:
+                _rc2, missing = self._run(["--input-json", inp, "--jobs", str(jobs)])
+        for env in (bad_json, missing):
+            self.assertIn(env["code"], _cli.ERROR_CODES)
+
+    def test_the_envelope_is_one_line_the_bridge_can_parse(self) -> None:
+        # parseStderrError reads the LAST line of stderr only.
+        with tempfile.TemporaryDirectory() as d:
+            jobs = Path(d) / "jobs.json"
+            jobs.write_text("[]", encoding="utf-8")
+            err = io.StringIO()
+            with self._input({"jobId": "ghost", "candidates": []}) as inp:
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                    winnability_cli.main(["--input-json", inp, "--jobs", str(jobs)])
+        self.assertEqual(len([ln for ln in err.getvalue().splitlines() if ln.strip()]), 1)
 
 
 if __name__ == "__main__":

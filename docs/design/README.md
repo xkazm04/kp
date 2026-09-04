@@ -108,6 +108,7 @@ block remaps to dark equivalents.
 | `score-strong/mid/weak/null` | alias moss / dial-amber / coral / steel | (follow automatically) | Rank colors — see `scoreTone()` |
 | `diagram-{live,gate,gap}-{fill,stroke}` | alias limewash / moss / coralwash / coral / stone-100 / dial-stone | (follow automatically) | Architecture-diagram status trichotomy — read by `puml/constants.ts` and the `/diagrams` legend |
 | `diagram-gap-text` | `#6b6557` | `#9aa3b2` | Muted label on the gap fill — the one diagram value with no brand counterpart |
+| `diagram-group-{tagged,plain}-{stroke,fill}` | mixes of moss / limewash / stone-300 / paper | (follow automatically) | Container GROUP boxes (`package "…" { … }`) — the largest painted area on an architecture diagram |
 
 **Remapped neutrals** (stock Tailwind classes that participate in theming):
 
@@ -331,9 +332,11 @@ exemption is a path in the eslint `ignores` list or an entry in the script's
   resolved) and that the token it lands on is declared in **both** theme blocks. Without
   it, a regeneration emitting `#abc`, `#rrggbbaa` or `rgb(…)` would fall through the snap
   untouched and paint a literal colour past both gates.
-- `app/_components/puml/**` — diagram-only primitive tints (cylinder, cloud, sticky
-  note) with no CSS-variable equivalent. Its brand-mirroring half imports `brand.ts`;
-  the diagram has no dark register yet.
+- `app/_components/puml/**` — diagram-only primitive tints for exactly three shapes
+  (cylinder, cloud, sticky note) with no CSS-variable equivalent and no dark register
+  yet. Everything else in that renderer — component boxes, edges, labels, the status
+  trichotomy and, since the container-group tokens above, the group frames — paints
+  `var()` and flips with the theme.
 - `app/_dev-inspector/**` — dev-only devtools chrome, deliberately fixed so it stays
   readable while you debug the theme itself.
 - `app/**/*.test.{ts,tsx}` — hexes are inputs/expectations for the color sanitizers.

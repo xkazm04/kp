@@ -7,9 +7,12 @@ Runs every automation step over a scripted scenario set and scores two axes:
     auto-advances an early-career candidate; rejection text carries no protected-
     characteristic language; re-match respects the score floor). Reliability must be 100%.
 
-  QUALITY (--judge, LLM-as-judge, batched) — an independent Claude CLI judge rates each
-    output 1-5 on task-specific criteria (grounded / specific / right tone / right language
-    / non-leading / fair). Batched via ClaudeCliProvider.map. Gate: mean >= 3.5.
+  QUALITY (--judge, LLM-as-judge, batched) — a SEPARATE Claude CLI judge model (pinned with
+    --judge-provider, default `sonnet`) rates each output 1-5 on task-specific criteria
+    (grounded / specific / right tone / right language / non-leading / fair). Batched via
+    ClaudeCliProvider.map. Gate: mean >= 3.5. Judging with the engine's own model is refused
+    unless --allow-same-judge is passed, and that concession prints itself: a model grading
+    its own output is self-assessment, not an independent check.
 
 Engine = Claude Code CLI only (ClaudeCliProvider). With --no-llm every task uses its
 deterministic fallback (fast, offline, CI-safe). Default runs the real LLM for each task,
@@ -19,6 +22,10 @@ records whether the LLM or the fallback produced it, and still checks reliabilit
     python -m pipeline.jobfit.eval.automation_eval --no-llm        # deterministic reliability (CI)
     python -m pipeline.jobfit.eval.automation_eval --judge         # + LLM quality scoring
     python -m pipeline.jobfit.eval.automation_eval --judge --strict --json
+    python -m pipeline.jobfit.eval.automation_eval --judge --judge-provider opus
+
+Exit codes follow the suite-wide contract in eval/__main__.py: 0 ran and (under --strict)
+passed, 1 a gate failed or nothing was measured, 2 the run could not be performed.
 """
 
 from __future__ import annotations
@@ -32,11 +39,12 @@ from typing import Any, Callable
 
 from .. import automation, registry
 from .._cli import configure_stdio
-from ..claude_cli import ClaudeCliError, ClaudeCliProvider
+from ..claude_cli import ClaudeCliProvider
 from ..jobs import normalize_job
 from ..matching import MatchCandidate, score_job
 from ._style import _make_styler, should_color
-from .runner import GLYPH_NA, glyph, verdict_banner
+from .judging import DEFAULT_JUDGE_MODEL, JSON_CONTRACT, SameJudgeRefused, quality_passes, quality_state, render_output, resolve_judge_provider, run_judge
+from .runner import GLYPH_NA, verdict_banner
 from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD  # noqa: F401  (re-exported)
 
 # Single-sourced from automation.py — the SAME vocabulary the production letter
@@ -274,34 +282,18 @@ def run_tasks(provider: Any | None, max_workers: int = 4) -> list[Row]:
         return list(pool.map(_one, jobs))
 
 
-def judge_rows(rows: list[Row], provider: ClaudeCliProvider) -> None:
-    prompts = []
-    for r in rows:
-        crit = TASKS[r.task]["criteria"]
-        prompts.append(
-            f"You are a strict HR-tooling QA reviewer. Rate this AI '{r.task}' output for scenario '{r.scenario}'.\n"
-            f"Criteria: {crit}\n\nOutput:\n{json.dumps(r.output, ensure_ascii=False)[:1500]}\n\n"
-            'Return JSON: { "score": int 1-5, "issues": [str] }. JSON only.'
-        )
-    results = provider.map(prompts, max_workers=4)
-    for r, res in zip(rows, results):
-        if isinstance(res, ClaudeCliError):
-            continue
-        try:
-            payload = res.json()
-            if isinstance(payload, dict):
-                # Only accept a real 1-5 score. A parsed-but-missing/invalid score
-                # must stay un-scored (None) — the old `int(score, 0)` clamped a
-                # missing score to 1, faking a 1-star rating and dragging the mean.
-                try:
-                    score_int = int(payload.get("score"))
-                except (TypeError, ValueError):
-                    score_int = None
-                if score_int is not None and 1 <= score_int <= 5:
-                    r.quality = score_int
-                r.quality_issues = [str(x) for x in (payload.get("issues") or [])][:3]
-        except Exception:
-            continue
+def _judge_prompt(r: Row) -> str:
+    crit = TASKS[r.task]["criteria"]
+    return (
+        f"You are a strict HR-tooling QA reviewer. Rate this AI '{r.task}' output for scenario '{r.scenario}'.\n"
+        f"Criteria: {crit}\n\nOutput:\n{render_output(r.output)}\n\n"
+        f"{JSON_CONTRACT}"
+    )
+
+
+def judge_rows(rows: list[Row], provider: ClaudeCliProvider) -> int:
+    """Score every row with the JUDGE provider (never the engine's — see judging.py)."""
+    return run_judge(rows, provider, _judge_prompt)
 
 
 def _aggregate(rows: list[Row]) -> dict[str, Any]:
@@ -329,17 +321,10 @@ def _aggregate(rows: list[Row]) -> dict[str, Any]:
 def _passes(agg: dict[str, Any], judge_requested: bool = False) -> bool:
     if agg["reliability"] < RELIABILITY_THRESHOLD:
         return False
-    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): a `--judge` run that
-    # produced ZERO usable scores leaves quality_mean=None. That is NOT the same as
-    # "judge not requested" — it means the judge was down or every score was
-    # unparseable. A strict quality gate must fail closed here, not silently degrade
-    # to a reliability-only PASS while the banner reads "quality N/A" (success
-    # theater in the very gate meant to catch quality regressions).
-    if judge_requested and agg["quality_mean"] is None:
-        return False
-    if agg["quality_mean"] is not None and agg["quality_mean"] < QUALITY_THRESHOLD:
-        return False
-    return True
+    # The quality half — including the fail-closed reading of a --judge run that
+    # scored nothing (bug-ui-scan-2026-07-09) — is judging.quality_passes, shared
+    # with interview_eval so the two gates cannot drift apart again.
+    return quality_passes(agg["quality_mean"], judge_requested)
 
 
 def _automation_banner(agg: dict[str, Any], st, judge_requested: bool = False) -> str:
@@ -353,26 +338,18 @@ def _automation_banner(agg: dict[str, Any], st, judge_requested: bool = False) -
     total_runs = agg.get("total", 0)
     reliable = agg.get("reliable", 0)
     q = agg.get("quality_mean")
-    judged = q is not None
-    # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): a --judge run that
-    # scored nothing is a FAILED quality gate, not an absent one — count it as a
-    # check so the count can't read "N/N PASS" while the verdict word says FAIL.
-    judge_missing = judge_requested and not judged
-    quality_ok = judged and q >= QUALITY_THRESHOLD
-    quality_counted = judged or judge_missing
-    total = total_runs + (1 if quality_counted else 0)
-    n_pass = reliable + (1 if quality_ok else 0)
+    # One reading of the quality axis for the gate AND the chip (judging.quality_state):
+    # a --judge run that scored nothing is a FAILED check, not an absent one, so the
+    # count can never read "N/N PASS" beside a FAIL verdict.
+    state = quality_state(q, judge_requested)
+    total = total_runs + (1 if state.counted else 0)
+    n_pass = reliable + (1 if state.ok else 0)
     n_fail = total - n_pass
     passed = _passes(agg, judge_requested)
     # Bare glyph (no styler): it inherits the banner's single headline color
     # rather than nesting its own ANSI reset, which would strip the banner's
     # color/bold from anything after it (e.g. a trailing "· N FAIL").
-    if judged:
-        quality_chip = f"quality {q} {glyph(quality_ok)}"
-    elif judge_missing:
-        quality_chip = f"quality {GLYPH_NA} {glyph(False)}"  # requested but unavailable → a failed check
-    else:
-        quality_chip = f"quality {GLYPH_NA}"
+    quality_chip = state.chip
     parts = [
         f"{n_pass}/{total} checks {'PASS' if passed else 'FAIL'}",
         f"reliability {agg.get('reliability', 0.0):.0%}",
@@ -425,6 +402,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Quality-gate the LLM HR-automation tasks.")
     parser.add_argument("--no-llm", action="store_true", help="Deterministic fallbacks only (fast, CI).")
     parser.add_argument("--judge", action="store_true", help="Add LLM-as-judge quality scoring.")
+    parser.add_argument(
+        "--judge-provider",
+        metavar="MODEL",
+        default=None,
+        help="Claude CLI model that JUDGES, which must not be the one that generated "
+             f"(default: {DEFAULT_JUDGE_MODEL}).",
+    )
+    parser.add_argument(
+        "--allow-same-judge",
+        action="store_true",
+        help="Permit judging with the engine's own model. The run then prints that its scores "
+             "are self-assessment, not an independent check.",
+    )
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if a threshold fails.")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--json", action="store_true")
@@ -439,11 +429,25 @@ def main(argv: list[str] | None = None) -> int:
             provider = None
 
     rows = run_tasks(provider)
+    if not rows:
+        # Nothing measured is not a pass. Exit-code contract (eval/__main__.py): 1.
+        sys.stderr.write("automation_eval: no task-runs were produced — nothing was measured\n")
+        return 1
     if args.judge:
-        if provider is None:
-            sys.stderr.write("automation_eval: --judge needs the Claude CLI; skipping quality scoring\n")
+        try:
+            judge = resolve_judge_provider(
+                provider, judge_model=args.judge_provider, allow_same=args.allow_same_judge
+            )
+        except SameJudgeRefused as exc:
+            sys.stderr.write(f"automation_eval: {exc}\n")
+            return 2
+        if judge is None:
+            sys.stderr.write(
+                "automation_eval: no judge model available; NO quality scoring was produced — "
+                "the quality gate fails closed (--strict will not certify)\n"
+            )
         else:
-            judge_rows(rows, provider)
+            judge_rows(rows, judge)
 
     agg = _aggregate(rows)
     if args.json:

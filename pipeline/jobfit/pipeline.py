@@ -12,6 +12,7 @@ from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
+from .i18n import normalize_lang
 from .llm.registry import resolve_provider
 from .llm.base import price_usd
 from .redact import redact_pii
@@ -474,7 +475,11 @@ def analyze_cv(
                 "has_structured_job": job is not None,
                 "has_company": bool(company_text and company_text.strip()),
                 "grounding": bool(use_grounding),
-                "lang": lang,
+                # Canonical, never the caller's spelling: a "cs-CZ" / "CS" / "de_DE"
+                # request must not become a distinct value in the persisted record
+                # every later read groups and filters on. cli.py normalises at its
+                # boundary; this is the same guard for a direct in-process caller.
+                "lang": normalize_lang(lang),
                 "duration_ms": int((time.monotonic() - started) * 1000),
                 "stages_ms": timings,
                 "gemini": {"model": cv_model, **gemini_usage},

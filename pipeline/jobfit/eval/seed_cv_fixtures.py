@@ -43,12 +43,13 @@ from ._style import _make_styler, should_color
 from .runner import (
     FixtureResult,
     Report,
-    _format_markdown,
-    _range_overlap,
-    _safe_int,
-    _salary_band,
-    _skill_recall,
+    format_markdown,
     glyph,
+    range_overlap,
+    safe_int,
+    salary_band,
+    skill_recall,
+    write_text_lf,
 )
 from .thresholds import PASS_THRESHOLDS
 
@@ -228,14 +229,14 @@ def _score(name: str, expected: dict[str, Any], payload: dict[str, Any], duratio
     actual_sen = candidate.get("currentSeniority")
     actual_skills = candidate.get("skills", []) or []
     actual_edu = candidate.get("educationLevel")
-    a_min, a_max, salary_present = _salary_band(salary)
+    a_min, a_max, salary_present = salary_band(salary)
 
     role_set = expected["expected_role_family"]
     role_set = [role_set] if isinstance(role_set, str) else role_set
     sen_set = expected["expected_seniority"]
     sen_set = [sen_set] if isinstance(sen_set, str) else sen_set
     rng = expected.get("expected_salary_range") or [0, 0]
-    overlap = _range_overlap((a_min, a_max), (_safe_int(rng[0]), _safe_int(rng[1])))
+    overlap = range_overlap((a_min, a_max), (safe_int(rng[0]), safe_int(rng[1])))
 
     edu_match: bool | None
     if expected.get("expected_education"):
@@ -251,7 +252,7 @@ def _score(name: str, expected: dict[str, Any], payload: dict[str, Any], duratio
         seniority_match=actual_sen in sen_set,
         salary_overlap=overlap,
         salary_present=salary_present,
-        skill_recall=_skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
+        skill_recall=skill_recall(actual_skills, expected.get("expected_skills_subset", [])),
         education_match=edu_match,
         signals_recall=None,
         actual={
@@ -336,7 +337,7 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
         cv_path = FIXTURES_OUT / f"{cid}.txt"
         json_path = FIXTURES_OUT / f"{cid}.json"
         exp = expectations(c)
-        json_path.write_text(json.dumps(exp, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_text_lf(json_path, json.dumps(exp, ensure_ascii=False, indent=2))
 
         if cv_path.exists() and not refresh:
             cv = cv_path.read_text(encoding="utf-8")
@@ -347,7 +348,7 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
             except Exception as exc:  # noqa: BLE001 — one bad render shouldn't abort the batch
                 sys.stderr.write(f"  {cid}: CV render failed — {exc}\n")
                 continue
-            cv_path.write_text(cv, encoding="utf-8")
+            write_text_lf(cv_path, cv)
             note = "rendered CV"
 
         started = time.monotonic()
@@ -403,7 +404,7 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.close()
 
-    print("\n" + _format_markdown(report, color=use_color))
+    print("\n" + format_markdown(report, color=use_color))
     agg = report.aggregate()
     print("\n## Pilot summary\n")
     print(f"- candidates analyzed: **{len(report.fixtures)}**")
@@ -415,9 +416,9 @@ def run(count: int, *, persist: bool, refresh: bool, skip_existing: bool = False
         f"(accuracy, among emitted) · coverage **{agg.get('salary_coverage', 0.0):.0%}** (bands emitted)"
     )
     print(f"- passes golden thresholds: {glyph(report.passes(), s_out)} ({PASS_THRESHOLDS})")
-    (FIXTURES_OUT / "_pilot_report.json").write_text(
+    write_text_lf(
+        FIXTURES_OUT / "_pilot_report.json",
         json.dumps({"aggregate": agg, "passes": report.passes(), "persisted": saved}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
     )
     return 0
 

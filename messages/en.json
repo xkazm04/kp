@@ -1683,7 +1683,9 @@
     "DEVCASE_SUBMISSION_ID_REQUIRED": "A submission reference is required.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "That submission can’t be found.",
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile.",
-    "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again."
+    "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again.",
+    "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
+    "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",

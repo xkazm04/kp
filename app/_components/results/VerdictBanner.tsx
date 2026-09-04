@@ -4,7 +4,7 @@ import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, type ScoreTone } from "@/app/_lib/format";
-import { SCORE_BANDS, scoreBandIndex } from "@/app/_components/scoreDial.logic";
+import { VERDICT_BANDS, scoreBandIndex } from "@/app/_components/scoreDial.logic";
 import { resolveVerdict } from "./verdict";
 
 // Direction 1 (verdict-above-the-fold) — the report LEADS with a colored, glyphed
@@ -14,7 +14,7 @@ import { resolveVerdict } from "./verdict";
 // multi-variant run (which defaults to the Compare tab) it wasn't on screen at all.
 //
 // The band label + the readout color reuse the SAME helpers the dial does
-// (scoreBandIndex / SCORE_BANDS for the word, scoreTone for the color), so the
+// (scoreBandIndex / VERDICT_BANDS for the word, scoreTone for the color), so the
 // banner and the buried dial can never tell two stories. Tokens only — the
 // score-* scale is theme-mapped, so this holds in Spark Dark.
 
@@ -44,7 +44,7 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   // "not enough to score" framing. Never a fabricated band on absent data.
   const tone = scoreTone(scored ? overall : null);
   const skin = TONE[tone];
-  const band = scored ? t(SCORE_BANDS[scoreBandIndex(overall)].key) : null;
+  const band = scored ? t(VERDICT_BANDS[scoreBandIndex(overall)].key) : null;
 
   // `role="img"` makes every descendant PRESENTATIONAL (img is one of ARIA's
   // presentational-children roles), so the aria-label is the whole banner for a

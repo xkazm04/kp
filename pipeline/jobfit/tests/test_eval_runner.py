@@ -1,7 +1,7 @@
 """Golden-set eval scoring: salary coverage vs accuracy.
 
 A missing Gemini salary used to coerce to ``(0, 0)`` and score
-``_range_overlap((0, 0), expected) == 0.0`` — identical to a confidently-wrong
+``range_overlap((0, 0), expected) == 0.0`` — identical to a confidently-wrong
 band. The aggregate ``salary_overlap`` could then not tell a *coverage* failure
 (no salary emitted) from an *accuracy* failure (wrong band). These tests pin the
 split: a per-fixture ``salary_present`` flag, ``salary_coverage`` in the
@@ -11,14 +11,20 @@ band. No API key required — fixtures are constructed directly.
 
 from __future__ import annotations
 
+import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
+
+from pipeline.jobfit.eval import runner, seed_cv_fixtures
 
 from pipeline.jobfit.eval.runner import (
     GLYPH_NA,
     FixtureResult,
     Report,
     _fixture_passed,
-    _salary_band,
+    salary_band,
     _salary_cell,
 )
 from pipeline.jobfit.eval.thresholds import PASS_THRESHOLDS
@@ -55,31 +61,31 @@ def _fixture(
 
 class SalaryBandTest(unittest.TestCase):
     def test_real_band_is_present(self) -> None:
-        self.assertEqual(_salary_band({"minimum": 50000, "maximum": 70000}), (50000, 70000, True))
+        self.assertEqual(salary_band({"minimum": 50000, "maximum": 70000}), (50000, 70000, True))
 
     def test_string_numbers_are_present(self) -> None:
-        self.assertEqual(_salary_band({"minimum": "50000", "maximum": "70000"}), (50000, 70000, True))
+        self.assertEqual(salary_band({"minimum": "50000", "maximum": "70000"}), (50000, 70000, True))
 
     def test_partial_band_is_present(self) -> None:
         # Only one bound emitted still counts as a salary signal (coverage hit).
-        self.assertEqual(_salary_band({"minimum": 60000}), (60000, 0, True))
+        self.assertEqual(salary_band({"minimum": 60000}), (60000, 0, True))
 
     def test_missing_block_is_absent(self) -> None:
-        self.assertEqual(_salary_band({}), (0, 0, False))
+        self.assertEqual(salary_band({}), (0, 0, False))
 
     def test_non_dict_is_absent(self) -> None:
         # payload {"salary": null} → None must not raise, just read as absent.
-        self.assertEqual(_salary_band(None), (0, 0, False))
+        self.assertEqual(salary_band(None), (0, 0, False))
 
     def test_null_bounds_are_absent(self) -> None:
-        self.assertEqual(_salary_band({"minimum": None, "maximum": None}), (0, 0, False))
+        self.assertEqual(salary_band({"minimum": None, "maximum": None}), (0, 0, False))
 
     def test_garbage_bounds_are_absent(self) -> None:
-        self.assertEqual(_salary_band({"minimum": "n/a", "maximum": "?"}), (0, 0, False))
+        self.assertEqual(salary_band({"minimum": "n/a", "maximum": "?"}), (0, 0, False))
 
     def test_zero_band_is_absent(self) -> None:
         # An explicit 0/0 is no salary, not a (wrong) band of zero.
-        self.assertEqual(_salary_band({"minimum": 0, "maximum": 0}), (0, 0, False))
+        self.assertEqual(salary_band({"minimum": 0, "maximum": 0}), (0, 0, False))
 
 
 class AggregateSplitTest(unittest.TestCase):
@@ -168,6 +174,72 @@ class PerFixtureTest(unittest.TestCase):
 
     def test_salary_cell_shows_percentage_when_present(self) -> None:
         self.assertEqual(_salary_cell(_fixture(salary_overlap=0.5, salary_present=True)), "50%")
+
+
+class PublicHelperApiTest(unittest.TestCase):
+    """The fixture seeder used to import FIVE underscore-prefixed symbols out of
+    runner — a cross-module contract no signature promised, which any rename here
+    would have broken silently."""
+
+    HELPERS = ("range_overlap", "salary_band", "skill_recall", "safe_int", "format_markdown")
+
+    def test_the_five_helpers_are_public(self):
+        for name in self.HELPERS:
+            with self.subTest(helper=name):
+                self.assertTrue(callable(getattr(runner, name)))
+
+    def test_the_underscore_names_still_resolve_to_the_same_function(self):
+        for name in self.HELPERS:
+            with self.subTest(helper=name):
+                self.assertIs(getattr(runner, "_" + name), getattr(runner, name))
+
+    def test_the_seeder_reaches_for_no_private_runner_symbol(self):
+        source = Path(seed_cv_fixtures.__file__).read_text(encoding="utf-8")
+        block = source[source.index("from .runner import ("):]
+        block = block[: block.index(")")]
+        private = [line.strip().strip(",") for line in block.splitlines() if line.strip().startswith("_")]
+        self.assertEqual(private, [], f"seed_cv_fixtures imports private runner symbols: {private}")
+
+
+class ByteStableFixtureWritesTest(unittest.TestCase):
+    """Fixture and report writes used to be `write_text(..., encoding="utf-8")`,
+    which uses os.linesep: the committed corpus flipped to CRLF on a Windows
+    regeneration and back on a Linux one — a whole-file diff carrying no data."""
+
+    def test_write_text_lf_emits_no_carriage_return_on_any_platform(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "fixture.txt"
+            runner.write_text_lf(target, "first\nsecond\n")
+            raw = target.read_bytes()
+        self.assertNotIn(b"\r", raw)
+        self.assertEqual(raw, b"first\nsecond\n")
+
+    def test_the_platform_default_is_what_it_is_protecting_against(self):
+        # Pins the premise, not just the fix. The old call passed newline=None, which
+        # translates "\n" to os.linesep — so on a CRLF platform the committed corpus
+        # really was rewritten. Reproduced explicitly rather than by skipping where
+        # os.linesep is already LF: a conditional skip here would be one more line in
+        # the gated suite's skip budget, for a fact that holds on every platform.
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "fixture.txt"
+            target.write_text("first\nsecond\n", encoding="utf-8", newline=os.linesep)
+            translated = target.read_bytes()
+            runner.write_text_lf(target, "first\nsecond\n")
+            self.assertNotIn(b"\r", target.read_bytes())
+        if os.linesep != "\n":
+            self.assertIn(b"\r", translated)
+
+    def test_regeneration_is_byte_identical_across_two_writes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            a, b = Path(tmp) / "a.json", Path(tmp) / "b.json"
+            payload = json.dumps({"aggregate": {"role_family": 0.98}}, ensure_ascii=False, indent=2)
+            runner.write_text_lf(a, payload)
+            runner.write_text_lf(b, payload)
+            self.assertEqual(a.read_bytes(), b.read_bytes())
+
+    def test_every_fixture_write_in_the_seeder_goes_through_the_lf_helper(self):
+        source = Path(seed_cv_fixtures.__file__).read_text(encoding="utf-8")
+        self.assertNotIn(".write_text(", source, "a fixture write bypasses write_text_lf")
 
 
 if __name__ == "__main__":
