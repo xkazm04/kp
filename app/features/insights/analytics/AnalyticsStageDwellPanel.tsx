@@ -30,6 +30,7 @@ export function StageDwellPanel({
   stageDwell,
   koDeclined,
   offers,
+  offerStage,
   enumLabel,
   boardHref,
 }: {
@@ -37,6 +38,8 @@ export function StageDwellPanel({
   /** Applicants the eligibility gate turned away BEFORE the funnel's first stage. */
   koDeclined: number;
   offers: OfferConversion;
+  /** The workspace’s own offer column, forwarded to the offer panel’s board link. */
+  offerStage: string | null;
   enumLabel: (kind: string, value: string) => string;
   boardHref: (filter: { q?: string; stage?: string }) => string;
 }) {
@@ -104,7 +107,7 @@ export function StageDwellPanel({
       {/* …and the leg after the last stage. Honesty-gated below the min-offers floor
           by the panel itself, and it is also the only place the brief states the
           acceptance rate its forecast band silently assumes. */}
-      <OfferLegPanel offers={offers} boardHref={boardHref} />
+      <OfferLegPanel offers={offers} boardHref={boardHref} offerStage={offerStage} />
     </section>
   );
 }

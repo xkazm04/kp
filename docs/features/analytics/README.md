@@ -695,6 +695,17 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
 | `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
+**No stage name is spelled on this page.** Two English literals outlived the role layer that
+closed the rest: the offer panel's "who is sitting on an offer" link filtered the board on
+`"Offer"`, and `weeklyMomentum` *defaulted* its terminal stage to `"Hired"`. Both are answers
+that look like fallbacks and are simply wrong on a renamed board — an empty board view, and a
+hire series flat at zero forever. The payload now carries `offerStage` (`db/analytics.ts`,
+`stageWithRole("offer", axis)`; `null` when the axis declares no offer role, and the panel then
+renders the pending count as plain text rather than a link that cannot resolve), and
+`weeklyMomentum`'s `terminalStage` is a REQUIRED argument — there is no correct default, so the
+type asks for it. Pinned by `app/_lib/db/analytics-custom-axis.test.ts` (a board whose offer
+column is "Package") and by the hire-series test in `app/_lib/analytics-momentum.test.ts`.
+
 **The TTL core is not an analytics module.** `createTtlCache` lives in
 `app/_lib/ttl-cache.ts` — dependency-free, TTL + entry bound and *no invalidation policy of its
 own*. It used to be an export of `analytics-cache.ts`, and every consumer that reached for "the

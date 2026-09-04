@@ -160,3 +160,30 @@ test("restoring the shipped axis restores the shipped funnel", () => {
   const funnel = pipelineAnalytics(null, undefined, WS).funnel.map((f) => f.stage);
   assert.deepEqual(funnel, ["Accepted", "Screened", "Interview", "Offer", "Hired"]);
 });
+
+test("the payload names THIS board's offer column, so the offer link resolves", () => {
+  // The offer panel's one way out ("who is sitting on an offer") filtered the board on
+  // the literal "Offer". On this board that column is called "Package", so the link
+  // landed the recruiter on an empty board and said nothing about why. The stage now
+  // comes from the axis by ROLE and rides in the payload.
+  setDecisionConfig("pipelineStages", CUSTOM as unknown as Record<string, unknown>, WS, "team");
+  assert.equal(pipelineAnalytics(null, undefined, WS).offerStage, "Package");
+});
+
+test("the shipped axis still names Offer, and a board with no offer role names none", () => {
+  setDecisionConfig("pipelineStages", PIPELINE_STAGES_DEFAULT as unknown as Record<string, unknown>, WS, "team");
+  assert.equal(pipelineAnalytics(null, undefined, WS).offerStage, "Offer");
+
+  // A legal two-column board (the config validator requires only entry + terminal) has
+  // no offer leg at all. `null`, not a guessed column: the panel renders the count as
+  // plain text rather than a link that cannot resolve.
+  const twoColumn = {
+    stages: [
+      { id: "In", label: "In", role: "entry" as const },
+      { id: "Done", label: "Done", role: "terminal" as const },
+    ],
+    retired: [],
+  };
+  setDecisionConfig("pipelineStages", twoColumn as unknown as Record<string, unknown>, WS, "team");
+  assert.equal(pipelineAnalytics(null, undefined, WS).offerStage, null);
+});

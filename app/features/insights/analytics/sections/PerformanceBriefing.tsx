@@ -303,6 +303,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         stageDwell={data.stageDwell}
         koDeclined={data.koDeclined}
         offers={data.offers}
+        offerStage={data.offerStage ?? null}
         enumLabel={enumLabel}
         boardHref={boardHref}
       />
