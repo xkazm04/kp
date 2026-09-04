@@ -1704,7 +1704,13 @@
     "BILLING_PROVIDER_TIMEOUT": "The payment provider did not respond in time. Please try again in a moment.",
     "BILLING_QUOTA_EXCEEDED": "This action would exceed this month’s allowance on your current plan. Upgrade or top up in Billing.",
     "PAYLOAD_TOO_LARGE": "That request was too large to accept. Send less at once.",
-    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas sent a response larger than this workspace will read. It was dropped unread; check that the Personas app is up to date."
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas sent a response larger than this workspace will read. It was dropped unread; check that the Personas app is up to date.",
+    "BRAND_ACCENT_INVALID": "That accent is not a color. Use a hex value in the form #RRGGBB.",
+    "BRAND_ACCENT_ILLEGIBLE_LIGHT": "That accent is too light for Studio Light: button text and focus rings would be invisible. Pick a darker color (at least 3:1).",
+    "BRAND_ACCENT_ILLEGIBLE_DARK": "That accent has no readable Spark Dark version. It is too dark to lift without becoming a different color, so pick a brighter or more saturated one.",
+    "BRAND_LOGO_INVALID": "That logo link must be an https:// URL, short enough to store.",
+    "BRAND_LOAD_FAILED": "Couldn’t load branding. Please try again.",
+    "BRAND_SAVE_FAILED": "Couldn’t save branding. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7578,7 +7584,13 @@
     "previewName": "Your brand",
     "previewButton": "Primary action",
     "previewBadge": "Badge",
-    "previewLink": "A <a>highlighted link</a> in your accent."
+    "previewLink": "A <a>highlighted link</a> in your accent.",
+    "accentContrastDark": "That accent has no readable Spark Dark version. Lifting it enough to read on the dark canvas would make it a different color, so pick a brighter or more saturated one.",
+    "previewBothThemes": "Your accent in both themes. The Spark Dark value is derived from the one you type.",
+    "previewThemeLight": "Studio Light",
+    "previewThemeDark": "Spark Dark",
+    "previewFocus": "Focused item",
+    "previewDarkDerived": "Spark Dark uses a lifted version of your accent so it stays readable on the dark canvas."
   },
   "models": {
     "quality": {
