@@ -1682,7 +1682,8 @@
     "DEVCASE_CASE_FIELDS_REQUIRED": "Zum Freigeben werden sowohl eine Rolle als auch ein Case benötigt.",
     "DEVCASE_SUBMISSION_ID_REQUIRED": "Eine Referenz auf die Einreichung ist erforderlich.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
-    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Nur eine bewertete Einreichung kann ein Durable Skill Profile erzeugen."
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Nur eine bewertete Einreichung kann ein Durable Skill Profile erzeugen.",
+    "INTERVIEW_ALREADY_LIVE": "Dieses Interview läuft bereits in einem anderen Fenster. Beenden oder schließen Sie es, bevor Sie erneut starten."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2118,7 +2119,8 @@
       "notChecked": "nicht geprüft",
       "micTestLevel": "Mikrofonpegel: {level} %",
       "transcriptFolded": "Ältere Redebeiträge sind eingeklappt ({count} insgesamt). Das vollständige Transkript wird zu Ihrem Interview gespeichert.",
-      "closingTurnLostNote": "[Ihre abschließende Antwort konnte vor Ende des Gesprächs nicht transkribiert werden und fehlt daher in diesem Transkript.]"
+      "closingTurnLostNote": "[Ihre abschließende Antwort konnte vor Ende des Gesprächs nicht transkribiert werden und fehlt daher in diesem Transkript.]",
+      "discardedTurns": "Diese Aufzeichnung wurde nicht gespeichert: Ein anderes Fenster hat dieses Interview zuerst abgeschlossen, daher fehlen {count} Redebeiträge aus diesem Gespräch im Protokoll."
     }
   },
   "palette": {

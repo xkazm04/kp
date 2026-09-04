@@ -1682,7 +1682,8 @@
     "DEVCASE_CASE_FIELDS_REQUIRED": "Un rôle et un cas sont tous deux requis pour valider.",
     "DEVCASE_SUBMISSION_ID_REQUIRED": "Une référence de soumission est requise.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
-    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile."
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile.",
+    "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2118,7 +2119,8 @@
       "notChecked": "non vérifié",
       "micTestLevel": "Niveau du micro : {level} %",
       "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
-      "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]"
+      "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]",
+      "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu."
     }
   },
   "palette": {

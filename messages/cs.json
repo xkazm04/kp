@@ -1682,7 +1682,8 @@
     "DEVCASE_CASE_FIELDS_REQUIRED": "Ke schválení je potřeba role i případ.",
     "DEVCASE_SUBMISSION_ID_REQUIRED": "Je potřeba odkaz na odevzdání.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
-    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Trvalý profil dovedností lze vydat jen z vyhodnoceného odevzdání."
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Trvalý profil dovedností lze vydat jen z vyhodnoceného odevzdání.",
+    "INTERVIEW_ALREADY_LIVE": "Tento pohovor už běží v jiném okně. Než začnete znovu, dokončete ho nebo okno zavřete."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2118,7 +2119,8 @@
       "notChecked": "neověřeno",
       "micTestLevel": "Úroveň mikrofonu: {level} %",
       "transcriptFolded": "Starší repliky jsou skryté (celkem {count}). Celý přepis se ukládá k vašemu pohovoru.",
-      "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]"
+      "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]",
+      "discardedTurns": "Tato nahrávka nebyla uložena: pohovor dříve dokončilo jiné okno, takže {count} promluv z tohoto hovoru v záznamu není."
     }
   },
   "palette": {

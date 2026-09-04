@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession, getInterviewSessionByToken, isInterviewLinkExpired, markInterviewStarted, revokeInterviewSession, setInterviewSessionProvider } from "@/app/_lib/db/interviews";
+import {
+  LIVE_INTERVIEW_RECENCY_MIN,
+  createInterviewSession,
+  getInterviewSessionByToken,
+  isInterviewLinkExpired,
+  isInterviewSessionLive,
+  markInterviewStarted,
+  revokeInterviewSession,
+  setInterviewSessionProvider,
+} from "@/app/_lib/db/interviews";
 import { getEntryWorkspace, getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import {
@@ -90,6 +99,27 @@ export async function POST(request: NextRequest) {
     }
     if (session0 && isInterviewLinkExpired(session0)) {
       return jsonRefusal("INTERVIEW_LINK_EXPIRED", 409);
+    }
+    // ONE LIVE CALL PER LINK. The token IS the session, so two browser tabs on the
+    // same interview link both reached this door: each minted its own provider
+    // credentials (two paid sessions for one screen), each ran a real conversation,
+    // and at hang-up the SECOND one to finish was answered `{ok:true,
+    // alreadyCompleted:true}` — its transcript discarded while its candidate read a
+    // saved confirmation. The same shape covers a link forwarded to a colleague and
+    // a reload racing the call it is reloading.
+    //
+    // The window is LIVE_INTERVIEW_RECENCY_MIN (30 min from the last connect), the
+    // SAME authority /create's reissue guard uses for "this candidate is on the call
+    // right now" — one definition of live, so a link can never be simultaneously
+    // too-live to reissue and free to re-dial. Past that grace the row is an
+    // abandoned zombie and re-dialing is exactly the recovery a candidate needs.
+    //
+    // A genuinely dropped call does NOT wait the grace out: every teardown path
+    // (hang-up, ICE drop, tab close via the unmount beacon) POSTs /complete, which
+    // finalizes a non-substantive call as `failed` — reconnectable by design and no
+    // longer `in_progress`, so it never reaches this guard.
+    if (session0 && isInterviewSessionLive(session0)) {
+      return jsonRefusal("INTERVIEW_ALREADY_LIVE", 409, { retryAfterMin: LIVE_INTERVIEW_RECENCY_MIN });
     }
     if (session0?.entryId) {
       // Tenant from the ENTRY, not a session — this is a public token route and the
@@ -232,6 +262,10 @@ export async function POST(request: NextRequest) {
       // re-throws the original error when the alternate is unavailable, so this
       // preserves today's INTERVIEW_CONNECT_FAILED semantics exactly.
       availability: isSelfHostedProvider(provider) ? { ...voiceAvailability(), openai: false } : voiceAvailability(),
+      // Binds the minted credential to THIS session. Only a HASH of it is ever sent
+      // to a provider (voice/openai.ts) — the token itself opens the whole interview
+      // and never leaves this server.
+      sessionToken: session.token,
       resolveAgentPrompt,
     });
 

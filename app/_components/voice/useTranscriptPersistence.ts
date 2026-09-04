@@ -50,12 +50,25 @@ export function useTranscriptPersistence({
   // sessionStorage) instead of asking the candidate to babysit a tab with no action to take.
   const [saveFailed, setSaveFailed] = useState(false);
 
+  // How many turns the SERVER told us it discarded (409 INTERVIEW_ALREADY_COMPLETED
+  // with `discardedTurns`). A different outcome from saveFailed and it must not be
+  // dressed as one: the save did not fail transiently, it was REFUSED because
+  // another window's call for this same link finished first. Retrying can never
+  // help, so the candidate gets an explanation instead of a Retry button — and,
+  // crucially, is no longer told their interview was saved when it was not.
+  const [discardedTurns, setDiscardedTurns] = useState(0);
+
   // Durable persist of the transcript — the ONLY record of the interview. Stash it
   // locally first (so a total POST failure doesn't vanish it), then POST with a
   // few retries; 4xx (consent/token/already-completed) won't improve on retry, so
   // stop. keepalive lets it survive a closing tab. Returns whether it was saved.
   const persistTranscript = useCallback(
-    async (tok: string, sid: string, transcript: VoiceTurn[], status: "completed" | "failed"): Promise<boolean> => {
+    async (
+      tok: string,
+      sid: string,
+      transcript: VoiceTurn[],
+      status: "completed" | "failed"
+    ): Promise<{ saved: boolean; discardedTurns: number }> => {
       const body = JSON.stringify({ token: tok, sessionId: sid, transcript, status });
       const stashKey = `${STASH_PREFIX}${sid}`;
       try {
@@ -77,12 +90,38 @@ export function useTranscriptPersistence({
             } catch {
               /* ignore */
             }
-            return true;
+            return { saved: true, discardedTurns: 0 };
           }
           // 429 is the ONE 4xx that WILL improve on retry (/complete's per-token+IP
           // throttle): treat it as transient so the backoff below still runs and the
           // stash survives, unlike consent/token/already-completed which never will.
-          if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
+          if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+            // A 409 may carry `discardedTurns`: this body lost to another window's
+            // call for the same link and its turns are NOT in the saved record.
+            // Read it so the shell can say that, rather than showing a Retry that
+            // would be refused identically forever.
+            let discarded = 0;
+            if (res.status === 409) {
+              try {
+                const body = (await res.json()) as { discardedTurns?: unknown };
+                if (typeof body.discardedTurns === "number" && body.discardedTurns > 0) {
+                  discarded = body.discardedTurns;
+                }
+              } catch {
+                /* a refusal we cannot read is still a refusal — fall through to saveFailed */
+              }
+            }
+            // The stash exists so a transient failure can be replayed. This one can
+            // never succeed, and leaving it would re-POST a discarded transcript on
+            // every future mount.
+            try {
+              sessionStorage.removeItem(stashKey);
+            } catch {
+              /* ignore */
+            }
+            setDiscardedTurns(discarded);
+            return { saved: false, discardedTurns: discarded };
+          }
         } catch {
           /* network error — retry */
         }
@@ -99,7 +138,7 @@ export function useTranscriptPersistence({
         // mount, so stopping here loses nothing.
         if (timersRef.current.cleared) break;
       }
-      return false;
+      return { saved: false, discardedTurns: 0 };
     },
     []
   );
@@ -110,7 +149,7 @@ export function useTranscriptPersistence({
     const sid = sessionIdRef.current;
     const tok = sessionTokenRef.current ?? token ?? null;
     if (!sid || !tok) return;
-    const saved = await persistTranscript(tok, sid, turnsRef.current, endedAs ?? "failed");
+    const { saved } = await persistTranscript(tok, sid, turnsRef.current, endedAs ?? "failed");
     if (saved) setSaveFailed(false);
   }, [persistTranscript, token, endedAs, sessionIdRef, sessionTokenRef, turnsRef]);
 
@@ -189,5 +228,5 @@ export function useTranscriptPersistence({
     };
   }, [saveFailed, retrySave]);
 
-  return { saveFailed, setSaveFailed, persistTranscript, retrySave };
+  return { saveFailed, setSaveFailed, discardedTurns, setDiscardedTurns, persistTranscript, retrySave };
 }

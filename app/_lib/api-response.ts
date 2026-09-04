@@ -474,6 +474,14 @@ export const REFUSAL_ERRORS = {
   /** The screen is finished (409). `completed` is single-use, enforced by the
    *  status CAS in markInterviewStarted, so a retake mints no credentials. */
   INTERVIEW_ALREADY_COMPLETED: "This interview has already been completed.",
+  /** A second /connect on a link whose call is already LIVE (409). The token IS
+   *  the session, so two tabs (or a forwarded link) both minted provider
+   *  credentials and both ran a real conversation — and the loser's transcript was
+   *  discarded at hang-up behind a green "saved". `retryAfterMin` rides alongside:
+   *  the live window is LIVE_INTERVIEW_RECENCY_MIN, after which an abandoned
+   *  session is re-dialable. */
+  INTERVIEW_ALREADY_LIVE:
+    "This interview is already running in another window. Finish or close it before starting again.",
   /** A candidate-mode connect with no explicit consent (403). Consent is the legal
    *  basis for an AI-conducted, transcribed interview, so it is enforced server-side
    *  and not merely by the browser's disabled Start button. */

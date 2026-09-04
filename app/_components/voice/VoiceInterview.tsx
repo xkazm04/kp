@@ -271,13 +271,14 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
     });
   }, [oaiRefs]);
 
-  const { saveFailed, setSaveFailed, persistTranscript, retrySave } = useTranscriptPersistence({
-    token,
-    sessionIdRef,
-    sessionTokenRef,
-    turnsRef,
-    endedAs,
-  });
+  const { saveFailed, setSaveFailed, discardedTurns, setDiscardedTurns, persistTranscript, retrySave } =
+    useTranscriptPersistence({
+      token,
+      sessionIdRef,
+      sessionTokenRef,
+      turnsRef,
+      endedAs,
+    });
 
   const finalize = useCallback(
     async (status: "completed" | "failed") => {
@@ -343,8 +344,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       const sid = sessionIdRef.current;
       const tok = sessionTokenRef.current ?? token ?? null;
       if (sid && tok) {
-        const saved = await persistTranscript(tok, sid, turnsRef.current, status);
-        if (!saved) setSaveFailed(true);
+        const { saved, discardedTurns: discarded } = await persistTranscript(tok, sid, turnsRef.current, status);
+        // Two different endings, and only one of them is a retryable failure. A
+        // REFUSED save (another window's call for this link finished first) used to
+        // land here as `!saved` and got the Retry banner — a button that could only
+        // ever be refused again — while the closing card above still said the
+        // interview was complete. It now says what actually happened to the turns.
+        if (!saved && discarded === 0) setSaveFailed(true);
       }
     },
     [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, setSaveFailed, token, t]
@@ -562,6 +568,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
   async function start() {
     setConfirmingEnd(false);
     setSaveFailed(false);
+    setDiscardedTurns(0);
     setMuted(false);
     setElapsed(0);
     resetMicTestForCall(); // release the test mic before the real call claims the device
@@ -912,8 +919,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
         </p>
       ) : null}
 
+      {/* The completion was REFUSED, not dropped: another window's call on this same
+          link finished first and this transcript is not in the record. No Retry —
+          it would be refused identically — just the truth, which the old
+          `{ok:true, alreadyCompleted:true}` reply made impossible to tell. */}
+      {discardedTurns > 0 ? (
+        <p
+          role="alert"
+          className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral"
+        >
+          {t("discardedTurns", { count: discardedTurns })}
+        </p>
+      ) : null}
+
       {/* M6: save-failure recovery — a real action (Retry saving), not just "keep this tab open". */}
-      {saveFailed ? (
+      {saveFailed && discardedTurns === 0 ? (
         <div
           role="alert"
           className="flex flex-wrap items-center gap-3 rounded-md border border-coral/30 bg-coral/5 px-3 py-2.5 text-base text-coral"

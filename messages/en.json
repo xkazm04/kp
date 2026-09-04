@@ -1682,7 +1682,8 @@
     "DEVCASE_CASE_FIELDS_REQUIRED": "A role and a case are both required to approve.",
     "DEVCASE_SUBMISSION_ID_REQUIRED": "A submission reference is required.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "That submission can’t be found.",
-    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile."
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile.",
+    "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2118,7 +2119,8 @@
       "notChecked": "not checked",
       "micTestLevel": "Mic level: {level}%",
       "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
-      "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]"
+      "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]",
+      "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record."
     }
   },
   "palette": {
