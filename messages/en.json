@@ -7164,7 +7164,9 @@
     "viewLinkManual": "Your browser blocked the copy. Select the link below and copy it yourself.",
     "briefMomentumNoDataClaim": "Nothing has moved in these weeks yet.",
     "briefRolesNoDataClaim": "No role is carrying the pipeline yet.",
-    "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation."
+    "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation.",
+    "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
+    "closedInWindowSub": "{count} closed in window"
   },
   "matrix": {
     "loadFailed": "Load failed.",

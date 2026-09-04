@@ -30,8 +30,21 @@ export function AnalyticsStatCluster({ data }: { data: Analytics }) {
         value={n.grouped(data.hired)}
         // Reject and decline read separately so the offer-acceptance signal
         // (candidates who turned us down) isn't hidden inside "rejected".
+        // The value is the CREATION COHORT (`hired`: entries created in this window now
+        // standing on a terminal stage). `hiresClosedInWindow` is the same figure on the
+        // EVENT-TIME basis — hires whose terminal transition landed in the window — and
+        // the two diverge by exactly the time-to-hire. Every per-hire figure elsewhere on
+        // the tab divides by the event-time count, so when the two disagree the headline
+        // says so instead of leaving a reader to wonder why the cost-per-hire denominator
+        // is a different number. All-time cannot diverge, so the line is windowed-only.
         sub={
-          [data.rejected ? t("rejectedSub", { count: data.rejected }) : null, data.declined ? t("declinedSub", { count: data.declined }) : null]
+          [
+            data.rejected ? t("rejectedSub", { count: data.rejected }) : null,
+            data.declined ? t("declinedSub", { count: data.declined }) : null,
+            data.windowDays != null && data.hiresClosedInWindow !== data.hired
+              ? t("closedInWindowSub", { count: data.hiresClosedInWindow })
+              : null,
+          ]
             .filter(Boolean)
             .join(" · ") || undefined
         }
@@ -43,7 +56,18 @@ export function AnalyticsStatCluster({ data }: { data: Analytics }) {
       <Stat
         label={t("statTimeToHire")}
         value={data.avgTimeToHireDays != null ? n.grouped(data.avgTimeToHireDays) : "—"}
-        sub={data.avgTimeToHireDays != null ? t("daysAvg") : t("noHires")}
+        // The average NAMES ITS SAMPLE. `timeToHireSamples` is not `hired`: a hire whose
+        // entry lacks one of the two timestamps is a real hire this mean cannot see (4 of
+        // 9 on the shipped corpus), and an average over 5 observations presented as an
+        // average over 9 is the exact misreading the metric pack's sample rule exists to
+        // stop. Falls back to the bare label if a cached payload predates the field.
+        sub={
+          data.avgTimeToHireDays == null
+            ? t("noHires")
+            : data.timeToHireSamples > 0
+              ? t("daysAvgOver", { count: data.timeToHireSamples })
+              : t("daysAvg")
+        }
         delta={data.deltas?.avgTimeToHireDays}
         unit="days"
         lowerIsBetter

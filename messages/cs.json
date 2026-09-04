@@ -7164,7 +7164,9 @@
     "viewLinkManual": "Prohlížeč kopírování zablokoval. Označte odkaz níže a zkopírujte ho ručně.",
     "briefMomentumNoDataClaim": "V těchto týdnech se zatím nic nepohnulo.",
     "briefRolesNoDataClaim": "Zatím žádná role pipeline netáhne.",
-    "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete."
+    "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete.",
+    "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
+    "closedInWindowSub": "{count} uzavřeno v období"
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
