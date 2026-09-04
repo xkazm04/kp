@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { RepoScanRequestError, startRepoScan } from "@/app/_lib/repo-scan";
 
 // App master (P2) — start a repo scan: POST { repoUrl? } | { rootPath? } →
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
   try {
     if (!rateLimit(`repo-scan:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as { repoUrl?: unknown; rootPath?: unknown };
     // The tenant comes from the SESSION, never the body.

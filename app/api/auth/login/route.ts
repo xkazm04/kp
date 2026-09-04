@@ -4,7 +4,8 @@ import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/a
 import { verifyCredentials, normalizeEmail } from "@/app/_lib/db/users";
 import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
-import { clientIpFrom, RATE_LIMITED_ERROR, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
+import { clientIpFrom, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { isThrottled, recordFailedAttempt, clearFailures, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
 
 // Brute-force / credential-stuffing throttle (bug-ui-scan-2026-07-09 #4). Fixed
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
     // header note): a shared key would make this one global lockout.
     const perClientIp = ip !== SHARED_CLIENT_KEY;
     if (isThrottled(acctKey, ACCOUNT_THROTTLE) || (perClientIp && isThrottled(ipKey, IP_THROTTLE))) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // Uniform 401 for both "no such user" and "wrong password" — never leak which.
     const user = password ? verifyCredentials(email, password) : null;
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
   // (which makes the key per-client) or per-user operator accounts, not a wider gate.
   const opKey = `login:op:${ip}`;
   if (isThrottled(opKey, OPERATOR_THROTTLE)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   if (!password || !constantTimeEqual(password, expected)) {
     recordFailedAttempt(opKey, OPERATOR_THROTTLE);

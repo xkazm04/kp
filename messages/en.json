@@ -1484,6 +1484,7 @@
     "INTAKE_NOTHING_TO_EXTRACT": "There is nothing to extract yet.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Voice is not configured on this install.",
     "COMPANION_THREAD_NOT_FOUND": "That conversation no longer exists.",
+    "DEVCASE_CHAT_CEILING": "This work session has used all of its messages. Your work is saved, and this budget does not reset.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again shortly.",
     "UPLOAD_UNSUPPORTED_TYPE": "Use a PDF, DOCX, TXT or MD file.",
     "UPLOAD_TOO_LARGE": "That file is over the 8 MB upload limit.",
@@ -4392,6 +4393,7 @@
       "buildIntentTemplate": "Template",
       "buildIntentLanguage": "Language",
       "buildIntentSeniority": "Seniority",
+      "buildIntentTemplateUnknown": "Could not load templates, so this build's template cannot be named.",
       "buildIntentAiDefault": "AI default format",
       "caseTaskFallback": "Task",
       "pollStalledNote": "Still analyzing. Nothing has reported on this build for a while. The Tasks drawer has its live status.",
@@ -4419,6 +4421,7 @@
       "intro": "Pick a company template, describe the need in your own words, and AI fills the template. It clarifies the need, designs the role (optionally analyzing a public repo for dev roles), and researches market salary.",
       "templateLabel": "Template",
       "aiDefaultFormat": "AI default format (no template)",
+      "templatesLoadFailed": "Could not load your templates. The AI default format is still available.",
       "defaultSuffix": " (default)",
       "manage": "Manage",
       "manageTitle": "Create, edit, or delete company templates",
@@ -7274,7 +7277,10 @@
     "removeVariantAria": "Remove variant {letter}",
     "addVariant": "Add variant ({current}/{max})",
     "variantLimitReached": "Variant limit reached.",
-    "selectCvFirst": "Select a CV or LinkedIn PDF export first."
+    "selectCvFirst": "Select a CV or LinkedIn PDF export first.",
+    "jdLibraryLoading": "Loading your JD library…",
+    "jdLibraryFailed": "Couldn’t load your JD library.",
+    "jdLibraryRetry": "Retry"
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",

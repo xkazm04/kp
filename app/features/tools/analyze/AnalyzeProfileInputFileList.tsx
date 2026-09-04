@@ -15,6 +15,7 @@ export function AnalyzeProfileInputFileList({
   maxVariants,
   isWindowDragging,
   dragOverlay,
+  dragAnnouncement,
   errorRow,
   onAddFiles,
   onReplaceFile,
@@ -24,6 +25,10 @@ export function AnalyzeProfileInputFileList({
   maxVariants: number;
   isWindowDragging: boolean;
   dragOverlay: ReactNode;
+  /** The polite live region announcing that the page is a drop target. Always in
+   *  the tree (empty when idle) — a region mounted with its content is not
+   *  reliably announced — so it is passed in rather than rendered conditionally. */
+  dragAnnouncement: ReactNode;
   errorRow: ReactNode;
   /** Batch intake — the "add another variant" picker accepts a multi-selection,
    *  so the parent's single cap/gate path decides how many of them fit. */
@@ -37,6 +42,7 @@ export function AnalyzeProfileInputFileList({
   return (
     <div className="space-y-2">
       {dragOverlay}
+      {dragAnnouncement}
       {files.map((file, index) => (
         <div
           key={`${file.name}-${index}`}

@@ -29,9 +29,9 @@ export type SchedEntry = {
 // reader's locale. Localizing the token would break the parse it exists for.
 export const DEFAULT_SLOT = "Tue 14:00";
 
-export const ARCHETYPE = {
-  bau: { label: "Experienced", bg: "bg-steel" },
-  student: { label: "Student", bg: "bg-coral" },
-  career_switcher: { label: "Switcher", bg: "bg-moss" },
-} as const;
-export const styleFor = (a: string | null) => ARCHETYPE[(a as keyof typeof ARCHETYPE) ?? "bau"] ?? ARCHETYPE.bau;
+// The archetype fill, single-sourced in app/features/shared/archetypeTone.ts and
+// re-exported under the name the two Schedule surfaces already import. This file
+// used to carry a byte-identical copy of the Decisions table, label field and all
+// — and that label was raw English no consumer read (both cells take their
+// visible text from `enumLabel("archetype", …)`).
+export { archetypeTone as styleFor, type ArchetypeTone } from "@/app/features/shared/archetypeTone";

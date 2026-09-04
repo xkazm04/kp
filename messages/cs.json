@@ -1484,6 +1484,7 @@
     "INTAKE_NOTHING_TO_EXTRACT": "Zatím není z čeho vytěžit zadání.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Hlasový režim není v této instalaci nastavený.",
     "COMPANION_THREAD_NOT_FOUND": "Tato konverzace už neexistuje.",
+    "DEVCASE_CHAT_CEILING": "Tato pracovní relace vyčerpala všechny zprávy. Vaše práce je uložená a tento limit se neobnovuje.",
     "TOO_MANY_REQUESTS": "Příliš mnoho požadavků. Zkuste to prosím za chvilku znovu.",
     "UPLOAD_UNSUPPORTED_TYPE": "Použijte soubor PDF, DOCX, TXT nebo MD.",
     "UPLOAD_TOO_LARGE": "Tento soubor překračuje limit 8 MB pro nahrání.",
@@ -4392,6 +4393,7 @@
       "buildIntentTemplate": "Šablona",
       "buildIntentLanguage": "Jazyk",
       "buildIntentSeniority": "Seniorita",
+      "buildIntentTemplateUnknown": "Šablony se nepodařilo načíst, proto nelze uvést šablonu tohoto sestavení.",
       "buildIntentAiDefault": "Výchozí formát AI",
       "caseTaskFallback": "Úkol",
       "pollStalledNote": "Stále se analyzuje. O tomto sestavení už chvíli nic nepřišlo. Živý stav najdete v zásuvce Úlohy.",
@@ -4419,6 +4421,7 @@
       "intro": "Vyberte firemní šablonu, popište potřebu vlastními slovy a AI šablonu vyplní. Vyjasní potřebu, navrhne pozici (u vývojářských pozic volitelně analyzuje veřejný repozitář) a vyhledá tržní mzdu.",
       "templateLabel": "Šablona",
       "aiDefaultFormat": "Výchozí formát AI (bez šablony)",
+      "templatesLoadFailed": "Šablony se nepodařilo načíst. Výchozí formát AI je stále k dispozici.",
       "defaultSuffix": " (výchozí)",
       "manage": "Spravovat",
       "manageTitle": "Vytvořit, upravit nebo smazat firemní šablony",
@@ -7274,7 +7277,10 @@
     "removeVariantAria": "Odebrat variantu {letter}",
     "addVariant": "Přidat variantu ({current}/{max})",
     "variantLimitReached": "Dosažen limit variant.",
-    "selectCvFirst": "Nejdřív vyberte CV nebo PDF export z LinkedInu."
+    "selectCvFirst": "Nejdřív vyberte CV nebo PDF export z LinkedInu.",
+    "jdLibraryLoading": "Načítá se knihovna popisů pozic…",
+    "jdLibraryFailed": "Knihovnu popisů pozic se nepodařilo načíst.",
+    "jdLibraryRetry": "Zkusit znovu"
   },
   "integrations": {
     "configLoadFailed": "Nepodařilo se načíst uložené nastavení webhooku. Zobrazené hodnoty nemusí odpovídat tomu, co je uloženo.",

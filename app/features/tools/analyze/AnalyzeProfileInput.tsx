@@ -74,6 +74,17 @@ export function AnalyzeProfileInput({
 
   // Drop-anywhere affordance: a full-window overlay while a file is dragged over
   // the page (pointer-events-none so the underlying drop targets still receive it).
+  // The overlay itself stays aria-hidden — it is a decorative full-window scrim
+  // and its text is duplicated below — but the FACT that the page has become a
+  // drop target is announced once, politely, through a live region that is always
+  // in the tree (a region mounted at the same moment as its content is not
+  // reliably announced). Empty when no drag is active, so it says nothing then.
+  const dragAnnouncement = (
+    <p role="status" aria-live="polite" className="sr-only">
+      {isWindowDragging ? `${t("dropCvAnywhere")} ${t("dropCarveout")}` : ""}
+    </p>
+  );
+
   const dragOverlay = isWindowDragging ? (
     <div className="animate-fade-in pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-coral/5" aria-hidden>
       <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-coral bg-white/90 px-10 py-8 shadow-panel">
@@ -121,8 +132,15 @@ export function AnalyzeProfileInput({
             added once by this onDrop — not also by the window catch (which would
             duplicate it). Drops elsewhere still fall through to the window catch
             as the first CV. (idea-1a75b476) */}
+        {dragAnnouncement}
+        {/* A <label> announces only the input's name, so a screen-reader user was
+            never told this box is a drop target or what it accepts. role="button"
+            names the interaction; aria-describedby carries the localized
+            format/size hint that was decorative text before. */}
         <label
           htmlFor="profile-file-0"
+          role="button"
+          aria-describedby="profile-file-0-hint"
           {...ownedDropZoneProps}
           {...dragProps}
           // Deliberately AFTER {...dragProps}: the shared highlight hook's onDrop
@@ -145,7 +163,9 @@ export function AnalyzeProfileInput({
           <span className="mt-1 max-w-full truncate text-sm font-semibold text-ink">
             {isActive ? t("dropCvHere") : t("dropCvOrClick")}
           </span>
-          <span className="text-sm text-steel">{t("uploadHint", { max: MAX_FILE_MB })}</span>
+          <span id="profile-file-0-hint" className="text-sm text-steel">
+            {t("uploadHint", { max: MAX_FILE_MB })}
+          </span>
         </label>
         {errorRow}
         <input
@@ -153,6 +173,10 @@ export function AnalyzeProfileInput({
           type="file"
           multiple
           accept={ACCEPT_EXTENSIONS}
+          // See AnalyzeFileDropZone: the label's role="button" costs it the
+          // implicit naming of this input, so the name is given here.
+          aria-label={t("dropCvOrClick")}
+          aria-describedby="profile-file-0-hint"
           className="sr-only"
           onChange={(event) => {
             addFiles(Array.from(event.target.files ?? []));
@@ -177,6 +201,7 @@ export function AnalyzeProfileInput({
   return (
     <AnalyzeProfileInputFileList
       files={files}
+      dragAnnouncement={dragAnnouncement}
       maxVariants={maxVariants}
       isWindowDragging={isWindowDragging}
       dragOverlay={dragOverlay}

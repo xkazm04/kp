@@ -3,8 +3,8 @@ import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { listDecisionRecords } from "@/app/_lib/decision-record-store";
 import { candidateDecisionHistory } from "@/app/_lib/status-decisions";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // EU AI-Act Art. 86 (docs/features/compliance/ai-act-conformity.md) — the candidate's own
 // decision history, REDACTED, on their status token. Sibling of the status
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     const { token } = await context.params;
     // Throttle BEFORE the store reads, keyed per token AND client (sibling pattern).
     if (!rateLimit(`status-decisions:${clientIpFrom(request.headers)}:${token}`, STATUS_DECISIONS_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entryId = getEntryIdByStatusToken(token);
     if (!entryId) return NextResponse.json({ error: "not found" }, { status: 404 });

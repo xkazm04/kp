@@ -335,10 +335,13 @@ export async function watchAnalysis(
 // Extract plain text from an uploaded document via the server-side Python
 // extractor (the same one the CV pipeline uses). Lets the GitHub deep-dive read
 // a file-only JD instead of silently treating it as empty.
-export async function extractFileText(file: File): Promise<string> {
+export async function extractFileText(file: File, signal?: AbortSignal): Promise<string> {
   const form = new FormData();
   form.append("file", file);
-  const response = await fetch("/api/extract-text", { method: "POST", body: form });
+  // The optional signal belongs to the run that asked for the extraction: a
+  // superseded GitHub deep-dive must stop paying for a Python subprocess whose
+  // answer nobody will read.
+  const response = await fetch("/api/extract-text", { method: "POST", body: form, signal });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload || typeof payload.text !== "string") {
     throw new AnalyzeClientError("errExtractionFailed", payload?.error);

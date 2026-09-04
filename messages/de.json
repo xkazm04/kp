@@ -1484,6 +1484,7 @@
     "INTAKE_NOTHING_TO_EXTRACT": "Es gibt noch nichts auszuwerten.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Die Sprachfunktion ist in dieser Installation nicht konfiguriert.",
     "COMPANION_THREAD_NOT_FOUND": "Diese Unterhaltung gibt es nicht mehr.",
+    "DEVCASE_CHAT_CEILING": "Diese Arbeitssitzung hat alle Nachrichten aufgebraucht. Ihre Arbeit ist gespeichert. Dieses Kontingent wird nicht zurückgesetzt.",
     "TOO_MANY_REQUESTS": "Zu viele Anfragen. Bitte versuchen Sie es gleich noch einmal.",
     "UPLOAD_UNSUPPORTED_TYPE": "Verwenden Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
     "UPLOAD_TOO_LARGE": "Diese Datei überschreitet das Upload-Limit von 8 MB.",
@@ -4392,6 +4393,7 @@
       "buildIntentTemplate": "Vorlage",
       "buildIntentLanguage": "Sprache",
       "buildIntentSeniority": "Senioritätsstufe",
+      "buildIntentTemplateUnknown": "Vorlagen konnten nicht geladen werden; die Vorlage dieses Builds lässt sich daher nicht benennen.",
       "buildIntentAiDefault": "KI-Standardformat",
       "caseTaskFallback": "Aufgabe",
       "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung. Den Live-Status zeigt die Aufgaben-Leiste.",
@@ -4419,6 +4421,7 @@
       "intro": "Wählen Sie eine Unternehmensvorlage, beschreiben Sie den Bedarf in eigenen Worten, und die AI füllt die Vorlage. Sie klärt den Bedarf, gestaltet die Position (bei Dev-Positionen optional durch Analyse eines öffentlichen Repos) und recherchiert das Marktgehalt.",
       "templateLabel": "Vorlage",
       "aiDefaultFormat": "AI-Standardformat (keine Vorlage)",
+      "templatesLoadFailed": "Vorlagen konnten nicht geladen werden. Das AI-Standardformat steht weiterhin zur Verfügung.",
       "defaultSuffix": " (Standard)",
       "manage": "Verwalten",
       "manageTitle": "Unternehmensvorlagen erstellen, bearbeiten oder löschen",
@@ -7274,7 +7277,10 @@
     "removeVariantAria": "Variante {letter} entfernen",
     "addVariant": "Variante hinzufügen ({current}/{max})",
     "variantLimitReached": "Variantenlimit erreicht.",
-    "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus."
+    "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus.",
+    "jdLibraryLoading": "Bibliothek der Stellenbeschreibungen wird geladen…",
+    "jdLibraryFailed": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden.",
+    "jdLibraryRetry": "Erneut versuchen"
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden. Die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",

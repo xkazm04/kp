@@ -44,7 +44,7 @@ import { ArrowDown, ArrowUp, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
-import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import type { PipelineStageRoleWire } from "@/app/_lib/decision-config-schema";
 
 /** The type cell's width, in both editors. Exported so a caller rendering its own
@@ -214,6 +214,11 @@ export function PipelineStepRow({
             control would only be furniture. A row that CAN'T be removed right now
             (candidates standing on it) keeps the disabled button, because there the
             reason is real, temporary, and worth saying. */}
+        {/* BTN_GHOST is the quiet, borderless action recipe (focus ring, steel rest,
+            soft hover wash, dark sticker radius); the destructive HOVER tone and the
+            sharper disabled fade are the two things a remove genuinely differs by, so
+            they are all that is added to it. The hand-typed string this replaces had
+            no dark-mode radius at all. */}
         {onRemove ? (
           <button
             type="button"
@@ -221,7 +226,7 @@ export function PipelineStepRow({
             disabled={!canRemove}
             title={removeTitle}
             aria-label={aria.remove}
-            className="focus-ring rounded-md p-1 text-steel transition-colors hover:text-coral disabled:opacity-40 disabled:hover:text-steel"
+            className={`${BTN_GHOST} p-1 hover:bg-transparent hover:text-coral disabled:opacity-40 disabled:hover:text-steel`}
           >
             <X size={14} aria-hidden />
           </button>

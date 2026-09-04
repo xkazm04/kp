@@ -122,5 +122,22 @@ export function clientIpFrom(headers: Headers): string {
   return resolveClientIp(headers.get("x-forwarded-for"), headers.get("x-real-ip"), trustedProxyHops());
 }
 
-/** User-facing 429 message, shared by every limited route. */
+/**
+ * The canonical English sentence for a throttle — INTERNAL TO THE REFUSAL REGISTRY.
+ *
+ * It is still `export`ed because `api-response.ts` imports it (`REFUSAL_ERRORS
+ * .TOO_MANY_REQUESTS: RATE_LIMITED_ERROR`, so the limiter's message and the registry's
+ * can never say different things), and that is the ONLY importer the codebase may have —
+ * pinned by the source guard at the bottom of `app/api/rate-limit-contract.test.ts`.
+ *
+ * DO NOT import it into a route. A route that holds this string is a route about to
+ * answer `NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 })`, which puts
+ * an English sentence on the wire with NO code beside it: `useErrorMessage()` has nothing
+ * to resolve, so a Czech, German or French reader gets English on exactly the routes a
+ * burst hits. About twenty-five doors were in that state until /perfect wave 38.
+ *
+ * The one shape a throttled route answers with is `jsonRefusal("TOO_MANY_REQUESTS", 429)`
+ * — the same sentence for the log and for API consumers, plus the code the client
+ * localizes (docs/architecture/api-contracts.md §1.1).
+ */
 export const RATE_LIMITED_ERROR = "Too many requests — please try again shortly.";

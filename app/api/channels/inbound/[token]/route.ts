@@ -7,7 +7,8 @@ import {
   MAX_LEAD_NAME_LENGTH,
 } from "@/app/_lib/inbound-lead";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   try {
     const { token } = await context.params;
     if (!rateLimit(`inbound:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Unknown and revoked tokens are deliberately indistinguishable (both 404).

@@ -4,7 +4,7 @@ import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { rateLimit } from "@/app/_lib/rate-limit";
 // The flush byte budget lives in a sibling module: Next's generated route types
 // reject any non-handler `export const` here (backlog item 57).
 import { chargeFlushBytes } from "../session-limits";
@@ -130,14 +130,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // AFTER the 404/409/403 refusals (a rejected call never consumes budget) and BEFORE
     // the first write.
     if (!rateLimit(`devcase-flush:${id}`, { limit: 200, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     if (!rateLimit(`devcase-flush-token:${session.token}`, { limit: 60_000, windowMs: 24 * 60 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // …and the bound the two counts cannot express: BYTES per apply token per day.
     if (!chargeFlushBytes(session.token, raw.length)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     let seq = 0;

@@ -28,10 +28,12 @@ test("verify route gates behind the ONE shared per-IP limiter (30/10min)", () =>
   const at = routeSrc.indexOf(call);
   assert.ok(at >= 0, `expected the pinned per-IP limiter call:\n  ${call}`);
 
-  // Shared refusal convention: the shared message + a 429, nothing bespoke.
+  // Shared refusal convention: the ONE registered throttle refusal, through the
+  // chokepoint. The message is still the shared sentence (REFUSAL_ERRORS' entry IS
+  // RATE_LIMITED_ERROR) and the code rides beside it, so a verifier walking this
+  // credential's door is told why in their own language.
   const refusal = routeSrc.slice(at, at + 400);
-  assert.match(refusal, /RATE_LIMITED_ERROR/, "the refusal must use the shared message");
-  assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
+  assert.match(refusal, /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/, "the refusal must go through the chokepoint");
 
   // The throttle must PRECEDE the oracle work (the verify + summary dump) so a walker
   // can't spend the summary before being rate-limited.

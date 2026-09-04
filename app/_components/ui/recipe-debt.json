@@ -310,9 +310,6 @@
     "features/settings/workspace/WorkspaceTab.tsx": {
       "noticeAmber": 1
     },
-    "features/shared/MatchPresentation.tsx": {
-      "noticeAmber": 1
-    },
     "features/shell/WorkspacePaletteLedger.tsx": {
       "metaLabel": 1
     },

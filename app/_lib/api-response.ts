@@ -407,6 +407,12 @@ export const REFUSAL_ERRORS = {
    *  minted its day's worth of sessions, and the candidate's remedy ("come back later",
    *  not "slow down") differs. */
   DEVCASE_SESSION_QUOTA: "Too many sessions started for this case. Try again later.",
+  /** The work session has spent its 400-message ceiling (429). A THIRD kind of 429 and
+   *  deliberately not TOO_MANY_REQUESTS: the shared throttle's sentence promises that
+   *  waiting clears it, and this ceiling never resets for the session, so the shared
+   *  code would tell a candidate mid-assessment to do the one thing that cannot help.
+   *  Their work is already stored, which is the part the message has to carry. */
+  DEVCASE_CHAT_CEILING: "This work session has used all of its messages. Your work is saved, and this budget does not reset.",
   /** An on-the-job rating was posted for an entry that is not on the board (404). */
   HIRE_RATING_ENTRY_NOT_FOUND: "That candidate is not on this board.",
   /** …or for someone who never took the job (409). The stage is re-read server-side,

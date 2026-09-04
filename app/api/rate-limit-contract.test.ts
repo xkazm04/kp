@@ -16,9 +16,10 @@
 // Route modules import via the "@/..." alias, which Node's test runner does not
 // resolve — so, mirroring upload-size-contract.test.ts, each route gets
 //   (a) a source-level guard: the shared limiter gates the expensive work, with
-//       the pinned key/limit and the shared 429 refusal envelope
-//       ({ error: RATE_LIMITED_ERROR }, status 429 — the demo/offer/schedule
-//       convention), placed after any branch that must keep serving freely; and
+//       the pinned key/limit and the ONE registered refusal
+//       (`jsonRefusal("TOO_MANY_REQUESTS", 429)` — the chokepoint every door now
+//       shares, so the sentence arrives in the reader's language), placed after
+//       any branch that must keep serving freely; and
 //   (b) a behavioral drive of the REAL in-process limiter with the route's
 //       exact config: every hit up to the limit passes, the next hit inside the
 //       window is refused (the 429 branch), and a fresh window admits again.
@@ -79,14 +80,24 @@ type RouteSpec = {
   /** The exact defining line for `optsSrc`; must precede the limiter call and must
    *  itself spell out the pinned limit and window. */
   optsDef?: string;
-  /** Routes that answer the throttle through the REFUSAL CHOKEPOINT
-   *  (`jsonRefusal("TOO_MANY_REQUESTS", 429)`) rather than hand-rolling the
-   *  envelope. The shared message still reaches the client — REFUSAL_ERRORS'
-   *  TOO_MANY_REQUESTS IS `RATE_LIMITED_ERROR`, pinned by its own test below —
-   *  and the response additionally carries the machine code, so a throttled dock
-   *  can say WHICH refusal happened in the reader's language instead of painting
-   *  the server's English string (api-contracts.md 1.1). */
-  refusalCode?: "TOO_MANY_REQUESTS";
+  /** REQUIRED, and there is exactly one value: every throttle in this app answers
+   *  through the REFUSAL CHOKEPOINT — `jsonRefusal("TOO_MANY_REQUESTS", 429)` — and
+   *  never a hand-rolled envelope. The shared message still reaches the client
+   *  (REFUSAL_ERRORS' TOO_MANY_REQUESTS IS `RATE_LIMITED_ERROR`, pinned by its own
+   *  test below) and the response additionally carries the machine code, so a
+   *  throttled surface says WHICH refusal happened in the reader's language instead
+   *  of painting the server's English string (api-contracts.md §1.1).
+   *
+   *  It is a FIELD rather than an implicit rule because the field is what makes the
+   *  contract legible: a row without it used to mean "this door still answers English
+   *  prose", and about twenty-five of them did. Keeping it mandatory means a new
+   *  limited route cannot be added in the old shape — the type refuses it. */
+  refusalCode: "TOO_MANY_REQUESTS";
+  /** The single documented exception (./github-analysis): a surface whose failures
+   *  are resolved in its OWN catalog namespace, so the wire `code` is that namespace's
+   *  throttle key while the MESSAGE is still `REFUSAL_ERRORS[refusalCode]`. Any second
+   *  use of this field is a design question, not a mechanical one — see §1.1. */
+  surfaceCode?: "REQUEST_THROTTLED";
   /** A snippet marking the expensive work the limiter must precede. */
   expensive: string;
   /** Optional snippet that must run BEFORE the limiter (a branch that keeps serving freely). */
@@ -183,6 +194,7 @@ const ROUTES: RouteSpec[] = [
     limit: 20,
     optsSrc: "APPLY_RATE_LIMIT",
     optsDef: "const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "buildApplicantProfile(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -193,6 +205,7 @@ const ROUTES: RouteSpec[] = [
     limit: 30,
     optsSrc: "QUICK_APPLY_RATE_LIMIT",
     optsDef: "const QUICK_APPLY_RATE_LIMIT = { limit: 30, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "intakeLead(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -203,6 +216,7 @@ const ROUTES: RouteSpec[] = [
     limit: 10,
     optsSrc: "FOLLOWUP_RATE_LIMIT",
     optsDef: "const FOLLOWUP_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "renormalizeApplicantProfile(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -213,6 +227,7 @@ const ROUTES: RouteSpec[] = [
     limit: 12,
     optsSrc: "SESSION_RATE_LIMIT",
     optsDef: "const SESSION_RATE_LIMIT = { limit: 12, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "startApplySession(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -227,6 +242,7 @@ const ROUTES: RouteSpec[] = [
     limit: 60,
     optsSrc: "DATA_VIEW_RATE_LIMIT",
     optsDef: "const DATA_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "findEntryByErasureToken(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -237,6 +253,7 @@ const ROUTES: RouteSpec[] = [
     limit: 10,
     optsSrc: "DATA_ERASE_RATE_LIMIT",
     optsDef: "const DATA_ERASE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "anonymizeEntry(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -250,6 +267,7 @@ const ROUTES: RouteSpec[] = [
     limit: 60,
     optsSrc: "OFFER_VIEW_RATE_LIMIT",
     optsDef: "const OFFER_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "offerView(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -265,6 +283,7 @@ const ROUTES: RouteSpec[] = [
     rel: "./offer/[token]/route.ts",
     key: "`offer:${clientIpFrom(request.headers)}:${token}`",
     limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "respondToOffer(",
     windowMs: 60_000,
     windowSrc: "60_000",
@@ -312,6 +331,14 @@ const ROUTES: RouteSpec[] = [
     limit: 10,
     // The GitHub/Gemini harvest moved into @/app/_lib/github/analysis (F12a) — the
     // library call IS the expensive work the limiter guards.
+    refusalCode: "TOO_MANY_REQUESTS",
+    // THE ONE EXCEPTION, and it is pinned here so it stays one. This surface resolves
+    // its failures in its own `results.github.errors` catalog namespace (the deep
+    // dive's codes describe one optional feature), where the throttle key is
+    // REQUEST_THROTTLED — `TOO_MANY_REQUESTS` would be a code that namespace does not
+    // know. The MESSAGE is still the registry's, read from REFUSAL_ERRORS rather than a
+    // second import of the limiter constant, so the sentence can never drift.
+    surfaceCode: "REQUEST_THROTTLED",
     expensive: "buildGithubAnalysis(",
     // Cached responses must keep serving without consuming limiter budget.
     servedBefore: "readGithubCache(cacheKey)",
@@ -483,6 +510,7 @@ const ROUTES: RouteSpec[] = [
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
     key: "`extract-text:${clientIpFrom(request.headers)}`",
     limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "spawnPython(",
   },
   {
@@ -570,6 +598,7 @@ const ROUTES: RouteSpec[] = [
     // candidate never meets it while a scripted loop is pinned to 3/min.
     key: "`devcase-chat:${id}`",
     limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runSessionChat(",
     // The 404/409 lifecycle refusals and the 403 token check keep their semantics
     // ahead of the throttle, so a rejected call never consumes budget.
@@ -696,6 +725,7 @@ const ROUTES: RouteSpec[] = [
     // The CALL SITE, not a bare `startRepoScan(`: that substring also appears in
     // this route's import and header comment, both of which precede the limiter, so
     // the generic marker would fail on prose rather than on ordering.
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "startRepoScan(\n",
   },
   {
@@ -724,6 +754,7 @@ const ROUTES: RouteSpec[] = [
     limit: 3000,
     windowMs: 24 * 60 * 60_000,
     windowSrc: "24 * 60 * 60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runSessionChat(",
     servedBefore: 'session.status !== "active"',
   },
@@ -739,6 +770,7 @@ const ROUTES: RouteSpec[] = [
     key: "`devcase-flush:${id}`",
     limit: 200,
     // The first WRITE the limiter guards (the bare name also appears in the import).
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "appendDevSessionEvents(id, events)",
     // The 404/409 lifecycle refusals and the 403 token check keep their semantics ahead
     // of the throttle, so a rejected flush never consumes budget.
@@ -760,6 +792,7 @@ const ROUTES: RouteSpec[] = [
     limitSrc: "60_000",
     windowMs: 24 * 60 * 60_000,
     windowSrc: "24 * 60 * 60_000",
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "appendDevSessionEvents(id, events)",
     servedBefore: 'session.status !== "active"',
   },
@@ -804,6 +837,7 @@ const ROUTES: RouteSpec[] = [
     limit: 10,
     // The CALL, not a bare `sweepRediscoveryAlerts(`: that substring also appears in
     // this route's import and in the comment above the limiter, both before it.
+    refusalCode: "TOO_MANY_REQUESTS",
     expensive: "await sweepRediscoveryAlerts({",
   },
   // ------------------------------------------------------------------
@@ -1524,19 +1558,24 @@ for (const spec of ROUTES) {
       );
     }
 
-    // The refusal must follow the shared 429 convention used by every existing
-    // limiter consumer: the shared message, status 429, nothing bespoke. Routes on
-    // the refusal chokepoint say the same thing through `jsonRefusal` — same
-    // message (pinned below), plus the code the client localizes.
+    // The refusal goes through the CHOKEPOINT — one shape for every throttled door.
+    // The shared message still reaches the client (pinned below) and the machine code
+    // rides beside it, which is the whole point: a hand-rolled `{ error: <English> }`
+    // leaves a Czech reader with an English sentence on exactly the routes a burst hits.
     const refusal = src.slice(at, at + 400);
-    if (spec.refusalCode) {
+    if (spec.surfaceCode) {
+      // The documented exception: own catalog namespace, registry message.
+      assert.ok(
+        refusal.includes(`{ error: REFUSAL_ERRORS.${spec.refusalCode}, code: "${spec.surfaceCode}" }`),
+        `the refusal must carry the registry MESSAGE with this surface's own code: ` +
+          `{ error: REFUSAL_ERRORS.${spec.refusalCode}, code: "${spec.surfaceCode}" }`,
+      );
+      assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
+    } else {
       assert.ok(
         refusal.includes(`jsonRefusal("${spec.refusalCode}", 429)`),
         `the refusal must go through the chokepoint: jsonRefusal("${spec.refusalCode}", 429)`,
       );
-    } else {
-      assert.match(refusal, /RATE_LIMITED_ERROR/, "the refusal must use the shared message");
-      assert.match(refusal, /status:\s*429/, "the refusal must be a 429");
     }
 
     // The limiter must run BEFORE the expensive work it guards…
@@ -1877,10 +1916,13 @@ test("./invite/[token]/route.ts throttles both verbs on the PERSISTED store", ()
     assert.ok(keyAt > defAt, `${verb}: expected the pinned key ${key} after the budget`);
     const gateAt = src.indexOf("isThrottled(", keyAt);
     assert.ok(gateAt > keyAt, `${verb}: the key must feed isThrottled`);
-    // The shared 429 envelope every limited route answers with.
+    // The ONE registered refusal every limited route answers with — the persisted
+    // store changes WHERE the count lives, never what a throttled caller is told.
     const refusal = src.slice(gateAt, gateAt + 300);
-    assert.match(refusal, /RATE_LIMITED_ERROR/, `${verb}: the refusal must use the shared message`);
-    assert.match(refusal, /status:\s*429/, `${verb}: the refusal must be a 429`);
+    assert.ok(
+      refusal.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'),
+      `${verb}: the refusal must go through the chokepoint: jsonRefusal("TOO_MANY_REQUESTS", 429)`,
+    );
     // EVERY attempt counts, success included — like register, and unlike login.
     // What is bounded is provisioning and invitee disclosure, not guessing, so a
     // successful redeem must still spend its slot.
@@ -1960,4 +2002,78 @@ test("./channels/webhooks/route.ts throttles PATCH on the SAME budget key as POS
   assert.ok(first >= 0 && second > first, "both POST and PATCH must spend the same bucket");
   // …and PATCH's call must precede its own expensive work, the encrypted pull-config write.
   assert.ok(src.indexOf("setChannelPull(token") > second, "the limiter must precede setChannelPull");
+});
+
+// ── the source guard: one 429 shape, tree-wide (/perfect wave 38) ────────────
+//
+// The specs above pin the routes this file KNOWS about. These two pin the ones it
+// does not: a throttle added tomorrow, in a file no row names, cannot quietly bring
+// back the hand-rolled envelope. That envelope is not a style question — it puts an
+// English sentence on the wire with no code beside it, so a Czech or French reader
+// gets English on exactly the routes a burst hits, and `useErrorMessage()` has
+// nothing to resolve. About twenty-five doors were in that state until this wave.
+const APP_DIR = path.resolve(apiDir, "..");
+
+function appSources(): string[] {
+  const out: string[] = [];
+  const stack = [APP_DIR];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name !== "node_modules") stack.push(p);
+      } else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) {
+        out.push(p);
+      }
+    }
+  }
+  return out;
+}
+
+test("no source file hand-rolls the 429 envelope — every throttle goes through jsonRefusal", () => {
+  const offenders: string[] = [];
+  for (const file of appSources()) {
+    // COMMENTS STRIPPED FIRST. rate-limit.ts's own doc comment quotes the banned shape
+    // verbatim (it is the thing the comment tells you not to write), and a guard that
+    // cannot tell code from prose would make writing that warning down impossible.
+    const src = readFileSync(file, "utf8")
+      .replace(/\r\n/g, "\n")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    // The hand-rolled shape: the bare message in a NextResponse.json at 429, with no
+    // machine code beside it. The github-analysis exception is NOT this shape — it
+    // reads the message off REFUSAL_ERRORS and carries its namespace's own code.
+    if (/\{ error: RATE_LIMITED_ERROR[^}]*\}, \{ status: 429 \}/.test(src)) {
+      offenders.push(path.relative(APP_DIR, file).split(path.sep).join("/"));
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    'these files answer a throttle with the shared message and no code — use jsonRefusal("TOO_MANY_REQUESTS", 429)',
+  );
+});
+
+test("RATE_LIMITED_ERROR is internal to the refusal registry — nothing else imports it", () => {
+  // The constant still lives in rate-limit.ts (api-response.ts imports it there, so the
+  // registry entry and the limiter's own message can never say different things — the
+  // test above this section pins that import). What changed is its REACH: a route that
+  // imports the raw string is a route about to hand-roll an envelope with it, so the
+  // one legitimate consumer is the registry. Read as source; the unit runner resolves
+  // neither the "@/…" alias nor next/server.
+  const importers = appSources()
+    .filter((file) => /\bRATE_LIMITED_ERROR\b/.test(readFileSync(file, "utf8")))
+    .map((file) => path.relative(APP_DIR, file).split(path.sep).join("/"))
+    // Comments that merely NAME the constant while explaining the chokepoint are fine;
+    // an actual import is not.
+    .filter((rel) => {
+      const src = readFileSync(path.join(APP_DIR, rel), "utf8");
+      return /import \{[^}]*\bRATE_LIMITED_ERROR\b[^}]*\} from/.test(src);
+    });
+  assert.deepEqual(
+    importers,
+    ["_lib/api-response.ts"],
+    "only the refusal registry may import the raw 429 message; every route answers the CODE",
+  );
 });

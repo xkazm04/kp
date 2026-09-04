@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { interviewStatusByEntries } from "@/app/_lib/db/interviews";
 import { getJob } from "@/app/_lib/db/jobs";
 import { anonymizeEntry, findEntryByErasureToken } from "@/app/_lib/db/pipeline";
 import { heldDataCategories } from "@/app/_lib/data-held";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Abuse containment (2026-09-01): this was the one public token door with NO
 // throttle while status / offer / schedule / apply all have one — and its POST is
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   try {
     const { token } = await context.params;
     if (!rateLimit(`data-view:${clientIpFrom(request.headers)}:${token}`, DATA_VIEW_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entry = findEntryByErasureToken(token);
     if (!entry) return jsonRefusal("DATA_LINK_INVALID", 404);
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Throttle BEFORE the lookup: an irreversible write must never be the cheap
     // thing a flood reaches first.
     if (!rateLimit(`data-erase:${clientIpFrom(request.headers)}:${token}`, DATA_ERASE_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entry = findEntryByErasureToken(token);
     if (!entry) return jsonRefusal("DATA_LINK_INVALID", 404);

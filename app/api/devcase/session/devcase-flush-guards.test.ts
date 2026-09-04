@@ -68,7 +68,11 @@ test("./[id]/route.ts charges the flush body against a per-apply-token byte budg
   // …and it must precede the first write, so a refused flush stores nothing.
   const writeAt = src.indexOf("appendDevSessionEvents(id, events)");
   assert.ok(writeAt > chargeAt, "the byte budget must be charged before the first write");
-  assert.match(src.slice(chargeAt, chargeAt + 200), /RATE_LIMITED_ERROR/, "the refusal is the shared 429 envelope");
+  assert.match(
+    src.slice(chargeAt, chargeAt + 200),
+    /jsonRefusal\("TOO_MANY_REQUESTS", 429\)/,
+    "the refusal is the ONE registered 429 — a candidate mid-assessment reads it in their own language",
+  );
 });
 
 test("./[id]/chat/route.ts forwards the request's abort signal to the model run", () => {
@@ -85,6 +89,20 @@ test("./[id]/chat/route.ts returns the reply's source so a stub is not passed of
   assert.match(src, /NextResponse\.json\(\{ reply, source \}\)/, "…and must reach the candidate");
 });
 
+test("./[id]/chat/route.ts refuses the session message ceiling with a CODE, not English prose", () => {
+  const src = read("./[id]/chat/route.ts");
+  // appendDevSessionChat returns 0 when the session has spent its 400-message
+  // ceiling. That refusal answered `{ error: "chat limit reached for this session" }`
+  // — raw English on a PUBLIC surface a candidate reaches in their own language.
+  // It is deliberately NOT TOO_MANY_REQUESTS: the limiter's sentence promises the
+  // wait will clear it, and this ceiling never resets, so the shared code would be a
+  // green lie about what the candidate should do next.
+  const at = src.indexOf("appendDevSessionChat(id, channel, \"user\", message)");
+  assert.ok(at >= 0, "expected the store call whose 0 means the ceiling is spent");
+  const refusal = src.slice(at, at + 300);
+  assert.match(refusal, /jsonRefusal\("DEVCASE_CHAT_CEILING", 429\)/, "the ceiling must answer its own code");
+  assert.doesNotMatch(refusal, /error: "/, "…and never a hand-written English body");
+});
 test("chargeFlushBytes bounds the aggregate flush body per apply token per day", () => {
   const t0 = 20_000_000;
   const token = "tok-budget-contract";
