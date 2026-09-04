@@ -3,11 +3,16 @@
 // through the shared intake core and is covered by the receiver's own suites — what
 // is unique here is how a source's answer is READ, and how much of it we are willing
 // to read at all.
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+// unit-db is the FIRST project import (points KP_DB_PATH at a throwaway file):
+// pullOneSource records its outcome on the source row, so this file now touches the DB.
+import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { parsePullEvents, PULL_LIMITS } from "./pull-pass.ts";
+
+after(() => cleanupUnitDb());
 
 const src = readFileSync(fileURLToPath(new URL("./pull-pass.ts", import.meta.url)), "utf8");
 
@@ -71,6 +76,85 @@ test("a failed pull holds the cursor; only a clean pass advances it", () => {
   }
 });
 
-test("a pull is an outbound call on an operator-supplied URL, so it keeps the SSRF posture", () => {
-  assert.match(src, /assertPublicHttpsEndpoint\(source\.url, "pull_url"\)/, "https + public host, like the relay and ATS endpoints");
+// --- the SSRF boundary ----------------------------------------------------------
+// A pull is an outbound server call, on an operator-stored URL, carrying that
+// source's bearer secret. `setChannelPull` vets the URL at the WRITE, but the pull
+// runs off a clock: the gap between the two is unbounded, so the name that was
+// public when it was saved is not the address that answers now. These pin that the
+// pull resolves the host at fetch time and refuses a private answer — the DNS
+// rebinding pivot the string-level guard cannot see.
+
+test("a stored URL whose host now RESOLVES private is refused before the fetch", async () => {
+  const { pullOneSource } = await import("./pull-pass.ts");
+  const realFetch = globalThis.fetch;
+  let fetched = 0;
+  globalThis.fetch = (async () => {
+    fetched += 1;
+    throw new Error("the guard must refuse before any request leaves");
+  }) as typeof fetch;
+  try {
+    const outcome = await pullOneSource(
+      {
+        token: "tok-unrouted",
+        channel: "boards",
+        jobId: "job-1",
+        lang: null,
+        workspaceId: "ws-1",
+        // Public NAME, private ANSWER: exactly what a rebinding host looks like at
+        // the moment of the fetch, and what the string-level check cannot detect.
+        url: "https://rebind.example.com/leads",
+        secret: "pull-secret",
+        cursor: null,
+      },
+      "https://kp.example.com",
+      async () => [{ address: "169.254.169.254" }]
+    );
+    assert.equal(fetched, 0, "no request may leave for a host that resolves to link-local space");
+    assert.match(String(outcome.error), /non-public address/, "the outcome must say why, on the source's own row");
+    assert.equal(outcome.applied, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("a host that resolves public still pulls (the guard is not a blanket refusal)", async () => {
+  const { pullOneSource } = await import("./pull-pass.ts");
+  const realFetch = globalThis.fetch;
+  let asked: string | null = null;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    asked = String(input);
+    return new Response(JSON.stringify({ events: [], cursor: "c9" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+  try {
+    const outcome = await pullOneSource(
+      {
+        token: "tok-ok",
+        channel: "boards",
+        jobId: "job-1",
+        lang: null,
+        workspaceId: "ws-1",
+        url: "https://leads.example.com/feed",
+        secret: null,
+        cursor: "c8",
+      },
+      "https://kp.example.com",
+      async () => [{ address: "93.184.216.34" }]
+    );
+    assert.equal(outcome.error, null, "a public host must still be pulled");
+    assert.match(String(asked), /^https:\/\/leads\.example\.com\/feed\?since=c8$/, "the cursor still rides the query");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the fetch-time guard is the RESOLVED one, not the string-level check", () => {
+  // Guard the guard: a refactor that swaps `assertPublicHttpsEndpointResolved` back
+  // for `assertPublicHttpsEndpoint` here reopens the rebinding pivot silently, and
+  // both stubs above would keep passing (a stubbed lookup is simply never called).
+  const text = src.replace(/\r\n/g, "\n");
+  assert.match(text, /await assertPublicHttpsEndpointResolved\(source\.url, "pull_url", lookupFn\)/);
+  assert.doesNotMatch(text, /\bassertPublicHttpsEndpoint\(/, "the string-only guard must not be the fetch-time gate");
 });

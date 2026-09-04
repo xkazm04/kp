@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
@@ -5,8 +6,13 @@ import { scoreTone } from "@/app/_lib/format";
 import type { BuildResult } from "@/app/features/shared/profileTypes";
 import { labelOr, useEnumLabel } from "@/app/_lib/use-enum-label";
 import { fieldTargetForCheck, fieldTargetForMissing, type ProfileFieldKey } from "./profileCompletenessFields";
+import { routingReasonsLine, SELF_DECLARED_REASON_KIND } from "./profileRoutingReasons";
 
-export function ResultPanel({
+// Named for what it panels — the PROFILE build result. It used to export
+// `ResultPanel`, the same name app/_components/results/ResultPanel.tsx exports for
+// the CV-analysis result, so two different components answered to one name in the
+// same tree and an import was one autocomplete away from the wrong panel.
+export function ProfileResultPanel({
   result,
   onMatchNow,
   onGoToField,
@@ -19,6 +25,24 @@ export function ResultPanel({
 }) {
   const t = useTranslations("profile.result");
   const enumLabel = useEnumLabel();
+  // The router's reasons arrive as {kind, params} codes (registry.detect_detailed);
+  // this resolves one against the catalogs, returning null for a kind with no entry
+  // so the caller can fall back to the router's English sentence rather than throw.
+  // The self-declaration's `archetype` param is a wire id — localized here, so the
+  // catalog entry stays one sentence for every (including custom) archetype.
+  const translateReason = useCallback(
+    (kind: string, params: Record<string, string | number>) => {
+      const key = `reasons.${kind}` as Parameters<typeof t>[0];
+      if (!t.has(key)) return null;
+      const values =
+        kind === SELF_DECLARED_REASON_KIND && typeof params.archetype === "string"
+          ? { ...params, archetype: enumLabel("archetype", params.archetype) }
+          : params;
+      return t(key, values as never);
+    },
+    [t, enumLabel]
+  );
+  const routing = routingReasonsLine(result.reasonCodes, result.reasons, translateReason);
   const pct = Math.round((result.completeness ?? 0) * 100);
   // Prefer the id-keyed gaps (localizable label + reliably clickable via the stable
   // check id); fall back to the raw `missing` labels for a result persisted before
@@ -44,7 +68,15 @@ export function ResultPanel({
             changed; the payload field keeps its Python name. */}
         <span className="text-sm text-steel">{t("confidence", { pct: Math.round((result.confidence ?? 0) * 100) })}</span>
         {result.saved?.id ? (
-          <span className="text-sm text-green-700">{t("saved", { id: result.saved.id })}</span>
+          /* The RECEIPT names the profile, not the row. The store id is an internal
+             key the recruiter cannot act on and could not match to anything on screen;
+             the display name is what they just typed. A profile saved without one
+             falls back to a short opaque reference, never the full id. */
+          <span className="text-sm text-green-700">
+            {t("saved", {
+              name: result.profile?.displayName?.trim() || result.saved.id.slice(0, 6),
+            })}
+          </span>
         ) : (
           <span className="text-sm text-steel">{t("preview")}</span>
         )}
@@ -58,9 +90,7 @@ export function ResultPanel({
           </button>
         ) : null}
       </div>
-      {result.reasons?.length ? (
-        <p className="mt-1 text-sm text-steel">{t("routing", { reasons: result.reasons.join("; ") })}</p>
-      ) : null}
+      {routing ? <p className="mt-1 text-sm text-steel">{t("routing", { reasons: routing })}</p> : null}
 
       <div className="mt-3">
         <div className="flex justify-between text-sm text-steel">

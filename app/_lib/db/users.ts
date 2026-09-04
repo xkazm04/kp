@@ -1,6 +1,6 @@
 import { ensureDb } from "./core";
 import { randomId } from "../random-id";
-import { hashPassword, verifyPassword } from "../auth/password";
+import { DUMMY_PASSWORD_HASH, hashPassword, MIN_PASSWORD_LENGTH, needsRehash, verifyPassword } from "../auth/password";
 
 // Users (P0) — a person in an org. Identity lives here; the password secret lives
 // in `user_credentials` (separate table) so the model stays auth-mechanism-
@@ -60,6 +60,10 @@ export function listUsersByOrg(orgId: string): User[] {
 export type CreateUserInput = { orgId: string; email: string; name?: string | null; status?: UserStatus; password?: string | null };
 
 export function createUser(input: CreateUserInput): User {
+  // Before the INSERT, not after: setUserPassword (called at the end) throws below
+  // the floor, and refusing here is the difference between "no account created" and
+  // "an account with no credential nobody asked for".
+  if (input.password) assertPasswordFloor(input.password);
   const db = ensureDb();
   const id = randomId("usr");
   const email = normalizeEmail(input.email);
@@ -155,8 +159,27 @@ export function deleteUser(id: string): boolean {
 
 // ---- Credentials (scrypt, separate table) ---------------------------------
 
-/** Set/replace a user's local password (upsert on user_id). */
+/** Refuse a password below the app-wide floor. Message, not code: this is a store
+ *  invariant a service is expected to have already checked, never something a
+ *  client sees (org-service/signup-service answer their own `weak_password`). */
+export function assertPasswordFloor(password: string): void {
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+}
+
+/** Set/replace a user's local password (upsert on user_id).
+ *
+ *  Enforces the shared MIN_PASSWORD_LENGTH floor HERE, at the only write, rather
+ *  than trusting each caller: signup-service and org-service (invite redemption)
+ *  both check it first and answer `weak_password`, but the admin/store path —
+ *  createUser({ password }) and any direct set — had no floor at all, so a
+ *  one-character password was a valid credential. A throw (not a silent no-op or a
+ *  boolean) because every live caller validates first: reaching this means a NEW
+ *  path forgot to, and a stored unenforced password must never be the quiet
+ *  outcome of that. */
 export function setUserPassword(userId: string, password: string): void {
+  assertPasswordFloor(password);
   const db = ensureDb();
   const hash = hashPassword(password);
   const updatedAt = new Date().toISOString();
@@ -176,11 +199,38 @@ export function hasPassword(userId: string): boolean {
  *  check the login route calls. Rejects disabled users; constant-time on the hash. */
 export function verifyCredentials(email: string, password: string): User | null {
   const db = ensureDb();
-  const user = getUserByEmail(email);
-  if (!user || user.status === "disabled") return null;
-  const row = db.prepare(`SELECT password_hash FROM user_credentials WHERE user_id = ?`).get(user.id) as
-    | { password_hash?: string }
-    | undefined;
-  if (!verifyPassword(password, row?.password_hash)) return null;
+  const found = getUserByEmail(email);
+  // Null unless the account could actually sign in — an unknown email and a
+  // disabled account are the same non-candidate from here on.
+  const user = found && found.status !== "disabled" ? found : null;
+  const row = user
+    ? (db.prepare(`SELECT password_hash FROM user_credentials WHERE user_id = ?`).get(user.id) as
+        | { password_hash?: string }
+        | undefined)
+    : undefined;
+  // ALWAYS spend the scrypt hash, even on a miss. Returning before it — unknown
+  // email, disabled account, or an invited user with no credential row yet — made
+  // the response time a user-existence oracle: microseconds for "no such account"
+  // versus ~40ms for "wrong password", remotely measurable and quite enough to
+  // enumerate a customer's staff. DUMMY_PASSWORD_HASH is a real hash of a
+  // throwaway secret, so the miss costs exactly what a hit costs. The decision is
+  // taken only after the work is done.
+  const ok = verifyPassword(password, row?.password_hash ?? DUMMY_PASSWORD_HASH);
+  if (!user || !ok) return null;
+  // UPGRADE-ON-LOGIN. A successful sign-in is the one moment the plaintext is
+  // legitimately in hand, so it is the only place a stored hash in an older format
+  // (the legacy untagged `<salt>:<hash>`) or at a cost below today's can be rewritten
+  // without asking anybody to reset anything. Without this seam a cost bump has only
+  // two endings: invalidate every password in the install, or carry the weaker hashes
+  // forever. Best-effort by construction — the caller has already authenticated, and
+  // a failed rewrite must never turn a valid login into a 401.
+  if (row?.password_hash && needsRehash(row.password_hash) && password.length >= MIN_PASSWORD_LENGTH) {
+    try {
+      setUserPassword(user.id, password);
+    } catch {
+      /* best-effort upgrade: the sign-in already succeeded on the old hash, and the
+         next one will try again. A store failure here is not the user's problem. */
+    }
+  }
   return user;
 }

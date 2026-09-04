@@ -90,10 +90,19 @@ export function usageTokens(usage) {
   );
 }
 
-/** USD for one entry, or null when no price is declared for its model. */
+/**
+ * USD for one entry, or null when no price is declared for its model — or when
+ * the entry's usage is an ESTIMATE rather than a count the API reported.
+ *
+ * The second half matters more than it looks. `estimateTokens` is four
+ * characters per token, which is close enough to stop a lane early and nowhere
+ * near close enough to bill against. Multiplying a guess by a real price list
+ * produces a dollar figure with two decimal places that nobody measured — the
+ * same shape of green lie as a `sent` on a message that was only queued.
+ */
 export function priceOf(entry, prices = {}) {
   const p = prices?.[entry.model];
-  if (!p || !entry.usage) return null;
+  if (!p || !entry.usage || entry.estimated) return null;
   const perM = (tokens, rate) => (Number.isFinite(rate) ? (tokens / 1_000_000) * rate : 0);
   const u = entry.usage;
   const n = (v) => (Number.isFinite(v) ? v : 0);
@@ -118,9 +127,18 @@ export function priceOf(entry, prices = {}) {
 export function summarise(entries, budget) {
   const lanes = {};
   for (const e of entries) {
-    const lane = (lanes[e.lane] ??= { lane: e.lane, calls: 0, tokens: 0, usd: 0, unpricedCalls: 0, models: new Set() });
+    const lane = (lanes[e.lane] ??= {
+      lane: e.lane,
+      calls: 0,
+      tokens: 0,
+      usd: 0,
+      unpricedCalls: 0,
+      estimatedCalls: 0,
+      models: new Set(),
+    });
     lane.calls++;
     lane.models.add(e.model);
+    if (e.estimated) lane.estimatedCalls++;
     const tokens = usageTokens(e.usage);
     if (tokens === null) {
       lane.unpricedCalls++;
@@ -161,7 +179,19 @@ export function render({ rows, findings }, budget) {
       ? `unpriced (${r.unpricedCalls}/${r.calls} call${r.calls === 1 ? '' : 's'})`
       : `$${r.usd.toFixed(4)}`;
     const ceiling = r.maxTokens === null ? '**none declared**' : `${r.maxTokens}`;
-    lines.push(`| ${r.lane} | ${r.calls}/${r.maxCalls ?? '—'} | ${r.tokens} | ${ceiling} | ${cost} |`);
+    // `~` is the whole disclosure: a backend that reports no usage is metered on
+    // an estimate, and the reader has to be able to tell that column apart from
+    // one the API counted.
+    const tokens = r.estimatedCalls ? `~${r.tokens}` : `${r.tokens}`;
+    lines.push(`| ${r.lane} | ${r.calls}/${r.maxCalls ?? '—'} | ${tokens} | ${ceiling} | ${cost} |`);
+  }
+  if (rows.some((r) => r.estimatedCalls)) {
+    lines.push(
+      '',
+      '_`~` marks a lane whose backend reported no usage, so its tokens are ESTIMATED at four ' +
+        'characters each. The estimate still spends the ceiling — it is rounded up and only ever ' +
+        'stops a lane early — but it is never given a price._',
+    );
   }
   if (!Object.keys(budget.prices?.models ?? {}).length) {
     lines.push(
@@ -233,9 +263,13 @@ export class Meter {
     }
   }
 
-  /** Record what a call actually cost. `usage: null` means the backend reported none. */
-  record({ model, usage }) {
-    const entry = { at: new Date().toISOString(), lane: this.lane, model, usage: usage ?? null };
+  /**
+   * Record what a call cost. `usage: null` means the backend reported none;
+   * `estimated: true` means the usage is this file's own four-characters-per-token
+   * guess, which counts against the ceiling but is never priced.
+   */
+  record({ model, usage, estimated = false }) {
+    const entry = { at: new Date().toISOString(), lane: this.lane, model, usage: usage ?? null, estimated };
     this.calls++;
     this.tokens += usageTokens(usage) ?? 0;
     this.entries.push(entry);

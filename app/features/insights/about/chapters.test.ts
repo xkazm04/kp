@@ -165,3 +165,186 @@ test("the archetype scene's quoted detection constants still hold", () => {
     "the chapter's whole point: the unguided fallback must sit BELOW the review threshold"
   );
 });
+
+// ---- the constants chapters 2, 3 and 5 quote --------------------------------
+//
+// Chapter 4 got this treatment from the start; the other three quoted engine
+// numbers to the reader with nothing watching them, which is the failure mode
+// this file exists to prevent. Each block below reads the SOURCE the copy names
+// and fails if the number moved — and, where the number is printed in prose,
+// checks the English catalog string still contains it, because a guard that
+// pins the code but not the sentence lets the deck go on saying 0.5 after the
+// engine moved to 0.6.
+//
+// `pySource` reads a Python file as text rather than importing it: a `python -c`
+// per assertion would make this suite depend on an interpreter, and the deck's
+// couplings are all module-level literals a regex reads exactly.
+
+const pySource = (rel: string) => readFileSync(path.resolve(ROOT, rel), "utf8");
+
+/** A module-level `NAME = <number>` assignment. */
+function pyConst(rel: string, name: string): number {
+  const src = pySource(rel);
+  const hit = src.match(new RegExp(`^${name}\\s*=\\s*(-?[\\d.]+)\\s*(?:#|$)`, "m"));
+  assert.ok(hit, `${rel} no longer declares a module-level \`${name}\` — the About deck quotes it`);
+  return Number(hit[1]);
+}
+
+const enAbout = (): Record<string, unknown> =>
+  (JSON.parse(readFileSync(path.resolve(ROOT, "messages", "en.json"), "utf8")) as { about: Record<string, unknown> }).about;
+
+/** `scoring.status.s2` → the string, so a test can assert what the copy quotes. */
+function copy(dotted: string): string {
+  let node: unknown = enAbout();
+  for (const seg of dotted.split(".")) {
+    assert.ok(node && typeof node === "object", `messages/en.json: about.${dotted} — "${seg}" has no parent object`);
+    node = (node as Record<string, unknown>)[seg];
+  }
+  assert.equal(typeof node, "string", `messages/en.json: about.${dotted} is missing`);
+  return node as string;
+}
+
+test("chapter 2's two thresholds are still the engine's", () => {
+  // The scene paints ONE line across seven bars at `TRACK_X + TRACK_W * 0.5`,
+  // and the whole chapter is the claim that that line is where the product
+  // actually splits matched from unproven.
+  const matchThreshold = pyConst("pipeline/jobfit/matching.py", "_MATCH_THRESHOLD");
+  // NOT matching.py: the sibling rule lives with the taxonomy that decides what
+  // "adjacent" means. ScoringBuckets.tsx cited the wrong module, so a reader who
+  // went to grep for it found nothing — which is the opposite of the point.
+  const siblingMatch = pyConst("pipeline/jobfit/taxonomy.py", "_SIBLING_MATCH");
+
+  assert.equal(matchThreshold, 0.5, "about.scoring.status.s2 and the painted line both quote 0.5");
+  assert.equal(siblingMatch, 0.4, "about.scoring.status.s10 and SIBLING_MATCH_LABEL both quote 0.4");
+  assert.ok(
+    siblingMatch < matchThreshold,
+    "the chapter's argument: an adjacent skill must score BELOW the line, so it can never be counted as the real one"
+  );
+
+  assert.match(copy("scoring.status.s2"), new RegExp(String(matchThreshold)));
+  assert.match(copy("scoring.status.s10"), new RegExp(String(siblingMatch)));
+  assert.match(read("scenes/scoring/ScoringBuckets.tsx"), new RegExp(`_SIBLING_MATCH = ${siblingMatch}`));
+
+  // The painted line is derived, not typed: `THRESHOLD_X = TRACK_X + TRACK_W * <f>`.
+  const fraction = read("scenes/scoring/ScoringBuckets.tsx").match(/const THRESHOLD_X = TRACK_X \+ TRACK_W \* ([\d.]+);/);
+  assert.ok(fraction, "ScoringBuckets.tsx no longer derives THRESHOLD_X from TRACK_X/TRACK_W");
+  assert.equal(
+    Number(fraction[1]),
+    matchThreshold,
+    "the painted line's position and _MATCH_THRESHOLD are the same number, or the scene is drawing a lie"
+  );
+});
+
+test("chapter 3 names three real layers, and marks its cohort figures as an example", () => {
+  const matching = pySource("pipeline/jobfit/matching.py");
+  // A and B are functions in matching.py; C is its own module (the scene prints
+  // it with parens as a stage name, which is why this checks for the module).
+  assert.match(matching, /^def ko_filter\(/m, "about.screening layer A prints `ko_filter()`");
+  assert.match(matching, /^def score_job\(/m, "about.screening layer B prints `score_job()`");
+  assert.ok(
+    pySource("pipeline/jobfit/match_reasoning.py").length > 0,
+    "about.screening layer C prints `match_reasoning()`"
+  );
+
+  // The gate reasons are a real closed vocabulary. The scene shows four of the
+  // five (early_career has no row) — a SUBSET is fine, and the copy says "hard
+  // gates" rather than "all of them"; an INVENTED key would not be.
+  const literal = matching.match(/^KoReasonKey = Literal\[([^\]]*)\]/m);
+  assert.ok(literal, "matching.py no longer declares KoReasonKey as a Literal — chapter 3 lists its members");
+  const known = new Set([...literal[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+  const scene = read("scenes/screening/ScreeningLadder.tsx");
+  const block = scene.match(/const KO_REASONS = \[([\s\S]*?)\n\] as const;/);
+  assert.ok(block, "could not find KO_REASONS in ScreeningLadder.tsx — update this test with its new shape");
+  const shown = [...block[1].matchAll(/key: "([^"]+)"/g)].map((m) => m[1].replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`));
+  assert.ok(shown.length > 0, "parsed no KO_REASONS out of ScreeningLadder.tsx");
+  assert.deepEqual(
+    shown.filter((k) => !known.has(k)),
+    [],
+    "ScreeningLadder shows a gate reason ko_filter cannot produce"
+  );
+
+  // 120 / 74 / 8 are NOT constants anywhere — the shortlist width is the
+  // caller's argument and the survival rate is whatever the applicants are. The
+  // deck may use them as a worked example, but only while it says so.
+  const note = copy("screening.figuresNote");
+  for (const n of ["120", "74", "8"]) {
+    assert.ok(note.includes(n), `about.screening.figuresNote must name ${n} as illustrative — it is not quoted from code`);
+  }
+});
+
+test("chapter 5's baseline-similarity threshold is still the one the checker uses", () => {
+  // artifact_checks.py writes the interview prompt at `sim >= 0.85`. The scene
+  // renders AIM and the copy interpolates it, so both move together or the deck
+  // promises a prompt at a number that no longer triggers one.
+  const hit = pySource("pipeline/jobfit/devcase/artifact_checks.py").match(/if sim >= ([\d.]+):/);
+  assert.ok(hit, "artifact_checks.py no longer gates the baseline-similarity prompt on a literal — re-pin this test");
+  const aim = Number(hit[1]);
+  assert.equal(aim, 0.85, "about.assignments.note and status.s9 are rendered with AIM");
+
+  const scene = read("scenes/assignments/CaseBaseline.tsx");
+  const declared = scene.match(/^const AIM = ([\d.]+);/m);
+  assert.ok(declared, "CaseBaseline.tsx no longer declares AIM");
+  assert.equal(Number(declared[1]), aim, "CaseBaseline's AIM and artifact_checks.py's gate are the same number");
+
+  // And the scene's own number must sit below it, or the worked example
+  // contradicts the sentence printed under it.
+  const overlap = scene.match(/^const OVERLAP = ([\d.]+);/m);
+  assert.ok(overlap, "CaseBaseline.tsx no longer declares OVERLAP");
+  assert.ok(
+    Number(overlap[1]) < aim,
+    "the scene shows a submission that does NOT trip the prompt — its overlap has to sit below AIM"
+  );
+});
+
+// ---- every path the deck prints ---------------------------------------------
+
+test("every repo path the deck cites exists", () => {
+  // These citations are the deck's audit trail: "quoted from
+  // pipeline/jobfit/matching.py" is the one instruction a sceptical reader can
+  // actually follow, and following it to a 404 teaches the opposite of what the
+  // deck is trying to establish. `_SIBLING_MATCH` was cited to the wrong module
+  // for exactly this reason, so the rule is now mechanical rather than careful.
+  const files = [
+    "chapters.ts",
+    "chapters.test.ts",
+    "AboutTab.tsx",
+    "ChapterRail.tsx",
+    "stage/clock.ts",
+    "stage/motion.ts",
+    "stage/parts.tsx",
+    "stage/Scene.tsx",
+    "stage/stages.ts",
+    "stage/threads.ts",
+    "stage/useSceneClock.ts",
+    "scenes/shared.tsx",
+    "scenes/status.ts",
+    "scenes/jd/JdGrounding.tsx",
+    "scenes/scoring/ScoringBuckets.tsx",
+    "scenes/screening/ScreeningLadder.tsx",
+    "scenes/archetypes/ArchetypeRouter.tsx",
+    "scenes/assignments/CaseBaseline.tsx",
+    "scenes/gates/GatesQueue.tsx",
+  ];
+
+  // A path-shaped token: a known repo root, then segments, ending in a real
+  // extension. Deliberately narrow — a bare `data.ts` or `matching.py` is a
+  // module NAME, not a path, and cannot be resolved without guessing.
+  const CITATION = /\b(?:app|pipeline|messages|scripts|docs|data|e2e|packages)\/[\w./-]*\w\.(?:ts|tsx|py|json|md|mjs|css)\b/g;
+
+  const missing: string[] = [];
+  let checked = 0;
+  for (const rel of files) {
+    for (const m of read(rel).matchAll(CITATION)) {
+      checked += 1;
+      try {
+        readFileSync(path.resolve(ROOT, m[0]));
+      } catch {
+        // Collected rather than thrown, so one run names every stale citation.
+        missing.push(`${rel} cites ${m[0]}`);
+      }
+    }
+  }
+
+  assert.ok(checked > 0, "the path scanner matched nothing — its regex or the file list is stale");
+  assert.deepEqual(missing, [], `the deck cites ${missing.length} path(s) that do not exist`);
+});

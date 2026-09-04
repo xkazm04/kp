@@ -365,6 +365,22 @@ def normalize_text(text: str) -> str:
 # Internal alias kept for the many existing call sites in this module.
 _normalize = normalize_text
 
+# THE word tokenizer for this engine: alphanumeric runs, UNICODE-aware, underscore
+# treated as a separator (real ad prose has none; underscores appear only in machine
+# skill-ids we must not fuse into a false token like "customer_onboarding").
+#
+# It was compiled independently in three places — matching._WORD_RE, taxonomy_check.
+# _CORPUS_WORD_RE and this module's _FALLBACK_TOKEN_RE — each with a comment saying it
+# mirrored the others. Three copies of "the same primitive" is three chances for the
+# scan that AUDITS the matcher to tokenize differently from the matcher it audits. One
+# object now, aliased at each old name.
+#
+# Why ``[^\W_]+`` and not ``[a-z0-9]+``: under ASCII every Czech diacritic was a
+# SEPARATOR, so "podávání léků" shredded to {pod, v, n, l, k} and "overlapped" an iOS
+# Engineer ad. Measured over the seed corpus the ASCII splitter awarded overlap credit
+# for 39 skill surfaces the whole-word rule rejects, and missed none.
+WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
 
 def _compact(text: str) -> str:
     return re.sub(r"\W+", "", text, flags=re.UNICODE)
@@ -759,6 +775,63 @@ def role_band(
     return None
 
 
+# A benchmark whose ``sample_k`` is below this is THIN: the band is real, but it
+# rests on too few observations to read as a market fact. Hand-entered families
+# (``source: "manual"``, no ``sample_k`` at all) are thin by the same rule —
+# ``sample_k`` is ``None`` there, and a missing sample is not a large one. The
+# threshold is deliberately generous: the CZ block's ISPV families run from 19
+# (creative_design, life_sciences_research) to 838 (operations_logistics), so 30
+# separates "a couple of dozen rows" from "a real sample" without flagging the bulk
+# of the table. Surfaced to the recruiter so an anchor built on 19 rows and one
+# built on 838 stop rendering identically.
+THIN_SAMPLE_K = 30
+
+
+def role_benchmark(
+    family: str, seniority: str, *, market: MarketConfig = ACTIVE_MARKET
+) -> dict[str, Any] | None:
+    """The anchor band for ``(family, seniority)`` TOGETHER WITH the provenance of
+    the dataset it came from: ``{"band", "sourceId", "asOf", "sampleK"}``.
+
+    ``role_band`` returns the two numbers and nothing else, which is why a 2025
+    benchmark vintage reads identically today and in three years, and why a
+    hand-entered family with no sample behind it renders exactly like one measured
+    on 838 rows. This is the same lookup carrying the answers to "how old is this?"
+    and "how much is it standing on?" so a consumer can say so.
+
+    * ``sourceId`` — ``market.benchmark_source_id`` (the dataset identity, e.g.
+      ``cz-ispv-2025``).
+    * ``asOf`` — the market block's ``generated_at`` (ISO-8601), or ``""`` when the
+      block carries none (the de-berlin sample block does not).
+    * ``sampleK`` — the role's ``sample_k`` as a positive int, or ``None`` when the
+      family is hand-entered / the value is missing or unusable. ``None`` means "no
+      sample", never "zero rows", and callers must not treat it as a number.
+
+    Returns ``None`` on exactly the misses ``role_band`` returns ``None`` on, so the
+    two agree about what a usable band is.
+    """
+    band = role_band(family, seniority, market=market)
+    if band is None:
+        return None
+    roles = _ROLES_BY_MARKET.get(market.market_id, _ROLES)
+    role = next((r for r in roles if r.get("family") == family), None)
+    raw_sample = role.get("sample_k") if isinstance(role, dict) else None
+    sample_k: int | None
+    # bool is an int subclass — a stray `true` in the data must not read as 1 row.
+    if isinstance(raw_sample, bool) or not isinstance(raw_sample, (int, float)):
+        sample_k = None
+    else:
+        sample_k = int(raw_sample) if raw_sample > 0 else None
+    block = _MARKET_BLOCKS.get(market.market_id) or {}
+    as_of = block.get("generated_at") if isinstance(block, dict) else None
+    return {
+        "band": band,
+        "sourceId": market.benchmark_source_id,
+        "asOf": str(as_of) if isinstance(as_of, str) else "",
+        "sampleK": sample_k,
+    }
+
+
 # Default cap on the skill surface-forms returned by ``detected_skills``.
 # Generous by design: the list only *seeds* Gemini's extraction (which wins),
 # so it errs toward recall. Callers feeding a size-sensitive prompt may pass a
@@ -1034,25 +1107,58 @@ def provenance_weight(provenance: str | None) -> float:
 # score that feeds the existing additive machinery as sub-threshold, "adjacency"-
 # grade credit; it never manufactures a "matched" claim.
 
-_FALLBACK_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_FALLBACK_TOKEN_RE = WORD_RE  # the shared tokenizer; see WORD_RE above
 
 # Generic, non-discriminative tokens: an overlap on ONLY these earns no credit, so
 # "management of X" vs "management of Y" (X≠Y) does NOT score — the distinctive
 # tokens (X, Y) carry the meaning and they differ. Deliberately small and
-# conservative: articles/prepositions/conjunctions (EN + common Czech glue) plus the
-# most generic role-noun filler. Anything OUTSIDE this set counts as a distinctive
-# token that can anchor a partial — the required shared "head".
+# conservative: articles/prepositions/conjunctions plus the most generic role-noun
+# filler. Anything OUTSIDE this set counts as a distinctive token that can anchor a
+# partial — the required shared "head".
+#
+# ALL FOUR shipped narrative languages, not two. The set covered EN + CS while
+# i18n.LANG_NAMES has shipped en/cs/de/fr for some time and the pipeline generates
+# narratives in all four — so a German ad's "Entwicklung von X" vs "Entwicklung von Y"
+# and a French "Gestion de X" vs "Gestion de Y" scored a shared head on pure glue,
+# which is precisely the false positive the head-token rule exists to refuse.
+#
+# ``normalize_text`` is NFC + casefold with NO diacritic folding, so the accented
+# surface is what a token actually looks like: "für" and "über" are listed as they
+# normalize, not as "fur"/"uber". (Folding diacritics would change matching across the
+# board and is a measured decision for the eval, not a stopword-list edit.)
+#
+# Two-letter glue ("in", "an", "de", "le", "et", "zu"…) is NOT listed:
+# ``_FALLBACK_MIN_TOKEN_LEN`` already drops every token under 3 chars. And real
+# acronyms that collide with glue ("DES", "EST", "SUR", "PAR") are deliberately left
+# OUT — a stopword can only ever remove credit, and removing it from a genuine
+# acronym pair is the one way this list can do harm.
 _FALLBACK_STOPWORDS: frozenset[str] = frozenset({
     # English glue
     "of", "and", "or", "the", "a", "an", "for", "to", "in", "on", "with", "at",
     "by", "from", "as", "its", "your",
     # Czech glue
     "v", "ve", "na", "pro", "se", "si", "o", "z", "ze", "do", "po", "k", "u", "i", "s",
+    # German glue (articles, prepositions, conjunctions, copulas)
+    "der", "die", "das", "den", "dem", "ein", "eine", "einer", "eines", "einem",
+    "und", "oder", "aber", "für", "mit", "von", "vom", "aus", "als", "auf",
+    "bei", "beim", "nach", "über", "durch", "zur", "zum", "sowie", "ist", "sind",
+    "wird", "werden", "nicht", "sich", "wie", "unter", "gegen", "ohne", "dass",
+    # French glue
+    "les", "une", "des", "dans", "pour", "avec", "aux", "sont", "ainsi", "chez",
+    "sous", "entre", "comme", "leur", "leurs", "notre", "nos", "vos", "votre",
+    "cette", "ces", "afin", "vers", "lors", "tout", "tous", "toute", "toutes",
     # generic role / skill filler (a shared "engineer"/"management" is not a skill)
     "management", "manager", "engineer", "engineering", "developer", "development",
     "specialist", "analyst", "coordinator", "administrator", "officer", "assistant",
     "senior", "junior", "medior", "lead", "principal", "general", "professional",
     "experience", "skills", "knowledge", "work", "working", "team", "support",
+    # generic role / skill filler, German
+    "entwicklung", "entwickler", "ingenieur", "berater", "erfahrung", "kenntnisse",
+    "kenntnis", "leitung", "mitarbeiter", "bereich", "aufgaben", "arbeit",
+    # generic role / skill filler, French
+    "gestion", "développement", "développeur", "ingénieur", "expérience",
+    "connaissances", "compétences", "équipe", "responsable", "consultant",
+    "conseiller", "chargé", "poste", "travail",
 })
 
 # Tokens shorter than this are too ambiguous to anchor a match: they are substrings

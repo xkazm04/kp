@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { appendDevSessionChat, appendDevSessionEvents, getDevCase, getDevSessionChat, getDevSessionMeta, getPostingByToken, lifecycleByPosting } from "@/app/_lib/db/devcase";
 import { runSessionChat } from "@/app/_lib/devcase-run";
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { rateLimit } from "@/app/_lib/rate-limit";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // LLM-era controls #2/#5 — the captured prompt channel. The candidate's assistant
 // and stakeholder chats flow THROUGH the platform: every user message and model
@@ -38,6 +39,10 @@ const MAX_MESSAGE_CHARS = 4_000;
 // "you've reached the limit" line (devApply.workSurface.chatRateLimited) — an exhausted
 // budget must read as a stated limit, never as a failure that looks like lost work.
 
+/** Hard cap on this public door's request body: one chat turn plus the file the candidate has open — the file is what makes it more than a sentence.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_DEVCASE_CHAT_BODY_BYTES = 128 * 1024;
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -46,15 +51,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
     if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
 
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       channel?: unknown;
       message?: unknown;
       currentFile?: unknown;
       token?: unknown;
-    };
+    }>(request, MAX_DEVCASE_CHAT_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_CHAT_BODY_BYTES });
+    }
     // A session id alone is not authority to spend this session's model budget —
     // the caller must present the apply token that minted it (devcase-session-auth.ts).
-    if (session.token && !sessionTokenMatches(session.token, body.token)) {
+    //
+    // A TOKENLESS session (fixtures/dev seeds; the public mint always carries one) used to
+    // take a `session.token && …` carve-out here and walk past BOTH this gate and the
+    // per-token daily budget below — an unauthenticated caller holding such an id had an
+    // unmetered LLM door. The submit sibling already refused those outright; chat and the
+    // flush now agree, so one rule covers all three mutating doors.
+    if (!session.token || !sessionTokenMatches(session.token, body.token)) {
       return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
     }
     const channel = body.channel === "stakeholder" ? "stakeholder" : "assistant";
@@ -70,10 +84,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // never consumes budget) and BEFORE any DB write or the model call, so a refused
     // request also can't eat into the 400-message session ceiling.
     if (!rateLimit(`devcase-chat:${id}`, { limit: 30, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     if (session.token && !rateLimit(`devcase-chat-token:${session.token}`, { limit: 3000, windowMs: 24 * 60 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const posting = session.token ? getPostingByToken(session.token) : null;
@@ -84,7 +98,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // context; the stored copy is the evaluation evidence.
     const transcript = getDevSessionChat(id, channel).map((m) => ({ channel: m.channel, role: m.role, text: m.text }));
     const stored = appendDevSessionChat(id, channel, "user", message);
-    if (stored === 0) return NextResponse.json({ error: "chat limit reached for this session" }, { status: 429 });
+    // The session's own ceiling, not the limiter: its own code, so the candidate reads
+    // "your work is saved, this budget does not reset" in their language (§1.1).
+    if (stored === 0) return jsonRefusal("DEVCASE_CHAT_CEILING", 429);
     // Server-recorded, chained process event: one captured exchange on this channel.
     appendDevSessionEvents(id, [{ t: Date.now(), kind: "prompt", path: channel, size: message.length }]);
 
@@ -93,17 +109,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // separately as CANDIDATE_MESSAGE, so the transcript passed here is the
     // history BEFORE this message. Re-appending it (case-sim round 3 canary c1)
     // doubled the newest message in the model context on every exchange.
-    const { reply } = await runSessionChat(
+    //
+    // `request.signal` is forwarded: the abort reaches spawnPython (the kp
+    // SIGKILL-on-abort convention), so a candidate who navigates away or whose
+    // connection drops mid-generation does not leave a Python child running for the
+    // remainder of its timeout. `runSessionChat` has always accepted the signal; this
+    // route was the one caller that never passed one.
+    const { reply, source } = await runSessionChat(
       channel,
       (devCase.case as Record<string, unknown>) ?? {},
       (devCase.role as Record<string, unknown>) ?? {},
       transcript,
       message,
       currentFile,
-      lang
+      lang,
+      request.signal
     );
     if (reply) appendDevSessionChat(id, channel, "model", reply);
-    return NextResponse.json({ reply });
+    // `source` ("llm" | "deterministic") rides the response so the candidate can tell a
+    // real stakeholder/assistant reply from the keyless deterministic stub. Degrading
+    // without keys is a product property here; presenting the stub as if a model had
+    // answered is the dishonest half, and the candidate is the person whose next hour of
+    // work depends on knowing which one they are talking to.
+    return NextResponse.json({ reply, source });
   } catch (error) {
     return jsonError(error, "Failed to reach the chat channel.");
   }

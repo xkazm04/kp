@@ -7,6 +7,8 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { hasRenderableComparison, resolveWinnerIndex, type CompareDriver } from "@/app/_lib/comparison";
 import { reconcileScoreTotal, SCORE_COMPONENT_KEYS } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { PANEL } from "@/app/_components/ui/recipes";
+import { collidingLabelBadges, driverMessage } from "./compareView.ts";
 import { BulletList } from "../shared";
 
 type ComparisonPayload = NonNullable<Analysis["comparison"]>;
@@ -69,7 +71,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   // (variants[0], the comparison narrative) meaningless or throw.
   if (!hasRenderableComparison(comparison)) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className={`${PANEL} p-5`}>
         <h3 className="font-serif text-h3 text-ink">{t("compare.emptyTitle")}</h3>
         <p className="mt-3 text-base leading-6 text-steel">{t("compare.emptyBody")}</p>
       </div>
@@ -86,17 +88,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   // Variant labels aren't unique (two CVs can share a filename), and duplicate columns
   // are otherwise indistinguishable except by the crown. Number ONLY the colliding
   // ones — "1", "2" among same-labeled columns — so unique labels stay noise-free.
-  const columnBadges: (number | null)[] = (() => {
-    const totals = new Map<string, number>();
-    for (const v of comparison.variants) totals.set(v.label, (totals.get(v.label) ?? 0) + 1);
-    const seen = new Map<string, number>();
-    return comparison.variants.map((v) => {
-      if ((totals.get(v.label) ?? 0) < 2) return null;
-      const n = (seen.get(v.label) ?? 0) + 1;
-      seen.set(v.label, n);
-      return n;
-    });
-  })();
+  const columnBadges = collidingLabelBadges(comparison.variants.map((v) => v.label));
 
   const mr = comparison.mergedRecommendation;
 
@@ -108,27 +100,11 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
   };
   const metricLabel = (metric: "overall" | "jobFit") =>
     t(metric === "jobFit" ? "compare.metricJobFitProse" : "compare.metricOverall");
+  // Which key and which values is a pure decision (compareView.ts, pinned by
+  // compareView.test.ts); `t` only renders it.
   const driverText = (item: CompareDriver): string => {
-    switch (item.kind) {
-      case "tie":
-        return t("compare.narrativeTie", { best: item.best, other: item.other, metric: metricLabel(item.metric), score: item.score });
-      case "delta":
-        return t("compare.narrativeDelta", {
-          best: item.best,
-          other: item.other,
-          dir: item.dir,
-          amount: item.amount,
-          metric: metricLabel(item.metric),
-          bestScore: item.bestScore,
-          otherScore: item.otherScore,
-        });
-      case "driver":
-        return t("compare.narrativeDriver", { component: componentLabel(item.component), dir: item.dir, amount: item.amount, other: item.other });
-      case "uniqueBest":
-        return t("compare.narrativeUniqueBest", { best: item.best, skills: item.skills.join(", ") });
-      case "uniqueOther":
-        return t("compare.narrativeUniqueOther", { other: item.other, skills: item.skills.join(", ") });
-    }
+    const { key, values } = driverMessage(item, { component: componentLabel, metric: metricLabel });
+    return t(key as Parameters<typeof t>[0], values);
   };
   // Prefer the structured items (localized); fall back to the persisted English strings
   // for payloads saved before the codes seam existed — additive, never blank.
@@ -170,7 +146,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+      <div className={`${PANEL} p-5`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-serif text-h3 text-ink">{t("compare.title")}</h3>
@@ -276,7 +252,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.driversTitle")}</h3>
           <BulletList
             items={driverInsights}
@@ -286,7 +262,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           />
         </div>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.mergedTitle")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{mergedSummary}</p>
           <ul className="mt-3 space-y-2 text-base leading-6 text-ink">
@@ -303,7 +279,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.headlineSkillsTitle")}</h3>
           {headlineText ? (
             <div className="mt-3 rounded-md bg-paper p-3">
@@ -319,7 +295,7 @@ export function CompareTab({ analysis }: { analysis: Analysis }) {
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("compare.bulletsTitle")}</h3>
           <BulletList
             items={comparison.mergedRecommendation.bullets}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { can } from "@/app/_lib/auth/current-user";
 import { recommendScreeningThreshold } from "@/app/_lib/calibration";
 import { getDecisionConfig, updateDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
@@ -23,9 +25,18 @@ import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
 // Operator-gated like /api/decisions/config (these rules drive the auto-reject
 // wave), and re-derived server-side so the applied value can only ever be one the
 // live pairs actually defend.
+//
+// AUTHORITY (2026-09-03). The operator gate is "a valid, non-demo session" — it reads
+// no ROLE — so every seat on the team, `viewer` included, could move the live
+// auto-reject floor. The floor decides who the screening wave rejects without a human,
+// so the write now additionally requires `pipeline:write`: the capability that already
+// gates the rest of the recruiter's decision surface (moves, decisions, comms). A
+// viewer is refused with a CODE, not the bare "Forbidden" the shared gate returns, so
+// the panel can say why in the reader's language.
 export async function POST(request: Request) {
   const denied = await requireOperator();
   if (denied) return denied;
+  if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
   try {
     const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { suggestedThreshold?: unknown; roleFamily?: unknown };
@@ -37,9 +48,20 @@ export async function POST(request: Request) {
     let roleFamily: string | null = null;
     if (body.roleFamily !== undefined && body.roleFamily !== null && body.roleFamily !== "") {
       if (typeof body.roleFamily !== "string" || !(ROLE_FAMILY_SLUGS as readonly string[]).includes(body.roleFamily)) {
-        return NextResponse.json({ error: "Unknown role family." }, { status: 400 });
+        return jsonRefusal("CALIBRATION_FAMILY_UNKNOWN", 400);
       }
       roleFamily = body.roleFamily;
+    }
+
+    // CONSENT IS REQUIRED, not optional. The posted number is the one the operator
+    // read on the card; the staleness comparison below is what stops a card that has
+    // been open across a data change from moving the live floor to something nobody
+    // approved. It used to be written `if (typeof body.suggestedThreshold === "number")`
+    // — so a POST that simply omitted the field skipped the comparison and applied
+    // whatever the live recommendation had become. Refuse before ANY derivation: this
+    // is the cheapest refusal on the route and it must cost no calibration scan.
+    if (typeof body.suggestedThreshold !== "number" || !Number.isFinite(body.suggestedThreshold)) {
+      return jsonRefusal("CALIBRATION_SUGGESTION_REQUIRED", 400);
     }
 
     const screening = getDecisionConfig<ScreeningRule>("screening", ws);
@@ -60,15 +82,14 @@ export async function POST(request: Request) {
     const holdoutPairs = roleFamily ? allHoldout.filter((p) => p.roleFamily === roleFamily) : allHoldout;
     const rec = recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold);
     if (!rec) {
-      return NextResponse.json({ error: "No calibration recommendation is available to apply." }, { status: 409 });
+      return jsonRefusal("CALIBRATION_RECOMMENDATION_ABSENT", 409);
     }
     // Guard against applying a stale suggestion the recruiter saw before the data
-    // moved: the posted value must still match the current recommendation.
-    if (typeof body.suggestedThreshold === "number" && body.suggestedThreshold !== rec.suggestedThreshold) {
-      return NextResponse.json(
-        { error: "The recommendation changed since it was shown — reload and review the current suggestion.", recommendation: rec },
-        { status: 409 }
-      );
+    // moved: the posted value must still match the current recommendation. The live
+    // recommendation rides beside the code as DATA so the panel can re-render the
+    // card from it rather than paint the server's English sentence.
+    if (body.suggestedThreshold !== rec.suggestedThreshold) {
+      return jsonRefusal("CALIBRATION_RECOMMENDATION_CHANGED", 409, { recommendation: rec });
     }
 
     // Write through a TRANSACTIONAL read-modify-write (team override), leaving every
@@ -125,6 +146,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, previousThreshold: currentThreshold, newThreshold: rec.suggestedThreshold, roleFamily });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to apply the threshold." }, { status: 500 });
+    // The transactional config write and the seal both sit over the store's own SQLite
+    // connection: a constraint string or the absolute db path was reaching the panel.
+    return safeJsonError(error, "api:analytics/calibration/apply-threshold", "CALIBRATION_APPLY_FAILED");
   }
 }

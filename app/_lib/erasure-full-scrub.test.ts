@@ -187,3 +187,159 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   const namesake = loadAnalysis(namesakeSlug, "other-team")!;
   assert.match(JSON.stringify(namesake.payload), /zdenka\.prochazkova@example\.com/i, "a different tenant's namesake analysis is preserved");
 });
+
+// ---------------------------------------------------------------------------
+// Lot CP — THE ERASURE LIST IS PINNED TO THE TENANCY MANIFEST.
+//
+// The test above asserts that the tables it KNOWS about are scrubbed. Nothing
+// asserted that the set of tables it knows about is the set of tables that hold
+// candidate data — so a new per-tenant table could join TENANCY_SCOPED_TABLES (the
+// manifest that IS machine-checked) and silently stay outside erasure's reach. That
+// is how the candidate survey comment, the whole dev-case family and the signed
+// skill credential came to survive an Art. 17 request while /data told the candidate
+// their data was gone.
+//
+// These tests close the loop: every scoped table must be written by the erasure
+// region, delegated to a named scrub, or carry a legal retention reason.
+// ---------------------------------------------------------------------------
+const { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES } = await import("./tenancy.ts");
+const { ERASURE_EXEMPT, ERASURE_DELEGATED_SCRUBS } = await import("./db/pipeline.ts");
+
+/** The erasure region of db/pipeline.ts: scrubEntryLinkedPii + anonymizeEntry, with
+ *  comments stripped (a table named in PROSE must never count as scrubbed) and line
+ *  endings normalized (this repo is CRLF on Windows, LF in a worktree). */
+function erasureRegion(): string {
+  const text = fs.readFileSync(fileURLToPath(new URL("./db/pipeline.ts", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+  const start = text.indexOf("function scrubEntryLinkedPii(");
+  const end = text.indexOf("export function anonymizeExpiredConsents(");
+  assert.ok(start > 0 && end > start, "erasure region (scrubEntryLinkedPii → anonymizeExpiredConsents) found in db/pipeline.ts");
+  return text
+    .slice(start, end)
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ");
+}
+
+/** The tables the erasure path actually WRITES, read off its SQL. Derived, never
+ *  declared: a hand-maintained list of table names is exactly the artifact that
+ *  drifts away from the code it claims to describe. */
+function scrubbedTables(): Set<string> {
+  const out = new Set<string>();
+  for (const m of erasureRegion().matchAll(/(?:UPDATE|DELETE\s+FROM)\s+([a-z_][a-z0-9_]*)/gi)) out.add(m[1]);
+  return out;
+}
+
+test("every workspace-scoped table is reached by erasure or exempted with a legal reason", () => {
+  const scrubbed = scrubbedTables();
+  const gaps = [...TENANCY_SCOPED_TABLES]
+    .filter((t) => !scrubbed.has(t) && !ERASURE_DELEGATED_SCRUBS.has(t) && !ERASURE_EXEMPT.has(t))
+    .sort();
+  assert.deepEqual(
+    gaps,
+    [],
+    "these tenancy-manifest tables hold per-tenant data but erasure neither scrubs nor exempts them: " +
+      gaps.join(", ") +
+      ". Scrub them in scrubEntryLinkedPii, or add each to ERASURE_EXEMPT (db/pipeline.ts) with the reason it is lawfully retained."
+  );
+});
+
+test("the erasure exemption map is honest: known tables, real reasons, no double-claim", () => {
+  const scrubbed = scrubbedTables();
+  const known = new Set([...TENANCY_SCOPED_TABLES, ...TENANCY_EXEMPT_TABLES]);
+  for (const [table, reason] of ERASURE_EXEMPT) {
+    assert.ok(known.has(table), 'ERASURE_EXEMPT names "' + table + '", which is in no tenancy manifest — a stale exemption');
+    // A reason is a sentence saying WHY it is lawful to keep the data, not a shrug.
+    assert.ok(reason.trim().length >= 40, 'ERASURE_EXEMPT["' + table + '"] needs a real legal/factual reason, got: "' + reason + '"');
+    assert.ok(!scrubbed.has(table), '"' + table + '" is BOTH scrubbed and exempt — one of the two claims is wrong');
+  }
+  // A delegated scrub must name a function the erasure region really calls.
+  const region = erasureRegion();
+  for (const [table, fn] of ERASURE_DELEGATED_SCRUBS) {
+    assert.ok(
+      region.includes(fn + "("),
+      'ERASURE_DELEGATED_SCRUBS claims "' + table + '" is scrubbed by ' + fn + "(), which the erasure region never calls"
+    );
+  }
+});
+
+test("erasure reaches the candidate-keyed family: survey comment, dev-case chain, skill credential, calibration row", async () => {
+  const { startDevSession, appendDevSessionChat, saveDevSessionFiles, submitDevSession, getSubmission, getDevSession, getDevSessionChat } =
+    await import("./db/devcase.ts");
+  const { recordCandidateNps, candidateNpsFor } = await import("./candidate-nps-store.ts");
+  const { recordHirePerformance } = await import("./dev-outcomes.ts");
+  const Database = (await import("better-sqlite3")).default;
+
+  const cid = "c-fam-" + process.pid;
+  // The Live Work Surface session: the candidate's own prompts and authored files.
+  const session = startDevSession({ token: null, candidateRef: NAME });
+  appendDevSessionChat(session.id, "assistant", "user", "Hi, I'm " + NAME + " — reach me at " + EMAIL + ".");
+  saveDevSessionFiles(session.id, [{ path: "README.md", contents: "Authored by " + NAME + " <" + EMAIL + ">" }]);
+  const submission = submitDevSession(session.id, "post-erasure-" + process.pid, { candidate: NAME, contact: EMAIL })!;
+  assert.ok(submission, "the session submits into a dev_submissions row");
+
+  const raw = new Database(TMP);
+  // Free-text recruiter notes on the submission (the intake writes them; no store setter).
+  raw.prepare("UPDATE dev_submissions SET notes = ? WHERE id = ?").run(NAME + " pasted a lot; call " + PHONE, submission.id);
+  // The signed, candidate-owned credential minted from that submission.
+  raw
+    .prepare(
+      "INSERT INTO skill_profiles (token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at)" +
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .run(
+      "dsp-" + process.pid,
+      submission.id,
+      NAME,
+      "case-1",
+      JSON.stringify({ candidateRef: NAME, contact: EMAIL, axes: [] }),
+      "sig",
+      "1",
+      new Date().toISOString()
+    );
+
+  const { entry } = createPipelineEntry({
+    candidateId: cid,
+    candidateLabel: NAME,
+    jobId: "job-fam-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+    contact: EMAIL,
+    devSubmissionId: submission.id,
+  });
+  // The candidate's own survey comment, and the calibration row a rated hire leaves.
+  recordCandidateNps(entry.id, 9, "Great process — " + NAME + ", " + EMAIL);
+  recordHirePerformance({ id: entry.id, candidateId: cid, candidateLabel: NAME, matchScore: 70 }, 4);
+
+  // Sanity: they really hold the PII BEFORE the erasure (never a tautological pass).
+  assert.match(JSON.stringify(getDevSessionChat(session.id)), /zdenka/i, "session chat holds PII pre-erasure");
+  assert.match(String(candidateNpsFor(entry.id)?.comment), /Zdenka/i, "survey comment holds PII pre-erasure");
+
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "anonymizeEntry returns the entry");
+
+  assert.equal(candidateNpsFor(entry.id)?.comment, null, "candidate_nps comment nulled");
+  const sub = getSubmission(submission.id)!;
+  assert.equal(sub.contact, null, "dev_submissions contact nulled");
+  assert.equal(sub.notes, null, "dev_submissions notes nulled");
+  assertScrubbed(JSON.stringify(sub), "dev_submissions");
+  const sess = getDevSession(session.id)!;
+  assertScrubbed(JSON.stringify(sess), "dev_sessions");
+  assert.deepEqual(sess.files, [], "dev_sessions authored files dropped");
+  assertScrubbed(JSON.stringify(getDevSessionChat(session.id)), "dev_session_chat");
+
+  const cred = raw.prepare("SELECT candidate_ref, profile_json, revoked_at FROM skill_profiles WHERE submission_id = ?").get(submission.id) as {
+    candidate_ref: string;
+    profile_json: string;
+    revoked_at: string | null;
+  };
+  assertScrubbed(JSON.stringify(cred), "skill_profiles");
+  assert.equal(cred.profile_json, "{}", "the signed credential's payload is dropped");
+  assert.ok(cred.revoked_at, "the credential is revoked, not left presentable as an empty valid one");
+
+  const outcome = raw.prepare("SELECT candidate_ref, note, performance FROM dev_outcomes WHERE ref = ?").get("pe:" + entry.id) as {
+    candidate_ref: string;
+    note: string | null;
+    performance: number;
+  };
+  assertScrubbed(JSON.stringify(outcome), "dev_outcomes");
+  assert.equal(outcome.performance, 4, "the de-identified calibration measurement is RETAINED");
+  raw.close();
+});

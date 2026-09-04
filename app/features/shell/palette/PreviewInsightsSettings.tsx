@@ -79,7 +79,7 @@ export function PreviewOrganization({ p }: { p: V<"organization"> }) {
       <div className="flex items-center gap-3">
         {p.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- customer logo URL, not a bundled asset
-          <img src={p.logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-stone-200 bg-white object-contain" />
+          <img src={p.logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-stone-200 bg-white-fixed object-contain" />
         ) : (
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-coral/10 font-serif text-h3 text-coral dark:-rotate-2" aria-hidden>
             {p.name.trim().charAt(0).toUpperCase() || "?"}
@@ -108,7 +108,7 @@ export function PreviewBranding({ p }: { p: V<"branding"> }) {
         <span className="h-10 w-10 shrink-0 rounded-lg border border-stone-200 bg-coral" style={p.accentColor ? { backgroundColor: p.accentColor } : undefined} aria-hidden />
         {p.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- customer logo URL, not a bundled asset
-          <img src={p.logoUrl} alt="" className="h-10 max-w-[7rem] rounded-md border border-stone-200 bg-white object-contain px-1" />
+          <img src={p.logoUrl} alt="" className="h-10 max-w-[7rem] rounded-md border border-stone-200 bg-white-fixed object-contain px-1" />
         ) : null}
         <p className="min-w-0 truncate font-serif text-h3 leading-tight text-ink">{p.displayName ?? "KandiDate"}</p>
       </div>

@@ -22,7 +22,7 @@ import { useTranslations } from "next-intl";
 import { forecastHires } from "@/app/_lib/analytics-forecast";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
-import { EYEBROW } from "@/app/_components/ui/recipes";
+import { EYEBROW, META_LABEL } from "@/app/_components/ui/recipes";
 import { DeltaChip } from "../AnalyticsDeltaChip";
 import { GoalsEditor } from "../AnalyticsGoalsEditor";
 import { AnalyticsByRoleTable } from "../AnalyticsByRoleTable";
@@ -303,6 +303,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         stageDwell={data.stageDwell}
         koDeclined={data.koDeclined}
         offers={data.offers}
+        offerStage={data.offerStage ?? null}
         enumLabel={enumLabel}
         boardHref={boardHref}
       />
@@ -314,20 +315,35 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         hasData={forecast.hasSignal}
         claim={t("briefForecastClaim", { hires: forecast.inFlightExpectedHires })}
         context={t("briefForecastContext", { velocity: forecast.weeklyVelocity, conv: forecast.overallConversionPct ?? 0 })}
-        noDataContext={t("briefForecastNoSignalContext")}
+        // The refusal names its own floor and how far this workspace is from it. "Not
+        // enough history" with no number is a door with no handle: the reader cannot
+        // tell whether they are one hire away or twenty, so the band read as broken
+        // rather than as waiting.
+        noDataContext={t("forecast.floorNote", {
+          minHires: forecast.signal.minHires,
+          minWeeks: forecast.signal.minInflowWeeks,
+          hires: forecast.signal.hires,
+          weeks: forecast.signal.inflowWeeks,
+        })}
       >
         {forecast.hasSignal ? (
           <>
             <dl className="flex max-w-3xl flex-wrap gap-x-10 gap-y-3">
               {forecast.projected.map((p) => (
                 <div key={p.weeks} className="flex flex-col gap-0.5">
-                  <dt className="text-meta uppercase text-steel">{t("forecast.horizon", { weeks: p.weeks })}</dt>
+                  {/* The label says ESTIMATE. Printed as a bare "+7.5" beside measured
+                      figures in the same type, a projection reads as a count of things
+                      that happened. */}
+                  <dt className={META_LABEL}>{t("forecast.horizonEstimate", { weeks: p.weeks })}</dt>
                   <dd className="font-serif text-h2 leading-none text-ink nums">{t("forecast.plusHires", { hires: p.hires })}</dd>
+                  {/* …and the band the inflow variance implies. One decimal place of
+                      false precision was the whole of the old figure's confidence. */}
+                  <dd className="text-meta text-steel nums">{t("forecast.range", { low: p.low, high: p.high })}</dd>
                 </div>
               ))}
               {forecast.etaDays != null ? (
                 <div className="flex flex-col gap-0.5">
-                  <dt className="text-meta uppercase text-steel">{t("briefEtaLabel")}</dt>
+                  <dt className={META_LABEL}>{t("briefEtaLabel")}</dt>
                   <dd className="font-serif text-h2 leading-none text-steel nums">{t("briefEtaValue", { days: forecast.etaDays })}</dd>
                 </div>
               ) : null}
@@ -343,8 +359,19 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
                 exported by the forecast for exactly this ("lets the UI state its
                 acceptance basis honestly") and `forecast.acceptBasis` was already
                 written in all four locales with no caller. */}
+            {/* The METHOD, beside the figures it produced. This is a linear
+                extrapolation of observed inflow through an observed conversion — not a
+                model — and a headline number whose method is unstated is asking to be
+                read as a commitment. */}
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-steel">
+              {t("forecast.method", {
+                velocity: forecast.weeklyVelocity,
+                conv: forecast.overallConversionPct ?? 0,
+                sd: forecast.weeklyVelocityStdDev,
+              })}
+            </p>
             {forecast.offerAcceptRate != null ? (
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-steel">
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-steel">
                 {t("forecast.acceptBasis", { pct: Math.round(forecast.offerAcceptRate * 100), n: data.offers.n })}
               </p>
             ) : null}

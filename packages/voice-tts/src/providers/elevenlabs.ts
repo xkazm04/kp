@@ -99,11 +99,46 @@ export class ElevenLabsTts implements TtsProvider {
       // (quota can run out mid-minute), but a 429 is "busy", not "down".
       if (res.status !== 429) this.probeCache = null;
       this.host.log?.({ type: "error", provider: this.id, message: `${res.status} ${detail}` });
-      throw new TtsError(res.status === 401 ? "unavailable" : "engine_failed", `service answered ${res.status}`, this.id);
+      throw this.httpError(res.status, res.headers);
     }
     const bytes = pcmToWav(new Uint8Array(await res.arrayBuffer()), PCM_RATE);
     const elapsedMs = Date.now() - started;
     this.host.log?.({ type: "synthesize", provider: this.id, voiceId, chars: req.text.length, ms: elapsedMs, bytes: bytes.length });
     return { bytes, mimeType: "audio/wav", provider: this.id, voiceId, elapsedMs };
   }
+  /** One place that turns an HTTP status into the code a surface acts on.
+   *  Collapsing everything but 401 into `engine_failed` was the defect: a
+   *  surface could not tell "add credits" from "wait a moment" from "that
+   *  voice id is wrong", and answered all three with the same 502. */
+  private httpError(status: number, headers: Headers): TtsError {
+    const said = `service answered ${status}`;
+    // Busy, not broken: the same request succeeds later, so the only correct
+    // next action is to wait — and the service usually says how long.
+    if (status === 429) return new TtsError("rate_limited", `${said} (rate limited)`, this.id, parseRetryAfterMs(headers.get("retry-after")));
+    // 422 is this API's "well-formed, but that voice/model is not usable";
+    // 404 is a voice id that does not exist (it is the path segment). Both are
+    // fixed by picking another voice, never by retrying.
+    if (status === 422 || status === 404) return new TtsError("invalid_voice", `${said} (voice or model rejected)`, this.id);
+    // 401 key rejected, 403 key valid but not entitled (plan exhausted) —
+    // either way the account, not the request, is the blocker.
+    if (status === 401 || status === 403) return new TtsError("unavailable", `${said} (credentials rejected)`, this.id);
+    if (status >= 500) return new TtsError("engine_failed", `${said} (service error)`, this.id);
+    return new TtsError("engine_failed", said, this.id);
+  }
+}
+
+/** `Retry-After` is either delta-seconds or an HTTP-date (RFC 9110 §10.2.3).
+ *  Anything else, or a value in the past, yields undefined — the host then
+ *  picks its own backoff rather than trusting a malformed header. */
+function parseRetryAfterMs(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const value = raw.trim();
+  if (/^\d+$/.test(value)) {
+    const ms = Number(value) * 1000;
+    return Number.isFinite(ms) && ms >= 0 ? Math.min(ms, 3_600_000) : undefined;
+  }
+  const at = Date.parse(value);
+  if (!Number.isFinite(at)) return undefined;
+  const ms = at - Date.now();
+  return ms > 0 ? Math.min(ms, 3_600_000) : undefined;
 }

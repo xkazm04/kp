@@ -6,6 +6,16 @@ import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
+import {
+  GROUNDING_SOURCES_CAP,
+  PARSING_NOTES_CAP,
+  bulletItems,
+  cappedDistinct,
+  isAnchorBand,
+  latchOpen,
+} from "./sharedLogic";
 
 /**
  * The empty-state vignettes below paint through `var(--color-…)`, NOT the JS
@@ -51,7 +61,11 @@ export function LazyDetails({
     <details
       className={className}
       onToggle={(event) => {
-        if (event.currentTarget.open) setHasOpened(true);
+        // `currentTarget` is null once the handler returns — read it before the
+        // updater runs. `latchOpen` is the rule (see sharedLogic.ts): true never
+        // falls back, so a re-collapse keeps the parsed content mounted.
+        const isOpen = event.currentTarget.open;
+        setHasOpened((prev) => latchOpen(prev, isOpen));
       }}
     >
       <summary className={summaryClassName}>{summary}</summary>
@@ -63,7 +77,7 @@ export function LazyDetails({
 export function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md bg-paper p-3">
-      <p className="text-meta uppercase text-steel">{label}</p>
+      <p className={META_LABEL}>{label}</p>
       <p className="mt-1 font-serif text-h2 text-ink">{value}</p>
     </div>
   );
@@ -163,7 +177,7 @@ export function BulletList({
   listClassName?: string;
   itemClassName?: string;
 }) {
-  const uniqueItems = dedupe(items);
+  const uniqueItems = bulletItems(items);
   if (!uniqueItems.length) {
     return <>{empty}</>;
   }
@@ -222,15 +236,15 @@ export function ListBlock({
   copyable?: boolean;
 }) {
   const t = useTranslations("report");
-  const [copied, setCopied] = useState(false);
+  // One shared confirmation timer, cleared on unmount — this tab can close
+  // inside the two-second window.
+  const { copied, mark } = useCopyFeedback();
   const unique = dedupe(items);
   const copy = async () => {
-    const ok = await copyText(unique.map((i) => `- ${i}`).join("\n"));
-    setCopied(ok);
-    if (ok) window.setTimeout(() => setCopied(false), 2000);
+    mark(await copyText(unique.map((i) => `- ${i}`).join("\n")));
   };
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex items-center gap-2">
         {icon ?? null}
         <h3 className="font-serif text-h3 text-ink">{title}</h3>
@@ -255,6 +269,42 @@ export function ListBlock({
   );
 }
 
+/**
+ * The one-line marker that names WHAT the reader is looking at, in the same voice and
+ * the same place, for the two things a report has to disclose about its own engine.
+ *
+ * `variant="verbatim"` (default) — "the lines under this are the engine's own English".
+ * The quality strip beside this panel has carried it since 21a; the engine panel painted
+ * free-form model prose (`parsingNotes`) straight into a Czech, German or French report
+ * with nothing telling the reader which half of the surface was translated and which was
+ * machine text quoted verbatim.
+ *
+ * `variant="deterministic"` — "NO MODEL RAN". `analyses` holds output from two producers
+ * (the LLM pipeline, and the rule-based seed builders whose demo corpus is upserted into
+ * the same table on every boot), and until the `engine` column landed a saved report gave
+ * the recruiter nothing to tell them apart. This is not a caveat about language, it is a
+ * caveat about provenance — and it is the ONE case where "no model ran" is the honest
+ * headline rather than a degradation notice, because the numbers are fully computed, just
+ * computed by rules. Same component so the two disclosures cannot drift into two
+ * different visual languages.
+ */
+export function EngineNote({
+  className,
+  variant = "verbatim",
+}: {
+  className?: string;
+  variant?: "verbatim" | "deterministic";
+}) {
+  const t = useTranslations("results.quality");
+  const body = variant === "deterministic" ? "deterministicNote" : "engineNote";
+  const title = variant === "deterministic" ? "deterministicNoteTitle" : "engineNoteTitle";
+  return (
+    <p className={className ? `${className} ${META_LABEL}` : META_LABEL} title={t(title)}>
+      {t(body)}
+    </p>
+  );
+}
+
 export function EnginePanel({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
   if (!analysis.metadata) {
@@ -264,30 +314,39 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
   // rendered: the grounding sources a grounded salary read was built on, and the
   // deterministic Czech-market anchor band. These separate a defensible pay number
   // from an opaque guess — a concrete differentiator, data already on the payload.
-  const groundingSources = analysis.metadata.groundingSources ?? [];
+  const groundingSources = cappedDistinct(analysis.metadata.groundingSources, GROUNDING_SOURCES_CAP);
   const anchorBand = analysis.metadata.deterministicEvidence?.anchorBand;
+  const parsingNotes = cappedDistinct(analysis.metadata.parsingNotes, PARSING_NOTES_CAP);
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <h3 className="font-serif text-h3 text-ink">{t("engineTitle")}</h3>
       <div className="mt-3 space-y-2 text-base leading-6 text-ink">
+        {/* Provenance first: whether a model ran at all outranks which one, and a reader
+            who stops after one line should have read the load-bearing fact. Rendered only
+            for a deterministic result — "an LLM produced this" is the assumed case and
+            saying it on every report would turn the marker into chrome nobody reads.
+            Absent on a legacy payload (engineKind undefined), which is UNKNOWN, and an
+            unknown provenance is not a licence to claim either one. */}
+        {analysis.metadata.engineKind === "deterministic" ? <EngineNote variant="deterministic" /> : null}
         <p>{t("engine", { engine: analysis.metadata.analysisEngine })}</p>
         <p>{t("extractor", { extractor: analysis.metadata.textExtractor })}</p>
         {analysis.metadata.model ? <p>{t("model", { model: analysis.metadata.model })}</p> : null}
-        {/* Dedupe before slicing so the cap of 3 counts distinct notes; BulletList
-            re-dedupes (a no-op here) and renders nothing when the list is empty. */}
-        <BulletList
-          items={dedupe(analysis.metadata.parsingNotes).slice(0, 3)}
-          listClassName="space-y-2"
-          itemClassName=""
-        />
-        {anchorBand && anchorBand.length === 2 ? (
+        {/* Machine prose, quoted verbatim — marked as such, exactly as the
+            quality strip marks its own engine lines. */}
+        {parsingNotes.length > 0 ? (
+          <div>
+            <EngineNote />
+            <BulletList items={parsingNotes} listClassName="mt-1 space-y-2" itemClassName="" />
+          </div>
+        ) : null}
+        {isAnchorBand(anchorBand) ? (
           <p className="text-sm text-steel">{t("anchorBand", { lo: anchorBand[0], hi: anchorBand[1] })}</p>
         ) : null}
         {groundingSources.length > 0 ? (
           <div>
-            <p className="text-meta uppercase text-steel">{t("groundingTitle")}</p>
-            <BulletList items={dedupe(groundingSources).slice(0, 5)} listClassName="mt-1 space-y-1" itemClassName="text-sm text-steel" />
+            <p className={META_LABEL}>{t("groundingTitle")}</p>
+            <BulletList items={groundingSources} listClassName="mt-1 space-y-1" itemClassName="text-sm text-steel" />
           </div>
         ) : null}
       </div>

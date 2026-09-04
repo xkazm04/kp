@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { isBounceOutcome } from "@/app/_lib/comms-status";
 import { recordDeliveryReceipt } from "@/app/_lib/comms-receipt";
-import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonError, jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import {
   secretsMatch,
   isTimestampFresh,
@@ -9,6 +9,7 @@ import {
   createReplayGuard,
   type ReplayGuard,
 } from "./callback-auth.ts";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Process-local replay/idempotency store, kept on globalThis so it survives a
 // Next.js dev HMR reload (same pattern as the other in-memory singletons here).
@@ -39,6 +40,10 @@ const replayGuard: ReplayGuard = (replayStore.__commsCallbackReplayGuard ??= cre
 // re-forge a bounce. A deployment opts in deliberately; an unconfigured one can't
 // be poked. Document the secret + timestamp header alongside COMMS_WEBHOOK_URL in
 // docs/features/comms/README.md.
+/** Hard cap on this public door's request body: a relay delivery receipt (bounce/complaint/drop) with the provider's own event envelope.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_CALLBACK_BODY_BYTES = 64 * 1024;
+
 export async function POST(request: NextRequest) {
   // Released in the catch if recording fails, so the relay's retry of the SAME
   // receipt re-runs instead of being answered `duplicate` (mirrors the inbound
@@ -63,7 +68,8 @@ export async function POST(request: NextRequest) {
       return jsonError(null, "Stale or missing callback timestamp.", 401);
     }
 
-    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+    const body = await readJsonWithLimit<Record<string, unknown> | null>(request, MAX_CALLBACK_BODY_BYTES, null);
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_CALLBACK_BODY_BYTES });
     if (!body || typeof body !== "object") {
       return jsonError(null, "Expected a JSON delivery receipt.", 400);
     }

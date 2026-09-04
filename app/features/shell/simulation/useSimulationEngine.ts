@@ -221,17 +221,29 @@ export function useSimulationEngine({
         .map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
       patch({ groupEval: { roleTitle, payload: null, loading: true, error: null } });
       try {
-        await fetch("/api/tasks", {
-          method: "POST",
-          headers: JSON_HEADERS,
-          body: JSON.stringify({ kind: "group_eval", params: { roleKey: jobId, roleTitle, jobId, candidates } }),
-        });
+        // A refused start (a TASK_BUDGET_EXHAUSTED 429 since wave 17, any 4xx) must not
+        // fall through to a 25 s poll that ends in a timeout sentence: surface the
+        // server's code as the group-eval error now, like every other engine call.
+        await okJson(
+          await fetch("/api/tasks", {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body: JSON.stringify({ kind: "group_eval", params: { roleKey: jobId, roleTitle, jobId, candidates } }),
+          })
+        );
         const TIMEOUT_MS = 25_000;
         const deadline = Date.now() + TIMEOUT_MS;
         let payload: GroupEvalPayload | null = null;
         while (Date.now() < deadline) {
           if (ctrl.current.stop) throw new SimStop();
-          const ev = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(jobId)}`).then((r) => r.json()).catch(() => null);
+          // Through okJson like the start above: `.catch(() => null)` swallowed a 500
+          // (GROUP_EVAL_READ_FAILED — the read JSON.parses a persisted payload) and a
+          // 401, so a server that was answering "I cannot read this" for 25 seconds
+          // surfaced as "the comparison timed out" — the one message that tells the
+          // viewer to wait longer. A non-OK answer ends the poll with its code.
+          const ev = await okJson<{ evaluation?: { payload?: GroupEvalPayload } }>(
+            await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(jobId)}`)
+          );
           if (ev?.evaluation?.payload) {
             payload = ev.evaluation.payload as GroupEvalPayload;
             break;
@@ -258,12 +270,18 @@ export function useSimulationEngine({
         if (e instanceof SimStop) throw e;
         // Same honest-failure treatment as the timeout: show why, don't blank out.
         patch({
-          groupEval: { roleTitle, payload: null, loading: false, error: tSim("error.groupEvalFailed") },
+          groupEval: {
+            roleTitle,
+            payload: null,
+            loading: false,
+            // okJson already resolved the server's code into the reader's language.
+            error: e instanceof Error && e.message ? e.message : tSim("error.groupEvalFailed"),
+          },
           screenWave: null,
         });
       }
     },
-    [ctrl, entriesFor, locale, log, patch, tSim]
+    [ctrl, entriesFor, locale, log, okJson, patch, tSim]
   );
 
   return { getBoard, getEntries, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };

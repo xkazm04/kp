@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { FILE_TOO_LARGE_STATUS } from "../_lib/upload-constraints.ts";
+import { FILE_TOO_LARGE_STATUS, MAX_FILE_BYTES } from "../_lib/upload-constraints.ts";
 
 function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
@@ -156,5 +156,42 @@ test("every file-accepting route reaches the one shared upload gate", () => {
       `8 MB / 413 contract does not apply to them:\n  ${unguarded.join("\n  ")}\n\n` +
       `Fix by calling validateUploadServer(file, label) and returning its rejection, or by\n` +
       `routing the file through extractUploadedText() like the CV-intake surfaces do.`,
+  );
+});
+
+// THE THIRD SIZE LIMIT, which until now only a comment held. next.config.ts's
+// `serverActions.bodySizeLimit` bounds Server Action request bodies, and
+// upload-constraints.ts's note says it "is deliberately held above MAX_FILE_MB
+// so any future Server-Action upload path still clears one max-size document
+// plus multipart framing overhead. If you raise MAX_FILE_MB toward ~9, raise
+// this too." That instruction is prose in two files pointing at each other, and
+// nothing reads either one: raising MAX_FILE_MB to 12 today leaves the ceiling
+// at 10mb, every gate green, and the first Server-Action upload path anyone
+// adds silently 413s on files the per-file contract says are fine.
+//
+// Read from the config SOURCE rather than importing it: next.config.ts pulls in
+// the Next plugin chain, which the node test runner has no business booting for
+// one number.
+test("next.config's serverActions.bodySizeLimit stays above the per-file ceiling", () => {
+  const src = readFileSync(path.join(apiDir, "..", "..", "next.config.ts"), "utf8");
+  const m = src.match(/bodySizeLimit:\s*"(\d+(?:\.\d+)?)(mb|kb|b)"/i);
+  assert.ok(m, "next.config.ts must declare serverActions.bodySizeLimit as a size string");
+  const unit = { b: 1, kb: 1024, mb: 1024 * 1024 }[m[2].toLowerCase() as "b" | "kb" | "mb"];
+  const limitBytes = Number(m[1]) * unit;
+
+  assert.ok(
+    limitBytes >= MAX_FILE_BYTES,
+    `serverActions.bodySizeLimit is ${m[1]}${m[2]} (${limitBytes} bytes) but MAX_FILE_BYTES is ` +
+      `${MAX_FILE_BYTES}. A Server-Action upload path would reject a file the one per-file ` +
+      `contract accepts. Raise the limit in next.config.ts, or lower MAX_FILE_MB.`,
+  );
+  // …and with headroom, which is the part the comment actually asks for: a
+  // multipart body is the file PLUS framing, so an exactly-equal ceiling is a
+  // 413 waiting for the first max-size upload. 1 MB is the margin the comment's
+  // 10mb-over-8MB choice already encodes.
+  assert.ok(
+    limitBytes >= MAX_FILE_BYTES + 1024 * 1024,
+    `serverActions.bodySizeLimit (${m[1]}${m[2]}) leaves less than 1 MB over MAX_FILE_BYTES ` +
+      `(${MAX_FILE_BYTES}) for multipart framing. next.config.ts's own note asks for the headroom.`,
   );
 });

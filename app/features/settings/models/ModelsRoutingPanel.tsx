@@ -99,11 +99,11 @@ export function ModelsRoutingPanel() {
         <table className="w-full min-w-[52rem] text-base">
           <thead>
             <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
-              <th className="pb-2 pr-3 font-semibold">{t("routing.colUseCase")}</th>
-              <th className="pb-2 pr-3 font-semibold">{t("routing.colProvider")}</th>
-              <th className="pb-2 pr-3 font-semibold">{t("routing.colModel")}</th>
-              <th className="pb-2 pr-3 font-semibold">{t("routing.colState")}</th>
-              <th className="pb-2 text-right font-semibold">{t("routing.colActions")}</th>
+              <th scope="col" className="pb-2 pr-3 font-semibold">{t("routing.colUseCase")}</th>
+              <th scope="col" className="pb-2 pr-3 font-semibold">{t("routing.colProvider")}</th>
+              <th scope="col" className="pb-2 pr-3 font-semibold">{t("routing.colModel")}</th>
+              <th scope="col" className="pb-2 pr-3 font-semibold">{t("routing.colState")}</th>
+              <th scope="col" className="pb-2 text-right font-semibold">{t("routing.colActions")}</th>
             </tr>
           </thead>
           <tbody>

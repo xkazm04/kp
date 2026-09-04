@@ -15,13 +15,29 @@ from typing import Any
 
 # load_local_env imported so the base's _load_env dispatch (and the tests that
 # patch it on this module) resolve it here; _resolved_key/available live in base.
-from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMError, LLMResult, TextProvider, load_local_env, price_usd  # noqa: F401
+from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMError, LLMResult, TextProvider, load_local_env, price_usd, validate_base_url  # noqa: F401
 
 
 class OpenAIProvider(TextProvider):
+    """The OpenAI-compatible family's base. Ollama, OpenRouter, Qwen and Azure all
+    subclass it, and what actually differs between them is three declarations, not
+    three method bodies - each used to carry a byte-identical ``_resolved_base_url``
+    (four copies) and ``available`` (two), which is how the offline gate went missing
+    from one of them for a while (test_llm_offline.py's 2026-08-22 audit note).
+    Declare the attributes; inherit the behaviour."""
+
     name = "openai"
     _env_keys = ("OPENAI_API_KEY",)
     _sdk_module = "openai"
+    # Env vars an unset ``base_url`` falls back to, first-set-wins.
+    _base_url_env: tuple[str, ...] = ("OPENAI_BASE_URL",)
+    # Endpoint when neither config nor env names one. None = the SDK's own default
+    # (api.openai.com), which is also what makes this provider key-gated below.
+    _default_base_url: str | None = None
+    # Whether a configured endpoint stands in for a key. True for the self-hosted
+    # path (vLLM / Ollama / LM Studio authenticate nothing); False for a cloud
+    # gateway that always needs one, where a base URL only moves the endpoint.
+    _base_url_implies_keyless = True
 
     def __init__(
         self,
@@ -38,11 +54,23 @@ class OpenAIProvider(TextProvider):
         self.base_url = base_url
 
     def _resolved_base_url(self) -> str | None:
-        """Configured base URL → OPENAI_BASE_URL env → None (api.openai.com)."""
+        """Configured base URL → the adapter's env var(s) → its default endpoint.
+
+        Every source is shape-checked HERE (``validate_base_url``), including the
+        environment: the TypeScript write path validated a base URL saved through the
+        Models panel, but ``OPENAI_BASE_URL`` / ``OLLAMA_BASE_URL`` / … were read raw
+        and handed straight to the SDK - and an endpoint with credentials in its
+        userinfo then rode into the offline-block message verbatim. Raises
+        ``LLMError`` (subtype ``invalid_base_url``) for a malformed one;
+        ``availability()`` turns that into a descent, ``complete()`` lets it fly."""
         if self.base_url:
-            return self.base_url
+            return validate_base_url(self.base_url, setting=f"{self.name} baseUrl")
         self._load_env()
-        return os.getenv("OPENAI_BASE_URL") or None
+        for env_key in self._base_url_env:
+            value = os.getenv(env_key)
+            if value:
+                return validate_base_url(value, setting=env_key)
+        return self._default_base_url
 
     def _offline_egress_url(self) -> str | None:
         # Under KP_OFFLINE the on-box check runs against THIS host: a loopback /
@@ -51,18 +79,30 @@ class OpenAIProvider(TextProvider):
         # be trusted merely because it resolved.
         return self._resolved_base_url()
 
-    def available(self) -> bool:
-        # Hard no-egress mode FIRST: a base_url that points off-box must not fire
-        # even keyless — that is the whole point of KP_OFFLINE. _allowed_offline()
-        # (base) green-lights only a genuinely on-box base_url.
+    def availability(self) -> tuple[bool, str | None]:
+        """One rule for the whole family, parameterized by the declarations above.
+
+        Hard no-egress mode FIRST: a base_url that points off-box must not fire even
+        keyless - that is the whole point of KP_OFFLINE, and ``_allowed_offline()``
+        (base) green-lights only a genuinely on-box endpoint. Then, for the
+        self-hosted path, a configured endpoint stands in for the key (vLLM/Ollama
+        authenticate nothing); the cloud gateways declare
+        ``_base_url_implies_keyless = False`` and fall through to the base rule -
+        which is exactly the two-line check OpenRouter and Qwen each hand-wrote."""
         if self._offline_blocked():
-            return False
-        # A self-hosted OpenAI-compatible endpoint may require no key (vLLM/Ollama),
-        # so when one is configured, availability rides on the SDK being importable
-        # rather than a resolved key. The default OpenAI path still requires a key.
-        if self._resolved_base_url():
-            return self._import_sdk()
-        return super().available()
+            return False, "offline_policy"
+        try:
+            base_url = self._resolved_base_url()
+        except LLMError as exc:
+            if exc.subtype != "invalid_base_url":
+                raise
+            # Degrade rather than raise: availability is a routing yes/no. The
+            # actionable error still fires on the call path (_make_client resolves
+            # the same URL), so a misconfiguration is never silently swallowed.
+            return False, "invalid_base_url"
+        if self._base_url_implies_keyless and base_url:
+            return (True, None) if self._import_sdk() else (False, "sdk_missing")
+        return super().availability()
 
     def _make_client(self, timeout: int) -> Any:
         import openai

@@ -155,3 +155,104 @@ test("every compared candidate carries its fairness track (early_career vs exper
   assert.equal(byEntry.get("tr-senior"), "experienced");
   assert.equal(byEntry.get("tr-unrouted"), null, "an unrouted candidate's track is unknown, not 'experienced'");
 });
+
+// ---- The cohort is gated on consent / anonymization (lot GE) ----------------
+//
+// A group evaluation serializes every compared member's label, archetype, salary
+// expectation and CV-derived verdict into a model prompt and then persists the whole
+// comparison into a row the team reads. Selection consulted NO consent state, so an
+// Art. 17-erased person and a lapsed-consent person were compared, narrated and
+// (under `recommendation`) sealed exactly like anyone else — while the identical
+// suppression was already enforced for rediscovery and outreach.
+//
+// NON-VACUITY: with the gate removed from runGroupEval, the erased candidate appears
+// in `evaluatedLabels`/`comparedIds`, `totalCandidates` counts them, and
+// `consentExcluded` is null — each assertion below fails.
+const { createPipelineEntry, recordEntryConsent, anonymizeEntry } = await import("./db/pipeline.ts");
+
+const namedCandidate = (entryId: string, candidateId: string, matchScore: number) => ({
+  entryId,
+  candidateId,
+  label: `Named Person ${candidateId}`,
+  matchScore,
+});
+
+test("an anonymized cohort member is excluded from the comparison and disclosed", async () => {
+  const erased = "ge-consent-erased";
+  const entry = createPipelineEntry({ candidateId: erased, candidateLabel: "Erased Person", jobId: "roleZ", jobTitle: "Role Z" }).entry;
+  anonymizeEntry(entry.id, "erasure");
+
+  const res = await runGroupEval({
+    roleKey: "role-consent-anon",
+    roleTitle: "Backend Engineer",
+    candidates: [
+      namedCandidate("ge-c-e1", "ge-consent-ok-a", 90),
+      namedCandidate("ge-c-e2", "ge-consent-ok-b", 70),
+      namedCandidate("ge-c-e3", erased, 95),
+    ],
+    governanceMode: "recommendation",
+  });
+
+  const labels = res.evaluatedLabels as string[];
+  assert.ok(
+    !labels.some((l) => l.includes(erased)),
+    `an erased person must not appear in the persisted cohort, got [${labels.join(", ")}]`,
+  );
+  assert.ok(!(res.comparedIds as string[]).includes("ge-c-e3"), "nor in the compared field");
+  assert.equal(res.totalCandidates, 2, "the cohort size must reflect the field that was actually comparable");
+  assert.deepEqual(res.consentExcluded, { count: 1, anonymized: 1, consentExpired: 0 });
+  // The erased person carried the HIGHEST score: without the gate they would have been
+  // crowned lead and auto-sealed. The crown must go to the highest consented candidate.
+  assert.equal((res.topPick as { entryId?: string }).entryId, "ge-c-e1");
+});
+
+test("a lapsed-consent member is excluded with its own reason", async () => {
+  const lapsed = "ge-consent-lapsed";
+  const entry = createPipelineEntry({ candidateId: lapsed, candidateLabel: "Lapsed Person", jobId: "roleZ", jobTitle: "Role Z" }).entry;
+  recordEntryConsent(entry.id, "apply", -400); // granted, already expired
+
+  const res = await runGroupEval({
+    roleKey: "role-consent-lapsed",
+    roleTitle: "Backend Engineer",
+    candidates: [
+      namedCandidate("ge-l-e1", "ge-consent-ok-c", 88),
+      namedCandidate("ge-l-e2", "ge-consent-ok-d", 60),
+      namedCandidate("ge-l-e3", lapsed, 99),
+    ],
+  });
+
+  assert.deepEqual(res.consentExcluded, { count: 1, anonymized: 0, consentExpired: 1 });
+  assert.equal(res.totalCandidates, 2);
+  assert.ok(!(res.recommendedOrder as string[]).some((l) => l.includes(lapsed)));
+});
+
+test("an all-consented cohort discloses nothing and is unchanged", async () => {
+  const res = await runGroupEval({
+    roleKey: "role-consent-clean",
+    roleTitle: "Backend Engineer",
+    candidates: [namedCandidate("ge-k-e1", "ge-consent-ok-e", 80), namedCandidate("ge-k-e2", "ge-consent-ok-f", 50)],
+  });
+  assert.equal(res.consentExcluded, null, "a clean cohort must be indistinguishable from a legacy payload");
+  assert.equal(res.totalCandidates, 2);
+});
+
+test("a recruiter's explicit SELECTION cannot opt a suppressed candidate back in", async () => {
+  const erased = "ge-consent-sel-erased";
+  const entry = createPipelineEntry({ candidateId: erased, candidateLabel: "Erased Pick", jobId: "roleZ", jobTitle: "Role Z" }).entry;
+  anonymizeEntry(entry.id, "erasure");
+
+  const cohort = [
+    namedCandidate("ge-s-e1", "ge-consent-ok-g", 80),
+    namedCandidate("ge-s-e2", "ge-consent-ok-h", 70),
+    namedCandidate("ge-s-e3", erased, 99),
+  ];
+  const res = await runGroupEval({
+    roleKey: "role-consent-selection",
+    roleTitle: "Backend Engineer",
+    candidates: [cohort[0], cohort[2]], // the recruiter picked the erased person
+    cohort,
+  });
+
+  assert.ok(!(res.comparedIds as string[]).includes("ge-s-e3"), "the selection is filtered too, not trusted");
+  assert.deepEqual(res.consentExcluded, { count: 1, anonymized: 1, consentExpired: 0 });
+});

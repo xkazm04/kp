@@ -1,4 +1,6 @@
-import { sendComm } from "./comms";
+import { sendComm, type OutboundMessage } from "./comms";
+import { recordOutbox, type OutboxEntry } from "./db/devcase";
+import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import type { OutboxStatus } from "./comms-status";
 import type { PipelineEntry } from "./db/core";
 import { ensureErasureToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
@@ -15,6 +17,9 @@ import { commsTranslator, type CommsTranslator } from "./comms-translator";
 import { namespaceTranslator } from "./catalog-translator";
 import type { Locale } from "@/i18n/locales";
 import { pinLinkLocale } from "./candidate-link-locale";
+import { INTERVIEW_TZ } from "./schedule-slots";
+import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+import { dateFormatter } from "./date-format.ts";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -134,6 +139,11 @@ async function candidateLinkBase(): Promise<string> {
 // no entry id) can use the same wrapper.
 type CandidateCommTarget = {
   id?: string | null;
+  // The SIM guard's input: a `(SIM)`-marked title means this comm is a demo
+  // artifact and must never be handed to a real relay (see sendCommUnlessSim).
+  // Optional only because two callers pass a structural subtype — both of those
+  // carry a jobTitle of their own.
+  jobTitle?: string | null;
   candidateLabel?: string | null;
   candidateId?: string | null;
   contact?: string | null;
@@ -158,6 +168,46 @@ async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator, locale
   return "\n\n" + t("dataFooter", { link });
 }
 
+// --- The SIMULATION guard ------------------------------------------------------
+//
+// The guided tour (app/features/shell/simulation) seeds candidates and then drives
+// the REAL invite/offer paths — the demo's whole claim is that nothing is faked. So
+// with a relay configured (COMMS_WEBHOOK_URL or the UI-configured one), a demo run
+// POSTed a schedule invite and an offer letter about a SEEDED profile to the
+// customer's real mail relay. Nothing in this module knew the marker existed.
+//
+// THE FIELD: `jobTitle` on the pipeline entry the comm is about — the one the sim
+// writer stamps (simCvIntakeTarget / markSimTitle), resetSim purges by and the
+// analytics read-side filter excludes. Same predicate as all three (`isSimTitle`),
+// so a marker change moves the writer, the purge, the filters AND this guard at once.
+// Entry-less dispatches pass the title they hold (a KO decline's `input.jobTitle`).
+//
+// WHAT IT DOES: records the row — the demo's Outbox entry is half of what the tour
+// shows, and dropping it silently would be its own lie — but writes it directly to
+// the local outbox on the `simulation` channel instead of handing it to the channel
+// resolver, so no relay is ever contacted for a simulated candidate.
+//
+// STATUS: `queued`, the outbox's honest "recorded locally, nothing will deliver it"
+// terminal state (comms-status.ts). It is NOT `sent`: a simulated letter reached
+// nobody. There is no `skipped` member in OUTBOX_STATUSES — adding one would touch
+// the enum, the db column contract and every UI that styles by it — so the CHANNEL
+// carries the reason and the status stays truthful.
+export const SIM_COMMS_CHANNEL = "simulation";
+
+async function sendCommUnlessSim(msg: OutboundMessage, jobTitle: string | null | undefined): Promise<OutboxEntry> {
+  if (!isSimTitle(jobTitle)) return sendComm(msg);
+  return recordOutbox({
+    recipient: msg.to,
+    subject: msg.subject,
+    body: msg.body,
+    kind: msg.kind,
+    channel: SIM_COMMS_CHANNEL,
+    status: "queued",
+    ref: msg.ref,
+    workspaceId: msg.workspaceId,
+  });
+}
+
 // Candidate-facing send: identical to sendComm but auto-appends the GDPR data
 // footer and defaults `to`/`ref` from the entry, so every applicant comm carries
 // the self-service erasure link without each dispatcher re-deriving it.
@@ -173,7 +223,7 @@ async function sendCandidateComm(
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
 ): Promise<OutboxStatus> {
-  const recorded = await sendComm({
+  const recorded = await sendCommUnlessSim({
     to: candidateRecipient(entry),
     subject: msg.subject,
     body: msg.body + (await dataFooter(entry, t, locale)),
@@ -182,7 +232,7 @@ async function sendCandidateComm(
     // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
     // ref on an entry-less dispatch). Ignored whenever the entry resolves.
     workspaceId: msg.workspaceId,
-  });
+  }, entry.jobTitle);
   return recorded.status;
 }
 
@@ -366,7 +416,7 @@ export async function dispatchKnockoutDecline(input: {
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
   const body = t("koDecline.body", { name, role, team: t("team") });
-  await sendComm({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId });
+  await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle);
 }
 
 /**
@@ -419,19 +469,30 @@ export async function dispatchOffer(
 export async function dispatchInterviewConfirmation(
   entry: PipelineEntry,
   slot: string,
-  opts?: { shortNotice?: boolean; durationMin?: number | null; rescheduleLink?: string | null }
+  opts?: {
+    shortNotice?: boolean;
+    durationMin?: number | null;
+    rescheduleLink?: string | null;
+    // The absolute instant + the candidate's captured zone. When both are absent the
+    // letter falls back to the stored English `slot` label, which is what it always
+    // used — so this is additive for any caller that does not yet thread them.
+    slotAtIso?: string | null;
+    candidateTz?: string | null;
+  }
 ): Promise<OutboxStatus> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
+  // The one fact this letter exists to carry, in the candidate's language and zone.
+  const slotText = formatSlotForLetter(opts?.slotAtIso, locale, opts?.candidateTz) || slot;
   // Tell the candidate how long to block: a student's scripted screen runs ~22
   // minutes, and "booked for Tue 10:00" alone reads like a quick call.
   const length = opts?.durationMin ? t("interviewConfirmation.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewConfirmation.subject", { role });
   const body = opts?.shortNotice
-    ? t("interviewConfirmation.short", { name, role, slot, length, team: t("team") })
-    : t("interviewConfirmation.normal", { name, role, slot, length, team: t("team") });
+    ? t("interviewConfirmation.short", { name, role, slot: slotText, length, team: t("team") })
+    : t("interviewConfirmation.normal", { name, role, slot: slotText, length, team: t("team") });
   // The confirmation is the candidate's only durable artifact — once the tab
   // closes, this footer link is the one way back to reschedule (SCH2) or grab
   // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
@@ -481,7 +542,11 @@ export async function dispatchInterviewerBrief(
   const focus = (opts.focusAreas ?? []).filter((f) => f && f.trim()).join(", ") || t("interviewerBrief.focusFallback");
   const scenario = opts.scenario?.trim() || t("interviewerBrief.scenarioFallback");
   const subject = t("interviewerBrief.subject", { candidate, role });
-  let body = t("interviewerBrief.body", { name, candidate, role, slot, length, scenario, focus });
+  // The interviewer is org-side staff, so the brief states the slot in the INTERVIEW
+  // zone (not a candidate's) — but it still names that zone, in the recruiter's
+  // language, instead of shipping the bare English label.
+  const slotText = formatSlotForLetter(opts.slotAtIso, locale) || slot;
+  let body = t("interviewerBrief.body", { name, candidate, role, slot: slotText, length, scenario, focus });
 
   // Inline .ics calendar hold — the candidate gets one client-side; the interviewer
   // got none. Built only when we know the absolute slot start. The outbox is a
@@ -491,7 +556,10 @@ export async function dispatchInterviewerBrief(
       const ics = buildIcs({
         uid: `kp-interview-${entry.id ?? "x"}-${assigned.replace(/[^a-zA-Z0-9]+/g, "-")}`,
         start: opts.slotAtIso,
-        durationMin: opts.durationMin && opts.durationMin > 0 ? opts.durationMin : 30,
+        // The ONE default interview length (calendar/constants.ts). This inlined 30
+        // while the candidate's own .ics and the free/busy window used 45, so the
+        // interviewer's calendar hold was quietly 15 minutes shorter than the call.
+        durationMin: opts.durationMin && opts.durationMin > 0 ? opts.durationMin : DEFAULT_INTERVIEW_MINUTES,
         title: t("interviewerBrief.icsTitle", { candidate, role }),
         description: scenario,
       });
@@ -501,7 +569,9 @@ export async function dispatchInterviewerBrief(
     }
   }
 
-  await sendComm({ to: address, subject, body, kind: "interviewer_brief", ref: entry.id ?? undefined });
+  // The interviewer is org-side staff, but a brief about a SEEDED candidate is still
+  // demo traffic — same guard, same marker (the entry's own role title).
+  await sendCommUnlessSim({ to: address, subject, body, kind: "interviewer_brief", ref: entry.id ?? undefined }, entry.jobTitle);
   if (entry.id) recordAutomationEvent(entry.id, "interviewer_brief_sent", name, entry.workspaceId);
   return true;
 }
@@ -548,21 +618,27 @@ export async function dispatchScheduleInvite(
  *  row carries the owning team, so the caller passes it as the fallback tenant. */
 export async function dispatchInterviewReminder(
   entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
-  slot: string,
-  opts?: { durationMin?: number | null; workspaceId?: string | null }
+  // NULLABLE: the sweep used to substitute the English string "your scheduled time"
+  // for a row with no stored label and interpolate it into a Czech/German/French
+  // letter. The fallback is a catalog key now, so the caller passes what it has.
+  slot: string | null,
+  opts?: { durationMin?: number | null; workspaceId?: string | null; slotAtIso?: string | null; candidateTz?: string | null }
 ): Promise<void> {
   const locale = candidateLocale(entry.locale, opts?.workspaceId);
   const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const length = opts?.durationMin ? t("interviewReminder.length", { minutes: opts.durationMin }) : "";
-  const subject = t("interviewReminder.subject", { slot });
-  const body = t("interviewReminder.body", { name, role, slot, length, team: t("team") });
+  // Same rule as the confirmation: the instant in the candidate's own zone, with the
+  // zone named; the stored English label only if there is no instant to format.
+  const slotText = formatSlotForLetter(opts?.slotAtIso, locale, opts?.candidateTz) || slot || t("interviewReminder.slotFallback");
+  const subject = t("interviewReminder.subject", { slot: slotText });
+  const body = t("interviewReminder.body", { name, role, slot: slotText, length, team: t("team") });
   await sendCandidateComm(entry, t, {
     subject,
     body,
     kind: "interview_reminder",
-    ref: entry.id ?? slot,
+    ref: entry.id ?? slot ?? "interview",
     workspaceId: opts?.workspaceId,
   }, locale);
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
@@ -571,7 +647,9 @@ export async function dispatchInterviewReminder(
     // Same fallback tenant the send above uses: this entry is a structural subtype
     // (the sweep can hand us a reminder whose linked entry is gone), so the invite
     // row's own team is the authority, not a field on `entry`.
-    if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot, opts?.workspaceId ?? undefined);
+    // The ledger is RECRUITER-side: it keeps the stored, operator-stable label, not
+    // the candidate-localized letter text (which differs per reader).
+    if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot ?? "", opts?.workspaceId ?? undefined);
   } catch (e) {
     console.error(`[reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
@@ -613,12 +691,80 @@ export async function dispatchInterviewInvite(
 
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
  *  (offers in the reminder window always carry one; the guard keeps the body clean). */
+/** The slot line a LETTER states, formatted from the absolute `slot_at` in the
+ *  reader's own zone and language — never the stored `slot` label.
+ *
+ *  That label (schedule-slots.slotLabel) is minted from hardcoded English DOW/MON
+ *  arrays in the INTERVIEWER's zone and carries no zone marker. It is the right
+ *  string for the picker chips and the recruiter agenda, and the wrong one for mail:
+ *  it was the ONLY thing the localized confirmation and reminder templates
+ *  interpolated, so a Czech candidate in Prague received a Czech letter whose one
+ *  load-bearing fact read "Tue 9 Jun · 10:00" — English inside Czech prose, in a zone
+ *  the letter never named, while the candidate's OWN zone had been captured at confirm
+ *  (schedule_invites.candidate_tz) and never used outbound.
+ *
+ *  `tz` is candidate-supplied (Intl.DateTimeFormat().resolvedOptions().timeZone from
+ *  their browser), so an unknown or malformed zone makes Intl THROW — it falls back to
+ *  the interview zone rather than costing the candidate their confirmation. Returns ""
+ *  when there is no usable instant, so callers keep the legacy label as the fallback.
+ *  Same component spelling as formatOfferDeadline: dateStyle/timeStyle may not be
+ *  combined with timeZoneName, so every part is named. */
+export function formatSlotForLetter(
+  slotAtIso: string | null | undefined,
+  locale: Locale,
+  tz?: string | null
+): string {
+  if (!slotAtIso) return "";
+  const ms = Date.parse(slotAtIso);
+  if (Number.isNaN(ms)) return "";
+  const parts = {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  } as const;
+  const zone = (tz ?? "").trim() || INTERVIEW_TZ;
+  try {
+    return new Intl.DateTimeFormat(locale, { ...parts, timeZone: zone }).format(new Date(ms));
+  } catch {
+    // A zone string the runtime does not know (a stale browser, a hand-edited row).
+    // The interview zone is always valid, and a letter with the wrong-but-named zone
+    // beats no letter at all.
+    try {
+      return new Intl.DateTimeFormat(locale, { ...parts, timeZone: INTERVIEW_TZ }).format(new Date(ms));
+    } catch {
+      return ""; // even the configured interview zone is unusable — keep the stored label
+    }
+  }
+}
+
 function formatOfferDeadline(iso: string | null, locale: string | null | undefined, workspaceId?: string | null): string {
   if (!iso) return "";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
   const loc = candidateLocale(locale, workspaceId);
-  return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
+  // The deadline NAMES ITS TIMEZONE. Offer expiry is elapsed time, not wall clock
+  // (offer-policy.offerExpiresAtMs states why), so a window crossing a DST boundary
+  // lands an hour off the local time it was minted at — and a bare "29 Mar, 15:00"
+  // in a letter read in another country is ambiguous besides. `timeStyle: "short"`
+  // cannot carry a zone, so the parts are spelled out: same date + time as before,
+  // plus the short zone name of whatever clock the server is on, in the candidate's
+  // own language.
+  // (dateStyle/timeStyle may not be combined with individual component options —
+  // Intl THROWS on the mix — so every part is spelled out explicitly.)
+  // Memoized: the sweep writes this line for every open offer in the reminder
+  // window, and a fresh Intl.DateTimeFormat per letter was the most expensive thing
+  // in an otherwise trivial function (date-format.ts).
+  return dateFormatter(loc, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(ms));
 }
 
 /** The proactive expiry nudge (idea-29361408 follow-up): a single heads-up fired by

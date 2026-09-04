@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CloudCog, Download, KeyRound, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CloudCog, Download, KeyRound, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import type { EdgeErrorKind } from "@/app/_lib/edge-config";
 
 // The edge pairing (docs/concepts/local-first-edge.md §3.2) — sibling of
 // RelayConfigCard and built to the same rules, because it is the same kind of object
@@ -20,23 +22,49 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 //                  clock drains it on every tick.
 //   · SEALED       this install published a key, so the edge cannot READ what it
 //                  holds. The badge is absent when it can — never implied.
+//   · SECRET MISSING  a URL with no shared secret. This USED to read as "Paired",
+//                  green, while resolveEdge() returned null and the drain did nothing
+//                  forever — the worst available lie, because an operator who is told
+//                  it is working has no reason to look again.
 //   · OFFLINE      KP_OFFLINE=1 wins over everything. The card says so instead of
 //                  showing a pairing that will never be used.
+//
+// And what it now SHOWS, because the engine already knew it and threw it away: when
+// the drain last ran, when the edge last heard from us, and how much is still queued
+// there. A cursor alone cannot tell "caught up" from "500 behind".
 type EdgeState = {
   url: string;
   hasSecret: boolean;
   sealed: boolean;
   cursor: number;
   lastDrainAt: string | null;
-  lastError: string | null;
+  lastHeartbeatAt: string | null;
+  pending: number | null;
+  lastErrorKind: EdgeErrorKind | null;
   nudgeTarget: string | null;
   envConfigured: boolean;
   offline: boolean;
 };
 
+/** One localized sentence per failure CLASS. A machine string (`HTTP 502`, `event 41
+ *  could not be applied yet`) is not a sentence in any of the four languages this app
+ *  ships, and interpolating it into `drainFailed: "{reason}"` shipped English to every
+ *  reader. The kinds are a closed union, so a new one is a tsc error here rather than
+ *  a blank line in the UI. */
+const DRAIN_ERROR_KEY: Record<
+  EdgeErrorKind,
+  "drainFailedUnreachable" | "drainFailedHeld" | "drainFailedAck" | "drainFailedUnknown"
+> = {
+  unreachable: "drainFailedUnreachable",
+  held: "drainFailedHeld",
+  ack: "drainFailedAck",
+  unknown: "drainFailedUnknown",
+};
+
 export function EdgeConfigCard() {
   const t = useTranslations("channels.edge");
   const errMsg = useErrorMessage();
+  const rel = useRelativeTime();
   const [state, setState] = useState<EdgeState | null>(null);
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
@@ -60,7 +88,9 @@ export function EdgeConfigCard() {
         sealed: Boolean(c.sealed),
         cursor: c.cursor ?? 0,
         lastDrainAt: c.lastDrainAt ?? null,
-        lastError: c.lastError ?? null,
+        lastHeartbeatAt: c.lastHeartbeatAt ?? null,
+        pending: typeof c.pending === "number" ? c.pending : null,
+        lastErrorKind: c.lastErrorKind ?? null,
         nudgeTarget: c.nudgeTarget ?? null,
         envConfigured: Boolean(c.envConfigured),
         offline: Boolean(c.offline),
@@ -117,17 +147,17 @@ export function EdgeConfigCard() {
     try {
       const r = await fetch("/api/edge/drain", { method: "POST" });
       const d = (await r.json().catch(() => null)) as {
-        summary?: { applied?: number; skipped?: number; error?: string | null };
+        summary?: { applied?: number; skipped?: number; error?: string | null; errorKind?: EdgeErrorKind | null };
         config?: Partial<EdgeState>;
       } | null;
       // An error from the edge is reported as itself: a drain that reached nothing
       // must not read as "0 new leads", which is the same sentence a healthy quiet
-      // queue produces.
-      if (d?.summary?.error) setNote({ ok: false, text: t("drainFailed", { reason: d.summary.error }) });
+      // queue produces. It is reported as a CLASS, never as the machine text.
+      if (d?.summary?.error) setNote({ ok: false, text: t(DRAIN_ERROR_KEY[d.summary.errorKind ?? "unknown"]) });
       else setNote({ ok: true, text: t("drained", { applied: d?.summary?.applied ?? 0, skipped: d?.summary?.skipped ?? 0 }) });
       adopt(await readConfig());
     } catch {
-      setNote({ ok: false, text: t("drainFailed", { reason: "network" }) });
+      setNote({ ok: false, text: t("drainFailedUnreachable") });
     } finally {
       setBusy(false);
     }
@@ -148,7 +178,14 @@ export function EdgeConfigCard() {
     }
   }, [t, errMsg, readConfig, adopt]);
 
-  const paired = state ? state.envConfigured || state.url.trim() !== "" : false;
+  // PAIRED means the drain can actually RUN, which needs both halves: resolveEdge()
+  // returns null without a secret ("an unsigned drain would accept events from anyone
+  // who learned the edge URL"), so a URL alone drained nothing while this card showed
+  // a green "Paired". The two states are now distinct and the incomplete one says
+  // which half is missing.
+  const hasUrl = state ? state.envConfigured || state.url.trim() !== "" : false;
+  const paired = hasUrl && Boolean(state?.hasSecret);
+  const secretMissing = hasUrl && !state?.hasSecret;
   // Same rule as the relay card: the POST is a full REPLACE, so an empty field is a
   // legitimate save only once we KNOW the field reflects what is stored. Saving a
   // blank on a failed read would silently UNPAIR a working edge — and unpairing
@@ -164,8 +201,17 @@ export function EdgeConfigCard() {
         <h3 className="font-semibold text-ink">{t("title")}</h3>
         {state ? (
           <Badge
-            tone={state.offline ? "neutral" : paired ? "positive" : "neutral"}
-            label={state.offline ? t("statusOffline") : paired ? t("statusPaired") : t("statusOff")}
+            tone={state.offline ? "neutral" : paired ? "positive" : secretMissing ? "caution" : "neutral"}
+            icon={!state.offline && secretMissing ? AlertTriangle : undefined}
+            label={
+              state.offline
+                ? t("statusOffline")
+                : paired
+                  ? t("statusPaired")
+                  : secretMissing
+                    ? t("statusSecretMissing")
+                    : t("statusOff")
+            }
           />
         ) : (
           <span className="reveal-quiet inline-block h-5 w-20 rounded-full bg-stone-100" aria-hidden />
@@ -249,14 +295,34 @@ export function EdgeConfigCard() {
         ) : null}
       </div>
 
-      {/* The two facts an operator actually acts on: how far the drain has got, and
-          the last thing that went wrong. A cleared error is CLEARED, never sticky —
-          a red line over a source that has since recovered is its own kind of lie. */}
+      {secretMissing && !state?.offline ? (
+        <p className="mt-3 rounded-md border border-dashed border-amber-300 bg-white px-3 py-2 text-sm text-steel">
+          {t("secretMissingNote")}
+        </p>
+      ) : null}
+
+      {/* THE DRAIN LEDGER. Every fact here was already known to the engine and shown
+          to nobody: when the drain last ran, how much is still queued at the edge,
+          when the edge last heard from us. A cursor on its own cannot tell "caught
+          up" from "500 behind", and that is the difference between a quiet week and a
+          lost one. A cleared error is CLEARED, never sticky — a red line over a
+          source that has since recovered is its own kind of lie. */}
       {paired && state ? (
         <p className="mt-2 text-xs text-steel">
-          {t("cursor", { cursor: state.cursor })}
-          {state.lastError ? ` · ${t("lastError", { reason: state.lastError })}` : ""}
+          {state.lastDrainAt ? t("lastDrain", { time: rel(state.lastDrainAt) }) : t("neverDrained")}
+          {` · ${t("cursor", { cursor: state.cursor })}`}
+          {` · ${
+            state.pending === null
+              ? t("pendingUnknown")
+              : state.pending > 0
+                ? t("pendingWaiting", { pending: state.pending })
+                : t("pendingClear")
+          }`}
+          {state.lastHeartbeatAt ? ` · ${t("lastHeartbeat", { time: rel(state.lastHeartbeatAt) })}` : ""}
         </p>
+      ) : null}
+      {paired && state?.lastErrorKind ? (
+        <p className="mt-1 text-xs font-medium text-coral">{t(DRAIN_ERROR_KEY[state.lastErrorKind])}</p>
       ) : null}
     </section>
   );

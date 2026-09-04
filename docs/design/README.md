@@ -108,6 +108,7 @@ block remaps to dark equivalents.
 | `score-strong/mid/weak/null` | alias moss / dial-amber / coral / steel | (follow automatically) | Rank colors — see `scoreTone()` |
 | `diagram-{live,gate,gap}-{fill,stroke}` | alias limewash / moss / coralwash / coral / stone-100 / dial-stone | (follow automatically) | Architecture-diagram status trichotomy — read by `puml/constants.ts` and the `/diagrams` legend |
 | `diagram-gap-text` | `#6b6557` | `#9aa3b2` | Muted label on the gap fill — the one diagram value with no brand counterpart |
+| `diagram-group-{tagged,plain}-{stroke,fill}` | mixes of moss / limewash / stone-300 / paper | (follow automatically) | Container GROUP boxes (`package "…" { … }`) — the largest painted area on an architecture diagram |
 
 **Remapped neutrals** (stock Tailwind classes that participate in theming):
 
@@ -297,6 +298,41 @@ element:
    footer. Pay attention to anything with images, charts, or fixed-color SVG.
 7. **Score colors only via `score-*` tokens / `scoreTone()`** — never re-pick
    rank hues by hand.
+8. **A white-label accent is TWO colors, not one.** An operator's accent
+   overrides `--color-coral` in both theme blocks
+   (`app/_components/BrandStyle.tsx`), and the same rule that makes the product's
+   own coral two values — `#d65a4a` in `:root`, `#ff7e68` under
+   `[data-theme="dark"]` — applies to theirs. Nothing an operator types is
+   legible on both a cream canvas and an ink-blue one by luck: `#0057b8`
+   measures 6.5:1 in Studio Light and 2.5:1 in Spark Dark.
+
+### The custom accent, in both themes
+
+`app/_lib/brand-config.ts` owns the whole rule; nothing else re-derives it.
+
+- **Two grounds per theme, read off `brand.ts`** (`ACCENT_GROUNDS`): the
+  `canvas` the accent is drawn ON as a thin indicator (focus ring, active-nav
+  bar) — `--color-paper` — and the `onAccent` label that sits IN it. `onAccent`
+  is a ROLE, not a color: `--color-white` remaps to `#1d2630` in Spark Dark, so
+  the dark theme's worst case is a DARK label on the accent. Checking "white
+  text" in both themes is how the light-only version of this got it wrong.
+- **The light accent is stored as typed** and must clear 3:1
+  (`MIN_ACCENT_CONTRAST` — AA for large text and for graphical objects; 4.5:1
+  would reject the product's own coral) on both light grounds. It cannot be
+  auto-corrected: it is the operator's brand color in the default skin.
+- **The Spark Dark twin is DERIVED**, never operator-supplied:
+  `deriveDarkAccent()` keeps hue and saturation and lifts lightness in 1% steps
+  until both dark grounds clear 3:1. Both grounds are dark, so contrast rises
+  monotonically with lightness and the first clearing step is the closest one to
+  the operator's color. An accent that already reads on ink (the default coral
+  does, at 3.95:1) is returned unchanged.
+- **The lift is capped** at `MAX_DARK_ACCENT_LIFT` (0.35 absolute HSL
+  lightness), which is what keeps the twin recognizably the same brand. Past it
+  — a near-black accent, whose only legible twin is a mid-grey — the door
+  refuses with `BRAND_ACCENT_ILLEGIBLE_DARK`, naming the theme, rather than
+  shipping either an unreadable dark skin or a color nobody chose.
+- **The Branding tab previews both**, side by side, so the operator sees the
+  Spark Dark twin before saving instead of discovering it after a theme flip.
 
 ## What enforces this
 
@@ -331,9 +367,11 @@ exemption is a path in the eslint `ignores` list or an entry in the script's
   resolved) and that the token it lands on is declared in **both** theme blocks. Without
   it, a regeneration emitting `#abc`, `#rrggbbaa` or `rgb(…)` would fall through the snap
   untouched and paint a literal colour past both gates.
-- `app/_components/puml/**` — diagram-only primitive tints (cylinder, cloud, sticky
-  note) with no CSS-variable equivalent. Its brand-mirroring half imports `brand.ts`;
-  the diagram has no dark register yet.
+- `app/_components/puml/**` — diagram-only primitive tints for exactly three shapes
+  (cylinder, cloud, sticky note) with no CSS-variable equivalent and no dark register
+  yet. Everything else in that renderer — component boxes, edges, labels, the status
+  trichotomy and, since the container-group tokens above, the group frames — paints
+  `var()` and flips with the theme.
 - `app/_dev-inspector/**` — dev-only devtools chrome, deliberately fixed so it stays
   readable while you debug the theme itself.
 - `app/**/*.test.{ts,tsx}` — hexes are inputs/expectations for the color sanitizers.
@@ -357,6 +395,162 @@ Why constants, not components: the recipes are pure class vocabularies with no
 behavior, so a `string` keeps JSX shape unchanged, works on any element
 (`section`, `button`, `Link`), and adds zero runtime. Patterns that *do* carry
 behavior (modal focus trap, segmented control keyboard nav) stay components.
+
+### The four words the vocabulary was missing (2026-09-03)
+
+Sixteen waves of builders hand-rolled the same four things, which is what a
+missing word in a design system looks like from the inside:
+
+| Word | Where | What it replaces |
+| --- | --- | --- |
+| `BTN_AFFIRM` (recipes.ts) | the positive half of a decision | 13 hand-rolled `bg-moss … hover:opacity-90` buttons, **all** flat in Spark Dark |
+| `NOTICE(tone)` (recipes.ts) | advisory blocks — `amber` / `info` / `critical` | 57 hand-rolled tinted strips in 49 files, 56 of them missing `dark:rounded-2xl` |
+| `useTablist` (`app/_components/ui/useTablist.ts`) | any `role="tablist"` strip | 4 copies of the roving-tabindex arithmetic + 3 tablists that declared the roles with no keyboard at all |
+| `useDateFormat` (`app/_components/ui/useDateFormat.ts`) | every rendered date | 41 raw `toLocaleDateString` / `new Intl.DateTimeFormat` calls in 30 files, beside 5 files already using `useFormatter()` |
+
+**Affirm vs primary — the rule.** Coral (`BTN_PRIMARY`) means "the main action
+of this surface". Moss (`BTN_AFFIRM`) means "the positive half of a decision" —
+advance, approve, accept, resume — and it always has a counterpart beside it
+(reject, decline, pause). A surface whose single call to action happens to be
+positive still uses `BTN_PRIMARY`; moss with no opposite reads as a second
+brand color instead of as a verdict. Both carry the same press-down in both
+registers, which is exactly what the 13 copies had lost.
+
+`useTablist` is controlled (`ids` + `active` + `onSelect`) because every strip
+already owns its active tab, and it wires the `aria-controls`/`aria-labelledby`
+pair from one `useId`. Pass `controlsPanel: false` when the panel is rendered by
+an ancestor and has no id to point at — a dangling idref is worse than an absent
+optional attribute. The movement rule is the pure `nextTabIndex` reducer,
+pinned by `useTablist.test.ts`; the two per-feature copies it replaced
+(`groupEvalTabKeys.ts` and `nextTabIndex` in `jobsPostingModalTabs.ts`, each
+carrying a note asking for this promotion on the third caller) are gone.
+
+`useDateFormat` carries four shapes — `date`, `dateTime`, `dayTime`, `time` —
+all null-safe with a `fallback` (default `—`), because dates arrive as ISO
+strings that can be absent or malformed and "Invalid Date" in a candidate card
+is the failure the guard exists to prevent.
+
+Alongside them, three smaller repairs in the same pass: `CHIP_QUIET` is
+`inline-block` unconditionally (it was `dark:inline-block`, so the chip changed
+its display box on the theme flip — a display change is not a theme
+difference); `CHIP_TOGGLE` and `BTN_GHOST` gained the dark structural half
+their siblings already had; and `LoadStatus` reads its frame sentences and its
+elapsed time from the catalog + `useFormatter().relativeTime` instead of
+wrapping a localized `label` in English prose.
+
+Two additions from the 2026-09-03 rail pass: `railTile(isActive)` is the
+icon-over-label rail tile shared by the section buttons and the Feedback door
+(`railIconBtn` stays for rail chrome), and `--color-white-fixed` is the one
+deliberately theme-invariant surface, a real white in both registers, for
+third-party artwork only (a tenant's uploaded logo) - `white`/`paper` remain the
+role tokens for KandiDate's own surfaces.
+
+### The ratchet — a hand-typed recipe count can only fall (2026-09-03)
+
+"Adoption is opportunistic" was true and unmeasured, which is how the tree
+reached 107 lines re-typing the `PANEL` string, 76 the `META_LABEL`, 10 the
+`CHIP_QUIET`, and 62 amber advisory blocks sitting beside the `NOTICE()`
+recipe written to replace them. Each one is a surface that will NOT follow
+when a recipe is restyled — the whole value of the seam — and nothing could
+tell "107, shrinking" from "107, on the way to 150".
+
+[`app/_components/ui/recipes-literals.test.ts`](../../app/_components/ui/recipes-literals.test.ts)
+walks every `app/**/*.tsx` (`app/landing/**` excluded) and counts the literal
+forms of six recipes — `panel`, `metaLabel`, `chipQuiet`, `noticeAmber`,
+`btnAffirm`, and raw `toLocaleDateString`/`new Intl.DateTimeFormat` beside
+`useDateFormat`. The ceilings are per FILE, in
+[`recipe-debt.json`](../../app/_components/ui/recipe-debt.json) beside it, in the
+`ts-debt.json` idiom: **grew** and **undeclared** (a new file with a literal) are
+blocking, **slack** and **burnt down** print `tighten`. It runs in the ordinary
+unit gate — `npm run test:unit` — and needs no script alias.
+
+**The rule is fix-as-you-touch.** You are not asked to migrate a surface you did
+not open. You ARE asked, when you edit a file that owes something, to swap its
+literals for the recipe and lower its number in the same change:
+
+```bash
+node --experimental-transform-types app/_components/ui/recipes-literals.test.ts --tighten
+```
+
+A number is never raised to make a build green — that is editing the gate to pass
+the change (ADR 0007). A file burnt down to zero loses its entry, which locks the
+win: it is then undeclared, and the next literal to arrive there is red.
+
+Seeded 2026-09-03 at `panel=107 metaLabel=76 chipQuiet=10 noticeAmber=62
+btnAffirm=5 rawDate=15` over 168 files.
+
+**`RubricCoverageNote` burnt down (2026-09-04)** — one `noticeAmber`, and the shape
+of the win again: the hand-typed advisory was `rounded-md border-amber-200` with no
+`dark:rounded-2xl`, so it was the one square-cornered box on a Spark Dark surface
+after `NOTICE()` had already been given the sticker radius. Its entry is gone from
+`recipe-debt.json`, which locks it. `Select`'s `panel: 1` stood deliberately until
+2026-09-04: its portalled menu is `shadow-pop`, and `PANEL` hardcodes `shadow-panel`
+plus the dark sticker ride that comes with it, so composing it would have restyled
+the open menu. That literal wanted a `POPOVER` recipe, not `PANEL` — it now has one
+(below), and both it and `table/FilterMenu` are burnt down, their entries dropped.
+
+**First burn-down, same day:** `panel` 107 → 92, `metaLabel` 76 → 53,
+`chipQuiet` 10 → 9, `noticeAmber` 62 → 61 (40 lines) across `ExtractionTab`,
+`CompareTab`, `DecisionRecordDetail`, `QualityInstrument`, `StructuredReadout`
+and `GithubAnalysisPanel`. `StructuredReadout` is the shape of the win: its chip
+literal still carried `dark:inline-block`, the exact bug `CHIP_QUIET` had already
+been fixed for — a hand-typed copy does not receive a repair.
+
+The near-dead recipes were re-decided in the same pass rather than left as
+vocabulary nobody speaks: `PAGE_HEADER` had ZERO consumers and two hand-rolled
+headers matching it character for character (Organization, Workspace — now
+composing it); `SECTION` took the last literal `space-y-8`; `ICON_STICKER` keeps
+two consumers because its four twins are deliberate variants (border-ink setup
+steps, a per-channel accent, a hover dock tile), not unmigrated copies; the two
+`KBD` consumers are the entire `<kbd>` population bar one white-on-accent keycap.
+`StructuredReadout` stays a single-consumer component on purpose — the reason is
+in its header.
+
+**Retired primitives (2026-09-03): `FileInput`, `Radio`.** The same re-decision,
+applied one level up from the recipes: both were fully built, dual-theme correct
+and imported by nothing. `Radio` even carried its own a11y source-guard
+(`radio.a11y.test.ts`), which made it read as *more* alive than the primitives
+that actually ship — and every apparent `<Radio` in the tree resolved to the
+`lucide-react` icon of the same name. `FileInput`'s one real idea, the
+`focus-within` ring on a label wrapping an `sr-only` file input, already lives on
+as `DROP_ZONE_FOCUS` in `app/features/tools/analyze/analyzeSurfaces.ts`, which is
+now its only copy. Single-choice input, when a surface needs one: group native
+`<input type="radio">` with a shared `name`, or reach for `SegmentedControl`.
+
+`app/_components/primitives-have-consumers.test.ts` now holds the line — a
+top-level primitive with no importer outside itself fails `npm run test:unit`. A
+primitive nobody renders is not free: it is read as live vocabulary, copied by
+new code, and it accrues fixes for bugs no user can hit.
+
+### Three words for the layers above the page (2026-09-04)
+
+| Word | Replaces |
+| --- | --- |
+| `STICKY_HEAD(layer)` | five hand-rolled pinned table headers across **three** z-layers (10/20/30) and three fills |
+| `STICKY_BAR(on)` | three sticky bars (chapter rail, pipeline drawer header, diagram explorer header) drifted on layer AND rule |
+| `POPOVER` | the anchored pop shell, re-typed in `Select`, `table/FilterMenu` and four feature menus |
+
+`STICKY_HEAD` has exactly two tiers because there are exactly two facts:
+`"head"` is a column-header row, `"corner"` is the cell frozen on **both** axes
+in a grid with row headers — and the corner must sit *above* the head, or the
+row-header column scrolls over it. Spelled three ways, a table that borrowed its
+neighbour's class string got a corner that scrolled under its own rows.
+
+`STICKY_BAR` keeps `on: "paper" | "white"` because the translucent fill is a real
+difference (which surface the bar floats above); the z-layer and the ruled edge
+were not.
+
+**`POPOVER` is not `PANEL`, and that is the whole point.** `PANEL` hardcodes
+`shadow-panel`, which takes the Spark Dark sticker ride in `globals.css` — 2px
+drawn outline, 16px radius, offset shadow. A menu that presses out of the page
+like a sticker reads as a card someone dropped on the table rather than as a
+layer hanging off its trigger, so the pop layer keeps `shadow-pop` (its own
+token, a hard offset in *both* registers). That is why the ratchet carried
+`Select`'s `panel: 1` instead of "fixing" it.
+
+Four feature menus (`PipelineCandidateMenu`, `PipelineFilterMenu`,
+`JdsLedgerFilterMenu`, `MatrixReasoningPopover`) still re-type the shell and are
+the recipe's remaining fix-as-you-touch population.
 
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
@@ -462,6 +656,155 @@ the bare `aria-hidden` form — fix-as-you-touch, not a migration.
   JSX expression (measured: 159 false positives on the already-graduated file
   set), so extending it is not viable. `npm run i18n:check` greps
   `app/_components/**/*.tsx` for literal `aria-label="…"` and fails instead.
+- **No shared primitive may ship English as a PROP DEFAULT** (2026-09-04). The
+  third face of the same blind spot, and the widest: `Select` carried
+  `placeholder = "Select…"`, `clearLabel = "Clear"`, `searchPlaceholder =
+  "Search…"` and `noMatchesLabel = "No matches"` in its destructure. A default is
+  what every caller that passes nothing renders — and *no* caller passed
+  `searchPlaceholder` or `noMatchesLabel`, so cs/de/fr read English on every
+  searchable select in the product. No gate could see it: the eslint rule reads
+  JSX text nodes, both `i18n-check` greps read JSX attributes, and next-intl's
+  typed keys only bind what reaches `t()`. All four now resolve through the
+  `select.*` namespace inside the component, with the props kept as overrides.
+  [`scripts/i18n/primitive-copy-defaults.mjs`](../../scripts/i18n/primitive-copy-defaults.mjs)
+  is the rule, run from `npm run i18n:check` over `app/_components/**`: **a
+  props-destructure default whose string starts with a capital letter is copy.**
+  Narrow on purpose — a prop default here is otherwise a variant token
+  (`tone = "amber"`), a length (`minHeight = "10rem"`) or a class string, none of
+  which is capitalized. Fixtures:
+  [`app/_components/primitive-copy-defaults.test.ts`](../../app/_components/primitive-copy-defaults.test.ts),
+  in the unit gate rather than under `scripts/` so it runs without a new alias.
+
+### Tables announce their own changes (2026-09-04)
+
+Sorting a table **reorders** it and filtering **shrinks** it. Both happen entirely
+in the visual channel: the control confirms the press ("Sort by Candidate"), and
+then a different set of rows is silently on screen. Before this pass the only
+`aria-live` anywhere in `app/_components/table/` was `TablePager`'s range line —
+so the Archetypes roster, the decision log, the Activity ledger and the Tasks
+window all changed shape without saying so.
+
+[`TableStatus`](../../app/_components/table/TableStatus.tsx) is the shared
+`sr-only` `role="status"` region every sortable/filterable table mounts:
+
+```tsx
+<TableStatus columnTitle={SORT_TITLE[sort.col]} dir={sort.dir} matched={filtered.length} filtered={anyFilter} />
+```
+
+Three rules it encodes:
+
+- **A region, not a `speak()` call.** The sentence is derived from the state the
+  table already renders, so it cannot drift out of step with the rows — a hook
+  that speaks can be forgotten on one of three filter setters. Re-rendering with
+  different text is what makes a live region fire.
+- **`aria-atomic`**, because the sentence is one fact in two clauses; without it
+  a reader can be handed "descending" with no column named.
+- **An unfiltered table says nothing about matching.** `filtered` gates the count:
+  "174 rows match" on a table nobody narrowed is noise on every render.
+- The column is named by its **visible title**, never its wire key — the sort
+  state carries `createdAt`, the header says *When*.
+
+Copy is `table.status.*` in four locales (`sortedAsc` / `sortedDesc` / a plural
+`matched`). [`table-status.test.ts`](../../app/_components/table/table-status.test.ts)
+pins the region's attributes, the catalog's ICU shapes, and — the half that
+actually rots — the list of surfaces that must MOUNT it: a shared region nobody
+renders announces nothing, and the table still looks correct in review.
+
+### Every `<th>` declares a scope (2026-09-04)
+
+A header cell with no `scope` is one assistive tech has to guess the direction
+of, and the guess is only reliable for the plain single-header-row table — not
+the comparison grids with a frozen first column, not the matrix with headers on
+both axes, not a header row carrying a filter control. Guessing wrong is worse
+than saying nothing: the numbers still get announced, attached to the wrong
+candidate.
+
+`ColumnHead` renders the `<th>` itself for exactly this reason (`scope` and
+`aria-sort` cannot then be omitted) but only reaches the tables that adopted it:
+**70 of the tree's 124 header cells declared nothing**, including six surfaces
+that imported the shared `ColumnFilter` and hand-rolled the headers around it.
+
+[`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
+ratchet — `scope` has no legitimate residual population: it is one attribute
+whose value follows from where the cell sits (`col` in a `<thead>` row, `row`
+for a cell that heads its row), and no table shape here wants neither. It scans
+`app/**/*.tsx` at the source level, blanking comments first so the table kit's
+own prose about `<th>` is not read as markup, and tracking JSX brace depth so an
+attribute holding an arrow function does not end the tag early.
+
+### One size vocabulary across the field primitives (2026-09-04)
+
+`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`
+also accepted `size` as a back-compat alias, and all 34 of its call sites that set
+a size had taken *that* spelling — zero used `sizeVariant` — so the primitive that
+owns the app's field sizing was the one disagreeing with its siblings about the
+prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
+a `Select` is now a tsc error rather than a second name for the same thing.
+
+### One size vocabulary for traced glyphs (2026-09-04)
+
+The 14 `MotionizedGlyph` render sites had hand-typed **five** sizes between them
+(80 / 96 / 112 / 128 / 144px) with nothing saying which surface earned which — a
+centred empty-state hero at 128 next to another at 144 is two guesses, not a
+decision. [`GLYPH_SIZE`](../../app/_components/glyph/glyphSizes.ts) is four steps
+named for the surface rather than the pixels: `sm` (`h-20`) an inline aside beside
+a paragraph, `md` (`h-24`) a row-leading illustration, `lg` (`h-28`) a boxed or
+column-leading one, `xl` (`h-36`) a centred hero in a `text-center` panel.
+`GLYPH_SIZE_SM` holds the same steps at the `sm:` breakpoint, for the two shelf
+empty states that grow once there is room.
+
+The one visible change: the three 128px centred heroes (`DecisionsEmptyHandoff`
+and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — every
+centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
+just the record, so a fifteenth site cannot quietly invent a sixth size.
+
+### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
+
+Two contracts the glyph renderer declared and did not keep:
+
+- **`aria-hidden` and `role="img"` sat on the same `<svg>`.** One removes the
+  subtree from the accessibility tree, the other declares an image in it, and
+  there was no way for a consumer to supply a name — so a drawing that *is* the
+  information had no route to one, and nothing in `app/_components/glyph/`
+  asserted anything about accessibility. `MotionizedGlyph` now takes `label?:
+  string`: without it the `<svg>` is `aria-hidden` decoration (right for all 14
+  render sites today, each of which pairs the glyph with a heading and a body
+  sentence that already say what it depicts), with it the `<svg>` gets
+  `role="img"` + `aria-label` and no `aria-hidden`. Both states come from one
+  spread so they cannot drift apart, and `MotionizedGlyph.a11y.test.ts` pins the
+  exclusion plus the rule that the renderer never hardcodes a name (it would ship
+  one locale to every reader).
+- **`MotionPreset.reduced` was a comment.** The field has documented the
+  `prefers-reduced-motion` answer — "cross-fade only, or don't run at all" — since
+  the library was written, and the renderer hardcoded the cross-fade for every
+  preset: a preset asking for stillness still faded in. The derivation moved out
+  to [`glyphMotionCss.ts`](../../app/_components/glyph/glyphMotionCss.ts), a pure
+  string function, so `glyphMotionCss.test.ts` can assert it directly: an
+  `opacity-only` layer cross-fades, a `none` layer emits `animation: none` **plus
+  `opacity: 1`** (the resting state is `opacity: 0`, so dropping the animation
+  alone would render an invisible glyph), and an ambient loop is dropped or kept
+  by its own `reduced` value rather than by the renderer's opinion.
+
+### Glyph motion is two layers, and each option has a consumer (2026-09-04)
+
+`MotionizedGlyph` used to compose three layers and an extra flag — `entrance`,
+`ambient`, `hover` and `glow`. Five of those options had no consumer anywhere in
+`app/`, which is the same failure `motionPresets.test.ts` was written for one
+level up: reachable-through-a-prop is not the same as *reached*, and unreached
+options accrue review attention, doc claims and gate budget for behaviour nobody
+sees. Each was resolved rather than left standing:
+
+| Option | Verdict |
+| --- | --- |
+| `entrance="fade-pop"` | **kept** — now used by `AnalyticsEmptyPreview`, whose glyph renders at 80px where a per-path stagger is noise, not a reveal. |
+| `ambient="pulse"` | **kept** — now used by `SetupGettingStartedNextMove` *only* while a step reports `analyzing`. Breathing means work is in flight; on an idle step it would be a lie. |
+| `entrance="draw"` | **removed.** A `pathLength` dash sweep traces a filled region's *boundary*; every traced glyph in the repo is filled, so its own docstring already forbade every existing consumer from using it. |
+| `hover="hover-response"` | **removed.** It needs an interactive parent and no glyph in the app sits inside one — all 14 render sites are empty-state illustrations. |
+| `glow` | **removed.** An emissive `feGaussianBlur` that reads well in Spark Dark and, per the motionize skill, is "usually wrong" in Studio Light — i.e. it wants a per-theme fork no consumer had asked for. |
+
+The renderer is two layers now (`entrance` + `ambient`), and
+`motionPresets.test.ts` still pins the preset union to exactly the records those
+two props read.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

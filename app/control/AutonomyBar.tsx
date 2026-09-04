@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { Guard } from "./types";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 // The kill switch. Pause/resume fire on a single click by design — an oversight
 // surface must be able to halt automation instantly — while reconcile, which mutates
@@ -12,12 +13,18 @@ export function AutonomyBar({
   armed,
   onAct,
   guard,
+  canGovern,
+  canOperate,
 }: {
   paused: boolean;
   busy: boolean;
   armed: string | null;
   onAct: (action: string) => void | Promise<void>;
   guard: Guard;
+  /** `org:manage` - the kill switch is ONE global key, so it is org-level policy. */
+  canGovern: boolean;
+  /** `pipeline:write` - reconcile re-enqueues this team's own orphaned lifecycles. */
+  canOperate: boolean;
 }) {
   const t = useTranslations("control.autonomy");
 
@@ -33,19 +40,25 @@ export function AutonomyBar({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-ink">{paused ? t("statePaused") : t("stateRunning")}</p>
-        <p className="text-xs text-steel">{paused ? t("pausedBody") : t("runningBody")}</p>
+        <p className="text-micro text-steel">{paused ? t("pausedBody") : t("runningBody")}</p>
       </div>
-      {paused ? (
-        <button type="button" onClick={() => void onAct("resume")} disabled={busy} className="focus-ring h-9 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-          {t("resume")}
-        </button>
-      ) : (
-        <button type="button" onClick={() => void onAct("pause")} disabled={busy} className="focus-ring h-9 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-          {t("pause")}
-        </button>
-      )}
+      {/* AUTHORITY (/perfect wave 21): the state line above stays for every seat - an
+          oversight surface must always SAY whether automation is running - but the
+          switch itself is shown only to a seat the route will accept. */}
+      {canGovern ? (
+        paused ? (
+          <button type="button" onClick={() => void onAct("resume")} disabled={busy} className={`${BTN_AFFIRM} h-9 px-4 text-sm`}>
+            {t("resume")}
+          </button>
+        ) : (
+          <button type="button" onClick={() => void onAct("pause")} disabled={busy} className="focus-ring h-9 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+            {t("pause")}
+          </button>
+        )
+      ) : null}
       {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): reconcile mutates
           lifecycle state — gate it behind a confirm, visually lit while armed. */}
+      {canOperate ? (
       <button
         type="button"
         onClick={() => guard("reconcile", () => onAct("reconcile"))}
@@ -56,6 +69,7 @@ export function AutonomyBar({
       >
         {armed === "reconcile" ? t("reconcileConfirm") : t("reconcile")}
       </button>
+      ) : null}
     </section>
   );
 }

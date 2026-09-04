@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenOfferForEntry } from "@/app/_lib/offers-store";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
 // After the recruiter real-clicks "Send offer", the extend mints a token the
@@ -11,7 +11,7 @@ import { jsonError } from "@/app/_lib/api-response";
 export async function GET(request: NextRequest) {
   try {
     const entryId = new URL(request.url).searchParams.get("entryId");
-    if (!entryId) return NextResponse.json({ error: "entryId is required." }, { status: 400 });
+    if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);
     // Tenant: resolve the entry in the CALLER'S team FIRST, exactly like the two
     // sibling sim routes (screen-draft / offer-draft) — "the scoping doubles as the
     // authorization check, since a stranger's entryId simply doesn't resolve".
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // simulation only ever asks about the entry its own run just created.
     const workspaceId = await currentWorkspace();
     const entry = getPipelineEntry(entryId, workspaceId);
-    if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
+    if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
     const offer = getOpenOfferForEntry(entryId);
     // Belt and braces: the offer row carries its own workspace (inherited from the
@@ -39,6 +39,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     // Match the four sibling sim routes' try/catch: without it a DB throw becomes an opaque
     // non-JSON 500 that crashes the offer step's .json() instead of surfacing a clean error.
-    return jsonError(error, "Failed to read offer link.");
+    return safeJsonError(error, "api:sim/offer-link", "SIM_OFFER_LINK_FAILED");
   }
 }

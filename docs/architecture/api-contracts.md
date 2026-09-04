@@ -59,6 +59,67 @@ API consumers.
 > re-deriving the safe pattern in the handler. That is the whole reason the
 > registries are exported constants and not strings at the call site.
 
+**One code per REASON, not per endpoint.** The temptation on a validating door is
+a single code — "that value is invalid" — because it is one refusal in the
+handler. It is not one answer to the caller. `PUT /api/brand` refuses a bad
+accent four ways and each names a different next move: `BRAND_ACCENT_INVALID`
+(not a hex color at all), `BRAND_ACCENT_ILLEGIBLE_LIGHT` (readable hex, but
+button labels and focus rings vanish on the cream Studio Light canvas) and
+`BRAND_ACCENT_ILLEGIBLE_DARK` (fine in Studio Light, no derivable Spark Dark twin
+— see docs/design/README.md). Collapsing the last two would tell half the callers
+to do the opposite of what would fix it: "pick a darker color" is exactly wrong
+for an accent that is already too dark for the dark theme. `BRAND_LOGO_INVALID`
+is the fourth.
+
+That door is also the shape to copy for a write that used to *sanitize
+silently*. `saveBrand` still drops a bad value to the product default on the READ
+path — a row already at rest must degrade, never throw — but the WRITE path
+refuses. Answering 200 with the operator's color quietly replaced by `null` told
+them their brand had been applied when it had not, and gave them nothing to act
+on. Sanitize on read, refuse on write.
+
+**A 429 is a refusal like any other — `jsonRefusal(code, 429)`, never a
+hand-rolled body.** This is the rule the section above states generally, written
+out for the one status that kept escaping it. Until /perfect wave 38 about
+twenty-five doors answered a throttle with
+`NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 })`: an English
+sentence, no `code`, so `useErrorMessage()` had nothing to resolve and a Czech,
+German or French reader got English on exactly the routes a burst hits — the
+public apply forms, the candidate status page, the data-erasure door, the login
+and invite doors, the dev-case session. All of them now answer through the
+chokepoint. A 429 is not one refusal, and the split is **does waiting fix it**. Only the
+fixed-window limiter may claim `TOO_MANY_REQUESTS`, whose sentence promises a
+retry will clear it; a *spent allowance* a slower caller cannot recover carries
+its own code, or the copy is a green lie about what to do next:
+
+| Code | Refuses | Raised by |
+| --- | --- | --- |
+| `TOO_MANY_REQUESTS` | the fixed-window limiter (§1.4) said this caller is going too fast — waiting clears it | every `rateLimit()` / `isThrottled()` call site |
+| `TASK_BUDGET_EXHAUSTED` | this workspace's allowance for an AI-run CLASS is spent | [`enforceTaskBudget`](../../app/_lib/task-budget.ts) consumers |
+| `DEVCASE_SESSION_QUOTA` | this apply link has minted its day's worth of work sessions | `POST /api/devcase/session` |
+| `DEVCASE_CHAT_CEILING` | this work session spent its 400-message ceiling — it never resets, and the candidate's work is already saved | `POST /api/devcase/session/[id]/chat` |
+
+`REFUSAL_ERRORS.TOO_MANY_REQUESTS` **is** `RATE_LIMITED_ERROR` — the same
+constant, imported from `rate-limit.ts`, so the limiter's message and the
+registry's can never drift. That import is the *only* one the codebase may have:
+a route that holds the raw string is a route about to hand-roll an envelope with
+it, and two source guards at the bottom of
+[`rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts) fail on
+either move — a `{ error: RATE_LIMITED_ERROR … }, { status: 429 }` anywhere under
+`app/`, or a second importer of the constant. `errors.RATE_LIMITED` is **not** the
+code for this: it is GitHub's own upstream refusal, a documented collision, and
+minting it for one of our throttles would tell a reader the wrong thing about who
+refused them.
+
+The single exception is `POST /api/github-analysis`, and it is pinned as a spec
+field (`surfaceCode`) rather than left to a comment: that surface resolves its
+failures in its **own** catalog namespace (`results.github.errors`, via
+`useGithubErrorMessage` — its codes describe one optional feature), where the
+throttle key is `REQUEST_THROTTLED`. It carries that code with
+`REFUSAL_ERRORS.TOO_MANY_REQUESTS` as the message, so the sentence is still the
+registry's. A second use of that escape hatch is a design question, not a
+mechanical one.
+
 **What holds this, and what it does not hold yet.**
 [`app/api/error-response-contract.test.ts`](../../app/api/error-response-contract.test.ts)
 walks every module under `app/api/**` and fails when a catch block shapes a
@@ -80,7 +141,19 @@ could see a raw message pushed into a results array on its way to the client;
 
 The scan cannot see a message that reaches the wire through a helper in another
 module, and it does not judge whether a `jsonError` call site's message is
-genuinely client-safe. Those stay review's job. §1.2 and §1.4 of this contract
+genuinely client-safe. Those stay review's job.
+
+**And it cannot see the other half of the same defect: a handler that invents its
+own English.** The ratchet keys on a THROWN error's `.message` reaching the body,
+so a handler answering a hand-written literal — `{ error: "Analysis not found." }`,
+`{ error: "Failed to load analyses." }` — was invisible to it while being just as
+wrong at the reader's end, because the client renders `body.error` and there is no
+code for `useErrorMessage()` to resolve. Both `/api/analyses` doors were shaped that
+way until wave 39 and are now on `ANALYSES_LIST_FAILED` / `ANALYSIS_LOAD_FAILED` /
+`ANALYSIS_SAVE_FAILED` (store faults) and `ANALYSIS_NOT_FOUND` /
+`ANALYSIS_GITHUB_INVALID` / `ANALYSIS_GITHUB_TOO_LARGE` (refusals). When you find a
+handler like that, migrating it does not move any ratchet number — there was never a
+row to lower. §1.2 and §1.4 of this contract
 already had repo-wide guards
 ([`route-tenancy-coverage.test.ts`](../../app/api/route-tenancy-coverage.test.ts),
 [`rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts));
@@ -104,7 +177,7 @@ Authorisation is **fail-closed and stated in two places on purpose**:
   if (denied) return denied;          // a 401 NextResponse, already shaped
   ```
 
-Three facts about that gate that are easy to get wrong:
+Four facts about that gate that are easy to get wrong:
 
 - `KP_OPERATOR_PASSWORD` unset = **open mode**, and `isOperator()` returns
   `true`. That is deliberate (local single-operator use); production fails
@@ -116,6 +189,66 @@ Three facts about that gate that are easy to get wrong:
   (`underPath`). An entry ending in `/` matches strict descendants only. This is
   why a newly added child route inherits its parent's gating instead of
   escaping it — the bug class that once made `/api/schedule/invite/bulk` public.
+- **`/` is public** (since 2026-09-03), and it is the one entry matched EXACTLY:
+  `PUBLIC_PAGES_EXACT`, not `PUBLIC_PAGES`. A `"/"` in the segment list would end
+  in a slash and `underPath` would match every path in the app — the whole gate
+  off. It is public because `app/page.tsx` already renders the marketing landing
+  for an anonymous visitor and the workspace only once `hasEnteredWorkspace()`
+  says so; in password mode the proxy never let that branch run, so every
+  marketing link and OG unfurl on the site's own front door met a login form. What
+  the root can render anonymously is the static landing — the workspace behind it
+  is a client shell whose every `/api/*` call is still gated.
+
+**A session is not an authorisation.** `requireOperator()` answers "is this a
+trusted operator", which on a TEAM deployment every member satisfies. A route
+that returns other members' data needs a capability, through
+`requireCapability(cap)` from
+[`app/_lib/auth/current-user.ts`](../../app/_lib/auth/current-user.ts) — 401
+unauthenticated, 403 under-privileged, resolved live from the DB membership.
+`GET /api/feedback` is the worked example (2026-09-03): it is a read of
+colleagues' free-text messages *with* their reply addresses and it required only a
+session, so every viewer and recruiter in the workspace could read all of it. It
+is now `members:manage`, the same bar as the member and invite lists — and the
+`/control` section that renders it resolves the same capability server-side, so
+the UI and the API cannot drift apart. Pick the capability by what the data IS,
+not by which role happens to visit the page.
+
+**The same rule binds WRITES, and a ratchet holds the line.** As of 2026-09-03 the
+ten highest-consequence write doors ask a capability before they mutate anything:
+`pipeline:write` for `POST /api/pipeline/{command,batch,stage-migration}`,
+`/api/decisions/{screen-wave,config}`, `/api/automation/{schedule,run,[task]}`,
+`/api/schedule/invite/bulk` and the JD writes (`/api/jds/{save,generate}`, `PATCH
+/api/jds/[slug]`); `org:manage` for the installation-configuration doors
+`/api/comms/relay`, `/api/ats/{connections,config}`, `/api/edge/{drain,pair}` and
+`/api/llm/keys/test`. The gate is
+`requireCapabilityCoded(cap, requireCapability | requireOrgCapability |
+requireWorkspaceCapability)` from `app/_lib/api-response.ts`, which re-shapes the
+auth layer's bare 403 into the coded refusal `FORBIDDEN_CAPABILITY` **carrying the
+capability as data** (`{ error, code, capability }`) so the client can name the
+missing permission in the reader's language; 401 (no session) passes through
+unchanged, and open mode is unaffected because every gate folds to owner there.
+Behaviour is pinned by `app/api/write-capability-gate.test.ts` (real handlers,
+throwaway DB, real signed viewer/recruiter/owner sessions).
+`app/api/route-capability-coverage.test.ts` is the ratchet — the authorisation
+sibling of `route-tenancy-coverage.test.ts`. It walks every `app/api/**/route.ts`
+exporting POST/PUT/PATCH/DELETE and demands either a capability-gate call or a line
+in its `ALLOWED` map with a reason; it was seeded with the 118 mutating doors that
+were ungated the day it landed (31 structural exemptions — public token surfaces,
+webhooks, self-service, the guided-sim sandbox — and 87 marked "slice 2 candidate",
+i.e. not yet judged). The count is printed on every run and may only FALL: closing a
+door means deleting its line, and a NEW ungated mutating route is red immediately.
+
+**A public route's payload is split by that gate, not by convenience.**
+`/api/health` is on the allow-list, so the verdict a monitor gates on
+(`ok`/`db`/`seeds`/`clock` + the status code) is public and everything else rides
+`isOperator()`: the deployment-wide table counts, the queue, `degradedReasons`
+(whose seed entries quote absolute server paths) and — since 2026-09-03 — the
+`engines` preflight map, which is SECRET PRESENCE (is a Gemini key configured, is
+a `claude` CLI installed on this host). The detail is **omitted, never blanked**:
+an empty `degradedReasons` beside a 503 is a confident lie. It is also no longer
+COMPUTED for an untrusted caller — the seven unscoped `COUNT(*)`s collapse to one
+`LIMIT 1` existence probe, the single fact the public verdict depends on.
+Pinned by `app/api/health/health-exposure.test.ts`.
 
 ### 1.3 Public token surfaces carry a projection, not a row
 
@@ -143,6 +276,35 @@ not a pure read (`/api/offer` runs `expireOfferIfDue` on every hit). The erasure
 (an irreversible scrub) and the invite POST (a user, a membership and a session) were
 the last two doors without one; closed 2026-09-01.
 
+**Sizing, when the key can degenerate.** With `KP_TRUSTED_PROXY` unset — the
+default for a directly-exposed self-host — `clientIpFrom` returns
+`SHARED_CLIENT_KEY` for *every* caller, so a per-IP bucket is one bucket for the
+whole deployment. For an abuse-containment door that is the safe failure
+(over-throttle). For a door whose refusal DENIES A FEATURE to every colleague at
+once it is not, and there are two honest answers: skip the degenerate bucket
+(`/api/auth/login` does, because its per-account bucket is the real defense), or
+set a ceiling people cannot plausibly reach. `/api/search` — the command palette,
+five leading-wildcard `LIKE` scans per hit and the heaviest read per byte of input
+in the app — took the second at 3000/10min (2026-09-03). A tight number there
+would have let one script take the palette away from everyone.
+
+**One door, many prices.** A route that fans out to *several kinds of work* needs
+more than one bucket. `POST /api/tasks` is the case: one handler in front of every
+kind in `HANDLERS`, and for a year one bucket — 120 starts / 10 min / IP, a number
+calibrated for the cheapest thing that comes through it (the Decisions queue fires
+one POST per accepted review, so a 50-card bulk accept is a legitimate 50-request
+burst). The same 120 admitted 120 repo clones, 120 board-wide screen sweeps and 120
+cohort evaluations. [`app/_lib/task-budget.ts`](../../app/_lib/task-budget.ts)
+classifies every kind as **cheap** (120/10min IP), **metered** (30/10min IP +
+90/hour per WORKSPACE) or **agent** (6/10min IP + 15/hour per workspace); both
+`POST /api/tasks` and `POST /api/tasks/[id]/retry` apply the class budget on top of
+the door's own bucket, under the SAME keys, so replaying is not a way to double an
+allowance. An unclassified kind falls to the tightest class, and a test parses
+`HANDLERS` and fails on a kind that has no class. The per-workspace half is the one
+that actually bounds spend: it survives an IP rotation and it is the tenant whose
+allowance is drawn down — see the `SHARED_CLIENT_KEY` note above for why the IP
+half alone is the wrong unit for a team.
+
 Pick the key deliberately:
 
 - per-IP (`clientIpFrom(request.headers)`) for abuse containment;
@@ -153,10 +315,28 @@ Pick the key deliberately:
 
 The call sites are **pinned by a contract test**,
 [`app/api/rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts):
-it asserts both the source-level guard (key template, limit, the shared
-`{ error: RATE_LIMITED_ERROR }` 429 envelope) and the real limiter's behaviour
-at the route's exact config. Moving or re-keying a limiter means updating that
-test deliberately — not deleting the assertion.
+it asserts both the source-level guard (key template, limit, and the ONE
+registered refusal — `jsonRefusal("TOO_MANY_REQUESTS", 429)`, §1.1; `refusalCode`
+is a **required** field on every row, so a new limited route cannot be declared in
+the old hand-rolled shape) and the real limiter's behaviour at the route's exact
+config. Moving or re-keying a limiter means updating that
+test deliberately — not deleting the assertion. It also walks the whole tree for
+one rule no per-route spec can express: **every route that reaches `startTask` must
+throttle first.** Its `UNTHROTTLED_ENQUEUE` ratchet is now **empty**: the three
+dev-case routes it carried (`devcase/control`, `devcase/lifecycle`,
+`devcase/lifecycle/[id]/approve`) enqueue an `agent`-class `lifecycle` run *directly*
+— never through `POST /api/tasks` — and did so with no limiter at all until
+2026-09-03. All three now call the shared
+[`enforceTaskBudget(kind, ip, workspaceId)`](../../app/_lib/task-budget.ts) under the
+**same keys** as the task doors (``tasks-start:${cls}:${ip}`` /
+``tasks-start-ws:${cls}:${ws}``), so a direct enqueue and a dock enqueue draw on one
+allowance and refuse with the same `TASK_BUDGET_EXHAUSTED` 429. Placement is
+per-route and deliberate: after the cheap refusals, before the spend — the create
+door budgets *before* the `case_designs` meter debit, the approve gate *before* the
+approve transition (a refused resume must not leave a case approved but unrun), and
+the reconcile sweep budgets *each* lifecycle it resumes (one POST could otherwise
+enqueue 50 runs on a single slot), reporting `budgetExhausted` when it stops early.
+A new line on that ratchet is a hole waiting to be closed, never an exemption.
 
 ### 1.5 Uploads, timeouts and tenancy
 
@@ -172,6 +352,77 @@ test deliberately — not deleting the assertion.
   allowlist in [`app/_lib/tenancy.ts`](../../app/_lib/tenancy.ts) is fail-closed
   — a new persistent table is a reported gap until it is scoped and listed.
 
+### 1.5c Request bodies on public routes are capped on the BYTES READ
+
+Every route reachable without a session — the set `isPublicPath`
+([`app/_lib/auth/public-routes.ts`](../../app/_lib/auth/public-routes.ts))
+answers `true` for — reads its body through
+[`app/_lib/request-body.ts`](../../app/_lib/request-body.ts):
+`readJsonWithLimit(request, MAX_…_BODY_BYTES, fallback)` for a JSON door,
+`readTextWithLimit` where the raw text is what the route needs (the devcase
+flush charges a byte budget against it; the billing webhook signs it).
+
+**`content-length` is not a cap.** It is written by the caller, who may omit it
+(chunked transfer) or declare 10 while streaming 50 MB. A route that checked only
+the header and then called `request.json()` had a cap on honest clients and none
+at all on anyone else — and the buffering happens *before* the handler's rate
+limiter, token check or tenancy gate can run. The helper keeps the header as a
+cheap early-out and enforces the real limit on bytes taken off the wire, aborting
+the stream the moment it is exceeded.
+
+**The refusal is coded.** Over-budget answers `413` with
+`jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes })` — the cap rides as data so
+the reader's own language can name it. Surfaces with a more specific sentence
+keep it (`APPLY_PAYLOAD_TOO_LARGE` tells a candidate to shorten their answers;
+`IMPORT_BODY_TOO_LARGE` tells an operator to check they picked the right file).
+
+**The cap is a named constant** at the top of the route, so what a door accepts
+is answerable by reading it. Sizes are per-route and stated in the constant's
+comment — 4 KB for a one-word RSVP, 16 MB for the devcase flush whose own bounds
+admit 50 x 256 KB of file contents.
+
+[`app/api/public-body-cap-contract.test.ts`](../../app/api/public-body-cap-contract.test.ts)
+DERIVES the route set from `isPublicPath` rather than listing it, so a newly
+public route inherits the obligation the moment it joins the allow-list. Three
+routes are exempt, each with its reason in the test: `/api/auth/logout` and
+`/api/data/[token]` read no body, and `/api/extract-text` takes multipart form
+data bounded by `upload-constraints.ts` instead.
+
+### 1.5b Response headers every route carries
+
+Two producers, deliberately split, because one of them cannot be static:
+
+| Producer | Headers | Why there |
+| --- | --- | --- |
+| [`next.config.ts`](../../next.config.ts) `headers()` | `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` | Same value for every request, so a build-time config holds them |
+| [`proxy.ts`](../../proxy.ts) `buildCsp()` | `Content-Security-Policy-Report-Only` | Carries a **per-request nonce**, which a build-time config cannot mint |
+
+**Never put a CSP back into `next.config.ts`.** Two `Content-Security-Policy`
+headers on one response are two policies *both* applying, and the effective
+result is neither author's.
+[`app/shell-headers.test.ts`](../../app/shell-headers.test.ts) fails if one
+reappears, and `e2e/shell.spec.ts` asserts exactly one arrives over the wire.
+
+**How the nonce reaches the markup.** `proxy()` mints 16 random bytes per
+request, sets the *forwarded request*'s `Content-Security-Policy` header (Next's
+renderer greps that header for `'nonce-…'` and stamps it onto every script it
+emits — framework bundles, the RSC payload's inline chunks) and an `x-nonce`
+request header, then sets the *response*'s report-only header. `app/layout.tsx`
+reads `x-nonce` for the one inline script this app writes by hand (the pre-paint
+theme bootstrap). Nothing else needs nonc­ing by hand. The policy deliberately
+does **not** use `'strict-dynamic'`: that would ignore the host allow-list and
+block the env-gated Plausible include.
+
+**Why it is still report-only, and what flipping it costs.** The policy is
+otherwise ready to enforce — `script-src` no longer carries `'unsafe-inline'`
+(the theme script was its only reason), and `frame-ancestors 'none'` is declared
+for the enforce day. Enforcement is an **owner decision, not an agent's**: a
+wrongly-enforced policy on `/interview/[token]` kills a candidate's live voice
+call, and a self-hosted voice deploy (`ELEVENLABS_BASE_URL` → your own origin)
+serves from a host `connect-src` does not yet name. To flip: verify report noise
+is clean in a real deploy, add any deploy-specific voice origin, then rename the
+header in `withCsp()` to `Content-Security-Policy`.
+
 ### 1.6 The checklist for a new route
 
 1. `jsonOk` / `safeJsonError` (+ a `STORE_ERRORS` code) / `jsonRefusal` (+ a
@@ -181,7 +432,9 @@ test deliberately — not deleting the assertion.
    projection. Sensitive? `requireOperator()` at the top.
 4. Spends money or spawns a process on an open path? `rateLimit()`, plus its row
    in the contract test.
-5. Read → compute → write? `db.transaction(...).immediate()` or a compensating
+5. Public and takes a body? `readJsonWithLimit` / `readTextWithLimit` under a
+   named `MAX_…_BODY_BYTES` (§1.5c) — never a bare `request.json()`.
+6. Read → compute → write? `db.transaction(...).immediate()` or a compensating
    `WHERE` plus a `res.changes === 0` skip — and never `await` inside the
    transaction.
 
@@ -218,6 +471,17 @@ hint) from a 500 engine failure (retry / escalate) instead of collapsing both
 into one message. **Exit code 2 means 400** — that is how argparse usage errors
 and validation failures arrive without a JSON line.
 
+The `code` is a CLOSED vocabulary with one home per side:
+[`_cli.ERROR_CODES`](../../pipeline/jobfit/_cli.py) (`invalid_input`,
+`not_found`, `engine_error`, `timeout`) and `PYTHON_ERROR_CODES` in
+[`python-runner.ts`](../../app/_lib/python-runner.ts), pinned to each other by
+`pipeline/jobfit/tests/test_cli_error_envelope.py`. It is chosen at the RAISE
+site (`_cli.not_found(...)` / `invalid_input(...)` / `CliError`) and printed by
+`_cli.emit_error`, so “that job is not in the corpus” and a real engine fault
+stop reaching the browser as the same anonymous 500 — a code the runner had to
+GUESS back out of the status. A CLI that re-spells the words as local `ERR_*`
+literals is a shrinking holdout list in that test, never a new entry.
+
 ### 2.2 The caps
 
 Both are backstops, not deadlines, and both **kill the child and reject**:
@@ -228,7 +492,39 @@ Both are backstops, not deadlines, and both **kill the child and reject**:
   heap and can OOM the server process, taking down every route rather than the
   one that spawned it.
 
-A caller may also pass an `AbortSignal` to cancel early.
+A caller may also pass an `AbortSignal` to cancel early — and it is not a
+substitute for a budget: the signal fires when the *caller* gives up, the
+deadline when nobody does.
+
+**Every kill is a TREE kill.** `child.kill()` signals one pid, and the CLIs shell
+out (the Claude CLI adapter, `git` in a repo scan), so a timeout used to leave the
+grandchild running — holding the CPU and the provider connection the kill was
+meant to reclaim. `killProcessTree` signals the child's whole process group on
+POSIX (it is spawned `detached`, so everything it forks inherits the group) and
+runs `taskkill /T /F` on Windows. On Windows the direct kill is the *fallback*,
+not a companion: killing the child first orphans its descendants before taskkill
+can enumerate them.
+
+**And every spawn passes an admission door.** There is one process-wide ceiling —
+`KP_PYTHON_MAX_CONCURRENT`, default 4 — because an unbounded fork-per-request is a
+denial of service against the Node server the other 200 routes share. A caller
+waits up to `KP_PYTHON_QUEUE_WAIT_MS` (default 20 s) for a slot and is then refused
+with a `PipelineError` carrying **503 / `ENGINE_BUSY`**, which the routes forward
+like any other engine refusal. It is a decision, not a fault: the engine is
+healthy, it is saturated, and `errors.ENGINE_BUSY` says so in the reader's
+language. Sizing guidance: [self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
+
+**A route that spawns states its own budget.** Ten minutes is the right bound for
+a repo scan and the wrong one for a Save button: a wedged sub-second CLI
+inheriting the default holds the operator on a spinner for nine minutes past the
+point the answer was useful. Name the value (`const PROFILE_ROUTE_TIMEOUT_MS =
+60_000`), pass it as `timeoutMs`, and answer the overrun **by name** — the runner
+delivers a deadline as a rejected `result` whose message
+[`isSpawnTimeoutMessage`](../../app/_lib/intake-run.ts) is the one place that
+reads, and the route turns it into its own `jsonRefusal("<AREA>_TIMEOUT", 504)`.
+A deadline WE set is a DECISION the reader can act on (retry), not a store fault
+to hide behind a generic 500. Live examples: `INTAKE_TURN_TIMEOUT`,
+`PROFILE_BUILD_TIMEOUT`, `JOB_WINNABILITY_TIMEOUT`.
 
 ### 2.3 Types are generated, not written twice
 
@@ -251,6 +547,13 @@ one follows §2.1. Today: `cli`, `extract_cli`, `match_cli`, `profile_cli`,
 `llm.test_cli`. A new one is a new module with the same protocol — the runner
 needs no change.
 
+All of them build that protocol from the shared scaffold in
+[`pipeline/jobfit/_cli.py`](../../pipeline/jobfit/_cli.py) rather than
+re-implementing it: `configure_stdio()` (UTF-8 on both streams, each guarded
+separately so a harness that replaces one does not crash the CLI before line
+one) and `emit_error()` (the envelope above, plus the exit code — **2 for a 400**,
+1 otherwise).
+
 ### 2.5 Keyless is a supported state
 
 Every CLI has a deterministic fallback path and must answer, not crash, without
@@ -268,3 +571,8 @@ needs a key" is never an acceptable reason for a 500.
   follows; finding *which* routes exist is still a walk of `app/api/**`.
 - Request **body** schemas are validated per handler rather than declared, so
   the accepted fields of a given endpoint still come from reading it.
+- No route sends `Retry-After`. `rateLimit()` returns a boolean and keeps its
+  window's `resetAt` private, so no call site knows what to promise; the client
+  reads a `Retry-After` when a fronting proxy sends one
+  (`app/features/tools/analyze/AnalyzeApi.ts`) and degrades without it. Surfacing
+  the reset would change the limiter's return shape at ~90 call sites.

@@ -1,9 +1,9 @@
 ---
 name: motionize
-description: Upgrade a generic UI icon or loading/empty state into a traced, motion-animated SVG. Generates flat trace-friendly art (gpt-image), validates it with Qwen vision, vectorizes to a clean multi-path SVG, and renders it through kp's shared MotionizedGlyph + motion-preset library (draw, staggered-draw, fade-pop, float, pulse, hover-response). For icon + empty/loading-state visual upgrades — not raw image generation.
+description: Upgrade a generic UI icon or loading/empty state into a traced, motion-animated SVG. Generates flat trace-friendly art (gpt-image), validates it with Qwen vision, vectorizes to a clean multi-path SVG, and renders it through kp's shared MotionizedGlyph + motion-preset library (staggered-draw, fade-pop, float, pulse). For icon + empty/loading-state visual upgrades — not raw image generation.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(node *), Bash(npx *), Bash(npm *), Bash(cd *)
 argument-hint: <UI surface to upgrade, e.g. "pipeline empty state">
-version: 1.0
+version: 1.1
 ---
 
 # Motionize — traced, animated SVG upgrades for kp empty states & icons
@@ -25,10 +25,20 @@ per-theme fork** (the house rule in `.claude/CLAUDE.md`).
 ## Pipeline (four steps)
 
 ### 0. One-time setup
-Deps are self-contained, kept out of the app's `package.json` (already installed;
-re-run if `node_modules/` is missing):
+Deps are self-contained, kept out of the app's `package.json`, **pinned to exact
+versions and locked** (`package-lock.json` is committed). Install with `npm ci`,
+never `npm install` — VTracer's output shifts between releases, so a floating
+dependency means re-tracing the same PNG can return different geometry than the
+committed glyph module, and "regenerate this glyph" stops being a defined
+operation:
 ```bash
-cd .claude/skills/motionize && npm install && cd -
+cd .claude/skills/motionize && npm ci && cd -
+```
+Current pins: `@neplex/vectorizer@0.1.0`, `svgo@3.3.5`. Changing either is a
+deliberate change with a re-render of the contact sheet (step 5), not a bump.
+The tools' own fixtures run without any of it:
+```bash
+cd .claude/skills/motionize && npm test && cd -   # node --test, no deps
 ```
 Keys live in `.env.local`. **`QWEN_API_KEY` is the working one** — it drives both
 generation and vision validation. `OPENAI_API_KEY` is present but blank, so
@@ -75,7 +85,11 @@ live in **`app/_components/glyph/glyphs/`** (~10–16KB gzipped each — a consu
 imports the one it renders, never a shared registry). The tool drops the
 full-canvas ground, demotes large negative space to `var(--color-paper)`, and
 preserves paint order. For an icon SET, use `trace-set.mjs --split` (one module per
-glyph); `emit-glyph.mjs` is the shared core.
+glyph); `emit-glyph.mjs` is the shared core, and all three CLIs map their flags
+through its `glyphOptionsFromArgs` — `--white-keep`, `--slab-min-area`,
+`--surface-fill from>to`, `--surface-tolerance`, `--order` behave identically
+whichever entry point you use (`trace.mjs --emit` silently dropped
+`--slab-min-area` until 2026-09).
 
 **Check the path count** in the tool's JSON output: 10–40 is the healthy band.
 Hundreds → raise `--filter-speckle` (10–40) and lower `--color-precision` (3–4).
@@ -100,26 +114,36 @@ import { PIPELINE_GLYPH } from "@/app/_components/glyph/glyphs/pipelineGlyph";
   dozens of paths; scoped `@keyframes` stay cheap at that path count and can't be
   snapped by a global motion config. An IntersectionObserver replays the entrance
   when the glyph re-enters the viewport (tab switch, scroll-back).
-- Reduced motion and the optional emissive `glow` filter are built into the
-  renderer. `glow` reads best in Spark Dark and is usually **wrong** in Studio
-  Light — paper doesn't emit.
+- Reduced motion is built into the renderer. There is no `glow` option: an
+  emissive filter reads as neon-on-dark, which is the direction kp was ported
+  AWAY from, and paper doesn't emit. Lighting, if ever wanted, is a CSS filter at
+  the call site — not a renderer prop.
 
 ### 5. Verify the render — do not skip this
 ```bash
-node .claude/skills/motionize/tools/render-sheet.mjs .claude/skills/motionize/out/sheet.png
+node .claude/skills/motionize/tools/render-sheet.mjs .claude/skills/motionize/out/sheet.png [name-substring]
 ```
-Rasterizes **every** committed glyph twice — once with the Studio Light token values,
-once with Spark Dark — into one contact sheet, then **look at it**. This is the only
-gate that catches a glyph whose geometry survived tracing but whose *drawing* did
-not: the first seven-glyph batch shipped one that had quietly lost all its ink
+Rasterizes every `*Glyph.ts` module in `app/_components/glyph/glyphs/` twice — once
+with the Studio Light token values, once with Spark Dark — into one contact sheet,
+then **look at it**. It prints the glyph count and the row order it actually found;
+pass a name substring to check one batch instead of the whole (now 18-row) set.
+
+This is the only gate that catches a glyph whose geometry survived tracing but whose
+*drawing* did not: the first batch shipped one that had quietly lost all its ink
 line-work and rendered as three floating figures. Path count and typecheck were both
 green on that glyph. Eyes were the only thing that caught it.
+
+The tool is not a second opinion about colour: it **imports** `snapToToken` from
+`app/_components/glyph/glyphTokens.ts` and **reads** both palettes out of
+`app/globals.css`. It used to keep hand-maintained copies of each, "in sync by eye" —
+a verifier that re-implements what it verifies can agree with itself while
+disagreeing with the app.
 
 ## Motion system — the preset library
 
 All motion comes from one shared module:
 **`app/_components/glyph/motionPresets.ts`** (next to `MotionizedGlyph.tsx`).
-`MotionizedGlyph` reads it via `entrance` / `ambient` / `hover` props (default
+`MotionizedGlyph` reads it via exactly two props — `entrance` / `ambient` (default
 `entrance="staggered-draw"`). **Extend it — never inline variants/keyframes in a
 consuming component.** Tuning a preset retunes every motionized surface at once.
 
@@ -131,12 +155,10 @@ the loop's start delay is the second value in the path's inline `animation-delay
 
 | Preset | Kind | Default | Reduced |
 |---|---|---|---|
-| `draw` | entrance | `pathLength` stroke trace, 0.9s, ease-out — **stroke/`--mono` traces ONLY** (on fills it traces the boundary, messy) | opacity-only |
 | `staggered-draw` | entrance | per-path opacity 0→1 + scale 0.35→1, 0.5s each, `cubic-bezier(0.16,1,0.3,1)`, staggered by emitted `delay` × `spread` | opacity-only |
 | `fade-pop` | entrance | whole-glyph opacity 0→1 + scale 0.92→1, 0.35s — for small icons where a stagger is noise | opacity-only |
 | `float` | loop | translateY ±2px + opacity ±0.06, 5s, alternate — ambient idle | none |
 | `pulse` | loop | accent opacity 0.75→1, 3.5s, alternate — attention/activity | none |
-| `hover-response` | hover | scale 1→1.03, 0.18s — a `transition` on the group, not an animation | no transform |
 
 ### Composition rules
 
@@ -145,19 +167,21 @@ the loop's start delay is the second value in the path's inline `animation-delay
   IntersectionObserver replay restarts the **entrance only**.
 - **One ambient loop per glyph.** `float` OR `pulse`, never both. Ambient loops are
   `accentOnly` — ink line-work stays still.
-- **`hover-response` layers on anything** (a transition on the wrapper `<g>`).
 - Per surface:
   - **Empty states** → `staggered-draw` (+ optional `float`). First-run "nothing
     here yet" only — a self-drawing 128px illustration is wrong for a
     filtered-to-zero list, which should stay a one-line message.
   - **Loading states** → `pulse` (motion may imply activity ONLY where work is
     actually happening).
-  - **Icons / interactive chrome** → static render + `hover-response`.
-  - **Completion moments** — no preset. `MotionizedGlyph` composes exactly three
-    props (`entrance`/`ambient`/`hover`); a one-shot success overshoot would need a
-    fourth. A `success-settle` preset sat here unreachable until 2026-08 and was
-    removed. Add the prop first, then the preset (`motionPresets.test.ts` enforces
-    the pairing).
+  - **Icons / interactive chrome** → static render (`entrance="fade-pop"`). No
+    hover preset exists: no glyph in kp sits inside an interactive parent, and a
+    `hover-response` layer sat here unreachable until 2026-09.
+  - **Completion moments** — no preset. `MotionizedGlyph` composes exactly two
+    props (`entrance`/`ambient`); a one-shot success overshoot would need a third.
+    A `success-settle` preset sat here unreachable until 2026-08 and was removed,
+    as were `draw` and `hover-response` in 2026-09. The rule those removals set is
+    stricter than "add the prop": a preset needs a real CONSUMER, not just a prop
+    that could reach it. `motionPresets.test.ts` enforces the pairing.
 
 ### Taste guardrails
 
@@ -209,8 +233,8 @@ the loop's start delay is the second value in the path's inline `animation-delay
   an empty tab explains where its data comes from and links upstream). Motionizing
   an empty state means giving that component a glyph — keep the chain links and the
   copy; the glyph replaces the flat lucide icon.
-- Run `npx tsc --noEmit` after wiring; verify both themes with the sidebar
-  `ThemeToggle`.
+- Run `npx tsc --noEmit` after wiring; verify both themes with the appearance
+  control on the sidebar rail (`app/features/shell/nav/NavRailPreferences.tsx`).
 
 ---
 

@@ -2,7 +2,11 @@
 //
 // Deliberately dependency-free (global fetch + node: builtins only) so a bench
 // run needs nothing `npm run test:unit` does not already have. The polling and
-// journal shape follow uat/driver/lib.mjs — same lessons, no browser:
+// journal shape follow the `/uat` skill's browser driver — a SHARED REGISTRY
+// SKILL (.claude/skills/uat), not a file in this repo. An earlier revision of
+// this header cited `uat/driver/lib.mjs`, a path that has never existed here;
+// a citation a reader cannot open is worse than none, because they conclude the
+// lessons below were invented. Same lessons, no browser:
 //
 //   * predicate-first waits, never a fixed sleep. A phase that "took too long"
 //     must name what never happened, not surface three steps later.

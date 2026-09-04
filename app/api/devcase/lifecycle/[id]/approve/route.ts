@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server";
-import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db/devcase";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { approveLifecycleCase } from "@/app/_lib/db/devcase";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+// The shared by-id owner guard (sibling module - a route file may export only handlers).
+import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
+import { enforceTaskBudget } from "@/app/_lib/task-budget";
+import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
-import { clampTimeboxHours, DEVCASE_MAX_TIMEBOX_HOURS } from "@/app/_lib/devcase-timebox";
+import { timeboxClamp, type TimeboxClamp } from "@/app/_lib/devcase-timebox";
 
 
 // W5-4 — the editable subset of the designed case a reviewer may correct at
 // the gate without a regenerate: bounded scalars + the task list. Probes and
 // rubric stay engine-owned (change those via "Regenerate with note" so the
 // decision-space contract isn't hand-broken).
-function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timeboxClamped: boolean } | null {
+function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timeboxClamped: TimeboxClamp | null } | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const edits: Record<string, unknown> = {};
@@ -31,12 +39,17 @@ function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timebo
   // than reject (a 10 means "give them longer", and dropping the edit silently is the
   // very failure the 409 branch below was written to fix), against the SHARED bound
   // generated from pipeline/jobfit/devcase/models.py.
-  let timeboxClamped = false;
+  // The rewrite is DESCRIBED, not just performed: `timeboxClamp` is the one producer
+  // of { code, from, to }, shared with the review panel, so the reviewer's screen and
+  // the audit trail can never disagree about what the candidate will actually receive.
+  let timeboxClamped: TimeboxClamp | null = null;
   if (typeof o.timeboxHours === "number") {
-    const tb = clampTimeboxHours(o.timeboxHours);
-    if (tb != null) {
-      edits.timeboxHours = tb;
-      timeboxClamped = tb !== o.timeboxHours;
+    const clamp = timeboxClamp(o.timeboxHours);
+    if (clamp) {
+      edits.timeboxHours = clamp.to;
+      timeboxClamped = clamp;
+    } else if (Number.isFinite(o.timeboxHours)) {
+      edits.timeboxHours = o.timeboxHours;
     }
   }
   return Object.keys(edits).length > 0 ? { edits, timeboxClamped } : null;
@@ -47,12 +60,25 @@ function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timebo
 // ({ case: { title?, brief?, tasks?, timeboxHours? } }) — the gate's promise
 // was review/EDIT/approve, not a blind sign-off.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  // Director gate (2026-09-03): the control room's doors carried no operator check, so a
+  // demo cookie could reach them. Identity presence for now; the capability slice follows.
+  const denied = await requireOperator();
+  if (denied) return denied;
+  // AUTHORITY (/perfect wave 21, internal-explorers). Signing off an Art. 22 human gate
+  // publishes a case to a candidate and resumes the automated walk - a recruiter
+  // operation, and emphatically not a viewer's. requireOperator above is identity
+  // presence (a no-op in open mode); this is the seat question.
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   const { id } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { case?: unknown; overrideProbeAudit?: unknown };
     const coerced = coerceCaseEdits(body.case);
     const edits = coerced?.edits ?? null;
-    const lc = getLifecycle(id);
+    // OWNERSHIP. A lifecycle id is a globally-unique point-read key, so this route used
+    // to approve ANOTHER studio's lifecycle into a live case on a known id. A cross-tenant
+    // id now answers the same 404 a nonexistent one does - never an existence oracle.
+    const lc = ownedLifecycle(id, await currentWorkspace());
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
     if (isAtReviewGate(lc.stage)) {
       // Persist the dev case + flip to "approved" atomically (the one shared
@@ -73,6 +99,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (!gate.ok) {
         return NextResponse.json({ error: gate.error, code: gate.code, verdict: gate.verdict }, { status: gate.status });
       }
+      // TASK BUDGET. Approving RESUMES the automated walk below via `startTask`, i.e.
+      // this door enqueues the AGENT class directly and POST /api/tasks's per-class
+      // budget never saw it. Same helper, same keys (app/_lib/task-budget.ts), so the
+      // dock and this gate draw on ONE allowance. Last of the refusals, after the 404,
+      // the 409 and the 422 — all cheap — and before the approve transition, so a
+      // refused start never leaves a lifecycle approved but not resumed.
+      const overBudget = enforceTaskBudget("lifecycle", clientIpFrom(request.headers), lc.workspaceId);
+      if (overBudget) return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, overBudget);
       const { caseId } = approveLifecycleCase(
         id,
         { need: lc.need, analysis: lc.analysis, role: lc.role, case: approvedCase },
@@ -81,38 +115,43 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // Surface the clamp to the REVIEWER, in the audit trail they already read for
       // this decision — a silently rewritten number is how the reviewer ends up
       // believing they approved a longer exercise than the candidate receives. The
-      // audit reason is free-form server prose (not a message catalog key), so this
-      // adds no new user-facing copy; the review panel itself still shows no inline
-      // notice, which needs a catalog string.
+      // The note is STRUCTURED (`timebox_clamped from=<n> to=<n>`), not English prose:
+      // an audit line is queried, and the reviewer reads the clamp in their own language
+      // from the review panel's inline notice (devcase.review.timeboxClamped), which
+      // renders the same { code, from, to } this line records.
       const reason =
         [
           edits ? `with edits: ${Object.keys(edits).join(", ")}` : null,
           coerced?.timeboxClamped
-            ? `timebox clamped to the ${DEVCASE_MAX_TIMEBOX_HOURS}h cap (requested ${(body.case as { timeboxHours?: unknown }).timeboxHours})`
+            ? `${coerced.timeboxClamped.code} from=${coerced.timeboxClamped.from} to=${coerced.timeboxClamped.to}`
             : null,
           gate.auditReason,
         ]
           .filter(Boolean)
           .join("; ") || undefined;
-      recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
-    } else if (edits) {
-      // Not at the review gate (a second tab/reviewer already approved, or a retry
-      // landed twice) but this request carried reviewer edits. The approve block
-      // above is skipped, so those edits would be silently dropped while we still
-      // returned { ok: true } — the reviewer never learns their corrections didn't
-      // land and the published case differs from what they think they approved.
-      // Mirror the redesign route: 409 with the current stage so the UI can say
-      // "already approved elsewhere — reload". (An editless body still resumes.)
-      return NextResponse.json(
-        { error: `lifecycle is at '${lc.stage}', not awaiting review — your edits were not applied.`, stage: lc.stage },
-        { status: 409 }
-      );
+      recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason, workspaceId: lc.workspaceId });
+      // Answer with the clamp too, so a client that skipped the inline notice (an older
+      // tab, a script) still learns the approved number is not the number it sent.
+      const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
+      return NextResponse.json({ ok: true, task, timeboxClamped: coerced?.timeboxClamped ?? null });
     }
-    // Tenant derived from the lifecycle itself, not the session — this is a by-id
-    // route, and the row is the authority on which team the resumed runner belongs to.
-    const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
-    return NextResponse.json({ ok: true, task });
+    // NOT at the review gate — a second tab, a retried fetch, or a reviewer who left
+    // the panel open while someone else signed off. The stage is the PRECONDITION for
+    // this door and it is re-asserted for EVERY body, not just one carrying edits.
+    //
+    // It used to be re-asserted only for the edit-carrying path (the reviewer's
+    // corrections would otherwise have been silently dropped behind a green
+    // { ok: true }). An EDIT-LESS approve fell through to the resume below and started
+    // a SECOND "lifecycle" runner on the same case, answering ok both times: the walk
+    // is not idempotent — it designs, publishes and dispatches — and startTask's dedup
+    // only coalesces runs that are still ACTIVE, so a retry arriving after the first
+    // finished ran the whole thing again. There is no honest 200 here: nothing was
+    // approved, because there was nothing awaiting approval. Answer 409 with the stage
+    // as DATA, so the panel says where the case actually is in the reader's language.
+    return jsonRefusal("DEVCASE_LIFECYCLE_NOT_AT_GATE", 409, { stage: lc.stage, editsApplied: false });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Approve failed." }, { status: 500 });
+    // approveLifecycleCase is a store transaction and the resumed runner spawns Python:
+    // the thrown message carries SQLITE_* codes, the db path or child stderr.
+    return safeJsonError(error, "api:devcase/lifecycle/approve", "DEVCASE_APPROVE_FAILED");
   }
 }

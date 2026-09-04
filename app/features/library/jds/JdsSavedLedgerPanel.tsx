@@ -2,8 +2,9 @@
 
 import type { useTranslations } from "next-intl";
 import { CompletionCta } from "@/app/_components/CompletionCta";
+import { BTN_SECONDARY, DIVIDER, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { SortState } from "@/app/_components/table/useTableSort";
-import type { CoachHandoffBlock, JdRow, JdSortCol, StatusFilter } from "./jdsLibrary";
+import { jdLibraryFooter, type CoachHandoffBlock, type JdRow, type JdSortCol, type StatusFilter } from "./jdsLibrary";
 import { CoachHandoffTrace } from "./JdsLedgerCoachTrace";
 import { JdsLedgerTable } from "./JdsLedgerTable";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
@@ -23,6 +24,8 @@ export function JdsSavedLedgerPanel({
   ingested,
   setIngested,
   visible,
+  total,
+  truncated,
   query,
   setQuery,
   searchOpen,
@@ -39,6 +42,8 @@ export function JdsSavedLedgerPanel({
   sort,
   onSort,
   duplicating,
+  heldBuilds,
+  pollStalled,
   onOpenRow,
   onDuplicate,
   onStartGenerate,
@@ -54,6 +59,11 @@ export function JdsSavedLedgerPanel({
   ingested: { slug: string; jobId: string | null } | null;
   setIngested: (v: { slug: string; jobId: string | null } | null) => void;
   visible: JdRow[];
+  /** The library's UNBOUNDED size from GET /api/jds, or null when the answer did
+   *  not carry it. `rows` is one page, so `visible.length` is a slice of a slice. */
+  total: number | null;
+  /** The route cut the page it answered. */
+  truncated: boolean;
   query: string;
   setQuery: (v: string) => void;
   searchOpen: boolean;
@@ -70,7 +80,10 @@ export function JdsSavedLedgerPanel({
   sort: SortState<JdSortCol>;
   onSort: (col: JdSortCol) => void;
   duplicating: string | null;
-  onOpenRow: (row: JdRow) => void;
+  heldBuilds: Set<string>;
+  /** The analyzing-row poll gave up (jdsBuildPoll). Stated, never silent. */
+  pollStalled: boolean;
+  onOpenRow: (row: JdRow, opts?: { history?: boolean }) => void;
   onDuplicate: (row: JdRow) => void;
   onStartGenerate: () => void;
   t: ReturnType<typeof useTranslations<"library.tab">>;
@@ -99,11 +112,17 @@ export function JdsSavedLedgerPanel({
         />
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-panel">
+      {pollStalled ? (
+        <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
+          {t("pollStalledNote")}
+        </p>
+      ) : null}
+
+      <div className={`overflow-hidden ${PANEL}`}>
         {error ? (
           <div className="flex flex-col items-start gap-3 px-4 py-5">
             <p className="text-base text-red-700">{error}</p>
-            <button type="button" onClick={reload} className="focus-ring inline-flex h-9 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:bg-stone-50">
+            <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-9 gap-2 bg-white px-3 text-sm font-semibold`}>
               {t("tryAgain")}
             </button>
           </div>
@@ -135,11 +154,20 @@ export function JdsSavedLedgerPanel({
             onDuplicate={onDuplicate}
             onIngested={(slug, jobId) => setIngested({ slug, jobId })}
             onStartGenerate={onStartGenerate}
+            heldBuilds={heldBuilds}
           />
         )}
         {rows && visible.length > 0 ? (
-          <div className="border-t border-stone-200 px-4 py-2 text-right text-xs uppercase tracking-wide text-steel">
-            {t("entryCount", { count: visible.length })}
+          <div className={`${DIVIDER} px-4 py-2 text-right ${META_LABEL}`}>
+            {/* "200 entries" over a 240-JD library was a page's size presented as
+                the library, with no way to reach the other 40. The fold decides
+                whether an M can honestly be stated (jdsLibrary.ts). */}
+            {(() => {
+              const footer = jdLibraryFooter(visible.length, total, truncated);
+              return footer.key === "entryCountOfTotal"
+                ? t("entryCountOfTotal", { count: footer.count, total: footer.total })
+                : t("entryCount", { count: footer.count });
+            })()}
           </div>
         ) : null}
       </div>

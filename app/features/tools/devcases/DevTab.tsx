@@ -11,6 +11,7 @@ import { DevTabSwitcher } from "./DevTabSwitcher";
 import { DevTabCasesView } from "./DevTabCasesView";
 import { DevTabDefineView } from "./DevTabDefineView";
 import { VIEW_HEADING, type DevView } from "./DevTabViews";
+import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 
 // Tier 3 (docs/design/loading-choreography.md): the comms outbox is a whole sub-tab's
 // worth of table + resend wiring that's only ever needed once the recruiter
@@ -23,15 +24,19 @@ export function DevTab() {
   // Named `tCopy`, not `t`: this file already binds `t` to a Task in three
   // callbacks below, and a shadowed translator is a rename waiting to break one.
   const tCopy = useTranslations("devcase");
+  // The studio's own copy, including the three sub-tab headings. They were English
+  // literals in DevTabViews.ts, rendered UNDER a localized eyebrow — so a Czech reader
+  // got a Czech kicker over an English headline, on the surface's own masthead.
+  const tStudio = useTranslations("devcase.studio");
   const { startTask, tasks } = useTasks();
   const [view, setView] = useState<DevView>("cases");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   const {
-    jds, jd, jdLoading, pickJd,
+    jds, jd, jdLoading, pickJd, jdsError, reloadJds,
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
-    cases, casesState, loadCases,
+    cases, casesTruncated, casesState, loadCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox,
@@ -99,8 +104,10 @@ export function DevTab() {
             after the engineering team that built it, in the one place a reader looks
             to find out what surface they are on. */}
         <p className="text-meta uppercase text-coral">{tCopy("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{heading.title}</h2>
-        <p className="mt-1 max-w-2xl text-body text-steel">{heading.blurb}</p>
+        <h2 className="mt-1 font-serif text-display text-ink">{tStudio(heading.titleKey)}</h2>
+        {/* `max` is passed for every view; only the define blurb names it, and an unused
+            value is inert. The number is the SHARED cap the form enforces. */}
+        <p className="mt-1 max-w-2xl text-body text-steel">{tStudio(heading.blurbKey, { max: MAX_CODEBASES })}</p>
       </header>
 
       {actionError ? (
@@ -110,7 +117,7 @@ export function DevTab() {
         >
           <span>{actionError}</span>
           <button type="button" onClick={() => setActionError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
-            Dismiss
+            {tCopy("studio.dismiss")}
           </button>
         </div>
       ) : null}
@@ -120,6 +127,7 @@ export function DevTab() {
       {view === "cases" ? (
         <DevTabCasesView
           cases={cases}
+          casesTruncated={casesTruncated}
           casesState={casesState}
           lifecycles={lifecycles}
           lifecyclesState={lifecyclesState}
@@ -146,6 +154,8 @@ export function DevTab() {
             jd,
             jdLoading,
             pickJd,
+            jdsError,
+            reloadJds,
             repoUrls,
             setRepoUrl,
             addRepo,

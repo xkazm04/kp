@@ -14,6 +14,7 @@ import { useConfidenceBandCopy, useFitTierLabels } from "@/app/features/shared/M
 import { provLabel } from "@/app/features/shared/matchTypes";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { useAnalysisSummaryData } from "./decisionsAnalysisSummaryData";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export type SummaryData = ReturnType<typeof useAnalysisSummaryData>;
 export type SummaryT = ReturnType<typeof useTranslations<"decisions.summary">>;
@@ -232,7 +233,7 @@ export function DecisionFooter({ reason, onAccept, onReject, t }: { reason: stri
       <button
         type="button"
         onClick={() => onAccept(reason)}
-        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md bg-moss px-3 text-sm font-semibold text-white hover:opacity-90"
+        className={`${BTN_AFFIRM} h-9 px-3 text-sm`}
       >
         <Check size={15} /> {t("advance")}
       </button>

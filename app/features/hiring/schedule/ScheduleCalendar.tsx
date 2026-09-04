@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { LayoutGroup } from "framer-motion";
 import { useFormatter, useTranslations } from "next-intl";
 import type { SchedEntry } from "./ScheduleTypes";
@@ -8,6 +9,8 @@ import { interviewGridRows, scheduleGridWeeks } from "@/app/_lib/schedule-slots"
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { slotParts } from "./scheduleCalendarSlotParts";
+import type { SlotSource } from "./scheduleGridSeeds";
+import { timeZoneShortLabel } from "@/app/_lib/timezone";
 import { ScheduleCalendarWeekPager } from "./ScheduleCalendarWeekPager";
 import { ScheduleCalendarCell } from "./ScheduleCalendarCell";
 
@@ -28,9 +31,16 @@ import { ScheduleCalendarCell } from "./ScheduleCalendarCell";
 // chip to the new cell. The grid scrolls horizontally on narrow viewports, so gradient
 // edge-fades hint the Fri column is off-screen. Both snap static under the OS "reduce
 // motion" preference.
-export function ScheduleCalendar({
+// MEMOIZED (see the note on the derived lists in useScheduleTab.ts): the tab polls
+// interview status every 6 seconds, and each tick re-rendered this whole subtree —
+// header, 5 columns x N hour rows, every chip — with byte-identical props. With the
+// hook's lists now memoized on `entries`, every prop below keeps its identity across
+// a tick, so React skips this subtree entirely.
+function ScheduleCalendarView({
   entries,
   picks,
+  pickSources = {},
+  interviewTz,
   bookedMarkers = [],
   selectedId,
   onSelect,
@@ -38,6 +48,11 @@ export function ScheduleCalendar({
   entries: SchedEntry[];
   // entry id → dated slot "YYYY-MM-DD HH:MM" (interview zone).
   picks: Record<string, string>;
+  // entry id → where that cell's time came from. Anything but "booked" is a
+  // suggestion the recruiter has not agreed with anyone.
+  pickSources?: Record<string, SlotSource>;
+  // The zone these wall-clock cells are expressed in, as stated by the server.
+  interviewTz?: string;
   // Read-only confirmed bookings from the invite engine (self- or recruiter-booked),
   // rendered as occupied cells so the grid reflects one source of truth. Each marker
   // carries its DATED slot, so it shows only in the week that actually contains it.
@@ -68,6 +83,17 @@ export function ScheduleCalendar({
       month: "short",
       timeZone: "UTC",
     });
+  // "All times in Europe/Prague (GMT+2)" — the grid never said which zone its
+  // 14:00 was, on a surface whose whole job is agreeing on a time with someone who
+  // may be four zones away. The short label is derived from a real instant in the
+  // visible week, so it is DST-correct rather than a fixed offset.
+  const zoneLabel = useMemo(() => {
+    if (!interviewTz) return "";
+    const d = weeks[0]?.[0];
+    const sample = d ? new Date(Date.UTC(d.year, d.month - 1, d.day, 12)).toISOString() : new Date().toISOString();
+    const short = timeZoneShortLabel(sample, "en-US", interviewTz);
+    return short ? `${interviewTz} (${short})` : interviewTz;
+  }, [interviewTz, weeks]);
   const weekRange =
     week.length > 0
       ? `${format.dateTime(new Date(Date.UTC(week[0].year, week[0].month - 1, week[0].day, 12)), { day: "numeric", month: "short", timeZone: "UTC" })} – ${format.dateTime(
@@ -133,12 +159,15 @@ export function ScheduleCalendar({
         atEnd={safeIdx >= weeks.length - 1}
         tCal={tCal}
       />
+      {zoneLabel ? (
+        <p className="mb-1.5 text-meta text-steel">{tCal("timezoneNote", { zone: zoneLabel })}</p>
+      ) : null}
 
       <div
         ref={scrollerRef}
         onScroll={measure}
         tabIndex={0}
-        className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
+        className={`focus-ring overflow-x-auto ${PANEL}`}
       >
         <LayoutGroup>
           {/* role="table" gives SR the day×time spatial structure the CSS grid conveys visually. */}
@@ -168,6 +197,7 @@ export function ScheduleCalendar({
                       dayIso={d.iso}
                       dayPast={d.past}
                       here={inCell(d.iso, rowHour)}
+                      pickSources={pickSources}
                       booked={bookedInCell(d.iso, rowHour)}
                       selectedId={selectedId}
                       onSelect={onSelect}
@@ -193,3 +223,5 @@ export function ScheduleCalendar({
     </div>
   );
 }
+
+export const ScheduleCalendar = memo(ScheduleCalendarView);

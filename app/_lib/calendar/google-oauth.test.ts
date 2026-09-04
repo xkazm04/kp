@@ -5,11 +5,15 @@ import {
   GOOGLE_OAUTH_CALLBACK_PATH,
   GoogleOAuthError,
   accessTokenExpired,
+  createPkceVerifier,
+  decodeOAuthState,
+  encodeOAuthState,
   exchangeCode,
   googleConsentUrl,
   googleOAuthConfig,
   missingScopes,
   parseTokenResponse,
+  pkceChallenge,
   refreshAccessToken,
 } from "./google-oauth.ts";
 
@@ -116,7 +120,7 @@ test("a Google that never answers cannot hang the caller — the token calls are
   // timeout as the only bound on a candidate's booking page.
   const stub = stubBlackholedGoogle();
   try {
-    const exchanged = await raceAgainstHang(exchangeCode(CONFIG, "auth-code", 25));
+    const exchanged = await raceAgainstHang(exchangeCode(CONFIG, "auth-code", { timeoutMs: 25 }));
     assert.equal(stub.sawSignal(), true, "the request must carry an abort signal");
     assert.notEqual(exchanged, "hung", "an unanswered Google must not hang the callback");
     assert.equal(exchanged, "rejected:GoogleOAuthError", "and it fails as our own error, not a raw AbortError");
@@ -137,4 +141,64 @@ test("a partial grant is detected at connect time", () => {
     "https://www.googleapis.com/auth/calendar.events",
   ]);
   assert.equal(missingScopes([]).length, 2);
+});
+
+// PKCE (RFC 7636). Google recommends it for every client now, and this flow had none: an
+// authorization code that leaked in transit (a referrer, a proxy log, an operator pasting
+// a URL) was redeemable by whoever held it, for ongoing access to a real person's calendar.
+test("the challenge is the S256 digest of the verifier — the RFC's own vector", () => {
+  // RFC 7636 appendix B, so this pins the derivation against the spec rather than against
+  // our own implementation restated.
+  assert.equal(
+    pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+    "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+  );
+});
+
+test("a minted verifier is base64url and long enough for the RFC", () => {
+  const v = createPkceVerifier();
+  assert.match(v, /^[A-Za-z0-9_-]+$/, "base64url only — no padding, nothing to escape in a cookie");
+  assert.ok(v.length >= 43 && v.length <= 128, `43..128 chars, got ${v.length}`);
+  assert.notEqual(createPkceVerifier(), v, "fresh per authorization");
+  const challenge = pkceChallenge(v);
+  assert.notEqual(challenge, v, "S256, never `plain` — a plain challenge IS the verifier");
+  assert.match(challenge, /^[A-Za-z0-9_-]{43}$/);
+});
+
+test("the consent URL carries the challenge, and says which method", () => {
+  const params = new URL(googleConsentUrl(CONFIG, "state123", "the-challenge")).searchParams;
+  assert.equal(params.get("code_challenge"), "the-challenge");
+  assert.equal(params.get("code_challenge_method"), "S256");
+  // Absent when no challenge is offered — the pre-PKCE shape stays valid rather than
+  // sending an empty challenge Google would reject.
+  assert.equal(new URL(googleConsentUrl(CONFIG, "state123")).searchParams.get("code_challenge"), null);
+});
+
+test("the state cookie round-trips both halves, and tolerates a pre-PKCE one", () => {
+  const state = "st-ate";
+  const verifier = createPkceVerifier();
+  assert.deepEqual(decodeOAuthState(encodeOAuthState(state, verifier)), { state, verifier });
+  // A consent round trip already in flight when this deploys: no separator, no verifier —
+  // and its authorization request carried no challenge either, so the exchange still works.
+  assert.deepEqual(decodeOAuthState("legacy-state-value"), { state: "legacy-state-value", verifier: "" });
+  assert.equal(decodeOAuthState(""), null);
+  assert.equal(decodeOAuthState(null), null);
+  assert.equal(decodeOAuthState(".only-a-verifier"), null, "a cookie with no state is not a state cookie");
+});
+
+test("the code exchange sends the verifier — and omits it when there is none", async () => {
+  const real = globalThis.fetch;
+  const sent: string[] = [];
+  globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+    sent.push(typeof init?.body === "string" ? init.body : "");
+    return new Response(JSON.stringify({ access_token: "a", refresh_token: "r", expires_in: 3600, scope: "" }), { status: 200 });
+  }) as typeof globalThis.fetch;
+  try {
+    await exchangeCode(CONFIG, "auth-code", { codeVerifier: "the-verifier" });
+    assert.equal(new URLSearchParams(sent[0]).get("code_verifier"), "the-verifier");
+    await exchangeCode(CONFIG, "auth-code", {});
+    assert.equal(new URLSearchParams(sent[1]).get("code_verifier"), null);
+  } finally {
+    globalThis.fetch = real;
+  }
 });

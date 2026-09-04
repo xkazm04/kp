@@ -185,6 +185,9 @@ export function MatchCard({
             missingSkills={m.missingSkills}
             matchedSkillProvenance={m.matchedSkillProvenance}
             matchedSkillStrength={m.matchedSkillStrength}
+            unprovenSkills={m.unprovenSkills}
+            unprovenSkillStrength={m.unprovenSkillStrength}
+            unprovenSkillReason={m.unprovenSkillReason}
             early={early}
           />
 

@@ -12,6 +12,31 @@ type Translator = {
   has(key: string): boolean;
 };
 
+/** What a registry write refuses with: a machine `code`, its interpolation `params`,
+ *  and the server's own English `error` — which the reader must never see. */
+export type RegistryRefusal = { code?: string; error?: string; params?: Record<string, string | number> };
+
+/**
+ * The label a refused archetype save shows, resolved in THIS order:
+ *   1. `validation.<code>` in the manager's own namespace (it can interpolate params
+ *      — "weights must sum to 100%, got 90%"),
+ *   2. the shared `errors.<code>` catalog via useErrorMessage,
+ *   3. a generic "save failed ({status})".
+ * The server's English `error` string is never a rung on this ladder (see
+ * app/_lib/use-error-message.ts). Exported and pure so the chain is pinned at
+ * runtime rather than only reachable through a rendered manager.
+ */
+export function validationLabel(
+  t: Translator,
+  errMsg: (data: RegistryRefusal | null, fallback: string) => string,
+  data: RegistryRefusal,
+  status: number
+): string {
+  const key = data.code ? `validation.${data.code}` : null;
+  if (key && t.has(key)) return t(key, data.params);
+  return errMsg(data, t("saveFailedStatus", { status }));
+}
+
 export function useArchetypeManagerActions(args: {
   t: Translator;
   selectedId: string | null;
@@ -27,15 +52,9 @@ export function useArchetypeManagerActions(args: {
   const [error, setError] = useState<string | null>(null);
   const [busyArchiveId, setBusyArchiveId] = useState<string | null>(null);
 
-  // Localize a structured registry error by its `code` — first against this
-  // namespace's `validation.*` keys (which can interpolate `params`), then the
-  // shared `errors` catalog, then a generic status. The server's English `error`
-  // string is never shown (app/_lib/use-error-message.ts).
-  const validationLabel = (data: { code?: string; error?: string; params?: Record<string, string | number> }, status: number) => {
-    const key = data.code ? (`validation.${data.code}` as Parameters<typeof t>[0]) : null;
-    if (key && t.has(key)) return t(key, data.params);
-    return errMsg(data, t("saveFailedStatus", { status }));
-  };
+  // The label chain itself lives in the pure `validationLabel` above (pinned by
+  // useArchetypeManagerActions.test.ts); this just binds it to the hook's translator.
+  const refusalLabel = (data: RegistryRefusal, status: number) => validationLabel(t, errMsg, data, status);
 
   const setArchived = async (id: string, next: boolean) => {
     if (busyArchiveId) return;
@@ -48,7 +67,7 @@ export function useArchetypeManagerActions(args: {
         body: JSON.stringify({ archived: next }),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(validationLabel(data, r.status));
+      if (!r.ok) throw new Error(refusalLabel(data, r.status));
       // Retiring the inspected archetype: drop the selection so it falls back to the
       // first remaining active one instead of showing a now-hidden panel.
       if (next && selectedId === id) setSelectedId(null);
@@ -100,7 +119,7 @@ export function useArchetypeManagerActions(args: {
         body: JSON.stringify(payload),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(validationLabel(data, r.status));
+      if (!r.ok) throw new Error(refusalLabel(data, r.status));
       setSelectedId((data.archetype?.id as string | undefined) ?? null);
       setMode("view");
       onChanged();

@@ -39,6 +39,7 @@ from typing import Any
 
 from .taxonomy import (
     ROLE_FAMILIES,
+    WORD_RE,
     ROLE_FAMILY_SET,
     _text_contains,
     contains_whole_token,
@@ -205,7 +206,7 @@ def _norm(form: str) -> str:
 # Word tokens for the corpus: alphanumeric runs, underscore treated as a separator
 # (real ad prose has none; underscores only appear in machine skill-ids we don't
 # want to fuse into a false token like "customer_onboarding").
-_CORPUS_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_CORPUS_WORD_RE = WORD_RE
 
 
 def _compact(text: str) -> str:

@@ -4,15 +4,23 @@ runner — all with stub providers (no network, no tokens spent)."""
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import os
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from pipeline.jobfit.llm.base import LLMResult, TextProvider
 from pipeline.jobfit.llm.bench import contracts
+from pipeline.jobfit.llm.bench.bench_cli import MAX_USD_ENV, resolve_max_usd
 from pipeline.jobfit.llm.bench.runner import (
+    NOMINAL_INPUT_TOKENS,
     BenchTarget,
+    BudgetGuard,
+    estimate_matrix_usd,
     record_calls,
     run_matrix,
     summarize,
@@ -292,6 +300,178 @@ class JudgeScopeDenominatorTest(unittest.TestCase):
             self._row("llm", payload=None),
         ]
         self.assertEqual(judge_scope(records), (1, 0))
+
+
+
+class BudgetEstimateTest(unittest.TestCase):
+    """A pre-run estimate exists so the operator sees the order of magnitude BEFORE
+    authorising spend. It is an upper bound by construction (every call assumed to
+    fill its output budget) - a guard that under-promises spend is the dangerous
+    direction - and it is PURE, so it needs neither a provider nor the seed corpus."""
+
+    def test_priced_target_is_estimated_from_the_price_book(self) -> None:
+        est = estimate_matrix_usd({"match_reasoning": 10}, [BenchTarget("anthropic", "claude-haiku-4-5")])
+        row = est.rows[0]
+        self.assertEqual(row.calls, 10)
+        self.assertEqual(row.input_tokens, NOMINAL_INPUT_TOKENS * 10)
+        # $1.00/Mtok in, $5.00/Mtok out (MTOK_PRICES) over the estimated draw.
+        expected = (row.input_tokens * 1.00 + row.output_tokens * 5.00) / 1_000_000
+        self.assertAlmostEqual(row.usd, expected, places=6)
+        self.assertAlmostEqual(est.total_usd, round(expected, 4), places=4)
+        self.assertEqual(est.unpriced, [])
+
+    def test_the_estimate_scales_with_limit_and_targets(self) -> None:
+        one = estimate_matrix_usd({"match_reasoning": 5}, [BenchTarget("anthropic", "claude-haiku-4-5")])
+        two = estimate_matrix_usd(
+            {"match_reasoning": 5},
+            [BenchTarget("anthropic", "claude-haiku-4-5"), BenchTarget("anthropic", "claude-sonnet-4-6")],
+        )
+        self.assertGreater(two.total_usd, one.total_usd)
+        wider = estimate_matrix_usd({"match_reasoning": 50}, [BenchTarget("anthropic", "claude-haiku-4-5")])
+        self.assertAlmostEqual(wider.total_usd, one.total_usd * 10, places=2)
+
+    def test_an_unpriced_target_is_named_not_counted_as_free(self) -> None:
+        """The Claude CLI is subscription-billed and Azure deployments are customer-
+        named: neither has a list price. Reporting them as $0.00 would tell the
+        operator a matrix is free when nobody knows what it costs."""
+        est = estimate_matrix_usd({"match_reasoning": 4}, [BenchTarget("claude_cli", "some-local-model")])
+        self.assertIsNone(est.rows[0].usd)
+        self.assertEqual(est.total_usd, 0.0)
+        self.assertEqual(est.unpriced, ["claude_cli:some-local-model"])
+        self.assertIn("cost unknown", "\n".join(est.to_lines()))
+
+    def test_lines_render_a_total(self) -> None:
+        est = estimate_matrix_usd({"match_reasoning": 2}, [BenchTarget("anthropic", "claude-haiku-4-5")])
+        self.assertTrue(any("TOTAL" in line for line in est.to_lines()))
+
+
+class BudgetGuardTest(unittest.TestCase):
+    def test_it_never_trips_without_a_ceiling(self) -> None:
+        guard = BudgetGuard()
+        guard.charge(1000.0)
+        self.assertFalse(guard.exhausted())
+
+    def test_it_trips_at_the_ceiling(self) -> None:
+        guard = BudgetGuard(max_usd=0.10)
+        guard.charge(0.04)
+        self.assertFalse(guard.exhausted())
+        guard.charge(0.06)
+        self.assertTrue(guard.exhausted())
+
+    def test_unpriced_calls_are_counted_never_charged(self) -> None:
+        """Treating unknown as $0 would let an unpriced target run the entire matrix
+        under a ceiling that can never trip - the one failure a budget must not have,
+        so the count is surfaced instead."""
+        guard = BudgetGuard(max_usd=0.01)
+        for _ in range(5):
+            guard.charge(None)
+        self.assertEqual(guard.spent_usd, 0.0)
+        self.assertEqual(guard.unpriced_calls, 5)
+        self.assertFalse(guard.exhausted())
+
+
+class BudgetStopRuleTest(unittest.TestCase):
+    """The estimate is an estimate; the ceiling is what actually stops the spend."""
+
+    def _run(self, max_usd, limit=6, targets=None):
+        guard = BudgetGuard(max_usd=max_usd)
+        records = run_matrix(
+            ["match_reasoning"],
+            targets or [BenchTarget(provider="anthropic", model="stub-model")],
+            limit=limit,
+            provider_factory=lambda target, use_case: StubText(),
+            budget=guard,
+        )
+        return records, guard
+
+    def test_the_matrix_stops_when_the_running_cost_crosses_the_ceiling(self) -> None:
+        records, guard = self._run(0.0025)  # StubText bills $0.001 a call
+        self.assertTrue(guard.stopped)
+        self.assertEqual(len(records), 3)
+        self.assertAlmostEqual(guard.spent_usd, 0.003, places=6)
+
+    def test_a_stopped_run_keeps_what_it_paid_for(self) -> None:
+        """Records are the receipt: the ceiling is checked AFTER a row is priced, so
+        no spend is ever dropped on the floor."""
+        records, _ = self._run(0.001)
+        self.assertEqual(len(records), 1)
+        self.assertIsNone(records[0].error)
+        self.assertEqual(records[0].cost_usd, 0.001)
+
+    def test_a_stop_adds_no_synthetic_row_to_the_scorecard(self) -> None:
+        """A "stopped" record would land in summarize() as an error and corrupt the
+        very numbers the run exists to produce."""
+        records, _ = self._run(0.0025)
+        rows = summarize(records)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["errors"], 0)
+        self.assertEqual(rows[0]["n"], 3)
+
+    def test_a_generous_ceiling_runs_the_whole_matrix(self) -> None:
+        records, guard = self._run(100.0)
+        self.assertFalse(guard.stopped)
+        self.assertEqual(len(records), 6)
+
+    def test_no_budget_argument_is_unchanged_behaviour(self) -> None:
+        records = run_matrix(
+            ["match_reasoning"],
+            [BenchTarget(provider="anthropic", model="stub-model")],
+            limit=4,
+            provider_factory=lambda target, use_case: StubText(),
+        )
+        self.assertEqual(len(records), 4)
+
+    def test_the_stop_ends_the_remaining_targets_too(self) -> None:
+        records, guard = self._run(
+            0.0015,
+            limit=2,
+            targets=[BenchTarget("anthropic", "stub-a"), BenchTarget("anthropic", "stub-b")],
+        )
+        self.assertTrue(guard.stopped)
+        self.assertEqual({r.model for r in records}, {"stub-a"})
+
+
+class MaxUsdResolutionTest(unittest.TestCase):
+    """No ceiling = no run. The CLI must not invent one, and must not accept a
+    malformed environment value as one either."""
+
+    def test_flag_wins_over_env(self) -> None:
+        self.assertEqual(resolve_max_usd(2.5, {MAX_USD_ENV: "9"}), 2.5)
+
+    def test_env_is_the_default(self) -> None:
+        self.assertEqual(resolve_max_usd(None, {MAX_USD_ENV: "1.25"}), 1.25)
+
+    def test_unset_is_none(self) -> None:
+        self.assertIsNone(resolve_max_usd(None, {}))
+        self.assertIsNone(resolve_max_usd(None, {MAX_USD_ENV: "   "}))
+
+    def test_unparseable_or_nonpositive_env_is_treated_as_unset(self) -> None:
+        for raw in ("free", "0", "-3", "1,25"):
+            self.assertIsNone(resolve_max_usd(None, {MAX_USD_ENV: raw}), raw)
+
+    def test_a_nonpositive_flag_is_also_unset(self) -> None:
+        self.assertIsNone(resolve_max_usd(0.0, {}))
+
+
+class BenchCliBudgetGateTest(unittest.TestCase):
+    """Without a ceiling the CLI spends nothing and tells the operator what it would
+    have cost - the whole point of the refusal."""
+
+    def test_main_refuses_and_prints_the_estimate_without_a_ceiling(self) -> None:
+        from pipeline.jobfit.llm.bench import bench_cli
+
+        out, err = io.StringIO(), io.StringIO()
+        env = {k: v for k, v in os.environ.items() if k != MAX_USD_ENV}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = bench_cli.main(
+                    ["--use-cases", "match_reasoning", "--targets", "anthropic:claude-haiku-4-5", "--limit", "2"]
+                )
+        self.assertEqual(code, 2)
+        self.assertIn("pre-run cost estimate", out.getvalue())
+        self.assertIn("TOTAL", out.getvalue())
+        self.assertIn("refusing to run without a spend ceiling", err.getvalue())
+
 
 
 class BenchTargetTest(unittest.TestCase):

@@ -24,7 +24,9 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import type { Capability } from "@/app/_lib/auth/roles";
 import type { AttentionCounts } from "@/app/features/shell/useAttention";
+import { capabilityLabelKey, lockedTabsFor, TAB_CAPABILITY } from "@/app/features/shell/navCapabilities";
 import {
   buildUrl,
   clearedTabScopedParams,
@@ -35,6 +37,7 @@ import {
   type WorkspaceTabDef,
   type WorkspaceTabId,
 } from "@/app/features/shell/tabs";
+import { railTile } from "@/app/_components/ui/recipes";
 import { SECTION_ICON } from "./navMeta";
 import { NavPanelItem } from "./NavPanelItem";
 
@@ -43,6 +46,7 @@ export function NavSectionRail({
   navActive,
   attention,
   showAttention = true,
+  capabilities = null,
   search,
   mode = "select",
   onSelect,
@@ -64,6 +68,11 @@ export function NavSectionRail({
    *  `attention={null}`, as WorkspaceNav does for a non-operator) is equivalent; both
    *  gates compose, and neither depends on the other having landed. */
   showAttention?: boolean;
+  /** What this viewer may do here (app/features/shell/navCapabilities.ts). `null` =
+   *  not resolved yet, which locks NOTHING — the rail must never hide an owner's
+   *  Billing tab because one capability read blipped. The SPA passes the live hook
+   *  value; the deep-link sidebar resolves it server-side. */
+  capabilities?: readonly Capability[] | null;
   /** the React-tracked query string (buildUrl composes the badge-slice href off it);
    *  the deep-link pages pass "" — a detail page carries no live tab query. */
   search: string;
@@ -115,6 +124,13 @@ export function NavSectionRail({
   const shown = openSection ?? activeSection;
   const shownGroup = groups.find((g) => sectionOf(g) === shown) ?? groups[0];
 
+  // Which second-level rows this viewer cannot open, and why. The rows STAY —
+  // disabled, with the capability named — because a door that disappears for the
+  // person who holds the key reads as a broken build (navCapabilities.ts).
+  const lockedTabs = lockedTabsFor(capabilities);
+  const lockedLabel = (cap: Capability) =>
+    t("lockedTab", { capability: navText(capabilityLabelKey(cap), cap) });
+
   const groupLabel = (group: NavGroup) =>
     navText(`groups.${sectionOf(group)}`, group.label ?? HIRING_FALLBACK_LABEL);
 
@@ -146,9 +162,7 @@ export function NavSectionRail({
         onFocus={() => prefetchSection(group)}
         aria-pressed={current}
         title={label}
-        className={`focus-ring flex flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${
-          current ? "bg-coral/10 text-coral dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
-        }`}
+        className={railTile(current)}
       >
         {Icon ? <Icon size={20} aria-hidden /> : <span className="h-5 w-5 rounded-full bg-current opacity-40" aria-hidden />}
         {/* First-level labels sit one step above the old 11px: the rail is the
@@ -211,6 +225,8 @@ export function NavSectionRail({
                 onSelect={onSelect}
                 onSliceNav={onSliceNav}
                 onPrefetch={onPrefetchTab}
+                locked={lockedTabs.has(item.id) ? TAB_CAPABILITY[item.id] ?? null : null}
+                lockedLabel={lockedLabel}
               />
             );
           })}

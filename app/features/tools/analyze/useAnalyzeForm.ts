@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { isLocale } from "@/i18n/locales";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/app/_components/AnalysisProgress";
 import { githubAnalysisSchema, type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   type AnalyzeErrorInfo,
   type ColumnStatus,
@@ -18,8 +19,14 @@ import {
 import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
 import { useAnalyzeCvFiles } from "./useAnalyzeCvFiles";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./analyzeRunAnalysis";
-import type { VariantProgress } from "./AnalyzeApi";
+import { resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
 import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
+import {
+  ANALYZE_DRAFT_KEY,
+  parseAnalyzeDraft,
+  restoreDraftValue,
+  serializeAnalyzeDraft,
+} from "./analyzeDraft";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 
@@ -27,17 +34,23 @@ export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 // view can re-attach to the still-running (or finished) server-side task.
 const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
 
-// Typed-but-not-yet-run inputs. The Workspace unmounts this tab on every sidebar
-// switch, so without this a pasted 5,000-word JD is gone the moment the user
-// hops to Pipeline to check a name. Text inputs only — File objects can't be
-// stashed in sessionStorage (attachments must be re-added after a switch).
-const ANALYZE_DRAFT_KEY = "kp.analyzeDraft";
-type AnalyzeDraft = { jd?: string; company?: string; github?: string };
+// The draft's key, codec and restore rule live in analyzeDraft.ts — pure, and so
+// testable against the one input nobody here controls (sessionStorage can hold
+// any JSON another tab or an older build left behind).
+
+// A message no catalog will ever produce, used as the "this code is unknown"
+// signal from resolvers whose only failure mode is silently returning a fallback.
+const UNKNOWN_CODE = "__kp_unknown_code__";
+const nullIfUnknown = (text: string): string | null => (text === UNKNOWN_CODE ? null : text);
 
 export function useAnalyzeForm() {
   const t = useTranslations("analyze");
   // The GitHub deep-dive publishes its own failure codes (results.github.errors.*).
   const ghErrMsg = useGithubErrorMessage();
+  // The app-wide `errors` catalog: /api/analyze's refusals (UPLOAD_*, ANALYZE_*,
+  // TOO_MANY_REQUESTS, the billing quota code) live there, not in the deep-dive's
+  // own namespace — so a 413 no longer resolves to the generic failure line.
+  const apiErrMsg = useErrorMessage();
   // CV3 — the report-narrative language for this run, defaulting to the active
   // locale; threaded into the submit FormData so the route can override the
   // cookie per run.
@@ -49,6 +62,21 @@ export function useAnalyzeForm() {
   // resubmitted) must not last-write-win over the current one — its callbacks are
   // ignored unless their captured id is still the latest (idea-8367f051).
   const githubRunIdRef = useRef(0);
+  // …and the matching AbortController. The run id only made a superseded run's
+  // callbacks *ignored*; the request itself (the GitHub route plus its optional
+  // extract-text hop) kept running to completion, so a recruiter who reset the
+  // form or hit Retry twice still paid for every abandoned deep-dive. Bumping the
+  // id and aborting the controller are one action — supersedeGithubRun below.
+  const githubAbortRef = useRef<AbortController | null>(null);
+
+  // Supersede whatever GitHub deep-dive is in flight: its late callbacks are
+  // ignored (the id moved) AND its network work stops (the signal aborts).
+  const supersedeGithubRun = useCallback(() => {
+    githubRunIdRef.current += 1;
+    githubAbortRef.current?.abort();
+    githubAbortRef.current = null;
+  }, []);
+
   // Aborts the in-flight analyze poll when the user resets/cancels or the tab
   // unmounts — without this, watchAnalysis's loop + interval poll forever and
   // setState on an unmounted component (the segmented control unmounts the tab).
@@ -83,7 +111,17 @@ export function useAnalyzeForm() {
   // (null until the poll reports it); drives the honest progress bar.
   const [variantProgress, setVariantProgress] = useState<VariantProgress | null>(null);
 
-  const { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoading, jdLoadFailed } =
+  const {
+    jdLibrary,
+    jdLibraryState,
+    jdLibraryTruncated,
+    reloadJdLibrary,
+    selectedJdSlug,
+    setSelectedJdSlug,
+    pickJd,
+    jdLoading,
+    jdLoadFailed,
+  } =
     useAnalyzeJdLibrary(setJobDescriptionText);
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
@@ -134,8 +172,9 @@ export function useAnalyzeForm() {
 
   function reset() {
     // Supersede any GitHub run still in flight so a late result can't clobber the
-    // cleared state (same guard as submit — see githubRunIdRef).
-    githubRunIdRef.current += 1;
+    // cleared state (same guard as submit — see githubRunIdRef) AND stop its
+    // network work, so a reset does not leave a deep-dive running for nobody.
+    supersedeGithubRun();
     // Stop the main analyze run too: abort the poll, cancel the server task, reset
     // the loading flags, and supersede its callbacks — otherwise the orphaned poll
     // resolves and writes the stale result back over the just-cleared form.
@@ -158,7 +197,8 @@ export function useAnalyzeForm() {
     try {
       sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
     } catch {
-      /* ignore */
+      /* best-effort: sessionStorage throws in a private window or with site data
+         blocked, and there is then no persisted draft to remove either. */
     }
   }
 
@@ -166,7 +206,8 @@ export function useAnalyzeForm() {
     try {
       sessionStorage.removeItem(ANALYZE_TASK_KEY);
     } catch {
-      /* ignore */
+      /* best-effort: no storage means no stashed task id to clear. The run is
+         already halted by the abort above — this only drops the resume crumb. */
     }
   };
 
@@ -179,7 +220,17 @@ export function useAnalyzeForm() {
     abortRef.current = null;
     const id = taskIdRef.current;
     taskIdRef.current = null;
-    if (id) void fetch(`/api/tasks/${id}`, { method: "DELETE" }).catch(() => {});
+    if (id) {
+      void fetch(`/api/tasks/${id}`, { method: "DELETE" })
+        .then((r) => {
+          // A cancel that the server refused leaves a Python child still burning
+          // an engine call while this UI shows an idle form — the one state in
+          // which "nothing happened" is a lie. Say what is actually true and point
+          // at the indicator that still tracks it.
+          if (!r.ok) setError(t("cancelFailed"));
+        })
+        .catch(() => setError(t("cancelFailed")));
+    }
     clearStoredTask();
     setIsLoading(false);
     setIsCompleting(false);
@@ -191,17 +242,17 @@ export function useAnalyzeForm() {
   // code maps to the localized `analyze` catalog (falling back to the generic
   // failure line for an unknown code). Single-sourced so every onError/onWarning
   // resolves identically.
-  const resolveAnalyzeMessage = (info: AnalyzeErrorInfo): string => {
-    const code = info.code;
-    const generic = code && t.has(code) ? t(code) : t("errFailed");
-    // A route-published machine code wins: it names the actual cause AND localizes.
-    // Only then does engine/server-owned English (serverText) get preferred verbatim
-    // — the honest "shown in English" disclosure on this operator surface — and the
-    // stable `analyze` code is the floor.
-    if (info.apiCode) return ghErrMsg({ code: info.apiCode }, generic);
-    const server = info.serverText?.trim();
-    return server || generic;
-  };
+  const resolveAnalyzeMessage = (info: AnalyzeErrorInfo): string =>
+    resolveAnalyzeErrorText(info, {
+      // Each channel answers null for a code it does not know, so the pure
+      // resolver can keep walking. A sentinel fallback is how "unknown" is
+      // detected — both hooks resolve to their fallback rather than reporting it.
+      appCode: (code) => nullIfUnknown(apiErrMsg({ code }, UNKNOWN_CODE)),
+      githubCode: (code) => nullIfUnknown(ghErrMsg({ code }, UNKNOWN_CODE)),
+      analyzeCode: (code) => (t.has(code as Parameters<typeof t>[0]) ? t(code as Parameters<typeof t>[0]) : null),
+      retryAfter: (seconds) => t("errRateLimitedRetry", { seconds }),
+      generic: t("errFailed"),
+    });
 
   const buildCallbacks = (runId: number) => {
     const current = () => runId === analysisRunIdRef.current;
@@ -245,7 +296,8 @@ export function useAnalyzeForm() {
         try {
           sessionStorage.setItem(ANALYZE_TASK_KEY, id);
         } catch {
-          /* ignore */
+          /* best-effort: the crumb only buys re-attachment after a refresh. Without
+             it the run still completes in this tab; a reload just loses the thread. */
         }
       },
     };
@@ -255,19 +307,20 @@ export function useAnalyzeForm() {
   // empty initial state). Only fills fields that are still empty — a saved-JD
   // pick or prop-seeded value from this mount always wins over the stale draft.
   useEffect(() => {
-    let draft: AnalyzeDraft | null = null;
+    let draft: ReturnType<typeof parseAnalyzeDraft> = null;
     try {
-      const raw = sessionStorage.getItem(ANALYZE_DRAFT_KEY);
-      draft = raw ? (JSON.parse(raw) as AnalyzeDraft) : null;
+      draft = parseAnalyzeDraft(sessionStorage.getItem(ANALYZE_DRAFT_KEY));
     } catch {
-      /* ignore */
+      /* best-effort: a private window or blocked site data makes sessionStorage
+         throw on read; the form simply starts empty, which is the pre-draft
+         behaviour and nothing an operator would act on. */
     }
     if (!draft) return;
     const { jd, company, github } = draft;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch
-    if (jd) setJobDescriptionText((prev) => prev || jd);
-    if (company) setCompanyText((prev) => prev || company);
-    if (github) setGithubProfile((prev) => prev || github);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
+    if (jd) setJobDescriptionText((prev) => restoreDraftValue(prev, jd));
+    if (company) setCompanyText((prev) => restoreDraftValue(prev, company));
+    if (github) setGithubProfile((prev) => restoreDraftValue(prev, github));
   }, []);
 
   // Persist the draft (debounced) so it survives the tab unmount. An all-empty
@@ -275,16 +328,19 @@ export function useAnalyzeForm() {
   useEffect(() => {
     const id = setTimeout(() => {
       try {
-        if (!jobDescriptionText && !companyText && !githubProfile) {
-          sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
-        } else {
-          sessionStorage.setItem(
-            ANALYZE_DRAFT_KEY,
-            JSON.stringify({ jd: jobDescriptionText, company: companyText, github: githubProfile } satisfies AnalyzeDraft)
-          );
-        }
+        // null means REMOVE: an all-empty draft must not be written back, or a
+        // reset resurrects itself as a stale-looking entry.
+        const payload = serializeAnalyzeDraft({
+          jd: jobDescriptionText,
+          company: companyText,
+          github: githubProfile,
+        });
+        if (payload === null) sessionStorage.removeItem(ANALYZE_DRAFT_KEY);
+        else sessionStorage.setItem(ANALYZE_DRAFT_KEY, payload);
       } catch {
-        /* ignore */
+        /* best-effort: sessionStorage throws in a private window or with site
+           data blocked. The draft is a convenience, never the request — the form
+           keeps working and simply does not survive the next tab switch. */
       }
     }, 300);
     return () => clearTimeout(id);
@@ -303,7 +359,8 @@ export function useAnalyzeForm() {
     try {
       stored = sessionStorage.getItem(ANALYZE_TASK_KEY);
     } catch {
-      /* ignore */
+      /* best-effort: no storage means no crumb to resume from, which is the same
+         path as a first visit — `stored` stays null and the effect returns. */
     }
     if (!stored) return;
     const resumeStored = stored;
@@ -374,7 +431,17 @@ export function useAnalyzeForm() {
 
   // Abort an in-flight analyze run when the tab unmounts (e.g. switching the
   // workspace segmented control), so the poll loop + stage interval don't leak.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // The GitHub deep-dive is aborted here too: it outlives the main run by design,
+  // so an unmount mid-deep-dive used to leave a request (and its extract-text
+  // subprocess hop) running against a surface that no longer exists. Aborting also
+  // clears the 320 ms result-delivery timer on the main run (scheduleResultDelivery).
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      githubAbortRef.current?.abort();
+    },
+    []
+  );
 
   // One GitHub deep-dive launch — used by submit AND by the panel's "Retry
   // GitHub analysis" (GH5), so a transient rate-limit failure can be retried
@@ -387,8 +454,13 @@ export function useAnalyzeForm() {
     // anti-bias promise. The rule lives in one pure predicate (githubRunPolicy),
     // enforced at this single launch site (submit AND retry both route here).
     if (!shouldRunGithubDeepDive({ hasGithub, blind })) return;
-    const githubRunId = ++githubRunIdRef.current;
+    // Supersede + abort whatever is already in flight before minting this run's
+    // id, so a double-click on Retry does not leave the first request running.
+    supersedeGithubRun();
+    const githubRunId = githubRunIdRef.current;
     const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
+    const controller = new AbortController();
+    githubAbortRef.current = controller;
     setGithubAnalysis(null);
     setGithubError(null);
     setGithubWarning(null);
@@ -413,7 +485,7 @@ export function useAnalyzeForm() {
         setGithubWarning(null);
         setGithubStatus("error");
       },
-    });
+    }, controller.signal);
   }
 
   async function submit() {
@@ -446,7 +518,7 @@ export function useAnalyzeForm() {
     // none (hasGithub false): a stale run's guarded terminal callbacks must not
     // land on the fresh form. Resetting the status to "idle" below also keeps a
     // superseded run from leaving the status stuck on "loading".
-    githubRunIdRef.current += 1;
+    supersedeGithubRun();
 
     setError(null);
     setAnalysis(null);
@@ -493,8 +565,9 @@ export function useAnalyzeForm() {
     // stopActiveRun only halts the MAIN poll; without this the orphaned GitHub run keeps
     // going, its guarded callbacks still fire on the cancelled form, and githubStatus stays
     // "loading" — which keeps the Analyze button disabled (githubLoading) until the
-    // abandoned call finally resolves.
-    githubRunIdRef.current += 1;
+    // abandoned call finally resolves. supersedeGithubRun also ABORTS it, so the
+    // cancel actually stops the spend instead of only ignoring the answer.
+    supersedeGithubRun();
     // …but ONLY a still-loading deep-dive needs that unsticking. The deep-dive runs in
     // parallel and usually finishes first, so at cancel time it may already hold a
     // delivered result ("done") or a retryable failure ("error"). Blanking those to
@@ -545,7 +618,7 @@ export function useAnalyzeForm() {
     // full fan-out (idea-8367f051).
     flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
+    library: { jdLibrary, jdLibraryState, jdLibraryTruncated, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress },
   };
 }

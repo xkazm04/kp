@@ -55,7 +55,7 @@ export function SchedulerRemindersRow({
           (or nothing) instead of masquerading as today's status. */}
       {reminderRuns[0] ? (
         isCurrentRunError(reminderRuns[0], { lastRunAt: reminders.lastRunAt }) ? (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
+          <span className="inline-flex items-center gap-1 text-sm font-semibold text-coral">
             {/* The persisted run error is a raw server exception with no machine
                 code to resolve, so the SENTENCE is localized and the detail rides
                 inside it (same shape as the tick chip in useSchedulerControlState)
@@ -65,7 +65,7 @@ export function SchedulerRemindersRow({
             <span className="font-normal text-steel">· {relativeTime(reminderRuns[0].startedAt)}</span>
           </span>
         ) : reminderRuns[0].status !== "error" ? (
-          <span className="text-xs">
+          <span className="text-sm">
             {t(relayConfigured === false ? "remindersLastQueued" : "remindersLastSent", {
               n: Number((reminderRuns[0].summary as { sent?: number } | null)?.sent ?? 0),
               time: relativeTime(reminderRuns[0].startedAt),

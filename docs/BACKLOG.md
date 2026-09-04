@@ -552,3 +552,53 @@ post-hardening per-technique verdicts with fresh file:line evidence — all
 | R4 | **Stdout cap + user-config isolation.** 4MB cap (retention-bound; kill-on-breach recorded as accepted residue) + `--setting-sources project` for generate (`--bare` rejected: it flips auth to API-key-only). | S | done — `99b4fa81` |
 | R5 | **Version-triggered re-verification.** `VERIFIED_CLI_VERSION = "2.1.245"` beside the dated flag rows; one cached `--version` probe per process warns (never fails) on drift. | M | done — `5743d7fb` |
 | R6 | **Named descent reasons.** `availability()` → `(bool, reason)` (`offline_policy` vs `not_installed`), shared `provider_availability` predicate, reason (+ `disabled` for `--no-llm`) threaded into `emit_deterministic`'s ledger line across all seven CLI seats. | S | done — `f22ff019` |
+
+## Moonshot-architect round 2026-09-02 - decision table (unattended, Decision column empty)
+
+17 read-only group scouts, 85 L/XL cards, folded into 39 spines and ranked by corroboration-weighted impact. The full deck with every card body and the 128 incidental S/M defects is local, untracked scan evidence at `docs/harness/moonshot-2026-09-02.md` (gitignored under `/docs/harness/`); the top-30 card bodies were emitted to the Personas outbox. **Read this table as the never-re-propose list**: a spine listed here has been proposed; re-running the lens re-derives it. Fill the Decision column (accept as wave / reject with trigger / defer) instead of re-scouting.
+
+Prior round (2026-08-29, a082a154): W8, W9 accepted; D12, D13 rejected. T39 restates D13 and is rejected on arrival.
+
+| # | Spine | Corr. | Head card | Size | Gate | Decision |
+|---|---|---|---|---|---|---|
+| 1 | T14 append-only fact streams for the non-decision planes | 5 | Stage-transition fact layer — the funnel reads events, not snapshots (analytics & reporting) | XL | contract |  |
+| 2 | T01 durable job runtime (runs, queues, retry, loop roster) | 4 | Durable workflow runs — chained, resumable task graphs with a shared run identity (workspace shell & onboarding) | XL | contract |  |
+| 3 | T04 per-candidate evidence ledger with corroboration and verification | 4 | Claim-level evidence ledger with cross-surface corroboration (cv analysis & candidate profiles) | XL | contract |  |
+| 4 | T02 tenant-attributed spend ledger and budget enforcement | 3 | Org-attributed cost ledger — one spend spine under meters, analytics and BYOM (billing & monetization) | XL | contract |  |
+| 5 | T03 per-column policy runtime (stage-resident gates, round ledger, policy kernel) | 3 | Stage-resident policy runtime — the gate a candidate meets is the column they stand on (hiring pipeline) | XL | contract |  |
+| 6 | T10 one action and tool registry across palette, companion, batch and agents | 3 | Board mutations as a declared tool protocol — the agent-operable pipeline (hiring pipeline) | XL | policy |  |
+| 7 | T11 declared capability and configuration contract | 3 | Runtime capability manifest — one server-derived "what works here" contract for the shell (workspace shell & onboarding) | L | contract |  |
+| 8 | T09 keyless degrades to a real path, not a disabled button | 3 | CV analysis resolution ladder — multimodal, text-LLM, deterministic keyless (cv analysis & candidate profiles) | L | contract |  |
+| 9 | T06 versioned score record and one banding contract | 2 | Score Record — every fit score carries its instrument, inputs and time (candidate matching & scoring) | XL | contract |  |
+| 10 | T05 materialized job x candidate fit index | 2 | Materialized job×candidate fit index — pool ranking as a read, not a spawn (job & jd management) | XL | none |  |
+| 11 | T15 candidate as a person: identity spine and journey home | 2 | Candidate identity spine — one person record over analyses, profiles and entries (cv analysis & candidate profiles) | XL | policy |  |
+| 12 | T18 structured role record and per-role scoring policy | 2 | RoleBrief as the canonical role record; JD and Job become renderings (job & jd management) | XL | contract |  |
+| 13 | T28 roles and candidates cross the studio boundary (ATS sync, job distribution) | 2 | ATS ingest runtime — the sync pass the pure layers are waiting for (communications & channels) | XL | contract |  |
+| 14 | T13 verdicts carry their band (typed Claim primitive) | 2 | Typed Claim primitive — one evidence gate for every hiring figure (analytics & reporting) | L | contract |  |
+| 15 | T29 policy provenance and change replay | 2 | Hiring policy as a versioned, inherited artifact sealed into every decision (hiring pipeline) | L | policy |  |
+| 16 | T07 per-workspace market and language configuration | 2 | Market as a workspace record — the compensation seam becomes selectable (candidate matching & scoring) | XL | contract |  |
+| 17 | T08 resident Python inference engine | 2 | Resident inference engine — one long-lived Python worker and a CLI session pool instead of a process per call (ai & llm infrastructure) | XL | contract |  |
+| 18 | T17 purpose-scoped consent, retention and the CV vault | 2 | Per-purpose, per-tenant consent & retention policy (two-clock lifecycle) (identity org & compliance) | XL | policy |  |
+| 19 | T19 route-layer authorization and external identity | 1 | Capability-gated dispatch — the five roles enforced at the route layer (identity org & compliance) | L | contract |  |
+| 20 | T30 LLM routing decision record and failover ladder | 1 | Routing decision record and failover ladder for every LLM call (ai & llm infrastructure) | XL | contract |  |
+| 21 | T16 candidate messaging layer (inbound thread, message identity, send policy, templates) | 1 | Two-way candidate conversation as a first-class inbound message layer (communications & channels) | XL | policy |  |
+| 22 | T20 billing primitives: reserve-then-settle, entitlement grants, usage egress | 1 | Usage-based settlement — push metered outcomes to the price book, bill overage (billing & monetization) | XL | irreversible |  |
+| 23 | T21 assessment instrument validity (case discrimination, executable runs, reuse) | 1 | Measured case discrimination at the freeze boundary (developer assessment) | XL | policy |  |
+| 24 | T23 scheduling capacity and two-way calendar truth | 1 | Interviewer Availability Policy — per-person calendars and capacity pools replace the env-wide slot grid (interview scheduling) | XL | contract |  |
+| 25 | T22 server-owned interview turn engine | 1 | Server-owned interview turn engine — the run-of-show as a state machine, not prose (voice interviews) | XL | contract |  |
+| 26 | T12 generated cross-runtime artifacts (prompts as hashed data) | 1 | Prompt artifact registry — hash-pinned prompts as data across Python, TS caches, bench and telemetry (ai & llm infrastructure) | L | contract |  |
+| 27 | T25 design-system structure: semantic roles, tenant register, table kit | 1 | Semantic role tokens — split "act" from "weak/alert" so status meaning stops riding brand hue (design system & shared ui) | L | contract |  |
+| 28 | T31 post-market drift governs automation posture | 1 | Post-market monitoring loop — drift alarm that governs the automation posture (hiring decisions & automation) | L | policy |  |
+| 29 | T33 offer as a full state machine | 1 | Offer as a full state machine — counter, negotiate, withdraw, with a named actor (hiring pipeline) | L | contract |  |
+| 30 | T26 scenario runtime and portable workspace bundles | 1 | Scenario runtime — the sim engine promoted to a first-class guided-tour and replay layer (workspace shell & onboarding) | XL | none |  |
+| 31 | T27 platform hygiene: schema ledger, i18n bundles | 1 | Versioned schema ledger with snapshot-before-migrate and a fresh-vs-upgraded convergence gate (platform infrastructure) | L | irreversible |  |
+| 32 | T34 knockout as a routed hold | 1 | Knockout as a routed hold with a status link, not an entry-less discard (candidate public surfaces) | XL | policy |  |
+| 33 | T32 committee decision protocol | 1 | Committee decision protocol — independent multi-evaluator judgments sealed as a set (hiring decisions & automation) | XL | policy |  |
+| 34 | T24 hiring plan as the analytics denominator | 1 | Hiring plan as the denominator — forecast, capacity and time-to-fill against a target (analytics & reporting) | L | none |  |
+| 35 | T35 server-held application draft | 1 | Server-held application draft — per-step funnel and cross-device resume (candidate public surfaces) | L | policy |  |
+| 36 | T36 attention as a ranked, reasoned queue engine | 1 | Attention as a server-side ranked queue layer with reasons and two tiers (hiring pipeline) | L | none |  |
+| 37 | T38 generated records of processing from the tenancy manifest | 1 | Generated records of processing (RoPA / Annex IV data section) from the tenancy manifest (identity org & compliance) | L | none |  |
+| 38 | T37 self-extending taxonomy work queue | 1 | Self-extending taxonomy — an unmodelled-term work queue fed by production text (candidate matching & scoring) | L | policy |  |
+| 39 | T39 contributed benchmark exchange | 1 | Contributed benchmark corpus — self-hosted installs publish claim-typed aggregates (analytics & reporting) | XL | policy | REJECTED - restates D13 |
+
+Corroboration held as the top signal again: T01 (durable job runtime) drew four scouts from opposite ends of the stack (shell task runner, comms egress, scheduling side effects, platform loop roster); T04 (candidate evidence ledger) four; T02, T03, T09, T10, T11 three each.

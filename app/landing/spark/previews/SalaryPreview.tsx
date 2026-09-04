@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { AMBER, CORAL, DISPLAY, INK, LIMEWASH, MOSS, STEEL } from "../tokens";
-import { PreviewNote, pop } from "./shared";
+import { PreviewNote, entrance, pop } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /* 05 · Salary radar — the needle finds the market. */
 // Axis and marker figures are illustrative data, not copy — named here so they
@@ -19,6 +20,8 @@ export default function SalaryPreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   return (
     <div>
       <div className="flex items-baseline justify-between text-sm font-bold" style={{ color: STEEL }}>
@@ -32,19 +35,19 @@ export default function SalaryPreview() {
           style={{ background: LIMEWASH, left: "3px", right: "3px" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
+          transition={entrance(reduce, { delay: 0.1 })}
         />
         <motion.div
           className="absolute inset-y-[3px] rounded-full"
           style={{ background: MOSS, left: "41%" }}
           initial={{ width: 0 }}
           animate={{ width: "34%" }}
-          transition={{ delay: 0.35, type: "spring", bounce: 0.25 }}
+          transition={entrance(reduce, { delay: 0.35, type: "spring", bounce: 0.25 })}
         />
         <motion.span
           initial={{ left: "8%", opacity: 0 }}
           animate={{ left: "58%", opacity: 1 }}
-          transition={{ delay: 0.7, type: "spring", bounce: 0.55 }}
+          transition={entrance(reduce, { delay: 0.7, type: "spring", bounce: 0.55 })}
           className="absolute -top-7 -translate-x-1/2"
         >
           {/* Axis figures are illustrative data, not copy. */}
@@ -65,7 +68,7 @@ export default function SalaryPreview() {
         {CHIPS.map((chip, i) => (
           <motion.span
             key={chip.key}
-            {...pop(0.9 + i * 0.12)}
+            {...pop(0.9 + i * 0.12, reduce)}
             className="rounded-full border-[3px] border-[#17202a] px-3.5 py-1.5 text-sm font-bold text-white shadow-[2px_2px_0_#17202a]"
             style={{ background: chip.color }}
           >

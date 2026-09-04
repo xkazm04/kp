@@ -4,8 +4,10 @@ import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/a
 import { verifyCredentials, normalizeEmail } from "@/app/_lib/db/users";
 import { listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
-import { clientIpFrom, RATE_LIMITED_ERROR, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
+import { clientIpFrom, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { isThrottled, recordFailedAttempt, clearFailures, type ThrottleOpts } from "@/app/_lib/auth/login-throttle";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Brute-force / credential-stuffing throttle (bug-ui-scan-2026-07-09 #4). Fixed
 // 15-minute window, persisted per-account AND per-IP (see login-throttle.ts). The
@@ -66,8 +68,13 @@ function withSessionCookie(res: NextResponse, token: string): NextResponse {
 //     its own credential).
 //   • Operator (legacy): { password } → the single-shared-password session. Opt-in;
 //     503 when KP_OPERATOR_PASSWORD is unset (nothing to log into).
+/** Hard cap on this public door's request body: an email and a password, on the one door reachable before any credential is proven.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_LOGIN_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { email?: unknown; password?: unknown };
+  const body = await readJsonWithLimit<{ email?: unknown; password?: unknown }>(request, MAX_LOGIN_BODY_BYTES, {});
+  if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_LOGIN_BODY_BYTES });
   const password = typeof body.password === "string" ? body.password : "";
   const email = typeof body.email === "string" ? body.email.trim() : "";
 
@@ -84,7 +91,7 @@ export async function POST(request: Request) {
     // header note): a shared key would make this one global lockout.
     const perClientIp = ip !== SHARED_CLIENT_KEY;
     if (isThrottled(acctKey, ACCOUNT_THROTTLE) || (perClientIp && isThrottled(ipKey, IP_THROTTLE))) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // Uniform 401 for both "no such user" and "wrong password" — never leak which.
     const user = password ? verifyCredentials(email, password) : null;
@@ -138,7 +145,7 @@ export async function POST(request: Request) {
   // (which makes the key per-client) or per-user operator accounts, not a wider gate.
   const opKey = `login:op:${ip}`;
   if (isThrottled(opKey, OPERATOR_THROTTLE)) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   if (!password || !constantTimeEqual(password, expected)) {
     recordFailedAttempt(opKey, OPERATOR_THROTTLE);

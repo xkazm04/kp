@@ -26,12 +26,28 @@ export type AtsConfigPublic = {
   webhookUrl: string | null;
   events: AtsEventType[];
   hasSecret: boolean;
+  /** Bumped on every accepted write. The panel echoes the version it READ, and the
+   *  store re-asserts it under the write lock — so two operators (or two tabs) editing
+   *  the endpoint and its event subscriptions no longer silently clobber each other.
+   *  Mirrors comms-relay-store.ts, the same doctrine on the same kind of document. */
+  version: number;
 };
 
 export class AtsConfigError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AtsConfigError";
+  }
+}
+
+/** A write composed against a config someone else has since replaced. Subclasses
+ *  AtsConfigError so an existing `instanceof AtsConfigError` catch still sees it —
+ *  the route checks this FIRST, because it is a 409 refusal (nothing was written),
+ *  not a 400 validation failure. */
+export class AtsConfigStaleError extends AtsConfigError {
+  constructor(message: string) {
+    super(message);
+    this.name = "AtsConfigStaleError";
   }
 }
 
@@ -45,17 +61,30 @@ function db(): Database.Database {
       webhook_url TEXT,
       webhook_secret TEXT,
       events_json TEXT NOT NULL DEFAULT '[]',
+      version INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT
     );
   `);
+  // Stores created before optimistic concurrency existed have no `version` column.
+  // ADD COLUMN with a DEFAULT backfills every existing row to 0 — exactly the version a
+  // panel that has just read one sends, so the first write after an upgrade is not
+  // spuriously refused.
+  try {
+    d.exec(`ALTER TABLE ats_config ADD COLUMN version INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Already present (the CREATE TABLE above just made it, or an earlier boot did) —
+    // the only expected failure here, and re-adding is the no-op we want.
+  }
   _db = d;
   return d;
 }
 
-type Row = { webhook_url: string | null; webhook_secret: string | null; events_json: string };
+type Row = { webhook_url: string | null; webhook_secret: string | null; events_json: string; version: number | null };
 
 function readRow(): Row | undefined {
-  return db().prepare(`SELECT webhook_url, webhook_secret, events_json FROM ats_config WHERE id = 1`).get() as Row | undefined;
+  return db()
+    .prepare(`SELECT webhook_url, webhook_secret, events_json, version FROM ats_config WHERE id = 1`)
+    .get() as Row | undefined;
 }
 
 function parseEvents(json: string): AtsEventType[] {
@@ -75,6 +104,7 @@ export function getAtsConfig(): AtsConfigPublic {
     webhookUrl: row?.webhook_url ?? null,
     events: row ? parseEvents(row.events_json) : [],
     hasSecret: !!row?.webhook_secret,
+    version: row?.version ?? 0,
   };
 }
 
@@ -89,8 +119,9 @@ export function getAtsSecret(): string | null {
   return isEncryptedAtsSecret(stored) ? decryptAtsSecret(stored) : stored;
 }
 
-function validateUrl(raw: unknown): string | null {
-  if (raw === null || raw === undefined || raw === "") return null; // disable
+function validateUrl(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined; // omitted → keep what is stored
+  if (raw === null || raw === "") return null; // disable
   if (typeof raw !== "string") throw new AtsConfigError("webhookUrl must be a string or empty.");
   // SSRF guard — the server later POSTs candidate PII (and a signed body) to this
   // URL, so it is the same trust boundary as a provider endpoint. Route it through
@@ -106,8 +137,9 @@ function validateUrl(raw: unknown): string | null {
   }
 }
 
-function validateEvents(raw: unknown): AtsEventType[] {
-  if (raw === undefined || raw === null) return [];
+function validateEvents(raw: unknown): AtsEventType[] | undefined {
+  if (raw === undefined) return undefined; // omitted → keep the stored subscriptions
+  if (raw === null) return [];
   if (!Array.isArray(raw)) throw new AtsConfigError("events must be an array.");
   const out: AtsEventType[] = [];
   for (const e of raw) {
@@ -118,41 +150,86 @@ function validateEvents(raw: unknown): AtsEventType[] {
 }
 
 /**
- * Upsert the webhook config. Secret handling:
- *   • `webhookSecret` omitted (undefined) → keep the existing secret.
- *   • `webhookSecret` === "" → CLEAR the secret (deliveries go unsigned).
- *   • any other string → replace it.
- * Validates at the write boundary (AtsConfigError → the route maps to 400).
+ * Upsert the webhook config. Every field is a PARTIAL update — omitted means KEEP:
+ *   • `webhookUrl` omitted → keep the stored endpoint; `null`/`""` → CLEAR (disable).
+ *   • `events` omitted → keep the stored subscriptions; `[]`/`null` → unsubscribe all.
+ *   • `webhookSecret` omitted → keep the existing secret; `""` → CLEAR it (deliveries
+ *     go unsigned); any other string → replace it (encrypted at rest).
+ *
+ * It used to be a whole-DOCUMENT write: `webhookUrl` and `events` were resolved to
+ * null/[] when absent, so a client that meant to change one field had to resend all of
+ * them — and two operators editing the panel side by side silently clobbered each
+ * other's event subscriptions. The inbound ATS panel next to it already sent partials
+ * (IntegrationsAtsPanel); this is the same contract on the outbound half.
+ *
+ * `expectedVersion`, when given, is the version the caller READ. The read→compute→write
+ * runs in an IMMEDIATE transaction and re-asserts it INSIDE the write lock, so a save
+ * composed against a config someone else has since replaced is dropped
+ * (AtsConfigStaleError → a 409 the panel offers a reload for) rather than applied on top
+ * of theirs. Omit it only for server-internal writes with no read to be stale about
+ * (tests, fixtures) — see comms-relay-store.ts, the same doctrine.
+ *
+ * Validation throws AtsConfigError, which the route maps to a 400.
  */
-export function setAtsConfig(input: { webhookUrl?: unknown; webhookSecret?: unknown; events?: unknown }): AtsConfigPublic {
+export function setAtsConfig(input: {
+  webhookUrl?: unknown;
+  webhookSecret?: unknown;
+  events?: unknown;
+  expectedVersion?: unknown;
+}): AtsConfigPublic {
+  // Validation and encryption are pure and can throw — keep them OUTSIDE the write lock
+  // so a bad URL never opens a transaction.
   const url = validateUrl(input.webhookUrl);
   const events = validateEvents(input.events);
-  // Preserve the EXISTING stored (already-encrypted) secret when the caller omits
-  // webhookSecret — read the RAW column, never the decrypted plaintext, so a
-  // keep-existing write can't round-trip the secret back to plaintext.
-  let storedSecret: string | null = readRow()?.webhook_secret ?? null;
+  let nextSecret: string | null | undefined;
   if (input.webhookSecret !== undefined) {
     if (typeof input.webhookSecret !== "string") throw new AtsConfigError("webhookSecret must be a string.");
     if (input.webhookSecret === "") {
-      storedSecret = null; // CLEAR — deliveries go unsigned
+      nextSecret = null; // CLEAR — deliveries go unsigned
     } else {
       // Encrypt at rest — the signing secret must never be persisted (or exported) in
       // clear. Refuse rather than fall back to plaintext when no key is configured
       // (same stance as provider keys in llm-secret.ts).
       try {
-        storedSecret = encryptAtsSecret(input.webhookSecret);
+        nextSecret = encryptAtsSecret(input.webhookSecret);
       } catch (e) {
         throw new AtsConfigError(e instanceof Error ? e.message : "Cannot store the webhook signing secret.");
       }
     }
   }
-  db()
-    .prepare(
-      `INSERT INTO ats_config (id, webhook_url, webhook_secret, events_json, updated_at)
-       VALUES (1, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET webhook_url = excluded.webhook_url, webhook_secret = excluded.webhook_secret,
-         events_json = excluded.events_json, updated_at = excluded.updated_at`
-    )
-    .run(url, storedSecret, JSON.stringify(events), new Date().toISOString());
+  let expected: number | undefined;
+  if (input.expectedVersion !== undefined && input.expectedVersion !== null) {
+    const n = Number(input.expectedVersion);
+    if (!Number.isInteger(n) || n < 0) throw new AtsConfigError("expectedVersion must be a whole number.");
+    expected = n;
+  }
+  const write = db().transaction((): void => {
+    const current = readRow();
+    const version = current?.version ?? 0;
+    if (expected !== undefined && expected !== version) {
+      throw new AtsConfigStaleError("The webhook config changed since it was read. Reload and make your change again.");
+    }
+    // Preserve the EXISTING stored (already-encrypted) secret when the caller omits
+    // webhookSecret — read the RAW column, never the decrypted plaintext, so a
+    // keep-existing write can't round-trip the secret back to plaintext.
+    db()
+      .prepare(
+        `INSERT INTO ats_config (id, webhook_url, webhook_secret, events_json, version, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET webhook_url = excluded.webhook_url, webhook_secret = excluded.webhook_secret,
+           events_json = excluded.events_json, version = excluded.version, updated_at = excluded.updated_at`
+      )
+      .run(
+        url === undefined ? (current?.webhook_url ?? null) : url,
+        nextSecret === undefined ? (current?.webhook_secret ?? null) : nextSecret,
+        JSON.stringify(events ?? (current ? parseEvents(current.events_json) : [])),
+        version + 1,
+        new Date().toISOString()
+      );
+  });
+  // IMMEDIATE: the write lock is taken at BEGIN, so the version this reads cannot move
+  // between the check and the UPDATE (.claude/CLAUDE.md, "a read→compute→write either
+  // locks or re-checks"). Nothing here awaits.
+  write.immediate();
   return getAtsConfig();
 }

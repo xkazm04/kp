@@ -55,7 +55,8 @@
       "unattended": "Unattended",
       "touchpointsLabel": "Human decisions",
       "bookingsN": "{count, plural, one {# round to book} other {# rounds to book}}",
-      "weekAria": "A typical week"
+      "weekAria": "A typical week",
+      "weekNote": "An illustrative week, not a forecast."
     },
     "save": "Save plan",
     "saving": "Saving…",
@@ -110,7 +111,15 @@
       "offer": "You make an offer and wait for the answer.",
       "terminal": "They accepted. This is where hiring ends.",
       "custom": "Your own step. It means whatever your team needs it to mean."
-    }
+    },
+    "occupancyUnknown": "Couldn't check who is standing on each step. A step can't be removed until this check succeeds.",
+    "occupancyRetry": "Check again",
+    "blockedOccupancy": "We can't tell who is on each step, so a removal can't be saved. Retry the check above.",
+    "blockedStranded": "Say where the candidates on each removed step should go.",
+    "refreshFailed": "Saved. This view couldn't be refreshed, so it may still show the previous plan.",
+    "refreshRetry": "Refresh",
+    "stale": "Someone saved a newer version of this pipeline. Nothing of yours was written.",
+    "staleReload": "Reload the saved plan"
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -123,7 +132,8 @@
       "gap": "remaining gap (shown inside a step)"
     },
     "explorer": {
-      "instruction": "Click any step to see how it's wired. The open step stays outlined here on the left."
+      "instruction": "Click any step to see how it's wired. The open step stays outlined here on the left.",
+      "codeHeading": "Code"
     },
     "status": {
       "live": "Automated",
@@ -156,6 +166,68 @@
       "svgLabelUntitled": "Component diagram",
       "tooLarge": "This diagram is too large to render here.",
       "renderFailed": "Couldn't render this diagram."
+    },
+    "steps": {
+      "jd": {
+        "title": "JD authoring",
+        "summary": "A recruiter's free-text need (optionally a GitHub repo) becomes a publishable Markdown JD via the devcase need→design chain, then is persisted and ingested into the matchable corpus."
+      },
+      "ingest": {
+        "title": "JD → structured Job",
+        "summary": "Direction #1: an authored or pasted ad is parsed into a structured Job (must/nice, taxonomy-resolved skills, entry profile) and written to the matchable corpus, content-hash deduped so unchanged ads are free."
+      },
+      "dist": {
+        "title": "Candidate fan-out",
+        "summary": "On JD save the candidate pool is ranked against the new job and seeded as Accepted pipeline entries; the policy pass's Accepted branch (Direction #1) auto-advances matched candidates into Screened (first-wave evaluation). External job-board posting is still manual."
+      },
+      "apply": {
+        "title": "Candidate apply / CV upload",
+        "summary": "A CV (PDF/DOCX/TXT/MD) uploaded in the Analyze tab is bridged to the Python analysis CLI as a subprocess and the result is saved. The guided Profile form persists a structured V2 profile."
+      },
+      "extract": {
+        "title": "Extract text + LLM fields",
+        "summary": "Deterministic text extraction (with Czech mojibake + letter-spacing repair) feeds an LLM that returns structured skills/traits/evidence. Note: the runtime extractor still calls Gemini (off-spec vs the Claude-CLI-only rule) and the LLM-only fields have no deterministic fallback yet."
+      },
+      "v2": {
+        "title": "Archetype route → V2 profile",
+        "summary": "Direction #2: the CV path now infers archetype signals and runs detect_archetype, mapping the extracted CV into a CandidateProfileV2 with provenance/potential. The candidates route and match-candidate.ts read the real archetype instead of hard-coding BAU."
+      },
+      "match": {
+        "title": "Match: KO · score · reason",
+        "summary": "A normalized candidate is filtered by hard knock-out gates, then scored against the job corpus with archetype-aware weights over the taxonomy hierarchy. Surfaced in the Match tab and the Matrix grid."
+      },
+      "screen": {
+        "title": "AI screening",
+        "summary": "Fairness-gated screening (Task 1) runs the Claude CLI with a deterministic fallback. Available one-by-one at both pre-interview stages: at Accepted it triages a fresh applicant into Screened; at Screened it advances toward Interview. Confident matches advance; early-career and low-confidence are held for the Decisions queue, never auto-rejected."
+      },
+      "decide": {
+        "title": "Decisions queue",
+        "summary": "The deliberate human-in-the-loop gate: held candidates, rejections, and approvals are a recruiter's call. The AI recommendation rides along as context; the action is a click."
+      },
+      "engage": {
+        "title": "Outreach + interview invite",
+        "summary": "Direction #3: outreach and rejection messages are drafted (Claude CLI + fallback) and actually dispatched through the comms channel (queued by default, sent when COMMS_WEBHOOK_URL is set). The recipient is still the candidate label. An email/ATS field is the enrichment hook."
+      },
+      "interview": {
+        "title": "Interview: AI voice screen → scorecard",
+        "summary": "The recruiter creates a grounded voice screen (questions from Task 4 prep); the candidate takes it in-browser (OpenAI Realtime or ElevenLabs). On hang-up the transcript synthesizes a scorecard (Task 5) and sets scorecard_review for the Interview→Offer gate. Slot scheduling is live too: accepting a screening queues the entry on the Schedule tab, the recruiter mints a tokenized self-scheduling link the comms channel delivers, and the candidate confirms a real dated slot (with reschedule + calendar invite). The weekday-relative “Tue 14:00” is only the seed proposal a legacy entry carries until an invite exists."
+      },
+      "offer": {
+        "title": "Offer decision",
+        "summary": "The offer figure is deterministic (role band × fit) and the letter auto-drafts. A human approves it (the gate), which EXTENDS the offer and dispatches it to the candidate."
+      },
+      "close": {
+        "title": "Deliver offer · capture accept/decline",
+        "summary": "Direction #4: the candidate opens a tokenized offer page and accepts or declines. Accept transitions the entry to Hired; decline closes it. No more bare human click at the terminal."
+      },
+      "hire": {
+        "title": "Hire handoff to the HRIS",
+        "summary": "Direction #4 terminal: Hired is where kp's job ends. The transition mirrors the hire into whatever ATS/HRIS the workspace configured (candidate.hired webhook), so the system of record gets the outcome without re-keying. What happens after (paperwork, equipment, day one) is deliberately the HRIS's job, not this app's."
+      },
+      "cron": {
+        "title": "Scheduler / cron",
+        "summary": "Direction #5: a durable clock. An instrumentation heartbeat ticks the scheduler, which atomically claims a due run and executes the policy pass (aging nudges, time-based advances). Default OFF. Opt in via the Pipeline-tab toggle or AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {
@@ -273,7 +345,7 @@
     "addToPipeline": "Add to pipeline",
     "adding": "Adding…",
     "added": "Added to pipeline",
-    "addFailed": "Couldn't add to the pipeline. {error}",
+    "addFailed": "Couldn't add to the pipeline.",
     "importToPrep": "Add these questions to interview prep",
     "importToPrepBusy": "Adding to prep…",
     "importToPrepDone": "Added to interview prep",
@@ -428,7 +500,12 @@
       "starSituation": "Situation",
       "starTask": "Task",
       "starAction": "Action",
-      "starResult": "Result"
+      "starResult": "Result",
+      "benchmarkVintage": "Benchmark {source}, updated {date}",
+      "benchmarkVintageUndated": "Benchmark {source}",
+      "benchmarkThin": "thin sample (n={count})",
+      "benchmarkNoSample": "no sample recorded (editorial anchor)",
+      "benchmarkAnchor": "Anchored to benchmark {source}, updated {date}"
     }
   },
   "comms": {
@@ -492,7 +569,8 @@
     "interviewReminder": {
       "subject": "Reminder: your interview {slot}",
       "length": " Plan for about {minutes} minutes.",
-      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}"
+      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}",
+      "slotFallback": "your scheduled time"
     },
     "offerReminder": {
       "subject": "Reminder: your offer for {role} is still open",
@@ -513,7 +591,15 @@
       "strengthsHeading": "What stood out:",
       "growthHeading": "Areas to keep growing:",
       "noSpecifics": "We appreciated your effort on the exercise and wish you the very best in your search.",
-      "signoff": "Thanks again for your time and interest."
+      "signoff": "Thanks again for your time and interest.",
+      "engineNote": "A note on this letter: the findings above were written by our review engine in {language}, not in the language of this message."
+    },
+    "devcaseAdvance": {
+      "subject": "Next step: {role}",
+      "greeting": "Hi {name},",
+      "body": "Your submission for {role} stood out and we would like to take it forward. We will be in touch with next steps shortly.",
+      "bodyScore": "Your submission for {role} stood out (fit {score}/100) and we would like to take it forward. We will be in touch with next steps shortly.",
+      "signoff": "Best,\nThe hiring team"
     }
   },
   "language": {
@@ -536,22 +622,10 @@
       "title": "The Czech job market, <emph>in the open</emph>.",
       "subtitle": "Reference salaries, hiring demand across all 14 regions, and the roles rising and fading. All of it built entirely on public labour-market data.",
       "updated": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date} · {pct}% posted in the last 90 days",
-      "updatedNoPct": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Map-led, read as a story",
-      "board": "Dashboard",
-      "boardDesc": "Everything at a glance"
-    },
-    "stats": {
-      "vacancies": "Open vacancies",
-      "median": "National median",
-      "regions": "Regions",
-      "occupations": "Occupations tracked"
+      "updatedNoPct": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date}",
+      "stale": "This snapshot is {days, plural, one {# day} other {# days}} old. The live register has moved on since it was taken."
     },
     "map": {
-      "title": "Where the jobs are",
       "metricVolume": "Vacancies",
       "metricSalary": "Earnings",
       "legendVolume": "by open vacancies",
@@ -571,12 +645,13 @@
     "salary": {
       "eyebrow": "The field guide",
       "title": "Reference salaries by role",
-      "subtitle": "Economy-wide monthly earnings from the official ISPV wage survey: junior to lead, per role family.",
+      "subtitle": "Economy-wide gross monthly earnings from the official ISPV wage survey: junior to lead, per role family.",
       "median": "median {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Economy-wide gross monthly earnings from the official ISPV wage survey, {period} data: junior to lead, per role family.",
+      "basedOn": "Based on {v} employees surveyed"
     },
     "demand": {
       "eyebrow": "What's hiring",
@@ -585,7 +660,6 @@
       "byFamily": "By role family",
       "byRole": "Top occupations",
       "openings": "{n, plural, one {# opening} other {# openings}}",
-      "momentumNew": "baseline",
       "share": "{pct}%",
       "shareTiny": "<1%"
     },
@@ -647,7 +721,9 @@
       "about": "About the app",
       "market": "Market Pulse",
       "source": "Source",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "menuOpen": "Open menu",
+      "menuClose": "Close menu"
     },
     "hero": {
       "badge": "Automated hiring, human-approved",
@@ -1093,7 +1169,9 @@
   "aboutPage": {
     "nav": {
       "home": "Home",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "market": "Market Pulse",
+      "source": "Source"
     },
     "hero": {
       "badge": "the hiring pipeline, end to end",
@@ -1234,7 +1312,8 @@
     "no": "No",
     "close": "Close",
     "scanningCv": "Scanning CV",
-    "formatting": "Formatting"
+    "formatting": "Formatting",
+    "salesEnquirySubject": "Enterprise plan enquiry"
   },
   "aiDisclosure": {
     "title": "How this works",
@@ -1257,6 +1336,16 @@
     "TEMPLATE_CREATE_FAILED": "Could not save the template. Please try again.",
     "TEMPLATE_UPDATE_FAILED": "Could not update the template. Please try again.",
     "TEMPLATE_DELETE_FAILED": "Could not delete the template. Please try again.",
+    "JOB_LIST_FAILED": "Could not load the job catalog. Please try again.",
+    "JOB_LOAD_FAILED": "Could not load this role. Please try again.",
+    "JOB_INGEST_FAILED": "Could not read that job ad. Please try again.",
+    "JOB_PUBLISH_FAILED": "Could not take this role live. Please try again.",
+    "JOB_CLOSE_FAILED": "Could not close this role. Please try again.",
+    "JOB_CANDIDATES_FAILED": "Could not rank candidates for this role. Please try again.",
+    "JOB_REDISCOVER_FAILED": "Could not look through past candidates for this role. Please try again.",
+    "JOB_WINNABILITY_FAILED": "Could not grade this role against the candidate pool. Please try again.",
+    "JOB_CAMPAIGN_FAILED": "Could not generate the campaign pack. Please try again.",
+    "JOB_ASSIGNMENTS_FAILED": "Could not load the work samples for this role. Please try again.",
     "INTERVIEW_CREATE_FAILED": "Could not create the interview. Please try again.",
     "INTERVIEW_CONNECT_FAILED": "Could not connect the voice call. Please try again.",
     "INTERVIEW_COMPLETE_FAILED": "Could not save the interview. Please try again.",
@@ -1271,6 +1360,11 @@
     "SCHEDULE_INVITE_BULK_FAILED": "Could not send the scheduling links. Please try again.",
     "SCHEDULE_LOOKUP_FAILED": "Could not load the scheduling overview. Please try again.",
     "SCHEDULE_MANAGE_FAILED": "Could not update that interview. Please try again.",
+    "SCHEDULE_SLOT_TAKEN": "That time is already booked. Pick another.",
+    "SCHEDULE_CANDIDATE_INACTIVE": "That candidate is no longer active, so nothing was booked.",
+    "SCHEDULE_BOOK_FAILED": "Couldn't book that time. Refresh and pick again.",
+    "SCHEDULE_SLOT_UNRESOLVED": "That calendar cell couldn't be resolved to a time. Reload the calendar and pick again.",
+    "SCHEDULE_CALENDAR_BUSY": "Your connected calendar is busy then. Pick another time.",
     "SEARCH_FAILED": "Search is unavailable right now. Please try again.",
     "ATTENTION_FAILED": "Could not load attention counts. Please try again.",
     "STATUS_LOOKUP_FAILED": "Could not load your application status. Please try again.",
@@ -1310,6 +1404,22 @@
     "OFFER_EXPIRED": "This offer has expired.",
     "OFFER_NOT_FOUND": "We couldn't find this offer. The link may have been replaced by a newer one.",
     "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue.",
+    "DEVCASE_SESSION_UNAVAILABLE": "This case is not accepting submissions.",
+    "DEVCASE_SESSION_QUOTA": "Too many sessions have been started for this case. Please come back later.",
+    "DEVCASE_PUBLISH_FAILED": "Could not publish this case. Please try again.",
+    "DEVCASE_FEEDBACK_FAILED": "Could not draft the candidate feedback. Please try again.",
+    "DEVCASE_OUTBOX_FAILED": "Could not load the dev-case outbox. Please try again.",
+    "DEVCASE_CONTROL_FAILED": "Could not load the assignment control room. Please try again.",
+    "DEVCASE_INTAKE_FAILED": "Your submission could not be recorded. Please try again.",
+    "DEVCASE_LIFECYCLE_LIST_FAILED": "Could not load the assignment runs. Please try again.",
+    "DEVCASE_LIFECYCLE_START_FAILED": "Could not start that assignment run. Please try again.",
+    "DEVCASE_APPROVE_FAILED": "Could not approve this assignment. Please try again.",
+    "DEVCASE_CLOSE_FAILED": "Could not close this assignment. Please try again.",
+    "DEVCASE_REDESIGN_FAILED": "Could not regenerate this assignment. Please try again.",
+    "DEVCASE_OUTCOMES_FAILED": "Could not load the hire outcomes. Please try again.",
+    "DEVCASE_OUTCOME_SAVE_FAILED": "Could not record that outcome. Please try again.",
+    "DEVCASE_POSTINGS_FAILED": "Could not load the assignment postings. Please try again.",
+    "DEVCASE_PROMOTE_FAILED": "Could not promote this submission. Please try again.",
     "INTAKE_CREATE_FAILED": "Could not start the intake session. Please try again.",
     "INTAKE_LIST_FAILED": "Could not load intake sessions. Please try again.",
     "INTAKE_READ_FAILED": "Could not load the intake session. Please try again.",
@@ -1322,7 +1432,27 @@
     "INTAKE_REOPEN_FAILED": "Could not re-open the session. Please try again.",
     "INTAKE_ATTACHMENT_FAILED": "Could not update the attachments. Please try again.",
     "STAGE_IMPACT_FAILED": "Could not check who is on each pipeline step. Try again.",
-    "STAGE_MIGRATION_FAILED": "Could not apply the pipeline change. Try again.",
+    "STAGE_MIGRATION_FAILED": "Could not finish the pipeline change. Candidates may already have been moved; re-open the step editor to see where things stand.",
+    "PIPELINE_ENTRY_NOT_FOUND": "That candidate is no longer on this board.",
+    "PIPELINE_STAGE_UNKNOWN": "That is not a step on this board.",
+    "PIPELINE_TERMINAL_NOT_MANUAL": "The final step is reached when the candidate accepts an offer, not by a manual move. Move them to the offer step and extend an offer.",
+    "PIPELINE_TERMINAL_NOT_ADVANCE": "The final step is reached when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead.",
+    "PIPELINE_MOVE_CONFLICT": "Couldn't move this candidate: they were just changed, or they are closed out. Refresh and try again.",
+    "PIPELINE_STAGE_CHANGED": "This candidate's step changed since the view was opened. Refresh and decide again.",
+    "PIPELINE_ACTION_UNKNOWN": "That is not an action this board supports.",
+    "PIPELINE_GITHUB_EVIDENCE_INVALID": "That GitHub evidence is not in the expected shape.",
+    "PIPELINE_NOTES_INVALID": "A candidate note must be text.",
+    "PIPELINE_NOTES_TOO_LONG": "That note is too long to save.",
+    "PIPELINE_NOT_REINSTATABLE": "There is no auto-rejection to reverse here. This candidate was already reinstated, or was closed a different way.",
+    "PIPELINE_INTAKE_NOT_DEGRADED": "There is no degraded-intake flag to resolve on this candidate.",
+    "OFFER_NOT_DISPATCHED": "The offer was drafted but couldn't be sent. Nothing was lost: approve again to re-send the same link.",
+    "OFFER_SENT_APPROVAL_CHANGED": "The offer was sent, but this candidate's approval changed while it went out. Refresh before deciding again.",
+    "PIPELINE_BATCH_ITEM_MALFORMED": "That item was missing a candidate, or named an action this board does not have.",
+    "PIPELINE_BATCH_PAYLOAD_INVALID": "That bulk request wasn't in the expected shape, or asked for too many candidates at once.",
+    "PIPELINE_BATCH_ITEM_FAILED": "Something went wrong applying this one. The rest of the batch was unaffected.",
+    "PIPELINE_AXIS_INVALID": "That pipeline shape isn't valid.",
+    "PIPELINE_MIGRATION_MAPPING_INVALID": "That step mapping doesn't work: candidates can only be moved off a step the new pipeline removes, and only onto one it keeps.",
+    "PIPELINE_MIGRATION_REQUIRED": "Some steps you removed still hold candidates. Say where each of them should go.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "That candidate is not on this board.",
     "HIRE_RATING_NOT_HIRED": "Only a hired candidate can carry an on-the-job rating.",
     "HIRE_RATING_INVALID": "An on-the-job rating must be a whole number from 1 to 5.",
@@ -1336,10 +1466,285 @@
     "COMPANION_PROPOSAL_FAILED": "Could not run that proposal. Nothing was changed.",
     "COMPANION_BRAIN_FAILED": "Could not check this machine for Candi's memory. Please try again.",
     "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect.",
+    "INTAKE_BRIEF_MOVED": "The brief changed while that was being computed, so it was re-read rather than overwritten.",
+    "INTAKE_NOT_FOUND": "That intake session could not be found.",
+    "INTAKE_FROZEN": "This intake was promoted, so its grounding and its spec are frozen.",
+    "INTAKE_NOT_FROM_SCAN": "This intake was not started from a repository scan.",
+    "INTAKE_SCAN_MISMATCH": "That scan belongs to a different intake session.",
+    "INTAKE_DOSSIER_INVALID": "That codebase reading is not in the expected shape.",
+    "INTAKE_NOT_APP_MASTER": "This is not an App master intake, so there is no spec to compose.",
+    "INTAKE_SCAN_NOT_LANDED": "The repository scan has not landed yet. The spec composes once it does.",
+    "INTAKE_BRIEF_EMPTY": "The brief is still empty. Answer the dialog first, then compose.",
+    "INTAKE_CLOSED": "This intake session is closed. Re-open it to keep talking.",
+    "INTAKE_TEXT_REQUIRED": "There is nothing to send. Write or say something first.",
+    "INTAKE_BRIEF_INVALID": "That brief edit was not in the expected shape.",
+    "INTAKE_BRIEF_NOT_READY": "The brief needs a role title plus one dealbreaker or 90-day outcome before it can become a JD.",
+    "INTAKE_ALREADY_OPEN": "This session is already open.",
+    "INTAKE_ATTACHMENT_LIMIT": "This session already holds as much reference material as it can.",
+    "INTAKE_ATTACHMENT_INDEX": "That piece of reference material is no longer on this session.",
+    "INTAKE_JD_NOT_FOUND": "That JD is not in this workspace's library.",
+    "INTAKE_NOTHING_TO_EXTRACT": "There is nothing to extract yet.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "Voice is not configured on this install.",
+    "COMPANION_THREAD_NOT_FOUND": "That conversation no longer exists.",
+    "DEVCASE_CHAT_CEILING": "This work session has used all of its messages. Your work is saved, and this budget does not reset.",
+    "TOO_MANY_REQUESTS": "Too many requests. Please try again shortly.",
+    "UPLOAD_UNSUPPORTED_TYPE": "Use a PDF, DOCX, TXT or MD file.",
+    "UPLOAD_TOO_LARGE": "That file is over the 8 MB upload limit.",
+    "ANALYZE_CV_REQUIRED": "Attach a CV or profile file to analyze.",
+    "ANALYZE_TOO_MANY_VARIANTS": "Compare at most 3 CV variants in one run.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen.",
+    "INTERVIEW_ENTRY_REQUIRED": "Say which candidate this interview is for.",
+    "INTERVIEW_CALL_IN_PROGRESS": "This candidate is on the call right now. Wait for it to finish before issuing a new link.",
+    "INTERVIEW_LINK_NOT_FOUND": "This interview link isn't valid.",
+    "INTERVIEW_LINK_INACTIVE": "This interview link is no longer active.",
+    "INTERVIEW_LINK_EXPIRED": "This interview link has expired. Ask the recruiter for a fresh one.",
+    "INTERVIEW_ALREADY_COMPLETED": "This interview has already been completed.",
+    "INTERVIEW_CONSENT_REQUIRED": "Recording consent is required before the interview can start.",
+    "INTERVIEW_PROVIDER_INVALID": "That voice provider isn't one this server knows.",
+    "INTERVIEW_PROVIDER_UNCONFIGURED": "The voice provider isn't configured on this server, so the call can't start.",
+    "INTERVIEW_LAB_DISABLED": "The interview lab is not enabled on this server.",
+    "INVITE_PROVIDER_UNCONFIGURED": "The interview link was created, but no invite was sent: the voice provider has no keys on this server. Copy the link to the candidate yourself.",
+    "INVITE_DISPATCH_FAILED": "The interview link was created, but the invite could not be sent. Copy the link to the candidate yourself.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas rejected this workspace's API key. The pairing key has expired or been revoked; re-pair in Settings → Integrations.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations.",
+    "EDGE_CONFIG_REJECTED": "That edge endpoint was refused. It must be a public https:// URL.",
+    "EDGE_PAIR_REFUSED": "Could not publish the sealing key to the edge. Check the pairing and try again.",
+    "EDGE_SAVE_FAILED": "Could not save the edge pairing. Please try again.",
+    "TTS_FAILED": "Could not speak that just now. Please try again.",
+    "STT_FAILED": "Could not transcribe that recording. Please try again.",
+    "VOICE_REQUEST_INVALID": "That request was not valid JSON.",
+    "AUDIO_MISSING": "Attach a recording to transcribe.",
+    "AUDIO_UNSUPPORTED_TYPE": "Use WAV, MP3, M4A, WebM, OGG or FLAC for the recording.",
+    "AUDIO_TOO_LARGE": "That recording is over the 25 MB upload limit.",
+    "STT_TOO_LONG": "That recording is longer than this engine can transcribe in one go. Split it and try again.",
+    "JD_FIELDS_REQUIRED": "A title and a description are both required.",
+    "JD_TITLE_TOO_LONG": "The title must be 200 characters or fewer.",
+    "JD_BODY_TOO_LONG": "The description must be 20,000 characters or fewer.",
+    "DEVCASE_SUBMIT_FAILED": "Could not record that submission. Please try again.",
+    "DEVCASE_SOURCE_FAILED": "Could not source candidates for this assignment. Please try again.",
+    "RESTORE_FOREIGN_ORG": "This backup belongs to a different organization. A backup is restored into the organization it came from.",
+    "RESTORE_REPLACE_REQUIRED": "Restoring replaces the organization’s current data. Confirm replace to proceed.",
+    "INVITE_ALREADY_MEMBER": "That person is already an active member.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "You can’t invite someone at a role above your own privileges.",
+    "INVITE_EMAIL_INVALID": "A valid email address is required.",
+    "MEMBER_PERMISSIONS_CHANGED": "This member’s permissions changed while you were editing them. Reload and try again.",
+    "ORG_SETTINGS_FORBIDDEN": "Only an organization administrator can change the organization’s settings.",
+    "ORG_LANGUAGE_INVALID": "That isn’t one of the app’s languages.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "That rules update named no phase, or carried no rules to save.",
+    "DECISION_CONFIG_INVALID": "Those rules aren't valid for this phase.",
+    "DECISION_CONFIG_SAVE_FAILED": "Couldn't save these rules. Please try again.",
+    "MATRIX_BUILD_FAILED": "Could not build the fit matrix. Please try again.",
+    "MATCH_REASONING_FAILED": "Could not explain that match. Please try again.",
+    "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
+    "MATCH_REASONING_UNAVAILABLE": "That match can no longer be explained: the candidate or role behind it is gone.",
+    "DECISION_CONFIG_STALE": "Someone saved a newer version of these rules. Reload and make your change again.",
+    "PIPELINE_AXIS_STALE": "Someone saved a newer version of this pipeline. Reload and make your change again.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "That note is longer than one piece of reference material can be. Shorten it, or attach it in parts.",
+    "JOB_SEED_BROKEN": "The job catalog is empty because its seed data failed to load. Check the server log.",
+    "SCHEDULE_UPDATE_FAILED": "Could not update the automation clock. Please try again.",
+    "SCHEDULE_INTERVAL_INVALID": "The automation interval must be a number of minutes.",
+    "COMM_RESEND_IN_PROGRESS": "A resend for this message is already in progress.",
+    "COMM_ALREADY_RESENT": "Already re-sent. A newer delivery exists for this message.",
+    "COMM_SIMULATION_ROW": "This message belongs to the guided simulation and is never sent.",
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "This assignment is no longer awaiting review. Reload to see where it is now.",
+    "MATCH_RUN_FAILED": "Could not rank that candidate against the roles. Please try again.",
+    "MATCH_INPUT_INVALID": "That candidate could not be resolved. The profile or analysis behind it is gone.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "That benchmark named no role family.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Could not save that spend figure. Please try again.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Could not save that target. Please try again.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Could not build the metric pack. Please try again.",
+    "DECISION_LOG_LOAD_FAILED": "Could not load the decision log. Please try again.",
+    "CALIBRATION_APPLY_FAILED": "Could not apply that threshold. Reload the panel and check the current floor.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Your role can't change this team's analytics settings or screening floor.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "That apply named no suggested threshold. Reload the panel and apply the number it shows.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "The recommendation changed since it was shown. Reload and review the current suggestion.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "There is no calibration recommendation to apply right now.",
+    "CALIBRATION_FAMILY_UNKNOWN": "That isn't one of the app's role families.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Only an owner can manage billing for this organization.",
+    "BILLING_NOT_CONFIGURED": "Billing is not configured on this deployment.",
+    "BILLING_PLAN_CONTACT_SALES": "That plan is custom-priced. Talk to our sales team to get set up.",
+    "BILLING_PLAN_WITHDRAWN": "That plan is no longer sold. Pick one of the current plans, or self-host KP for free on your own model keys.",
+    "BILLING_ALREADY_SUBSCRIBED": "You already have a plan. Change it in the customer portal (Manage subscription), not with a new checkout.",
+    "BILLING_CHECKOUT_BODY_INVALID": "That checkout named neither a plan nor a minutes pack.",
+    "BILLING_NO_CUSTOMER": "No billing customer yet. Complete a checkout first.",
+    "BILLING_OVERVIEW_FAILED": "Could not load billing. Please try again.",
+    "BILLING_CHECKOUT_FAILED": "Could not start the checkout. Please try again.",
+    "BILLING_PORTAL_FAILED": "Could not open the customer portal. Please try again.",
+    "APPLY_ROLE_NOT_FOUND": "That role could not be found. It may have been taken down.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Your application is too large to send. Shorten your answers or attach a smaller CV.",
+    "APPLY_NAME_REQUIRED": "Please enter your name.",
+    "APPLY_NAME_TOO_LONG": "Your name is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_ANSWER_TOO_LONG": "That answer is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_EMAIL_TOO_LONG": "Your email address is too long. Please keep it to {max} characters or fewer.",
+    "APPLY_EMAIL_INVALID": "Please enter a valid email address.",
+    "APPLY_SELECTION_INVALID": "That is not one of the options offered. Please choose one of them.",
+    "SCHEDULE_LINK_NOT_FOUND": "We couldn't find that scheduling link.",
+    "SCHEDULE_LINK_CLOSED": "This scheduling link is no longer active.",
+    "SCHEDULE_INTERVIEW_UNAVAILABLE": "This interview is no longer available.",
+    "SCHEDULE_SLOTS_STILL_OPEN": "There are still open times. Please pick one from the list.",
+    "SCHEDULE_PROPOSALS_INVALID": "Please suggest 1-3 future weekday times during working hours.",
+    "SCHEDULE_NO_BOOKING_YET": "There's no confirmed time to update yet.",
+    "SCHEDULE_SLOT_NOT_OFFERED": "That time isn't one of the offered slots. Please pick from the list.",
+    "SCHEDULE_RESCHEDULE_LIMIT": "You've changed your interview time a few times already. Reply to your confirmation email and we'll help you find a slot.",
+    "COMMS_RELAY_STALE": "Someone saved a newer relay config. Reload and make your change again.",
+    "COMMS_RELAY_INVALID": "That relay endpoint isn’t allowed. Use a public https:// URL.",
+    "COMMS_RELAY_SAVE_FAILED": "Could not save the relay config. Please try again.",
+    "PROFILE_STALE": "This profile was saved by someone else after you opened it. Reload it and re-apply your changes.",
+    "ATS_CONFIG_SAVE_FAILED": "Could not save the webhook settings. Please try again.",
+    "ATS_CONFIG_STALE": "Someone saved newer webhook settings. Reload and make your change again.",
+    "GROUP_EVAL_READ_FAILED": "Could not load the saved comparison. Please try again.",
+    "SIM_RESET_FAILED": "Could not clear the simulation data. Please try again.",
+    "SIM_INBOUND_FAILED": "Could not simulate the incoming application. Please try again.",
+    "SIM_SCREEN_DRAFT_FAILED": "Could not prepare the screening recommendation. Please try again.",
+    "SIM_OFFER_DRAFT_FAILED": "Could not prepare the offer draft. Please try again.",
+    "SIM_OFFER_LINK_FAILED": "Could not read the offer link. Please try again.",
+    "SIM_JOB_REQUIRED": "The simulation needs a role to run against.",
+    "SIM_JOB_NOT_FOUND": "That role no longer exists.",
+    "SIM_NO_APPLICANT": "No candidate is available to simulate an application from.",
+    "SIM_ENTRY_REQUIRED": "The simulation needs a pipeline entry to act on.",
+    "SIM_ENTRY_NOT_FOUND": "That candidate is not on this board.",
+    "MODEL_ADMIN_FORBIDDEN": "Only an owner can change the model keys and routing for this deployment.",
+    "MODEL_KEY_BODY_INVALID": "That key request could not be read.",
+    "MODEL_KEY_PROVIDER_UNKNOWN": "That isn’t a provider this server can store a key for.",
+    "MODEL_KEY_SECRET_REQUIRED": "This provider needs an API key.",
+    "MODEL_KEY_LOCATION_REQUIRED": "Give this provider an API key or a server URL. A row with neither says nothing.",
+    "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI needs the endpoint of your resource before its key can be stored.",
+    "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "This server has no encryption secret set, so a provider key can’t be stored yet.",
+    "MODEL_KEY_REJECTED": "That key couldn’t be stored. Check the endpoint or server URL you gave.",
+    "MODEL_ROUTING_STALE": "Someone re-pinned this use case while you were editing it. The table has been reloaded, so make your change again.",
+    "SCHEDULE_ACTION_REQUIRED": "No scheduling action was named. Reload the tab and try again.",
+    "SCHEDULE_ACTION_UNKNOWN": "That scheduling action isn't one this app performs.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Pick a candidate and a time before booking.",
+    "SCHEDULE_TOKEN_REQUIRED": "That interview link is missing. Reload the tab and try again.",
+    "SCHEDULE_INVITE_NOT_FOUND": "That interview is no longer on your calendar. Reload the tab.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Only a confirmed booking can be cancelled. Reload to see where this one stands.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Only a confirmed booking can be marked as a no-show. Reload to see where this one stands.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Only a confirmed booking can be moved. Send a new scheduling link instead.",
+    "SCHEDULE_PROPOSAL_GONE": "That proposed time is no longer on the invite. Reload to see the current proposals.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "That proposed time has passed. Ask the candidate to suggest new times.",
+    "SCHEDULE_NO_PROPOSALS": "There are no proposed times to decline.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "There's nothing left to reconcile on this interview.",
+    "SCHEDULE_MEETING_URL_INVALID": "Enter a valid http(s) meeting link.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Write a message before sending.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "That message is too long. Please shorten it to 2,000 characters or fewer.",
+    "OPS_STATUS_FAILED": "Could not load system status. Please try again.",
+    "FEEDBACK_READ_FORBIDDEN": "Only someone who can manage members may read the feedback inbox.",
+    "TASK_LIST_FAILED": "Could not load the AI tasks. Please try again.",
+    "TASK_START_FAILED": "Could not start that AI task. Please try again.",
+    "TASK_RETRY_FAILED": "Could not re-run that AI task. Please try again.",
+    "TASK_KIND_UNKNOWN": "This kind of AI task does not exist in this version.",
+    "TASK_BUDGET_EXHAUSTED": "Too many AI runs of this kind have been started recently. Try again shortly.",
+    "TASK_NOT_FOUND": "That task no longer exists.",
+    "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",
+    "TASK_REPLAY_INPUTS_GONE": "The uploaded files for this run have been cleaned up. Upload them again to re-run it.",
+    "FORBIDDEN_CAPABILITY": "Your role does not allow this action.",
+    "forbiddenCapabilityNeeds": "Your role does not allow this action. It needs the “{capability}” permission.",
+    "TEMPLATE_NOT_FOUND": "That template no longer exists.",
+    "TEMPLATE_LAST_ONE": "This is the last template your team can see. Keep at least one.",
+    "TEMPLATE_IS_DEFAULT": "This is the default template. Set another template as the default before deleting it.",
+    "TEMPLATE_STALE": "Someone else saved this template while you were editing. Reload it and reapply your changes.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Only a template shared with the whole company can be the default.",
+    "MODEL_KEY_STALE": "Someone else replaced this key while you were editing it. The stored keys have been reloaded, so make your change again.",
+    "AGENT_REFRESH_NOT_DISPATCHED": "This agent never reached Personas, so there is no request to poll. Dispatch it again.",
+    "VOICE_TRANSPORT_NETWORK": "We could not reach the interview service. Check your connection and try again.",
+    "VOICE_TRANSPORT_AUTH": "The interview service rejected this session. Please contact the recruiter who sent you this link.",
+    "VOICE_TRANSPORT_TIMEOUT": "The interview service did not answer in time. Please try again.",
+    "VOICE_TRANSPORT_PROVIDER": "The interview service could not start the call. Please try again in a moment.",
+    "OFFER_RESPONSE_INVALID": "Respond with either accept or decline.",
+    "STATUS_LINK_INVALID": "This status link is not valid.",
+    "STATUS_NPS_NOT_APPLICABLE": "This question opens once your application has finished.",
+    "DATA_LINK_INVALID": "This data link is no longer valid.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "That control-room action is not one this deployment knows. Reload the page.",
+    "DEVCASE_FLOOR_INVALID": "The promote floor must be a number between 0 and 100.",
+    "DEVCASE_OUTCOME_INVALID": "That outcome could not be recorded. Check the result and the performance score.",
+    "MATCH_REASONING_INPUT_INVALID": "That match could not be explained: the request named no candidate, or no role.",
+    "SIM_CV_INTAKE_FAILED": "Could not file that simulated application. Please try again.",
+    "SIM_CV_FORM_REQUIRED": "Send the CV as multipart form data.",
+    "SIM_CV_FILE_REQUIRED": "Attach a CV file to simulate an application.",
+    "SIM_ROLE_CLOSED": "This role is closed to applications.",
+    "SIM_CV_UNREADABLE": "That CV could not be read. Try a PDF, DOCX, TXT or MD file.",
+    "DEMO_NOT_PROVISIONED": "The live demo is not set up on this deployment yet.",
+    "DEMO_DISABLED": "The live demo is turned off on this deployment.",
+    "SIM_RUN_ACTIVE": "A guided demo is already running here. Wait for it to finish, or stop it first.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "This apply link isn't valid. Ask the recruiter for a fresh one.",
+    "DEVCASE_SESSION_NOT_FOUND": "This work session can't be found. Open your apply link again to start a new one.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "A name and a link to your solution are both required.",
+    "DEVCASE_SESSION_START_FAILED": "Could not open the work session. Please try again.",
+    "CHANNEL_UNKNOWN": "That channel isn’t one kp can receive on.",
+    "CHANNEL_JOB_NOT_FOUND": "That role isn’t available.",
+    "CHANNEL_TOKEN_REQUIRED": "A receiver token is required.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "That receiver can’t be found.",
+    "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state.",
+    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again.",
+    "DEVCASE_CASE_LIST_FAILED": "Could not load the approved cases. Please try again.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Could not issue the skill profile. Please try again.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "A role and a case are both required to approve.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "A submission reference is required.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "That submission can’t be found.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile.",
+    "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again.",
+    "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
+    "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again.",
+    "COMMS_SUPPRESSED": "This candidate can no longer be contacted.",
+    "INTERVIEW_PREP_NOT_FOUND": "There is no interview prep pack for this candidate yet. Generate it first.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Pick at least one question to add to the prep pack.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Say which question to move.",
+    "ENGINE_BUSY": "The analysis engine is busy right now. Try again in a moment.",
+    "IMPORT_BODY_TOO_LARGE": "That file is larger than a workspace backup can be. Check you picked the right file.",
+    "IMPORT_DUMP_REQUIRED": "Send the JSON content of a kp-org-dump backup file.",
+    "IMPORT_DUMP_MALFORMED": "That file is not a valid kp-org-dump backup.",
+    "PORTABILITY_NO_DATABASE": "There is no workspace database yet. Start the app, then try again.",
+    "PORTABILITY_TABLES_POPULATED": "Some tables already contain rows. Confirm the replace before loading this file.",
+    "RESTORE_SCOPE_TAKEN": "Something in this backup now belongs to another organization, so it cannot be restored.",
+    "RESTORE_UNSAFE_IDENTIFIER": "This backup file contains an unsafe table or column name and was refused.",
+    "WORKSPACE_EXPORT_FAILED": "Could not build the organization backup. Please try again.",
+    "WORKSPACE_RESTORE_FAILED": "Could not restore the organization backup. Please try again.",
+    "BILLING_PROVIDER_TIMEOUT": "The payment provider did not respond in time. Please try again in a moment.",
+    "BILLING_QUOTA_EXCEEDED": "This action would exceed this month’s allowance on your current plan. Upgrade or top up in Billing.",
+    "PAYLOAD_TOO_LARGE": "That request was too large to accept. Send less at once.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas sent a response larger than this workspace will read. It was dropped unread; check that the Personas app is up to date.",
+    "BRAND_ACCENT_INVALID": "That accent is not a color. Use a hex value in the form #RRGGBB.",
+    "BRAND_ACCENT_ILLEGIBLE_LIGHT": "That accent is too light for Studio Light: button text and focus rings would be invisible. Pick a darker color (at least 3:1).",
+    "BRAND_ACCENT_ILLEGIBLE_DARK": "That accent has no readable Spark Dark version. It is too dark to lift without becoming a different color, so pick a brighter or more saturated one.",
+    "BRAND_LOGO_INVALID": "That logo link must be an https:// URL, short enough to store.",
+    "BRAND_LOAD_FAILED": "Couldn’t load branding. Please try again.",
+    "BRAND_SAVE_FAILED": "Couldn’t save branding. Please try again.",
+    "AUTOMATION_TASK_FAILED": "Could not run that AI step for this candidate. Please try again.",
+    "AUTOMATION_PASS_FAILED": "Could not run the automation pass. Please try again.",
+    "AUTOMATION_TASK_UNKNOWN": "That automation step does not exist.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "That candidate is not on this board.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
+    "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
+    "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
+    "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
+    "FOLLOWUP_LINK_NOT_FOUND": "This profile link isn't valid. Your application is safely filed. Ask the recruiter for a fresh one.",
+    "ANALYZE_TIMEOUT": "The analysis took too long and was stopped. Try again, or with fewer CVs at once.",
+    "ANALYSES_LIST_FAILED": "Could not load the analysis history. Please try again.",
+    "ANALYSIS_LOAD_FAILED": "Could not load this analysis. Please try again.",
+    "ANALYSIS_SAVE_FAILED": "Could not save that change to the analysis. Please try again.",
+    "ANALYSIS_NOT_FOUND": "That analysis is not in this workspace.",
+    "ANALYSIS_GITHUB_INVALID": "That GitHub analysis could not be read and was not attached.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "That GitHub analysis is too large to attach.",
+    "COMPLIANCE_LOOKUP_FAILED": "Couldn’t load the compliance information. Please try again.",
+    "OFFER_SALARY_INVALID": "That offer amount isn’t a salary we can send. Check the figure before extending.",
+    "OFFER_CURRENCY_UNSUPPORTED": "That currency isn’t one an offer can be made in here.",
+    "OFFER_NOTES_TOO_LONG": "That offer note is too long to send. Shorten it and extend again.",
+    "PROFILE_LIST_FAILED": "Couldn’t load your saved profiles. Please try again.",
+    "PROFILE_BUILD_FAILED": "Couldn’t build that profile. Please try again.",
+    "PROFILE_UPDATE_FAILED": "Couldn’t save your changes to that profile. Please try again.",
+    "PROFILE_DELETE_FAILED": "Couldn’t delete that profile. Please try again.",
+    "PROFILE_CANDIDATES_FAILED": "Couldn’t load the candidate matrix. Please try again.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Select at least one candidate before sending scheduling links.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "That candidate is no longer on this board. Reload and try again.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "That candidate is no longer active, so no scheduling link was sent.",
+    "SCHEDULE_BULK_MINT_FAILED": "Couldn't create a scheduling link for this candidate. The rest of the batch was unaffected.",
+    "SCHEDULE_BULK_OVER_CAP": "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Pick a candidate before creating a scheduling link.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "That candidate is no longer active, so no invite was sent."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1441,6 +1846,8 @@
     "eyebrow": "Your data",
     "loadFailed": "This link has expired or is no longer valid.",
     "eraseFailed": "Could not complete the erasure right now. Please try again.",
+    "confirmTitle": "Erase your data for good?",
+    "confirmBody": "This cannot be undone. Your name, contact details, CV and interview answers are removed immediately; only the de-identified assessment record stays.",
     "forRole": "Your application for {role}",
     "forRoleGeneric": "Your application",
     "heldTitle": "What we hold about you",
@@ -1661,7 +2068,8 @@
       "skip": "No thanks",
       "thanks": "Thank you. That's on your profile now.",
       "saveFailed": "We couldn't save those answers just now. Your application is safely filed, so feel free to try again."
-    }
+    },
+    "fixAnswer": "Fix this answer"
   },
   "interview": {
     "completedTitle": "Thank you",
@@ -1682,7 +2090,8 @@
       "beforeTitle": "Before you start",
       "tipQuiet": "Find a quiet spot with little background noise.",
       "tipHeadphones": "Use headphones if you can. It keeps the turn-taking clean.",
-      "tipMic": "Allow microphone access when your browser prompts you."
+      "tipMic": "Allow microphone access when your browser prompts you.",
+      "durationChip": "~{min} min"
     },
     "voice": {
       "loading": "Loading voice interview…",
@@ -1766,7 +2175,26 @@
         "providerGroup": "Provider",
         "chunks": "{spoken} of {total} chunks",
         "truncated": "stopped after {spoken} of {total} chunks. The rest is in the text."
-      }
+      },
+      "availabilityUnknown": "We could not check whether the interview service is reachable.",
+      "availabilityRetry": "Check again",
+      "notChecked": "not checked",
+      "micTestLevel": "Mic level: {level}%",
+      "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
+      "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]",
+      "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record."
+    },
+    "brief": {
+      "debriefApproach": "Your take-home: how you approached it",
+      "debriefDecisions": "Decisions deep-dive",
+      "debriefCounterfactuals": "Counterfactuals",
+      "debriefQuestions": "Your questions",
+      "recruiterAddedQuestions": "Recruiter-added questions"
+    },
+    "lab": {
+      "eyebrow": "Internal · voice MVP",
+      "title": "Voice interview lab",
+      "disabledBody": "The lab is disabled in production: it mints live provider credentials without a session token. Set <flag>INTERVIEW_LAB_ENABLED=1</flag> to opt in, or use the recruiter simulation, which runs through a tokenized session."
     }
   },
   "palette": {
@@ -2044,7 +2472,15 @@
       "settings": "Settings"
     },
     "openWorkspace": "Open workspace",
-    "home": "Home"
+    "home": "Home",
+    "lockedTab": "Your role cannot open this. It needs “{capability}”.",
+    "capabilities": {
+      "orgManage": "Manage organization",
+      "membersManage": "Manage members",
+      "teamManage": "Manage teams",
+      "pipelineWrite": "Edit the pipeline",
+      "read": "View"
+    }
   },
   "enums": {
     "stage": {
@@ -2064,6 +2500,12 @@
       "student": "Student",
       "career_switcher": "Switcher",
       "unrouted": "Unrouted"
+    },
+    "archetypeLong": {
+      "bau": "Experienced",
+      "student": "Student / early-career",
+      "career_switcher": "Career-switcher",
+      "unrouted": "Not yet routed"
     },
     "seniority": {
       "junior": "Junior",
@@ -2127,13 +2569,41 @@
       "offer_reminder": "Offer reminder"
     },
     "provenance": {
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "observed",
       "professional": "prod",
       "internship": "intern",
       "self_declared": "self",
       "open_source": "OSS",
       "certification": "cert",
-      "academic": "academic"
+      "academic": "academic",
+      "coursework": "coursework",
+      "academic_project": "academic project",
+      "thesis": "thesis",
+      "personal_project": "personal project",
+      "extracurricular": "extracurricular"
+    },
+    "skillLevel": {
+      "foundational": "foundational",
+      "working": "working",
+      "strong": "strong"
+    },
+    "evidenceKind": {
+      "project": "project",
+      "thesis": "thesis",
+      "internship": "internship",
+      "course": "course",
+      "extracurricular": "extracurricular",
+      "certification": "certification",
+      "job": "job",
+      "other": "other"
+    },
+    "scoringModel": {
+      "experienced": "experienced",
+      "early_career": "early career"
     }
   },
   "pipeline": {
@@ -2149,7 +2619,11 @@
       "boardAria": "Pipeline board, scroll horizontally",
       "showFewer": "Show fewer",
       "moreCount": "+{count} more",
-      "movedAnnounce": "Moved {name} to {stage}"
+      "movedAnnounce": "Moved {name} to {stage}",
+      "gridAria": "Positions by stage",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {no candidates} =1 {1 candidate} other {# candidates}}",
+      "cellEmpty": "No candidates",
+      "dropHint": "Drop a candidate here to move them to this stage."
     },
     "stageHelp": {
       "Accepted": "CV received: an inbound application or a proactively-sourced candidate, waiting to be screened.",
@@ -2190,7 +2664,12 @@
     "tokenLink": {
       "copy": "Copy link",
       "openAsCandidate": "Open as candidate",
-      "createFailed": "Couldn't create the link."
+      "createFailed": "Couldn't create the link.",
+      "openConfirmTitle": "Open this candidate's link?",
+      "openConfirmSubtitle": "You'll see exactly what they see.",
+      "openConfirmBody": "This is the live link, not a preview. Some of these pages record that they were opened, so the candidate's timeline may show this visit as theirs.",
+      "openConfirmCancel": "Cancel",
+      "openConfirmCta": "Open the live link"
     },
     "events": {
       "matched": "was matched",
@@ -2231,6 +2710,7 @@
       "interview_reminder_sent": "was sent an interview reminder",
       "interviewer_brief_sent": "had their interviewer briefed",
       "interviewer_brief_skipped": "got no interviewer brief (no address on file)",
+      "interview_failover": "had their interview fail over to another voice provider",
       "offer_sent": "was sent an offer",
       "comm_resent": "had a message resent",
       "interview_scheduled": "confirmed an interview slot",
@@ -2238,6 +2718,7 @@
       "offer_declined": "declined the offer",
       "offer_expired": "had their offer expire unanswered",
       "rejection_comms_failed": "had the rejection email fail to queue",
+      "offer_comms_failed": "had the offer message fail to send",
       "fairness_gate_unknown_archetype": "hit the fairness gate (archetype unknown)",
       "fairness_gate_blocked_reject": "had an auto-reject blocked by the fairness gate",
       "aging_alert": "is aging past the stage SLA",
@@ -2260,7 +2741,8 @@
       "agent_dispatched": "was sent to Personas as a persona request",
       "agent_activated": "went live as a Personas persona",
       "onboarding_started": "started onboarding (retired module)",
-      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)"
+      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)",
+      "screen_wave_holdout_unsealed": "was spared by the screening wave, but its calibration holdout record could not be sealed"
     },
     "relTime": {
       "today": "today",
@@ -2280,8 +2762,11 @@
       "doneCount": "Done. {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
       "doneHeldAtOffer": "{count, plural, =1 {1 candidate at Offer awaits} other {# candidates at Offer await}} the offer flow. Extend the offer. Advancing never hires.",
       "doneDroppedOut": "{count, plural, =1 {1 previewed candidate was skipped} other {# previewed candidates were skipped}}. The score was no longer below the threshold when you confirmed, so nothing was rejected.",
+      "doneFailed": "{count, plural, =1 {1 candidate was not actioned} other {# candidates were not actioned}}. They were changed or closed out while the command ran, so nothing was applied to them. Refresh and try again.",
+      "doneCommsFailed": "{count, plural, =1 {1 rejected candidate was not notified} other {# rejected candidates were not notified}}. The rejection stands; send the note manually from their card.",
       "doneSummary": "Policy pass done: {advanced} advanced, {rejected} rejected, {held} held.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "failed": "The command couldn't run. Check your connection and try again."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -2427,7 +2912,11 @@
       "attentionTitle": "Needs your attention",
       "filterStateLabel": "State",
       "stageOffBoard": "Stage {stage} is no longer a column on this board. The filter is still applied, so you are seeing only the candidates still standing on it.",
-      "stageOffBoardClear": "Remove this filter"
+      "stageOffBoardClear": "Remove this filter",
+      "slaEditorRange": "{min}–{max} days; blank uses the default",
+      "previewCommitFailed": "The pass could not be applied.",
+      "bulkTaskIncomplete": "The drafting task ended without a result. Still selected, retry.",
+      "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why."
     },
     "today": {
       "eyebrow": "Today",
@@ -2578,18 +3067,17 @@
         "saving": "Saving…",
         "saveFailed": "Couldn't save the rating.",
         "purpose": "Record how this hire actually worked out. It is the ground truth behind the quality-of-hire measurement in Analytics.",
-        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions."
+        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions.",
+        "loadFailed": "Couldn’t load the outcome record.",
+        "retry": "Try again"
       },
       "transfer": "transfer"
     },
     "actions": {
       "screen": "Screen with AI",
-      "screenNote": "A confident pass advances the candidate; otherwise it holds for your review in Decisions.",
       "prep": "Interview prep",
       "scorecard": "Synthesize scorecard",
-      "scorecardNote": "From your notes → a structured scorecard in Decisions.",
       "offer": "Draft offer",
-      "offerNote": "Salary from the role band, scaled by fit → an offer to approve in Decisions.",
       "outreach": "Draft outreach",
       "rejection": "Draft rejection",
       "rematch": "Explore alternatives"
@@ -2652,7 +3140,10 @@
       "thisRun": "{label} this run",
       "runScope": "{mine} of {total} yours",
       "scopeGlobal": "applies to all teams",
-      "scopeGlobalTitle": "One clock runs for the whole installation: turning it on or off starts or stops automation for every team, not just yours."
+      "scopeGlobalTitle": "One clock runs for the whole installation: turning it on or off starts or stops automation for every team, not just yours.",
+      "liveHealthy": "ticking",
+      "liveStarting": "starting…",
+      "liveStalled": "not ticking"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -2676,7 +3167,10 @@
       },
       "noBand": "No salary band is configured for this role or market, so no figure was proposed. Set the amount when approving.",
       "unpricedAmount": "Amount to be set",
-      "unpricedTitle": "No salary was proposed for this draft. Set the amount when you approve the offer."
+      "unpricedTitle": "No salary was proposed for this draft. Set the amount when you approve the offer.",
+      "reasons": {
+        "rematchSkippedHired": "This candidate is hired. No alternative role was looked for."
+      }
     },
     "applied": {
       "advanced": "Advanced a stage.",
@@ -2744,6 +3238,31 @@
     "scoreKind": {
       "transferShort": "transfer",
       "transferTitle": "A work-sample transfer score, not a match score. It says how well the skills demonstrated on the assignment carry to this role."
+    },
+    "add": {
+      "added": "{name} added to the pipeline.",
+      "failed": "Couldn't add {name} to the pipeline.",
+      "failedAnnounce": "Couldn't add {name} to the pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "Reached out to {name}. They are in the pipeline and a first-touch message is on its way.",
+      "alreadySent": "{name} is in the pipeline and was already contacted for this role, so no new message was sent.",
+      "failed": "Couldn't reach out to {name}.",
+      "failedAnnounce": "Couldn't reach out to {name}. {reason}",
+      "suppressed": {
+        "anonymized": "No message was sent. This candidate has been anonymized.",
+        "suppressed": "No message was sent. Outreach to this candidate is suppressed (consent lapsed, or the sequence was stopped)."
+      }
+    },
+    "eventReasons": {
+      "offerAutoExtended": "Offer extended unattended per the hiring plan (offer gate: auto).",
+      "roleClosedWithdrawn": "Role closed. Candidate withdrawn from the pipeline.",
+      "roleReopenedRestored": "Role reopened. Candidate restored to the pipeline.",
+      "autoRejectionReversed": "Auto-rejection reversed for re-review.",
+      "intakeCapturedManually": "Intake captured manually.",
+      "githubDeepDiveFromDrawer": "GitHub deep-dive run from the candidate drawer.",
+      "manualStageMove": "Moved manually by a recruiter.",
+      "addedToPipeline": "Added to the pipeline."
     }
   },
   "decisions": {
@@ -2799,7 +3318,9 @@
       "rejectConfirm": "Reject {count} and notify them?",
       "rejectConfirmYes": "Reject & notify",
       "rejectCancel": "Cancel",
-      "rejecting": "Rejecting…"
+      "rejecting": "Rejecting…",
+      "accepting": "Accepting…",
+      "requestFailed": "Couldn't run that batch. Nothing was decided."
     },
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role. Advance or reject from a candidate's analysis summary.",
@@ -2867,7 +3388,12 @@
       "selfReportLabel": "Self-reported by the model",
       "selfReportValue": "{pct} out of 100",
       "selfReportNote": "the model's own rating of this verdict. Nothing has measured it against real outcomes.",
-      "selfReportTitle": "The model was asked for a verdict and also stated how sure it feels. That statement is evidence about the model, not about the candidate: no outcome, no holdout and no base rate stands behind it. The measured sibling, how often a score range actually advances, is a statistic about a whole cohort and lives in the quality section of Analytics."
+      "selfReportTitle": "The model was asked for a verdict and also stated how sure it feels. That statement is evidence about the model, not about the candidate: no outcome, no holdout and no base rate stands behind it. The measured sibling, how often a score range actually advances, is a statistic about a whole cohort and lives in the quality section of Analytics.",
+      "engineLabel": "Engine",
+      "engineTemplate": "Template (no model was used)",
+      "engineTemplateNote": "Written by the built-in fallback, not by a model. Read it as a starting point and check the reasoning yourself.",
+      "engineTemplateTitle": "The automation ran without a model (no API key, the AI allowance is spent, or the call failed), so a deterministic template produced this verdict.",
+      "engineLlm": "Model · {provider}"
     },
     "rules": {
       "title": "Decision rules · Screening",
@@ -2887,7 +3413,9 @@
       "familyFloorChip": "below {floor}",
       "familyEditHint": "These are set on the Calibration panel in Analytics. This rule only reflects them.",
       "fairnessLabel": "Fairness:",
-      "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected. That gate is enforced in code."
+      "fairnessBody": "early-career candidates (student / career-switcher) are <b>never</b> auto-rejected. That gate is enforced in code.",
+      "loadFailed": "Couldn't load the live rules for this workspace. Nothing is shown or saved until it loads.",
+      "loadRetry": "Try again"
     },
     "compliance": {
       "title": "Compliance & fairness",
@@ -2935,7 +3463,10 @@
       "anyAdverse": "Potential adverse impact: at least one group is below the 80% threshold.",
       "insufficientSample": "Insufficient sample: no group reaches {min} applicants, so the four-fifths ratio is not meaningful. This is not a finding of no adverse impact.",
       "noAdverse": "No group falls below the 80% four-fifths threshold.",
-      "parseIgnored": "Read {read} of {total} rows. {ignored} ignored (rows: {rows}). Each row needs: group, selected, total. The result below is computed only on the rows that parsed."
+      "parseIgnored": "Read {read} of {total} rows. {ignored} ignored (rows: {rows}). Each row needs: group, selected, total. The result below is computed only on the rows that parsed.",
+      "jurisdictionUnconfirmed": "No jurisdiction is saved for this workspace. The default below is in force, but nobody has confirmed it.",
+      "jurisdictionReadFailed": "The saved jurisdiction couldn’t be read. What is shown is the default, not necessarily what your candidate disclosures serve.",
+      "covered5Unconfirmed": "Personal data is processed under {dataLaw} with self-service erasure. The retention window couldn’t be read, so no figure is stated here."
     },
     "wave": {
       "title": "Screening wave · {role}",
@@ -2985,7 +3516,11 @@
         "unscored": "unscored: no match score yet. Excluded from auto-rejection (needs scoring)",
         "holdout": "kept as a calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})",
         "approvedByNote": "Approved by {who}.",
-        "approverUnidentified": "Approver not identified."
+        "approverUnidentified": "Approver not identified.",
+        "autoRatifiedScreening": "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
+        "sealFailed": "kept: the tamper-evident decision record could not be sealed, so the auto-rejection was not applied",
+        "reinstated": "kept: a recruiter reversed an earlier auto-rejection, so the machine will not re-reject them",
+        "holdoutSealFailed": "kept, but the calibration holdout record could not be sealed, so this candidate is not in the clean arm"
       }
     },
     "summary": {
@@ -3169,7 +3704,18 @@
         "cancel": "Cancel",
         "confirm": "Reject & record reason",
         "sealedToast": "{name} rejected. The reason is on the audit record."
-      }
+      },
+      "schemeSkillsShort": "S",
+      "schemeCareerShort": "C",
+      "schemePersonalShort": "P",
+      "schemeWeightsTitle": "Weighting: skills / career / personal",
+      "narrativeInLanguage": "This comparison is shown in {language}.",
+      "consentExcludedNote": "{count, plural, one {# candidate was withheld} other {# candidates were withheld}} from this comparison because they were erased or their consent has lapsed. The ranking below covers the rest of the field.",
+      "degradedNote": "Degraded: {stages}. Those stages fell back to the deterministic result, so the comparison is thinner than a full AI run.",
+      "degradedNoteTimeout": "Degraded (timed out): {stages}. Those stages fell back to the deterministic result, so the comparison is thinner than a full AI run.",
+      "degradedStageRanking": "ranking",
+      "degradedStageComparison": "AI comparison",
+      "degradedStageReasoning": "candidate rationales"
     },
     "empty": {
       "batonEyebrow": "Baton passed",
@@ -3186,7 +3732,9 @@
         "fairnessWouldRefuse": "Auto-reject would be refused by fairness backstop: {verdict}. Original policy decision: {original}",
         "applyFailed": "Apply failed: {detail}. Original policy decision: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Couldn't put this candidate back. Try again.",
+    "evalCacheProbeFailed": "We couldn't check whether a saved comparison already exists for this selection. Re-run to compare fresh; that starts a new AI run."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -3252,7 +3800,10 @@
       "proposalsGroupAria": "Candidate's proposed times",
       "acceptProposal": "Accept {time}",
       "declineProposals": "Decline all",
-      "declineProposalsPrompt": "Decline the proposed times?"
+      "declineProposalsPrompt": "Decline the proposed times?",
+      "cancelling": "Cancelling…",
+      "markingNoShow": "Marking…",
+      "truncated": "Showing the most recent invites only. Older ones are not listed here."
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
@@ -3281,6 +3832,11 @@
     "reviewScorecard": "Review scorecard in Decisions",
     "loadFailed": "Failed to load.",
     "startFailed": "Couldn't start the interview.",
+    "slotSuggested": "suggested",
+    "slotConfirmed": "confirmed",
+    "candidateZone": "Candidate's timezone: {zone}",
+    "bookFailed": "Couldn't book that time.",
+    "declineFailed": "Couldn't decline this candidate. Nothing was recorded.",
     "interviewerTitle": "Interviewer: {name}",
     "rounds": {
       "label": "Interview round",
@@ -3305,7 +3861,14 @@
       "verdictNote": "Verdicts flow to the Decisions queue as scorecard reviews. This docket is the interview loop, not the decision.",
       "fullTranscript": "Full transcript & scorecard",
       "noScorecardHelp": "No scorecard was produced for this interview. Open the full view to read the raw transcript.",
-      "confidence": "confidence: {level}"
+      "costUnknown": "cost unknown",
+      "costFree": "no per-minute cost",
+      "costTitle": "Estimated cost of this call, from the usage ledger",
+      "providerTitle": "The voice provider that served this call",
+      "confidence": "confidence: {level}",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+      "failedOverFrom": "fell back from {provider}",
+      "attemptsTitle": "How this call ran: reconnects, and a provider swap if the chosen one was unavailable"
     },
     "calendar": {
       "calendarAria": "Interview week calendar: days across, times down",
@@ -3320,7 +3883,10 @@
       "bookedOffHourTitle": "{name} · already booked at {time}",
       "pagerPrev": "Previous week",
       "pagerNext": "Next week",
-      "weekOf": "Week of {range}"
+      "weekOf": "Week of {range}",
+      "timezoneNote": "All times in the interview timezone: {zone}.",
+      "suggested": "suggested time, not confirmed",
+      "chipSuggestedTitle": "{name} · suggested time, not confirmed yet"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",
@@ -3449,7 +4015,9 @@
       "readbackCorrectedHint": "Heard in the transcript → what the candidate said it should be",
       "readbackUnconfirmedFlag": "unconfirmed",
       "readbackUnconfirmedHint": "Mentioned earlier but not reached in the read-back (possibly a transcription error)",
-      "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard."
+      "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard.",
+      "narrativeInLanguage": "This scorecard summary is shown in {language}.",
+      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}"
     },
     "relay": {
       "label": "Where the baton is",
@@ -3459,7 +4027,10 @@
       "noteWaiting": "Waiting here",
       "noteHere": "You are here",
       "noteNext": "Next"
-    }
+    },
+    "liveStale": "Live interview status is out of date.",
+    "liveRetry": "Retry",
+    "invitesTruncated": "Showing the most recent interviews only. Older invites are not on this list."
   },
   "library": {
     "tab": {
@@ -3539,6 +4110,8 @@
       "provWebGrounded": "web-grounded",
       "provEstimated": "estimated",
       "salaryUnavailable": "Salary unavailable",
+      "repoGrounding": "Repo grounding",
+      "repoLoc": "{loc} lines of code",
       "sourcesLabel": "Sources:",
       "interviewCase": "Work-sample assignment",
       "timebox": "Timebox: ~{hours}h",
@@ -3591,7 +4164,7 @@
       "shelfRecordLabel": "The record you're about to create",
       "shelfWriteCta": "Write the first spec",
       "shelfDraftCta": "Have the builder draft it",
-      "shelfCtaNote": "Both open the Generate panel. Save a draft as-is, or let the AI build the description, a market salary band and a work-sample assignment.",
+      "shelfCtaNote": "The Generate panel takes it from here: save what you type as a draft, or hand it to the AI to build the description, a market salary band and a work-sample assignment.",
       "shelfReuseLabel": "One sheet is reusable for",
       "shelfReuseAnalyze": "Score CVs against it",
       "shelfReuseIngest": "Ingest it as an open role",
@@ -3670,7 +4243,9 @@
           "processing": "Writing up the call…",
           "unavailable": "Voice isn't configured on this server. Continue in text.",
           "failed": "The call didn't go through. Continue in text.",
-          "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text."
+          "storedNote": "Call transcript saved. AI extraction needs a connected provider, so the brief is unchanged. Continue in text.",
+          "checkFailed": "Couldn't check whether voice is available. Try again, or continue in text.",
+          "recheck": "Check again"
         },
         "edit": {
           "start": "Edit brief",
@@ -3739,7 +4314,9 @@
           "kindNote": "note",
           "kindJd": "saved JD",
           "jdPick": "Pick a saved JD…",
-          "error": "Could not update the attachments. Please try again."
+          "error": "Could not update the attachments. Please try again.",
+          "noteFallbackTitle": "Untitled note",
+          "textCap": "That note is longer than the {max, number} characters one piece of reference material can hold. Shorten it, or attach it in parts."
         },
         "columns": {
           "col": {
@@ -3776,13 +4353,30 @@
           "begin": "Scan and start",
           "starting": "Starting…",
           "cancel": "Cancel",
+          "cancelScan": "Stop the scan",
           "startError": "The scan could not be started. Check the repository and try again.",
           "scan": {
             "queued": "Reading the codebase (queued)",
             "running": "Reading the codebase…",
             "complete": "The codebase has been read.",
             "failed": "The scan failed. Continue in conversation; the brief will carry no codebase reading.",
-            "unreachable": "Can't reach the scan right now. Retrying."
+            "unreachable": "Can't reach the scan right now. Retrying.",
+            "failedTargetRefused": "This repository is no longer on the scan allow-list, so the scan was refused.",
+            "failedOfflineRefused": "Offline mode refuses remote clones. Scan a local path instead.",
+            "failedGitMissing": "git is not installed on this machine, so a URL scan cannot run.",
+            "failedCloneFailed": "The repository could not be cloned. Check the URL and the access it needs.",
+            "failedCloneTimeout": "Cloning the repository took too long and was stopped.",
+            "failedCancelled": "The scan was stopped.",
+            "failedEngineFailed": "The scan engine failed, so nothing was read.",
+            "fellBackAgentNotInstalled": "The AI agent is not installed, so this is the file-walk reading only.",
+            "fellBackAgentTimeout": "The AI agent timed out, so this is the file-walk reading only.",
+            "fellBackAgentUnparseable": "The AI agent's answer could not be read, so this is the file-walk reading only.",
+            "fellBackAgentRefused": "The AI agent stopped early, so this is the file-walk reading only.",
+            "fellBackAgentOutputTooLarge": "The AI agent's answer was too large to accept, so this is the file-walk reading only.",
+            "fellBackProviderError": "The AI provider failed, so this is the file-walk reading only.",
+            "fellBackUnknown": "The AI agent fell back, so this is the file-walk reading only.",
+            "fenceUnverified": "The AI agent read this repo behind secret-file rules that have not been verified for the Claude CLI version installed here.",
+            "fenceVersionUnknown": "The Claude CLI did not report its version, so the secret-file rules this scan ran behind could not be verified."
           },
           "dossier": {
             "title": "What the scan read",
@@ -3822,6 +4416,26 @@
           "recompose": "Re-compose",
           "composing": "Composing…",
           "composeError": "Could not compose the spec. Please try again.",
+          "moreCount": "{count, plural, =1 {+1 more} other {+# more}}",
+          "showLess": "Show less",
+          "mandate": {
+            "title": "The mandate",
+            "gates": "Approval gates",
+            "objectives": "Outcomes and their bars",
+            "direction": {
+              "gte": "at least",
+              "lte": "at most"
+            },
+            "windowValue": "{days, plural, one {# day window} other {# day window}}",
+            "reviewCadence": "Review cadence",
+            "reviewCadenceValue": "{days, plural, one {every # day} other {every # days}}",
+            "retire": "Retire when",
+            "reservation": "Budget reservation",
+            "reservationValue": {
+              "estimate": "estimated per run",
+              "fixed": "reserved up front"
+            }
+          },
           "spec": {
             "title": "App master spec",
             "empty": "Compose the spec once the outcomes and the mandate are captured.",
@@ -3851,6 +4465,10 @@
           "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
           "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
         },
+        "degradedNoProvider": "No AI model is configured, so the guided checklist runs instead. Your answers are captured all the same.",
+        "degradedProviderFailed": "The model didn't answer, so the guided checklist took over. Your answers are captured. Try again in a moment.",
+        "standInLanguage": "The checklist isn't written in this session's language yet, so it is answering in {language}.",
+        "compactedNote": "{count} earlier turns rolled off this transcript. What was said in them is kept in the brief.",
         "table": {
           "role": "Role",
           "shape": "Shape",
@@ -3862,7 +4480,24 @@
           "noMatch": "No session matches these filters.",
           "clear": "Clear filters"
         }
-      }
+      },
+      "buildHeldChip": "Build held as a revision",
+      "buildHeldBody": "You edited this JD while the build was running, so your own text was kept and the generated draft was filed in the edit history.",
+      "buildHeldHint": "Open the generated draft in this JD's edit history.",
+      "buildHeldOpenDraft": "Open that draft",
+      "buildIntentLabel": "Built with",
+      "buildIntentTemplate": "Template",
+      "buildIntentLanguage": "Language",
+      "buildIntentSeniority": "Seniority",
+      "buildIntentTemplateUnknown": "Could not load templates, so this build's template cannot be named.",
+      "buildIntentAiDefault": "AI default format",
+      "caseTaskFallback": "Task",
+      "pollStalledNote": "Still analyzing. Nothing has reported on this build for a while. The Tasks drawer has its live status.",
+      "unsavedTitle": "Discard your unsaved changes?",
+      "unsavedBody": "This JD has edits you haven't saved yet. Leaving the editor discards them.",
+      "unsavedDiscard": "Discard changes",
+      "unsavedKeep": "Keep editing",
+      "entryCountOfTotal": "{count, plural, one {# entry} other {# entries}} of {total} saved"
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -3883,6 +4518,7 @@
       "intro": "Pick a company template, describe the need in your own words, and AI fills the template. It clarifies the need, designs the role (optionally analyzing a public repo for dev roles), and researches market salary.",
       "templateLabel": "Template",
       "aiDefaultFormat": "AI default format (no template)",
+      "templatesLoadFailed": "Could not load your templates. The AI default format is still available.",
       "defaultSuffix": " (default)",
       "manage": "Manage",
       "manageTitle": "Create, edit, or delete company templates",
@@ -4018,7 +4654,16 @@
         "heading_apply": "How to apply",
         "offer_note": "Hybrid working, meaningful ownership, and room to grow.",
         "apply_note": "Apply via the link: a short conversation, then a first-round interview."
-      }
+      },
+      "loadFailed": "Couldn't load your templates.",
+      "retry": "Retry",
+      "retrying": "Retrying…",
+      "deleteTitleLastOne": "This is the last template your team can see. Keep at least one.",
+      "reloadLatest": "Reload the saved version",
+      "unsavedTitle": "Discard your unsaved template?",
+      "unsavedBody": "This template has edits you haven't saved yet. Leaving the editor discards them.",
+      "unsavedDiscard": "Discard changes",
+      "unsavedKeep": "Keep editing"
     },
     "intakeTab": {
       "eyebrow": "Workspace",
@@ -4062,7 +4707,9 @@
         "unlockChannels": "Channels open",
         "unlockPipeline": "Candidates flow",
         "unlockDecisions": "Decisions queue"
-      }
+      },
+      "showingCut": "Showing the first <b>{shown}</b> of <b>{matching}</b> matching roles. The list is cut at {limit}.",
+      "loadFailed": "Couldn't load the job catalog."
     },
     "table": {
       "caption": "Job corpus: normalized job postings filterable by role family, seniority, work mode, and entry-eligibility. Activate a row to expand its requirements and graduate lens.",
@@ -4108,6 +4755,7 @@
       "cancelRun": "Cancel run",
       "cancelled": "Parsing cancelled. Nothing was added.",
       "bulkCancelled": "Cancelled after {done} of {total} positions. The results so far are kept below.",
+      "malformedResponse": "The server sent a response we could not read. Nothing was added, so try again.",
       "pasteHeading": "Import a job position"
     },
     "drafts": {
@@ -4121,6 +4769,20 @@
       "sourced": "{count, plural, one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
       "quotaNote": "You've reached your plan's active-job limit. Upgrade or close a role to publish another.",
       "goToBilling": "Upgrade in Billing",
+      "loadFailed": "Couldn't load your drafts.",
+      "publishWentLive": "The role is live.",
+      "publishReopened": "{count, plural, one {Reopened: # withdrawn candidate is back in the pipeline.} other {Reopened: # withdrawn candidates are back in the pipeline.}}",
+      "publishAlreadyLive": "Already live. Nothing was re-sourced.",
+      "publishSourced": "{count, plural, =0 {No saved candidate matched this role yet.} one {Sourced # candidate into the Pipeline.} other {Sourced # candidates into the Pipeline.}}",
+      "publishSkipped": "{count, plural, one {# saved candidate could not be read, so it was never scored.} other {# saved candidates could not be read, so they were never scored.}}",
+      "publishSilver": "{count, plural, one {# past candidate was flagged for rediscovery.} other {# past candidates were flagged for rediscovery.}}",
+      "publishSourcingFailed": "Sourcing broke, so nobody was pulled in. That is not the same as nobody matching.",
+      "publishInFlight": "Going live and sourcing candidates. This can take a few minutes.",
+      "publishStopWaiting": "Stop waiting",
+      "publishAbandoned": "Stopped waiting. The role may already be live, but the candidate sweep was cancelled. Reopen this role to check.",
+      "publishLastResult": "Last publish",
+      "retry": "Retry",
+      "publishSilverFailed": "Rediscovery couldn't run for this role, so no past candidates were flagged. That is not the same as none qualifying.",
       "published": "“{title}” is live."
     },
     "posting": {
@@ -4244,7 +4906,8 @@
       "warnNoSkills": "No extracted skills, so stack hooks were skipped.",
       "applyUrlNote": "CTA links to the quick-apply form:",
       "loadFailed": "Couldn't load the campaign pack.",
-      "generateFailed": "Couldn't generate the campaign pack."
+      "generateFailed": "Couldn't generate the campaign pack.",
+      "warnUnknown": "A fact the pack had to do without ({code})."
     },
     "rediscover": {
       "loadFailed": "Couldn't run rediscovery.",
@@ -4267,7 +4930,8 @@
         "closed": "Reached the finish line on a role that closed under them. A proven, available candidate at a {score}% fit for {jobTitle}.",
         "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle}. A redeploy worth weighing.",
         "reached": "Got as far as {stage} last time. Surfaced ahead of shallower priors."
-      }
+      },
+      "suppressed": "{count, plural, one {# past candidate was left out: their consent has lapsed or their data was erased.} other {# past candidates were left out: their consent has lapsed or their data was erased.}}"
     },
     "rediscoveryFeed": {
       "title": "Silver medalists",
@@ -4282,7 +4946,12 @@
       "addToPipeline": "Add to pipeline",
       "adding": "Adding…",
       "added": "Added",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "loadFailed": "Couldn't load silver medalists.",
+      "retry": "Retry",
+      "dismissFailed": "Couldn't dismiss that match. It's back in the list.",
+      "addFailed": "Couldn't add to the pipeline.",
+      "sweptIncomplete": "{count, plural, one {# role couldn't be ranked, so this list is incomplete.} other {# roles couldn't be ranked, so this list is incomplete.}}"
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",
@@ -4317,7 +4986,8 @@
       "telemetryPause": "pause {dur}",
       "telemetryHintIntegrated": "hint integrated",
       "telemetryHintAcknowledged": "hint acknowledged",
-      "telemetryHintMissed": "hint not taken up"
+      "telemetryHintMissed": "hint not taken up",
+      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}"
     },
     "candidates": {
       "failedStatus": "Failed ({status}).",
@@ -4362,7 +5032,9 @@
       "couldntAdd": "Couldn't add to the pipeline: {error}",
       "couldntReach": "Couldn't reach out: {error}",
       "assumptions": "Assumptions:",
-      "auditUnder": "under {label}"
+      "auditUnder": "under {label}",
+      "auditPoolTruncated": "Capped sample: the candidate corpus exceeds the ranking caps, so this audit covers the scored subset only, not the whole pool.",
+      "malformedResponse": "The server sent a response we could not read. Try loading the candidates again."
     },
     "deeplink": {
       "notFound": "That role isn't in your catalog. It may have been removed, or it belongs to another team.",
@@ -4461,7 +5133,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "rule-based",
       "cachedSuffix": " · cached",
-      "narrativeInLanguage": "This rationale is shown in {language}. The AI writes it only in English and Czech.",
+      "narrativeInLanguage": "This rationale is shown in {language}.",
       "strengths": "Strengths",
       "gaps": "Gaps",
       "interviewProbes": "Interview probes",
@@ -4661,7 +5333,7 @@
     },
     "result": {
       "confidence": "signals agree {pct}%",
-      "saved": "saved · {id}",
+      "saved": "saved · {name}",
       "preview": "preview (not saved)",
       "routing": "Routing: {reasons}",
       "completeness": "Completeness",
@@ -4681,7 +5353,21 @@
         "has_activity": "an internship, activity, or certification"
       },
       "matchNow": "Match now",
-      "complete": "Profile looks complete for its archetype."
+      "complete": "Profile looks complete for its archetype.",
+      "reasons": {
+        "default": "no strong signal: defaulting to experienced",
+        "self_declared": "self-declared: {archetype}",
+        "signal_enrolled": "currently enrolled",
+        "signal_expected_graduation": "expected graduation: {expected_graduation}",
+        "signal_yre_low": "under a year of relevant experience",
+        "signal_yre_high": "{years_relevant_experience} years of relevant experience",
+        "signal_education_dominant": "education is the dominant CV block",
+        "signal_switch_strong": "wants a domain change and has substantial experience",
+        "signal_switch_weak": "wants a domain change",
+        "contradiction_student_experienced": "contradiction: 3+ years of relevant experience for a student",
+        "contradiction_bau_early_career": "contradiction: enrolment / under a year of experience suggests early-career",
+        "contradiction_switcher_no_experience": "note: a switcher usually implies prior professional experience"
+      }
     },
     "fields": {
       "remove": "Remove"
@@ -4756,7 +5442,14 @@
       "aspirations": "Aspirations / target roles",
       "aspirationsPlaceholder": "Junior frontend developer, ML engineer",
       "working": "Working…",
-      "checkPreview": "Check (preview)"
+      "checkPreview": "Check (preview)",
+      "draftAppliedNote": "Draft applied. Nothing is saved until you click Save.",
+      "draftKeptEdits": "{count, plural, one {# field you had edited was kept} other {# fields you had edited were kept}}. The draft filled in the rest.",
+      "draftUseAnyway": "Use the draft anyway",
+      "draftUndo": "Undo the draft",
+      "draftKeep": "Keep this",
+      "staleSave": "This profile was saved by someone else after you opened it, so your save was not applied. Nothing here has been lost. Reload to see their version.",
+      "staleReload": "Reload the profile"
     },
     "archetypes": {
       "eyebrow": "Workspace",
@@ -4781,7 +5474,12 @@
         "id_exists": "An archetype with id ‘{id}’ already exists.",
         "not_found": "Archetype not found.",
         "archive_builtin": "‘{id}’ is a built-in archetype and can’t be retired.",
-        "archived_invalid": "The archived flag must be true or false."
+        "archived_invalid": "The archived flag must be true or false.",
+        "registry_invalid": "The archetype registry file is invalid, so it can’t be edited. Check pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "The archetype registry file could not be read.",
+        "weight_out_of_range": "Weight for {slot} must be between 0 and 100%.",
+        "id_reserved": "‘{id}’ is reserved for candidates that could not be routed; choose another id.",
+        "edit_builtin_shield": "‘{id}’ is a built-in archetype; its fairness protection and scoring model can’t be changed."
       },
       "fairnessProtectedAria": "Fairness-protected",
       "weightsSumError": "Weights must total 100% (currently {pct}%).",
@@ -4815,7 +5513,14 @@
       "saving": "Saving…",
       "createArchetype": "Create archetype",
       "saveChanges": "Save changes",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "archiveConfirmTitle": "Retire {label}?",
+      "archiveConfirmCounting": "Counting the profiles routed here…",
+      "archiveConfirmBody": "{count, plural, =0 {No profile currently routes to this archetype.} one {# profile currently routes to this archetype.} other {# profiles currently route to this archetype.}}",
+      "archiveConfirmNote": "Retiring only hides it from the pickers. Profiles already routed here keep scoring against its weights, and you can restore it at any time.",
+      "dimSkills": "Skills",
+      "dimCareer": "Career",
+      "dimPersonal": "Personal"
     },
     "empty": {
       "specimenLabel": "Every saved profile carries",
@@ -4854,7 +5559,12 @@
       "select": "Select…",
       "filterColumn": "Filter {column}"
     },
-    "sortBy": "Sort by {column}"
+    "sortBy": "Sort by {column}",
+    "status": {
+      "sortedAsc": "Sorted by {column}, ascending",
+      "sortedDesc": "Sorted by {column}, descending",
+      "matched": "{count, plural, =0 {No rows match the filters} one {# row matches the filters} other {# rows match the filters}}"
+    }
   },
   "channels": {
     "comms": {
@@ -4894,7 +5604,14 @@
       "statusQueued": "Queued",
       "statusFailed": "Failed",
       "statusRecovered": "Recovered",
-      "statusBounced": "Bounced"
+      "statusBounced": "Bounced",
+      "resendRecovered": "Already being delivered. This message is on its way.",
+      "receiptSubject": "Delivery receipt",
+      "receiptRecipient": "Relay callback",
+      "olderExist": "Showing {count, plural, one {# message} other {# messages}}. Older ones exist.",
+      "loadOlder": "Load older",
+      "loadingOlder": "Loading older…",
+      "beyondWindow": "Older messages exist, but they're beyond this view's reach."
     },
     "eyebrow": "Inbound studio",
     "title": "Where candidates come in",
@@ -4923,7 +5640,9 @@
       "saveFailed": "Couldn't save the relay",
       "test": "Send test ping",
       "testOk": "Delivered (HTTP {status})",
-      "testFailed": "Test failed: {reason}"
+      "testFailed": "Test failed: {reason}",
+      "statusUnreadable": "Signing secret unreadable",
+      "unreadableNote": "A relay endpoint is saved, but its signing secret can't be decrypted with this deployment's key, so messages stay in the local outbox. Re-enter the signing secret below, or restore the key it was saved under."
     },
     "edge": {
       "title": "Always-on edge",
@@ -4950,7 +5669,19 @@
       "sealedNow": "Sealing enabled. The edge can no longer read what it holds.",
       "sealFailed": "Couldn't publish the sealing key",
       "cursor": "Drained up to event {cursor}",
-      "lastError": "last error: {reason}"
+      "lastError": "last error: {reason}",
+      "lastDrain": "Last drain {time}",
+      "lastHeartbeat": "last beat {time}",
+      "neverDrained": "Never drained",
+      "pendingWaiting": "{pending} still waiting at the edge",
+      "pendingClear": "nothing waiting",
+      "pendingUnknown": "backlog not measured yet",
+      "statusSecretMissing": "Secret missing",
+      "secretMissingNote": "An endpoint is set but no shared secret is. An unsigned drain would accept events from anyone who learned the URL, so nothing is drained until you save the secret you set as KP_EDGE_SECRET.",
+      "drainFailedUnreachable": "Drain failed: the edge did not answer. Nothing was lost; the next tick retries.",
+      "drainFailedHeld": "Drain paused: an event could not be filed yet. It stays at the edge and is retried.",
+      "drainFailedAck": "Filed, but the edge was not told. It will offer those events again and they will not be filed twice.",
+      "drainFailedUnknown": "Drain failed. The reason is in this install's server log."
     },
     "tablist": "Integration",
     "waiting": "{count} waiting in the pipeline",
@@ -4993,12 +5724,15 @@
       "running": "Receiving…",
       "noJob": "Create a job first. Inbound applications need a role to land on.",
       "filed": "Received {label}, matched at {score}. Filed at Accepted on {role}.",
-      "failed": "Couldn’t receive a test application."
+      "failed": "Couldn’t receive a test application.",
+      "failedStatus": "Couldn’t receive a test application (HTTP {status})."
     },
     "careers": {
       "empty": "No published roles yet. Publish a job and its apply link appears here.",
       "applyLink": "apply link",
-      "publishRole": "Publish a role"
+      "publishRole": "Publish a role",
+      "showingOf": "Showing {shown} of {total}",
+      "viewAllRoles": "All roles"
     },
     "receivers": {
       "role": "Role",
@@ -5133,7 +5867,8 @@
         "effort": "About 5 minutes: one receiver per advertised role",
         "waiting": "The receiver is armed and no leads have arrived yet. The first one files itself into the pipeline."
       }
-    }
+    },
+    "copyFailed": "Copy failed. Select the text."
   },
   "interviewSim": {
     "eyebrow": "Interview simulator",
@@ -5174,7 +5909,8 @@
       "failed": "Couldn't attach the session.",
       "loadFailed": "Couldn't load candidates.",
       "retry": "Retry"
-    }
+    },
+    "billableNote": "Starting this demo books a real voice session and bills up to {min} interview minutes from your allowance."
   },
   "history": {
     "eyebrow": "Workspace",
@@ -5223,7 +5959,11 @@
       "trustTitle": "CV authenticity screen: a deterministic check for AI-generated / embellished résumés. See the Authenticity lines below; always verify in interview.",
       "trustHigh": "Authenticity: high",
       "trustMedium": "Authenticity: medium",
-      "trustLow": "Authenticity: low"
+      "trustLow": "Authenticity: low",
+      "engineNote": "Engine notes (English, as written)",
+      "engineNoteTitle": "These lines come from the analysis engine exactly as it produced them, and are not translated.",
+      "deterministicNote": "No model ran: this result was computed by rules",
+      "deterministicNoteTitle": "This analysis was produced by the deterministic scoring builders, not by an AI model. The numbers are complete, but no language model read this CV."
     },
     "softSignals": {
       "title": "Confirm in interview",
@@ -5287,7 +6027,10 @@
         "BAD_SHAPE": "GitHub returned an unexpected response. Try again shortly.",
         "NOT_A_PERSON": "That handle is a GitHub organization, not a personal account. Enter an individual developer's username.",
         "REQUEST_THROTTLED": "Too many requests. Please try again shortly.",
-        "ANALYSIS_FAILED": "The GitHub analysis failed. Try again shortly."
+        "ANALYSIS_FAILED": "The GitHub analysis failed. Try again shortly.",
+        "JD_TOO_LONG": "The job description is too long for the GitHub deep dive. Shorten it and try again.",
+        "OFFLINE": "This deployment runs offline, so GitHub was not contacted.",
+        "RESPONSE_TOO_LARGE": "GitHub returned an unexpectedly large response. Try again shortly."
       },
       "review": {
         "partial": "Partial evidence: some repository data couldn't be fetched this run (likely rate limiting), so treat this as an incomplete read.",
@@ -5298,7 +6041,8 @@
         "throttled": "Couldn't gather public repo signals. GitHub may be rate-limiting (could not determine). Try again shortly.",
         "noSignals": "Reviewed repositories expose no public README, commit, or file signals to assess.",
         "malformed": "Gemini returned a malformed repo-signal review payload.",
-        "requestFailed": "The Gemini repo-signal review request failed."
+        "requestFailed": "The Gemini repo-signal review request failed.",
+        "offline": "This deployment runs offline (KP_OFFLINE), so the Gemini repo-signal review was not attempted."
       },
       "finding": {
         "signal": {
@@ -5339,7 +6083,9 @@
           "metadata": "Primary language and repository topics from GitHub metadata.",
           "notRead": "Not read: file bodies, nested/recursive directory trees, private repos, and non-default branches."
         }
-      }
+      },
+      "retryAfterSeconds": "You can try again in about {seconds, plural, one {# second} other {# seconds}}.",
+      "retryAfterMinutes": "You can try again in about {minutes, plural, one {# minute} other {# minutes}}."
     }
   },
   "workspaceAdmin": {
@@ -5398,7 +6144,6 @@
       "saving": "Saving…",
       "saved": "Saved",
       "saveFailed": "Couldn't save. Check the connection and try again.",
-      "domainLabel": "Primary domain",
       "languageLabel": "App language",
       "previewOnboarding": "Preview onboarding flow",
       "backup": {
@@ -5513,7 +6258,9 @@
         "body": "Revoke the invitation for <em>{email}</em>? The link already shared with them will stop working.",
         "cancel": "Cancel",
         "confirm": "Revoke invitation"
-      }
+      },
+      "roleUpdated": "Role updated.",
+      "statusUpdated": "Account status updated."
     },
     "permissions": {
       "title": "Permissions for {name}",
@@ -5545,7 +6292,8 @@
           "desc": "See the team’s candidates and data."
         }
       }
-    }
+    },
+    "partialLoad": "Some of this page could not be refreshed. Parts of it may be out of date."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -5600,6 +6348,12 @@
     "emailTaken": "This email already belongs to another organization.",
     "alreadyActive": "This account is already active. Sign in instead.",
     "genericError": "Couldn't accept the invite. The link may have just expired.",
+    "orgNameFallback": "your organization",
+    "rateLimitedTitle": "Too many attempts",
+    "rateLimitedBody": "Too many attempts from this device in the last minute. Your invitation is still valid. Wait a moment and try again.",
+    "loadFailedTitle": "Couldn't load your invitation",
+    "loadFailedBody": "We couldn't reach the server. Your invitation is still valid, so this is worth another try.",
+    "retryError": "We couldn't reach the server. Your invitation is still valid. Try again.",
     "eyebrow": "Join {orgName}",
     "title": "Set your password",
     "subtitle": "You've been invited as {role}. Choose a password to finish setting up <em>{email}</em>.",
@@ -5628,7 +6382,9 @@
     "version": "Standard {version}",
     "stale": "Verified (older attestation)",
     "staleAge": "Genuine and untampered, but issued {issued} under standard {version}. Ask the candidate for a current assessment if recency matters.",
-    "staleMethodology": "Genuine and untampered, but scored under standard {version} (issued {issued}), which has since been superseded. Ask the candidate for an assessment on the current standard."
+    "staleMethodology": "Genuine and untampered, but scored under standard {version} (issued {issued}), which has since been superseded. Ask the candidate for an assessment on the current standard.",
+    "throttledTitle": "Too many requests just now",
+    "throttledBody": "This credential was opened too many times in a short period. Wait a few minutes and reload. The credential itself is unaffected."
   },
   "devApply": {
     "workSurface": {
@@ -5655,6 +6411,7 @@
       "updateHeading": "Update from the team",
       "restored": "We restored your unsaved work from this device. Nothing was lost.",
       "chatRateLimited": "You've reached the assistant limit for now. Your work and everything you've written are safe. Keep working and try again in a few minutes.",
+      "chatDeterministicNote": "This reply came from the offline stand-in, not a live model. Treat it as a placeholder and note your assumptions in the decision log.",
       "syncBlocked": "We couldn't sync this session to the server. Your work is saved on this device. Reload the page from your original link to reconnect."
     },
     "eyebrow": "Take-home assignment",
@@ -5676,7 +6433,14 @@
     "received": "Application received",
     "receivedNote": "We'll review your submission and get back to you. A confirmation is on its way.",
     "receivedDuplicate": "We already had a submission for you on this assignment. It's the one that counts, so there's no need to resubmit.",
-    "receivedRef": "Submission reference: {ref}"
+    "receivedRef": "Submission reference: {ref}",
+    "assignment": {
+      "fallbackTitle": "Assignment",
+      "timebox": "~{hours}h timebox",
+      "brief": "Brief",
+      "handed": "What you're handed",
+      "tasks": "Tasks"
+    }
   },
   "potential": {
     "badge": "potential {pct}",
@@ -5718,10 +6482,9 @@
     "briefNoDataClaim": "Nothing has come through the funnel yet.",
     "briefNoDataContext": "Add a role and start collecting candidates; this brief fills in as they move.",
     "briefBandForecast": "What is coming",
-    "briefForecastClaim": "About {hires} hires are already in flight.",
+    "briefForecastClaim": "An estimated {hires} hires are already in flight.",
     "briefForecastContext": "Based on {velocity} new candidates a week and {conv}% overall conversion.",
     "briefForecastNoSignalClaim": "There is not enough history to project yet.",
-    "briefForecastNoSignalContext": "A projection needs at least one completed hire to calibrate against. Until then, guessing would be worse than saying nothing.",
     "briefEtaLabel": "Expected lag",
     "briefEtaValue": "{days}d",
     "briefBandMomentum": "Momentum",
@@ -5796,7 +6559,9 @@
       "ahead": "ahead",
       "behind": "behind",
       "footnote": "Anonymized aggregate across {teams} teams. No candidate or team data is shared.",
-      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window."
+      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window.",
+      "pctValue": "{value}%",
+      "dayValue": "{value}d"
     },
     "loadFailed": "Couldn't load analytics.",
     "retry": "Retry",
@@ -5979,7 +6744,11 @@
       "uncalibratedBodyHired": "Calibration needs at least {min} candidates who were hired or rejected. So far: {n}.",
       "leakageLevelHighRejects": "Rejections caused by the score",
       "leakageScoreCausedHiredNote": "Reaching the hire takes interviews, an offer and an acceptance, none of which this score decides, so the successes here were not produced by the score. The rejections partly were: automatic screening rejects on the match score, and each of those counts here as not hired. This axis is less circular than the screening one, not clean.",
-      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed."
+      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed.",
+      "floorNotEnforced": "Automatic screening is off, so these floors are recorded policy rather than a live gate: no candidate is rejected by them.",
+      "familyFloorsNoneOff": "No role family carries its own floor, so the global {global} is the only one on record.",
+      "thresholdLegendOff": "Auto-reject floor ({threshold}), recorded but not enforced",
+      "srThresholdOff": "Auto-reject floor {threshold} is recorded but not enforced, so it is not marked on the plot."
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",
@@ -6048,9 +6817,12 @@
       "basis": "Based on {velocity} new/week and a {conv}% overall conversion.",
       "acceptBasis": "Assuming the observed {pct}% offer acceptance (n={n}).",
       "inFlight": "Expected from in-flight",
-      "horizon": "Next {weeks} weeks",
       "plusHires": "+{hires}",
-      "eta": "Average time to hire: {days} days."
+      "eta": "Average time to hire: {days} days.",
+      "horizonEstimate": "Next {weeks} weeks (estimate)",
+      "range": "range {low}–{high}",
+      "method": "Method: {velocity} new candidates a week × {conv}% overall conversion, projected forward. The range is one standard deviation of weekly inflow (±{sd}) either side.",
+      "floorNote": "A projection needs at least {minHires} hires and {minWeeks} weeks with new candidates behind it. So far: {hires} hires across {weeks} such weeks. Until then, guessing would be worse than saying nothing."
     },
     "offers": {
       "title": "Offer leg",
@@ -6240,6 +7012,7 @@
         "interview_reminder_sent": "Interview reminder sent",
         "interviewer_brief_sent": "Interviewer briefed",
         "interviewer_brief_skipped": "Interviewer brief skipped (no email)",
+        "interview_failover": "Interview failed over to another provider",
         "comm_resent": "Message resent",
         "rejection_comms_failed": "Rejection email failed",
         "moved": "Stage set manually",
@@ -6271,7 +7044,8 @@
         "agent_dispatched": "Persona request dispatched",
         "agent_activated": "Persona went live",
         "onboarding_started": "Onboarding started (retired module)",
-        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)"
+        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)",
+        "screen_wave_holdout_unsealed": "Spared by the wave, holdout record unsealed"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",
@@ -6414,7 +7188,10 @@
     "copyViewLinkTitle": "A link that opens this section with the period you are looking at",
     "viewLinkManual": "Your browser blocked the copy. Select the link below and copy it yourself.",
     "briefMomentumNoDataClaim": "Nothing has moved in these weeks yet.",
-    "briefRolesNoDataClaim": "No role is carrying the pipeline yet."
+    "briefRolesNoDataClaim": "No role is carrying the pipeline yet.",
+    "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation.",
+    "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
+    "closedInWindowSub": "{count} closed in window"
   },
   "matrix": {
     "loadFailed": "Load failed.",
@@ -6520,7 +7297,9 @@
     "modeLabel": "Matrix view",
     "modeGrid": "Grid",
     "modeFocus": "Candidate focus",
-    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for."
+    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for.",
+    "servedFromCache": "Served from the cached scoring pass.",
+    "retryLoad": "Try again"
   },
   "analyze": {
     "modeNew": "New analysis",
@@ -6605,6 +7384,11 @@
     "errBadPayload": "Analysis returned an unexpected payload.",
     "errExtractionFailed": "Text extraction failed.",
     "errGithubFailed": "GitHub analysis failed.",
+    "engineStatusUnknown": "Engine status unknown: the readiness check could not be reached, so this run may fail on a missing key.",
+    "cancelFailed": "Stopped watching, but the server task may still be running. Check the Tasks indicator.",
+    "uploadHint": "PDF · DOCX · TXT · MD up to {max} MB",
+    "errUploadRejected": "That file could not be added.",
+    "errRateLimitedRetry": "Too many requests. Try again in {seconds} seconds.",
     "githubJdDropped": "Couldn't read the job description, so it's excluded from the GitHub analysis.",
     "attachCv": "Attach a CV to enable Analyze.",
     "githubOnlyReady": "GitHub-only deep-dive ready. Attach a CV for the full analysis.",
@@ -6623,7 +7407,11 @@
     "removeVariantAria": "Remove variant {letter}",
     "addVariant": "Add variant ({current}/{max})",
     "variantLimitReached": "Variant limit reached.",
-    "selectCvFirst": "Select a CV or LinkedIn PDF export first."
+    "selectCvFirst": "Select a CV or LinkedIn PDF export first.",
+    "jdLibraryLoading": "Loading your JD library…",
+    "jdLibraryFailed": "Couldn’t load your JD library.",
+    "jdLibraryRetry": "Retry",
+    "jdLibraryTruncated": "Showing the newest {count, plural, one {# saved JD} other {# saved JDs}}. Older ones live in the Library."
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",
@@ -6800,7 +7588,8 @@
       "notDelivered": "Not delivered: {reason}.",
       "pingFailed": "Ping failed.",
       "pullNote": "Pull a single candidate on demand: <code>{endpoint}</code> returns the same normalized record.",
-      "loadBlockedSave": "The saved webhook settings could not be loaded, so Save is disabled. Submitting this blank form would overwrite the stored endpoint and its subscriptions. Reload the page to try again."
+      "loadBlockedSave": "The saved webhook settings could not be loaded, so Save is disabled. Submitting this blank form would overwrite the stored endpoint and its subscriptions. Reload the page to try again.",
+      "reloadStored": "Reload what's stored"
     }
   },
   "billing": {
@@ -6865,7 +7654,8 @@
       "allowance": "Included allowance",
       "breakdown": "By use case",
       "engineTitle": "Engine",
-      "noSpend": "No metered AI calls in this window yet."
+      "noSpend": "No metered AI calls in this window yet.",
+      "breakdownScope": "Across every workspace on this deployment, unlike the allowance beside it."
     },
     "plans": {
       "title": "Plans",
@@ -6888,7 +7678,8 @@
       "intro": "A one-off pack that adds credits on top of your plan's quota, available on every tier.",
       "minutes": "{qty} minutes",
       "buy": "Buy pack"
-    }
+    },
+    "checkoutRecheck": "Check again"
   },
   "branding": {
     "eyebrow": "White-label",
@@ -6914,7 +7705,12 @@
     "previewName": "Your brand",
     "previewButton": "Primary action",
     "previewBadge": "Badge",
-    "previewLink": "A <a>highlighted link</a> in your accent."
+    "accentContrastDark": "That accent has no readable Spark Dark version. Lifting it enough to read on the dark canvas would make it a different color, so pick a brighter or more saturated one.",
+    "previewBothThemes": "Your accent in both themes. The Spark Dark value is derived from the one you type.",
+    "previewThemeLight": "Studio Light",
+    "previewThemeDark": "Spark Dark",
+    "previewFocus": "Focused item",
+    "previewDarkDerived": "Spark Dark uses a lifted version of your accent so it stays readable on the dark canvas."
   },
   "models": {
     "quality": {
@@ -7134,7 +7930,8 @@
       "testOkNoLatency": "Key works. {model} answered.",
       "testFailed": "Test failed.",
       "testModelLabel": "Model to call",
-      "testModelPlaceholder": "deployment or model slug"
+      "testModelPlaceholder": "deployment or model slug",
+      "storeScope": "These keys are stored once for the whole server, not per team: every workspace here spends through them. “BYOM” and “Platform” are two slots on that shared store, not two owners."
     },
     "useCaseDesc": {
       "match_reasoning": "Writes the recruiter-facing rationale for why a candidate fits a job, or doesn’t.",
@@ -7209,7 +8006,9 @@
   "setup": {
     "aria": {
       "dialog": "Set up your workspace",
-      "skip": "Skip setup for now"
+      "skip": "Skip setup for now",
+      "stepAnnounce": "Step {index} of {total}: {title}",
+      "stepPosition": "Step {index} of {total}:"
     },
     "previewRibbon": "Preview: nothing you do here will be saved",
     "rail": {
@@ -7283,7 +8082,8 @@
         "steel": "Steel blue",
         "ink": "Ink",
         "custom": "Custom",
-        "illegible": "That color is too light for buttons and focus rings. Pick a darker one."
+        "illegible": "That color is too light for buttons and focus rings. Pick a darker one.",
+        "illegibleDark": "That color has no readable Spark Dark version. Pick a brighter or more saturated one."
       },
       "logoLabel": "Logo URL",
       "logoInvalid": "Enter an https:// image URL."
@@ -7377,8 +8177,7 @@
     "toast": {
       "saved": "Your workspace is set up",
       "partial": "Some setup steps couldn’t be saved. You can finish them in Settings",
-      "pipelineSaved": "Your board's columns were saved",
-      "pipelineFailed": "Your board's columns couldn't be saved. Set them in Settings → Hiring pipeline"
+      "partialLead": "Some setup steps couldn’t be saved:"
     },
     "checklist": {
       "title": "Getting started",
@@ -7407,9 +8206,178 @@
           "listening": "Listening. Receive a test application to verify."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Company name",
+        "language": "App language",
+        "invites": "Teammate invites",
+        "pipeline": "Board columns",
+        "brand": "Brand color and logo"
+      },
+      "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
+      "line": "{part}: {reason}",
+      "lineWithAddresses": "{part} ({addresses}): {reason}"
     }
   },
   "devcase": {
+    "studio": {
+      "applyPill": {
+        "noToken": "no token",
+        "copy": "Copy the apply link to share with candidates",
+        "copyAria": "Copy apply link to clipboard",
+        "copiedAria": "Apply link copied to clipboard",
+        "copied": "Copied",
+        "token": "token {token}",
+        "blocked": "Copying is blocked here. Select the link and copy it by hand:"
+      },
+      "waiting": {
+        "title": "Waiting for the first submission",
+        "body": "This assignment is live. Candidates who apply through the channels below land here, ranked against each other."
+      },
+      "jds": {
+        "failed": "The saved job descriptions could not be loaded.",
+        "retry": "Try again"
+      },
+      "dismiss": "Dismiss",
+      "loadLabel": "assignments",
+      "analysis": {
+        "empty": "Define a need and analyze it. The reality reflection appears here.",
+        "running": "Pulling the codebase and reflecting…",
+        "runningHint": "This runs as a background task, so you can leave this tab.",
+        "designing": "Designing the role and the assignment…",
+        "designingHint": "Background task. Leave any time.",
+        "designCta": "Design role & assignment",
+        "snapshot": "Codebase snapshot",
+        "snapshotIndexed": "Codebase snapshot {index}/{total}",
+        "loc": "~{loc} LOC",
+        "topDirs": "Top dirs: {dirs}",
+        "commitsRead": "{count, plural, one {# recent commit read} other {# recent commits read}}",
+        "noSnapshot": "No codebase snapshot, so this analysis is ungrounded. Add a public GitHub URL to ground it in reality.",
+        "resultUnreadable": "The analysis finished, but its result could not be loaded. Reopen it from the Tasks tab, or run the analysis again.",
+        "failed": "Analysis did not complete."
+      },
+      "reflection": {
+        "title": "Reality reflection",
+        "complexity": "{level} complexity",
+        "confidence": "conf {value}",
+        "gaps": "Stated vs. real gaps",
+        "risks": "Risk areas: {areas}"
+      },
+      "design": {
+        "role": "Role",
+        "mustHaves": "Must-haves",
+        "responsibilities": "Responsibilities",
+        "assignment": "Assignment",
+        "timebox": "~{hours}h",
+        "covertProbes": "Covert probes, internal and hidden from the candidate",
+        "approved": "Approved",
+        "approving": "Approving…",
+        "approve": "Approve assignment",
+        "humanGate": "Human gate. Review the probes, then approve to save it."
+      },
+      "detail": {
+        "back": "All assignments",
+        "created": "created {when}",
+        "scenarioTemplate": "interview scenario: template probes",
+        "scenarioTemplateHint": "Scenario generation fell back to the deterministic template, so the probes are generic rather than grounded in this assignment. Re-run it before interviewing.",
+        "scenarioReady": "interview scenario ready",
+        "seedSkeleton": "seed: skeleton only",
+        "seedSkeletonHint": "Seed materialization fell back to the deterministic template, so candidates receive a prose-only README and DECISIONS skeleton instead of concrete starter files. Re-run it before sending the take-home.",
+        "publish": "Publish",
+        "publishing": "Publishing…",
+        "published": "Published",
+        "sourceDb": "Source DB",
+        "sourcing": "Sourcing…",
+        "sourced": "Sourced {count}",
+        "sourceHint": "Rank the existing candidate database against this role and seed the pipeline",
+        "confirmLabel": "Confirm publish",
+        "confirmTitle": "Publish this assignment?",
+        "confirmBody": "Publishing mints a live candidate-facing apply link and sources real candidates from your database into the pipeline. It cannot be undone from here.",
+        "degradedTitle": "This assignment is degraded",
+        "degradedAck": "I understand this assignment is degraded. Publish it anyway.",
+        "confirmCta": "Confirm & publish",
+        "cancel": "Cancel",
+        "seedSummary": "Materialized seed: what the candidate receives",
+        "seedFiles": "{count, plural, one {# file} other {# files}}",
+        "seedSkeletonWarning": "Skeleton only. This is the prose-only fallback, not concrete starter files. Re-run it before sending."
+      },
+      "degradedReason": {
+        "scenario": "The interview scenario uses generic template probes, not ones grounded in this assignment.",
+        "seed": "The seed is a prose-only skeleton, so candidates receive no concrete starter files."
+      },
+      "internal": {
+        "title": "Internal: interviewer & reviewer material",
+        "noProbes": "No covert probes recorded on this assignment.",
+        "roleMustHaves": "Role must-haves",
+        "roleResponsibilities": "Role responsibilities"
+      },
+      "shortlist": {
+        "title": "Shortlist, all channels"
+      },
+      "channels": {
+        "title": "Apply channels",
+        "posting": "Posting",
+        "received": "{count} in",
+        "applyLink": "Apply link"
+      },
+      "compare": {
+        "title": "Compare on rubric axes",
+        "topOf": "top {shown} of {total}",
+        "truncated": "Ranked by transfer fit. The axis leader below is the strongest of these {shown}, not of the whole cohort. {hidden, plural, one {# further evaluated submission is} other {# further evaluated submissions are}} not in this matrix.",
+        "axis": "Axis",
+        "fit": "fit {score}"
+      },
+      "action": {
+        "runLifecycle": "Run lifecycle",
+        "approve": "Approve",
+        "publish": "Publish",
+        "source": "Source candidates"
+      },
+      "actionFailed": "{action} failed. Please try again.",
+      "actionUnreachable": "{action} failed because the request could not be completed.",
+      "need": {
+        "jdLabel": "Job description *",
+        "noJds": "No JDs saved. <link>Save one</link> in the library first: the role and assignment are designed from it.",
+        "savedJdAria": "Saved job description",
+        "pickJd": "Pick a saved JD…",
+        "loadingJd": "Loading the JD…",
+        "jdReadHint": "Role title, stack and responsibilities are read from this JD.",
+        "jdRequired": "A job description is required to run.",
+        "codebasesLabel": "Codebases (GitHub, up to {max})",
+        "repoPlaceholder": "https://github.com/owner/repo",
+        "codebaseAria": "Codebase {n}",
+        "removeCodebaseAria": "Remove codebase {n}",
+        "unsupportedRepo": "Only GitHub is supported for grounding, so this ref will be skipped.",
+        "addCodebase": "Add codebase",
+        "seniorityLabel": "Seniority target",
+        "seniorityAria": "Seniority",
+        "lifecycleTitle": "Automated lifecycle: analyze → design → policy gate → publish → (on submissions) evaluate → rank → promote to Decisions",
+        "lifecycleRunning": "Lifecycle running…",
+        "runLifecycle": "▶ Run automated lifecycle",
+        "reflecting": "Reflecting…",
+        "analyzeOnly": "Analyze need only",
+        "recent": "Recent"
+      },
+      "sectionsLabel": "Assignments studio sections",
+      "views": {
+        "cases": {
+          "label": "Assignments",
+          "title": "Active assignments",
+          "blurb": "Every designed assignment in one place: stage, intake and evaluations. Click an assignment to read the full brief and its internal probe material."
+        },
+        "define": {
+          "label": "Define need",
+          "title": "Define the need",
+          "blurb": "Pick the job description and point us at the real codebases it covers (up to {max}). The engine reflects what the JD says you need against what the code actually is, surfacing the gaps before we design an assignment. Assume the candidate's code is LLM-generated; we'll grade judgment, not typing."
+        },
+        "outbox": {
+          "label": "Outbox",
+          "title": "Comms outbox",
+          "blurb": "Every message the pipeline sent: intake acknowledgements, promote invites, recruiter outreach, and rejections."
+        }
+      }
+    },
     "lifecycle": {
       "sectionTitle": "Automated lifecycle",
       "intro": "Each assignment advances under policy: auto-approving clean designs, routing flagged ones to you, publishing, and (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.",
@@ -7457,6 +8425,7 @@
       "fieldBrief": "Brief",
       "fieldTasks": "Tasks (one per line)",
       "fieldTimebox": "Timebox (hours)",
+      "timeboxClamped": "You typed {from}h. The candidate will receive {to}h, the policy cap.",
       "internalProbes": "Internal cover probes ({count})",
       "engineOwned": "Probes and rubric are engine-owned. To change them, regenerate with a note.",
       "previewTitle": "Candidate-safe preview (live)",
@@ -7468,7 +8437,8 @@
       "redesignTitle": "Re-run only the design step with this note. No full lifecycle re-run.",
       "redesigning": "Redesigning…",
       "redesign": "Regenerate with note",
-      "redesignFailed": "Redesign failed."
+      "redesignFailed": "Redesign failed.",
+      "tasksRequired": "An assignment must keep at least one task. Restore one, or use Regenerate with note to have the engine rewrite them."
     },
     "outbox": {
       "emptyTitle": "No messages yet",
@@ -7485,7 +8455,8 @@
       "countFiltered": "{shown} of {total} messages",
       "deadLetters": "{count, plural, one {# needs attention} other {# need attention}}",
       "filteredEmpty": "No message matches these filters.",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "loadLabel": "the comms outbox"
     },
     "outboxKind": {
       "acknowledgement": "acknowledgement",
@@ -7541,6 +8512,20 @@
       "strong": "{loadBearing} of {total} probes are load-bearing. This assignment discriminates.",
       "weak": "Only {loadBearing} of {total} probes are load-bearing. Most won't separate strong from naive.",
       "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one."
+    },
+    "sessionEvidence": {
+      "show": "Session evidence",
+      "hide": "Hide session evidence",
+      "loading": "Loading the session evidence…",
+      "loadFailed": "Could not load the session evidence.",
+      "retry": "Retry",
+      "empty": "This candidate opened the link but left no transcript and no files.",
+      "transcriptTitle": "Transcript · {count} {count, plural, one {turn} other {turns}}",
+      "noTranscript": "No chat turns in this session.",
+      "filesTitle": "Submitted files · {count} · {total}",
+      "noFiles": "No files were saved in this session.",
+      "roleCandidate": "Candidate",
+      "roleAssistant": "Assistant"
     },
     "integrity": {
       "title": "Log integrity",
@@ -7644,7 +8629,8 @@
       "colCreated": "Created",
       "open": "Open",
       "untitledAssignment": "Assignment",
-      "stageAria": "Assignment stage: {stage}"
+      "stageAria": "Assignment stage: {stage}",
+      "truncated": "Showing the {count} most recent assignments. Older ones are not listed."
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",
@@ -7676,7 +8662,19 @@
       "inPipeline": "In pipeline",
       "promoting": "Promoting…",
       "promote": "Promote to pipeline",
-      "promoteHint": "→ becomes a Decisions review card"
+      "promoteHint": "→ becomes a Decisions review card",
+      "authenticityReason": {
+        "singleBulkCommit": "Single bulk commit, with no incremental history.",
+        "fewCommits": "Very few commits ({n}): a thin development trail.",
+        "noCommitHistory": "No readable commit history.",
+        "bulkPaste": "A bulk paste of {chars}+ characters landed with no incremental build-up, a possible paste from an LLM.",
+        "integrityFailed": "The event-log integrity check failed (broken hash chain or backdated timestamps), so the observed trace cannot be trusted.",
+        "noDecisionsLog": "The mandated DECISIONS log is missing.",
+        "bursty": "The work landed in a single burst rather than incrementally.",
+        "bigBang": "Big-bang iteration pattern, with no visible build-up.",
+        "unreadableIteration": "The iteration pattern could not be read from the trace.",
+        "lowReadBeforeWrite": "Little evidence of reading the existing code before writing."
+      }
     },
     "jobLink": {
       "linked": "Role: {title}",
@@ -7743,7 +8741,61 @@
       "received": "Received",
       "evaluated": "Evaluated"
     },
-    "eyebrow": "Tools · Assignments"
+    "eyebrow": "Tools · Assignments",
+    "skillProfile": {
+      "issue": "Issue Durable Skill Profile",
+      "reissue": "Re-issue Durable Skill Profile",
+      "issuing": "Issuing…",
+      "view": "View / share credential ↗",
+      "failed": "Couldn't issue the profile. Please try again."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "candidate",
+      "repoPlaceholder": "submission repo URL",
+      "record": "Record",
+      "recording": "…",
+      "failed": "Couldn't record the submission. Please try again.",
+      "network": "Network error. The submission was not recorded. Please retry.",
+      "receiptRecorded": "Submission recorded.",
+      "receiptDuplicate": "Already recorded. This repo was submitted for this candidate before, so nothing was added."
+    },
+    "provenance": {
+      "chipTitle": "{step}: {source}",
+      "aria": "Provenance: {detail}",
+      "ariaStep": "{step} via {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Partial (degraded)",
+        "deterministic": "template"
+      },
+      "step": {
+        "analyze": "Analyze",
+        "source": "Source",
+        "role": "Role",
+        "case": "Assignment",
+        "reflect": "Reflect",
+        "tooling": "Tooling",
+        "evaluate": "Evaluate",
+        "transfer": "Transfer"
+      }
+    },
+    "followup": {
+      "listenFor": "Listen for: {note}",
+      "redFlag": "Red flag: {note}"
+    },
+    "scoreBar": {
+      "aria": "{label} score {score} of 100",
+      "ariaWeighted": "{label} score {score} of 100, weighted {weight}%"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "Review in Decisions",
+      "recorded": "outcome: {outcome} ✓",
+      "perfLabel": "On-the-job perf",
+      "perfAria": "On-the-job performance {n} of 5",
+      "skipPerf": "skip (record hire only)",
+      "hint": "Feed the promote-floor calibration with what actually happened",
+      "label": "Outcome"
+    }
   },
   "rubric": {
     "ratingAnchor": {
@@ -8038,7 +9090,8 @@
       "stopped": "Stopped",
       "done": "Done. Candidate hired 🎉",
       "failed": "Failed: {message}",
-      "genericError": "The simulation stopped unexpectedly."
+      "genericError": "The simulation stopped unexpectedly.",
+      "resetFailed": "Cleanup failed. Try again."
     },
     "phase": {
       "design": "Design JD",
@@ -8110,7 +9163,9 @@
       "accepted": "Accepted · moved to Hired · onboarding comm queued",
       "stopped": "Simulation stopped.",
       "error": "Error: {message}",
-      "groupEvalTimedOut": "⚠︎ Group evaluation timed out. Showing an unavailable notice."
+      "groupEvalTimedOut": "⚠︎ Group evaluation timed out. Showing an unavailable notice.",
+      "clickedViaApi": "The control wasn't on screen, so this step ran through the API instead of a real click.",
+      "selfScheduleUnavailable": "Self-scheduling wasn't available, so the recruiter confirms the slot instead."
     },
     "wait": {
       "screeningGate": "screening to open the interview / calendar gate",
@@ -8271,6 +9326,20 @@
         "move": "Move to Hired",
         "handoff": "Handoff\\nATS · HRIS"
       }
+    },
+    "draft": {
+      "theRole": "this role",
+      "theCandidate": "candidate",
+      "screen": {
+        "rationale": "{role}: strong fit. Core skills present, seniority aligned.",
+        "strengthStack": "Relevant stack & domain",
+        "strengthSeniority": "Seniority matches the role"
+      },
+      "offer": {
+        "subject": "Offer: {role}",
+        "body": "Hi {name},\n\nWe're delighted to extend you an offer to join us as {role}.",
+        "rationale": "Salary positioned at the role-band midpoint, scaled by fit."
+      }
     }
   },
   "tasks": {
@@ -8358,7 +9427,51 @@
       "openDecisions": "Open Decisions",
       "reviewInDecisions": "Review outcomes in Decisions",
       "openSchedule": "Open Schedule",
-      "openBoard": "Open on the board"
+      "openBoard": "Open on the board",
+      "field": {
+        "source": "Produced by",
+        "outcome": "Outcome",
+        "language": "Written in",
+        "freshness": "Freshness",
+        "savedAs": "Saved as",
+        "drafted": "Drafted",
+        "codebases": "Codebases read",
+        "stage": "Stage",
+        "detail": "Detail",
+        "candidates": "Candidates compared",
+        "lead": "Front-runner",
+        "caseIncluded": "Work-sample case",
+        "followups": "Follow-up questions",
+        "proposals": "Proposals",
+        "failures": "Failures"
+      },
+      "value": {
+        "llm": "AI",
+        "deterministic": "Template",
+        "heuristic": "Heuristic",
+        "skipped": "Skipped",
+        "cached": "Reused from cache",
+        "fresh": "Newly computed",
+        "yes": "Included",
+        "no": "Not included",
+        "advanced": "Advanced a stage",
+        "held_for_review": "Held for human review",
+        "advisory": "Advisory only, nothing moved",
+        "auto_ratified": "Auto-ratified",
+        "drafted": "Draft prepared",
+        "scorecard_ready": "Scorecard ready",
+        "offer_ready": "Offer ready",
+        "offer_sent": "Offer sent",
+        "sent": "Sent",
+        "already_sent": "Already sent",
+        "suppressed_anonymized": "Not sent: the candidate's data was anonymized",
+        "suppressed_consent_expired": "Not sent: consent expired",
+        "rematched": "Re-matched to another role",
+        "already_rematched": "Already re-matched",
+        "no_alternative": "No alternative role found",
+        "skipped_hired": "Skipped: already hired",
+        "skipped_stage_changed": "Skipped: the candidate moved stage"
+      }
     },
     "results": {
       "emptyTitle": "No recent AI tasks",
@@ -8383,7 +9496,8 @@
       "leaveNote": "Runs in the background. You can keep working elsewhere, and the outcome lands in AI tasks."
     },
     "unreadDone": "{count, plural, one {# finished task unread} other {# finished tasks unread}}",
-    "unreadRow": "New, finished while you were elsewhere"
+    "unreadRow": "New, finished while you were elsewhere",
+    "queueUnreachable": "Can't reach the task queue. What you see is the last snapshot, and new runs won't appear until it's back."
   },
   "legal": {
     "updated": "Last updated: {date}",
@@ -8461,6 +9575,18 @@
       "contact": {
         "title": "Contact",
         "body": "For requests about your data as a candidate, use the token link from any message the product sent you; it is the fastest, verified path. For anything else, contact the operator of this deployment or write to {email}."
+      },
+      "cookies": {
+        "title": "Cookies, storage and analytics",
+        "intro": "The product sets no advertising cookies and no cross-site trackers. What it keeps in your browser is only what makes the app work, and each item is listed here by the name your browser shows:",
+        "items": [
+          "__Host-kp_session: the signed session cookie for a signed-in operator. It carries the session itself, nothing about you, and is set only after you sign in.",
+          "kp_entered: records that you have gone past the public landing page into the workspace, so the app does not show you the front door again.",
+          "NEXT_LOCALE: the language you chose. Kept for a year so the app opens in it next time.",
+          "kp-theme: a browser localStorage entry rather than a cookie, holding the appearance (light or dark) you picked."
+        ],
+        "analytics": "Where the operator has configured analytics, it is Plausible, which is cookieless: no identifier is stored on your device and no visitor is followed between sites. With no domain configured, no analytics code is loaded at all. Candidate link pages are excluded outright, so the address of a page addressed to you is never sent.",
+        "noConsentBanner": "None of the items above is used for advertising or profiling, which is why the product asks for no cookie consent. Consent for AI processing of candidate data is separate and is described above."
       }
     },
     "terms": {
@@ -8590,7 +9716,11 @@
       "autoBadge": "auto",
       "addPerf": "add perf",
       "ratingGroup": "Performance rating, 1 to 5",
-      "ratePerformance": "Rate performance {n} of 5"
+      "ratePerformance": "Rate performance {n} of 5",
+      "sourceNote": {
+        "auto": "Recorded automatically when the pipeline reached a terminal stage.",
+        "manual": "Recorded by a person."
+      }
     },
     "calibration": {
       "activeFloor": "Active promote floor",
@@ -8608,7 +9738,18 @@
         "raise": "Candidates below {suggested} rarely converted; the floor of {current} is letting weak matches through. Consider raising it to {suggested}.",
         "lower": "Candidates from {suggested}–{current} converted well; the floor of {current} may be too strict. Consider lowering it to {suggested}.",
         "calibrated": "The floor of {current} is well-calibrated. It sits at the first band where most promoted candidates were hired."
-      }
+      },
+      "applyFailed": "The promote floor was not changed ({status}).",
+      "applyNetwork": "Network error. The promote floor was not changed.",
+      "cappedNote": "Computed from the newest {limit} recorded outcomes. Older ones are not in this sample."
+    },
+    "actionFailed": "That control could not be applied ({status}).",
+    "actionNetwork": "Network error. The control room could not be reached, so nothing was changed.",
+    "approveFailed": "That approval did not go through ({status}).",
+    "approveNetwork": "Network error. The approval was not recorded.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Nothing needed recovering.} one {# lifecycle resumed.} other {# lifecycles resumed.}}",
+      "budgetExhausted": "The run budget was reached, so the sweep stopped early. Run it again later to pick up the rest."
     }
   },
   "feedback": {
@@ -8634,7 +9775,7 @@
   "activity": {
     "eyebrow": "Insights",
     "title": "AI activity",
-    "intro": "The last {window} AI actions this workspace ran, newest first.",
+    "intro": "The last {window} AI actions across every workspace on this deployment, newest first.",
     "loadError": "Couldn’t load the activity ledger.",
     "empty": "No LLM actions recorded yet. They appear here the moment the first AI feature runs.",
     "noMatches": "No actions match the current filters.",
@@ -8728,6 +9869,11 @@
         "s10": "dropped before it reached the document",
         "s11": "statedVsRealGaps: reported to you instead",
         "s12": "6 must-haves kept · hard cap 8"
+      },
+      "reqs": {
+        "stack": "Postgres or SQLite",
+        "ownership": "Owning a service end to end",
+        "languages": "Czech + English"
       }
     },
     "scoring": {
@@ -8767,7 +9913,8 @@
         "s7": "match_reasoning: the model, on the top {n} only",
         "s9": "the only paid step never sees a candidate already ruled out"
       },
-      "costLabel": "cost"
+      "costLabel": "cost",
+      "figuresNote": "The 120 / 74 / 8 figures are an illustration. The layer names and the gate reasons are the running code."
     },
     "archetypes": {
       "signals": {
@@ -8854,6 +10001,7 @@
     "chat": {
       "placeholder": "Ask about your studio. She proposes, you decide.",
       "send": "Send",
+      "retry": "Send it again",
       "thinking": "Thinking…",
       "thinkingSlowCalm": "Still with you. She reads the studio before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
@@ -8866,11 +10014,15 @@
       "thinkingAbout": "Thinking about {count, plural, one {# decision} other {# decisions}}…",
       "watching": "Watching {count, plural, one {# thing} other {# things}} that need you.",
       "proposals": "{count, plural, one {# proposal is waiting on you} other {# proposals are waiting on you}}",
-      "memoryOff": "Memory off - turn it on in setup."
+      "memoryOff": "Memory off - turn it on in setup.",
+      "memoryNotWritten": "This answer was not written to memory."
     },
     "meta": {
       "remembered": "remembered:",
+      "digest": "daily digest",
       "degraded": "no model reached",
+      "degradedNoProvider": "no model configured",
+      "degradedProviderFailed": "the model did not answer",
       "sourceLlm": "model",
       "sourceDeterministic": "degraded",
       "recallCount": "{count, plural, one {# memory} other {# memories}}",
@@ -8943,5 +10095,47 @@
       "details": "Show details",
       "detailsHide": "Hide details"
     }
+  },
+  "loadStatus": {
+    "stale": "stale · {ago}",
+    "offline": "offline",
+    "pillTitle": "Automatic refresh of {label} is failing.",
+    "pillTitleStale": "Automatic refresh of {label} is failing. Last updated {ago}.",
+    "refreshFailed": "Couldn't refresh {label}. Showing data from {ago}, retrying…",
+    "loadFailed": "Couldn't load {label}. The service may be down, retrying…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Couldn't load the edit history.",
+    "retry": "Retry",
+    "retrying": "Retrying…",
+    "revertPrompt": "Restore this version?",
+    "revertConfirm": "Restore",
+    "revertCancel": "Cancel"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong here",
+    "body": "{what} could not be displayed. The data may be in an unexpected shape; the rest of the workspace is unaffected.",
+    "retry": "Try again",
+    "labels": {
+      "tab": "This tab",
+      "panel": "This panel"
+    }
+  },
+  "richTextEditor": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "heading": "Heading",
+    "bulletedList": "Bulleted list",
+    "numberedList": "Numbered list",
+    "editorLabel": "Rich text editor"
+  },
+  "select": {
+    "filterFor": "Filter {label}",
+    "filterOptions": "Filter options",
+    "placeholder": "Select…",
+    "clear": "Clear",
+    "searchPlaceholder": "Search…",
+    "noMatches": "No matches"
   }
 }

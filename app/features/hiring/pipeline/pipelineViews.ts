@@ -63,11 +63,25 @@ export function defaultViewToApply(
   return views.find((v) => v.isDefault) ?? null;
 }
 
-/** Set (or clear) the default marking so exactly `id` is the default. Passing null —
- *  or the id that is ALREADY the default (a toggle-off) should pass null from the
- *  caller — clears every flag. Returns a new array; inputs are untouched. */
+/** Set (or clear) the default marking so exactly `id` is the default. Passing null
+ *  clears every flag. Returns a new array; inputs are untouched.
+ *
+ *  This is the SETTER. The toggle-off rule ("clicking the current default clears
+ *  it") is `toggleDefault` below — it used to live only in this comment, which
+ *  meant the rule was re-derived at the call site and nothing could test it. */
 export function withDefault(views: readonly SavedView[], id: string | null): SavedView[] {
   return views.map((v) => (Boolean(v.isDefault) === (v.id === id) ? v : { ...v, isDefault: v.id === id }));
+}
+
+/** Toggle the default marking for `id`: mark it, unless it is ALREADY the default,
+ *  in which case the board goes back to having NO default. That second half is the
+ *  whole point — a recruiter who set a default must be able to unset it with the
+ *  same control, without a second "clear default" affordance.
+ *
+ *  An id that is not in the list clears the marking rather than inventing a default
+ *  for a view that no longer exists (a stale row in a just-deleted view's menu). */
+export function toggleDefault(views: readonly SavedView[], id: string): SavedView[] {
+  return withDefault(views, defaultViewId(views) === id ? null : id);
 }
 
 /** Save `view` into the list, OVERWRITING any existing view with the same (trimmed)

@@ -141,6 +141,15 @@ Conventions worth keeping:
   file containing a `repeat: Infinity` loop must gate it. Four pre-existing
   holdouts are listed in that test's `KNOWN_FRAMER_HOOK_HOLDOUTS` — see
   Known gaps.
+  **An entrance is not exempt because it ends.** The loop check was the whole
+  gate for months, so the nine feature previews slammed a `scale: 2.2` stamp
+  onto the page and rotated cards in from ±10° for a reader who had asked for
+  less. Every module under `spark/previews/` now threads the flag through
+  `pop(delay, reduce)` / `stamp(delay, reduce)` / `entrance(reduce, …)` in
+  `previews/shared.tsx`, which swaps the TRANSITION for `{ duration: 0 }` —
+  never the `initial` prop and never the markup, so a still reader lands on the
+  end state with no hydration hazard. A third `AboutCurve.test.ts` check pins
+  it, with an (empty) `KNOWN_UNGATED_ENTRANCES` holdout list.
 
 ## Navigation conventions
 
@@ -171,11 +180,23 @@ The three pages share one rule set, so a visitor learns the chrome once.
     and updates the hash with `replaceState`, not `pushState` — the rail is a
     scrubber, not a trail of destinations, so it must not bury the referring
     page under five back-presses. The `href="#id"` stays as the no-JS fallback.
+- **Phone navigation is one disclosure, with per-page destinations.**
+  `spark/sections/MobileNav.tsx` takes a `destinations` prop (`NavDestination`:
+  a `#band` of this page, or another page). The landing passes its five bands
+  plus `/about`, `/market` and the source; `/about`, which has no bands, passes
+  `/`, `/market` and the source. Below `sm` both pages had NO navigation at all
+  before it — the topbar is `hidden sm:flex` and the rail is `lg:block`.
+  Keyboard behaviour is the shared `useDialogA11y` in its non-modal mode.
 - **The language switcher is footer-only.** `LandingLangSwitch` appears once per
   page, in the footer. It used to sit in the `/market` topbar as well; one place
   to change language beats two.
-- **The landing footer carries the legal row** — `/privacy`, `/terms`, `/trust`
-  (`landing.footer.{privacy,terms,trust}`). A product that captures candidate
+- **Every public footer carries the legal row** — `/privacy`, `/terms`, `/trust`
+  (`landing.footer.{privacy,terms,trust}`), rendered from the shared
+  `spark/sections/LegalRow.tsx` rather than inlined per page. `/market` mounts it
+  beside its language switcher for the same reason `/about` does: a visitor who
+  arrives from a search result must reach the policies without going home first. It used to live
+  inside `Footer.tsx`, which made it the LANDING's row: `/about` is in the
+  sitemap and shipped without it. A product that captures candidate
   PII exposes its policies from its front door; `/trust` is the evidence page
   behind the hero's verified-hiring claims (public since 2026-08-05, was
   noindexed). All three are in `app/sitemap.ts` and the public-routes
@@ -318,6 +339,37 @@ and, on any problem, refuses to overwrite `data/market_pulse.json` and exits 1 �
 so the documented `market:build && market:apply` chain cannot re-level every
 shipped salary band from a broken feed. `--force` writes anyway, deliberately.
 
+#### Rebuild cadence — sixty days, by hand
+
+Nothing rebuilds the snapshot automatically; there is no cron, no CI job, no
+scheduled workflow. An owner runs `market:build` / `market:earnings`. The page
+carries the consequence rather than hiding it: past `STALE_AFTER_DAYS` (60, in
+`app/landing/spark/market/data.ts`) the hero prints the snapshot's age instead of
+leaving the date to be noticed. Sixty days is therefore the contract those
+scripts owe, and all three script headers now state it — `market:apply` most of
+all, because it makes no network call, cannot tell a stale snapshot from a fresh
+one, and re-levels every shipped salary band from whatever it is handed.
+
+#### Network contract — a build that cannot hang, and refuses offline
+
+Every GET the market scripts make runs through `fetchJson()` in
+`scripts/lib/market-earnings.mjs`, which is the seam both properties hang off:
+
+- **`FETCH_TIMEOUT_MS` = 20 s**, applied as an `AbortSignal.timeout` on every
+  request (Pumper's five exports, the three MPSV codelists, both ISPV files).
+  A bare `await fetch(url)` has no timeout at all — an endpoint that accepts the
+  connection and then says nothing hangs the build until a human notices. The
+  failure now names the budget it exceeded rather than surfacing `AbortError`.
+- **`KP_OFFLINE` refuses before the socket is touched**, and says why: the
+  snapshot is committed, so an air-gapped install
+  (`docs/architecture/self-hosting.md` §7) needs no rebuild. `market:build`
+  additionally refuses once up front rather than letting six parallel fetches
+  each reject with the same sentence. Truthiness matches `isOffline()` in
+  `app/_lib/offline.ts` (`1`/`true`/`yes`/`on`).
+
+Both are pinned by `scripts/__tests__/market-fetch.test.mjs` (7 checks, no
+network — the fetch is injected), which runs in `npm run test:docs`.
+
 ### Gaps are hidden, never stated
 
 The page never prints a placeholder where a figure should be. Where the survey
@@ -335,6 +387,40 @@ has no number, the element is dropped:
   literal words "Infinity" and "NaN", including into its `aria-label`);
 - hero freshness: a missing percentage drops the clause rather than publishing
   "0% posted in the last 90 days".
+
+### Money names its currency, and the survey names its vintage
+
+Every figure on `/market` is CZK read by an audience in four languages, so the
+formatters in `market/data.ts` take the READER's locale and go through `Intl`:
+
+| Helper | cs | en | de | fr |
+| --- | --- | --- | --- | --- |
+| `fmtCzk(81800, l)` | `81 800 Kč` | `CZK 81,800` | `81.800 CZK` | `81 800 CZK` |
+| `fmtCzkShort(28600, l)` | `28,6 tis. Kč` | `CZK 28.6K` | `28.600 CZK` | `28,6 k CZK` |
+| `fmtCompact(117000, l)` | `117 tis.` | `117K` | `117.000` | `117 k` |
+
+The compact form used to be hand-rolled — `"28,6 tis."`, a Czech abbreviation
+with a hard-coded comma decimal and **no currency**, printed in every locale on
+the map legend, the region ranges, every salary band and every job-ad range. The
+`cs` column is byte-identical to what the hand-rolled versions produced (which is
+why `regionLabel.test.ts` compares whole strings unchanged), and `MARKET_LOCALE`
+is the fallback when `Intl` refuses a tag rather than a thrown `RangeError`
+during render. `data.test.ts` pins the currency in all four locales and the
+`—` degradation for `null`/`NaN`/`±Infinity`.
+
+Provenance the snapshot always carried and the page never showed:
+
+- the **basis and vintage** — `salary.subtitleDated` states *gross monthly* and
+  the `meta.ispv_period` survey year, so a reader cannot take a 2025 gross figure
+  for this year's net (no period in the snapshot → the undated sentence, never a
+  guessed year);
+- the **sample size** behind each band — `reference_salaries[].employees_k`,
+  rendered as "based on N employees surveyed". A band drawn from 117 000
+  surveyed employees and one drawn from 4 000 are not the same claim;
+- the **age of the snapshot** — it is committed, not fetched, so past
+  `STALE_AFTER_DAYS` (60) the hero prints how old it is instead of leaving the
+  date to be noticed. Rebuild cadence is an owner decision, not a schedule:
+  nothing rebuilds `data/market_pulse.json` automatically today.
 
 `isFigure()` in `data.ts` is the single gate — `Number.isFinite`, not a null
 check, because `Math.min()` of an empty array is `Infinity` and the ratios
@@ -369,6 +455,22 @@ the "(planned)" marker), because **a claim whose honesty lives in a qualifier is
 false the moment a translation drops it**, and key-parity cannot see that. The
 tables' key sets are asserted equal to `LOCALES`, so adding a locale fails the
 test rather than silently exempting it.
+
+**End to end**, two keyless specs in the CI subset cover these pages:
+`e2e/landing.spec.ts` audits `/` band by band (axe, the spotlight's focus
+contract, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
+indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and
+`/market` against a per-page, per-rule `A11Y_HOLDOUTS` map, plus `/about`'s
+legal row and phone disclosure. Each holdout is asserted to STILL fail, so a
+fixed one turns the suite red until its entry is deleted. `/market` no longer has
+an entry: its nineteen serious findings were the eleven gold (`#caa54c`, 2.33:1)
+occupation rank ticks, now deepened to `#7a5f14`, and eight org-type labels drawn
+in the encoding colour (coral 3.87:1, amber 2.33:1) — the colour said nothing the
+words did not, so it moved to a swatch beside a readable label. Both were LOCAL
+choices. What remains on `/about`, `/trust`, `/privacy` and `/terms` is the
+palette itself — one node per legal page, and on all three it is the same
+element, the coral `EYEBROW` at 3.65:1 on cream — which is an owner decision. Both are named
+one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
 
 ## Known gaps
 

@@ -4,8 +4,10 @@ import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, type ScoreTone } from "@/app/_lib/format";
-import { SCORE_BANDS, scoreBandIndex } from "@/app/_components/scoreDial.logic";
+import { VERDICT_BANDS, scoreBandIndex } from "@/app/_components/scoreDial.logic";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { resolveVerdict } from "./verdict";
+import { FRAMING_KEY, verdictAriaLabel } from "./verdictAria";
 
 // Direction 1 (verdict-above-the-fold) — the report LEADS with a colored, glyphed
 // verdict, mirroring the app-wide eval-report standard (pipeline/jobfit/eval/
@@ -14,7 +16,7 @@ import { resolveVerdict } from "./verdict";
 // multi-variant run (which defaults to the Compare tab) it wasn't on screen at all.
 //
 // The band label + the readout color reuse the SAME helpers the dial does
-// (scoreBandIndex / SCORE_BANDS for the word, scoreTone for the color), so the
+// (scoreBandIndex / VERDICT_BANDS for the word, scoreTone for the color), so the
 // banner and the buried dial can never tell two stories. Tokens only — the
 // score-* scale is theme-mapped, so this holds in Spark Dark.
 
@@ -29,12 +31,6 @@ const TONE: Record<ScoreTone, { glyph: string; bar: string; text: string; wash: 
   null: { glyph: "–", bar: "border-l-score-null", text: "text-score-null", wash: "bg-score-null/10" },
 };
 
-const FRAMING_KEY: Record<ScoreTone, "verdict.framingStrong" | "verdict.framingMid" | "verdict.framingWeak" | "verdict.framingNone"> = {
-  strong: "verdict.framingStrong",
-  mid: "verdict.framingMid",
-  weak: "verdict.framingWeak",
-  null: "verdict.framingNone",
-};
 
 export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
@@ -44,7 +40,7 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   // "not enough to score" framing. Never a fabricated band on absent data.
   const tone = scoreTone(scored ? overall : null);
   const skin = TONE[tone];
-  const band = scored ? t(SCORE_BANDS[scoreBandIndex(overall)].key) : null;
+  const band = scored ? t(VERDICT_BANDS[scoreBandIndex(overall)].key) : null;
 
   // `role="img"` makes every descendant PRESENTATIONAL (img is one of ARIA's
   // presentational-children roles), so the aria-label is the whole banner for a
@@ -54,34 +50,29 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   // exists to deliver — WHICH CV won — was announced nowhere. Compose the label
   // from the same already-localized strings the chips render (no new catalog keys)
   // so the spoken banner says exactly what the painted one does.
-  const ariaLabel = [
-    scored ? t("verdict.aria", { score: overall, band: band as string }) : t("verdict.ariaUnscored"),
-    jobFit != null ? t("verdict.jobFit", { score: jobFit }) : null,
-    winnerLabel ? t("verdict.winner", { label: winnerLabel }) : null,
-    t(FRAMING_KEY[tone]),
-  ]
-    .filter((part): part is string => !!part)
-    .join(". ");
+  const ariaLabel = verdictAriaLabel(t, { overall: scored ? overall : null, band, jobFit, winnerLabel, tone });
 
   return (
     <div
-      className={`rounded-lg border border-stone-200 border-l-4 ${skin.bar} bg-white p-4 shadow-panel`}
+      // PANEL composed, not re-typed: the accent rail is a separate modifier on
+      // top of the recipe, so a restyle of the panel surface reaches the banner.
+      className={`${PANEL} border-l-4 ${skin.bar} p-4`}
       role="img"
       aria-label={ariaLabel}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span aria-hidden className={`text-2xl font-bold leading-none ${skin.text}`}>
+        <span aria-hidden className={`text-h2 font-bold leading-none ${skin.text}`}>
           {skin.glyph}
         </span>
         <p className="text-meta uppercase tracking-wide text-steel">{t("verdict.heading")}</p>
         {scored ? (
           <span className={`inline-flex items-baseline gap-1.5 ${skin.text}`}>
-            <span className="text-2xl font-bold leading-none nums dark:font-serif">{overall}</span>
+            <span className="text-display font-bold leading-none nums dark:font-serif">{overall}</span>
             <span className="text-sm text-steel">{t("verdict.outOf")}</span>
             <span className="text-sm font-semibold uppercase tracking-wide">{band}</span>
           </span>
         ) : (
-          <span className="text-2xl font-bold leading-none text-score-null">—</span>
+          <span className="text-display font-bold leading-none text-score-null">—</span>
         )}
         {jobFit != null ? (
           <span

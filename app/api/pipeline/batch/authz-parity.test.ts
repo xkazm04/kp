@@ -35,6 +35,10 @@ const GATED_ROUTES = [
   "../command/route.ts", // command bar
   "../[id]/route.ts", // single entry (GET + POST)
   "../[id]/timeline/route.ts", // drawer bundle (GET)
+  // ADDED /perfect 2026-09-02: the consent snapshot + GDPR audit trail (GET). It
+  // was the one sibling in this family still leaning on "the board is behind auth",
+  // while carrying MORE about a named person than either route above.
+  "../[id]/consent/route.ts",
 ];
 
 for (const rel of GATED_ROUTES) {

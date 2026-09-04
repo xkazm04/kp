@@ -67,11 +67,18 @@ export async function GET(request: Request) {
     // composite): both vocabularies are closed and colon-free, so the compound is
     // collision-free, and no advance payload can ever be served for a hire request.
     const payload = calibrationCache.get(calibrationCacheKey(ws, `${source}:${outcome}`, family), () => {
+      // ONE clean-arm read per request. The arm is a scan of the decision chain, and this
+      // handler used to run it TWICE on the same workspace inside the same closure — once
+      // for the `holdout` source's pairs and once for the ratchet guard's below-floor half
+      // — with identical arguments and no memo between them. Read once, lazily (a
+      // `pipeline` request without the advance axis needs it never), reused by both.
+      let heldOutMemo: Set<string> | null = null;
+      const heldOut = () => (heldOutMemo ??= heldOutEntryIds(ws));
       const allPairs =
         source === "analysis"
           ? calibrationPairs(ws)
           : source === "holdout"
-            ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws), outcome })
+            ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOut(), outcome })
             : pipelineCalibrationPairs(ws, { outcome });
       // The distinct families present (from the UNFILTERED set) so the UI can offer a
       // data-driven "how accurate are you for <family> roles?" selector — stable
@@ -119,7 +126,7 @@ export async function GET(request: Request) {
         // "raise" is reachable. Same family scope as the displayed curve; no holdout
         // (disabled, or too few spared outcomes) → no recommendation at all.
         const allHoldout =
-          outcome === "advance" ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws), outcome: "advance" }) : [];
+          outcome === "advance" ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOut(), outcome: "advance" }) : [];
         const holdoutPairs = family ? allHoldout.filter((p) => p.roleFamily === family) : allHoldout;
         recommendation =
           outcome === "advance" ? recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold) : null;

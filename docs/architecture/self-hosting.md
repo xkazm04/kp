@@ -61,10 +61,75 @@ Two variables are **mandatory for any real deployment**:
 | Var | Why it's required |
 |---|---|
 | `KP_OPERATOR_PASSWORD` | **Unset ⇒ the app runs fully OPEN** — every operator route is reachable with no login (open dev mode, `app/_lib/auth/require-operator.ts`). Set a strong value; the fail-closed edge proxy then gates every non-public route. |
-| `KP_SECRET` | Master key that encrypts UI-entered provider API keys at rest (AES-256-GCM). Use a long random string. |
+| `KP_SECRET` | Master key that encrypts UI-entered provider API keys at rest (AES-256-GCM), and keys the session HMAC. Use a long random string; rotate it with `KP_SECRET_PREVIOUS` + `npm run secrets:rotate` (below), never by editing it alone. |
 
 Everything else is optional. Provider keys (§5) are **opt-in** — set only the ones
 you use; omit the rest to minimise external egress.
+
+### 3b. Sizing the Python engine
+
+The jobfit pipeline is **spawned per request** ([ADR: spawn-per-request](decisions/))
+— one CPython interpreter per analyze / match / devcase / JD-build call, ~120–200 MB
+resident while it runs. That is cheap per call and unbounded in aggregate, so
+`app/_lib/python-runner.ts` admits a fixed number at a time and refuses the overflow
+rather than letting a burst starve the Node server every route shares.
+
+| Var | Default | What it does |
+|---|---|---|
+| `KP_PYTHON_MAX_CONCURRENT` | `4` | Interpreters allowed to run at once, process-wide. Sized for the 2-vCPU floor the Helm chart requests: enough that a recruiter's parallel board actions genuinely overlap, low enough to leave a core for Next and keep worst-case engine memory under ~1 GB. Raise it on a bigger host; `1` makes the engine strictly serial. |
+| `KP_PYTHON_QUEUE_WAIT_MS` | `20000` | How long a call waits for a slot before the route answers **503 `ENGINE_BUSY`**. Well inside a normal client deadline; an unbounded queue would only convert an overload into sockets held open past the point their users gave up. |
+| `PYTHON_MAX_BUFFER_MB` | `64` | Combined stdout+stderr a child may buffer before it is killed. |
+| `PYTHON_CMD` | `python3` (`python` on Windows) | The interpreter. |
+
+Two operational properties to know:
+
+- **Single process, like the rate limiter.** The ceiling counts spawns in *this*
+  Node process. A horizontally-scaled deployment multiplies it by the replica
+  count; the same swap the rate limiter would need (a shared store behind the same
+  function shape) applies here.
+- **A killed spawn takes its children with it.** A timeout, an abort, or a
+  buffer overrun ends the whole process *tree* — the interpreter plus every
+  `claude` / `git` it shelled out to (POSIX: the child leads its own process
+  group and the group is signalled; Windows: `taskkill /T /F`). Before this, a
+  wedged grandchild survived the kill and held CPU and a provider connection
+  until the box was restarted.
+
+### Rotating `KP_SECRET` without an outage
+
+`KP_SECRET` encrypts every credential KP stores: UI-entered provider keys
+(`provider_keys`), and — unless you set a dedicated `KP_ATS_SECRET_KEY` — the ATS
+webhook secret, ATS/Personas API tokens, calendar tokens, the comms relay secret
+and the edge sealing private key. Changing it therefore used to make all of them
+undecryptable at once, with re-entering each credential by hand as the only
+recovery. The rotation path:
+
+```bash
+# 1. Keep the retired secret readable, set the new one, restart.
+KP_SECRET_PREVIOUS=<old secret>   # decryption falls back to this
+KP_SECRET=<new secret>            # everything NEW is written under this
+
+# 2. Re-encrypt every stored row under the new secret.
+npm run secrets:rotate            # add -- --dry-run first to see the counts
+
+# 3. Unset KP_SECRET_PREVIOUS and restart. Rotation done.
+```
+
+- `KP_SECRET_PREVIOUS` is **decrypt-only** — no ciphertext is ever written under
+  the old key, so the window in step 2 is the only time two secrets are live.
+  Treat it as transitional and remove it: it is a second valid key to your
+  credential store.
+- The script **never rewrites a row it could not read first** (a value we cannot
+  decrypt is the only copy of that credential), reports any such row and exits
+  non-zero. It skips rows already under the current secret, so an interrupted run
+  is simply re-run.
+- With `KP_ATS_SECRET_KEY` set, ATS / calendar / edge secrets are keyed on *it*
+  and a `KP_SECRET` rotation neither breaks nor touches them — the script says so
+  and leaves them alone. Rotating `KP_ATS_SECRET_KEY` itself has no equivalent
+  fallback yet; decouple the two keys **before** you need to rotate either.
+- **Sessions are not covered.** `KP_SECRET` also keys the session HMAC, so every
+  operator is signed out by the rotation and logs in again. That is the intended
+  outcome of rotating a secret — but tell your operators before you do it, not
+  after.
 
 ## 4. Data layer & residency
 
@@ -366,6 +431,9 @@ the test.
 | `secret-not-in-rollout-checksum` | pod annotations that hash the ConfigMap but not the Secret |
 | `volume-access-mode-shared` | `persistence.accessMode` other than `ReadWriteOnce` |
 | `env-contract-drift` | an env key the chart **sets** that `.env.example` does not document |
+| `env-contract-dropped` | an env key in `ENV_CONTRACT_REQUIRED` the chart **stopped** setting |
+| `secret-renders-empty-instead-of-failing` | a `required` removed from `KP_OPERATOR_PASSWORD` / `KP_SECRET` in the Secret template |
+| `open-mode-shipped-on` | a chart that sets `KP_ALLOW_OPEN` truthy, or an `.env.example` that never documents it |
 
 The gate reads **every file in `deploy/helm/kp/templates/`**, not a list of five.
 The five named in `CHART_FILES` stay required — a policy that must read the
@@ -420,6 +488,30 @@ a release is defined partly by its environment contract
 (`docs/architecture/releases.md` §versioning); a key renamed on one side of it is
 an upgrade break that shows up on a running install as a setting that quietly
 stopped applying, never as a failed deploy.
+
+The env contract runs in BOTH directions, and the reverse half is the expensive
+one. A key ADDED to the chart and not to `.env.example` is undocumented
+configuration; a key **dropped** from the chart is a setting that silently
+stopped applying. `ENV_CONTRACT_REQUIRED` names the three the chart must go on
+setting — `KP_DB_PATH`, `KP_OPERATOR_PASSWORD`, `KP_SECRET` — each with what
+actually breaks without it. Dropping `KP_DB_PATH` from the ConfigMap fails no
+deploy: `app/_lib/db-path.ts` derives a path from the launch directory, so the
+pod opens a different, empty database inside its own container layer and loses
+every write on the next restart.
+
+`secret-renders-empty-instead-of-failing` guards the guard. `templates/secret.yaml`
+wraps both auth values in Helm's `required`, so `helm install` fails with a
+message rather than rendering an empty `KP_OPERATOR_PASSWORD` and starting an app
+with no login. Deleting one `required` is a two-word edit that leaves the key set,
+documented and in the Secret — no other policy here notices it.
+
+`open-mode-shipped-on` covers the flag one layer below that. A production build
+refuses to boot with no operator password unless **`KP_ALLOW_OPEN=1`** says the
+operator meant it, which makes it the only thing that can undo the `required`
+above for a whole release. It is off by default, it is now documented in
+`.env.example` and commented out in `values.yaml` with its consequence, and the
+policy fails if the chart ever ships it on. Set it only where something else does
+the gating — an authenticating proxy, a CI e2e run, an air-gapped box.
 
 Changing a policy is a deliberate edit to `POLICIES` in
 `scripts/deploy/check-chart.mjs` with the reason — a line a reviewer can disagree

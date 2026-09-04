@@ -5,6 +5,7 @@
 // redesign on purpose: this is the one thing the operator sees 95% of the time,
 // so the halo, the awaiting-decisions beacon and the aiBusy pulse stay exactly as
 // they were.
+import { useEffect, useRef, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { SIM_PHASES } from "./constants";
@@ -16,6 +17,8 @@ export function SimControlDockOrb({
   awaiting,
   aiBusy,
   onOpen,
+  containerRef,
+  focusOnMount,
 }: {
   mode: "sim" | "ops";
   activeIdx: number;
@@ -23,11 +26,23 @@ export function SimControlDockOrb({
   awaiting: number;
   aiBusy: boolean;
   onOpen: () => void;
+  /** Measured by `usePublishBarHeight` so `--sim-bar-h` stays truthful while the
+   *  deck is DOWN: the companion window floats at `--sim-bar-h + 8px` and would
+   *  otherwise sit on top of the orb, on a fallback sized for the raised deck. */
+  containerRef: RefObject<HTMLDivElement | null>;
+  /** True only when the operator just lowered the deck — the orb is then the
+   *  control that replaced the one they were standing on, so focus follows it.
+   *  False on a page that simply loads collapsed, which must not grab focus. */
+  focusOnMount: boolean;
 }) {
   const t = useTranslations("pipeline.controlCenter");
   // The phase chronology is the guided demo's own vocabulary, so it lives in the
   // `simulation` namespace beside the tour narration rather than in the dock's.
   const tSim = useTranslations("simulation");
+  const btnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (focusOnMount) btnRef.current?.focus();
+  }, [focusOnMount]);
   const orbCaption =
     mode === "sim"
       ? activeIdx >= 0
@@ -41,7 +56,7 @@ export function SimControlDockOrb({
     // bottom-[max(...)] — clear of the iOS home-indicator strip, where taps feed
     // the system swipe gesture instead of the button (safe-area vars are live
     // because layout.tsx sets viewport-fit=cover).
-    <div className="group fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[var(--z-sim-bar)] -translate-x-1/2">
+    <div ref={containerRef} className="group fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-[var(--z-sim-bar)] -translate-x-1/2">
       {/* Sim: a caption bubble above narrates the live phase. */}
       {orbCaption ? (
         <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3 py-1 text-sm font-medium text-ink shadow-panel">
@@ -55,6 +70,7 @@ export function SimControlDockOrb({
         </span>
       ) : null}
       <button
+        ref={btnRef}
         type="button"
         onClick={onOpen}
         aria-label={awaiting > 0 ? t("openAwaiting", { count: awaiting }) : t("open")}

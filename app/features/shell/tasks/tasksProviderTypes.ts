@@ -56,6 +56,11 @@ export type TasksCtx = {
   /** Acknowledge finished tasks (read/unread) — stamps seen_at server-side and
    *  refreshes so the indicator badge clears on the next paint. */
   markSeen: (ids: string[]) => Promise<void>;
+  /** Repeated consecutive poll failures (see POLL_UNREACHABLE_AFTER) — the queue
+   *  is not merely stale, it is unreachable, and the poll has backed off. A view
+   *  MUST say so: everything on screen is a frozen snapshot, and a task started
+   *  now would not appear. */
+  queueUnreachable: boolean;
   /** The last poll did NOT reach the queue (network drop, 500, malformed body).
    *  `tasks` is then stale — or, on a first load, still `[]`. A view MUST NOT
    *  render that `[]` as "nothing has run"; say the server is unreachable. */

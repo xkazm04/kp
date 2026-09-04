@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db/interviews";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
+import { CHIP } from "@/app/_components/ui/recipes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
@@ -80,13 +81,13 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
         </h1>
         <p className="mt-2 text-body text-steel">{t("intro")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
+          <span className={CHIP}>
             <Clock size={13} className="text-steel" /> {t("durationApprox", { min: durationMin })}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
+          <span className={CHIP}>
             <Sparkles size={13} className="text-moss" /> {t("chipAiLed")}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel">
+          <span className={CHIP}>
             <ShieldCheck size={13} className="text-moss" /> {t("chipHuman")}
           </span>
         </div>

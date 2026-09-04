@@ -13,6 +13,8 @@ import {
 } from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
+import { resolveCommsLocale } from "./comms-locale";
+import { commsTranslator } from "./comms-translator";
 import { getAutonomy, getPromoteFloor, recordAudit } from "./dev-control";
 
 // Direction A — the lifecycle orchestrator. Drives a dev case through its stages under
@@ -90,7 +92,16 @@ const MAX_COLLECT_PASSES = 50;
 
 // Drive a lifecycle from its current stage as far as policy + readiness allow, stopping at a
 // human gate (awaiting_approval), at collecting (no submissions yet), or at promoted (done).
-export async function runLifecycle(id: string, progress?: Progress, signal?: AbortSignal): Promise<{ stage: string; detail: string }> {
+export async function runLifecycle(id: string, progress?: Progress, signal?: AbortSignal, workspaceId?: string): Promise<{ stage: string; detail: string }> {
+  // Ownership, asserted ONCE before the walk: every stage below drives on
+  // `lc.workspaceId` (sourcing another team's pool, promoting into their board,
+  // mailing their candidates), and getLifecycle reads by a non-secret id with no
+  // tenant predicate. `workspaceId` is the team the background task was enqueued for;
+  // optional so in-process callers that already own the record can omit it.
+  if (workspaceId) {
+    const owner = getLifecycle(id);
+    if (owner && owner.workspaceId !== workspaceId) throw new Error("lifecycle belongs to another workspace");
+  }
   for (let step = 0; step < MAX_LIFECYCLE_STEPS; step += 1) {
     // Stop advancing on cancel (the heaviest steps — analyze/design — also forward
     // the signal so their Python child is killed; the loop break stops further stages).
@@ -100,17 +111,38 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
     const pct = (s: string) => progress?.(Math.max(0, STAGES.indexOf(s)), STAGES.length, s);
     pct(lc.stage);
 
+    // EVERY stage write below is a read→compute→write across an await measured in
+    // minutes (an LLM chain, a Python spawn, an evaluation batch). `lc.stage` is the
+    // stage this iteration READ; re-asserting it in the UPDATE is the compensating
+    // precondition that drops a decision computed while a human approved, redesigned
+    // or CLOSED the lifecycle from the UI — the unconditional write let the stale
+    // runner win. `advance` also runs the move through the transition table, so an
+    // impossible edge throws instead of being persisted.
+    const advance = (patch: Parameters<typeof updateLifecycle>[1]): boolean =>
+      updateLifecycle(id, patch, { expectedStage: lc.stage });
+    const lostRace = (): { stage: string; detail: string } => {
+      const now = getLifecycle(id);
+      recordAudit({
+        lifecycleId: id,
+        workspaceId: lc.workspaceId,
+        actor: "system",
+        action: "advance_discarded",
+        reason: `moved from '${lc.stage}' to '${now?.stage ?? "missing"}' during the step — the computed advance was not saved`,
+      });
+      return { stage: now?.stage ?? "unknown", detail: now?.detail ?? "moved on during the step" };
+    };
+
     // Kill switch: when paused, halt auto-advancement (human oversight requirement).
     if (getAutonomy() === "paused" && lc.stage !== "promoted") {
-      recordAudit({ lifecycleId: id, actor: "system", action: "halted", reason: "automation paused by operator" });
+      recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "system", action: "halted", reason: "automation paused by operator" });
       return { stage: lc.stage, detail: "halted — automation paused" };
     }
 
     if (lc.stage === "intake") {
       if (!lc.need) throw new Error("lifecycle has no need to analyze");
       const { analysis } = await runNeedAnalysis(lc.need, signal);
-      updateLifecycle(id, { stage: "analyzed", analysis, detail: "reality reflection done" });
-      recordAudit({ lifecycleId: id, actor: "auto", action: "analyzed", reason: lc.title ?? undefined });
+      if (!advance({ stage: "analyzed", analysis, detail: "reality reflection done" })) return lostRace();
+      recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "analyzed", reason: lc.title ?? undefined });
     } else if (lc.stage === "analyzed") {
       if (!lc.need) throw new Error("lifecycle has no need to design from");
       // DEVP5 — render the candidate-facing case brief/tasks in the lifecycle's language.
@@ -119,16 +151,16 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // see whether the case was actually LLM-grounded — a deterministic-template
       // fallback must NOT auto-publish to candidates as if it were bespoke.
       const kase = { ...design.case, designSource: design.source } as Record<string, unknown>;
-      updateLifecycle(id, { stage: "designed", role: design.role, case: kase, detail: "role + assignment designed" });
-      recordAudit({ lifecycleId: id, actor: "auto", action: "designed" });
+      if (!advance({ stage: "designed", role: design.role, case: kase, detail: "role + assignment designed" })) return lostRace();
+      recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "designed" });
     } else if (lc.stage === "designed") {
       const gate = gateApproval(lc.analysis, lc.case as Record<string, unknown> | null);
       if (lc.auto && gate.pass) {
         const { caseId } = approveLifecycleCase(id, lc, gate.reason);
-        recordAudit({ lifecycleId: id, actor: "auto", action: "auto_approved", reason: gate.reason, ref: caseId });
+        recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "auto_approved", reason: gate.reason, ref: caseId });
       } else {
-        updateLifecycle(id, { stage: "awaiting_approval", detail: gate.reason });
-        recordAudit({ lifecycleId: id, actor: "auto", action: "routed_to_human", reason: gate.reason });
+        if (!advance({ stage: "awaiting_approval", detail: gate.reason })) return lostRace();
+        recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "routed_to_human", reason: gate.reason });
         return { stage: "awaiting_approval", detail: gate.reason };
       }
     } else if (lc.stage === "approved") {
@@ -176,19 +208,32 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
             saveDevCaseScenarioIfAbsent(devCase.id, { ...scenario, source: scenarioSource });
             if (scenarioSource === "llm") {
               scenarioNote = "; interview scenario ready";
-              recordAudit({ lifecycleId: id, actor: "auto", action: "interview_scenario", ref: devCase.id });
+              recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "interview_scenario", ref: devCase.id });
             } else {
               scenarioNote = "; interview scenario degraded (template probes)";
               recordAudit({
                 lifecycleId: id,
+                workspaceId: lc.workspaceId,
                 actor: "system",
                 action: "scenario_template_only",
                 reason: fallbackReason.scenario ?? "LLM unavailable — deterministic template",
                 ref: devCase.id,
               });
             }
-          } catch {
-            /* interviews fall back to the generic early-career script */
+          } catch (err) {
+            // Interviews fall back to the generic early-career script — never a
+            // publish blocker. But the drop is no longer SILENT: every candidate on
+            // this case will face template probes instead of case-designed ones, and
+            // an operator reading the control room had no way to tell that from a
+            // scenario that was simply never attempted.
+            recordAudit({
+              lifecycleId: id,
+              workspaceId: lc.workspaceId,
+              actor: "system",
+              action: "interview_scenario_failed",
+              reason: err instanceof Error ? err.message : String(err),
+              ref: devCase.id,
+            });
           }
         }
 
@@ -209,19 +254,30 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
             saveDevCaseSeedIfAbsent(devCase.id, { ...seed, source: seedSource });
             if (seedSource === "llm") {
               scenarioNote += "; seed materialized";
-              recordAudit({ lifecycleId: id, actor: "auto", action: "seed_materialized", ref: devCase.id });
+              recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "seed_materialized", ref: devCase.id });
             } else {
               scenarioNote += "; seed skeleton only (prose materials)";
               recordAudit({
                 lifecycleId: id,
+                workspaceId: lc.workspaceId,
                 actor: "system",
                 action: "seed_skeleton_only",
                 reason: fallbackReason.seed ?? "LLM unavailable — deterministic template",
                 ref: devCase.id,
               });
             }
-          } catch {
-            /* the case ships with prose starting materials as before */
+          } catch (err) {
+            // The case ships with prose starting materials as before — best-effort,
+            // but recorded: a candidate handed prose instead of a starter tree is a
+            // materially different (and harder to grade) assignment.
+            recordAudit({
+              lifecycleId: id,
+              workspaceId: lc.workspaceId,
+              actor: "system",
+              action: "seed_materialize_failed",
+              reason: err instanceof Error ? err.message : String(err),
+              ref: devCase.id,
+            });
           }
         }
 
@@ -243,18 +299,28 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
               saveDevCaseBaselineIfAbsent(frozen.id, { ...baseline, source: baselineSource });
               if (baselineSource === "llm") {
                 scenarioNote += "; baseline frozen";
-                recordAudit({ lifecycleId: id, actor: "auto", action: "baseline_frozen", ref: frozen.id });
+                recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "baseline_frozen", ref: frozen.id });
               } else {
                 recordAudit({
                   lifecycleId: id,
+                  workspaceId: lc.workspaceId,
                   actor: "system",
                   action: "baseline_unavailable",
                   reason: "LLM unavailable — submissions will not be baseline-diffed",
                   ref: frozen.id,
                 });
               }
-            } catch {
-              /* comparisons will report unavailable */
+            } catch (err) {
+              // Comparisons will report unavailable — recorded, because "no baseline"
+              // silently weakens every evaluation on this case.
+              recordAudit({
+                lifecycleId: id,
+                workspaceId: lc.workspaceId,
+                actor: "system",
+                action: "baseline_solve_failed",
+                reason: err instanceof Error ? err.message : String(err),
+                ref: frozen.id,
+              });
             }
           }
         }
@@ -289,7 +355,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // crash (e.g. the matching bridge threw) is distinguishable from a legitimately empty
         // result, instead of hiding behind a benign-looking "sourced 0 candidate(s)".
         sourcingError = err instanceof Error ? err.message : String(err);
-        recordAudit({ lifecycleId: id, actor: "system", action: "sourcing_failed", reason: sourcingError, ref: postingId });
+        recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "system", action: "sourcing_failed", reason: sourcingError, ref: postingId });
       }
       // Note unparseable candidates in the detail so "sourced 0" reads as "nobody
       // qualified", not "the pool silently failed to load" — and a real sourcing
@@ -298,13 +364,10 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       const sourcedDetail = sourcingError
         ? `published${scenarioNote}; sourced ${sourced} candidate(s) before sourcing failed (${sourcingError}); awaiting submissions`
         : `published${scenarioNote}; sourced ${sourced} candidate(s) into the pipeline${skippedNote}; awaiting submissions`;
-      updateLifecycle(id, {
-        stage: "collecting",
-        postingId,
-        detail: sourcedDetail,
-      });
+      if (!advance({ stage: "collecting", postingId, detail: sourcedDetail })) return lostRace();
       recordAudit({
         lifecycleId: id,
+        workspaceId: lc.workspaceId,
         actor: "auto",
         action: "published",
         reason: sourcingError ? `sourcing failed after ${sourced} (${sourcingError})` : `sourced ${sourced} into pipeline`,
@@ -337,9 +400,31 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         const todo = subs.filter((s) => !s.evaluation && !attempted.has(s.id));
         if (todo.length === 0) break;
         for (const s of todo) {
+          // STOP MEANS STOP, PER SUBMISSION. Both stop signals used to be read ONCE
+          // per outer step — before this drain began — while the drain itself is the
+          // longest-running thing the orchestrator does (up to MAX_COLLECT_PASSES ×
+          // every submission, each an LLM chain of seconds to minutes). So an
+          // operator who hit the kill switch, or a cancel on the background task,
+          // watched the pipeline keep evaluating candidates for the rest of the
+          // batch: the switch was advisory, not a switch. Re-read both here and
+          // finish only the submission already in flight.
+          if (signal?.aborted) return { stage: "collecting", detail: `canceled after ${evaluated} evaluated` };
+          if (getAutonomy() === "paused") {
+            recordAudit({
+              lifecycleId: id,
+              workspaceId: lc.workspaceId,
+              actor: "system",
+              action: "halted",
+              reason: `automation paused by operator mid-drain (after ${evaluated} evaluated)`,
+            });
+            return { stage: "collecting", detail: `halted — automation paused after ${evaluated} evaluated` };
+          }
           attempted.add(s.id);
           try {
-            await runEvaluateSubmission(s.id);
+            // The signal rides INTO the evaluation (runEvaluateSubmission accepts it and
+            // forwards it to its Python child): without it a cancel could not reach the
+            // subprocess that owns the next several minutes of wall clock.
+            await runEvaluateSubmission(s.id, signal);
             evaluated += 1;
           } catch (err) {
             // Keep going; a failed eval shouldn't block the batch — but record it so a crash is
@@ -347,6 +432,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
             failed += 1;
             recordAudit({
               lifecycleId: id,
+              workspaceId: lc.workspaceId,
               actor: "system",
               action: "eval_failed",
               reason: err instanceof Error ? err.message : String(err),
@@ -361,8 +447,8 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       if (!sawAny) return { stage: "collecting", detail: "awaiting submissions" };
       const evalDetail =
         failed > 0 ? `evaluated ${evaluated}, ${failed} failed` : `evaluated ${evaluated} submission(s)`;
-      updateLifecycle(id, { stage: "ranked", detail: evalDetail });
-      recordAudit({ lifecycleId: id, actor: "auto", action: "evaluated", reason: evalDetail });
+      if (!advance({ stage: "ranked", detail: evalDetail })) return lostRace();
+      recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "evaluated", reason: evalDetail });
     } else if (lc.stage === "ranked") {
       // Floor is calibration-adjustable (Direction E): a human applies an outcome-driven
       // suggestion via dev_control; we fall back to the DEV_POLICY default when unset.
@@ -379,7 +465,32 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       const roleTitle = lc.role?.title ?? lc.title ?? "the role";
       let promoted = 0;
       let held = 0;
+      // The advance letter's language and tenant, resolved ONCE for the batch: the
+      // lifecycle is the authority on both (this runner is off-request), and
+      // resolveCommsLocale is the same authority every candidate-facing dispatcher
+      // uses — a NULL `lang` falls back to THIS team's default_locale, not the
+      // default tenant's.
+      const advanceLocale = resolveCommsLocale(lc.lang, lc.workspaceId);
+      const t = await commsTranslator(advanceLocale);
       for (const s of ranked) {
+        // Same per-item stop contract as the drain above: promotion writes to the
+        // board and mails candidates, so a paused/cancelled run must not keep doing
+        // either for the rest of the batch.
+        if (signal?.aborted) {
+          const detail = `canceled after promoting ${promoted}/${DEV_POLICY.promoteTopN}`;
+          updateLifecycle(id, { detail });
+          return { stage: "ranked", detail };
+        }
+        if (getAutonomy() === "paused") {
+          recordAudit({
+            lifecycleId: id,
+            workspaceId: lc.workspaceId,
+            actor: "system",
+            action: "halted",
+            reason: `automation paused by operator mid-promote (after ${promoted})`,
+          });
+          return { stage: "ranked", detail: `halted — automation paused after promoting ${promoted}` };
+        }
         // The calibrated floor rides into promoteSubmission so the reviewer-facing
         // advice and this stage's behavior share ONE threshold (case-sim round 2:
         // the advice hardcoded 70 while this stage promoted on the floor).
@@ -396,8 +507,18 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // evidence the hold below refuses to act on.
         try {
           await mintObservedFromSubmission(s.id, result.entryId);
-        } catch {
-          /* minting is enrichment, not a gate */
+        } catch (err) {
+          // Minting is enrichment, not a gate — the promotion stands. Recorded all the
+          // same: observed provenance is the deepest evidence the product produces, and
+          // losing it for a candidate is invisible everywhere else.
+          recordAudit({
+            lifecycleId: id,
+            workspaceId: lc.workspaceId,
+            actor: "system",
+            action: "observed_mint_failed",
+            reason: err instanceof Error ? err.message : String(err),
+            ref: s.id,
+          });
         }
         // Say/do consistency (case-sim round 2 — every persona converged on this):
         // the "we'd like to take it forward" comm only goes out when the verdict
@@ -409,17 +530,42 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // reviewer can answer "why" (compliance/explainability).
         if (result.recommendation === "advance") {
           // Non-adverse comm — safe to automate. Adverse actions (rejections) stay human-gated.
+          //
+          // The last hardcoded-English letter in the product, and the one the case's
+          // whole DEVP5 language thread was built for: the brief, the tasks and the
+          // interview scenario are all rendered in `lc.lang`, then the candidate who
+          // cleared them was told in English that they had. It now composes from the
+          // `comms.devcaseAdvance.*` catalog in the resolved locale, like every
+          // dispatcher in comms-dispatch.ts.
+          //
+          // FILING: `workspaceId: lc.workspaceId`. The outbox row was written with no
+          // tenant, so it landed in the default team's Outbox — the promoting team
+          // could not see (nor Resend) the letter it had just sent, and the default
+          // team saw another studio's candidate. Same bug the close route documents
+          // at its own dispatch.
+          const greetName = (s.candidateRef ?? "").trim() || t("there");
+          const score = s.transferScore == null ? null : String(s.transferScore);
           await sendComm({
             to: s.contact || s.candidateRef || "candidate",
-            subject: `Next step — ${roleTitle}`,
-            body: `Hi ${s.candidateRef},\n\nYour submission for ${roleTitle} stood out (fit ${s.transferScore ?? "—"}/100) and we'd like to take it forward. We'll be in touch with next steps shortly.\n\nBest,\nThe hiring team`,
+            subject: t("devcaseAdvance.subject", { role: roleTitle }),
+            body: [
+              t("devcaseAdvance.greeting", { name: greetName }),
+              "",
+              score == null
+                ? t("devcaseAdvance.body", { role: roleTitle })
+                : t("devcaseAdvance.bodyScore", { role: roleTitle, score }),
+              "",
+              t("devcaseAdvance.signoff"),
+            ].join("\n"),
             kind: "invite",
             ref: s.id,
+            workspaceId: lc.workspaceId,
           });
         } else {
           held += 1;
           recordAudit({
             lifecycleId: id,
+            workspaceId: lc.workspaceId,
             actor: "system",
             action: "promote_held",
             reason: result.reasons.join("; "),
@@ -429,8 +575,8 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       }
       const heldNote = held > 0 ? `, ${held} held for review` : "";
       const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline${heldNote}`;
-      updateLifecycle(id, { stage: "promoted", detail });
-      recordAudit({ lifecycleId: id, actor: "auto", action: "promoted", reason: detail });
+      if (!advance({ stage: "promoted", detail })) return lostRace();
+      recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "promoted", reason: detail });
       return { stage: "promoted", detail };
     } else {
       return { stage: lc.stage, detail: lc.detail ?? "" };
@@ -453,6 +599,10 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
   const stage = lc?.stage ?? "unknown";
   recordAudit({
     lifecycleId: id,
+    // The only stamp on this page that has to tolerate a missing row: the re-read
+    // above can legitimately return null (the lifecycle was deleted mid-walk), and
+    // an unattributed row falls back to the default tenant in recordAudit.
+    workspaceId: lc?.workspaceId ?? null,
     actor: "system",
     action: "step_budget_exhausted",
     reason: `stuck at stage "${stage}" — ${MAX_LIFECYCLE_STEPS}-step budget exhausted without advancing`,

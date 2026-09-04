@@ -40,19 +40,26 @@ const baseScoreInput = {
   observed: true,
 } as const;
 
+// The flush route requires the apply token that minted the session — including for a
+// session minted directly here (/perfect 2026-09-02, api-devcase-1: the `session.token &&`
+// carve-out that let a TOKENLESS row skip the gate and both per-token budgets is gone).
+// These fixtures therefore mint WITH a token and present it, which is also what the
+// product does; the paste control being exercised is unaffected either way.
+const APPLY_TOKEN = "paste-fixture-token";
+
 function post(id: string, events: unknown[]): Promise<Response> {
   return POST(
     new Request(`http://localhost/api/devcase/session/${id}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ events }),
+      body: JSON.stringify({ token: APPLY_TOKEN, events }),
     }),
     { params: Promise.resolve({ id }) }
   );
 }
 
 test("a bulk paste survives the route and lands the watched submission in suspect", async () => {
-  const session = startDevSession({ token: null, candidateRef: "cand-paste" });
+  const session = startDevSession({ token: APPLY_TOKEN, candidateRef: "cand-paste" });
   const now = Date.now();
   const res = await post(session.id, [
     { t: now, kind: "open", path: "src/solve.ts" },
@@ -79,11 +86,11 @@ test("a bulk paste survives the route and lands the watched submission in suspec
     withoutPaste.score - withPaste.score >= 60,
     `materially lower authenticity (delta ${withoutPaste.score - withPaste.score})`
   );
-  assert.ok(withPaste.reasons.some((r) => r.includes("bulk paste")));
+  assert.ok(withPaste.reasons.some((r) => r.kind === "bulkPaste"));
 });
 
 test("a sub-threshold paste round-trips but does not trip the control", async () => {
-  const session = startDevSession({ token: null, candidateRef: "cand-clean" });
+  const session = startDevSession({ token: APPLY_TOKEN, candidateRef: "cand-clean" });
   const now = Date.now();
   const res = await post(session.id, [
     { t: now, kind: "open", path: "src/solve.ts" },

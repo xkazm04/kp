@@ -47,6 +47,19 @@ export type CompanionThreadState = {
   ready: boolean;
   /** Resolves false when the exchange did not land — the composer restores the draft. */
   send: (message: string) => Promise<boolean>;
+  /** The message whose exchange did not land, still unsent. The composer has it
+   *  back as a draft; this is what the error line's Retry re-sends, so recovering
+   *  from a throttle is one click rather than a re-read of what you typed. Null
+   *  whenever there is nothing to retry. */
+  lastFailed: string | null;
+  /** Re-send `lastFailed`. No-op (false) when nothing failed. */
+  retry: () => Promise<boolean>;
+  /** Re-read this conversation from the server. Called when the studio's open
+   *  proposal count moves while the dock is open — a landed digest, or a proposal
+   *  a sibling tab answered — so the transcript stops needing a remount to show
+   *  what already happened. Deliberately NOT a poller: it rides `useAttention`'s
+   *  existing 60s read (see shouldRefetchCompanionThread). */
+  refresh: () => Promise<void>;
   /** Start a fresh conversation and swap to it. The old one is not deleted —
    *  it stays in the ledger, which is what makes this a cheap, undoable act. */
   newThread: () => Promise<boolean>;
@@ -78,6 +91,7 @@ type ExchangeCtx = {
   setProposals: (proposals: CompanionProposal[]) => void;
   setBusy: (busy: boolean) => void;
   setError: (code: string | null) => void;
+  setLastFailed: (message: string | null) => void;
 };
 
 let optimisticSeq = 0;
@@ -108,22 +122,35 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
       ctx.setProposals(body.proposals ?? []);
       ctx.setError(null);
       ok = true;
+      ctx.setLastFailed(null);
       // An answer arrived at a dock nobody is looking at: that is the ONLY
       // honest source of the rest affordance's dot.
       if (!ctx.visible.current) ctx.onReplyWhileClosed.current?.();
     } else {
       ctx.setError(body.code ?? "COMPANION_MESSAGE_FAILED");
+      ctx.setLastFailed(message);
     }
   } catch {
     ctx.setError("COMPANION_MESSAGE_FAILED");
+    ctx.setLastFailed(message);
   }
   for (const pending of carried) pending.resolve(ok);
-  // A refused message goes back to the FRONT of the machine's queue (its
-  // documented contract) so it rides the next send instead of being lost, and is
-  // deliberately NOT retried on its own: that would turn a rate limit into a loop
+  // A refused message is NOT put back into the machine's queue here, and this is
+  // the one place the companion legitimately differs from the voice caller the
+  // machine was written for. There a dropped utterance exists nowhere, and the
+  // requeue is the only thing that saves it. Here the composer has already
+  // RESTORED it as a draft (ChatComposer restores on a false resolve), so the
+  // requeue made the same sentence exist twice: the operator's next send
+  // coalesced their restored draft WITH the queued copy and Candi was asked the
+  // same question twice, in one message. It also stranded anything typed while
+  // the failed turn was in flight, because `completeTurn` dispatches nothing on
+  // the tick that carries a `failed`. Passing null instead re-arms the queue —
+  // whatever was typed meanwhile goes out now — and the refused message is held
+  // in `lastFailed` for the error line's explicit Retry. Still never
+  // re-dispatched on its own: that would turn a rate limit into a retry loop
   // against a paid endpoint. Its optimistic bubble is dropped by the reconcile
   // above on the next successful exchange.
-  const next = completeTurn(ctx.machine.current, false, ok ? null : message);
+  const next = completeTurn(ctx.machine.current, false, null);
   ctx.machine.current = next.state;
   ctx.setBusy(next.state.busy);
   if (next.next) await runExchange(ctx, id, next.next);
@@ -134,6 +161,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   const [proposals, setProposals] = useState<CompanionProposal[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFailed, setLastFailed] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   // Optimistic yes: the honest failure of this flag is a missing warning, not a
   // false one, and "Candi has forgotten everything" is a bad thing to say to an
@@ -201,6 +229,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       setProposals,
       setBusy,
       setError,
+      setLastFailed,
     }),
     []
   );
@@ -210,6 +239,9 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     (message: string): Promise<boolean> => {
       const text = message.trim();
       if (!text || !threadId) return Promise.resolve(false);
+      // A new attempt supersedes the last failure whatever its outcome: the error
+      // line must never offer to retry a message that is already on its way.
+      setLastFailed(null);
       setTurns((prev) => [
         ...prev,
         {
@@ -253,10 +285,59 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       setProposals([]);
       setBusy(false);
       setError(null);
+      setLastFailed(null);
       return true;
     } catch {
       setError("COMPANION_THREAD_CREATE_FAILED");
       return false;
+    }
+  }, []);
+
+  /** Re-send the message whose exchange did not land. It goes through `send`
+   *  like any other message, so it queues behind an in-flight turn instead of
+   *  racing it, and a second failure simply re-arms the button. */
+  const retry = useCallback((): Promise<boolean> => {
+    if (!lastFailed) return Promise.resolve(false);
+    return send(lastFailed);
+  }, [lastFailed, send]);
+
+  /** Re-read the conversation the dock is showing.
+   *
+   *  It reuses the BOOT route rather than adding one: `GET /api/companion/threads`
+   *  already returns the newest thread's turns and proposals in the same request
+   *  as the ledger. That is also its limit, said plainly — it can only refresh the
+   *  thread that is still the newest one. When the operator has started a newer
+   *  conversation than the one on screen, this is a no-op rather than a thread
+   *  switch: repainting the conversation someone is reading is a refresh, swapping
+   *  it out from under them mid-sentence is not.
+   *
+   *  Never while a turn is in flight — that exchange is about to replace the whole
+   *  list with server truth, and a slower refresh landing after it would repaint
+   *  the transcript back to before the answer. */
+  const refresh = useCallback(async (): Promise<void> => {
+    const id = activeThread.current;
+    if (!id || machine.current.busy) return;
+    try {
+      const res = await fetch("/api/companion/threads");
+      const body = (await res.json()) as {
+        threads?: { id: string }[];
+        turns?: CompanionTurn[];
+        proposals?: CompanionProposal[];
+        memoryEnabled?: boolean;
+      };
+      if (!res.ok || !body.threads?.length) return;
+      // Re-checked AFTER the round trip, both of them: the operator may have
+      // started a new conversation or sent a message while it was in the air, and
+      // either makes this response a stale repaint rather than a refresh.
+      if (body.threads[0].id !== activeThread.current || machine.current.busy) return;
+      setTurns(body.turns ?? []);
+      setProposals(body.proposals ?? []);
+      setMemoryEnabled(body.memoryEnabled !== false);
+    } catch {
+      /* best-effort: a refresh only repaints what is already on screen, so a
+         failed one leaves the last known conversation exactly as it was rather
+         than replacing a readable transcript with an error. The next attention
+         change tries again. */
     }
   }, []);
 
@@ -300,6 +381,9 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     error,
     ready: threadId !== null,
     send,
+    lastFailed,
+    retry,
+    refresh,
     newThread,
     resolveProposal: resolveProposalById,
     memoryEnabled,

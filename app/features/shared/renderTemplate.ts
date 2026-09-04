@@ -376,15 +376,6 @@ export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }
  *  the UI shape can't silently drift from the DB row it represents. */
 export type Template = Pick<JdTemplate, "id" | "name" | "body" | "isDefault" | "scope">;
 
-/** Load the company JD templates from the API. One shared fetch contract — the
- *  endpoint shape AND the swallow-to-empty error behavior — for every caller, so a
- *  change to either lives in one place. JdBuilder layers its default-selection
- *  reconciliation on top of the returned list. */
-export async function fetchTemplates(): Promise<Template[]> {
-  try {
-    const payload = await fetch("/api/templates").then((r) => r.json());
-    return (payload.templates as Template[]) ?? [];
-  } catch {
-    return [];
-  }
-}
+// The LOAD of that list is not here: it is a browser fetch, and this module is
+// imported by app/api/templates/route.ts and app/_lib/templates-store.ts on the
+// server. See ./templatesClient.ts.

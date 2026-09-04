@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EdgeConfigError, getEdgeConfig, setEdgeConfig } from "@/app/_lib/edge-config";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 // The edge pairing (docs/concepts/local-first-edge.md §3.2) — the UI-backed twin of
@@ -23,12 +24,16 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { url?: unknown; secret?: unknown; nudgeTarget?: unknown };
     return NextResponse.json({ ok: true, config: setEdgeConfig(body) });
   } catch (error) {
+    // CODES, NEVER MESSAGES (docs/architecture/api-contracts.md §1.1). An
+    // EdgeConfigError is a DECISION — a URL that is not a public https endpoint, a
+    // field of the wrong type — so it answers a refusal code the card resolves in the
+    // reader's own language. Anything else came out of better-sqlite3 or the at-rest
+    // encryption and can carry a filesystem path or key detail: it goes to the server
+    // log and the browser gets the generic message plus a code.
     if (error instanceof EdgeConfigError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      console.error("[api:edge] EDGE_CONFIG_REJECTED", error.message);
+      return jsonRefusal("EDGE_CONFIG_REJECTED", 400);
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save the edge config." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:edge", "EDGE_SAVE_FAILED");
   }
 }

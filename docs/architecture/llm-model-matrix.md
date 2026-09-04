@@ -69,6 +69,9 @@ recalibration step found the ceiling in OUR stack, not the models:
 | **mean** | 8.4 | 8.5 | 8.7 | **8.9** |
 | **reliability** | 98% | 98% | 97% | **100%** |
 | **median p50** | **13s** | 18s | 30s | 19s |
+
+The median is `app/_lib/stats.ts`'s: non-finite samples dropped, an empty sample answers
+`null` (rendered as n/a, never 0), an even count is the mean of the two middles.
 | **$/task (measured)** | ~$0.004–0.06 | **~$0.0004–0.006** | ~$0.12–0.41 (CLI) | ~$0.23–0.59 (CLI) |
 
 Bold = op winner. n=4/cell (~±0.3–0.5 noise); ties within 0.3 are noise.
@@ -128,10 +131,24 @@ comparison, so a tie means a tie at the precision the table shows.
 LIGHTTRACK_QUIET=1 python -m pipeline.jobfit.llm.bench.bench_cli \
   --use-cases <ops> \
   --targets gemini:gemini-3.6-flash,qwen:deepseek-v4-flash,claude_cli:claude-sonnet-5,claude_cli:claude-opus-5 \
-  --limit 4 --judge --judge-model fable --out tmp/bench/<round>
+  --limit 4 --max-usd 5 --judge --judge-model fable --out tmp/bench/<round>
 
 python -m pipeline.jobfit.llm.bench.bake_quality tmp/bench/<round>/... --judge fable-5
 ```
+
+**The matrix does not run without a spend ceiling.** `--max-usd` (or
+`KP_BENCH_MAX_USD`) is required: with neither set the CLI prints the pre-run
+estimate and exits 2 having spent nothing. The estimate is an UPPER BOUND — it
+assumes every call fills its output budget (`default_max_tokens`) at the
+`MTOK_PRICES` list price — and the ceiling is then enforced *during* the run: the
+running cost is charged per record and the matrix stops the moment it reaches the
+limit, printing `BUDGET STOP` and leaving a PARTIAL scorecard (no synthetic row is
+added, so the summary stays honest about what actually ran).
+
+A target with no known list price — the subscription-billed Claude CLI, an Azure
+deployment, a local model — is reported as `cost unknown` in the estimate and
+counted, never charged, during the run (`note: N row(s) had no known list price`).
+Unknown is not free, and a ceiling that silently cannot bind is worse than none.
 
 Method notes: calibrate the judge on the strongest model first and READ the
 transcripts as arbiter before trusting a low cell — across this round, most "low

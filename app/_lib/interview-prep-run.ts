@@ -73,7 +73,10 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
     // Never a guessed family; see rubricCoverage.
     rubricCoverage: rubricCoverage(entry?.roleFamily),
   };
-  const prev = getInterviewPrep(entryId);
+  // The task's own tenant. Unscoped, a regeneration on any other team read no prior
+  // pack, so mergeRegeneratedPrep had nothing to carry forward and the interviewer's
+  // checklist, notes, imported questions and human scorecard were dropped.
+  const prev = getInterviewPrep(entryId, workspaceId);
   const payload = mergeRegeneratedPrep(prev?.payload, generated);
   // `regenerated: true` — this is the ONE write that rebuilt the plan, so it is the
   // one allowed to move the artifact's created_at (the "generated NN ago" stamp and

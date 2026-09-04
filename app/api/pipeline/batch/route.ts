@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { REFUSAL_ERRORS, jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 
 
@@ -26,7 +27,9 @@ const BATCH_CAP = 200; // guard a runaway payload; the board rarely selects this
 const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject"]);
 
 type BatchItem = { id: string; action: string; expectedStage?: string; toStage?: string };
-type BatchOutcome = { id: string; ok: boolean; reason?: string };
+// `code` is what the client renders (errors.<CODE>, in the reader's language);
+// `reason` is the canonical English beside it, for the log and API consumers.
+type BatchOutcome = { id: string; ok: boolean; code?: string; reason?: string };
 
 // Coerce one raw item, or null if it's malformed (missing id / unknown action).
 function coerceItem(raw: unknown): BatchItem | null {
@@ -59,19 +62,29 @@ function coerceItem(raw: unknown): BatchItem | null {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of batch calls (each fans out to up to BATCH_CAP entries),
     // not each entry — this IS the one-action-many-candidates path.
+    // On the refusal chokepoint: the message is still RATE_LIMITED_ERROR itself
+    // (REFUSAL_ERRORS.TOO_MANY_REQUESTS IS that string), and the code is what lets a
+    // throttled board say so in the reader's language.
     if (!rateLimit(`pipeline-batch:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as { items?: unknown };
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json({ error: "items must be a non-empty array." }, { status: 400 });
+      return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400);
     }
     if (body.items.length > BATCH_CAP) {
-      return NextResponse.json({ error: `Too many items (max ${BATCH_CAP}).` }, { status: 400 });
+      return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400, { max: BATCH_CAP });
     }
 
     const origin = new URL(request.url).origin;
@@ -80,7 +93,7 @@ export async function POST(request: NextRequest) {
       const item = coerceItem(raw);
       if (!item) {
         const id = raw && typeof raw === "object" && typeof (raw as { id?: unknown }).id === "string" ? (raw as { id: string }).id : "";
-        results.push({ id, ok: false, reason: "Malformed item (missing id or unknown action)." });
+        results.push({ id, ok: false, code: "PIPELINE_BATCH_ITEM_MALFORMED", reason: REFUSAL_ERRORS.PIPELINE_BATCH_ITEM_MALFORMED });
         continue;
       }
       try {
@@ -95,15 +108,20 @@ export async function POST(request: NextRequest) {
         if (r.status === 200) {
           results.push({ id: item.id, ok: true });
         } else {
-          // Surface the server's OWN explanation verbatim (the 409 concurrency-loss
-          // vs the 422 forbidden-transition guidance) — never a bare status code.
-          const reason = typeof r.body.error === "string" ? r.body.error : `Failed (${r.status}).`;
-          results.push({ id: item.id, ok: false, reason });
+          // Carry the server's OWN refusal (the 409 concurrency-loss vs the 422
+          // forbidden-transition guidance) — as a CODE first, with the canonical
+          // English beside it. The bulk action bar used to paint `reason` verbatim,
+          // so these per-id explanations were the board's largest English leak;
+          // it now resolves `code` through errors.<CODE> in the reader's language
+          // and keeps `reason` only as the last-resort fallback.
+          const code = typeof r.body.code === "string" ? r.body.code : undefined;
+          const reason = typeof r.body.error === "string" ? r.body.error : REFUSAL_ERRORS.PIPELINE_BATCH_ITEM_FAILED;
+          results.push({ id: item.id, ok: false, ...(code ? { code } : {}), reason });
         }
       } catch (itemError) {
         // One entry's unexpected throw never aborts the batch.
         console.error(`[pipeline:batch] action failed for ${item.id}`, itemError);
-        results.push({ id: item.id, ok: false, reason: "Unexpected error." });
+        results.push({ id: item.id, ok: false, code: "PIPELINE_BATCH_ITEM_FAILED", reason: REFUSAL_ERRORS.PIPELINE_BATCH_ITEM_FAILED });
       }
     }
 

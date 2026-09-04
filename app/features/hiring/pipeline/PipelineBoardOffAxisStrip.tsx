@@ -14,12 +14,14 @@
 // situation: move them somewhere that exists. The stage's own label is recovered
 // from the RETIRED list when possible, so the strip says "Second interview" — the
 // column the recruiter deleted — rather than a bare id.
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { Select } from "@/app/_components/Select";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { moveTargetStages } from "./pipelineMoveTargets";
+import { cappedWithOverflow } from "./pipelineBoardLayout";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 
 export function PipelineBoardOffAxisStrip({
@@ -38,7 +40,20 @@ export function PipelineBoardOffAxisStrip({
   onMove?: (entry: Entry, toStage: string) => void;
 }) {
   const t = useTranslations("pipeline.offAxis");
+  const tBoard = useTranslations("pipeline.board");
   const enumLabel = useEnumLabel();
+  // Same ceiling as a stage cell, for the same reason and with the same control.
+  // A cell caps at CELL_LIMIT and offers "+N more"; this strip used to render EVERY
+  // stranded card at once — and it is longest exactly when that hurts most, since a
+  // column is usually retired because it held people. Expansion is per stranded
+  // GROUP (one retired column each), so revealing one group leaves the others capped.
+  const [expandedStages, setExpandedStages] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleStage = (stageId: string) =>
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(stageId)) next.add(stageId);
+      return next;
+    });
 
   // A retired stage keeps its label; anything else is a stage no axis has ever
   // declared (a legacy row, an older build) and can only be shown as its id.
@@ -67,11 +82,15 @@ export function PipelineBoardOffAxisStrip({
       <p className="mt-1 text-sm text-amber-800">{t("intro", { count: entries.length })}</p>
 
       <div className="mt-2 space-y-2">
-        {[...byStage.entries()].map(([stageId, stranded]) => (
+        {[...byStage.entries()].map(([stageId, stranded]) => {
+          const isExpanded = expandedStages.has(stageId);
+          const { visible, overflow } = cappedWithOverflow(stranded, isExpanded);
+          const hidden = cappedWithOverflow(stranded, false).overflow;
+          return (
           <div key={stageId} className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <span className="text-sm font-semibold text-ink">{t("onStage", { stage: stageLabel(stageId), count: stranded.length })}</span>
-            <ul className="flex flex-wrap gap-1.5">
-              {stranded.map((e) => (
+            <ul className="flex flex-wrap items-center gap-1.5">
+              {visible.map((e) => (
                 <li key={e.id}>
                   <button
                     type="button"
@@ -82,6 +101,18 @@ export function PipelineBoardOffAxisStrip({
                   </button>
                 </li>
               ))}
+              {overflow > 0 || isExpanded ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => toggleStage(stageId)}
+                    aria-expanded={isExpanded}
+                    className="focus-ring rounded px-1 text-sm font-semibold text-amber-800 hover:text-coral"
+                  >
+                    {isExpanded ? tBoard("showFewer") : tBoard("moreCount", { count: hidden })}
+                  </button>
+                </li>
+              ) : null}
             </ul>
             {onMove ? (
               <Select
@@ -93,12 +124,13 @@ export function PipelineBoardOffAxisStrip({
                   for (const e of stranded) onMove(e, toStage);
                 }}
                 ariaLabel={t("moveAria", { stage: stageLabel(stageId) })}
-                size="sm"
+                sizeVariant="sm"
                 options={[{ value: "", label: t("moveAll") }, ...targets.map((id) => ({ value: id, label: targetLabel(id) }))]}
               />
             ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

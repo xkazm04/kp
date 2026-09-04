@@ -27,15 +27,14 @@
 
 export type InterviewMode = "test" | "candidate";
 
-/** User-facing API error returned by /connect when a candidate session is
- *  started without consent. Shared with the route and its tests so the contract
- *  has a single source of truth. */
-export const CONSENT_REQUIRED_ERROR = "Consent is required to start a candidate interview.";
-
-/** User-facing API error returned by /complete when a candidate transcript
- *  would be persisted with no consent recorded for the session. */
-export const CONSENT_NOT_RECORDED_ERROR =
-  "Cannot save this interview: candidate consent was not recorded.";
+// The two refusals this module used to spell out as English constants
+// (CONSENT_REQUIRED_ERROR / CONSENT_NOT_RECORDED_ERROR) are gone: /connect and
+// /complete answer INTERVIEW_CONSENT_REQUIRED and INTERVIEW_CONSENT_NOT_RECORDED
+// through jsonRefusal, so the reader gets the sentence in their own language and
+// the wire carries the code. The constants outlived their consumers and their
+// doc-comments still claimed the routes shared them — a second, stale source of
+// truth for a contract that now lives in REFUSAL_ERRORS. The PREDICATES below are
+// the part that was ever load-bearing; keep them here.
 
 /** Whether recorded consent is legally required for this session mode. Only
  *  candidate-mode sessions screen a real person; test/lab runs do not. */

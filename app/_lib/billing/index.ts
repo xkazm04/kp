@@ -33,6 +33,9 @@ export {
   type PlanId,
 } from "./plans";
 export { billingProviderConfigured } from "./mode";
-export { polarGatewayFromEnv } from "./polar";
+// The timeout error IS part of the provider-agnostic surface even though polar.ts is
+// an implementation detail: a route has to tell "the provider ran out of time" from
+// "the provider said no", and that distinction is not Polar-specific.
+export { BillingProviderTimeoutError, polarGatewayFromEnv } from "./polar";
 export { reduceBillingEvent, type BillingAction } from "./reduce";
 export { applyBillingAction, ingestBillingWebhook, resolveBillingOrg, type IngestResult } from "./sync";

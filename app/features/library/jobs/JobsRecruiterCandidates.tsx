@@ -2,6 +2,7 @@
 
 import { Scale, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { BTN_SECONDARY, CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { SkippedCandidatesNote } from "./JobsShared";
 import { useRecruiterCandidatesLogic } from "./jobsRecruiterCandidatesLogic";
 import { CandidateColumn } from "./JobsRecruiterCandidatesColumn";
@@ -39,8 +40,9 @@ export function RecruiterCandidates({
     addToPipeline,
     reachOut,
     poolFitCount,
-    earlyCareer,
-    experienced,
+    experiencedOrdered,
+    earlyCareerOrdered,
+    fairLookup,
     notEligibleRows,
     notEligible,
     skipped,
@@ -49,7 +51,6 @@ export function RecruiterCandidates({
     fairById,
     hasFairness,
     fairActive,
-    orderRows,
     exportFairness,
   } = useRecruiterCandidatesLogic({ jobId, jobTitle, roleFamily, autoLoad });
 
@@ -60,7 +61,7 @@ export function RecruiterCandidates({
           type="button"
           onClick={load}
           disabled={loading}
-          className="focus-ring rounded-md bg-ink px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+          className={`${BTN_SECONDARY} px-3 py-1.5 text-sm`}
         >
           {loading ? t("scoring") : t("scoreCandidates")}
         </button>
@@ -85,9 +86,7 @@ export function RecruiterCandidates({
               onClick={() => setPoolFitOnly((v) => !v)}
               aria-pressed={poolFitOnly}
               title={t("poolFitTitle")}
-              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
-                poolFitOnly ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
-              }`}
+              className={`${CHIP_TOGGLE(poolFitOnly)} px-2.5 py-0.5`}
             >
               <Users size={13} /> {t("poolFit", { count: poolFitCount })}
             </button>
@@ -98,9 +97,7 @@ export function RecruiterCandidates({
               onClick={() => setFairRank((v) => !v)}
               aria-pressed={fairRank}
               title={t("fairRankTitle")}
-              className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm font-semibold ${
-                fairActive ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
-              }`}
+              className={`${CHIP_TOGGLE(fairActive)} px-2.5 py-0.5`}
             >
               <Scale size={13} /> {t("fairRank")}
             </button>
@@ -124,7 +121,7 @@ export function RecruiterCandidates({
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         <CandidateColumn
           title={t("experienced")}
-          rows={orderRows(experienced)}
+          rows={experiencedOrdered}
           added={added}
           adding={adding}
           error={cardError}
@@ -133,11 +130,11 @@ export function RecruiterCandidates({
           reaching={reaching}
           reachError={reachError}
           onReach={reachOut}
-          fair={fairActive ? (id) => fairById.get(id) : undefined}
+          fair={fairLookup}
         />
         <CandidateColumn
           title={t("earlyCareerPipeline")}
-          rows={orderRows(earlyCareer)}
+          rows={earlyCareerOrdered}
           highlight
           added={added}
           adding={adding}
@@ -147,11 +144,16 @@ export function RecruiterCandidates({
           reaching={reaching}
           reachError={reachError}
           onReach={reachOut}
-          fair={fairActive ? (id) => fairById.get(id) : undefined}
+          fair={fairLookup}
         />
       </div>
       {hasFairness ? (
-        <FairnessAuditPanel fairness={fairness!} fairById={fairById} onExport={exportFairness} />
+        <FairnessAuditPanel
+          fairness={fairness!}
+          fairById={fairById}
+          poolTruncated={poolTruncated}
+          onExport={exportFairness}
+        />
       ) : null}
       <NotEligibleSection rows={notEligibleRows} />
     </div>

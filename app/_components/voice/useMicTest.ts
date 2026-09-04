@@ -11,8 +11,37 @@
 // owned by this hook would have run FIRST instead.
 
 import { useCallback, useRef, useState } from "react";
+import { micErrorText } from "./micErrorText";
 
-export type MicTestState = "idle" | "testing" | "heard" | "silent" | "denied";
+/** The verdict the panel renders. The three failure states are DISTINCT because
+ *  their recovery steps are: grant a permission, plug a microphone in, close the
+ *  app that is holding it. The hook used to answer "denied" to all three. */
+export type MicTestState = "idle" | "testing" | "heard" | "silent" | "denied" | "not-found" | "busy";
+
+/** How long the test samples the microphone. */
+export const MIC_TEST_DURATION_MS = 4000;
+/** Peak RMS above which we claim to have heard the candidate. Below it the mic is
+ *  connected and permitted but producing (near-)silence — a muted headset. */
+export const MIC_HEARD_RMS = 0.03;
+/** How much the raw RMS is amplified for the level display. Speech RMS sits well
+ *  under 0.25, so the bar would otherwise never leave its left edge. */
+const MIC_LEVEL_GAIN = 4;
+
+/** Classify a getUserMedia rejection through the SHARED classifier — the same table
+ *  the interview shell and the intake voice surface already use, so one DOMException
+ *  map exists in the repo. An unclassifiable rejection stays "denied": it is by far
+ *  the most common cause, and its copy names a check the candidate can perform. */
+export function micTestFailure(e: unknown): Extract<MicTestState, "denied" | "not-found" | "busy"> {
+  const reason = micErrorText(e, { denied: "denied", notFound: "not-found", busy: "busy" });
+  return reason === "not-found" || reason === "busy" ? reason : "denied";
+}
+
+/** The level as a whole, clamped percent — the number the progressbar reports and,
+ *  under prefers-reduced-motion, the text that replaces the animated bar entirely. */
+export function micLevelPercent(level: number): number {
+  if (!Number.isFinite(level)) return 0;
+  return Math.round(Math.min(1, Math.max(0, level)) * 100);
+}
 
 export function useMicTest() {
   const [micTest, setMicTest] = useState<MicTestState>("idle");
@@ -45,8 +74,12 @@ export function useMicTest() {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setMicTest("denied");
+    } catch (e) {
+      // Not every rejection is a denial: NotFoundError (no microphone at all) and
+      // NotReadableError (another app holds the device) need entirely different
+      // fixes, and telling that candidate to grant a permission they already
+      // granted is the dead end this classifier removes.
+      setMicTest(micTestFailure(e));
       return;
     }
     micTestStreamRef.current = stream;
@@ -76,11 +109,11 @@ export function useMicTest() {
         }
         const rms = Math.sqrt(sum / data.length);
         peak = Math.max(peak, rms);
-        setMicLevel(Math.min(1, rms * 4));
-        if (Date.now() - started < 4000) {
+        setMicLevel(Math.min(1, rms * MIC_LEVEL_GAIN));
+        if (Date.now() - started < MIC_TEST_DURATION_MS) {
           micTestRafRef.current = requestAnimationFrame(tick);
         } else {
-          setMicTest(peak > 0.03 ? "heard" : "silent");
+          setMicTest(peak > MIC_HEARD_RMS ? "heard" : "silent");
           setMicLevel(0);
           stopMicTest();
         }

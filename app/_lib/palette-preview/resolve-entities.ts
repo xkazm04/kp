@@ -5,7 +5,12 @@
 // consent has lapsed or who was anonymized is shown masked, never by name.
 import { countAnalysesByJd, loadAnalysis } from "@/app/_lib/db/analyses";
 import { getJob, jobVisibleToWorkspace, loadJd } from "@/app/_lib/db/jobs";
-import { candidateLabelWithholdsPii, getPipelineEntry, listJobPipelineStats, listPipeline } from "@/app/_lib/db/pipeline";
+import {
+  candidateLabelWithholdsPii,
+  getPipelineEntry,
+  listCandidatePlacements,
+  listJobPipelineStats,
+} from "@/app/_lib/db/pipeline";
 import { getProfileRecord } from "@/app/_lib/db/profiles";
 import { maskCandidateName } from "@/app/_lib/consent";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
@@ -41,10 +46,14 @@ function resolveProfile(id: string, ws: string): PalettePreview {
   const rec = getProfileRecord(id, ws);
   if (!rec) return MISSING;
   const label = stageLabeller(ws);
-  const placements = listPipeline(ws)
-    .filter((e) => e.candidateId === id)
-    .slice(0, 3)
-    .map((e) => ({ jobTitle: e.jobTitle ?? "—", stage: label(e.stage) }));
+  // A BOUNDED read: three rows for this candidate, LIMITed in SQL. This used to
+  // hydrate the entire board through rowToEntry (github JSON, notes, source
+  // attribution, per entry) and then `.slice(0, 3)` it away — on a pane that opens
+  // on a keystroke.
+  const placements = listCandidatePlacements(id, ws, 3).map((p) => ({
+    jobTitle: p.jobTitle ?? "—",
+    stage: label(p.stage),
+  }));
   return {
     view: "profile",
     label: rec.row.label,

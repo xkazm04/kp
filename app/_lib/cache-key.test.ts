@@ -72,7 +72,7 @@ test("leading/trailing whitespace in text fields is normalized (trim is part of 
 test("PROMPT_VERSION is bumped to retire the old (pre-i18n) keys", () => {
   // Adding `lang` to the key must invalidate prior cache entries; the version is
   // how lookupPromptCache rejects them.
-  assert.ok(PROMPT_VERSION.startsWith("v5-"), `expected a v5 prompt version, got ${PROMPT_VERSION}`);
+  assert.ok(PROMPT_VERSION.startsWith("v6-"), `expected a v6 prompt version, got ${PROMPT_VERSION}`);
 });
 
 test("structured job context distinguishes the key; its absence keeps the legacy key (role-intake Phase 0)", () => {

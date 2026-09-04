@@ -43,12 +43,10 @@ export const PROVIDER_HEADROOM_MIN = 10;
 export const PROVIDER_CAP_MIN = GROUNDED_MAX_MIN + PROVIDER_HEADROOM_MIN; // 40
 export const PROVIDER_MAX_DURATION_SECONDS = PROVIDER_CAP_MIN * 60; // 2400
 
-/** Candidate-facing duration estimate, e.g. "About 20 minutes". */
-export function durationLabel(min) {
-  return `About ${min} minute${min === 1 ? "" : "s"}`;
-}
-
-/** Compact chip variant, e.g. "~20 min". */
-export function durationChip(min) {
-  return `~${min} min`;
-}
+// NO COPY LIVES HERE. `durationLabel` and `durationChip` used to compose the
+// candidate-facing sentence ("About 20 minutes", "~20 min") out of this module,
+// and InterviewSidebar — a CANDIDATE surface reached from an invite written in the
+// candidate's own language — rendered the chip verbatim, so a Czech applicant read
+// an English chip beside a Czech agenda. This module owns the NUMBERS; the words
+// are the catalog's (`interview.sidebar.durationChip`, four locales), and
+// interview-duration.test.ts pins that no copy helper comes back.

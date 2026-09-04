@@ -11,7 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync as read } from "node:fs";
+import { existsSync, readFileSync as read } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isUnaddressable } from "@/app/_lib/comms-view";
@@ -138,4 +138,81 @@ test("a failed bundle load puts the consent panel into its real failed state", (
   assert.match(panel, /failed \|\| loadFailed \?/);
   // And the one-call bundle stays one call: the panel must not gain a second fetch.
   assert.equal((panel.match(/fetch\(/g) ?? []).length, 1, "ConsentPanel must keep exactly its standalone fallback fetch");
+});
+
+// --- the quality-of-hire card must not VANISH on a failed read ---------------------
+//
+// drawer-cards-hold-the-chip-law. The card's own small read swallowed every failure
+// with `.catch(() => undefined)`, and one screen down `if (!view) return null` turned
+// that into a card that was simply NOT THERE for a real hire — no message, nothing to
+// press, and the recruiter cannot tell "this hire has no rating question" from "the
+// read failed". That is precisely the hole ConsentPanel's `loadFailed` closed one card
+// over, so it is pinned the same way, from the same file.
+
+const HIRE_CARD = "app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx";
+
+test("a failed quality-of-hire read is stated, not swallowed", () => {
+  const src = readFileSync(HIRE_CARD, "utf8");
+  assert.doesNotMatch(
+    src,
+    /\.catch\(\(\)\s*=>\s*undefined\)/,
+    "the read's catch must record the give-up, not discard it"
+  );
+  assert.match(src, /setLoadFailed\(true\)/, "the catch records the failure");
+  assert.match(src, /if \(loadFailed\)/, "…and the render answers it BEFORE the !view early return");
+  assert.match(src, /t\("loadFailed"\)/, "…with a localized line, not a silent frame");
+});
+
+test("the failed state offers a retry that actually re-fires the read", () => {
+  const src = readFileSync(HIRE_CARD, "utf8");
+  assert.match(src, /t\("retry"\)/, "a give-up with no way out is still a dead end");
+  assert.match(src, /setReloadTick\(\(n\) => n \+ 1\)/, "the retry bumps the effect's key…");
+  assert.match(src, /\[entryId, reloadTick\]/, "…and the effect depends on it, or the button does nothing");
+});
+
+test("the rating callback declares the bindings it closes over", () => {
+  // A deps array of just [entryId] pins the FIRST render's `errorMessage` and `t`,
+  // so a reader who switches language keeps getting the previous language's refusal.
+  const src = readFileSync(HIRE_CARD, "utf8");
+  assert.match(src, /\[entryId, errorMessage, t\]/);
+});
+
+// --- one verdict vocabulary, no private colour maps -------------------------------
+//
+// The drawer rendered the stage through the shared StatusChip and, twenty pixels
+// below, hand-rolled the interview verdict from a REC_STYLE map that existed in FOUR
+// files. A verdict is a judgement, not a status (StatusChip's own doctrine), so the
+// cards render it through Badge's one shared verdict treatment, red for reject.
+
+test("no drawer card re-derives a verdict palette of its own", () => {
+  for (const rel of [
+    "app/features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx",
+    "app/features/hiring/pipeline/PipelineHumanScorecardCard.tsx",
+  ]) {
+    const src = readFileSync(rel, "utf8");
+    assert.doesNotMatch(src, /REC_STYLE/, `${rel} must not hold a local verdict colour map`);
+    assert.match(src, /interviewRecommendationToken\(/, `${rel} must render the verdict through Badge's shared treatment`);
+    assert.doesNotMatch(src, /recommendationTone\(/, `${rel} must not tone a verdict as a lifecycle status`);
+  }
+});
+
+test("the two non-chip verdict surfaces share ONE class table", () => {
+  for (const rel of [
+    "app/features/hiring/schedule/ScheduleHumanScorecardForm.tsx",
+    "app/features/library/jobs/jobsCompareInterviewsTypes.ts",
+  ]) {
+    const src = readFileSync(rel, "utf8");
+    assert.match(src, /RECOMMENDATION_CHIP_CLASS/, `${rel} must take the shared table…`);
+    assert.doesNotMatch(src, /advance: "bg-/, `…${rel} must not re-declare the colours`);
+  }
+});
+
+// --- the retired facet-row file is actually gone ----------------------------------
+
+test("PipelineFacetRow is deleted, not kept as a load-bearing-sounding tombstone", () => {
+  assert.equal(
+    existsSync(resolve(ROOT, "app/features/hiring/pipeline/PipelineFacetRow.tsx")),
+    false,
+    "the chip-grid file had zero importers; a file with a confident header comment reads as live code"
+  );
 });

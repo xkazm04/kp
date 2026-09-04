@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
@@ -52,6 +52,17 @@ import { useVoiceHistory } from "./useVoiceHistory";
  * and Right walk her answers from there. Bound to the region rather than the
  * document on purpose: a global arrow handler would steal the keys from the page
  * this mode is deliberately leaving usable.
+ *
+ * ESCAPE IS THE EXCEPTION, and it is bound to the DOCUMENT for the same reason
+ * the dock binds it there (CompanionDock, commit e775ff1e): the strip is one
+ * focus stop that an operator working the page behind it does not have focus in,
+ * so a region-scoped Escape would only work for someone who had tabbed into the
+ * thing they are trying to dismiss. It runs the SAME close path the X button
+ * does — the host's `close`, which sets the flag that hands focus back to the
+ * rest pill — so "the pill gets focus back" stays a property of closing rather
+ * than of which control did it. Skipped while the settings popover is open: that
+ * popover binds Escape too, and two listeners on `document` never see each
+ * other's stopPropagation.
  */
 
 /** Stage's reading measure, the one thing V3 took from a rejected direction. */
@@ -82,6 +93,16 @@ export function CompanionVoiceMode({
     [t]
   );
   const error = thread.error ? resolveError({ code: thread.error }, t("chat.errorGeneric")) : null;
+
+  useEffect(() => {
+    if (settingsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [settingsOpen, onClose]);
 
   // The window's own controls, handed to the strip as a slot. The settings gear
   // is the SAME component the dock header mounts, so there is one companion

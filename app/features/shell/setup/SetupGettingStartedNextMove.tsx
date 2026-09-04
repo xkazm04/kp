@@ -33,6 +33,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, X } from "lucide-react";
 import { PANEL, EYEBROW, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { STEP_GLYPHS } from "./setupStepGlyphs";
 import {
   STEPS,
@@ -85,13 +86,19 @@ export function GettingStartedNextMove({ data, dismiss }: GettingStartedViewProp
           {/* Indexed from a map — never a component factory called during render
               (React-compiler rule). Remounted on the focused key so re-aiming the
               briefing replays the reveal. */}
+          {/* The ambient `pulse` is gated on `analyzing` and nothing else: it is the
+              one state here where work really is in flight (the CV analysis this
+              step kicked off is running). A breathing glyph on an idle step would
+              claim activity that is not happening — the honesty rule in
+              motionPresets.ts. */}
           <MotionizedGlyph
             key={focused.key}
             data={glyph.data}
             viewBox={glyph.viewBox}
             entrance="staggered-draw"
+            ambient={note === "analyzing" ? "pulse" : undefined}
             spread={0.9}
-            className="hidden h-20 w-20 sm:block"
+            className={`hidden ${GLYPH_SIZE.sm} sm:block`}
           />
           <div className="min-w-0">
             <p className={EYEBROW}>{t("title")}</p>

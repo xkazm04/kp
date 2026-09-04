@@ -121,10 +121,29 @@ export function getBridgeConfig(): BridgeConfigPublic {
  * The base URL is NOT run through the public-endpoint SSRF guard on purpose:
  * Personas is a local desktop app, so the target is loopback BY DESIGN —
  * assertDeliverableWebhookUrl would reject exactly the intended address.
+ *
+ * ATOMICITY — the one read→compute→write seam this module had. The original
+ * shape was `getRow()`, merge the two fields in JS, then upsert the WHOLE row
+ * from the merged values, with neither `.immediate()` nor a precondition. Two
+ * writers that overlap between the SELECT and the INSERT therefore lose one of
+ * them ENTIRELY: a base-URL edit that read the row before a pairing claim
+ * committed writes the pre-claim `api_key` (null) straight back over the key
+ * the human had just approved, and the deployment silently unpairs. Nothing
+ * errors; the Integrations card simply says "not paired" again.
+ *
+ * Two changes close it, and they close different halves:
+ *   1. The MERGE now happens in SQL, not in JS. `DO UPDATE SET x = CASE WHEN
+ *      @setX THEN @x ELSE x END` reads the *current* stored value inside the
+ *      statement, so a field this call did not name is untouched by definition —
+ *      there is no stale JS copy to write back, whatever ran in between.
+ *   2. The statement plus the read-back run inside `.immediate()`, which takes
+ *      the write lock at BEGIN. That is the half the SQL merge cannot give: it
+ *      is what serializes this against a SECOND connection on the same file (a
+ *      second kp process, a maintenance script) rather than only against work
+ *      interleaved inside this process.
  */
 export function setBridgeConfig(input: { baseUrl?: string | null; apiKey?: string }): BridgeConfigPublic {
-  const existing = getRow();
-  let baseUrl = existing?.base_url ?? null;
+  let baseUrl: string | null = null;
   if (input.baseUrl !== undefined) {
     const trimmed = (input.baseUrl ?? "").trim();
     if (trimmed && !/^https?:\/\//i.test(trimmed)) {
@@ -132,26 +151,33 @@ export function setBridgeConfig(input: { baseUrl?: string | null; apiKey?: strin
     }
     baseUrl = trimmed || null;
   }
-  let storedKey: string | null = existing?.api_key ?? null;
-  let paired = existing?.paired ?? 0;
-  if (input.apiKey !== undefined) {
-    if (input.apiKey === "") {
-      storedKey = null;
-      paired = 0;
-    } else {
-      storedKey = encryptAtsSecret(input.apiKey);
-      paired = 1;
-    }
-  }
-  db()
-    .prepare(
-      `INSERT INTO personas_bridge (id, base_url, api_key, paired, last_ok_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET base_url = excluded.base_url, api_key = excluded.api_key,
-         paired = excluded.paired, updated_at = excluded.updated_at`
-    )
-    .run(ROW_ID, baseUrl, storedKey, paired, existing?.last_ok_at ?? null, new Date().toISOString());
-  return getBridgeConfig();
+  // Encryption happens OUTSIDE the transaction: it is pure CPU work, and a throw
+  // from it (KP_SECRET unset) must not leave a half-open write lock.
+  const storedKey = input.apiKey === undefined || input.apiKey === "" ? null : encryptAtsSecret(input.apiKey);
+  const params = {
+    id: ROW_ID,
+    url: baseUrl,
+    key: storedKey,
+    paired: storedKey ? 1 : 0,
+    setUrl: input.baseUrl !== undefined ? 1 : 0,
+    setKey: input.apiKey !== undefined ? 1 : 0,
+    now: new Date().toISOString(),
+  };
+  const stmt = db().prepare(
+    `INSERT INTO personas_bridge (id, base_url, api_key, paired, last_ok_at, updated_at)
+     VALUES (@id, @url, @key, @paired, NULL, @now)
+     ON CONFLICT(id) DO UPDATE SET
+       base_url   = CASE WHEN @setUrl = 1 THEN @url    ELSE base_url END,
+       api_key    = CASE WHEN @setKey = 1 THEN @key    ELSE api_key  END,
+       paired     = CASE WHEN @setKey = 1 THEN @paired ELSE paired   END,
+       updated_at = @now`
+  );
+  // Synchronous throughout — never `await` inside a transaction (repo law).
+  const write = db().transaction((): BridgeConfigPublic => {
+    stmt.run(params);
+    return getBridgeConfig();
+  });
+  return write.immediate();
 }
 
 /** Stamp a successful Personas round-trip (the connection-liveness signal). */

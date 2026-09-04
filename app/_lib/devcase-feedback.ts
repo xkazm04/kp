@@ -16,6 +16,7 @@
 // No longer import-free, so the wording contract is pinned by rendering every
 // key against the real catalogs in devcase-feedback.test.ts.
 
+import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator } from "./comms-translator";
 
 export type FeedbackInput = {
@@ -26,6 +27,24 @@ export type FeedbackInput = {
   gaps: string[];
   /** The candidate's locale, carried on their pipeline entry. */
   locale?: string | null;
+  /** The team this submission belongs to. Required alongside a raw `locale` because
+   *  a NULL one resolves to the WORKSPACE's `default_locale` — without it the letter
+   *  falls back to the DEFAULT team's language for a candidate who is not theirs. */
+  workspaceId?: string | null;
+  /**
+   * The language the BULLETS are actually written in — `narrativeLang`, stamped by the
+   * Python evaluator onto the evaluation/transfer artifacts (evaluate.py).
+   *
+   * The frame of this letter is localized and the bullets are not translated here: they
+   * are the evaluator's own sentences, and re-translating a scored finding client-side
+   * would put words in the assessment's mouth. So when the two disagree — a bundle
+   * scored before the evaluator took a language, or one whose lifecycle carried no
+   * locale — the letter SAYS SO with a one-line engine note rather than presenting
+   * English findings under a Czech heading as if they had been written for this reader.
+   * Absent/unknown is treated as a mismatch only when the reader's locale is not the
+   * evaluator's default (en); an all-English letter needs no note.
+   */
+  narrativeLang?: string | null;
 };
 
 export type FeedbackBrief = { subject: string; body: string };
@@ -33,7 +52,16 @@ export type FeedbackBrief = { subject: string; body: string };
 const clean = (xs: string[]) => xs.map((s) => s.trim()).filter(Boolean);
 
 export async function buildFeedbackBrief(input: FeedbackInput): Promise<FeedbackBrief> {
-  const t = await commsTranslator(input.locale);
+  const t = await commsTranslator(input.locale, input.workspaceId);
+  // The locale the letter is being WRITTEN in — resolved the same way commsTranslator
+  // resolves it, so the comparison below is against the language the reader actually
+  // gets rather than against the raw (possibly null) input.
+  const letterLocale = resolveCommsLocale(input.locale, input.workspaceId ?? undefined);
+  const bulletLang = (input.narrativeLang ?? "").trim().toLowerCase().split("-")[0];
+  // An ABSENT stamp is "no claim", never "English": a bundle scored before the evaluator
+  // took a language carries no narrativeLang, and guessing one would let us print a
+  // confident note about a language nobody recorded. Only a stamp that disagrees speaks.
+  const bulletsAreForeign = bulletLang !== "" && bulletLang !== letterLocale;
   const role = (input.roleTitle ?? "").trim();
   const strengths = clean(input.strengths);
   // Concerns + transfer gaps both become forward-looking "areas to keep growing"
@@ -62,6 +90,14 @@ export async function buildFeedbackBrief(input: FeedbackInput): Promise<Feedback
   if (strengths.length === 0 && growth.length === 0) {
     lines.push("");
     lines.push(t("devcaseFeedback.noSpecifics"));
+  }
+  // Named once, at the end, and only when there IS a mismatch and there ARE bullets to
+  // qualify — a truthful note about the letter, in the reader's language, instead of a
+  // silent language mix. Placed before the signoff so it reads as a footnote, not as
+  // part of the assessment.
+  if (bulletsAreForeign && (strengths.length > 0 || growth.length > 0)) {
+    lines.push("");
+    lines.push(t("devcaseFeedback.engineNote", { language: bulletLang.toUpperCase() }));
   }
   lines.push("");
   lines.push(t("devcaseFeedback.signoff"));

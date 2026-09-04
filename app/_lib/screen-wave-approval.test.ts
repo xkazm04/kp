@@ -8,6 +8,9 @@ import {
   screenWaveApprovalIssuedAt,
   verifyScreenWaveApprovalToken,
   ScreenWaveApprovalError,
+  consumeScreenWaveApprovalToken,
+  isScreenWaveApprovalSpent,
+  resetScreenWaveApprovalSpendForTests,
   SCREEN_WAVE_APPROVAL_MAX_AGE_MS,
 } from "./screen-wave-approval.ts";
 
@@ -92,4 +95,40 @@ test("a malformed or future-dated token is refused (clock skew must not extend t
 test("a stale-but-fresh-looking token still has to match the live set", () => {
   const token = screenWaveApprovalToken("job1", POLICY, ["e1", "e2"], T0);
   assert.deepEqual(verifyScreenWaveApprovalToken(token, "job1", POLICY, ["e1"], T0 + 1000), { ok: false, reason: "mismatch" });
+});
+
+// --- SINGLE SPEND ------------------------------------------------------------------
+// verify proves the token still signs the live set and is fresh; it cannot prove the
+// token has not been committed already, and the token is a pure function of its inputs,
+// so an identical re-post re-derives an identical signature. The spend ledger is what
+// makes one review authorize one commit.
+
+test("a token is spendable exactly once", () => {
+  resetScreenWaveApprovalSpendForTests();
+  const token = screenWaveApprovalToken("job-spend", POLICY, ["a", "b"]);
+  assert.equal(isScreenWaveApprovalSpent(token), false, "an unused review is not spent");
+  assert.equal(consumeScreenWaveApprovalToken(token), true, "the first commit consumes it");
+  assert.equal(consumeScreenWaveApprovalToken(token), false, "every later commit is refused");
+  assert.equal(isScreenWaveApprovalSpent(token), true);
+});
+
+test("spending one approval does not spend another - the ledger is per token", () => {
+  resetScreenWaveApprovalSpendForTests();
+  const a = screenWaveApprovalToken("job-spend-a", POLICY, ["a"]);
+  const b = screenWaveApprovalToken("job-spend-b", POLICY, ["a"]);
+  assert.notEqual(a, b, "precondition: different jobs sign different tokens");
+  assert.equal(consumeScreenWaveApprovalToken(a), true);
+  assert.equal(consumeScreenWaveApprovalToken(b), true, "a different review is unaffected");
+});
+
+test("a spent entry is pruned once the token could no longer be committed anyway", () => {
+  resetScreenWaveApprovalSpendForTests();
+  const issuedAt = Date.now();
+  const token = screenWaveApprovalToken("job-prune", POLICY, ["a"], issuedAt);
+  assert.equal(consumeScreenWaveApprovalToken(token, issuedAt), true);
+  // Still inside the window: the ledger must remember.
+  assert.equal(isScreenWaveApprovalSpent(token, issuedAt + 60_000), true);
+  // Past the window the token is refused as EXPIRED by verify regardless, so keeping its
+  // spend entry would only grow the map forever. It is dropped.
+  assert.equal(isScreenWaveApprovalSpent(token, issuedAt + SCREEN_WAVE_APPROVAL_MAX_AGE_MS + 1), false);
 });

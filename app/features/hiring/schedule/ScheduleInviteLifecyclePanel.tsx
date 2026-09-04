@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarClock } from "lucide-react";
+import { PANEL } from "@/app/_components/ui/recipes";
 // bug-ui-scan-2026-07-09 (interview-scheduling-prep-rubric #3) — the today /
 // upcoming / awaiting split lives in a pure, unit-tested module so a confirmed
 // interview no longer vanishes the instant its start passes.
@@ -28,6 +29,7 @@ export function InviteLifecyclePanel() {
     invites,
     loadedAt,
     failed,
+    truncated,
     armed,
     setArmed,
     busy,
@@ -78,10 +80,20 @@ export function InviteLifecyclePanel() {
   };
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+    <section className={`${PANEL} p-4`}>
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
         <CalendarClock size={16} className="text-coral" aria-hidden /> {t("title")}
       </h3>
+
+      {/* The bound, stated. The agenda read returns at most `limit` invites (200 by
+          default) and reports `truncated` when there were more, so a team past the
+          bound is told its oldest invites are off this panel instead of quietly
+          losing them. */}
+      {truncated ? (
+        <p role="status" className="mt-1 text-meta normal-case text-steel">
+          {t("truncated")}
+        </p>
+      ) : null}
 
       <AttentionSection attention={attention} t={t} slotLabel={slotLabel} armed={armed} setArmed={setArmed} busy={busy} runAction={runAction} />
 

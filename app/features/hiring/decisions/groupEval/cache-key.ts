@@ -27,16 +27,11 @@
 // node:crypto — it has to run in the browser too, and this is a cache key, not a
 // security boundary.
 
-/** 32-bit FNV-1a, hex. Deterministic across runtimes and stable across releases. */
-function fnv1a(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    // 32-bit FNV prime multiply, kept in 32-bit range without BigInt.
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h.toString(16).padStart(8, "0");
-}
+// 32-bit FNV-1a, hex. Deterministic across runtimes and stable across releases —
+// and now shared with app/_lib/group-eval-dedupe.ts, which had its own copy of the
+// same algorithm in the same feature. `@/app/_lib/hash` is pure and importable
+// from the browser bundle, so the client half of this key keeps working.
+import { fnv1a } from "@/app/_lib/hash";
 
 /** The cache key for an eval over an explicit SELECTION of the role's cohort.
  *

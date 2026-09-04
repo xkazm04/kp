@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, Filter, Search } from "lucide-react";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
@@ -53,11 +53,26 @@ export function ColumnFilter({
 }) {
   const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
+  const listId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const active = value.trim() !== "";
   const open = () => setAnchor(anchor ? null : ref.current!.getBoundingClientRect());
+  // Closing the menu used to leave focus on the removed backdrop, i.e. on the
+  // page body BEHIND the table — a keyboard reader who filtered a column then
+  // had to Tab from the top of the document back to where they were. Every
+  // deliberate close (Escape, backdrop, picking a row) hands focus back to the
+  // trigger it came from; a close caused by SCROLL does not, or the header
+  // would be yanked back under the reader (see AnchoredMenu's `reason`).
+  const close = (reason: "dismiss" | "reposition" = "dismiss") => {
+    setAnchor(null);
+    if (reason === "dismiss") ref.current?.focus({ preventScroll: true });
+  };
   const TriggerIcon = mode === "search" ? Search : Filter;
   const label = mode === "search" ? t("filters.searchColumn", { column: title }) : t("filters.filterColumn", { column: title });
+  // Only `mode="select"` opens a listbox. The `mode="search"` menu is a free-text box,
+  // and a combobox whose aria-controls resolves to nothing is worse than a plain button
+  // — so that trigger keeps aria-expanded (a menu does open) and nothing else.
+  const isListbox = mode === "select";
   return (
     <>
       {trigger === "icon" ? (
@@ -65,6 +80,9 @@ export function ColumnFilter({
           ref={ref}
           type="button"
           onClick={open}
+          role={isListbox ? "combobox" : undefined}
+          aria-haspopup={isListbox ? "listbox" : undefined}
+          aria-controls={isListbox && anchor ? listId : undefined}
           aria-expanded={Boolean(anchor)}
           aria-label={label}
           title={label}
@@ -82,6 +100,9 @@ export function ColumnFilter({
           ref={ref}
           type="button"
           onClick={open}
+          role={isListbox ? "combobox" : undefined}
+          aria-haspopup={isListbox ? "listbox" : undefined}
+          aria-controls={isListbox && anchor ? listId : undefined}
           aria-expanded={Boolean(anchor)}
           className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${active ? "text-coral" : "hover:text-ink"}`}
         >
@@ -94,7 +115,7 @@ export function ColumnFilter({
         </button>
       )}
       {anchor ? (
-        <AnchoredMenu anchor={anchor} width={224} onClose={() => setAnchor(null)}>
+        <AnchoredMenu anchor={anchor} width={224} onClose={close}>
           {mode === "search" ? (
             <div className="relative p-2">
               <Search size={13} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-steel" aria-hidden />
@@ -109,12 +130,13 @@ export function ColumnFilter({
             </div>
           ) : (
             <OptionList
+              listId={listId}
               options={options}
               value={value}
               clearLabel={t("filters.allOf", { column: title })}
               onPick={(v) => {
                 onChange(v);
-                setAnchor(null);
+                close();
               }}
             />
           )}
@@ -141,8 +163,15 @@ export function SearchSelect({
 }) {
   const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
+  const listId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const selected = options.find((o) => o.value === value);
+  // Same contract as ColumnFilter's: a deliberate close returns focus to the
+  // field, a scroll-driven one leaves the viewport alone.
+  const close = (reason: "dismiss" | "reposition" = "dismiss") => {
+    setAnchor(null);
+    if (reason === "dismiss") ref.current?.focus({ preventScroll: true });
+  };
   return (
     <>
       <button
@@ -150,6 +179,9 @@ export function SearchSelect({
         ref={ref}
         type="button"
         onClick={() => setAnchor(anchor ? null : ref.current!.getBoundingClientRect())}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-controls={anchor ? listId : undefined}
         aria-expanded={Boolean(anchor)}
         className={`${FIELD} flex w-full items-center justify-between gap-2 text-left`}
       >
@@ -157,14 +189,15 @@ export function SearchSelect({
         <ChevronDown size={14} className="shrink-0 text-steel" aria-hidden />
       </button>
       {anchor ? (
-        <AnchoredMenu anchor={anchor} width={Math.max(anchor.width, 224)} onClose={() => setAnchor(null)}>
+        <AnchoredMenu anchor={anchor} width={Math.max(anchor.width, 224)} onClose={close}>
           <OptionList
+            listId={listId}
             options={options}
             value={value}
             searchable
             onPick={(v) => {
               onChange(v);
-              setAnchor(null);
+              close();
             }}
           />
         </AnchoredMenu>

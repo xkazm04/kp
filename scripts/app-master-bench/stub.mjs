@@ -2,8 +2,16 @@
 // end to end before P6a lands (and for keeping the report renderer honest with
 // a real fixture rather than a hand-written one).
 //
-// It is a port of e2e/fixtures/mock-personas-bridge.ts — same routes, same
-// envelopes, same refusals — with the three things P6a adds on top:
+// It answers the SAME contract as e2e/fixtures/mock-personas-bridge.ts — same
+// routes, same envelopes, same refusals. That used to be a claim in this comment
+// and nothing more; it is now checked. Both doubles are driven through
+// `personas-contract.mjs` (derived from app/_lib/agent-hire/{pairing,bridge-client}.ts,
+// not from either double) by `personas-contract.test.mjs`, and the three places
+// they legitimately differ — the headless claim ladder, the `headlessBridge`
+// health flag, and who drives the status ladder — are declared there with their
+// reasons. An undeclared difference is drift and fails that test.
+//
+// On top of the shared contract, this one adds the three things P6a brings:
 //
 //   GET  /health                    → {status:"ok", management:true, headlessBridge:true}
 //   GET  /pair/claim?nonce=…        → the FIRST claim hands the pk_ key over
@@ -673,7 +681,26 @@ export async function startStubPersonas({
             personaName: dispatch.personaName,
             note: verdict.rationale,
           });
-          summary.phases.probation = { ...verdict, delivered: pushed.ok, status: pushed.status };
+          // `details` carries the PER-PERSONA decision, the way the overnight
+          // phase above already does and the way the real bridge's array-shaped
+          // summary does (§13.6). run.mjs's probation reader was scoped to "this
+          // hire only" on 2026-08-26 (31f2851c, after a forced tick's app-wide
+          // decisions were mis-attributed) and looks for exactly this: a details
+          // entry whose personaId is the hire's. The stub never carried one, so
+          // its decision has been unreadable ever since.
+          summary.phases.probation = {
+            ...verdict,
+            delivered: pushed.ok,
+            status: pushed.status,
+            details: [
+              {
+                personaId: dispatch.personaId,
+                personaName: dispatch.personaName,
+                decision: verdict.decision,
+                rationale: verdict.rationale,
+              },
+            ],
+          };
         }
 
         json(res, 200, { success: true, data: summary });

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { Check, Send } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { BTN_PRIMARY_LG, NOTICE } from "@/app/_components/ui/recipes";
 
 type SubmitState =
   | { kind: "idle" }
@@ -21,6 +22,9 @@ export function DevApplyForm({ token }: { token: string }) {
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
+  // The applicant's language rides the webhook so the acknowledgement the shared
+  // intake sends is written in it, not in the server's default.
+  const locale = useLocale();
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [repoRef, setRepoRef] = useState("");
@@ -48,16 +52,19 @@ export function DevApplyForm({ token }: { token: string }) {
           repoRef: repoRef.trim(),
           contact: contact.trim(),
           notes: notes.trim() || undefined,
+          locale,
         }),
       });
       const payload = (await r.json().catch(() => null)) as
-        | { error?: string; code?: string; duplicate?: boolean; submissionId?: string }
+        | { error?: string; code?: string; duplicate?: boolean; reference?: string }
         | null;
       if (!r.ok) throw new Error(errMsg(payload, t("submitFailed")));
       setState({
         kind: "done",
         duplicate: Boolean(payload?.duplicate),
-        ref: typeof payload?.submissionId === "string" ? payload.submissionId : null,
+        // The OPAQUE reference, not the store id the response also carries for
+        // external channels (devcase-reference.ts).
+        ref: typeof payload?.reference === "string" ? payload.reference : null,
       });
     } catch (caught) {
       setState({ kind: "error", message: caught instanceof Error ? caught.message : t("submitFailed") });
@@ -73,7 +80,7 @@ export function DevApplyForm({ token }: { token: string }) {
         <p className="mt-1 text-sm text-steel">{state.duplicate ? t("receivedDuplicate") : t("receivedNote")}</p>
         {/* A durable handle on the submission — the page is otherwise a dead end
             once the form is gone. */}
-        {state.ref ? <p className="mt-2 text-xs text-steel">{t("receivedRef", { ref: state.ref })}</p> : null}
+        {state.ref ? <p className="mt-2 font-mono text-micro text-steel">{t("receivedRef", { ref: state.ref })}</p> : null}
       </div>
     );
   }
@@ -95,7 +102,7 @@ export function DevApplyForm({ token }: { token: string }) {
             placeholder={t("fieldContactPlaceholder")}
             className="mt-1"
           />
-          <span className="mt-1 block text-xs font-normal text-steel">{t("fieldContactHint")}</span>
+          <span className="mt-1 block text-micro font-normal text-steel">{t("fieldContactHint")}</span>
         </label>
       </div>
       <label className="block text-sm font-medium text-ink">
@@ -113,14 +120,14 @@ export function DevApplyForm({ token }: { token: string }) {
         <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1" />
       </label>
       {state.kind === "error" ? (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className={`${NOTICE("critical")} p-3 text-sm`}>
           {state.message}
         </p>
       ) : null}
       <button
         type="submit"
         disabled={!canSubmit}
-        className="focus-ring inline-flex h-11 items-center gap-2 rounded-md bg-ink px-5 text-base font-semibold text-white hover:bg-steel disabled:cursor-not-allowed disabled:opacity-60"
+        className={`${BTN_PRIMARY_LG} disabled:cursor-not-allowed`}
       >
         <Send size={15} aria-hidden /> {state.kind === "sending" ? t("sending") : t("submit")}
       </button>

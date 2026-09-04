@@ -5,7 +5,7 @@ import { Check, Copy, LogIn, Pencil, UserPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
-import { BTN_GHOST, BTN_PRIMARY, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, META_LABEL, PANEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleLabel } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
 import { WorkspaceMembersTable } from "./WorkspaceMembersTable";
@@ -32,6 +32,7 @@ export function WorkspaceDetailPanel({
   loading,
   error,
   busy,
+  pendingMembers,
   onSwitch,
   onRename,
   onSeatMember,
@@ -53,6 +54,8 @@ export function WorkspaceDetailPanel({
   loading: boolean;
   error: boolean;
   busy: boolean;
+  /** Rows with a role/status write in flight, passed through to the roster. */
+  pendingMembers: string[];
   onSwitch: (id: string) => void;
   onRename: (id: string, name: string) => void;
   onSeatMember: (userId: string, workspaceId: string, role: MemberRole) => void;
@@ -142,7 +145,7 @@ export function WorkspaceDetailPanel({
               ) : null}
             </h2>
           )}
-          <p className="mt-0.5 font-mono text-xs text-stone-400">{workspace.id}</p>
+          <p className="mt-0.5 font-mono text-micro text-stone-400">{workspace.id}</p>
         </div>
         {isCurrent ? (
           <span className="inline-flex items-center gap-1 text-sm font-medium text-moss">
@@ -162,16 +165,16 @@ export function WorkspaceDetailPanel({
       {canManageMembers ? (
         <div className="border-b border-stone-200 bg-stone-50 px-5 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div role="group" aria-label={t("addMember")} className="inline-flex items-center gap-0.5 rounded-md border border-stone-200 bg-white p-0.5">
+            {/* The shared toggle-group rail, not a re-typed copy: this one had drifted
+                to its own active treatment and its own type size. */}
+            <div role="group" aria-label={t("addMember")} className={`${TOGGLE_GROUP} bg-white`}>
               {(["existing", "email"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   aria-pressed={addMode === mode}
                   onClick={() => setAddMode(mode)}
-                  className={`focus-ring rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                    addMode === mode ? "bg-ink text-white" : "text-steel hover:text-ink"
-                  }`}
+                  className={`focus-ring rounded px-2.5 py-1 text-sm font-medium transition-colors ${toggleBtn(addMode === mode)}`}
                 >
                   {mode === "existing" ? t("addExisting") : t("addByEmail")}
                 </button>
@@ -183,7 +186,7 @@ export function WorkspaceDetailPanel({
                 <Select
                   value={seatUserId}
                   onChange={setSeatUserId}
-                  size="sm"
+                  sizeVariant="sm"
                   ariaLabel={t("addExistingAria")}
                   options={[
                     { value: "", label: t("addExistingPlaceholder") },
@@ -193,7 +196,7 @@ export function WorkspaceDetailPanel({
                 <Select
                   value={role}
                   onChange={(v) => setRole(v as MemberRole)}
-                  size="sm"
+                  sizeVariant="sm"
                   ariaLabel={tm("inviteRoleAria")}
                   options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tm) }))}
                 />
@@ -217,7 +220,7 @@ export function WorkspaceDetailPanel({
                 <Select
                   value={role}
                   onChange={(v) => setRole(v as MemberRole)}
-                  size="sm"
+                  sizeVariant="sm"
                   ariaLabel={tm("inviteRoleAria")}
                   options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tm) }))}
                 />
@@ -234,7 +237,7 @@ export function WorkspaceDetailPanel({
             )}
           </div>
           {addMode === "existing" && available.length === 0 && !loading ? (
-            <p className="mt-2 text-xs text-steel">{t("everyoneSeated")}</p>
+            <p className="mt-2 text-micro text-steel">{t("everyoneSeated")}</p>
           ) : null}
         </div>
       ) : null}
@@ -245,6 +248,7 @@ export function WorkspaceDetailPanel({
         loading={loading}
         error={error}
         canManage={canManageMembers}
+        pendingMembers={pendingMembers}
         onPatchMember={onPatchMember}
         onEditPermissions={onEditPermissions}
         onConfirmRemoveFromWorkspace={onConfirmRemoveFromWorkspace}
@@ -259,7 +263,7 @@ export function WorkspaceDetailPanel({
               <li key={inv.token} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-ink">{inv.email}</p>
-                  <p className="text-xs text-steel">{roleLabel(inv.role, tm)}</p>
+                  <p className="text-micro text-steel">{roleLabel(inv.role, tm)}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => onCopyInviteLink(inv.token)} className={`${BTN_GHOST} h-8 gap-1 px-2 text-sm`}>

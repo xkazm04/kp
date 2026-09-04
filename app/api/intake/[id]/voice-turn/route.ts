@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
-import { runIntakeVoiceTurn } from "@/app/_lib/intake-run";
+import { IntakeTimeoutError, runIntakeVoiceTurn } from "@/app/_lib/intake-run";
+import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 const MAX_UTTERANCE_CHARS = 4_000;
 
@@ -24,13 +25,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id } = await params;
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
-    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    if (intake.status !== "open") {
-      return NextResponse.json({ error: "This intake session is closed." }, { status: 409 });
-    }
+    if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    if (intake.status !== "open") return jsonRefusal("INTAKE_CLOSED", 409);
     const body = (await request.json().catch(() => ({}))) as { message?: unknown };
     const message = typeof body.message === "string" ? body.message.trim().slice(0, MAX_UTTERANCE_CHARS) : "";
-    if (!message) return NextResponse.json({ error: "message is required" }, { status: 400 });
+    if (!message) return jsonRefusal("INTAKE_TEXT_REQUIRED", 400);
 
     // THROTTLE (rate-limit-contract.test.ts): each accepted utterance is a paid
     // (fast-model) LLM call. Speech pacing is quicker than typing — 60/10min per
@@ -39,11 +38,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Keyed by intake id (operator retries share the office NAT). After the
     // 404/409/400 refusals, before the DB write + model call.
     if (!rateLimit(`intake-voice-turn:${id}`, { limit: 60, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const lang = intake.lang === "cs" ? "cs" : "en";
-    const turn = await runIntakeVoiceTurn({ transcript: intake.transcript, brief: intake.brief, message, lang, attachments: intake.attachments });
+    const lang = intakeLang(intake.lang);
+    // The signal rides into the spawn: a hung-up call must not leave a paid
+    // fast-model completion running for an utterance nobody will hear answered.
+    const turn = await runIntakeVoiceTurn(
+      { transcript: intake.transcript, brief: intake.brief, message, lang, attachments: intake.attachments },
+      request.signal
+    );
 
     // Strip the <<END>> close sentinel exactly like /message — here it matters
     // MORE, not less: this reply is handed to the transport, which is told to
@@ -63,7 +67,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // path leaves the stored brief for the periodic extraction thread.
     const brief = turn.brief ?? intake.brief;
     const briefTitle = typeof brief?.title === "string" ? brief.title : "";
-    updateIntakeDialog(
+    // COMPARE-AND-SWAP over the version read before the spawn: the text plane and
+    // the extraction sweep write the same row, and a blind write here reverted
+    // whichever of them landed first. `moved` is not a fault — the client re-reads
+    // rather than overwriting (intake-dialog-cas.test.ts).
+    const write = updateIntakeDialog(
       id,
       {
         transcript,
@@ -71,17 +79,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         ...(briefTitle ? { title: briefTitle } : {}),
         // A spoken, confirmed close is a real close — same contract as text.
         ...(turn.done ? { status: "complete" as const } : {}),
+        expectedUpdatedAt: intake.updatedAt,
       },
       ws
     );
+    if (write === "missing") return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    if (write === "moved") return jsonRefusal("INTAKE_BRIEF_MOVED", 409);
     return NextResponse.json({
       reply,
       done: turn.done,
       source: turn.source,
       ...(turn.brief ? { brief: turn.brief } : {}),
+      // Same two degradation facts the text plane forwards - the pane renders
+      // one degraded note for both planes, so both must put them on the wire.
       ...(turn.fallbackReason ? { fallbackReason: turn.fallbackReason } : {}),
+      ...(turn.fallbackLang ? { fallbackLang: turn.fallbackLang } : {}),
     });
   } catch (error) {
+    // A hang-up mid-turn is a decision, not a fault.
+    if (request.signal.aborted) return new NextResponse(null, { status: 499 });
+    // Overran INTAKE_VOICE_TURN_TIMEOUT_MS: at speech pace a late utterance is
+    // worse than none, so the caller is told the turn was dropped by name.
+    if (error instanceof IntakeTimeoutError) return jsonRefusal("INTAKE_TURN_TIMEOUT", 504);
     return safeJsonError(error, "api:intake/voice-turn", "INTAKE_VOICE_TURN_FAILED");
   }
 }

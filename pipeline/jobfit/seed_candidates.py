@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 import sys
 import time
 from collections import Counter
@@ -232,6 +233,48 @@ _COMMON_KEYS = (
 )
 
 
+# Every evidence link in the committed corpus must sit in a namespace nobody owns.
+# The 2026-09 corpus shipped 22 links to `https://github.com/<plausible czech handle>` —
+# fictional candidates pointing at accounts that may well belong to real people, in a
+# repository anyone can clone. The prompt rule below asks the model for the reserved
+# form; `sanitize_links` then ENFORCES it, because a prompt is a request and this is a
+# property of the committed data. test_seed_data_hygiene.py is the standing check.
+EXAMPLE_HANDLE_PREFIX = "example-"
+_LINK_RULE = (
+    "Every 'link' MUST be fictional and unownable: use https://github.com/example-<slug>/<repo> "
+    "for code, https://example.invalid/<slug> for anything else. Never a real or plausible "
+    "personal handle, and never an email address or phone number anywhere in the record."
+)
+# Hosts we rewrite a handle inside. Anything else is replaced wholesale (see below).
+_HANDLE_HOSTS = re.compile(r"^(?P<pre>https?://(?:www\.)?(?:github|gitlab)\.com/)(?P<handle>[A-Za-z0-9_.-]+)")
+
+
+def sanitize_links(value: Any) -> Any:
+    """Rewrite every link in a generated record into the reserved namespace.
+
+    Deterministic and total: a handle already prefixed is left alone (so a re-run is
+    idempotent), a github/gitlab handle gets the ``example-`` prefix, and any OTHER
+    http(s) URL becomes ``https://example.invalid/...`` — an LLM asked for a fictional
+    link will happily hand back a real company's careers page, and the seed corpus is
+    committed. Walks dicts/lists so it does not need to know where links live."""
+    if isinstance(value, dict):
+        return {k: sanitize_links(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sanitize_links(v) for v in value]
+    if not isinstance(value, str) or not value.startswith(("http://", "https://")):
+        return value
+    match = _HANDLE_HOSTS.match(value)
+    if match:
+        handle = match.group("handle")
+        if handle.startswith(EXAMPLE_HANDLE_PREFIX):
+            return value
+        return f"{match.group('pre')}{EXAMPLE_HANDLE_PREFIX}{handle}{value[match.end():]}"
+    if re.match(r"^https?://(?:[A-Za-z0-9_.-]*\.)?example\.(?:invalid|com|org|net)(?:[/:?#]|$)", value):
+        return value
+    path = value.split("://", 1)[1]
+    return "https://example.invalid/" + path.split("/", 1)[1] if "/" in path else "https://example.invalid/"
+
+
 def _prompt(spec: dict[str, Any]) -> str:
     if spec.get("nontech"):
         return _nontech_prompt(spec)
@@ -259,7 +302,7 @@ def _prompt(spec: dict[str, Any]) -> str:
             "\"seniority\": \"junior|medior|senior|lead\" (bias to medior/senior), 5-8 skillClaims with "
             "provenance \"professional\", and 1-2 evidence items of kind \"job\" with employer-style titles and skills."
         )
-    return f"{base}\n{flavor}\nReturn JSON only — no markdown, no commentary."
+    return f"{base}\n{flavor}\n{_LINK_RULE}\nReturn JSON only — no markdown, no commentary."
 
 
 def _nontech_prompt(spec: dict[str, Any]) -> str:
@@ -297,7 +340,7 @@ def _nontech_prompt(spec: dict[str, Any]) -> str:
             "number and \"seniority\": \"junior|medior|senior|lead\" (bias to medior/senior), 5-8 skillClaims with "
             "provenance \"professional\", and 1-2 evidence items of kind \"job\" with Czech-bank employer titles and skills."
         )
-    return f"{base}\n{flavor}\n{skills_line}\n{bilingual}\nReturn JSON only — no markdown, no commentary."
+    return f"{base}\n{flavor}\n{skills_line}\n{bilingual}\n{_LINK_RULE}\nReturn JSON only — no markdown, no commentary."
 
 
 def build_specs(count: int, *, seed: int = 7) -> list[dict[str, Any]]:
@@ -347,7 +390,8 @@ def _gen_one(provider: ClaudeCliProvider, spec: dict[str, Any], *, retries: int,
                 profile.archetype = spec["archetype"]  # guarantee the distribution
                 profile.role_family = spec["family"]
                 score, _missing = normalize_profile(profile)  # stamp + reuse the score
-                rec = profile.model_dump(by_alias=True, exclude_none=True)
+                # The prompt ASKS for reserved links; this ENFORCES them (see sanitize_links).
+                rec = sanitize_links(profile.model_dump(by_alias=True, exclude_none=True))
                 rec["id"] = spec["id"]
                 rec["displayName"] = spec["display_name"]  # stamp the guaranteed-unique name
                 rec["completeness"] = score

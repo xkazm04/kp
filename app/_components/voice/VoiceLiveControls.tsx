@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Clock, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
 
 /** The live-call-only half of the controls row: M4 mic mute, the AI-output mute,
  *  the M3 elapsed timer and the autoplay-blocked recovery. Rendered as a fragment
@@ -34,7 +35,7 @@ export function VoiceLiveControls({
         onClick={onToggleMute}
         aria-pressed={muted}
         aria-label={muted ? t("unmuteMic") : t("muteMic")}
-        className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md border border-stone-300 bg-white px-4 text-base font-medium text-ink transition-colors hover:bg-paper"
+        className={BTN_SECONDARY_LG}
       >
         {muted ? <MicOff size={18} /> : <Mic size={18} />}
         {muted ? t("muted") : t("muteMic")}
@@ -46,7 +47,7 @@ export function VoiceLiveControls({
         onClick={onToggleAudioMuted}
         aria-pressed={audioMuted}
         aria-label={audioMuted ? t("unmuteAudio") : t("muteAudio")}
-        className="focus-ring inline-flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-3 text-base font-medium text-ink transition-colors hover:bg-paper"
+        className={`${BTN_SECONDARY_LG} px-3`}
       >
         {audioMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
@@ -66,7 +67,9 @@ export function VoiceLiveControls({
         <button
           type="button"
           onClick={onEnableAudio}
-          className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md border border-dial-amber/50 bg-dial-amber/10 px-4 text-base font-semibold text-ink transition-colors hover:bg-dial-amber/20"
+          // The one-off amber fill rides ON the recipe (the schedule controls'
+          // override shape), so the recovery button keeps the sticker press too.
+          className={`${BTN_SECONDARY_LG} border-dial-amber/50 bg-dial-amber/10 font-semibold hover:bg-dial-amber/20`}
         >
           <Volume2 size={18} />
           {t("enableAudio")}

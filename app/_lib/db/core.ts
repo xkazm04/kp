@@ -2,7 +2,7 @@ import path from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
-import { openStore } from "../db-path";
+import { DB_PATH, openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
 import { jdJobId } from "../jd-limits";
 import type { PipelineStage } from "../pipeline-stages";
@@ -229,6 +229,74 @@ const JOB_INGESTS_DDL = `CREATE TABLE IF NOT EXISTS job_ingests (
       PRIMARY KEY (content_hash, workspace_id)
     );`;
 
+/** Code a boot integrity failure is reported under. Log/throw vocabulary ONLY — it
+ *  never reaches the wire as an API `error` code (no route can serve a request at
+ *  all once this fires), so it is deliberately NOT in STORE_ERRORS. */
+export const DB_INTEGRITY_FAILED = "DB_INTEGRITY_FAILED";
+
+/**
+ * Ask SQLite whether the file is structurally sound, ONCE, at boot — and refuse to
+ * serve if it is not.
+ *
+ * Boot pinned WAL, synchronous and busy_timeout but never asked the one question that
+ * distinguishes "a database" from "a file that used to be one": a corrupt page, a
+ * truncated copy, a half-restored backup or a `.sqlite` that is not a database at all
+ * opened cleanly here and served requests until some unrelated query tripped over it —
+ * surfacing as a random 500 in whatever feature happened to read the damaged page
+ * first, hours after the damage. Worse, the boot DDL/migrations below would WRITE to
+ * that file, compounding the damage before anyone noticed.
+ *
+ * `quick_check(1)` is the cheap form: it skips the (expensive) index-vs-table content
+ * cross-check that `integrity_check` does, stops at the FIRST problem, and answers the
+ * single row `ok` on a healthy file. It runs on the memoized boot connection only —
+ * never on the per-request path, and not in openStore(), which ~18 stores call.
+ *
+ * A non-`ok` answer (or a pragma that throws, which is how SQLITE_NOTADB / SQLITE_CORRUPT
+ * arrive) is fatal by design: an operator restoring a backup is a far better outcome
+ * than a studio that half-works over a broken file.
+ */
+function integrityFailure(detail: string, reason: string): Error {
+  console.error(`[db] ${DB_INTEGRITY_FAILED}: ${detail} — ${DB_PATH}: ${reason}`);
+  return new Error(`${DB_INTEGRITY_FAILED}: ${DB_PATH} ${detail} (${reason}) — restore a backup before starting`);
+}
+
+/** better-sqlite3 tags SQLite's own failures with a SQLITE_* code; anything else out of
+ *  openStore() (the test-isolation guard, an unknown KP_DB_BACKEND) is a configuration
+ *  error and must keep its own message rather than be relabelled as file damage. */
+function sqliteErrorCode(error: unknown): string | null {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && code.startsWith("SQLITE_") ? code : null;
+}
+
+/** Open the memoized boot connection, refusing to serve a file that is not an intact
+ *  database. Two damage shapes, one code: a file that is not a database at all (or is
+ *  unreadable) makes the very first pragma in openStore() THROW SQLITE_NOTADB, while a
+ *  corrupt page opens cleanly and is only found by quick_check. */
+function openCheckedBootConnection(): Database.Database {
+  let db: Database.Database;
+  try {
+    db = openStore();
+  } catch (error) {
+    const code = sqliteErrorCode(error);
+    if (!code) throw error; // configuration failure, not a damaged file
+    throw integrityFailure("could not be opened as a SQLite database", `${code}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  let answer: string;
+  try {
+    const rows = db.pragma("quick_check(1)") as { quick_check?: string }[] | string[];
+    const first = rows[0];
+    answer = typeof first === "string" ? first : String(first?.quick_check ?? "");
+  } catch (error) {
+    db.close();
+    throw integrityFailure("failed PRAGMA quick_check", error instanceof Error ? error.message : String(error));
+  }
+  if (answer !== "ok") {
+    db.close();
+    throw integrityFailure("failed PRAGMA quick_check", answer);
+  }
+  return db;
+}
+
 export function ensureDb(): Database.Database {
   if (_dbHolder.__kpDb) return _dbHolder.__kpDb;
   // Canonical isolated-store open (WAL + busy_timeout=5000): the scheduler writes
@@ -236,7 +304,8 @@ export function ensureDb(): Database.Database {
   // while the policy pass writes pipeline_entries/events here — the busy_timeout
   // makes a concurrent writer wait briefly rather than instantly throwing
   // SQLITE_BUSY.
-  const db = openStore();
+  // Before the DDL below writes a single byte: is this actually an intact database?
+  const db = openCheckedBootConnection();
   db.exec(`
     -- Tenant root (P2): one row per workspace. A single default workspace today
     -- (id 'workspace', matching billing's id) — the seam multi-tenancy fills.
@@ -766,6 +835,11 @@ export function ensureDb(): Database.Database {
       ended_at TEXT,
       transcript_json TEXT,
       scorecard_json TEXT,
+      -- The provider a failed-over call was originally asked to use (see the ALTER
+      -- below for why it is a column and not a log line). NULL = nothing fell back.
+      failover_from TEXT,
+      -- How many times this link was CONNECTED. 1 = the ordinary single-attempt call.
+      attempts INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -1006,6 +1080,18 @@ export function ensureDb(): Database.Database {
       source TEXT,
       dossier_json TEXT,
       error TEXT,
+      -- error_code is the CLASS of a failure (git missing / offline refusal /
+      -- clone timeout / cancelled / engine fault); the error column stays the
+      -- diagnostic line for the operator's log. The client renders the code in its
+      -- own language and never the English message. fallback_reason is the other
+      -- half of the same honesty: the dossier landed, but the agent fell back to
+      -- the heuristic floor, and this is which class of thing went wrong.
+      -- fallback_class is that reason collapsed to the closed vocabulary the UI
+      -- can render (pipeline/jobfit/repo_scan.py FALLBACK_CLASSES); the raw
+      -- reason line stays server-side and never reaches the wire.
+      error_code TEXT,
+      fallback_reason TEXT,
+      fallback_class TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
@@ -1097,6 +1183,30 @@ export function ensureDb(): Database.Database {
       const msg = error instanceof Error ? error.message : String(error);
       if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
       console.error(`[db:migrate] unexpected failure running: ${sql}\n  ${msg}`);
+      throw error;
+    }
+  };
+  // Create a UNIQUE index we WANT but can survive without. A legacy DB may already hold
+  // rows that violate the constraint — that IS the tolerable case, and the app-level
+  // read-then-insert coalescing stays the guarantee for it. Tolerate ONLY that error
+  // (SQLITE_CONSTRAINT_UNIQUE, what SQLite raises when existing rows block the index) and
+  // SAY it: a database holding rows the app believes impossible is an operator-actionable
+  // fact, and the four bare `catch {}` this replaces reported it to nobody while absorbing
+  // lock contention, I/O and name collisions under the same comment. Anything else is
+  // re-thrown, exactly like migrateExec's unexpected-error path.
+  const migrateUniqueIndex = (label: string, ...statements: string[]) => {
+    try {
+      for (const sql of statements) db.exec(sql);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const code = (error as { code?: unknown } | null)?.code;
+      if (code === "SQLITE_CONSTRAINT_UNIQUE" || /UNIQUE constraint failed/i.test(msg)) {
+        console.warn(
+          `[db:migrate] ${label}: pre-existing duplicate rows block this unique index; app-level coalescing stays the guarantee — resolve the duplicates to restore it (${msg})`
+        );
+        return;
+      }
+      console.error(`[db:migrate] unexpected failure creating ${label}\n  ${msg}`);
       throw error;
     }
   };
@@ -1363,6 +1473,17 @@ export function ensureDb(): Database.Database {
     // same person's other-job analyses, and a filename-derived label shared by two
     // different hashes surfaces a collision caution. NULL on legacy rows (never grouped).
     "ALTER TABLE analyses ADD COLUMN cv_hash TEXT",
+    // WHICH ENGINE PRODUCED THIS ROW. `analyses` holds output from two producers — the
+    // LLM pipeline (analyze_cv) and the deterministic seed builders (seed_analyses.py,
+    // upserted into this same table on every boot) — and nothing on the row said which.
+    // A recruiter opening History could not tell an AI assessment from a demo row built
+    // by rules, and "degrades gracefully keyless" is precisely the property that makes
+    // the difference matter. `engine` is 'llm' | 'deterministic'; `engine_provider` is
+    // the registry provider name that served it ('gemini', 'claude_cli', …) and is NULL
+    // for a deterministic row because there is no provider to name. Both NULL on rows
+    // saved before the columns existed — read as UNKNOWN, never assumed to be 'llm'.
+    "ALTER TABLE analyses ADD COLUMN engine TEXT",
+    "ALTER TABLE analyses ADD COLUMN engine_provider TEXT",
     // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
     "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
     // Source lineage (profile ↔ CV): the saved analysis a profile was built from,
@@ -1561,6 +1682,38 @@ export function ensureDb(): Database.Database {
     // those rows, so nothing written before this change stops resolving.
     "ALTER TABLE pipeline_entries ADD COLUMN dev_case_id TEXT",
     "ALTER TABLE pipeline_entries ADD COLUMN dev_submission_id TEXT",
+    // App-master repo scan: an honest outcome instead of a bare "failed"/"complete".
+    // error_code names WHICH failure (git missing, offline refusal, clone timeout,
+    // cancelled, engine fault) so the panel can say it in the reader's language;
+    // fallback_reason names the class of agent failure behind a dossier that
+    // completed on the heuristic floor. Both NULL for every row written before
+    // this, and NULL reads as "no claim" on both — never as a green one.
+    "ALTER TABLE repo_scans ADD COLUMN error_code TEXT",
+    "ALTER TABLE repo_scans ADD COLUMN fallback_reason TEXT",
+    // …and the class that reason collapses to. Two columns rather than one
+    // because they have different audiences: the reason is an English diagnostic
+    // for the server log (it can quote provider output), the class is the closed
+    // vocabulary the panel renders in the reader's language.
+    "ALTER TABLE repo_scans ADD COLUMN fallback_class TEXT",
+    // Provider failover on a voice screen: WHICH provider the call was originally
+    // asked to serve, when /api/interview/connect had to fall back to the other one.
+    // `provider` is overwritten in place with whoever actually served (cost
+    // attribution and the completion ledger both read it), so before this column the
+    // requested provider survived ONLY as a console.warn on the server — the
+    // recruiter looking at a call whose cost came from the wrong provider had no way
+    // to learn that the one they picked was down. NULL on every row where nothing
+    // fell back, which is the overwhelming majority, and never a fabricated
+    // "same as provider".
+    "ALTER TABLE interview_sessions ADD COLUMN failover_from TEXT",
+    // How many times this link was CONNECTED. /complete already distinguishes
+    // attempts when it bills (a 'failed' session stays reconnectable by design, and
+    // the later of started_at/updated_at is when the CURRENT attempt began) — but
+    // that reasoning lived entirely inside one billing expression and left no trace,
+    // so a session billed for one attempt of three read exactly like a clean
+    // first-time call. NOT NULL DEFAULT 1: a legacy row, and a row that has not
+    // connected yet, both read as the ordinary single-attempt session rather than as
+    // a fabricated zero.
+    "ALTER TABLE interview_sessions ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -1589,18 +1742,26 @@ export function ensureDb(): Database.Database {
   // the link promote writes, and the read the case detail needs. Created AFTER the
   // ALTER loop so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_dev_case ON pipeline_entries (workspace_id, dev_case_id)`);
+  // ANALYTICS WINDOW SCANS. Every query in pipelineAnalytics is the same shape —
+  // `WHERE created_at >= ? AND <notSim> AND workspace_id = ?` over pipeline_entries
+  // (the cohort rows) and pipeline_events (KO discards, momentum, the kind counts,
+  // the hold resolution probe). The two tables carried a workspace-only index and a
+  // `created_at DESC` index, and SQLite picks ONE per table: either it seeks by tenant
+  // and then filters every row that tenant ever wrote by date, or it seeks by date
+  // across every tenant. A composite in the query's own order lets one seek do both.
+  // Workspace FIRST because it is the equality predicate — a range column ahead of an
+  // equality column ends the usable prefix at the range.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_entries_ws_created ON pipeline_entries (workspace_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_ws_created ON pipeline_events (workspace_id, created_at)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the
   // index — in that case we leave the rows and fall back to app-level coalescing.
-  try {
-    db.exec(
-      `CREATE UNIQUE INDEX IF NOT EXISTS idx_dev_submissions_dedup
-         ON dev_submissions (posting_id, candidate_ref, repo_ref)`
-    );
-  } catch {
-    /* pre-existing duplicate rows prevent the unique index; skip */
-  }
+  migrateUniqueIndex(
+    "idx_dev_submissions_dedup",
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_dev_submissions_dedup
+       ON dev_submissions (posting_id, candidate_ref, repo_ref)`
+  );
   // Publish idempotency (bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #4)):
   // at most ONE OPEN posting per (workspace, case, channel). The partial UNIQUE index
   // turns createPosting's INSERT ... ON CONFLICT DO NOTHING into a hard guarantee, so a
@@ -1609,34 +1770,28 @@ export function ensureDb(): Database.Database {
   // the index, so a deliberate re-publish after closing still mints a fresh posting.
   // Guarded like the submissions index — a legacy DB with duplicate OPEN postings keeps
   // the app-level reuse (createPosting's read-then-insert) instead of the index.
-  try {
-    db.exec(
-      `CREATE UNIQUE INDEX IF NOT EXISTS uq_dev_postings_open
-         ON dev_postings (workspace_id, case_id, channel) WHERE status = 'open'`
-    );
-  } catch {
-    /* pre-existing duplicate open postings prevent the unique index; skip */
-  }
+  migrateUniqueIndex(
+    "uq_dev_postings_open",
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_dev_postings_open
+       ON dev_postings (workspace_id, case_id, channel) WHERE status = 'open'`
+  );
   // Atomic task dedup across connections (the scheduler ticks on its own connection
   // and an external cron can hit /api/automation/run): a partial UNIQUE index forbids
   // two ACTIVE rows sharing a dedupe_key, turning startTask's app-level read-then-write
   // into a hard guarantee. Guarded like the submissions index — a legacy DB with
   // active duplicates keeps the app-level coalescing instead.
-  try {
-    // Tenant (P1): the dedup uniqueness is PER-TEAM — two teams may legitimately have an
-    // active task with the same dedupe_key (e.g. "screen entry X"). Widen the DB guarantee
-    // to (workspace_id, dedupe_key) to match getActiveTaskByDedupe's app-level scope; the
-    // NEW name keeps this idempotent across boots (drop the legacy dedupe_key-only index).
-    // Single-tenant-identical: workspace_id is the constant 'workspace', so uniqueness
-    // still reduces to dedupe_key within the one team.
-    db.exec(`DROP INDEX IF EXISTS uq_tasks_active_dedupe`);
-    db.exec(
-      `CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_active_dedupe_ws
-         ON tasks (workspace_id, dedupe_key) WHERE status IN ('queued','running')`
-    );
-  } catch {
-    /* pre-existing active duplicates prevent the unique index; skip */
-  }
+  // Tenant (P1): the dedup uniqueness is PER-TEAM — two teams may legitimately have an
+  // active task with the same dedupe_key (e.g. "screen entry X"). Widen the DB guarantee
+  // to (workspace_id, dedupe_key) to match getActiveTaskByDedupe's app-level scope; the
+  // NEW name keeps this idempotent across boots (drop the legacy dedupe_key-only index).
+  // Single-tenant-identical: workspace_id is the constant 'workspace', so uniqueness
+  // still reduces to dedupe_key within the one team.
+  migrateUniqueIndex(
+    "uq_tasks_active_dedupe_ws",
+    `DROP INDEX IF EXISTS uq_tasks_active_dedupe`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_tasks_active_dedupe_ws
+       ON tasks (workspace_id, dedupe_key) WHERE status IN ('queued','running')`
+  );
   // Recruiter feedback door: one row per in-product "Send feedback" submission
   // (message + optional reply email + the route it was sent from + the running
   // app version). Workspace-scoped like candidate_nps — a team's feedback feeds
@@ -1670,19 +1825,38 @@ export function ensureDb(): Database.Database {
   );
   db.prepare(`UPDATE workspaces SET org_id = 'org-default' WHERE org_id IS NULL`).run();
   db.prepare(`UPDATE workspaces SET type = 'team' WHERE type IS NULL`).run();
-  try {
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_jds_workspace ON jds (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_jd_revisions_workspace ON jd_revisions (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON jobs (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_events_workspace ON pipeline_events (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`);
-  } catch {
-    /* index already exists */
+  // The per-tenant scan indexes. Every statement is `IF NOT EXISTS`, so "already exists"
+  // is the ONE error SQLite cannot raise here — which is what made the single bare
+  // `catch { /* index already exists */ }` that used to wrap all nine a pure loss: it
+  // named an impossible error, absorbed the possible ones (lock contention, I/O, a name
+  // collision with a real table) and, because one try covered the whole block, ABORTED
+  // every index after the failing one. A tenant read then scanned the whole table for the
+  // life of the deployment with nothing logged. migrateExec tolerates only the benign
+  // re-run and is loud about the rest, per statement.
+  for (const sql of [
+    `CREATE INDEX IF NOT EXISTS idx_analyses_workspace ON analyses (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_profiles_workspace ON profiles (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_jds_workspace ON jds (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_jd_revisions_workspace ON jd_revisions (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON jobs (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pipeline_events_workspace ON pipeline_events (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`,
+  ]) {
+    migrateExec(sql);
   }
+  // SEED ORDER — why the fixtures land HERE, between the DDL and the heals below.
+  // Seeding needs the schema COMPLETE (every CREATE TABLE, every ALTER-added column and
+  // every index above), and it must run BEFORE the PK-widening rebuilds and the
+  // workspace_id/org_id backfills that follow, because those are written as heals over
+  // "whatever rows exist": a rebuild copies the seeded rows across with the rest, and a
+  // backfill catches a seeded row that did not stamp its tenant column — which is exactly
+  // what makes those backfills order-independent rather than a second place seeders have
+  // to remember. Move seeding after them and a fixture row that misses a column stays
+  // NULL until the NEXT boot, which is the shape "why is one demo candidate invisible"
+  // takes. Pinned by core-boot-tail.test.ts.
+  //
   // KP_EMPTY=1 (npm run dev:empty) skips ALL fixture content — the ČS demo corpus,
   // candidates, analyses, pipeline, example JD, seed members — so the app boots as a
   // truly blank tenant for first-run/onboarding verification. Structural bootstrap
@@ -1836,11 +2010,10 @@ export function ensureDb(): Database.Database {
   //    index (try/catch like uq_tasks: a hand-edited legacy DB with duplicates
   //    keeps booting, just without the constraint).
   db.prepare(`UPDATE billing_state SET org_id = 'org-default' WHERE org_id IS NULL`).run();
-  try {
-    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_state_org ON billing_state (org_id)`);
-  } catch {
-    /* pre-existing duplicate org rows prevent the unique index; skip */
-  }
+  migrateUniqueIndex(
+    "uq_billing_state_org",
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_state_org ON billing_state (org_id)`
+  );
   // 2) billing_usage: widen the (meter, period) PK to (org_id, meter, period) so each
   //    org keeps its own monthly meter counters. One-time rebuild (SQLite can't alter
   //    a PK — the channel_spend/analytics_targets pattern); guarded by the absence of
@@ -1879,32 +2052,51 @@ export function ensureDb(): Database.Database {
     db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => (r as { name: string }).name),
     multiWorkspaceEnabled(),
   );
+  // __kpDb is assigned BEFORE the tail so the ensureDb() inside prunePromptCache()
+  // short-circuits instead of re-entering this initializer.
   _dbHolder.__kpDb = db;
-  // Reclaim expired (and, once their TTL lapses, superseded-PROMPT_VERSION)
-  // cache rows on boot. lookupPromptCache only SKIPS expired rows — it never
-  // deletes them — so without this the prompt cache table and its WAL grow
-  // unbounded for the life of the deployment. __kpDb is assigned first so the
-  // ensureDb() inside prunePromptCache() short-circuits instead of re-entering
-  // this initializer. A prune failure must never wedge boot.
+  runBootMaintenance(db);
+  return db;
+}
+
+/** The minimum a boot-tail needs from a connection — narrowed so the failure paths below
+ *  can be exercised with a pragma that throws on demand (no real database does that
+ *  deterministically). */
+type BootMaintenanceDb = { pragma: (source: string) => unknown };
+
+/**
+ * The boot TAIL: the two housekeeping steps that run once the schema is ready.
+ *
+ * Both are deliberately best-effort. Neither reclaims correctness — they reclaim SPACE —
+ * so a failure in either must be logged and survived, never allowed to wedge a boot that
+ * would otherwise serve. That "best-effort" is a decision, not an accident, which is why
+ * it is a named, tested seam rather than two bare try/catch at the end of a 900-line
+ * initializer (`core-boot-tail.test.ts`).
+ *
+ * 1. Prune expired (and, once their TTL lapses, superseded-PROMPT_VERSION) prompt-cache
+ *    rows. lookupPromptCache only SKIPS expired rows — it never deletes them — so without
+ *    this the gemini_cache table and its WAL grow unbounded for the life of a deployment.
+ * 2. Checkpoint + TRUNCATE the WAL. Under synchronous=NORMAL the -wal/-shm sidecars
+ *    accumulate committed pages until a checkpoint folds them back into the main file;
+ *    nothing else forces one. TRUNCATE both checkpoints AND shrinks the -wal to zero.
+ *    Every store opens the same kp.sqlite, so this one call bounds the shared WAL. A
+ *    concurrent reader holding the WAL open is an ordinary, expected failure here.
+ *
+ * `prune` is injected only so a failing prune can be exercised; production always passes
+ * the real one.
+ */
+export function runBootMaintenance(db: BootMaintenanceDb, prune: () => number = prunePromptCache): void {
   try {
-    const pruned = prunePromptCache();
+    const pruned = prune();
     if (pruned > 0) console.log(`[db] pruned ${pruned} expired prompt-cache row(s) on boot`);
   } catch (error) {
     console.error("[db] prompt-cache boot prune failed", error);
   }
-  // Checkpoint + TRUNCATE the WAL on boot. Under synchronous=NORMAL the -wal/-shm
-  // sidecars accumulate committed pages until a checkpoint folds them back into the
-  // main db file; nothing forced one, so they grew unbounded for the life of the
-  // deployment. TRUNCATE both checkpoints AND shrinks the -wal back to zero. Every
-  // store opens the same kp.sqlite file, so this one call bounds the shared WAL.
-  // Best-effort — a checkpoint failure (e.g. a concurrent reader holding it open)
-  // must never wedge boot.
   try {
     db.pragma("wal_checkpoint(TRUNCATE)");
   } catch (error) {
     console.error("[db] boot WAL checkpoint failed", error);
   }
-  return db;
 }
 
 // Drop a single example JD into the library on first init so the picker is
@@ -2241,8 +2433,13 @@ function seedAnalyses(db: Database.Database): void {
   const records = loadSeedArray<Record<string, unknown>>("analyses", SEED_ANALYSES_PATH);
   if (!records) return;
   const insert = db.prepare(
-    `INSERT INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
-     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at)
+    // `engine` is stamped 'deterministic' HERE rather than read out of the payload: it is
+    // true by construction of this seeder (seed_analyses.py runs the rule-based builders
+    // and never calls a model), and the committed JSON is refreshed on its own schedule,
+    // so deriving it would leave a stale corpus unmarked. It IS one of the seed-owned
+    // columns, so the upsert refreshes it like the rest.
+    `INSERT INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, engine)
+     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at, 'deterministic')
      ON CONFLICT(slug) DO UPDATE SET
        candidate_label = excluded.candidate_label,
        jd_slug = excluded.jd_slug,
@@ -2250,7 +2447,8 @@ function seedAnalyses(db: Database.Database): void {
        role_family = excluded.role_family,
        seniority = excluded.seniority,
        payload_json = excluded.payload_json,
-       created_at = excluded.created_at
+       created_at = excluded.created_at,
+       engine = excluded.engine
      -- …but NEVER over an ERASED candidate. The columns this upsert refreshes are
      -- exactly the two anonymizeEntry scrubs (candidate_label → "First L.",
      -- payload_json → PII stripped of name / rawText / contact / evidence quotes), so

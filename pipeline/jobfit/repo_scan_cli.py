@@ -11,8 +11,12 @@ trust boundary, before this process is ever spawned. This CLI only refuses a pat
 that does not exist or is not a directory.
 
 Output: the uniform provenance envelope on stdout —
-{"result": <RepoDossier>, "source": "llm"|"heuristic",
- "perStepSources": {"repoScan": ...}[, "fallbackReason": {"repoScan": "<Type>: <msg>"}]}
+{"result": <RepoDossier + "scanFence">, "source": "llm"|"heuristic",
+ "perStepSources": {"repoScan": ...}, "redactions": <int>,
+ "fence": {"cliVersion": <str|null>, "state": <FENCE_STATES>,
+           "verified": <bool>, "skippedSymlinks": <int>},
+ "fenceVerified": <bool>, "fenceState": <str>
+ [, "fallbackReason": {"repoScan": "<Type>: <msg>"}, "fallbackClass": "<class>"]}
 — the same contract agentfit_cli / devcase_cli emit, so the TS runner's
 provenance handling applies unchanged. NOTE the source vocabulary: a dossier's
 non-LLM path is ``heuristic`` (RepoDossier.source's own literal), not
@@ -67,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
             if not ok:
                 provider = None
 
+        diagnostics: dict[str, object] = {}
         result, source = repo_scan.scan_repo(
             root,
             provider=provider,
@@ -76,20 +81,66 @@ def main(argv: list[str] | None = None) -> int:
             main_branch=args.main_branch,
             generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             churn_depth=max(1, args.churn_depth),
+            diagnostics=diagnostics,
         )
         if source == repo_scan.SOURCE_HEURISTIC:
             # Keyless / failed-fallback served — record it in the usage ledger so
             # the heuristic traffic stays visible (no-op without KP_LLM_USAGE_LOG),
             # with the descent reason naming WHY the floor served (R6).
             emit_deterministic("repo_scan", reason=descent)
+        # The WIRE boundary, and therefore the last place a secret-shaped value can
+        # be stopped. The deny rules keep the in-repo session out of `.env` and its
+        # friends, but they are a fence with assumptions in them (a CLI flag, a rule
+        # grammar, a version) and every OTHER provider has no fence at all — it
+        # answers from the grounding, and text can carry anything. So every refined
+        # free-text field is swept here regardless of which path produced it, and
+        # the count rides on the envelope: a redaction nobody can see is a silent
+        # edit of the operator's data.
+        redactions = repo_scan.redact_dossier(result)
+        # The fence disclosure rides in TWO places on purpose. On the envelope it is
+        # what this run reports to the task runner (which logs it); INSIDE the
+        # dossier it is what survives to the row, because the dossier blob is the
+        # only part of a finished scan the operator can still read a week later.
+        # `scanFence` is additive and outside repoDossierSchema, so a downstream
+        # zod parse simply drops it — it is a fact about the SCAN, not about the
+        # repo, and no consumer of the dossier schema is asked to carry it.
+        fence = diagnostics.get("fence")
+        if isinstance(fence, dict):
+            if isinstance(result, dict):
+                result["scanFence"] = fence
         envelope: dict[str, object] = {
             "result": result,
             "source": source,
             "perStepSources": {"repoScan": source},
+            "redactions": redactions,
         }
+        if isinstance(fence, dict):
+            envelope["fence"] = fence
+            # Flattened beside it so a reader of the envelope alone cannot miss the
+            # one bit that matters: did an agent read this repo behind a fence
+            # nobody has verified for the CLI that ran?
+            envelope["fenceVerified"] = fence.get("verified")
+            envelope["fenceState"] = fence.get("state")
+            if fence.get("verified") is False:
+                print(
+                    "repo_scan: the in-repo agent's secret-file deny rules are NOT verified for "
+                    f"Claude CLI {fence.get('cliVersion') or 'an unreported version'} "
+                    f"(state={fence.get('state')}); the redaction backstop still ran",
+                    file=sys.stderr,
+                )
+        if redactions:
+            print(
+                f"repo_scan: masked {redactions} secret-shaped value(s) in the refined dossier",
+                file=sys.stderr,
+            )
         reasons = collect_fallback_reasons([("repoScan", result)], pop=True)
         if reasons:
             envelope["fallbackReason"] = reasons
+            # …and the CLASS beside it. The reason line is a diagnostic (English,
+            # unbounded, can quote provider output); the class is the closed
+            # vocabulary the intake panel can localize. Classified HERE, where the
+            # exception was seen, rather than by the TS side re-parsing English.
+            envelope["fallbackClass"] = repo_scan.classify_fallback(reasons.get("repoScan"))
         print(json.dumps(envelope, ensure_ascii=False))
         return 0
     except ValueError as exc:

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { ChatBlocks } from "@/app/_components/chat/ChatBlocks";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { renderableBlocks } from "@/app/_lib/companion-blocks";
 import type { CompanionProposal } from "@/app/_lib/db/companion";
 import { CompanionProposalCard } from "../CompanionProposalCard";
 import type { VoiceEntry } from "./voiceHistory";
@@ -49,7 +50,10 @@ export function VoiceBlocks({
   labels: ChatBlockLabels;
   maxHeight?: string;
 }) {
-  const blocks = entry.meta?.blocks ?? [];
+  // Re-coerced at the point of DRAWING: a stored turn is untrusted input however
+  // it was typed on the way in, and what does not survive is counted rather than
+  // dropped in silence (see VoiceMetaChips, which adds it to the server's count).
+  const { blocks } = renderableBlocks(entry.meta);
   if (blocks.length === 0) return null;
   return (
     <div className="mt-2 overflow-y-auto overflow-x-auto" style={{ maxHeight }}>
@@ -90,7 +94,9 @@ export function VoiceProposals({
 export function VoiceMetaChips({ entry, recallLimit = 1 }: { entry: VoiceEntry; recallLimit?: number }) {
   const t = useTranslations("companion");
   const meta = entry.meta;
-  const dropped = meta?.blockErrors ?? 0;
+  // The server's count PLUS whatever died in TS coercion — the one place a
+  // dropped block was still invisible.
+  const dropped = renderableBlocks(meta).blockErrors;
   const droppedActions = meta?.actionErrors ?? 0;
   const degraded = meta?.source === "deterministic";
   const recall = (meta?.recallUsed ?? []).filter((hit) => (hit.insight ?? "").trim().length > 0);

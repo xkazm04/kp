@@ -5,12 +5,14 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { clampTimeboxHours, timeboxClamp } from "@/app/_lib/devcase-timebox";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Markdown } from "@/app/_components/Markdown";
-import { approveFallbackFor, caseToMarkdown } from "./DevHelpers";
+import { approveFallbackFor, caseEdits, caseToMarkdown } from "./DevHelpers";
 import { ProbeRow } from "./DevShared";
 import { ProbeStrengthBanner } from "./DevProbeStrengthBanner";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 // W5-4 (DEVP1) — the review drawer behind the human approval gate. Everything
 // here was already persisted on the lifecycle record and served by the GET;
@@ -24,7 +26,10 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
   const t = useTranslations("devcase.review");
   const tProbe = useTranslations("devcase.probeAudit");
   // Resolve API failures from the machine `code`, never from the server's
-  // English `error` — see app/_lib/use-error-message.ts.
+  // English `error` — see app/_lib/use-error-message.ts. Covers the 429
+  // TASK_BUDGET_EXHAUSTED the approve gate answers when the agent-class run budget
+  // is spent (app/_lib/task-budget.ts): nothing was approved, so the panel keeps the
+  // reviewer's edits and says to retry rather than reporting a failed sign-off.
   const errMsg = useErrorMessage();
   // …but the ONE refusal this gate can raise — 422 probe_audit_failed, a case whose
   // probes can't tell a strong submission from a naive one — has no `errors` catalog
@@ -44,24 +49,32 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
   const [error, setError] = useState<string | null>(null);
 
   const editedTasks = tasksText.split("\n").map((t) => t.trim()).filter(Boolean);
-  const timeboxNum = Number(timebox);
-  const edits: Record<string, unknown> = {};
-  if (title.trim() && title.trim() !== (kase.title ?? "")) edits.title = title.trim();
-  if (brief.trim() && brief.trim() !== (kase.brief ?? "")) edits.brief = brief.trim();
-  if (editedTasks.join("\n") !== (kase.tasks ?? []).join("\n") && editedTasks.length > 0) edits.tasks = editedTasks;
-  if (timebox.trim() && Number.isFinite(timeboxNum) && timeboxNum > 0 && timeboxNum !== kase.timeboxHours) edits.timeboxHours = timeboxNum;
+  // The timebox is POLICY, and the server clamps it to the 2h cap on a candidate's
+  // unpaid work. The panel used to send the raw typed number and preview it verbatim,
+  // so a reviewer typed 8, saw "~8h" in the candidate-safe preview, approved, and the
+  // candidate received 2h with no notice on either screen. Clamp HERE too, with the
+  // same shared rule the route uses (never a second copy of the bound), and show the
+  // rewrite inline as it happens rather than burying it in the audit trail.
+  const timeboxRaw = timebox.trim();
+  const timeboxHours = timeboxRaw ? clampTimeboxHours(timeboxRaw) : null;
+  const clamped = timeboxRaw ? timeboxClamp(timeboxRaw) : null;
+  // What would actually be SENT, decided by the pure rule in DevHelpers (and tested
+  // there) rather than by four `if`s in a render. `blocked` is the one draft this
+  // panel refuses: emptying the task list used to produce no `tasks` key at all, so
+  // the assignment shipped with the tasks the reviewer had just deleted.
+  const { edits, blocked } = caseEdits(kase, { title, brief, tasks: editedTasks, timeboxHours });
   const hasEdits = Object.keys(edits).length > 0;
 
   // Live candidate-safe preview: what the candidate would actually receive,
   // including the reviewer's in-flight edits. caseToMarkdown excludes probes
   // by construction.
   const preview = caseToMarkdown(
-    { ...kase, title: title.trim() || kase.title, brief: brief.trim() || kase.brief, tasks: editedTasks.length ? editedTasks : kase.tasks, timeboxHours: Number.isFinite(timeboxNum) && timeboxNum > 0 ? timeboxNum : kase.timeboxHours },
+    { ...kase, title: title.trim() || kase.title, brief: brief.trim() || kase.brief, tasks: editedTasks.length ? editedTasks : kase.tasks, timeboxHours: timeboxHours ?? kase.timeboxHours },
     lc.role ?? null
   );
 
   const approve = async () => {
-    if (busy) return;
+    if (busy || blocked) return;
     setBusy("approve");
     setError(null);
     try {
@@ -136,12 +149,26 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
           </label>
           <label className="block text-micro font-semibold text-steel">
             {t("fieldTasks")}
-            <textarea value={tasksText} onChange={(e) => setTasksText(e.target.value)} rows={4} className={inputClass} />
+            <textarea
+              value={tasksText}
+              onChange={(e) => setTasksText(e.target.value)}
+              rows={4}
+              aria-invalid={blocked === "tasksCleared"}
+              className={inputClass}
+            />
           </label>
+          {/* The refusal, stated where the draft that caused it is. Silently keeping
+              the stored tasks is what this replaces. */}
+          {blocked === "tasksCleared" ? (
+            <p role="alert" className="text-micro text-coral">{t("tasksRequired")}</p>
+          ) : null}
           <label className="block text-micro font-semibold text-steel">
             {t("fieldTimebox")}
             <input value={timebox} onChange={(e) => setTimebox(e.target.value)} inputMode="numeric" className={inputClass} />
           </label>
+          {clamped ? (
+            <p className="text-micro text-amber-700">{t("timeboxClamped", { from: clamped.from, to: clamped.to })}</p>
+          ) : null}
           {probes.length > 0 ? (
             <div className="rounded border border-stone-200 bg-paper/50 p-2">
               <p className="flex items-center gap-1 text-micro font-semibold uppercase tracking-wide text-steel">
@@ -172,8 +199,8 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
         <button
           type="button"
           onClick={approve}
-          disabled={busy !== null}
-          className="focus-ring inline-flex h-7 items-center gap-1 rounded-md bg-moss px-2.5 text-micro font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          disabled={busy !== null || blocked !== null}
+          className={`${BTN_AFFIRM} h-7 px-2.5 text-micro`}
         >
           <ShieldCheck size={12} /> {busy === "approve" ? t("approving") : hasEdits ? t("approveWithEdits") : t("approve")}
         </button>

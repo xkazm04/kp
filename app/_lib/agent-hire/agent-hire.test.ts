@@ -9,10 +9,13 @@ import type { LifecycleReport, RollupBackbone, RollupReport } from "./report-pay
 import { toAgentFitEnvelope } from "./transform-run.ts";
 import {
   AGENT_BRIDGE_KEY_UNREADABLE,
+  AGENT_BRIDGE_RESPONSE_TOO_LARGE,
   BUILTIN_CONNECTOR_CATALOG,
   dispatchPersonaRequest,
   fetchConnectorCatalog,
   fetchRequestStatus,
+  MAX_BRIDGE_BODY_BYTES,
+  readBridgeJson,
 } from "./bridge-client.ts";
 import { setBridgeConfig } from "./bridge-store.ts";
 import { claimPairing, PAIR_NO_SECRET_CODE, startPairing } from "./pairing.ts";
@@ -330,4 +333,75 @@ test("report payload v2: probation_review requires a decision; other lifecycle e
   const plain = parseAgentReport({ kind: "lifecycle", event: "activated", decision: "retired" });
   assert.ok(plain.ok);
   assert.equal((plain.report as LifecycleReport).decision, null);
+});
+
+// ── every bridge READ is bounded (/perfect wave 38) ────────────────────────
+//
+// The report door caps what Personas may POST into kp (`readTextWithLimit`,
+// 256 KiB). The four calls kp makes OUT — catalog, dispatch, status poll and the
+// pairing claim — read the answer with a bare `await r.json()`, which buffers
+// whatever the socket sends. Personas is a local app kp trusts to be RUNNING,
+// not to be well-behaved, and a wedged (or hostile) process on 127.0.0.1:9420 is
+// exactly the thing on the other end. Every read now goes through
+// `readBridgeJson`, which answers the structured `{ok:false, reason:"too_large"}`.
+
+/** A Personas answer that streams `bytes` of syntactically valid JSON. */
+function oversizedResponse(bytes: number = MAX_BRIDGE_BODY_BYTES + 1024): Response {
+  const filler = "x".repeat(bytes);
+  return new Response(JSON.stringify({ connectors: [], requestId: "pr-huge", status: "active", token: "pk_huge", filler }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+test("readBridgeJson: parses under the cap, refuses over it, and never throws", async () => {
+  assert.deepEqual(await readBridgeJson(new Response('{"a":1}')), { ok: true, value: { a: 1 } });
+  // A body kp cannot parse is the same answer as no body: each caller's own shape
+  // refusal runs, rather than a parser message reaching an operator.
+  assert.deepEqual(await readBridgeJson(new Response("not json at all")), { ok: true, value: null });
+  assert.deepEqual(await readBridgeJson(new Response("")), { ok: true, value: null });
+  assert.deepEqual(await readBridgeJson(new Response("null")), { ok: true, value: null });
+  assert.deepEqual(await readBridgeJson(oversizedResponse()), { ok: false, reason: "too_large" });
+});
+
+test("an oversized Personas answer is refused on every bridge read", async () => {
+  process.env.KP_SECRET = "unit-test-secret-too-large";
+  setBridgeConfig({ baseUrl: "http://127.0.0.1:9420", apiKey: "pk_paired_for_the_cap_test" });
+  globalThis.fetch = (async () => oversizedResponse()) as typeof fetch;
+
+  // The CATALOG never fails by contract — over the cap it degrades to the
+  // built-in list exactly like an unpaired or down Personas, and says so.
+  const catalog = await fetchConnectorCatalog();
+  assert.equal(catalog.source, "builtin", "an unreadable catalog degrades, it does not throw or half-parse");
+  assert.deepEqual(catalog.connectors, BUILTIN_CONNECTOR_CATALOG);
+
+  const spec = { name: "A", mission: "m", systemPromptDraft: "s", connectors: [], maxBudgetUsd: 10, successMetrics: [] };
+  const kp = { baseUrl: "http://localhost:3000", jobId: "job-1", jobTitle: "Role", workspace: "ws-a" };
+
+  // The three that DO answer the route: one code, so the card can say "Personas
+  // sent more than kp will read" in the reader's language instead of pretending
+  // the hire was accepted (the pre-fix dispatch read `requestId` out of a body it
+  // had already buffered whole).
+  const dispatched = await dispatchPersonaRequest(spec, kp, "agrpt-token");
+  assert.equal(dispatched.ok, false, "an oversized answer is never an accepted hire");
+  if (!dispatched.ok) assert.equal(dispatched.code, AGENT_BRIDGE_RESPONSE_TOO_LARGE);
+
+  const polled = await fetchRequestStatus("pr-huge");
+  assert.equal(polled.ok, false);
+  if (!polled.ok) assert.equal(polled.code, AGENT_BRIDGE_RESPONSE_TOO_LARGE);
+
+  const started = await startPairing();
+  assert.ok(started.ok, "the start phase reads no body, so it is unaffected");
+  const claimed = await claimPairing(started.ok ? started.nonce : "");
+  assert.equal(claimed.ok, false, "an oversized claim answer must not be mined for a key");
+  if (!claimed.ok) assert.equal(claimed.code, AGENT_BRIDGE_RESPONSE_TOO_LARGE);
+
+  // NON-VACUITY: the same calls against a SMALL answer still succeed, so the cap
+  // is what refused above and not the stub.
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ requestId: "pr-small", status: "active" }), { status: 200 })) as typeof fetch;
+  const small = await dispatchPersonaRequest(spec, kp, "agrpt-token");
+  assert.equal(small.ok, true);
+
+  setBridgeConfig({ apiKey: "" }); // unpair — later tests must not inherit this row
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { CARD_PAD, PANEL } from "@/app/_components/ui/recipes";
 import { LibrarySavedJdsLedger } from "./JdsSavedLedger";
 
 // The JD library: a header + the saved-JD console (LibrarySavedJdsLedger), which
@@ -15,7 +16,7 @@ export function JdsTab() {
     // section's direct children. The ledger owns its own fetch (useJdLibrary lives
     // inside LibrarySavedJdsLedger), so aria-busy for the first load sits there,
     // right where that fetch does, rather than being threaded up through a prop.
-    <section className="stagger-children rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`stagger-children ${PANEL} ${CARD_PAD}`}>
       <header className="border-b border-stone-200 pb-4">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>

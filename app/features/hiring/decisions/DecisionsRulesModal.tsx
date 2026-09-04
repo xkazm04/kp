@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
-import { SCREENING_DEFAULT as FALLBACK, type ScreeningRule } from "@/app/_lib/decision-config-schema";
+import { type ScreeningRule } from "@/app/_lib/decision-config-schema";
+import { readScreeningRule, readScreeningRuleResponse, type ScreeningRuleRead } from "./decisionsRulesLoad";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ComplianceSection } from "./DecisionsComplianceSection";
 import { familyFloorEntries, familyFloorSummaryList } from "./decisionsFloorDisclosure";
@@ -24,13 +27,35 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
   const [rule, setRule] = useState<ScreeningRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // reinstate-and-rules-say-when-they-fail — a failed config read used to land on
+  // `setRule(FALLBACK)`, and an empty payload was spread over the same defaults: this
+  // screen then showed the DEFAULT auto-reject thresholds as if they were the
+  // workspace's live rules, and a save would have written them over the real ones.
+  // A read that did not produce a screening rule now says so and disables save.
+  const [loadFailed, setLoadFailed] = useState<ScreeningRuleRead["failure"]>(null);
+  const errMsg = useErrorMessage();
 
-  useEffect(() => {
+  // Fetch only — every state write happens on the settle, so this is the plain
+  // fetch-in-effect pattern rather than a synchronous set during render/effect.
+  const fetchRule = useCallback(() => {
+    // The BODY is read on a non-OK status too: a capability refusal answers with a
+    // code (and the permission it wanted), which is the difference between "ask for
+    // access" and "try again" - dropping it to `null` made both look like an outage.
     fetch("/api/decisions/config")
-      .then((r) => r.json())
-      .then((p) => setRule({ ...FALLBACK, ...(p.configs?.screening ?? {}) }))
-      .catch(() => setRule(FALLBACK));
+      .then((r) => r.json().then((p: unknown) => readScreeningRuleResponse(r.status, p)))
+      .catch(() => readScreeningRuleResponse(null, null)) // offline / aborted / non-JSON
+      .then((read) => {
+        setRule(read.rule);
+        setLoadFailed(read.failure);
+      });
   }, []);
+  useEffect(() => {
+    fetchRule();
+  }, [fetchRule]);
+  const retryLoad = () => {
+    setLoadFailed(null); // back to the loading line while the retry is in flight
+    fetchRule();
+  };
 
   const save = async () => {
     if (!rule) return;
@@ -42,11 +67,19 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phase: "screening", config: rule }),
       });
-      if (!r.ok) throw new Error();
+      const d = (await r.json().catch(() => null)) as
+        | { configs?: { screening?: Partial<ScreeningRule> }; code?: string; capability?: string }
+        | null;
+      // A refused save says WHY, from its code, in the reader's language - the write
+      // door is capability-gated, and "Couldn't save" told a viewer nothing.
+      if (!r.ok) {
+        setNote(capabilityAwareReason(errMsg, d, t("saveFailed")));
+        return;
+      }
       // Re-sync from the server's canonical (clamped) config in the response, so the modal
       // shows exactly what was persisted rather than the possibly out-of-range value typed.
-      const d = (await r.json().catch(() => null)) as { configs?: { screening?: Partial<ScreeningRule> } } | null;
-      if (d?.configs?.screening) setRule({ ...FALLBACK, ...d.configs.screening });
+      const saved = readScreeningRule(d);
+      if (saved) setRule(saved);
       setNote(t("saved"));
     } catch {
       setNote(t("saveFailed"));
@@ -66,7 +99,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={save}
-            disabled={saving || !rule}
+            disabled={saving || !rule || loadFailed !== null}
             className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : null} {t("saveRules")}
@@ -79,7 +112,19 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
         </div>
       }
     >
-      {!rule ? (
+      {loadFailed ? (
+        // Never a silent default: say the live rules could not be read, and offer the retry.
+        <div role="alert" className="space-y-2">
+          <p className="text-sm font-semibold text-coral">{capabilityAwareReason(errMsg, loadFailed, t("loadFailed"))}</p>
+          <button
+            type="button"
+            onClick={retryLoad}
+            className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1 text-sm font-semibold text-ink hover:bg-paper"
+          >
+            {t("loadRetry")}
+          </button>
+        </div>
+      ) : !rule ? (
         <p className="text-sm text-steel">{t("loading")}</p>
       ) : (
         <div className="space-y-4">

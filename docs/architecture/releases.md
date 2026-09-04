@@ -18,6 +18,13 @@ This page is that boundary.
 
 `latest` exists and you should not use it in production. It follows whatever was
 released most recently, including a release you have not read the notes for.
+It does, at least, only follow **finished** releases: a pre-release version
+(`0.2.0-rc1`, `1.0.0-beta.2`) publishes its image and its GitHub release — marked
+as a pre-release — but never moves `latest`. The predicate is `releaseKind()` in
+[`prepare.mjs`](../../scripts/release/prepare.mjs), it is fixture-covered, and it
+fails closed: a version string it cannot parse does not earn the tag either.
+`npm run release:check` prints the status of the version currently in the tree,
+so you learn what a tag would publish before you cut one.
 
 ## Versioning, as it applies here
 
@@ -70,6 +77,11 @@ asserts it), and runs in two places:
 | [`.githooks/commit-msg`](../../.githooks/commit-msg) | as the message is written (`core.hooksPath` is set by `npm install`) | the commit is rejected; amend and retry |
 | `commit-convention` job in [`ci.yml`](../../.github/workflows/ci.yml) | every push and PR, over the whole range | the build is red until the subject is amended or waived |
 
+All four scripts here shell out through one wrapper —
+[`scripts/release/git.mjs`](../../scripts/release/git.mjs), which also serves the
+doc-sync gate — so the range reader, the rev check and the 64MB stdout buffer a
+long `git log` needs exist once rather than in three copies that drift.
+
 Merge, revert and `fixup!` subjects are exempt — those are git's words, not
 ours. An individual message is waived on the record with a
 `Commit-convention-exemption: <why>` trailer in the body, the same shape as
@@ -105,7 +117,20 @@ change.** It rejects
 | an unclosed delimiter | ``fix(db): stop the write in `pipeline`` |
 | a trailing full stop | `fix(auth): stop the leak.` |
 
-and `checkTypeAgainstFiles()` adds the one claim the diff settles outright: a
+"Cut mid-phrase" is a **tail-word** rule, and it is deliberately narrow in two
+ways a reader should know about, because the cost of a false rejection is that
+the author reaches for the waiver trailer this gate exists to make unnecessary.
+The tail is read as a **whole word, digits included** — `chore(perfect): ship
+wave 21a` ends on `21a`, not on the article `a`, which is what a letters-only
+tail regex saw. And `DANGLING_TAIL` holds only words that *require* a following
+word: `one`, `it`, `do`, `does` and `did` end a clause perfectly well (`… into
+one`, `… why we did`) and are not in it, while the copulas (`is`, `was`) are,
+because a subject ending on one really was cut. The list is pinned in both
+directions by a fixture in
+[`commit-msg.test.mjs`](../../scripts/release/__tests__/commit-msg.test.mjs), so
+growing it by intuition is a deliberate act rather than a quiet one.
+
+`checkTypeAgainstFiles()` adds the one claim the diff settles outright: a
 commit whose files are **all** documentation is not a `feat` or a `fix`, and one
 whose files are **all** tests is not either — a release note would otherwise
 announce a user-visible change that does not exist. A mixed commit is never
@@ -185,7 +210,8 @@ The tag is what triggers [`.github/workflows/release.yml`](../../.github/workflo
    judged. `npm run test:agent` is in that list for the same reason
    `npm run test:review` is: the tools that judge and produce changes here are
    themselves shipped in this tree, so a tag certifies them too;
-2. builds and pushes the image to GHCR as `x.y.z`, `sha-<commit>` and `latest`;
+2. builds and pushes the image to GHCR as `x.y.z` and `sha-<commit>` — plus
+   `latest` **only when the version is a plain semver**;
 3. attaches a **build-provenance attestation** (`actions/attest-build-provenance`),
    so `gh attestation verify` can prove the image came from this repository at
    that commit, plus BuildKit's **SPDX attestation** of the image filesystem
@@ -221,6 +247,24 @@ npm run sbom                                  # dist/sbom/kp-<version>.cdx.json
 gh release download v0.1.0 --pattern '*.cdx.json'
 jq -r '.components[] | "\(.name) \(.version)"' kp-0.1.0.cdx.json
 ```
+
+**The document is reproducible, so it can be checked rather than trusted.** The
+component lists are sorted and the serial number is a SHA-256 of them, and the
+timestamp — the one remaining input that made two cuts of the same tag differ
+byte for byte — is pinned: `--timestamp` (epoch seconds or an ISO instant), or
+the `SOURCE_DATE_EPOCH` convention when it is not passed. The release workflow
+passes the **tagged commit's own commit time**, so re-cutting the document from
+that tag reproduces the published file exactly:
+
+```bash
+git checkout v0.1.0
+node scripts/release/sbom.mjs --version 0.1.0 --commit "$(git rev-parse HEAD)" \
+  --timestamp "$(git log -1 --format=%cI)" --out /tmp/kp-0.1.0.cdx.json
+diff /tmp/kp-0.1.0.cdx.json kp-0.1.0.cdx.json   # the asset downloaded above
+```
+
+A `--timestamp` that is neither form is an **error**, not a fallback: a caller
+that asked for a reproducible document must not silently receive a clock.
 
 `npm run sbom` also runs on **every push** in CI, so a lockfile format change
 breaks the build rather than the next release. The generator refuses to write a
@@ -304,7 +348,15 @@ npm run db:dump > kp-dump-$(date +%F).json
 2. **Check the app comes up**: `GET /api/health` reports `db`, `seeds`, `clock`,
    engine availability and a `degradedReasons` list.
 3. **If the data is wrong, not just the code**, restore the dump: stop the
-   container, restore the volume tarball (or `npm run db:load`), start it.
+   container, rehearse with `npm run db:load -- --dry-run <dump>` (prints the
+   per-table plan and the exit code the real run would take, writes nothing),
+   then restore the volume tarball (or `npm run db:load -- --replace <dump>`),
+   start it.
+   - A dump holds every credential row the deployment has (the dumper warns on
+     stderr and writes the file `0600`). Hand a dump to anyone outside the
+     deployment only as `npm run db:dump -- --redact`, which blanks the
+     `ORG_CONFIG_NOT_PORTABLE` tables and every password/secret/token column
+     with a `[redacted:table.column#n]` marker that still restores.
 4. **Say what happened** in the CHANGELOG of the next release. A rollback that
    is not written down repeats.
 

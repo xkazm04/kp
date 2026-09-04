@@ -2,9 +2,17 @@ import { NextResponse } from "next/server";
 import { getJob, loadJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+
+// THROTTLE: one accepted call spends a Claude ad-parse of the whole JD body in a
+// spawned child. Same 20/10min per IP as POST /api/jobs/ingest, which guards the
+// identical parse — this route is the JD-library door to it, and it was the only
+// one of the two without a limiter. Operator-gated, and open mode makes that gate a
+// no-op for the whole API.
+const INGEST_JOB_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 // One LLM parse of the JD body — same budget class as the jobs-tab ingest.
 export const maxDuration = 60;
@@ -16,7 +24,7 @@ export const maxDuration = 60;
 // content-hash dedup, draft lifecycle) existed one tab away. The explicit
 // jobId "jd-<slug>" makes JD and Job share identity, so the W8-2 apply CTA
 // and the analyses sidebar line up in both directions.
-export async function POST(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   // Making a JD matchable runs one LLM parse — a paid write, recruiter-only. Gate
   // before resolving params or touching the DB. Open mode is a no-op.
   const denied = await requireOperator();
@@ -30,6 +38,12 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
     const jobId = jdJobId(slug);
     if (getJob(jobId)) {
       return NextResponse.json({ ok: true, jobId, already: true });
+    }
+    // The budget is spent HERE: after the 404 AND after the already-ingested
+    // short-circuit above, which parses nothing and so must neither consume nor be
+    // masked by the budget — and before the parse this guards.
+    if (!rateLimit(`jd-ingest-job:${clientIpFrom(request.headers)}`, INGEST_JOB_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const { job, source } = await ingestJobAd(jd.body, jobId);
     // ingestJobAd only PARSES (it spawns jobs_cli and hands back the structured

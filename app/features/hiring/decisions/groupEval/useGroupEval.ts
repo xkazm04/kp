@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocale } from "next-intl";
 import { buildSkillRows, ranWhen } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { decideWith, isEnriched, mergeSealed } from "@/app/features/hiring/decisions/groupEval/groupEvalSession";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 
 // Session state + derived data for the group-eval modal, kept out of the entry
@@ -38,25 +39,25 @@ export function useGroupEval({
   const [decided, setDecided] = useState<Record<string, "accept" | "reject">>({});
   // Externally-sealed decisions win: they are already written to the pipeline and
   // to the audit record, so a live button over one would invite a second act().
-  const effectiveDecided = sealed ? { ...decided, ...sealed } : decided;
+  // That merge, the "did it actually land" contract below and the enriched threshold
+  // are pure rules living in groupEvalSession.ts, where tests can reach them.
+  const effectiveDecided = mergeSealed(decided, sealed);
   const decide =
     onDecide &&
     ((label: string, action: "accept" | "reject") => {
-      if (effectiveDecided[label]) return; // already acted this session
       // Only flip to the recorded-outcome pill if the action actually applied. If the
       // candidate has left the live pool, onDecide no-ops and returns false — leave
       // the buttons live (and un-decided) instead of claiming a success that never
       // happened, which also kept blocking a retry.
-      if (onDecide(label, action)) {
-        setDecided((d) => ({ ...d, [label]: action }));
-      }
+      const recorded = decideWith(effectiveDecided, onDecide)(label, action);
+      if (recorded) setDecided((d) => ({ ...d, [label]: recorded }));
     });
   const drift = poolDrift ?? 0;
   const candidates = evaluation?.candidates ?? [];
   // Enriched layout (the comparison table) only when the recruiter breakdown is
   // present; otherwise fall back to the compact text view so legacy/simulation
   // payloads and job-less roles still render correctly.
-  const enriched = candidates.some((c) => (c.scoreBreakdown?.length ?? 0) > 0);
+  const enriched = isEnriched(candidates);
   const { rows: skillRows, mustRows } = buildSkillRows(candidates, evaluation?.requirements ?? []);
   const aiBacked = Boolean(evaluation?.comparison) && evaluation?.comparisonSource === "llm";
 

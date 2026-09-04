@@ -4,8 +4,78 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawn
 import { buildLlmConfigEnv } from "./llm-config";
 import type { RoleBrief } from "./rolespec";
 import type { IntakeAttachment, PopulationFit } from "./db/intakes";
+import { MAX_STORED_TURNS } from "./intake-transcript";
 import type { RepoDossier } from "./schemas.generated";
+import { isLocale, type Locale } from "@/i18n/locales";
 import type { VoiceTurn } from "./voice/types";
+
+// --- Per-turn budgets -------------------------------------------------------
+//
+// spawnPython's default is a TEN-MINUTE hang backstop - the right bound for a
+// repo scan and the wrong one for a conversation. A dialog turn inherited it
+// whole: a provider that stalled left the requestor watching a spinner for the
+// remaining nine minutes with no way to tell a slow answer from a dead one, and
+// the paid completion kept running behind it. Each thread now gets the budget
+// its OWN pace justifies, and overrunning one is answered by name.
+export const INTAKE_OPENING_TIMEOUT_MS = 30_000; // deterministic Python, no model call
+export const INTAKE_DIALOG_TIMEOUT_MS = 120_000; // one typed exchange, incl. a reasoning model
+export const INTAKE_VOICE_TURN_TIMEOUT_MS = 45_000; // speech pace: a fast model or nothing
+export const INTAKE_EXTRACT_TIMEOUT_MS = 180_000; // one batch pass over a whole transcript
+export const INTAKE_APP_MASTER_TIMEOUT_MS = 180_000; // dossier merge + population-fit judgment
+
+/** The turn overran its stated budget. A DECISION (we stopped waiting), not a
+ *  store fault - so the routes answer it with its own refusal code instead of
+ *  filing it as a 500 whose generic message the reader could not have acted on. */
+export class IntakeTimeoutError extends Error {
+  readonly budgetMs: number;
+  constructor(budgetMs: number) {
+    super(`Intake turn exceeded its ${Math.round(budgetMs / 1000)}s budget.`);
+    this.name = "IntakeTimeoutError";
+    this.budgetMs = budgetMs;
+  }
+}
+
+/** python-runner reports its deadline as a message, not a typed error. Matching
+ *  it here (ONE place) is what lets every intake thread turn "the child was
+ *  killed at the deadline" into the one fact the reader is owed. */
+export function isSpawnTimeoutMessage(message: string): boolean {
+  return /^Python process timed out after \d+s/.test(message);
+}
+
+// The engine renders only its newest MAX_TRANSCRIPT_TURNS (= 48,
+// pipeline/jobfit/intake.py) turns into any prompt, so serialising more than
+// that into the workdir writes bytes no model will ever read. The store caps at
+// the same window (MAX_STORED_TURNS) plus at most ONE leading compaction marker,
+// so this slice is a no-op for a capped row and the real bound for a legacy row
+// written before the cap existed. Keeping the two equal is also what keeps
+// `sourceTurn` citations aligned: render_transcript numbers from
+// `len(turns) - len(window)`, so a file that IS the window numbers its turns
+// exactly as the stored transcript does.
+export const MAX_SPAWN_TRANSCRIPT_TURNS = MAX_STORED_TURNS + 1;
+
+export function transcriptWindow(turns: VoiceTurn[]): VoiceTurn[] {
+  return turns.length > MAX_SPAWN_TRANSCRIPT_TURNS ? turns.slice(-MAX_SPAWN_TRANSCRIPT_TURNS) : turns;
+}
+
+/** One spawn + its budget + its error vocabulary. Every intake thread goes
+ *  through here so a new one cannot silently inherit the 10-minute default. */
+async function runIntakeSpawn(
+  args: string[],
+  opts: { timeoutMs: number; signal?: AbortSignal; env?: Record<string, string | undefined> }
+): Promise<{ stdout: string; stderr: string }> {
+  const { result } = spawnPython(args, { signal: opts.signal, env: opts.env, timeoutMs: opts.timeoutMs });
+  let stdout: string;
+  let stderr: string;
+  let exitCode: number | null;
+  try {
+    ({ stdout, stderr, exitCode } = await result);
+  } catch (err) {
+    if (err instanceof Error && isSpawnTimeoutMessage(err.message)) throw new IntakeTimeoutError(opts.timeoutMs);
+    throw err;
+  }
+  if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+  return { stdout, stderr };
+}
 
 // Shared helper: write the attachment list beside the other inputs and push
 // the CLI flag. Bodies are budget-truncated Python-side; the voice fast thread
@@ -34,7 +104,19 @@ export type IntakeExchange = {
   done: boolean;
   source: "llm" | "deterministic";
   fallbackReason?: string;
+  // The keyless scripted path is written in all four locales; when a session
+  // asks for one it does NOT carry, the engine names the language it served
+  // instead of silently substituting English. Present = the operator is
+  // reading a stand-in language, and a surface may say so.
+  fallbackLang?: Locale;
 };
+
+// Only a locale the app actually knows may cross the boundary as `fallbackLang`
+// — an unrecognised value is dropped rather than handed on as a language tag no
+// catalog can resolve.
+function coerceFallbackLang(raw: unknown): { fallbackLang?: Locale } {
+  return isLocale(raw) ? { fallbackLang: raw } : {};
+}
 
 function coerceExchange(payload: unknown): IntakeExchange {
   const raw = (payload ?? {}) as Record<string, unknown>;
@@ -47,6 +129,7 @@ function coerceExchange(payload: unknown): IntakeExchange {
     done: raw.done === true,
     source: raw.source === "llm" ? "llm" : "deterministic",
     ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
+    ...coerceFallbackLang(raw.fallbackLang),
   };
 }
 
@@ -61,9 +144,7 @@ export async function runIntakeOpening(
 ): Promise<IntakeExchange> {
   const args = ["-m", "pipeline.jobfit.intake_cli", "--opening", "--lang", lang || "en"];
   if (shape) args.push("--shape", shape);
-  const { result } = spawnPython(args, { signal });
-  const { stdout, stderr, exitCode } = await result;
-  if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+  const { stdout, stderr } = await runIntakeSpawn(args, { signal, timeoutMs: INTAKE_OPENING_TIMEOUT_MS });
   return coerceExchange(parsePythonJson<unknown>(stdout, stderr));
 }
 
@@ -99,9 +180,11 @@ export async function runIntakeAppMasterSync(
       await writeFile(briefPath, JSON.stringify(input.brief), "utf-8");
       args.push("--brief-json", briefPath);
     }
-    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+    const { stdout, stderr } = await runIntakeSpawn(args, {
+      signal,
+      env: buildLlmConfigEnv(),
+      timeoutMs: INTAKE_APP_MASTER_TIMEOUT_MS,
+    });
     const raw = parsePythonJson<Record<string, unknown>>(stdout, stderr);
     const brief = raw.brief && typeof raw.brief === "object" ? (raw.brief as RoleBrief) : null;
     if (!brief) throw new Error("App-master sync returned no brief.");
@@ -148,6 +231,7 @@ export type IntakeVoiceTurn = {
   // thread and omits it.
   brief?: RoleBrief;
   fallbackReason?: string;
+  fallbackLang?: Locale;
 };
 
 // The FAST voice thread (docs/architecture/voice-conversation-plane.md): one
@@ -160,7 +244,7 @@ export async function runIntakeVoiceTurn(
   const workdir = await createWorkdir();
   try {
     const transcriptPath = path.join(workdir, "transcript.json");
-    await writeFile(transcriptPath, JSON.stringify(input.transcript), "utf-8");
+    await writeFile(transcriptPath, JSON.stringify(transcriptWindow(input.transcript)), "utf-8");
     const args = [
       "-m",
       "pipeline.jobfit.intake_cli",
@@ -178,9 +262,11 @@ export async function runIntakeVoiceTurn(
       args.push("--brief-json", briefPath);
     }
     await pushAttachmentsArg(workdir, args, input.attachments);
-    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+    const { stdout, stderr } = await runIntakeSpawn(args, {
+      signal,
+      env: buildLlmConfigEnv(),
+      timeoutMs: INTAKE_VOICE_TURN_TIMEOUT_MS,
+    });
     const raw = parsePythonJson<Record<string, unknown>>(stdout, stderr);
     const reply = typeof raw.reply === "string" ? raw.reply : "";
     if (!reply) throw new Error("Voice turn returned no utterance.");
@@ -190,6 +276,7 @@ export async function runIntakeVoiceTurn(
       source: raw.source === "llm" ? "llm" : "deterministic",
       ...(raw.brief && typeof raw.brief === "object" ? { brief: raw.brief as RoleBrief } : {}),
       ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
+      ...coerceFallbackLang(raw.fallbackLang),
     };
   } finally {
     await cleanupWorkdir(workdir);
@@ -216,7 +303,7 @@ export async function runIntakeTranscriptExtract(
   const workdir = await createWorkdir();
   try {
     const transcriptPath = path.join(workdir, "transcript.json");
-    await writeFile(transcriptPath, JSON.stringify(input.transcript), "utf-8");
+    await writeFile(transcriptPath, JSON.stringify(transcriptWindow(input.transcript)), "utf-8");
     const args = [
       "-m",
       "pipeline.jobfit.intake_cli",
@@ -232,9 +319,11 @@ export async function runIntakeTranscriptExtract(
       args.push("--brief-json", briefPath);
     }
     await pushAttachmentsArg(workdir, args, input.attachments);
-    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+    const { stdout, stderr } = await runIntakeSpawn(args, {
+      signal,
+      env: buildLlmConfigEnv(),
+      timeoutMs: INTAKE_EXTRACT_TIMEOUT_MS,
+    });
     const raw = parsePythonJson<Record<string, unknown>>(stdout, stderr);
     return {
       brief: (raw.brief && typeof raw.brief === "object" ? raw.brief : {}) as RoleBrief,
@@ -264,7 +353,7 @@ export async function runIntakeExchange(
   const workdir = await createWorkdir();
   try {
     const transcriptPath = path.join(workdir, "transcript.json");
-    await writeFile(transcriptPath, JSON.stringify(input.transcript), "utf-8");
+    await writeFile(transcriptPath, JSON.stringify(transcriptWindow(input.transcript)), "utf-8");
     const args = [
       "-m",
       "pipeline.jobfit.intake_cli",
@@ -286,9 +375,11 @@ export async function runIntakeExchange(
       await writeFile(dossierPath, JSON.stringify(input.dossier), "utf-8");
       args.push("--dossier-json", dossierPath);
     }
-    const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
+    const { stdout, stderr } = await runIntakeSpawn(args, {
+      signal,
+      env: buildLlmConfigEnv(),
+      timeoutMs: INTAKE_DIALOG_TIMEOUT_MS,
+    });
     // parsePythonJson, not raw JSON.parse: the LLM path can print interpreter
     // shutdown chatter after the JSON line (same reason as analyze-run).
     return coerceExchange(parsePythonJson<unknown>(stdout, stderr));

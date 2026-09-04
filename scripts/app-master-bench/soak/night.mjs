@@ -16,6 +16,13 @@
 //     to ignore it.
 //
 // Appends one JSON line per night to bench/app-master/soak/log.jsonl.
+//
+// TESTABILITY: the reasoning this file does — the miss taxonomy, the one-record-
+// one-verdict rule, the calendar-gap backfill, reading the log — is pure and now
+// lives in exported functions above `main()`. Everything below `main()` touches
+// Personas, kp, the driver and the disk. Importing this module runs NOTHING;
+// `night.test.mjs` drives the pure half. It is the most-revised file in the area
+// (twenty-odd review rounds live in its comments) and it had no test at all.
 
 import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
@@ -49,30 +56,157 @@ try {
 
 /** Local calendar date (YYYY-MM-DD) — the soak's unit of time. `night` is a log
  *  index; DATE is what the gate counts and what gap backfill reasons over. */
-const localDate = (d = new Date()) => d.toLocaleDateString("sv-SE");
+export const localDate = (d = new Date()) => d.toLocaleDateString("sv-SE");
 
-const rec = {
-  at: new Date().toISOString(),
-  date: localDate(),
-  night: null, // filled from the log length below
-  ran: false,
-  // The FULL closed set — one authority, the taxonomy table in
-  // docs/development/app-master-soak.md, which also says what each demands of
-  // the weekly pass (`unclassified` in particular is a finding to classify by
-  // hand, never background noise):
-  // bridge-down | kp-boot-failed | driver-timeout | driver-crashed |
-  // tick-died | record-unreadable | machine (backfilled) | unclassified
-  miss: null,
-  exitCode: null,
-  runDir: null,
-  ideation: null,
-  c1: null,
-  dispatched: null,
-  budgetSettledUsd: null,
-  memory: null, // persona-memory tier counts from the roster — the longevity axis
-  anomalies: [],
-  ms: 0,
-};
+/**
+ * The FULL closed set of miss classes — one authority, mirrored by the taxonomy
+ * table in docs/development/app-master-soak.md, which also says what each
+ * demands of the weekly pass (`unclassified` in particular is a finding to
+ * classify by hand, never background noise).
+ *
+ * A literal array + a runtime guard, the shape this repo uses for every closed
+ * vocabulary: a typo'd miss class used to be indistinguishable from a real one
+ * in a log nobody re-reads for weeks.
+ */
+export const MISS_CLASSES = [
+  "bridge-down",
+  "kp-boot-failed",
+  "driver-timeout",
+  "driver-crashed",
+  "tick-died",
+  "record-unreadable",
+  "no-record", // written by the calendar backfill; hand-classified at the weekly pass
+  "machine", // only ever set BY HAND, when the weekly pass resolves a no-record
+  "unclassified",
+];
+
+/** Is `value` a class the taxonomy actually declares? */
+export const isMissClass = (value) => MISS_CLASSES.includes(value);
+
+/** A fresh, empty night record. A factory, not a module singleton, so a test can
+ *  hold several and `main()` still gets exactly one. */
+export function newRecord(now = new Date()) {
+  return {
+    at: now.toISOString(),
+    date: localDate(now),
+    night: null, // filled from the log length below
+    ran: false,
+    miss: null, // one of MISS_CLASSES
+    exitCode: null,
+    runDir: null,
+    ideation: null,
+    c1: null,
+    dispatched: null,
+    budgetSettledUsd: null,
+    memory: null, // persona-memory tier counts from the roster — the longevity axis
+    anomalies: [],
+    ms: 0,
+  };
+}
+
+/**
+ * The log is JSON Lines, and this runner writes it on Windows, where anything
+ * that touches the file with text-mode tooling leaves `\r` behind. The old
+ * `text.trim().split("\n").filter(Boolean)` survives a plain CRLF log by luck —
+ * `JSON.parse` tolerates a trailing carriage return — but a BLANK CRLF line
+ * (an interrupted write, a hand edit, a file opened in Notepad) becomes the
+ * one-character string "\r", which `filter(Boolean)` keeps because it is truthy.
+ * That row then does two things: it inflates `prior`, so tonight is filed as a
+ * night that never happened, and it throws inside the backfill when it lands
+ * last — swallowed as "gap backfill failed", which is how the log loses the
+ * calendar continuity this file's first design rule promises.
+ *
+ * Measured: a two-night log with one blank CRLF line counted THREE nights.
+ * Split on the line ending, not on the byte, and drop what is only whitespace.
+ */
+export function readLogLines(text) {
+  return String(text ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/**
+ * The two invariants a finished record must satisfy, applied in order.
+ *
+ * 1. ONE RECORD, ONE VERDICT (round 11): a night whose record proves it RAN
+ *    cannot also be a miss — a driver timeout or exit observed AFTER a complete
+ *    record was written is a harness note, not the night's fate. The observation
+ *    survives in `anomalies`; the contradiction does not.
+ * 2. NO SILENT "DID NOT RUN" (rounds 8+9): no record may say it did not run
+ *    without saying why — and when no path recorded a reason, the honest class is
+ *    IGNORANCE, not a named crash that may never have happened. `unclassified` is
+ *    itself a finding: the record-keeping failed.
+ *
+ * Mutates and returns `rec` — it is the record being finished.
+ */
+export function resolveVerdict(rec) {
+  if (rec.ran && rec.miss) {
+    rec.anomalies.push(
+      `the runner observed "${rec.miss}" AFTER the driver had written a complete record — the night ran; kept here as a harness note, not as the miss`,
+    );
+    rec.miss = null;
+  }
+  if (!rec.ran && !rec.miss) {
+    rec.miss = "unclassified";
+    rec.anomalies.push(
+      "no code path recorded WHY this night did not run — classify by hand and fix the runner path that stayed silent",
+    );
+  }
+  return rec;
+}
+
+/**
+ * Calendar-gap backfill (review round 7): a night the task never FIRED wrote
+ * nothing, so 14 records were indistinguishable from 14 nights spread over a
+ * month. Every calendar day between the last record and `today` gets a
+ * retrospective `no-record` miss — the silent gap the first design rule forbids
+ * becomes unrepresentable.
+ *
+ * Pure: takes the log's parsed lines, returns the rows to prepend and the count
+ * of prior nights. The caller writes them in ONE append together with tonight's
+ * record (round 14) — a per-day append that died mid-loop would leave the log
+ * claiming a continuity it does not have.
+ *
+ * @returns { rows, prior, failed } — `failed` true when the last line was
+ *          unreadable, which the caller records as an anomaly rather than
+ *          pretending continuity.
+ */
+export function backfillRows(lines, today, now = new Date()) {
+  let prior = lines.length;
+  const rows = [];
+  try {
+    const last = lines.length ? JSON.parse(lines.at(-1)) : null;
+    const lastDate = last?.date ?? (last?.at ? localDate(new Date(last.at)) : null);
+    if (lastDate) {
+      const cursor = new Date(`${lastDate}T12:00:00`);
+      for (;;) {
+        cursor.setDate(cursor.getDate() + 1);
+        const day = localDate(cursor);
+        if (day >= today) break;
+        prior += 1;
+        rows.push({
+          at: now.toISOString(),
+          date: day,
+          night: prior,
+          ran: false,
+          miss: "no-record",
+          backfilled: true,
+          anomalies: [
+            "no record exists for this calendar day — EITHER the task never fired (host asleep/logged off/powered down; interactive-only, no wake-to-run) OR it fired and the runner died before writing. Distinguish at the weekly pass via bench/app-master/soak/runner.log timestamps and Task Scheduler history, then hand-classify to machine or unclassified.",
+          ],
+          ms: 0,
+        });
+      }
+    }
+  } catch {
+    // The last line would not parse. Say so; do not claim continuity.
+    return { rows: [], prior: lines.length, failed: true };
+  }
+  return { rows, prior, failed: false };
+}
+
+const rec = newRecord();
 const t0 = Date.now();
 
 function log(line) {
@@ -95,61 +229,15 @@ async function health(url, ms = 4000) {
 
 function finish() {
   rec.ms = Date.now() - t0;
-  // ONE record, ONE verdict (round 11): a night whose record proves it RAN
-  // cannot also be a miss — a driver timeout/exit observed AFTER a complete
-  // record was written is a harness note, not the night's fate. The
-  // observation survives in anomalies; the contradiction does not.
-  if (rec.ran && rec.miss) {
-    rec.anomalies.push(`the runner observed "${rec.miss}" AFTER the driver had written a complete record — the night ran; kept here as a harness note, not as the miss`);
-    rec.miss = null;
-  }
-  // The classified-miss invariant, STRUCTURAL rather than per-path (rounds
-  // 8+9): no record may say "did not run" without saying why — and when no
-  // path recorded a reason, the honest class is IGNORANCE, not a named crash
-  // that may never have happened. `unclassified` is itself a finding: the
-  // record-keeping failed, and the weekly pass classifies it by hand.
-  if (!rec.ran && !rec.miss) {
-    rec.miss = "unclassified";
-    rec.anomalies.push("no code path recorded WHY this night did not run — classify by hand and fix the runner path that stayed silent");
-  }
+  resolveVerdict(rec);
   mkdirSync(SOAK_DIR, { recursive: true });
-  const lines = existsSync(LOG) ? readFileSync(LOG, "utf-8").trim().split("\n").filter(Boolean) : [];
-  let prior = lines.length;
-  // Calendar-gap backfill (review round 7): a night the task never FIRED wrote
-  // nothing, so the `machine` taxonomy class could never appear and 14 records
-  // were indistinguishable from 14 nights spread over a month. Every calendar
-  // day between the last record and today gets a retrospective `machine` miss —
-  // the silent gap the first design rule forbids is now unrepresentable.
+  const lines = existsSync(LOG) ? readLogLines(readFileSync(LOG, "utf-8")) : [];
   // ALL rows are built first and written in ONE append (round 14): a per-day
   // append that dies mid-loop would leave the log claiming calendar continuity
-  // it does not have, with no marker on the missing days. One write, all rows
-  // — the backfills and tonight's record land together or not at all.
-  const rows = [];
-  try {
-    const last = lines.length ? JSON.parse(lines.at(-1)) : null;
-    const lastDate = last?.date ?? (last?.at ? localDate(new Date(last.at)) : null);
-    if (lastDate) {
-      const cursor = new Date(`${lastDate}T12:00:00`);
-      for (;;) {
-        cursor.setDate(cursor.getDate() + 1);
-        const day = localDate(cursor);
-        if (day >= rec.date) break;
-        prior += 1;
-        rows.push({
-          at: new Date().toISOString(),
-          date: day,
-          night: prior,
-          ran: false,
-          miss: "no-record",
-          backfilled: true,
-          anomalies: [
-            "no record exists for this calendar day — EITHER the task never fired (host asleep/logged off/powered down; interactive-only, no wake-to-run) OR it fired and the runner died before writing. Distinguish at the weekly pass via bench/app-master/soak/runner.log timestamps and Task Scheduler history, then hand-classify to machine or unclassified.",
-          ],
-          ms: 0,
-        });
-      }
-    }
-  } catch {
+  // it does not have, with no marker on the missing days. One write, all rows —
+  // the backfills and tonight's record land together or not at all.
+  const { rows, prior, failed } = backfillRows(lines, rec.date);
+  if (failed) {
     rec.anomalies.push("gap backfill failed — calendar continuity of the log is not guaranteed tonight");
   }
   rec.night = prior + 1;
@@ -159,201 +247,209 @@ function finish() {
   process.exit(0);
 }
 
-// ── 1. Personas must already be up (the operator's window) ──────────────────
-const personas = await health(`${PERSONAS_URL}/health`);
-if (!(personas.json?.headlessBridge === true)) {
-  rec.miss = "bridge-down";
-  // Three truths, apart (round 19): not running, answering-but-erroring (a
-  // crash or degraded service — NOT a launch-flag problem), and healthy with
-  // the flag genuinely off. Only the last earns the config diagnosis.
-  rec.anomalies.push(
-    personas.status === 0
-      ? personas.timedOut
-        ? "Personas did not answer /health within 4s — the process may be UP and WEDGED (or the host overloaded); NOT known to be down. Check whether it is running before restarting it."
-        : "Personas is not running (connection refused) — the soak protocol keeps the app up; this night is a recorded miss"
-      : personas.status >= 200 && personas.status < 300 && personas.json
-        ? `Personas is healthy but headlessBridge=${personas.json?.headlessBridge ?? "absent"} — launched without PERSONAS_HEADLESS_BRIDGE=1?`
-        : `Personas answered ${personas.status}${personas.json ? "" : " with an unparseable body"} — it is up but erroring; a crash or degraded service, NOT a launch-flag problem`
+// ── the imperative half ─────────────────────────────────────────────────────
+// Everything below talks to Personas, kp, the driver and the disk. It runs ONLY
+// when this file is the entry point, so night.test.mjs can import the pure half
+// above without launching a soak night at 3am on somebody's laptop.
+export async function main() {
+  // ── 1. Personas must already be up (the operator's window) ──────────────────
+  const personas = await health(`${PERSONAS_URL}/health`);
+  if (!(personas.json?.headlessBridge === true)) {
+    rec.miss = "bridge-down";
+    // Three truths, apart (round 19): not running, answering-but-erroring (a
+    // crash or degraded service — NOT a launch-flag problem), and healthy with
+    // the flag genuinely off. Only the last earns the config diagnosis.
+    rec.anomalies.push(
+      personas.status === 0
+        ? personas.timedOut
+          ? "Personas did not answer /health within 4s — the process may be UP and WEDGED (or the host overloaded); NOT known to be down. Check whether it is running before restarting it."
+          : "Personas is not running (connection refused) — the soak protocol keeps the app up; this night is a recorded miss"
+        : personas.status >= 200 && personas.status < 300 && personas.json
+          ? `Personas is healthy but headlessBridge=${personas.json?.headlessBridge ?? "absent"} — launched without PERSONAS_HEADLESS_BRIDGE=1?`
+          : `Personas answered ${personas.status}${personas.json ? "" : " with an unparseable body"} — it is up but erroring; a crash or degraded service, NOT a launch-flag problem`
+    );
+    finish();
+  }
+
+  // ── 2. kp bench server: boot if down, and remember whether WE booted it ─────
+  let kpChild = null;
+  let kp = await health(`${KP_URL}/api/health`);
+  if (!kp.ok) {
+    log("kp bench server down — booting");
+    kpChild = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "dev", "--port", new URL(KP_URL).port], {
+      cwd: ROOT,
+      env: {
+        ...process.env,
+        KP_OFFLINE: "1",
+        KP_SECRET: "bench",
+        KP_EMPTY: "1",
+        KP_DB_PATH: DB,
+        // The parent of this checkout by default — never a hardcoded user path
+        // (the repo is public; review 2026-09-01 finding 2).
+        KP_APP_MASTER_REPO_ROOTS: process.env.SOAK_REPO_ROOTS ?? path.dirname(ROOT),
+      },
+      stdio: "ignore",
+      detached: false,
+      shell: process.platform === "win32",
+    });
+    const deadline = Date.now() + 240_000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 3000));
+      kp = await health(`${KP_URL}/api/health`);
+      if (kp.ok) break;
+    }
+    if (!kp.ok) {
+      rec.miss = "kp-boot-failed";
+      rec.anomalies.push(
+        "the kp bench server did not answer health within 240s of boot — KP_EMPTY=1 puts it on the .next-empty build dir, so the likeliest holder of .next-empty/dev/lock is a running `npm run dev:empty`; a night while that server is up is a recorded miss (soak doc, Mechanics)"
+      );
+      if (kpChild) kpChild.kill();
+      finish();
+    }
+  }
+
+  // ── 3. One night through the real driver ────────────────────────────────────
+  // Snapshot BEFORE the spawn: a crashed driver must not let step 4 read
+  // YESTERDAY's newest run dir as tonight's record (review round 3 — it set
+  // ran:true, overwrote the miss and copied stale ideation/c1/budget wholesale).
+  const runsDir = path.join(ROOT, "bench", "app-master", "runs");
+  const priorRuns = new Set(existsSync(runsDir) ? readdirSync(runsDir) : []);
+
+  const driver = spawnSync(
+    process.execPath,
+    [
+      path.join(ROOT, "scripts", "app-master-bench", "run.mjs"),
+      "--scenario", "kp-c1-night",
+      "--tenure", TENURE,
+      "--nights", "1",
+      "--backlog", BACKLOG,
+      "--kp", KP_URL,
+      "--report",
+    ],
+    { cwd: ROOT, env: { ...process.env, KP_ROOT: ROOT }, encoding: "utf-8", timeout: 2_400_000 }
   );
+  rec.exitCode = driver.status;
+  if (driver.error) {
+    // A timeout is not a crash (round 11): name what was observed.
+    rec.miss = driver.error.code === "ETIMEDOUT" ? "driver-timeout" : "driver-crashed";
+    rec.anomalies.push(`driver ${rec.miss === "driver-timeout" ? "exceeded its 40min ceiling" : `spawn error: ${driver.error.message}`}`);
+  }
+
+  // ── 4. Read the newest run record — the driver's truth, not the exit code ───
+  try {
+    // Same guard as the pre-spawn snapshot: a fresh checkout has no runs dir yet,
+    // and throwing here left miss:null — an UNCLASSIFIED miss, breaking the
+    // file's first rule (review round 6).
+    const newest = (existsSync(runsDir) ? readdirSync(runsDir) : [])
+      .filter((d) => d.includes("kp-c1-night") && !priorRuns.has(d))
+      .sort()
+      .at(-1);
+    if (newest) {
+      rec.runDir = newest;
+      const result = JSON.parse(readFileSync(path.join(runsDir, newest, "result.json"), "utf-8"));
+      const n = result.nights?.[0] ?? {};
+      rec.ran = n.tickOk === true;
+      // A fresh run dir whose record carries no tickOk is a SHAPE problem, not a
+      // crash (round 9): a partially written result.json or a driver format
+      // change. Say that, or the structural fallback below would have to guess.
+      // PRECEDENCE (round 10): a DIRECTLY OBSERVED cause — the runner watched the
+      // spawn fail — is never overwritten by a record-derived guess. Both
+      // record-derived classes below only fill an empty miss.
+      if (n.tickOk === undefined && !rec.miss) {
+        rec.miss = "record-unreadable";
+        rec.anomalies.push(`the run record carries no tickOk (nights: ${Array.isArray(result.nights) ? result.nights.length : "absent"}) — a partially written result.json or a driver shape change; the night may even have run`);
+      }
+      rec.ideation = n.ideation ?? null;
+      rec.dispatched = n.dispatched ?? null;
+      rec.c1 = n.c1 ? { proposals: (n.c1.proposals ?? []).length, declines: (n.c1.declines ?? []).length, preTenure: n.c1.preTenure ?? null, undated: n.c1.undated ?? null } : null;
+      rec.budgetSettledUsd = n.reading?.budgetSettledUsd ?? null;
+      if (n.tickOk === false) {
+        if (!rec.miss) rec.miss = "tick-died";
+        rec.anomalies.push(`tick failed: ${n.tickError ?? "no error recorded"}`);
+      }
+      if (n.ideation?.ran === false) rec.anomalies.push(`ideation did not run: ${n.ideation?.blocked ?? "no reason"}`);
+      if (n.ideation?.ran === true && n.ideation?.authored === 0) rec.anomalies.push("ideation ran and authored 0 — backpressure, dedup, or a drained repo; worth a look");
+      if (typeof n.dispatched === "number" && n.dispatched > 0) rec.anomalies.push(`IDEATION NIGHT DISPATCHED ${n.dispatched} — the autopilot override failed (exam §6)`);
+    } else {
+      if (!rec.miss) rec.miss = "driver-crashed";
+      rec.anomalies.push("the driver produced NO new run directory this night — nothing below is tonight's data, and nothing stale was read in its place");
+    }
+  } catch (e) {
+    // A record that cannot be READ is record-unreadable, not a crash (round 16):
+    // a driver killed mid-flush or a shape change would otherwise inflate the
+    // crash count with the exact guess round 9 removed.
+    if (!rec.miss) rec.miss = "record-unreadable";
+    rec.anomalies.push(`could not read the run record: ${e.message}`);
+  }
+
+  // ── 5. Longevity axis: persona-memory tier counts off the roster ────────────
+  try {
+    // 30s, not the 4s default (measured night 2, 2026-09-01): this is the FIRST
+    // hit of /api/agents on a freshly booted `next dev`, which compiles the route
+    // on demand — the roster read timed out and recorded "unreadable" for a server
+    // that was merely still compiling.
+    const roster = await health(`${KP_URL}/api/agents`, 30_000);
+    // Transport first: health() swallows errors into {ok:false}, so without this
+    // check a 500 or an unreachable roster would fall into the !row branch and be
+    // DIAGNOSED as a tenure/DB misconfiguration that never happened (review
+    // 2026-09-01 finding 1 — the outer catch cannot see what health() ate).
+    if (!roster.ok || !Array.isArray(roster.json?.agents)) {
+      rec.anomalies.push(`roster unreadable (status ${roster.status}) — memory unmeasured tonight, and NO diagnosis beyond that`);
+      throw { handled: true };
+    }
+    const wantedId = tenureHandles?.hiredAgentId ?? null;
+    // The lookup gets its own guard (review round 7b): a payload-shape surprise
+    // inside find/property access must not read as a transport problem — the same
+    // conflation the three-way split below exists to prevent.
+    let row = null;
+    try {
+      row = wantedId ? roster.json.agents.find((a) => a?.id === wantedId) : null;
+    } catch (e) {
+      rec.anomalies.push(`roster payload shape unexpected (${e.message}) — memory unmeasured tonight; NOT a transport problem, the roster answered`);
+      throw { handled: true };
+    }
+    // Three DIFFERENT truths, recorded apart — collapsing them was the review's
+    // blocking finding: no handle, no row, and a row whose reporter sent nothing.
+    if (!wantedId) {
+      rec.anomalies.push(`tenure file ${TENURE_FILE} unreadable or missing hiredAgentId — memory unmeasured AND unattributable tonight`);
+    } else if (!row) {
+      rec.anomalies.push(`roster has no row for ${wantedId} — wrong DB or wrong tenure, NOT a reporter gap; memory unmeasured tonight`);
+    } else {
+      // The last conflation in this block, split (round 12): a row with NO
+      // appMaster block at all is a kp shape change or a non-App-master row —
+      // NOT the Personas reporter gap the taxonomy treats as structural. Weeks
+      // of chasing a Personas memory bug that does not exist is what this line
+      // prevents.
+      if (row.appMaster === undefined || row.appMaster === null) {
+        rec.anomalies.push("the tenure's roster row carries no appMaster block — a kp roster shape change or a non-App-master row; NOT a reporter gap (memory unmeasured tonight)");
+      } else {
+        rec.memory = row.appMaster.memory ?? null;
+        if (rec.memory === null) rec.anomalies.push("the tenure's own roster row carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
+      }
+    }
+  } catch (e) {
+    if (!e?.handled) rec.anomalies.push("could not read the roster for memory counts");
+  }
+
+  // ── 6. Leave nothing WE started running ─────────────────────────────────────
+  if (kpChild) {
+    try {
+      if (process.platform === "win32") {
+        // kill() reaches only the cmd.exe wrapper under shell:true; the next dev
+        // underneath survives HOLDING .next-empty/dev/lock (KP_EMPTY=1 → distDir
+        // .next-empty, next.config.ts:82) and blocks the operator's `npm run
+        // dev:empty` — not `npm run dev`, whose lock lives in .next (review
+        // rounds 3+4). taskkill fells the tree.
+        spawnSync("taskkill", ["/PID", String(kpChild.pid), "/T", "/F"], { stdio: "ignore" });
+      } else {
+        kpChild.kill();
+      }
+    } catch {
+      rec.anomalies.push("could not stop the kp bench server this runner started — a survivor may hold .next-empty/dev/lock and block `npm run dev:empty`");
+    }
+  }
+
   finish();
 }
 
-// ── 2. kp bench server: boot if down, and remember whether WE booted it ─────
-let kpChild = null;
-let kp = await health(`${KP_URL}/api/health`);
-if (!kp.ok) {
-  log("kp bench server down — booting");
-  kpChild = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "dev", "--port", new URL(KP_URL).port], {
-    cwd: ROOT,
-    env: {
-      ...process.env,
-      KP_OFFLINE: "1",
-      KP_SECRET: "bench",
-      KP_EMPTY: "1",
-      KP_DB_PATH: DB,
-      // The parent of this checkout by default — never a hardcoded user path
-      // (the repo is public; review 2026-09-01 finding 2).
-      KP_APP_MASTER_REPO_ROOTS: process.env.SOAK_REPO_ROOTS ?? path.dirname(ROOT),
-    },
-    stdio: "ignore",
-    detached: false,
-    shell: process.platform === "win32",
-  });
-  const deadline = Date.now() + 240_000;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 3000));
-    kp = await health(`${KP_URL}/api/health`);
-    if (kp.ok) break;
-  }
-  if (!kp.ok) {
-    rec.miss = "kp-boot-failed";
-    rec.anomalies.push(
-      "the kp bench server did not answer health within 240s of boot — KP_EMPTY=1 puts it on the .next-empty build dir, so the likeliest holder of .next-empty/dev/lock is a running `npm run dev:empty`; a night while that server is up is a recorded miss (soak doc, Mechanics)"
-    );
-    if (kpChild) kpChild.kill();
-    finish();
-  }
-}
-
-// ── 3. One night through the real driver ────────────────────────────────────
-// Snapshot BEFORE the spawn: a crashed driver must not let step 4 read
-// YESTERDAY's newest run dir as tonight's record (review round 3 — it set
-// ran:true, overwrote the miss and copied stale ideation/c1/budget wholesale).
-const runsDir = path.join(ROOT, "bench", "app-master", "runs");
-const priorRuns = new Set(existsSync(runsDir) ? readdirSync(runsDir) : []);
-
-const driver = spawnSync(
-  process.execPath,
-  [
-    path.join(ROOT, "scripts", "app-master-bench", "run.mjs"),
-    "--scenario", "kp-c1-night",
-    "--tenure", TENURE,
-    "--nights", "1",
-    "--backlog", BACKLOG,
-    "--kp", KP_URL,
-    "--report",
-  ],
-  { cwd: ROOT, env: { ...process.env, KP_ROOT: ROOT }, encoding: "utf-8", timeout: 2_400_000 }
-);
-rec.exitCode = driver.status;
-if (driver.error) {
-  // A timeout is not a crash (round 11): name what was observed.
-  rec.miss = driver.error.code === "ETIMEDOUT" ? "driver-timeout" : "driver-crashed";
-  rec.anomalies.push(`driver ${rec.miss === "driver-timeout" ? "exceeded its 40min ceiling" : `spawn error: ${driver.error.message}`}`);
-}
-
-// ── 4. Read the newest run record — the driver's truth, not the exit code ───
-try {
-  // Same guard as the pre-spawn snapshot: a fresh checkout has no runs dir yet,
-  // and throwing here left miss:null — an UNCLASSIFIED miss, breaking the
-  // file's first rule (review round 6).
-  const newest = (existsSync(runsDir) ? readdirSync(runsDir) : [])
-    .filter((d) => d.includes("kp-c1-night") && !priorRuns.has(d))
-    .sort()
-    .at(-1);
-  if (newest) {
-    rec.runDir = newest;
-    const result = JSON.parse(readFileSync(path.join(runsDir, newest, "result.json"), "utf-8"));
-    const n = result.nights?.[0] ?? {};
-    rec.ran = n.tickOk === true;
-    // A fresh run dir whose record carries no tickOk is a SHAPE problem, not a
-    // crash (round 9): a partially written result.json or a driver format
-    // change. Say that, or the structural fallback below would have to guess.
-    // PRECEDENCE (round 10): a DIRECTLY OBSERVED cause — the runner watched the
-    // spawn fail — is never overwritten by a record-derived guess. Both
-    // record-derived classes below only fill an empty miss.
-    if (n.tickOk === undefined && !rec.miss) {
-      rec.miss = "record-unreadable";
-      rec.anomalies.push(`the run record carries no tickOk (nights: ${Array.isArray(result.nights) ? result.nights.length : "absent"}) — a partially written result.json or a driver shape change; the night may even have run`);
-    }
-    rec.ideation = n.ideation ?? null;
-    rec.dispatched = n.dispatched ?? null;
-    rec.c1 = n.c1 ? { proposals: (n.c1.proposals ?? []).length, declines: (n.c1.declines ?? []).length, preTenure: n.c1.preTenure ?? null, undated: n.c1.undated ?? null } : null;
-    rec.budgetSettledUsd = n.reading?.budgetSettledUsd ?? null;
-    if (n.tickOk === false) {
-      if (!rec.miss) rec.miss = "tick-died";
-      rec.anomalies.push(`tick failed: ${n.tickError ?? "no error recorded"}`);
-    }
-    if (n.ideation?.ran === false) rec.anomalies.push(`ideation did not run: ${n.ideation?.blocked ?? "no reason"}`);
-    if (n.ideation?.ran === true && n.ideation?.authored === 0) rec.anomalies.push("ideation ran and authored 0 — backpressure, dedup, or a drained repo; worth a look");
-    if (typeof n.dispatched === "number" && n.dispatched > 0) rec.anomalies.push(`IDEATION NIGHT DISPATCHED ${n.dispatched} — the autopilot override failed (exam §6)`);
-  } else {
-    if (!rec.miss) rec.miss = "driver-crashed";
-    rec.anomalies.push("the driver produced NO new run directory this night — nothing below is tonight's data, and nothing stale was read in its place");
-  }
-} catch (e) {
-  // A record that cannot be READ is record-unreadable, not a crash (round 16):
-  // a driver killed mid-flush or a shape change would otherwise inflate the
-  // crash count with the exact guess round 9 removed.
-  if (!rec.miss) rec.miss = "record-unreadable";
-  rec.anomalies.push(`could not read the run record: ${e.message}`);
-}
-
-// ── 5. Longevity axis: persona-memory tier counts off the roster ────────────
-try {
-  // 30s, not the 4s default (measured night 2, 2026-09-01): this is the FIRST
-  // hit of /api/agents on a freshly booted `next dev`, which compiles the route
-  // on demand — the roster read timed out and recorded "unreadable" for a server
-  // that was merely still compiling.
-  const roster = await health(`${KP_URL}/api/agents`, 30_000);
-  // Transport first: health() swallows errors into {ok:false}, so without this
-  // check a 500 or an unreachable roster would fall into the !row branch and be
-  // DIAGNOSED as a tenure/DB misconfiguration that never happened (review
-  // 2026-09-01 finding 1 — the outer catch cannot see what health() ate).
-  if (!roster.ok || !Array.isArray(roster.json?.agents)) {
-    rec.anomalies.push(`roster unreadable (status ${roster.status}) — memory unmeasured tonight, and NO diagnosis beyond that`);
-    throw { handled: true };
-  }
-  const wantedId = tenureHandles?.hiredAgentId ?? null;
-  // The lookup gets its own guard (review round 7b): a payload-shape surprise
-  // inside find/property access must not read as a transport problem — the same
-  // conflation the three-way split below exists to prevent.
-  let row = null;
-  try {
-    row = wantedId ? roster.json.agents.find((a) => a?.id === wantedId) : null;
-  } catch (e) {
-    rec.anomalies.push(`roster payload shape unexpected (${e.message}) — memory unmeasured tonight; NOT a transport problem, the roster answered`);
-    throw { handled: true };
-  }
-  // Three DIFFERENT truths, recorded apart — collapsing them was the review's
-  // blocking finding: no handle, no row, and a row whose reporter sent nothing.
-  if (!wantedId) {
-    rec.anomalies.push(`tenure file ${TENURE_FILE} unreadable or missing hiredAgentId — memory unmeasured AND unattributable tonight`);
-  } else if (!row) {
-    rec.anomalies.push(`roster has no row for ${wantedId} — wrong DB or wrong tenure, NOT a reporter gap; memory unmeasured tonight`);
-  } else {
-    // The last conflation in this block, split (round 12): a row with NO
-    // appMaster block at all is a kp shape change or a non-App-master row —
-    // NOT the Personas reporter gap the taxonomy treats as structural. Weeks
-    // of chasing a Personas memory bug that does not exist is what this line
-    // prevents.
-    if (row.appMaster === undefined || row.appMaster === null) {
-      rec.anomalies.push("the tenure's roster row carries no appMaster block — a kp roster shape change or a non-App-master row; NOT a reporter gap (memory unmeasured tonight)");
-    } else {
-      rec.memory = row.appMaster.memory ?? null;
-      if (rec.memory === null) rec.anomalies.push("the tenure's own roster row carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
-    }
-  }
-} catch (e) {
-  if (!e?.handled) rec.anomalies.push("could not read the roster for memory counts");
-}
-
-// ── 6. Leave nothing WE started running ─────────────────────────────────────
-if (kpChild) {
-  try {
-    if (process.platform === "win32") {
-      // kill() reaches only the cmd.exe wrapper under shell:true; the next dev
-      // underneath survives HOLDING .next-empty/dev/lock (KP_EMPTY=1 → distDir
-      // .next-empty, next.config.ts:82) and blocks the operator's `npm run
-      // dev:empty` — not `npm run dev`, whose lock lives in .next (review
-      // rounds 3+4). taskkill fells the tree.
-      spawnSync("taskkill", ["/PID", String(kpChild.pid), "/T", "/F"], { stdio: "ignore" });
-    } else {
-      kpChild.kill();
-    }
-  } catch {
-    rec.anomalies.push("could not stop the kp bench server this runner started — a survivor may hold .next-empty/dev/lock and block `npm run dev:empty`");
-  }
-}
-
-finish();
+if (process.argv[1]?.endsWith("night.mjs")) await main();

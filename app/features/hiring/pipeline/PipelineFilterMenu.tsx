@@ -2,7 +2,8 @@
 
 // One board facet, as a dropdown — State / Score / Source / Sort.
 //
-// These were four labelled rows of always-visible chips (PipelineFacetRow): every
+// These were four labelled rows of always-visible chips (the `PipelineFacetRow`
+// chip grid, deleted once this replaced it): every
 // possible value of every dimension on screen at all times, roughly fifteen pills
 // stacked under the search box, most of them off. The board they filter got what
 // was left. A facet only needs to say TWO things at rest — which dimension it is
@@ -24,6 +25,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { selectConsumesKeyWhileOpen } from "@/app/_components/select-keys";
+import { filterMenuKeyAction, nextActiveIndex } from "./pipelineFilterMenuKeys";
 
 export type FilterMenuOption = { value: string; label: string };
 
@@ -112,50 +114,32 @@ export function PipelineFilterMenu({
     menuRef.current?.querySelector<HTMLElement>(`[data-idx="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active, open]);
 
-  const moveActive = (delta: number) => {
-    if (options.length === 0) return;
-    setActive((a) => (a + delta + options.length) % options.length);
-  };
-
+  // WHAT a key means lives in pipelineFilterMenuKeys.ts (pure, unit-pinned); this
+  // handler only performs it. An open menu still eats the keys it handles, so one
+  // Escape can't also close a surrounding dialog (the Select precedent — shared-ui
+  // bug #1).
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!open) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
+    if (open && selectConsumesKeyWhileOpen(e.key)) e.stopPropagation();
+    const action = filterMenuKeyAction(e.key, open);
+    if (action.preventDefault) e.preventDefault();
+    switch (action.kind) {
+      case "open":
         openMenu();
-      }
-      return;
-    }
-    // An open menu eats the keys it handles so one Escape can't also close a
-    // surrounding dialog (the Select precedent — shared-ui bug #1).
-    if (selectConsumesKeyWhileOpen(e.key)) e.stopPropagation();
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        moveActive(1);
         break;
-      case "ArrowUp":
-        e.preventDefault();
-        moveActive(-1);
+      case "move":
+        setActive((a) => nextActiveIndex(a, action.delta, options.length));
         break;
-      case "Home":
-        e.preventDefault();
+      case "first":
         setActive(0);
         break;
-      case "End":
-        e.preventDefault();
-        setActive(options.length - 1);
+      case "last":
+        setActive(Math.max(0, options.length - 1));
         break;
-      case "Enter":
-      case " ":
-        e.preventDefault();
+      case "commit":
         commit(options[active]);
         break;
-      case "Escape":
-        e.preventDefault();
-        close();
-        break;
-      case "Tab":
-        close(false);
+      case "close":
+        close(action.returnFocus);
         break;
       default:
         break;

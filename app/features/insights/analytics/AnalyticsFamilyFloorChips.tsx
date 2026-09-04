@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { labelize } from "@/app/_lib/format";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { NOTICE } from "@/app/_components/ui/recipes";
 
 // family-floors — which families carry their own screening floor. Compact chips
 // with the override value; selecting one drills into that family (its
@@ -11,16 +12,24 @@ import { labelize } from "@/app/_lib/format";
 export function AnalyticsFamilyFloorChips({
   familyFloors,
   currentThreshold,
+  autoRejectEnabled,
   family,
   setFamily,
 }: {
   familyFloors: Record<string, number>;
   currentThreshold: number | null;
+  /** `screening.autoRejectEnabled` off the payload. FALSE is the shipped default,
+   *  and it changes what every number on this strip means: the floors are recorded
+   *  policy, not a gate anything is passing through. */
+  autoRejectEnabled: boolean | null;
   family: string;
   setFamily: (f: string) => void;
 }) {
   const t = useTranslations("analytics.calibration");
+  const enumLabel = useEnumLabel();
   const entries = Object.entries(familyFloors);
+  // `null` (a non-pipeline arm) is not "off" — only an explicit false is.
+  const enforced = autoRejectEnabled !== false;
   return (
     <div className="mt-5 border-t border-stone-200 pt-4">
       <p className="text-meta uppercase tracking-wide text-steel">{t("familyFloorsTitle")}</p>
@@ -29,7 +38,20 @@ export function AnalyticsFamilyFloorChips({
           panel answered that with an empty region. An absent override is a fact
           worth stating: every family is judged by the one global floor. */}
       {entries.length === 0 ? (
-        <p className="mt-2 max-w-prose text-sm text-steel">{t("familyFloorsNone", { global: currentThreshold ?? 0 })}</p>
+        <p className="mt-2 max-w-prose text-sm text-steel">
+          {enforced
+            ? t("familyFloorsNone", { global: currentThreshold ?? 0 })
+            : t("familyFloorsNoneOff", { global: currentThreshold ?? 0 })}
+        </p>
+      ) : null}
+      {/* The switch beside the number. `familyFloorsNone` above asserts every family
+          is SCREENED at the global floor — true only while the wave runs, and the
+          wave is off by default. role="status" because it re-scopes every figure
+          above it from "what the gate does" to "what the gate would do". */}
+      {!enforced ? (
+        <p role="status" className={`mt-2 max-w-prose ${NOTICE()} px-3 py-2 text-sm`}>
+          {t("floorNotEnforced")}
+        </p>
       ) : null}
       <ul className="mt-2 flex flex-wrap gap-2">
         {entries
@@ -51,7 +73,7 @@ export function AnalyticsFamilyFloorChips({
                   family === fam ? "border-coral/50 bg-coral/10" : "border-stone-200 bg-paper/60"
                 }`}
               >
-                <span className="font-medium text-ink">{labelize(fam)}</span>
+                <span className="font-medium text-ink">{enumLabel("family", fam)}</span>
                 <span className="rounded-full bg-stone-100 px-1.5 py-0.5 font-semibold text-steel">
                   {t("familyFloorValue", { value })}
                 </span>

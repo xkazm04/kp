@@ -1,0 +1,31 @@
+# The editor half of the line-ending contract in .gitattributes. `text=auto`
+# governs what git STORES; this governs what an editor WRITES, so the two agree
+# before a file ever reaches the index. Without it a Windows editor's default
+# CRLF plus a tab-indenting default re-introduces exactly the churn the
+# attributes file exists to prevent.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# The Python pipeline follows PEP 8 / ruff, which is 4 spaces.
+[*.py]
+indent_size = 4
+
+# Markdown: two trailing spaces is a hard line break, so trimming them changes
+# rendered output.
+[*.md]
+trim_trailing_whitespace = false
+
+# Generated and vendored — never hand-edited, and reformatting them is churn.
+[{package-lock.json,*.generated.ts}]
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+[Makefile]
+indent_style = tab

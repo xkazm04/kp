@@ -7,18 +7,13 @@
 import { FileText, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
 import { rubricAnchorLine } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { RATING_MAX } from "@/app/_lib/format";
 import { PipelineInterviewTelemetryStrip } from "./PipelineInterviewTelemetryStrip";
 import type { InterviewOutcome } from "./usePipelineCandidateDrawerState";
-
-const REC_STYLE: Record<string, string> = {
-  advance: "bg-moss/15 text-moss",
-  hold: "bg-dial-amber/20 text-ink",
-  reject: "bg-coral/10 text-coral",
-};
 
 export function PipelineInterviewOutcomeCard({
   ivOutcome,
@@ -39,10 +34,12 @@ export function PipelineInterviewOutcomeCard({
         <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-moss">
           <Phone size={13} /> {t("interviewOutcome")}
         </p>
+        {/* A verdict is a JUDGEMENT, not a lifecycle position (StatusChip's doctrine:
+            "only genuine judgements stay red, and those are verdicts, not statuses"),
+            so it renders through Badge's one shared verdict treatment - the same one
+            Decisions and every schedule surface use - not through the status chip. */}
         {ivOutcome.recommendation ? (
-          <span className={`rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${REC_STYLE[ivOutcome.recommendation] ?? "bg-stone-100 text-steel"}`}>
-            {enumLabel("recommendation", ivOutcome.recommendation)}
-          </span>
+          <Badge {...interviewRecommendationToken(ivOutcome.recommendation)} label={enumLabel("recommendation", ivOutcome.recommendation)} />
         ) : null}
       </div>
       {/* Honest coverage caveat — only when head+tail sampling meant the

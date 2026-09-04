@@ -145,11 +145,14 @@ test("dismissing an alert BY ID cannot reach another tenant's row (dismissal is 
 });
 
 test("campaign packs save + get are isolated by workspace", () => {
-  saveCampaignPack("jobB1", "en", { variants: ["beta-copy"] }, "deterministic", WS_B);
+  // A REAL pack: getCampaignPack now reads behind campaignPackSchema (lot JW), and a
+  // bare string in `variants` is exactly what it refuses (floor-not-filter -> null).
+  const pack = { warnings: ["no_salary"], language: "en" };
+  saveCampaignPack("jobB1", "en", pack, "deterministic", WS_B);
 
   const beta = getCampaignPack("jobB1", "en", WS_B);
   assert.ok(beta, "team-beta reads its own pack");
-  assert.deepEqual(beta?.payload, { variants: ["beta-copy"] });
+  assert.deepEqual(beta?.payload, pack);
   // The default tenant has no pack for this job (unscoped get/save would collide).
   assert.equal(getCampaignPack("jobB1", "en", DEFAULT_WS), null);
 });

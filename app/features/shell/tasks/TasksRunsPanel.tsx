@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, Clock, RefreshCw } from "lucide-react";
 import { CARD_PAD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import type { Task, TaskStatus } from "./TasksProvider";
 import { ACTIVE, RECENT_WINDOW_DAYS, SEEN_DWELL_MS, sortTasks, unseenIdsOf } from "./tasksTabHelpers";
 import { TasksTable } from "./TasksTable";
@@ -156,6 +157,10 @@ export function TasksRunsPanel({
       </div>
 
       <div className="mt-3">
+        {/* The summary line above is live, but it counts active vs done — it does
+            not move when a filter narrows the window, so the narrowing itself was
+            never announced. */}
+        <TableStatus matched={rows.length} filtered={filtering} />
         <TasksTable
           filters={{
             text: textFilter,

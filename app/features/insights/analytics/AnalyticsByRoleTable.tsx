@@ -9,6 +9,7 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { AnalyticsEmptyPreview } from "./AnalyticsEmptyPreview";
 import { hasRoleRows } from "./performanceBands";
 import type { Analytics } from "./AnalyticsTypes";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 
 // The by-role table — the tab's single first-run empty-state hero
 // (AnalyticsEmptyPreview) lives here. Split out of AnalyticsTab.tsx to keep
@@ -32,7 +33,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
   // activity in the window, so this is the honest count of what is not here.
   const hidden = Math.max(0, data.byJobTotal - data.byJob.length);
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="font-serif text-h2 text-ink">{t("byRole")}</h3>
         <div className="flex items-baseline gap-3">
@@ -41,9 +42,9 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
               With a search active the count reports the filter instead, so the
               header never disagrees with the rows underneath it. */}
           {needle ? (
-            <p className="text-meta uppercase text-steel">{t("byRoleFilterCount", { shown: rows.length, total: data.byJob.length })}</p>
+            <p className={META_LABEL}>{t("byRoleFilterCount", { shown: rows.length, total: data.byJob.length })}</p>
           ) : hidden > 0 ? (
-            <p className="text-meta uppercase text-steel">{t("topByVolume", { shown: data.byJob.length, total: data.byJobTotal })}</p>
+            <p className={META_LABEL}>{t("topByVolume", { shown: data.byJob.length, total: data.byJobTotal })}</p>
           ) : null}
           {/* ANA5: the role funnel as a file — what a hiring manager asks for.
               Exports exactly the rows on screen: a file that quietly disagreed
@@ -71,17 +72,17 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
       </div>
       <table aria-label={t("byRole")} className="mt-3 w-full text-base">
         <thead>
-          <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
+          <tr className={`border-b border-stone-200 text-left ${META_LABEL}`}>
             {/* The header IS the search box — the repo's ColumnFilter idiom
                 (comms ledger, tasks, outbox, roster), not a new one. */}
-            <th className="pb-2 font-semibold">
+            <th scope="col" className="pb-2 font-semibold">
               <ColumnFilter title={t("colJob")} mode="search" value={query} onChange={setQuery} />
             </th>
-            <th className="pb-2 text-right font-semibold">{t("colKoDeclined")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colInPipeline")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colHired")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colHireRate")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colKoDeclined")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colInPipeline")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colHired")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colHireRate")}</th>
           </tr>
         </thead>
         <tbody>

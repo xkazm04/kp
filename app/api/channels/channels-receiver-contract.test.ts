@@ -109,12 +109,22 @@ test("receiver creation gates the unscoped getJob read on job visibility", () =>
   assert.ok(gateAt >= 0, "the gate reads the caller's workspace");
   assert.ok(createAt >= 0, "guard the guard: creation still happens here");
   assert.ok(gateAt < createAt, "the gate must precede the write");
-  assert.match(webhooksSrc, /if \(!job \|\| !jobVisibleToWorkspace\(jobId, ws\)\)[\s\S]{0,120}?status: 404/, "404, not 403 — same answer as an unknown id");
+  // 404, not 403 — the same answer as an unknown id, so the door is not a probe for
+  // another team's role ids. The refusal moved onto the CODE chokepoint (/perfect wave
+  // 27, api-comms), so the shape is jsonRefusal(..., 404) rather than a raw `status: 404`
+  // — the property being pinned is the STATUS, not which responder writes it.
+  assert.match(
+    webhooksSrc,
+    /if \(!job \|\| !jobVisibleToWorkspace\(jobId, ws\)\)[\s\S]{0,120}?(status: 404|jsonRefusal\("CHANNEL_JOB_NOT_FOUND", 404\))/,
+    "404, not 403 — same answer as an unknown id"
+  );
 });
 
 test("receiver creation returns the `{ webhook }` envelope and the modal reads its token", () => {
   assert.match(webhooksSrc, /satisfies \{ webhook: ChannelWebhookRecord \}/, "the response shape is tsc-pinned");
   assert.match(modalSrc, /webhook\?: ChannelWebhookRecord/, "the modal types the response it parses");
-  assert.match(modalSrc, /onCreated\(p\.webhook\?\.token \?\? ""\)/, "auto-select reads the token off the envelope");
+  // Either shape reads the token off the envelope: the optional-chain-with-fallback
+  // form, or (wave 14) a `!p?.webhook` guard above followed by the plain read.
+  assert.match(modalSrc, /onCreated\(p\.webhook(\?\.token \?\? ""|\.token)\)/, "auto-select reads the token off the envelope");
   assert.doesNotMatch(modalSrc, /onCreated\(typeof p\.token/, "the dead top-level `token` read must not come back");
 });

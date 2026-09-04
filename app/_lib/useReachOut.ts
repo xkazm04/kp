@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { capabilityAwareReason, useErrorMessage } from "./use-error-message";
 import type { PipelineAddInput } from "./useAddToPipeline";
 
 // The optimistic "reach out to this candidate" flow for the sourcing surfaces
@@ -26,23 +28,51 @@ import type { PipelineAddInput } from "./useAddToPipeline";
 // been contacted when the server had refused to contact them. Classify the verdict
 // instead. An absent/unknown `applied` keeps the optimistic reading: only the
 // verdicts we can name change behaviour.
+//
+// THE FAILURE IS DATA, NOT PROSE. This hook was the last of the pair still
+// painting `payload?.error ?? "..."` — the server's canonical ENGLISH sentence,
+// straight onto a Czech, German or French surface — which is the exact inverted
+// fallback chain useAddToPipeline was fixed for (88013253). Post-fix a failure
+// carries the machine facts only: a delivery `suppression` the server named, or
+// the route's refusal `code` + `capability` + HTTP `status`. The rendering
+// hook folds those through `useErrorMessage`/`capabilityAwareReason` in the
+// reader's language; the English still exists where it belongs, in the log.
 export type ReachOutResult =
   | { ok: true; note: "sent" | "already_sent" }
-  | { ok: false; message: string };
+  | ReachOutFailure;
+
+export type ReachOutFailure = {
+  ok: false;
+  /** Which DELIVERY refusal the 200 named (the dispatch was declined, not the
+   *  call), or null when the call itself failed. */
+  suppression: "anonymized" | "suppressed" | null;
+  /** The route's machine refusal, rendered through `errors.<CODE>`. Null on a
+   *  200-with-suppression and on a transport blip. */
+  code: string | null;
+  /** The capability a FORBIDDEN_CAPABILITY refusal wanted — data for the
+   *  localized sentence, never a sentence itself. */
+  capability: string | null;
+  /** Lets a caller tell a refusal (403) from a fault (500) and either from a
+   *  transport blip (null). */
+  status: number | null;
+};
+
+const suppressed = (kind: "anonymized" | "suppressed"): ReachOutFailure => ({
+  ok: false,
+  suppression: kind,
+  code: null,
+  capability: null,
+  status: 200,
+});
 
 export function reachOutVerdict(applied: unknown): ReachOutResult {
   if (applied === "already_sent") return { ok: true, note: "already_sent" };
-  if (applied === "suppressed_anonymized") {
-    return { ok: false, message: "No message was sent — this candidate has been anonymized." };
-  }
+  if (applied === "suppressed_anonymized") return suppressed("anonymized");
   if (typeof applied === "string" && applied.startsWith("suppressed")) {
     // The server collapses every non-consent refusal (an expired consent, a
-    // stopped/answered outreach sequence) into this one token, so the wording
+    // stopped/answered outreach sequence) into this one token, so the sentence
     // names both rather than asserting a reason we can't tell apart from here.
-    return {
-      ok: false,
-      message: "No message was sent — outreach to this candidate is suppressed (consent lapsed, or the sequence was stopped).",
-    };
+    return suppressed("suppressed");
   }
   return { ok: true, note: "sent" };
 }
@@ -70,15 +100,38 @@ export async function postReachOut(
         ...(c.source ?? source ? { source: c.source ?? source } : {}),
       }),
     });
-    const payload = (await r.json().catch(() => null)) as { error?: string; applied?: unknown } | null;
-    if (!r.ok) return { ok: false, message: payload?.error ?? `Couldn't reach out (${r.status}).` };
+    const payload = (await r.json().catch(() => null)) as
+      | { error?: string; code?: string; capability?: string; suppressed?: unknown; applied?: unknown }
+      | null;
+    if (!r.ok) {
+      // The route's own GDPR pre-check (409) names WHICH suppression in a
+      // `suppressed` field beside its English prose — carry the token, drop the
+      // prose, and the 409 reads exactly like the 200-with-suppression does.
+      if (payload?.suppressed === "anonymized") return suppressed("anonymized");
+      if (typeof payload?.suppressed === "string" && payload.suppressed) return suppressed("suppressed");
+      return {
+        ok: false,
+        suppression: null,
+        code: payload?.code ?? null,
+        capability: payload?.capability ?? null,
+        status: r.status,
+      };
+    }
     return reachOutVerdict(payload?.applied);
-  } catch (caught) {
-    return { ok: false, message: caught instanceof Error ? caught.message : "Couldn't reach out." };
+  } catch {
+    // A thrown fetch is a transport blip, not a verdict: no code, no status. The
+    // caller's own localized line is the honest thing to show, and the browser
+    // has already logged the network error itself.
+    return { ok: false, suppression: null, code: null, capability: null, status: null };
   }
 }
 
 export function useReachOut(jobId: string, source?: string | null) {
+  // Same resolution chain as useAddToPipeline: the refusal is rendered from its
+  // CODE in the reader's language, and the per-surface sentence is only the
+  // FALLBACK for a failure that carries none.
+  const t = useTranslations("pipeline.reachOut");
+  const errMsg = useErrorMessage();
   const [reached, setReached] = useState<Set<string>>(() => new Set());
   const [reaching, setReaching] = useState<Set<string>>(() => new Set());
   const [failed, setFailed] = useState<Map<string, string>>(() => new Map());
@@ -99,14 +152,15 @@ export function useReachOut(jobId: string, source?: string | null) {
       // the affordance settles into its done state either way — but only a real
       // dispatch may claim a message is on its way.
       setReached((s) => new Set(s).add(c.candidateId));
-      setAnnounce(
-        result.note === "sent"
-          ? `Reached out to ${c.candidateLabel} — added to the pipeline and a first-touch message is on its way.`
-          : `${c.candidateLabel} is in the pipeline and was already contacted for this role — no new message was sent.`
-      );
+      setAnnounce(t(result.note === "sent" ? "sent" : "alreadySent", { name: c.candidateLabel }));
     } else {
-      setFailed((m) => new Map(m).set(c.candidateId, result.message));
-      setAnnounce(`Couldn't reach out to ${c.candidateLabel}. ${result.message}`);
+      // A DELIVERY refusal (the 200 said the dispatch was declined) has its own
+      // sentence; anything else folds code + capability through the catalog.
+      const reason = result.suppression
+        ? t(`suppressed.${result.suppression}`)
+        : capabilityAwareReason(errMsg, result, t("failed", { name: c.candidateLabel }));
+      setFailed((m) => new Map(m).set(c.candidateId, reason));
+      setAnnounce(t("failedAnnounce", { name: c.candidateLabel, reason }));
     }
     setReaching((s) => {
       const n = new Set(s);

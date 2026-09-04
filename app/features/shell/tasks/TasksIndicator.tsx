@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, WifiOff, X } from "lucide-react";
 import { useTasks } from "./TasksProvider";
 import { UNSEEN_DONE } from "./tasksProviderTypes";
 import { METER_BARS_PER_ROW, taskMeterRows } from "./tasksTaskMeter";
@@ -35,7 +35,7 @@ import { navItemClass } from "../tabs";
 // per row, a second row on spill, saturating at 10 — see task-meter.ts), which
 // says "how busy" at a glance far faster than a number does.
 export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: () => void }) {
-  const { tasks, running, startError, clearStartError } = useTasks();
+  const { tasks, running, startError, clearStartError, queueUnreachable } = useTasks();
   const t = useTranslations("tasks");
   const unseen = tasks.filter(UNSEEN_DONE);
   const unseenFailed = unseen.filter((x) => x.status === "failed" || x.status === "interrupted").length;
@@ -60,6 +60,18 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
           >
             <X size={12} />
           </button>
+        </div>
+      )}
+
+      {/* The queue stopped answering. Without this the dock keeps painting the last
+          good snapshot — counts, badges, a progress bar frozen mid-run — as if it
+          were live, and a task started now would silently never appear. Said only
+          after a SECOND consecutive failure (POLL_UNREACHABLE_AFTER): one dropped
+          request on a flaky connection is noise the next tick fixes. */}
+      {queueUnreachable && (
+        <div role="status" className="mb-2 flex items-start gap-1.5 rounded-md border border-stone-200 bg-stone-50 p-2">
+          <WifiOff size={13} className="mt-0.5 shrink-0 text-steel" aria-hidden />
+          <p className="min-w-0 flex-1 text-sm text-steel">{t("queueUnreachable")}</p>
         </div>
       )}
 

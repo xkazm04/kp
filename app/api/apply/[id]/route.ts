@@ -16,9 +16,10 @@ import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -120,7 +121,12 @@ function acknowledgeReapply(
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
-  recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
+  // The event is part of the MUTATING half, so it rides the same proof the merge
+  // does. An unproven repeat is a caller who typed a name we cannot authenticate:
+  // letting it write a line into the recruiter's activity feed on the victim's
+  // timeline is both a nuisance channel and a false provenance record ("this
+  // candidate re-applied") for something the candidate never did.
+  if (proven) recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // CAPABILITY GATE — the reason this response is thinner than the first-apply one.
   //
   // A duplicate is detected from the submitted NAME/EMAIL alone
@@ -169,10 +175,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     // Throttle BEFORE any DB read or Python spawn so a flood is rejected cheaply.
     if (!rateLimit(`apply:${id}:${clientIpFrom(request.headers)}`, APPLY_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      // Shared codeless 429 envelope (rate-limit-contract.test.ts pins it).
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    if (!job) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
     // Tenant (P1): a public applicant has no session — file them into the OPENING's team
     // (a corpus job with no owner falls back to the default workspace).
     const workspaceId = getJobWorkspace(id);
@@ -189,17 +196,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // gate alone is the documented anti-pattern: the API used to accept
     // applications for any existing job forever, drafts included).
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
+      // Coded like every other refusal on this door. It used to answer the `apply`
+      // catalog's own `roleClosed` sentence, localized SERVER-side from the request
+      // — which reads correct and was not: the client resolves what it renders from
+      // the CODE (applySubmitFailure -> useErrorMessage), so a bodied message with
+      // no code fell straight through to the generic "something went wrong" in all
+      // four languages. The page-level gate keeps using t("roleClosed"); this is the
+      // API's half of the same fact.
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
 
-    // Reject an oversized body BEFORE buffering it into the heap. Content-Length is
-    // the only pre-read signal; the per-field caps below backstop an absent/spoofed one.
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_APPLY_BODY_BYTES) {
-      return NextResponse.json({ error: "Application payload too large." }, { status: 413 });
-    }
-
-    const body = (await request.json().catch(() => ({}))) as {
+    // Reject an oversized body BEFORE buffering it into the heap. Content-Length used
+    // to be the ONLY signal here — and it is attacker-controlled: omit it (chunked
+    // transfer) or declare 10 while streaming 50 MB and the check waved the request
+    // through to `request.json()`, which then buffered the lot. The per-field caps
+    // below are a backstop on what gets STORED, never on what gets READ. The cap is
+    // now measured on the bytes actually taken off the wire (request-body.ts), with
+    // the header kept inside the helper as a cheap early-out for honest clients.
+    const body = await readJsonWithLimit<{
       answers?: Record<string, unknown>;
       // Lead-enrichment hand-off: the opaque token the apply page threaded
       // through from the ?lead= link. Untrusted — shape-gated and resolved below.
@@ -209,7 +223,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // measurement — it grants nothing, so an absent or bogus value only leaves
       // the attempt looking abandoned.
       applySessionId?: unknown;
-    };
+    }>(request, MAX_APPLY_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     const answers = body.answers ?? {};
     // Close the funnel loop on whichever path files an entry: a first application,
     // the dedupe backstop, or a re-apply that merged onto the original. All three
@@ -230,7 +245,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // activity feed while never reaching the cap. The quick-apply route already
     // validates before its KO verdict; this keeps the two surfaces aligned.
     if (name.length > MAX_NAME_LENGTH) {
-      return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
+      // The refusal names the OFFENDING STEP (`field`) and its cap (`max`) as
+      // data: the door re-asks that one question with the typed answer still in
+      // the box instead of restarting an 8-step chat. See apply-submit-outcome.ts.
+      return jsonRefusal("APPLY_NAME_TOO_LONG", 400, { field: "name", max: MAX_NAME_LENGTH });
     }
 
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
@@ -285,12 +303,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Per-field caps — fail closed BEFORE the dedup query, profile build, intake.json
     // write, or Python spawn. Reject (don't truncate) so the applicant fixes the input.
     // (The name cap runs earlier, above the knockout gate — see the note there.)
-    const freeText = [experience, skills, studentProject, studentEducation, studentAspirations, switchPrior, switchAspirations];
-    if (freeText.some((t) => t.length > MAX_TEXT_LENGTH)) {
-      return NextResponse.json({ error: "One of your answers is too long — please shorten it." }, { status: 400 });
+    // Keyed by STEP ID, not positional: the refusal has to name which answer was
+    // rejected so the door can re-ask that step (the ids are buildApplyScript's).
+    const freeText: [string, string][] = [
+      ["experience", experience],
+      ["skills", skills],
+      ["student_project", studentProject],
+      ["student_education", studentEducation],
+      ["student_aspirations", studentAspirations],
+      ["switch_prior", switchPrior],
+      ["switch_aspirations", switchAspirations],
+    ];
+    const overlong = freeText.find(([, value]) => value.length > MAX_TEXT_LENGTH);
+    if (overlong) {
+      return jsonRefusal("APPLY_ANSWER_TOO_LONG", 400, { field: overlong[0], max: MAX_TEXT_LENGTH });
     }
     if (archetype.length > MAX_ARCHETYPE_LENGTH) {
-      return NextResponse.json({ error: "Invalid selection." }, { status: 400 });
+      return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: "archetype" });
     }
     // Apply doesn't HARD-block on a missing email (the entry still files; comms
     // just stay undeliverable until a contact is captured) — but a clearly
@@ -299,10 +328,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // requires the address. See the decision comment on the `email` step in
     // app/_lib/apply.ts — that step owns the contract.
     if (email.length > MAX_EMAIL_LENGTH) {
-      return NextResponse.json({ error: "Your email is too long." }, { status: 400 });
+      return jsonRefusal("APPLY_EMAIL_TOO_LONG", 400, { field: "email", max: MAX_EMAIL_LENGTH });
     }
     if (email && !APPLY_EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+      return jsonRefusal("APPLY_EMAIL_INVALID", 400, { field: "email" });
     }
 
     // Lead-enrichment hand-off: a valid token resolves DIRECTLY to the lead's
@@ -352,6 +381,36 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (leadEntry || providedName || email) {
       const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email, workspaceId);
       if (existing) {
+        // CAPABILITY GATE, WRITE SIDE — the twin of the one in acknowledgeReapply.
+        //
+        // The read side stopped handing a name-guesser the matched entry's tokens.
+        // The WRITE side stayed open, and everything below this line mutates the
+        // matched person's record: it sets the address every future comm is sent
+        // to, backfills their GitHub handle, rebuilds their stored profile from
+        // whatever CV text the POST carried, writes a `re_applied` line onto their
+        // timeline and refreshes the consent that extends their retention clock.
+        // The match that authorizes all of it is `findApplicationByApplicant` on a
+        // NAME (an email is optional and a bare name matches), so knowing that a
+        // person applied — a LinkedIn post is enough — was enough to make yourself
+        // their contact of record and to overwrite the profile a recruiter scores.
+        //
+        // So the merge needs the same proof the tokens do: a valid ?lead= token
+        // resolving to THIS entry, which is the emailed enrichment walk — the path
+        // the merge was designed for and the only re-apply that is authenticated.
+        // Without it the honest answer is unchanged and unchanging: the candidate
+        // is told they already applied (they must be — silently dropping a repeat
+        // is how the "update my info" path became invisible), and not one column of
+        // the original entry moves. A genuine returning applicant who lost their
+        // link is not stranded: the enrichment link is re-sent to the address on
+        // file, which is the one channel we can authenticate.
+        if (!leadEntry) {
+          // The funnel back-link still runs: it writes to apply_sessions (keyed by
+          // the caller's OWN client-minted attempt id), never to the entry, and the
+          // attempt genuinely did reach a filed application — which is the only
+          // thing the apply-to-pipeline rate measures.
+          linkApplySession(applySessionId, existing.id);
+          return acknowledgeReapply(existing.id, t("alreadyMessage"), [], false, workspaceId, {}, false);
+        }
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
         let profileRebuilt = false;
@@ -431,10 +490,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           profileRebuilt,
           workspaceId,
           followup,
-          // Proof of ownership is the ?lead= capability token resolving to THIS
-          // entry — the emailed enrichment walk. A name/email match is not proof
-          // (see the capability gate in acknowledgeReapply).
-          leadEntry !== null
+          // Unconditionally proven: the write gate above already returned for every
+          // caller without a lead token, so reaching here means `leadEntry !== null`.
+          true
         );
       }
     }

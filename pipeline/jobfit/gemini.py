@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import codecs
 import json
-import mimetypes
 import os
 import random
-import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,11 +19,67 @@ from google.genai import types
 
 from .devcase.provenance import defuse_fence_markers
 from .extractors import _reject_oversized
+from . import _cli
 from .i18n import language_name
+from .json_values import candidate_values, scan_json_values, select_best_scoring
 from .taxonomy import ROLE_FAMILIES, role_family_catalog
 
 
 GEMINI_MODEL = "gemini-3.8-flash"
+
+
+# --------------------------------------------------------------------------- #
+# The failure vocabulary of this seam
+# --------------------------------------------------------------------------- #
+#
+# Every refusal here used to be a bare ``RuntimeError`` carrying only English
+# prose, so a caller could not tell "you have no key" (operator config, fix it
+# in .env.local) from "the model answered with prose" (retry/degrade) from
+# "KP_OFFLINE forbids this call" (a deliberate, permanent refusal) — the sibling
+# CLI adapter has told them apart via ``ClaudeCliError.subtype`` since it
+# shipped. ``GeminiError`` gives this seam the same branchable cause, and — by
+# also being a ``_cli.CliError`` — carries the code the process boundary already
+# speaks, so ``_cli.emit_error`` emits an ``invalid_input``/``engine_error``
+# envelope instead of collapsing everything to an anonymous 500.
+#
+# It subclasses ``RuntimeError`` as well, so every existing ``except
+# RuntimeError`` around a Gemini call (in this module and in its callers) keeps
+# catching exactly what it caught before.
+
+GEMINI_SUBTYPES: tuple[str, ...] = (
+    "missing_key",  # no GEMINI_API_KEY / GOOGLE_API_KEY resolvable
+    "offline_refused",  # KP_OFFLINE=1 seals this egress path (self-hosting.md §7)
+    "blind_unavailable",  # blind screening asked for, no redacted text extractable
+    "empty_response",  # the model returned no text at all
+    "unparseable_json",  # text came back, but no JSON payload in it
+    "missing_field",  # JSON parsed, but a required field is absent/blank
+    "output_truncated",  # stopped at max_output_tokens
+)
+
+# Which engine-boundary code each subtype answers with. Operator/caller-fixable
+# conditions are ``invalid_input`` (400 — the route can render an actionable
+# hint); everything else is an engine fault (500).
+_SUBTYPE_CLI_CODE = {
+    "missing_key": _cli.ERR_INVALID_INPUT,
+    "offline_refused": _cli.ERR_INVALID_INPUT,
+    "blind_unavailable": _cli.ERR_INVALID_INPUT,
+    "output_truncated": _cli.ERR_INVALID_INPUT,
+    "empty_response": _cli.ERR_ENGINE,
+    "unparseable_json": _cli.ERR_ENGINE,
+    "missing_field": _cli.ERR_ENGINE,
+}
+
+
+class GeminiError(_cli.CliError, RuntimeError):
+    """A Gemini-seam failure that names its cause, not just its sentence."""
+
+    def __init__(self, message: str, *, subtype: str) -> None:
+        if subtype not in GEMINI_SUBTYPES:
+            # A typo'd subtype would make callers' branches silently dead; this
+            # is a programming error, so fail loudly at construction.
+            raise ValueError(f"unknown Gemini error subtype: {subtype!r}")
+        super().__init__(message, code=_SUBTYPE_CLI_CODE[subtype])
+        self.subtype = subtype
 
 
 ANALYSIS_RESPONSE_SCHEMA = {
@@ -149,16 +204,30 @@ def get_gemini_api_key() -> str:
     load_local_env()
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        raise RuntimeError("Set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini analysis.")
+        raise GeminiError(
+            "Set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini analysis.",
+            subtype="missing_key",
+        )
     return api_key
 
 
-def _gemini_timeout_ms() -> int:
-    """Per-request network timeout (ms). Override with KP_GEMINI_TIMEOUT_MS."""
+def gemini_timeout_ms() -> int:
+    """Per-request network timeout (ms) for EVERY Gemini client kp builds.
+
+    Public because it is genuinely shared: ``embedding_bridge`` builds its own
+    ``genai.Client`` and used to build it with NO ``http_options`` at all, so a
+    stalled embeddings call had no wall clock and the bridge's fail-open (return
+    ``None``, fall back to the keyword heuristic) could not fire — the ranking
+    just hung. One function, one env var (``KP_GEMINI_TIMEOUT_MS``), both
+    clients."""
     raw = os.getenv("KP_GEMINI_TIMEOUT_MS")
     if raw and raw.isdigit() and int(raw) > 0:
         return int(raw)
     return 90_000  # 90s — a stalled call fails fast instead of hanging the analysis.
+
+
+# The historical private spelling, kept for call sites and tests that use it.
+_gemini_timeout_ms = gemini_timeout_ms
 
 
 def _assert_egress_allowed() -> None:
@@ -184,11 +253,12 @@ def _assert_egress_allowed() -> None:
     from .llm.offline import is_offline  # lazy: keep this module import-cycle free
 
     if is_offline():
-        raise RuntimeError(
+        raise GeminiError(
             "KP_OFFLINE is set: refusing to send this request to Gemini "
             "(generativelanguage.googleapis.com). Air-gapped installs must route AI "
             "through an on-box endpoint (OPENAI_BASE_URL) or run without it. Unset "
-            "KP_OFFLINE to allow cloud calls."
+            "KP_OFFLINE to allow cloud calls.",
+            subtype="offline_refused",
         )
 
 
@@ -199,7 +269,7 @@ def get_client(api_key: str | None = None) -> genai.Client:
     _remove_null_proxy_env()
     return genai.Client(
         api_key=api_key or get_gemini_api_key(),
-        http_options=types.HttpOptions(timeout=_gemini_timeout_ms()),
+        http_options=types.HttpOptions(timeout=gemini_timeout_ms()),
     )
 
 
@@ -483,7 +553,10 @@ def extract_profile_text_with_gemini(
     structured_profile_raw = answer.payload.get("structured_profile")
     structured_profile = structured_profile_raw if isinstance(structured_profile_raw, dict) else {}
     if not raw_text:
-        raise RuntimeError("Gemini did not return raw_text for the uploaded profile.")
+        raise GeminiError(
+            "Gemini did not return raw_text for the uploaded profile.",
+            subtype="missing_field",
+        )
     return raw_text, structured_profile, parsing_notes
 
 
@@ -590,11 +663,12 @@ def analyze_profile_with_gemini(
     blind_requested = blind_text is not None
     blind = bool(blind_text and blind_text.strip())
     if blind_requested and not blind:
-        raise RuntimeError(
+        raise GeminiError(
             "Blind screening was requested but no identity-redacted text could be "
             "extracted from this CV (likely an encrypted, scanned, or unsupported "
             "PDF). Refusing to upload the original file, which would expose the "
-            "candidate's identity. Disable blind screening for this CV to proceed."
+            "candidate's identity. Disable blind screening for this CV to proceed.",
+            subtype="blind_unavailable",
         )
     source_line = (
         "Analyze the CV text provided at the END of this prompt. The candidate's identity "
@@ -699,14 +773,17 @@ def analyze_profile_with_gemini(
         write_prompt_artifact(request_id, "response.txt", answer.text or "")
     if not answer.text:
         if answer.truncated:
-            raise RuntimeError(
+            raise GeminiError(
                 "Gemini produced no analysis before hitting the output token cap "
                 "(finish_reason=MAX_TOKENS, max_output_tokens=16000). Raise the cap "
-                "or shorten the CV / job description."
+                "or shorten the CV / job description.",
+                subtype="output_truncated",
             )
-        raise RuntimeError("Gemini returned an empty analysis response.")
+        raise GeminiError(
+            "Gemini returned an empty analysis response.", subtype="empty_response"
+        )
     if not answer.payload:
-        raise RuntimeError("Gemini returned non-JSON output.")
+        raise GeminiError("Gemini returned non-JSON output.", subtype="unparseable_json")
     return answer.payload, answer.sources, answer.usage
 
 
@@ -724,42 +801,11 @@ def _grounding_sources(response: Any) -> list[str]:
     return list(dict.fromkeys(sources))
 
 
-def _scan_json_values(text: str) -> list[Any]:
-    """Every top-level JSON value embedded in ``text``, in order of appearance."""
-    decoder = json.JSONDecoder()
-    values: list[Any] = []
-    idx, n = 0, len(text)
-    while idx < n:
-        if text[idx] in "{[":
-            try:
-                value, end = decoder.raw_decode(text, idx)
-                values.append(value)
-                idx = end
-                continue
-            except json.JSONDecodeError:
-                pass
-        idx += 1
-    return values
-
-
-def _select_payload(dicts: list[dict[str, Any]], expected_keys: Sequence[str]) -> dict[str, Any]:
-    """Pick the dict that is actually the answer out of several decoded objects.
-
-    A grounded response may embed multiple JSON objects in its prose — the real
-    payload plus citation blobs, a stray ``{"note": ...}``, or an echoed example.
-    Blindly taking the last one let a single chatty trailing sentence swap the
-    payload for garbage. Rank candidates by how many of the schema's top-level
-    keys they carry, then by size, and only use document order (later wins) as
-    the final tiebreak — so the real payload still beats an empty leading brace.
-    """
-    wanted = set(expected_keys)
-
-    def rank(item: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
-        idx, candidate = item
-        matched = len(wanted & candidate.keys()) if wanted else 0
-        return (matched, len(candidate), idx)
-
-    return max(enumerate(dicts), key=rank)[1]
+# The scanner and this seam's ranking policy live in ``json_values`` — one copy
+# for every adapter (claude_cli.py carried the near-verbatim twin of the scan).
+# The aliases keep the established private spellings for this module's tests.
+_scan_json_values = scan_json_values
+_select_payload = select_best_scoring
 
 
 def _parse_json(text: str, expected_keys: Sequence[str] = ()) -> dict[str, Any]:
@@ -774,17 +820,13 @@ def _parse_json(text: str, expected_keys: Sequence[str] = ()) -> dict[str, Any]:
     that actually matches the schema (falling back to the largest, then last).
     """
     text = (text or "").strip()
-    candidates: list[Any] = []
-    for block in re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL):
-        candidates.extend(_scan_json_values(block.strip()))
-    if not candidates:
-        candidates = _scan_json_values(text)
+    candidates = candidate_values(text)
     dicts = [c for c in candidates if isinstance(c, dict)]
     if dicts:
         return _select_payload(dicts, expected_keys)
     if candidates:
         return candidates[-1]
-    raise RuntimeError("Gemini returned non-JSON output.")
+    raise GeminiError("Gemini returned non-JSON output.", subtype="unparseable_json")
 
 
 def _parse_truncated(
@@ -808,7 +850,7 @@ def _parse_truncated(
 
     try:
         parsed = _parse_json(text, expected_keys)
-    except RuntimeError:
+    except GeminiError:
         parsed = {}
     if usable(parsed):
         return parsed
@@ -817,11 +859,12 @@ def _parse_truncated(
     if usable(salvaged):
         return salvaged
 
-    raise RuntimeError(
+    raise GeminiError(
         "Gemini response was truncated at the output token cap "
         f"(finish_reason=MAX_TOKENS, max_output_tokens={max_output_tokens}). "
         "The input is too large for the configured budget — raise "
-        "max_output_tokens or shorten the CV / job description."
+        "max_output_tokens or shorten the CV / job description.",
+        subtype="output_truncated",
     )
 
 
@@ -882,6 +925,91 @@ def _repair_truncated_json(text: str) -> dict[str, Any]:
     return {}
 
 
+# The MIME types kp is willing to DECLARE for a document it uploads to the
+# model — exactly the formats extractors.extract_text supports, nothing wider.
+PDF_MIME = "application/pdf"
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+TEXT_MIME = "text/plain"
+FALLBACK_MIME = "application/octet-stream"
+ALLOWED_MIME: tuple[str, ...] = (PDF_MIME, DOCX_MIME, TEXT_MIME)
+
+# How many bytes the sniffer reads. Every signature below lives in the first few
+# bytes; the rest of the window is what the text heuristic decodes.
+_SNIFF_BYTES = 4096
+
+_ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
+
+
 def _mime_type(path: Path) -> str:
-    guessed, _ = mimetypes.guess_type(path.name)
-    return guessed or "application/octet-stream"
+    """Declare a document's type from its CONTENT, not from its file name.
+
+    ``mimetypes.guess_type(path.name)`` used to decide this alone, which means
+    the uploader named the type: a file called ``cv.pdf`` was announced to the
+    model as ``application/pdf`` whatever its bytes actually were, and an
+    unrecognised extension was announced as whatever the host's mime database
+    happened to say (that database is OS-configurable — on Windows it reads the
+    registry, so the same upload could be declared differently on two installs).
+
+    So: sniff the magic bytes, and answer only from a fixed allow-list of the
+    formats the pipeline actually supports (``extractors.extract_text``: PDF,
+    DOCX, plain text). Anything else — including a ZIP that is not a Word
+    document, and any binary that decodes to nothing — is
+    ``application/octet-stream``, which is the honest answer: "bytes we will not
+    vouch for". The model then treats it as opaque instead of being told a
+    falsehood about it.
+    """
+    try:
+        with path.open("rb") as fh:
+            head = fh.read(_SNIFF_BYTES)
+    except OSError:
+        # Unreadable here means the upload will fail downstream anyway; refuse
+        # to guess a type for bytes we could not look at.
+        return FALLBACK_MIME
+
+    if head.startswith(b"%PDF-"):
+        return PDF_MIME
+    if head.startswith(_ZIP_SIGNATURES):
+        return DOCX_MIME if _is_docx(path) else FALLBACK_MIME
+    if _looks_like_text(head):
+        return TEXT_MIME
+    return FALLBACK_MIME
+
+
+def _is_docx(path: Path) -> bool:
+    """True when this ZIP is really a WordprocessingML document.
+
+    Every OOXML file, every JAR and every .zip share one signature, so the
+    signature alone cannot name the type — the container has to be opened. Only
+    the central directory is read (no member is extracted), so a zip bomb costs
+    nothing here.
+    """
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+    except Exception:
+        # Not a readable archive (truncated, encrypted, or not a ZIP after all).
+        return False
+    return "word/document.xml" in names
+
+
+def _looks_like_text(head: bytes) -> bool:
+    """True when the leading bytes are decodable text with no NUL bytes.
+
+    A NUL byte is the binary tell; a decode failure covers the rest.
+    The window may cut a multi-byte character in half, so an incomplete tail is
+    tolerated rather than counted as binary.
+    """
+    if not head:
+        return False
+    if 0 in head:  # a NUL byte is the cheap, reliable binary tell
+        return False
+    for encoding in ("utf-8-sig", "cp1250", "cp1252"):
+        decoder = codecs.getincrementaldecoder(encoding)()
+        try:
+            decoder.decode(head, False)  # False: a split character is not an error
+        except UnicodeDecodeError:
+            continue
+        return True
+    return False

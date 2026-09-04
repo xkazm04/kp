@@ -29,6 +29,7 @@ import {
   type VariantRecommendation,
   type VariantStat,
 } from "../source-analytics";
+import { median } from "../stats";
 
 // ---- Pipeline analytics (Insights tab) ------------------------------------
 // Snapshot-based so it stays correct even when the event history is sparse: an
@@ -46,6 +47,13 @@ export type PipelineAnalytics = {
   rejected: number;
   declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
+  /** THIS workspace's offer column, by role — the stage a "who is sitting on an offer"
+   *  deep link must filter on. The offer panel used to spell it `"Offer"`, so on a board
+   *  whose offer column is called "Package" the one link out of that panel filtered the
+   *  board to a column that does not exist and landed the recruiter on an empty list.
+   *  `null` when the axis declares no offer role (a legal two-column board) — the count
+   *  is then rendered as plain text rather than a link that cannot resolve. */
+  offerStage: string | null;
   avgTimeToHireDays: number | null;
   // The MEDIAN of the same time-to-hire samples (avgTimeToHireDays is the mean). The
   // ROI ledger tile is labeled "median" and reads this, so an audit-grade leadership
@@ -163,6 +171,13 @@ export type PipelineAnalytics = {
   // stage name) + a single time-to-hire target in days. Goal lines on the funnel
   // and the goal-aware miss flagging read from here; empty when nothing is set.
   targets: { conversion: Record<string, number>; timeToHireDays: number | null };
+  /** How many board entries in this window were LEFT OUT of every figure above
+   *  because they are guided-demo residue (see `notSim`). Zero on a real install and
+   *  after `resetSim`; non-zero only while a simulation run's rows are still on the
+   *  board. The exclusion has always been correct — it was silent, so after a guided
+   *  demo the funnel and the board disagreed with nothing on screen to say why. The
+   *  page renders a footnote from this; it is a COUNT, never a set of rows. */
+  excludedSim: number;
 };
 
 // 82c2b8e8 — the reserved analytics_targets row whose value is a time-to-hire
@@ -210,15 +225,14 @@ export type ChannelEconomics = {
   costPerHireCzk: number | null;
 };
 
-// Rounded median of a numeric sample (empty → null). The average of the two
-// middle values on an even-length sample, matching the OrgBenchmarkPanel's
-// median contract so the two "median time-to-hire" surfaces agree.
+// Rounded median of a numeric sample (empty → null). The median is the shared one
+// (app/_lib/stats.ts — non-finite dropped, even counts averaged, empty ⇒ null), so
+// the OrgBenchmarkPanel's "median time-to-hire" and every other median surface
+// answer the same question the same way; only the whole-day rounding is local
+// (this figure is read as days, and half a day is noise at this sample size).
 function medianRounded(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-  return Math.round(median);
+  const m = median(values);
+  return m === null ? null : Math.round(m);
 }
 
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries
@@ -263,6 +277,27 @@ export function pipelineAnalytics(
     source_campaign: string | null;
     source_variant: string | null;
   }[];
+
+  // The size of the silence. `notSim()` drops guided-demo entries from every figure
+  // on this page; counting what it dropped (over the SAME window and workspace, with
+  // the predicate inverted) is what lets the page say so out loud instead of quietly
+  // disagreeing with the board. NOT NULL-safe by accident: the inverse of
+  // `(title IS NULL OR title NOT LIKE ?)` is `title IS NOT NULL AND title LIKE ?`,
+  // so a title-less real entry is counted by neither side.
+  const SIM_PREDICATE = "job_title IS NOT NULL AND job_title LIKE ?";
+  const excludedSim = (
+    cutoffIso
+      ? upperIso
+        ? db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${SIM_PREDICATE} AND workspace_id = ?`
+            )
+            .get(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId)
+        : db
+            .prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND ${SIM_PREDICATE} AND workspace_id = ?`)
+            .get(cutoffIso, SIM_TITLE_LIKE, workspaceId)
+      : db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE ${SIM_PREDICATE} AND workspace_id = ?`).get(SIM_TITLE_LIKE, workspaceId)
+  ) as { n: number };
 
   // Index against THIS WORKSPACE's axis, not the shipped list. A team that
   // renamed or added a column must get a funnel of ITS columns — indexing the
@@ -420,15 +455,16 @@ export function pipelineAnalytics(
         WHERE created_at >= ? AND kind IN ${momentumKindList} AND ${notSim()} AND workspace_id = ?`
     )
     .all(momentumCutoff, SIM_TITLE_LIKE, workspaceId) as { kind: string; to_stage: string | null; created_at: string }[];
-  // `terminalStage` is what splits the `hired` series out of `advanced`, and
-  // weeklyMomentum defaults it to the literal "Hired" for callers that cannot
-  // resolve an axis. This one can, and must: left unpassed, a workspace whose
-  // final column is named anything else saw every completed hire land in the
-  // `advanced` bars and a hire series flat at zero forever — the same rename
-  // failure the funnel/terminal-role work closed everywhere else on this page.
+  // `terminalStage` is what splits the `hired` series out of `advanced`, and it is a
+  // REQUIRED argument (analytics-momentum.ts): left to a literal default, a workspace
+  // whose final column is named anything else saw every completed hire land in the
+  // `advanced` bars and a hire series flat at zero forever — the same rename failure
+  // the funnel/terminal-role work closed everywhere else on this page. An axis with no
+  // declared terminal role falls back to its OWN last column (the board's final one by
+  // construction), never to the shipped name.
   const momentum = weeklyMomentum(
     momentumRows.map((r) => ({ kind: r.kind, toStage: r.to_stage, createdAt: r.created_at })),
-    { weeks: momentumWeeks, terminalStage: stageWithRole("terminal", axis) ?? undefined }
+    { weeks: momentumWeeks, terminalStage: stageWithRole("terminal", axis) ?? axis[axis.length - 1]?.id ?? "" }
   );
 
   // Automation impact (ANA3): one GROUP BY kind over the window (the fold
@@ -719,6 +755,8 @@ export function pipelineAnalytics(
     rejected,
     declined,
     funnel,
+    // By ROLE, never by the name "Offer" — same rule as `isTerminal` above.
+    offerStage: stageWithRole("offer", axis),
     avgTimeToHireDays,
     medianTimeToHireDays,
     // The population the two statistics above actually cover — see the field note.
@@ -741,6 +779,7 @@ export function pipelineAnalytics(
     byVariantTotal: variantStats.length,
     variantRecommendations,
     targets: analyticsTargets(targetValues),
+    excludedSim: excludedSim.n,
     costPerHireCzk,
     costPerHireAsOf,
     hiresClosedInWindow,

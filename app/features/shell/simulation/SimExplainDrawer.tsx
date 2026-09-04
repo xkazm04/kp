@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { type SimPhaseId } from "./constants";
 import { CRITERION_WEIGHT_DOT, criteriaThroughPhase } from "./simCriteria";
@@ -14,17 +16,34 @@ import { useSimulation } from "./SimulationProvider";
 // or block the page, so the walkthrough keeps playing alongside it.
 export function SimExplainDrawer() {
   const { explainOpen, phase, closeExplain } = useSimulation();
-  const t = useTranslations("simulation");
+  // Mounted only while open, so the shared dialog hook inside can be called
+  // unconditionally (its focus/stack registration is mount-time).
   if (!explainOpen) return null;
+  return <ExplainDrawerPanel phase={phase ?? "design"} onClose={closeExplain} />;
+}
 
-  const current = phase ?? "design";
+function ExplainDrawerPanel({ phase, onClose }: { phase: SimPhaseId; onClose: () => void }) {
+  const t = useTranslations("simulation");
+  const current = phase;
   const source = phaseDiagrams(t)[current];
+  // NON-MODAL, deliberately: `{ trap: false, lockScroll: false }` — the walkthrough
+  // keeps playing and the page behind stays interactive, so Tab is never trapped and
+  // the page is never scroll-locked. What the shared hook adds is the half this panel
+  // was missing: stack-gated ESCAPE-to-close (it had none — the only way out was the
+  // X, which a keyboard user had to hunt for), focus moved into the panel on open and
+  // restored to the Explain toggle on close. Same hook, same stack as the modal
+  // surfaces, so Escape always reaches the frontmost layer (the offer frame first,
+  // this drawer underneath).
+  const panelRef = useRef<HTMLElement>(null);
+  useDialogA11y(panelRef, onClose, { trap: false, lockScroll: false });
 
   return (
     // A complementary info panel, NOT a modal: it deliberately doesn't trap focus or
     // block the page (the walkthrough plays alongside it). role="dialog" wrongly promised
     // modal focus management; the labeled <aside> (complementary landmark) is the honest role.
     <aside
+      ref={panelRef}
+      tabIndex={-1}
       aria-label={t("explainer.label")}
       // sm+: the original full-height right rail. <sm: a bottom sheet capped at
       // 55dvh — the full-height 92vw panel occluded ~92% of the very workspace
@@ -38,7 +57,7 @@ export function SimExplainDrawer() {
         </div>
         <button
           type="button"
-          onClick={closeExplain}
+          onClick={onClose}
           aria-label={t("explainer.close")}
           className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100"
         >
@@ -72,9 +91,9 @@ function CriteriaTable({ phase }: { phase: SimPhaseId }) {
         <table className="mt-2 w-full border-collapse text-sm">
           <thead>
             <tr className="text-left text-steel/70">
-              <th className="pb-1.5 font-medium">{t("explainer.colCriterion")}</th>
-              <th className="pb-1.5 font-medium">{t("explainer.colWeight")}</th>
-              <th className="pb-1.5 font-medium">{t("explainer.colSource")}</th>
+              <th scope="col" className="pb-1.5 font-medium">{t("explainer.colCriterion")}</th>
+              <th scope="col" className="pb-1.5 font-medium">{t("explainer.colWeight")}</th>
+              <th scope="col" className="pb-1.5 font-medium">{t("explainer.colSource")}</th>
             </tr>
           </thead>
           <tbody>

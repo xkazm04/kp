@@ -30,3 +30,11 @@ crons = ["*/15 * * * *"]
 #   wrangler secret put KP_EDGE_SECRET
 # It is the same value your install holds as KP_EDGE_SECRET, and its entire power is
 # "may drain and ack this queue". No provider key, no candidate data, no database.
+#
+# KP_CALLBACK_SECRET is the OTHER secret, and it gates `POST /relay/callback` — the
+# delivery-receipt door. UNSET, that route answers 503 and accepts nothing, which is
+# the safe default: a receipt becomes a `bounced` row in your outbox, so an open door
+# lets anyone who learns this Worker's URL mark your offers undeliverable. Give it the
+# same value your install holds as COMMS_CALLBACK_SECRET and one relay configuration
+# serves both doors:
+#   wrangler secret put KP_CALLBACK_SECRET

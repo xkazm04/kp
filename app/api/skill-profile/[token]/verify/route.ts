@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
-import { jsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // Durable Skill Profile (moonshot A) — the public verification lookup. A third
@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     // that makes guessing uneconomical regardless. Same shared limiter / 429 refusal
     // envelope as the other public token surfaces (offer, schedule, interview-connect).
     if (!rateLimit(`skill-verify:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const { token } = await params;
     const v = verifySkillProfileToken(token);

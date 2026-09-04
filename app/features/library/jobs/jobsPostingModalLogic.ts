@@ -5,7 +5,7 @@
 // language toggle.
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -14,6 +14,16 @@ import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
+import { derivePostingLifecycle } from "./jobsPostingLifecycle";
+import { makeLatestRequestGuard, requestKey } from "./jobsRequestGuard";
+import {
+  lastPublishResult,
+  publishNoteSentences,
+  rememberPublishResult,
+  type PublishNote,
+  type PublishResponse,
+} from "./jobsPublishResult";
+import type { PostingTabId } from "./jobsPostingModalTabs";
 import {
   buildJobMarkdownStrings,
   jobToMarkdown,
@@ -38,7 +48,7 @@ export function useJobPostingModalLogic(
   const errMsg = useErrorMessage();
   const router = useRouter();
   const search = useSearchParams();
-  const [tab, setTab] = useState<"posting" | "coach" | "candidates" | "rediscover" | "compare" | "campaign" | "agentfit">("posting");
+  const [tab, setTab] = useState<PostingTabId>("posting");
   const [copied, setCopied] = useState(false);
   const [applyCopied, setApplyCopied] = useState(false);
   const [quickCopied, setQuickCopied] = useState(false);
@@ -74,6 +84,7 @@ export function useJobPostingModalLogic(
       setWithdrawFailed(p?.withdrawalFailed === true);
       // Tell the Jobs table the row is now closed so its badge/openOnly filter update.
       onChanged?.("closed");
+      setLifecycleToken((n) => n + 1);
     } catch {
       setCloseError(t("closeFailed"));
     } finally {
@@ -93,13 +104,80 @@ export function useJobPostingModalLogic(
   // (→ "View"). The publish response carries no pack info, so we settle it with
   // one lightweight GET on success — the cheapest honest existence check.
   const [packExists, setPackExists] = useState<boolean | null>(null);
-  // tone "quota" = hit the plan's active-job cap (402 quota_exceeded): a monetization
+  // The probe is keyed by job AND posting language, and this modal is REUSED
+  // across roles — so it needs the same "latest request wins" guard every other
+  // keyed fetch in this context runs under (jobsRequestGuard.ts). Without it a
+  // slow probe for Role A resolving after the modal moved to Role B decided B's
+  // CTA from A's answer: "View campaign pack" pointing at a pack B has not got.
+  const packGuard = useRef(makeLatestRequestGuard());
+  const packAbort = useRef<AbortController | null>(null);
+  const probeCampaignPack = (jobId: string, lang: PostingLocale) => {
+    const key = requestKey(jobId, lang);
+    packGuard.current.begin(key);
+    packAbort.current?.abort();
+    const controller = new AbortController();
+    packAbort.current = controller;
+    void fetch(`/api/jobs/${encodeURIComponent(jobId)}/campaign?lang=${lang}`, { signal: controller.signal })
+      .then((cr) => cr.json().catch(() => null))
+      .then((cd: { pack?: unknown } | null) => {
+        if (packGuard.current.isCurrent(key)) setPackExists(Boolean(cd?.pack));
+      })
+      .catch(() => {
+        // An abort is a supersede or a teardown, never a finding: leave the CTA
+        // as the current role left it rather than blanking it from a dead probe.
+        if (!controller.signal.aborted && packGuard.current.isCurrent(key)) setPackExists(null);
+      });
+  };
+  // Switching the modal to another role invalidates the CTA outright: drop the
+  // previous role's answer (null = no CTA) rather than showing role A's "View
+  // campaign pack" over role B's posting. React's "adjust state when a prop
+  // changes" render-time shape, not an effect — an effect here would need a
+  // set-state-in-effect suppression and would paint one frame of A's CTA first.
+  const [packProbeJob, setPackProbeJob] = useState(job.id);
+  if (packProbeJob !== job.id) {
+    setPackProbeJob(job.id);
+    setPackExists(null);
+  }
+  // The probe's teardown, keyed on the role: the cleanup runs both when the modal
+  // is reused for another job and when it unmounts, so an in-flight probe for the
+  // role we just left is cancelled rather than resolving into the new role's CTA
+  // (or into a dead tree). Refs are read here, not in the render pass above.
+  useEffect(
+    () => () => {
+      packAbort.current?.abort();
+      packAbort.current = null;
+    },
+    [job.id]
+  );
+  // tone "quota" = hit the plan's active-job cap (402 BILLING_QUOTA_EXCEEDED): a monetization
   // moment, rendered as an upgrade path, NOT the amber "sourcing broke" warning.
-  const [publishNote, setPublishNote] = useState<{ text: string; tone: "ok" | "warn" | "quota" } | null>(null);
+  // This state now carries FAILURES only — a successful publish is a list of
+  // sentences (publishOutcome below), not one interpolated string.
+  const [publishNote, setPublishNote] = useState<{ text: string; tone: "warn" | "quota" } | null>(null);
+  // The result of the last publish for THIS role, seeded from the module-scope
+  // memory in jobsPublishResult.ts: closing the modal mid-publish (or after it)
+  // used to throw the answer away, and reopening the role showed nothing — so a
+  // three-minute sourcing run could end with the recruiter never learning what it
+  // did. A restored result is flagged `stale` and labelled as the LAST publish.
+  const [publishOutcome, setPublishOutcome] = useState<{ note: PublishNote; stale: boolean } | null>(() => {
+    const last = lastPublishResult(job.id);
+    return last ? { note: publishNoteSentences(last), stale: true } : null;
+  });
+  // Abandoning the wait. The route threads the request's AbortSignal into the
+  // sourcing child, so aborting genuinely stops the sweep rather than orphaning
+  // it — but the go-live transaction commits BEFORE sourcing starts, so the role
+  // is probably live. The copy says exactly that instead of guessing either way.
+  const publishAbort = useRef<AbortController | null>(null);
+  const cancelPublish = () => publishAbort.current?.abort();
+  // Bumped after every lifecycle transition so JobLifecycleStrip re-reads its
+  // counts: its effect keyed on [jobId] alone, so the strip a recruiter had just
+  // watched go live still showed the pre-publish funnel until the modal remounted.
+  const [lifecycleToken, setLifecycleToken] = useState(0);
   const goToBilling = () => router.push(buildUrl({ tab: "billing" }, search.toString()));
-  const status = closed ? "closed" : published ? "published" : job.status ?? null;
-  const isDraft = status === "draft";
-  const isClosed = status === "closed";
+  // The three-input state machine lives in jobsPostingLifecycle.ts (pinned by
+  // jobsPostingLifecycle.test.ts) — the footer hands out apply links from its
+  // answer, and a draft's pages 404 while a closed role's serve 410.
+  const { isDraft, isClosed } = derivePostingLifecycle(job.status ?? null, closed, published);
   // Same call DraftsPanel makes, surfaced where the draft actually opens: take
   // the JD live and source matching candidates into the pipeline. tone "warn" =
   // published but sourcing errored — not to be mistaken for a clean "sourced 0".
@@ -107,13 +185,18 @@ export function useJobPostingModalLogic(
     if (publishing) return;
     setPublishing(true);
     setPublishNote(null);
+    const controller = new AbortController();
+    publishAbort.current = controller;
     try {
-      const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`, { method: "POST" });
-      const p = await r.json();
-      if (!r.ok) {
+      const r = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`, {
+        method: "POST",
+        signal: controller.signal,
+      });
+      const p = (await r.json().catch(() => null)) as (PublishResponse & { code?: string }) | null;
+      if (!r.ok || !p) {
         // The plan's active-job cap (402): the highest-intent upsell moment — show a
         // distinct quota state with a Billing link, not a generic sourcing-failed warn.
-        if (p.code === "quota_exceeded") {
+        if (p?.code === "BILLING_QUOTA_EXCEEDED") {
           setPublishNote({ text: td("quotaNote"), tone: "quota" });
           return;
         }
@@ -127,25 +210,29 @@ export function useJobPostingModalLogic(
       setPublished(true);
       // Publish AND reopen both land the role at 'published' — refresh the table row.
       onChanged?.("published");
+      setLifecycleToken((n) => n + 1);
       // Same signal the drafts panel sends: a publish/reopen moves people into the
       // pipeline and changes the attention counts, so every other open view (board,
       // sidebar badges, another window) re-fetches instead of waiting out its poll.
       notifyDataChanged();
-      // Settle the pack-on-publish CTA: does a campaign pack already exist for
-      // the language the Campaign tab opens on? Fire-and-forget — a failed/slow
-      // check just leaves the CTA hidden, never blocks the publish result.
-      void fetch(`/api/jobs/${encodeURIComponent(job.id)}/campaign?lang=${appLocale}`)
-        .then((cr) => cr.json())
-        .then((cd: { pack?: unknown }) => setPackExists(Boolean(cd?.pack)))
-        .catch(() => setPackExists(null));
-      setPublishNote(
-        p.sourcingWarning
-          ? { text: td("publishedButFailed", { warning: p.sourcingWarning }), tone: "warn" }
-          : { text: td("sourced", { count: p.sourced ?? 0 }), tone: "ok" }
-      );
+      // Settle the pack-on-publish CTA (see probeCampaignPack) — fire-and-forget,
+      // guarded, so a slow probe for the role the modal has since left behind
+      // can't decide THIS role's CTA.
+      probeCampaignPack(job.id, appLocale);
+      // Every fact the route answered, as its own sentence — and remembered, so
+      // closing the modal no longer loses it.
+      rememberPublishResult(job.id, p);
+      setPublishOutcome({ note: publishNoteSentences(p), stale: false });
     } catch (e) {
-      setPublishNote({ text: e instanceof Error ? e.message : td("sourcingFailed"), tone: "warn" });
+      if (controller.signal.aborted) {
+        // Not a failure: the recruiter stopped waiting. Say what that did and did
+        // not do rather than reporting a sourcing error that never happened.
+        setPublishNote({ text: td("publishAbandoned"), tone: "warn" });
+      } else {
+        setPublishNote({ text: e instanceof Error ? e.message : td("sourcingFailed"), tone: "warn" });
+      }
     } finally {
+      publishAbort.current = null;
       setPublishing(false);
     }
   };
@@ -260,6 +347,9 @@ export function useJobPostingModalLogic(
     published,
     packExists,
     publishNote,
+    publishOutcome,
+    cancelPublish,
+    lifecycleToken,
     goToBilling,
     isDraft,
     isClosed,

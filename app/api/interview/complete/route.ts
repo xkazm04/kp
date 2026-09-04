@@ -10,8 +10,11 @@ import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
-import { safeJsonError } from "@/app/_lib/api-response";
-import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
+import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
 // PUBLIC TOKEN ROUTE — the response carries a PROJECTION, not the store row
@@ -50,10 +53,31 @@ function publicSessionView(session: InterviewSession | null): PublicSessionView 
   };
 }
 
+// Per-TOKEN + per-IP spend door. This was the only PUBLIC token route in the
+// interview family without one (its siblings: /connect 6/10min per token,
+// /simulate 20/10min per IP, /create per IP). It is not a read: the non-terminal
+// path WRITES the transcript, debits interview minutes, and — for an
+// entry-linked session — spawns an LLM scorecard run that seals a decision
+// record. A stolen or guessed-at token could therefore be POSTed in a loop to
+// spend real model budget, and even the honest client posts twice on a bad
+// unmount (the End fetch plus the sendBeacon).
+//
+// Keyed on BOTH: the token alone would let one candidate's flaky network exhaust
+// their own budget on legitimate retries, and the IP alone would throttle a
+// whole NAT of candidates together (the /devcase reasoning). 10/10min is far
+// above honest pace — a call completes once, and every duplicate after the
+// first is answered by the idempotent `alreadyCompleted` branch ABOVE this
+// limiter, which stays free forever so a retrying client always settles.
+const COMPLETE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
+
 // POST → end of call: persist the transcript (transcript-only, no audio). When
 // the session is linked to a pipeline entry, also synthesize the scorecard
 // (Task 5) from the transcript and set the scorecard_review approval, so it
 // lands in the Decisions queue for the human Interview→Offer gate.
+/** Hard cap on this public door's request body: a whole interview transcript. The turn count and per-turn text are clamped below; this is the bound BEFORE the heap holds it.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_COMPLETE_BODY_BYTES = 1024 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
     // Validate at the trust boundary instead of casting request.json() to a
@@ -61,7 +85,8 @@ export async function POST(request: NextRequest) {
     // the transcript a bounded array — turn COUNT is capped below alongside
     // the existing per-turn text clamp, so a crafted multi-thousand-turn POST
     // can't persist a multi-megabyte transcript_json.
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = await readJsonWithLimit<Record<string, unknown>>(request, MAX_COMPLETE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_COMPLETE_BODY_BYTES });
 
     // Completion must present the session TOKEN, not just a sessionId
     // (idea-5248c3e9). Looking the session up purely by a client-supplied id
@@ -72,14 +97,34 @@ export async function POST(request: NextRequest) {
     // interview page — so it is the lookup key; a sessionId, when sent, is
     // cross-checked against the token's session and never trusted alone.
     const token = typeof body.token === "string" && body.token.length <= 200 ? body.token : null;
+    // The last three bare-English refusals on this PUBLIC candidate door. /connect
+    // was held to the coded line in wave 21a — the candidate reached it from an
+    // emailed link rendered in their own language, so painting the server's English
+    // at them was the bug. /complete is the SAME candidate, one hang-up later, and
+    // was still answering "token is required" / "session not found" / a hardcoded
+    // consent sentence. Both no-usable-session cases are one fact to the reader —
+    // this link does not identify an interview we can save — so they share
+    // INTERVIEW_LINK_NOT_FOUND rather than inventing a code for a malformed body
+    // no honest client can send.
     if (!token) {
-      return NextResponse.json({ error: "token is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_LINK_NOT_FOUND", 400);
     }
     const session = getInterviewSessionByToken(token);
     if (!session || (typeof body.sessionId === "string" && body.sessionId !== session.id)) {
-      return NextResponse.json({ error: "session not found" }, { status: 404 });
+      return jsonRefusal("INTERVIEW_LINK_NOT_FOUND", 404);
     }
     const sessionId = session.id;
+
+    // The submitted turns, filtered but not yet clamped. Read BEFORE the terminal
+    // guards below because those guards now have to answer a question they never
+    // asked: is this the same call reporting twice, or a DIFFERENT one whose turns
+    // are about to be dropped? (voice/discarded-turns.ts)
+    const submitted: { role?: string; text?: string }[] = Array.isArray(body.transcript)
+      ? (body.transcript as unknown[]).filter(
+          (t): t is { role?: string; text: string } =>
+            typeof t === "object" && t !== null && typeof (t as { text?: unknown }).text === "string"
+        )
+      : [];
 
     // Idempotency / terminal-state guard (idea-beb71894): a completed session is
     // done — a duplicate POST (network retry, second tab, provider disconnect
@@ -87,6 +132,21 @@ export async function POST(request: NextRequest) {
     // re-run the scorecard that gates Interview→Offer. Return the stored state
     // as success so a retrying client settles instead of erroring.
     if (session.status === "completed") {
+      // A SECOND live call on the same link is not a duplicate POST. Both tabs ran
+      // real conversations; the loser's turns are nowhere in the stored transcript,
+      // and answering it `ok: true` told its candidate their interview was saved
+      // when it was discarded — the one thing a completion door must never say. The
+      // honest duplicate (the End fetch racing its own unload beacon, a network
+      // retry, a replayed stash) still settles green, because its turns ARE the
+      // stored ones. See discardedTurnCount for where that line is drawn.
+      const discardedTurns = discardedTurnCount(session.transcript, submitted);
+      if (discardedTurns > 0) {
+        console.warn(
+          `[interview:complete] refused a second completion for session ${sessionId}: ` +
+            `${discardedTurns} turn(s) from a concurrent call were NOT saved (the stored transcript stands).`
+        );
+        return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409, { ok: false, discardedTurns });
+      }
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
@@ -101,7 +161,14 @@ export async function POST(request: NextRequest) {
     // legacy session — storage only proceeds when "we have consent" is a fact in
     // the row, not an assumption.
     if (!isPersistConsentSatisfied(session.mode, session.consentAt)) {
-      return NextResponse.json({ error: CONSENT_NOT_RECORDED_ERROR }, { status: 403 });
+      return jsonRefusal("INTERVIEW_CONSENT_REQUIRED", 403);
+    }
+
+    // AFTER the cheap refusals above (a 400/404/403 and the idempotent
+    // already-completed reply cost nothing and must keep answering) and BEFORE the
+    // transcript write, the minutes debit and the scorecard run below.
+    if (!rateLimit(`interview-complete:${token}:${clientIpFrom(request.headers)}`, COMPLETE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;
@@ -109,18 +176,14 @@ export async function POST(request: NextRequest) {
     // discarded so an abnormally long turn is visible rather than silent.
     let clippedTurns = 0;
     let clippedChars = 0;
-    const clamped: VoiceTurn[] = Array.isArray(body.transcript)
-      ? (body.transcript as unknown[])
-          .filter((t): t is { text: string } => typeof t === "object" && t !== null && typeof (t as { text?: unknown }).text === "string")
-          .map((t) => {
-            const { turn, clippedChars: clip } = clampTurn(t);
-            if (clip > 0) {
-              clippedTurns += 1;
-              clippedChars += clip;
-            }
-            return turn;
-          })
-      : [];
+    const clamped: VoiceTurn[] = submitted.map((t) => {
+      const { turn, clippedChars: clip } = clampTurn(t as { text: string });
+      if (clip > 0) {
+        clippedTurns += 1;
+        clippedChars += clip;
+      }
+      return turn;
+    });
     if (clippedTurns > 0) {
       console.warn(
         `[interview:complete] clamped ${clippedTurns} oversized turn(s) for session ${sessionId} ` +
@@ -187,6 +250,17 @@ export async function POST(request: NextRequest) {
     const { session: persisted, applied } = completeInterviewSession(sessionId, { transcript, status });
     if (!applied) {
       // A concurrent completion won the row-level guard — its transcript stands.
+      // Same question as the terminal guard above: if OUR turns are not in the
+      // transcript that won, they are lost and the caller must be told so rather
+      // than handed a green `ok`.
+      const discardedTurns = discardedTurnCount(persisted?.transcript, transcript);
+      if (discardedTurns > 0) {
+        console.warn(
+          `[interview:complete] lost the completion race for session ${sessionId}: ` +
+            `${discardedTurns} turn(s) were NOT saved (the winning transcript stands).`
+        );
+        return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409, { ok: false, discardedTurns });
+      }
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
@@ -259,8 +333,17 @@ export async function POST(request: NextRequest) {
       // a completion whose transcript is already persisted.
       try {
         insertLlmUsage(voiceUsageRow(session, billedMin));
-      } catch {
-        /* ledger write is telemetry — completion already succeeded */
+      } catch (ledgerErr) {
+        // Telemetry, so never the request — the completion already succeeded and the
+        // transcript is durable. But it is not nothing: this row is the ONLY record of
+        // what the call COST (the meter above counts quantity, not money), so a silent
+        // drop makes the interview free in the Models usage panel forever. An operator
+        // reconciling spend would act on this, so it says which session lost its price.
+        console.error(
+          `[interview:complete] usage-ledger write failed for session ${sessionId} ` +
+            `(${billedMin} min on ${session.provider}); its cost will read as unknown.`,
+          ledgerErr
+        );
       }
     }
 
@@ -279,8 +362,19 @@ export async function POST(request: NextRequest) {
       const ws = getEntryWorkspace(session.entryId);
       try {
         scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
-      } catch {
-        /* transcript is already persisted — scoring is best-effort */
+      } catch (scoringErr) {
+        // Best-effort by design: the transcript is already persisted, and a failed
+        // synthesis must never lose it. The ABSENCE of a scorecard is already the
+        // durable state a reader sees (the drawer offers the transcript with no
+        // verdict, and the Interview->Offer gate stays unapproved), so no status
+        // column is added here - what was missing is the REASON, which only this log
+        // can carry. An operator sees a scored-nothing interview and needs to know
+        // whether the model was unreachable or the entry no longer resolves.
+        console.error(
+          `[interview:complete] scorecard synthesis failed for session ${sessionId} ` +
+            `(entry ${session.entryId}); the transcript is saved, the verdict is not.`,
+          scoringErr
+        );
       }
       if (scorecard) {
         updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;

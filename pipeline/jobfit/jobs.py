@@ -22,7 +22,7 @@ so the frozen seed corpus stays reproducible at rest.
 from __future__ import annotations
 
 import re
-from typing import Any, Protocol
+from typing import Any, Protocol, Sequence
 
 from pydantic import Field
 
@@ -151,7 +151,18 @@ class Job(_Base):
 class LlmProvider(Protocol):
     """Minimal seam satisfied by ClaudeCliProvider and a Gemini adapter."""
 
-    def complete_json(self, prompt: str, *, system: str | None = ...) -> Any: ...
+    # ``expected_keys`` is part of the seam, not an implementation detail: every
+    # real provider (ClaudeCliProvider, TextProvider and its adapters) accepts it,
+    # and a Protocol that omitted it made the pin invisible to callers typed
+    # against this seam — which is how four production call sites shipped without
+    # one. Optional so an existing test fake that never declared it still conforms.
+    def complete_json(
+        self,
+        prompt: str,
+        *,
+        system: str | None = ...,
+        expected_keys: Sequence[str] | None = ...,
+    ) -> Any: ...
 
 
 # -- coercion helpers -------------------------------------------------------
@@ -485,7 +496,12 @@ def ingest_raw_ad(text: str, *, provider: LlmProvider, job_id: str | None = None
     """Parse a prose job posting into a structured :class:`Job` via an LLM provider."""
     if not text or not text.strip():
         raise ValueError("empty job posting")
-    raw = provider.complete_json(_EXTRACTION_PROMPT + text.strip(), system=_EXTRACTION_SYSTEM)
+    # "title" is the extraction schema's anchor key: the prompt spells the whole
+    # object out as an example, and without a pin _extract_json can return that
+    # echoed schema instead of the parsed ad.
+    raw = provider.complete_json(
+        _EXTRACTION_PROMPT + text.strip(), system=_EXTRACTION_SYSTEM, expected_keys=("title",)
+    )
     if not isinstance(raw, dict):
         raise ValueError("LLM did not return a JSON object for the job ad")
     return normalize_job(raw, job_id=job_id)

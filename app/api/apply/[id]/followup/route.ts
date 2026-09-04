@@ -5,8 +5,9 @@ import { getProfileRecord } from "@/app/_lib/db/profiles";
 import { coerceLeadTokenParam } from "@/app/_lib/apply-intake";
 import { GAP_FIELDS, mergeGapAnswers } from "@/app/_lib/completeness-followup";
 import { renormalizeApplicantProfile } from "@/app/_lib/applicant-profile";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // The candidate's answers to the profile-completeness gap questions, posted from
 // the done screen of the conversational apply AFTER their application has already
@@ -37,31 +38,40 @@ const MAX_ANSWERS = 12;
 
 // Deliberately identical for "no such token", "token for another job", and "entry
 // has no profile row": a public capability route must not let a caller probe
-// which of those it hit.
-const NOT_FOUND = { error: "not found" };
+// which of those it hit. ONE code, so the three stay indistinguishable AND the
+// candidate reads the reason in their own language — the bare `{ error: "not
+// found" }` this replaces was lowercase English on a surface whose reader is by
+// construction not an operator.
+const notFound = () => jsonRefusal("FOLLOWUP_LINK_NOT_FOUND", 404);
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
     // Throttle BEFORE any DB read or Python spawn.
     if (!rateLimit(`apply-followup:${id}:${clientIpFrom(request.headers)}`, FOLLOWUP_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
-    }
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_FOLLOWUP_BODY_BYTES) {
-      return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const job = getJob(id);
-    if (!job) return NextResponse.json(NOT_FOUND, { status: 404 });
+    if (!job) return notFound();
 
-    const body = (await request.json().catch(() => ({}))) as { lead?: unknown; answers?: unknown };
+    // The cap is enforced on the BYTES READ, not on content-length: that header is
+    // advisory, so a caller who omits it (chunked) or lies about it walked past the
+    // old check and streamed whatever it liked into the heap.
+    const body = await readJsonWithLimit<{ lead?: unknown; answers?: unknown }>(
+      request,
+      MAX_FOLLOWUP_BODY_BYTES,
+      {}
+    );
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_FOLLOWUP_BODY_BYTES });
+    }
 
     // Shape-gate the token before it touches the DB (never a cast), then resolve
     // it to its entry — and require that entry to belong to THIS job.
     const token = coerceLeadTokenParam(body.lead);
     const target = token ? findEntryByLeadToken(token) : null;
     if (!target || target.entry.jobId !== job.id) {
-      return NextResponse.json(NOT_FOUND, { status: 404 });
+      return notFound();
     }
     const entry = target.entry;
     // Same tenant the application filed into (a public candidate has no session).
@@ -94,7 +104,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const profileId = entry.candidateId;
     const record = profileId ? getProfileRecord(profileId, workspaceId) : null;
     if (!profileId || !record || typeof record.payload !== "object" || record.payload === null) {
-      return NextResponse.json(NOT_FOUND, { status: 404 });
+      return notFound();
     }
 
     // Fold the answers in (self_declared provenance for skills, TYPED evidence for
@@ -107,8 +117,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // The saved profile is untouched (renormalize writes only on success), so
       // the recorded gaps stay too — the candidate can retry, and the recruiter
       // still sees exactly what is missing.
-      console.error(`[apply:followup] gap merge failed for entry ${entry.id}: ${rebuilt.reason}`);
-      return NextResponse.json({ error: "Could not save your answers." }, { status: 500 });
+      // The registered code (whose message says the application itself is safely
+      // filed — it is) plus the profile_cli reason in the server log, through the
+      // one responder that does both. The English sentence this replaces was the
+      // only thing a Czech candidate saw here.
+      return safeJsonError(
+        new Error(rebuilt.reason ?? "renormalize failed"),
+        "api:apply:followup",
+        "FOLLOWUP_FAILED"
+      );
     }
 
     setEntryProfileGaps(entry.id, rebuilt.missingGaps, workspaceId);

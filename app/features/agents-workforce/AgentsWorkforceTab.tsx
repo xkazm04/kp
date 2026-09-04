@@ -3,7 +3,7 @@
 import { Bot, FlaskConical } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
-import { BTN_SECONDARY, EYEBROW, INTRO, SECTION } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, EYEBROW, INTRO, NOTICE, SECTION } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { BridgeConfigPublic } from "@/app/_lib/agent-hire/bridge-store";
@@ -32,7 +32,7 @@ export function AgentsWorkforceTab() {
               NEXT_PUBLIC_KP_AGENT_HIRING (tabs.ts). The tag says so ON the surface,
               so a session that turned the flag on months ago cannot mistake it for
               a shipped feature — amber is the app's "attention / not settled" tone. */}
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-meta font-semibold text-amber-800">
+          <span className={`${NOTICE("amber")} inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-meta font-semibold`}>
             <FlaskConical size={11} aria-hidden /> {t("inDevelopment")}
           </span>
         </div>

@@ -5,7 +5,7 @@
 // everything the tab's render (and its list/aside sub-components) need; no
 // JSX here.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import type { TargetAndTransition } from "framer-motion";
 import { DEFAULT_SLOT, type SchedEntry } from "./ScheduleTypes";
@@ -15,6 +15,10 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // Type-only — no better-sqlite3 pulled into this client bundle.
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
+import { seedGrid, type SlotSource } from "./scheduleGridSeeds";
+// The two derived lists + the poll cadence, extracted and unit-pinned (schedule-ui-2).
+import { bookedMarkersFrom, interviewedEntriesFrom } from "./scheduleTabDerived";
+import { pollDelayMs, pollIsStale } from "./schedulePollBackoff";
 
 export type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
 
@@ -49,11 +53,34 @@ export function useScheduleTab() {
   };
   const [entries, setEntries] = useState<SchedEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A REFUSAL of one card's action, carried beside that card rather than in the
+  // tab-level banner. The banner sits above the whole grid, ~26rem from the aside
+  // where the recruiter clicked, and every book refusal used to render there as
+  // t("loadFailed") — "Failed to load.", the copy of a fetch that never happened.
+  // A refusal is about ONE candidate ("that hour is taken", "they were rejected
+  // in another tab"), so it renders inline under that candidate's actions, where
+  // the eye already is. Not the AI round's toast: a toast is right for a
+  // transient success ("link copied") but a refusal here names the next action
+  // (pick another cell) and must stay on screen while the recruiter takes it.
+  const [actionError, setActionError] = useState<{ entryId: string; message: string } | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
   // Direction 3 — the grid renders from the ONE scheduling engine. Confirmed invites
   // (recruiter- or candidate-self-booked) seed where each candidate sits and appear as
   // read-only booked markers, so the grid and the invite store can't diverge.
   const [invites, setInvites] = useState<ScheduleInvite[]>([]);
+  // GET /api/schedule is bounded (a clamped `?limit=`, 200 by default) and says when
+  // it hit the bound. It matters MORE here than on the lifecycle panel: the grid draws
+  // its booked markers from this list, so an invite past the bound is an hour that IS
+  // taken and is not drawn as taken. Say the list is partial rather than imply it is
+  // whole.
+  const [invitesTruncated, setInvitesTruncated] = useState(false);
+  // Where each seeded cell came from (booked invite / legacy detail / flat guess),
+  // so a guess can be drawn as a guess. See scheduleGridSeeds.ts.
+  const [pickSources, setPickSources] = useState<Record<string, SlotSource>>({});
+  // The zone every time on this surface is expressed in, stated by the server —
+  // KP_INTERVIEW_TZ is not readable from a client bundle, and a wrong zone label is
+  // worse than none.
+  const [interviewTz, setInterviewTz] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [prepEntry, setPrepEntry] = useState<SchedEntry | null>(null);
@@ -81,7 +108,14 @@ export function useScheduleTab() {
       sharedGetJson<{ entries?: SchedEntry[]; error?: string }>("/api/pipeline", opts),
       // The invite store — the engine the grid now renders from. Best-effort: if it
       // fails, the grid still works off the legacy approvalDetail strings.
-      sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule", opts).catch(() => ({ invites: [] as ScheduleInvite[] })),
+      sharedGetJson<{ invites?: ScheduleInvite[]; interviewTz?: string; truncated?: boolean }>("/api/schedule", opts).catch(
+        () =>
+          ({ invites: [] as ScheduleInvite[], interviewTz: undefined, truncated: false }) as {
+            invites?: ScheduleInvite[];
+            interviewTz?: string;
+            truncated?: boolean;
+          }
+      ),
     ])
       .then(([p, s]) => {
         if (p.error) throw new Error(p.error);
@@ -93,58 +127,75 @@ export function useScheduleTab() {
         );
         const invs = (s.invites as ScheduleInvite[]) ?? [];
         setInvites(invs);
+        setInvitesTruncated(s.truncated === true);
         setEntries(sched);
         // Seed each candidate's grid cell from the ENGINE first: an invite's canonical
         // slot_at (converted to the grid's wall-clock cell) wins over the legacy
         // free-text approvalDetail, which is the back-compat fallback for entries with
         // no invite yet. So a self-booked or recruiter-booked time shows in the right cell.
         const inviteByEntry = new Map(invs.filter((i) => i.entryId).map((i) => [i.entryId as string, i]));
-        setPicks(
-          Object.fromEntries(
-            sched
-              .filter((e) => e.approvalKind === "calendar")
-              .map((e) => {
-                const inv = inviteByEntry.get(e.id);
-                const fromInvite = inv?.slotAt ? isoToDateSlot(inv.slotAt) : null;
-                // Legacy approvalDetail is a weekday-relative string; resolve it to a
-                // concrete upcoming date so it lands in a real grid cell. DEFAULT is the
-                // last resort for an entry with neither an invite nor a parseable detail.
-                const fromLegacy = e.approvalDetail ? weekdayToDateSlot(e.approvalDetail) : null;
-                return [e.id, fromInvite || fromLegacy || weekdayToDateSlot(DEFAULT_SLOT) || DEFAULT_SLOT];
-              })
-          )
+        if (typeof s.interviewTz === "string" && s.interviewTz) setInterviewTz(s.interviewTz);
+        const seeded = seedGrid(
+          sched
+            .filter((e) => e.approvalKind === "calendar")
+            .map((e) => {
+              const inv = inviteByEntry.get(e.id);
+              // Only a CONFIRMED invite is a fact; a pending one carries no slot_at.
+              const fromInvite = inv?.status === "confirmed" && inv.slotAt ? isoToDateSlot(inv.slotAt) : null;
+              // Legacy approvalDetail is a weekday-relative string; resolve it to a
+              // concrete upcoming date so it lands in a real grid cell. DEFAULT is the
+              // last resort for an entry with neither an invite nor a parseable detail.
+              const fromLegacy = e.approvalDetail ? weekdayToDateSlot(e.approvalDetail) : null;
+              return {
+                id: e.id,
+                fromInvite,
+                fromLegacy,
+                fallback: weekdayToDateSlot(DEFAULT_SLOT) || DEFAULT_SLOT,
+              };
+            })
         );
+        setPicks(seeded.picks);
+        setPickSources(seeded.sources);
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("loadFailed")));
   useEffect(() => {
     load();
   }, []);
 
-  const pending = entries ?? [];
-  const entryIds = pending.map((e) => e.id).join(",");
-  const calendarEntries = pending.filter((e) => e.approvalKind === "calendar");
+  // MEMOIZED ON `entries`, not rebuilt per render. These three derived lists used to
+  // be fresh `.filter()` calls in the render body, which meant `calendarEntryIds` and
+  // `bookedMarkers` below — real useMemos — recomputed every single render because
+  // their input array was a new identity every time. The interview poll (every 6s)
+  // therefore re-rendered the whole week grid, chips and all, with byte-identical
+  // data. `entries` only changes when a load actually returns something new.
+  const pending = useMemo(() => entries ?? [], [entries]);
+  const entryIds = useMemo(() => pending.map((e) => e.id).join(","), [pending]);
+  const calendarEntries = useMemo(() => pending.filter((e) => e.approvalKind === "calendar"), [pending]);
   // Direction 3 — booked markers: confirmed invites shown as read-only occupied cells
   // on the grid, so a candidate who self-booked via their token (and has since advanced
   // out of the pending list) still occupies their slot and can't be double-booked.
   // Entries already rendered as assignable chips are excluded to avoid a double render.
   const calendarEntryIds = useMemo(() => new Set(calendarEntries.map((e) => e.id)), [calendarEntries]);
-  const bookedMarkers = useMemo(
-    () =>
-      invites
-        .filter((i) => i.status === "confirmed" && i.slotAt && (!i.entryId || !calendarEntryIds.has(i.entryId)))
-        .map((i) => ({ id: i.token, dateSlot: isoToDateSlot(i.slotAt), candidateLabel: i.candidateLabel ?? "—" }))
-        .filter((m): m is { id: string; dateSlot: string; candidateLabel: string } => m.dateSlot !== null),
-    [invites, calendarEntryIds]
-  );
+  const bookedMarkers = useMemo(() => bookedMarkersFrom(invites, calendarEntryIds), [invites, calendarEntryIds]);
   // Interviewed = moved past scheduling with either a saved voice transcript or a
   // recruiter-filled human scorecard — a human-led round has no transcript, but its
   // candidate must stay visible (and the prep modal reachable) after the verdict
   // gates the entry to scorecard_review (interview-prep-rubric #2).
-  const interviewedEntries = pending.filter(
-    (e) =>
-      e.approvalKind === "scorecard_review" &&
-      (interviews[e.id]?.hasTranscript || prepared[e.id]?.hasHumanScorecard)
+  const interviewedEntries = useMemo(
+    () => interviewedEntriesFrom(pending, interviews, prepared),
+    [pending, interviews, prepared]
   );
+  // entry id → the candidate's own IANA zone, captured when THEY booked
+  // (schedule-store `candidate_tz`). Stored since idea-b51106df and rendered only on
+  // the agenda row until now: the recruiter reading the pending list could not see
+  // that "14:00" is the middle of the night for this candidate.
+  const candidateZones = useMemo(() => {
+    const zones: Record<string, string> = {};
+    for (const inv of invites) {
+      if (inv.entryId && inv.candidateTz) zones[inv.entryId] = inv.candidateTz;
+    }
+    return zones;
+  }, [invites]);
   // Which candidates already have a generated interview-prep artifact (toggles
   // the button label). Re-checked when the prep modal closes (a fresh generate).
   useEffect(() => {
@@ -167,25 +218,79 @@ export function useScheduleTab() {
   }, [entryIds, prepEntry]);
 
   // Poll which candidates have a finished voice interview (transcript ready).
-  // Re-checks on an interval + window focus, since the call happens in a tab the
-  // recruiter opens, then returns from.
+  //
+  // Three properties this loop did NOT have (schedule-ui-2). It was a flat
+  // `setInterval(refresh, 6000)` whose failure was swallowed by `.catch(() => undefined)`:
+  //
+  //  * It ran in a BACKGROUND tab forever — 600 SQLite-backed requests an hour for a
+  //    surface nobody was looking at. Now it is gated on `document.visibilityState`:
+  //    hidden ⇒ no timer at all, and becoming visible refreshes immediately (the same
+  //    "you came back, here is the truth" moment the focus listener already served).
+  //  * A failing server produced 600 silent failures an hour. Now consecutive failures
+  //    back the cadence off 6s → 12 → 24 → 48 → 60s and hold there (schedulePollBackoff.ts
+  //    states the curve); a success resets to 6s, so a recovered network is picked up
+  //    without a reload.
+  //  * Nothing ever SAID the view was old. `liveStale` goes true from the second
+  //    consecutive failure and the tab renders a pill with a retry — the alternative is
+  //    an hour-old snapshot rendered as if it were live.
+  const failuresRef = useRef(0);
+  const [liveStale, setLiveStale] = useState(false);
+  // Bumped by the retry button to re-run the effect (and so poll immediately).
+  const [pollNonce, setPollNonce] = useState(0);
+  const retryLive = useCallback(() => {
+    failuresRef.current = 0;
+    setPollNonce((n) => n + 1);
+  }, []);
   useEffect(() => {
     if (!entryIds) return;
     let alive = true;
-    const refresh = () =>
+    let timer: number | undefined;
+    const arm = () => {
+      if (!alive) return;
+      window.clearTimeout(timer);
+      // A hidden tab arms nothing; the visibilitychange handler below restarts it.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      timer = window.setTimeout(refresh, pollDelayMs(failuresRef.current));
+    };
+    const refresh = () => {
+      if (!alive) return;
       fetch(`/api/interview/by-entry?entries=${encodeURIComponent(entryIds)}`)
-        .then((r) => r.json())
-        .then((d) => alive && setInterviews(d.status ?? {}))
-        .catch(() => undefined);
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        })
+        .then((d) => {
+          if (!alive) return;
+          failuresRef.current = 0;
+          setLiveStale(false);
+          setInterviews(d.status ?? {});
+        })
+        .catch(() => {
+          // Best-effort by design — a failed status poll must never break the tab. What
+          // it may NOT do is stay invisible: the count drives both the backoff and the pill.
+          if (!alive) return;
+          failuresRef.current += 1;
+          setLiveStale(pollIsStale(failuresRef.current));
+        })
+        .finally(arm);
+    };
+    const onVisible = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        window.clearTimeout(timer);
+        return;
+      }
+      refresh();
+    };
     refresh();
-    const timer = setInterval(refresh, 6000);
-    window.addEventListener("focus", refresh);
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
-      clearInterval(timer);
-      window.removeEventListener("focus", refresh);
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [entryIds, transcriptEntry]);
+  }, [entryIds, transcriptEntry, pollNonce]);
 
   const startInterview = async (e: SchedEntry) => {
     setCreatingIv(e.id);
@@ -212,6 +317,7 @@ export function useScheduleTab() {
 
   const act = async (e: SchedEntry, action: "approve_event" | "reject") => {
     setBusy(e.id);
+    setActionError(null);
     try {
       if (action === "approve_event") {
         // Route the grid confirm through the ONE scheduling engine: produce/update a
@@ -228,8 +334,17 @@ export function useScheduleTab() {
         });
         const bd = await bookRes.json().catch(() => ({}));
         if (!bookRes.ok) {
-          setError(errMsg(bd, t("loadFailed")));
+          // The server answers a REFUSAL code (SCHEDULE_SLOT_TAKEN,
+          // SCHEDULE_CANDIDATE_INACTIVE, SCHEDULE_BOOK_FAILED,
+          // SCHEDULE_SLOT_UNRESOLVED, PIPELINE_ENTRY_NOT_FOUND); useErrorMessage
+          // resolves it in the reader's language. The fallback is the ACTION's own
+          // copy, never the load banner's.
+          setActionError({ entryId: e.id, message: errMsg(bd, t("bookFailed")) });
           setBusy(null);
+          // The refusal is usually about state that moved (a slot taken, a
+          // candidate rejected elsewhere) — resync so the grid shows the world
+          // the server just described.
+          load({ refresh: true });
           return;
         }
       } else {
@@ -239,7 +354,16 @@ export function useScheduleTab() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action, detail: undefined }),
         });
-        if (!r.ok) throw new Error();
+        if (!r.ok) {
+          // Previously `throw new Error()` into a catch that only re-loaded: the
+          // card silently reappeared and NOTHING said the rejection had not been
+          // recorded. The board's own PIPELINE_* codes localize here.
+          const d = await r.json().catch(() => ({}));
+          setActionError({ entryId: e.id, message: errMsg(d, t("declineFailed")) });
+          setBusy(null);
+          load({ refresh: true });
+          return;
+        }
       }
       // Record the direction, then drop the card. AnimatePresence resolves the
       // leaving card's exit variant from its `custom` (below) at removal time, so
@@ -271,7 +395,12 @@ export function useScheduleTab() {
     t,
     entries,
     error,
+    actionError,
     picks,
+    pickSources,
+    candidateZones,
+    interviewTz,
+    invitesTruncated,
     selectedId,
     setSelectedId,
     busy,
@@ -279,6 +408,8 @@ export function useScheduleTab() {
     setPrepEntry,
     prepared,
     interviews,
+    liveStale,
+    retryLive,
     creatingIv,
     transcriptEntry,
     setTranscriptEntry,

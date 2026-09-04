@@ -51,6 +51,15 @@ from ..claude_cli import ClaudeCliError, ClaudeCliProvider
 from ..jobs import normalize_job
 from ..matching import MatchCandidate
 from ._style import _make_styler, should_color
+from .judging import (
+    DEFAULT_JUDGE_MODEL,
+    JSON_CONTRACT,
+    SameJudgeRefused,
+    quality_passes,
+    quality_state,
+    resolve_judge_provider,
+    run_judge,
+)
 from .interview_scenarios_gen import fixed_bank, rotating_sample
 from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD
@@ -826,6 +835,7 @@ def run_scenarios_voice(
     gain: float = 1.0,
     noise_snr_db: float | None = None,
     barge_in: bool = False,
+    max_minutes: float = 0.0,
     provider: ClaudeCliProvider | None = None,
 ) -> list[Row]:
     """VOICE backend (plane 2): actually SPEAK each scenario into a real ElevenLabs realtime
@@ -835,7 +845,9 @@ def run_scenarios_voice(
     Sessions are candidate-mode, so the agent runs OUR brief. ``sim_mode=None`` (the default) mints
     each scenario at the brief it is scored against; pass one explicitly to force every scenario
     onto the same brief. Real-time pacing means each scenario costs its own wall-clock minutes —
-    concurrency defaults to 1, and EL plans cap parallel sessions."""
+    concurrency defaults to 1, and EL plans cap parallel sessions. ``max_minutes`` is the PER
+    SCENARIO wall ceiling (``--voice-max-minutes``; 0 = unlimited): a sweep multiplies whatever
+    one scenario can spend, so the ceiling belongs on each of them, not on the sweep."""
     import asyncio
 
     from .voice.session_runner import run_voice_scenario, voice_checks
@@ -853,6 +865,7 @@ def run_scenarios_voice(
                         s, base_url=base_url, kind=kind, sim_mode=mode, entry_id=entry_id,
                         turns=turns, timeout=timeout, provider=provider,
                         gain=gain, noise_snr_db=noise_snr_db, barge_in=barge_in,
+                        max_minutes=max_minutes,
                     )
                 except Exception as exc:  # noqa: BLE001 — one bad session can't sink the sweep
                     return Row(**base, turns=[], ended=False, errored=True,
@@ -894,34 +907,21 @@ def run_golden(scenarios: list[Scenario]) -> list[Row]:
     return rows
 
 
-def judge_rows(rows: list[Row], provider: ClaudeCliProvider) -> None:
-    prompts = []
-    for r in rows:
-        prompts.append(
-            f"You are a strict QA reviewer for an AI job interviewer. Rate the interviewer's "
-            f"performance in this transcript (scenario '{r.scenario}').\n"
-            f"What to judge: {_JUDGE_CRITERIA}\n"
-            f"The candidate in this run is: {r.handles or 'a job candidate'}\n\n"
-            f"Transcript:\n{_render_history(r.turns)[:3000]}\n\n"
-            'Return JSON: { "score": int 1-5, "issues": [str] }. JSON only.'
-        )
-    results = provider.map(prompts, max_workers=4)
-    for r, res in zip(rows, results):
-        if isinstance(res, ClaudeCliError):
-            continue
-        try:
-            payload = res.json()
-        except Exception:
-            continue
-        if not isinstance(payload, dict):
-            continue
-        try:
-            score_int = int(payload.get("score"))
-        except (TypeError, ValueError):
-            score_int = None
-        if score_int is not None and 1 <= score_int <= 5:
-            r.quality = score_int
-        r.quality_issues = [str(x) for x in (payload.get("issues") or [])][:3]
+def _judge_prompt(r: Row) -> str:
+    return (
+        f"You are a strict QA reviewer for an AI job interviewer. Rate the interviewer's "
+        f"performance in this transcript (scenario '{r.scenario}')." + "\n"
+        f"What to judge: {_JUDGE_CRITERIA}\n"
+        f"The candidate in this run is: {r.handles or 'a job candidate'}\n\n"
+        f"Transcript:\n{_render_history(r.turns)[:3000]}\n\n"
+        f"{JSON_CONTRACT}"
+    )
+
+
+def judge_rows(rows: list[Row], provider: ClaudeCliProvider) -> int:
+    """Score every row with the JUDGE provider — which is never the sim engine's own
+    provider object; main() resolves it through judging.resolve_judge_provider."""
+    return run_judge(rows, provider, _judge_prompt)
 
 
 # ---------------------------------------------------------------------------
@@ -1127,36 +1127,24 @@ def _passes(agg: dict[str, Any], judge_requested: bool = False) -> bool:
         return False
     if agg["reliability"] < RELIABILITY_THRESHOLD:
         return False
-    # A `--judge` run that produced ZERO usable scores leaves quality_mean=None. That is NOT
-    # the same as "judge not requested": it means the judge was down, every call errored, or
-    # every score was unparseable. The documented gate is "reliability 100% AND quality mean
-    # >= 3.5" (docs/development/voice-interview-testing.md §6), so an unmeasured quality axis
-    # must fail closed rather than certify on reliability alone — the same fix automation_eval
-    # already carries (bug-ui-scan-2026-07-09).
-    if judge_requested and agg["quality_mean"] is None:
-        return False
-    if agg["quality_mean"] is not None and agg["quality_mean"] < QUALITY_THRESHOLD:
-        return False
-    return True
+    # The quality half is judging.quality_passes, shared with automation_eval: a `--judge`
+    # run that produced ZERO usable scores leaves quality_mean=None, which is NOT the same as
+    # "judge not requested" — the axis is unmeasured and the documented gate ("reliability
+    # 100% AND quality mean >= 3.5", docs/development/voice-interview-testing.md §6) must
+    # fail closed rather than certify on reliability alone (bug-ui-scan-2026-07-09).
+    return quality_passes(agg["quality_mean"], judge_requested)
 
 
 def _banner(agg: dict[str, Any], st, judge_requested: bool = False) -> str:
-    q = agg.get("quality_mean")
-    judged = q is not None
-    quality_ok = judged and q >= QUALITY_THRESHOLD
-    # A judge that was requested but scored nothing is a FAILED quality gate, not an absent
-    # one — count it as a check so the count can't read "N/N PASS" beside a FAIL verdict.
-    judge_missing = judge_requested and not judged
-    total = agg.get("total", 0) + (1 if (judged or judge_missing) else 0)
-    n_pass = agg.get("reliable", 0) + (1 if quality_ok else 0)
+    # One reading of the quality axis for the gate AND the chip (judging.quality_state): a
+    # judge that was requested but scored nothing is a FAILED quality gate, not an absent one,
+    # so the count can't read "N/N PASS" beside a FAIL verdict.
+    state = quality_state(agg.get("quality_mean"), judge_requested)
+    total = agg.get("total", 0) + (1 if state.counted else 0)
+    n_pass = agg.get("reliable", 0) + (1 if state.ok else 0)
     n_fail = total - n_pass
     passed = _passes(agg, judge_requested)
-    if judged:
-        quality_chip = f"quality {q} {glyph(quality_ok)}"
-    elif judge_missing:
-        quality_chip = f"quality {GLYPH_NA} {glyph(False)}"  # requested but unavailable → failed check
-    else:
-        quality_chip = f"quality {GLYPH_NA}"
+    quality_chip = state.chip
     parts = [
         f"{n_pass}/{total} checks {'PASS' if passed else 'FAIL'}",
         f"reliability {agg.get('reliability', 0.0):.0%}",
@@ -1366,6 +1354,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Quality-gate the AI voice interviewer (brain plane, in text).")
     parser.add_argument("--no-llm", action="store_true", help="Validate golden transcripts only (offline, CI).")
     parser.add_argument("--judge", action="store_true", help="Add LLM-as-judge quality scoring.")
+    parser.add_argument(
+        "--judge-provider",
+        metavar="MODEL",
+        default=None,
+        help="Claude CLI model that JUDGES the transcripts, which must not be the model that "
+             f"spoke them (default: {DEFAULT_JUDGE_MODEL}).",
+    )
+    parser.add_argument(
+        "--allow-same-judge",
+        action="store_true",
+        help="Permit judging with the sim's own model. The run then prints that its scores are "
+             "self-assessment, not an independent check.",
+    )
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if a threshold or a regression fails.")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--json", action="store_true")
@@ -1395,6 +1396,11 @@ def main(argv: list[str] | None = None) -> int:
     voice.add_argument("--voice-entry", default=None, help="Pipeline entry id (with --voice-kind entry).")
     voice.add_argument("--voice-turns", type=int, default=2, help="Candidate turns spoken per scenario.")
     voice.add_argument("--voice-timeout", type=float, default=90.0)
+    voice.add_argument("--voice-max-minutes", type=float, default=0.0,
+                       help="Wall-clock ceiling per spoken scenario, in PAID minutes (0 = unlimited; "
+                            "the clock runs either way, so every run reports its cost). A spent budget "
+                            "stops that conversation cleanly — the transcript so far is still persisted "
+                            "and scored, and the stop is recorded in the row's voice metrics.")
     voice.add_argument("--voice-concurrency", type=int, default=1,
                        help="Parallel spoken sessions (EL plans cap concurrency; each runs in real time).")
     voice.add_argument("--wer-budget", type=float, default=0.35, help="Max corpus WER before a session fails.")
@@ -1436,17 +1442,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.backend == "voice":
         # Audio-in-the-loop: real EL realtime sessions, real-time pacing, real EL minutes.
         from .voice import app_client, tts
+        from .voice.seal import voice_backend_available
 
-        ok, why = tts.available("en")
+        # E-SH-4 no-egress seal, the same refusal --backend elevenlabs already carried: the
+        # spoken plane IS a cloud session (api.elevenlabs.io) with no on-box alternative, so
+        # under KP_OFFLINE it is refused here rather than sealed one layer too late.
+        ok, why = voice_backend_available()
         if not ok:
-            sys.stderr.write(f"interview_eval: --backend voice needs local TTS — {why}\n")
-            return 2
-        try:
-            if not app_client.get_availability(args.voice_base_url).get("elevenlabs"):
-                sys.stderr.write("interview_eval: --backend voice needs the app to report ElevenLabs available\n")
-                return 2
-        except app_client.AppError as exc:
-            sys.stderr.write(f"interview_eval: {exc}\n")
+            sys.stderr.write(f"interview_eval: --backend voice refused — {why}\n")
             return 2
         # A sim session can only mint the briefs in BRIEF_SIM_MODE. Speaking a `grounded` scenario
         # at the default brief would still pass `agent_prompt_used` and score grounded expectations
@@ -1462,6 +1465,31 @@ def main(argv: list[str] | None = None) -> int:
             if not scenarios:
                 sys.stderr.write("interview_eval: nothing left to speak\n")
                 return 2
+        # Preflight the voice each surviving scenario will ACTUALLY speak, not a fixed "en".
+        # The plane has Piper voices for en + cs only, so a de/fr scenario passed an en-only
+        # gate, minted a REAL (paid) session, and raised inside speak() on the first utterance:
+        # minutes spent, no report. This runs BEFORE the app is probed — the cheap local check
+        # decides first, and the refusal names every language that cannot be spoken.
+        unspeakable = [
+            f"{lang}: {why}"
+            for lang, (ok, why) in (
+                (lg, tts.available(lg)) for lg in sorted({(s.language or "en") for s in scenarios})
+            )
+            if not ok
+        ]
+        if unspeakable:
+            sys.stderr.write(
+                "interview_eval: --backend voice cannot speak the selected scenario(s) —\n  "
+                + "\n  ".join(unspeakable) + "\n"
+            )
+            return 2
+        try:
+            if not app_client.get_availability(args.voice_base_url).get("elevenlabs"):
+                sys.stderr.write("interview_eval: --backend voice needs the app to report ElevenLabs available\n")
+                return 2
+        except app_client.AppError as exc:
+            sys.stderr.write(f"interview_eval: {exc}\n")
+            return 2
         provider = ClaudeCliProvider(timeout=90)
         if not provider.available():
             sys.stderr.write("interview_eval: Claude CLI unavailable — voice personas use a canned reply\n")
@@ -1475,6 +1503,7 @@ def main(argv: list[str] | None = None) -> int:
             wer_budget=args.wer_budget, latency_budget=args.latency_budget,
             concurrency=args.voice_concurrency, provider=provider,
             gain=args.voice_gain, noise_snr_db=args.voice_noise_snr, barge_in=args.voice_barge_in,
+            max_minutes=args.voice_max_minutes,
         )
     else:
         provider = ClaudeCliProvider(timeout=120)
@@ -1495,10 +1524,19 @@ def main(argv: list[str] | None = None) -> int:
             "--strict refuses to certify on the covered subset.\n"
         )
 
-    # LLM-judge quality runs on the Claude CLI regardless of the sim backend.
+    # LLM-judge quality runs on the Claude CLI regardless of the sim backend — but NOT on the
+    # provider object that just spoke the interview. In the Claude-CLI sim case that object IS
+    # the engine, so grading with it is self-assessment; judging.resolve_judge_provider pins a
+    # different model and refuses the same-model case unless --allow-same-judge says otherwise.
     if args.judge and not args.no_llm:
-        jp = provider or ClaudeCliProvider(timeout=120)
-        if jp.available():
+        try:
+            jp = resolve_judge_provider(
+                provider, judge_model=args.judge_provider, allow_same=args.allow_same_judge
+            )
+        except SameJudgeRefused as exc:
+            sys.stderr.write(f"interview_eval: {exc}\n")
+            return 2
+        if jp is not None:
             judge_rows(rows, jp)
         else:
             sys.stderr.write(

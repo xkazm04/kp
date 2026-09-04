@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isDegradedPublish, canConfirmPublish, degradedReasons } from "./DevCaseDetail.publish.ts";
+import { DEGRADED_REASONS, isDegradedPublish, canConfirmPublish, degradedReasons } from "./DevCaseDetail.publish.ts";
 
 // bug-ui-scan-2026-07-09 (dev-case-authoring-publishing #3). The one-click Publish
 // used to fire on a single unguarded click and stayed enabled on a known-degraded
@@ -45,6 +45,21 @@ test("canConfirmPublish: a DEGRADED case is BLOCKED until acknowledged", () => {
 
 test("degradedReasons: lists exactly the failing halves", () => {
   assert.deepEqual(degradedReasons({ scenarioDegraded: false, seedDegraded: false }), []);
-  assert.equal(degradedReasons({ scenarioDegraded: true, seedDegraded: false }).length, 1);
-  assert.equal(degradedReasons({ scenarioDegraded: true, seedDegraded: true }).length, 2);
+  assert.deepEqual(degradedReasons({ scenarioDegraded: true, seedDegraded: false }), ["scenario"]);
+  assert.deepEqual(degradedReasons({ scenarioDegraded: false, seedDegraded: true }), ["seed"]);
+  assert.deepEqual(degradedReasons({ scenarioDegraded: true, seedDegraded: true }), ["scenario", "seed"]);
+});
+
+test("degradedReasons returns CODES, never prose", () => {
+  // This module is pure TS with no reader attached, so the two English sentences it
+  // used to return were shipped verbatim into a four-locale product — and they were
+  // also the last place on this surface that still called the entity a "case", where
+  // no vocabulary guard could see them. The confirm dialog resolves each code through
+  // `devcase.studio.degradedReason.<code>`; the set is covered ×4 locales in
+  // devcase-studio-i18n.test.ts.
+  for (const reason of degradedReasons({ scenarioDegraded: true, seedDegraded: true })) {
+    assert.match(reason, /^[a-z]+$/, `"${reason}" reads like prose, not a machine code`);
+    assert.ok(!reason.includes(" "), `"${reason}" reads like prose, not a machine code`);
+  }
+  assert.deepEqual([...DEGRADED_REASONS], ["scenario", "seed"]);
 });

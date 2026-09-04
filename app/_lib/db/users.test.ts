@@ -29,10 +29,12 @@ test("email is globally unique (case-insensitive)", () => {
 });
 
 test("a disabled user cannot authenticate even with the right password", () => {
-  const u = createUser({ orgId: DEFAULT_ORG_ID, email: "leaver@csas.cz", password: "pw" });
-  assert.ok(verifyCredentials("leaver@csas.cz", "pw"));
+  // "pw" until 2026-09-03; setUserPassword now enforces MIN_PASSWORD_LENGTH, so the
+  // fixture uses a password a real account could actually have.
+  const u = createUser({ orgId: DEFAULT_ORG_ID, email: "leaver@csas.cz", password: "leaver-pw-1" });
+  assert.ok(verifyCredentials("leaver@csas.cz", "leaver-pw-1"));
   setUserStatus(u.id, "disabled");
-  assert.equal(verifyCredentials("leaver@csas.cz", "pw"), null);
+  assert.equal(verifyCredentials("leaver@csas.cz", "leaver-pw-1"), null);
 });
 
 test("an invited user with no password cannot authenticate until one is set", () => {

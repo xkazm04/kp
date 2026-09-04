@@ -7,8 +7,12 @@
 //   1. AUTHENTICITY (both directions) — an HMAC-SHA256 signature over
 //      `<timestamp>.<body>`, sent as `x-kp-signature` + `x-kp-timestamp`. Identical
 //      scheme to the outbound comms relay and the ATS webhook, so an operator who
-//      has verified one has verified all three. The timestamp bounds replay; the
-//      edge additionally holds a nonce window.
+//      has verified one has verified all three. The timestamp bounds replay to a
+//      five-minute window, and INSIDE that window the edge spends each signature
+//      exactly once: `edge/schema.sql` carries a `nonces` table, every signed door
+//      claims `sha256(signature)` through it, and a second presentation is answered
+//      409. That used to be aspirational -- a captured `POST /ack {upto}` replayed for
+//      five minutes and DELETES queued events -- and edge-drain.test.ts now pins it.
 //
 //   2. CONFIDENTIALITY (edge → local only) — the edge must be able to ACCEPT a
 //      candidate's data without being able to READ it. So local generates an

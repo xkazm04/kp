@@ -65,6 +65,24 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
    leaves the roster row marked `failed` and the board untouched
    (`agents-bridge.test.ts`).
+   **Every bridge door is throttled per IP.** Dispatch, pairing, the connector catalog
+   and the status refresh poll all spawn real outbound work behind `requireOperator()`,
+   which open mode (no `KP_OPERATOR_PASSWORD`) makes a
+   documented no-op for the whole API — so each self-limits, in the idiom
+   `app/api/rate-limit-contract.test.ts` states for every spend door:
+   `agent-dispatch:<ip>` 10 / 10 min (inside `mintAndDispatch`, i.e. after every cheap
+   refusal and after the one-live-agent idempotency reuse, so a rejected or idempotent
+   call costs nothing), `agent-pair:<ip>` 10 / 10 min for the start phase, and
+   `agent-pair-claim:<ip>` 120 / 10 min for the claim poll — laxer because the panel
+   polls claim for the full 300s TTL along a 2s→15s backoff. `agent-catalog:<ip>`
+   60 / 10 min (the Agent fit tab fetches the catalog once per open) and
+   `agent-refresh:<ip>` 120 / 10 min (the roster polls a row per click while a hire is
+   being approved, so it is sized like the pairing claim, not like dispatch — and it
+   sits AFTER the "never dispatched" answer, which could not reach Personas anyway)
+   closed the last two, which had no budget at all until /perfect wave 38. All five answer the shared
+   `TOO_MANY_REQUESTS` code, so the card says it in the reader's language. The public
+   report receiver keeps its own per token+IP budget (60 / 60 s), now pinned
+   behaviourally by `app/api/agents/report/[token]/report-throttle.test.ts`.
    **An expired pairing key is its own answer.** Personas rejecting kp's stored `pk_`
    (a 401 upstream) comes back as a 502 whose code is **`AGENT_BRIDGE_KEY_INVALID`**,
    with the message *"Personas rejected kp's API key (401) — the pairing key has expired
@@ -92,7 +110,21 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    `dispatched → pending_approval → onboarding → active` (terminal: `rejected`,
    `failed`, `retired`). The push path is the token-authed public report route; the
    *Refresh* button is the pull fallback (`POST /api/agents/[id]/refresh`). Activation
-   auto-moves the pipeline entry to Hired.
+   auto-moves the pipeline entry to the board's **terminal** column.
+
+   **Both stages are resolved by ROLE, off the workspace's own axis** — `stageForRole`
+   (`app/_lib/pipeline-axis-server.ts`), never the literals `"Offer"`/`"Hired"`. A team
+   that renamed its final column to *Signed* has no stage called `Hired`, and the store
+   validates a move against that team's axis, so the hardcoded id was a silent no-op that
+   left the agent parked on the offer column while the roster read *active*. A board
+   carrying no `offer` role files the card at its `entry` column instead. The move also
+   carries the `expectedStage` compare-and-swap and an `actorRef` of `auto:agent-bridge`:
+   a recruiter move that landed between the entry read and the write is no longer
+   overwritten, a repeat `activated` report (Personas retries) moves nothing a second
+   time, and the board's audit column names the machine rather than reading *not
+   identified*. When the CAS loses, the automation event says the board move was skipped
+   — the lifecycle report is still accepted, because the roster status is the authority
+   on the hire. Pinned by `app/api/agents/agent-hire-board-move.test.ts`.
    **The button answers.** The route's reply is a typed non-continuation, not a bare 200:
    `refreshed:true` with the new `personasStatus`, or `refreshed:false` with either a
    `reason` (+ `code`) or the unchanged `personasStatus`. The row rendered all of them
@@ -101,7 +133,10 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    branch now writes its outcome into a `role="status"` line beside the button, resolved
    from the machine `code` through `useErrorMessage()` (never the server's English
    `error`), and only a real transition refetches the roster. `AGENT_BRIDGE_KEY_INVALID`
-   and `AGENT_BRIDGE_KEY_UNREADABLE` are in the `errors` catalog in all four locales.
+   and `AGENT_BRIDGE_KEY_UNREADABLE` are in the `errors` catalog in all four locales, as
+   is `AGENT_REFRESH_NOT_DISPATCHED` — the "there is no Personas request to poll" branch,
+   which used to ship a `reason` and no code and so landed every operator on the generic
+   localized sentence with no remedy in it.
    Known gap: the route's "no Personas request to poll" reason carries no code, so it
    lands on the localized generic rather than on its own sentence.
 5. **Counters flow back**: the hired persona reports executions/rollups/lifecycle events
@@ -167,8 +202,8 @@ see [docs/features/app-master/README.md](../app-master/README.md) — so
 migrated in `db/agents.ts`, one owner per table). `job_id` stays `NOT NULL` in the DDL and
 is the **empty string** for an intake-originated hire; every read that would navigate to a
 job checks for it (the roster renders the role as plain text, `getActiveHiredAgentForJob`
-excludes it, and the activation → Hired move in both the report and refresh routes is
-skipped).
+excludes it, and the activation → terminal-stage move in both the report and refresh
+routes is skipped).
 
 The dispatch payload kp sends:
 
@@ -308,6 +343,12 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   separately gated.
 - **Keyless transform**: without a reachable LLM the transform degrades to a keyword
   heuristic — the verdict stays `unassessed` and the UI labels the spec as heuristic.
+- **The spec is drafted in the workspace's language**: `runAgentFit` passes `--lang`
+  (from `getWorkspaceDefaultLocale`) to `agentfit_cli`, like every other runner here.
+  Until /perfect wave 38 the flag was simply never passed, so the CLI took its `en`
+  default and a Czech tenant got an English mission and system-prompt draft.
+  `agentFitArgs()` is exported so the argv is readable without a spawn
+  (`transform-run.test.ts`).
 - **Bridge-less transform**: the connector catalog degrades to a built-in static list
   when Personas is unpaired/down; assessment never depends on the bridge being alive.
   Dispatch does require pairing and says so.
@@ -319,6 +360,18 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
   `ats-egress.deliver()`: a followed 307/308 replays method **and body** to wherever the
   answer points, and the dispatch body carries the `reportToken` — the only auth on the
   public report route. A 3xx is reported as a redirect, never as an acceptance.
+  Loopback is also why `KP_OFFLINE` does **not** gate these calls: 127.0.0.1 is not
+  egress, and gating it would turn "no internet" into "no local Personas".
+- **Bounded on the way back**: kp trusts Personas to be *running*, not to be
+  well-behaved, so every bridge answer is read through `readBridgeJson`
+  (`bridge-client.ts`) under `MAX_BRIDGE_BODY_BYTES` = **256 KiB** — the same cap the
+  public report door applies on the way in, and ~4x the largest real payload (a full
+  connector catalog). Over it, the read answers the structured
+  `{ok:false, reason:"too_large"}`: the catalog degrades to the built-in list, while
+  dispatch, the status poll and the pairing claim answer code
+  **`AGENT_BRIDGE_RESPONSE_TOO_LARGE`** rather than mining a half-buffered body for a
+  `requestId` and reporting the hire as accepted. One deadline (`BRIDGE_TIMEOUT_MS`,
+  5s) is exported from `bridge-client.ts` and imported by `pairing.ts`.
 
 ## Known gaps
 

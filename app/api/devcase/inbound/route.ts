@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db/devcase";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal } from "@/app/_lib/api-response";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
+import { submissionReference } from "@/app/_lib/devcase-reference";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 
 // THROTTLE (route.test.ts). Every accepted call here writes a submission row, sends the
@@ -27,15 +29,24 @@ const DAILY_LIMIT = 300; // per 24h — the aggregate for the link (cf. 50 live 
 // apply form) POSTs a candidate's application here using the posting's apply token; we
 // record it, acknowledge the candidate, and — if a lifecycle is collecting — resume it
 // automatically (evaluate → rank → promote). This removes the manual submission step.
+/** Hard cap on this public door's request body: a work-sample submission: a token, a candidate name, a repo ref and free-text notes.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_DEVCASE_INBOUND_BODY_BYTES = 64 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       token?: string;
       candidate?: string;
       repoRef?: string;
       contact?: string;
       notes?: string;
-    };
+      /** The applicant's language, so the acknowledgement is not written in ours. */
+      locale?: string;
+    }>(request, MAX_DEVCASE_INBOUND_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) {
+      return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_INBOUND_BODY_BYTES });
+    }
     // PUBLIC webhook: the apply token is the ONLY accepted credential. We deliberately do
     // NOT accept a `postingId` shortcut here — posting ids are internal, non-crypto keys
     // (random-id.ts, "Never a security boundary") so accepting one would let an
@@ -45,29 +56,34 @@ export async function POST(request: NextRequest) {
     // internal path that takes a postingId directly is /api/devcase/submit.
     const token = request.nextUrl.searchParams.get("token") || body.token || "";
     const posting = token ? getPostingByToken(token) : undefined;
-    if (!posting) return NextResponse.json({ error: "a valid apply token is required." }, { status: 401 });
+    // A code, not prose: the public apply form renders this in the reader's language
+    // (the same refusal the session mint answers when a link stops resolving).
+    if (!posting) return jsonRefusal("DEVCASE_APPLY_TOKEN_REQUIRED", 401);
     // W5-3 — a closed posting answers honestly instead of acknowledging a
     // submission nobody will process ("queued, never ghosts" cuts both ways:
     // a false ack IS a ghost with extra steps).
     if (posting.status === "closed") {
-      return NextResponse.json(
-        { error: "This role's intake has closed and is no longer accepting submissions." },
-        { status: 410 }
-      );
+      // Same refusal, same code as the catch below and as the live-session finalize —
+      // three doors onto one intake must not disagree about what they say, and the
+      // English sentence was hand-copied into two of them.
+      return jsonRefusal("POSTING_CLOSED", 410);
     }
     const postingId = posting.id;
     if (!body.candidate || !body.repoRef) {
-      return NextResponse.json({ error: "candidate and repoRef are required." }, { status: 400 });
+      return jsonRefusal("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400);
     }
 
     // Throttle AFTER the credential (401), lifecycle (410) and validation (400) refusals —
     // those must keep answering honestly without consuming a real applicant's slot — and
     // BEFORE the intake, so a refused call sends no mail, writes no row and starts no run.
+    // Through the refusal CHOKEPOINT, not a hand-rolled envelope: the shared message
+    // still reaches the client (REFUSAL_ERRORS.TOO_MANY_REQUESTS *is* RATE_LIMITED_ERROR)
+    // and the code rides beside it, so a throttled apply form says so in Czech.
     if (!rateLimit(`devcase-inbound:${token}`, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     if (!rateLimit(`devcase-inbound-day:${token}`, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const { submission, isNew } = await intakeSubmission({
@@ -76,17 +92,30 @@ export async function POST(request: NextRequest) {
       repoRef: body.repoRef,
       contact: body.contact,
       notes: body.notes,
+      locale: typeof body.locale === "string" ? body.locale : null,
     });
 
-    if (isNew) resumeCollectingLifecycle(postingId);
+    if (isNew) resumeCollectingLifecycle(postingId, posting.workspaceId);
 
-    return NextResponse.json({ ok: true, submissionId: submission.id, duplicate: !isNew, acknowledged: true });
+    // The candidate is handed an OPAQUE reference (devcase-reference.ts), not the store
+    // id the apply page used to print. `submissionId` still rides for external channels
+    // that correlate their own records against it.
+    return NextResponse.json({
+      ok: true,
+      submissionId: submission.id,
+      reference: submissionReference(submission.id),
+      duplicate: !isNew,
+      acknowledged: true,
+    });
   } catch (error) {
     // Defensive: the pre-check above already 410s a closed posting, but the shared
     // core also guards (e.g. if the posting closes mid-request) — map it to 410 too.
     if (error instanceof PostingClosedError) {
       return jsonRefusal("POSTING_CLOSED", 410);
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Intake failed." }, { status: 500 });
+    // A PUBLIC candidate door: the thrown message is a store/spawn detail (SQLITE_*
+    // codes, the absolute db path, relay stderr) and must never reach an applicant.
+    // The code is what the apply surface localizes.
+    return safeJsonError(error, "api:devcase/inbound", "DEVCASE_INTAKE_FAILED");
   }
 }

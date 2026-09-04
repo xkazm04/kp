@@ -26,13 +26,21 @@ export function canConfirmPublish(input: {
   return isDegradedPublish(input) ? input.acknowledgedDegraded : true;
 }
 
-/** Human-readable reasons the case is degraded, for the confirm dialog summary.
- *  Empty when the case is healthy. */
-export function degradedReasons(input: PublishGateInput): string[] {
-  const reasons: string[] = [];
-  if (input.scenarioDegraded)
-    reasons.push("Interview scenario uses generic template probes, not case-grounded ones.");
-  if (input.seedDegraded)
-    reasons.push("Seed is a prose-only skeleton — candidates receive no concrete starter files.");
+/** The reasons the assignment is degraded, as CODES rather than prose.
+ *
+ *  This module is pure TS with no reader attached, so the two sentences it used to
+ *  return were English shipped into a four-locale product — and they were also the
+ *  last place on this surface that still called the entity a "case", where neither
+ *  the catalog walk nor the source guard in devcase-vocabulary.test.ts could see
+ *  them. The confirm dialog resolves each code through
+ *  `devcase.studio.degradedReason.<code>` in the reader's own language.
+ *  Empty when the assignment is healthy. */
+export const DEGRADED_REASONS = ["scenario", "seed"] as const;
+export type DegradedReason = (typeof DEGRADED_REASONS)[number];
+
+export function degradedReasons(input: PublishGateInput): DegradedReason[] {
+  const reasons: DegradedReason[] = [];
+  if (input.scenarioDegraded) reasons.push("scenario");
+  if (input.seedDegraded) reasons.push("seed");
   return reasons;
 }

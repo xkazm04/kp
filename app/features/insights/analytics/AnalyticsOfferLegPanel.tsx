@@ -19,7 +19,20 @@ import type { OfferConversion } from "@/app/_lib/analytics-offer";
 // from AnalyticsStageDwellPanel, which is where the funnel's other missing edges
 // went. This file is unchanged apart from this note — nothing was wrong with it,
 // which is precisely why nothing failed when it was dropped.
-export function OfferLegPanel({ offers, boardHref }: { offers: OfferConversion; boardHref: (filter: { q?: string; stage?: string }) => string }) {
+export function OfferLegPanel({
+  offers,
+  boardHref,
+  offerStage,
+}: {
+  offers: OfferConversion;
+  boardHref: (filter: { q?: string; stage?: string }) => string;
+  /** The workspace's OWN offer column (payload `offerStage`, resolved by role). This
+   *  link used to filter the board on the literal `"Offer"`, so on a board whose offer
+   *  column is called "Package" the panel's one way out landed the recruiter on an
+   *  empty board with no explanation. `null` = the axis declares no offer role, and a
+   *  link that cannot resolve is worse than none: the count renders as plain text. */
+  offerStage: string | null;
+}) {
   const t = useTranslations("analytics.offers");
   // No offers ever extended in this window → nothing to measure; stay silent
   // rather than render an empty scaffold.
@@ -49,14 +62,19 @@ export function OfferLegPanel({ offers, boardHref }: { offers: OfferConversion; 
             {offers.pending > 0 ? (
               <li className="flex items-baseline justify-between gap-2">
                 <span className="text-steel">{t("pending")}</span>
-                {/* The only offer sub-population with a live board handle. */}
-                <Link
-                  href={boardHref({ stage: "Offer" })}
-                  title={t("viewPending")}
-                  className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
-                >
-                  {offers.pending}
-                </Link>
+                {/* The only offer sub-population with a live board handle — and only
+                    when the board HAS an offer column to hand. */}
+                {offerStage ? (
+                  <Link
+                    href={boardHref({ stage: offerStage })}
+                    title={t("viewPending")}
+                    className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+                  >
+                    {offers.pending}
+                  </Link>
+                ) : (
+                  <span className="font-medium text-ink">{offers.pending}</span>
+                )}
               </li>
             ) : null}
           </ul>

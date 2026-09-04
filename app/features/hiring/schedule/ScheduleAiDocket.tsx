@@ -11,7 +11,7 @@ import { FileSearch, Link2, Loader2, Sparkles } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import type { InterviewSessionSummary } from "@/app/_lib/db/interviews";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { IvStatus } from "./useScheduleTab";
@@ -51,6 +51,18 @@ export function ScheduleAiDocket({
   const format = useFormatter();
   const enumLabel = useEnumLabel();
   const when = (iso: string | null) => (iso ? format.dateTime(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
+  // What the call cost, from the usage ledger the completion wrote. THREE states,
+  // and the third is the one that had no way to be said before: a real 0 (a
+  // self-hosted provider served it, so no per-minute credits were spent) is not the
+  // same claim as `null` (no ledger row, or an unpriced provider), and rendering an
+  // unknown as "$0.00" would tell a recruiter the priciest meter in the product is
+  // free. Formatted in the reader's locale like every other number here.
+  const cost = (usd: number | null) =>
+    usd == null
+      ? t("costUnknown")
+      : usd === 0
+        ? t("costFree")
+        : format.number(usd, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
   const out = sessions.filter((s) => s.status === "created" || s.status === "in_progress");
   const done = sessions.filter((s) => s.status === "completed");
@@ -60,7 +72,7 @@ export function ScheduleAiDocket({
       <Station title={t("awaitingTitle")} count={awaiting.length}>
         {awaiting.length === 0 ? <EmptyNote>{t("awaitingEmpty")}</EmptyNote> : null}
         {awaiting.map((e) => (
-          <div key={e.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
+          <div key={e.id} className={`${PANEL} p-2.5`}>
             <p className="truncate font-semibold text-ink">{e.candidateLabel}</p>
             <p className="truncate text-sm text-steel">{e.jobTitle ?? "—"}</p>
             <button
@@ -81,7 +93,7 @@ export function ScheduleAiDocket({
         {out.map((s) => {
           const live = s.status === "in_progress" || (s.entryId ? interviews[s.entryId]?.status === "in_progress" : false);
           return (
-            <div key={s.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
+            <div key={s.id} className={`${PANEL} p-2.5`}>
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate font-semibold text-ink">{s.candidateLabel ?? "—"}</p>
                 {live ? (
@@ -111,7 +123,7 @@ export function ScheduleAiDocket({
             type="button"
             disabled={!s.entryId || !s.hasTranscript}
             onClick={() => s.entryId && onPreview({ id: s.entryId, candidateLabel: s.candidateLabel ?? "—", jobTitle: s.jobTitle })}
-            className="focus-ring block w-full rounded-lg border border-stone-200 bg-white p-2.5 text-left shadow-panel transition-colors hover:border-moss/50 disabled:opacity-60"
+            className={`focus-ring block w-full ${PANEL} p-2.5 text-left transition-colors hover:border-moss/50 disabled:opacity-60`}
           >
             <div className="flex items-center justify-between gap-2">
               <p className="truncate font-semibold text-ink">{s.candidateLabel ?? "—"}</p>
@@ -128,6 +140,28 @@ export function ScheduleAiDocket({
                 <FileSearch size={12} aria-hidden /> {s.ratingsCount > 0 ? t("competencies", { count: s.ratingsCount }) : t("review")}
               </span>
             </p>
+            {/* What this one interview cost, and who served it. The ledger has carried
+                both since the completion wrote them; neither had ever reached the
+                recruiter deciding whether to run the next one. */}
+            <p className="nums mt-0.5 flex items-center justify-between text-meta text-steel">
+              <span title={t("providerTitle")}>{enumLabel("voiceProvider", s.provider)}</span>
+              <span title={t("costTitle")}>{cost(s.costUsd)}</span>
+            </p>
+            {/* How the call actually went, when it did not go plainly: a retried link
+                and a provider that had to be swapped mid-flow both explain a cost or a
+                thin transcript that otherwise looks inexplicable. Rendered ONLY when
+                there is something to say — an ordinary single-attempt call on the
+                chosen provider stays quiet rather than carrying a "1 attempt" badge. */}
+            {s.attempts > 1 || s.failoverFrom ? (
+              <p className="nums mt-0.5 text-meta text-amber-700" title={t("attemptsTitle")}>
+                {[
+                  s.attempts > 1 ? t("attempts", { count: s.attempts }) : null,
+                  s.failoverFrom ? t("failedOverFrom", { provider: enumLabel("voiceProvider", s.failoverFrom) }) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            ) : null}
           </button>
         ))}
       </Station>

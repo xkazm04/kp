@@ -142,7 +142,19 @@ const REC_SEP = "\n";
  *  so a candidate crossing its SLA purely by the clock — no data change — flips this
  *  signature on the next poll and re-renders the affected rows (the amber dot +
  *  staleCount). `now` is injectable for tests; `overrides` are the recruiter's
- *  per-board SLA overrides so the gate agrees with `isStale`. */
+ *  per-board SLA overrides so the gate agrees with `isStale`.
+ *
+ *  COST — the board's documented per-tick ceiling. This is O(n) in the entry count
+ *  and it runs on EVERY 30s poll of the whole board: one WeakMap hit + one aging
+ *  comparison + one string concat per entry (the JSON work is paid once per entry
+ *  OBJECT, so a no-change poll's fresh objects are the expensive case, not the
+ *  steady state). Budget: a 2000-entry board stays under 100 ms per tick on the
+ *  reference machine, pinned by `boardSignature: stays O(n) …` in the test beside
+ *  this file. That ceiling is DOCUMENTED, not raised: the board renders every entry
+ *  it is handed (no virtualization), so a workspace far past 2000 open entries will
+ *  feel the DOM before it feels this signature. If the pin ever goes red, the fix is
+ *  a narrower payload or virtualization — never a per-entry JSON.stringify creeping
+ *  back into this loop. */
 export function boardSignature(
   entries: readonly Entry[],
   opts?: { overrides?: Record<string, number> | null; now?: number; axis?: readonly StageDef[] }

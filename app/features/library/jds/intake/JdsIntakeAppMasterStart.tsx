@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronRight, ScanSearch } from "lucide-react";
-import { BTN_GHOST, BTN_PRIMARY, FIELD, ICON_STICKER, META_LABEL, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, FIELD, ICON_STICKER, META_LABEL, PANEL, PANEL_SUNKEN, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 
 // The App-master start option on the intake ledger
 // (docs/features/app-master/README.md). This shape does not begin with a blank
@@ -40,7 +40,7 @@ export function JdsIntakeAppMasterStart({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="focus-ring group mt-3 flex w-full items-center gap-3 rounded-lg border border-stone-200 bg-white p-3 text-left transition-colors hover:border-coral/50 dark:rounded-2xl dark:shadow-sticker-sm"
+        className={`${PANEL} focus-ring group mt-3 flex w-full items-center gap-3 p-3 text-left transition-colors hover:border-coral/50`}
       >
         <span className={`${ICON_STICKER} h-10 w-10 shrink-0 text-coral`}>
           <ScanSearch size={18} aria-hidden />
@@ -55,7 +55,7 @@ export function JdsIntakeAppMasterStart({
   }
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3 dark:rounded-2xl">
+    <div className={`${PANEL_SUNKEN} mt-3 space-y-2 p-3`}>
       <div className={META_LABEL}>{t("start")}</div>
       <div className={TOGGLE_GROUP}>
         <button type="button" className={toggleBtn(mode === "url")} onClick={() => setMode("url")}>

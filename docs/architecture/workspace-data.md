@@ -31,6 +31,13 @@ python -m pipeline.jobfit.seed_pipeline                       # pipeline board r
 python -m pipeline.jobfit.seed_interview_calendar             # extra interview slots, written straight into the DB
 ```
 
+`seed_interview_calendar` is a **one-shot** seeder: it records `python:interview-calendar`
+in the same `seed_marks` table the TypeScript loaders use (`app/_lib/db/seed-marks.ts`)
+and re-runs are a no-op, so a calendar an operator has deliberately purged is never
+refilled by the next run. A database seeded before the mark existed adopts it (any
+existing `approval_kind='calendar'` row ⇒ stamp and stop). Use `--force` to rebuild the
+demo fixture on purpose.
+
 ## Dump & restore (move / share / back up a live workspace)
 
 `scripts/db-dump.mjs` exports *every* table (discovered from `sqlite_master`, so new
@@ -41,10 +48,12 @@ stores are picked up automatically) plus its DDL into one portable JSON file;
 npm run db:dump                                   # → data/dumps/kp-dump-<timestamp>.json (gitignored)
 npm run db:dump -- --out my-dump.json             # explicit path
 npm run db:dump -- --skip gemini_cache,tasks      # leave out the LLM cache / task bookkeeping
+npm run db:dump -- --redact                       # blank every credential (shareable, still restores)
 
 npm run db:load -- my-dump.json                   # restore into data/kp.sqlite
 npm run db:load -- my-dump.json --replace         # overwrite tables that already have rows
 npm run db:load -- my-dump.json --db other.sqlite # restore into a different workspace file
+npm run db:load -- my-dump.json --dry-run         # print the plan, write nothing
 ```
 
 Load semantics are deliberately conservative: missing/empty tables are always
@@ -56,6 +65,106 @@ app's own boot migrations on next start. **Stop the app before restoring into it
 live workspace.** (For a quick same-machine copy you can also just copy
 `data/kp.sqlite` while the app is stopped — the dump format is for portability,
 partial loads, and surviving schema drift.)
+
+### A plain dump is a credential file
+
+"Every table" is literal. An unredacted dump contains the operator password hashes
+in `user_credentials`, the encrypted provider keys in `provider_keys`, calendar
+refresh and access tokens, the bearer tokens in `invites` and `channel_webhooks`,
+and the whole `ORG_CONFIG_NOT_PORTABLE` set — including the edge pairing's HMAC
+secret and this install's sealing **private** key. It is plain JSON with no
+encryption. It used to be produced silently; `db-dump.mjs` now prints a warning on
+stderr naming every table and column it found, and creates the file `0600` (POSIX;
+on Windows the mode is advisory and the directory ACL applies).
+
+`--redact` is the shareable variant, and it is what you want for a bug report, a
+support hand-off, or a copy of "the demo data":
+
+| | Plain dump | `--redact` |
+| --- | --- | --- |
+| Schema, indexes, row counts | kept | kept |
+| Ordinary business rows (jobs, pipeline, analyses) | kept | kept |
+| `ORG_CONFIG_NOT_PORTABLE` tables + the credential stores | in the clear | every non-key column blanked |
+| Any column named `*password*`, `*secret*`, `*token*`, `*ciphertext*`, `private_jwk`, … | in the clear | blanked, in **every** table |
+
+A blanked cell becomes `[redacted:<table>.<column>#<row>]`, not `NULL` and not a
+constant — so a `NOT NULL` or `UNIQUE` column still restores. A redacted dump loads
+exactly like a plain one (`db-load.mjs` says so up front when it sees the
+`redacted: true` flag in the payload); the restored install simply cannot
+authenticate or reach its integrations until those are re-entered, which is the
+same re-entry `ORG_CONFIG_NOT_PORTABLE` already demands after any move.
+
+The column-name rule is applied to every table, listed or not, so a store that lands
+tomorrow with an `api_token` column is covered on day one. The table list itself is
+duplicated in the script (it runs under bare `node` and cannot import
+`app/_lib/tenancy.ts`), and `app/_lib/db/rollback-drill.test.ts` asserts the two
+sets are identical — a table added to `ORG_CONFIG_NOT_PORTABLE` and not to the
+script would be dumped in the clear by a `--redact` run reporting itself clean.
+
+### Rehearsing a restore: `--dry-run`
+
+The rollback runbook (`docs/architecture/releases.md`, "Going back") is executed
+exactly once, under pressure, against a workspace that is already wrong. `--dry-run`
+prints what the load would do — per table: create, recreate an empty one, or
+`REPLACE (drops it)` with the number of existing rows it would discard — and writes
+nothing at all. Not the rows, not the WAL mode, and not the workspace file itself:
+a dry run against a path that does not exist yet creates neither the file nor its
+directory.
+
+It **predicts** rather than describes: a dry run against a populated workspace with
+no `--replace` prints the same refusal and exits 1, exactly as the real command
+would. An operator who dry-runs and sees exit 0 can trust that the restore lands.
+
+All of the above is exercised by `app/_lib/db/rollback-drill.test.ts` in
+`npm run test:unit` — the same suite that rehearses the full dump → wreck → restore
+round trip.
+
+## Boot integrity — the file is checked once, before anything writes to it
+
+`ensureDb()` (`app/_lib/db/core.ts`) opens the boot connection through
+`openCheckedBootConnection()`, which runs **`PRAGMA quick_check(1)` exactly once** and
+**refuses to serve** on any non-`ok` answer, logging and throwing
+`DB_INTEGRITY_FAILED` with the path. Before this, a corrupt page, a truncated copy or a
+backup restored to the wrong path opened cleanly and served requests until some
+unrelated query tripped over the damage — and the boot DDL/migrations below would have
+*written into* that file first, compounding it.
+
+Two damage shapes, one code: a file that is not a database at all makes the first pragma
+in `openStore()` throw `SQLITE_NOTADB`; a corrupt page opens fine and is only found by
+`quick_check`. A non-SQLite failure out of `openStore()` (the test-isolation guard, an
+unknown `KP_DB_BACKEND`) keeps its own message and is *not* relabelled as file damage.
+
+`quick_check(1)` is the cheap form — it skips `integrity_check`'s index-vs-table content
+cross-check and stops at the first problem. It runs on the **memoized boot connection
+only**: never per request, and deliberately **not** inside `openStore()`, which the ~18
+isolated stores call on every module load. `app/_lib/db/core-integrity.test.ts` pins
+both refusals (against real deliberately-damaged temp files, in child processes) and
+that `db-path.ts` carries no integrity check of its own.
+
+**Operator response:** restore a backup (see Dump & restore above), or copy a known-good
+`kp.sqlite` in while the app is stopped. `DB_INTEGRITY_FAILED` is a **log/throw code
+only** — it never reaches the wire as an API error code, because no route can serve a
+request at all once it fires, so it is deliberately absent from `STORE_ERRORS`.
+
+## Referential integrity — the pragma is on, the schema declares nothing yet
+
+SQLite defaults `foreign_keys` **OFF, per connection**. `openStore()` turns it **ON** on
+every connection the app opens. The audit that belongs beside that: **no table in the
+schema declares a `REFERENCES` clause today**, so the pragma enforces nothing yet — what
+it buys is that the moment a relation *is* declared (or migrated in) it is enforced,
+rather than shipping a foreign key that never once fires.
+
+Both halves are pinned in `app/_lib/db/core-integrity.test.ts`: the pragma must stay ON
+*and* be genuinely in force (proven by an orphan insert being refused against a scratch
+relation, not by reading the pragma back), and the "no `REFERENCES` declared" fact is
+asserted against the booted schema. **Declaring a foreign key is therefore a deliberate
+step**: it trips that pin, and the fix is to write a per-table test for the relation
+(orphan refused, delete behaviour) and update the pin to name it. Declaring
+`REFERENCES` on existing tables needs a per-table rebuild migration anyway — SQLite has
+no `ALTER TABLE ADD CONSTRAINT`.
+
+Follow-ups recorded, not done here: `VACUUM`/retention scheduling and index-coverage
+review.
 
 ## See also
 

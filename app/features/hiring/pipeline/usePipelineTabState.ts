@@ -33,6 +33,7 @@ import {
 import { boardVisibleOrder, groupPositions } from "./pipelineBoardLayout";
 import { stageHasRole, stagesWithRole } from "@/app/_lib/pipeline-stages";
 import { daysSince, slaForStage, type Entry } from "@/app/features/shared/pipelineTypes";
+import { boardPopulation } from "./pipelineBoardPopulation";
 import { usePipelineSla } from "./usePipelineSla";
 import { usePipelineBoardData } from "./usePipelineBoardData";
 import { usePipelineFilters, emptyFacets } from "./usePipelineFilters";
@@ -69,7 +70,7 @@ export function usePipelineTabState() {
     slaOverrides,
     drawerOpen: drawerEntry != null,
   });
-  const { entries, events, error, eventsError, load, moveError, setMoveError, moveEntry } = board;
+  const { entries, events, error, eventsError, load, moveError, moveErrorEntryId, dismissMoveError, moveEntry } = board;
   // The compound filters + their two-way URL sync, and the visible-scope signature
   // the bulk confirms are stamped with.
   const filters = usePipelineFilters();
@@ -91,13 +92,23 @@ export function usePipelineTabState() {
   // interview, which is the honest answer. Byte-identical on the shipped axis.
   const interviewStages = stagesWithRole("interview", board.axis);
   const isTerminal = (e: Entry) => stageHasRole(e.stage, "terminal", board.axis);
-  const activeCount = (entries ?? []).filter((e) => !isTerminal(e)).length;
-  const interviewCount = (entries ?? []).filter((e) => interviewStages.includes(e.stage)).length;
+  // WHO the chips count is the ONE population predicate the Today rail names from
+  // (pipelineBoardPopulation.ts): real (non-sim) rows, live status. These three
+  // counters used to run over EVERY row — the guided demo's own `(SIM)` artifacts,
+  // and every rejected or withdrawn candidate still parked on a live column, because
+  // nothing moves a rejected card off its stage. So the header read "Active 14" over
+  // a rail that named four people, and the aging chip aged rows the funnel had
+  // already written off. `approvals` and `degraded` below deliberately keep their
+  // own predicates: an approval is real work waiting on the Decisions gate whoever
+  // created it, and a degraded stub is a recoverability signal, not a funnel count.
+  const population = boardPopulation(entries);
+  const activeCount = population.active.filter((e) => !isTerminal(e)).length;
+  const interviewCount = population.active.filter((e) => interviewStages.includes(e.stage)).length;
   // The threshold resolves by ROLE on the same axis (pipelineTypes.slaForStage): a
   // workspace's own "Tech round" ages like an interview, not on the flat legacy cut.
   const isStale = (e: Entry) =>
     !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides, board.axis);
-  const staleCount = (entries ?? []).filter(isStale).length;
+  const staleCount = population.active.filter(isStale).length;
   // Stubs from a failed intake normalization: visible, recoverable, and not yet
   // matchable until a recruiter captures the profile. Active-only — a rejected
   // stub is out of the funnel and doesn't need recovery.
@@ -203,7 +214,7 @@ export function usePipelineTabState() {
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
     axis: board.axis, retiredStages: board.retiredStages,
-    isStale, moveError, setMoveError, moveEntry,
+    isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
     openActions: nav.openActions, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,
     selectedAwaiting: bulk.selectedAwaiting, awaitingKinds: bulk.awaitingKinds, selectedActive: bulk.selectedActive,

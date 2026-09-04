@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ArrowRight, Check, Sparkles, UserPlus } from "lucide-react";
-import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
+import { archetypeDisplayKey } from "@/app/_lib/archetypes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { gapFieldCopy, GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
 import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
@@ -52,6 +53,9 @@ export function ArchetypeBanner({
   // (they used to be hardcoded English in completeness-followup.ts), so they live
   // in one catalog namespace both surfaces read.
   const tGap = useTranslations("apply.gapFields");
+  // The archetype badge, in the reader's language. ARCHETYPE_LABEL is the shared
+  // registry's ENGLISH, and this was the last surface still rendering it raw.
+  const enumLabel = useEnumLabel();
   const v2 = v2Profile as V2;
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   // Answers to the completeness follow-up, keyed by check id. Optional: saving
@@ -60,7 +64,12 @@ export function ArchetypeBanner({
 
   if (!v2.archetype) return null;
 
-  const label = ARCHETYPE_LABEL[v2.archetype] ?? v2.archetype;
+  // archetypeDisplayKey, not the raw value: an archetype the registry does not know
+  // reads as the honest "not yet routed" rather than as a bare slug, and matches what
+  // the fail-closed fairness gate reasons about. `archetypeLong` (not `archetype`) is
+  // the full label namespace: the compact `archetype` set holds the badge forms the
+  // recruiter lists use, and this banner is the one surface with room for the long one.
+  const label = enumLabel("archetypeLong", archetypeDisplayKey(v2.archetype));
   // bug-ui-scan-2026-07-09 (analysis-result-panels #2): absent confidence/completeness
   // must read as "unknown" (chip omitted), not a definite "0%". formatOptionalFraction
   // returns null for absent/non-finite and a range-guarded "NN%" otherwise.

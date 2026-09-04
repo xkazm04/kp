@@ -7,12 +7,14 @@ import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/ap
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { intakeLead } from "@/app/_lib/lead-intake";
+import { capAttribution } from "@/app/_lib/lead-payload";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Mint (or reuse) the entry's status-link token, best-effort — the application
 // already succeeded, so a status-link failure must never turn it into an error
@@ -60,10 +62,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { id } = await context.params;
     // Throttle BEFORE any DB read so a flood is rejected cheaply.
     if (!rateLimit(`apply-quick:${id}:${clientIpFrom(request.headers)}`, QUICK_APPLY_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      // Shared codeless 429 envelope (rate-limit-contract.test.ts pins it).
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    if (!job) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
 
     const t = await getTranslations("apply");
     // The language the candidate applied in, persisted on the entry so every
@@ -73,15 +76,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // A closed/draft role refuses the submission too (same W8-1 gate as the
     // conversational POST — the page gate alone is the documented anti-pattern).
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
+      // Coded, exactly like the conversational door's twin (see the note there):
+      // the client renders errors.<CODE>, so a server-localized sentence with no
+      // code was invisible to it.
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
 
-    const contentLength = Number(request.headers.get("content-length") ?? 0);
-    if (contentLength > MAX_QUICK_BODY_BYTES) {
-      return NextResponse.json({ error: "Application payload too large." }, { status: 413 });
-    }
-
-    const body = (await request.json().catch(() => ({}))) as {
+    // Enforced on the BYTES READ, not on content-length: that header is advisory, so
+    // a caller who omits it (chunked) or lies about it walked past the old check and
+    // streamed whatever it liked into the heap. The refusal keeps this surface's own
+    // code — a candidate is told to shorten their answers, not "payload too large".
+    const body = await readJsonWithLimit<{
       answers?: Record<string, unknown>;
       campaign?: unknown;
       variant?: unknown;
@@ -89,7 +94,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // The apply-funnel attempt this submission belongs to — measurement only,
       // grants nothing (see apply-session-store.ts).
       applySessionId?: unknown;
-    };
+    }>(request, MAX_QUICK_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
     // Anti-bot honeypot: a hidden `company_url` field no human fills. A bot that
     // auto-fills every input trips it — drop the submission silently (no lead, no
     // email) and return the normal decline copy, so the bot can't distinguish the
@@ -108,13 +114,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // files), the lead form's entire point is a REACHABLE candidate — without an
     // address the enrichment loop can never close, so both fields are required.
     if (!name) {
-      return NextResponse.json({ error: "Please enter your name." }, { status: 400 });
+      return jsonRefusal("APPLY_NAME_REQUIRED", 400, { field: "name" });
     }
     if (name.length > MAX_NAME_LENGTH) {
-      return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
+      return jsonRefusal("APPLY_NAME_TOO_LONG", 400, { field: "name", max: MAX_NAME_LENGTH });
     }
-    if (!email || email.length > MAX_EMAIL_LENGTH || !APPLY_EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+    if (email.length > MAX_EMAIL_LENGTH) {
+      return jsonRefusal("APPLY_EMAIL_TOO_LONG", 400, { field: "email", max: MAX_EMAIL_LENGTH });
+    }
+    if (!email || !APPLY_EMAIL_RE.test(email)) {
+      return jsonRefusal("APPLY_EMAIL_INVALID", 400, { field: "email" });
     }
 
     // ABSOLUTE link to the full conversational apply (the candidate opens it from
@@ -131,8 +140,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       email,
       locale: applicantLocale,
       sourceChannel: "quick-apply",
-      sourceCampaign: campaign || null,
-      sourceVariant: variant || null,
+      // The quick door bypasses extractLead, so it caps the attribution itself:
+      // the same helper, the same marker, one group-by key length everywhere.
+      sourceCampaign: campaign ? capAttribution(campaign) : null,
+      sourceVariant: variant ? capAttribution(variant) : null,
       channelLabel: "quick apply",
       // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
       // watching an SMTP round-trip: the ack dispatch runs after this response.

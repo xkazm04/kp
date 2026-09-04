@@ -19,9 +19,11 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
+import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry } from "./db/pipeline.ts";
+import { openStore } from "./db-path.ts";
 import { runScreenWave, UNSCORED_KEEP_RATIONALE } from "./screen-wave.ts";
 import { listDecisionRecords } from "./decision-record-store.ts";
+import { setRelayHostLookupForTests } from "./comms.ts";
 
 after(() => cleanupUnitDb());
 
@@ -193,7 +195,15 @@ test("a candidate a recruiter moves mid-wave is skipped with NO sealed record (t
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   const { port } = server.address() as { port: number };
   const prevRelay = process.env.COMMS_WEBHOOK_URL;
-  process.env.COMMS_WEBHOOK_URL = `http://127.0.0.1:${port}/relay`;
+  // The relay channel vets its host before the first byte leaves (wave 38b): a
+  // loopback literal is refused at the string gate, so the fixture presents a
+  // public-looking https host, resolves it to a public address through the test
+  // seam, and rewrites the fetch to the loopback server that actually answers.
+  process.env.COMMS_WEBHOOK_URL = "https://relay.invalid/relay";
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+    realFetch(String(input).replace("https://relay.invalid", `http://127.0.0.1:${port}`), init)) as typeof fetch;
 
   const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 };
   try {
@@ -229,8 +239,135 @@ test("a candidate a recruiter moves mid-wave is skipped with NO sealed record (t
     // …while the candidate who really was rejected keeps their record.
     assert.deepEqual(listDecisionRecords({ candidateRef: first.id }).map((r) => r.kind), ["auto_rejected"]);
   } finally {
+    globalThis.fetch = realFetch;
+    setRelayHostLookupForTests(undefined);
     if (prevRelay === undefined) delete process.env.COMMS_WEBHOOK_URL;
     else process.env.COMMS_WEBHOOK_URL = prevRelay;
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+});
+
+// --- COMMS ISOLATION IS PER CANDIDATE (idea-961de357), and now TESTED ------------
+//
+// The commit loop awaits a rejection dispatch per candidate. One transient failure used
+// to escape the loop, leaving the batch half-applied behind a bare 500 with no record of
+// what had landed; it is now caught per candidate, logged, audited and counted into
+// `commsFailures`. That isolation was correct and had no test: every existing assertion
+// about commsFailures was ROI arithmetic over a number nothing had ever made non-zero.
+//
+// This drives a REAL failing dispatch — the outbox table is taken out from under the
+// connection sendComm writes through, so recordOutbox throws exactly where a locked DB or
+// a schema drift would — and asserts the three things that make the isolation honest:
+// the wave still completes, the rest of the cohort is still processed, and the candidate
+// whose letter did not queue is NAMED (the row's `commsFailed`, the audit event) rather
+// than living only in a bare count.
+test("a failing rejection dispatch is isolated per candidate: the wave completes, counts it, and names who needs a nudge", async () => {
+  const jobId = "sw-job-commsfail";
+  const first = seed(jobId, "Comms Fail First", 10);
+  const second = seed(jobId, "Comms Fail Second", 12);
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 };
+
+  const preview = await runScreenWave(jobId, rule, { dryRun: true });
+  assert.deepEqual(
+    preview.decisions.filter((d) => d.action === "reject").map((d) => d.entryId).sort(),
+    [first.id, second.id].sort(),
+    "precondition: both are in the previewed and approved reject set"
+  );
+
+  // Break the outbox for the duration of the commit. dev_outbox is what recordOutbox
+  // writes the queued letter into, so its absence is a genuine "the notification could not
+  // be queued" — not a stubbed rejection of a promise the wave never really made.
+  const side = openStore();
+  side.exec(`ALTER TABLE dev_outbox RENAME TO dev_outbox_offline`);
+  let committed;
+  try {
+    committed = await runScreenWave(jobId, rule, {
+      dryRun: false,
+      approval: { approvedBy: "Unit Test Approver", token: preview.approvalToken },
+    });
+  } finally {
+    side.exec(`ALTER TABLE dev_outbox_offline RENAME TO dev_outbox`);
+    side.close();
+  }
+
+  // THE ISOLATION: the failure did not abort the loop. Both rejections applied, both are
+  // sealed, and the wave returned a summary instead of throwing a 500 over a half-applied
+  // batch. Pre-isolation the first failure escaped here and `committed` never existed.
+  assert.equal(committed.rejected, 2, "the wave completes and applies the whole approved set");
+  assert.equal(committed.commsFailures, 2, "every failed dispatch is counted");
+  assert.equal(getPipelineEntry(first.id)!.status, "rejected");
+  assert.equal(getPipelineEntry(second.id)!.status, "rejected");
+
+  // NAMED, not just counted — the tab badges WHO needs a manual nudge off these rows.
+  const rows = committed.decisions.filter((d) => d.action === "reject");
+  assert.deepEqual(rows.map((d) => d.commsFailed), [true, true], "each affected row carries commsFailed");
+  // …and the audit trail says it per candidate, so the gap outlives the response.
+  const events = listPipelineEventsForEntry(first.id).map((e) => e.kind);
+  assert.ok(events.includes("rejection_comms_failed"), `the audit trail records the failure; got ${JSON.stringify(events)}`);
+  assert.ok(!events.includes("rejection_sent"), "and never claims a letter that did not queue");
+});
+
+// The same isolation, with ONE failing dispatch inside an otherwise-healthy wave — the
+// exact shape the acceptance criterion names, and the one that proves the failure is
+// scoped to its candidate rather than to the run.
+test("one failing dispatch leaves the rest of the cohort correctly notified (commsFailures === 1)", async () => {
+  const jobId = "sw-job-commsfail-one";
+  const doomed = seed(jobId, "Comms Fail Only", 10);
+  const fine = seed(jobId, "Comms Fine", 12);
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 };
+
+  const preview = await runScreenWave(jobId, rule, { dryRun: true });
+  // The wave rejects worst-first, so `doomed` (10) is dispatched before `fine` (12).
+  assert.deepEqual(
+    preview.decisions.filter((d) => d.action === "reject").map((d) => d.entryId),
+    [doomed.id, fine.id],
+    "precondition: the lower score is dispatched first"
+  );
+
+  // Fail only the FIRST dispatch: the outbox is restored from inside the loop, by the
+  // per-candidate profile-gap read that runs before the letter is built.
+  const side = openStore();
+  side.exec(`ALTER TABLE dev_outbox RENAME TO dev_outbox_offline`);
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    side.exec(`ALTER TABLE dev_outbox_offline RENAME TO dev_outbox`);
+  };
+  let committed;
+  try {
+    const original = console.warn;
+    // The wave logs the failure it caught; the log line is our cue that the first dispatch
+    // is done, so the second one finds a working outbox.
+    console.warn = (...args: unknown[]) => {
+      if (String(args[0] ?? "").includes("rejection comms failed")) restore();
+      original(...(args as []));
+    };
+    try {
+      committed = await runScreenWave(jobId, rule, {
+        dryRun: false,
+        approval: { approvedBy: "Unit Test Approver", token: preview.approvalToken },
+      });
+    } finally {
+      console.warn = original;
+    }
+  } finally {
+    restore();
+    side.close();
+  }
+
+  assert.equal(committed.rejected, 2, "the wave completes");
+  assert.equal(committed.commsFailures, 1, "exactly the one failed dispatch is counted");
+  const failedRow = committed.decisions.find((d) => d.entryId === doomed.id)!;
+  const okRow = committed.decisions.find((d) => d.entryId === fine.id)!;
+  assert.equal(failedRow.commsFailed, true, "the affected candidate is named");
+  assert.equal(okRow.commsFailed, undefined, "and the healthy one is not");
+  assert.ok(
+    listPipelineEventsForEntry(doomed.id).some((e) => e.kind === "rejection_comms_failed"),
+    "the audit event fires for the candidate whose letter did not queue"
+  );
+  assert.ok(
+    listPipelineEventsForEntry(fine.id).some((e) => e.kind === "rejection_sent"),
+    "and the candidate whose letter DID queue is recorded as notified"
+  );
 });

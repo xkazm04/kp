@@ -17,6 +17,7 @@
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { DECISIONS_GLYPH } from "@/app/_components/glyph/glyphs/decisionsGlyph";
 import { CARD_PAD, EYEBROW, ICON_STICKER, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { DESTINATION_ICON, hintFor, useChainNav, type ChainLink } from "./DecisionsEmptyShared";
@@ -59,7 +60,7 @@ export function DecisionsEmptyHandoff({ title, body, links, reconsiderCount }: D
       <MotionizedGlyph
         data={DECISIONS_GLYPH.data}
         viewBox={DECISIONS_GLYPH.viewBox}
-        className="mx-auto h-32 w-32"
+        className={`mx-auto ${GLYPH_SIZE.xl}`}
       />
       <p className={`mt-3 ${EYEBROW}`}>{t("batonEyebrow")}</p>
       <h3 className="mt-0.5 font-serif text-h2 text-ink">{title}</h3>

@@ -18,7 +18,7 @@ import { DecisionsComplianceImpactCheck } from "./DecisionsComplianceImpactCheck
 
 export function ComplianceSection() {
   const t = useTranslations("decisions.compliance");
-  const { jurisdiction, saving, saveState, retentionMonths, pick, regime, standard } = useComplianceJurisdiction(t("standardFallback"));
+  const { jurisdiction, regimeConfidence, saving, saveState, retentionMonths, pick, regime, standard } = useComplianceJurisdiction(t("standardFallback"));
 
   return (
     <div className="space-y-4 border-t border-stone-200 pt-4">
@@ -37,7 +37,7 @@ export function ComplianceSection() {
             ariaLabel={t("jurisdictionLabel")}
             value={jurisdiction}
             onChange={(v) => pick(v as RegimeId)}
-            size="sm"
+            sizeVariant="sm"
             className="w-full"
             disabled={saving}
             options={Object.values(COMPLIANCE_REGIMES).map((r) => ({ value: r.id, label: t(`jur.${r.id}` as Parameters<typeof t>[0]) }))}
@@ -53,6 +53,17 @@ export function ComplianceSection() {
             </span>
           ) : null}
         </div>
+        {/* the-compliance-posture-never-guesses — the picker used to show the
+            default regime whether or not the saved one had been read, so a failed
+            config read was pixel-identical to a workspace that had chosen it. The
+            posture block's whole job is stating honestly what is in force, so an
+            unconfirmed value says so. `loading` prints nothing: a slow read is not
+            yet a claim either way. */}
+        {regimeConfidence !== "saved" && regimeConfidence !== "loading" ? (
+          <span role="status" aria-live="polite" className="mt-1 block text-meta text-amber-800">
+            {regimeConfidence === "failed" ? t("jurisdictionReadFailed") : t("jurisdictionUnconfirmed")}
+          </span>
+        ) : null}
       </label>
 
       {/* The active regime's named instruments (proper nouns from the catalog). */}
@@ -73,7 +84,10 @@ export function ComplianceSection() {
               t("covered2"),
               t("covered3"),
               t("covered4"),
-              t("covered5", { dataLaw: regime.dataLaw, months: retentionMonths }),
+              // The retention figure is the server's or it is not printed: a
+              // hardcoded 12 stated a window nobody confirmed, on the one block
+              // whose subject is what the platform actually enforces.
+              retentionMonths == null ? t("covered5Unconfirmed", { dataLaw: regime.dataLaw }) : t("covered5", { dataLaw: regime.dataLaw, months: retentionMonths }),
             ].map((line, i) => (
               <li key={i} className="flex gap-1.5 text-sm text-steel">
                 <Check size={14} className="mt-0.5 shrink-0 text-moss" /> <span>{line}</span>

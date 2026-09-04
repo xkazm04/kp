@@ -3,7 +3,9 @@ import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type Agent
 import { createPipelineEntry, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 
 // Agent-candidate bridge — POST polls Personas for the request's state (the PULL
@@ -15,6 +17,22 @@ import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 // projection: report_token is the ONLY auth on the public report endpoint, so it
 // never crosses the wire — a client holding it could POST lifecycle/execution
 // reports for this agent with no session at all.
+
+// Per IP, and the same reasoning as the catalog door beside it: this is the PULL
+// half of the bridge, so every call dials the Personas app (and, on a state change,
+// writes the roster row and files a pipeline card). `requireOperator()` is a
+// documented no-op in open mode, so the budget is the real bound.
+//
+// 120/10 min, deliberately laxer than dispatch's 10 and matching the pairing CLAIM
+// poll: this door is POLLED. The roster refreshes a row per operator click and the
+// panel walks several rows while a hire is being approved, so a dispatch-sized
+// ceiling would refuse the honest wait it exists for.
+const REFRESH_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
+
+// The actor the activation board move is attributed to — the decision-chain
+// "auto:*" | "human:*" vocabulary. The poll is machine-initiated; naming the
+// operator who clicked Refresh would credit them with a hire they did not make.
+const AGENT_BRIDGE_ACTOR = "auto:agent-bridge";
 
 /** The wire projection of a hired agent — everything except the report token. */
 function safeAgent(agent: HiredAgentRecord | null): Omit<HiredAgentRecord, "reportToken"> | null {
@@ -51,7 +69,22 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const agent = getHiredAgent(id, ws);
     if (!agent) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     if (!agent.requestId) {
-      return NextResponse.json({ agent: safeAgent(agent), refreshed: false, reason: "No Personas request to poll (dispatch failed?)." });
+      // A CODE, not just English prose: this branch is the one an operator can act
+      // on (re-dispatch), and the row resolves `errors.<CODE>` in the reader's
+      // language. Shipping only `reason` landed every non-English operator on the
+      // generic "couldn't refresh" sentence, which names no remedy at all.
+      return NextResponse.json({
+        agent: safeAgent(agent),
+        refreshed: false,
+        reason: "No Personas request to poll (dispatch failed?).",
+        code: "AGENT_REFRESH_NOT_DISPATCHED",
+      });
+    }
+    // AFTER the two cheap refusals above (unknown agent, never dispatched): a call
+    // that could never reach Personas must not spend the window, and an operator
+    // whose real answer is "re-dispatch it" must not be told to slow down.
+    if (!rateLimit(`agent-refresh:${clientIpFrom(request.headers)}`, REFRESH_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const polled = await fetchRequestStatus(agent.requestId);
     if (!polled.ok) {
@@ -76,18 +109,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // application, not a job posting, so it has no board column — filing one
     // would invent a candidate for a job nobody is hiring for.
     if (mapped === "active" && agent.jobId) {
-      // Same activated → Hired move the push report performs (idempotent entry
-      // resolution via the m-<candidate>-<job> id scheme).
+      // Same activation move the push report performs (idempotent entry
+      // resolution via the m-<candidate>-<job> id scheme), and the same two
+      // corrections: both stages are resolved BY ROLE off THIS workspace's axis
+      // rather than written as the literals "Offer"/"Hired" (a renamed board
+      // otherwise gets a row on a column it does not render, which the store now
+      // refuses outright), and the move carries the `expectedStage` CAS so a
+      // recruiter move that landed between the entry read and this write is not
+      // silently overwritten by a poll.
+      const offerStage = stageForRole("offer", ws) ?? stageForRole("entry", ws);
+      const terminalStage = stageForRole("terminal", ws);
       const { entry } = createPipelineEntry({
         candidateId: `agent-${agent.id}`,
         candidateLabel: updated?.personaName ?? agent.jobTitle,
         jobId: agent.jobId,
         jobTitle: agent.jobTitle,
-        stage: "Offer",
+        ...(offerStage ? { stage: offerStage } : {}),
         sourceChannel: "agent-bridge",
         workspaceId: ws,
       });
-      setPipelineEntryStage(entry.id, "Hired", undefined, ws);
+      if (terminalStage && terminalStage !== entry.stage) {
+        setPipelineEntryStage(entry.id, terminalStage, { expectedStage: entry.stage, actorRef: AGENT_BRIDGE_ACTOR }, ws);
+      }
     }
     return NextResponse.json({ agent: safeAgent(updated), refreshed: true, personasStatus: polled.status });
   } catch (error) {

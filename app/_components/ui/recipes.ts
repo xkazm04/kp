@@ -33,7 +33,9 @@ export const PANEL_SUNKEN = "rounded-lg border border-stone-200 bg-stone-50 dark
  *    padding default, one ruled header, so sections read as a deliberate
  *    editorial grid on the cream canvas instead of ad-hoc clusters. ── */
 
-/** Vertical rhythm between the major sections of a tab/page. */
+/** Vertical rhythm between the major sections of a tab/page. Four consumers:
+ *  the three tab shells and the About deck scene, which was the last literal
+ *  `space-y-8` in app/ — the word is small but it is now the only spelling. */
 export const SECTION = "space-y-8";
 
 /** Default padding for a primary card surface. Compose `${PANEL} ${CARD_PAD}`. */
@@ -43,7 +45,13 @@ export const CARD_PAD = "p-5";
  *  the globals.css ride turns `.border-t` dashed in Spark Dark. */
 export const DIVIDER = "border-t border-stone-200";
 
-/** Page/tab header — eyebrow + display title + intro on the left, actions/stats
+/** Page/tab header — kept rather than deleted at zero consumers (2026-09-03):
+ *  six headers hand-rolled its literal and two of them (Organization, Workspace)
+ *  matched it CHARACTER FOR CHARACTER, which is a recipe nobody knew about, not
+ *  one nobody needs. Those two now compose it. The remaining four are genuinely
+ *  different headers (single-column, or a two-ROW stat header) and stay literal.
+ *
+ *  eyebrow + display title + intro on the left, actions/stats
  *  on the right, ruled off from the content below and generously spaced. Compose
  *  the title trio inside (EYEBROW / TITLE_DISPLAY / INTRO). */
 export const PAGE_HEADER =
@@ -63,18 +71,34 @@ export const META_LABEL = "text-meta uppercase text-steel";
 
 /** Toggle chip — filter pills / quick filters. Active = coral-tinted; inactive
  *  = neutral with a coral hover hint. Replaces the hand-rolled toggle pattern
- *  repeated across the filter bars (pair with aria-pressed at the call site). */
+ *  repeated across the filter bars (pair with aria-pressed at the call site).
+ *
+ *  Dark carries the structural half its siblings (CHIP, BTN_*) already had: the
+ *  16px sticker radius and the off-axis rest that straightens under the cursor.
+ *  Without it a filter bar was the one row on a Spark Dark surface that stayed
+ *  flat and perfectly square. */
 export const CHIP_TOGGLE = (isActive: boolean): string =>
-  `focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${
-    isActive ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40 hover:text-ink"
+  `focus-ring inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold transition-colors dark:transition-all ${
+    isActive
+      ? "border-coral bg-coral/10 text-coral dark:shadow-sticker-xs"
+      : "border-stone-200 text-steel hover:border-coral/40 hover:text-ink dark:-rotate-1 dark:hover:rotate-0"
   }`;
 
 /** Tertiary / ghost action — the quiet "cancel" gap between BTN_SECONDARY and a
- *  bare link. No border; a soft hover wash. Pair with a height + padding. */
+ *  bare link. No border; a soft hover wash. Pair with a height + padding.
+ *  Dark rounds to the sticker radius like every other button recipe — it stays
+ *  shadowless on purpose (a ghost has no sticker to press into). */
 export const BTN_GHOST =
-  "focus-ring inline-flex items-center gap-1 rounded-md font-medium text-steel transition-colors hover:bg-stone-100 hover:text-ink disabled:opacity-50";
+  "focus-ring inline-flex items-center gap-1 rounded-md font-medium text-steel transition-colors hover:bg-stone-100 hover:text-ink disabled:opacity-50 dark:rounded-lg";
 
-/** Icon sticker — a framed icon container with 2D depth (feature marks, step
+/** Icon sticker — the NEUTRAL default (stone border, `shadow-sticker-sm`). Its
+ *  four literal twins are deliberate variants, not unmigrated copies: the setup
+ *  steps use `border-ink` + `shadow-sticker-xs` + `dark:-rotate-2`, the channels
+ *  stage takes a per-channel accent border, the sim dock adds a hover. Folding
+ *  those in would need three parameters for two call sites, so the recipe stays
+ *  the default and they stay themselves.
+ *
+ *  A framed icon container with 2D depth (feature marks, step
  *  badges, verdict glyphs). Pair with a size (h-10 w-10). */
 export const ICON_STICKER =
   "inline-grid place-items-center rounded-xl border-2 border-stone-200 bg-white shadow-sticker-sm dark:border-stone-300";
@@ -95,8 +119,13 @@ export const STAT_VALUE = "font-serif text-h2 leading-none nums";
 export const CHIP =
   "inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-sm text-steel transition-transform dark:-rotate-1 dark:hover:rotate-0";
 
-/** Filled quiet chip: non-semantic tag (semantic tones belong to Badge). */
-export const CHIP_QUIET = "rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel dark:rotate-1 dark:inline-block";
+/** Filled quiet chip: non-semantic tag (semantic tones belong to Badge).
+ *  `inline-block` is unconditional: it used to be `dark:inline-block`, so the
+ *  same chip was an inline box in Studio Light and a block box in Spark Dark —
+ *  the rotate needs a block box, but a display change is not a theme
+ *  difference, and the two themes disagreed about the chip's line box (padding
+ *  and vertical rhythm shifted on the flip). */
+export const CHIP_QUIET = "inline-block rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel dark:rotate-1";
 
 /** Primary action. Pair with a height + horizontal padding (h-10 px-4).
  *  Light gets a restrained tactility — a faint offset that the button presses
@@ -105,9 +134,45 @@ export const CHIP_QUIET = "rounded-full bg-stone-100 px-2 py-0.5 text-sm text-st
 export const BTN_PRIMARY =
   "focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral font-semibold text-white shadow-sticker-xs transition-all hover:bg-coral/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
 
+/** Affirmative action — the moss twin of BTN_PRIMARY. Same pairing rule, same
+ *  press-down in both registers; only the fill differs.
+ *
+ *  WHICH ONE: coral (`BTN_PRIMARY`) is "the main action of this surface";
+ *  moss (`BTN_AFFIRM`) is "the positive half of a decision" — advance, approve,
+ *  accept, resume — and it always has a coral or ghost counterpart beside it
+ *  (reject, decline, pause). A surface with a single call to action uses
+ *  BTN_PRIMARY even when that action is positive; moss without an opposite
+ *  reads as a second brand color rather than as a verdict.
+ *
+ *  Hand-rolled at 13 sites before this existed, every one of them flat in Spark
+ *  Dark: `bg-moss … hover:opacity-90` carries no sticker shadow and no travel,
+ *  so the advance button sat dead beside a reject button that pressed down. */
+export const BTN_AFFIRM =
+  "focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss font-semibold text-white shadow-sticker-xs transition-all hover:bg-moss/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
+
 /** Secondary action. Same pairing rule + press-down as BTN_PRIMARY. */
 export const BTN_SECONDARY =
   "focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 font-medium text-ink transition-all hover:border-coral/40 disabled:opacity-50 dark:rounded-lg dark:border-stone-300 dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
+
+/** TOUCH-SIZED variants of the two action recipes — h-11 with the roomier
+ *  padding and body-sized label, for a surface a candidate operates once, under
+ *  pressure, often on a phone: the voice portal's Start / End / confirm row and
+ *  the live-call controls beside it.
+ *
+ *  They exist because eight controls there hand-rolled the whole button string
+ *  at that size (`inline-flex h-11 items-center justify-center gap-2 rounded-md
+ *  bg-ink px-5 text-base ...`), which is how they ended up FLAT in Spark Dark:
+ *  no sticker shadow, no press travel, and a `rounded-md` that never became the
+ *  theme's `rounded-lg`. Composing the size onto the recipe keeps the deliberate
+ *  touch target and inherits both themes.
+ *
+ *  Pair as usual: `BTN_PRIMARY_LG` for the surface's main action (Start, End),
+ *  `BTN_SECONDARY_LG` for the alternative beside it (Cancel, mute). A one-off
+ *  fill (the amber autoplay-recovery button) still appends its own colors, the
+ *  same override the schedule controls use. */
+export const BTN_PRIMARY_LG = `${BTN_PRIMARY} h-11 justify-center px-5 text-base`;
+
+export const BTN_SECONDARY_LG = `${BTN_SECONDARY} h-11 justify-center bg-white px-5 text-base`;
 
 /** Text input / textarea / select base. Carries the dual-theme fill/text plus a
  *  steel placeholder and coral caret so a raw field reads correctly in Spark Dark
@@ -137,6 +202,97 @@ export const railIconBtn = (isActive: boolean): string =>
     isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
   }`;
 
-/** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay.
+/** First-level (sidebar rail) TILE — the icon-over-label shape every destination
+ *  on the 4.75rem rail wears: the section buttons, the Search trigger and the
+ *  Feedback door. The icon-only `railIconBtn` above is its sibling for the rail's
+ *  chrome (preference popups, sign out), which is not a destination.
+ *
+ *  Was hand-copied as a class string in NavSectionRail and NavFeedbackButton, and
+ *  the copies had already drifted (only one carried the dark active outline), which
+ *  is the drift a recipe exists to stop. Sizing is the recipe's; a call site adds
+ *  only what is genuinely its own. */
+export const railTile = (isActive: boolean): string =>
+  `focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${
+    isActive ? "bg-coral/10 text-coral dark:border dark:border-coral/30" : "text-steel hover:bg-stone-100 hover:text-ink"
+  }`;
+
+/* ── Notices ──────────────────────────────────────────────────────────────
+ *  The advisory block: a bordered, tinted strip that says something about the
+ *  data the reader is looking at. 57 of these were hand-rolled across 49 files
+ *  and 56 of them missed `dark:rounded-2xl`, so an amber advisory was the one
+ *  square-cornered box on a Spark Dark surface where everything else had taken
+ *  the sticker radius. The tint families are the sanctioned status scales, all
+ *  luminance-flipped in globals.css's dark block. */
+
+/** Advisory severity. `amber` = a caveat about the data (drift, partial
+ *  coverage, a degraded fallback); `info` = neutral context worth reading;
+ *  `critical` = a failure the reader must act on. Errors that are a REFUSAL
+ *  still go through the error-code path — the tone only picks the paint. */
+export type NoticeTone = "amber" | "info" | "critical";
+
+const NOTICE_TONE: Record<NoticeTone, string> = {
+  amber: "border-amber-300 bg-amber-50 text-amber-900",
+  info: "border-blue-200 bg-blue-50 text-blue-700",
+  critical: "border-red-200 bg-red-50 text-red-800",
+};
+
+/** Advisory block. Sizing and type size stay at the call site, as everywhere
+ *  else here (`${NOTICE()} px-3 py-1.5 text-xs`); the recipe owns the shape,
+ *  the border, the fill and the text tone — in both registers. Pair with
+ *  `role="status"` (a caveat) or `role="alert"` (a failure) at the call site;
+ *  a notice with no live semantics is just a paragraph and needs neither. */
+export const NOTICE = (tone: NoticeTone = "amber"): string =>
+  `rounded-lg border dark:rounded-2xl ${NOTICE_TONE[tone]}`;
+
+/** Keycap chip (`<kbd>`) — command palette + keyboard-shortcuts overlay. Two
+ *  consumers is the WHOLE population: every `<kbd>` in app/ composes this except
+ *  the one on the palette's coral selected row, which is white-on-accent and
+ *  cannot take a stone border. A complete vocabulary, not a dying one.
+ *
  *  Pair with a type size at the call site (`${KBD} text-sm` / `text-[11px]`). */
 export const KBD = "rounded border border-stone-200 bg-paper px-1.5 py-0.5 font-semibold text-steel";
+
+/* ── Layers ───────────────────────────────────────────────────────────────
+ *  Two shapes that float above their own content, and had neither a name nor
+ *  an agreed stacking order: five surfaces hand-rolled a pinned header across
+ *  three z-layers (10/20/30) and three fills, and every anchored menu re-typed
+ *  the popover shell. ── */
+
+/**
+ * Pinned table header. `layer` is the stacking tier, and the two tiers are the
+ * whole vocabulary: `"head"` for a column header row, `"corner"` for the cell
+ * frozen on BOTH axes in a grid with row headers — which must sit ABOVE the
+ * head, or the row-header column scrolls over it.
+ *
+ * Was `z-10` in JobsTable, `z-10`/`z-20` in MatrixGrid and `z-20`/`z-30` in the
+ * group-eval comparison, i.e. the same two tiers spelled three ways, so a table
+ * borrowing a class string from its neighbour got a corner that scrolled under
+ * its own rows. Sizing and text treatment stay at the call site.
+ */
+export const STICKY_HEAD = (layer: "head" | "corner" = "head"): string =>
+  `sticky top-0 border-b border-stone-200 bg-paper ${layer === "corner" ? "left-0 z-30 border-r" : "z-20"}`;
+
+/**
+ * Sticky bar over a scrolling region — a drawer header, a chapter rail. `on`
+ * names the surface it floats above, because the translucent fill has to match
+ * it: `"paper"` over the cream canvas, `"white"` over a PANEL. That is a real
+ * difference; the z-layer and the ruled bottom edge were not, and the three
+ * copies had drifted on both.
+ */
+export const STICKY_BAR = (on: "paper" | "white" = "paper"): string =>
+  `sticky top-0 z-20 border-b border-stone-200 backdrop-blur ${on === "white" ? "bg-white/95" : "bg-paper/95"}`;
+
+/**
+ * The anchored pop layer — dropdown menus, filter/row menus, `Select`,
+ * explainer popovers. Position (fixed/absolute + the rect) and padding stay at
+ * the call site; this owns the shell.
+ *
+ * NOT `PANEL`, and that is the point: `PANEL` hardcodes `shadow-panel`, which
+ * takes the Spark Dark sticker ride in globals.css (2px drawn outline, 16px
+ * radius, offset shadow). A menu that presses out of the page like a sticker
+ * reads as a card someone dropped on the table rather than as a layer hanging
+ * off its trigger — so the pop layer keeps `shadow-pop`, its own token, in both
+ * registers. `recipe-debt.json` deliberately carried `Select`'s `panel: 1` for
+ * exactly this reason until this recipe existed.
+ */
+export const POPOVER = "rounded-lg border border-stone-200 bg-white shadow-pop";

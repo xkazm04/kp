@@ -266,7 +266,10 @@ def draft_campaign_pack(
         result, source = deterministic(), "deterministic"
     else:
         try:
-            result, source = coerce(provider.complete_json(_prompt(facts, lang, apply_url), system=_system_prompt(market))), "llm"
+            # expected_keys pins the pack object by shape — the prompt shows an
+            # example {"variants": [...]} and _extract_json otherwise returns the
+            # LAST top-level value, which can be that echoed example.
+            result, source = coerce(provider.complete_json(_prompt(facts, lang, apply_url), system=_system_prompt(market), expected_keys=("variants",))), "llm"
         except Exception:
             result, source = deterministic(), "deterministic"
 

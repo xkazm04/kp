@@ -10,9 +10,20 @@ or zeroing the dimension; embeddings are cached per process.
 from __future__ import annotations
 
 import hashlib
+import os
+import time
+import types
 import unittest
+from unittest import mock
 
-from pipeline.jobfit.embedding_bridge import _CACHE, MAX_EMBED_BATCH, prewarm, semantic_overlap
+from pipeline.jobfit.embedding_bridge import (
+    _CACHE,
+    MAX_EMBED_BATCH,
+    GeminiEmbeddingProvider,
+    prewarm,
+    semantic_overlap,
+)
+from pipeline.jobfit.gemini import gemini_timeout_ms
 from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.matching import MatchCandidate, score_job, score_motivation, score_personal
 from pipeline.jobfit.recruiter import rank_candidates_for_job
@@ -232,6 +243,59 @@ class BatchedPrewarmTest(unittest.TestCase):
         stub = _Short()
         self.assertEqual(prewarm(["alpha", "beta"], stub), 0)
         self.assertEqual(_CACHE.get(stub, {}), {})  # nothing mis-keyed into the cache
+
+
+class EmbeddingClientDeadlineTest(unittest.TestCase):
+    """The embeddings client must carry a wall clock, or fail-open never fires.
+
+    ``GeminiEmbeddingProvider.embed`` built ``genai.Client()`` with no
+    ``http_options`` while the sibling CV-analysis client set
+    ``timeout=KP_GEMINI_TIMEOUT_MS``. The module's stated contract is that a
+    network error yields ``None`` and the caller drops back to the keyword
+    heuristic — but with no deadline nothing ever raises, so a stalled call hangs
+    the whole pool's ranking instead of degrading.
+    """
+
+    def test_the_client_is_built_with_the_shared_gemini_timeout(self) -> None:
+        built: dict[str, object] = {}
+
+        class _FakeClient:
+            def __init__(self, **kwargs: object) -> None:
+                built.update(kwargs)
+                self.models = self
+
+            def embed_content(self, *, model: str, contents: list[str]) -> object:
+                return types.SimpleNamespace(
+                    embeddings=[types.SimpleNamespace(values=[1.0, 0.0]) for _ in contents],
+                    usage_metadata=None,
+                )
+
+        provider = GeminiEmbeddingProvider()
+        with mock.patch.dict(os.environ, {"KP_GEMINI_TIMEOUT_MS": "1234"}, clear=False):
+            with mock.patch("google.genai.Client", _FakeClient):
+                provider.embed(["alpha"])
+            self.assertIn("http_options", built)
+            self.assertEqual(getattr(built["http_options"], "timeout"), 1234)
+            # …and it is the SAME value the analysis client uses, not a second
+            # constant that can drift away from it.
+            self.assertEqual(gemini_timeout_ms(), 1234)
+
+    def test_a_stalled_call_degrades_to_none_inside_the_budget(self) -> None:
+        # Stands in for the SDK enforcing its own deadline: the provider blocks
+        # for the budget, then raises the way a timed-out transport does. What is
+        # pinned is the consequence — semantic_overlap answers None (the caller's
+        # keyword heuristic takes over) and does so within the budget, not never.
+        budget_s = 0.15
+
+        class _Stalling:
+            def embed(self, texts: list[str]) -> list[list[float]]:
+                time.sleep(budget_s)
+                raise TimeoutError("504 Deadline Exceeded")
+
+        started = time.monotonic()
+        self.assertIsNone(semantic_overlap("built REST APIs", "backend services", _Stalling()))
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, budget_s * 4, "a stalled embed must not outlive its budget")
 
 
 if __name__ == "__main__":

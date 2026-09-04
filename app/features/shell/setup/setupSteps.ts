@@ -88,6 +88,25 @@ export function stepSatisfied(id: SetupStepId, state: SetupState): boolean {
   return true;
 }
 
+/**
+ * The highest step a click may open — the high-water mark, CAPPED by the current
+ * step when its required input is unsatisfied.
+ *
+ * Having reached step N proves the steps before it were satisfied AT THE TIME; it
+ * does not prove they still are. An operator who typed the org name, pressed
+ * Continue, came back and cleared the field sat on a disabled Continue button
+ * while the rail — reading the raw high-water mark — still offered Team, Pipeline
+ * and Done: finishing that way writes NO org name (setOrgName is skipped for an
+ * empty one) and the workspace silently keeps the seed default as its identity on
+ * every generated JD, offer and candidate mail. Capping the ceiling at the current
+ * step closes goTo and the rail together — they both read this one number — and
+ * retyping the name restores it. Going BACK is never capped, so nobody is
+ * stranded.
+ */
+export function reachedCeiling(maxVisited: number, stepIndex: number, canAdvance: boolean): number {
+  return canAdvance ? maxVisited : Math.min(maxVisited, stepIndex);
+}
+
 export type SetupState = {
   orgName: string;
   language: AppLanguage;

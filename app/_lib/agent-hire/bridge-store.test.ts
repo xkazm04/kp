@@ -17,6 +17,7 @@
 import { test, after, afterEach, before } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
+import Database from "better-sqlite3";
 import { openStore } from "../db-path.ts";
 import { isEncryptedAtsSecret } from "../ats-secret.ts";
 import {
@@ -140,6 +141,84 @@ test("markBridgeOk stamps liveness and touches nothing else", () => {
   assert.equal(resolveBridge().apiKey, "pk_still_paired");
   assert.ok(after.lastOkAt, "the liveness stamp is the one thing it DOES write");
   assert.notEqual(after.lastOkAt, before.lastOkAt ?? null);
+
+  setBridgeConfig({ apiKey: "" });
+});
+
+// ── the read→compute→write seam (/perfect wave 38) ─────────────────────────
+//
+// `setBridgeConfig` used to SELECT the row, merge the two fields in JS and then
+// upsert the WHOLE merged row. Any writer that committed between those two
+// statements was overwritten wholesale by the stale JS copy — and the field that
+// costs is the pk_ key, so the symptom is "kp silently unpaired itself" with no
+// error anywhere. `openStore()` hands every store its OWN connection, so this is
+// not hypothetical single-thread pedantry: a second kp process (or a maintenance
+// script) on the same file is exactly the writer that lands in the gap.
+//
+// The fix merges in SQL (`DO UPDATE SET x = CASE WHEN @setX THEN @x ELSE x END`)
+// inside an IMMEDIATE transaction, so a field this call did not name reads its
+// CURRENT stored value and the write lock is held from BEGIN.
+//
+// The interleave is simulated at exactly the seam it happens at: a competing
+// write commits the moment the upsert statement is about to run — i.e. after any
+// read the implementation may have taken. Patched on better-sqlite3's prototype
+// because each store holds a private connection.
+function withWriteInterleave(competing: () => void, body: () => void): void {
+  const proto = Database.prototype as unknown as { prepare: (sql: string) => unknown };
+  const originalPrepare = proto.prepare;
+  let fired = false;
+  proto.prepare = function patched(this: unknown, sql: string) {
+    const stmt = originalPrepare.call(this, sql) as { run: (...a: unknown[]) => unknown };
+    if (!sql.includes("INSERT INTO personas_bridge") || !sql.includes("ON CONFLICT")) return stmt;
+    const originalRun = stmt.run.bind(stmt);
+    stmt.run = (...args: unknown[]) => {
+      if (!fired) {
+        fired = true; // set FIRST: the competing write re-enters this same hook
+        competing();
+      }
+      return originalRun(...args);
+    };
+    return stmt;
+  };
+  try {
+    body();
+  } finally {
+    proto.prepare = originalPrepare;
+  }
+  assert.ok(fired, "the interleave must actually have run, or this test proves nothing");
+}
+
+test("setBridgeConfig: a claim that lands mid-write keeps the LATER key", () => {
+  setBridgeConfig({ baseUrl: "http://127.0.0.1:9420", apiKey: "pk_early" });
+
+  withWriteInterleave(
+    // The concurrent writer: a pairing claim commits between whatever the call
+    // below read and what it is about to write.
+    () => setBridgeConfig({ apiKey: "pk_late" }),
+    // An innocent base-URL edit — it names no key at all, so it must not be able
+    // to destroy one.
+    () => setBridgeConfig({ baseUrl: "http://127.0.0.1:9430" }),
+  );
+
+  assert.equal(resolveBridge().apiKey, "pk_late", "the later claim's key must survive a concurrent URL edit");
+  assert.equal(getBridgeConfig().paired, true, "…and the deployment must still read as paired");
+  assert.equal(getBridgeConfig().baseUrl, "http://127.0.0.1:9430", "…while the edit this call DID name still lands");
+
+  setBridgeConfig({ apiKey: "" });
+});
+
+// The other direction of the same rule: a call that names ONLY the key must not
+// carry a stale base URL back over one somebody else just changed.
+test("setBridgeConfig: a key write does not resurrect a stale base URL", () => {
+  setBridgeConfig({ baseUrl: "http://127.0.0.1:9420", apiKey: "" });
+
+  withWriteInterleave(
+    () => setBridgeConfig({ baseUrl: "http://127.0.0.1:9499" }),
+    () => setBridgeConfig({ apiKey: "pk_claimed" }),
+  );
+
+  assert.equal(getBridgeConfig().baseUrl, "http://127.0.0.1:9499", "the URL the other writer set must stand");
+  assert.equal(resolveBridge().apiKey, "pk_claimed", "…and this call's own field still lands");
 
   setBridgeConfig({ apiKey: "" });
 });

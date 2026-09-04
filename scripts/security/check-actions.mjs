@@ -117,6 +117,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { REPO_ROOT } from '../review/diff.mjs';
+import {
+  USES_RE,
+  blockScalarLines,
+  checkoutSteps,
+  eolOf,
+  hasTopLevelPermissions,
+  jobPermissions,
+  triggersIn,
+  usesIn,
+} from '../review/workflow-yaml.mjs';
+
+// The workflow reader is shared with scripts/review/gate-check.mjs — one reader,
+// so a shape that trips one gate cannot walk past the other. Re-exported because
+// this module is the security gate's public surface and its fixtures import them
+// from here.
+export { blockScalarLines, checkoutSteps, hasTopLevelPermissions, jobPermissions, triggersIn, usesIn };
 
 export const WORKFLOW_DIR = '.github/workflows';
 export const ALLOWLIST_PATH = '.github/actions-pin-allowlist.json';
@@ -148,7 +164,6 @@ export function saveAllowlist(allow, root = REPO_ROOT) {
 export const PIN_ALLOWLIST = loadAllowlist();
 
 const SHA_RE = /^[0-9a-f]{40}$/;
-const USES_RE = /^\s*(?:-\s*)?uses:\s*(['"]?)([^'"\s#]+)\1/;
 
 /** A ref is pinned when it is a full commit SHA, or the action is local to this repo. */
 export function isPinned(uses) {
@@ -169,140 +184,7 @@ export function allowlisted(uses, allowlist = PIN_ALLOWLIST) {
   return allowlist.find((e) => e.uses === action && e.ref === ref) ?? null;
 }
 
-/** Every `uses:` in a workflow, with its 1-based line number. */
-export function usesIn(text) {
-  const out = [];
-  text.split(/\r?\n/).forEach((line, i) => {
-    if (/^\s*#/.test(line)) return;
-    const m = USES_RE.exec(line);
-    if (m) out.push({ uses: m[2], line: i + 1 });
-  });
-  return out;
-}
-
-/**
- * A workflow must scope GITHUB_TOKEN at the top level. Job-level `permissions:`
- * blocks are additive per job and say nothing about the jobs that lack one, so
- * they do not substitute: without the top-level block those jobs inherit the
- * repository default, which is write-all on many repositories.
- */
-export function hasTopLevelPermissions(text) {
-  return /^permissions:/m.test(text);
-}
-
-/**
- * `{ <jobId>: { <scope>: <level> } | 'read-all' | null }` — the job-level
- * `permissions:` block of every job, or `null` for a job that declares none and
- * therefore inherits the workflow's.
- *
- * WHY A READER AND NOT A BOOLEAN: `hasTopLevelPermissions` above answers "is the
- * token scoped at all", which is the question that catches a NEW workflow. It
- * cannot answer the one that matters for a workflow already handling untrusted
- * content — *how much* can a hostile input reach. A scope is widened by adding
- * one line, in a file most reviewers skim; naming the expected set in a fixture
- * is what turns that into a deliberate act (see gate-check.test.mjs).
- *
- * Line-based for the same reason as `blockScalarLines`: this file stays
- * dependency-free so the ratchet runs in jobs that never `npm ci`.
- */
-export function jobPermissions(text) {
-  const lines = text.split(/\r?\n/);
-  const out = {};
-  let i = lines.findIndex((l) => /^jobs:[ \t]*(#.*)?$/.test(l));
-  if (i === -1) return out;
-
-  let jobIndent = null;
-  let job = null;
-  let keyIndent = null;
-  let scopes = null;
-  const close = () => {
-    if (job) out[job] = scopes;
-  };
-
-  for (i += 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.trim() === '' || /^\s*#/.test(line)) continue;
-    const lead = /^\s*/.exec(line)[0].length;
-    if (lead === 0) break; // back out to a top-level key: `jobs:` is over
-    if (jobIndent === null) jobIndent = lead;
-
-    if (lead === jobIndent) {
-      close();
-      job = /^\s*([A-Za-z_][A-Za-z0-9_-]*):/.exec(line)?.[1] ?? null;
-      keyIndent = null;
-      scopes = null;
-      continue;
-    }
-    if (!job) continue;
-    if (keyIndent === null) keyIndent = lead;
-    // Deeper than the job's own keys — inside `steps:`, `strategy:`, `with:`.
-    // A step input that happens to be called `permissions:` is not this.
-    if (lead !== keyIndent) continue;
-
-    const p = /^\s*permissions:[ \t]*(.*)$/.exec(line);
-    if (!p) continue;
-    // `permissions:` may be followed by a comment rather than a value, in which
-    // case the block below is still the scope — so strip a comment that starts
-    // the remainder, not only one that trails a value.
-    const inline = p[1].replace(/(^|\s)#.*$/, '').trim();
-    if (inline) {
-      // `permissions: read-all` / `write-all` / `{}` — a whole-token verdict.
-      scopes = inline === '{}' ? {} : inline;
-      continue;
-    }
-    scopes = {};
-    for (let j = i + 1; j < lines.length; j++) {
-      if (lines[j].trim() === '' || /^\s*#/.test(lines[j])) continue;
-      if (/^\s*/.exec(lines[j])[0].length <= keyIndent) break;
-      const kv = /^\s*([a-z][a-z-]*):[ \t]*([A-Za-z-]+)/.exec(lines[j]);
-      if (kv) scopes[kv[1]] = kv[2];
-    }
-  }
-  close();
-  return out;
-}
-
 // --- run: scripts, and what may be substituted into one -----------------------
-
-/**
- * Every line of every `<key>:` script, with its 1-based line number. Both forms
- * matter: the inline one (`- run: npm ci`) and the block scalar (`run: |`),
- * which is where the multi-line shell that actually gets exploited lives.
- *
- * Deliberately a line reader rather than a YAML parse: this file is dependency-
- * free by design (the ratchet has to run in jobs that never `npm ci`), and the
- * shape it needs — "which lines end up inside a script" — is decided by
- * indentation, which survives being read line by line.
- */
-export function blockScalarLines(text, key = 'run') {
-  const lines = text.split(/\r?\n/);
-  const head = new RegExp(`^(\\s*)(-\\s+)?${key}:[ \\t]*(.*)$`);
-  const out = [];
-  let i = 0;
-  while (i < lines.length) {
-    const m = head.exec(lines[i]);
-    if (!m) {
-      i += 1;
-      continue;
-    }
-    const indent = m[1].length + (m[2] ? m[2].length : 0);
-    const rest = m[3].trim();
-    // `|`, `>`, `|-`, `>-`, `|+`, `>2` … are block indicators, not script.
-    if (rest && !/^[|>][+-]?\d*$/.test(rest)) {
-      out.push({ line: i + 1, text: rest });
-      i += 1;
-      continue;
-    }
-    let j = i + 1;
-    for (; j < lines.length; j++) {
-      if (lines[j].trim() === '') continue;
-      if (/^\s*/.exec(lines[j])[0].length <= indent) break;
-      out.push({ line: j + 1, text: lines[j] });
-    }
-    i = j;
-  }
-  return out;
-}
 
 /** The shell scripts. `${{ }}` here is substituted into bash's input. */
 export const runScriptLines = (text) => blockScalarLines(text, 'run');
@@ -485,83 +367,6 @@ export function unquotedUntrustedEnv(text) {
  * these two the job holds everything the repository holds.
  */
 export const DANGEROUS_TRIGGERS = ['pull_request_target', 'workflow_run'];
-
-/** The top-level `on:` keys. Handles `on: push`, `on: [a, b]` and the block form. */
-export function triggersIn(text) {
-  const lines = text.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const m = /^["']?on["']?:[ \t]*(.*)$/.exec(lines[i]);
-    if (!m) continue;
-    const inline = m[1].trim();
-    if (inline && !inline.startsWith('#')) {
-      return inline
-        .replace(/^\[|\]$/g, '')
-        .split(',')
-        .map((t) => t.trim().replace(/['"]/g, ''))
-        .filter(Boolean);
-    }
-    // Block form: the keys at the FIRST indent level under `on:`. Anything
-    // deeper is a trigger's own filter (`types:`, `branches:`), not a trigger.
-    const out = [];
-    let indent = null;
-    for (let j = i + 1; j < lines.length; j++) {
-      if (lines[j].trim() === '' || /^\s*#/.test(lines[j])) continue;
-      const lead = /^\s*/.exec(lines[j])[0].length;
-      if (lead === 0) break;
-      if (indent === null) indent = lead;
-      if (lead > indent) continue;
-      const k = /^\s*([A-Za-z_][A-Za-z0-9_-]*):/.exec(lines[j]);
-      if (k) out.push(k[1]);
-    }
-    return out;
-  }
-  return [];
-}
-
-/**
- * `[{ line, inputs }]` — every `actions/checkout` step, with the `with:` inputs it
- * was given as `{ <key>: { value, line } }`.
- *
- * Only keys under `with:` are read. The step's `env:` block can carry a key called
- * `token` that is not the action's input at all, and a reader that conflated the
- * two would either miss a real `token:` or invent one.
- */
-export function checkoutSteps(text) {
-  const lines = text.split(/\r?\n/);
-  const out = [];
-  let step = null; // the checkout step being read, or null
-  let withCol = null; // indentation of the `with:` key, once we are inside one
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (/^\s*#/.test(line)) continue;
-    if (/^\s*-\s/.test(line)) {
-      step = null; // a new step begins
-      withCol = null;
-    }
-    const u = USES_RE.exec(line);
-    if (u) {
-      if (/(?:^|\/)checkout@/.test(u[2])) {
-        step = { line: i + 1, inputs: {} };
-        out.push(step);
-      }
-      continue;
-    }
-    if (!step) continue;
-    const w = /^(\s*)with:[ \t]*(#.*)?$/.exec(line);
-    if (w) {
-      withCol = w[1].length;
-      continue;
-    }
-    if (withCol === null) continue;
-    if (/^\s*/.exec(line)[0].length <= withCol) {
-      withCol = null; // back out to a sibling key of `with:`
-      continue;
-    }
-    const kv = /^\s*([A-Za-z_][\w-]*):[ \t]*(.*?)\s*$/.exec(line);
-    if (kv) step.inputs[kv[1]] = { value: kv[2].replace(/\s+#.*$/, '').trim(), line: i + 1 };
-  }
-  return out;
-}
 
 /** `[{ value, line }]` — the `ref:` each checkout step is told to fetch. */
 export function checkoutRefs(text) {
@@ -813,6 +618,14 @@ export async function resolveRef(uses, { token = null, fetchImpl = fetch } = {})
   return { sha: deref.sha, tag: ref };
 }
 
+/**
+ * Rewrite one floating `uses:` to a pinned SHA, in the LINE ENDINGS THE FILE
+ * ALREADY HAS. Joining with `\n` on a CRLF checkout would put every line of the
+ * workflow in the diff of a job whose whole point is to change one — and
+ * `--resolve` runs unattended in `pin-actions.yml` and opens the pull request
+ * itself, so nobody is there to notice a 200-line diff that should have been 1.
+ * (`ruff-ratchet.mjs` learned the same lesson first; `eolOf` is now shared.)
+ */
 export function rewriteUses(text, uses, sha, tag) {
   const { action } = splitUses(uses);
   return text
@@ -824,7 +637,7 @@ export function rewriteUses(text, uses, sha, tag) {
       // line, which is why this only ever runs on refs that carry no comment yet.
       return `${line.slice(0, m[0].indexOf('uses:'))}uses: ${action}@${sha} # ${tag}`;
     })
-    .join('\n');
+    .join(eolOf(text));
 }
 
 // --- CLI ---------------------------------------------------------------------

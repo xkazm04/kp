@@ -1,4 +1,5 @@
 import { ROLE_FAMILY_SLUGS, ROLE_FAMILY_LABELS } from "@/app/_lib/role-families";
+import type { RoutingReasonCode } from "@/app/features/tools/profile/profileRoutingReasons";
 
 // `_id` is a stable CLIENT-ONLY key for React list rendering (idea-row-identity): it is
 // never persisted — ProfileEditor.build() maps each row to the payload field-by-field, so
@@ -95,6 +96,12 @@ export type ProfileCliOutput = {
   // panel falls back to the raw `missing` labels then. The frontend localizes the
   // label by `check` and routes the clickable gap by `check`.
   missingGaps?: { check: string; label: string }[];
+  // Machine-readable twin of `reasons` (registry.detect_detailed), same order: the
+  // archetype router's explanation as {kind, params} codes the catalogs translate,
+  // so the routing line is not English prose for a cs/de/fr reader. Optional for the
+  // same reason missingGaps is — a result built before the field existed renders
+  // through the legacy strings (profileRoutingReasons.ts owns that fallback).
+  reasonCodes?: RoutingReasonCode[];
 };
 
 // BASELINE archetype choices for the editor's routing control: the ids with
@@ -121,5 +128,8 @@ export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // edit the Python lists and run `python -m pipeline.jobfit.codegen`; the build
 // and `npm run schemas:check` gate fail if this file drifts from Python.
 export { EVIDENCE_KINDS, SKILL_LEVELS, PROVENANCE } from "@/app/_lib/taxonomy.generated";
-// Single source of truth for archetype labels (app/_lib/archetypes).
-export { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
+// No archetype-label re-export: the labels are catalog copy, resolved with
+// useEnumLabel("archetypeLong" | "archetype", archetypeDisplayKey(id)). The raw
+// ARCHETYPE_LABEL map stays internal to app/_lib/archetypes (it is the id vocabulary
+// isKnownArchetype checks own-key membership against), and re-exporting it from a
+// feature barrel is what put registry English on three recruiter surfaces.

@@ -14,6 +14,20 @@ export type LoadState = {
   lastUpdated: number | null;
 };
 
+/** Narrow a parsed body to the record shape the rule reads, or null. A string,
+ *  an array, a number or a thrown `.json()` are all "no object body" — the
+ *  three hooks each hand-rolled a different subset of this coercion. */
+export function asRecord(body: unknown): Record<string, unknown> | null {
+  return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+}
+
+// THE body-failure rule, for every read hook in the app. It was written out
+// three times — `isLoadFailure` here, the success test inside
+// `jsonFetchFailure` (useJsonFetch) and an inline `!res.ok || !body ||
+// body.error` in useInfiniteScroll — which is three chances for one of them to
+// drift into rendering an outage as an innocuous empty result. The other two
+// now call this one.
+//
 // Classifies a fetch response as a load failure. A failure is ANY of:
 //  - a non-OK HTTP status (`ok === false`),
 //  - a missing/non-JSON body (`null`, e.g. `res.json()` threw),

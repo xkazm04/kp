@@ -7,6 +7,7 @@ import { JdLintPanel } from "./JdsLintPanel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { RichTextEditor } from "@/app/_components/RichTextEditor";
 import { Select } from "@/app/_components/Select";
+import { BTN_SECONDARY, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { TextInput } from "@/app/_components/TextInput";
 import { useJdBuilderLogic } from "./jdsBuilderLogic";
 import { JdsBuilderChecklist } from "./JdsBuilderChecklist";
@@ -48,6 +49,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
     manageOpen,
     setManageOpen,
     error,
+    templatesError,
     loadTemplates,
     isSoftware,
     familyOptions,
@@ -70,7 +72,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
   const enumLabel = useEnumLabel();
 
   return (
-    <div data-sim="jd-builder" className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+    <div data-sim="jd-builder" className={`${PANEL} p-4`}>
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
         <Sparkles size={14} /> {t("generateWithAi")}
       </p>
@@ -84,7 +86,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
             ariaLabel={t("templateLabel")}
             value={templateId}
             onChange={setTemplateId}
-            size="sm"
+            sizeVariant="sm"
             className="w-full"
             options={[
               { value: "", label: t("aiDefaultFormat") },
@@ -95,12 +97,23 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
         <button
           type="button"
           onClick={() => setManageOpen(true)}
-          className="focus-ring inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-steel hover:bg-stone-50"
+          className={`${BTN_SECONDARY} h-9 shrink-0 gap-1.5 px-2.5 text-sm font-semibold text-steel`}
           title={t("manageTitle")}
         >
           <Settings2 size={14} /> {t("manage")}
         </button>
       </div>
+
+      {/* The template list failed to load — a CAVEAT, not a refusal: the build
+          still runs on the AI default format, so this is role="status" beside the
+          select rather than the form's role="alert" error line. Without it the
+          select silently offered one option and the reader had no way to tell a
+          workspace with no templates from a list we could not fetch. */}
+      {templatesError ? (
+        <p role="status" className={`${NOTICE("amber")} mt-2 px-3 py-1.5 text-sm`}>
+          {templatesError}
+        </p>
+      ) : null}
 
       <JdsBuilderFieldsGrid
         t={t}
@@ -164,7 +177,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
           onClick={saveDraft}
           disabled={!canSaveDraft}
           title={t("saveDraft")}
-          className="focus-ring inline-flex h-10 items-center gap-2 rounded-md border border-stone-200 px-4 text-sm font-semibold text-ink hover:bg-stone-50 disabled:opacity-50"
+          className={`${BTN_SECONDARY} h-10 gap-2 px-4 text-sm font-semibold`}
         >
           {savingDraft ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {savingDraft ? t("savingDraft") : t("saveDraft")}

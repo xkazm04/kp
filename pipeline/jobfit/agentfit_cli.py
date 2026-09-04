@@ -26,12 +26,13 @@ import sys
 from pathlib import Path
 
 from . import agentfit
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT
 from .devcase.provenance import collect_fallback_reasons
 from .jobs import Job
 from .llm import emit_deterministic, provider_availability, resolve_provider
 
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
+# The failure vocabulary is `_cli.ERROR_CODES` — imported, never re-spelled here
+# (see the note in automation_cli.py and tests/test_cli_error_envelope.py).
 
 
 def main(argv: list[str] | None = None) -> int:

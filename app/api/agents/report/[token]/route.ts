@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, recordAgentReportReceipt, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
 import { createPipelineEntry, recordAutomationEvent, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { parseAgentReport, type AgentReport, type LifecycleReport } from "@/app/_lib/agent-hire/report-payload";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 
@@ -40,6 +41,12 @@ const LIFECYCLE_STATUS: Record<Exclude<LifecycleReport["event"], "probation_revi
   rejected: "rejected",
   retired: "retired",
 };
+
+// Who the board event names for an activation move. The decision-chain actor
+// vocabulary is "auto:*" | "human:*"; no human clicked this — Personas did, over
+// the report token — so attributing it to a recruiter would be a lie in the one
+// column an audit reads.
+const AGENT_BRIDGE_ACTOR = "auto:agent-bridge";
 
 const PROBATION_STATUS = {
   activated: "active",
@@ -115,18 +122,40 @@ function applyReport(agent: HiredAgentRecord, report: AgentReport): { result: st
   if ((report.event === "activated" || (report.event === "probation_review" && report.decision === "activated")) && agent.jobId) {
     // The agent's pipeline row was created at dispatch with the same identity, so
     // this idempotent re-create resolves the SAME entry (the m-<candidate>-<job>
-    // id scheme) whether or not it still exists, then moves it to Hired.
+    // id scheme) whether or not it still exists, then moves it to the terminal
+    // column. Both stages are resolved BY ROLE off this workspace's own axis:
+    // writing the literals "Offer"/"Hired" put the agent onto a column a team
+    // that renamed its board does not render (an off-axis row the board then has
+    // to surface as stranded), and the store refuses an unknown stage outright.
+    const offerStage = stageForRole("offer", ws) ?? stageForRole("entry", ws);
+    const terminalStage = stageForRole("terminal", ws);
     const { entry } = createPipelineEntry({
       candidateId: `agent-${agent.id}`,
       candidateLabel: agent.personaName ?? report.personaName ?? agent.jobTitle,
       jobId: agent.jobId,
       jobTitle: agent.jobTitle,
-      stage: "Offer",
+      ...(offerStage ? { stage: offerStage } : {}),
       sourceChannel: "agent-bridge",
       workspaceId: ws,
     });
-    setPipelineEntryStage(entry.id, "Hired", undefined, ws);
-    recordAutomationEvent(entry.id, "agent_activated", `Personas persona ${report.personaId ?? agent.personaId ?? ""} went live`, ws);
+    // expectedStage: the CAS this move never had. The entry may have existed
+    // already and a recruiter may have moved it between the read above and this
+    // write; without the precondition an activation report silently overwrote
+    // that move. A dropped move is reported as such rather than as a hire.
+    const moved =
+      terminalStage && terminalStage !== entry.stage
+        ? setPipelineEntryStage(entry.id, terminalStage, { expectedStage: entry.stage, actorRef: AGENT_BRIDGE_ACTOR }, ws)
+        : terminalStage
+          ? entry
+          : null;
+    recordAutomationEvent(
+      entry.id,
+      "agent_activated",
+      moved
+        ? `Personas persona ${report.personaId ?? agent.personaId ?? ""} went live`
+        : `Personas persona ${report.personaId ?? agent.personaId ?? ""} went live; board move skipped (the entry moved first or this board has no terminal column)`,
+      ws
+    );
   }
   return { result: "accepted" };
 }
@@ -137,7 +166,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
   try {
     const { token } = await context.params;
     if (!rateLimit(`agent-report:${token}:${clientIpFrom(request.headers)}`, RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Unknown and retired tokens are deliberately indistinguishable (both 404).

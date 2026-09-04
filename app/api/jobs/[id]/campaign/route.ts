@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCampaignPack } from "@/app/_lib/db/campaign";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { CampaignError, runCampaign } from "@/app/_lib/campaign-run";
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
+import { CampaignError, resolveLang, runCampaign } from "@/app/_lib/campaign-run";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // E1 (Erika gap) — the sourcing campaign pack for one job: feed-ready ad-copy
@@ -13,11 +14,6 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 // kind "campaign" (tracked, dedup'd, refresh-safe); both share runCampaign.
 // No prompt cache on purpose: the pack is a durable recruiter artifact
 // (campaign_packs table) and "Regenerate" must mean a fresh creative pass.
-
-function resolveLang(value: unknown): Locale {
-  const v = String(value ?? "");
-  return isLocale(v) ? v : DEFAULT_LOCALE;
-}
 
 // Visibility gate, both verbs (mirrors GET /api/jobs/[id]): getJob is a by-id point
 // read over a globally-unique PK, so without this the route answers for ANY tenant's
@@ -51,6 +47,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // BEFORE the spawn: a refused pack must not have cost an LLM call.
     if (!visibleJob(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     const body = (await request.json().catch(() => ({}))) as { lang?: unknown };
+    // Per-IP, AFTER the 404 above (a refused pack costs no budget) and BEFORE the
+    // generation child. 20/10min: "Regenerate" deliberately bypasses every cache — each
+    // accepted POST is a full creative pass over ad copy plus video scripts — and a
+    // recruiter comparing variants clicks it a handful of times per role. Session-gated,
+    // and open mode makes that gate a no-op for the whole API.
+    if (!rateLimit(`jobs-campaign:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // Thread the request's AbortSignal so closing the modal mid-generation
     // kills the CLI child instead of leaking it to the timeout backstop.
     const { pack } = await runCampaign(
@@ -63,9 +67,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (error instanceof CampaignError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Campaign generation failed." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:jobs/campaign", "JOB_CAMPAIGN_FAILED");
   }
 }

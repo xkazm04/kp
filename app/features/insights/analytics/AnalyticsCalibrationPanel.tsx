@@ -28,6 +28,7 @@ import { ThresholdHistoryStrip } from "./AnalyticsThresholdHistoryStrip";
 import { AnalyticsFamilyFloorChips } from "./AnalyticsFamilyFloorChips";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import { PANEL } from "@/app/_components/ui/recipes";
 // Calibration Engine (moonshot A/C) — the "How accurate are we?" panel. Plots a
 // reliability diagram (predicted probability vs. measured advance rate) against
 // the perfect-calibration diagonal, plus the Brier score. The whole point is
@@ -62,6 +63,13 @@ type CalibrationPayload = CalibrationResult & {
   cohorts?: CalibrationCohort[];
   recommendation?: ThresholdRecommendation | null;
   currentThreshold?: number | null;
+  /** Whether the floor beside it is ENFORCED — `screening.autoRejectEnabled`,
+   *  shipped by the route since the floor was first surfaced and read by nothing.
+   *  Its shipped default is FALSE (screen-wave returns `autoRejectOff`), so the
+   *  stock workspace drew a coral floor marker and said „every family is screened
+   *  at the global 45" over a gate that rejects nobody. `null` = the arm carries no
+   *  screening rule at all, exactly like `currentThreshold`. */
+  autoRejectEnabled?: boolean | null;
   familyFloors?: Record<string, number>; // family-floors: role_family → override value
   // Where this source's outcome label comes from. Shipped on EVERY request since
   // the KAT-L1-001 fix; undeclared (and therefore unrenderable) until now.
@@ -110,7 +118,7 @@ export function CalibrationPanel() {
   const skillDisplay = skill == null ? null : `${skill > 0 ? "+" : ""}${Math.round(skill * 100)}`;
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`${PANEL} p-5`}>
       <AnalyticsCalibrationHeader
         source={source}
         setSource={setSource}
@@ -178,13 +186,14 @@ export function CalibrationPanel() {
                     perfect: t("perfect"),
                   }}
                   threshold={source === "pipeline" ? data.currentThreshold ?? null : null}
+                  thresholdEnforced={data.autoRejectEnabled ?? null}
                   baseRate={baseRate}
                 />
                 <div className="space-y-3 text-sm">
                   <div>
                     <div className="text-3xl font-semibold text-ink">{data.brier!.toFixed(3)}</div>
                     <div className="text-stone-500">{t("brier")}</div>
-                    <div className="mt-1 text-xs text-stone-400">{t("brierHint")}</div>
+                    <div className="mt-1 text-micro text-stone-400">{t("brierHint")}</div>
                   </div>
                   {/* LUC-ANA-2 — the comparison that makes the Brier score mean
                       something: this cohort's own constant predictor, and the skill
@@ -196,7 +205,7 @@ export function CalibrationPanel() {
                         {skillDisplay == null ? "—" : t("skillValue", { pct: skillDisplay })}
                       </div>
                       <div className="text-stone-500">{t("skill")}</div>
-                      <div className="mt-1 text-xs text-stone-400">
+                      <div className="mt-1 text-micro text-stone-400">
                         {t(axis === "hired" ? "skillHintHired" : "skillHint", {
                           base: baseBrier.toFixed(3),
                           pct: Math.round((baseRate ?? 0) * 100),
@@ -225,8 +234,14 @@ export function CalibrationPanel() {
                     ) : null}
                     {source === "pipeline" && data.currentThreshold ? (
                       <li className="flex items-center gap-2">
-                        <span className="inline-block h-4 w-0 shrink-0 border-l-2 border-dashed border-coral align-middle" />
-                        {t("thresholdLegend", { threshold: data.currentThreshold })}
+                        {/* No swatch on the off branch: a legend entry is a key to a
+                            mark on the plot, and with the wave off there is no mark. */}
+                        {data.autoRejectEnabled === false ? null : (
+                          <span className="inline-block h-4 w-0 shrink-0 border-l-2 border-dashed border-coral align-middle" />
+                        )}
+                        {data.autoRejectEnabled === false
+                          ? t("thresholdLegendOff", { threshold: data.currentThreshold })
+                          : t("thresholdLegend", { threshold: data.currentThreshold })}
                       </li>
                     ) : null}
                     <li className="text-stone-400">{t("samples", { n: data.n })}</li>
@@ -300,6 +315,7 @@ export function CalibrationPanel() {
               <AnalyticsFamilyFloorChips
                 familyFloors={data.familyFloors ?? {}}
                 currentThreshold={data.currentThreshold ?? null}
+                autoRejectEnabled={data.autoRejectEnabled ?? null}
                 family={family}
                 setFamily={setFamily}
               />

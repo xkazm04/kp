@@ -12,6 +12,7 @@ import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
+import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
 // the background-task runner (detached from the request → survives navigation
@@ -46,11 +47,49 @@ export type AnalyzeParams = {
 
 export class AnalyzeError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** A REFUSAL_ERRORS code when the failure was a DECISION we can name (today: the
+   *  analyze deadline), absent when it is an engine fault carrying its own text. The task
+   *  row has no code column yet (app/_lib/db/tasks.ts), so `message` still carries the
+   *  canonical English for the recruiter-facing surface; a consumer that CAN localize
+   *  reads this instead of parsing the sentence. */
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
+
+// ---- The analyze deadline ---------------------------------------------------
+//
+// The spawn used to pass no `timeoutMs`, so it inherited python-runner's 600 000 ms
+// HANG BACKSTOP. That backstop is sized for "a process is wedged and must not leak",
+// not for "a recruiter is waiting" — and since the engine now runs under a process-wide
+// admission semaphore (KP_PYTHON_MAX_CONCURRENT, default 4), ONE wedged analysis held a
+// QUARTER of the whole box's engine concurrency for ten minutes and pushed every other
+// caller to ENGINE_BUSY. The blast radius of having no deadline is no longer one request.
+//
+// 300 000 ms (5 min), reasoned against the largest real input rather than picked round:
+// the per-variant work is one file upload plus one cv_analysis LLM round-trip, whose own
+// provider budget is base.DEFAULT_TIMEOUT_S; the widest input this repo accepts is an
+// 8 MB CV (MAX_FILE_BYTES in upload-constraints.ts) with --grounding, which adds a search
+// pass to that same single call. Five minutes is several times the p99 of that call and
+// still half the backstop, so a legitimately slow run is never killed while a wedged one
+// frees its engine slot in five minutes instead of ten. Variants run CONCURRENTLY, so
+// this is the per-RUN wall clock too, not a per-variant budget that multiplies.
+export const ANALYZE_TIMEOUT_MS = 300_000;
+
+/** The deadline's refusal code. A DECISION ("we stopped waiting"), not a fault, so it is
+ *  a REFUSAL_ERRORS code — declared in app/_lib/api-response.ts and resolved by
+ *  `useErrorMessage()` as `errors.ANALYZE_TIMEOUT` in the reader's language.
+ *
+ *  Held as a LITERAL here, exactly like ENGINE_BUSY_CODE in python-runner.ts: this module
+ *  runs inside the background task runner and must not pull next/server in through
+ *  api-response.ts. ANALYZE_TIMEOUT_MESSAGE is REFUSAL_ERRORS.ANALYZE_TIMEOUT verbatim —
+ *  change one and change the other; analyze-run.test.ts fails if they drift. */
+export const ANALYZE_TIMEOUT_CODE = "ANALYZE_TIMEOUT";
+export const ANALYZE_TIMEOUT_MESSAGE =
+  "The analysis took too long and was stopped. Try again, or with fewer CVs at once.";
 
 type ProgressFn = (done: number, total: number, msg?: string) => void;
 
@@ -62,7 +101,17 @@ export type VariantOk = { label: string; ok: true; analysis: Analysis; cached: b
 // display. `code` is set ONLY when the reason is our own generic fallback (no
 // engine text) — it tells the client to localize instead of showing an English
 // literal. Engine failures carry `error` and NO code.
-export type VariantFail = { label: string; ok: false; error: string; code?: string; status: number };
+export type VariantFail = {
+  label: string;
+  ok: false;
+  error: string;
+  code?: string;
+  status: number;
+  // A REFUSAL_ERRORS code when this variant failed for a reason we DECIDED (the
+  // deadline), as opposed to an engine fault. Distinct from `code` above, which is a
+  // client i18n key in the analyze.* namespace and not a wire error code.
+  refusal?: string;
+};
 export type VariantResult = VariantOk | VariantFail;
 
 // The single stable code for "this variant failed and we had no engine text to
@@ -83,7 +132,7 @@ export type SettleDecision =
   // our own coded generic — an empty task.error makes the client show its localized
   // "did not complete" line instead of an English literal). `logError` keeps a
   // non-empty detail for the server log regardless.
-  | { kind: "throw"; error: string; logError: string; status: number }
+  | { kind: "throw"; error: string; logError: string; status: number; refusal?: string }
   | { kind: "deliver"; successes: VariantOk[]; partialFailures: VariantFailureNote[]; allCached: boolean };
 
 export function settleVariants(results: VariantResult[]): SettleDecision {
@@ -99,9 +148,13 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
     const engineText = first && !first.code ? first.error : "";
     return {
       kind: "throw",
-      error: engineText,
-      logError: first?.error || first?.code || "analyze failed",
+      // A NAMED refusal answers with its own canonical sentence rather than the engine's
+      // (there is none — the child was killed by us, not by a failure it reported), so the
+      // task row says something true today even though it cannot yet carry the code.
+      error: first?.refusal === ANALYZE_TIMEOUT_CODE ? ANALYZE_TIMEOUT_MESSAGE : engineText,
+      logError: first?.error || first?.refusal || first?.code || "analyze failed",
       status: first?.status ?? 500,
+      ...(first?.refusal ? { refusal: first.refusal } : {}),
     };
   }
   return {
@@ -241,7 +294,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
           // Python child instead of leaving it to finish a billable LLM call whose
           // result is thrown away. spawnPython wires abort → SIGKILL.
-          const { result } = spawnPython(cliArgs(cvPath, p, jobStructurePath), { signal });
+          const { result } = spawnPython(cliArgs(cvPath, p, jobStructurePath), {
+            signal,
+            timeoutMs: ANALYZE_TIMEOUT_MS,
+          });
           const { stdout, stderr, exitCode } = await result;
           if (exitCode !== 0) {
             const err = parseStderrError(stderr, exitCode);
@@ -284,9 +340,24 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           // the whole Promise.all — otherwise one bad variant discards its good
           // siblings. A real cancellation is still honored below (signal.aborted).
           onProgress?.(Math.min(done + 1, total), total, ANALYZE_PHASE.analyzing);
+          const engineMsg = caught instanceof Error ? caught.message : null;
+          // The deadline arrives here as a plain spawn rejection (python-runner reports it
+          // as a MESSAGE, not a typed error), read through the one shared predicate rather
+          // than a regex re-typed at this call site. It is a DECISION — we stopped waiting —
+          // so it is NAMED, not folded into the generic engine-fault branch, whose verbatim
+          // text ("Python process timed out after 300s: -m pipeline.jobfit.cli …") is an
+          // internal command line no recruiter should ever be shown.
+          if (engineMsg && isSpawnTimeoutMessage(engineMsg)) {
+            return {
+              label,
+              ok: false,
+              error: ANALYZE_TIMEOUT_MESSAGE,
+              refusal: ANALYZE_TIMEOUT_CODE,
+              status: 504,
+            };
+          }
           // caught.message is engine text (shown verbatim); the fallback is our own
           // literal → carry a code so the client localizes instead of leaking English.
-          const engineMsg = caught instanceof Error ? caught.message : null;
           return {
             label,
             ok: false,
@@ -318,7 +389,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         status: "error",
         error: settled.logError,
       });
-      throw new AnalyzeError(settled.error, settled.status);
+      throw new AnalyzeError(settled.error, settled.status, settled.refusal);
     }
 
     const { successes, partialFailures, allCached } = settled;
@@ -327,14 +398,6 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // Every variant is done — the remaining work is persisting the report. Emit the
     // final honest phase so the strip advances to "saving" on a real signal.
     onProgress?.(total, total, ANALYZE_PHASE.saving);
-
-    // Bill ONE AI-candidate unit only for a DELIVERED, non-cached analysis (variants of
-    // the same person count once). A total wipeout or cancel threw above and never
-    // reaches here; a fully-cached re-run (a duplicate / re-analyze of the same CV) did
-    // no new work — so the meter counts analyses actually PERFORMED, not submits.
-    // Org attribution (org-plan Phase 3): the debit lands on the requesting
-    // workspace's org — the same tenant the gate (meterGate({ workspace })) read.
-    if (!allCached) recordMeterUsage("ai_candidates", 1, new Date(), p.workspace);
 
     // A comparison needs at least MIN_COMPARISON_VARIANTS surviving successes; a
     // 3-variant run that lost one to a failure delivers a 2-way compare, and a
@@ -352,6 +415,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
         p.workspace,
         cvHashForLabel(p.variants, single.label)
       );
+      debitDeliveredAnalysis(persisted, allCached, p.workspace);
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
@@ -378,6 +442,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // delivery above, so both persist paths derive identity one way).
     const winnerHash = cvHashForLabel(p.variants, winner.label);
     const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace, winnerHash);
+    debitDeliveredAnalysis(persisted, allCached, p.workspace);
     void logAnalyze({
       ...baseAnalyzeLog(p, startedAt),
       candidate_label: `${winner.label} (best of ${analyses.length})`,
@@ -395,6 +460,27 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
   } finally {
     await cleanupWorkdir(p.baseDir);
   }
+}
+
+/** Bill ONE AI-candidate unit for a DELIVERED, non-cached analysis (variants of the same
+ *  person count once). A total wipeout or a cancel threw before either call site; a
+ *  fully-cached re-run did no new engine work, so the meter counts analyses actually
+ *  PERFORMED, not submits.
+ *
+ *  Called AFTER `persistAnalysis` returns a receipt, never before. The debit used to run
+ *  first, so a persist failure — the one branch that already logs "Failed to persist
+ *  analysis" and hands the caller `persistence: null` — still spent a unit of the
+ *  recruiter's plan on a result that reached no History row, no board, and no report they
+ *  could re-open. Charging for a thing we then failed to keep is the one billing outcome
+ *  that cannot be defended, and there is no compensating refund path: the meter ledger is
+ *  append-only. Ordering the two is the whole fix — the engine work IS spent either way,
+ *  and eating that cost on our own storage fault is the honest side to err on.
+ *
+ *  Org attribution (org-plan Phase 3): the debit lands on the requesting workspace's org
+ *  — the same tenant the gate (meterGate({ workspace })) read. */
+function debitDeliveredAnalysis(persisted: unknown, allCached: boolean, workspace?: string): void {
+  if (persisted == null || allCached) return;
+  recordMeterUsage("ai_candidates", 1, new Date(), workspace);
 }
 
 function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string, cvHash?: string) {

@@ -6,6 +6,7 @@
 import type { SchedulerTranslator } from "./pipelineTranslator";
 import { XCircle } from "lucide-react";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { OutcomeChip, SummaryBadges, type SchedulerRun } from "./SchedulerSummaryBadges";
 import { usePassReasonText } from "./passReasonText";
 
@@ -22,6 +23,11 @@ export function SchedulerRunHistory({
 }) {
   // The sealed English `reason` is the fallback; the structured code renders localized.
   const passReason = usePassReasonText();
+  // The action was printed as the RAW wire enum, uppercased, in English —
+  // "REJECT" beside a fully localized outcome chip. The wire value stays
+  // canonical (the pass branches on it); only the LABEL is localized, from the
+  // enums.recommendation catalog every other recruiter surface already reads.
+  const enumLabel = useEnumLabel();
   if (runs.length === 0) return null;
   return (
     <div className="mt-1.5 rounded-md border border-stone-200 bg-white p-2 text-sm text-steel">
@@ -37,7 +43,7 @@ export function SchedulerRunHistory({
               <details>
                 <summary className="focus-ring flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-medium text-ink">{relativeTime(run.startedAt)}</span>
-                  <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs font-semibold uppercase">
+                  <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-sm font-semibold uppercase">
                     {/* The trigger name is a runtime value from the run record, so the
                         key is composed rather than literal — cast it to the translator's
                         own key type (the `Parameters<typeof t>[0]` idiom used across the
@@ -48,7 +54,7 @@ export function SchedulerRunHistory({
                     })()}
                   </span>
                   {run.status === "error" ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
+                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-coral">
                       {/* Localize the sentence, carry the raw (uncoded) server
                           detail inside it — see SchedulerRemindersRow. */}
                       <XCircle size={12} aria-hidden /> {run.error ? t("runFailedMsg", { msg: run.error }) : t("runFailed")}
@@ -57,13 +63,13 @@ export function SchedulerRunHistory({
                     <span className="inline-flex flex-wrap items-center gap-1">
                       {run.summary ? <SummaryBadges summary={run.summary} /> : null}
                       {run.summary?.evaluated != null ? (
-                        <span className="text-xs">{t("runEvaluated", { n: run.summary.evaluated })}</span>
+                        <span className="text-sm">{t("runEvaluated", { n: run.summary.evaluated })}</span>
                       ) : null}
                       {/* Multi-tenant install: the badges above are the whole sweep,
                           the rows below only this team's. Named when they differ;
                           on a single-tenant install they're equal and nothing shows. */}
                       {run.decisionCount != null && run.summary?.evaluated != null && run.decisionCount !== run.summary.evaluated ? (
-                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xs text-steel">
+                        <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-sm text-steel">
                           {t("runScope", { mine: run.decisionCount, total: run.summary.evaluated })}
                         </span>
                       ) : null}
@@ -75,10 +81,10 @@ export function SchedulerRunHistory({
                     {acted.map((d, i) => {
                       const outcome = deriveDecisionOutcome(d);
                       return (
-                        <li key={`${d.entryId}-${i}`} className="text-xs">
+                        <li key={`${d.entryId}-${i}`} className="text-sm">
                           {d.action !== "none" ? (
                             <span
-                              className={`mr-1 rounded px-1 py-0.5 font-semibold uppercase ${
+                              className={`mr-1 rounded px-1 py-0.5 font-semibold ${
                                 d.action === "reject"
                                   ? "bg-coral/10 text-coral"
                                   : d.action === "advance"
@@ -86,7 +92,7 @@ export function SchedulerRunHistory({
                                     : "bg-stone-100 text-steel"
                               }`}
                             >
-                              {d.action}
+                              {enumLabel("recommendation", d.action)}
                             </span>
                           ) : null}
                           {/* The outcome chip separates "landed" from failed /
@@ -102,7 +108,7 @@ export function SchedulerRunHistory({
                     })}
                   </ul>
                 ) : (
-                  <p className="mt-1 border-t border-stone-100 pt-1 text-xs">{t("runNoActions")}</p>
+                  <p className="mt-1 border-t border-stone-100 pt-1 text-sm">{t("runNoActions")}</p>
                 )}
               </details>
             </li>

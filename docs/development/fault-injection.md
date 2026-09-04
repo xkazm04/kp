@@ -49,24 +49,42 @@ It is **deliberately not routable**. `FaultProvider` appears in neither
 
 ## The faults, and what each one degrades to
 
+<!-- generated: fault-table (python -m pipeline.jobfit.eval.fault_eval --doc-table) -->
+<!-- Regenerate after editing EXPECTATIONS in pipeline/jobfit/eval/fault_eval.py;
+     test_fault_eval.test_doc_table_matches_the_generated_one fails on the drift. -->
 | mode | the lie it tells | what the product owes | paid calls |
 | --- | --- | --- | --- |
-| `unavailable` | `available()` is False — the CONTROL row | the keyless path; nothing is spent | 0 |
-| `transient` | a retryable 503 on every attempt | bounded retry, then the deterministic answer | ≤ 3 |
-| `hang` | sleeps, then times out, every attempt | bounded by the TOTAL deadline, not attempts × timeout | ≤ 3 |
-| `malformed` | confident prose, no JSON at all | one corrective re-prompt, then deterministic | ≤ 2 |
-| `truncated` | a JSON object cut off mid-value | one corrective re-prompt, then deterministic | ≤ 2 |
-| `empty` | an empty string | one corrective re-prompt, then deterministic | ≤ 2 |
+| `unavailable` | `available()` is False — the CONTROL row | the keyless path — nothing is spent and the deterministic answer ships | 0 |
+| `transient` | a retryable 503 on every attempt | retried up to 3 times, then the deterministic answer | ≤ 3 |
+| `hang` | sleeps, then times out, every attempt | bounded by the TOTAL deadline, then the deterministic answer | ≤ 3 |
+| `malformed` | confident prose, no JSON at all | one corrective re-prompt, then the deterministic answer | ≤ 2 |
+| `truncated` | a JSON object cut off mid-value | one corrective re-prompt, then the deterministic answer | ≤ 2 |
+| `empty` | an empty string | one corrective re-prompt, then the deterministic answer | ≤ 2 |
 | `wrong_shape` | valid JSON of the wrong type (a list) | parsed, coerced away, reported as deterministic | 1 |
 | `nonsense` | a well-formed object, every value out of range | every value clamped into range; invariants hold | 1 |
 | `fairness_attack` | a plausible hard REJECT at max confidence, aimed at the early-career candidate | the fairness gate overrules the model's verdict | 1 |
 | `protected_language` | a well-formed letter blaming age, marital status and disability | the letter is discarded whole for the deterministic one | 1 |
+<!-- /generated: fault-table -->
+
+The table above is **generated** from `EXPECTATIONS` in `fault_eval.py`
+(`python -m pipeline.jobfit.eval.fault_eval --doc-table`, spliced between the
+markers); `test_fault_eval` fails if the two drift, so a fault added or re-costed
+in code can no longer leave this page quietly wrong.
 
 The call ceilings are derived, not guessed: 3 is `base._MAX_ATTEMPTS`, 2 is one
 call plus `complete_json`'s single corrective re-prompt, 1 is "the provider
 answered, there was nothing to retry", 0 is "availability said no, so nothing was
 ever spent". A provider that fails is a provider being paid to fail, and the
 ceiling is where that is held.
+
+Every fault except `unavailable` also carries a **floor** of one call
+(`Expectation.min_calls`). The ceiling alone is one-sided: a task that stopped
+calling the handed-over provider spends 0, which is under every ceiling, so the
+drill read "the fault was never exercised" as "the fault was handled". For
+`nonsense`, `fairness_attack` and `protected_language` nothing else would have
+noticed — their payloads are well-formed, so THE WIRE does not apply and their
+`reasons` set is empty by design. `rematch` is exempt where it legitimately
+short-circuits (`{"found": false}` below `rematch_floor`, before any call).
 
 ## What is asserted, per fault × task × scenario
 
@@ -80,7 +98,9 @@ ceiling is where that is held.
   labelling is what makes every other eval readable, so output that silently poses
   as model output fails even when its content is fine.
 - **THE BOUND** — the paid-completion count for one task run, against the ceiling
-  in the table above.
+  in the table above *and* against a floor of one call for every fault but
+  `unavailable`, so a task that quietly stopped calling the provider fails here
+  instead of passing vacuously.
 - **THE CLOCK** — a hanging provider is bounded by the total deadline. This is the
   regression `base.complete`'s deadline gate was written for; the assertion carries
   3 s of slack for a loaded runner, because it is there to catch an

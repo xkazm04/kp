@@ -23,7 +23,7 @@ import crypto from "node:crypto";
 // (localized) narrative per locale, so an en result must NOT be served for a cs
 // request and vice-versa. Mixing them would show English narrative under a Czech
 // UI (or stale-cache the wrong language). Bumping invalidates every pre-i18n hash.
-export const PROMPT_VERSION = "v5-2026-06-09-lang-cachekey";
+export const PROMPT_VERSION = "v6-2026-09-04-engine-kind";
 
 export type CacheKeyInput = {
   cvBytes: Buffer;

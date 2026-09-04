@@ -1,9 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Capability, MemberRole } from "@/app/_lib/auth/roles";
-import type { Workspace } from "@/app/_lib/db/workspaces";
-import type { MemberStatus } from "@/app/features/shared/memberUi";
+import {
+  EMPTY_WORKSPACE_ADMIN,
+  foldWorkspaceAdminLoad,
+  type InviteDto,
+  type MembersResponse,
+  type WorkspaceAdminSnapshot,
+  type WorkspacesResponse,
+} from "./workspaceAdminLoad";
 
 // Data hook for the Workspaces console: the org's teams (/api/workspaces), its
 // member roster with EVERY membership each person holds, and the pending invites
@@ -13,41 +18,25 @@ import type { MemberStatus } from "@/app/features/shared/memberUi";
 //
 // Moved here from settings/organization (was useOrganizationMembers) when member
 // management became workspace-scoped.
+//
+// The FOLDING lives in workspaceAdminLoad.ts, as a pure function over the three
+// answers: what a partial arrival should keep, blank or flag was previously stated
+// only by the order of eleven setState calls inside the promise chain below, and
+// nothing could test it.
 
-export type MemberTeam = { workspaceId: string; role: MemberRole; capabilities: Capability[] };
-export type OrgMemberDto = {
-  user: { id: string; email: string; name: string | null; status: MemberStatus; createdAt: string };
-  teams: MemberTeam[];
-};
-export type InviteDto = { token: string; email: string; role: MemberRole; workspaceId: string | null; createdAt: string; expiresAt: string | null };
-/** A team row as the console renders it: the workspace plus the caller's standing. */
-export type WorkspaceDto = Workspace & { memberCount: number; role: MemberRole | null; canManage: boolean };
+export type { InviteDto, MemberTeam, OrgMemberDto, WorkspaceDto } from "./workspaceAdminLoad";
 
-type MembersResponse = { members: OrgMemberDto[]; canManage: boolean; callerCapabilities: Capability[] };
-type WorkspacesResponse = {
-  workspaces: WorkspaceDto[];
-  current: string;
-  defaultWorkspace: string;
-  multiWorkspace: boolean;
-  canManage: boolean;
-};
+/** Read a fetch answer, or null when it did not come back usable. `null` is the
+ *  vocabulary the fold speaks: a rejected fetch, a refusal, and an unparseable
+ *  body are the same fact to the console. */
+async function readJson<T>(res: Response | null): Promise<T | null> {
+  if (!res || !res.ok) return null;
+  return (await res.json().catch(() => null)) as T | null;
+}
 
 export function useWorkspaceAdmin() {
-  const [workspaces, setWorkspaces] = useState<WorkspaceDto[]>([]);
-  const [current, setCurrent] = useState<string | null>(null);
-  const [defaultWorkspace, setDefaultWorkspace] = useState<string | null>(null);
-  const [multiWorkspace, setMultiWorkspace] = useState(false);
-  const [members, setMembers] = useState<OrgMemberDto[]>([]);
-  const [invites, setInvites] = useState<InviteDto[]>([]);
-  const [canManageMembers, setCanManageMembers] = useState(false);
-  const [canManageTeams, setCanManageTeams] = useState(false);
-  const [callerCaps, setCallerCaps] = useState<Capability[]>([]);
+  const [snapshot, setSnapshot] = useState<WorkspaceAdminSnapshot>(EMPTY_WORKSPACE_ADMIN);
   const [loading, setLoading] = useState(true);
-  // A FLAG, not a message. This is a plain module with no translator, and every
-  // failure path renders the same line, so the copy lives in the catalog and the
-  // components resolve it — no English can leak out of here
-  // (docs/architecture/localization.md).
-  const [error, setError] = useState(false);
 
   // Non-async .then-chain (not an `async` body) so the mount effect below doesn't
   // trip react-hooks/set-state-in-effect — the setState calls live in promise
@@ -58,34 +47,24 @@ export function useWorkspaceAdmin() {
     // caller without it gets a 403 there; the permission check decides only what we
     // KEEP, never what we WAIT for (a serial members -> invites chain used to cost
     // the console two round-trips before first paint).
-    const workspacesReq = fetch("/api/workspaces").catch(() => null);
-    const membersReq = fetch("/api/org/members");
-    const invitesReq = fetch("/api/org/invites").catch(() => null);
-    return membersReq
-      .then(async (r): Promise<void> => {
-        // Canonical English, for the console log only — never rendered.
-        if (!r.ok) throw new Error("Failed to load members");
-        const data = (await r.json()) as MembersResponse;
-        setMembers(data.members);
-        setCanManageMembers(data.canManage);
-        setCallerCaps(data.callerCapabilities);
-
-        const rw = await workspacesReq;
-        if (rw && rw.ok) {
-          const ws = (await rw.json()) as WorkspacesResponse;
-          setWorkspaces(ws.workspaces);
-          setCurrent(ws.current);
-          setDefaultWorkspace(ws.defaultWorkspace);
-          setMultiWorkspace(ws.multiWorkspace);
-          setCanManageTeams(ws.canManage);
-        }
-
-        const ri = data.canManage ? await invitesReq : null;
-        setInvites(ri && ri.ok ? ((await ri.json()) as { invites: InviteDto[] }).invites : []);
-        setError(false);
+    const all = Promise.all([
+      fetch("/api/org/members").catch(() => null),
+      fetch("/api/workspaces").catch(() => null),
+      fetch("/api/org/invites").catch(() => null),
+    ]);
+    return all
+      .then(async ([rm, rw, ri]) => {
+        const members = await readJson<MembersResponse>(rm);
+        const workspaces = await readJson<WorkspacesResponse>(rw);
+        const invites = (await readJson<{ invites: InviteDto[] }>(ri))?.invites ?? null;
+        setSnapshot((prev) => foldWorkspaceAdminLoad(prev, { members, workspaces, invites }));
       })
       .catch(() => {
-        setError(true);
+        // A throw here is a bug in the fold, not a failed request (every fetch is
+        // already caught above) — surface it as the error state rather than
+        // leaving the console spinning on a stale reading.
+        console.error("[useWorkspaceAdmin] reload folded badly");
+        setSnapshot((prev) => ({ ...prev, error: true }));
       })
       .finally(() => {
         setLoading(false);
@@ -97,20 +76,26 @@ export function useWorkspaceAdmin() {
   }, [reload]);
 
   return {
-    workspaces,
-    current,
+    workspaces: snapshot.workspaces,
+    current: snapshot.current,
     /** The tenant a workspace-less record (a legacy invite) belongs to. */
-    defaultWorkspace,
-    multiWorkspace,
-    members,
-    invites,
+    defaultWorkspace: snapshot.defaultWorkspace,
+    multiWorkspace: snapshot.multiWorkspace,
+    members: snapshot.members,
+    invites: snapshot.invites,
     /** May seat/unseat/re-role people (members:manage). */
-    canManageMembers,
+    canManageMembers: snapshot.canManageMembers,
     /** May create and rename teams (team:manage, org-wide). */
-    canManageTeams,
-    callerCaps,
+    canManageTeams: snapshot.canManageTeams,
+    callerCaps: snapshot.callerCaps,
     loading,
-    error,
+    /** The roster itself failed. A FLAG, not a message: this is a plain module with
+     *  no translator, and the copy lives in the catalog
+     *  (docs/architecture/localization.md). */
+    error: snapshot.error,
+    /** The roster loaded but the teams or invites did not — what is on screen is
+     *  partly the previous reading, and the console says so. */
+    partial: snapshot.partial,
     reload,
   };
 }

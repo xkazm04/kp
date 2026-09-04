@@ -28,6 +28,18 @@ reads "enforced." Its content is single-sourced in `app/_lib/trust-posture.ts`
 the article map in `ai-act-conformity.md` and should be treated as the
 authoritative "current posture" when it and the doc disagree.
 
+**The recruiter-facing posture block states its own confidence.** The
+compliance section inside the Decision Rules modal
+(`app/features/hiring/decisions/DecisionsComplianceSection.tsx`) reads the saved
+jurisdiction from `GET /api/decisions/config` and the effective retention
+window from `GET /api/compliance`. Both reads can fail, and the block now says
+so rather than falling back to a plausible default: an unread jurisdiction
+renders the default *labelled* as unconfirmed (or as a failed read), and an
+unread retention window prints a line that names no number at all
+(`decisions.compliance.covered5Unconfirmed`) instead of the hardcoded "12
+months" it used to assert. The two folds are pure and tested
+(`decisionsComplianceFold.ts` / `.test.ts`).
+
 ## Flows
 
 **Consent → retention → anonymize.** A required consent step
@@ -40,10 +52,61 @@ authoritative "current posture" when it and the doc disagree.
 DB lifecycle: `recordEntryConsent`, `anonymizeEntry` (masks the label, nulls
 contact/GitHub fields, scrubs the linked profile + analyses, and — via
 `scrubEntryLinkedPii`, `pipeline.ts:1341` — the interview transcript/
-scorecard, comms outbox, offer payload, interview-prep payload, the retired
+scorecard, comms outbox, offer payload, interview-prep payload, the candidate
+survey comment, the dev-case family (submission, live-work session, captured chat,
+skill credential) and the calibration row, the retired
 onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
+
+**Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
+
+**The erasure list is pinned to the tenancy manifest.** The full-scrub test used to
+assert that the tables it knew about were clean, and nothing asserted that the set of
+tables it knew about was the set of tables holding candidate data. So a new per-tenant
+table could join `TENANCY_SCOPED_TABLES` (`app/_lib/tenancy.ts`, which IS
+machine-checked) and stay invisible to erasure — which is how the candidate survey
+comment, the whole dev-case family and the signed skill credential came to survive an
+Art. 17 request while `/data` told the candidate their data was gone.
+`erasure-full-scrub.test.ts` now reads the manifest and requires every scoped table to
+be one of three things: **written** by the erasure region (it parses the SQL out of
+`db/pipeline.ts`, so a claim cannot outrun the code), **delegated** via
+`ERASURE_DELEGATED_SCRUBS` (currently `profiles` → `anonymizeProfile`), or listed in
+**`ERASURE_EXEMPT`** (`db/pipeline.ts`) with the legal or factual reason it is lawfully
+retained. Adding a table to the manifest without doing one of the three turns the suite
+red. `ERASURE_EXEMPT` is the list a DPO reads: it carries `decision_records` (the
+Art. 17(3)(b)/(e) hash chain), `dev_session_events` (the tamper-evident observed-process
+log, which holds no identifiers), `consent_events` (the Art. 5(2) proof that the erasure
+happened cannot be what the erasure deletes), `outreach_state` (deleting it would re-arm
+the contact it prevents), `ats_links` and `llm_usage`, among others.
+
+**What the dev-case reach added.** Those rows are keyed by *submission*, never by entry
+id, which is why the scrub never saw them. The join is the entry's own
+`dev_submission_id` (written at promote, `devcase-run.promoteSubmission`) plus the legacy
+reading of a pre-link entry whose candidate id was `ds-<submissionId>` — the same order
+`dev-outcomes.hireOutcomeRef` uses, because the two disagreeing is how a row gets missed.
+Through it, erasure now also masks `dev_submissions.candidate_ref` and nulls its
+`contact`/`notes`, drops `dev_sessions.files_json` (the candidate's authored tree) and
+blanks `dev_session_chat.text` (their verbatim prompts), and **revokes** the
+`skill_profiles` credential as well as emptying its payload — an erased credential that
+still verified would be a public page vouching for a scrubbed person. `candidate_nps`
+loses its free-text `comment` (the 0-10 score stays: it names nobody and is the
+candidate-experience measurement), and `dev_outcomes` loses `candidate_ref` and `note`
+while keeping the predicted-score / outcome / rating pairing — a de-identification, not a
+deletion. `dev_submissions.eval_json` and `transfer_score` likewise stay as the retained,
+de-identified assessment record.
+
+**An erasure happens exactly once, under concurrency.** Two doors reach
+`anonymizeEntry` — the consent-expiry sweep and the candidate's own
+`/data/[token]` request — and the "already scrubbed" check used to be a bare read
+on a DEFERRED transaction, so both could pass it before either wrote. The second
+pass then masked an already-masked label, re-ran the whole linked-PII scrub, and
+logged a **second** `consent_events` row, so the accountability record (Art. 5(2))
+showed one candidate erased twice. The transaction now runs `.immediate()` and its
+claiming UPDATE re-asserts `anonymized_at IS NULL`, returning the row unchanged on
+`changes === 0`. The candidate-facing guarantee is unchanged — an erasure was
+always meant to be idempotent; the implementation now matches it, and
+`pipeline-erasure-once.test.ts` pins the single consent event.
 `decision_records` is **deliberately excluded** from the scrub — the code
 comment at `pipeline.ts:1332-1335` states the GDPR Art. 17(3)(b)/(e)
 legal-claims/compliance basis for retaining the sealed chain post-erasure.
@@ -76,6 +139,29 @@ every content write, and `anonymizeProfile` goes through `updateProfile`), and
 workspace rule — to a `pipeline_entries` row carrying `anonymized_at`. Untouched seed
 rows still refresh. `seed-analyses-preserve.test.ts` pins both directions.
 
+**The “what we hold” list never over-claims, on either side.** `heldDataCategories`
+(`app/_lib/data-held.ts`) projects the categories from what the entry ACTUALLY has, and
+the route sends them. The client (`app/data/[token]/DataClient.tsx`) used to fall back to
+`Object.keys(heldLabel)` when the field was absent, which re-armed the same hardcoded
+five-item claim it removed — on a response that simply said nothing. `renderableHeldCategories`
+replaces it: a missing or malformed field renders NOTHING, unlabelled and repeated keys are
+dropped, and the “What we hold” heading is hidden with the list rather than left over an
+empty box. Pinned in `app/_lib/data-held.test.ts`.
+
+**The jurisdiction route answers the shaped envelope.** `GET /api/compliance` returns
+`{ jurisdiction, consentRetentionMonths }` — the caller’s active regime (normalized at the
+read boundary, so a stale or hand-edited row lands on the EU default rather than an empty
+legal framework) and the window derived from `KP_CONSENT_TTL_DAYS`. It had no `try`/`catch`:
+`getActiveRegimeId` opens the decision-config store’s own SQLite connection, so a locked or
+unreachable database threw out of the handler and Next answered its framework 500 — an
+unreadable body on the route that feeds the candidate-facing AI disclosure, with the raw
+SQLITE_* detail and db path closest to a public surface. It now answers
+`safeJsonError(…, "COMPLIANCE_LOOKUP_FAILED")`. Pinned by `app/api/compliance/compliance-route.test.ts`
+(happy envelope, unknown-regime normalization, coded failure with no thrown detail on the
+wire) and `app/_lib/compliance-regimes.test.ts`, which pins the normalization boundary and
+the deliberate rule that only the US names a codified adverse-impact standard (the EEOC
+four-fifths rule) — every other regime’s null is the contract, not a gap.
+
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET
@@ -93,6 +179,63 @@ retry `404`; a failed erase therefore re-reads the entry before showing an
 error, and treats a consumed token or an `anonymized` entry as **erased**.
 Telling a candidate their erasure failed on data that is already gone would be
 the one lie this surface must never tell.
+
+The page was brought up to the offer door's standard on 2026-09-02, that door
+being the reference for every public tokenized surface here. Four gaps closed:
+
+- **The retryable branch now HAS a retry.** Its copy had promised one since the
+  dead-link/fault split above landed; the only way to act on it was a manual
+  reload, on a page reached from an email footer. `retryLoad` re-runs the same
+  `load` callback, and the button renders ONLY for the retryable kind: a retry
+  over a `404` is a loop with no exit.
+- **A `Skeleton` loading state** shaped like the loaded page, replacing a bare
+  line of text that reflowed into a full page on arrival (CLS).
+- **A `LanguageSwitcher`**, mirroring the offer and status doors. The footer link
+  is `?lang=`-pinned to the language of the LETTER it rode on, but a forwarded
+  link or a stale `NEXT_LOCALE` cookie can still land a reader on this page in a
+  language they do not read, and an erasure explainer is a legal affordance with
+  no other chrome to escape through.
+- **The erase confirm is a real `role="alertdialog"`** on the shared
+  `useDialogA11y` hook (focus move in, Tab trap, Escape, focus restored to the
+  trigger), with **Cancel first in the DOM** so the hook's "focus the first
+  focusable" lands a keyboard user on the safe option and the destructive button
+  sits last. It had been a plain `<div>` holding two buttons, destructive first,
+  with no focus handling at all — for an irreversible action. Escape is ignored
+  while the POST is in flight: the write is already irreversible and a vanished
+  dialog would leave its result nowhere to land.
+
+Every control on the page is now composed from `app/_components/ui/recipes.ts`
+and sized `h-11` (44px, WCAG 2.5.8 AA) — as are the invite accept form and the
+sign-in form, the other two doors opened from a link on a phone.
+`app/data/[token]/token-doors-surface.test.ts` is the source guard for all
+three: recipe use, the touch-target floor, the alertdialog wiring and the
+Cancel-before-destructive DOM order.
+
+That guard now scans **seven** files, not three: the offer card, the status
+page, its NPS card and the sign-up form joined it (/perfect wave 20), because
+each had hand-rolled the controls the first three had already stopped
+hand-rolling. What changed on the two doors in this document:
+
+- **The status page's retry and refresh** are `BTN_PRIMARY_LG` / `BTN_GHOST` at
+  44px; the NPS scale's eleven cells were 36px and are now 44px (the scale keeps
+  its own selected/unselected tint — no `BTN_*` recipe expresses a scale, and
+  the guard exempts `role="radio"` on that ground alone).
+- **The NPS failure is a `role="alert"` and the thanks swap a `role="status"`.**
+  "That didn't go through" announced nothing: a screen-reader user pressed Send
+  and heard silence over an answer that had been DROPPED, and the success case
+  replaced the whole question card just as silently.
+- **The two status doors and the erasure door answer refusal CODES**, not bare
+  English. `STATUS_LINK_INVALID` (404 on both `/api/status/[token]` and its
+  `/nps` sibling — one refusal for "no such token" and "no such entry", so the
+  door is not an existence oracle), `STATUS_NPS_NOT_APPLICABLE` (409 for
+  feedback on a still-running application) and `DATA_LINK_INVALID` (404 for a
+  never-issued or already-spent erasure token). All three are in `REFUSAL_ERRORS`
+  with four catalogue entries each; the page resolves `errors.<CODE>` in the
+  reader's language (`docs/architecture/api-contracts.md` §1.1).
+
+`e2e/token-doors-axe.spec.ts` now sweeps `/status/[token]` in two states — the
+loaded timeline and the dead-link alert — beside the offer, erasure and invite
+doors it already covered.
 
 **Decision sealing + candidate explanation.** Every automated or human
 adverse action is sealed into a per-tenant, hash-chained record
@@ -131,7 +274,15 @@ candidate's optimistic CAS refuse *after* their record was already sealed. The c
 is append-only, and an `auto_rejected` record is not inert: `status-decisions.ts`
 renders it to the candidate on `/status/[token]` with the score and threshold,
 `ats-egress.ts` ships the latest record to the customer's ATS as their decision, and
-`heldOutEntryIds` drops them from the calibration clean arm. The wave now re-reads the
+`heldOutEntryIds` drops them from the calibration clean arm. A failed **holdout** seal is now handled the same
+way: `heldOutEntryIds` derives the calibration clean arm from the sealed holdout rows and
+from nothing else, so an unwritable chain silently dropped the candidate from the arm
+while the wave still reported a row reading "kept as a calibration holdout". The failure
+is counted into `sealFailures`, the row carries `reasonCode: "holdoutSealFailed"`, and
+the audit event says the record was not written instead of asserting a membership that
+does not exist. The candidate stays spared either way — they left the reject set before
+the approval was signed, so a failed holdout costs a calibration data point, never a
+person. The wave now re-reads the
 live row and skips (`reasonCode: "staleSkipped"`) **without sealing** when the stage or
 status has drifted; what remains is the single synchronous statement between that read
 and the CAS. The status half also stops a second rejection email to a candidate a
@@ -140,6 +291,36 @@ the stage CAS alone would have waved it through). Pinned by the mid-wave-drift t
 `app/_lib/screen-wave.test.ts`, which drives the interleaving through a loopback relay.
 
 Two consequences worth stating to an auditor:
+
+**Verification is incremental, with a scheduled full re-hash.** `verifyDecisionChain`
+re-hashed every row of a workspace's chain on every call, and `/api/decisions/records`
+calls it on every panel mount — so reading the decisions panel cost the customer's whole
+decision history, which only grows, while the record list beside it capped at 1000 rows.
+A verified prefix now anchors the next run: the process remembers the highest good
+`(seq, content_hash, key ids)` per workspace and re-hashes only the rows above it. The
+checkpoint is **in-process, never persisted** — a checkpoint row in the DB would be
+written by exactly the party the chain defends against — and it is void the moment its
+anchor row's stored hash or key id moves, or any key its prefix was sealed under stops
+resolving (so the rotation fail-closed rule still bites on the next read, not on the
+next full pass). It is honoured for at most `CHAIN_FULL_VERIFY_INTERVAL_MS` (15 min);
+past that the chain is re-hashed whole, which is what catches the one tamper a
+checkpoint is blind to — a payload rewritten *without* re-hashing, inside the verified
+prefix. That accepted lag sits beside the route's existing ~20s verdict memo. The
+verdict now reports `verifiedFromSeq` and `fullyVerified` so a surface can never present
+a partial re-hash as the full proof, and `verifyDecisionChain(ws, { full: true })` is
+the caller saying the full proof is the point. Census fields (`count`, `keylessCount`,
+`keyed`, `firstKeyedSeq`) are computed by SQL aggregate and always describe the WHOLE
+chain, not the re-hashed slice. Pinned by `decision-record-store.test.ts` §9.
+
+**The clean-arm read is bounded.** `heldOutEntryIds` ran two unbounded
+`SELECT DISTINCT` scans of `decision_records` (spared refs, then the entire
+auto-rejected history) and `/api/analytics/calibration` called it **twice** per request.
+It is now one capped, newest-first scan (`HELD_OUT_SCAN_LIMIT`, default 2000 — the arm
+measures recent selection quality) plus a lookup of the rejected side for those refs
+only, chunked under the SQLite variable floor; it also takes an optional `jobId` to
+scope the arm to one role through `pipeline_entries`, falling back to the workspace arm
+rather than an empty one where that table is not on the connection. The calibration
+route reads it once behind a lazy memo instead of twice.
 
 - **A key added later cannot retro-seal earlier records.** They keep
   `key_id = ''` permanently. What the key does buy retroactively is the
@@ -205,6 +386,36 @@ sealed record, never freshly generated** (see the module header comment,
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
 (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`).
+
+**One review authorizes ONE commit.** The token is a pure function of
+`(jobId, policyVersion, reject set, issuedAt)`, so re-POSTing the same commit body
+inside the 15-minute freshness window re-derived the same signature and passed every
+check again; the only thing that stopped a replay was the first commit having emptied
+its own cohort, which nothing asserted and which does not happen when part of the
+reviewed set survives (a seal failure, a mid-wave stage drift). The token is now
+**spent** on commit — `consumeScreenWaveApprovalToken` in `screen-wave-approval.ts`,
+an in-process ledger holding each token's own expiry — and a re-post is refused with
+the existing 409 carrying `reason: "spent"`. The 409 body now always carries a
+machine-readable `reason` from `SCREEN_WAVE_REFUSAL_REASONS`
+(`required` / `expired` / `mismatch` / `spent` / `unattributed`), because the five
+refusals ask the recruiter for five different things. Consumption runs **after** every
+other refusal, so a fixable one (an unnamed approver) never burns the review. Honest
+limit: the ledger is per process, so a multi-worker deployment does not catch a replay
+routed to a second worker — a `consumed_at` column beside the seal would, and is the
+recorded next step. Pinned by `screen-wave-guards.test.ts` (§7) and
+`screen-wave-approval.test.ts`.
+
+**The sealed record names the policy the approval bound.** The wave signs its token
+over a `policyVersion` carrying the family-floor map and the holdout rate, and the
+holdout seal stored that string — but the auto-reject seal rebuilt a shorter
+`bottom<pct>/maxMatch<the candidate's effective floor>`, dropping both suffixes. A
+reject record therefore could not be joined back to the approval that authorized it,
+nor to the holdout seals of the same wave: two arms of one audit trail attesting to
+two different policies. Both arms now seal the token-bound string; the per-candidate
+effective floor rides the sealed `inputs.threshold`, where a per-record number belongs.
+The join is the test: `screen-wave-guards.test.ts` §6 feeds the RECORD's
+`policyVersion` back to `verifyScreenWaveApprovalToken` and requires it to re-derive
+the approved token.
 Unattended automation (`app/_lib/automation-pass.ts`) never executes a
 reject itself — "AUTO1 RETIRED" (`automation-pass.ts:302-308`): every
 fairness-cleared reject is queued as `rejection_review` for a human.
@@ -250,6 +461,25 @@ fewer candidates than the comparison (the ranker's pool drops entries it cannot
 resolve), so the orders are compared on the matrix's own field, and a comparison
 that cannot be made states **nothing** rather than defaulting to "agrees".
 
+**The comparison discloses who was withheld, and what fell back.** A group
+evaluation excludes cohort members who were anonymized (an Art. 17 erasure) or
+whose consent to be processed has lapsed, through the same fail-closed predicate
+outreach uses; and every one of its up-to-eight AI stages degrades soft into a
+deterministic twin. Both facts are recorded on the saved payload
+(`consentExcluded`, `degradedStages` — see `docs/features/matching/README.md`) and
+are now folded for the reader by `groupEval/groupEvalDisclosure.ts` and rendered by
+`GroupEvalNotices.tsx` in the same amber `Notice` the drift and governance warnings
+use: a caveat on the comparison, never a calm or confirming tone.
+
+The consent notice is a **count only** — the payload deliberately never carries the
+excluded people's ids, so the disclosure cannot re-materialize what the erasure
+removed. The degraded notice names the stages in a fixed order and distinguishes a
+*timeout* from a *failure*, because the two ask an operator for different things.
+Without it an evaluation whose ranking, narrative and rationales had all fallen
+back was indistinguishable from a full AI comparison — and a field that shrank for
+a consent reason read as a field that simply had fewer applicants. Pinned by
+`groupEval/groupEvalDisclosure.test.ts`.
+
 **Name/gender-proxy neutrality.** `pipeline/jobfit/tests/test_name_neutrality.py`
 now pins byte-identity of the deterministic scorer's output across
 Czech-male/Czech-female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated
@@ -273,6 +503,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 | AI disclosure UI | `app/_components/AiDisclosure.tsx` |
 | Provenance dossier | `app/_lib/provenance-dossier.ts` |
 | Compliance posture board | `app/trust/page.tsx`, `app/trust/TrustContent.tsx`, `app/_lib/trust-posture.ts` |
+| Recruiter-facing posture block (Decision Rules modal) | `app/features/hiring/decisions/DecisionsComplianceSection.tsx`, state in `decisionsComplianceState.ts`, pure folds in `decisionsComplianceFold.ts` (tested) |
 | Public compliance JSON | `app/api/compliance/route.ts` |
 | Approver identity for sealed approvals | `app/_lib/auth/operator-approver.ts` — `approverIdentity()` / `resolveApprover()` / `humanActor()` over `currentUserId()` + `app/_lib/db/users.ts`, falling back to `operatorApprover()` (env `KP_OPERATOR_NAME`) |
 | Actor on the operational log | `pipeline_events.actor` (`app/_lib/db/core.ts`) — nullable, no backfill; parsed by `parseEventActor()` in `app/_lib/decision-attribution.ts` |
@@ -284,6 +515,9 @@ name variants — this closes what was gap G3 in the original conformity pack.
   `consent_source`, `anonymized_at`, `erasure_token`.
 - `consent_events` (append-only): `id, entry_id, kind, detail, created_at` —
   `kind ∈ granted|renewed|expiring_notified|expired|anonymized|erasure_requested|erased`.
+- `ERASURE_EXEMPT` (`app/_lib/db/pipeline.ts`): table → the reason it is lawfully
+  retained through an Art. 17 erasure. Pinned to `TENANCY_SCOPED_TABLES` by
+  `erasure-full-scrub.test.ts`.
 - `decision_records`: the hash-chained sealed decision log (HMAC-keyed per row
   via `key_id` when `KP_DECISION_HMAC_KEY` is set — see Flows above) — never
   scrubbed by erasure (retained per Art. 17(3) exemption).

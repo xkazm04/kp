@@ -73,9 +73,17 @@ export function ControlDock() {
   const candi = candiControl(companion !== null, companion?.prefs.mode ?? "dock");
   const shown = effectiveDockPanel(panel, candi, companion?.open ?? false);
   const railRef = useRef<HTMLDivElement>(null);
-  // ResizeObserver-backed on the whole footer ROW (panel + both rail elements), so
-  // a layer-2 open/close republishes the height the sim overlays anchor above.
-  usePublishBarHeight(railRef, !collapsed);
+  const orbRef = useRef<HTMLDivElement>(null);
+  // Whether the orb should take focus when it appears. True only when the OPERATOR
+  // lowered the deck — the orb is then the control that replaced the one they were
+  // standing on. A page that simply loads collapsed must not grab focus.
+  const [focusOrb, setFocusOrb] = useState(false);
+  // ResizeObserver-backed on whichever of the two the deck currently IS — the whole
+  // footer ROW when raised (panel + both rail elements, so a layer-2 open/close
+  // republishes for free), the orb when down. ONE call switching refs rather than
+  // two calls with an `active` flag each: two effects would race to own the same
+  // custom property, and whichever ran last would win by declaration order.
+  usePublishBarHeight(collapsed ? orbRef : railRef, true);
 
   useDockPanelEffects({
     mode,
@@ -106,6 +114,7 @@ export function ControlDock() {
       preview={pass.preview}
       entries={pass.entries}
       committing={pass.busy}
+      commitError={pass.commitError}
       onCommit={() => void pass.commit()}
       onClose={pass.dismiss}
     />
@@ -121,7 +130,10 @@ export function ControlDock() {
           simDone={sim.done}
           awaiting={awaiting}
           aiBusy={aiBusy}
+          containerRef={orbRef}
+          focusOnMount={focusOrb}
           onOpen={() => {
+            setFocusOrb(false);
             setCollapsed(false);
             setPanel((cur) => cur ?? (mode === "sim" ? "sim" : "ops"));
           }}
@@ -162,7 +174,16 @@ export function ControlDock() {
             which hangs off the row's top-centre (DockBrand) so it stays in the
             same column as the collapsed orb it toggles with. */}
         <div className="relative mx-auto flex max-w-[1600px] items-end gap-3">
-          <DockBrand aiBusy={aiBusy} onCollapse={() => setCollapsed(true)} />
+          <DockBrand
+            aiBusy={aiBusy}
+            onCollapse={() => {
+              // Lowering the deck destroys the control that was focused, so the
+              // orb that replaces it takes the focus rather than letting it fall
+              // to the body — the same courtesy Escape does for a panel.
+              setFocusOrb(true);
+              setCollapsed(true);
+            }}
+          />
           <div className="pointer-events-auto min-w-0 flex-1 rounded-xl border-2 border-stone-300 bg-white/95 px-4 py-3 shadow-panel backdrop-blur dark:rounded-2xl">
             {/* ── LAYER 2 — the one exclusive panel, above the row that opened it ── */}
             {shown ? (

@@ -68,6 +68,22 @@ judgment with what the rules already detected. Results are validated with a Zod
 schema generated from the Pydantic models, so the TypeScript UI and Python pipeline
 cannot drift apart. There is no second long-lived server to manage.
 
+**The background runner is fair across tenants.** `app/_lib/tasks.ts` keeps at most
+`MAX_CONCURRENT` (2) handlers in flight process-wide — the Claude CLI rate ceiling, not
+a per-team quota. Which queued task fills a free slot is a separate, pure decision in
+`app/_lib/task-pump.ts`: among the queued tasks, run the one whose **workspace** holds
+the fewest running slots, ties broken by queue position. A single tenant's queue is
+therefore unchanged (plain FIFO), while one team can never hold both slots — each an
+LLM run measured in minutes — against another team that has anything queued. Boot
+recovery re-enqueues orphaned `queued` rows with the workspace each row carries
+(`listQueuedTaskEntries`), so a restart cannot collapse every recovered task onto one
+tenant and undo the rule. Every handler in the `HANDLERS` table declares `tenancy`:
+`scoped` (its run reaches `ctx.workspaceId`) or `tenant-free` with the reason on the
+line; `app/_lib/tasks-pump.test.ts` fails on a kind that declares neither, and on a
+`scoped` one whose handler never actually reads the workspace. Durable, cross-restart
+queueing remains out of scope — the `tasks` row is the source of truth, and a run
+orphaned mid-flight is marked `interrupted` rather than resumed.
+
 ```text
 app/
   page.tsx                          Workspace shell (tab-based studio UI); '/' is gated

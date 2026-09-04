@@ -17,13 +17,13 @@ class _FakeProvider:
         self._payload = payload
         self.calls = 0
 
-    def complete_json(self, prompt, system=None):  # noqa: ARG002 - mirrors ClaudeCliProvider
+    def complete_json(self, prompt, system=None, expected_keys=None):  # noqa: ARG002 - mirrors ClaudeCliProvider
         self.calls += 1
         return self._payload
 
 
 class _BoomProvider:
-    def complete_json(self, prompt, system=None):  # noqa: ARG002
+    def complete_json(self, prompt, system=None, expected_keys=None):  # noqa: ARG002
         raise RuntimeError("provider unavailable")
 
 

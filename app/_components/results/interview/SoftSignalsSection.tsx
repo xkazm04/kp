@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { AlertOctagon, Check, ClipboardCopy, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { copyText } from "@/app/_lib/export-utils";
+import { PANEL } from "@/app/_components/ui/recipes";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 
 // The engine's soft-signal panel (SCOR1): antipattern / hidden-strength
 // HYPOTHESES — overclaim risk, tenure instability, transferable strengths —
@@ -33,21 +34,17 @@ function checklistLines(panel: Panel): string[] {
 
 export function SoftSignalsSection({ panel }: { panel: Analysis["softSignals"] }) {
   const t = useTranslations("results.softSignals");
-  const [copied, setCopied] = useState(false);
+  const { copied, mark } = useCopyFeedback();
   if (!panel || (panel.antipatterns.length === 0 && panel.strengths.length === 0)) return null;
 
   const copy = async () => {
-    const ok = await copyText(checklistLines(panel).join("\n"));
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    mark(await copyText(checklistLines(panel).join("\n")));
   };
 
   const copyable = checklistLines(panel).length > 0;
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -112,12 +109,12 @@ function SignalGroup({ heading, signals, tone }: { heading: string; signals: Sig
           <li key={s.key + s.label} className={`rounded-md border p-3 ${toneClasses}`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-ink">{s.label}</span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 font-mono text-xs text-steel" title={t("sourceTitle")}>
+              <span className="rounded-full bg-stone-100 px-2 py-0.5 font-mono text-micro text-steel" title={t("sourceTitle")}>
                 {sourceLabel(s.source, t)}
               </span>
-              <span className="text-xs text-steel">{t("confidence", { pct: Math.round(s.confidence * 100) })}</span>
+              <span className="text-micro text-steel">{t("confidence", { pct: Math.round(s.confidence * 100) })}</span>
               {s.needsConfirmation ? (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-micro font-semibold text-amber-800">
                   {t("needsConfirmation")}
                 </span>
               ) : null}
@@ -133,7 +130,7 @@ function SignalGroup({ heading, signals, tone }: { heading: string; signals: Sig
                 each hypothesis are one click away. */}
             {s.evidence.length > 0 ? (
               <details className="mt-1.5">
-                <summary className="focus-ring cursor-pointer text-xs font-semibold text-steel">{t("evidence")}</summary>
+                <summary className="focus-ring cursor-pointer text-micro font-semibold text-steel">{t("evidence")}</summary>
                 <ul className="mt-1 space-y-1">
                   {s.evidence.map((e, i) => (
                     <li key={`${e}-${i}`} className="text-sm leading-5 text-steel">

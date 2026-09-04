@@ -55,7 +55,8 @@
       "unattended": "Unbeaufsichtigt",
       "touchpointsLabel": "Menschliche Entscheidungen",
       "bookingsN": "{count, plural, one {# Runde zu planen} other {# Runden zu planen}}",
-      "weekAria": "Eine typische Woche"
+      "weekAria": "Eine typische Woche",
+      "weekNote": "Eine beispielhafte Woche, keine Prognose."
     },
     "save": "Plan speichern",
     "saving": "Wird gespeichert…",
@@ -110,7 +111,15 @@
       "offer": "Sie machen ein Angebot und warten auf die Antwort.",
       "terminal": "Das Angebot ist angenommen. Hier endet der Prozess.",
       "custom": "Ihr eigener Schritt. Er bedeutet genau das, was Ihr Team braucht."
-    }
+    },
+    "occupancyUnknown": "Es ließ sich nicht ermitteln, wer auf welchem Schritt steht. Bis das gelingt, kann kein Schritt entfernt werden.",
+    "occupancyRetry": "Erneut prüfen",
+    "blockedOccupancy": "Unklar, wer auf welchem Schritt steht. Ein Entfernen lässt sich deshalb nicht speichern. Prüfung oben wiederholen.",
+    "blockedStranded": "Legen Sie fest, wohin die Kandidaten der entfernten Schritte gehen sollen.",
+    "refreshFailed": "Gespeichert. Diese Ansicht ließ sich nicht aktualisieren und zeigt womöglich noch den vorherigen Plan.",
+    "refreshRetry": "Aktualisieren",
+    "stale": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Ihre Änderungen wurden nicht geschrieben.",
+    "staleReload": "Gespeicherten Plan laden"
   },
   "diagrams": {
     "eyebrow": "Architektur",
@@ -123,7 +132,8 @@
       "gap": "verbleibende Lücke (innerhalb eines Schritts gezeigt)"
     },
     "explorer": {
-      "instruction": "Klicken Sie auf einen Schritt, um zu sehen, wie er verdrahtet ist. Der geöffnete Schritt bleibt hier links umrandet."
+      "instruction": "Klicken Sie auf einen Schritt, um zu sehen, wie er verdrahtet ist. Der geöffnete Schritt bleibt hier links umrandet.",
+      "codeHeading": "Code"
     },
     "status": {
       "live": "Automatisiert",
@@ -156,6 +166,68 @@
       "svgLabelUntitled": "Komponentendiagramm",
       "tooLarge": "Dieses Diagramm ist zu groß, um hier dargestellt zu werden.",
       "renderFailed": "Dieses Diagramm konnte nicht dargestellt werden."
+    },
+    "steps": {
+      "jd": {
+        "title": "Stellenanzeige verfassen",
+        "summary": "Der Freitext-Bedarf einer Recruiterin (optional plus GitHub-Repository) wird über die devcase-Kette Bedarf→Entwurf zu einer veröffentlichbaren Markdown-Stellenanzeige, wird gespeichert und in den abgleichbaren Korpus eingelesen."
+      },
+      "ingest": {
+        "title": "Anzeige → strukturierte Stelle",
+        "summary": "Richtung #1: eine verfasste oder eingefügte Anzeige wird zu einer strukturierten Stelle geparst (Muss/Kann, über die Taxonomie aufgelöste Skills, Einstiegsprofil) und in den abgleichbaren Korpus geschrieben. Per Content-Hash dedupliziert, kosten unveränderte Anzeigen also nichts."
+      },
+      "dist": {
+        "title": "Verteilung an Kandidaten",
+        "summary": "Beim Speichern der Anzeige wird der Kandidatenpool gegen die neue Stelle gerankt und als Pipeline-Einträge im Status Accepted angelegt; der Accepted-Zweig des Policy-Durchlaufs (Richtung #1) rückt passende Kandidaten automatisch nach Screened vor (erste Bewertungswelle). Das Posten auf externen Jobbörsen bleibt manuell."
+      },
+      "apply": {
+        "title": "Bewerbung / Lebenslauf-Upload",
+        "summary": "Ein im Analyze-Tab hochgeladener Lebenslauf (PDF/DOCX/TXT/MD) wird als Subprozess an das Python-Analyse-CLI übergeben und das Ergebnis gespeichert. Das geführte Profile-Formular speichert ein strukturiertes V2-Profil."
+      },
+      "extract": {
+        "title": "Text extrahieren + LLM-Felder",
+        "summary": "Die deterministische Textextraktion (mit Reparatur von tschechischem Mojibake und gesperrter Schrift) speist ein LLM, das strukturierte Skills, Eigenschaften und Belege zurückgibt. Hinweis: der Extraktor ruft zur Laufzeit weiterhin Gemini auf (spec-widrig gegenüber der Regel „nur Claude CLI“), und für die reinen LLM-Felder gibt es noch keinen deterministischen Rückfallpfad."
+      },
+      "v2": {
+        "title": "Archetyp-Routing → V2-Profil",
+        "summary": "Richtung #2: der Lebenslauf-Pfad leitet jetzt Archetyp-Signale ab und führt detect_archetype aus, wodurch der extrahierte Lebenslauf auf ein CandidateProfileV2 mit Provenienz und Potenzial abgebildet wird. Die Kandidaten-Route und match-candidate.ts lesen den echten Archetyp statt eines fest verdrahteten BAU."
+      },
+      "match": {
+        "title": "Match: KO · Score · Begründung",
+        "summary": "Ein normalisierter Kandidat wird durch harte Ausschluss-Gates gefiltert und dann gegen den Stellen-Korpus bewertet, mit archetyp-abhängigen Gewichten über die Taxonomie-Hierarchie. Sichtbar im Match-Tab und im Matrix-Raster."
+      },
+      "screen": {
+        "title": "KI-Screening",
+        "summary": "Das fairness-geprüfte Screening (Task 1) läuft über das Claude CLI mit deterministischem Rückfallpfad. Einzeln verfügbar in beiden Stufen vor dem Interview: bei Accepted triagiert es eine frische Bewerbung nach Screened, bei Screened rückt es Richtung Interview vor. Sichere Treffer rücken vor; Berufseinsteiger und unsichere Fälle werden für die Decisions-Warteschlange zurückgehalten, nie automatisch abgelehnt."
+      },
+      "decide": {
+        "title": "Entscheidungs-Warteschlange",
+        "summary": "Das bewusste Human-in-the-Loop-Gate: zurückgestellte Kandidaten, Absagen und Zusagen sind die Entscheidung der Recruiterin. Die KI-Empfehlung fährt als Kontext mit; die Aktion ist ein Klick."
+      },
+      "engage": {
+        "title": "Ansprache + Interview-Einladung",
+        "summary": "Richtung #3: Ansprache- und Absagenachrichten werden entworfen (Claude CLI + Rückfallpfad) und tatsächlich über den Kommunikationskanal zugestellt (standardmäßig in der Warteschlange, gesendet sobald COMMS_WEBHOOK_URL gesetzt ist). Empfänger ist bislang nur das Kandidatenlabel. Ein E-Mail-/ATS-Feld ist der Haken für die Anreicherung."
+      },
+      "interview": {
+        "title": "Interview: KI-Sprachscreening → Scorecard",
+        "summary": "Die Recruiterin erstellt ein fundiertes Sprachscreening (Fragen aus der Task-4-Vorbereitung); der Kandidat absolviert es im Browser (OpenAI Realtime oder ElevenLabs). Beim Auflegen synthetisiert das Transkript eine Scorecard (Task 5) und setzt scorecard_review für das Gate Interview→Offer. Auch die Terminplanung ist live: die Annahme eines Screenings stellt den Eintrag in den Schedule-Tab, die Recruiterin erzeugt einen tokenisierten Selbstbuchungslink, den der Kommunikationskanal zustellt, und der Kandidat bestätigt einen echten datierten Termin (inklusive Umbuchung und Kalendereinladung). Das wochentagsrelative „Di 14:00“ ist nur der Startvorschlag, den ein Alteintrag trägt, bis eine Einladung existiert."
+      },
+      "offer": {
+        "title": "Angebotsentscheidung",
+        "summary": "Die Angebotssumme ist deterministisch (Rollenband × Passung) und das Anschreiben wird automatisch entworfen. Ein Mensch gibt es frei (das Gate), womit das Angebot ERTEILT und an den Kandidaten zugestellt wird."
+      },
+      "close": {
+        "title": "Angebot zustellen · Zu- oder Absage erfassen",
+        "summary": "Richtung #4: der Kandidat öffnet eine tokenisierte Angebotsseite und nimmt an oder lehnt ab. Die Annahme überführt den Eintrag nach Hired; die Absage schließt ihn. Kein blanker Menschenklick mehr am Ende."
+      },
+      "hire": {
+        "title": "Einstellungs-Übergabe an das HRIS",
+        "summary": "Endpunkt von Richtung #4: bei Hired endet die Aufgabe von kp. Der Übergang spiegelt die Einstellung in das vom Workspace konfigurierte ATS/HRIS (candidate.hired-Webhook), damit das führende System das Ergebnis ohne Neuerfassung bekommt. Was danach kommt (Papierkram, Ausstattung, erster Tag), ist bewusst Sache des HRIS, nicht dieser App."
+      },
+      "cron": {
+        "title": "Scheduler / Cron",
+        "summary": "Richtung #5: eine dauerhafte Uhr. Ein Instrumentierungs-Heartbeat taktet den Scheduler, der einen fälligen Lauf atomar übernimmt und den Policy-Durchlauf ausführt (Nachfass-Erinnerungen nach Liegezeit, zeitbasierte Vorrückungen). Standardmäßig AUS. Einschaltbar über den Schalter im Pipeline-Tab oder AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {
@@ -273,7 +345,7 @@
     "addToPipeline": "Zur Pipeline hinzufügen",
     "adding": "Wird hinzugefügt…",
     "added": "Zur Pipeline hinzugefügt",
-    "addFailed": "Hinzufügen zur Pipeline fehlgeschlagen. {error}",
+    "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden.",
     "importToPrep": "Diese Fragen zur Interviewvorbereitung hinzufügen",
     "importToPrepBusy": "Wird zur Interviewvorbereitung hinzugefügt…",
     "importToPrepDone": "Zur Interviewvorbereitung hinzugefügt",
@@ -428,7 +500,12 @@
       "starSituation": "Situation",
       "starTask": "Aufgabe",
       "starAction": "Aktion",
-      "starResult": "Ergebnis"
+      "starResult": "Ergebnis",
+      "benchmarkVintage": "Benchmark {source}, aktualisiert {date}",
+      "benchmarkVintageUndated": "Benchmark {source}",
+      "benchmarkThin": "kleine Stichprobe (n={count})",
+      "benchmarkNoSample": "keine Stichprobe erfasst (redaktioneller Richtwert)",
+      "benchmarkAnchor": "Verankert am Benchmark {source}, aktualisiert {date}"
     }
   },
   "comms": {
@@ -492,7 +569,8 @@
     "interviewReminder": {
       "subject": "Erinnerung: Ihr Interview {slot}",
       "length": " Planen Sie etwa {minutes} Minuten ein.",
-      "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}"
+      "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}",
+      "slotFallback": "Ihr vereinbarter Termin"
     },
     "offerReminder": {
       "subject": "Erinnerung: Ihr Angebot für {role} ist noch offen",
@@ -513,7 +591,15 @@
       "strengthsHeading": "Das ist aufgefallen:",
       "growthHeading": "Hier lässt sich weiter wachsen:",
       "noSpecifics": "Wir haben Ihren Einsatz bei der Aufgabe geschätzt und wünschen Ihnen alles Gute für Ihre Suche.",
-      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse."
+      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse.",
+      "engineNote": "Hinweis zu diesem Schreiben: Die obigen Feststellungen hat unser Bewertungssystem in {language} verfasst, nicht in der Sprache dieser Nachricht."
+    },
+    "devcaseAdvance": {
+      "subject": "Nächster Schritt: {role}",
+      "greeting": "Hallo {name},",
+      "body": "Ihre Einreichung für {role} hat uns überzeugt, und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
+      "bodyScore": "Ihre Einreichung für {role} hat uns überzeugt (Passung {score}/100), und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
+      "signoff": "Beste Grüße\nIhr Recruiting-Team"
     }
   },
   "language": {
@@ -536,22 +622,10 @@
       "title": "Der tschechische Arbeitsmarkt, <emph>offen einsehbar</emph>.",
       "subtitle": "Referenzgehälter, Einstellungsbedarf in allen 14 Regionen und die Positionen im Auf- und Abschwung. Alles vollständig aus öffentlichen Arbeitsmarktdaten.",
       "updated": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date} · {pct} % in den letzten 90 Tagen ausgeschrieben",
-      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Kartenbasiert, als Geschichte erzählt",
-      "board": "Dashboard",
-      "boardDesc": "Alles auf einen Blick"
-    },
-    "stats": {
-      "vacancies": "Offene Stellen",
-      "median": "Landesmedian",
-      "regions": "Regionen",
-      "occupations": "Erfasste Berufe"
+      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}",
+      "stale": "Diese Momentaufnahme ist {days, plural, one {# Tag} other {# Tage}} alt. Das laufende Register hat sich seitdem weiterentwickelt."
     },
     "map": {
-      "title": "Wo die Stellen sind",
       "metricVolume": "Stellen",
       "metricSalary": "Verdienst",
       "legendVolume": "nach offenen Stellen",
@@ -571,12 +645,13 @@
     "salary": {
       "eyebrow": "Der Wegweiser",
       "title": "Referenzgehälter nach Position",
-      "subtitle": "Gesamtwirtschaftliche Monatsverdienste aus der offiziellen ISPV-Verdiensterhebung: von Junior bis Lead, je Berufsfamilie.",
+      "subtitle": "Gesamtwirtschaftliche monatliche Bruttoverdienste aus der amtlichen ISPV-Verdiensterhebung: vom Junior bis zum Lead, je Rollenfamilie.",
       "median": "Median {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Gesamtwirtschaftliche monatliche Bruttoverdienste aus der amtlichen ISPV-Verdiensterhebung, Daten {period}: vom Junior bis zum Lead, je Rollenfamilie.",
+      "basedOn": "Auf Basis von {v} befragten Beschäftigten"
     },
     "demand": {
       "eyebrow": "Was gerade gesucht wird",
@@ -585,7 +660,6 @@
       "byFamily": "Nach Berufsfamilie",
       "byRole": "Top-Berufe",
       "openings": "{n, plural, one {# Stelle} other {# Stellen}}",
-      "momentumNew": "Basiswert",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },
@@ -647,7 +721,9 @@
       "about": "Über die App",
       "market": "Marktpuls",
       "source": "Quellcode",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "menuOpen": "Menü öffnen",
+      "menuClose": "Menü schließen"
     },
     "hero": {
       "badge": "Automatisiertes Recruiting, vom Menschen freigegeben",
@@ -1093,7 +1169,9 @@
   "aboutPage": {
     "nav": {
       "home": "Startseite",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "market": "Marktpuls",
+      "source": "Quellcode"
     },
     "hero": {
       "badge": "die Recruiting-Pipeline, von Anfang bis Ende",
@@ -1234,7 +1312,8 @@
     "no": "Nein",
     "close": "Schließen",
     "scanningCv": "Lebenslauf wird gescannt",
-    "formatting": "Formatierung"
+    "formatting": "Formatierung",
+    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif"
   },
   "aiDisclosure": {
     "title": "So funktioniert es",
@@ -1257,6 +1336,16 @@
     "TEMPLATE_CREATE_FAILED": "Die Vorlage konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "TEMPLATE_UPDATE_FAILED": "Die Vorlage konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
     "TEMPLATE_DELETE_FAILED": "Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+    "JOB_LIST_FAILED": "Der Stellenkatalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JOB_LOAD_FAILED": "Diese Stelle konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "JOB_INGEST_FAILED": "Diese Stellenanzeige konnte nicht gelesen werden. Bitte versuchen Sie es erneut.",
+    "JOB_PUBLISH_FAILED": "Diese Stelle konnte nicht live geschaltet werden. Bitte versuchen Sie es erneut.",
+    "JOB_CLOSE_FAILED": "Diese Stelle konnte nicht geschlossen werden. Bitte versuchen Sie es erneut.",
+    "JOB_CANDIDATES_FAILED": "Die Kandidaten für diese Stelle konnten nicht bewertet werden. Bitte versuchen Sie es erneut.",
+    "JOB_REDISCOVER_FAILED": "Frühere Kandidaten für diese Stelle konnten nicht durchsucht werden. Bitte versuchen Sie es erneut.",
+    "JOB_WINNABILITY_FAILED": "Diese Stelle konnte nicht gegen den Kandidatenpool bewertet werden. Bitte versuchen Sie es erneut.",
+    "JOB_CAMPAIGN_FAILED": "Das Kampagnenpaket konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "JOB_ASSIGNMENTS_FAILED": "Die Arbeitsproben für diese Stelle konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "INTERVIEW_CREATE_FAILED": "Das Interview konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
     "INTERVIEW_CONNECT_FAILED": "Der Sprachanruf konnte nicht verbunden werden. Bitte versuchen Sie es erneut.",
     "INTERVIEW_COMPLETE_FAILED": "Das Interview konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
@@ -1271,6 +1360,11 @@
     "SCHEDULE_INVITE_BULK_FAILED": "Die Terminlinks konnten nicht versendet werden. Bitte versuchen Sie es erneut.",
     "SCHEDULE_LOOKUP_FAILED": "Die Terminübersicht konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "SCHEDULE_MANAGE_FAILED": "Dieses Interview konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "SCHEDULE_SLOT_TAKEN": "Diese Zeit ist bereits gebucht. Wählen Sie eine andere.",
+    "SCHEDULE_CANDIDATE_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde nichts gebucht.",
+    "SCHEDULE_BOOK_FAILED": "Diese Zeit konnte nicht gebucht werden. Laden Sie neu und wählen Sie erneut.",
+    "SCHEDULE_SLOT_UNRESOLVED": "Dieses Kalenderfeld konnte keiner Zeit zugeordnet werden. Laden Sie den Kalender neu und wählen Sie erneut.",
+    "SCHEDULE_CALENDAR_BUSY": "Ihr verbundener Kalender ist zu dieser Zeit belegt. Wählen Sie eine andere Zeit.",
     "SEARCH_FAILED": "Die Suche ist derzeit nicht verfügbar. Bitte versuchen Sie es erneut.",
     "ATTENTION_FAILED": "Die offenen Punkte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "STATUS_LOOKUP_FAILED": "Der Status Ihrer Bewerbung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -1310,6 +1404,22 @@
     "OFFER_EXPIRED": "Dieses Angebot ist abgelaufen.",
     "OFFER_NOT_FOUND": "Dieses Angebot wurde nicht gefunden. Möglicherweise wurde der Link durch einen neueren ersetzt.",
     "SESSION_TOKEN_REQUIRED": "Diese Arbeitssitzung gehört zu einem anderen Bewerbungslink. Öffnen Sie bitte den Link aus Ihrer Einladungs-E-Mail, um fortzufahren.",
+    "DEVCASE_SESSION_UNAVAILABLE": "Dieser Fall nimmt keine Einreichungen mehr an.",
+    "DEVCASE_SESSION_QUOTA": "Für diesen Fall wurden zu viele Sitzungen gestartet. Bitte später erneut versuchen.",
+    "DEVCASE_PUBLISH_FAILED": "Der Fall konnte nicht veröffentlicht werden. Bitte erneut versuchen.",
+    "DEVCASE_FEEDBACK_FAILED": "Das Feedback für die kandidierende Person konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "DEVCASE_OUTBOX_FAILED": "Der Postausgang der Aufgabe konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_CONTROL_FAILED": "Der Steuerungsbereich der Aufgaben konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_INTAKE_FAILED": "Ihre Einreichung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_LIFECYCLE_LIST_FAILED": "Die Aufgabenläufe konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_LIFECYCLE_START_FAILED": "Der Aufgabenlauf konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_APPROVE_FAILED": "Diese Aufgabe konnte nicht freigegeben werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_CLOSE_FAILED": "Diese Aufgabe konnte nicht geschlossen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_REDESIGN_FAILED": "Diese Aufgabe konnte nicht neu erzeugt werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_OUTCOMES_FAILED": "Die Einstellungsergebnisse konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_OUTCOME_SAVE_FAILED": "Das Ergebnis konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_POSTINGS_FAILED": "Die Ausschreibungen der Aufgabe konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_PROMOTE_FAILED": "Diese Einreichung konnte nicht übernommen werden. Bitte versuchen Sie es erneut.",
     "INTAKE_CREATE_FAILED": "Die Aufnahme-Sitzung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
     "INTAKE_LIST_FAILED": "Die Aufnahme-Sitzungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "INTAKE_READ_FAILED": "Die Aufnahme-Sitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -1322,7 +1432,27 @@
     "INTAKE_REOPEN_FAILED": "Die Aufnahme-Sitzung konnte nicht wieder geöffnet werden. Bitte versuchen Sie es erneut.",
     "INTAKE_ATTACHMENT_FAILED": "Die Unterlagen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "STAGE_IMPACT_FAILED": "Es konnte nicht geprüft werden, wer auf welchem Pipeline-Schritt steht. Versuchen Sie es erneut.",
-    "STAGE_MIGRATION_FAILED": "Die Pipeline-Änderung konnte nicht angewendet werden. Versuchen Sie es erneut.",
+    "STAGE_MIGRATION_FAILED": "Die Pipeline-Änderung konnte nicht abgeschlossen werden. Personen wurden möglicherweise bereits verschoben; öffnen Sie den Schritt-Editor, um den Stand zu sehen.",
+    "PIPELINE_ENTRY_NOT_FOUND": "Diese Person ist nicht mehr auf diesem Board.",
+    "PIPELINE_STAGE_UNKNOWN": "Das ist kein Schritt auf diesem Board.",
+    "PIPELINE_TERMINAL_NOT_MANUAL": "Der letzte Schritt wird erreicht, wenn die Person ein Angebot annimmt, nicht durch manuelles Verschieben. Verschieben Sie sie in den Angebotsschritt und unterbreiten Sie ein Angebot.",
+    "PIPELINE_TERMINAL_NOT_ADVANCE": "Der letzte Schritt wird erreicht, wenn die Person ein Angebot annimmt, nicht durch Weiterleiten. Erstellen und unterbreiten Sie stattdessen ein Angebot.",
+    "PIPELINE_MOVE_CONFLICT": "Verschieben nicht möglich: Die Person wurde gerade geändert oder ist abgeschlossen. Aktualisieren Sie und versuchen Sie es erneut.",
+    "PIPELINE_STAGE_CHANGED": "Der Schritt dieser Person hat sich seit dem Öffnen der Ansicht geändert. Aktualisieren Sie und entscheiden Sie erneut.",
+    "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
+    "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
+    "PIPELINE_NOTES_INVALID": "Eine Notiz muss Text sein.",
+    "PIPELINE_NOTES_TOO_LONG": "Diese Notiz ist zu lang zum Speichern.",
+    "PIPELINE_NOT_REINSTATABLE": "Hier gibt es keine automatische Absage, die sich zurücknehmen ließe. Die Person wurde bereits wieder aufgenommen oder anders abgeschlossen.",
+    "PIPELINE_INTAKE_NOT_DEGRADED": "Bei dieser Person gibt es keine unvollständige Profilübernahme, die zu klären wäre.",
+    "OFFER_NOT_DISPATCHED": "Das Angebot wurde erstellt, konnte aber nicht gesendet werden. Nichts ist verloren: Genehmigen Sie erneut, dann geht derselbe Link hinaus.",
+    "OFFER_SENT_APPROVAL_CHANGED": "Das Angebot ist hinaus, aber die Freigabe dieser Person hat sich währenddessen geändert. Aktualisieren Sie, bevor Sie erneut entscheiden.",
+    "PIPELINE_BATCH_ITEM_MALFORMED": "Bei diesem Eintrag fehlte die Person, oder er nannte eine Aktion, die dieses Board nicht hat.",
+    "PIPELINE_BATCH_PAYLOAD_INVALID": "Diese Sammelanfrage hatte nicht die erwartete Form oder betraf zu viele Personen auf einmal.",
+    "PIPELINE_BATCH_ITEM_FAILED": "Bei diesem Eintrag ist etwas schiefgegangen. Der Rest des Stapels ist davon unberührt.",
+    "PIPELINE_AXIS_INVALID": "Diese Pipeline-Form ist nicht gültig.",
+    "PIPELINE_MIGRATION_MAPPING_INVALID": "Diese Schrittzuordnung funktioniert nicht: Personen lassen sich nur von einem Schritt wegbewegen, den die neue Pipeline entfernt, und nur auf einen, den sie behält.",
+    "PIPELINE_MIGRATION_REQUIRED": "Einige entfernte Schritte enthalten noch Personen. Geben Sie an, wohin sie jeweils sollen.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "Diese Kandidatin oder dieser Kandidat ist nicht auf diesem Board.",
     "HIRE_RATING_NOT_HIRED": "Nur eine eingestellte Person kann eine Bewertung der Arbeitsleistung tragen.",
     "HIRE_RATING_INVALID": "Eine Bewertung der Arbeitsleistung muss eine ganze Zahl von 1 bis 5 sein.",
@@ -1336,10 +1466,285 @@
     "COMPANION_PROPOSAL_FAILED": "Der Vorschlag konnte nicht ausgeführt werden. Es wurde nichts geändert.",
     "COMPANION_BRAIN_FAILED": "Das Gedächtnis von Candi konnte auf diesem Rechner nicht geprüft werden. Bitte erneut versuchen.",
     "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden.",
+    "INTAKE_BRIEF_MOVED": "Das Briefing hat sich während der Berechnung geändert und wurde neu gelesen statt überschrieben.",
+    "INTAKE_NOT_FOUND": "Diese Intake-Sitzung wurde nicht gefunden.",
+    "INTAKE_FROZEN": "Dieses Intake wurde bereits überführt, daher sind Grundlage und Spezifikation eingefroren.",
+    "INTAKE_NOT_FROM_SCAN": "Dieses Intake wurde nicht aus einem Repository-Scan gestartet.",
+    "INTAKE_SCAN_MISMATCH": "Dieser Scan gehört zu einer anderen Intake-Sitzung.",
+    "INTAKE_DOSSIER_INVALID": "Diese Codebasis-Lesung hat nicht die erwartete Form.",
+    "INTAKE_NOT_APP_MASTER": "Dies ist kein App-Master-Intake, es gibt also keine Spezifikation zu erstellen.",
+    "INTAKE_SCAN_NOT_LANDED": "Der Repository-Scan ist noch nicht eingetroffen. Die Spezifikation entsteht, sobald er da ist.",
+    "INTAKE_BRIEF_EMPTY": "Das Briefing ist noch leer. Beantworten Sie zuerst den Dialog, dann komponieren Sie.",
+    "INTAKE_CLOSED": "Dieses Intake-Gespräch ist abgeschlossen. Öffnen Sie es erneut, um weiterzusprechen.",
+    "INTAKE_TEXT_REQUIRED": "Es gibt nichts zu senden. Schreiben oder sagen Sie zuerst etwas.",
+    "INTAKE_BRIEF_INVALID": "Diese Briefing-Änderung hat nicht die erwartete Form.",
+    "INTAKE_BRIEF_NOT_READY": "Das Briefing braucht einen Rollentitel und mindestens ein Ausschlusskriterium oder ein 90-Tage-Ziel, bevor daraus eine Stellenanzeige wird.",
+    "INTAKE_ALREADY_OPEN": "Dieses Gespräch ist bereits offen.",
+    "INTAKE_ATTACHMENT_LIMIT": "Dieses Gespräch trägt bereits so viel Referenzmaterial, wie es kann.",
+    "INTAKE_ATTACHMENT_INDEX": "Dieses Referenzmaterial gehört nicht mehr zu diesem Gespräch.",
+    "INTAKE_JD_NOT_FOUND": "Diese Stellenanzeige ist nicht in der Bibliothek dieses Workspace.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Es gibt noch nichts auszuwerten.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "Die Sprachfunktion ist in dieser Installation nicht konfiguriert.",
+    "COMPANION_THREAD_NOT_FOUND": "Diese Unterhaltung gibt es nicht mehr.",
+    "DEVCASE_CHAT_CEILING": "Diese Arbeitssitzung hat alle Nachrichten aufgebraucht. Ihre Arbeit ist gespeichert. Dieses Kontingent wird nicht zurückgesetzt.",
+    "TOO_MANY_REQUESTS": "Zu viele Anfragen. Bitte versuchen Sie es gleich noch einmal.",
+    "UPLOAD_UNSUPPORTED_TYPE": "Verwenden Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
+    "UPLOAD_TOO_LARGE": "Diese Datei überschreitet das Upload-Limit von 8 MB.",
+    "ANALYZE_CV_REQUIRED": "Hängen Sie einen Lebenslauf oder ein Profil zur Analyse an.",
+    "ANALYZE_TOO_MANY_VARIANTS": "Pro Durchlauf lassen sich höchstens 3 Lebenslauf-Varianten vergleichen.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten.",
+    "INTERVIEW_ENTRY_REQUIRED": "Geben Sie an, für welche Kandidatin oder welchen Kandidaten dieses Interview ist.",
+    "INTERVIEW_CALL_IN_PROGRESS": "Diese Person telefoniert gerade. Warten Sie das Ende des Gesprächs ab, bevor Sie einen neuen Link ausstellen.",
+    "INTERVIEW_LINK_NOT_FOUND": "Dieser Interview-Link ist ungültig.",
+    "INTERVIEW_LINK_INACTIVE": "Dieser Interview-Link ist nicht mehr aktiv.",
+    "INTERVIEW_LINK_EXPIRED": "Dieser Interview-Link ist abgelaufen. Bitten Sie das Recruiting um einen neuen.",
+    "INTERVIEW_ALREADY_COMPLETED": "Dieses Interview wurde bereits abgeschlossen.",
+    "INTERVIEW_CONSENT_REQUIRED": "Vor dem Start des Interviews ist die Einwilligung zur Aufzeichnung erforderlich.",
+    "INTERVIEW_PROVIDER_INVALID": "Diesen Sprachanbieter kennt der Server nicht.",
+    "INTERVIEW_PROVIDER_UNCONFIGURED": "Der Sprachanbieter ist auf diesem Server nicht konfiguriert, deshalb kann der Anruf nicht starten.",
+    "INTERVIEW_LAB_DISABLED": "Das Interview-Labor ist auf diesem Server nicht aktiviert.",
+    "INVITE_PROVIDER_UNCONFIGURED": "Der Interview-Link wurde erstellt, aber keine Einladung versendet: Der Sprachanbieter hat auf diesem Server keine Schlüssel. Schicken Sie den Link selbst an die Person.",
+    "INVITE_DISPATCH_FAILED": "Der Interview-Link wurde erstellt, aber die Einladung konnte nicht versendet werden. Schicken Sie den Link selbst an die Person.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas hat den API-Schlüssel dieses Workspace abgelehnt. Der Pairing-Schlüssel ist abgelaufen oder wurde widerrufen; koppeln Sie neu unter Einstellungen → Integrationen.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen.",
+    "EDGE_CONFIG_REJECTED": "Diese Edge-Adresse wurde abgelehnt. Sie muss eine öffentliche https://-URL sein.",
+    "EDGE_PAIR_REFUSED": "Der Siegel-Schlüssel konnte nicht am Edge veröffentlicht werden. Prüfen Sie die Kopplung und versuchen Sie es erneut.",
+    "EDGE_SAVE_FAILED": "Die Edge-Kopplung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "TTS_FAILED": "Das konnte gerade nicht vorgelesen werden. Bitte erneut versuchen.",
+    "STT_FAILED": "Die Aufnahme konnte nicht transkribiert werden. Bitte erneut versuchen.",
+    "VOICE_REQUEST_INVALID": "Diese Anfrage war kein gültiges JSON.",
+    "AUDIO_MISSING": "Fügen Sie eine Aufnahme zum Transkribieren hinzu.",
+    "AUDIO_UNSUPPORTED_TYPE": "Verwenden Sie für die Aufnahme WAV, MP3, M4A, WebM, OGG oder FLAC.",
+    "AUDIO_TOO_LARGE": "Diese Aufnahme überschreitet das Upload-Limit von 25 MB.",
+    "STT_TOO_LONG": "Diese Aufnahme ist länger, als diese Engine auf einmal transkribieren kann. Teilen Sie sie auf und versuchen Sie es erneut.",
+    "JD_FIELDS_REQUIRED": "Titel und Beschreibung sind beide erforderlich.",
+    "JD_TITLE_TOO_LONG": "Der Titel darf höchstens 200 Zeichen lang sein.",
+    "JD_BODY_TOO_LONG": "Die Beschreibung darf höchstens 20.000 Zeichen lang sein.",
+    "DEVCASE_SUBMIT_FAILED": "Diese Abgabe konnte nicht erfasst werden. Bitte erneut versuchen.",
+    "DEVCASE_SOURCE_FAILED": "Für diese Aufgabenstellung konnten keine Kandidaten gefunden werden. Bitte erneut versuchen.",
+    "RESTORE_FOREIGN_ORG": "Diese Sicherung gehört zu einer anderen Organisation. Eine Sicherung wird nur in die Organisation zurückgespielt, aus der sie stammt.",
+    "RESTORE_REPLACE_REQUIRED": "Das Wiederherstellen ersetzt die aktuellen Daten der Organisation. Bestätigen Sie das Ersetzen, um fortzufahren.",
+    "INVITE_ALREADY_MEMBER": "Diese Person ist bereits aktives Mitglied.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "Sie können niemanden in eine Rolle mit mehr Rechten einladen, als Sie selbst haben.",
+    "INVITE_EMAIL_INVALID": "Eine gültige E-Mail-Adresse ist erforderlich.",
+    "MEMBER_PERMISSIONS_CHANGED": "Die Berechtigungen dieses Mitglieds haben sich während Ihrer Bearbeitung geändert. Bitte neu laden und erneut versuchen.",
+    "ORG_SETTINGS_FORBIDDEN": "Nur eine Administratorin oder ein Administrator der Organisation kann deren Einstellungen ändern.",
+    "ORG_LANGUAGE_INVALID": "Das ist keine der Sprachen dieser App.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "Diese Regeländerung nannte keine Phase oder enthielt keine Regeln zum Speichern.",
+    "DECISION_CONFIG_INVALID": "Diese Regeln sind für diese Phase nicht gültig.",
+    "DECISION_CONFIG_SAVE_FAILED": "Die Regeln konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
+    "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
+    "MATCH_REASONING_UNAVAILABLE": "Dieser Match lässt sich nicht mehr erklären. Die zugehörige Person oder Rolle existiert nicht mehr.",
+    "DECISION_CONFIG_STALE": "Jemand hat eine neuere Version dieser Regeln gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
+    "PIPELINE_AXIS_STALE": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "Diese Notiz ist länger, als ein Referenzmaterial sein darf. Kürzen Sie sie oder hängen Sie sie in Teilen an.",
+    "JOB_SEED_BROKEN": "Der Stellenkatalog ist leer, weil seine Startdaten nicht geladen werden konnten. Prüfen Sie das Server-Log.",
+    "SCHEDULE_UPDATE_FAILED": "Die Automatisierungsuhr konnte nicht geändert werden. Bitte erneut versuchen.",
+    "SCHEDULE_INTERVAL_INVALID": "Das Automatisierungsintervall muss eine Zahl in Minuten sein.",
+    "COMM_RESEND_IN_PROGRESS": "Ein erneuter Versand dieser Nachricht läuft bereits.",
+    "COMM_ALREADY_RESENT": "Bereits erneut gesendet. Für diese Nachricht gibt es eine neuere Zustellung.",
+    "COMM_SIMULATION_ROW": "Diese Nachricht gehört zur geführten Simulation und wird nie gesendet.",
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Diese Aufgabe wartet nicht mehr auf die Prüfung. Bitte neu laden, um den aktuellen Stand zu sehen.",
+    "MATCH_RUN_FAILED": "Diese Person konnte nicht gegen die Rollen bewertet werden. Bitte erneut versuchen.",
+    "MATCH_INPUT_INVALID": "Diese Person ließ sich nicht auflösen. Das Profil oder die Analyse dahinter existiert nicht mehr.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Dieser Benchmark nennt keine Rollenfamilie.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Diese Ausgabe konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Dieses Ziel konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Das Kennzahlenpaket konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "DECISION_LOG_LOAD_FAILED": "Das Entscheidungsprotokoll konnte nicht geladen werden. Bitte erneut versuchen.",
+    "CALIBRATION_APPLY_FAILED": "Der Schwellenwert konnte nicht übernommen werden. Bitte das Panel neu laden und die aktuelle Untergrenze prüfen.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Ihre Rolle darf die Analyse-Einstellungen und die Screening-Untergrenze dieses Teams nicht ändern.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "Dieser Vorgang nannte keinen vorgeschlagenen Schwellenwert. Bitte das Panel neu laden und den dort angezeigten Wert übernehmen.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "Die Empfehlung hat sich seit der Anzeige geändert. Bitte neu laden und den aktuellen Vorschlag prüfen.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "Derzeit gibt es keine Kalibrierungsempfehlung zum Übernehmen.",
+    "CALIBRATION_FAMILY_UNKNOWN": "Das ist keine der Rollenfamilien der App.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Nur eine Inhaberin oder ein Inhaber darf die Abrechnung dieser Organisation verwalten.",
+    "BILLING_NOT_CONFIGURED": "Die Abrechnung ist in dieser Installation nicht eingerichtet.",
+    "BILLING_PLAN_CONTACT_SALES": "Dieser Tarif wird individuell bepreist. Sprechen Sie mit unserem Vertriebsteam.",
+    "BILLING_PLAN_WITHDRAWN": "Dieser Tarif wird nicht mehr verkauft. Wählen Sie einen der aktuellen Tarife oder betreiben Sie KP kostenlos selbst mit eigenen Modell-Schlüsseln.",
+    "BILLING_ALREADY_SUBSCRIBED": "Sie haben bereits einen Tarif. Ändern Sie ihn im Kundenportal (Abo verwalten), nicht über eine neue Bestellung.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Diese Bestellung nannte weder einen Tarif noch ein Minutenpaket.",
+    "BILLING_NO_CUSTOMER": "Noch kein Abrechnungskonto. Schließen Sie zuerst eine Bestellung ab.",
+    "BILLING_OVERVIEW_FAILED": "Die Abrechnung konnte nicht geladen werden. Bitte erneut versuchen.",
+    "BILLING_CHECKOUT_FAILED": "Die Bestellung konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "BILLING_PORTAL_FAILED": "Das Kundenportal konnte nicht geöffnet werden. Bitte erneut versuchen.",
+    "APPLY_ROLE_NOT_FOUND": "Diese Stelle wurde nicht gefunden. Möglicherweise wurde sie zurückgezogen.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Ihre Bewerbung ist zu groß zum Senden. Kürzen Sie Ihre Antworten oder hängen Sie einen kleineren Lebenslauf an.",
+    "APPLY_NAME_REQUIRED": "Bitte geben Sie Ihren Namen ein.",
+    "APPLY_NAME_TOO_LONG": "Ihr Name ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_ANSWER_TOO_LONG": "Diese Antwort ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_EMAIL_TOO_LONG": "Ihre E-Mail-Adresse ist zu lang. Bitte verwenden Sie höchstens {max} Zeichen.",
+    "APPLY_EMAIL_INVALID": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "APPLY_SELECTION_INVALID": "Das ist keine der angebotenen Optionen. Bitte wählen Sie eine davon.",
+    "SCHEDULE_LINK_NOT_FOUND": "Diesen Terminlink konnten wir nicht finden.",
+    "SCHEDULE_LINK_CLOSED": "Dieser Terminlink ist nicht mehr aktiv.",
+    "SCHEDULE_INTERVIEW_UNAVAILABLE": "Dieses Gespräch ist nicht mehr verfügbar.",
+    "SCHEDULE_SLOTS_STILL_OPEN": "Es sind noch Termine frei. Bitte wählen Sie einen aus der Liste.",
+    "SCHEDULE_PROPOSALS_INVALID": "Bitte schlagen Sie 1-3 künftige Termine an Werktagen innerhalb der Geschäftszeiten vor.",
+    "SCHEDULE_NO_BOOKING_YET": "Es gibt noch keinen bestätigten Termin, den Sie ändern könnten.",
+    "SCHEDULE_SLOT_NOT_OFFERED": "Diese Zeit gehört nicht zu den angebotenen Terminen. Bitte wählen Sie aus der Liste.",
+    "SCHEDULE_RESCHEDULE_LIMIT": "Sie haben Ihren Gesprächstermin bereits mehrfach verschoben. Antworten Sie bitte auf Ihre Bestätigungsmail, dann finden wir gemeinsam einen Termin.",
+    "COMMS_RELAY_STALE": "Jemand hat eine neuere Relay-Konfiguration gespeichert. Bitte neu laden und die Änderung erneut vornehmen.",
+    "COMMS_RELAY_INVALID": "Dieser Relay-Endpunkt ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
+    "COMMS_RELAY_SAVE_FAILED": "Die Relay-Konfiguration konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "PROFILE_STALE": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert. Laden Sie es neu und wenden Sie Ihre Änderungen erneut an.",
+    "ATS_CONFIG_SAVE_FAILED": "Die Webhook-Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "ATS_CONFIG_STALE": "Jemand hat inzwischen neuere Webhook-Einstellungen gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
+    "GROUP_EVAL_READ_FAILED": "Der gespeicherte Vergleich konnte nicht geladen werden. Bitte erneut versuchen.",
+    "SIM_RESET_FAILED": "Die Simulationsdaten konnten nicht gelöscht werden. Bitte erneut versuchen.",
+    "SIM_INBOUND_FAILED": "Die eingehende Bewerbung konnte nicht simuliert werden. Bitte erneut versuchen.",
+    "SIM_SCREEN_DRAFT_FAILED": "Die Screening-Empfehlung konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "SIM_OFFER_DRAFT_FAILED": "Der Angebotsentwurf konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "SIM_OFFER_LINK_FAILED": "Der Angebotslink konnte nicht gelesen werden. Bitte erneut versuchen.",
+    "SIM_JOB_REQUIRED": "Die Simulation braucht eine Rolle, auf der sie läuft.",
+    "SIM_JOB_NOT_FOUND": "Diese Rolle existiert nicht mehr.",
+    "SIM_NO_APPLICANT": "Es ist kein Kandidat verfügbar, dessen Bewerbung simuliert werden könnte.",
+    "SIM_ENTRY_REQUIRED": "Die Simulation braucht einen Pipeline-Eintrag, auf den sie sich bezieht.",
+    "SIM_ENTRY_NOT_FOUND": "Dieser Kandidat steht nicht auf diesem Board.",
+    "MODEL_ADMIN_FORBIDDEN": "Nur eine Inhaberin oder ein Inhaber darf Modellschlüssel und Routing dieser Installation ändern.",
+    "MODEL_KEY_BODY_INVALID": "Die Anfrage zum Speichern des Schlüssels konnte nicht gelesen werden.",
+    "MODEL_KEY_PROVIDER_UNKNOWN": "Für diesen Anbieter kann dieser Server keinen Schlüssel speichern.",
+    "MODEL_KEY_SECRET_REQUIRED": "Dieser Anbieter benötigt einen API-Schlüssel.",
+    "MODEL_KEY_LOCATION_REQUIRED": "Geben Sie einen API-Schlüssel oder eine Server-URL an. Ein Eintrag ohne beides sagt nichts aus.",
+    "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI braucht den Endpunkt Ihrer Ressource, bevor der Schlüssel gespeichert werden kann.",
+    "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Auf diesem Server ist kein Verschlüsselungsgeheimnis gesetzt, deshalb lässt sich noch kein Anbieterschlüssel speichern.",
+    "MODEL_KEY_REJECTED": "Der Schlüssel konnte nicht gespeichert werden. Prüfen Sie den angegebenen Endpunkt oder die Server-URL.",
+    "MODEL_ROUTING_STALE": "Jemand hat diesen Anwendungsfall neu zugewiesen, während Sie ihn bearbeitet haben. Die Tabelle wurde neu geladen, nehmen Sie Ihre Änderung noch einmal vor.",
+    "SCHEDULE_ACTION_REQUIRED": "Es wurde keine Planungsaktion angegeben. Laden Sie den Tab neu und versuchen Sie es erneut.",
+    "SCHEDULE_ACTION_UNKNOWN": "Diese Planungsaktion führt die App nicht aus.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Wählen Sie vor der Buchung eine Kandidatin oder einen Kandidaten und eine Zeit.",
+    "SCHEDULE_TOKEN_REQUIRED": "Der Interview-Link fehlt. Laden Sie den Tab neu und versuchen Sie es erneut.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Dieses Interview steht nicht mehr in Ihrem Kalender. Laden Sie den Tab neu.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann storniert werden. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann als Nichterscheinen markiert werden. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Nur eine bestätigte Buchung kann verschoben werden. Senden Sie stattdessen einen neuen Planungslink.",
+    "SCHEDULE_PROPOSAL_GONE": "Dieser vorgeschlagene Termin steht nicht mehr auf der Einladung. Laden Sie die aktuellen Vorschläge neu.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Dieser vorgeschlagene Termin ist verstrichen. Bitten Sie um neue Terminvorschläge.",
+    "SCHEDULE_NO_PROPOSALS": "Es gibt keine vorgeschlagenen Termine zum Ablehnen.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "Bei diesem Interview gibt es nichts mehr abzugleichen.",
+    "SCHEDULE_MEETING_URL_INVALID": "Geben Sie einen gültigen http(s)-Meeting-Link ein.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Schreiben Sie eine Nachricht, bevor Sie sie senden.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Diese Nachricht ist zu lang. Bitte kürzen Sie sie auf höchstens 2.000 Zeichen.",
+    "OPS_STATUS_FAILED": "Der Systemstatus konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "FEEDBACK_READ_FORBIDDEN": "Nur wer Mitglieder verwalten darf, kann den Feedback-Eingang lesen.",
+    "TASK_LIST_FAILED": "Die KI-Aufgaben konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "TASK_START_FAILED": "Die Aufgabe konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "TASK_RETRY_FAILED": "Die Aufgabe konnte nicht erneut ausgeführt werden. Bitte versuchen Sie es erneut.",
+    "TASK_KIND_UNKNOWN": "Diese Art von KI-Aufgabe gibt es in dieser Version nicht.",
+    "TASK_BUDGET_EXHAUSTED": "Zu viele KI-Läufe dieser Art wurden kürzlich gestartet. Bitte versuchen Sie es in Kürze erneut.",
+    "TASK_NOT_FOUND": "Diese Aufgabe existiert nicht mehr.",
+    "TASK_NOT_RETRYABLE": "Nur fehlgeschlagene, unterbrochene oder abgebrochene Aufgaben lassen sich erneut ausführen.",
+    "TASK_REPLAY_INPUTS_GONE": "Die hochgeladenen Dateien dieses Laufs wurden bereits gelöscht. Laden Sie sie erneut hoch, um den Lauf zu wiederholen.",
+    "FORBIDDEN_CAPABILITY": "Ihre Rolle erlaubt diese Aktion nicht.",
+    "forbiddenCapabilityNeeds": "Ihre Rolle erlaubt diese Aktion nicht. Dafür ist die Berechtigung „{capability}“ erforderlich.",
+    "TEMPLATE_NOT_FOUND": "Diese Vorlage existiert nicht mehr.",
+    "TEMPLATE_LAST_ONE": "Das ist die letzte Vorlage, die Ihr Team sieht. Mindestens eine muss bleiben.",
+    "TEMPLATE_IS_DEFAULT": "Das ist die Standardvorlage. Legen Sie zuerst eine andere als Standard fest.",
+    "TEMPLATE_STALE": "Jemand anderes hat diese Vorlage gespeichert, während Sie sie bearbeitet haben. Laden Sie sie neu und wenden Sie Ihre Änderungen erneut an.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Nur eine unternehmensweit geteilte Vorlage kann die Standardvorlage sein.",
+    "MODEL_KEY_STALE": "Jemand anderes hat diesen Schlüssel ersetzt, während Sie ihn bearbeitet haben. Die gespeicherten Schlüssel wurden neu geladen. Nehmen Sie Ihre Änderung bitte erneut vor.",
+    "AGENT_REFRESH_NOT_DISPATCHED": "Dieser Agent hat Personas nie erreicht, es gibt also keine Anfrage abzufragen. Beauftragen Sie ihn erneut.",
+    "VOICE_TRANSPORT_NETWORK": "Wir konnten den Interview-Dienst nicht erreichen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "VOICE_TRANSPORT_AUTH": "Der Interview-Dienst hat diese Sitzung abgelehnt. Bitte wenden Sie sich an den Recruiter, der Ihnen den Link geschickt hat.",
+    "VOICE_TRANSPORT_TIMEOUT": "Der Interview-Dienst hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es erneut.",
+    "VOICE_TRANSPORT_PROVIDER": "Der Interview-Dienst konnte das Gespräch nicht starten. Bitte versuchen Sie es gleich noch einmal.",
+    "OFFER_RESPONSE_INVALID": "Bitte antworten Sie mit Annehmen oder Ablehnen.",
+    "STATUS_LINK_INVALID": "Dieser Statuslink ist nicht gültig.",
+    "STATUS_NPS_NOT_APPLICABLE": "Diese Frage wird freigeschaltet, sobald Ihre Bewerbung abgeschlossen ist.",
+    "DATA_LINK_INVALID": "Dieser Datenlink ist nicht mehr gültig.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "Diese Aktion des Kontrollraums kennt diese Installation nicht. Laden Sie die Seite neu.",
+    "DEVCASE_FLOOR_INVALID": "Die Promote-Schwelle muss eine Zahl zwischen 0 und 100 sein.",
+    "DEVCASE_OUTCOME_INVALID": "Das Ergebnis konnte nicht erfasst werden. Prüfen Sie Ergebnis und Leistungsbewertung.",
+    "MATCH_REASONING_INPUT_INVALID": "Dieser Match konnte nicht erklärt werden: Die Anfrage nannte weder eine Person noch eine Stelle.",
+    "SIM_CV_INTAKE_FAILED": "Die simulierte Bewerbung konnte nicht angelegt werden. Bitte versuchen Sie es erneut.",
+    "SIM_CV_FORM_REQUIRED": "Senden Sie den Lebenslauf als Multipart-Formulardaten.",
+    "SIM_CV_FILE_REQUIRED": "Hängen Sie eine Lebenslauf-Datei an, um eine Bewerbung zu simulieren.",
+    "SIM_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
+    "SIM_CV_UNREADABLE": "Dieser Lebenslauf konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
+    "DEMO_NOT_PROVISIONED": "Die Live-Demo ist auf dieser Installation noch nicht eingerichtet.",
+    "DEMO_DISABLED": "Die Live-Demo ist auf dieser Installation deaktiviert.",
+    "SIM_RUN_ACTIVE": "Hier läuft bereits eine geführte Demo. Warten Sie, bis sie fertig ist, oder stoppen Sie sie zuerst.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "Dieser Bewerbungslink ist ungültig. Bitten Sie die Recruiterin oder den Recruiter um einen neuen.",
+    "DEVCASE_SESSION_NOT_FOUND": "Diese Arbeitssitzung wurde nicht gefunden. Öffnen Sie Ihren Bewerbungslink erneut, um eine neue zu starten.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Name und Link zu Ihrer Lösung sind beide erforderlich.",
+    "DEVCASE_SESSION_START_FAILED": "Die Arbeitssitzung konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
+    "CHANNEL_UNKNOWN": "Über diesen Kanal kann kp nichts empfangen.",
+    "CHANNEL_JOB_NOT_FOUND": "Diese Stelle ist nicht verfügbar.",
+    "CHANNEL_TOKEN_REQUIRED": "Ein Empfänger-Token ist erforderlich.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "Dieser Empfänger wurde nicht gefunden.",
+    "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "INTAKE_TURN_TIMEOUT": "Dieser Beitrag hat zu lange gedauert und wurde abgebrochen. Senden Sie ihn erneut.",
+    "DEVCASE_CASE_LIST_FAILED": "Die freigegebenen Cases konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Das Skill-Profil konnte nicht ausgestellt werden. Bitte versuchen Sie es erneut.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Zum Freigeben werden sowohl eine Rolle als auch ein Case benötigt.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Eine Referenz auf die Einreichung ist erforderlich.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Nur eine bewertete Einreichung kann ein Durable Skill Profile erzeugen.",
+    "INTERVIEW_ALREADY_LIVE": "Dieses Interview läuft bereits in einem anderen Fenster. Beenden oder schließen Sie es, bevor Sie erneut starten.",
+    "PROFILE_BUILD_TIMEOUT": "Die Verarbeitung des Profils hat zu lange gedauert und wurde abgebrochen. Versuchen Sie erneut zu speichern.",
+    "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut.",
+    "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden.",
+    "INTERVIEW_PREP_NOT_FOUND": "Für diese Kandidatin bzw. diesen Kandidaten gibt es noch keine Interviewvorbereitung. Erstellen Sie sie zuerst.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Wählen Sie mindestens eine Frage aus, die in die Vorbereitung übernommen werden soll.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Geben Sie an, welche Frage verschoben werden soll.",
+    "ENGINE_BUSY": "Die Analyse-Engine ist gerade ausgelastet. Bitte versuchen Sie es gleich noch einmal.",
+    "IMPORT_BODY_TOO_LARGE": "Diese Datei ist größer, als eine Workspace-Sicherung sein kann. Prüfen Sie, ob Sie die richtige Datei gewählt haben.",
+    "IMPORT_DUMP_REQUIRED": "Senden Sie den JSON-Inhalt einer kp-org-dump-Sicherungsdatei.",
+    "IMPORT_DUMP_MALFORMED": "Diese Datei ist keine gültige kp-org-dump-Sicherung.",
+    "PORTABILITY_NO_DATABASE": "Es gibt noch keine Workspace-Datenbank. Starten Sie die App und versuchen Sie es erneut.",
+    "PORTABILITY_TABLES_POPULATED": "Einige Tabellen enthalten bereits Zeilen. Bestätigen Sie das Ersetzen, bevor Sie diese Datei laden.",
+    "RESTORE_SCOPE_TAKEN": "Ein Teil dieser Sicherung gehört inzwischen einer anderen Organisation und kann daher nicht wiederhergestellt werden.",
+    "RESTORE_UNSAFE_IDENTIFIER": "Diese Sicherungsdatei enthält einen unsicheren Tabellen- oder Spaltennamen und wurde abgelehnt.",
+    "WORKSPACE_EXPORT_FAILED": "Die Organisationssicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "WORKSPACE_RESTORE_FAILED": "Die Organisationssicherung konnte nicht wiederhergestellt werden. Bitte versuchen Sie es erneut.",
+    "BILLING_PROVIDER_TIMEOUT": "Der Zahlungsanbieter hat nicht rechtzeitig geantwortet. Bitte versuchen Sie es gleich noch einmal.",
+    "BILLING_QUOTA_EXCEEDED": "Diese Aktion würde das Monatskontingent Ihres Tarifs überschreiten. Upgraden Sie oder laden Sie unter Abrechnung auf.",
+    "PAYLOAD_TOO_LARGE": "Diese Anfrage war zu groß. Senden Sie weniger auf einmal.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas hat eine Antwort gesendet, die größer ist, als dieser Workspace liest. Sie wurde ungelesen verworfen; prüfen Sie, ob die Personas-App aktuell ist.",
+    "BRAND_ACCENT_INVALID": "Dieser Akzent ist keine Farbe. Verwenden Sie einen Hex-Wert im Format #RRGGBB.",
+    "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Dieser Akzent ist für Studio Light zu hell: Button-Text und Fokusrahmen wären unsichtbar. Wählen Sie eine dunklere Farbe (mindestens 3:1).",
+    "BRAND_ACCENT_ILLEGIBLE_DARK": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Er ist zu dunkel, um ihn ohne Farbwechsel aufzuhellen, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
+    "BRAND_LOGO_INVALID": "Der Logo-Link muss eine https://-URL sein und kurz genug zum Speichern.",
+    "BRAND_LOAD_FAILED": "Branding konnte nicht geladen werden. Bitte erneut versuchen.",
+    "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "AUTOMATION_TASK_FAILED": "Dieser KI-Schritt konnte für diese Person nicht ausgeführt werden. Bitte erneut versuchen.",
+    "AUTOMATION_PASS_FAILED": "Der Automatisierungslauf konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "AUTOMATION_TASK_UNKNOWN": "Diesen Automatisierungsschritt gibt es nicht.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
+    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
+    "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
+    "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Dieser Profil-Link ist ungültig. Ihre Bewerbung ist sicher hinterlegt. Bitten Sie um einen neuen Link.",
+    "ANALYZE_TIMEOUT": "Die Analyse hat zu lange gedauert und wurde abgebrochen. Versuchen Sie es erneut oder mit weniger Lebensläufen auf einmal.",
+    "ANALYSES_LIST_FAILED": "Der Analyseverlauf konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYSIS_LOAD_FAILED": "Diese Analyse konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYSIS_SAVE_FAILED": "Diese Änderung an der Analyse konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYSIS_NOT_FOUND": "Diese Analyse liegt nicht in diesem Arbeitsbereich.",
+    "ANALYSIS_GITHUB_INVALID": "Diese GitHub-Analyse war nicht lesbar und wurde nicht angehängt.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Diese GitHub-Analyse ist zu groß zum Anhängen.",
+    "COMPLIANCE_LOOKUP_FAILED": "Die Compliance-Informationen konnten nicht geladen werden. Bitte erneut versuchen.",
+    "OFFER_SALARY_INVALID": "Dieser Betrag kann kein Gehalt sein. Prüfen Sie die Zahl, bevor Sie das Angebot senden.",
+    "OFFER_CURRENCY_UNSUPPORTED": "In dieser Währung kann hier kein Angebot gemacht werden.",
+    "OFFER_NOTES_TOO_LONG": "Diese Angebotsnotiz ist zu lang. Kürzen Sie sie und senden Sie das Angebot erneut.",
+    "PROFILE_LIST_FAILED": "Die gespeicherten Profile konnten nicht geladen werden. Bitte erneut versuchen.",
+    "PROFILE_BUILD_FAILED": "Das Profil konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "PROFILE_UPDATE_FAILED": "Die Änderungen am Profil konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "PROFILE_DELETE_FAILED": "Das Profil konnte nicht gelöscht werden. Bitte erneut versuchen.",
+    "PROFILE_CANDIDATES_FAILED": "Die Kandidatenmatrix konnte nicht geladen werden. Bitte erneut versuchen.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Wählen Sie mindestens eine Person aus, bevor Sie Terminlinks senden.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Diese Person steht nicht mehr auf diesem Board. Laden Sie neu und versuchen Sie es erneut.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde kein Terminlink gesendet.",
+    "SCHEDULE_BULK_MINT_FAILED": "Für diese Person konnte kein Terminlink erstellt werden. Die übrigen sind davon nicht betroffen.",
+    "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Wählen Sie eine Person aus, bevor Sie einen Terminlink erstellen.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1441,6 +1846,8 @@
     "eyebrow": "Ihre Daten",
     "loadFailed": "Dieser Link ist abgelaufen oder nicht mehr gültig.",
     "eraseFailed": "Die Löschung konnte derzeit nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+    "confirmTitle": "Ihre Daten endgültig löschen?",
+    "confirmBody": "Dies kann nicht rückgängig gemacht werden. Ihr Name, Ihre Kontaktdaten, Ihr Lebenslauf und Ihre Interviewantworten werden sofort entfernt; nur der anonymisierte Bewertungsdatensatz bleibt erhalten.",
     "forRole": "Ihre Bewerbung für {role}",
     "forRoleGeneric": "Ihre Bewerbung",
     "heldTitle": "Was wir über Sie gespeichert haben",
@@ -1661,7 +2068,8 @@
       "skip": "Nein, danke",
       "thanks": "Vielen Dank. Das steht jetzt in Ihrem Profil.",
       "saveFailed": "Diese Antworten konnten wir gerade nicht speichern. Ihre Bewerbung ist sicher erfasst, versuchen Sie es gern noch einmal."
-    }
+    },
+    "fixAnswer": "Antwort korrigieren"
   },
   "interview": {
     "completedTitle": "Vielen Dank",
@@ -1682,7 +2090,8 @@
       "beforeTitle": "Bevor Sie beginnen",
       "tipQuiet": "Suchen Sie sich einen ruhigen Ort mit wenig Hintergrundgeräuschen.",
       "tipHeadphones": "Verwenden Sie nach Möglichkeit Kopfhörer. Das hält den Sprecherwechsel sauber.",
-      "tipMic": "Erlauben Sie den Mikrofonzugriff, wenn Ihr Browser danach fragt."
+      "tipMic": "Erlauben Sie den Mikrofonzugriff, wenn Ihr Browser danach fragt.",
+      "durationChip": "~{min} Min."
     },
     "voice": {
       "loading": "Voice-Interview wird geladen…",
@@ -1766,7 +2175,26 @@
         "providerGroup": "Anbieter",
         "chunks": "{spoken} von {total} Abschnitten",
         "truncated": "nach {spoken} von {total} Abschnitten abgebrochen. Der Rest steht im Text."
-      }
+      },
+      "availabilityUnknown": "Wir konnten nicht prüfen, ob der Interview-Dienst erreichbar ist.",
+      "availabilityRetry": "Erneut prüfen",
+      "notChecked": "nicht geprüft",
+      "micTestLevel": "Mikrofonpegel: {level} %",
+      "transcriptFolded": "Ältere Redebeiträge sind eingeklappt ({count} insgesamt). Das vollständige Transkript wird zu Ihrem Interview gespeichert.",
+      "closingTurnLostNote": "[Ihre abschließende Antwort konnte vor Ende des Gesprächs nicht transkribiert werden und fehlt daher in diesem Transkript.]",
+      "discardedTurns": "Diese Aufzeichnung wurde nicht gespeichert: Ein anderes Fenster hat dieses Interview zuerst abgeschlossen, daher fehlen {count} Redebeiträge aus diesem Gespräch im Protokoll."
+    },
+    "brief": {
+      "debriefApproach": "Ihre Take-home-Aufgabe: Ihr Vorgehen",
+      "debriefDecisions": "Entscheidungen im Detail",
+      "debriefCounterfactuals": "Was-wäre-wenn-Szenarien",
+      "debriefQuestions": "Ihre Fragen",
+      "recruiterAddedQuestions": "Vom Recruiter ergänzte Fragen"
+    },
+    "lab": {
+      "eyebrow": "Intern · Voice-MVP",
+      "title": "Labor für Sprachinterviews",
+      "disabledBody": "Das Labor ist in der Produktion deaktiviert: Es erzeugt echte Anbieter-Zugangsdaten ohne Sitzungstoken. Setzen Sie <flag>INTERVIEW_LAB_ENABLED=1</flag>, um es zu aktivieren, oder nutzen Sie die Recruiting-Simulation, die über eine tokenisierte Sitzung läuft."
     }
   },
   "palette": {
@@ -2044,7 +2472,15 @@
       "settings": "Einstellungen"
     },
     "openWorkspace": "Arbeitsbereich öffnen",
-    "home": "Startseite"
+    "home": "Startseite",
+    "lockedTab": "Ihre Rolle kann das nicht öffnen. Erforderlich: „{capability}“.",
+    "capabilities": {
+      "orgManage": "Organisation verwalten",
+      "membersManage": "Mitglieder verwalten",
+      "teamManage": "Teams verwalten",
+      "pipelineWrite": "Pipeline bearbeiten",
+      "read": "Ansehen"
+    }
   },
   "enums": {
     "stage": {
@@ -2064,6 +2500,12 @@
       "student": "Student",
       "career_switcher": "Quereinsteiger",
       "unrouted": "Nicht zugeordnet"
+    },
+    "archetypeLong": {
+      "bau": "Berufserfahren",
+      "student": "Studium / Berufseinstieg",
+      "career_switcher": "Quereinsteiger",
+      "unrouted": "Noch nicht zugeordnet"
     },
     "seniority": {
       "junior": "Junior",
@@ -2127,13 +2569,41 @@
       "offer_reminder": "Angebotserinnerung"
     },
     "provenance": {
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "beobachtet",
       "professional": "beruflich",
       "internship": "Praktikum",
       "self_declared": "selbst",
       "open_source": "OSS",
       "certification": "Zertifikat",
-      "academic": "akademisch"
+      "academic": "akademisch",
+      "coursework": "Studium",
+      "academic_project": "Studienprojekt",
+      "thesis": "Abschlussarbeit",
+      "personal_project": "eigenes Projekt",
+      "extracurricular": "außerschulisch"
+    },
+    "skillLevel": {
+      "foundational": "Grundkenntnisse",
+      "working": "solide",
+      "strong": "stark"
+    },
+    "evidenceKind": {
+      "project": "Projekt",
+      "thesis": "Abschlussarbeit",
+      "internship": "Praktikum",
+      "course": "Kurs",
+      "extracurricular": "außerschulisch",
+      "certification": "Zertifikat",
+      "job": "Anstellung",
+      "other": "sonstiges"
+    },
+    "scoringModel": {
+      "experienced": "erfahren",
+      "early_career": "Berufseinstieg"
     }
   },
   "pipeline": {
@@ -2149,7 +2619,11 @@
       "boardAria": "Pipeline-Board, horizontal scrollen",
       "showFewer": "Weniger anzeigen",
       "moreCount": "+{count} weitere",
-      "movedAnnounce": "{name} nach {stage} verschoben"
+      "movedAnnounce": "{name} nach {stage} verschoben",
+      "gridAria": "Positionen nach Phase",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {keine Kandidaten} one {# Kandidat} other {# Kandidaten}}",
+      "cellEmpty": "Keine Kandidaten",
+      "dropHint": "Ziehen Sie eine Karte hierher, um den Kandidaten in diese Phase zu verschieben."
     },
     "stageHelp": {
       "Accepted": "Lebenslauf erhalten: eine eingehende Bewerbung oder ein/e proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",
@@ -2190,7 +2664,12 @@
     "tokenLink": {
       "copy": "Link kopieren",
       "openAsCandidate": "Als Kandidat/in öffnen",
-      "createFailed": "Link konnte nicht erstellt werden."
+      "createFailed": "Link konnte nicht erstellt werden.",
+      "openConfirmTitle": "Link dieser Kandidatin öffnen?",
+      "openConfirmSubtitle": "Sie sehen genau das, was sie sieht.",
+      "openConfirmBody": "Das ist der Live-Link, keine Vorschau. Einige dieser Seiten protokollieren, dass sie geöffnet wurden. Der Besuch kann im Verlauf der Kandidatin als ihrer erscheinen.",
+      "openConfirmCancel": "Abbrechen",
+      "openConfirmCta": "Live-Link öffnen"
     },
     "events": {
       "matched": "wurde abgeglichen",
@@ -2231,6 +2710,7 @@
       "interview_reminder_sent": "hat eine Interview-Erinnerung erhalten",
       "interviewer_brief_sent": "wurde für den Interviewer aufbereitet",
       "interviewer_brief_skipped": "kein Interviewer-Briefing (keine Adresse hinterlegt)",
+      "interview_failover": "wurde im Interview auf einen anderen Sprachanbieter umgeschaltet",
       "offer_sent": "hat ein Angebot erhalten",
       "comm_resent": "hat eine Nachricht erneut erhalten",
       "interview_scheduled": "hat einen Interviewtermin bestätigt",
@@ -2238,6 +2718,7 @@
       "offer_declined": "hat das Angebot abgelehnt",
       "offer_expired": "ließ das Angebot unbeantwortet verfallen",
       "rejection_comms_failed": "hat keine Absage-E-Mail erhalten (Einreihung fehlgeschlagen)",
+      "offer_comms_failed": "hat das Angebot nicht erhalten (Versand fehlgeschlagen)",
       "fairness_gate_unknown_archetype": "traf auf die Fairness-Schranke (Archetyp unbekannt)",
       "fairness_gate_blocked_reject": "wurde von der Fairness-Schranke vor einer automatischen Ablehnung bewahrt",
       "aging_alert": "überschreitet die SLA dieser Phase",
@@ -2260,7 +2741,8 @@
       "agent_dispatched": "wurde als Persona-Anfrage an Personas übermittelt",
       "agent_activated": "ging als Personas-Persona live",
       "onboarding_started": "startete das Onboarding (eingestelltes Modul)",
-      "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)"
+      "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)",
+      "screen_wave_holdout_unsealed": "wurde von der Screening-Welle verschont, aber der Kalibrierungs-Kontrollgruppen-Eintrag konnte nicht versiegelt werden"
     },
     "relTime": {
       "today": "heute",
@@ -2280,8 +2762,11 @@
       "doneCount": "Fertig. {count, plural, =1 {1 Kandidat/in} other {# Kandidat/innen}} bearbeitet.",
       "doneHeldAtOffer": "{count, plural, =1 {1 Kandidat/in in der Angebotsphase wartet} other {# Kandidat/innen in der Angebotsphase warten}} auf den Angebotsprozess. Unterbreiten Sie das Angebot. Weiterleiten stellt niemanden ein.",
       "doneDroppedOut": "{count, plural, =1 {1 in der Vorschau gezeigte/r Kandidat/in wurde übersprungen} other {# in der Vorschau gezeigte Kandidat/innen wurden übersprungen}}. Beim Bestätigen war die Schwelle nicht mehr unterschritten, daher wurde niemand abgelehnt.",
+      "doneFailed": "{count, plural, =1 {1 Kandidat/in wurde nicht bearbeitet} other {# Kandidat/innen wurden nicht bearbeitet}}. Sie wurden während des Befehls geändert oder abgeschlossen, daher wurde nichts angewendet. Aktualisieren Sie und versuchen Sie es erneut.",
+      "doneCommsFailed": "{count, plural, =1 {1 abgelehnte/r Kandidat/in wurde nicht benachrichtigt} other {# abgelehnte Kandidat/innen wurden nicht benachrichtigt}}. Die Ablehnung gilt; senden Sie die Nachricht manuell von der Karte aus.",
       "doneSummary": "Richtlinien-Durchlauf abgeschlossen: {advanced} weitergeleitet, {rejected} abgelehnt, {held} zurückgehalten.",
-      "dismiss": "Ausblenden"
+      "dismiss": "Ausblenden",
+      "failed": "Der Befehl konnte nicht ausgeführt werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -2427,7 +2912,11 @@
       "attentionTitle": "Benötigt Ihre Aufmerksamkeit",
       "filterStateLabel": "Status",
       "stageOffBoard": "Phase {stage} ist keine Spalte dieses Boards mehr. Der Filter bleibt aktiv, Sie sehen also nur die Kandidat/innen, die weiterhin auf ihr stehen.",
-      "stageOffBoardClear": "Diesen Filter entfernen"
+      "stageOffBoardClear": "Diesen Filter entfernen",
+      "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard",
+      "previewCommitFailed": "Der Durchlauf konnte nicht angewendet werden.",
+      "bulkTaskIncomplete": "Die Entwurfsaufgabe endete ohne Ergebnis. Weiterhin ausgewählt, bitte erneut versuchen.",
+      "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen."
     },
     "today": {
       "eyebrow": "Heute",
@@ -2578,18 +3067,17 @@
         "saving": "Wird gespeichert…",
         "saveFailed": "Bewertung konnte nicht gespeichert werden.",
         "purpose": "Halten Sie fest, wie sich diese Einstellung tatsächlich entwickelt hat. Sie ist die belastbare Grundlage für die Messung der Einstellungsqualität in Analytics.",
-        "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet."
+        "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet.",
+        "loadFailed": "Der Ergebniseintrag konnte nicht geladen werden.",
+        "retry": "Erneut versuchen"
       },
       "transfer": "Transfer"
     },
     "actions": {
       "screen": "Mit AI prüfen",
-      "screenNote": "Ein eindeutiges Bestehen leitet die/den Kandidat/in weiter; andernfalls wird sie/er zur Prüfung in den Entscheidungen zurückgehalten.",
       "prep": "Interview-Vorbereitung",
       "scorecard": "Scorecard erstellen",
-      "scorecardNote": "Aus Ihren Notizen → eine strukturierte Scorecard in den Entscheidungen.",
       "offer": "Angebot entwerfen",
-      "offerNote": "Gehalt aus dem Gehaltsband der Position, nach Eignung skaliert → ein Angebot zur Genehmigung in den Entscheidungen.",
       "outreach": "Ansprache entwerfen",
       "rejection": "Absage entwerfen",
       "rematch": "Alternativen erkunden"
@@ -2652,7 +3140,10 @@
       "thisRun": "{label} in diesem Lauf",
       "runScope": "Ihr Anteil: {mine} von {total}",
       "scopeGlobal": "gilt für alle Teams",
-      "scopeGlobalTitle": "Für die gesamte Installation läuft ein einziger Timer: Ein- oder Ausschalten startet bzw. stoppt die Automatisierung für alle Teams, nicht nur für Ihres."
+      "scopeGlobalTitle": "Für die gesamte Installation läuft ein einziger Timer: Ein- oder Ausschalten startet bzw. stoppt die Automatisierung für alle Teams, nicht nur für Ihres.",
+      "liveHealthy": "läuft",
+      "liveStarting": "startet…",
+      "liveStalled": "steht still"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -2676,7 +3167,10 @@
       },
       "noBand": "Für diese Position bzw. diesen Markt ist kein Gehaltsband hinterlegt, daher wurde kein Betrag vorgeschlagen. Legen Sie ihn bei der Freigabe fest.",
       "unpricedAmount": "Betrag noch festzulegen",
-      "unpricedTitle": "Für diesen Entwurf wurde kein Gehalt vorgeschlagen. Legen Sie den Betrag bei der Freigabe des Angebots fest."
+      "unpricedTitle": "Für diesen Entwurf wurde kein Gehalt vorgeschlagen. Legen Sie den Betrag bei der Freigabe des Angebots fest.",
+      "reasons": {
+        "rematchSkippedHired": "Diese Person ist eingestellt. Es wurde keine andere Rolle gesucht."
+      }
     },
     "applied": {
       "advanced": "Um eine Phase weitergeleitet.",
@@ -2744,6 +3238,31 @@
     "scoreKind": {
       "transferShort": "Transfer",
       "transferTitle": "Ein Transfer-Score aus der Arbeitsprobe, kein Match-Score. Er sagt, wie gut die in der Aufgabe gezeigten Fähigkeiten auf diese Rolle übertragen."
+    },
+    "add": {
+      "added": "{name} wurde zur Pipeline hinzugefügt.",
+      "failed": "{name} konnte nicht zur Pipeline hinzugefügt werden.",
+      "failedAnnounce": "{name} konnte nicht zur Pipeline hinzugefügt werden. {reason}"
+    },
+    "reachOut": {
+      "sent": "{name} wurde angeschrieben. Die Person ist in der Pipeline und eine erste Nachricht ist unterwegs.",
+      "alreadySent": "{name} ist in der Pipeline und wurde für diese Rolle bereits kontaktiert, deshalb ging keine neue Nachricht raus.",
+      "failed": "{name} konnte nicht angeschrieben werden.",
+      "failedAnnounce": "{name} konnte nicht angeschrieben werden. {reason}",
+      "suppressed": {
+        "anonymized": "Es wurde keine Nachricht gesendet. Diese Person wurde anonymisiert.",
+        "suppressed": "Es wurde keine Nachricht gesendet. Die Ansprache dieser Person ist gesperrt (Einwilligung abgelaufen oder die Sequenz wurde gestoppt)."
+      }
+    },
+    "eventReasons": {
+      "offerAutoExtended": "Angebot gemäß Einstellungsplan automatisch versendet (Angebots-Gate: automatisch).",
+      "roleClosedWithdrawn": "Stelle geschlossen. Kandidat aus der Pipeline genommen.",
+      "roleReopenedRestored": "Stelle wieder geöffnet. Kandidat zurück in der Pipeline.",
+      "autoRejectionReversed": "Automatische Absage zur erneuten Prüfung aufgehoben.",
+      "intakeCapturedManually": "Daten manuell erfasst.",
+      "githubDeepDiveFromDrawer": "GitHub-Tiefenanalyse aus der Kandidatenansicht gestartet.",
+      "manualStageMove": "Manuell von einer recruitenden Person verschoben.",
+      "addedToPipeline": "Zur Pipeline hinzugefügt."
     }
   },
   "decisions": {
@@ -2799,7 +3318,9 @@
       "rejectConfirm": "{count} ablehnen und benachrichtigen?",
       "rejectConfirmYes": "Ablehnen & benachrichtigen",
       "rejectCancel": "Abbrechen",
-      "rejecting": "Wird abgelehnt…"
+      "rejecting": "Wird abgelehnt…",
+      "accepting": "Wird angenommen…",
+      "requestFailed": "Der Stapel konnte nicht ausgeführt werden. Es wurde nichts entschieden."
     },
     "keyDecisions": "Wichtige Entscheidungen",
     "keyDecisionsHelp": "Eine Zeile pro Stelle. Weiterleiten oder ablehnen direkt aus der Analysezusammenfassung eines Kandidaten.",
@@ -2867,7 +3388,12 @@
       "selfReportLabel": "Selbsteinschätzung des Modells",
       "selfReportValue": "{pct} von 100",
       "selfReportNote": "die eigene Bewertung des Modells für dieses Urteil. Sie wurde nie an echten Ergebnissen gemessen.",
-      "selfReportTitle": "Das Modell sollte ein Urteil fällen und hat zusätzlich angegeben, wie sicher es sich fühlt. Diese Angabe sagt etwas über das Modell aus, nicht über die Kandidatin oder den Kandidaten: dahinter steht kein Ergebnis, keine Holdout-Gruppe und keine Basisrate. Das gemessene Gegenstück, wie oft ein Score-Band tatsächlich weiterkommt, ist eine Statistik über eine ganze Kohorte und steht im Qualitätsbereich der Analytics."
+      "selfReportTitle": "Das Modell sollte ein Urteil fällen und hat zusätzlich angegeben, wie sicher es sich fühlt. Diese Angabe sagt etwas über das Modell aus, nicht über die Kandidatin oder den Kandidaten: dahinter steht kein Ergebnis, keine Holdout-Gruppe und keine Basisrate. Das gemessene Gegenstück, wie oft ein Score-Band tatsächlich weiterkommt, ist eine Statistik über eine ganze Kohorte und steht im Qualitätsbereich der Analytics.",
+      "engineLabel": "Quelle",
+      "engineTemplate": "Vorlage (kein Modell im Einsatz)",
+      "engineTemplateNote": "Von der eingebauten Vorlage verfasst, nicht von einem Modell. Als Ausgangspunkt lesen und die Begründung selbst prüfen.",
+      "engineTemplateTitle": "Die Automatisierung lief ohne Modell (kein API-Schlüssel, KI-Kontingent aufgebraucht oder Aufruf fehlgeschlagen), daher stammt dieses Urteil aus einer deterministischen Vorlage.",
+      "engineLlm": "Modell · {provider}"
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",
@@ -2887,7 +3413,9 @@
       "familyFloorChip": "unter {floor}",
       "familyEditHint": "Diese Werte werden im Kalibrierungs-Panel in Analytics festgelegt. Diese Regel gibt sie nur wieder.",
       "fairnessLabel": "Fairness:",
-      "fairnessBody": "Kandidaten am Karriereanfang (Studierende / Quereinsteiger) werden <b>nie</b> automatisch abgelehnt. Diese Sperre ist im Code verankert."
+      "fairnessBody": "Kandidaten am Karriereanfang (Studierende / Quereinsteiger) werden <b>nie</b> automatisch abgelehnt. Diese Sperre ist im Code verankert.",
+      "loadFailed": "Die aktiven Regeln dieses Workspaces konnten nicht geladen werden. Bis dahin wird nichts angezeigt oder gespeichert.",
+      "loadRetry": "Erneut versuchen"
     },
     "compliance": {
       "title": "Compliance & Fairness",
@@ -2935,7 +3463,10 @@
       "anyAdverse": "Mögliche Benachteiligung: Mindestens eine Gruppe liegt unter der 80-%-Schwelle.",
       "insufficientSample": "Unzureichende Stichprobe: Keine Gruppe erreicht {min} Bewerbende, daher ist das Vier-Fünftel-Verhältnis nicht aussagekräftig. Das ist kein Nachweis, dass keine Benachteiligung vorliegt.",
       "noAdverse": "Keine Gruppe liegt unter der 80-%-Vier-Fünftel-Schwelle.",
-      "parseIgnored": "{read} von {total} Zeilen gelesen. {ignored} ignoriert (Zeilen: {rows}). Jede Zeile benötigt: Gruppe, ausgewählt, gesamt. Das Ergebnis unten wird nur aus den erfolgreich gelesenen Zeilen berechnet."
+      "parseIgnored": "{read} von {total} Zeilen gelesen. {ignored} ignoriert (Zeilen: {rows}). Jede Zeile benötigt: Gruppe, ausgewählt, gesamt. Das Ergebnis unten wird nur aus den erfolgreich gelesenen Zeilen berechnet.",
+      "jurisdictionUnconfirmed": "Für diesen Workspace ist keine Rechtsordnung gespeichert. Unten gilt die Voreinstellung, bestätigt hat sie niemand.",
+      "jurisdictionReadFailed": "Die gespeicherte Rechtsordnung konnte nicht geladen werden. Angezeigt wird die Voreinstellung, nicht zwingend das, was Ihre Hinweise an Bewerbende nennen.",
+      "covered5Unconfirmed": "Personenbezogene Daten werden nach {dataLaw} verarbeitet, mit Löschung in Eigenregie. Die Aufbewahrungsfrist konnte nicht geladen werden, daher wird hier keine Zahl genannt."
     },
     "wave": {
       "title": "Screening-Welle · {role}",
@@ -2985,7 +3516,11 @@
         "unscored": "nicht bewertet: noch kein Match-Score. Von der Auto-Ablehnung ausgeschlossen (Bewertung nötig)",
         "holdout": "als Kalibrierungs-Kontrollgruppe behalten: {pct} % der eigentlich automatisch abgelehnten Kandidaten werden bewusst behalten, damit ihre tatsächlichen Ergebnisse die Richtigkeit des Scores prüfen können (Match {score}, Schwelle {threshold})",
         "approvedByNote": "Genehmigt von {who}.",
-        "approverUnidentified": "Genehmigende Person nicht identifiziert."
+        "approverUnidentified": "Genehmigende Person nicht identifiziert.",
+        "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch).",
+        "sealFailed": "beibehalten: Der manipulationssichere Entscheidungssatz konnte nicht versiegelt werden, die automatische Absage wurde daher nicht ausgeführt",
+        "reinstated": "beibehalten: Eine frühere automatische Absage wurde von einer Recruiterin aufgehoben, die Automatik wiederholt sie nicht",
+        "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm"
       }
     },
     "summary": {
@@ -3169,7 +3704,18 @@
         "cancel": "Abbrechen",
         "confirm": "Ablehnen & Grund erfassen",
         "sealedToast": "{name} abgelehnt. Der Grund steht im Auditprotokoll."
-      }
+      },
+      "schemeSkillsShort": "F",
+      "schemeCareerShort": "K",
+      "schemePersonalShort": "P",
+      "schemeWeightsTitle": "Gewichtung: Fähigkeiten / Karriere / Persönliches",
+      "narrativeInLanguage": "Dieser Vergleich wird auf {language} angezeigt.",
+      "consentExcludedNote": "{count, plural, one {# Kandidat wurde aus diesem Vergleich ausgenommen} other {# Kandidaten wurden aus diesem Vergleich ausgenommen}}, weil sie gelöscht wurden oder ihre Einwilligung abgelaufen ist. Die Rangfolge unten umfasst das übrige Feld.",
+      "degradedNote": "Eingeschränkt: {stages}. Diese Schritte sind auf das deterministische Ergebnis zurückgefallen, der Vergleich ist daher dünner als ein vollständiger KI-Lauf.",
+      "degradedNoteTimeout": "Eingeschränkt (Zeitüberschreitung): {stages}. Diese Schritte sind auf das deterministische Ergebnis zurückgefallen, der Vergleich ist daher dünner als ein vollständiger KI-Lauf.",
+      "degradedStageRanking": "Rangfolge",
+      "degradedStageComparison": "KI-Vergleich",
+      "degradedStageReasoning": "Begründungen der Kandidaten"
     },
     "empty": {
       "batonEyebrow": "Staffelstab übergeben",
@@ -3186,7 +3732,9 @@
         "fairnessWouldRefuse": "Auto-Ablehnung würde von der Fairness-Sicherung verweigert: {verdict}. Ursprüngliche Regelentscheidung: {original}",
         "applyFailed": "Ausführung fehlgeschlagen: {detail}. Ursprüngliche Regelentscheidung: {original}"
       }
-    }
+    },
+    "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen.",
+    "evalCacheProbeFailed": "Wir konnten nicht prüfen, ob für diese Auswahl bereits ein gespeicherter Vergleich vorliegt. Neu ausführen startet einen neuen KI-Durchlauf."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -3252,7 +3800,10 @@
       "proposalsGroupAria": "Vom Kandidaten vorgeschlagene Termine",
       "acceptProposal": "{time} annehmen",
       "declineProposals": "Alle ablehnen",
-      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?"
+      "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?",
+      "cancelling": "Wird storniert…",
+      "markingNoShow": "Wird markiert…",
+      "truncated": "Es werden nur die neuesten Einladungen angezeigt. Ältere sind hier nicht aufgeführt."
     },
     "eyebrow": "Entscheidungen · Planung",
     "title": "Interview-Kalender",
@@ -3281,6 +3832,11 @@
     "reviewScorecard": "Scorecard in Entscheidungen prüfen",
     "loadFailed": "Laden fehlgeschlagen.",
     "startFailed": "Interview konnte nicht gestartet werden.",
+    "slotSuggested": "Vorschlag",
+    "slotConfirmed": "bestätigt",
+    "candidateZone": "Zeitzone der Person: {zone}",
+    "bookFailed": "Diese Zeit konnte nicht gebucht werden.",
+    "declineFailed": "Die Absage war nicht möglich. Es wurde nichts gespeichert.",
     "interviewerTitle": "Interviewer: {name}",
     "rounds": {
       "label": "Interviewrunde",
@@ -3305,7 +3861,14 @@
       "verdictNote": "Verdikte fließen als Scorecard-Reviews in die Entscheidungs-Queue. Dieses Board ist die Interview-Schleife, nicht die Entscheidung.",
       "fullTranscript": "Volles Transkript & Scorecard",
       "noScorecardHelp": "Für dieses Interview wurde keine Scorecard erzeugt. Öffnen Sie die Vollansicht, um das rohe Transkript zu lesen.",
-      "confidence": "Konfidenz: {level}"
+      "costUnknown": "Kosten unbekannt",
+      "costFree": "keine Minutenkosten",
+      "costTitle": "Geschätzte Kosten dieses Anrufs laut Nutzungsjournal",
+      "providerTitle": "Der Sprachanbieter, der diesen Anruf bedient hat",
+      "confidence": "Konfidenz: {level}",
+      "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+      "failedOverFrom": "gewechselt von {provider}",
+      "attemptsTitle": "Wie dieses Gespräch lief: erneute Verbindungen und ein Anbieterwechsel, falls der gewählte nicht verfügbar war"
     },
     "calendar": {
       "calendarAria": "Interview-Wochenkalender: Tage waagerecht, Zeiten senkrecht",
@@ -3320,7 +3883,10 @@
       "bookedOffHourTitle": "{name} · bereits um {time} gebucht",
       "pagerPrev": "Vorherige Woche",
       "pagerNext": "Nächste Woche",
-      "weekOf": "Woche {range}"
+      "weekOf": "Woche {range}",
+      "timezoneNote": "Alle Zeiten in der Interview-Zeitzone: {zone}.",
+      "suggested": "vorgeschlagene Zeit, nicht bestätigt",
+      "chipSuggestedTitle": "{name} · vorgeschlagene Zeit, noch nicht bestätigt"
     },
     "scorecard": {
       "editScorecard": "Ihre Scorecard bearbeiten",
@@ -3449,7 +4015,9 @@
       "readbackCorrectedHint": "Im Transkript gehört → was es laut Kandidat/in heißen sollte",
       "readbackUnconfirmedFlag": "unbestätigt",
       "readbackUnconfirmedHint": "Früher erwähnt, aber beim Zurücklesen nicht bestätigt (möglicherweise ein Transkriptionsfehler)",
-      "readbackNote": "Aus der abschließenden Wiederholung: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert."
+      "readbackNote": "Aus der abschließenden Wiederholung: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert.",
+      "narrativeInLanguage": "Diese Scorecard-Zusammenfassung wird auf {language} angezeigt.",
+      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}"
     },
     "relay": {
       "label": "Wo der Staffelstab liegt",
@@ -3459,7 +4027,10 @@
       "noteWaiting": "Wartet hier",
       "noteHere": "Sie sind hier",
       "noteNext": "Als Nächstes"
-    }
+    },
+    "liveStale": "Der Live-Status der Interviews ist veraltet.",
+    "liveRetry": "Erneut versuchen",
+    "invitesTruncated": "Es werden nur die neuesten Gespräche angezeigt. Ältere Einladungen fehlen in dieser Liste."
   },
   "library": {
     "tab": {
@@ -3539,6 +4110,8 @@
       "provWebGrounded": "webgestützt",
       "provEstimated": "geschätzt",
       "salaryUnavailable": "Gehalt nicht verfügbar",
+      "repoGrounding": "Repository-Grundlage",
+      "repoLoc": "{loc} Codezeilen",
       "sourcesLabel": "Quellen:",
       "interviewCase": "Aufgabe als Arbeitsprobe",
       "timebox": "Zeitrahmen: ~{hours} Std.",
@@ -3591,7 +4164,7 @@
       "shelfRecordLabel": "Der Datensatz, den Sie gleich anlegen",
       "shelfWriteCta": "Erste Beschreibung schreiben",
       "shelfDraftCta": "Vom Builder entwerfen lassen",
-      "shelfCtaNote": "Beides öffnet das Panel „Generieren“. Speichern Sie einen Entwurf unverändert, oder lassen Sie die AI die Beschreibung, ein marktübliches Gehaltsband und eine Aufgabe als Arbeitsprobe erstellen.",
+      "shelfCtaNote": "Der Generieren-Bereich übernimmt: Speichern Sie Ihren Text als Entwurf oder lassen Sie die KI daraus die Beschreibung, eine Marktgehaltsspanne und eine Arbeitsprobe bauen.",
       "shelfReuseLabel": "Ein Blatt lässt sich mehrfach nutzen",
       "shelfReuseAnalyze": "Lebensläufe damit bewerten",
       "shelfReuseIngest": "Als offene Stelle übernehmen",
@@ -3670,7 +4243,9 @@
           "processing": "Anruf wird ausgewertet…",
           "unavailable": "Sprache ist auf diesem Server nicht eingerichtet. Bitte im Text fortfahren.",
           "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",
-          "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren."
+          "storedNote": "Gesprächstranskript gespeichert. Die AI-Auswertung benötigt einen verbundenen Anbieter, das Briefing bleibt daher unverändert. Bitte im Text fortfahren.",
+          "checkFailed": "Ob Sprache verfügbar ist, ließ sich nicht prüfen. Versuchen Sie es erneut oder schreiben Sie weiter.",
+          "recheck": "Erneut prüfen"
         },
         "edit": {
           "start": "Briefing bearbeiten",
@@ -3739,7 +4314,9 @@
           "kindNote": "Notiz",
           "kindJd": "gespeicherte Stellenbeschreibung",
           "jdPick": "Gespeicherte Stellenbeschreibung wählen…",
-          "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen."
+          "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen.",
+          "noteFallbackTitle": "Notiz ohne Titel",
+          "textCap": "Diese Notiz ist länger als die {max, number} Zeichen, die ein Referenzmaterial fasst. Kürzen Sie sie oder hängen Sie sie in Teilen an."
         },
         "columns": {
           "col": {
@@ -3776,13 +4353,30 @@
           "begin": "Scannen und starten",
           "starting": "Wird gestartet…",
           "cancel": "Abbrechen",
+          "cancelScan": "Scan stoppen",
           "startError": "Der Scan konnte nicht gestartet werden. Bitte Repository prüfen und erneut versuchen.",
           "scan": {
             "queued": "Code wird gelesen (in der Warteschlange)",
             "running": "Code wird gelesen…",
             "complete": "Der Code wurde gelesen.",
             "failed": "Der Scan ist fehlgeschlagen. Führen Sie das Gespräch fort; das Briefing enthält dann keine Code-Lesung.",
-            "unreachable": "Der Scan ist gerade nicht erreichbar. Erneuter Versuch läuft."
+            "unreachable": "Der Scan ist gerade nicht erreichbar. Erneuter Versuch läuft.",
+            "failedTargetRefused": "Dieses Repository steht nicht mehr auf der Freigabeliste, der Scan wurde abgelehnt.",
+            "failedOfflineRefused": "Der Offline-Modus lehnt entfernte Klone ab. Scannen Sie stattdessen einen lokalen Pfad.",
+            "failedGitMissing": "Auf diesem Rechner ist git nicht installiert, ein URL-Scan ist daher nicht möglich.",
+            "failedCloneFailed": "Das Repository konnte nicht geklont werden. Prüfen Sie die URL und die nötigen Zugriffsrechte.",
+            "failedCloneTimeout": "Das Klonen des Repositorys hat zu lange gedauert und wurde gestoppt.",
+            "failedCancelled": "Der Scan wurde gestoppt.",
+            "failedEngineFailed": "Die Scan-Engine ist ausgefallen, es wurde nichts gelesen.",
+            "fellBackAgentNotInstalled": "Der KI-Agent ist nicht installiert, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fellBackAgentTimeout": "Beim KI-Agenten ist die Zeit abgelaufen, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fellBackAgentUnparseable": "Die Antwort des KI-Agenten war nicht lesbar, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fellBackAgentRefused": "Der KI-Agent hat vorzeitig abgebrochen, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fellBackAgentOutputTooLarge": "Die Antwort des KI-Agenten war zu groß, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fellBackProviderError": "Der KI-Anbieter ist ausgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fellBackUnknown": "Der KI-Agent ist zurückgefallen, dies ist nur die Lesung aus dem Dateidurchlauf.",
+            "fenceUnverified": "Der KI-Agent hat dieses Repo hinter Regeln für Geheimnisdateien gelesen, die für die hier installierte Claude-CLI-Version nicht verifiziert sind.",
+            "fenceVersionUnknown": "Die Claude CLI hat ihre Version nicht gemeldet, daher konnten die Regeln für Geheimnisdateien, hinter denen dieser Scan lief, nicht verifiziert werden."
           },
           "dossier": {
             "title": "Was der Scan gelesen hat",
@@ -3822,6 +4416,26 @@
           "recompose": "Neu erstellen",
           "composing": "Wird erstellt…",
           "composeError": "Die Spezifikation konnte nicht erstellt werden. Bitte erneut versuchen.",
+          "moreCount": "{count, plural, =1 {+1 weiterer} other {+# weitere}}",
+          "showLess": "Weniger anzeigen",
+          "mandate": {
+            "title": "Das Mandat",
+            "gates": "Freigabe-Gates",
+            "objectives": "Ergebnisse und ihre Messlatten",
+            "direction": {
+              "gte": "mindestens",
+              "lte": "höchstens"
+            },
+            "windowValue": "{days, plural, one {# Tag Zeitfenster} other {# Tage Zeitfenster}}",
+            "reviewCadence": "Review-Rhythmus",
+            "reviewCadenceValue": "{days, plural, one {alle # Tag} other {alle # Tage}}",
+            "retire": "Beenden, wenn",
+            "reservation": "Budgetreservierung",
+            "reservationValue": {
+              "estimate": "pro Lauf geschätzt",
+              "fixed": "vorab reserviert"
+            }
+          },
           "spec": {
             "title": "App-Master-Spezifikation",
             "empty": "Erstellen Sie die Spezifikation, sobald Ergebnisse und Mandat erfasst sind.",
@@ -3851,6 +4465,10 @@
           "dispatchHuman": "Diese Spezifikation ist für einen menschlichen Rolleninhaber verfasst. Überführen Sie sie stattdessen in eine Stellenbeschreibung.",
           "dispatchNeedsPairing": "Koppeln Sie Kandi unter Einstellungen → Integrationen mit Personas, um zu entsenden."
         },
+        "degradedNoProvider": "Es ist kein AI-Modell konfiguriert, deshalb läuft die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
+        "degradedProviderFailed": "Das Modell hat nicht geantwortet, deshalb hat die geführte Checkliste übernommen. Ihre Antworten werden erfasst. Versuchen Sie es gleich noch einmal.",
+        "standInLanguage": "Die Checkliste gibt es noch nicht in der Sprache dieser Sitzung, deshalb antwortet sie auf {language}.",
+        "compactedNote": "{count} ältere Beiträge sind aus diesem Verlauf herausgefallen. Was darin gesagt wurde, hält das Briefing fest.",
         "table": {
           "role": "Rolle",
           "shape": "Typ",
@@ -3862,7 +4480,24 @@
           "noMatch": "Keine Sitzung entspricht diesen Filtern.",
           "clear": "Filter zurücksetzen"
         }
-      }
+      },
+      "buildHeldChip": "Ergebnis als Revision abgelegt",
+      "buildHeldBody": "Sie haben diese Stellenbeschreibung während der Erstellung bearbeitet. Ihr eigener Text bleibt erhalten, der generierte Entwurf wurde im Bearbeitungsverlauf abgelegt.",
+      "buildHeldHint": "Den generierten Entwurf im Bearbeitungsverlauf dieser Stellenbeschreibung öffnen.",
+      "buildHeldOpenDraft": "Entwurf öffnen",
+      "buildIntentLabel": "Erstellt mit",
+      "buildIntentTemplate": "Vorlage",
+      "buildIntentLanguage": "Sprache",
+      "buildIntentSeniority": "Senioritätsstufe",
+      "buildIntentTemplateUnknown": "Vorlagen konnten nicht geladen werden; die Vorlage dieses Builds lässt sich daher nicht benennen.",
+      "buildIntentAiDefault": "KI-Standardformat",
+      "caseTaskFallback": "Aufgabe",
+      "pollStalledNote": "Wird noch analysiert. Zu dieser Erstellung kam seit einer Weile keine Rückmeldung. Den Live-Status zeigt die Aufgaben-Leiste.",
+      "unsavedTitle": "Nicht gespeicherte Änderungen verwerfen?",
+      "unsavedBody": "Diese Stellenbeschreibung enthält Änderungen, die Sie noch nicht gespeichert haben. Wenn Sie den Editor verlassen, gehen sie verloren.",
+      "unsavedDiscard": "Änderungen verwerfen",
+      "unsavedKeep": "Weiter bearbeiten",
+      "entryCountOfTotal": "{count, plural, one {# Eintrag} other {# Einträge}} von {total} gespeicherten"
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",
@@ -3883,6 +4518,7 @@
       "intro": "Wählen Sie eine Unternehmensvorlage, beschreiben Sie den Bedarf in eigenen Worten, und die AI füllt die Vorlage. Sie klärt den Bedarf, gestaltet die Position (bei Dev-Positionen optional durch Analyse eines öffentlichen Repos) und recherchiert das Marktgehalt.",
       "templateLabel": "Vorlage",
       "aiDefaultFormat": "AI-Standardformat (keine Vorlage)",
+      "templatesLoadFailed": "Vorlagen konnten nicht geladen werden. Das AI-Standardformat steht weiterhin zur Verfügung.",
       "defaultSuffix": " (Standard)",
       "manage": "Verwalten",
       "manageTitle": "Unternehmensvorlagen erstellen, bearbeiten oder löschen",
@@ -4018,7 +4654,16 @@
         "heading_apply": "So bewerben Sie sich",
         "offer_note": "Hybrides Arbeiten, echte Verantwortung und Raum zum Wachsen.",
         "apply_note": "Bewerben Sie sich über den Link: ein kurzes Gespräch, dann das erste Interview."
-      }
+      },
+      "loadFailed": "Die Vorlagen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "retrying": "Wird erneut versucht…",
+      "deleteTitleLastOne": "Das ist die letzte Vorlage, die Ihr Team sieht. Mindestens eine muss bleiben.",
+      "reloadLatest": "Gespeicherte Version laden",
+      "unsavedTitle": "Nicht gespeicherte Vorlage verwerfen?",
+      "unsavedBody": "Diese Vorlage enthält noch nicht gespeicherte Änderungen. Wenn Sie den Editor verlassen, gehen sie verloren.",
+      "unsavedDiscard": "Änderungen verwerfen",
+      "unsavedKeep": "Weiter bearbeiten"
     },
     "intakeTab": {
       "eyebrow": "Arbeitsbereich",
@@ -4062,7 +4707,9 @@
         "unlockChannels": "Kanäle offen",
         "unlockPipeline": "Kandidat/innen kommen an",
         "unlockDecisions": "Entscheidungen warten"
-      }
+      },
+      "showingCut": "Erste <b>{shown}</b> von <b>{matching}</b> passenden Stellen. Die Liste ist bei {limit} abgeschnitten.",
+      "loadFailed": "Der Stellenkatalog konnte nicht geladen werden."
     },
     "table": {
       "caption": "Stellenkorpus: normalisierte Stellenanzeigen, filterbar nach Berufsfamilie, Seniorität, Arbeitsmodell und Einstiegs-Eignung. Aktivieren Sie eine Zeile, um ihre Anforderungen und die Absolvent/innen-Perspektive aufzuklappen.",
@@ -4108,6 +4755,7 @@
       "cancelRun": "Lauf abbrechen",
       "cancelled": "Analyse abgebrochen. Es wurde nichts hinzugefügt.",
       "bulkCancelled": "Abgebrochen nach {done} von {total} Stellen. Die bisherigen Ergebnisse bleiben unten stehen.",
+      "malformedResponse": "Der Server hat eine unlesbare Antwort geschickt. Es wurde nichts hinzugefügt, bitte erneut versuchen.",
       "pasteHeading": "Eine Stelle importieren"
     },
     "drafts": {
@@ -4121,6 +4769,20 @@
       "sourced": "{count, plural, one {# Kandidat/in in die Pipeline gesourct.} other {# Kandidat/innen in die Pipeline gesourct.}}",
       "quotaNote": "Sie haben das Limit aktiver Stellen Ihres Tarifs erreicht. Führen Sie ein Upgrade durch oder schließen Sie eine Stelle, um eine weitere zu veröffentlichen.",
       "goToBilling": "Upgrade in der Abrechnung",
+      "loadFailed": "Entwürfe konnten nicht geladen werden.",
+      "publishWentLive": "Die Stelle ist live.",
+      "publishReopened": "{count, plural, one {Wieder geöffnet: # zurückgezogene Kandidatin bzw. Kandidat ist wieder in der Pipeline.} other {Wieder geöffnet: # zurückgezogene Kandidatinnen und Kandidaten sind wieder in der Pipeline.}}",
+      "publishAlreadyLive": "War bereits live. Es wurde nicht erneut gesucht.",
+      "publishSourced": "{count, plural, =0 {Bisher passt keine gespeicherte Person zu dieser Stelle.} one {# Person in die Pipeline übernommen.} other {# Personen in die Pipeline übernommen.}}",
+      "publishSkipped": "{count, plural, one {# gespeicherte Person konnte nicht gelesen und daher nicht bewertet werden.} other {# gespeicherte Personen konnten nicht gelesen und daher nicht bewertet werden.}}",
+      "publishSilver": "{count, plural, one {# frühere Person wurde für die Wiederentdeckung markiert.} other {# frühere Personen wurden für die Wiederentdeckung markiert.}}",
+      "publishSourcingFailed": "Die Suche ist fehlgeschlagen, deshalb wurde niemand übernommen. Das heißt nicht, dass niemand passt.",
+      "publishInFlight": "Stelle wird veröffentlicht und Kandidaten werden gesucht. Das kann einige Minuten dauern.",
+      "publishStopWaiting": "Nicht weiter warten",
+      "publishAbandoned": "Warten beendet. Die Stelle ist wahrscheinlich bereits live, die Kandidatensuche wurde jedoch abgebrochen. Öffnen Sie die Stelle erneut, um nachzusehen.",
+      "publishLastResult": "Letzte Veröffentlichung",
+      "retry": "Erneut versuchen",
+      "publishSilverFailed": "Die Wiederentdeckung konnte für diese Stelle nicht ausgeführt werden, deshalb wurde niemand markiert. Das heißt nicht, dass niemand passt.",
       "published": "„{title}“ ist live."
     },
     "posting": {
@@ -4244,7 +4906,8 @@
       "warnNoSkills": "Keine extrahierten Skills, deshalb wurden Stack-Hooks übersprungen.",
       "applyUrlNote": "CTA verlinkt das Schnellbewerbungsformular:",
       "loadFailed": "Kampagnenpaket konnte nicht geladen werden.",
-      "generateFailed": "Kampagnenpaket konnte nicht generiert werden."
+      "generateFailed": "Kampagnenpaket konnte nicht generiert werden.",
+      "warnUnknown": "Eine Angabe, die dem Paket fehlte ({code})."
     },
     "rediscover": {
       "loadFailed": "Wiederentdeckung konnte nicht ausgeführt werden.",
@@ -4267,7 +4930,8 @@
         "closed": "Erreichte die Zielgerade einer Stelle, die dann geschlossen wurde. Ein/e bewährte/r, verfügbare/r Kandidat/in mit {score}% Eignung für {jobTitle}.",
         "elsewhere": "Bereits für eine andere Stelle im Prozess; zugleich {score}% Eignung für {jobTitle}. Eine Umbesetzung, die eine Überlegung wert ist.",
         "reached": "Kam letztes Mal bis {stage}. Wird vor flacheren früheren Verläufen einsortiert."
-      }
+      },
+      "suppressed": "{count, plural, one {# frühere Person wurde ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.} other {# frühere Personen wurden ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.}}"
     },
     "rediscoveryFeed": {
       "title": "Zweitplatzierte",
@@ -4282,7 +4946,12 @@
       "addToPipeline": "Zur Pipeline hinzufügen",
       "adding": "Wird hinzugefügt…",
       "added": "Hinzugefügt",
-      "dismiss": "Verwerfen"
+      "dismiss": "Verwerfen",
+      "loadFailed": "Silbermedaillisten konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "dismissFailed": "Der Treffer konnte nicht entfernt werden. Er steht wieder in der Liste.",
+      "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden.",
+      "sweptIncomplete": "{count, plural, one {# Stelle konnte nicht bewertet werden, diese Liste ist daher unvollständig.} other {# Stellen konnten nicht bewertet werden, diese Liste ist daher unvollständig.}}"
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",
@@ -4317,7 +4986,8 @@
       "telemetryPause": "Pause {dur}",
       "telemetryHintIntegrated": "Hinweis eingebaut",
       "telemetryHintAcknowledged": "Hinweis aufgegriffen",
-      "telemetryHintMissed": "Hinweis nicht aufgegriffen"
+      "telemetryHintMissed": "Hinweis nicht aufgegriffen",
+      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}"
     },
     "candidates": {
       "failedStatus": "Fehlgeschlagen ({status}).",
@@ -4362,7 +5032,9 @@
       "couldntAdd": "Konnte nicht zur Pipeline hinzugefügt werden: {error}",
       "couldntReach": "Kontaktaufnahme fehlgeschlagen: {error}",
       "assumptions": "Annahmen:",
-      "auditUnder": "nach Gewichtung von {label}"
+      "auditUnder": "nach Gewichtung von {label}",
+      "auditPoolTruncated": "Begrenzte Stichprobe: Der Kandidatenbestand überschreitet die Ranking-Obergrenzen, daher deckt dieses Audit nur die bewertete Teilmenge ab, nicht den gesamten Pool.",
+      "malformedResponse": "Der Server hat eine unlesbare Antwort geschickt. Bitte die Kandidaten erneut laden."
     },
     "deeplink": {
       "notFound": "Diese Stelle ist nicht in Ihrem Katalog. Sie wurde möglicherweise entfernt oder gehört einem anderen Team.",
@@ -4461,7 +5133,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "regelbasiert",
       "cachedSuffix": " · zwischengespeichert",
-      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt. Die AI verfasst sie nur auf Englisch und Tschechisch.",
+      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt.",
       "strengths": "Stärken",
       "gaps": "Lücken",
       "interviewProbes": "Interview-Nachfragen",
@@ -4661,7 +5333,7 @@
     },
     "result": {
       "confidence": "Signalübereinstimmung {pct} %",
-      "saved": "gespeichert · {id}",
+      "saved": "gespeichert · {name}",
       "preview": "Vorschau (nicht gespeichert)",
       "routing": "Zuordnung: {reasons}",
       "completeness": "Vollständigkeit",
@@ -4681,7 +5353,21 @@
         "has_activity": "ein Praktikum, eine Aktivität oder Zertifizierung"
       },
       "matchNow": "Jetzt matchen",
-      "complete": "Das Profil wirkt vollständig für seinen Archetyp."
+      "complete": "Das Profil wirkt vollständig für seinen Archetyp.",
+      "reasons": {
+        "default": "kein starkes Signal: Standardeinstufung erfahren",
+        "self_declared": "selbst angegeben: {archetype}",
+        "signal_enrolled": "aktuell immatrikuliert",
+        "signal_expected_graduation": "voraussichtlicher Abschluss: {expected_graduation}",
+        "signal_yre_low": "weniger als ein Jahr einschlägige Erfahrung",
+        "signal_yre_high": "{years_relevant_experience} Jahre einschlägige Erfahrung",
+        "signal_education_dominant": "die Ausbildung dominiert den Lebenslauf",
+        "signal_switch_strong": "möchte die Branche wechseln und hat umfangreiche Erfahrung",
+        "signal_switch_weak": "möchte die Branche wechseln",
+        "contradiction_student_experienced": "Widerspruch: 3+ Jahre einschlägige Erfahrung bei einem Studierenden",
+        "contradiction_bau_early_career": "Widerspruch: Immatrikulation / unter einem Jahr Erfahrung deutet auf Berufseinstieg hin",
+        "contradiction_switcher_no_experience": "Hinweis: ein Quereinstieg setzt in der Regel Berufserfahrung voraus"
+      }
     },
     "fields": {
       "remove": "Entfernen"
@@ -4756,7 +5442,14 @@
       "aspirations": "Ziele / angestrebte Positionen",
       "aspirationsPlaceholder": "Junior-Frontend-Entwickler, ML-Engineer",
       "working": "Wird bearbeitet…",
-      "checkPreview": "Prüfen (Vorschau)"
+      "checkPreview": "Prüfen (Vorschau)",
+      "draftAppliedNote": "Entwurf übernommen. Nichts wird gespeichert, bis Sie auf Speichern klicken.",
+      "draftKeptEdits": "{count, plural, one {# von Ihnen bearbeitetes Feld wurde beibehalten} other {# von Ihnen bearbeitete Felder wurden beibehalten}}. Den Rest hat der Entwurf ausgefüllt.",
+      "draftUseAnyway": "Entwurf trotzdem übernehmen",
+      "draftUndo": "Entwurf rückgängig machen",
+      "draftKeep": "So belassen",
+      "staleSave": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert, deshalb wurde Ihre Speicherung nicht übernommen. Hier ist nichts verloren. Laden Sie neu, um die andere Version zu sehen.",
+      "staleReload": "Profil neu laden"
     },
     "archetypes": {
       "eyebrow": "Arbeitsbereich",
@@ -4781,7 +5474,12 @@
         "id_exists": "Ein Archetyp mit der ID ‚{id}‘ existiert bereits.",
         "not_found": "Archetyp nicht gefunden.",
         "archive_builtin": "‚{id}‘ ist ein integrierter Archetyp und kann nicht stillgelegt werden.",
-        "archived_invalid": "Das Archiv-Kennzeichen muss true oder false sein."
+        "archived_invalid": "Das Archiv-Kennzeichen muss true oder false sein.",
+        "registry_invalid": "Die Archetyp-Registrierungsdatei ist ungültig und kann nicht bearbeitet werden. Bitte pipeline/jobfit/archetypes.json prüfen.",
+        "registry_unreadable": "Die Archetyp-Registrierungsdatei konnte nicht gelesen werden.",
+        "weight_out_of_range": "Die Gewichtung für {slot} muss zwischen 0 und 100 % liegen.",
+        "id_reserved": "„{id}“ ist für nicht zuordenbare Kandidaten reserviert; bitte eine andere ID wählen.",
+        "edit_builtin_shield": "„{id}“ ist ein integrierter Archetyp; sein Fairness-Schutz und sein Bewertungsmodell lassen sich nicht ändern."
       },
       "fairnessProtectedAria": "Fairness-geschützt",
       "weightsSumError": "Die Gewichtungen müssen zusammen 100 % ergeben (aktuell {pct} %).",
@@ -4815,7 +5513,14 @@
       "saving": "Wird gespeichert…",
       "createArchetype": "Archetyp erstellen",
       "saveChanges": "Änderungen speichern",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "archiveConfirmTitle": "{label} stilllegen?",
+      "archiveConfirmCounting": "Die hierher geleiteten Profile werden gezählt…",
+      "archiveConfirmBody": "{count, plural, =0 {Derzeit ist kein Profil diesem Archetyp zugeordnet.} one {Derzeit ist # Profil diesem Archetyp zugeordnet.} other {Derzeit sind # Profile diesem Archetyp zugeordnet.}}",
+      "archiveConfirmNote": "Das Stilllegen blendet ihn nur aus den Auswahllisten aus. Bereits zugeordnete Profile werden weiterhin mit seinen Gewichten bewertet, und Sie können ihn jederzeit wiederherstellen.",
+      "dimSkills": "Fähigkeiten",
+      "dimCareer": "Werdegang",
+      "dimPersonal": "Persönlich"
     },
     "empty": {
       "specimenLabel": "Jedes gespeicherte Profil enthält",
@@ -4854,7 +5559,12 @@
       "select": "Auswählen…",
       "filterColumn": "{column} filtern"
     },
-    "sortBy": "Nach {column} sortieren"
+    "sortBy": "Nach {column} sortieren",
+    "status": {
+      "sortedAsc": "Sortiert nach {column}, aufsteigend",
+      "sortedDesc": "Sortiert nach {column}, absteigend",
+      "matched": "{count, plural, =0 {Keine Zeile entspricht den Filtern} one {# Zeile entspricht den Filtern} other {# Zeilen entsprechen den Filtern}}"
+    }
   },
   "channels": {
     "comms": {
@@ -4894,7 +5604,14 @@
       "statusQueued": "In Warteschlange",
       "statusFailed": "Fehlgeschlagen",
       "statusRecovered": "Behoben",
-      "statusBounced": "Unzustellbar"
+      "statusBounced": "Unzustellbar",
+      "resendRecovered": "Wird bereits zugestellt. Diese Nachricht ist unterwegs.",
+      "receiptSubject": "Zustellbestätigung",
+      "receiptRecipient": "Relay-Rückmeldung",
+      "olderExist": "{count, plural, one {# Nachricht} other {# Nachrichten}} angezeigt. Es gibt ältere.",
+      "loadOlder": "Ältere laden",
+      "loadingOlder": "Ältere werden geladen…",
+      "beyondWindow": "Es gibt ältere Nachrichten, sie liegen aber außerhalb dieser Ansicht."
     },
     "eyebrow": "Eingangsstudio",
     "title": "Wo Kandidat/innen hereinkommen",
@@ -4923,7 +5640,9 @@
       "saveFailed": "Relay konnte nicht gespeichert werden",
       "test": "Test-Ping senden",
       "testOk": "Zugestellt (HTTP {status})",
-      "testFailed": "Test fehlgeschlagen: {reason}"
+      "testFailed": "Test fehlgeschlagen: {reason}",
+      "statusUnreadable": "Signaturschlüssel nicht lesbar",
+      "unreadableNote": "Ein Relay-Endpunkt ist gespeichert, aber sein Signaturschlüssel lässt sich mit dem Schlüssel dieser Installation nicht entschlüsseln, sodass Nachrichten im lokalen Postausgang bleiben. Geben Sie den Signaturschlüssel unten neu ein oder stellen Sie den Schlüssel wieder her, unter dem er gespeichert wurde."
     },
     "edge": {
       "title": "Dauerhaft erreichbarer Rand",
@@ -4950,7 +5669,19 @@
       "sealedNow": "Versiegelung aktiv. Der Rand kann nicht mehr lesen, was er hält.",
       "sealFailed": "Versiegelungsschlüssel konnte nicht veröffentlicht werden",
       "cursor": "Abgerufen bis Ereignis {cursor}",
-      "lastError": "letzter Fehler: {reason}"
+      "lastError": "letzter Fehler: {reason}",
+      "lastDrain": "Letzter Abruf {time}",
+      "lastHeartbeat": "letztes Lebenszeichen {time}",
+      "neverDrained": "Noch nie abgerufen",
+      "pendingWaiting": "{pending} warten noch am Edge",
+      "pendingClear": "nichts wartet",
+      "pendingUnknown": "Rückstand noch nicht gemessen",
+      "statusSecretMissing": "Secret fehlt",
+      "secretMissingNote": "Eine Adresse ist gesetzt, aber kein gemeinsames Secret. Ein unsignierter Abruf würde Ereignisse von jedem annehmen, der die URL kennt - deshalb wird nichts abgerufen, bis Sie das als KP_EDGE_SECRET gesetzte Secret speichern.",
+      "drainFailedUnreachable": "Abruf fehlgeschlagen: der Edge hat nicht geantwortet. Nichts ging verloren, der nächste Durchlauf versucht es erneut.",
+      "drainFailedHeld": "Abruf angehalten: ein Ereignis konnte noch nicht abgelegt werden. Es bleibt am Edge und wird erneut versucht.",
+      "drainFailedAck": "Abgelegt, aber der Edge weiss es nicht. Er bietet diese Ereignisse erneut an, und sie werden nicht doppelt abgelegt.",
+      "drainFailedUnknown": "Abruf fehlgeschlagen. Der Grund steht im Server-Log dieser Installation."
     },
     "tablist": "Integration",
     "waiting": "{count} warten in der Pipeline",
@@ -4993,12 +5724,15 @@
       "running": "Wird empfangen…",
       "noJob": "Legen Sie zuerst eine Stelle an. Eingehende Bewerbungen brauchen ein Ziel.",
       "filed": "{label} empfangen, Match {score}. Bei „Angenommen“ zur Stelle {role} erfasst.",
-      "failed": "Testbewerbung konnte nicht empfangen werden."
+      "failed": "Testbewerbung konnte nicht empfangen werden.",
+      "failedStatus": "Testbewerbung konnte nicht empfangen werden (HTTP {status})."
     },
     "careers": {
       "empty": "Noch keine veröffentlichten Stellen. Veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier.",
       "applyLink": "Bewerbungslink",
-      "publishRole": "Stelle veröffentlichen"
+      "publishRole": "Stelle veröffentlichen",
+      "showingOf": "{shown} von {total} angezeigt",
+      "viewAllRoles": "Alle Stellen"
     },
     "receivers": {
       "role": "Stelle",
@@ -5133,7 +5867,8 @@
         "effort": "Etwa 5 Minuten: ein Empfänger pro beworbener Stelle",
         "waiting": "Der Empfänger ist bereit und es sind noch keine Leads eingegangen. Der erste legt sich selbst in der Pipeline ab."
       }
-    }
+    },
+    "copyFailed": "Kopieren fehlgeschlagen. Text markieren."
   },
   "interviewSim": {
     "eyebrow": "Interview-Simulator",
@@ -5174,7 +5909,8 @@
       "failed": "Sitzung konnte nicht verknüpft werden.",
       "loadFailed": "Kandidat/innen konnten nicht geladen werden.",
       "retry": "Erneut versuchen"
-    }
+    },
+    "billableNote": "Diese Demo startet eine echte Sprachsitzung und belastet Ihr Kontingent mit bis zu {min} Interview-Minuten."
   },
   "history": {
     "eyebrow": "Arbeitsbereich",
@@ -5223,7 +5959,11 @@
       "trustTitle": "CV-Authentizitätsprüfung: eine deterministische Prüfung auf AI-generierte / geschönte Lebensläufe. Siehe die Authentizitätsangaben unten; überprüfen Sie dies stets im Interview.",
       "trustHigh": "Authentizität: hoch",
       "trustMedium": "Authentizität: mittel",
-      "trustLow": "Authentizität: niedrig"
+      "trustLow": "Authentizität: niedrig",
+      "engineNote": "Engine-Hinweise (Englisch, wörtlich)",
+      "engineNoteTitle": "Diese Zeilen stammen unverändert aus der Analyse-Engine und werden nicht übersetzt.",
+      "deterministicNote": "Kein Modell lief: dieses Ergebnis wurde aus Regeln berechnet",
+      "deterministicNoteTitle": "Diese Analyse stammt aus den deterministischen Bewertungsbausteinen, nicht aus einem KI-Modell. Die Zahlen sind vollständig, aber kein Sprachmodell hat diesen Lebenslauf gelesen."
     },
     "softSignals": {
       "title": "Im Interview bestätigen",
@@ -5287,7 +6027,10 @@
         "BAD_SHAPE": "GitHub hat eine unerwartete Antwort zurückgegeben. Bitte gleich erneut versuchen.",
         "NOT_A_PERSON": "Dieses Handle gehört zu einer GitHub-Organisation, nicht zu einem persönlichen Konto. Geben Sie den Benutzernamen einer einzelnen Person ein.",
         "REQUEST_THROTTLED": "Zu viele Anfragen. Bitte gleich erneut versuchen.",
-        "ANALYSIS_FAILED": "Die GitHub-Analyse ist fehlgeschlagen. Bitte gleich erneut versuchen."
+        "ANALYSIS_FAILED": "Die GitHub-Analyse ist fehlgeschlagen. Bitte gleich erneut versuchen.",
+        "JD_TOO_LONG": "Die Stellenbeschreibung ist für die GitHub-Tiefenanalyse zu lang. Kürzen Sie sie und versuchen Sie es erneut.",
+        "OFFLINE": "Diese Installation läuft offline, GitHub wurde daher nicht kontaktiert.",
+        "RESPONSE_TOO_LARGE": "GitHub hat eine unerwartet große Antwort geliefert. Versuchen Sie es in Kürze erneut."
       },
       "review": {
         "partial": "Teilweise Belege: Ein Teil der Repository-Daten war in diesem Lauf nicht abrufbar (vermutlich Rate-Limiting), behandeln Sie dies daher als unvollständige Auswertung.",
@@ -5298,7 +6041,8 @@
         "throttled": "Öffentliche Repo-Signale konnten nicht erfasst werden. GitHub drosselt vermutlich die Anfragen (nicht feststellbar). Bitte gleich erneut versuchen.",
         "noSignals": "Die geprüften Repositories bieten keine öffentlichen README-, Commit- oder Dateisignale zur Bewertung.",
         "malformed": "Gemini hat ein fehlerhaftes Repo-Signal-Review geliefert.",
-        "requestFailed": "Die Anfrage für das Gemini-Repo-Signal-Review ist fehlgeschlagen."
+        "requestFailed": "Die Anfrage für das Gemini-Repo-Signal-Review ist fehlgeschlagen.",
+        "offline": "Diese Installation läuft offline (KP_OFFLINE); die Gemini-Prüfung der Repository-Signale wurde nicht durchgeführt."
       },
       "finding": {
         "signal": {
@@ -5339,7 +6083,9 @@
           "metadata": "Hauptsprache und Repository-Topics aus den GitHub-Metadaten.",
           "notRead": "Nicht gelesen: Dateiinhalte, verschachtelte Verzeichnisbäume, private Repos und andere als die Standard-Branches."
         }
-      }
+      },
+      "retryAfterSeconds": "Sie können es in etwa {seconds, plural, one {# Sekunde} other {# Sekunden}} erneut versuchen.",
+      "retryAfterMinutes": "Sie können es in etwa {minutes, plural, one {# Minute} other {# Minuten}} erneut versuchen."
     }
   },
   "workspaceAdmin": {
@@ -5398,7 +6144,6 @@
       "saving": "Wird gespeichert…",
       "saved": "Gespeichert",
       "saveFailed": "Speichern fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
-      "domainLabel": "Primäre Domain",
       "languageLabel": "App-Sprache",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
       "backup": {
@@ -5513,7 +6258,9 @@
         "body": "Die Einladung für <em>{email}</em> zurückziehen? Der bereits geteilte Link funktioniert dann nicht mehr.",
         "cancel": "Abbrechen",
         "confirm": "Einladung zurückziehen"
-      }
+      },
+      "roleUpdated": "Rolle aktualisiert.",
+      "statusUpdated": "Kontostatus aktualisiert."
     },
     "permissions": {
       "title": "Berechtigungen für {name}",
@@ -5545,7 +6292,8 @@
           "desc": "Kandidaten und Daten des Teams einsehen."
         }
       }
-    }
+    },
+    "partialLoad": "Ein Teil dieser Seite konnte nicht neu geladen werden. Einige Angaben sind möglicherweise nicht aktuell."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -5600,6 +6348,12 @@
     "emailTaken": "Diese E-Mail-Adresse gehört bereits zu einer anderen Organisation.",
     "alreadyActive": "Dieses Konto ist bereits aktiv. Melden Sie sich stattdessen an.",
     "genericError": "Die Einladung konnte nicht angenommen werden. Der Link ist möglicherweise gerade abgelaufen.",
+    "orgNameFallback": "Ihrer Organisation",
+    "rateLimitedTitle": "Zu viele Versuche",
+    "rateLimitedBody": "Von diesem Gerät kamen in der letzten Minute zu viele Versuche. Ihre Einladung ist weiterhin gültig. Warten Sie einen Moment und versuchen Sie es erneut.",
+    "loadFailedTitle": "Einladung konnte nicht geladen werden",
+    "loadFailedBody": "Der Server war nicht erreichbar. Ihre Einladung ist weiterhin gültig, ein weiterer Versuch lohnt sich.",
+    "retryError": "Der Server war nicht erreichbar. Ihre Einladung ist weiterhin gültig. Versuchen Sie es erneut.",
     "eyebrow": "Beitritt zu {orgName}",
     "title": "Passwort festlegen",
     "subtitle": "Sie wurden als {role} eingeladen. Legen Sie ein Passwort fest, um die Einrichtung von <em>{email}</em> abzuschließen.",
@@ -5628,7 +6382,9 @@
     "version": "Standard {version}",
     "stale": "Verifiziert (älterer Nachweis)",
     "staleAge": "Echt und unverändert, aber ausgestellt am {issued} nach Standard {version}. Bitten Sie die Kandidatin bzw. den Kandidaten bei Bedarf um eine aktuelle Bewertung.",
-    "staleMethodology": "Echt und unverändert, aber bewertet nach Standard {version} (ausgestellt am {issued}), der inzwischen abgelöst wurde. Bitten Sie um eine Bewertung nach dem aktuellen Standard."
+    "staleMethodology": "Echt und unverändert, aber bewertet nach Standard {version} (ausgestellt am {issued}), der inzwischen abgelöst wurde. Bitten Sie um eine Bewertung nach dem aktuellen Standard.",
+    "throttledTitle": "Zurzeit zu viele Anfragen",
+    "throttledBody": "Dieser Nachweis wurde in kurzer Zeit zu oft geöffnet. Warten Sie ein paar Minuten und laden Sie die Seite neu. Der Nachweis selbst ist davon nicht betroffen."
   },
   "devApply": {
     "workSurface": {
@@ -5655,6 +6411,7 @@
       "updateHeading": "Update vom Team",
       "restored": "Wir haben Ihre ungespeicherte Arbeit von diesem Gerät wiederhergestellt. Nichts ist verloren gegangen.",
       "chatRateLimited": "Sie haben das Limit für den Assistenten vorerst erreicht. Ihre Arbeit und alles, was Sie geschrieben haben, bleibt erhalten. Arbeiten Sie weiter und versuchen Sie es in ein paar Minuten erneut.",
+      "chatDeterministicNote": "Diese Antwort stammt aus dem Offline-Ersatz, nicht von einem Live-Modell. Behandeln Sie sie als Platzhalter und halten Sie Ihre Annahmen im Entscheidungsprotokoll fest.",
       "syncBlocked": "Diese Sitzung konnte nicht mit dem Server synchronisiert werden. Ihre Arbeit ist auf diesem Gerät gespeichert. Laden Sie die Seite über Ihren ursprünglichen Link neu, um die Verbindung wiederherzustellen."
     },
     "eyebrow": "Take-Home-Aufgabe",
@@ -5676,7 +6433,14 @@
     "received": "Bewerbung eingegangen",
     "receivedNote": "Wir prüfen Ihre Einreichung und melden uns bei Ihnen. Eine Bestätigung ist unterwegs.",
     "receivedDuplicate": "Für diese Aufgabe lag uns bereits eine Einreichung von Ihnen vor. Diese zählt, ein erneutes Einreichen ist nicht nötig.",
-    "receivedRef": "Einreichungsreferenz: {ref}"
+    "receivedRef": "Einreichungsreferenz: {ref}",
+    "assignment": {
+      "fallbackTitle": "Aufgabe",
+      "timebox": "Zeitrahmen ca. {hours} Std.",
+      "brief": "Aufgabenstellung",
+      "handed": "Was Sie mitbekommen",
+      "tasks": "Aufgaben"
+    }
   },
   "potential": {
     "badge": "Potenzial {pct}",
@@ -5718,10 +6482,9 @@
     "briefNoDataClaim": "Bisher ist noch niemand durch den Funnel gelaufen.",
     "briefNoDataContext": "Legen Sie eine Rolle an und sammeln Sie Kandidaten; dieser Bericht füllt sich, sobald sie sich bewegen.",
     "briefBandForecast": "Was ansteht",
-    "briefForecastClaim": "Rund {hires} Einstellungen sind bereits unterwegs.",
+    "briefForecastClaim": "Geschätzt {hires} Einstellungen sind bereits unterwegs.",
     "briefForecastContext": "Basierend auf {velocity} neuen Kandidaten pro Woche und {conv} % Gesamtkonversion.",
     "briefForecastNoSignalClaim": "Für eine Prognose fehlt noch die Historie.",
-    "briefForecastNoSignalContext": "Eine Prognose braucht mindestens eine abgeschlossene Einstellung als Kalibrierung. Bis dahin wäre Raten schlechter als Schweigen.",
     "briefEtaLabel": "Erwarteter Verzug",
     "briefEtaValue": "{days} T",
     "briefBandMomentum": "Momentum",
@@ -5796,7 +6559,9 @@
       "ahead": "voraus",
       "behind": "zurück",
       "footnote": "Anonymisierte Aggregation über {teams} Teams. Es werden keine Kandidaten- oder Teamdaten geteilt.",
-      "scopeAllTime": "Gesamter Zeitraum: Der Unternehmensvergleich wird durch das gewählte Zeitfenster nicht eingegrenzt."
+      "scopeAllTime": "Gesamter Zeitraum: Der Unternehmensvergleich wird durch das gewählte Zeitfenster nicht eingegrenzt.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} T"
     },
     "loadFailed": "Analyse konnte nicht geladen werden.",
     "retry": "Erneut versuchen",
@@ -5979,7 +6744,11 @@
       "uncalibratedBodyHired": "Die Kalibrierung benötigt mindestens {min} Kandidaten, die eingestellt oder abgelehnt wurden. Bisher: {n}.",
       "leakageLevelHighRejects": "Vom Score erzeugte Ablehnungen",
       "leakageScoreCausedHiredNote": "Bis zur Einstellung braucht es Interviews, ein Angebot und dessen Annahme. Über nichts davon entscheidet dieser Score, die Erfolge hier hat er also nicht erzeugt. Die Ablehnungen zum Teil schon: Das automatische Screening lehnt anhand des Match-Scores ab, und jede dieser Ablehnungen zählt hier als nicht eingestellt. Diese Achse ist weniger zirkulär als die Screening-Achse, aber nicht sauber.",
-      "leakageScoreCausedHiredCeiling": "Alle, die noch im Prozess sind, bleiben unberücksichtigt, bis sie eingestellt oder abgelehnt werden. Diese Achse füllt sich deshalb langsam und stützt sich auf die früh Ausgeschiedenen. Sie sagt außerdem nichts darüber, wie sich eine Einstellung dann bewährt hat."
+      "leakageScoreCausedHiredCeiling": "Alle, die noch im Prozess sind, bleiben unberücksichtigt, bis sie eingestellt oder abgelehnt werden. Diese Achse füllt sich deshalb langsam und stützt sich auf die früh Ausgeschiedenen. Sie sagt außerdem nichts darüber, wie sich eine Einstellung dann bewährt hat.",
+      "floorNotEnforced": "Die automatische Vorauswahl ist aus, diese Schwellen sind also festgehaltene Regeln und kein aktives Tor: es wird niemand danach abgelehnt.",
+      "familyFloorsNoneOff": "Keine Rollenfamilie hat eine eigene Schwelle, erfasst ist damit nur die globale {global}.",
+      "thresholdLegendOff": "Auto-Ablehnungsschwelle ({threshold}), erfasst, aber nicht aktiv",
+      "srThresholdOff": "Die Auto-Ablehnungsschwelle {threshold} ist erfasst, aber nicht aktiv und deshalb nicht im Diagramm markiert."
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",
@@ -6048,9 +6817,12 @@
       "basis": "Basierend auf {velocity} neu/Woche und {conv} % Gesamtkonversion.",
       "acceptBasis": "Unter Annahme der beobachteten {pct} % Angebotsannahme (n={n}).",
       "inFlight": "Erwartet aus laufendem Bestand",
-      "horizon": "Nächste {weeks} Wochen",
       "plusHires": "+{hires}",
-      "eta": "Durchschnittliche Time-to-Hire: {days} Tage."
+      "eta": "Durchschnittliche Time-to-Hire: {days} Tage.",
+      "horizonEstimate": "Nächste {weeks} Wochen (Schätzung)",
+      "range": "Spanne {low}–{high}",
+      "method": "Methode: {velocity} neue Kandidaten pro Woche × {conv}% Gesamtkonversion, fortgeschrieben. Die Spanne ist eine Standardabweichung des wöchentlichen Zulaufs (±{sd}) nach beiden Seiten.",
+      "floorNote": "Eine Prognose braucht mindestens {minHires} Einstellungen und {minWeeks} Wochen mit neuen Kandidaten. Bisher: {hires} Einstellungen in {weeks} solchen Wochen. Bis dahin wäre Raten schlechter als Schweigen."
     },
     "offers": {
       "title": "Angebotsphase",
@@ -6240,6 +7012,7 @@
         "interview_reminder_sent": "Interview-Erinnerung gesendet",
         "interviewer_brief_sent": "Interviewer gebrieft",
         "interviewer_brief_skipped": "Interviewer-Briefing übersprungen (keine E-Mail)",
+        "interview_failover": "Interview auf anderen Anbieter umgeschaltet",
         "comm_resent": "Nachricht erneut gesendet",
         "rejection_comms_failed": "Absage-E-Mail fehlgeschlagen",
         "moved": "Phase manuell gesetzt",
@@ -6271,7 +7044,8 @@
         "agent_dispatched": "Persona-Anfrage übermittelt",
         "agent_activated": "Persona live geschaltet",
         "onboarding_started": "Onboarding gestartet (eingestelltes Modul)",
-        "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)"
+        "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)",
+        "screen_wave_holdout_unsealed": "Von der Welle verschont, Kontrollgruppen-Eintrag unversiegelt"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",
@@ -6414,7 +7188,10 @@
     "copyViewLinkTitle": "Ein Link, der diesen Abschnitt mit dem gerade gewählten Zeitraum öffnet",
     "viewLinkManual": "Ihr Browser hat das Kopieren blockiert. Markieren Sie den Link unten und kopieren Sie ihn selbst.",
     "briefMomentumNoDataClaim": "In diesen Wochen hat sich noch nichts bewegt.",
-    "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline."
+    "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline.",
+    "simExcludedNote": "{count, plural, one {# Eintrag aus der geführten Demo ist} other {# Einträge aus der geführten Demo sind}} von allen Zahlen auf dieser Seite ausgenommen. Auf dem Board bleiben sie, bis Sie die Simulation zurücksetzen.",
+    "daysAvgOver": "Tage Ø aus {count, plural, one {# Einstellung} other {# Einstellungen}}",
+    "closedInWindowSub": "{count} im Zeitraum beendet"
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",
@@ -6520,7 +7297,9 @@
     "modeLabel": "Matrix-Ansicht",
     "modeGrid": "Raster",
     "modeFocus": "Kandidatenfokus",
-    "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist."
+    "introFocus": "Ranken Sie eine Person gegen alle offenen Positionen, mit den Gewichtungen, der Begründung und dem Positionsvergleich, für die in einer einzelnen Rasterzelle kein Platz ist.",
+    "servedFromCache": "Aus dem zwischengespeicherten Bewertungslauf angezeigt.",
+    "retryLoad": "Erneut versuchen"
   },
   "analyze": {
     "modeNew": "Neue Analyse",
@@ -6605,6 +7384,11 @@
     "errBadPayload": "Die Analyse hat unerwartete Daten zurückgegeben.",
     "errExtractionFailed": "Textextraktion fehlgeschlagen.",
     "errGithubFailed": "GitHub-Analyse fehlgeschlagen.",
+    "engineStatusUnknown": "Engine-Status unbekannt: die Bereitschaftsprüfung war nicht erreichbar, dieser Lauf kann also an einem fehlenden Schlüssel scheitern.",
+    "cancelFailed": "Die Beobachtung wurde beendet, die Aufgabe auf dem Server läuft aber möglicherweise weiter. Prüfen Sie die Aufgabenanzeige.",
+    "uploadHint": "PDF · DOCX · TXT · MD bis {max} MB",
+    "errUploadRejected": "Diese Datei konnte nicht hinzugefügt werden.",
+    "errRateLimitedRetry": "Zu viele Anfragen. Versuchen Sie es in {seconds} Sekunden erneut.",
     "githubJdDropped": "Die Stellenbeschreibung konnte nicht gelesen werden und wird daher von der GitHub-Analyse ausgeschlossen.",
     "attachCv": "Hängen Sie einen CV an, um die Analyse zu aktivieren.",
     "githubOnlyReady": "Reiner GitHub-Deep-Dive bereit. Hängen Sie einen CV für die vollständige Analyse an.",
@@ -6623,7 +7407,11 @@
     "removeVariantAria": "Variante {letter} entfernen",
     "addVariant": "Variante hinzufügen ({current}/{max})",
     "variantLimitReached": "Variantenlimit erreicht.",
-    "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus."
+    "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus.",
+    "jdLibraryLoading": "Bibliothek der Stellenbeschreibungen wird geladen…",
+    "jdLibraryFailed": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden.",
+    "jdLibraryRetry": "Erneut versuchen",
+    "jdLibraryTruncated": "Angezeigt werden die neuesten {count, plural, one {# gespeicherte Stellenbeschreibung} other {# gespeicherten Stellenbeschreibungen}}. Ältere finden Sie in der Bibliothek."
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden. Die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",
@@ -6800,7 +7588,8 @@
       "notDelivered": "Nicht zugestellt: {reason}.",
       "pingFailed": "Ping fehlgeschlagen.",
       "pullNote": "Einzelne/n Kandidat/in auf Anfrage abrufen: <code>{endpoint}</code> liefert denselben normalisierten Datensatz.",
-      "loadBlockedSave": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden, deshalb ist Speichern deaktiviert. Dieses leere Formular abzuschicken würde den gespeicherten Endpunkt samt Abonnements überschreiben. Laden Sie die Seite neu."
+      "loadBlockedSave": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden, deshalb ist Speichern deaktiviert. Dieses leere Formular abzuschicken würde den gespeicherten Endpunkt samt Abonnements überschreiben. Laden Sie die Seite neu.",
+      "reloadStored": "Gespeicherte Einstellungen laden"
     }
   },
   "billing": {
@@ -6865,7 +7654,8 @@
       "allowance": "Enthaltenes Kontingent",
       "breakdown": "Nach Anwendungsfall",
       "engineTitle": "Engine",
-      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe."
+      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe.",
+      "breakdownScope": "Über alle Arbeitsbereiche dieser Installation hinweg, anders als das Kontingent daneben."
     },
     "plans": {
       "title": "Tarife",
@@ -6888,7 +7678,8 @@
       "intro": "Ein einmaliges Paket, das Credits zusätzlich zum Kontingent Ihres Tarifs hinzufügt. Auf jeder Stufe verfügbar.",
       "minutes": "{qty} Minuten",
       "buy": "Paket kaufen"
-    }
+    },
+    "checkoutRecheck": "Erneut prüfen"
   },
   "branding": {
     "eyebrow": "White-Label",
@@ -6914,7 +7705,12 @@
     "previewName": "Ihre Marke",
     "previewButton": "Primäre Aktion",
     "previewBadge": "Badge",
-    "previewLink": "Ein <a>hervorgehobener Link</a> in Ihrer Akzentfarbe."
+    "accentContrastDark": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Genug aufgehellt, um auf dunklem Grund zu lesen, wäre es eine andere Farbe, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
+    "previewBothThemes": "Ihr Akzent in beiden Themes. Der Spark-Dark-Wert wird aus dem eingegebenen abgeleitet.",
+    "previewThemeLight": "Studio Light",
+    "previewThemeDark": "Spark Dark",
+    "previewFocus": "Fokussiertes Element",
+    "previewDarkDerived": "Spark Dark verwendet eine aufgehellte Variante Ihres Akzents, damit er auf dunklem Grund lesbar bleibt."
   },
   "models": {
     "quality": {
@@ -7134,7 +7930,8 @@
       "testOkNoLatency": "Schlüssel funktioniert. {model} hat geantwortet.",
       "testFailed": "Test fehlgeschlagen.",
       "testModelLabel": "Aufzurufendes Modell",
-      "testModelPlaceholder": "Deployment oder Modell-Slug"
+      "testModelPlaceholder": "Deployment oder Modell-Slug",
+      "storeScope": "Diese Schlüssel werden einmal für den gesamten Server gespeichert, nicht pro Team: alle Arbeitsbereiche hier rechnen darüber ab. „BYOM“ und „Plattform“ sind zwei Plätze in diesem gemeinsamen Speicher, nicht zwei Eigentümer."
     },
     "useCaseDesc": {
       "match_reasoning": "Schreibt die Begründung für Recruiter, warum ein Kandidat auf eine Stelle passt oder eben nicht.",
@@ -7209,7 +8006,9 @@
   "setup": {
     "aria": {
       "dialog": "Arbeitsbereich einrichten",
-      "skip": "Einrichtung vorerst überspringen"
+      "skip": "Einrichtung vorerst überspringen",
+      "stepAnnounce": "Schritt {index} von {total}: {title}",
+      "stepPosition": "Schritt {index} von {total}:"
     },
     "previewRibbon": "Vorschau: Nichts, was Sie hier tun, wird gespeichert",
     "rail": {
@@ -7283,7 +8082,8 @@
         "steel": "Stahlblau",
         "ink": "Tinte",
         "custom": "Eigene",
-        "illegible": "Diese Farbe ist für Buttons und Fokusringe zu hell. Wählen Sie eine dunklere."
+        "illegible": "Diese Farbe ist für Buttons und Fokusringe zu hell. Wählen Sie eine dunklere.",
+        "illegibleDark": "Diese Farbe hat keine lesbare Spark-Dark-Variante. Wählen Sie einen helleren oder kräftigeren Ton."
       },
       "logoLabel": "Logo-URL",
       "logoInvalid": "Geben Sie eine https://-Bild-URL ein."
@@ -7377,8 +8177,7 @@
     "toast": {
       "saved": "Ihr Arbeitsbereich ist eingerichtet",
       "partial": "Einige Schritte konnten nicht gespeichert werden. Sie können sie in den Einstellungen nachholen",
-      "pipelineSaved": "Die Spalten Ihres Boards wurden gespeichert",
-      "pipelineFailed": "Die Spalten Ihres Boards konnten nicht gespeichert werden. Legen Sie sie unter Einstellungen → Hiring-Pipeline fest"
+      "partialLead": "Einige Einrichtungsschritte konnten nicht gespeichert werden:"
     },
     "checklist": {
       "title": "Erste Schritte",
@@ -7407,9 +8206,178 @@
           "listening": "Empfangsbereit. Verifizieren Sie mit einer Testbewerbung."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Firmenname",
+        "language": "App-Sprache",
+        "invites": "Team-Einladungen",
+        "pipeline": "Board-Spalten",
+        "brand": "Markenfarbe und Logo"
+      },
+      "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
+      "line": "{part}: {reason}",
+      "lineWithAddresses": "{part} ({addresses}): {reason}"
     }
   },
   "devcase": {
+    "studio": {
+      "applyPill": {
+        "noToken": "kein Token",
+        "copy": "Bewerbungslink kopieren und an Kandidaten weitergeben",
+        "copyAria": "Bewerbungslink in die Zwischenablage kopieren",
+        "copiedAria": "Bewerbungslink in der Zwischenablage",
+        "copied": "Kopiert",
+        "token": "Token {token}",
+        "blocked": "Kopieren ist hier blockiert. Markieren Sie den Link und kopieren Sie ihn von Hand:"
+      },
+      "waiting": {
+        "title": "Warten auf die erste Einreichung",
+        "body": "Diese Aufgabe ist live. Wer sich über die Kanäle unten bewirbt, landet hier und wird gegen die anderen eingeordnet."
+      },
+      "jds": {
+        "failed": "Die gespeicherten Stellenbeschreibungen konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
+      "dismiss": "Schließen",
+      "loadLabel": "Aufgaben",
+      "analysis": {
+        "empty": "Definieren Sie einen Bedarf und analysieren Sie ihn. Der Realitätsabgleich erscheint hier.",
+        "running": "Codebasis wird gelesen und abgeglichen…",
+        "runningHint": "Das läuft als Hintergrundaufgabe, Sie können diesen Tab also verlassen.",
+        "designing": "Rolle und Aufgabe werden entworfen…",
+        "designingHint": "Hintergrundaufgabe. Sie können jederzeit weggehen.",
+        "designCta": "Rolle und Aufgabe entwerfen",
+        "snapshot": "Momentaufnahme der Codebasis",
+        "snapshotIndexed": "Momentaufnahme der Codebasis {index}/{total}",
+        "loc": "~{loc} Codezeilen",
+        "topDirs": "Wichtigste Verzeichnisse: {dirs}",
+        "commitsRead": "{count, plural, one {# Commit gelesen} other {# Commits gelesen}}",
+        "noSnapshot": "Keine Momentaufnahme der Codebasis, die Analyse steht daher ohne Bezug zur Realität da. Fügen Sie eine öffentliche GitHub-URL hinzu, um sie zu verankern.",
+        "resultUnreadable": "Die Analyse ist fertig, ihr Ergebnis ließ sich aber nicht laden. Öffnen Sie sie erneut im Tab Aufgaben, oder starten Sie die Analyse noch einmal.",
+        "failed": "Die Analyse wurde nicht abgeschlossen."
+      },
+      "reflection": {
+        "title": "Realitätsabgleich",
+        "complexity": "Komplexität {level}",
+        "confidence": "Konf. {value}",
+        "gaps": "Angabe gegen Realität",
+        "risks": "Risikobereiche: {areas}"
+      },
+      "design": {
+        "role": "Rolle",
+        "mustHaves": "Muss-Kriterien",
+        "responsibilities": "Verantwortlichkeiten",
+        "assignment": "Aufgabe",
+        "timebox": "~{hours} h",
+        "covertProbes": "Verdeckte Sonden, intern und für die Kandidatin oder den Kandidaten unsichtbar",
+        "approved": "Freigegeben",
+        "approving": "Wird freigegeben…",
+        "approve": "Aufgabe freigeben",
+        "humanGate": "Menschliche Prüfung. Sehen Sie die Sonden durch und geben Sie die Aufgabe dann frei."
+      },
+      "detail": {
+        "back": "Alle Aufgaben",
+        "created": "erstellt {when}",
+        "scenarioTemplate": "Interviewszenario: Vorlagensonden",
+        "scenarioTemplateHint": "Die Szenario-Erzeugung ist auf die deterministische Vorlage zurückgefallen, die Sonden sind daher allgemein und nicht auf diese Aufgabe bezogen. Erzeugen Sie es vor dem Interview neu.",
+        "scenarioReady": "Interviewszenario bereit",
+        "seedSkeleton": "Startpaket: nur Gerüst",
+        "seedSkeletonHint": "Die Erzeugung des Startpakets ist auf die deterministische Vorlage zurückgefallen, Kandidatinnen und Kandidaten erhalten daher nur ein reines README und DECISIONS statt konkreter Startdateien. Erzeugen Sie es vor dem Versand neu.",
+        "publish": "Veröffentlichen",
+        "publishing": "Wird veröffentlicht…",
+        "published": "Veröffentlicht",
+        "sourceDb": "Datenbank durchsuchen",
+        "sourcing": "Wird durchsucht…",
+        "sourced": "{count} gefunden",
+        "sourceHint": "Ordnet die bestehende Kandidatendatenbank nach dieser Rolle und füllt die Pipeline",
+        "confirmLabel": "Veröffentlichung bestätigen",
+        "confirmTitle": "Diese Aufgabe veröffentlichen?",
+        "confirmBody": "Beim Veröffentlichen entsteht ein für Kandidaten sichtbarer Bewerbungslink und echte Kandidaten aus Ihrer Datenbank gelangen in die Pipeline. Von hier aus lässt sich das nicht rückgängig machen.",
+        "degradedTitle": "Diese Aufgabe ist eingeschränkt",
+        "degradedAck": "Mir ist klar, dass diese Aufgabe eingeschränkt ist. Trotzdem veröffentlichen.",
+        "confirmCta": "Bestätigen und veröffentlichen",
+        "cancel": "Abbrechen",
+        "seedSummary": "Erzeugtes Startpaket: was die Person erhält",
+        "seedFiles": "{count, plural, one {# Datei} other {# Dateien}}",
+        "seedSkeletonWarning": "Nur ein Gerüst. Das ist der reine Textersatz, keine konkreten Startdateien. Erzeugen Sie es vor dem Versand neu."
+      },
+      "degradedReason": {
+        "scenario": "Das Interviewszenario nutzt allgemeine Vorlagensonden statt auf diese Aufgabe bezogener Sonden.",
+        "seed": "Das Startpaket ist nur ein Textgerüst, Kandidaten erhalten keine konkreten Startdateien."
+      },
+      "internal": {
+        "title": "Intern: Material für Interviewende und Prüfende",
+        "noProbes": "Zu dieser Aufgabe sind keine verdeckten Sonden erfasst.",
+        "roleMustHaves": "Muss-Kriterien der Rolle",
+        "roleResponsibilities": "Verantwortlichkeiten der Rolle"
+      },
+      "shortlist": {
+        "title": "Auswahlliste über alle Kanäle"
+      },
+      "channels": {
+        "title": "Bewerbungskanäle",
+        "posting": "Ausschreibung",
+        "received": "{count} eingegangen",
+        "applyLink": "Bewerbungslink"
+      },
+      "compare": {
+        "title": "Vergleich auf den Rubrik-Achsen",
+        "topOf": "Top {shown} von {total}",
+        "truncated": "Sortiert nach Übertragbarkeit. Die Spitze auf der Achse unten ist die beste dieser {shown}, nicht der gesamten Gruppe. {hidden, plural, one {# weitere bewertete Einreichung fehlt} other {# weitere bewertete Einreichungen fehlen}} in dieser Matrix.",
+        "axis": "Achse",
+        "fit": "Passung {score}"
+      },
+      "action": {
+        "runLifecycle": "Lebenszyklus starten",
+        "approve": "Freigeben",
+        "publish": "Veröffentlichen",
+        "source": "Kandidaten suchen"
+      },
+      "actionFailed": "{action} ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "actionUnreachable": "{action} ist fehlgeschlagen, die Anfrage konnte nicht abgeschlossen werden.",
+      "need": {
+        "jdLabel": "Stellenbeschreibung *",
+        "noJds": "Keine Stellenbeschreibungen gespeichert. <link>Speichern Sie zuerst eine</link> in der Bibliothek: Rolle und Aufgabe werden daraus entworfen.",
+        "savedJdAria": "Gespeicherte Stellenbeschreibung",
+        "pickJd": "Gespeicherte Stellenbeschreibung wählen…",
+        "loadingJd": "Stellenbeschreibung wird geladen…",
+        "jdReadHint": "Rollentitel, Stack und Verantwortlichkeiten werden aus dieser Stellenbeschreibung gelesen.",
+        "jdRequired": "Für einen Lauf wird eine Stellenbeschreibung benötigt.",
+        "codebasesLabel": "Codebasen (GitHub, bis zu {max})",
+        "repoPlaceholder": "https://github.com/inhaber/repo",
+        "codebaseAria": "Codebasis {n}",
+        "removeCodebaseAria": "Codebasis {n} entfernen",
+        "unsupportedRepo": "Für die Verankerung wird nur GitHub unterstützt; diese Referenz wird übersprungen.",
+        "addCodebase": "Codebasis hinzufügen",
+        "seniorityLabel": "Ziel-Senioritätsstufe",
+        "seniorityAria": "Senioritätsstufe",
+        "lifecycleTitle": "Automatischer Ablauf: analysieren → entwerfen → Richtlinienprüfung → veröffentlichen → (bei Einreichungen) bewerten → ordnen → in Entscheidungen überführen",
+        "lifecycleRunning": "Ablauf läuft…",
+        "runLifecycle": "▶ Automatischen Ablauf starten",
+        "reflecting": "Wird durchdacht…",
+        "analyzeOnly": "Nur Bedarf analysieren",
+        "recent": "Zuletzt"
+      },
+      "sectionsLabel": "Bereiche des Aufgaben-Studios",
+      "views": {
+        "cases": {
+          "label": "Aufgaben",
+          "title": "Aktive Aufgaben",
+          "blurb": "Alle entworfenen Aufgaben an einem Ort: Phase, Eingang und Bewertungen. Klicken Sie eine Aufgabe an, um das vollständige Briefing und das interne Sondenmaterial zu lesen."
+        },
+        "define": {
+          "label": "Bedarf definieren",
+          "title": "Den Bedarf definieren",
+          "blurb": "Wählen Sie die Stellenbeschreibung und zeigen Sie uns die echten Codebasen, um die es geht (höchstens {max}). Die Engine gleicht ab, was die Stellenbeschreibung fordert und wie der Code tatsächlich aussieht, und legt die Lücken offen, bevor wir eine Aufgabe entwerfen. Gehen Sie davon aus, dass der Code der Kandidatin oder des Kandidaten von einem Modell stammt; bewertet wird Urteilsvermögen, nicht Tippen."
+        },
+        "outbox": {
+          "label": "Postausgang",
+          "title": "Kommunikations-Postausgang",
+          "blurb": "Jede Nachricht, die die Pipeline gesendet hat: Eingangsbestätigungen, Einladungen zur nächsten Runde, Ansprache durch Recruiter und Absagen."
+        }
+      }
+    },
     "lifecycle": {
       "sectionTitle": "Automatisierter Ablauf",
       "intro": "Jede Aufgabe läuft regelbasiert weiter: saubere Entwürfe werden automatisch genehmigt, markierte an Sie weitergeleitet, dann veröffentlicht und (sobald Einreichungen eintreffen) bewertet → sortiert → die besten Kandidaten in Entscheidungen übernommen. Keine manuellen Schritte dazwischen.",
@@ -7457,6 +8425,7 @@
       "fieldBrief": "Kurzbeschreibung",
       "fieldTasks": "Aufgaben (eine pro Zeile)",
       "fieldTimebox": "Zeitbudget (Stunden)",
+      "timeboxClamped": "Eingegeben: {from} h. Die kandidierende Person erhält {to} h, die Obergrenze laut Richtlinie.",
       "internalProbes": "Interne verdeckte Prüfpunkte ({count})",
       "engineOwned": "Prüfpunkte und Bewertungsraster verwaltet die Engine. Zum Ändern mit einer Notiz neu generieren.",
       "previewTitle": "Vorschau aus Kandidatensicht (live)",
@@ -7468,7 +8437,8 @@
       "redesignTitle": "Nur den Entwurfsschritt mit dieser Notiz erneut ausführen. Kein kompletter Neustart des Ablaufs.",
       "redesigning": "Wird neu erstellt…",
       "redesign": "Mit Notiz neu generieren",
-      "redesignFailed": "Neugenerierung fehlgeschlagen."
+      "redesignFailed": "Neugenerierung fehlgeschlagen.",
+      "tasksRequired": "Eine Aufgabenstellung braucht mindestens eine Aufgabe. Stellen Sie eine wieder her oder lassen Sie sie über „Mit Notiz neu generieren“ neu schreiben."
     },
     "outbox": {
       "emptyTitle": "Noch keine Nachrichten",
@@ -7485,7 +8455,8 @@
       "countFiltered": "{shown} von {total} Nachrichten",
       "deadLetters": "{count, plural, one {# braucht Aufmerksamkeit} other {# brauchen Aufmerksamkeit}}",
       "filteredEmpty": "Keine Nachricht entspricht diesen Filtern.",
-      "clearFilters": "Filter zurücksetzen"
+      "clearFilters": "Filter zurücksetzen",
+      "loadLabel": "der Kommunikations-Postausgang"
     },
     "outboxKind": {
       "acknowledgement": "Bestätigung",
@@ -7541,6 +8512,20 @@
       "strong": "{loadBearing} von {total} Prüfpunkten sind tragend. Diese Aufgabe differenziert.",
       "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend. Die meisten trennen Starke nicht von Naiven.",
       "none": "Keine tragenden Prüfpunkte. Diese Aufgabe unterscheidet eine starke Einreichung nicht von einer naiven."
+    },
+    "sessionEvidence": {
+      "show": "Sitzungsbelege",
+      "hide": "Sitzungsbelege ausblenden",
+      "loading": "Sitzungsbelege werden geladen…",
+      "loadFailed": "Die Sitzungsbelege konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Diese Person hat den Link geöffnet, aber weder Protokoll noch Dateien hinterlassen.",
+      "transcriptTitle": "Protokoll · {count} {count, plural, one {Beitrag} other {Beiträge}}",
+      "noTranscript": "In dieser Sitzung gibt es keine Chat-Beiträge.",
+      "filesTitle": "Eingereichte Dateien · {count} · {total}",
+      "noFiles": "In dieser Sitzung wurden keine Dateien gespeichert.",
+      "roleCandidate": "Kandidierende Person",
+      "roleAssistant": "Assistenz"
     },
     "integrity": {
       "title": "Integrität des Protokolls",
@@ -7644,7 +8629,8 @@
       "colCreated": "Erstellt",
       "open": "Öffnen",
       "untitledAssignment": "Aufgabe",
-      "stageAria": "Aufgabenphase: {stage}"
+      "stageAria": "Aufgabenphase: {stage}",
+      "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet."
     },
     "evalPanel": {
       "capabilityScores": "Kompetenzwerte",
@@ -7676,7 +8662,19 @@
       "inPipeline": "In der Pipeline",
       "promoting": "Wird weitergeleitet…",
       "promote": "In die Pipeline weiterleiten",
-      "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen"
+      "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen",
+      "authenticityReason": {
+        "singleBulkCommit": "Ein einziger Sammel-Commit, ohne schrittweise Historie.",
+        "fewCommits": "Sehr wenige Commits ({n}): eine dünne Entwicklungsspur.",
+        "noCommitHistory": "Keine lesbare Commit-Historie.",
+        "bulkPaste": "Ein Masseneinfügen von {chars}+ Zeichen ohne schrittweisen Aufbau, möglicherweise aus einem LLM eingefügt.",
+        "integrityFailed": "Die Integritätsprüfung des Ereignisprotokolls schlug fehl (gebrochene Hash-Kette oder rückdatierte Zeitstempel), der beobachteten Spur ist daher nicht zu trauen.",
+        "noDecisionsLog": "Das vorgeschriebene DECISIONS-Protokoll fehlt.",
+        "bursty": "Die Arbeit entstand in einem einzigen Schub statt schrittweise.",
+        "bigBang": "Big-Bang-Muster, ohne sichtbaren Aufbau.",
+        "unreadableIteration": "Das Iterationsmuster war aus der Spur nicht lesbar.",
+        "lowReadBeforeWrite": "Wenig Hinweise darauf, dass der bestehende Code vor dem Schreiben gelesen wurde."
+      }
     },
     "jobLink": {
       "linked": "Stelle: {title}",
@@ -7743,7 +8741,61 @@
       "received": "Eingegangen",
       "evaluated": "Bewertet"
     },
-    "eyebrow": "Tools · Aufgaben"
+    "eyebrow": "Tools · Aufgaben",
+    "skillProfile": {
+      "issue": "Dauerhaftes Skill-Profil ausstellen",
+      "reissue": "Dauerhaftes Skill-Profil neu ausstellen",
+      "issuing": "Wird ausgestellt…",
+      "view": "Nachweis ansehen / teilen ↗",
+      "failed": "Das Profil konnte nicht ausgestellt werden. Bitte erneut versuchen."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "Kandidat",
+      "repoPlaceholder": "Repo-URL der Abgabe",
+      "record": "Erfassen",
+      "recording": "…",
+      "failed": "Die Abgabe konnte nicht erfasst werden. Bitte erneut versuchen.",
+      "network": "Netzwerkfehler. Die Abgabe wurde nicht erfasst. Bitte erneut versuchen.",
+      "receiptRecorded": "Abgabe erfasst.",
+      "receiptDuplicate": "Bereits erfasst. Dieses Repo wurde für diesen Kandidaten schon eingereicht, es wurde nichts hinzugefügt."
+    },
+    "provenance": {
+      "chipTitle": "{step}: {source}",
+      "aria": "Herkunft: {detail}",
+      "ariaStep": "{step} über {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Teilweise (eingeschränkt)",
+        "deterministic": "Vorlage"
+      },
+      "step": {
+        "analyze": "Analyse",
+        "source": "Suche",
+        "role": "Rolle",
+        "case": "Aufgabe",
+        "reflect": "Reflexion",
+        "tooling": "Werkzeuge",
+        "evaluate": "Bewertung",
+        "transfer": "Transfer"
+      }
+    },
+    "followup": {
+      "listenFor": "Achten Sie auf: {note}",
+      "redFlag": "Warnsignal: {note}"
+    },
+    "scoreBar": {
+      "aria": "{label}: Wert {score} von 100",
+      "ariaWeighted": "{label}: Wert {score} von 100, gewichtet mit {weight} %"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "In Entscheidungen prüfen",
+      "recorded": "Ergebnis: {outcome} ✓",
+      "perfLabel": "Leistung im Job",
+      "perfAria": "Leistung im Job {n} von 5",
+      "skipPerf": "überspringen (nur Einstellung erfassen)",
+      "hint": "Speisen Sie die Kalibrierung der Promote-Schwelle mit dem, was wirklich passiert ist",
+      "label": "Ergebnis"
+    }
   },
   "rubric": {
     "ratingAnchor": {
@@ -8038,7 +9090,8 @@
       "stopped": "Gestoppt",
       "done": "Fertig. Stelle besetzt 🎉",
       "failed": "Fehlgeschlagen: {message}",
-      "genericError": "Die Simulation wurde unerwartet beendet."
+      "genericError": "Die Simulation wurde unerwartet beendet.",
+      "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen."
     },
     "phase": {
       "design": "Ausschreibung",
@@ -8110,7 +9163,9 @@
       "accepted": "Angenommen · nach Eingestellt verschoben · Onboarding-Nachricht eingereiht",
       "stopped": "Simulation gestoppt.",
       "error": "Fehler: {message}",
-      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt."
+      "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt.",
+      "clickedViaApi": "Das Bedienelement war nicht sichtbar, daher lief dieser Schritt über die API statt über einen echten Klick.",
+      "selfScheduleUnavailable": "Die Selbstbuchung war nicht verfügbar, daher bestätigt der Recruiter den Termin."
     },
     "wait": {
       "screeningGate": "die Interview- bzw. Kalenderfreigabe nach dem Screening",
@@ -8271,6 +9326,20 @@
         "move": "Nach Eingestellt verschieben",
         "handoff": "Übergabe\\nATS · HRIS"
       }
+    },
+    "draft": {
+      "theRole": "diese Rolle",
+      "theCandidate": "Kandidat/in",
+      "screen": {
+        "rationale": "{role}: starke Passung. Kernkompetenzen vorhanden, Seniorität passt.",
+        "strengthStack": "Relevanter Stack und Fachbereich",
+        "strengthSeniority": "Seniorität passt zur Rolle"
+      },
+      "offer": {
+        "subject": "Angebot: {role}",
+        "body": "Hallo {name},\n\nwir freuen uns, Ihnen ein Angebot für die Position {role} zu machen.",
+        "rationale": "Gehalt in der Mitte der Rollenspanne, gewichtet nach Passung."
+      }
     }
   },
   "tasks": {
@@ -8358,7 +9427,51 @@
       "openDecisions": "Entscheidungen öffnen",
       "reviewInDecisions": "Ergebnisse in den Entscheidungen prüfen",
       "openSchedule": "Planung öffnen",
-      "openBoard": "Im Board öffnen"
+      "openBoard": "Im Board öffnen",
+      "field": {
+        "source": "Erstellt von",
+        "outcome": "Ergebnis",
+        "language": "Sprache",
+        "freshness": "Aktualität",
+        "savedAs": "Gespeichert als",
+        "drafted": "Entworfen",
+        "codebases": "Gelesene Codebasen",
+        "stage": "Phase",
+        "detail": "Detail",
+        "candidates": "Verglichene Kandidaten",
+        "lead": "Favorit",
+        "caseIncluded": "Arbeitsprobe",
+        "followups": "Rückfragen",
+        "proposals": "Vorschläge",
+        "failures": "Fehler"
+      },
+      "value": {
+        "llm": "KI",
+        "deterministic": "Vorlage",
+        "heuristic": "Heuristik",
+        "skipped": "Übersprungen",
+        "cached": "Aus dem Cache",
+        "fresh": "Neu berechnet",
+        "yes": "Enthalten",
+        "no": "Nicht enthalten",
+        "advanced": "Eine Phase weiter",
+        "held_for_review": "Zur manuellen Prüfung zurückgestellt",
+        "advisory": "Nur beratend, nichts verändert",
+        "auto_ratified": "Automatisch bestätigt",
+        "drafted": "Entwurf erstellt",
+        "scorecard_ready": "Bewertungsbogen bereit",
+        "offer_ready": "Angebot bereit",
+        "offer_sent": "Angebot gesendet",
+        "sent": "Gesendet",
+        "already_sent": "Bereits gesendet",
+        "suppressed_anonymized": "Nicht gesendet: die Daten wurden anonymisiert",
+        "suppressed_consent_expired": "Nicht gesendet: Einwilligung abgelaufen",
+        "rematched": "Einer anderen Rolle zugeordnet",
+        "already_rematched": "Bereits neu zugeordnet",
+        "no_alternative": "Keine passende andere Rolle gefunden",
+        "skipped_hired": "Übersprungen: bereits eingestellt",
+        "skipped_stage_changed": "Übersprungen: Phase hat sich geändert"
+      }
     },
     "results": {
       "emptyTitle": "Keine aktuellen KI-Aufgaben",
@@ -8383,7 +9496,8 @@
       "leaveNote": "Läuft im Hintergrund. Sie können währenddessen weiterarbeiten, das Ergebnis landet in den KI-Aufgaben."
     },
     "unreadDone": "{count, plural, one {# ungelesene abgeschlossene Aufgabe} other {# ungelesene abgeschlossene Aufgaben}}",
-    "unreadRow": "Neu, abgeschlossen, während Sie anderswo waren"
+    "unreadRow": "Neu, abgeschlossen, während Sie anderswo waren",
+    "queueUnreachable": "Die Aufgaben-Warteschlange ist nicht erreichbar. Sie sehen den letzten Stand; neue Läufe erscheinen erst wieder, wenn sie antwortet."
   },
   "legal": {
     "updated": "Zuletzt aktualisiert: {date}",
@@ -8461,6 +9575,18 @@
       "contact": {
         "title": "Kontakt",
         "body": "Für Anfragen zu Ihren Daten als Kandidat nutzen Sie den Token-Link aus einer beliebigen Nachricht, die das Produkt Ihnen geschickt hat; das ist der schnellste, verifizierte Weg. Für alles andere wenden Sie sich an den Betreiber dieser Installation oder schreiben Sie an {email}."
+      },
+      "cookies": {
+        "title": "Cookies, Speicher und Analyse",
+        "intro": "Das Produkt setzt keine Werbe-Cookies und keine seitenübergreifenden Tracker. Im Browser bleibt nur, was die App zum Funktionieren braucht. Jeder Eintrag steht hier unter dem Namen, den auch Ihr Browser anzeigt:",
+        "items": [
+          "__Host-kp_session: das signierte Sitzungs-Cookie einer angemeldeten Bedienperson. Es trägt die Sitzung selbst, nichts über Sie, und wird erst nach der Anmeldung gesetzt.",
+          "kp_entered: hält fest, dass Sie von der öffentlichen Startseite in den Arbeitsbereich gewechselt sind, damit die App Ihnen die Eingangsseite nicht erneut zeigt.",
+          "NEXT_LOCALE: die von Ihnen gewählte Sprache. Ein Jahr lang gespeichert, damit die App beim nächsten Mal darin öffnet.",
+          "kp-theme: ein localStorage-Eintrag des Browsers, kein Cookie. Er hält das gewählte Erscheinungsbild (hell oder dunkel)."
+        ],
+        "analytics": "Wo der Betreiber eine Analyse eingerichtet hat, ist es Plausible, und zwar cookiefrei: auf Ihrem Gerät wird kein Kennzeichen gespeichert und niemand wird zwischen Websites verfolgt. Ohne konfigurierte Domain wird überhaupt kein Analysecode geladen. Die Linkseiten für Kandidatinnen und Kandidaten sind vollständig ausgenommen, sodass die Adresse einer an Sie gerichteten Seite nie übermittelt wird.",
+        "noConsentBanner": "Keiner der genannten Einträge dient Werbung oder Profilbildung, weshalb das Produkt keine Cookie-Einwilligung einholt. Die Einwilligung in die KI-Verarbeitung von Bewerberdaten ist davon getrennt und oben beschrieben."
       }
     },
     "terms": {
@@ -8590,7 +9716,11 @@
       "autoBadge": "auto",
       "addPerf": "Leistung ergänzen",
       "ratingGroup": "Leistungsbewertung, 1 bis 5",
-      "ratePerformance": "Leistung mit {n} von 5 bewerten"
+      "ratePerformance": "Leistung mit {n} von 5 bewerten",
+      "sourceNote": {
+        "auto": "Automatisch erfasst, als die Pipeline eine Endstufe erreichte.",
+        "manual": "Von einer Person erfasst."
+      }
     },
     "calibration": {
       "activeFloor": "Aktive Schwelle für Weiterleitung",
@@ -8608,7 +9738,18 @@
         "raise": "Kandidaten unter {suggested} wurden selten eingestellt; die Schwelle von {current} lässt schwache Matches durch. Erwägen Sie eine Anhebung auf {suggested}.",
         "lower": "Kandidaten von {suggested}–{current} wurden gut eingestellt; die Schwelle von {current} ist womöglich zu streng. Erwägen Sie eine Senkung auf {suggested}.",
         "calibrated": "Die Schwelle von {current} ist gut kalibriert. Sie liegt im ersten Band, in dem die meisten weitergeleiteten Kandidaten eingestellt wurden."
-      }
+      },
+      "applyFailed": "Die Promote-Schwelle wurde nicht geändert ({status}).",
+      "applyNetwork": "Netzwerkfehler. Die Promote-Schwelle wurde nicht geändert.",
+      "cappedNote": "Berechnet aus den neuesten {limit} erfassten Ergebnissen. Ältere sind in dieser Stichprobe nicht enthalten."
+    },
+    "actionFailed": "Diese Steuerung konnte nicht angewendet werden ({status}).",
+    "actionNetwork": "Netzwerkfehler. Der Kontrollraum war nicht erreichbar, es wurde nichts geändert.",
+    "approveFailed": "Die Freigabe ist nicht durchgegangen ({status}).",
+    "approveNetwork": "Netzwerkfehler. Die Freigabe wurde nicht erfasst.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Es war nichts wiederherzustellen.} one {# Lebenszyklus fortgesetzt.} other {# Lebenszyklen fortgesetzt.}}",
+      "budgetExhausted": "Das Laufbudget war erschöpft, der Durchlauf endete deshalb vorzeitig. Starten Sie ihn später erneut, um den Rest zu erfassen."
     }
   },
   "feedback": {
@@ -8634,7 +9775,7 @@
   "activity": {
     "eyebrow": "Einblicke",
     "title": "KI-Aktivität",
-    "intro": "Die letzten {window} KI-Aktionen dieses Arbeitsbereichs, neueste zuerst.",
+    "intro": "Die letzten {window} KI-Aktionen über alle Arbeitsbereiche dieser Installation hinweg, neueste zuerst.",
     "loadError": "Das Aktivitätsprotokoll konnte nicht geladen werden.",
     "empty": "Noch keine LLM-Aktionen aufgezeichnet. Sie erscheinen hier, sobald die erste AI-Funktion läuft.",
     "noMatches": "Keine Aktionen entsprechen den aktuellen Filtern.",
@@ -8728,6 +9869,11 @@
         "s10": "verworfen, bevor es ins Dokument kam",
         "s11": "statedVsRealGaps: stattdessen an Sie gemeldet",
         "s12": "6 Muss-Kriterien behalten · hartes Limit 8"
+      },
+      "reqs": {
+        "stack": "Postgres oder SQLite",
+        "ownership": "Einen Dienst von Anfang bis Ende verantworten",
+        "languages": "Tschechisch + Englisch"
       }
     },
     "scoring": {
@@ -8767,7 +9913,8 @@
         "s7": "match_reasoning: das Modell, nur auf den Top {n}",
         "s9": "der einzige kostenpflichtige Schritt sieht nie eine bereits ausgeschlossene Person"
       },
-      "costLabel": "Kosten"
+      "costLabel": "Kosten",
+      "figuresNote": "Die Zahlen 120 / 74 / 8 sind ein Beispiel. Die Namen der Schichten und die Ausschlussgründe stammen aus dem laufenden Code."
     },
     "archetypes": {
       "signals": {
@@ -8854,6 +10001,7 @@
     "chat": {
       "placeholder": "Fragen Sie nach Ihrem Studio. Sie schlägt vor, Sie entscheiden.",
       "send": "Senden",
+      "retry": "Erneut senden",
       "thinking": "Denkt nach…",
       "thinkingSlowCalm": "Ich bin noch da. Sie sieht sich erst das Studio an, deshalb dauert es ein paar Sekunden.",
       "transcriptLabel": "Gespräch mit Candi",
@@ -8866,11 +10014,15 @@
       "thinkingAbout": "Denkt über {count, plural, one {# Entscheidung} other {# Entscheidungen}} nach…",
       "watching": "Behält {count, plural, one {# Sache} other {# Sachen}} im Blick, die Sie brauchen.",
       "proposals": "{count, plural, one {# Vorschlag wartet auf Sie} other {# Vorschläge warten auf Sie}}",
-      "memoryOff": "Gedächtnis aus - in der Einrichtung aktivieren."
+      "memoryOff": "Gedächtnis aus - in der Einrichtung aktivieren.",
+      "memoryNotWritten": "Diese Antwort wurde nicht ins Gedächtnis geschrieben."
     },
     "meta": {
       "remembered": "erinnert:",
+      "digest": "Tagesüberblick",
       "degraded": "kein Modell erreicht",
+      "degradedNoProvider": "kein Modell konfiguriert",
+      "degradedProviderFailed": "das Modell hat nicht geantwortet",
       "sourceLlm": "Modell",
       "sourceDeterministic": "eingeschränkt",
       "recallCount": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
@@ -8943,5 +10095,47 @@
       "details": "Details anzeigen",
       "detailsHide": "Details ausblenden"
     }
+  },
+  "loadStatus": {
+    "stale": "veraltet · {ago}",
+    "offline": "offline",
+    "pillTitle": "Die automatische Aktualisierung von {label} schlägt fehl.",
+    "pillTitleStale": "Die automatische Aktualisierung von {label} schlägt fehl. Zuletzt aktualisiert {ago}.",
+    "refreshFailed": "{label} konnte nicht aktualisiert werden. Angezeigt werden Daten von {ago}, neuer Versuch…",
+    "loadFailed": "{label} konnte nicht geladen werden. Der Dienst ist möglicherweise nicht erreichbar, neuer Versuch…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Der Bearbeitungsverlauf konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "retrying": "Wird erneut versucht…",
+    "revertPrompt": "Diese Version wiederherstellen?",
+    "revertConfirm": "Wiederherstellen",
+    "revertCancel": "Abbrechen"
+  },
+  "errorBoundary": {
+    "title": "Hier ist etwas schiefgelaufen",
+    "body": "{what} konnte nicht angezeigt werden. Die Daten haben möglicherweise ein unerwartetes Format; der Rest des Arbeitsbereichs ist nicht betroffen.",
+    "retry": "Erneut versuchen",
+    "labels": {
+      "tab": "Dieser Tab",
+      "panel": "Dieses Panel"
+    }
+  },
+  "richTextEditor": {
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "underline": "Unterstrichen",
+    "heading": "Überschrift",
+    "bulletedList": "Aufzählungsliste",
+    "numberedList": "Nummerierte Liste",
+    "editorLabel": "Rich-Text-Editor"
+  },
+  "select": {
+    "filterFor": "{label} filtern",
+    "filterOptions": "Optionen filtern",
+    "placeholder": "Auswählen…",
+    "clear": "Auswahl aufheben",
+    "searchPlaceholder": "Suchen…",
+    "noMatches": "Keine Treffer"
   }
 }

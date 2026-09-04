@@ -8,6 +8,7 @@ Pins three things:
      re-renders the brief in Python.
 """
 
+import os
 import unittest
 from pathlib import Path
 
@@ -692,6 +693,128 @@ class TestLanguageLockParity(unittest.TestCase):
                     case["expect"] == "drifted",
                     f"{case['name']}: offline flag={issue!r} disagrees with expect={case['expect']!r}",
                 )
+
+
+class _EnvFlag:
+    """Set or clear KP_OFFLINE for one block, restoring what was there."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __enter__(self):
+        self.saved = os.environ.get("KP_OFFLINE")
+        if self.value is None:
+            os.environ.pop("KP_OFFLINE", None)
+        else:
+            os.environ["KP_OFFLINE"] = self.value
+        return self
+
+    def __exit__(self, *exc):
+        if self.saved is None:
+            os.environ.pop("KP_OFFLINE", None)
+        else:
+            os.environ["KP_OFFLINE"] = self.saved
+        return False
+
+
+def _offline():
+    return _EnvFlag("1")
+
+
+def _no_offline():
+    return _EnvFlag(None)
+
+
+class TestVoiceBackendPreflightAndBudget(unittest.TestCase):
+    """The two things that decide what a spoken sweep COSTS before it spends anything.
+
+    Both were wrong in the same direction — towards spending money on a run that could not
+    produce a usable measurement:
+
+    * the TTS preflight probed a fixed ``"en"``, so a de/fr scenario (no Piper voice exists for
+      either) passed the "fail before spending ElevenLabs minutes" gate, minted a REAL session,
+      and only then raised inside ``speak()`` on the first utterance;
+    * a sweep had no wall ceiling at all — ``--voice-turns`` x ``--voice-timeout`` per scenario,
+      multiplied by every scenario in the bank.
+    """
+
+    def _scn(self, name, language):
+        return ie._scenario_from_dict(
+            {"name": name, "candidate_prompt": "p", "first_message": "hi", "language": language}
+        )
+
+    def test_an_unspeakable_language_refuses_at_preflight_and_never_probes_the_app(self):
+        from pipeline.jobfit.eval.voice import app_client, tts
+
+        probed: list[str] = []
+        orig = (ie.select_scenarios, app_client.get_availability, tts.available)
+        ie.select_scenarios = lambda **kw: [self._scn("de_case", "de"), self._scn("en_case", "en")]
+        app_client.get_availability = lambda *a, **kw: probed.append("app") or {"elevenlabs": True}
+        tts.available = lambda lang="en": (lang in ("en", "cs"), f"no local Piper voice for {lang!r}")
+        try:
+            with _no_offline():
+                code = ie.main(["--backend", "voice", "--no-color"])
+        finally:
+            ie.select_scenarios, app_client.get_availability, tts.available = orig
+
+        self.assertEqual(code, 2)
+        # The cheap LOCAL check decides first: no session minted, and the app never probed.
+        self.assertEqual(probed, [])
+
+    def test_a_speakable_bank_passes_the_language_preflight(self):
+        """The refusal is per language, not a blanket one — en/cs get through to the app probe
+        (which is where this run then stops, with the app's own reason)."""
+        from pipeline.jobfit.eval.voice import app_client, tts
+
+        probed: list[str] = []
+        orig = (ie.select_scenarios, app_client.get_availability, tts.available)
+        ie.select_scenarios = lambda **kw: [self._scn("cs_case", "cs"), self._scn("en_case", "en")]
+        app_client.get_availability = lambda *a, **kw: (probed.append("app"), {"elevenlabs": False})[1]
+        tts.available = lambda lang="en": (lang in ("en", "cs"), f"no local Piper voice for {lang!r}")
+        try:
+            with _no_offline():
+                code = ie.main(["--backend", "voice", "--no-color"])
+        finally:
+            ie.select_scenarios, app_client.get_availability, tts.available = orig
+
+        self.assertEqual(code, 2)          # stopped, but at the APP check
+        self.assertEqual(probed, ["app"])  # …which means the languages were cleared
+
+    def test_the_budget_flag_parses_and_reaches_every_scenario(self):
+        """--voice-max-minutes is a PER SCENARIO ceiling: a sweep multiplies what one run can
+        spend, so the number has to arrive at run_voice_scenario, not stop at the parser."""
+        from pipeline.jobfit.eval.voice import session_runner
+
+        seen: list[float] = []
+
+        async def _fake_run(scenario, **kw):
+            seen.append(kw["max_minutes"])
+            run = session_runner.VoiceRun(scenario=scenario.name)
+            run.budget_minutes = kw["max_minutes"]
+            run.turns = [{"role": "interviewer", "text": "hello"},
+                         {"role": "candidate", "text": "hi"}]
+            return run
+
+        orig = session_runner.run_voice_scenario
+        session_runner.run_voice_scenario = _fake_run
+        try:
+            rows = ie.run_scenarios_voice(
+                [self._scn("a", "en"), self._scn("b", "cs")],
+                base_url="http://localhost:3000", max_minutes=2.5,
+            )
+        finally:
+            session_runner.run_voice_scenario = orig
+
+        self.assertEqual(seen, [2.5, 2.5])
+        self.assertEqual([r.voice["budget_minutes"] for r in rows], [2.5, 2.5])
+
+    def test_the_flag_is_accepted_by_the_cli(self):
+        """A returned 2 (the eval contract's refusal) rather than a SystemExit proves argparse
+        knows the flag — an unknown option would abort in the parser instead."""
+        with _offline():
+            self.assertEqual(
+                ie.main(["--backend", "voice", "--voice-max-minutes", "3", "--no-color"]), 2
+            )
 
 
 if __name__ == "__main__":

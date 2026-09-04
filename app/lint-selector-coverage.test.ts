@@ -35,6 +35,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ESLint } from "eslint";
+import { execFileSync } from "node:child_process";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -52,7 +53,7 @@ const GROUP = {
   db_barrel: "value import of the @/app/_lib/db barrel",
   no_route_import: "import of an API route handler",
   ui_no_db: "value import of a db store from a UI module",
-  packages_no_app: "a package importing from app/",
+  portable_no_app: "portable-lane module importing from app/",
 } as const;
 
 type Group = keyof typeof GROUP;
@@ -67,25 +68,25 @@ const EXPECTATIONS: { file: string; must: Group[]; mustNot: Group[]; why: string
   {
     file: "app/_lib/api-response.ts",
     must: [...DESIGN, ...TRANSACTION, "db_barrel", "no_route_import"],
-    mustNot: ["packages_no_app"],
+    mustNot: ["portable_no_app"],
     why: "the lib layer — the block that wins here is the db-barrel block",
   },
   {
     file: "app/api/health/route.ts",
     must: [...DESIGN, ...TRANSACTION, "db_barrel", "no_route_import"],
-    mustNot: ["packages_no_app"],
+    mustNot: ["portable_no_app"],
     why: "the api layer resolves through the same block as app/_lib",
   },
   {
     file: "app/features/shell/tabs.ts",
     must: [...DESIGN, ...TRANSACTION, "db_barrel", "no_route_import", "ui_no_db"],
-    mustNot: ["packages_no_app"],
+    mustNot: ["portable_no_app"],
     why: "the ui block is a SUBSET of the db-barrel block and therefore replaces it",
   },
   {
     file: "app/_components/AiDisclosure.tsx",
     must: [...DESIGN, ...TRANSACTION, "db_barrel", "no_route_import", "ui_no_db"],
-    mustNot: ["packages_no_app"],
+    mustNot: ["portable_no_app"],
     why: "shared primitives are the ui layer too, and are where hardcoded colors appear",
   },
   {
@@ -124,15 +125,45 @@ const EXPECTATIONS: { file: string; must: Group[]; mustNot: Group[]; why: string
   },
   {
     file: "packages/voice-stt/src/registry.ts",
-    must: [...TRANSACTION, "db_barrel", "no_route_import", "packages_no_app"],
+    must: [...TRANSACTION, "db_barrel", "no_route_import", "portable_no_app"],
     mustNot: [...DESIGN, "ui_no_db"],
     why: "the portable lane: no design law, but the app-import wall is its whole point",
   },
   {
     file: "scripts/lint/ts-ratchet.mjs",
     must: TRANSACTION,
-    mustNot: [...DESIGN, "db_barrel", "ui_no_db", "packages_no_app"],
+    mustNot: [...DESIGN, "db_barrel", "ui_no_db", "portable_no_app"],
     why: "scripts get the transaction law only — they are not app code and carry no design law",
+  },
+  {
+    file: "scripts/interview-brief.ts",
+    must: TRANSACTION,
+    mustNot: [...DESIGN, "db_barrel", "ui_no_db", "portable_no_app"],
+    why: "a TypeScript script is a script — same layer as the .mjs ones, which the globs used to miss",
+  },
+  {
+    file: "proxy.ts",
+    must: [...TRANSACTION, "db_barrel", "no_route_import"],
+    mustNot: [...DESIGN, "ui_no_db", "portable_no_app"],
+    why: "the middleware runs on EVERY request, so the db-barrel cost law binds it harder than anything under app/",
+  },
+  {
+    file: "i18n/request.ts",
+    must: [...TRANSACTION, "db_barrel", "no_route_import"],
+    mustNot: [...DESIGN, "ui_no_db", "portable_no_app"],
+    why: "locale resolution is imported by every server render — the server edge outside app/",
+  },
+  {
+    file: "edge/src/index.ts",
+    must: [...TRANSACTION, "db_barrel", "no_route_import", "portable_no_app"],
+    mustNot: [...DESIGN, "ui_no_db"],
+    why: "the other portable lane: deployed to the operator's own Cloudflare account, so the app-import wall is its whole design claim",
+  },
+  {
+    file: "e2e/modal-escape.spec.ts",
+    must: [...TRANSACTION, "no_route_import"],
+    mustNot: [...DESIGN, "db_barrel", "ui_no_db", "portable_no_app"],
+    why: "a spec drives the app over HTTP and asserts about rendered colour — the design law would be actively wrong here",
   },
 ];
 
@@ -192,5 +223,60 @@ test("the design group is genuinely present in one layer and genuinely absent in
   assert.ok(
     gated.some((m) => m.includes(GROUP.transaction_await)) && exempt.some((m) => m.includes(GROUP.transaction_await)),
     "both layers must carry the transaction law — if not, the fixtures are not comparable",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// REACH, not just layering. Every test above names a file by hand, so a whole
+// DIRECTORY that no `files:` glob addresses is invisible to them: the config
+// resolves no `no-restricted-syntax` options there at all, every assertion
+// above still passes, and `npm run lint` is green over code no law applies to.
+//
+// That was the state of the tree. The floor block's globs were `app/**/*.ts`,
+// `app/**/*.tsx`, `scripts/**/*.mjs`, `packages/**/*.ts` — which left the
+// nineteen e2e specs, the root modules (proxy.ts, next.config.ts, the three
+// instrumentation entry points), the whole of i18n/, the edge Worker and the
+// two TypeScript scripts matching nothing. `edge/` is the sharpest case: it is
+// the most portable lane in the repo, its header says "it holds no truth and no
+// secrets", and the rule that keeps it liftable (no import of app/) did not
+// reach it.
+//
+// So this derives the file list from git rather than from a hand-written array.
+// A new top-level directory of TypeScript is covered the day it is added, or
+// this fails naming it.
+const TRACKED = execFileSync("git", ["ls-files", "-z", "*.ts", "*.tsx", "*.mts", "*.cts"], {
+  cwd: REPO_ROOT,
+  encoding: "utf8",
+  maxBuffer: 32 * 1024 * 1024,
+})
+  .split("\0")
+  .filter(Boolean);
+
+test("every tracked TypeScript file resolves to at least one no-restricted-syntax block", async () => {
+  // Non-vacuity: a broken `git ls-files` must fail loudly rather than assert
+  // over an empty set.
+  assert.ok(TRACKED.length > 1000, `expected the tracked TS surface, found ${TRACKED.length} files`);
+
+  const eslint = new ESLint({ cwd: REPO_ROOT });
+  const unreached: string[] = [];
+  for (const file of TRACKED) {
+    // A path eslint is configured to ignore is not a gap — `.claude/**` is
+    // agent worktrees, `.next*/**` is build output.
+    if (await eslint.isPathIgnored(path.join(REPO_ROOT, file))) continue;
+    const config = (await eslint.calculateConfigForFile(path.join(REPO_ROOT, file))) as {
+      rules?: Record<string, unknown>;
+    };
+    if (!Array.isArray(config.rules?.["no-restricted-syntax"])) unreached.push(file);
+  }
+
+  assert.deepEqual(
+    unreached,
+    [],
+    `${unreached.length} tracked TypeScript file(s) match NO no-restricted-syntax block, so none of ` +
+      `this repo's syntax laws apply to them and lint is green over them by omission:\n  ` +
+      unreached.slice(0, 40).join("\n  ") +
+      (unreached.length > 40 ? `\n  …and ${unreached.length - 40} more` : "") +
+      `\n\nAdd the layer to a block in eslint.config.mjs, built with restrict() from the selector ` +
+      `sets it owes — not a new bare block, which would replace the options for everything it matches.`,
   );
 });

@@ -17,6 +17,7 @@ import { ArrowRight, ClipboardPaste, FileText, type LucideIcon } from "lucide-re
 import { useTranslations } from "next-intl";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE, GLYPH_SIZE_SM } from "@/app/_components/glyph/glyphSizes";
 import { JOBS_GLYPH } from "@/app/_components/glyph/glyphs/jobsGlyph";
 import { BTN_PRIMARY, CHIP, EYEBROW, PANEL, PANEL_SUNKEN, TITLE_DISPLAY, META_LABEL } from "@/app/_components/ui/recipes";
 
@@ -77,7 +78,7 @@ export function JobsEmptyLaunchpad() {
         <MotionizedGlyph
           data={JOBS_GLYPH.data}
           viewBox={JOBS_GLYPH.viewBox}
-          className="h-24 w-24 shrink-0 sm:h-28 sm:w-28"
+          className={`${GLYPH_SIZE.md} shrink-0 ${GLYPH_SIZE_SM.lg}`}
         />
         <div>
           <p className={EYEBROW}>{t("eyebrow")}</p>

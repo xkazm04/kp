@@ -322,22 +322,43 @@ function serializeResult(result: unknown): string | null {
   }
 }
 
-export function finishTask(id: string, status: TaskStatus, opts: { result?: unknown; error?: string }): void {
+/** Stamp the terminal state on a task. Returns whether the row was actually
+ *  written — false means it had already reached a terminal state and this result
+ *  was dropped.
+ *
+ *  The `status IN ('queued','running')` guard is the same precondition
+ *  markTaskRunning and setTaskProgress have carried all along, and this was the
+ *  one transition without it: terminal is final, so a handler that keeps working
+ *  after a cancel (the abort signal is cooperative — a Python child can take
+ *  seconds to die, an LLM call longer) must not overwrite the `canceled` row with
+ *  `succeeded` and its result, and the wall-clock reaper's `interrupted` must not
+ *  be un-done by the run it gave up on returning a minute later. Both were live
+ *  paths: runOne's finally re-finishes a row the cancel path has already closed.
+ *
+ *  A compensating precondition in the WHERE plus a `changes === 0` skip is the
+ *  second of the two sanctioned read-compute-write strategies (.claude/CLAUDE.md);
+ *  a lock is the wrong tool here because the compute between the read and this
+ *  write is the whole handler run. */
+export function finishTask(id: string, status: TaskStatus, opts: { result?: unknown; error?: string }): boolean {
   const db = ensureDb();
-  db.prepare(`UPDATE tasks SET status=?, result_json=?, error=?, finished_at=? WHERE id=?`).run(
-    status,
-    serializeResult(opts.result),
-    opts.error ?? null,
-    new Date().toISOString(),
-    id
-  );
+  const res = db
+    .prepare(`UPDATE tasks SET status=?, result_json=?, error=?, finished_at=? WHERE id=? AND status IN ('queued','running')`)
+    .run(status, serializeResult(opts.result), opts.error ?? null, new Date().toISOString(), id);
+  if (res.changes === 0) {
+    // Not an error — the row that stands is the answer. Logged because a dropped
+    // SUCCESS means real work whose output nobody will ever see, and an operator
+    // chasing "the scan finished but the row says canceled" needs the trail.
+    console.warn(`[db:task.finish] ${id}: already terminal — dropped a late '${status}' write`);
+    return false;
+  }
+  return true;
 }
 
 /**
  * On server boot the volatile in-process queue is gone, so any 'running' row was
  * orphaned mid-flight — its handler partially executed and cannot resume, so mark
  * it 'interrupted'. 'queued' rows are deliberately left alone: they never started,
- * ran no side effects, and are re-enqueued by the task runner (see listQueuedTaskIds)
+ * ran no side effects, and are re-enqueued by the task runner (see listQueuedTaskEntries)
  * instead of being silently abandoned. Returns the number of rows interrupted.
  */
 export function interruptStaleTasks(): number {
@@ -349,14 +370,25 @@ export function interruptStaleTasks(): number {
 }
 
 /**
- * IDs of never-started ('queued') tasks, oldest first. After a restart these are
- * orphans of the volatile in-process queue but ran no handler, so the runner can
- * safely re-enqueue them in submission order rather than dropping the work.
+ * Never-started ('queued') tasks, oldest first, each with the tenant that enqueued
+ * it. After a restart these are orphans of the volatile in-process queue but ran no
+ * handler, so the runner can safely re-enqueue them in submission order rather than
+ * dropping the work.
+ *
+ * The WORKSPACE rides along because the runner's pump schedules round-robin across
+ * tenants (task-pump.ts): a recovered queue rebuilt from ids alone would have had no
+ * workspace to be fair by, and every recovered task would have looked like one
+ * tenant's. Reading it here rather than re-reading each row keeps recovery one query.
+ *
+ * `-- tenancy:global` by design: this is the process's own recovery sweep across
+ * every tenant, not a tenant's read of its own tray.
  */
-export function listQueuedTaskIds(): string[] {
+export function listQueuedTaskEntries(): { id: string; workspaceId: string }[] {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT id FROM tasks WHERE status='queued' ORDER BY created_at ASC -- tenancy:global`).all() as { id: string }[];
-  return rows.map((r) => r.id);
+  const rows = db
+    .prepare(`SELECT id, workspace_id FROM tasks WHERE status='queued' ORDER BY created_at ASC -- tenancy:global`)
+    .all() as { id: string; workspace_id: string | null }[];
+  return rows.map((r) => ({ id: r.id, workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID }));
 }
 
 /**

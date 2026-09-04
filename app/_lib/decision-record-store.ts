@@ -75,6 +75,14 @@ export type ChainVerdict = {
    *  keyless PREFIX is still protected — a forge cascades into this link, which cannot be
    *  re-MAC'd without the key — so the surface can name where the protection begins. */
   firstKeyedSeq: number | null;
+  /** The seq this run actually re-hashed FROM (exclusive). 0 = the whole chain was
+   *  re-hashed. A non-zero value means links at or below it were taken from a checkpoint
+   *  this process verified earlier — see the checkpoint note below. Reported rather than
+   *  hidden: "ok" over a partial re-hash is a weaker statement than "ok" over all of it,
+   *  and a verdict that could not say which it was would let a surface claim the stronger. */
+  verifiedFromSeq: number;
+  /** True when this run re-hashed every link from genesis (no checkpoint was used). */
+  fullyVerified: boolean;
 };
 
 type DecisionRow = {
@@ -141,6 +149,61 @@ function decisionKeyById(keyId: string): string | null {
   const activeId = process.env.KP_DECISION_HMAC_KEY_ID?.trim() || "k1";
   if (keyId === activeId) return process.env.KP_DECISION_HMAC_KEY?.trim() || null;
   return process.env[`KP_DECISION_HMAC_KEY_${keyId}`]?.trim() || null;
+}
+
+// --- Verification checkpoint (per-load full re-hash → bounded work) -----------------
+//
+// verifyDecisionChain used to load and re-hash EVERY row of a workspace's chain on every
+// call, and /api/decisions/records calls it on every panel mount (behind a ~20s memo).
+// The chain only grows — a screening wave seals one row per decision — so the cost of
+// reading the decisions panel grew with the customer's entire decision history, while the
+// sibling list read beside it was capped at 1000 rows.
+//
+// A verified prefix does not need re-hashing to extend the proof: each link commits to
+// the one before it, so re-hashing only the rows ABOVE a known-good (seq, content_hash)
+// gives the same verdict for the tail, and any edit inside the prefix that changes a
+// stored content_hash breaks the anchor check below.
+//
+// IN-PROCESS, NOT PERSISTED — deliberately, and it is the stronger of the two:
+//   * a checkpoint row in the DB is written by exactly the party the chain defends
+//     against (an insider with decision_records write access), who could forge it and
+//     make their own tamper permanently invisible. Process memory is not in their reach.
+//   * a restart re-verifies from genesis, so the full proof is never more than one
+//     deploy away, and it costs no schema, no migration and no tenancy classification.
+// The price is that it does not survive a restart and is not shared between workers —
+// both of which only ever cost extra work, never a missed tamper.
+//
+// AND IT EXPIRES. A checkpoint hides an edit to an already-verified row that leaves its
+// stored content_hash alone (a payload rewritten without re-hashing — the clumsy tamper).
+// So a checkpoint is only honoured for CHAIN_FULL_VERIFY_INTERVAL_MS; past that, the next
+// call re-hashes the whole chain and re-anchors. That is the "verifies on a schedule, not
+// per load" half of the design, and `fullyVerified` on the verdict says which run it was.
+// Callers that must have the full proof NOW pass { full: true }.
+export const CHAIN_FULL_VERIFY_INTERVAL_MS = 15 * 60 * 1000;
+
+type ChainCheckpoint = {
+  /** The highest seq re-hashed and found good. */
+  seq: number;
+  /** That row's content_hash — both the prev for the next link and the anchor we re-read. */
+  hash: string;
+  /** Whether a keyed row had been seen at or below `seq` (the downgrade guard's state). */
+  seenKeyed: boolean;
+  /** The anchor row's key id ("" = keyless) — part of the anchor identity. */
+  keyId: string;
+  /** EVERY distinct HMAC key id the verified prefix was sealed under. Re-resolved on each
+   *  checkpointed run: a retired key dropped instead of kept makes its rows unprovable NOW,
+   *  and a checkpoint must not carry an "ok" earned while the key was still available. Small
+   *  by construction — one id per rotation, not one per row. */
+  keyIds: string[];
+  /** When the chain was last re-hashed IN FULL (epoch ms). */
+  fullAt: number;
+};
+const chainCheckpoints = new Map<string, ChainCheckpoint>();
+
+/** Test seam: node --test isolates each file in its own process, not each test inside it,
+ *  and a tamper test must be able to establish "no checkpoint yet". */
+export function resetDecisionChainCheckpointsForTests(): void {
+  chainCheckpoints.clear();
 }
 
 let _db: Database.Database | null = null;
@@ -381,30 +444,80 @@ export function listDecisionRecordsForRefs(
  *  chain is internally consistent, the census says how much that is worth against an
  *  insider. UAT LUC-ANA-1 — the two are different claims and the surface must be able
  *  to tell them apart. */
-export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID): ChainVerdict {
-  const d = db();
-  // Per-tenant verify: walk ONLY this workspace's records in seq order — its chain is
-  // independent, so another team's rows are neither read nor needed for this proof.
-  const rows = d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq ASC`).all(workspaceId) as DecisionRow[];
-  // UAT LUC-ANA-1 — census FIRST, in its own pass, so every exit below (including each
-  // failure) reports the same complete key picture. A verdict that dropped the census on
-  // the failure paths would let the surface fall back to the unconditional claim exactly
-  // when it is least entitled to it.
-  let keylessCount = 0;
-  let firstKeyedSeq: number | null = null;
-  for (const r of rows) {
-    if ((r.key_id ?? LEGACY_KEY_ID) === LEGACY_KEY_ID) keylessCount += 1;
-    else if (firstKeyedSeq === null) firstKeyedSeq = r.seq;
+export function verifyDecisionChain(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: {
+    /** Re-hash every link from genesis, ignoring (and refreshing) this process's
+     *  checkpoint. Use it wherever the full proof is the point rather than the freshness
+     *  of a badge — a tamper test, an export, an on-demand integrity audit. */
+    full?: boolean;
+    /** Clock seam, so the scheduled full re-verify can be driven in a test. */
+    now?: number;
   }
+): ChainVerdict {
+  const d = db();
+  const now = opts?.now ?? Date.now();
+  // UAT LUC-ANA-1 — census FIRST, so every exit below (including each failure) reports the
+  // same complete key picture. A verdict that dropped the census on the failure paths would
+  // let the surface fall back to the unconditional claim exactly when it is least entitled
+  // to it. Computed by AGGREGATE now rather than by walking every row: the census describes
+  // the WHOLE chain even when the re-hash below starts from a checkpoint, so it must not be
+  // a by-product of the rows that happen to be re-hashed.
+  const agg = d
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              SUM(CASE WHEN key_id = '' THEN 1 ELSE 0 END) AS keyless,
+              MIN(CASE WHEN key_id <> '' THEN seq END) AS first_keyed
+         FROM decision_records WHERE workspace_id = ?`
+    )
+    .get(workspaceId) as { n: number; keyless: number | null; first_keyed: number | null };
+  const keylessCount = Number(agg.keyless ?? 0);
   const census = {
-    count: rows.length,
+    count: Number(agg.n ?? 0),
     keylessCount,
-    keyed: rows.length > 0 && keylessCount === 0,
-    firstKeyedSeq,
+    keyed: Number(agg.n ?? 0) > 0 && keylessCount === 0,
+    firstKeyedSeq: agg.first_keyed ?? null,
   };
-  const broken = (seq: number): ChainVerdict => ({ ok: false, brokenAtSeq: seq, ...census });
-  let prevHash = "";
-  let seenKeyed = false;
+  // Should this run start from the checkpoint, or re-hash everything? Three ways to say no:
+  // the caller demanded the full proof, no checkpoint exists yet, or the last full re-hash
+  // has aged out (the scheduled re-verify).
+  let start: ChainCheckpoint | null = null;
+  const cp = chainCheckpoints.get(workspaceId);
+  if (!opts?.full && cp && now - cp.fullAt <= CHAIN_FULL_VERIFY_INTERVAL_MS) {
+    // ANCHOR CHECK — the checkpoint claims row `seq` hashed to `hash`. Re-read that one
+    // row: if its stored content_hash moved, the prefix is not the prefix we verified and
+    // the checkpoint is void (fall through to a full re-hash). Cheap, and it catches the
+    // tamper shape that rewrites a row's hash — the one an insider needs to keep a chain
+    // internally consistent.
+    const anchor = d
+      .prepare(`SELECT content_hash, key_id FROM decision_records WHERE workspace_id = ? AND seq = ?`)
+      .get(workspaceId, cp.seq) as { content_hash: string; key_id: string } | undefined;
+    // A checkpoint is also void once its anchor's key material is no longer resolvable:
+    // integrity is UNPROVABLE then, and a stale "ok" would be exactly the silent pass the
+    // fail-closed rule exists to prevent (a retired key dropped instead of kept).
+    const keysStillResolvable = cp.keyIds.every((id) => decisionKeyById(id) !== null);
+    if (cp.seq === 0 || (anchor?.content_hash === cp.hash && anchor.key_id === cp.keyId && keysStillResolvable)) start = cp;
+    else chainCheckpoints.delete(workspaceId);
+  }
+  // Per-tenant verify: walk ONLY this workspace's records in seq order — its chain is
+  // independent, so another team's rows are neither read nor needed for this proof. From
+  // the checkpoint's seq (exclusive) when one stands, from genesis otherwise.
+  const fromSeq = start?.seq ?? 0;
+  const rows = d
+    .prepare(`SELECT * FROM decision_records WHERE workspace_id = ? AND seq > ? ORDER BY seq ASC`)
+    .all(workspaceId, fromSeq) as DecisionRow[];
+  const scope = { verifiedFromSeq: fromSeq, fullyVerified: fromSeq === 0 };
+  const broken = (seq: number): ChainVerdict => {
+    // A broken chain is never checkpointed: the next call must re-hash from genesis so the
+    // break cannot be "verified past" once the offending row is repaired or replaced.
+    chainCheckpoints.delete(workspaceId);
+    return { ok: false, brokenAtSeq: seq, ...census, ...scope };
+  };
+  let prevHash = start?.hash ?? "";
+  let seenKeyed = start?.seenKeyed ?? false;
+  let lastSeq = fromSeq;
+  let lastKeyId = start?.keyId ?? LEGACY_KEY_ID;
+  const keyIds = new Set<string>(start?.keyIds ?? []);
   for (const r of rows) {
     // Decode at the shared seam (safeRowParse): a corrupt payload still breaks the
     // chain at this seq, but the corruption is also recorded in the row-health
@@ -425,14 +538,28 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
       const secret = decisionKeyById(keyId);
       if (!secret) return broken(r.seq);
       seenKeyed = true;
+      keyIds.add(keyId);
       expected = decisionContentMac(prevHash, keyId, payload, secret);
     }
     if (r.prev_hash !== prevHash || r.content_hash !== expected) {
       return broken(r.seq);
     }
     prevHash = r.content_hash;
+    lastSeq = r.seq;
+    lastKeyId = r.key_id ?? LEGACY_KEY_ID;
   }
-  return { ok: true, brokenAtSeq: null, ...census };
+  chainCheckpoints.set(workspaceId, {
+    seq: lastSeq,
+    hash: prevHash,
+    seenKeyed,
+    keyId: lastKeyId,
+    keyIds: [...keyIds],
+    // Only a run that re-hashed from genesis resets the schedule; an incremental run
+    // extends the verified prefix but inherits the older full-verify stamp, so the
+    // periodic full re-hash still lands on time however often the panel is opened.
+    fullAt: fromSeq === 0 ? now : (start?.fullAt ?? now),
+  });
+  return { ok: true, brokenAtSeq: null, ...census, ...scope };
 }
 
 /** The kind the screening wave seals when it spares a would-be auto-reject to form
@@ -450,22 +577,65 @@ export const AUTO_REJECTED_KIND = "auto_rejected";
  *  holdout rate was lowered) — at which point their reject IS score-caused again, so
  *  they are removed from the clean arm. The set is therefore (holdout refs) MINUS
  *  (auto-rejected refs): membership survives only while the sparing still stands. */
-export function heldOutEntryIds(workspaceId: string = DEFAULT_WORKSPACE_ID): Set<string> {
+export const HELD_OUT_SCAN_LIMIT = 2000;
+
+export function heldOutEntryIds(
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: {
+    /** Most recently spared candidates to consider. Defaults to HELD_OUT_SCAN_LIMIT. */
+    limit?: number;
+    /** Scope the arm to ONE role. The calibration panel reads per role family and the
+     *  reliability curve of a single role is the question a recruiter actually asks; a
+     *  workspace-wide arm makes every such read pay for every role's history. Resolved
+     *  through pipeline_entries (candidate_ref IS the entry id); a store without that
+     *  table falls back to the unscoped read rather than returning an empty arm. */
+    jobId?: string;
+  }
+): Set<string> {
   const d = db();
-  const spared = d
-    .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ?`)
-    .all(SCREEN_WAVE_HOLDOUT_KIND, workspaceId) as { candidate_ref: string }[];
+  // BOUNDED. Both halves of this used to be unbounded DISTINCT scans of a table that only
+  // grows, run TWICE per calibration request while the sibling record list beside them was
+  // capped at 1000 — so the analytics read got slower with every wave a customer ever ran.
+  // Now: the spared side is capped and newest-first (an arm is a measurement of recent
+  // selection quality; a five-year-old sparing is not the pair a recruiter is asking
+  // about), and the rejected side is no longer scanned at all — it is looked up FOR THE
+  // SPARED REFS ONLY, chunked under the SQLite variable floor, which is a bounded query
+  // whatever the size of the reject history.
+  const limit = Math.min(Math.max(Math.trunc(opts?.limit ?? HELD_OUT_SCAN_LIMIT), 1), 10_000);
+  const jobId = opts?.jobId?.trim() || null;
+  // GROUP BY, not DISTINCT: SQLite cannot ORDER a DISTINCT projection by a column outside
+  // it, and "newest first" is what makes the cap a recency window rather than an arbitrary
+  // slice. MAX(seq) is each candidate's most recent sparing.
+  const sparedSql = (scoped: boolean) =>
+    `SELECT candidate_ref, MAX(seq) AS last_seq FROM decision_records
+      WHERE kind = ? AND workspace_id = ?${scoped ? ` AND EXISTS (SELECT 1 FROM pipeline_entries pe WHERE pe.id = decision_records.candidate_ref AND pe.job_id = ?)` : ""}
+      GROUP BY candidate_ref ORDER BY last_seq DESC LIMIT ?`;
+  let spared: { candidate_ref: string }[];
+  if (jobId) {
+    try {
+      spared = d.prepare(sparedSql(true)).all(SCREEN_WAVE_HOLDOUT_KIND, workspaceId, jobId, limit) as { candidate_ref: string }[];
+    } catch (error) {
+      // pipeline_entries absent on this connection (an isolated store) — the role scope
+      // cannot be resolved, so answer the workspace arm rather than a false empty one.
+      console.warn(`[decision-record] heldOutEntryIds could not scope to job "${jobId}" — falling back to the workspace arm:`, error);
+      spared = d.prepare(sparedSql(false)).all(SCREEN_WAVE_HOLDOUT_KIND, workspaceId, limit) as { candidate_ref: string }[];
+    }
+  } else {
+    spared = d.prepare(sparedSql(false)).all(SCREEN_WAVE_HOLDOUT_KIND, workspaceId, limit) as { candidate_ref: string }[];
+  }
   if (spared.length === 0) return new Set();
-  const rejected = new Set(
-    (
-      d
-        .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ?`)
-        .all(AUTO_REJECTED_KIND, workspaceId) as { candidate_ref: string }[]
-    ).map((r) => r.candidate_ref)
-  );
+  const refs = spared.map((r) => r.candidate_ref);
+  const rejected = new Set<string>();
+  for (const idsChunk of chunk(refs, SQL_IN_CHUNK)) {
+    const placeholders = idsChunk.map(() => "?").join(", ");
+    const hits = d
+      .prepare(`SELECT DISTINCT candidate_ref FROM decision_records WHERE kind = ? AND workspace_id = ? AND candidate_ref IN (${placeholders})`)
+      .all(AUTO_REJECTED_KIND, workspaceId, ...idsChunk) as { candidate_ref: string }[];
+    for (const r of hits) rejected.add(r.candidate_ref);
+  }
   const out = new Set<string>();
-  for (const r of spared) {
-    if (!rejected.has(r.candidate_ref)) out.add(r.candidate_ref);
+  for (const ref of refs) {
+    if (!rejected.has(ref)) out.add(ref);
   }
   return out;
 }

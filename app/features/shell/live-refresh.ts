@@ -42,22 +42,45 @@ export function notifyDataChanged(): void {
  * the originating window's double signal (event + channel echo is impossible —
  * a channel never receives its own posts) coalesces under the same debounce.
  */
-export function useLiveRefresh(handler: () => void, debounceMs = 250): void {
+export const LIVE_REFRESH_DEBOUNCE_MS = 250;
+
+/**
+ * The debounce, as a DOM-free object so node --test can pin it: `signal()` arms a
+ * single trailing run, further signals inside the window collapse into it, and
+ * `cancel()` drops a pending one. `run` is read at FIRE time, so a caller that
+ * re-points it (the hook's latest-handler ref) never needs to re-subscribe.
+ *
+ * This is the coalescing that keeps a simulation step — or the one mutation a
+ * multi-window setup announces twice, once as a window event and once over the
+ * BroadcastChannel — from re-fetching every open view per signal. It had no test.
+ */
+export function createRefreshCoalescer(
+  run: () => void,
+  debounceMs: number = LIVE_REFRESH_DEBOUNCE_MS
+): { signal: () => void; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return {
+    signal: () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => run(), debounceMs);
+    },
+    cancel: () => clearTimeout(timer),
+  };
+}
+
+export function useLiveRefresh(handler: () => void, debounceMs = LIVE_REFRESH_DEBOUNCE_MS): void {
   const ref = useRef(handler);
   useEffect(() => {
     ref.current = handler; // keep the latest handler without re-subscribing
   });
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const onChange = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => ref.current(), debounceMs);
-    };
+    const coalescer = createRefreshCoalescer(() => ref.current(), debounceMs);
+    const onChange = () => coalescer.signal();
     window.addEventListener(EVENT, onChange);
     const bc = getChannel();
     bc?.addEventListener("message", onChange);
     return () => {
-      clearTimeout(timer);
+      coalescer.cancel();
       window.removeEventListener(EVENT, onChange);
       bc?.removeEventListener("message", onChange);
     };

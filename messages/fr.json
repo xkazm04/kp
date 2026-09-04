@@ -55,7 +55,8 @@
       "unattended": "Sans supervision",
       "touchpointsLabel": "Décisions humaines",
       "bookingsN": "{count, plural, one {# tour à planifier} other {# tours à planifier}}",
-      "weekAria": "Une semaine type"
+      "weekAria": "Une semaine type",
+      "weekNote": "Une semaine à titre d'illustration, pas une prévision."
     },
     "save": "Enregistrer le plan",
     "saving": "Enregistrement…",
@@ -110,7 +111,15 @@
       "offer": "Vous faites une offre et vous attendez la réponse.",
       "terminal": "L’offre est acceptée. Le recrutement s’arrête ici.",
       "custom": "Votre propre étape. Elle signifie ce dont votre équipe a besoin."
-    }
+    },
+    "occupancyUnknown": "Impossible de vérifier qui se trouve à chaque étape. Tant que cette vérification échoue, aucune étape ne peut être supprimée.",
+    "occupancyRetry": "Revérifier",
+    "blockedOccupancy": "Impossible de savoir qui est à chaque étape : une suppression ne peut pas être enregistrée. Relancez la vérification ci-dessus.",
+    "blockedStranded": "Indiquez où doivent aller les candidats des étapes supprimées.",
+    "refreshFailed": "Enregistré. Cette vue n'a pas pu être actualisée et peut encore afficher le plan précédent.",
+    "refreshRetry": "Actualiser",
+    "stale": "Quelqu'un a enregistré une version plus récente de ce pipeline. Rien de vos modifications n'a été écrit.",
+    "staleReload": "Recharger le plan enregistré"
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -123,7 +132,8 @@
       "gap": "écart restant (affiché dans une étape)"
     },
     "explorer": {
-      "instruction": "Cliquez sur une étape pour voir comment elle est câblée. L’étape ouverte reste encadrée ici à gauche."
+      "instruction": "Cliquez sur une étape pour voir comment elle est câblée. L’étape ouverte reste encadrée ici à gauche.",
+      "codeHeading": "Code"
     },
     "status": {
       "live": "Automatisé",
@@ -156,6 +166,68 @@
       "svgLabelUntitled": "Diagramme de composants",
       "tooLarge": "Ce diagramme est trop grand pour être affiché ici.",
       "renderFailed": "Impossible d'afficher ce diagramme."
+    },
+    "steps": {
+      "jd": {
+        "title": "Rédaction de l'offre",
+        "summary": "Le besoin en texte libre d'un recruteur (avec éventuellement un dépôt GitHub) devient une offre Markdown publiable via la chaîne besoin→conception de devcase, puis est enregistrée et intégrée au corpus interrogeable."
+      },
+      "ingest": {
+        "title": "Offre → poste structuré",
+        "summary": "Direction #1 : une annonce rédigée ou collée est analysée en un poste structuré (indispensable/souhaité, compétences résolues via la taxonomie, profil d'entrée) puis écrite dans le corpus interrogeable, dédupliquée par empreinte de contenu : une annonce inchangée ne coûte donc rien."
+      },
+      "dist": {
+        "title": "Diffusion aux candidats",
+        "summary": "À l'enregistrement de l'offre, le vivier est classé face au nouveau poste et amorcé en entrées de pipeline au stade Accepted ; la branche Accepted de la passe de politique (direction #1) fait avancer automatiquement les candidats retenus vers Screened (première vague d'évaluation). La publication sur les jobboards externes reste manuelle."
+      },
+      "apply": {
+        "title": "Candidature / dépôt de CV",
+        "summary": "Un CV (PDF/DOCX/TXT/MD) déposé dans l'onglet Analyze est transmis au CLI d'analyse Python en sous-processus et le résultat est enregistré. Le formulaire guidé Profile enregistre un profil V2 structuré."
+      },
+      "extract": {
+        "title": "Extraction du texte + champs LLM",
+        "summary": "L'extraction déterministe du texte (avec réparation du mojibake tchèque et de l'interlettrage) alimente un LLM qui renvoie compétences, traits et preuves structurés. Note : l'extracteur appelle encore Gemini à l'exécution (hors spécification face à la règle « Claude CLI uniquement ») et les champs purement LLM n'ont pas encore de repli déterministe."
+      },
+      "v2": {
+        "title": "Routage d'archétype → profil V2",
+        "summary": "Direction #2 : le parcours CV déduit désormais les signaux d'archétype et exécute detect_archetype, projetant le CV extrait vers un CandidateProfileV2 avec provenance et potentiel. La route des candidats et match-candidate.ts lisent l'archétype réel au lieu d'un BAU codé en dur."
+      },
+      "match": {
+        "title": "Match : KO · score · justification",
+        "summary": "Un candidat normalisé est filtré par des critères éliminatoires stricts, puis noté face au corpus de postes avec des pondérations dépendant de l'archétype sur toute la hiérarchie de la taxonomie. Visible dans l'onglet Match et la grille Matrix."
+      },
+      "screen": {
+        "title": "Présélection par IA",
+        "summary": "La présélection encadrée par l'équité (Task 1) s'exécute via le CLI Claude avec un repli déterministe. Disponible une par une aux deux stades antérieurs à l'entretien : au stade Accepted elle oriente un nouveau candidat vers Screened ; au stade Screened elle le fait avancer vers Interview. Les correspondances sûres avancent ; les profils juniors et les cas peu certains sont retenus pour la file Decisions, jamais rejetés automatiquement."
+      },
+      "decide": {
+        "title": "File de décisions",
+        "summary": "Le point de contrôle humain assumé : candidats en attente, refus et validations relèvent du recruteur. La recommandation de l'IA accompagne le dossier comme contexte ; l'action, elle, est un clic."
+      },
+      "engage": {
+        "title": "Prise de contact + invitation à l'entretien",
+        "summary": "Direction #3 : les messages d'approche et de refus sont rédigés (CLI Claude + repli) puis réellement envoyés par le canal de communication (mis en file par défaut, envoyés dès que COMMS_WEBHOOK_URL est défini). Le destinataire reste le libellé du candidat. Un champ e-mail/ATS est le point d'accroche pour l'enrichissement."
+      },
+      "interview": {
+        "title": "Entretien : présélection vocale IA → grille d'évaluation",
+        "summary": "Le recruteur crée une présélection vocale ancrée (questions issues de la préparation Task 4) ; le candidat la passe dans son navigateur (OpenAI Realtime ou ElevenLabs). À la fin de l'appel, la transcription produit une grille d'évaluation (Task 5) et positionne scorecard_review pour le point de contrôle Interview→Offer. La prise de rendez-vous est également en service : accepter une présélection place l'entrée dans l'onglet Schedule, le recruteur génère un lien de réservation autonome à jeton que le canal de communication délivre, et le candidat confirme un créneau réellement daté (avec report et invitation d'agenda). Le « mar. 14:00 » relatif au jour de la semaine n'est que la proposition initiale que porte une entrée ancienne tant qu'aucune invitation n'existe."
+      },
+      "offer": {
+        "title": "Décision d'offre",
+        "summary": "Le montant de l'offre est déterministe (fourchette du poste × adéquation) et la lettre se rédige automatiquement. Un humain l'approuve (le point de contrôle), ce qui ÉMET l'offre et l'envoie au candidat."
+      },
+      "close": {
+        "title": "Remise de l'offre · réponse acceptée ou refusée",
+        "summary": "Direction #4 : le candidat ouvre une page d'offre à jeton et accepte ou refuse. L'acceptation fait passer l'entrée en Hired ; le refus la clôt. Plus de simple clic humain au bout de la chaîne."
+      },
+      "hire": {
+        "title": "Transmission de l'embauche au SIRH",
+        "summary": "Fin de la direction #4 : à Hired, le travail de kp s'arrête. La transition recopie l'embauche vers l'ATS/SIRH configuré par l'espace de travail (webhook candidate.hired), afin que le système de référence reçoive le résultat sans ressaisie. Ce qui suit (paperasse, matériel, premier jour) relève délibérément du SIRH, pas de cette application."
+      },
+      "cron": {
+        "title": "Planificateur / cron",
+        "summary": "Direction #5 : une horloge durable. Un battement d'instrumentation cadence le planificateur, qui réclame de façon atomique une exécution due et lance la passe de politique (relances liées à l'ancienneté, avancements temporels). Désactivé par défaut. À activer via l'interrupteur de l'onglet Pipeline ou AUTOMATION_SCHEDULER_AUTOSTART=1."
+      }
     }
   },
   "meta": {
@@ -273,7 +345,7 @@
     "addToPipeline": "Ajouter au pipeline",
     "adding": "Ajout…",
     "added": "Ajouté au pipeline",
-    "addFailed": "Impossible d’ajouter au pipeline. {error}",
+    "addFailed": "Impossible d'ajouter au pipeline.",
     "importToPrep": "Ajouter ces questions à la préparation de l’entretien",
     "importToPrepBusy": "Ajout à la préparation…",
     "importToPrepDone": "Ajouté à la préparation de l’entretien",
@@ -428,7 +500,12 @@
       "starSituation": "Situation",
       "starTask": "Tâche",
       "starAction": "Action",
-      "starResult": "Résultat"
+      "starResult": "Résultat",
+      "benchmarkVintage": "Référentiel {source}, mis à jour le {date}",
+      "benchmarkVintageUndated": "Référentiel {source}",
+      "benchmarkThin": "échantillon réduit (n={count})",
+      "benchmarkNoSample": "aucun échantillon enregistré (repère éditorial)",
+      "benchmarkAnchor": "Ancré sur le référentiel {source}, mis à jour le {date}"
     }
   },
   "comms": {
@@ -492,7 +569,8 @@
     "interviewReminder": {
       "subject": "Rappel : votre entretien {slot}",
       "length": " Prévoyez environ {minutes} minutes.",
-      "body": "Bonjour {name},\n\nPetit rappel : votre entretien pour {role} approche, le {slot}.{length} Nous avons hâte d’échanger avec vous. À bientôt !\n\n{team}"
+      "body": "Bonjour {name},\n\nPetit rappel : votre entretien pour {role} approche, le {slot}.{length} Nous avons hâte d’échanger avec vous. À bientôt !\n\n{team}",
+      "slotFallback": "votre créneau convenu"
     },
     "offerReminder": {
       "subject": "Rappel : votre offre pour {role} est toujours ouverte",
@@ -513,7 +591,15 @@
       "strengthsHeading": "Ce qui nous a marqués :",
       "growthHeading": "Les pistes de progression :",
       "noSpecifics": "Nous avons apprécié l’effort fourni sur cet exercice et vous souhaitons pleine réussite dans vos recherches.",
-      "signoff": "Merci encore pour votre temps et votre intérêt."
+      "signoff": "Merci encore pour votre temps et votre intérêt.",
+      "engineNote": "Remarque sur cette lettre : les constats ci-dessus ont été rédigés par notre moteur d'évaluation en {language}, et non dans la langue de ce message."
+    },
+    "devcaseAdvance": {
+      "subject": "Prochaine étape : {role}",
+      "greeting": "Bonjour {name},",
+      "body": "Votre travail pour le poste de {role} nous a marqués et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
+      "bodyScore": "Votre travail pour le poste de {role} nous a marqués (adéquation {score}/100) et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
+      "signoff": "Cordialement,\nL’équipe de recrutement"
     }
   },
   "language": {
@@ -536,22 +622,10 @@
       "title": "Le marché de l’emploi tchèque, <emph>au grand jour</emph>.",
       "subtitle": "Salaires de référence, demande de recrutement dans les 14 régions, et les postes en hausse comme en déclin. Le tout entièrement construit à partir des données publiques du marché du travail.",
       "updated": "{n, plural, one {# offre active} other {# offres actives}} au {date} · {pct} % publiées ces 90 derniers jours",
-      "updatedNoPct": "{n, plural, one {# offre active} other {# offres actives}} au {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Guidé par la carte, lu comme un récit",
-      "board": "Tableau de bord",
-      "boardDesc": "Tout d’un coup d’œil"
-    },
-    "stats": {
-      "vacancies": "Offres ouvertes",
-      "median": "Médiane nationale",
-      "regions": "Régions",
-      "occupations": "Métiers suivis"
+      "updatedNoPct": "{n, plural, one {# offre active} other {# offres actives}} au {date}",
+      "stale": "Cet instantané date de {days, plural, one {# jour} other {# jours}}. Le registre en direct a évolué depuis."
     },
     "map": {
-      "title": "Où sont les emplois",
       "metricVolume": "Offres",
       "metricSalary": "Salaire",
       "legendVolume": "selon les offres ouvertes",
@@ -571,12 +645,13 @@
     "salary": {
       "eyebrow": "Le guide de terrain",
       "title": "Salaires de référence par poste",
-      "subtitle": "Salaires mensuels à l’échelle de l’économie, issus de l’enquête salariale officielle ISPV : de junior à lead, par famille de postes.",
+      "subtitle": "Salaires bruts mensuels de l’ensemble de l’économie, issus de l’enquête officielle ISPV : du junior au lead, par famille de métiers.",
       "median": "médiane {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Salaires bruts mensuels de l’ensemble de l’économie, issus de l’enquête officielle ISPV, données {period} : du junior au lead, par famille de métiers.",
+      "basedOn": "Sur la base de {v} salariés enquêtés"
     },
     "demand": {
       "eyebrow": "Ce qui recrute",
@@ -585,7 +660,6 @@
       "byFamily": "Par famille de postes",
       "byRole": "Principaux métiers",
       "openings": "{n, plural, one {# poste ouvert} other {# postes ouverts}}",
-      "momentumNew": "référence",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },
@@ -647,7 +721,9 @@
       "about": "À propos de l’app",
       "market": "Pouls du marché",
       "source": "Code source",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "menuOpen": "Ouvrir le menu",
+      "menuClose": "Fermer le menu"
     },
     "hero": {
       "badge": "Recrutement automatisé, validé par un humain",
@@ -1093,7 +1169,9 @@
   "aboutPage": {
     "nav": {
       "home": "Accueil",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "market": "Pouls du marché",
+      "source": "Code source"
     },
     "hero": {
       "badge": "le pipeline de recrutement, de bout en bout",
@@ -1234,7 +1312,8 @@
     "no": "Non",
     "close": "Fermer",
     "scanningCv": "Analyse du CV en cours",
-    "formatting": "Mise en forme"
+    "formatting": "Mise en forme",
+    "salesEnquirySubject": "Demande de renseignements sur l'offre Enterprise"
   },
   "aiDisclosure": {
     "title": "Comment ça marche",
@@ -1257,6 +1336,16 @@
     "TEMPLATE_CREATE_FAILED": "Impossible d’enregistrer le modèle. Veuillez réessayer.",
     "TEMPLATE_UPDATE_FAILED": "Impossible de mettre à jour le modèle. Veuillez réessayer.",
     "TEMPLATE_DELETE_FAILED": "Impossible de supprimer le modèle. Veuillez réessayer.",
+    "JOB_LIST_FAILED": "Impossible de charger le catalogue des postes. Veuillez réessayer.",
+    "JOB_LOAD_FAILED": "Impossible de charger ce poste. Veuillez réessayer.",
+    "JOB_INGEST_FAILED": "Impossible de lire cette annonce. Veuillez réessayer.",
+    "JOB_PUBLISH_FAILED": "Impossible de mettre ce poste en ligne. Veuillez réessayer.",
+    "JOB_CLOSE_FAILED": "Impossible de clôturer ce poste. Veuillez réessayer.",
+    "JOB_CANDIDATES_FAILED": "Impossible de classer les candidats pour ce poste. Veuillez réessayer.",
+    "JOB_REDISCOVER_FAILED": "Impossible de parcourir les anciens candidats pour ce poste. Veuillez réessayer.",
+    "JOB_WINNABILITY_FAILED": "Impossible d'évaluer ce poste face au vivier de candidats. Veuillez réessayer.",
+    "JOB_CAMPAIGN_FAILED": "Impossible de générer le pack de campagne. Veuillez réessayer.",
+    "JOB_ASSIGNMENTS_FAILED": "Impossible de charger les mises en situation pour ce poste. Veuillez réessayer.",
     "INTERVIEW_CREATE_FAILED": "Impossible de créer l’entretien. Veuillez réessayer.",
     "INTERVIEW_CONNECT_FAILED": "Impossible d’établir l’appel vocal. Veuillez réessayer.",
     "INTERVIEW_COMPLETE_FAILED": "Impossible d’enregistrer l’entretien. Veuillez réessayer.",
@@ -1271,6 +1360,11 @@
     "SCHEDULE_INVITE_BULK_FAILED": "Impossible d’envoyer les liens de planification. Veuillez réessayer.",
     "SCHEDULE_LOOKUP_FAILED": "Impossible de charger le récapitulatif des rendez-vous. Veuillez réessayer.",
     "SCHEDULE_MANAGE_FAILED": "Impossible de mettre à jour cet entretien. Veuillez réessayer.",
+    "SCHEDULE_SLOT_TAKEN": "Ce créneau est déjà réservé. Choisissez-en un autre.",
+    "SCHEDULE_CANDIDATE_INACTIVE": "Ce candidat n’est plus actif, rien n’a été réservé.",
+    "SCHEDULE_BOOK_FAILED": "Impossible de réserver ce créneau. Actualisez la page et choisissez à nouveau.",
+    "SCHEDULE_SLOT_UNRESOLVED": "Impossible de convertir cette case du calendrier en heure. Rechargez le calendrier et choisissez à nouveau.",
+    "SCHEDULE_CALENDAR_BUSY": "Votre agenda connecté est occupé à ce moment. Choisissez un autre horaire.",
     "SEARCH_FAILED": "La recherche est indisponible pour le moment. Veuillez réessayer.",
     "ATTENTION_FAILED": "Impossible de charger les points en attente. Veuillez réessayer.",
     "STATUS_LOOKUP_FAILED": "Impossible de charger le statut de votre candidature. Veuillez réessayer.",
@@ -1310,6 +1404,22 @@
     "OFFER_EXPIRED": "Cette offre a expiré.",
     "OFFER_NOT_FOUND": "Cette offre est introuvable. Le lien a peut-être été remplacé par un plus récent.",
     "SESSION_TOKEN_REQUIRED": "Cette session de travail correspond à un autre lien de candidature. Ouvrez le lien reçu dans votre e-mail d’invitation pour continuer.",
+    "DEVCASE_SESSION_UNAVAILABLE": "Ce cas n’accepte plus de soumissions.",
+    "DEVCASE_SESSION_QUOTA": "Trop de sessions ont été ouvertes pour ce cas. Merci de réessayer plus tard.",
+    "DEVCASE_PUBLISH_FAILED": "Impossible de publier ce cas. Veuillez réessayer.",
+    "DEVCASE_FEEDBACK_FAILED": "Impossible de rédiger le retour pour la personne candidate. Veuillez réessayer.",
+    "DEVCASE_OUTBOX_FAILED": "Impossible de charger la boîte d’envoi de l’exercice. Veuillez réessayer.",
+    "DEVCASE_CONTROL_FAILED": "Impossible de charger le poste de pilotage des exercices. Veuillez réessayer.",
+    "DEVCASE_INTAKE_FAILED": "Votre rendu n’a pas pu être enregistré. Veuillez réessayer.",
+    "DEVCASE_LIFECYCLE_LIST_FAILED": "Impossible de charger les exécutions d’exercice. Veuillez réessayer.",
+    "DEVCASE_LIFECYCLE_START_FAILED": "Impossible de lancer cette exécution d’exercice. Veuillez réessayer.",
+    "DEVCASE_APPROVE_FAILED": "Impossible de valider cet exercice. Veuillez réessayer.",
+    "DEVCASE_CLOSE_FAILED": "Impossible de clôturer cet exercice. Veuillez réessayer.",
+    "DEVCASE_REDESIGN_FAILED": "Impossible de régénérer cet exercice. Veuillez réessayer.",
+    "DEVCASE_OUTCOMES_FAILED": "Impossible de charger les résultats de recrutement. Veuillez réessayer.",
+    "DEVCASE_OUTCOME_SAVE_FAILED": "Impossible d’enregistrer ce résultat. Veuillez réessayer.",
+    "DEVCASE_POSTINGS_FAILED": "Impossible de charger les annonces de l’exercice. Veuillez réessayer.",
+    "DEVCASE_PROMOTE_FAILED": "Impossible de faire avancer ce rendu. Veuillez réessayer.",
     "INTAKE_CREATE_FAILED": "Impossible de démarrer la session de cadrage. Veuillez réessayer.",
     "INTAKE_LIST_FAILED": "Impossible de charger les sessions de cadrage. Veuillez réessayer.",
     "INTAKE_READ_FAILED": "Impossible de charger la session de cadrage. Veuillez réessayer.",
@@ -1322,7 +1432,27 @@
     "INTAKE_REOPEN_FAILED": "Impossible de rouvrir la session. Veuillez réessayer.",
     "INTAKE_ATTACHMENT_FAILED": "Impossible d’enregistrer les documents. Veuillez réessayer.",
     "STAGE_IMPACT_FAILED": "Impossible de vérifier qui se trouve à chaque étape du pipeline. Réessayez.",
-    "STAGE_MIGRATION_FAILED": "Impossible d’appliquer la modification du pipeline. Réessayez.",
+    "STAGE_MIGRATION_FAILED": "Impossible de terminer la modification du pipeline. Des candidats ont peut-être déjà été déplacés ; rouvrez l’éditeur d’étapes pour voir où en sont les choses.",
+    "PIPELINE_ENTRY_NOT_FOUND": "Ce candidat n’est plus sur ce tableau.",
+    "PIPELINE_STAGE_UNKNOWN": "Cette étape n’existe pas sur ce tableau.",
+    "PIPELINE_TERMINAL_NOT_MANUAL": "La dernière étape est atteinte lorsque le candidat accepte une offre, pas par un déplacement manuel. Placez-le à l’étape Offre et envoyez-lui une offre.",
+    "PIPELINE_TERMINAL_NOT_ADVANCE": "La dernière étape est atteinte lorsque le candidat accepte une offre, pas en le faisant avancer. Préparez et envoyez une offre.",
+    "PIPELINE_MOVE_CONFLICT": "Impossible de déplacer ce candidat : il vient d’être modifié, ou son dossier est clos. Actualisez et réessayez.",
+    "PIPELINE_STAGE_CHANGED": "L’étape de ce candidat a changé depuis l’ouverture de la vue. Actualisez et décidez à nouveau.",
+    "PIPELINE_ACTION_UNKNOWN": "Ce tableau ne prend pas en charge cette action.",
+    "PIPELINE_GITHUB_EVIDENCE_INVALID": "Ces éléments GitHub ne sont pas au format attendu.",
+    "PIPELINE_NOTES_INVALID": "Une note sur un candidat doit être du texte.",
+    "PIPELINE_NOTES_TOO_LONG": "Cette note est trop longue pour être enregistrée.",
+    "PIPELINE_NOT_REINSTATABLE": "Il n’y a pas de rejet automatique à annuler ici. Ce candidat a déjà été réintégré, ou son dossier a été clos autrement.",
+    "PIPELINE_INTAKE_NOT_DEGRADED": "Aucun signalement de profil incomplet à traiter pour ce candidat.",
+    "OFFER_NOT_DISPATCHED": "L’offre a été préparée mais n’a pas pu être envoyée. Rien n’est perdu : validez à nouveau et le même lien repartira.",
+    "OFFER_SENT_APPROVAL_CHANGED": "L’offre est partie, mais la validation de ce candidat a changé entre-temps. Actualisez avant de décider à nouveau.",
+    "PIPELINE_BATCH_ITEM_MALFORMED": "Cet élément n’indiquait pas de candidat, ou nommait une action que ce tableau ne propose pas.",
+    "PIPELINE_BATCH_PAYLOAD_INVALID": "Cette requête groupée n’avait pas le format attendu, ou visait trop de candidats à la fois.",
+    "PIPELINE_BATCH_ITEM_FAILED": "Un problème est survenu sur cet élément. Le reste du lot n’est pas affecté.",
+    "PIPELINE_AXIS_INVALID": "Cette structure de pipeline n’est pas valide.",
+    "PIPELINE_MIGRATION_MAPPING_INVALID": "Cette correspondance d’étapes ne convient pas : on ne peut déplacer les candidats que depuis une étape supprimée par le nouveau pipeline, et uniquement vers une étape conservée.",
+    "PIPELINE_MIGRATION_REQUIRED": "Certaines étapes supprimées contiennent encore des candidats. Indiquez où chacun doit aller.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "Ce candidat ne figure pas sur ce tableau.",
     "HIRE_RATING_NOT_HIRED": "Seule une personne recrutée peut recevoir une évaluation en poste.",
     "HIRE_RATING_INVALID": "Une évaluation en poste doit être un nombre entier de 1 à 5.",
@@ -1336,10 +1466,285 @@
     "COMPANION_PROPOSAL_FAILED": "Impossible d'exécuter cette proposition. Rien n'a été modifié.",
     "COMPANION_BRAIN_FAILED": "Impossible de vérifier la mémoire de Candi sur cette machine. Veuillez réessayer.",
     "COMPANION_BRAIN_ABSENT": "Il n'y a aucune mémoire de compagne à connecter sur cette machine.",
+    "INTAKE_BRIEF_MOVED": "Le brief a changé pendant le calcul, il a donc été relu au lieu d'être écrasé.",
+    "INTAKE_NOT_FOUND": "Cette session de cadrage est introuvable.",
+    "INTAKE_FROZEN": "Ce cadrage a été promu : ses fondements et sa spécification sont figés.",
+    "INTAKE_NOT_FROM_SCAN": "Ce cadrage n'a pas démarré à partir d'une analyse de dépôt.",
+    "INTAKE_SCAN_MISMATCH": "Cette analyse appartient à une autre session de cadrage.",
+    "INTAKE_DOSSIER_INVALID": "Cette lecture du code n'a pas la forme attendue.",
+    "INTAKE_NOT_APP_MASTER": "Ce n'est pas un cadrage App master : il n'y a pas de spécification à composer.",
+    "INTAKE_SCAN_NOT_LANDED": "L'analyse du dépôt n'est pas encore arrivée. La spécification se composera ensuite.",
+    "INTAKE_BRIEF_EMPTY": "Le brief est encore vide. Répondez d'abord au dialogue, puis composez.",
+    "INTAKE_CLOSED": "Cette session de cadrage est close. Rouvrez-la pour continuer à parler.",
+    "INTAKE_TEXT_REQUIRED": "Il n'y a rien à envoyer. Écrivez ou dites d'abord quelque chose.",
+    "INTAKE_BRIEF_INVALID": "Cette modification du brief n'a pas la forme attendue.",
+    "INTAKE_BRIEF_NOT_READY": "Le brief a besoin d'un intitulé de poste et d'au moins un critère rédhibitoire ou un objectif à 90 jours avant de devenir une offre.",
+    "INTAKE_ALREADY_OPEN": "Cette session est déjà ouverte.",
+    "INTAKE_ATTACHMENT_LIMIT": "Cette session porte déjà autant de documents de référence qu'elle le peut.",
+    "INTAKE_ATTACHMENT_INDEX": "Ce document de référence n'est plus rattaché à cette session.",
+    "INTAKE_JD_NOT_FOUND": "Cette offre n'est pas dans la bibliothèque de cet espace de travail.",
+    "INTAKE_NOTHING_TO_EXTRACT": "Il n'y a encore rien à extraire.",
+    "INTAKE_VOICE_NOT_CONFIGURED": "La voix n'est pas configurée sur cette installation.",
+    "COMPANION_THREAD_NOT_FOUND": "Cette conversation n'existe plus.",
+    "DEVCASE_CHAT_CEILING": "Cette session de travail a utilisé tous ses messages. Votre travail est enregistré. Ce quota n'est pas réinitialisé.",
+    "TOO_MANY_REQUESTS": "Trop de requêtes. Réessayez dans un instant.",
+    "UPLOAD_UNSUPPORTED_TYPE": "Utilisez un fichier PDF, DOCX, TXT ou MD.",
+    "UPLOAD_TOO_LARGE": "Ce fichier dépasse la limite de téléversement de 8 Mo.",
+    "ANALYZE_CV_REQUIRED": "Joignez un CV ou un profil à analyser.",
+    "ANALYZE_TOO_MANY_VARIANTS": "Vous pouvez comparer au maximum 3 variantes de CV par analyse.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
     "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale.",
+    "INTERVIEW_ENTRY_REQUIRED": "Indiquez de quelle candidature il s'agit pour cet entretien.",
+    "INTERVIEW_CALL_IN_PROGRESS": "Cette personne est en appel en ce moment. Attendez la fin avant d'émettre un nouveau lien.",
+    "INTERVIEW_LINK_NOT_FOUND": "Ce lien d'entretien n'est pas valide.",
+    "INTERVIEW_LINK_INACTIVE": "Ce lien d'entretien n'est plus actif.",
+    "INTERVIEW_LINK_EXPIRED": "Ce lien d'entretien a expiré. Demandez-en un nouveau au recrutement.",
+    "INTERVIEW_ALREADY_COMPLETED": "Cet entretien est déjà terminé.",
+    "INTERVIEW_CONSENT_REQUIRED": "Le consentement à l'enregistrement est requis avant de démarrer l'entretien.",
+    "INTERVIEW_PROVIDER_INVALID": "Ce fournisseur vocal n'est pas connu de ce serveur.",
+    "INTERVIEW_PROVIDER_UNCONFIGURED": "Le fournisseur vocal n'est pas configuré sur ce serveur, l'appel ne peut donc pas démarrer.",
+    "INTERVIEW_LAB_DISABLED": "Le laboratoire d'entretien n'est pas activé sur ce serveur.",
+    "INVITE_PROVIDER_UNCONFIGURED": "Le lien d'entretien a été créé, mais aucune invitation n'a été envoyée : le fournisseur vocal n'a pas de clés sur ce serveur. Transmettez le lien vous-même.",
+    "INVITE_DISPATCH_FAILED": "Le lien d'entretien a été créé, mais l'invitation n'a pas pu être envoyée. Transmettez le lien vous-même.",
     "AGENT_BRIDGE_KEY_INVALID": "Personas a refusé la clé API de cet espace de travail. La clé d'appairage a expiré ou a été révoquée ; réappairez dans Paramètres → Intégrations.",
-    "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations."
+    "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations.",
+    "EDGE_CONFIG_REJECTED": "Cette adresse d'edge a été refusée. Ce doit être une URL https:// publique.",
+    "EDGE_PAIR_REFUSED": "Impossible de publier la clé de scellement sur l'edge. Vérifiez l'appairage et réessayez.",
+    "EDGE_SAVE_FAILED": "Impossible d'enregistrer l'appairage de l'edge. Veuillez réessayer.",
+    "TTS_FAILED": "Impossible de lire cette réponse à voix haute pour le moment. Veuillez réessayer.",
+    "STT_FAILED": "Impossible de transcrire cet enregistrement. Veuillez réessayer.",
+    "VOICE_REQUEST_INVALID": "Cette requête n'était pas un JSON valide.",
+    "AUDIO_MISSING": "Joignez un enregistrement à transcrire.",
+    "AUDIO_UNSUPPORTED_TYPE": "Utilisez WAV, MP3, M4A, WebM, OGG ou FLAC pour l'enregistrement.",
+    "AUDIO_TOO_LARGE": "Cet enregistrement dépasse la limite de téléversement de 25 Mo.",
+    "STT_TOO_LONG": "Cet enregistrement est plus long que ce que ce moteur peut transcrire en une fois. Découpez-le et réessayez.",
+    "JD_FIELDS_REQUIRED": "Le titre et la description sont tous deux obligatoires.",
+    "JD_TITLE_TOO_LONG": "Le titre ne peut pas dépasser 200 caractères.",
+    "JD_BODY_TOO_LONG": "La description ne peut pas dépasser 20 000 caractères.",
+    "DEVCASE_SUBMIT_FAILED": "Ce rendu n'a pas pu être enregistré. Veuillez réessayer.",
+    "DEVCASE_SOURCE_FAILED": "Impossible de rechercher des candidats pour cette épreuve. Veuillez réessayer.",
+    "RESTORE_FOREIGN_ORG": "Cette sauvegarde appartient à une autre organisation. Une sauvegarde se restaure uniquement dans l’organisation dont elle provient.",
+    "RESTORE_REPLACE_REQUIRED": "La restauration remplace les données actuelles de l’organisation. Confirmez le remplacement pour continuer.",
+    "INVITE_ALREADY_MEMBER": "Cette personne est déjà membre active.",
+    "INVITE_ROLE_ABOVE_PRIVILEGE": "Vous ne pouvez pas inviter quelqu’un à un rôle supérieur à vos propres droits.",
+    "INVITE_EMAIL_INVALID": "Une adresse e-mail valide est requise.",
+    "MEMBER_PERMISSIONS_CHANGED": "Les autorisations de ce membre ont changé pendant votre modification. Rechargez la page, puis réessayez.",
+    "ORG_SETTINGS_FORBIDDEN": "Seul un administrateur de l’organisation peut modifier ses paramètres.",
+    "ORG_LANGUAGE_INVALID": "Ce n’est pas l’une des langues de l’application.",
+    "DECISION_CONFIG_FIELDS_REQUIRED": "Cette mise à jour des règles n'indiquait aucune phase ou ne contenait aucune règle à enregistrer.",
+    "DECISION_CONFIG_INVALID": "Ces règles ne sont pas valides pour cette phase.",
+    "DECISION_CONFIG_SAVE_FAILED": "Impossible d'enregistrer ces règles. Veuillez réessayer.",
+    "MATRIX_BUILD_FAILED": "Impossible de construire la matrice d'adéquation. Veuillez réessayer.",
+    "MATCH_REASONING_FAILED": "Impossible d'expliquer cette correspondance. Veuillez réessayer.",
+    "MATRIX_INPUT_INVALID": "La matrice d'adéquation n'a pas pu être construite à partir de cette demande.",
+    "MATCH_REASONING_UNAVAILABLE": "Cette correspondance ne peut plus être expliquée : le candidat ou le poste associé n'existe plus.",
+    "DECISION_CONFIG_STALE": "Quelqu'un a enregistré une version plus récente de ces règles. Rechargez, puis refaites votre modification.",
+    "PIPELINE_AXIS_STALE": "Quelqu'un a enregistré une version plus récente de ce pipeline. Rechargez, puis refaites votre modification.",
+    "INTAKE_ATTACHMENT_TOO_LONG": "Cette note est plus longue qu'un document de référence ne peut l'être. Raccourcissez-la ou joignez-la en plusieurs parties.",
+    "JOB_SEED_BROKEN": "Le catalogue de postes est vide car ses données initiales n'ont pas pu être chargées. Consultez le journal du serveur.",
+    "SCHEDULE_UPDATE_FAILED": "Impossible de modifier l'horloge d'automatisation. Veuillez réessayer.",
+    "SCHEDULE_INTERVAL_INVALID": "L'intervalle d'automatisation doit être un nombre de minutes.",
+    "COMM_RESEND_IN_PROGRESS": "Un renvoi de ce message est déjà en cours.",
+    "COMM_ALREADY_RESENT": "Déjà renvoyé. Une remise plus récente existe pour ce message.",
+    "COMM_SIMULATION_ROW": "Ce message appartient à la simulation guidée et n'est jamais envoyé.",
+    "DEVCASE_LIFECYCLE_NOT_AT_GATE": "Cette évaluation n’attend plus de relecture. Rechargez pour voir où elle en est.",
+    "MATCH_RUN_FAILED": "Impossible de classer ce candidat par rapport aux postes. Veuillez réessayer.",
+    "MATCH_INPUT_INVALID": "Ce candidat est introuvable : le profil ou l'analyse correspondante n'existe plus.",
+    "BENCHMARK_ROLE_FAMILY_REQUIRED": "Ce comparatif n'indique aucune famille de postes.",
+    "ANALYTICS_SPEND_SAVE_FAILED": "Impossible d'enregistrer ce montant de dépense. Veuillez réessayer.",
+    "ANALYTICS_TARGET_SAVE_FAILED": "Impossible d'enregistrer cet objectif. Veuillez réessayer.",
+    "ANALYTICS_METRIC_PACK_FAILED": "Impossible de générer le dossier d'indicateurs. Veuillez réessayer.",
+    "DECISION_LOG_LOAD_FAILED": "Impossible de charger le journal des décisions. Veuillez réessayer.",
+    "CALIBRATION_APPLY_FAILED": "Impossible d'appliquer ce seuil. Rechargez le panneau et vérifiez le seuil actuel.",
+    "ANALYTICS_POLICY_FORBIDDEN": "Votre rôle ne permet pas de modifier les réglages d'analyse ni le seuil de présélection de cette équipe.",
+    "CALIBRATION_SUGGESTION_REQUIRED": "Cette demande n'indiquait aucun seuil suggéré. Rechargez le panneau et appliquez la valeur affichée.",
+    "CALIBRATION_RECOMMENDATION_CHANGED": "La recommandation a changé depuis son affichage. Rechargez, puis examinez la suggestion actuelle.",
+    "CALIBRATION_RECOMMENDATION_ABSENT": "Aucune recommandation de calibrage n'est disponible pour le moment.",
+    "CALIBRATION_FAMILY_UNKNOWN": "Ce n'est pas l'une des familles de rôles de l'application.",
+    "BILLING_ORG_MANAGE_REQUIRED": "Seul le propriétaire peut gérer la facturation de cette organisation.",
+    "BILLING_NOT_CONFIGURED": "La facturation n'est pas configurée sur ce déploiement.",
+    "BILLING_PLAN_CONTACT_SALES": "Ce forfait est à tarif sur mesure. Parlez-en à notre équipe commerciale.",
+    "BILLING_PLAN_WITHDRAWN": "Ce forfait n'est plus commercialisé. Choisissez l'un des forfaits actuels, ou hébergez KP gratuitement avec vos propres clés de modèles.",
+    "BILLING_ALREADY_SUBSCRIBED": "Vous avez déjà un forfait. Changez-le dans le portail client (Gérer l’abonnement), pas avec une nouvelle commande.",
+    "BILLING_CHECKOUT_BODY_INVALID": "Cette commande n'indiquait ni forfait ni pack de minutes.",
+    "BILLING_NO_CUSTOMER": "Pas encore de compte de facturation. Finalisez d’abord une commande.",
+    "BILLING_OVERVIEW_FAILED": "Impossible de charger la facturation. Réessayez.",
+    "BILLING_CHECKOUT_FAILED": "Impossible de démarrer la commande. Réessayez.",
+    "BILLING_PORTAL_FAILED": "Impossible d'ouvrir le portail client. Réessayez.",
+    "APPLY_ROLE_NOT_FOUND": "Ce poste est introuvable. Il a peut-être été retiré.",
+    "APPLY_PAYLOAD_TOO_LARGE": "Votre candidature est trop volumineuse pour être envoyée. Raccourcissez vos réponses ou joignez un CV plus léger.",
+    "APPLY_NAME_REQUIRED": "Veuillez saisir votre nom.",
+    "APPLY_NAME_TOO_LONG": "Votre nom est trop long. Merci de ne pas dépasser {max} caractères.",
+    "APPLY_ANSWER_TOO_LONG": "Cette réponse est trop longue. Merci de ne pas dépasser {max} caractères.",
+    "APPLY_EMAIL_TOO_LONG": "Votre adresse e-mail est trop longue. Merci de ne pas dépasser {max} caractères.",
+    "APPLY_EMAIL_INVALID": "Veuillez saisir une adresse e-mail valide.",
+    "APPLY_SELECTION_INVALID": "Ce n'est pas l'une des options proposées. Veuillez en choisir une.",
+    "SCHEDULE_LINK_NOT_FOUND": "Nous n'avons pas trouvé ce lien de prise de rendez-vous.",
+    "SCHEDULE_LINK_CLOSED": "Ce lien de prise de rendez-vous n'est plus actif.",
+    "SCHEDULE_INTERVIEW_UNAVAILABLE": "Cet entretien n'est plus disponible.",
+    "SCHEDULE_SLOTS_STILL_OPEN": "Il reste des créneaux disponibles. Merci d'en choisir un dans la liste.",
+    "SCHEDULE_PROPOSALS_INVALID": "Proposez 1-3 créneaux à venir, en semaine et pendant les heures ouvrées.",
+    "SCHEDULE_NO_BOOKING_YET": "Aucun horaire confirmé n'est encore à modifier.",
+    "SCHEDULE_SLOT_NOT_OFFERED": "Cet horaire ne fait pas partie des créneaux proposés. Merci de choisir dans la liste.",
+    "SCHEDULE_RESCHEDULE_LIMIT": "Vous avez déjà déplacé votre entretien plusieurs fois. Répondez à votre e-mail de confirmation et nous trouverons un créneau ensemble.",
+    "COMMS_RELAY_STALE": "Quelqu’un a enregistré une configuration de relais plus récente. Rechargez, puis refaites votre modification.",
+    "COMMS_RELAY_INVALID": "Ce point de terminaison de relais n’est pas autorisé. Utilisez une URL https:// publique.",
+    "COMMS_RELAY_SAVE_FAILED": "Impossible d’enregistrer la configuration du relais. Veuillez réessayer.",
+    "PROFILE_STALE": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture. Rechargez-le et réappliquez vos modifications.",
+    "ATS_CONFIG_SAVE_FAILED": "Impossible d'enregistrer les paramètres du webhook. Veuillez réessayer.",
+    "ATS_CONFIG_STALE": "Quelqu'un a enregistré des paramètres de webhook plus récents. Rechargez-les et refaites votre modification.",
+    "GROUP_EVAL_READ_FAILED": "Impossible de charger la comparaison enregistrée. Veuillez réessayer.",
+    "SIM_RESET_FAILED": "Impossible d'effacer les données de la simulation. Veuillez réessayer.",
+    "SIM_INBOUND_FAILED": "Impossible de simuler la candidature entrante. Veuillez réessayer.",
+    "SIM_SCREEN_DRAFT_FAILED": "Impossible de préparer la recommandation de présélection. Veuillez réessayer.",
+    "SIM_OFFER_DRAFT_FAILED": "Impossible de préparer le brouillon d'offre. Veuillez réessayer.",
+    "SIM_OFFER_LINK_FAILED": "Impossible de lire le lien de l'offre. Veuillez réessayer.",
+    "SIM_JOB_REQUIRED": "La simulation a besoin d'un poste sur lequel s'exécuter.",
+    "SIM_JOB_NOT_FOUND": "Ce poste n'existe plus.",
+    "SIM_NO_APPLICANT": "Aucun candidat disponible pour simuler une candidature.",
+    "SIM_ENTRY_REQUIRED": "La simulation a besoin d'une entrée de pipeline sur laquelle agir.",
+    "SIM_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
+    "MODEL_ADMIN_FORBIDDEN": "Seul un propriétaire peut modifier les clés de modèles et le routage de ce déploiement.",
+    "MODEL_KEY_BODY_INVALID": "Cette demande d’enregistrement de clé n’a pas pu être lue.",
+    "MODEL_KEY_PROVIDER_UNKNOWN": "Ce serveur ne peut pas stocker de clé pour ce fournisseur.",
+    "MODEL_KEY_SECRET_REQUIRED": "Ce fournisseur exige une clé d’API.",
+    "MODEL_KEY_LOCATION_REQUIRED": "Indiquez une clé d’API ou une URL de serveur. Une entrée sans l’une ni l’autre ne dit rien.",
+    "MODEL_KEY_ENDPOINT_REQUIRED": "Azure OpenAI a besoin du point de terminaison de votre ressource avant de pouvoir stocker sa clé.",
+    "MODEL_KEY_ENCRYPTION_UNCONFIGURED": "Ce serveur n’a pas de secret de chiffrement défini : aucune clé de fournisseur ne peut encore être stockée.",
+    "MODEL_KEY_REJECTED": "Cette clé n’a pas pu être enregistrée. Vérifiez le point de terminaison ou l’URL de serveur indiqués.",
+    "MODEL_ROUTING_STALE": "Quelqu’un a réaffecté ce cas d’usage pendant que vous le modifiiez. Le tableau a été rechargé, refaites votre modification.",
+    "SCHEDULE_ACTION_REQUIRED": "Aucune action de planification n'a été indiquée. Rechargez l'onglet et réessayez.",
+    "SCHEDULE_ACTION_UNKNOWN": "Cette action de planification n'est pas assurée par l'application.",
+    "SCHEDULE_BOOK_TARGET_MISSING": "Choisissez un candidat et un horaire avant de réserver.",
+    "SCHEDULE_TOKEN_REQUIRED": "Le lien d'entretien est absent. Rechargez l'onglet et réessayez.",
+    "SCHEDULE_INVITE_NOT_FOUND": "Cet entretien ne figure plus dans votre agenda. Rechargez l'onglet.",
+    "SCHEDULE_CANCEL_NOT_CONFIRMED": "Seule une réservation confirmée peut être annulée. Rechargez pour voir où elle en est.",
+    "SCHEDULE_NO_SHOW_NOT_CONFIRMED": "Seule une réservation confirmée peut être marquée comme absence. Rechargez pour voir où elle en est.",
+    "SCHEDULE_RESCHEDULE_NOT_CONFIRMED": "Seule une réservation confirmée peut être déplacée. Envoyez plutôt un nouveau lien de planification.",
+    "SCHEDULE_PROPOSAL_GONE": "Cet horaire proposé ne figure plus sur l'invitation. Rechargez pour voir les propositions actuelles.",
+    "SCHEDULE_PROPOSAL_EXPIRED": "Cet horaire proposé est passé. Demandez de nouveaux créneaux au candidat.",
+    "SCHEDULE_NO_PROPOSALS": "Aucun horaire proposé à refuser.",
+    "SCHEDULE_NOTHING_TO_RECONCILE": "Il n'y a plus rien à réconcilier sur cet entretien.",
+    "SCHEDULE_MEETING_URL_INVALID": "Saisissez un lien de réunion http(s) valide.",
+    "FEEDBACK_MESSAGE_REQUIRED": "Rédigez un message avant de l’envoyer.",
+    "FEEDBACK_MESSAGE_TOO_LONG": "Ce message est trop long. Veuillez le réduire à 2 000 caractères maximum.",
+    "OPS_STATUS_FAILED": "Impossible de charger l'état du système. Veuillez réessayer.",
+    "FEEDBACK_READ_FORBIDDEN": "Seules les personnes autorisées à gérer les membres peuvent consulter les retours.",
+    "TASK_LIST_FAILED": "Impossible de charger les tâches IA. Veuillez réessayer.",
+    "TASK_START_FAILED": "Impossible de lancer cette tâche IA. Veuillez réessayer.",
+    "TASK_RETRY_FAILED": "Impossible de relancer cette tâche IA. Veuillez réessayer.",
+    "TASK_KIND_UNKNOWN": "Ce type de tâche IA n'existe pas dans cette version.",
+    "TASK_BUDGET_EXHAUSTED": "Trop de traitements IA de ce type ont été lancés récemment. Réessayez dans un instant.",
+    "TASK_NOT_FOUND": "Cette tâche n'existe plus.",
+    "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",
+    "TASK_REPLAY_INPUTS_GONE": "Les fichiers envoyés pour ce traitement ont été supprimés. Renvoyez-les pour le relancer.",
+    "FORBIDDEN_CAPABILITY": "Votre rôle ne permet pas cette action.",
+    "forbiddenCapabilityNeeds": "Votre rôle ne permet pas cette action : elle requiert l’autorisation « {capability} ».",
+    "TEMPLATE_NOT_FOUND": "Ce modèle n'existe plus.",
+    "TEMPLATE_LAST_ONE": "C'est le dernier modèle visible par votre équipe. Il doit en rester au moins un.",
+    "TEMPLATE_IS_DEFAULT": "C'est le modèle par défaut. Définissez d'abord un autre modèle par défaut avant de le supprimer.",
+    "TEMPLATE_STALE": "Quelqu'un d'autre a enregistré ce modèle pendant votre modification. Rechargez-le et réappliquez vos changements.",
+    "TEMPLATE_DEFAULT_ORG_ONLY": "Seul un modèle partagé avec toute l'entreprise peut être le modèle par défaut.",
+    "MODEL_KEY_STALE": "Quelqu’un d’autre a remplacé cette clé pendant votre modification. Les clés enregistrées ont été rechargées : refaites votre changement.",
+    "AGENT_REFRESH_NOT_DISPATCHED": "Cet agent n’a jamais atteint Personas : il n’y a aucune demande à interroger. Relancez son envoi.",
+    "VOICE_TRANSPORT_NETWORK": "Nous n’avons pas pu joindre le service d’entretien. Vérifiez votre connexion et réessayez.",
+    "VOICE_TRANSPORT_AUTH": "Le service d’entretien a refusé cette session. Contactez le recruteur qui vous a envoyé ce lien.",
+    "VOICE_TRANSPORT_TIMEOUT": "Le service d’entretien n’a pas répondu à temps. Veuillez réessayer.",
+    "VOICE_TRANSPORT_PROVIDER": "Le service d’entretien n’a pas pu démarrer l’appel. Veuillez réessayer dans un instant.",
+    "OFFER_RESPONSE_INVALID": "Répondez en acceptant ou en refusant l'offre.",
+    "STATUS_LINK_INVALID": "Ce lien de suivi n'est pas valide.",
+    "STATUS_NPS_NOT_APPLICABLE": "Cette question s'ouvrira une fois votre candidature terminée.",
+    "DATA_LINK_INVALID": "Ce lien vers vos données n'est plus valide.",
+    "DEVCASE_CONTROL_ACTION_UNKNOWN": "Cette action de la salle de contrôle est inconnue de ce déploiement. Rechargez la page.",
+    "DEVCASE_FLOOR_INVALID": "Le seuil de promotion doit être un nombre compris entre 0 et 100.",
+    "DEVCASE_OUTCOME_INVALID": "Ce résultat n’a pas pu être enregistré. Vérifiez le résultat et l’évaluation de la performance.",
+    "MATCH_REASONING_INPUT_INVALID": "Cette correspondance n'a pas pu être expliquée : la demande n'indiquait ni candidat ni poste.",
+    "SIM_CV_INTAKE_FAILED": "Impossible d’enregistrer cette candidature simulée. Veuillez réessayer.",
+    "SIM_CV_FORM_REQUIRED": "Envoyez le CV sous forme de données multipart.",
+    "SIM_CV_FILE_REQUIRED": "Joignez un fichier de CV pour simuler une candidature.",
+    "SIM_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
+    "SIM_CV_UNREADABLE": "Ce CV n’a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD.",
+    "DEMO_NOT_PROVISIONED": "La démo en direct n’est pas encore configurée sur ce déploiement.",
+    "DEMO_DISABLED": "La démo en direct est désactivée sur ce déploiement.",
+    "SIM_RUN_ACTIVE": "Une démo guidée est déjà en cours ici. Attendez la fin ou arrêtez-la d’abord.",
+    "DEVCASE_APPLY_TOKEN_REQUIRED": "Ce lien de candidature n’est pas valide. Demandez-en un nouveau au recruteur.",
+    "DEVCASE_SESSION_NOT_FOUND": "Cette session de travail est introuvable. Rouvrez votre lien de candidature pour en démarrer une nouvelle.",
+    "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Un nom et un lien vers votre solution sont tous deux obligatoires.",
+    "DEVCASE_SESSION_START_FAILED": "Impossible d’ouvrir la session de travail. Veuillez réessayer.",
+    "CHANNEL_UNKNOWN": "kp ne peut rien recevoir sur ce canal.",
+    "CHANNEL_JOB_NOT_FOUND": "Ce poste n’est pas disponible.",
+    "CHANNEL_TOKEN_REQUIRED": "Un jeton de récepteur est requis.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "Ce récepteur est introuvable.",
+    "CHANNEL_PULL_URL_INVALID": "Cette URL de récupération n’est pas autorisée. Utilisez une URL https:// publique.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est.",
+    "INTAKE_TURN_TIMEOUT": "Ce tour a pris trop de temps et a été interrompu. Renvoyez-le.",
+    "DEVCASE_CASE_LIST_FAILED": "Impossible de charger les cas validés. Veuillez réessayer.",
+    "DEVCASE_SKILL_PROFILE_FAILED": "Impossible d’émettre le profil de compétences. Veuillez réessayer.",
+    "DEVCASE_CASE_FIELDS_REQUIRED": "Un rôle et un cas sont tous deux requis pour valider.",
+    "DEVCASE_SUBMISSION_ID_REQUIRED": "Une référence de soumission est requise.",
+    "DEVCASE_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
+    "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile.",
+    "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer.",
+    "PROFILE_BUILD_TIMEOUT": "Le traitement du profil a pris trop de temps et a été interrompu. Essayez d’enregistrer à nouveau.",
+    "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez.",
+    "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté.",
+    "INTERVIEW_PREP_NOT_FOUND": "Il n'existe pas encore de préparation d'entretien pour ce candidat. Générez-la d'abord.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Choisissez au moins une question à ajouter à la préparation.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Indiquez quelle question déplacer.",
+    "ENGINE_BUSY": "Le moteur d'analyse est saturé pour le moment. Réessayez dans un instant.",
+    "IMPORT_BODY_TOO_LARGE": "Ce fichier est plus volumineux qu'une sauvegarde d'espace de travail ne peut l'être. Vérifiez que vous avez choisi le bon fichier.",
+    "IMPORT_DUMP_REQUIRED": "Envoyez le contenu JSON d'un fichier de sauvegarde kp-org-dump.",
+    "IMPORT_DUMP_MALFORMED": "Ce fichier n'est pas une sauvegarde kp-org-dump valide.",
+    "PORTABILITY_NO_DATABASE": "Il n'y a pas encore de base de données d'espace de travail. Démarrez l'application, puis réessayez.",
+    "PORTABILITY_TABLES_POPULATED": "Certaines tables contiennent déjà des lignes. Confirmez le remplacement avant de charger ce fichier.",
+    "RESTORE_SCOPE_TAKEN": "Un élément de cette sauvegarde appartient désormais à une autre organisation ; elle ne peut donc pas être restaurée.",
+    "RESTORE_UNSAFE_IDENTIFIER": "Ce fichier de sauvegarde contient un nom de table ou de colonne non sûr et a été refusé.",
+    "WORKSPACE_EXPORT_FAILED": "Impossible de créer la sauvegarde de l'organisation. Veuillez réessayer.",
+    "WORKSPACE_RESTORE_FAILED": "Impossible de restaurer la sauvegarde de l'organisation. Veuillez réessayer.",
+    "BILLING_PROVIDER_TIMEOUT": "Le prestataire de paiement n'a pas répondu à temps. Veuillez réessayer dans un instant.",
+    "BILLING_QUOTA_EXCEEDED": "Cette action dépasserait le quota mensuel de votre formule. Passez à une formule supérieure ou rechargez dans Facturation.",
+    "PAYLOAD_TOO_LARGE": "Cette requête était trop volumineuse. Envoyez moins de données à la fois.",
+    "AGENT_BRIDGE_RESPONSE_TOO_LARGE": "Personas a envoyé une réponse plus volumineuse que ce que cet espace de travail accepte de lire. Elle a été ignorée sans être lue; vérifiez que l'application Personas est à jour.",
+    "BRAND_ACCENT_INVALID": "Cet accent n’est pas une couleur. Utilisez une valeur hexadécimale au format #RRGGBB.",
+    "BRAND_ACCENT_ILLEGIBLE_LIGHT": "Cet accent est trop clair pour Studio Light : le texte des boutons et les anneaux de focus seraient invisibles. Choisissez une couleur plus foncée (au moins 3:1).",
+    "BRAND_ACCENT_ILLEGIBLE_DARK": "Cet accent n’a pas de version lisible en Spark Dark. Il est trop sombre pour être éclairci sans changer de couleur, choisissez donc une teinte plus vive ou plus saturée.",
+    "BRAND_LOGO_INVALID": "Le lien du logo doit être une URL https:// assez courte pour être enregistrée.",
+    "BRAND_LOAD_FAILED": "Impossible de charger l’image de marque. Veuillez réessayer.",
+    "BRAND_SAVE_FAILED": "Impossible d’enregistrer l’image de marque. Veuillez réessayer.",
+    "AUTOMATION_TASK_FAILED": "Impossible d'exécuter cette étape IA pour ce candidat. Veuillez réessayer.",
+    "AUTOMATION_PASS_FAILED": "Impossible de lancer le passage automatique. Veuillez réessayer.",
+    "AUTOMATION_TASK_UNKNOWN": "Cette étape d'automatisation n'existe pas.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
+    "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
+    "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
+    "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Ce lien de profil n’est pas valide. Votre candidature est bien conservée. Demandez-en un nouveau au recruteur.",
+    "ANALYZE_TIMEOUT": "L’analyse a pris trop de temps et a été interrompue. Réessayez, ou avec moins de CV à la fois.",
+    "ANALYSES_LIST_FAILED": "L’historique des analyses n’a pas pu être chargé. Réessayez.",
+    "ANALYSIS_LOAD_FAILED": "Cette analyse n’a pas pu être chargée. Réessayez.",
+    "ANALYSIS_SAVE_FAILED": "Cette modification de l’analyse n’a pas pu être enregistrée. Réessayez.",
+    "ANALYSIS_NOT_FOUND": "Cette analyse ne se trouve pas dans cet espace de travail.",
+    "ANALYSIS_GITHUB_INVALID": "Cette analyse GitHub était illisible et n’a pas été jointe.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe.",
+    "COMPLIANCE_LOOKUP_FAILED": "Impossible de charger les informations de conformité. Veuillez réessayer.",
+    "OFFER_SALARY_INVALID": "Ce montant ne peut pas être un salaire. Vérifiez le chiffre avant d’envoyer l’offre.",
+    "OFFER_CURRENCY_UNSUPPORTED": "Une offre ne peut pas être faite dans cette devise ici.",
+    "OFFER_NOTES_TOO_LONG": "Cette note d’offre est trop longue. Raccourcissez-la et renvoyez l’offre.",
+    "PROFILE_LIST_FAILED": "Impossible de charger vos profils enregistrés. Veuillez réessayer.",
+    "PROFILE_BUILD_FAILED": "Impossible de créer ce profil. Veuillez réessayer.",
+    "PROFILE_UPDATE_FAILED": "Impossible d’enregistrer vos modifications sur ce profil. Veuillez réessayer.",
+    "PROFILE_DELETE_FAILED": "Impossible de supprimer ce profil. Veuillez réessayer.",
+    "PROFILE_CANDIDATES_FAILED": "Impossible de charger la matrice des candidats. Veuillez réessayer.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Sélectionnez au moins un candidat avant d’envoyer des liens de planification.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Ce candidat ne figure plus sur ce tableau. Rechargez la page et réessayez.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucun lien de planification n’a été envoyé.",
+    "SCHEDULE_BULK_MINT_FAILED": "Impossible de créer un lien de planification pour ce candidat. Les autres n’ont pas été affectés.",
+    "SCHEDULE_BULK_OVER_CAP": "Trop de candidats pour un seul envoi, celui-ci n’a pas été invité. Envoyez le reste dans un second lot.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Sélectionnez un candidat avant de créer un lien de planification.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucune invitation n’a été envoyée."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1441,6 +1846,8 @@
     "eyebrow": "Vos données",
     "loadFailed": "Ce lien a expiré ou n’est plus valide.",
     "eraseFailed": "Impossible d’effectuer l’effacement pour le moment. Veuillez réessayer.",
+    "confirmTitle": "Effacer définitivement vos données ?",
+    "confirmBody": "Cette action est irréversible. Votre nom, vos coordonnées, votre CV et vos réponses d’entretien sont supprimés immédiatement ; seul l’enregistrement anonymisé de l’évaluation subsiste.",
     "forRole": "Votre candidature au poste de {role}",
     "forRoleGeneric": "Votre candidature",
     "heldTitle": "Ce que nous détenons à votre sujet",
@@ -1661,7 +2068,8 @@
       "skip": "Non merci",
       "thanks": "Merci. C’est ajouté à votre profil.",
       "saveFailed": "Nous n’avons pas pu enregistrer ces réponses pour le moment. Votre candidature est bien enregistrée, n’hésitez pas à réessayer."
-    }
+    },
+    "fixAnswer": "Corriger la réponse"
   },
   "interview": {
     "completedTitle": "Merci",
@@ -1682,7 +2090,8 @@
       "beforeTitle": "Avant de commencer",
       "tipQuiet": "Trouvez un endroit calme, avec peu de bruit de fond.",
       "tipHeadphones": "Utilisez un casque si possible. Cela facilite l’alternance de parole.",
-      "tipMic": "Autorisez l’accès au microphone lorsque votre navigateur vous le demande."
+      "tipMic": "Autorisez l’accès au microphone lorsque votre navigateur vous le demande.",
+      "durationChip": "~{min} min"
     },
     "voice": {
       "loading": "Chargement de l’entretien vocal…",
@@ -1766,7 +2175,26 @@
         "providerGroup": "Fournisseur",
         "chunks": "{spoken} sur {total} segments",
         "truncated": "arrêté après {spoken} segments sur {total}. Le reste est dans le texte."
-      }
+      },
+      "availabilityUnknown": "Nous n’avons pas pu vérifier si le service d’entretien est joignable.",
+      "availabilityRetry": "Réessayer",
+      "notChecked": "non vérifié",
+      "micTestLevel": "Niveau du micro : {level} %",
+      "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
+      "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]",
+      "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu."
+    },
+    "brief": {
+      "debriefApproach": "Votre exercice à emporter : votre approche",
+      "debriefDecisions": "Analyse des décisions",
+      "debriefCounterfactuals": "Scénarios alternatifs",
+      "debriefQuestions": "Vos questions",
+      "recruiterAddedQuestions": "Questions ajoutées par le recruteur"
+    },
+    "lab": {
+      "eyebrow": "Interne · MVP vocal",
+      "title": "Laboratoire d'entretien vocal",
+      "disabledBody": "Le laboratoire est désactivé en production : il génère de vrais identifiants de fournisseur sans jeton de session. Définissez <flag>INTERVIEW_LAB_ENABLED=1</flag> pour l'activer, ou utilisez la simulation recruteur, qui passe par une session tokenisée."
     }
   },
   "palette": {
@@ -2044,7 +2472,15 @@
       "settings": "Paramètres"
     },
     "openWorkspace": "Ouvrir l’espace de travail",
-    "home": "Accueil"
+    "home": "Accueil",
+    "lockedTab": "Votre rôle ne peut pas ouvrir ceci. Nécessite « {capability} ».",
+    "capabilities": {
+      "orgManage": "Gérer l’organisation",
+      "membersManage": "Gérer les membres",
+      "teamManage": "Gérer les équipes",
+      "pipelineWrite": "Modifier le pipeline",
+      "read": "Consulter"
+    }
   },
   "enums": {
     "stage": {
@@ -2064,6 +2500,12 @@
       "student": "Étudiant",
       "career_switcher": "Reconverti",
       "unrouted": "Non orienté"
+    },
+    "archetypeLong": {
+      "bau": "Profil expérimenté",
+      "student": "Étudiant / début de carrière",
+      "career_switcher": "En reconversion",
+      "unrouted": "Pas encore orienté"
     },
     "seniority": {
       "junior": "Junior",
@@ -2127,13 +2569,41 @@
       "offer_reminder": "Rappel d’offre"
     },
     "provenance": {
+      "voiceProvider": {
+        "openai": "OpenAI Realtime",
+        "elevenlabs": "ElevenLabs Agents"
+      },
       "observed": "observé",
       "professional": "pro",
       "internship": "stage",
       "self_declared": "auto",
       "open_source": "OSS",
       "certification": "cert.",
-      "academic": "études"
+      "academic": "études",
+      "coursework": "cours",
+      "academic_project": "projet académique",
+      "thesis": "mémoire",
+      "personal_project": "projet personnel",
+      "extracurricular": "extrascolaire"
+    },
+    "skillLevel": {
+      "foundational": "notions",
+      "working": "opérationnel",
+      "strong": "avancé"
+    },
+    "evidenceKind": {
+      "project": "projet",
+      "thesis": "mémoire",
+      "internship": "stage",
+      "course": "cours",
+      "extracurricular": "activité extrascolaire",
+      "certification": "certification",
+      "job": "emploi",
+      "other": "autre"
+    },
+    "scoringModel": {
+      "experienced": "expérimenté",
+      "early_career": "début de carrière"
     }
   },
   "pipeline": {
@@ -2149,7 +2619,11 @@
       "boardAria": "Tableau du pipeline, défilement horizontal",
       "showFewer": "Afficher moins",
       "moreCount": "+{count} de plus",
-      "movedAnnounce": "{name} déplacé vers {stage}"
+      "movedAnnounce": "{name} déplacé vers {stage}",
+      "gridAria": "Postes par étape",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {aucun candidat} one {# candidat} other {# candidats}}",
+      "cellEmpty": "Aucun candidat",
+      "dropHint": "Déposez une carte ici pour déplacer le candidat vers cette étape."
     },
     "stageHelp": {
       "Accepted": "CV reçu : une candidature entrante ou un candidat issu du sourcing proactif, en attente de présélection.",
@@ -2190,7 +2664,12 @@
     "tokenLink": {
       "copy": "Copier le lien",
       "openAsCandidate": "Ouvrir en tant que candidat",
-      "createFailed": "Impossible de créer le lien."
+      "createFailed": "Impossible de créer le lien.",
+      "openConfirmTitle": "Ouvrir le lien de ce candidat ?",
+      "openConfirmSubtitle": "Vous verrez exactement ce qu'il voit.",
+      "openConfirmBody": "C'est le lien réel, pas un aperçu. Certaines de ces pages enregistrent leur ouverture : la visite peut apparaître dans l'historique du candidat comme la sienne.",
+      "openConfirmCancel": "Annuler",
+      "openConfirmCta": "Ouvrir le lien réel"
     },
     "events": {
       "matched": "a été mis en correspondance",
@@ -2231,6 +2710,7 @@
       "interview_reminder_sent": "a reçu un rappel d’entretien",
       "interviewer_brief_sent": "a fait l’objet d’un brief pour l’intervieweur",
       "interviewer_brief_skipped": "aucun briefing d’intervieweur (pas d’adresse au dossier)",
+      "interview_failover": "a vu son entretien basculer vers un autre fournisseur vocal",
       "offer_sent": "a reçu une offre",
       "comm_resent": "s’est vu renvoyer un message",
       "interview_scheduled": "a confirmé un créneau d’entretien",
@@ -2238,6 +2718,7 @@
       "offer_declined": "a refusé l’offre",
       "offer_expired": "a laissé l’offre expirer sans réponse",
       "rejection_comms_failed": "n’a pas reçu de refus (mise en file échouée)",
+      "offer_comms_failed": "n’a pas reçu l’offre (envoi échoué)",
       "fairness_gate_unknown_archetype": "a déclenché le garde-fou d’équité (archétype inconnu)",
       "fairness_gate_blocked_reject": "a échappé à un rejet automatique grâce au garde-fou d’équité",
       "aging_alert": "dépasse le délai de son étape",
@@ -2260,7 +2741,8 @@
       "agent_dispatched": "a été envoyé à Personas comme demande de persona",
       "agent_activated": "est entré en service comme persona Personas",
       "onboarding_started": "a démarré l’intégration (module retiré)",
-      "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)"
+      "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)",
+      "screen_wave_holdout_unsealed": "a été épargné par la vague de présélection, mais son enregistrement de témoin de calibrage n'a pas pu être scellé"
     },
     "relTime": {
       "today": "aujourd’hui",
@@ -2280,8 +2762,11 @@
       "doneCount": "Terminé. {count, plural, =1 {1 candidat traité} other {# candidats traités}}.",
       "doneHeldAtOffer": "{count, plural, =1 {1 candidat à l’étape Offre attend} other {# candidats à l’étape Offre attendent}} le processus d’offre. Envoyez l’offre. Faire avancer ne recrute jamais.",
       "doneDroppedOut": "{count, plural, =1 {1 candidat de l’aperçu a été ignoré} other {# candidats de l’aperçu ont été ignorés}}. Au moment de la confirmation, le score n’était plus sous le seuil, donc aucun rejet n’a eu lieu.",
+      "doneFailed": "{count, plural, =1 {1 candidat n’a pas été traité} other {# candidats n’ont pas été traités}}. Ils ont été modifiés ou clôturés pendant la commande, donc rien ne leur a été appliqué. Actualisez et réessayez.",
+      "doneCommsFailed": "{count, plural, =1 {1 candidat rejeté n’a pas été notifié} other {# candidats rejetés n’ont pas été notifiés}}. Le rejet reste valable ; envoyez le message manuellement depuis sa fiche.",
       "doneSummary": "Passe de règles terminée : {advanced} avancé, {rejected} rejeté, {held} en attente.",
-      "dismiss": "Ignorer"
+      "dismiss": "Ignorer",
+      "failed": "La commande n'a pas pu s'exécuter. Vérifiez votre connexion et réessayez."
     },
     "tab": {
       "eyebrow": "Pipeline",
@@ -2427,7 +2912,11 @@
       "attentionTitle": "Requiert votre attention",
       "filterStateLabel": "État",
       "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
-      "stageOffBoardClear": "Supprimer ce filtre"
+      "stageOffBoardClear": "Supprimer ce filtre",
+      "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut",
+      "previewCommitFailed": "Le passage n’a pas pu être appliqué.",
+      "bulkTaskIncomplete": "La tâche de rédaction s’est terminée sans résultat. Toujours sélectionnés, réessayez.",
+      "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison."
     },
     "today": {
       "eyebrow": "Aujourd’hui",
@@ -2578,18 +3067,17 @@
         "saving": "Enregistrement…",
         "saveFailed": "Impossible d’enregistrer l’évaluation.",
         "purpose": "Notez comment ce recrutement s’est réellement passé. C’est la donnée de référence derrière la mesure de la qualité des recrutements dans Analytique.",
-        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées."
+        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées.",
+        "loadFailed": "Impossible de charger la fiche de résultat.",
+        "retry": "Réessayer"
       },
       "transfer": "transfert"
     },
     "actions": {
       "screen": "Présélection AI",
-      "screenNote": "Un résultat clairement positif fait avancer le candidat ; sinon, il est mis en attente pour votre revue dans Décisions.",
       "prep": "Préparation d’entretien",
       "scorecard": "Synthétiser le scorecard",
-      "scorecardNote": "À partir de vos notes → un scorecard structuré dans Décisions.",
       "offer": "Rédiger l’offre",
-      "offerNote": "Salaire basé sur la fourchette du poste, ajusté selon la correspondance → une offre à approuver dans Décisions.",
       "outreach": "Rédiger un message d’approche",
       "rejection": "Rédiger le refus",
       "rematch": "Explorer des alternatives"
@@ -2652,7 +3140,10 @@
       "thisRun": "{label} lors de cette exécution",
       "runScope": "{mine} sur {total} à vous",
       "scopeGlobal": "s’applique à toutes les équipes",
-      "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre."
+      "scopeGlobalTitle": "Une seule horloge tourne pour toute l’installation : l’activer ou la désactiver démarre ou arrête l’automatisation pour toutes les équipes, pas seulement la vôtre.",
+      "liveHealthy": "en marche",
+      "liveStarting": "démarrage…",
+      "liveStalled": "à l'arrêt"
     },
     "result": {
       "claudeCli": "Claude CLI",
@@ -2676,7 +3167,10 @@
       },
       "noBand": "Aucune fourchette salariale n’est configurée pour ce poste ni pour ce marché, donc aucun montant n’a été proposé. Définissez-le lors de l’approbation.",
       "unpricedAmount": "Montant à définir",
-      "unpricedTitle": "Aucun salaire n’a été proposé pour ce brouillon. Définissez le montant lors de l’approbation de l’offre."
+      "unpricedTitle": "Aucun salaire n’a été proposé pour ce brouillon. Définissez le montant lors de l’approbation de l’offre.",
+      "reasons": {
+        "rematchSkippedHired": "Ce candidat est recruté. Aucun autre poste n'a été recherché."
+      }
     },
     "applied": {
       "advanced": "Avancé d’une étape.",
@@ -2744,6 +3238,31 @@
     "scoreKind": {
       "transferShort": "transfert",
       "transferTitle": "Un score de transfert issu de l’exercice, pas un score de correspondance. Il indique dans quelle mesure les compétences démontrées sur l’exercice se transposent à ce poste."
+    },
+    "add": {
+      "added": "{name} a été ajouté(e) au pipeline.",
+      "failed": "Impossible d’ajouter {name} au pipeline.",
+      "failedAnnounce": "Impossible d’ajouter {name} au pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "{name} a été contacté. La personne est dans le pipeline et un premier message part.",
+      "alreadySent": "{name} est dans le pipeline et a déjà été contacté pour ce poste ; aucun nouveau message n’a été envoyé.",
+      "failed": "Impossible de contacter {name}.",
+      "failedAnnounce": "Impossible de contacter {name}. {reason}",
+      "suppressed": {
+        "anonymized": "Aucun message n’a été envoyé. Cette personne a été anonymisée.",
+        "suppressed": "Aucun message n’a été envoyé. La prise de contact avec cette personne est suspendue (consentement expiré, ou séquence arrêtée)."
+      }
+    },
+    "eventReasons": {
+      "offerAutoExtended": "Offre envoyée automatiquement selon le plan de recrutement (porte offre : automatique).",
+      "roleClosedWithdrawn": "Poste clôturé. Candidat retiré du pipeline.",
+      "roleReopenedRestored": "Poste rouvert. Candidat réintégré au pipeline.",
+      "autoRejectionReversed": "Refus automatique annulé pour réexamen.",
+      "intakeCapturedManually": "Informations saisies manuellement.",
+      "githubDeepDiveFromDrawer": "Analyse GitHub approfondie lancée depuis la fiche candidat.",
+      "manualStageMove": "Déplacé manuellement par un recruteur.",
+      "addedToPipeline": "Ajouté au pipeline."
     }
   },
   "decisions": {
@@ -2799,7 +3318,9 @@
       "rejectConfirm": "Rejeter {count} et les notifier ?",
       "rejectConfirmYes": "Rejeter et notifier",
       "rejectCancel": "Annuler",
-      "rejecting": "Rejet…"
+      "rejecting": "Rejet…",
+      "accepting": "Acceptation…",
+      "requestFailed": "Impossible d'exécuter ce lot. Rien n'a été décidé."
     },
     "keyDecisions": "Décisions clés",
     "keyDecisionsHelp": "Une ligne par poste. Faites avancer ou rejetez depuis le résumé d’analyse d’un candidat.",
@@ -2867,7 +3388,12 @@
       "selfReportLabel": "Auto-évaluation du modèle",
       "selfReportValue": "{pct} sur 100",
       "selfReportNote": "la note que le modèle s’attribue pour ce verdict. Rien ne l’a confrontée à des résultats réels.",
-      "selfReportTitle": "Le modèle devait rendre un verdict et il a aussi indiqué à quel point il se sent sûr. Cette indication renseigne sur le modèle, pas sur le candidat : aucun résultat, aucun échantillon de contrôle et aucun taux de base ne la soutient. Son équivalent mesuré, la fréquence réelle de passage d’une plage de score, est une statistique portant sur toute une cohorte et se trouve dans la section qualité d’Analytics."
+      "selfReportTitle": "Le modèle devait rendre un verdict et il a aussi indiqué à quel point il se sent sûr. Cette indication renseigne sur le modèle, pas sur le candidat : aucun résultat, aucun échantillon de contrôle et aucun taux de base ne la soutient. Son équivalent mesuré, la fréquence réelle de passage d’une plage de score, est une statistique portant sur toute une cohorte et se trouve dans la section qualité d’Analytics.",
+      "engineLabel": "Moteur",
+      "engineTemplate": "Gabarit (aucun modèle utilisé)",
+      "engineTemplateNote": "Rédigé par le gabarit intégré, pas par un modèle. À lire comme un point de départ et à vérifier vous-même.",
+      "engineTemplateTitle": "L'automatisation a tourné sans modèle (pas de clé API, quota IA épuisé ou appel en échec), ce verdict vient donc d'un gabarit déterministe.",
+      "engineLlm": "Modèle · {provider}"
     },
     "rules": {
       "title": "Règles de décision · Présélection",
@@ -2887,7 +3413,9 @@
       "familyFloorChip": "sous {floor}",
       "familyEditHint": "Ils se définissent dans le panneau Calibrage de l’Analytique. Cette règle ne fait que les refléter.",
       "fairnessLabel": "Équité :",
-      "fairnessBody": "les candidats en début de carrière (étudiant / en reconversion) ne sont <b>jamais</b> rejetés automatiquement. Ce garde-fou est appliqué dans le code."
+      "fairnessBody": "les candidats en début de carrière (étudiant / en reconversion) ne sont <b>jamais</b> rejetés automatiquement. Ce garde-fou est appliqué dans le code.",
+      "loadFailed": "Impossible de charger les règles actives de cet espace. Rien n'est affiché ni enregistré tant qu'elles ne sont pas chargées.",
+      "loadRetry": "Réessayer"
     },
     "compliance": {
       "title": "Conformité et équité",
@@ -2935,7 +3463,10 @@
       "anyAdverse": "Impact défavorable potentiel : au moins un groupe est sous le seuil de 80 %.",
       "insufficientSample": "Échantillon insuffisant : aucun groupe n’atteint {min} candidats, le ratio des quatre cinquièmes n’a donc pas de valeur probante. Cela ne signifie pas qu’aucun impact défavorable n’a été constaté.",
       "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80 %.",
-      "parseIgnored": "Lignes lues : {read} sur {total}. Ignorées : {ignored} (lignes : {rows}). Chaque ligne doit comporter : groupe, sélectionnés, total. Le résultat ci-dessous est calculé uniquement sur les lignes correctement lues."
+      "parseIgnored": "Lignes lues : {read} sur {total}. Ignorées : {ignored} (lignes : {rows}). Chaque ligne doit comporter : groupe, sélectionnés, total. Le résultat ci-dessous est calculé uniquement sur les lignes correctement lues.",
+      "jurisdictionUnconfirmed": "Aucune juridiction n’est enregistrée pour cet espace de travail. La valeur affichée est celle par défaut, que personne n’a confirmée.",
+      "jurisdictionReadFailed": "La juridiction enregistrée n’a pas pu être lue. La valeur affichée est celle par défaut, pas nécessairement celle que servent vos informations aux candidats.",
+      "covered5Unconfirmed": "Les données personnelles sont traitées conformément au {dataLaw}, avec effacement en libre-service. La durée de conservation n’a pas pu être lue ; aucun chiffre n’est donc indiqué ici."
     },
     "wave": {
       "title": "Vague de présélection · {role}",
@@ -2985,7 +3516,11 @@
         "unscored": "non évalué : aucun score de correspondance pour l’instant. Exclu du rejet automatique (évaluation requise)",
         "holdout": "conservé comme échantillon témoin de calibrage : {pct} % des candidats qui auraient été rejetés automatiquement sont épargnés afin que leurs résultats réels vérifient la justesse du score (correspondance {score}, seuil {threshold})",
         "approvedByNote": "Approuvé par {who}.",
-        "approverUnidentified": "Approbateur non identifié."
+        "approverUnidentified": "Approbateur non identifié.",
+        "autoRatifiedScreening": "Avis de présélection « avancer » validé automatiquement selon le plan de recrutement (porte présélection : automatique).",
+        "sealFailed": "conservé·e : l'enregistrement de décision infalsifiable n'a pas pu être scellé, le refus automatique n'a donc pas été appliqué",
+        "reinstated": "conservé·e : un refus automatique précédent a été annulé par un recruteur, la machine ne le répète pas",
+        "holdoutSealFailed": "conservé·e, mais l'enregistrement du témoin d'étalonnage n'a pas pu être scellé : cette personne n'est pas dans le bras propre"
       }
     },
     "summary": {
@@ -3169,7 +3704,18 @@
         "cancel": "Annuler",
         "confirm": "Rejeter et consigner le motif",
         "sealedToast": "{name} rejeté(e). Le motif figure au registre d’audit."
-      }
+      },
+      "schemeSkillsShort": "Cp",
+      "schemeCareerShort": "Ca",
+      "schemePersonalShort": "Pe",
+      "schemeWeightsTitle": "Pondération : compétences / carrière / personnel",
+      "narrativeInLanguage": "Cette comparaison est affichée en {language}.",
+      "consentExcludedNote": "{count, plural, one {# candidat a été écarté de cette comparaison} other {# candidats ont été écartés de cette comparaison}} car ils ont été effacés ou leur consentement a expiré. Le classement ci-dessous couvre le reste du champ.",
+      "degradedNote": "Dégradé : {stages}. Ces étapes se sont repliées sur le résultat déterministe, la comparaison est donc plus pauvre qu'une exécution IA complète.",
+      "degradedNoteTimeout": "Dégradé (délai dépassé) : {stages}. Ces étapes se sont repliées sur le résultat déterministe, la comparaison est donc plus pauvre qu'une exécution IA complète.",
+      "degradedStageRanking": "classement",
+      "degradedStageComparison": "comparaison IA",
+      "degradedStageReasoning": "justifications des candidats"
     },
     "empty": {
       "batonEyebrow": "Témoin passé",
@@ -3186,7 +3732,9 @@
         "fairnessWouldRefuse": "Le rejet automatique serait refusé par le garde-fou d’équité : {verdict}. Décision initiale des règles : {original}",
         "applyFailed": "Échec de l’exécution : {detail}. Décision initiale des règles : {original}"
       }
-    }
+    },
+    "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",
+    "evalCacheProbeFailed": "Impossible de vérifier si une comparaison enregistrée existe déjà pour cette sélection. Relancer lance une nouvelle exécution de l'IA."
   },
   "scheduleTab": {
     "lifecycle": {
@@ -3252,7 +3800,10 @@
       "proposalsGroupAria": "Créneaux proposés par le candidat",
       "acceptProposal": "Accepter {time}",
       "declineProposals": "Tout refuser",
-      "declineProposalsPrompt": "Refuser les créneaux proposés ?"
+      "declineProposalsPrompt": "Refuser les créneaux proposés ?",
+      "cancelling": "Annulation…",
+      "markingNoShow": "Marquage…",
+      "truncated": "Seules les invitations les plus récentes sont affichées. Les plus anciennes ne sont pas listées ici."
     },
     "eyebrow": "Décisions · Planification",
     "title": "Calendrier des entretiens",
@@ -3281,6 +3832,11 @@
     "reviewScorecard": "Examiner la scorecard dans Décisions",
     "loadFailed": "Échec du chargement.",
     "startFailed": "Impossible de démarrer l’entretien.",
+    "slotSuggested": "proposé",
+    "slotConfirmed": "confirmé",
+    "candidateZone": "Fuseau horaire du candidat : {zone}",
+    "bookFailed": "Impossible de réserver ce créneau.",
+    "declineFailed": "Impossible de refuser ce candidat. Rien n’a été enregistré.",
     "rounds": {
       "label": "Tour d’entretien",
       "human": "Tour humain",
@@ -3304,7 +3860,14 @@
       "verdictNote": "Les verdicts rejoignent la file Décisions comme revues de scorecard. Ce tableau est la boucle d’entretien, pas la décision.",
       "fullTranscript": "Transcription complète et scorecard",
       "noScorecardHelp": "Aucune scorecard n’a été produite pour cet entretien. Ouvrez la vue complète pour lire la transcription brute.",
-      "confidence": "confiance : {level}"
+      "costUnknown": "coût inconnu",
+      "costFree": "sans coût à la minute",
+      "costTitle": "Coût estimé de cet appel, d'après le journal d'usage",
+      "providerTitle": "Le fournisseur vocal qui a assuré cet appel",
+      "confidence": "confiance : {level}",
+      "attempts": "{count, plural, one {# tentative} other {# tentatives}}",
+      "failedOverFrom": "bascule depuis {provider}",
+      "attemptsTitle": "Déroulé de l'appel : reconnexions et bascule de fournisseur si celui choisi était indisponible"
     },
     "interviewerTitle": "Intervieweur : {name}",
     "calendar": {
@@ -3320,7 +3883,10 @@
       "bookedOffHourTitle": "{name} · déjà réservé à {time}",
       "pagerPrev": "Semaine précédente",
       "pagerNext": "Semaine suivante",
-      "weekOf": "Semaine du {range}"
+      "weekOf": "Semaine du {range}",
+      "timezoneNote": "Toutes les heures dans le fuseau des entretiens : {zone}.",
+      "suggested": "horaire proposé, non confirmé",
+      "chipSuggestedTitle": "{name} · horaire proposé, pas encore confirmé"
     },
     "scorecard": {
       "editScorecard": "Modifier votre scorecard",
@@ -3449,7 +4015,9 @@
       "readbackCorrectedHint": "Entendu dans la transcription → la correction indiquée par le candidat",
       "readbackUnconfirmedFlag": "non confirmé",
       "readbackUnconfirmedHint": "Mentionné plus tôt mais non repris lors de la relecture (peut-être une erreur de transcription)",
-      "readbackNote": "D’après le récapitulatif final : le candidat a confirmé ou corrigé les technologies entendues par l’intervieweur."
+      "readbackNote": "D’après le récapitulatif final : le candidat a confirmé ou corrigé les technologies entendues par l’intervieweur.",
+      "narrativeInLanguage": "Ce résumé de la scorecard est affiché en {language}.",
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
     },
     "relay": {
       "label": "Où se trouve le témoin",
@@ -3459,7 +4027,10 @@
       "noteWaiting": "En attente ici",
       "noteHere": "Vous êtes ici",
       "noteNext": "Ensuite"
-    }
+    },
+    "liveStale": "Le statut des entretiens en direct n'est plus à jour.",
+    "liveRetry": "Réessayer",
+    "invitesTruncated": "Seuls les entretiens les plus récents sont affichés. Les invitations plus anciennes ne figurent pas dans cette liste."
   },
   "library": {
     "tab": {
@@ -3539,6 +4110,8 @@
       "provWebGrounded": "ancré sur le web",
       "provEstimated": "estimé",
       "salaryUnavailable": "Salaire indisponible",
+      "repoGrounding": "Ancrage dans le dépôt",
+      "repoLoc": "{loc} lignes de code",
       "sourcesLabel": "Sources :",
       "interviewCase": "Exercice pratique",
       "timebox": "Durée : ~{hours} h",
@@ -3591,7 +4164,7 @@
       "shelfRecordLabel": "L’enregistrement que vous allez créer",
       "shelfWriteCta": "Rédiger la première fiche",
       "shelfDraftCta": "Laisser le générateur la rédiger",
-      "shelfCtaNote": "Les deux ouvrent le panneau Générer. Enregistrez un brouillon tel quel, ou laissez l’AI produire la description, une fourchette de salaire du marché et un exercice pratique.",
+      "shelfCtaNote": "Le panneau Générer prend le relais : enregistrez votre texte comme brouillon, ou confiez-le à l'IA pour qu'elle produise la description, une fourchette de salaire du marché et un exercice pratique.",
       "shelfReuseLabel": "Une fiche sert à",
       "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
       "shelfReuseIngest": "La convertir en poste ouvert",
@@ -3670,7 +4243,9 @@
           "processing": "Rédaction de l’appel…",
           "unavailable": "La voix n’est pas configurée sur ce serveur. Continuez par écrit.",
           "failed": "L’appel n’a pas abouti. Continuez par écrit.",
-          "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit."
+          "storedNote": "Transcription de l’appel enregistrée. L’extraction AI nécessite un fournisseur connecté, le brief reste donc inchangé. Continuez par écrit.",
+          "checkFailed": "Impossible de vérifier si la voix est disponible. Réessayez ou continuez par écrit.",
+          "recheck": "Vérifier à nouveau"
         },
         "edit": {
           "start": "Modifier le brief",
@@ -3739,7 +4314,9 @@
           "kindNote": "note",
           "kindJd": "fiche enregistrée",
           "jdPick": "Choisir une fiche enregistrée…",
-          "error": "Impossible d'enregistrer les documents. Veuillez réessayer."
+          "error": "Impossible d'enregistrer les documents. Veuillez réessayer.",
+          "noteFallbackTitle": "Note sans titre",
+          "textCap": "Cette note dépasse les {max, number} caractères qu'un document de référence peut contenir. Raccourcissez-la ou joignez-la en plusieurs parties."
         },
         "columns": {
           "col": {
@@ -3776,13 +4353,30 @@
           "begin": "Analyser et démarrer",
           "starting": "Démarrage…",
           "cancel": "Annuler",
+          "cancelScan": "Arrêter l'analyse",
           "startError": "Impossible de lancer l'analyse. Vérifiez le dépôt et réessayez.",
           "scan": {
             "queued": "Lecture du code (en file d'attente)",
             "running": "Lecture du code…",
             "complete": "Le code a été lu.",
             "failed": "L'analyse a échoué. Poursuivez la conversation ; le brief ne portera aucune lecture du code.",
-            "unreachable": "Analyse injoignable pour le moment. Nouvelle tentative en cours."
+            "unreachable": "Analyse injoignable pour le moment. Nouvelle tentative en cours.",
+            "failedTargetRefused": "Ce dépôt ne figure plus sur la liste autorisée, l'analyse a donc été refusée.",
+            "failedOfflineRefused": "Le mode hors ligne refuse les clones distants. Analysez plutôt un chemin local.",
+            "failedGitMissing": "git n'est pas installé sur cette machine, une analyse par URL est donc impossible.",
+            "failedCloneFailed": "Le dépôt n'a pas pu être cloné. Vérifiez l'URL et les accès nécessaires.",
+            "failedCloneTimeout": "Le clonage du dépôt a pris trop de temps et a été arrêté.",
+            "failedCancelled": "L'analyse a été arrêtée.",
+            "failedEngineFailed": "Le moteur d'analyse a échoué, rien n'a été lu.",
+            "fellBackAgentNotInstalled": "L'agent IA n'est pas installé : ceci est uniquement la lecture par parcours de fichiers.",
+            "fellBackAgentTimeout": "L'agent IA a dépassé le délai : ceci est uniquement la lecture par parcours de fichiers.",
+            "fellBackAgentUnparseable": "La réponse de l'agent IA était illisible : ceci est uniquement la lecture par parcours de fichiers.",
+            "fellBackAgentRefused": "L'agent IA s'est arrêté trop tôt : ceci est uniquement la lecture par parcours de fichiers.",
+            "fellBackAgentOutputTooLarge": "La réponse de l'agent IA était trop volumineuse : ceci est uniquement la lecture par parcours de fichiers.",
+            "fellBackProviderError": "Le fournisseur IA a échoué : ceci est uniquement la lecture par parcours de fichiers.",
+            "fellBackUnknown": "L'agent IA est revenu au repli : ceci est uniquement la lecture par parcours de fichiers.",
+            "fenceUnverified": "L'agent IA a lu ce dépôt derrière des règles sur les fichiers de secrets qui ne sont pas vérifiées pour la version de Claude CLI installée ici.",
+            "fenceVersionUnknown": "La CLI Claude n'a pas indiqué sa version : les règles sur les fichiers de secrets derrière lesquelles ce scan s'est exécuté n'ont pas pu être vérifiées."
           },
           "dossier": {
             "title": "Ce que l'analyse a lu",
@@ -3822,6 +4416,26 @@
           "recompose": "Recomposer",
           "composing": "Composition…",
           "composeError": "Impossible de composer la spécification. Veuillez réessayer.",
+          "moreCount": "{count, plural, =1 {+1 de plus} other {+# de plus}}",
+          "showLess": "Afficher moins",
+          "mandate": {
+            "title": "Le mandat",
+            "gates": "Points de validation",
+            "objectives": "Résultats et leurs seuils",
+            "direction": {
+              "gte": "au moins",
+              "lte": "au plus"
+            },
+            "windowValue": "{days, plural, one {fenêtre de # jour} other {fenêtre de # jours}}",
+            "reviewCadence": "Rythme de revue",
+            "reviewCadenceValue": "{days, plural, one {tous les # jour} other {tous les # jours}}",
+            "retire": "Retirer lorsque",
+            "reservation": "Réservation du budget",
+            "reservationValue": {
+              "estimate": "estimée à chaque exécution",
+              "fixed": "réservée à l'avance"
+            }
+          },
           "spec": {
             "title": "Spécification du maître d'application",
             "empty": "Composez la spécification une fois les résultats et le mandat saisis.",
@@ -3851,6 +4465,10 @@
           "dispatchHuman": "Cette spécification est composée pour un titulaire humain. Promouvez-la plutôt en fiche de poste.",
           "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer."
         },
+        "degradedNoProvider": "Aucun modèle d’AI n’est configuré, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
+        "degradedProviderFailed": "Le modèle n’a pas répondu, la liste guidée a pris le relais. Vos réponses sont enregistrées. Réessayez dans un instant.",
+        "standInLanguage": "La liste guidée n’existe pas encore dans la langue de cette session ; elle répond donc en {language}.",
+        "compactedNote": "{count} échanges plus anciens ont quitté cette transcription. Ce qui y a été dit reste dans le brief.",
         "table": {
           "role": "Rôle",
           "shape": "Type",
@@ -3862,7 +4480,24 @@
           "noMatch": "Aucune session ne correspond à ces filtres.",
           "clear": "Effacer les filtres"
         }
-      }
+      },
+      "buildHeldChip": "Résultat conservé en révision",
+      "buildHeldBody": "Vous avez modifié cette fiche pendant la génération : votre texte a été conservé et le brouillon généré a été classé dans l'historique des modifications.",
+      "buildHeldHint": "Ouvrir le brouillon généré dans l'historique des modifications de cette fiche.",
+      "buildHeldOpenDraft": "Ouvrir ce brouillon",
+      "buildIntentLabel": "Généré avec",
+      "buildIntentTemplate": "Modèle",
+      "buildIntentLanguage": "Langue",
+      "buildIntentSeniority": "Séniorité",
+      "buildIntentTemplateUnknown": "Impossible de charger les modèles ; le modèle de cette génération ne peut donc pas être nommé.",
+      "buildIntentAiDefault": "Format par défaut de l'IA",
+      "caseTaskFallback": "Tâche",
+      "pollStalledNote": "Analyse toujours en cours. Aucune nouvelle de cette génération depuis un moment. Le tiroir Tâches en donne le statut en direct.",
+      "unsavedTitle": "Abandonner vos modifications non enregistrées ?",
+      "unsavedBody": "Cette fiche contient des modifications que vous n'avez pas encore enregistrées. Quitter l'éditeur les supprime.",
+      "unsavedDiscard": "Abandonner les modifications",
+      "unsavedKeep": "Continuer l'édition",
+      "entryCountOfTotal": "{count, plural, one {# entrée} other {# entrées}} sur {total} enregistrées"
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",
@@ -3883,6 +4518,7 @@
       "intro": "Choisissez un modèle d’entreprise, décrivez le besoin avec vos propres mots, et l’AI remplit le modèle. Elle clarifie le besoin, conçoit le poste (avec analyse facultative d’un dépôt public pour les postes de développeur) et recherche le salaire du marché.",
       "templateLabel": "Modèle",
       "aiDefaultFormat": "Format AI par défaut (sans modèle)",
+      "templatesLoadFailed": "Impossible de charger vos modèles. Le format AI par défaut reste disponible.",
       "defaultSuffix": " (par défaut)",
       "manage": "Gérer",
       "manageTitle": "Créer, modifier ou supprimer des modèles d’entreprise",
@@ -4018,7 +4654,16 @@
         "heading_apply": "Comment postuler",
         "offer_note": "Travail hybride, de vraies responsabilités et de la place pour progresser.",
         "apply_note": "Postulez via le lien : un court échange, puis un entretien de premier tour."
-      }
+      },
+      "loadFailed": "Impossible de charger vos modèles.",
+      "retry": "Réessayer",
+      "retrying": "Nouvelle tentative…",
+      "deleteTitleLastOne": "C'est le dernier modèle visible par votre équipe. Il doit en rester au moins un.",
+      "reloadLatest": "Recharger la version enregistrée",
+      "unsavedTitle": "Abandonner le modèle non enregistré ?",
+      "unsavedBody": "Ce modèle contient des modifications non enregistrées. Quitter l'éditeur les supprime.",
+      "unsavedDiscard": "Abandonner les modifications",
+      "unsavedKeep": "Continuer la modification"
     },
     "intakeTab": {
       "eyebrow": "Espace de travail",
@@ -4062,7 +4707,9 @@
         "unlockChannels": "Canaux ouverts",
         "unlockPipeline": "Flux de candidats",
         "unlockDecisions": "File de décisions"
-      }
+      },
+      "showingCut": "Affichage des <b>{shown}</b> premiers postes sur <b>{matching}</b> correspondants. La liste est coupée à {limit}.",
+      "loadFailed": "Impossible de charger le catalogue de postes."
     },
     "table": {
       "caption": "Corpus de postes : annonces normalisées filtrables par famille de postes, séniorité, mode de travail et éligibilité débutant. Activez une ligne pour déployer ses exigences et son prisme jeune diplômé.",
@@ -4108,6 +4755,7 @@
       "cancelRun": "Interrompre",
       "cancelled": "Analyse annulée. Rien n’a été ajouté.",
       "bulkCancelled": "Interrompu après {done} postes sur {total}. Les résultats obtenus restent affichés ci-dessous.",
+      "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rien n’a été ajouté, réessayez.",
       "pasteHeading": "Importer un poste"
     },
     "drafts": {
@@ -4121,6 +4769,20 @@
       "sourced": "{count, plural, one {# candidat sourcé dans le pipeline.} other {# candidats sourcés dans le pipeline.}}",
       "quotaNote": "Vous avez atteint la limite de postes actifs de votre forfait. Passez à un forfait supérieur ou fermez un poste pour en publier un autre.",
       "goToBilling": "Mettre à niveau (Facturation)",
+      "loadFailed": "Impossible de charger les brouillons.",
+      "publishWentLive": "Le poste est en ligne.",
+      "publishReopened": "{count, plural, one {Rouvert : # candidature retirée est de retour dans le pipeline.} other {Rouvert : # candidatures retirées sont de retour dans le pipeline.}}",
+      "publishAlreadyLive": "Déjà en ligne. Aucune nouvelle recherche n’a été lancée.",
+      "publishSourced": "{count, plural, =0 {Aucun profil enregistré ne correspond encore à ce poste.} one {# profil ajouté au pipeline.} other {# profils ajoutés au pipeline.}}",
+      "publishSkipped": "{count, plural, one {# profil enregistré n’a pas pu être lu, il n’a donc pas été évalué.} other {# profils enregistrés n’ont pas pu être lus, ils n’ont donc pas été évalués.}}",
+      "publishSilver": "{count, plural, one {# ancien profil a été signalé pour redécouverte.} other {# anciens profils ont été signalés pour redécouverte.}}",
+      "publishSourcingFailed": "La recherche a échoué, personne n’a donc été ajouté. Cela ne veut pas dire qu’aucun profil ne correspond.",
+      "publishInFlight": "Mise en ligne et recherche de profils. Cela peut prendre quelques minutes.",
+      "publishStopWaiting": "Arrêter d’attendre",
+      "publishAbandoned": "Attente interrompue. Le poste est probablement déjà en ligne, mais la recherche de profils a été annulée. Rouvrez le poste pour vérifier.",
+      "publishLastResult": "Dernière mise en ligne",
+      "retry": "Réessayer",
+      "publishSilverFailed": "La redécouverte n’a pas pu s’exécuter pour ce poste, aucun ancien profil n’a donc été signalé. Cela ne veut pas dire qu’aucun ne convient.",
       "published": "« {title} » est en ligne."
     },
     "posting": {
@@ -4244,7 +4906,8 @@
       "warnNoSkills": "Aucune compétence extraite, les accroches sur la stack ont donc été ignorées.",
       "applyUrlNote": "Le CTA renvoie au formulaire de candidature express :",
       "loadFailed": "Impossible de charger le pack de campagne.",
-      "generateFailed": "Impossible de générer le pack de campagne."
+      "generateFailed": "Impossible de générer le pack de campagne.",
+      "warnUnknown": "Une information dont le pack ne disposait pas ({code})."
     },
     "rediscover": {
       "loadFailed": "Impossible de lancer la redécouverte.",
@@ -4267,7 +4930,8 @@
         "closed": "Est allé jusqu’au bout d’un poste fermé en cours de route. Un candidat éprouvé et disponible, avec {score} % de correspondance pour {jobTitle}.",
         "elsewhere": "Déjà engagé sur un autre poste, et également {score} % de correspondance pour {jobTitle}. Un redéploiement à envisager.",
         "reached": "Est allé jusqu’à {stage} la dernière fois. Classé avant les parcours antérieurs moins avancés."
-      }
+      },
+      "suppressed": "{count, plural, one {# ancien profil a été écarté : son consentement a expiré ou ses données ont été effacées.} other {# anciens profils ont été écartés : leur consentement a expiré ou leurs données ont été effacées.}}"
     },
     "rediscoveryFeed": {
       "title": "Médaillés d’argent",
@@ -4282,7 +4946,12 @@
       "addToPipeline": "Ajouter au pipeline",
       "adding": "Ajout…",
       "added": "Ajouté",
-      "dismiss": "Ignorer"
+      "dismiss": "Ignorer",
+      "loadFailed": "Impossible de charger les médaillés d'argent.",
+      "retry": "Réessayer",
+      "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste.",
+      "addFailed": "Impossible d'ajouter au pipeline.",
+      "sweptIncomplete": "{count, plural, one {# poste n’a pas pu être évalué, cette liste est donc incomplète.} other {# postes n’ont pas pu être évalués, cette liste est donc incomplète.}}"
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
@@ -4317,7 +4986,8 @@
       "telemetryPause": "pause {dur}",
       "telemetryHintIntegrated": "indice intégré",
       "telemetryHintAcknowledged": "indice évoqué",
-      "telemetryHintMissed": "indice non repris"
+      "telemetryHintMissed": "indice non repris",
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
     },
     "candidates": {
       "failedStatus": "Échec ({status}).",
@@ -4362,7 +5032,9 @@
       "couldntAdd": "Ajout au pipeline impossible : {error}",
       "couldntReach": "Contact impossible : {error}",
       "assumptions": "Hypothèses :",
-      "auditUnder": "selon la pondération de {label}"
+      "auditUnder": "selon la pondération de {label}",
+      "auditPoolTruncated": "Échantillon plafonné : le corpus de candidats dépasse les plafonds de classement, cet audit ne couvre donc que le sous-ensemble évalué, pas tout le vivier.",
+      "malformedResponse": "Le serveur a renvoyé une réponse illisible. Rechargez les candidats."
     },
     "deeplink": {
       "notFound": "Ce poste n’est pas dans votre catalogue. Il a peut-être été supprimé, ou il appartient à une autre équipe.",
@@ -4461,7 +5133,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "basé sur des règles",
       "cachedSuffix": " · en cache",
-      "narrativeInLanguage": "Ce raisonnement est affiché en {language}. L’AI ne le rédige qu’en anglais et en tchèque.",
+      "narrativeInLanguage": "Ce raisonnement est affiché en {language}.",
       "strengths": "Points forts",
       "gaps": "Lacunes",
       "interviewProbes": "Points à creuser en entretien",
@@ -4661,7 +5333,7 @@
     },
     "result": {
       "confidence": "concordance des signaux {pct} %",
-      "saved": "enregistré · {id}",
+      "saved": "enregistré · {name}",
       "preview": "aperçu (non enregistré)",
       "routing": "Orientation : {reasons}",
       "completeness": "Complétude",
@@ -4681,7 +5353,21 @@
         "has_activity": "un stage, une activité ou une certification"
       },
       "matchNow": "Rapprocher maintenant",
-      "complete": "Le profil semble complet pour son archétype."
+      "complete": "Le profil semble complet pour son archétype.",
+      "reasons": {
+        "default": "aucun signal fort : classement par défaut, expérimenté",
+        "self_declared": "déclaré par le candidat : {archetype}",
+        "signal_enrolled": "actuellement en formation",
+        "signal_expected_graduation": "diplôme prévu : {expected_graduation}",
+        "signal_yre_low": "moins d’un an d’expérience pertinente",
+        "signal_yre_high": "{years_relevant_experience} ans d’expérience pertinente",
+        "signal_education_dominant": "la formation domine le CV",
+        "signal_switch_strong": "souhaite changer de domaine et possède une expérience substantielle",
+        "signal_switch_weak": "souhaite changer de domaine",
+        "contradiction_student_experienced": "contradiction : 3 ans ou plus d’expérience pertinente pour un étudiant",
+        "contradiction_bau_early_career": "contradiction : formation en cours / moins d’un an d’expérience évoque un début de carrière",
+        "contradiction_switcher_no_experience": "note : une reconversion suppose généralement une expérience professionnelle antérieure"
+      }
     },
     "fields": {
       "remove": "Retirer"
@@ -4756,7 +5442,14 @@
       "aspirations": "Aspirations / postes visés",
       "aspirationsPlaceholder": "développeur frontend junior, ingénieur ML",
       "working": "Traitement…",
-      "checkPreview": "Vérifier (aperçu)"
+      "checkPreview": "Vérifier (aperçu)",
+      "draftAppliedNote": "Brouillon appliqué. Rien n'est enregistré tant que vous ne cliquez pas sur Enregistrer.",
+      "draftKeptEdits": "{count, plural, one {# champ que vous aviez modifié a été conservé} other {# champs que vous aviez modifiés ont été conservés}}. Le brouillon a rempli le reste.",
+      "draftUseAnyway": "Utiliser quand même le brouillon",
+      "draftUndo": "Annuler le brouillon",
+      "draftKeep": "Conserver",
+      "staleSave": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture : votre enregistrement n'a donc pas été appliqué. Rien n'est perdu ici. Rechargez pour voir sa version.",
+      "staleReload": "Recharger le profil"
     },
     "archetypes": {
       "eyebrow": "Espace de travail",
@@ -4781,7 +5474,12 @@
         "id_exists": "Un archétype avec l’identifiant « {id} » existe déjà.",
         "not_found": "Archétype introuvable.",
         "archive_builtin": "« {id} » est un archétype intégré et ne peut pas être retiré.",
-        "archived_invalid": "L’indicateur d’archivage doit être true ou false."
+        "archived_invalid": "L’indicateur d’archivage doit être true ou false.",
+        "registry_invalid": "Le fichier du registre des archétypes est invalide et ne peut pas être modifié. Vérifiez pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "Le fichier du registre des archétypes n’a pas pu être lu.",
+        "weight_out_of_range": "Le poids de {slot} doit être compris entre 0 et 100 %.",
+        "id_reserved": "« {id} » est réservé aux candidats non orientés ; choisissez un autre identifiant.",
+        "edit_builtin_shield": "« {id} » est un archétype intégré ; sa protection d’équité et son modèle de scoring ne peuvent pas être modifiés."
       },
       "fairnessProtectedAria": "Protégé par l’équité",
       "weightsSumError": "Les pondérations doivent totaliser 100 % (actuellement {pct} %).",
@@ -4815,7 +5513,14 @@
       "saving": "Enregistrement…",
       "createArchetype": "Créer un archétype",
       "saveChanges": "Enregistrer les modifications",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "archiveConfirmTitle": "Retirer {label} ?",
+      "archiveConfirmCounting": "Comptage des profils orientés ici…",
+      "archiveConfirmBody": "{count, plural, =0 {Aucun profil n'est actuellement orienté vers cet archétype.} one {# profil est actuellement orienté vers cet archétype.} other {# profils sont actuellement orientés vers cet archétype.}}",
+      "archiveConfirmNote": "Le retrait le masque seulement dans les listes de choix. Les profils déjà orientés ici continuent d'être notés selon ses pondérations, et vous pouvez le restaurer à tout moment.",
+      "dimSkills": "Compétences",
+      "dimCareer": "Parcours",
+      "dimPersonal": "Personnel"
     },
     "empty": {
       "specimenLabel": "Chaque profil enregistré contient",
@@ -4854,7 +5559,12 @@
       "select": "Sélectionner…",
       "filterColumn": "Filtrer {column}"
     },
-    "sortBy": "Trier par {column}"
+    "sortBy": "Trier par {column}",
+    "status": {
+      "sortedAsc": "Trié par {column}, ordre croissant",
+      "sortedDesc": "Trié par {column}, ordre décroissant",
+      "matched": "{count, plural, =0 {Aucune ligne ne correspond aux filtres} one {# ligne correspond aux filtres} other {# lignes correspondent aux filtres}}"
+    }
   },
   "channels": {
     "comms": {
@@ -4894,7 +5604,14 @@
       "statusQueued": "En file d’attente",
       "statusFailed": "Échec",
       "statusRecovered": "Rattrapé",
-      "statusBounced": "Non distribué"
+      "statusBounced": "Non distribué",
+      "resendRecovered": "Déjà en cours de remise. Ce message est en route.",
+      "receiptSubject": "Accusé de livraison",
+      "receiptRecipient": "Retour du relais",
+      "olderExist": "{count, plural, one {# message affiché} other {# messages affichés}}. Il en existe de plus anciens.",
+      "loadOlder": "Charger les plus anciens",
+      "loadingOlder": "Chargement des plus anciens…",
+      "beyondWindow": "Des messages plus anciens existent, mais ils sont hors de portée de cette vue."
     },
     "eyebrow": "Studio des entrées",
     "title": "Par où les candidats arrivent",
@@ -4923,7 +5640,9 @@
       "saveFailed": "Impossible d’enregistrer le relais",
       "test": "Envoyer un ping de test",
       "testOk": "Distribué (HTTP {status})",
-      "testFailed": "Échec du test : {reason}"
+      "testFailed": "Échec du test : {reason}",
+      "statusUnreadable": "Clé de signature illisible",
+      "unreadableNote": "Un point de terminaison relais est enregistré, mais sa clé de signature ne peut pas être déchiffrée avec la clé de ce déploiement : les messages restent donc dans la boîte d'envoi locale. Saisissez à nouveau la clé de signature ci-dessous, ou restaurez la clé sous laquelle elle a été enregistrée."
     },
     "edge": {
       "title": "Relais toujours actif",
@@ -4950,7 +5669,19 @@
       "sealedNow": "Scellement activé. Le relais ne peut plus lire ce qu'il conserve.",
       "sealFailed": "Impossible de publier la clé de scellement",
       "cursor": "Récupéré jusqu'à l'événement {cursor}",
-      "lastError": "dernière erreur : {reason}"
+      "lastError": "dernière erreur : {reason}",
+      "lastDrain": "Dernière collecte {time}",
+      "lastHeartbeat": "dernier signe de vie {time}",
+      "neverDrained": "Jamais collecté",
+      "pendingWaiting": "{pending} en attente sur l'edge",
+      "pendingClear": "rien en attente",
+      "pendingUnknown": "arriéré pas encore mesuré",
+      "statusSecretMissing": "Secret manquant",
+      "secretMissingNote": "Une adresse est configurée mais pas de secret partagé. Une collecte non signée accepterait les évènements de quiconque connaît l'URL : rien n'est donc collecté tant que vous n'enregistrez pas le secret défini comme KP_EDGE_SECRET.",
+      "drainFailedUnreachable": "Collecte échouée : l'edge n'a pas répondu. Rien n'est perdu, le prochain cycle réessaie.",
+      "drainFailedHeld": "Collecte suspendue : un évènement n'a pas pu être classé. Il reste sur l'edge et sera réessayé.",
+      "drainFailedAck": "Classé, mais l'edge ne le sait pas. Il proposera à nouveau ces évènements et rien ne sera classé deux fois.",
+      "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation."
     },
     "tablist": "Intégration",
     "waiting": "{count} en attente dans le pipeline",
@@ -4993,12 +5724,15 @@
       "running": "Réception…",
       "noJob": "Créez d’abord un poste. Les candidatures entrantes ont besoin d’une destination.",
       "filed": "{label} reçu, correspondance {score}. Enregistré à « Accepté » sur {role}.",
-      "failed": "Impossible de recevoir une candidature test."
+      "failed": "Impossible de recevoir une candidature test.",
+      "failedStatus": "Impossible de recevoir une candidature test (HTTP {status})."
     },
     "careers": {
       "empty": "Aucun poste publié pour l’instant. Publiez un poste et son lien de candidature apparaîtra ici.",
       "applyLink": "lien de candidature",
-      "publishRole": "Publier un poste"
+      "publishRole": "Publier un poste",
+      "showingOf": "{shown} sur {total} affichés",
+      "viewAllRoles": "Tous les postes"
     },
     "receivers": {
       "role": "Poste",
@@ -5133,7 +5867,8 @@
         "effort": "Environ 5 minutes : un récepteur par poste mis en avant",
         "waiting": "Le récepteur est prêt et aucun lead n’est encore arrivé. Le premier se déposera tout seul dans le pipeline."
       }
-    }
+    },
+    "copyFailed": "Échec de la copie. Sélectionnez le texte."
   },
   "interviewSim": {
     "eyebrow": "Simulateur d’entretien",
@@ -5174,7 +5909,8 @@
       "failed": "Impossible de rattacher la session.",
       "loadFailed": "Impossible de charger les candidats.",
       "retry": "Réessayer"
-    }
+    },
+    "billableNote": "Lancer cette démo crée une véritable session vocale et consomme jusqu’à {min} minutes d’entretien de votre quota."
   },
   "history": {
     "eyebrow": "Espace de travail",
@@ -5223,7 +5959,11 @@
       "trustTitle": "Contrôle d’authenticité du CV : une vérification déterministe des CV générés par AI ou enjolivés. Voir les lignes Authenticité ci-dessous. Vérifiez toujours en entretien.",
       "trustHigh": "Authenticité : élevée",
       "trustMedium": "Authenticité : moyenne",
-      "trustLow": "Authenticité : faible"
+      "trustLow": "Authenticité : faible",
+      "engineNote": "Notes du moteur (en anglais, telles quelles)",
+      "engineNoteTitle": "Ces lignes proviennent telles quelles du moteur d’analyse et ne sont pas traduites.",
+      "deterministicNote": "Aucun modèle exécuté : ce résultat provient de règles",
+      "deterministicNoteTitle": "Cette analyse a été produite par les modules de scoring déterministes, non par un modèle d’IA. Les chiffres sont complets, mais aucun modèle de langage n’a lu ce CV."
     },
     "softSignals": {
       "title": "À confirmer en entretien",
@@ -5287,7 +6027,10 @@
         "BAD_SHAPE": "GitHub a renvoyé une réponse inattendue. Réessayez sous peu.",
         "NOT_A_PERSON": "Cet identifiant correspond à une organisation GitHub, pas à un compte personnel. Saisissez l’identifiant d’un développeur.",
         "REQUEST_THROTTLED": "Trop de requêtes. Veuillez réessayer sous peu.",
-        "ANALYSIS_FAILED": "L’analyse GitHub a échoué. Réessayez sous peu."
+        "ANALYSIS_FAILED": "L’analyse GitHub a échoué. Réessayez sous peu.",
+        "JD_TOO_LONG": "La description de poste est trop longue pour l’analyse GitHub approfondie. Raccourcissez-la et réessayez.",
+        "OFFLINE": "Cette installation fonctionne hors ligne ; GitHub n’a donc pas été contacté.",
+        "RESPONSE_TOO_LARGE": "GitHub a renvoyé une réponse anormalement volumineuse. Réessayez sous peu."
       },
       "review": {
         "partial": "Preuves partielles : une partie des données du dépôt n’a pas pu être récupérée lors de cette exécution (probablement une limitation de débit), considérez donc cette lecture comme incomplète.",
@@ -5298,7 +6041,8 @@
         "throttled": "Impossible de rassembler les signaux publics des dépôts. GitHub limite probablement le débit (indéterminable). Réessayez sous peu.",
         "noSignals": "Les dépôts examinés n’exposent aucun README, commit ou fichier public à évaluer.",
         "malformed": "Gemini a renvoyé une revue des signaux de dépôt mal formée.",
-        "requestFailed": "La requête de revue des signaux de dépôt par Gemini a échoué."
+        "requestFailed": "La requête de revue des signaux de dépôt par Gemini a échoué.",
+        "offline": "Cette installation fonctionne hors ligne (KP_OFFLINE) ; l’analyse des signaux de dépôts par Gemini n’a pas été lancée."
       },
       "finding": {
         "signal": {
@@ -5339,7 +6083,9 @@
           "metadata": "Langage principal et topics du dépôt issus des métadonnées GitHub.",
           "notRead": "Non lus : contenus de fichiers, arborescences imbriquées, dépôts privés et branches autres que la branche par défaut."
         }
-      }
+      },
+      "retryAfterSeconds": "Vous pouvez réessayer dans environ {seconds, plural, one {# seconde} other {# secondes}}.",
+      "retryAfterMinutes": "Vous pouvez réessayer dans environ {minutes, plural, one {# minute} other {# minutes}}."
     }
   },
   "workspaceAdmin": {
@@ -5398,7 +6144,6 @@
       "saving": "Enregistrement…",
       "saved": "Enregistré",
       "saveFailed": "Impossible d’enregistrer. Vérifiez la connexion et réessayez.",
-      "domainLabel": "Domaine principal",
       "languageLabel": "Langue de l’application",
       "previewOnboarding": "Aperçu du parcours d’intégration",
       "backup": {
@@ -5513,7 +6258,9 @@
         "body": "Révoquer l’invitation de <em>{email}</em> ? Le lien déjà partagé cessera de fonctionner.",
         "cancel": "Annuler",
         "confirm": "Révoquer l’invitation"
-      }
+      },
+      "roleUpdated": "Rôle mis à jour.",
+      "statusUpdated": "Statut du compte mis à jour."
     },
     "permissions": {
       "title": "Autorisations de {name}",
@@ -5545,7 +6292,8 @@
           "desc": "Voir les candidats et les données de l’équipe."
         }
       }
-    }
+    },
+    "partialLoad": "Une partie de cette page n’a pas pu être actualisée. Certaines informations peuvent être obsolètes."
   },
   "login": {
     "eyebrow": "Kandi",
@@ -5600,6 +6348,12 @@
     "emailTaken": "Cet e-mail appartient déjà à une autre organisation.",
     "alreadyActive": "Ce compte est déjà actif. Connectez-vous plutôt.",
     "genericError": "Impossible d’accepter l’invitation. Le lien vient peut-être d’expirer.",
+    "orgNameFallback": "votre organisation",
+    "rateLimitedTitle": "Trop de tentatives",
+    "rateLimitedBody": "Trop de tentatives depuis cet appareil au cours de la dernière minute. Votre invitation reste valide. Patientez un instant, puis réessayez.",
+    "loadFailedTitle": "Impossible de charger votre invitation",
+    "loadFailedBody": "Le serveur est injoignable. Votre invitation reste valide, cela vaut la peine de réessayer.",
+    "retryError": "Le serveur est injoignable. Votre invitation reste valide. Réessayez.",
     "eyebrow": "Rejoindre {orgName}",
     "title": "Définissez votre mot de passe",
     "subtitle": "Vous avez été invité(e) en tant que {role}. Choisissez un mot de passe pour terminer la configuration de <em>{email}</em>.",
@@ -5628,7 +6382,9 @@
     "version": "Standard {version}",
     "stale": "Vérifié (attestation ancienne)",
     "staleAge": "Authentique et non modifié, mais émis le {issued} selon la norme {version}. Demandez au candidat une évaluation à jour si la récence importe.",
-    "staleMethodology": "Authentique et non modifié, mais évalué selon la norme {version} (émis le {issued}), désormais remplacée. Demandez au candidat une évaluation selon la norme actuelle."
+    "staleMethodology": "Authentique et non modifié, mais évalué selon la norme {version} (émis le {issued}), désormais remplacée. Demandez au candidat une évaluation selon la norme actuelle.",
+    "throttledTitle": "Trop de requêtes pour le moment",
+    "throttledBody": "Ce certificat a été ouvert trop de fois en peu de temps. Patientez quelques minutes puis rechargez la page. Le certificat lui-même n'est pas affecté."
   },
   "devApply": {
     "workSurface": {
@@ -5655,6 +6411,7 @@
       "updateHeading": "Nouvelle de l’équipe",
       "restored": "Nous avons restauré votre travail non enregistré depuis cet appareil. Rien n’a été perdu.",
       "chatRateLimited": "Vous avez atteint la limite de l’assistant pour le moment. Votre travail et tout ce que vous avez écrit sont intacts. Continuez à travailler et réessayez dans quelques minutes.",
+      "chatDeterministicNote": "Cette réponse provient du substitut hors ligne, pas d’un modèle en direct. Considérez-la comme un texte provisoire et notez vos hypothèses dans le journal de décisions.",
       "syncBlocked": "Nous n’avons pas pu synchroniser cette session avec le serveur. Votre travail est enregistré sur cet appareil. Rechargez la page depuis votre lien d’origine pour vous reconnecter."
     },
     "eyebrow": "Exercice à domicile",
@@ -5676,7 +6433,14 @@
     "received": "Candidature reçue",
     "receivedNote": "Nous examinerons votre soumission et reviendrons vers vous. Une confirmation est en route.",
     "receivedDuplicate": "Nous avions déjà une soumission de votre part pour cet exercice. C’est celle qui compte, inutile de la renvoyer.",
-    "receivedRef": "Référence de la soumission : {ref}"
+    "receivedRef": "Référence de la soumission : {ref}",
+    "assignment": {
+      "fallbackTitle": "Exercice",
+      "timebox": "durée indicative ~{hours} h",
+      "brief": "Énoncé",
+      "handed": "Ce qui vous est fourni",
+      "tasks": "Tâches"
+    }
   },
   "potential": {
     "badge": "potentiel {pct}",
@@ -5718,10 +6482,9 @@
     "briefNoDataClaim": "Personne n’a encore traversé l’entonnoir.",
     "briefNoDataContext": "Ajoutez un poste et commencez à recueillir des candidats ; ce point se remplit à mesure qu’ils avancent.",
     "briefBandForecast": "Ce qui arrive",
-    "briefForecastClaim": "Environ {hires} recrutements sont déjà engagés.",
+    "briefForecastClaim": "Environ {hires} recrutements sont déjà en cours (estimation).",
     "briefForecastContext": "D’après {velocity} nouveaux candidats par semaine et {conv} % de conversion globale.",
     "briefForecastNoSignalClaim": "L’historique ne suffit pas encore pour une projection.",
-    "briefForecastNoSignalContext": "Une projection a besoin d’au moins un recrutement abouti pour se calibrer. En attendant, deviner serait pire que se taire.",
     "briefEtaLabel": "Délai attendu",
     "briefEtaValue": "{days} j",
     "briefBandMomentum": "Dynamique",
@@ -5796,7 +6559,9 @@
       "ahead": "en avance",
       "behind": "en retard",
       "footnote": "Agrégat anonymisé sur {teams} équipes. Aucune donnée de candidat ou d’équipe n’est partagée.",
-      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie."
+      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} j"
     },
     "loadFailed": "Impossible de charger les analyses.",
     "retry": "Réessayer",
@@ -5979,7 +6744,11 @@
       "uncalibratedBodyHired": "Le calibrage demande au moins {min} candidats recrutés ou rejetés. Pour l’instant : {n}.",
       "leakageLevelHighRejects": "Rejets causés par le score",
       "leakageScoreCausedHiredNote": "Le recrutement passe par des entretiens, une offre et son acceptation, dont ce score ne décide pas : les succès affichés ici n’ont donc pas été produits par le score. Les rejets, en partie, si : la présélection automatique rejette sur le score de correspondance, et chacun de ces rejets compte ici comme un non-recrutement. Cet axe est moins circulaire que celui de la présélection, sans être propre.",
-      "leakageScoreCausedHiredCeiling": "Tous ceux encore en cours de processus sont exclus jusqu’à leur recrutement ou leur rejet : cet axe se remplit donc lentement et s’appuie sur ceux qui sont sortis tôt. Il ne dit rien non plus de la façon dont un recrutement s’est ensuite comporté."
+      "leakageScoreCausedHiredCeiling": "Tous ceux encore en cours de processus sont exclus jusqu’à leur recrutement ou leur rejet : cet axe se remplit donc lentement et s’appuie sur ceux qui sont sortis tôt. Il ne dit rien non plus de la façon dont un recrutement s’est ensuite comporté.",
+      "floorNotEnforced": "La présélection automatique est désactivée : ces seuils sont une règle enregistrée, pas un filtre actif, et aucune candidature n’est rejetée sur cette base.",
+      "familyFloorsNoneOff": "Aucune famille de postes n’a son propre seuil ; seul le seuil global {global} est enregistré.",
+      "thresholdLegendOff": "Seuil de rejet automatique ({threshold}), enregistré mais non appliqué",
+      "srThresholdOff": "Le seuil de rejet automatique {threshold} est enregistré mais non appliqué : il n’est donc pas tracé sur le graphique."
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",
@@ -6048,9 +6817,12 @@
       "basis": "Sur la base de {velocity} nouveaux/semaine et d’une conversion globale de {conv} %.",
       "acceptBasis": "En supposant le taux d’acceptation observé de {pct} % (n={n}).",
       "inFlight": "Attendus des dossiers en cours",
-      "horizon": "{weeks} prochaines semaines",
       "plusHires": "+{hires}",
-      "eta": "Délai moyen de recrutement : {days} jours."
+      "eta": "Délai moyen de recrutement : {days} jours.",
+      "horizonEstimate": "{weeks} prochaines semaines (estimation)",
+      "range": "fourchette {low}–{high}",
+      "method": "Méthode : {velocity} nouveaux candidats par semaine × {conv}% de conversion globale, projeté dans le temps. La fourchette vaut un écart type du flux hebdomadaire (±{sd}) de part et d'autre.",
+      "floorNote": "Une projection exige au moins {minHires} recrutements et {minWeeks} semaines avec de nouveaux candidats. À ce jour : {hires} recrutements sur {weeks} semaines de ce type. D'ici là, deviner serait pire que se taire."
     },
     "offers": {
       "title": "Phase d’offre",
@@ -6240,6 +7012,7 @@
         "interview_reminder_sent": "Rappel d’entretien envoyé",
         "interviewer_brief_sent": "Intervieweur briefé",
         "interviewer_brief_skipped": "Brief de l’intervieweur ignoré (pas d’e-mail)",
+        "interview_failover": "Entretien basculé vers un autre fournisseur",
         "comm_resent": "Message renvoyé",
         "rejection_comms_failed": "Échec de l’e-mail de refus",
         "moved": "Étape définie manuellement",
@@ -6271,7 +7044,8 @@
         "agent_dispatched": "Demande de persona envoyée",
         "agent_activated": "Persona mise en service",
         "onboarding_started": "Intégration démarrée (module retiré)",
-        "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)"
+        "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)",
+        "screen_wave_holdout_unsealed": "Épargné par la vague, enregistrement témoin non scellé"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d’attente dans la boîte d’envoi (non remise)",
@@ -6414,7 +7188,10 @@
     "copyViewLinkTitle": "Un lien qui ouvre cette section avec la période affichée",
     "viewLinkManual": "Votre navigateur a bloqué la copie. Sélectionnez le lien ci-dessous et copiez-le vous-même.",
     "briefMomentumNoDataClaim": "Rien n’a encore bougé sur ces semaines.",
-    "briefRolesNoDataClaim": "Aucun poste ne porte encore le pipeline."
+    "briefRolesNoDataClaim": "Aucun poste ne porte encore le pipeline.",
+    "simExcludedNote": "{count, plural, one {# entrée de la démo guidée est exclue} other {# entrées de la démo guidée sont exclues}} de tous les chiffres de cette page. Elles restent sur le tableau jusqu’à la réinitialisation de la simulation.",
+    "daysAvgOver": "jours en moy. sur {count, plural, one {# recrutement} other {# recrutements}}",
+    "closedInWindowSub": "{count} clôturés sur la période"
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",
@@ -6520,7 +7297,9 @@
     "modeLabel": "Vue matrice",
     "modeGrid": "Grille",
     "modeFocus": "Focus candidat",
-    "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir."
+    "introFocus": "Classez un candidat face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu’une seule cellule ne peut pas contenir.",
+    "servedFromCache": "Affiché depuis le calcul de scoring mis en cache.",
+    "retryLoad": "Réessayer"
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",
@@ -6605,6 +7384,11 @@
     "errBadPayload": "L’analyse a renvoyé des données inattendues.",
     "errExtractionFailed": "L’extraction du texte a échoué.",
     "errGithubFailed": "L’analyse GitHub a échoué.",
+    "engineStatusUnknown": "État du moteur inconnu : le contrôle de disponibilité est injoignable, cette analyse peut donc échouer faute de clé.",
+    "cancelFailed": "Suivi interrompu, mais la tâche serveur tourne peut-être encore. Consultez l’indicateur de tâches.",
+    "uploadHint": "PDF · DOCX · TXT · MD jusqu’à {max} Mo",
+    "errUploadRejected": "Ce fichier n’a pas pu être ajouté.",
+    "errRateLimitedRetry": "Trop de requêtes. Réessayez dans {seconds} secondes.",
     "githubJdDropped": "Impossible de lire la fiche de poste ; elle est donc exclue de l’analyse GitHub.",
     "attachCv": "Joignez un CV pour activer l’analyse.",
     "githubOnlyReady": "Analyse GitHub approfondie prête. Joignez un CV pour l’analyse complète.",
@@ -6623,7 +7407,11 @@
     "removeVariantAria": "Retirer la variante {letter}",
     "addVariant": "Ajouter une variante ({current}/{max})",
     "variantLimitReached": "Limite de variantes atteinte.",
-    "selectCvFirst": "Sélectionnez d’abord un CV ou un export PDF LinkedIn."
+    "selectCvFirst": "Sélectionnez d’abord un CV ou un export PDF LinkedIn.",
+    "jdLibraryLoading": "Chargement de votre bibliothèque de fiches de poste…",
+    "jdLibraryFailed": "Impossible de charger votre bibliothèque de fiches de poste.",
+    "jdLibraryRetry": "Réessayer",
+    "jdLibraryTruncated": "Affichage des {count, plural, one {# fiche de poste enregistrée la plus récente} other {# fiches de poste enregistrées les plus récentes}}. Les plus anciennes sont dans la Bibliothèque."
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés. Les valeurs affichées peuvent différer de celles stockées.",
@@ -6800,7 +7588,8 @@
       "notDelivered": "Non livré : {reason}.",
       "pingFailed": "Échec du ping.",
       "pullNote": "Récupérer un candidat à la demande : <code>{endpoint}</code> renvoie le même enregistrement normalisé.",
-      "loadBlockedSave": "Les paramètres de webhook enregistrés n'ont pas pu être chargés, donc l'enregistrement est désactivé. Soumettre ce formulaire vide écraserait le point de terminaison enregistré et ses abonnements. Rechargez la page."
+      "loadBlockedSave": "Les paramètres de webhook enregistrés n'ont pas pu être chargés, donc l'enregistrement est désactivé. Soumettre ce formulaire vide écraserait le point de terminaison enregistré et ses abonnements. Rechargez la page.",
+      "reloadStored": "Recharger les paramètres enregistrés"
     }
   },
   "billing": {
@@ -6865,7 +7654,8 @@
       "allowance": "Quota inclus",
       "breakdown": "Par cas d’usage",
       "engineTitle": "Moteur",
-      "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant."
+      "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant.",
+      "breakdownScope": "Sur tous les espaces de travail de ce déploiement, contrairement au quota à côté."
     },
     "plans": {
       "title": "Forfaits",
@@ -6888,7 +7678,8 @@
       "intro": "Un pack ponctuel qui ajoute des crédits en plus du quota de votre forfait. Disponible sur tous les niveaux.",
       "minutes": "{qty} minutes",
       "buy": "Acheter le pack"
-    }
+    },
+    "checkoutRecheck": "Vérifier à nouveau"
   },
   "branding": {
     "eyebrow": "Marque blanche",
@@ -6914,7 +7705,12 @@
     "previewName": "Votre marque",
     "previewButton": "Action principale",
     "previewBadge": "Badge",
-    "previewLink": "Un <a>lien mis en valeur</a> dans votre couleur d’accent."
+    "accentContrastDark": "Cet accent n’a pas de version lisible en Spark Dark. L’éclaircir assez pour le fond sombre en ferait une autre couleur, choisissez donc une teinte plus vive ou plus saturée.",
+    "previewBothThemes": "Votre accent dans les deux thèmes. La valeur Spark Dark est dérivée de celle que vous saisissez.",
+    "previewThemeLight": "Studio Light",
+    "previewThemeDark": "Spark Dark",
+    "previewFocus": "Élément ciblé",
+    "previewDarkDerived": "Spark Dark utilise une version éclaircie de votre accent pour qu’il reste lisible sur le fond sombre."
   },
   "models": {
     "quality": {
@@ -7134,7 +7930,8 @@
       "testOkNoLatency": "La clé fonctionne. {model} a répondu.",
       "testFailed": "Échec du test.",
       "testModelLabel": "Modèle à appeler",
-      "testModelPlaceholder": "déploiement ou identifiant de modèle"
+      "testModelPlaceholder": "déploiement ou identifiant de modèle",
+      "storeScope": "Ces clés sont enregistrées une fois pour tout le serveur, pas par équipe : tous les espaces de travail d’ici consomment par leur intermédiaire. « BYOM » et « Plateforme » sont deux emplacements de ce stockage partagé, pas deux propriétaires."
     },
     "useCaseDesc": {
       "match_reasoning": "Rédige l’argumentaire destiné au recruteur expliquant pourquoi un candidat convient au poste, ou non.",
@@ -7209,7 +8006,9 @@
   "setup": {
     "aria": {
       "dialog": "Configurer votre espace de travail",
-      "skip": "Ignorer la configuration pour l’instant"
+      "skip": "Ignorer la configuration pour l’instant",
+      "stepAnnounce": "Étape {index} sur {total} : {title}",
+      "stepPosition": "Étape {index} sur {total} :"
     },
     "previewRibbon": "Aperçu : rien de ce que vous faites ici ne sera enregistré",
     "rail": {
@@ -7283,7 +8082,8 @@
         "steel": "Bleu acier",
         "ink": "Encre",
         "custom": "Personnalisée",
-        "illegible": "Cette couleur est trop claire pour les boutons et les contours de focus. Choisissez-en une plus foncée."
+        "illegible": "Cette couleur est trop claire pour les boutons et les contours de focus. Choisissez-en une plus foncée.",
+        "illegibleDark": "Cette couleur n’a pas de version lisible en Spark Dark. Choisissez une teinte plus vive ou plus saturée."
       },
       "logoLabel": "URL du logo",
       "logoInvalid": "Saisissez une URL d’image en https://."
@@ -7377,8 +8177,7 @@
     "toast": {
       "saved": "Votre espace de travail est configuré",
       "partial": "Certaines étapes n’ont pas pu être enregistrées. Vous pourrez les terminer dans les Paramètres",
-      "pipelineSaved": "Les colonnes de votre tableau ont été enregistrées",
-      "pipelineFailed": "Les colonnes de votre tableau n’ont pas pu être enregistrées. Définissez-les dans Paramètres → Pipeline de recrutement"
+      "partialLead": "Certaines étapes de la configuration n’ont pas pu être enregistrées :"
     },
     "checklist": {
       "title": "Premiers pas",
@@ -7407,9 +8206,178 @@
           "listening": "En écoute. Vérifiez en recevant une candidature test."
         }
       }
+    },
+    "finish": {
+      "part": {
+        "orgName": "Nom de l’entreprise",
+        "language": "Langue de l’application",
+        "invites": "Invitations d’équipe",
+        "pipeline": "Colonnes du tableau",
+        "brand": "Couleur de marque et logo"
+      },
+      "reasonUnknown": "n’a pas pu être enregistré. Vous pouvez le terminer dans les Réglages.",
+      "line": "{part} : {reason}",
+      "lineWithAddresses": "{part} ({addresses}) : {reason}"
     }
   },
   "devcase": {
+    "studio": {
+      "applyPill": {
+        "noToken": "aucun jeton",
+        "copy": "Copier le lien de candidature à transmettre aux personnes candidates",
+        "copyAria": "Copier le lien de candidature dans le presse-papiers",
+        "copiedAria": "Lien de candidature copié dans le presse-papiers",
+        "copied": "Copié",
+        "token": "jeton {token}",
+        "blocked": "La copie est bloquée ici. Sélectionnez le lien et copiez-le à la main :"
+      },
+      "waiting": {
+        "title": "En attente du premier rendu",
+        "body": "Cet exercice est en ligne. Les personnes qui candidatent via les canaux ci-dessous arrivent ici, classées entre elles."
+      },
+      "jds": {
+        "failed": "Les fiches de poste enregistrées n’ont pas pu être chargées.",
+        "retry": "Réessayer"
+      },
+      "dismiss": "Fermer",
+      "loadLabel": "les exercices",
+      "analysis": {
+        "empty": "Définissez un besoin et lancez l’analyse. Le reflet du réel apparaîtra ici.",
+        "running": "Lecture de la base de code et mise en miroir…",
+        "runningHint": "Cela s’exécute en tâche de fond, vous pouvez donc quitter cet onglet.",
+        "designing": "Conception du poste et de l’exercice…",
+        "designingHint": "Tâche de fond. Vous pouvez partir à tout moment.",
+        "designCta": "Concevoir le poste et l’exercice",
+        "snapshot": "Instantané de la base de code",
+        "snapshotIndexed": "Instantané de la base de code {index}/{total}",
+        "loc": "~{loc} lignes de code",
+        "topDirs": "Principaux dossiers : {dirs}",
+        "commitsRead": "{count, plural, one {# commit récent lu} other {# commits récents lus}}",
+        "noSnapshot": "Aucun instantané de la base de code, l’analyse n’est donc ancrée dans rien de réel. Ajoutez une URL GitHub publique pour l’ancrer.",
+        "resultUnreadable": "L’analyse est terminée, mais son résultat n’a pas pu être chargé. Rouvrez-la depuis l’onglet Tâches, ou relancez l’analyse.",
+        "failed": "L’analyse n’est pas allée à son terme."
+      },
+      "reflection": {
+        "title": "Reflet du réel",
+        "complexity": "complexité {level}",
+        "confidence": "conf. {value}",
+        "gaps": "Écarts entre l’annoncé et le réel",
+        "risks": "Zones à risque : {areas}"
+      },
+      "design": {
+        "role": "Poste",
+        "mustHaves": "Indispensables",
+        "responsibilities": "Responsabilités",
+        "assignment": "Exercice",
+        "timebox": "~{hours} h",
+        "covertProbes": "Sondes masquées, internes et invisibles pour la personne candidate",
+        "approved": "Validé",
+        "approving": "Validation…",
+        "approve": "Valider l’exercice",
+        "humanGate": "Contrôle humain. Relisez les sondes, puis validez pour enregistrer."
+      },
+      "detail": {
+        "back": "Tous les exercices",
+        "created": "créé {when}",
+        "scenarioTemplate": "scénario d’entretien : sondes génériques",
+        "scenarioTemplateHint": "La génération du scénario est retombée sur le gabarit déterministe, les sondes sont donc génériques et non ancrées dans cet exercice. Relancez-la avant l’entretien.",
+        "scenarioReady": "scénario d’entretien prêt",
+        "seedSkeleton": "amorce : squelette seulement",
+        "seedSkeletonHint": "La matérialisation de l’amorce est retombée sur le gabarit déterministe, les personnes candidates reçoivent donc un README et un DECISIONS en texte seul, sans fichiers de départ concrets. Relancez-la avant l’envoi.",
+        "publish": "Publier",
+        "publishing": "Publication…",
+        "published": "Publié",
+        "sourceDb": "Chercher en base",
+        "sourcing": "Recherche…",
+        "sourced": "{count} trouvés",
+        "sourceHint": "Classe la base de candidatures existante face à ce poste et amorce le pipeline",
+        "confirmLabel": "Confirmer la publication",
+        "confirmTitle": "Publier cet exercice ?",
+        "confirmBody": "La publication crée un lien de candidature public et fait entrer dans le pipeline de vraies candidatures issues de votre base. C’est irréversible depuis cet écran.",
+        "degradedTitle": "Cet exercice est dégradé",
+        "degradedAck": "Je comprends que cet exercice est dégradé. Le publier quand même.",
+        "confirmCta": "Confirmer et publier",
+        "cancel": "Annuler",
+        "seedSummary": "Amorce matérialisée : ce que reçoit la personne candidate",
+        "seedFiles": "{count, plural, one {# fichier} other {# fichiers}}",
+        "seedSkeletonWarning": "Squelette seulement. C’est la solution de repli en texte, pas des fichiers de départ concrets. Relancez avant l’envoi."
+      },
+      "degradedReason": {
+        "scenario": "Le scénario d’entretien utilise des sondes génériques, pas des sondes ancrées dans cet exercice.",
+        "seed": "L’amorce n’est qu’un squelette en texte, les personnes candidates ne reçoivent aucun fichier de départ concret."
+      },
+      "internal": {
+        "title": "Interne : matériel pour l’entretien et la relecture",
+        "noProbes": "Aucune sonde masquée enregistrée sur cet exercice.",
+        "roleMustHaves": "Indispensables du poste",
+        "roleResponsibilities": "Responsabilités du poste"
+      },
+      "shortlist": {
+        "title": "Présélection, tous canaux"
+      },
+      "channels": {
+        "title": "Canaux de candidature",
+        "posting": "Annonce",
+        "received": "{count} reçus",
+        "applyLink": "Lien de candidature"
+      },
+      "compare": {
+        "title": "Comparer sur les axes de la grille",
+        "topOf": "{shown} premiers sur {total}",
+        "truncated": "Classement par transférabilité. La personne en tête de l’axe ci-dessous est la meilleure de ces {shown}, pas de tout le groupe. {hidden, plural, one {# autre rendu évalué ne figure pas} other {# autres rendus évalués ne figurent pas}} dans cette matrice.",
+        "axis": "Axe",
+        "fit": "adéq. {score}"
+      },
+      "action": {
+        "runLifecycle": "Le lancement du cycle de vie",
+        "approve": "La validation",
+        "publish": "La publication",
+        "source": "La recherche de candidatures"
+      },
+      "actionFailed": "{action} a échoué. Veuillez réessayer.",
+      "actionUnreachable": "{action} a échoué, la requête n’a pas pu aboutir.",
+      "need": {
+        "jdLabel": "Fiche de poste *",
+        "noJds": "Aucune fiche de poste enregistrée. <link>Enregistrez-en une</link> dans la bibliothèque : le rôle et l'exercice en découlent.",
+        "savedJdAria": "Fiche de poste enregistrée",
+        "pickJd": "Choisir une fiche de poste enregistrée…",
+        "loadingJd": "Chargement de la fiche de poste…",
+        "jdReadHint": "L'intitulé du rôle, la stack et les responsabilités sont lus dans cette fiche de poste.",
+        "jdRequired": "Une fiche de poste est nécessaire pour lancer.",
+        "codebasesLabel": "Bases de code (GitHub, jusqu'à {max})",
+        "repoPlaceholder": "https://github.com/proprietaire/depot",
+        "codebaseAria": "Base de code {n}",
+        "removeCodebaseAria": "Retirer la base de code {n}",
+        "unsupportedRepo": "Seul GitHub est pris en charge pour l'ancrage ; cette référence sera ignorée.",
+        "addCodebase": "Ajouter une base de code",
+        "seniorityLabel": "Niveau visé",
+        "seniorityAria": "Niveau",
+        "lifecycleTitle": "Cycle automatisé : analyser → concevoir → contrôle des règles → publier → (aux rendus) évaluer → classer → promouvoir vers Décisions",
+        "lifecycleRunning": "Cycle en cours…",
+        "runLifecycle": "▶ Lancer le cycle automatisé",
+        "reflecting": "Réflexion…",
+        "analyzeOnly": "Analyser le besoin seulement",
+        "recent": "Récents"
+      },
+      "sectionsLabel": "Sections du studio d’exercices",
+      "views": {
+        "cases": {
+          "label": "Exercices",
+          "title": "Exercices actifs",
+          "blurb": "Tous les exercices conçus au même endroit : étape, réception et évaluations. Cliquez sur un exercice pour lire le brief complet et son matériel de sonde interne."
+        },
+        "define": {
+          "label": "Définir le besoin",
+          "title": "Définir le besoin",
+          "blurb": "Choisissez la fiche de poste et indiquez-nous les bases de code réelles qu’elle couvre ({max} au maximum). Le moteur confronte ce que la fiche de poste demande à ce que le code est réellement, et met au jour les écarts avant que nous concevions un exercice. Partez du principe que le code du candidat est généré par un modèle ; nous évaluons le jugement, pas la frappe."
+        },
+        "outbox": {
+          "label": "Boîte d’envoi",
+          "title": "Boîte d’envoi des communications",
+          "blurb": "Chaque message envoyé par le pipeline : accusés de réception, invitations à poursuivre, prises de contact des recruteurs et refus."
+        }
+      }
+    },
     "lifecycle": {
       "sectionTitle": "Cycle automatisé",
       "intro": "Chaque exercice avance selon les règles : les conceptions propres sont approuvées automatiquement, celles qui sont signalées vous sont transmises, puis publication et (à mesure que les rendus arrivent) évaluation → classement → passage des meilleurs candidats dans Décisions. Aucune étape manuelle entre les deux.",
@@ -7457,6 +8425,7 @@
       "fieldBrief": "Brief",
       "fieldTasks": "Tâches (une par ligne)",
       "fieldTimebox": "Limite de temps (heures)",
+      "timeboxClamped": "Vous avez saisi {from} h. La personne candidate recevra {to} h, le plafond prévu par la politique.",
       "internalProbes": "Sondes masquées internes ({count})",
       "engineOwned": "Les sondes et la grille d’évaluation sont gérées par le moteur. Pour les modifier, régénérez avec une note.",
       "previewTitle": "Aperçu côté candidat (en direct)",
@@ -7468,7 +8437,8 @@
       "redesignTitle": "Relancer uniquement l’étape de conception avec cette note. Sans relancer tout le cycle.",
       "redesigning": "Régénération en cours…",
       "redesign": "Régénérer avec la note",
-      "redesignFailed": "Échec de la régénération."
+      "redesignFailed": "Échec de la régénération.",
+      "tasksRequired": "Une épreuve doit conserver au moins une tâche. Rétablissez-en une, ou utilisez Régénérer avec une note pour que le moteur les réécrive."
     },
     "outbox": {
       "emptyTitle": "Aucun message pour l’instant",
@@ -7485,7 +8455,8 @@
       "countFiltered": "{shown, plural, one {# message} other {# messages}} sur {total}",
       "deadLetters": "{count} à traiter",
       "filteredEmpty": "Aucun message ne correspond à ces filtres.",
-      "clearFilters": "Effacer les filtres"
+      "clearFilters": "Effacer les filtres",
+      "loadLabel": "la boîte d’envoi des communications"
     },
     "outboxKind": {
       "acknowledgement": "Accusé de réception",
@@ -7541,6 +8512,20 @@
       "strong": "{loadBearing} sondes sur {total} sont porteuses. Cet exercice discrimine.",
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses. La plupart ne sépareront pas les bons des naïfs.",
       "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf."
+    },
+    "sessionEvidence": {
+      "show": "Éléments de la session",
+      "hide": "Masquer les éléments de la session",
+      "loading": "Chargement des éléments de la session…",
+      "loadFailed": "Impossible de charger les éléments de la session.",
+      "retry": "Réessayer",
+      "empty": "Cette personne a ouvert le lien sans laisser de transcription ni de fichier.",
+      "transcriptTitle": "Transcription · {count} {count, plural, one {échange} other {échanges}}",
+      "noTranscript": "Aucun échange de chat dans cette session.",
+      "filesTitle": "Fichiers remis · {count} · {total}",
+      "noFiles": "Aucun fichier n’a été enregistré dans cette session.",
+      "roleCandidate": "Personne candidate",
+      "roleAssistant": "Assistant"
     },
     "integrity": {
       "title": "Intégrité du journal",
@@ -7644,7 +8629,8 @@
       "colCreated": "Créé",
       "open": "Ouvrir",
       "untitledAssignment": "Épreuve",
-      "stageAria": "Étape de l’exercice : {stage}"
+      "stageAria": "Étape de l’exercice : {stage}",
+      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées."
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",
@@ -7676,7 +8662,19 @@
       "inPipeline": "Dans le pipeline",
       "promoting": "Promotion…",
       "promote": "Promouvoir vers le pipeline",
-      "promoteHint": "→ devient une carte à examiner dans Décisions"
+      "promoteHint": "→ devient une carte à examiner dans Décisions",
+      "authenticityReason": {
+        "singleBulkCommit": "Un seul commit global, sans historique progressif.",
+        "fewCommits": "Très peu de commits ({n}) : une trace de développement ténue.",
+        "noCommitHistory": "Aucun historique de commits lisible.",
+        "bulkPaste": "Un collage massif de {chars}+ caractères sans construction progressive, possiblement collé depuis un LLM.",
+        "integrityFailed": "Le contrôle d’intégrité du journal d’événements a échoué (chaîne de hachage rompue ou horodatages antidatés) : la trace observée ne peut être tenue pour fiable.",
+        "noDecisionsLog": "Le journal DECISIONS obligatoire est absent.",
+        "bursty": "Le travail est arrivé en une seule salve plutôt que progressivement.",
+        "bigBang": "Schéma « big bang », sans construction visible.",
+        "unreadableIteration": "Le schéma d’itération n’a pas pu être lu dans la trace.",
+        "lowReadBeforeWrite": "Peu d’indices d’une lecture du code existant avant d’écrire."
+      }
     },
     "jobLink": {
       "linked": "Poste : {title}",
@@ -7743,7 +8741,61 @@
       "received": "Reçu",
       "evaluated": "Évalué"
     },
-    "eyebrow": "Outils · Exercices"
+    "eyebrow": "Outils · Exercices",
+    "skillProfile": {
+      "issue": "Émettre le profil de compétences durable",
+      "reissue": "Réémettre le profil de compétences durable",
+      "issuing": "Émission…",
+      "view": "Voir / partager l'attestation ↗",
+      "failed": "Le profil n'a pas pu être émis. Veuillez réessayer."
+    },
+    "submissionForm": {
+      "candidatePlaceholder": "candidat",
+      "repoPlaceholder": "URL du dépôt rendu",
+      "record": "Enregistrer",
+      "recording": "…",
+      "failed": "Le rendu n'a pas pu être enregistré. Veuillez réessayer.",
+      "network": "Erreur réseau. Le rendu n'a pas été enregistré. Veuillez réessayer.",
+      "receiptRecorded": "Rendu enregistré.",
+      "receiptDuplicate": "Déjà enregistré. Ce dépôt a déjà été rendu pour ce candidat, rien n'a été ajouté."
+    },
+    "provenance": {
+      "chipTitle": "{step} : {source}",
+      "aria": "Provenance : {detail}",
+      "ariaStep": "{step} via {source}",
+      "source": {
+        "llm": "Claude CLI",
+        "partial": "Partiel (dégradé)",
+        "deterministic": "modèle"
+      },
+      "step": {
+        "analyze": "Analyse",
+        "source": "Recherche",
+        "role": "Rôle",
+        "case": "Exercice",
+        "reflect": "Réflexion",
+        "tooling": "Outillage",
+        "evaluate": "Évaluation",
+        "transfer": "Transfert"
+      }
+    },
+    "followup": {
+      "listenFor": "À écouter : {note}",
+      "redFlag": "Signal d'alerte : {note}"
+    },
+    "scoreBar": {
+      "aria": "{label} : score {score} sur 100",
+      "ariaWeighted": "{label} : score {score} sur 100, pondéré à {weight} %"
+    },
+    "outcomeStrip": {
+      "reviewInDecisions": "Examiner dans Décisions",
+      "recorded": "résultat : {outcome} ✓",
+      "perfLabel": "Performance en poste",
+      "perfAria": "Performance en poste {n} sur 5",
+      "skipPerf": "passer (n'enregistrer que l'embauche)",
+      "hint": "Alimentez le calibrage du seuil de promotion avec ce qui s'est réellement passé",
+      "label": "Résultat"
+    }
   },
   "rubric": {
     "ratingAnchor": {
@@ -8038,7 +9090,8 @@
       "stopped": "Arrêté",
       "done": "Terminé. Poste pourvu 🎉",
       "failed": "Échec : {message}",
-      "genericError": "La simulation s’est arrêtée de façon inattendue."
+      "genericError": "La simulation s’est arrêtée de façon inattendue.",
+      "resetFailed": "Échec du nettoyage. Réessayez."
     },
     "phase": {
       "design": "Fiche de poste",
@@ -8110,7 +9163,9 @@
       "accepted": "Accepté · passé à Recruté · message d’onboarding mis en file",
       "stopped": "Simulation arrêtée.",
       "error": "Erreur : {message}",
-      "groupEvalTimedOut": "⚠︎ Délai dépassé pour l’évaluation groupée. Affichage d’un message d’indisponibilité."
+      "groupEvalTimedOut": "⚠︎ Délai dépassé pour l’évaluation groupée. Affichage d’un message d’indisponibilité.",
+      "clickedViaApi": "La commande n’était pas à l’écran : cette étape est passée par l’API au lieu d’un vrai clic.",
+      "selfScheduleUnavailable": "La prise de rendez-vous autonome n’était pas disponible : le recruteur confirme le créneau."
     },
     "wait": {
       "screeningGate": "l’ouverture de l’entretien ou du créneau de calendrier après la présélection",
@@ -8271,6 +9326,20 @@
         "move": "Passage à Recruté",
         "handoff": "Transmission\\nATS · SIRH"
       }
+    },
+    "draft": {
+      "theRole": "ce poste",
+      "theCandidate": "candidat(e)",
+      "screen": {
+        "rationale": "{role} : forte adéquation. Compétences clés présentes, séniorité alignée.",
+        "strengthStack": "Stack et domaine pertinents",
+        "strengthSeniority": "La séniorité correspond au poste"
+      },
+      "offer": {
+        "subject": "Offre : {role}",
+        "body": "Bonjour {name},\n\nnous sommes ravis de vous proposer le poste {role}.",
+        "rationale": "Salaire positionné au milieu de la fourchette du poste, ajusté selon l'adéquation."
+      }
     }
   },
   "tasks": {
@@ -8358,7 +9427,51 @@
       "openDecisions": "Ouvrir Décisions",
       "reviewInDecisions": "Examiner les résultats dans Décisions",
       "openSchedule": "Ouvrir Planification",
-      "openBoard": "Ouvrir sur le tableau"
+      "openBoard": "Ouvrir sur le tableau",
+      "field": {
+        "source": "Produit par",
+        "outcome": "Résultat",
+        "language": "Rédigé en",
+        "freshness": "Fraîcheur",
+        "savedAs": "Enregistré sous",
+        "drafted": "Rédigés",
+        "codebases": "Bases de code lues",
+        "stage": "Étape",
+        "detail": "Détail",
+        "candidates": "Candidats comparés",
+        "lead": "Favori",
+        "caseIncluded": "Cas pratique",
+        "followups": "Questions de suivi",
+        "proposals": "Propositions",
+        "failures": "Échecs"
+      },
+      "value": {
+        "llm": "IA",
+        "deterministic": "Modèle",
+        "heuristic": "Heuristique",
+        "skipped": "Ignoré",
+        "cached": "Repris du cache",
+        "fresh": "Recalculé",
+        "yes": "Inclus",
+        "no": "Non inclus",
+        "advanced": "Passé à l'étape suivante",
+        "held_for_review": "En attente de revue humaine",
+        "advisory": "Consultatif, rien n'a bougé",
+        "auto_ratified": "Ratifié automatiquement",
+        "drafted": "Brouillon préparé",
+        "scorecard_ready": "Grille d'évaluation prête",
+        "offer_ready": "Offre prête",
+        "offer_sent": "Offre envoyée",
+        "sent": "Envoyé",
+        "already_sent": "Déjà envoyé",
+        "suppressed_anonymized": "Non envoyé : les données ont été anonymisées",
+        "suppressed_consent_expired": "Non envoyé : consentement expiré",
+        "rematched": "Réorienté vers un autre poste",
+        "already_rematched": "Déjà réorienté",
+        "no_alternative": "Aucun autre poste trouvé",
+        "skipped_hired": "Ignoré : déjà recruté",
+        "skipped_stage_changed": "Ignoré : le candidat a changé d'étape"
+      }
     },
     "results": {
       "emptyTitle": "Aucune tâche IA récente",
@@ -8383,7 +9496,8 @@
       "leaveNote": "S’exécute en arrière-plan. Vous pouvez continuer à travailler ailleurs, le résultat arrive dans les tâches IA."
     },
     "unreadDone": "{count, plural, one {# tâche terminée non lue} other {# tâches terminées non lues}}",
-    "unreadRow": "Nouveau, terminé pendant que vous étiez ailleurs"
+    "unreadRow": "Nouveau, terminé pendant que vous étiez ailleurs",
+    "queueUnreachable": "File des tâches injoignable. Vous voyez le dernier instantané ; les nouveaux traitements n'apparaîtront qu'à son retour."
   },
   "control": {
     "eyebrow": "Supervision",
@@ -8443,7 +9557,11 @@
       "autoBadge": "auto",
       "addPerf": "ajouter perf.",
       "ratingGroup": "Évaluation de la performance, de 1 à 5",
-      "ratePerformance": "Évaluer la performance à {n} sur 5"
+      "ratePerformance": "Évaluer la performance à {n} sur 5",
+      "sourceNote": {
+        "auto": "Enregistré automatiquement lorsque le pipeline a atteint une étape finale.",
+        "manual": "Enregistré par une personne."
+      }
     },
     "calibration": {
       "activeFloor": "Seuil d’avancement actif",
@@ -8461,7 +9579,18 @@
         "raise": "Les candidats en dessous de {suggested} se sont rarement convertis. Le seuil de {current} laisse passer des correspondances faibles. Envisagez de le relever à {suggested}.",
         "lower": "Les candidats de {suggested} à {current} se sont bien convertis. Le seuil de {current} est peut-être trop strict. Envisagez de l’abaisser à {suggested}.",
         "calibrated": "Le seuil de {current} est bien calibré. Il se situe sur la première tranche où la plupart des candidats avancés ont été recrutés."
-      }
+      },
+      "applyFailed": "Le seuil de promotion n’a pas été modifié ({status}).",
+      "applyNetwork": "Erreur réseau. Le seuil de promotion n’a pas été modifié.",
+      "cappedNote": "Calculé à partir des {limit} résultats les plus récents. Les plus anciens ne figurent pas dans cet échantillon."
+    },
+    "actionFailed": "Cette commande n’a pas pu être appliquée ({status}).",
+    "actionNetwork": "Erreur réseau. La salle de contrôle est injoignable, rien n’a été modifié.",
+    "approveFailed": "La validation n’a pas abouti ({status}).",
+    "approveNetwork": "Erreur réseau. La validation n’a pas été enregistrée.",
+    "sweep": {
+      "resumed": "{count, plural, =0 {Rien à reprendre.} one {# cycle de vie repris.} other {# cycles de vie repris.}}",
+      "budgetExhausted": "Le budget d’exécutions a été atteint, la reprise s’est donc arrêtée avant la fin. Relancez-la plus tard pour traiter le reste."
     }
   },
   "legal": {
@@ -8540,6 +9669,18 @@
       "contact": {
         "title": "Contact",
         "body": "Pour toute demande concernant vos données en tant que candidat, utilisez le lien à jeton présent dans tout message que le produit vous a envoyé ; c’est la voie vérifiée la plus rapide. Pour le reste, adressez-vous à l’exploitant de ce déploiement ou écrivez à {email}."
+      },
+      "cookies": {
+        "title": "Cookies, stockage et analyse d’audience",
+        "intro": "Le produit ne dépose aucun cookie publicitaire ni traceur intersites. Le navigateur ne conserve que ce qui est nécessaire au fonctionnement de l’application, et chaque élément figure ici sous le nom que votre navigateur affiche :",
+        "items": [
+          "__Host-kp_session : le cookie de session signé d’un opérateur connecté. Il porte la session elle-même, rien qui vous concerne, et n’est déposé qu’après connexion.",
+          "kp_entered : indique que vous êtes passé de la page d’accueil publique à l’espace de travail, afin que l’application ne vous représente pas la porte d’entrée.",
+          "NEXT_LOCALE : la langue que vous avez choisie. Conservée un an pour que l’application s’ouvre dans cette langue la fois suivante.",
+          "kp-theme : une entrée de localStorage du navigateur, et non un cookie, qui retient l’apparence choisie (claire ou sombre)."
+        ],
+        "analytics": "Lorsque l’exploitant active une mesure d’audience, il s’agit de Plausible, sans cookie : aucun identifiant n’est stocké sur votre appareil et personne n’est suivi d’un site à l’autre. Sans domaine configuré, aucun code de mesure n’est chargé. Les pages de lien destinées aux candidats sont entièrement exclues, si bien que l’adresse d’une page qui vous est destinée n’est jamais transmise.",
+        "noConsentBanner": "Aucun de ces éléments ne sert à la publicité ni au profilage, ce qui explique que le produit ne demande pas de consentement aux cookies. Le consentement au traitement des données des candidats par l’IA est distinct et décrit plus haut."
       }
     },
     "terms": {
@@ -8634,7 +9775,7 @@
   "activity": {
     "eyebrow": "Analyses",
     "title": "Activité IA",
-    "intro": "Les {window} dernières actions d’IA exécutées par cet espace de travail, de la plus récente à la plus ancienne.",
+    "intro": "Les {window} dernières actions d’IA sur tous les espaces de travail de ce déploiement, de la plus récente à la plus ancienne.",
     "loadError": "Impossible de charger le journal d’activité.",
     "empty": "Aucune action LLM enregistrée pour l’instant. Elles apparaîtront dès l’exécution de la première fonctionnalité AI.",
     "noMatches": "Aucune action ne correspond aux filtres actuels.",
@@ -8728,6 +9869,11 @@
         "s10": "écartée avant d'atteindre le document",
         "s11": "statedVsRealGaps : signalé à vous à la place",
         "s12": "6 indispensables retenues · plafond strict 8"
+      },
+      "reqs": {
+        "stack": "Postgres ou SQLite",
+        "ownership": "Prendre en charge un service de bout en bout",
+        "languages": "Tchèque + anglais"
       }
     },
     "scoring": {
@@ -8767,7 +9913,8 @@
         "s7": "match_reasoning : le modèle, sur les {n} premiers seulement",
         "s9": "la seule étape payante ne voit jamais une personne déjà écartée"
       },
-      "costLabel": "coût"
+      "costLabel": "coût",
+      "figuresNote": "Les chiffres 120 / 74 / 8 sont un exemple. Les noms des couches et les motifs d’exclusion viennent du code réel."
     },
     "archetypes": {
       "signals": {
@@ -8854,6 +10001,7 @@
     "chat": {
       "placeholder": "Posez une question sur votre studio. Elle propose, vous décidez.",
       "send": "Envoyer",
+      "retry": "Renvoyer",
       "thinking": "Réflexion…",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du studio avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
@@ -8866,11 +10014,15 @@
       "thinkingAbout": "Réfléchit à {count, plural, one {# décision} other {# décisions}}…",
       "watching": "Surveille {count, plural, one {# élément} other {# éléments}} qui vous attendent.",
       "proposals": "{count, plural, one {# proposition vous attend} other {# propositions vous attendent}}",
-      "memoryOff": "Mémoire désactivée - activez-la dans la configuration."
+      "memoryOff": "Mémoire désactivée - activez-la dans la configuration.",
+      "memoryNotWritten": "Cette réponse n'a pas été écrite en mémoire."
     },
     "meta": {
       "remembered": "se souvient :",
+      "digest": "résumé du jour",
       "degraded": "aucun modèle joint",
+      "degradedNoProvider": "aucun modèle configuré",
+      "degradedProviderFailed": "le modèle n'a pas répondu",
       "sourceLlm": "modèle",
       "sourceDeterministic": "dégradé",
       "recallCount": "{count, plural, one {# souvenir} other {# souvenirs}}",
@@ -8943,5 +10095,47 @@
       "details": "Afficher les détails",
       "detailsHide": "Masquer les détails"
     }
+  },
+  "loadStatus": {
+    "stale": "obsolète · {ago}",
+    "offline": "hors ligne",
+    "pillTitle": "L'actualisation automatique de {label} échoue.",
+    "pillTitleStale": "L'actualisation automatique de {label} échoue. Dernière mise à jour {ago}.",
+    "refreshFailed": "Impossible d'actualiser {label}. Données affichées de {ago}, nouvelle tentative…",
+    "loadFailed": "Impossible de charger {label}. Le service est peut-être indisponible, nouvelle tentative…"
+  },
+  "jdRevisions": {
+    "loadFailed": "Impossible de charger l'historique des modifications.",
+    "retry": "Réessayer",
+    "retrying": "Nouvelle tentative…",
+    "revertPrompt": "Restaurer cette version ?",
+    "revertConfirm": "Restaurer",
+    "revertCancel": "Annuler"
+  },
+  "errorBoundary": {
+    "title": "Un problème est survenu ici",
+    "body": "{what} n’a pas pu s’afficher. Les données ont peut-être un format inattendu; le reste de l’espace de travail n’est pas affecté.",
+    "retry": "Réessayer",
+    "labels": {
+      "tab": "Cet onglet",
+      "panel": "Ce panneau"
+    }
+  },
+  "richTextEditor": {
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "heading": "Titre",
+    "bulletedList": "Liste à puces",
+    "numberedList": "Liste numérotée",
+    "editorLabel": "Éditeur de texte enrichi"
+  },
+  "select": {
+    "filterFor": "Filtrer {label}",
+    "filterOptions": "Filtrer les options",
+    "placeholder": "Sélectionner…",
+    "clear": "Effacer la sélection",
+    "searchPlaceholder": "Rechercher…",
+    "noMatches": "Aucun résultat"
   }
 }

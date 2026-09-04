@@ -20,9 +20,102 @@ _PUNCT = re.compile(r"[^\w\s'-]", re.UNICODE)
 _WS = re.compile(r"\s+")
 
 
+# ---------------------------------------------------------------------------
+# Spelled-out numbers -> digits (en + cs), table-driven.
+#
+# The candidate's speech is SYNTHESIZED from text we wrote ("I led a team of five for three
+# years"), while EL's ASR writes numbers as DIGITS ("I led a team of 5 for 3 years"). Every
+# number in an utterance was therefore charged as a substitution against a transcript that was
+# perfectly correct — a fixed, content-free tax on exactly the utterances a work-history persona
+# is full of. Folding both sides to digits makes the comparison about what was heard.
+#
+# Table-driven so a language is a dict entry, not a code path. Only en/cs are folded — the two
+# languages the voice plane can actually speak (tts.VOICES).
+# ---------------------------------------------------------------------------
+
+_UNITS_EN: dict[str, int] = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+    "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+}
+# Czech, in the gender/case forms a persona line or a TTS script actually uses. ONLY the
+# properly-accented spellings are listed: this module treats a dropped diacritic as a REAL ASR
+# error ("reky" vs "řeky"), so folding "pet" and "pět" to the same 5 would hide exactly the
+# error the rest of the file exists to catch — and "pet"/"set"/"tri" are ordinary English words
+# a bare-ASCII table would silently turn into numbers.
+_UNITS_CS: dict[str, int] = {
+    "nula": 0, "jedna": 1, "jeden": 1, "jedno": 1, "jednu": 1, "dva": 2, "dvě": 2,
+    "tři": 3, "čtyři": 4, "pět": 5, "šest": 6, "sedm": 7, "osm": 8, "devět": 9, "deset": 10,
+    "jedenáct": 11, "dvanáct": 12, "třináct": 13, "čtrnáct": 14, "patnáct": 15, "šestnáct": 16,
+    "sedmnáct": 17, "osmnáct": 18, "devatenáct": 19, "dvacet": 20, "třicet": 30, "čtyřicet": 40,
+    "padesát": 50, "šedesát": 60, "sedmdesát": 70, "osmdesát": 80, "devadesát": 90,
+}
+_NUM_WORDS: dict[str, int] = {**_UNITS_EN, **_UNITS_CS}
+# Multipliers: "two hundred" is 2 x 100, not the tokens 2 and 100.
+_NUM_SCALES: dict[str, int] = {
+    "hundred": 100, "thousand": 1_000, "million": 1_000_000,
+    "sto": 100, "stě": 100, "tisíc": 1_000, "tisíce": 1_000, "milión": 1_000_000,
+}
+# Joiners that sit INSIDE a spelled number and must not break the run ("twenty-five" survives
+# tokenization as one token; "sto dvacet" does not need one, but English "and" does).
+_NUM_JOINERS: frozenset[str] = frozenset({"and"})
+
+
+def _fold_numbers(tokens: list[str]) -> list[str]:
+    """Collapse runs of number words into their digit form, in place of the words.
+
+    Standard additive/multiplicative reading: ``twenty five`` -> ``25``, ``two hundred`` ->
+    ``200``, ``sto dvacet`` -> ``120``. A token that is neither a number word nor a joiner ends
+    the run. ``and`` only joins when a number is already open AND another number follows, so an
+    ordinary "and" is never eaten."""
+    out: list[str] = []
+    i = 0
+    n = len(tokens)
+    while i < n:
+        tok = tokens[i]
+        # A hyphenated compound ("twenty-five") is one token after normalization.
+        parts = tok.split("-") if "-" in tok else [tok]
+        if not all(p in _NUM_WORDS or p in _NUM_SCALES for p in parts) or not parts:
+            out.append(tok)
+            i += 1
+            continue
+        total = 0      # completed hundreds/thousands groups
+        current = 0    # the group being read
+        j = i
+        while j < n:
+            t = tokens[j]
+            if t in _NUM_JOINERS:
+                # Only a joiner when a number is open and another number follows.
+                nxt = tokens[j + 1] if j + 1 < n else None
+                if current or total:
+                    if nxt and all(p in _NUM_WORDS or p in _NUM_SCALES for p in nxt.split("-")):
+                        j += 1
+                        continue
+                break
+            chunk = t.split("-") if "-" in t else [t]
+            if not all(p in _NUM_WORDS or p in _NUM_SCALES for p in chunk):
+                break
+            for p in chunk:
+                if p in _NUM_SCALES:
+                    scale = _NUM_SCALES[p]
+                    if scale >= 1000:
+                        total += max(current, 1) * scale
+                        current = 0
+                    else:
+                        current = max(current, 1) * scale
+                else:
+                    current += _NUM_WORDS[p]
+            j += 1
+        out.append(str(total + current))
+        i = j
+    return out
+
+
 def normalize(text: str) -> list[str]:
     """Lowercase + punctuation-stripped word list, NFC-normalized so composed/decomposed
-    diacritics compare equal."""
+    diacritics compare equal, with spelled-out en/cs numbers folded to digits
+    (:func:`_fold_numbers`) so "five" and "5" are the same word."""
     t = unicodedata.normalize("NFC", (text or "").strip().lower())
     t = _PUNCT.sub(" ", t)
     # ``_PUNCT`` keeps ' and - because they are INTRA-word ("e-mail", "don't"). At a word
@@ -30,7 +123,7 @@ def normalize(text: str) -> list[str]:
     # like "sure - I led the migration" carried a token no TTS ever voices, so the ASR was
     # charged a guaranteed deletion (+1 error and +1 ref word) on every such utterance, and
     # a quoted 'yes' scored a substitution against a correctly heard "yes".
-    return [w for w in (tok.strip("'-") for tok in _WS.sub(" ", t).split()) if w]
+    return _fold_numbers([w for w in (tok.strip("'-") for tok in _WS.sub(" ", t).split()) if w])
 
 
 @dataclass(frozen=True)
@@ -106,12 +199,17 @@ TECH_TERMS: frozenset[str] = frozenset({
     "django", "flask", "fastapi", "spring", "express", "rails", "laravel", "dotnet", "nestjs", "symfony",
     "postgresql", "postgres", "mysql", "mariadb", "sqlite", "mongodb", "redis", "cassandra", "dynamodb",
     "elasticsearch", "clickhouse", "snowflake", "bigquery", "kafka", "rabbitmq", "pulsar", "spark",
-    "hadoop", "pandas", "numpy", "airflow", "dbt", "kubernetes",
-    "docker", "terraform", "ansible", "jenkins", "gitlab", "github", "nginx", "envoy", "grpc", "graphql",
-    "aws", "gcp", "azure", "lambda", "cloudflare", "vercel", "linux", "kubernetes",
+    "hadoop", "pandas", "numpy", "airflow", "dbt",
+    "kubernetes", "docker", "terraform", "ansible", "jenkins", "gitlab", "github", "nginx",
+    "envoy", "grpc", "graphql",
+    "aws", "gcp", "azure", "lambda", "cloudflare", "vercel", "linux",
     "pytorch", "tensorflow", "keras", "huggingface", "langchain", "openai", "gemini", "transformer",
-    "embeddings", "embedding", "websocket", "oauth", "kubernetes", "prometheus", "grafana",
+    "embeddings", "embedding", "websocket", "oauth", "prometheus", "grafana",
 })
+# The literal above is a SET, so a repeated entry changes nothing at runtime and cannot be seen
+# in a diff review — "kubernetes" was written three times before anyone noticed. A duplicate is
+# a signal the list is being appended to blind, so the source is pinned against repeats in
+# test_voice_harness.TestTechTermsSource.
 _TERMS_BY_LEN = sorted(TECH_TERMS, key=len, reverse=True)  # longest prefix wins (javascript before java)
 _MAX_INFLECTION = 3  # only a short case ending may follow the stem ("reactem", not "reactionary")
 

@@ -282,6 +282,12 @@ def main(argv: list[str] | None = None) -> int:
         "scenarios from intake_scenarios_gen.fixed_bank (role family × seniority × shape)",
     )
     parser.add_argument("--cap", type=int, default=DEFAULT_CAP)
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if a gate fails. Without it the report still prints FAIL and exits 0 "
+             "(the suite-wide contract in eval/__main__.py).",
+    )
     args = parser.parse_args(argv)
 
     if args.generated:
@@ -294,11 +300,13 @@ def main(argv: list[str] | None = None) -> int:
     else:
         scenarios = load_scenarios(args.scenarios)
     if not scenarios:
+        # Nothing to run: the eval could not be performed, so 2 rather than a verdict.
         print("no scenarios matched", file=sys.stderr)
         return 2
     report, ok = run_eval(scenarios, no_llm=args.no_llm, cap=args.cap, color=should_color())
     print(report)
-    return 0 if ok else 1
+    # Exit-code contract (eval/__main__.py): --strict is what asks for a verdict.
+    return 1 if (args.strict and not ok) else 0
 
 
 if __name__ == "__main__":

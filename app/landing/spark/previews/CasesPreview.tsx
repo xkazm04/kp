@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { CORAL, HAND, MOSS, STEEL } from "../tokens";
-import { ROW, StampChip, pop } from "./shared";
+import { ROW, StampChip, entrance, pop } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /*
  * 07 · Verified work-sample cases — the authorship receipt.
@@ -23,6 +24,8 @@ export default function CasesPreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -35,7 +38,7 @@ export default function CasesPreview() {
             key={c.key}
             initial={{ opacity: 0, x: -18 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + i * 0.14, type: "spring", bounce: 0.4 }}
+            transition={entrance(reduce, { delay: 0.3 + i * 0.14, type: "spring", bounce: 0.4 })}
             className={`${ROW} flex items-center justify-between gap-3 p-3`}
           >
             <p className="text-[17px] font-semibold">{t(`previews.cases.checks.${c.key}.label`)}</p>
@@ -45,7 +48,7 @@ export default function CasesPreview() {
           </motion.div>
         ))}
       </div>
-      <motion.p {...pop(0.75)} className={`${HAND} mt-4 text-base`} style={{ color: STEEL }}>
+      <motion.p {...pop(0.75, reduce)} className={`${HAND} mt-4 text-base`} style={{ color: STEEL }}>
         {t("previews.cases.defend")}
       </motion.p>
     </div>

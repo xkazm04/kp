@@ -25,7 +25,15 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const scan = getRepoScan(id, await currentWorkspace());
     // A scan in another tenant is indistinguishable from one that never existed.
     if (!scan) return NextResponse.json({ error: "Repo scan not found." }, { status: 404 });
-    const { rootPath, ...rest } = scan;
+    // TWO fields are withheld, for the same reason and not the same one you might
+    // expect. `rootPath` is the server's resolved filesystem path (see above).
+    // `fallbackReason` is the raw "<ExceptionType>: <message>" line behind a
+    // fallback — English, unbounded, and able to quote provider output, so it is a
+    // server-log fact, not a wire fact. Its CLASS (`fallbackClass`) goes out
+    // instead: a closed vocabulary the panel renders in the reader's language, the
+    // same shape `errorCode` gives a failure.
+    const { rootPath, fallbackReason, ...rest } = scan;
+    void fallbackReason; // stripped: the raw diagnostic is a server-log fact, not a wire fact
     return NextResponse.json({ scan: { ...rest, isLocal: rootPath !== null } });
   } catch (error) {
     return safeJsonError(error, "api:repo-scan/[id]", "REPO_SCAN_READ_FAILED");

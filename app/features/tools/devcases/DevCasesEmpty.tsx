@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmptyLedger } from "./DevCasesEmptyLedger";
@@ -12,9 +13,13 @@ import { CasesEmptyLedger } from "./DevCasesEmptyLedger";
  * which is the whole argument for the module in an LLM-era hiring market. */
 
 export function CasesEmpty({ state, onDefine }: { state: LoadState; onDefine: () => void }) {
+  const t = useTranslations("devcase.studio");
   return (
     <div className="space-y-3">
-      <LoadStatus state={state} label="dev cases" />
+      {/* ONE WORD PER ENTITY: this label is interpolated into LoadStatus's outage
+          sentence, and it said "dev cases" — the retired vocabulary, in English, on
+          the one surface a first-run operator sees. */}
+      <LoadStatus state={state} label={t("loadLabel")} />
       <CasesEmptyLedger onDefine={onDefine} />
     </div>
   );

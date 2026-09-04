@@ -8,6 +8,10 @@ import {
 } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { can } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { invalidateAnalyticsWorkspace } from "@/app/_lib/analytics-cache";
 
 
 // 82c2b8e8 / b39992b1 — recruiter-set analytics settings (mirrors
@@ -35,7 +39,14 @@ const MAX_DAYS = 3650; // sanity ceiling, not a business rule
 const MAX_HOURLY_CZK = 1_000_000; // sanity ceiling, not a business rule
 const MAX_MANUAL_HOURS = 1000; // sanity ceiling, not a business rule
 
+// AUTHORITY (2026-09-03) — same story as /api/analytics/spend, which this route
+// mirrors: no gate at all, so any seat could move the goal lines every board is
+// judged against (and the ROI baseline the automation claim divides by). Session
+// first (401), then `pipeline:write` (403 with a code).
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
   try {
     const body = (await request.json().catch(() => ({}))) as { metric?: unknown; value?: unknown };
     const metric = String(body.metric ?? "").trim();
@@ -62,12 +73,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Value out of range." }, { status: 400 });
       }
     }
-    setAnalyticsTarget(metric, value, await currentWorkspace());
+    const ws = await currentWorkspace();
+    setAnalyticsTarget(metric, value, ws);
+    // The goal line is IN the /api/analytics payload (`targets`), and the inline
+    // editor reloads that payload the instant this returns — inside the read memo's
+    // TTL. Without this the recruiter watches the panel refresh and reads back the
+    // goal they just replaced, with nothing on screen saying the number is stale.
+    invalidateAnalyticsWorkspace(ws);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save the target." },
-      { status: 500 }
-    );
+    // setAnalyticsTarget writes straight through better-sqlite3 — the thrown message
+    // carries constraint text and the absolute db path.
+    return safeJsonError(error, "api:analytics/targets", "ANALYTICS_TARGET_SAVE_FAILED");
   }
 }

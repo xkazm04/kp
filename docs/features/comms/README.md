@@ -29,8 +29,28 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 Env keeps precedence so an existing `COMMS_WEBHOOK_URL` deployment behaves
 exactly as before. `isRelayConfigured()` is the one capability bit every
 "sent" claim, the channel selection, and the Comms Center banner key off — a
-misconfigured stored relay (e.g. an undecryptable secret) is treated as
-unconfigured rather than taking the whole capability check down.
+misconfigured stored relay (e.g. an undecryptable secret) still resolves to *no
+relay* rather than taking the whole capability check down, so messages queue
+honestly instead of being POSTed unsigned to an endpoint that verifies
+signatures.
+
+**But it is no longer silent.** `relayHealth()` (same resolver, same read) names
+the state in four words — `env`, `configured`, `unconfigured`, `unreadable` — and
+`unreadable` is the one that used to hide: the endpoint IS stored, but its signing
+secret does not decrypt under the current `KP_ATS_SECRET_KEY` / `KP_SECRET`
+(a rotation, or a restore onto a host with a rebuilt env). That state now:
+
+- logs **once per boot per reason** with the remedy — restore the key, or set
+  `KP_SECRET_PREVIOUS` and run `npm run secrets:rotate` (which covers
+  `comms_relay_config.relay_secret`), or re-enter the secret on the Channels tab;
+- rides on `GET /api/comms/relay` as `relay: "unreadable"`;
+- paints the Channels card with its own critical badge and an explanation, and
+  disables the Test ping — instead of the "Not configured" pill an install with
+  no relay at all shows.
+
+`getRelaySecret()` raises `CommsRelaySecretError` (deliberately not a
+`CommsRelayError`, so the config route never answers it as a validation 400).
+Pinned by `app/_lib/comms-relay.test.ts` and `app/api/comms/relay/relay-health.test.ts`.
 
 Every message is recorded in `dev_outbox` either way, so the table doubles as
 the permanent audit log.
@@ -45,6 +65,25 @@ dispatcher threads it, so scoping the envelope lookup to it fell back to the
 default team: on any other workspace the lookup missed and every relayed
 message shipped with `candidate`/`job`/`stage` null, leaving the receiving ATS
 unable to map it back to a person. Locked by `comms-tenancy.test.ts`.
+
+### The simulation never reaches a relay
+
+The guided tour (`app/features/shell/simulation`) seeds candidates and then drives
+the real invite and offer paths, so with a relay configured a demo run used to POST
+a schedule invite and an offer letter about a SEEDED profile to the customer's mail
+relay: nothing in this module knew the `(SIM)` marker existed.
+
+`sendCommUnlessSim` (`comms-dispatch.ts`) is the guard. It reads `isSimTitle`
+(`app/features/shell/simulation/constants.ts` — the same predicate the sim writer
+stamps with, `resetSim` purges by and the analytics filters exclude) off the pipeline
+entry's **`jobTitle`**, and for a marked entry writes the row straight to the local
+outbox on channel `simulation` with status `queued` instead of calling
+`getCommsChannel()`. The row is still recorded — the demo's Outbox entry is part of
+what the tour shows, and `queued` is the honest "recorded locally, nothing will
+deliver it" terminal state; `sent` would be a lie. Every candidate-facing dispatcher
+inherits it through `sendCandidateComm`, and the two direct senders (the KO decline
+and the interviewer brief) pass their own title. Pinned by
+`app/_lib/comms-dispatch-sim.test.ts`.
 
 ## 2. The status contract (single source of truth)
 
@@ -77,9 +116,23 @@ sees the same `bounced` row it would have seen live, only later.
 No durable queue or background worker — retries happen inline, bounded,
 within the send (`WebhookChannel.deliver`):
 
+- Each attempt is bounded by **`AbortSignal.timeout(10s)`**
+  (`COMMS_RELAY_TIMEOUT_MS`; `KP_COMMS_RELAY_TIMEOUT_MS` overrides it). Node's
+  `fetch` has no default timeout, so a receiver that accepts the connection and
+  then goes quiet used to hold the recruiter's click open indefinitely — three
+  times over. A timed-out attempt is transient and reads `timeout after
+  10000ms` in `failure_detail`. A fresh signal is created per attempt (a hoisted
+  one would give attempt 3 no budget).
 - **Transient** failures (network/DNS errors, `408`, `425`, `429`, any `5xx`
   — `isRetryableHttpStatus`) retry with exponential backoff:
   `COMMS_RELAY_RETRY` = `maxAttempts: 3`, `baseDelayMs: 200` (200ms, then 400ms).
+- **Retries are idempotent.** Every attempt of one message carries the same
+  `messageId` in the `kp.comm.v1` envelope and the same value in the
+  `Idempotency-Key` header, so a receiver that already accepted attempt 1 drops
+  attempt 2 instead of delivering the offer twice. `OutboundMessage.messageId`
+  lets a caller re-sending an already-recorded message reuse its identity;
+  otherwise the channel mints one per send. Wire contract:
+  [`outbound-export.md`](./outbound-export.md).
 - **Permanent** failures (other `4xx`) dead-letter immediately — retrying a
   caller/config error changes nothing.
 - Exhausted retries or a permanent failure record the message `failed` and
@@ -104,6 +157,16 @@ rides the envelope as `candidate.email` — see outbound-export.md.
 Confirmed interviews get one timed reminder, fired by the heartbeat sweep
 (`sendDueInterviewReminders` → `dueReminders`), pinned in
 `app/_lib/interview-reminder-policy.ts` / `interview-reminder-policy.test.ts`:
+The *policy* (when a reminder is owed) is pure and lives there; the *loop* that
+claims, retries and gives up is `app/_lib/interview-reminders.ts`, now covered by
+`interview-reminders.test.ts` over a throwaway SQLite file — one delivery per
+booking and no second send on the next tick, a failed dispatch left to age past
+its backoff rather than released for an immediate retry, the cap terminal (past
+`REMINDER_MAX_ATTEMPTS` the invite never returns to the sweep), and no reminder
+at all for a candidate who has left the interview track. Its dispatcher is an
+injectable parameter (`ReminderDispatch`) defaulting to the real
+`dispatchInterviewReminder`, so the loop is testable with no comms provider and
+the heartbeat call site is unchanged.
 
 | Constant | Value | Role |
 |---|---|---|
@@ -155,6 +218,31 @@ back, keyed by the message's `ref` + `kind`:
   `{ recorded: false, reason: "no_matching_send", stored: true }`, still
   stored append-only, surfaced in the Comms Center as an actionable unmatched
   receipt.
+- **A receipt is filed in the team its `ref` names — or in none.** Neither door
+  carries a tenant: `COMMS_CALLBACK_SECRET` is one process-wide env secret and the
+  relay config is a single global row (`comms_relay_config`, `id = 1`), so there is
+  no "the workspace this callback authenticated for". The `ref` is the only tenant
+  signal a receipt has, and `receiptWorkspace` (`comms-receipt.ts`) resolves it the
+  way the outbox files rows: a **pipeline entry** with that id → its team; else a
+  **dev-case submission** with that id → its team; else **nothing**, and the receipt
+  is refused (`reason: "unknown_ref"`, `stored: false`) rather than written into the
+  DEFAULT team's Comms Center. An integrator posting a foreign ref scheme used to
+  fill one arbitrary tenant's centre with red receipts about candidates that team had
+  never heard of. The relay still learns on the FIRST call that the pair landed
+  nowhere, which is the whole point of answering an orphan. Locked by
+  `comms-receipt.test.ts`.
+- **The receipt row stores CODES, not English.** It is written by a relay callback
+  with no reader and no request locale, and the outbox is append-only — so the two
+  literals it used to store (`"Delivery receipt"`, `"(relay callback)"`) were English
+  in a Czech team's ledger forever. The row now carries `RECEIPT_SUBJECT_CODE` /
+  `RECEIPT_RECIPIENT_CODE` (`comms-view.ts`) and the ledger renders
+  `channels.comms.receiptSubject` / `receiptRecipient` in the reader's language
+  (`channelsCommsHelpers.displaySubject` / `displayRecipient`, which also recognise
+  the pre-code literals so existing rows localize too). BOTH ledgers render them — the
+  Comms Center and the Assignments outbox (`features/tools/devcases/OutboxRows.tsx`),
+  which reaches across for the same two catalog entries rather than keeping a second
+  wording. The helpers are typed on the one field each reads, not on a whole row, so
+  the two tables' different row types share one definition.
 - **Bounce-class outcomes** (`isBounceOutcome`) record an append-only
   `bounced` outbox receipt row. Positive/soft outcomes are accepted with
   `{ recorded: false }` (stops relay retries) but not yet surfaced.
@@ -172,6 +260,55 @@ back, keyed by the message's `ref` + `kind`:
   without ever marking its send and the undeliverable first offer kept a
   green `sent` on every surface. Two receipts landing on the *same* send keep
   the newest detail. Locked by `comms-view.bounce.test.ts`.
+- **`orphaned` is only claimed over the WHOLE ledger.** `deriveCommsView` takes
+  `{ windowTruncated }`, and when the caller says "there are older rows I did not hand
+  you" a receipt that folds onto nothing is still surfaced but makes no accusation
+  (`orphaned: false`). The feed read a fixed 200-row window, so a bounce whose send
+  had merely scrolled out of it was reported as an integration fault.
+
+**Paging the feed.** `GET /api/comms` derives over a window of 500 (the store's own
+ceiling) and answers a page from it: `?limit=` (default 100, clamped to the window)
+and `?cursor=` — the id of the last row of the page just read, never an offset, because
+the ledger is append-only and newest-first and an offset re-shows or skips rows as
+messages arrive between two reads. The response carries `hasMore` + `nextCursor` (more
+rows inside this read), `cursorExpired` (the cursor named a row no longer in the
+window — answered from the top, said out loud so a client resets instead of appending
+a duplicate page) and `truncated` (older rows exist BEYOND the derivation window and no
+cursor reaches them — a separate fact from `hasMore`, and the one that suppresses the
+orphan claim above). The rule is pure and lives in `comms-view.pageCommsFeed`; locked by
+`comms-view.test.ts`.
+
+## 7a. The send precondition (one gate, every door)
+
+The compliance gate — never write to a candidate who was **anonymized** or whose
+processing consent **expired** — used to live in `dispatchOutreach`
+(`comms-dispatch.ts`) alone. Every other way into the channel skipped it: the resend
+door (`POST /api/comms/[id]/resend`), the dev-case lifecycle close, the orchestrator's
+promotion batch and the intake acknowledgement all call `sendComm` directly.
+
+It is now re-asserted at the channel handoff, in `comms.ts`:
+
+- `commsSendSuppression(msg)` is the ONE predicate. It resolves `msg.ref` to a pipeline
+  entry and asks `candidateOutreachSuppression` — the same question, the same way,
+  `dispatchOutreach` asks — then, **for `kind: "outreach"` only**, the sequence halt
+  (`outreachHaltFor`). The sequence halt is deliberately not applied to the rest: a
+  rejection or an offer letter is owed to a candidate who replied, not withheld.
+- An **entry-less** comm (a KO decline, a dev-case ack whose `ref` is a submission id)
+  carries no candidate identity to consult and passes through.
+- An unreadable pipeline store fails **closed** (`consent_expired`, logged) — this gate
+  is the last thing between an erased candidate and a letter.
+- A refusal throws `CommsSuppressedError`, whose `code` is `COMMS_SUPPRESSED`
+  (`REFUSAL_ERRORS`, four catalogs). Throwing keeps the existing contract that a throw
+  means the message did **not** go out. `dispatchOutreach` still gates first — it has to
+  report the reason to its caller and record the suppression event — and re-asserting is
+  idempotent.
+
+The recovery door answers the refusal as one: `POST /api/comms/[id]/resend` maps
+`CommsSuppressedError` to `jsonRefusal("COMMS_SUPPRESSED", 409)` rather than letting it
+fall into `safeJsonError` and paint a correct decision as a retryable 500. (Erasure
+also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earlier, by
+the route's own 422 missing-fields check; expired consent is the case the gate answers.)
+Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
 ## 8. One delivery truth, on every surface
 
@@ -187,15 +324,30 @@ back, keyed by the message's `ref` + `kind`:
   (`candidate-timeline.ts` → `toCandidateComm`); parity locked by
   `comms-delivery-truth.test.ts`.
 - **Resend claims are honest** — both resend clients (Dev outbox
-  `ResendButton`, Comms Center `BouncedResend`) split the same **four** outcomes,
-  because `POST /api/comms/[id]/resend` answers `200` for three of them: refused
-  (non-2xx → the server's own reason, resolved from the machine `code`) ▸
+  `ResendButton`, Comms Center `BouncedResend`) read the same **five** outcomes,
+  derived once in `app/_lib/comms-resend-outcome.ts` (`resendOutcome(ok, status,
+  payload)`; the fold used to be duplicated verbatim in both components).
+  `POST /api/comms/[id]/resend` answers `200` for three of them and `409` for two
+  different things: refused (non-2xx → the machine `code`, resolved in the reader's
+  language) ▸ **refused-but-recovered** (`409` carrying `recovered: true`) ▸
   dead-lettered again (`failed`/`bounced`) ▸ **recorded but undeliverable
   (`queued` — no relay configured)** ▸ actually relayed (`sent`). Only the last
-  may say "Resent". `queued` is the one that bit: the relay is a stored,
+  may say "Resent". `queued` is the one that bit first: the relay is a stored,
   UI-editable capability, so it can be gone by the time a recruiter chases a
   bounce raised while it was wired, and a corrected address that never leaves the
-  building must not report green.
+  building must not report green. **Recovered** is the one both buttons were blind
+  to: the route's two de-dup doors refuse a second dispatch precisely *because* the
+  message is already going out, and folding that `409` into the red "Couldn't
+  resend" told a recruiter who double-clicked a bounce that nothing had been sent.
+  It now renders as a calm "already being delivered" line, never in the failure
+  tone, and the button settles instead of inviting a third click. Five outcomes
+  pinned by `app/_lib/comms-resend-outcome.test.ts`.
+- **Resend is throttled and de-duplicated** — `POST /api/comms/[id]/resend` is
+  the one door in the outbox loop that spends real email, so it carries a per-IP
+  `rateLimit()` (60 per 10 minutes, after the cheap refusals) and answers
+  `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
+  entry-less KO-decline case) correlates on its own outbox id, so the refless
+  shape can no longer be resent without bound (`resend-dedup.test.ts`).
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
@@ -232,6 +384,17 @@ dispatchers thread their caller's `opts.workspaceId`). Omitting it read the
 *default* team's `default_locale`, so once a second team sets its own language a
 NULL-locale candidate filed into it was written to in the default team's language.
 Locked by `comms-dispatch-locale.test.ts` ("falls back to ITS OWN team's default").
+
+**The signature enforces it now.** `commsTranslator` used to take the locale alone,
+so any caller holding a raw (possibly NULL) `locale` and no workspace silently
+resolved against the *default* team — which is exactly how the dev-case feedback
+brief and the intake acknowledgement kept the defect after the dispatchers were
+fixed. It is now overloaded: one argument is accepted only for an ALREADY-RESOLVED
+`Locale` (what `candidateLocale` / `resolveCommsLocale` return — re-resolving one is
+idempotent), and a raw `string | null | undefined` must be paired with the workspace
+it belongs to. `buildFeedbackBrief` takes `workspaceId` on its input for that reason;
+`distribution.intakeSubmission` passes the SUBMISSION's team, the same tenant the
+acknowledgement row is filed under. Locked by `comms-translator-tenant.test.ts`.
 
 **Catalog composition.** The deterministic bodies live in the `comms.*` namespace
 and render through a locale-pinned translator (`comms-translator.ts` →
@@ -333,7 +496,9 @@ power is "may talk to this queue". Once the install publishes a sealing key
 (Channels → Edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
 stores either: bodies are AES-256-GCM sealed under a key wrapped to the install's
 public RSA key (`app/_lib/edge-crypto.ts`), and the private half never leaves the
-machine. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
+machine. The keypair is minted **once**: two "Enable sealing" clicks publish one
+key, the loser re-reading the winner, because a second keypair would orphan
+everything already sealed to the first. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
 same reason `comms_relay_config` is; the leads it produces are filed into the
 workspace of the RECEIVER TOKEN they were addressed to, by the core.
 
@@ -351,15 +516,50 @@ this version does not understand) is **handled** and advances the cursor — a r
 would only reproduce it. Anything 5xx-class **holds**: the page stops at the last
 good sequence and the operator gets a reason on the Channels card.
 
+The drain **catches up across pages**: while the edge reports events still waiting it
+fetches the next page, up to `MAX_PAGES_PER_DRAIN = 5` (250 events) per tick. Bounded
+rather than unbounded because each applied event is a real intake write, and an edge
+whose `pending` never falls would otherwise spin the loop; what is left over is not
+lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
+stops the run rather than asking for another page, because events are ordered.
+
+The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
+backlog still at the edge, last heartbeat — each with a relative time in the reader's
+locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
+distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
+and the drain then does nothing forever. Failures are shown by CLASS
+(`unreachable` / `held` / `ack` / `unknown`, `EDGE_ERROR_KINDS` in `edge-config.ts`),
+never as the machine string — and `/api/edge` answers `EDGE_CONFIG_REJECTED`,
+`EDGE_PAIR_REFUSED` or `EDGE_SAVE_FAILED` rather than forwarding a thrown message.
+
 Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
 `x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the
 body for a POST and the path+query for a GET. Both halves of that choice are
-pinned across the two runtimes by `edge-drain.test.ts`.
+pinned across the two runtimes by `edge-drain.test.ts`. **Inside** that window each
+signature is spent once: the Worker's `nonces` table (`edge/schema.sql`) records
+`sha256(signature)` on `/drain`, `/ack`, `/heartbeat` and `/pair`, and a second
+presentation is `409` — without it a captured `POST /ack {upto}` replayed for five
+minutes and deleted events the install had never applied.
+
+The edge's `POST /relay/callback` is held to the same four rules as the install's own
+callback (`app/api/comms/callback` + `callback-auth.ts`), because a receipt becomes a
+`bounced` outbox row either way: unset `KP_CALLBACK_SECRET` disables the route (503);
+`x-comms-secret` is compared in constant time from the HEADER only; `x-comms-timestamp`
+must be within ±5 minutes; and a nonce (`x-comms-nonce`, else derived) makes a replay a
+409 rather than a second bounce. It was previously open — anyone who learned the Worker
+URL could inject bounces. Malformed input is `400` everywhere and a storage failure is
+`503 {retryable:true}` with `Retry-After`, never a 4xx a sender would stop retrying.
+`edge/test/worker.test.ts` (`cd edge && npm test`, no wrangler and no network) drives
+these refusals; it is not part of `npm run test:unit`, whose globs are `app/**` and
+`packages/**`.
 
 **The nudge** — "your studio needs to run" — lives on the Worker's cron, not here,
 for the obvious reason: the machine that is switched off cannot be the machine
 that notices it is switched off. One nudge per quiet period (`nudged_at` is
-cleared by the next heartbeat), carrying COUNTS, never names.
+cleared by the next heartbeat), carrying COUNTS, never names. `nudged_at` is
+stamped **only after a 2xx** from the nudge target: a failed POST is logged with
+its status and left unstamped, so the next cron tick tries again instead of the
+backlog going quiet until the install happens to wake on its own.
 
 **Mail is stored as headers only** (sender + subject). An emailed CV therefore
 arrives as a *lead* whose acknowledgement carries the enrichment link, not as a
@@ -395,10 +595,44 @@ air-gapped.
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Recruiter console: list / mint / revoke inbound receivers. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsBouncedResend.tsx`) | Channels tab UI: relay config, Comms Center table, bounce resend. |
-| `app/features/hiring/channels/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+| `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
+| `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
+| `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
+| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. |
+| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
+| `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+
+## Who may administer a receiver
+
+`currentWorkspace()` resolves a **tenant**; it does not decide **authority**. It was the
+only thing standing in front of the three receiver writes, so a viewer seat satisfied
+them exactly as well as an owner — and in open mode (`KP_OPERATOR_PASSWORD` unset, a
+documented no-op for the whole API) so did an anonymous demo cookie.
+
+What those writes actually do is installation wiring, not recruiting:
+
+| Door | What one accepted call does |
+| --- | --- |
+| `POST /api/channels/webhooks` | Mints a permanent PUBLIC ingress token bound to a role. Its 404-vs-200 also told the caller which role ids exist. |
+| `PATCH /api/channels/webhooks` | Stores a pull URL **and a secret** that the clock later fetches on this server's behalf — an outbound reach the operator owns. |
+| `DELETE /api/channels/webhooks/[token]` | Permanently kills a live lead intake. |
+
+All three now require **`org:manage`** (`requireCapabilityCoded`, org-wide — recruiters
+and viewers do not hold it) behind `requireOperator`, and share **one** per-IP budget
+(`channel-receiver`, 60/10 min) so switching verbs does not buy a second allowance.
+Refusals are codes, not prose: `FORBIDDEN_CAPABILITY`, `TOO_MANY_REQUESTS`,
+`CHANNEL_UNKNOWN`, `CHANNEL_JOB_NOT_FOUND`, `CHANNEL_TOKEN_REQUIRED`,
+`CHANNEL_WEBHOOK_NOT_FOUND`, `CHANNEL_PULL_URL_INVALID`, and the two store 500s
+`CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED`. The Add-receiver modal and the receiver panes
+resolve them in the reader's language (`useErrorMessage`); the revoke fold carries the
+message rather than a single "Couldn't remove it", because a recruiter seat and a burst
+are two different, actionable outcomes.
+
+Behaviour is driven against the real handlers in
+`app/api/channels/channels-doors-gate.test.ts`; the limiter call sites are pinned by
+`app/api/rate-limit-contract.test.ts`.
 
 ## Channels tab: paging and the render cascade
 
@@ -406,10 +640,37 @@ air-gapped.
 and the email/ad-form receiver tables. It replaced the ledger's "Show more"
 button, which appended another 40 rows to the same list until the column filters
 (which live in the table header) had scrolled far out of reach. Paging is a pure
-client-side slice — the comms read is already capped at 200 rows server-side — and
-the page index is **clamped**, never reset from an effect, so filtering down to
-fewer pages lands the reader on one that exists. Any filter change returns to page
-one. The pager renders nothing when everything fits on one page.
+client-side slice over the rows the ledger has **loaded**, and the page index is
+**clamped**, never reset from an effect, so filtering down to fewer pages lands the
+reader on one that exists. Any filter change returns to page one. The pager renders
+nothing when everything fits on one page.
+
+**The ledger consumes the cursor contract (§7).** `ChannelsCommsTable` reads one
+server page at a time (`?limit=200`) and folds each response through the pure reducer
+in `channelsCommsPaging.ts` (`mergeCommsPage`, locked by `channelsCommsPaging.test.ts`).
+It asked for `?limit=500` — the whole derivation window — and looked at `messages`
+only, which made `hasMore` structurally unreachable and left `truncated` unread: the
+table simply ended, and "these are all the messages" looked exactly like "these are the
+newest 500 of far more". Now:
+
+- the caption says `Showing N — older ones exist` (`channels.comms.olderExist`) instead
+  of `N messages` whenever either fact is true;
+- **Load older** appends the next cursor page — and appears *only* while a cursor
+  actually reaches more rows;
+- once it does not but `truncated` is set, the sentence
+  (`channels.comms.beyondWindow`) is the whole affordance: the oldest rows sit outside
+  the derivation window and no button gets them, which is precisely what a dead "load
+  older" would have hidden.
+
+The reducer holds the three rules a component cannot be trusted to re-derive: a body
+with no `messages` array is a **failure**, never an empty ledger; `hasMore` without a
+`nextCursor` is not more (that pair is how a client pages forever); and a page answered
+with `cursorExpired` came back from the *top*, so it replaces rather than appends.
+
+**The careers list says it is a preview.** `ChannelsTabStage` shows the first 8
+published roles; past that it renders `Showing 8 of N` (`channels.careers.showingOf`)
+with a link into the Jobs tab. The stat tile beside it had been showing the real N all
+along while the list ended silently at eight.
 
 **Chrome renders before data; only data waits.** Two cascade gaps on the Comms
 section are closed:
@@ -435,6 +696,26 @@ section are closed:
 - `CommsTable` held back the caption, the column headers and the filters inside
   them behind the same fetch, although all three depend on nothing but client
   state. They now render immediately with a quiet reserved-height body.
+
+**The relay write is versioned, throttled and coded.** Because the POST is a full
+replace, the config carries a `version` that the card echoes as `expectedVersion`
+and `setRelayConfig` re-asserts inside an `IMMEDIATE` transaction: a save composed
+against a config someone else has since replaced is refused (`409
+COMMS_RELAY_STALE`, nothing written, the current config riding beside the code) and
+the card adopts what is actually stored instead of clobbering it — previously the
+last tab to click Save won, silently, and the loser's outbound mail went to the
+wrong endpoint. The door also carries a per-IP `rateLimit()` (30 per 10 minutes,
+after the operator gate): it stores an HMAC signing secret, and open mode makes the
+operator gate a documented no-op, so without it the SSRF guard could be probed one
+candidate host at a time for free. Its 500 answers `safeJsonError` — the thrown
+better-sqlite3/crypto detail goes to the server log, never onto the wire.
+
+**A denied clipboard says so.** The three copy controls on this tab (receiver row,
+setup-guide endpoint chip, careers link) share `useCopyState`. They used to swallow
+the rejection, so a blocked clipboard looked exactly like a successful copy and the
+operator pasted a *stale* endpoint into a forwarding rule — which loses applications
+with no error anywhere. A denial now flips the button to a visible "copy failed —
+select the text" state that stands until the next attempt.
 
 The status vocabulary stays honest through this: `relayConfigured` seeds `true`,
 so a read in flight never accuses a configured relay of dropping mail, and the
@@ -524,6 +805,11 @@ already returns alongside the entries. Both rules are pinned by
   ternary, which handles only `anonymized` and treats everything else as a consent
   lapse. Both halves want the same change: carry the delivery status in
   `OutreachResult` and map every reason 1:1 at the consumer.
+- **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
+  and the encrypted store write, and the two are indistinguishable from the route, so a
+  store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
+  server-side) instead of a 500. Separating them needs a typed error out of
+  `db/channels.ts`.
 - **Pull sources have no UI.** `PATCH /api/channels/webhooks` is the only way to
   set `pullUrl` / `pullSecret`; the receiver table shows neither the pull URL nor
   `last_pull_error`, so a source that has been failing for a week is visible only

@@ -64,6 +64,7 @@ The client seam is `app/_lib/use-error-message.ts`:
 | `useErrorMessage()` | Components and hooks. Returns `(payload, fallback) => string`. |
 | `resolveErrorMessage(payload, fallback, has, translate)` | The pure form, for plain non-React helper modules. |
 | `ErrorMessageResolver` | The bound resolver's type — thread it into a plain helper as a parameter rather than turning that helper into a hook. |
+| `capabilityAwareReason(resolve, payload, fallback)` | The one refusal that carries **data**: a capability-gated 403 answers `FORBIDDEN_CAPABILITY` plus the `capability` it wanted. `errors.FORBIDDEN_CAPABILITY` stays placeholder-free (a dozen consumers resolve it with no values), so a client that HOLDS the capability renders `errors.forbiddenCapabilityNeeds` instead, which names the permission. Takes a bound resolver, so a helper module folds it identically to a component. |
 
 ```ts
 const errMsg = useErrorMessage();
@@ -94,19 +95,75 @@ the eslint i18n rule already held at `error` level. It could: that rule reads
 **JSX text nodes**, so English arriving through a variable is invisible to it.
 The lint level of an area is not evidence that the area is localized.
 
-### Two guards, in `npm run i18n:check`
+### The same trap, one layer down: a transport helper with a `message`
+
+A shared fetch helper that returns `{ code, capability, status, message }` — the
+last field documented as "canonical English, a last-resort fallback" — is the
+84-call-site trap wearing a type. Every remaining caller of `postPipelineAdd`
+used `message` as the **first** resort (the report's add button, the Fit Matrix
+bulk add, the silver-medalist feed), because it is the field that is always
+populated and already a sentence. The field is gone: `postPipelineAdd` and
+`postPipelineBatch` return the machine half only, and each caller supplies its
+own localized fallback. The English still exists where it belongs — the server
+log — and `status` is what distinguishes a refusal from a fault from a blip.
+
+The rule: **a shared client helper never returns a user-facing sentence.** If
+callers need one, give them the code and let them resolve it.
+
+### Three guards, in `npm run i18n:check`
 
 - **Leak guard** — fails on `x.error || …`, `x.error ?? …`, and the ternary
   spelling `typeof x.error === "string" ? x.error : …` anywhere under the UI
   directories. The ternary form was added after it turned out to hide 8 live
   leaks the first pattern could not see.
-- **Code parity** — every code in **both** registries (`STORE_ERRORS` and
-  `REFUSAL_ERRORS`) must have an `errors.<CODE>` message in `en.json`. Without
-  it, `useErrorMessage` silently falls through to the caller's generic fallback
-  and the specific reason is lost in all four languages. The check parses the
-  registries out of `api-response.ts`, so adding a code without its message
-  fails the gate rather than degrading quietly — and it fails loudly if either
-  registry's shape changes under it.
+- **Code parity** — every machine error code the app can put on the wire must
+  resolve to a message in `en.json` (and so, via the parity check above, in all
+  four). Without it, `useErrorMessage` silently falls through to the caller's
+  generic fallback and the specific reason is lost in all four languages.
+
+  Until this gate was widened it read only `api-response.ts`, so the ~30 codes
+  declared anywhere else resolved *by luck*: deleting one of their four catalog
+  entries produced a green build and a generic message. It now sweeps all three
+  shapes a code arrives in:
+
+  | Shape | Where | How the gate finds it |
+  | --- | --- | --- |
+  | Central registries | `STORE_ERRORS` / `REFUSAL_ERRORS` in `api-response.ts` | parses the two `as const` blocks |
+  | Satellite registries | a vocabulary deliberately declared *away* from `api-response.ts` — a CLIENT-origin transport code no handler can return (`VOICE_TRANSPORT_*`), a validator's own union (`JdFieldsErrorCode`), a lone exported constant (`PAIR_NO_SECRET_CODE`) | `SATELLITE_ERROR_SOURCES` in the script, one extractor per declaration shape |
+  | Inline codes | `code: "SOMETHING"` written at the emit site in a route handler | swept out of the whole `app/**` tree (tests excluded — they mint unknown codes on purpose) |
+
+  The inline sweep is the half that makes the gate **self-extending**: a new
+  route cannot add an unlocalized code without adding its copy, and no manifest
+  edit is needed to notice it. The satellite list exists only because a
+  declaration *shape* cannot be guessed; each entry fails loudly — naming the
+  file and the declaration — if its file moves or its shape changes under the
+  extractor, on the same "a scan whose scope silently evaporates is worse than
+  no scan" rule the marketing-page scan follows.
+
+  A code counts as localized under any namespace in `ERROR_NAMESPACES`
+  (`errors`, plus `results.github.errors` — see below). Adding a namespace there
+  widens what counts as localized, so it is a deliberate act.
+
+- **Archetype labels** — the same contract in a different namespace, and the
+  reason two raw-English exports are gone. `ARCHETYPE_BADGE` (rendered by two
+  recruiter cards) and `ARCHETYPE_LABEL` (rendered by the analysis banner) were
+  `Record<id, string>` maps of the shared registry's English that read like
+  localized lookups. Every archetype is now shown through `useEnumLabel`, which
+  falls back to `labelize(id)` — English, silently — for a missing entry, so the
+  gate reads the registry (`pipeline/jobfit/archetypes.json`, the id vocabulary
+  for both languages) and requires a label in **two** namespaces for every
+  archetype plus the `unrouted` fail-closed display key:
+
+  | Namespace | Form | Rendered by |
+  | --- | --- | --- |
+  | `enums.archetype.<id>` | compact badge (`Switcher`) | dense recruiter lists |
+  | `enums.archetypeLong.<id>` | full label (`Career-switcher`) | the analysis banner |
+
+  The registry's `label` / `badge` columns stay the vocabulary; the words live in
+  the catalogs. Python is unaffected — it reads `pythonLabel`. A new archetype
+  therefore arrives with eight catalog entries, and `ARCHETYPE_LABEL` is no
+  longer re-exported from `matchTypes` / `profileTypes`: a barrel handing feature
+  code the raw map is how this reached three surfaces.
 
 `ERROR_LEAK_ALLOW` in the script lists the verified exceptions. Two kinds
 qualify, and both are commented at the entry:
@@ -264,6 +321,34 @@ runs with no request cookie:
 
 Either way the caller follows with `router.refresh()` so the server re-renders
 under the new locale.
+
+### The cookie has one writer of its options, and one resolver
+
+Three places write `NEXT_LOCALE` — `setLocale` (`i18n/actions.ts`),
+`setOrgLanguage` (`app/_lib/org-actions.ts`) and the `?lang=` override in
+`proxy.ts` — and all three take their options from **`localeCookieOptions()`**
+(`i18n/cookie.ts`). One policy, one place to harden: site-wide `path`, a
+year-long `maxAge` (`LOCALE_COOKIE_MAX_AGE`), `sameSite: "lax"`, and `secure`
+**only** when `NODE_ENV=production`.
+
+The two conditional parts are deliberate, not defaults:
+
+- **`lax`, never `strict`.** A candidate following a `?lang=cs` link from an
+  email arrives cross-site on a top-level GET, and `strict` withholds the cookie
+  on exactly that first navigation — the one where it matters.
+- **`secure` only in production.** A self-hosted install is routinely reached
+  over plain HTTP on a LAN (`docs/architecture/self-hosting.md`), where a
+  `secure` cookie is silently dropped by the browser and the switcher appears to
+  do nothing.
+
+Reading it back is `getServerLocale()` (`i18n/server.ts`), the single server-side
+resolution path shared by `i18n/request.ts` and every API route that threads a
+language into a backend call. Its precedence is **cookie → `Accept-Language` →
+`en`**, with `isLocale()` guarding each step: an unsupported cookie value does
+not win and does not stop the chain, it falls through to the header.
+`resolveAcceptLanguage` folds a regional tag onto its primary subtag (`cs-CZ` →
+`cs`) and honours the header's own order, so the first *supported* tag wins
+rather than the first tag. All of it is pinned by `i18n/locales.test.ts`.
 
 ### `AppLanguage` is `Locale`, not a subset of it
 

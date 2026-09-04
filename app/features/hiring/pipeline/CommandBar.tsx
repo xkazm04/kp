@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, CornerDownLeft, Terminal, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
 type CommandResult =
@@ -12,6 +13,13 @@ type CommandResult =
       phase: "done";
       description: string;
       count?: number;
+      // Targets the command did NOT apply: the guarded write refused (someone
+      // moved or closed the candidate in the gap) or the action threw. Counted
+      // server-side so a bulk reject can never claim more than it did.
+      failed?: number;
+      // Of the rejections that DID apply, how many the candidate was not told
+      // about — the reject stands, the note has to go out by hand.
+      commsFailed?: number;
       // advance_top targets already at Offer, HELD instead of silently hired —
       // the recruiter is pointed at the offer flow for them.
       heldAtOffer?: number;
@@ -28,6 +36,10 @@ type CommandResult =
 // convenience, not a new privilege. `onExecuted` refreshes the board after a run.
 export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
   const t = useTranslations("pipeline.command");
+  // Codes, never messages: the command route answers TOO_MANY_REQUESTS /
+  // COMMAND_FAILED, and painting `p.error` shipped its canonical English to every
+  // locale.
+  const errorMessage = useErrorMessage();
   const [text, setText] = useState("");
   const [result, setResult] = useState<CommandResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,15 +64,31 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
       });
       const p = await r.json();
       if (p.error) {
-        setResult({ phase: "info", description: p.error });
+        setResult({ phase: "info", description: errorMessage(p, t("failed")) });
       } else if (confirm || p.executed) {
-        setResult({ phase: "done", description: p.description, count: p.count, heldAtOffer: p.heldAtOffer, droppedOut: p.droppedOut, summary: p.summary });
+        setResult({
+          phase: "done",
+          description: p.description,
+          count: p.count,
+          failed: p.failed,
+          commsFailed: p.commsFailed,
+          heldAtOffer: p.heldAtOffer,
+          droppedOut: p.droppedOut,
+          summary: p.summary,
+        });
         onExecuted();
       } else if (p.kind === "help" || p.kind === "unknown") {
         setResult({ phase: "info", description: p.description });
       } else {
         setResult({ phase: "preview", kind: p.kind, description: p.description, mutating: p.mutating, preview: p.preview ?? [], total: p.total, matchedIds: p.matchedIds ?? [] });
       }
+    } catch {
+      // A network-level failure (offline, the dev server restarting, an unparseable
+      // body) threw straight out of an un-awaited promise: the bar just went quiet
+      // and the browser logged an unhandled rejection. There is no code to resolve
+      // here — nothing reached the route — so say the generic line and let the
+      // recruiter retry rather than leaving a submitted command with no outcome.
+      setResult({ phase: "info", description: t("failed") });
     } finally {
       setBusy(false);
     }
@@ -161,6 +189,11 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
               {t("dismiss")}
             </button>
           </div>
+          {/* The two truthful counts a bulk action owes the recruiter: who was NOT
+              actioned, and who was actioned but never told. Both are silent
+              otherwise — a lost CAS looks identical to a success from here. */}
+          {result.failed ? <p className="mt-1 text-meta text-coral">{t("doneFailed", { count: result.failed })}</p> : null}
+          {result.commsFailed ? <p className="mt-1 text-meta text-coral">{t("doneCommsFailed", { count: result.commsFailed })}</p> : null}
           {/* advance-top stops at Offer: say who was held and where the work continues,
               instead of silently swallowing part of the requested N. */}
           {result.heldAtOffer ? <p className="mt-1 text-meta text-steel">{t("doneHeldAtOffer", { count: result.heldAtOffer })}</p> : null}

@@ -100,6 +100,56 @@ export function getDecisionConfig<T = Record<string, unknown>>(phase: string, wo
   }
 }
 
+/**
+ * OPTIMISTIC CONCURRENCY — the version of the config a reader is looking at.
+ *
+ * The lost update this closes: the Hiring composer reads the plan, the operator edits
+ * for a minute, a second operator saves in between, and the first Save silently
+ * overwrites it — on the rules that decide who is auto-rejected, with both saves
+ * reporting success. `updateDecisionConfig` fixes that only for mutations that can be
+ * expressed as a pure function inside the transaction; a human editing a draft in a
+ * browser cannot be. So the value the reader READ is echoed back on the write, and the
+ * write re-asserts it under the lock (the "re-check" half of the read→compute→write
+ * rule) — a stale one is DROPPED, never merged.
+ *
+ * The token is the effective row's `updated_at`, resolved through the SAME cascade as
+ * `getDecisionConfig` (team override, else org baseline, else nothing) — so "the plan I
+ * am looking at" and "the plan whose version I hold" are the same thing. `null` means
+ * nothing is stored for this phase at either tier and the reader is looking at the code
+ * default.
+ */
+function effectiveUpdatedAt(d: Database.Database, phase: string, workspaceId: string): string | null {
+  const row = d
+    .prepare(
+      `SELECT updated_at FROM decision_config WHERE phase = ? AND (workspace_id = ? OR workspace_id IS NULL) ORDER BY (workspace_id IS NULL) ASC LIMIT 1`
+    )
+    .get(phase, workspaceId) as { updated_at: string } | undefined;
+  return row?.updated_at ?? null;
+}
+
+export function getDecisionConfigVersion(phase: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  return effectiveUpdatedAt(db(), phase, workspaceId);
+}
+
+/** The versions beside `getAllDecisionConfigs`' configs, keyed the same way, so one GET
+ *  hands the client both the plan and the token its save must echo. */
+export function getAllDecisionConfigVersions(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, string | null> {
+  const d = db();
+  const out: Record<string, string | null> = {};
+  for (const phase of Object.keys(DEFAULTS)) out[phase] = effectiveUpdatedAt(d, phase, workspaceId);
+  return out;
+}
+
+/** A write whose `expectedUpdatedAt` no longer matches what is stored: somebody saved
+ *  first. NOT a DecisionConfigError — nothing about the payload is wrong, and the remedy
+ *  is to reload and decide again rather than to fix a field. */
+export class DecisionConfigStaleError extends Error {
+  constructor(readonly phase: string) {
+    super(`decision config "${phase}" changed since it was read`);
+    this.name = "DecisionConfigStaleError";
+  }
+}
+
 /** This tier's OWN stored row (no cascade), or undefined. `scope: "org"` is the
  *  workspace_id IS NULL baseline; `"team"` is that team's override. */
 function tierRow(d: Database.Database, phase: string, workspaceId: string, scope: "org" | "team"): { config_json: string } | undefined {
@@ -146,7 +196,12 @@ function writeConfigRow(
     }
   }
   const json = JSON.stringify(result.config);
-  const now = new Date().toISOString();
+  // STRICTLY increasing, because this stamp is the concurrency token: two saves inside
+  // one millisecond would otherwise mint the same version, and the second reader's stale
+  // draft would sail through the precondition below.
+  let now = new Date().toISOString();
+  const prior = effectiveUpdatedAt(d, result.phase, workspaceId);
+  if (prior && prior >= now) now = new Date(Date.parse(prior) + 1).toISOString();
   // Delete-then-insert into EXACTLY one tier (org NULL vs team id) — a clean tiered upsert
   // without an ON CONFLICT partial-index target. The caller's transaction is what keeps a
   // concurrent reader from observing the row missing between the delete and the insert.
@@ -164,12 +219,23 @@ export function setDecisionConfig(
   phase: string,
   config: Record<string, unknown>,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  scope: "org" | "team" = "team"
+  scope: "org" | "team" = "team",
+  /** Optimistic concurrency: the version the caller READ (see getDecisionConfigVersion).
+   *  Omit it entirely for a write with no read behind it — server-side writers that
+   *  compute the whole config. `null` asserts "nothing was stored when I read". */
+  opts: { expectedUpdatedAt?: string | null } = {}
 ): void {
   const d = db();
-  d.transaction(() => {
+  // IMMEDIATE: the precondition below is a READ that the write depends on, so the write
+  // lock is taken at BEGIN rather than at the first write — otherwise two savers can both
+  // pass the check inside their own deferred transactions.
+  const tx = d.transaction(() => {
+    if (opts.expectedUpdatedAt !== undefined && effectiveUpdatedAt(d, phase, workspaceId) !== opts.expectedUpdatedAt) {
+      throw new DecisionConfigStaleError(phase);
+    }
     writeConfigRow(d, phase, config, workspaceId, scope);
-  })();
+  });
+  tx.immediate();
 }
 
 /**

@@ -15,6 +15,7 @@ import {
   briefReadyToPromote,
   briefStatedRequirements,
   needTextFromBrief,
+  needTextLabels,
 } from "./intake-brief.ts";
 import type { RoleBrief } from "./rolespec.ts";
 
@@ -44,6 +45,33 @@ test("needTextFromBrief flattens narrative → outcomes → graded requirements 
   assert.ok(text.includes("Urgency: Ops team is losing trust"));
   // Outcomes come before requirements (the de-spec framing survives the flatten).
   assert.ok(text.indexOf("Done in 90 days") < text.indexOf("Must have: SQL"));
+});
+
+test("the composed need text speaks the session's language, labels included", () => {
+  // The defect: a Czech session's persisted build input read
+  // "Done in 90 days: <Czech prose>" — four English headings stapled to the
+  // requestor's own words, then handed to the design chain as THE need.
+  const cs = needTextFromBrief(brief, "cs");
+  assert.ok(cs.includes("Hotovo do 90 dnů: Weekly reporting runs without manual work"));
+  assert.ok(cs.includes("Nutné: SQL"));
+  assert.ok(cs.includes("Výhodou: dbt"));
+  assert.ok(!cs.includes("Done in 90 days"), "no English heading survives in a cs build input");
+  assert.ok(!cs.includes("Must have:"));
+  assert.ok(cs.includes("Urgency: Ops team is losing trust"), "the facet's OWN label is never translated");
+  assert.ok(needTextFromBrief(brief, "de").includes("Muss mitbringen: SQL"));
+  assert.ok(needTextFromBrief(brief, "fr").includes("Indispensable: SQL"));
+});
+
+test("an unscripted or absent language falls to English, never to an empty label", () => {
+  const en = needTextFromBrief(brief);
+  assert.equal(needTextFromBrief(brief, null), en);
+  assert.equal(needTextFromBrief(brief, "pl"), en, "a language the table does not carry reads as en");
+  // Same shape in all four: a missing label would render "undefined: SQL".
+  for (const lang of ["en", "cs", "de", "fr"]) {
+    const labels = needTextLabels(lang);
+    assert.deepEqual(Object.keys(labels).sort(), ["context", "must", "nice", "success"]);
+    for (const v of Object.values(labels)) assert.ok(v.length > 0, `${lang} carries every label`);
+  }
 });
 
 test("skill projections split by kind", () => {

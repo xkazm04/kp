@@ -1,4 +1,5 @@
 import { ensureDb, safeRowParse } from "./core";
+import { campaignPackSchema, type CampaignPack } from "../schemas";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // ---- Campaign packs (Erika gap E1) -----------------------------------------
@@ -7,10 +8,15 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // posting modal's Campaign tab. `payload` is the campaign_cli pack verbatim
 // (variants + warning codes + applyUrl); `source` records llm vs deterministic
 // provenance so the UI can label a rule-based fallback honestly.
+//
+// The read side is VALIDATED (campaignPackSchema) — the write side is not, and
+// deliberately: saveCampaignPack stores what campaign_cli produced, and refusing a
+// pack at write time would throw away the only copy of a paid LLM run. A pack that
+// cannot be read back is a decode failure the read reports, not a lost artifact.
 export type CampaignPackRecord = {
   jobId: string;
   lang: string;
-  payload: unknown;
+  payload: CampaignPack;
   source: string;
   createdAt: string;
 };
@@ -50,7 +56,10 @@ export function saveCampaignPack(
       `Campaign pack for this role and language could not be saved — a conflicting record already holds that slot. Nothing was stored.`
     );
   }
-  return { jobId, lang, payload, source, createdAt: now };
+  // The stored payload as the reader will see it. Cast rather than parsed for the
+  // reason above: this is the artifact campaign_cli produced, and the caller already
+  // holds it — re-validating here would only decide whether to LIE about the save.
+  return { jobId, lang, payload: payload as CampaignPack, source, createdAt: now };
 }
 
 export function getCampaignPack(jobId: string, lang: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CampaignPackRecord | null {
@@ -63,7 +72,12 @@ export function getCampaignPack(jobId: string, lang: string, workspaceId: string
     | { job_id: string; lang: string; payload_json: string; source: string; created_at: string }
     | undefined;
   if (!row) return null;
-  const payload = safeRowParse<unknown>(row.payload_json, "getCampaignPack");
+  // Behind a schema, like every other JSON column this repo decodes (intakes.ts is
+  // the sibling shape). A pack that does not clear the floor the Campaign tab
+  // dereferences reads as ABSENT — "no pack yet, generate one" — rather than
+  // rendering `undefined` into ad copy. safeRowParse books the issue in the decode
+  // ledger either way, so a corrupt column is visible rather than merely quiet.
+  const payload = safeRowParse<CampaignPack>(row.payload_json, "getCampaignPack", `${jobId}:${lang}`, campaignPackSchema);
   if (payload === null) return null;
   return { jobId: row.job_id, lang: row.lang, payload, source: row.source, createdAt: row.created_at };
 }

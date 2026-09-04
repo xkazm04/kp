@@ -35,6 +35,11 @@ function StageCellImpl({
   onDragEndEntry,
   onDropToStage,
   onMoveEntry,
+  bouncedEntryId = null,
+  bouncedReason = null,
+  laneLabel,
+  stageLabel,
+  dropHintId,
   axis = DEFAULT_BOARD_AXIS,
 }: {
   stage: string;
@@ -56,6 +61,21 @@ function StageCellImpl({
   // calls this with (entry, targetStage), funnelling into the SAME move+announce
   // path the drop uses.
   onMoveEntry: (e: Entry, toStage: string) => void;
+  /** The card the server refused to move, already rolled back into whichever cell
+   *  holds it, plus the localized refusal. Rendered under that card so the recruiter
+   *  reads WHY next to the gesture — a card that silently slides home otherwise looks
+   *  like a dropped drag rather than a decision. */
+  bouncedEntryId?: string | null;
+  bouncedReason?: string | null;
+  /** The two halves of this cell's accessible name (board-grid-has-a-name): the
+   *  position the lane is for and the stage column it sits in. `stageLabel` is the
+   *  RENDERED label, not the stored id, so a workspace's own column name is what a
+   *  screen reader hears — the same string the column header shows. */
+  laneLabel: string;
+  stageLabel: string;
+  /** Id of the board's one sr-only sentence saying what a drop does. Undefined when
+   *  dragging is off (select mode), because then the cell is not a drop target. */
+  dropHintId?: string;
   /** The board's resolved axis, handed straight to each row so its "Move to…" menu
    *  offers THIS workspace's columns (and their labels) rather than the shipped
    *  default. Pass-through only — the cell itself reads nothing off it. */
@@ -104,27 +124,36 @@ function StageCellImpl({
   return (
     <div
       {...dropProps}
+      role="gridcell"
+      aria-label={t("board.cellAria", { position: laneLabel, stage: stageLabel, count: entries.length })}
+      aria-describedby={dropHintId}
       className={`space-y-0.5 border-r border-stone-200 px-1.5 py-2 last:border-0 ${
         isDragging ? "transition-colors" : ""
       } ${dropActive ? "bg-coral/5 ring-1 ring-inset ring-coral/40" : ""}`}
     >
       {visible.map((e) => (
-        <CandidateRow
-          key={e.id}
-          entry={e}
-          pending={needsHumanDecision(e.approvalKind)}
-          stale={isStale(e)}
-          onOpen={() => openProfile(e)}
-          onActions={() => openActions(e)}
-          selectMode={selectMode}
-          selected={selectedIds.has(e.id)}
-          onToggleSelect={() => onToggleSelect(e)}
-          draggable={dragEnabled}
-          onDragStart={() => onDragStartEntry(e)}
-          onDragEnd={onDragEndEntry}
-          onMove={dragEnabled ? (toStage) => onMoveEntry(e, toStage) : undefined}
-          axis={axis}
-        />
+        // Wrapped so a refused move can render its reason directly beneath the card
+        // it bounced back into — see bouncedEntryId.
+        <div key={e.id}>
+          <CandidateRow
+            entry={e}
+            pending={needsHumanDecision(e.approvalKind)}
+            stale={isStale(e)}
+            onOpen={() => openProfile(e)}
+            onActions={() => openActions(e)}
+            selectMode={selectMode}
+            selected={selectedIds.has(e.id)}
+            onToggleSelect={() => onToggleSelect(e)}
+            draggable={dragEnabled}
+            onDragStart={() => onDragStartEntry(e)}
+            onDragEnd={onDragEndEntry}
+            onMove={dragEnabled ? (toStage) => onMoveEntry(e, toStage) : undefined}
+            axis={axis}
+          />
+          {bouncedEntryId === e.id && bouncedReason ? (
+            <p className="mt-0.5 rounded bg-red-50 px-1.5 py-1 text-sm text-red-700">{bouncedReason}</p>
+          ) : null}
+        </div>
       ))}
       {overflow > 0 ? (
         <button
@@ -136,7 +165,18 @@ function StageCellImpl({
           {expanded ? t("board.showFewer") : t("board.moreCount", { count: overflow })}
         </button>
       ) : null}
-      {entries.length === 0 ? <span className="px-1 text-sm text-stone-300">·</span> : null}
+      {/* An empty cell used to be a bare middle dot: decorative to a sighted reader
+          and meaningless to a screen reader, which read the glyph itself. The dot
+          stays as the visual placeholder (aria-hidden) and the emptiness is stated
+          in words beside it. */}
+      {entries.length === 0 ? (
+        <>
+          <span aria-hidden className="px-1 text-sm text-stone-300">
+            ·
+          </span>
+          <span className="sr-only">{t("board.cellEmpty")}</span>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -153,6 +193,14 @@ function stageCellEqual(prev: StageCellProps, next: StageCellProps): boolean {
     prev.selectMode === next.selectMode &&
     prev.dragEnabled === next.dragEnabled &&
     prev.isDragging === next.isDragging &&
+    // A refusal chip is card-level state the signature below cannot see.
+    prev.bouncedEntryId === next.bouncedEntryId &&
+    prev.bouncedReason === next.bouncedReason &&
+    // Part of the cell's accessible name, so a lane rename or a workspace stage
+    // rename must reach it.
+    prev.laneLabel === next.laneLabel &&
+    prev.stageLabel === next.stageLabel &&
+    prev.dropHintId === next.dropHintId &&
     // The axis decides each row's move-menu contents, so a real axis edit must reach
     // them. Identity is enough: usePipelineBoardData only swaps the object when a
     // Settings save actually changed it, so the 30s poll still short-circuits here.

@@ -151,6 +151,136 @@ completion that came back as unusable JSON), the adapter emits the usage line
 **before** raising, so the spend still reaches the ledger and the failure still
 reaches LightTrack — the same success-then-error pair `complete_json` uses.
 
+### The direct `gemini.py` seam has its own typed vocabulary
+
+`cv_analysis` and `profile_extract` reach Gemini through `pipeline/jobfit/gemini.py`
+rather than a `TextProvider` adapter (it needs multimodal file bytes + grounding).
+Its refusals used to be bare `RuntimeError`s carrying English prose only, so a
+caller could not tell an operator-config problem from a model-side failure, and
+`_cli.emit_error` classified every one of them as an anonymous `engine_error`/500.
+
+`GeminiError(subtype=…)` now names the cause, and — by also being a
+`_cli.CliError` — carries the code the process boundary already speaks, so any CLI
+that answers through `_cli.emit_error` emits it. It subclasses `RuntimeError` too,
+so existing `except RuntimeError` call sites are unchanged.
+
+| `GeminiError.subtype` | Raised when | CLI code / status |
+| --- | --- | --- |
+| `missing_key` | no `GEMINI_API_KEY` / `GOOGLE_API_KEY` resolvable | `invalid_input` / 400 |
+| `offline_refused` | `KP_OFFLINE=1` seals this egress path (self-hosting.md §7) | `invalid_input` / 400 |
+| `blind_unavailable` | blind screening requested, no redacted text extractable | `invalid_input` / 400 |
+| `output_truncated` | stopped at `max_output_tokens` and nothing salvageable | `invalid_input` / 400 |
+| `empty_response` | the model returned no text at all | `engine_error` / 500 |
+| `unparseable_json` | text came back, but no JSON payload in it | `engine_error` / 500 |
+| `missing_field` | JSON parsed, but a required field is absent/blank | `engine_error` / 500 |
+
+Pinned by `pipeline/jobfit/tests/test_gemini_errors.py`.
+
+**Known gap — the code is carried, not yet read on the analyze path.** The three
+CLIs that reach `gemini.py` directly (`cli.py analyze`, `market_salary_cli.py`,
+`profile_draft_cli.py`) hand-roll their own `{error, status: 500}` envelope
+instead of calling `_cli.emit_error`, so today they still answer 500 for a missing
+key. The typed error is what makes fixing that a one-line change per CLI (swap the
+hand-rolled `print` for `_cli.emit_error(exc)`); until then the branchable cause
+exists in Python but does not reach `useErrorMessage()` from those three.
+
+## One JSON scanner, two selection policies (`pipeline/jobfit/json_values.py`)
+
+Every adapter has to find the JSON inside a prose answer. That scan existed
+**twice** — near-verbatim in `claude_cli.py` and `gemini.py` — and `llm/base.py`
+imported the CLI module's *private* `_extract_json` to reach it, so a fix to one
+copy silently left the other behind. It is now one module all three import.
+
+The two selection policies on top of it are genuinely different decisions and stay
+separate, named and tested:
+
+| Function | Used by | Rule | Why |
+| --- | --- | --- | --- |
+| `select_last_matching` | `claude_cli` / `llm.base` (`extract_json`) | last value; last value carrying an `expected_keys` field when given | few-shot prompts make the model echo the example schema **before** the answer |
+| `select_best_scoring` | `gemini._parse_json` | rank by schema-key overlap, then size, document order only as final tiebreak | a grounded answer trails citation blobs and stray objects **after** the payload |
+
+`candidate_values()` is the shared "fenced blocks first, whole text otherwise" scan.
+`pipeline/jobfit/tests/test_json_values.py` pins both policies, asserts each picks
+the WRONG object on the other's corpus (so a future "simplification" that collapses
+them fails loudly), and was mutation-verified: six independent mutations of the
+scanner and both rankers each turn it red.
+
+## Timeouts and the embedding client
+
+`gemini.gemini_timeout_ms()` (env `KP_GEMINI_TIMEOUT_MS`, default 90 s) is the
+per-request network deadline for **every** Gemini client kp builds. The opt-in
+embedding bridge (`embedding_bridge.GeminiEmbeddingProvider`) used to build
+`genai.Client()` with no `http_options` at all, so a stalled embeddings call had no
+wall clock — and the bridge's documented fail-open ("a network error yields `None`
+and the caller falls back to the keyword heuristic") could never fire, because
+nothing ever raised. A whole pool's ranking sat on one hung socket. Both clients
+now read the same function.
+
+## Retries, and who decides how long to wait
+
+Python's `TextProvider.complete` retries only *transient* failures
+(`base.is_transient_error`: 408/429/5xx/529 or a timeout marker), 3 attempts,
+`0.5s * 2^attempt` + jitter, capped by the call's deadline. `app/_lib/gemini-retry.ts`
+is the TS mirror of that policy for the one Gemini call site that never reaches
+Python (`app/_lib/github/code-review.ts`), and the two classification lists are now
+pinned to `base.py` by `app/_lib/llm-capabilities-lockstep.test.ts` — a code or
+marker added on one side and not the other fails a unit test instead of quietly
+changing what gets retried.
+
+The TS side adds one thing Python does not have: it honours a **`Retry-After`**
+response header (both RFC 9110 forms — delta-seconds and HTTP-date), because a
+server stating when its bucket refills is better information than our schedule and
+retrying earlier is a guaranteed second 429. Rules, in `geminiRetryDelayMs`:
+
+- header absent or unparseable → the local backoff, unchanged;
+- header shorter than the backoff → the backoff still wins (the schedule spreads
+  load, it is not a minimum to satisfy);
+- header longer, up to `GEMINI_RETRY_AFTER_CAP_MS` (5 s) → we wait exactly that long;
+- header longer than the cap → **we stop retrying** and rethrow the SDK error.
+  Holding a request handler open for a 30-second rate-limit window is worse for the
+  caller than an honest failure now, and `maxDuration` does not save a self-hosted
+  deploy (`next start` never kills a long handler).
+
+## Prompt artifacts are PII, and their retention is explicit
+
+`KP_LOG_PROMPTS=1` captures the full prompt and response for each analysis to
+`tmp/prompts/<request_id>-<suffix>` (`-prompt.txt`, `-response.txt`). The module
+docstring claimed `<request_id>.json` for as long as it existed; no writer ever
+emitted that name.
+
+These artifacts contain a candidate's whole CV. They are off by default, and:
+
+- written **owner-only** (0600), created with that mode rather than chmod'd after,
+  so there is no window where the CV is world-readable. Best-effort — a filesystem
+  without POSIX modes keeps its own;
+- swept on **`KP_LOG_PROMPTS_TTL_H`** (hours; a malformed or non-positive value is
+  treated as unset). The sweep runs before each write, so no cron is needed.
+- **With `KP_LOG_PROMPTS_TTL_H` unset the artifacts are NEVER swept** — they
+  accumulate until an operator removes `tmp/prompts` by hand. That is the honest
+  default, not an omission.
+
+Pinned by `pipeline/jobfit/tests/test_logger.py`.
+
+## Document MIME is sniffed, never taken from the file name
+
+`gemini._mime_type` used to be `mimetypes.guess_type(path.name)`: the uploader's
+file name alone decided what kp told the model a document was, and `mimetypes`
+reads the host's mime database (the Windows registry among others), so the same
+upload could be declared differently on two installs. It now reads the magic bytes
+and answers only from `ALLOWED_MIME` — exactly the formats `extractors.extract_text`
+supports:
+
+| Bytes | Declared |
+| --- | --- |
+| `%PDF-` | `application/pdf` |
+| ZIP whose container holds `word/document.xml` | `…wordprocessingml.document` |
+| decodable, NUL-free text | `text/plain` |
+| anything else, incl. a non-Word ZIP or an unreadable path | `application/octet-stream` |
+
+`application/octet-stream` is the honest answer — "bytes we will not vouch for" —
+so the model treats them as opaque instead of being told a falsehood. Pinned by
+`pipeline/jobfit/tests/test_gemini_mime.py`.
+
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
 LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted):
@@ -263,6 +393,14 @@ paginated table built from the shared primitives (`ColumnFilter` headers +
 `TablePager` over the bounded `LLM_ACTIVITY_WINDOW` of 500 rows; older spend
 stays in the Models tab's daily rollup).
 
+The tab **states its scope**: `llm_usage` has no org or workspace column, so the
+ledger is deployment-wide, and the intro sentence says so in the same words the
+billing panel uses for the same ledger (`activity.intro` ↔
+`billing.spend.breakdownScope`, pinned across all four locales by
+`app/api/llm/activity/activity-route.test.ts`). It previously read "the last N AI
+actions **this workspace** ran" — a claim, not an omission, and a wrong one on any
+install with more than one team.
+
 #### Row detail: from "what it cost" to "what it produced"
 
 `llm_usage` stores meters, never content — so a row cannot carry the model's
@@ -284,12 +422,18 @@ at the two ends that care, and no intermediate call site can forget to forward i
 
 **Deterministic serves carry a descent reason.** A `source:"deterministic"`
 sidecar line may now name WHY the floor served: `emit_deterministic(use_case,
-reason=...)` writes an optional `reason` key — `"offline_policy"` (KP_OFFLINE
-veto), `"not_installed"` (no CLI binary), `"unavailable"` (a bare-bool adapter:
-missing key/SDK), or `"disabled"` (`--no-llm`) — fed by the shared
-`provider_availability(provider)` predicate in `pipeline/jobfit/llm/registry.py`
-(`ClaudeCliProvider.availability()` supplies the discriminated reasons; other
-adapters still collapse to the generic one). The key is omitted when the cause
+reason=...)` writes an optional `reason` key — one of `base.AVAILABILITY_REASONS`
+(`"offline_policy"`, `"missing_key"`, `"sdk_missing"`, `"missing_endpoint"`,
+`"invalid_base_url"`, `"not_installed"`) or `"disabled"` (`--no-llm`) — fed by the
+shared `provider_availability(provider)` predicate in
+`pipeline/jobfit/llm/registry.py`. **Every** provider the registry hands out now
+answers with its own reason: `ClaudeCliProvider.availability()` as before, and the
+metered adapters through `TextProvider.availability()` (Azure adds
+`missing_endpoint`, the OpenAI family `invalid_base_url`). The generic
+`"unavailable"` is now only the floor for a duck-typed object exposing the bare
+bool — a test fake, an in-process drill. Before that, an air-gapped install
+recorded its DELIBERATE `KP_OFFLINE` seal in the ledger as "missing key/SDK" — a
+diagnosis whose only repair is the one thing that cannot help. The key is omitted when the cause
 is unknown (an LLM call that failed mid-flight), and `parseLedgerLine` ignores
 it, so ingestion into `llm_usage` is unchanged — the diagnosis lives in the
 NDJSON sidecar. The Python CLI seats (`reasoning`, `automation`, `campaign`,
@@ -405,8 +549,13 @@ saving one.
 - `classifyProviderError` (`app/api/llm/test/verdict.ts`) reads the raw text ONLY
   to pick that code, and its marker precedence matters: the `unavailable` code
   renders as *"Nothing to call: no usable key or SDK on the server"* — a verdict
-  about **kp's own config** — so it is matched on `test_cli`'s full phrase
-  (`"provider unavailable (missing key or SDK/CLI)"`), never the bare word.
+  about **kp's own config** — so it is matched on `test_cli`'s phrase
+  `"provider unavailable"`, never the bare word `unavailable`. `test_cli` now
+  spells the descent out after it — `provider unavailable (offline_policy: …)` —
+  and carries the same value as a `reason` field in its JSON envelope; the phrase
+  is kept verbatim precisely because this classifier reads it. (The *client* copy
+  is still the single `unavailable` reason: mapping each descent onto its own
+  localized sentence is a `verdict.ts` + catalog change, not made here.)
   Everything else `test_cli` reports is a raw provider exception, and a
   provider-side 503 spells "unavailable" too (`ServerError: 503 UNAVAILABLE …`,
   `Error code: 503 - … 'Service Unavailable'`); those now land on the
@@ -424,6 +573,74 @@ green ("that typo works") or red ("my correction didn't help") equally wrongly.
 Save, then test. The key row's Test is a different case and stays enabled: its
 `model` box is an argument of the probe, not stored state, and the key it proves
 is the stored one.
+
+### Who may change the models, and how often (2026-09-03)
+
+Reading the Models tab is operator-gated. **Writing** it is `org:manage` — the
+owner-only band `app/_lib/auth/roles.ts` defines as "billing, org
+profile/settings, delete org" — because a provider key is this deployment's
+spending credential and a routing pin decides where every model call in the
+product goes. `requireOperator()` only answers "is there a valid, non-demo
+session on this deployment?", which every recruiter and viewer also answers yes
+to, so all four write doors now call `requireOrgCapability("org:manage")` after
+it and refuse an under-privileged caller with `MODEL_ADMIN_FORBIDDEN` (403);
+no session at all still answers 401. Open dev mode (no `KP_OPERATOR_PASSWORD`)
+and an operator-password session both fold to owner inside
+`callerOrgCapabilities`, so a self-hosted single-operator install is unchanged.
+Pinned by `app/api/llm/keys/llm-admin-auth.test.ts`.
+
+Both **Test** buttons spend money — each click spawns a Python child that makes a
+real completion — so each carries a per-IP budget after its gate, in the idiom
+`app/api/rate-limit-contract.test.ts` states for every spend door:
+
+| Door | Key | Budget |
+| --- | --- | --- |
+| `POST /api/llm/test` (routing canary) | `llm-canary:<ip>` | 30 / 10 min |
+| `POST /api/llm/keys/test` (key probe) | `llm-key-probe:<ip>` | 20 / 10 min |
+
+Both sit *after* every refusal that spawns nothing, so a malformed or
+unanswerable call consumes no budget, and both answer the shared
+`TOO_MANY_REQUESTS` refusal so the panel says "you're going too fast" in the
+reader's language.
+
+### The key store is DEPLOYMENT-wide, and the routing table has a version
+
+`provider_keys` is keyed `(provider, scope)` with no org or workspace column
+(`app/_lib/db/core.ts`), so a key saved here is the key **every** workspace on
+this install spends through. The BYOM/Platform selector picks which of two
+deployment-wide slots the key fills — it is not a per-tenant choice — and the
+panel now says so out loud (`models.keys.storeScope`). Per-tenant keys remain an
+open product decision, listed under Known gaps.
+
+**Key writes carry the same version token as routing writes.** `saveProviderKey`
+takes an `expectedUpdatedAt` — the `updatedAt` the Models panel rendered for the row
+it is replacing — and `upsertProviderKey` re-asserts it inside `.immediate()`,
+refusing on a mismatch (including a row deleted underneath the caller) instead of
+overwriting. The route answers `MODEL_KEY_STALE` (409) **carrying the current rows**,
+and the panel reloads onto them before showing the message. The stakes are higher
+here than for a routing pin: a stored key is encrypted at rest and unrecoverable, so
+the old last-writer-wins upsert destroyed one of two admins' credentials while
+showing both a green "Saved". `updated_at` is nudged forward on a same-millisecond
+collision so the token strictly increases; omitting the field keeps the
+unconditional write for the headless/curl path. Pinned by
+`app/_lib/db/provider-key-precondition.test.ts`.
+
+`llm_config` writes take an `expectedUpdatedAt`: the version the editing tab read.
+`upsertLlmConfig` re-asserts it inside an IMMEDIATE transaction and returns false
+on a mismatch, which the route answers as `MODEL_ROUTING_STALE` (409) **carrying
+the current rows**, so the table reloads itself instead of leaving a dead draft on
+screen. The stamp is nudged forward on a same-millisecond collision so the token
+strictly increases. Omitting the field keeps the old unconditional write for the
+headless/curl path. Pinned by `app/api/llm/config/llm-config-race.test.ts`.
+
+The keys route's refusals are codes, not prose: `MODEL_KEY_BODY_INVALID`,
+`MODEL_KEY_PROVIDER_UNKNOWN`, `MODEL_KEY_SECRET_REQUIRED`,
+`MODEL_KEY_LOCATION_REQUIRED`, `MODEL_KEY_ENDPOINT_REQUIRED`,
+`MODEL_KEY_ENCRYPTION_UNCONFIGURED`, `MODEL_KEY_REJECTED` and `MODEL_KEY_STALE`, each carrying the
+provider (or the accepted provider list) as data. The panel used to detect the
+missing-`KP_SECRET` case by substring-matching the server's English sentence; it
+now reads the code, so the env-var fix appears for a reader in any of the four
+locales.
 
 ## Invariants
 
@@ -449,6 +666,9 @@ is the stored one.
   `app/_lib/voice/minute-prices.ts`; its OpenAI key does not use
   `resolveProviderKey`.
 - Per-tenant `llm_usage` attribution not built (global ledger today).
+- Per-tenant provider KEYS are not built either, deliberately (owner decision):
+  `provider_keys` and `llm_config` are one deployment-wide store. The Models panel
+  states the scope rather than implying a boundary that does not exist.
 - The TS-side github-analysis call honors the BYOM **key** layering and (since
   2026-08-05) a Models-tab **model** re-pin on its gemini row
   (`configuredModelFor`), but it speaks the Gemini SDK only — a provider *swap*
@@ -462,6 +682,8 @@ is the stored one.
 ## Testing
 
 - `npm run test:unit` for the TS wrapper; `python -m unittest pipeline.jobfit.tests.test_llm_*` for adapters/registry.
+- The direct Gemini seam and its shared parts: `test_json_values`, `test_gemini_errors`,
+  `test_gemini_mime`, `test_logger`, `test_service`, `test_embedding_bridge`.
 - Capability-matrix test: every `llm_config` default must satisfy its use case's required caps.
 - Canary path = the Models-tab **Test** button, runs the same code path as production calls.
 
@@ -500,8 +722,9 @@ operator actually configured).
 
 ### Validation, and why it differs from Azure's
 
-A base URL is checked for SHAPE only — parseable, `http`/`https`, no embedded
-credentials — and is deliberately NOT run through
+A base URL is checked for SHAPE only — parseable, `http`/`https` (or a
+unix-domain-socket scheme), a host present, no embedded credentials — and is
+deliberately NOT run through
 `assertPublicHttpsEndpointResolved`, the SSRF guard applied to Azure endpoints. That
 guard rejects loopback, LAN and non-https on purpose. Here those are the normal,
 intended values. The threat models genuinely differ:
@@ -514,6 +737,23 @@ intended values. The threat models genuinely differ:
 
 It replaces the `OPENAI_BASE_URL` / `OLLAMA_BASE_URL` env vars and sits at the same
 trust level as them.
+
+**Both doors are checked.** `assertValidBaseUrl` (`app/_lib/llm-config.ts`) guards
+the save; `base.validate_base_url` guards resolution in Python, so an endpoint
+arriving from the ENVIRONMENT (`OPENAI_BASE_URL` / `OLLAMA_BASE_URL` /
+`QWEN_BASE_URL` / `OPENROUTER_BASE_URL` / `AZURE_OPENAI_ENDPOINT`) gets the same
+rules instead of going straight to the SDK. A malformed one is a routing descent
+(`availability()` → `invalid_base_url`, deterministic fallback), while an actual
+call raises — a request that WAS made never degrades silently. No message ever
+echoes the URL: `base.endpoint_host` reduces it to `scheme://host[:port]`, because
+a base URL can carry a credential in its userinfo or query string.
+
+The provider list itself is single-sourced per side and pinned across them:
+`BASE_URL_PROVIDERS` in `app/_lib/llm-model-defaults.ts` ↔ `BASE_URL_PROVIDERS` in
+`pipeline/jobfit/llm/registry.py` (consumed by both `resolve_provider` and
+`probe_provider`), with `app/_lib/llm-base-url-lockstep.test.ts` failing on drift —
+a provider the panel offers but the registry never threads is a saved setting that
+silently does nothing.
 
 ### A blank box is a delete, so the boxes show what is stored
 
@@ -539,4 +779,13 @@ the PUT rejects an Azure save without one — but its `apiVersion` could.)
 Under `KP_OFFLINE=1` an on-box base URL stays usable while an off-box one is sealed
 off — the adapter reports its resolved base URL as its egress target, so the check
 runs against the host you configured rather than the vendor's default cloud
-(`_offline_egress_url` in `adapters/openai_api.py`).
+(`_offline_egress_url` in `adapters/openai_api.py`). The refusal names the endpoint
+as `scheme://host` only, and every sealed adapter reports `offline_policy` from
+`availability()` rather than a generic "unavailable".
+
+The OpenAI-compatible adapters share ONE resolver and ONE availability rule
+(`adapters/openai_api.py`), parameterized by three class attributes —
+`_base_url_env`, `_default_base_url`, `_base_url_implies_keyless`. They used to be
+four byte-identical `_resolved_base_url` copies and two identical `available()`
+bodies, which is how the offline gate went missing from Qwen's copy once
+(`test_llm_offline.py`'s 2026-08-22 audit note).

@@ -116,12 +116,74 @@ export function setJdAnalysisTask(slug: string, taskId: string): void {
   ensureDb().prepare(`UPDATE jds SET analysis_task_id = ? WHERE slug = ?`).run(taskId, slug);
 }
 
-/** The build finished — write the body + structured artifacts and mark ready. Direct
- *  UPDATE (no jd_revisions snapshot): this is the first fill, not a user edit. */
-export function finishJdAnalysis(slug: string, input: { body: string; analysisJson: unknown }): void {
-  ensureDb()
-    .prepare(`UPDATE jds SET body = ?, analysis_json = ?, analysis_status = 'ready', analysis_error = NULL WHERE slug = ?`)
-    .run(input.body, JSON.stringify(input.analysisJson), slug);
+/** What the landing build was allowed to do to the row. `bodyWritten: false` means the
+ *  row moved under the build (an operator edit, or a run that already finished it), so
+ *  the composed markdown was filed as a revision instead of overwriting the live body. */
+export type JdFinishResult = { ok: true; bodyWritten: boolean } | { ok: false; reason: "not_found" };
+
+/** The build finished — write the structured artifacts, mark ready, and take the body
+ *  ONLY if the row is still the untouched placeholder this build was started for.
+ *
+ *  This was a bare by-slug UPDATE of the body with no precondition. A jd_build lands one to two
+ *  minutes after it starts, and PATCH /api/jds/[slug] accepts an edit throughout that
+ *  window (deliberately — the placeholder row is editable in the Ledger, and refusing an
+ *  edit the UI offers is the worse trade). So an operator who fixed the title/body of an
+ *  analyzing (or previously failed, then retried) row watched the build overwrite it with
+ *  no snapshot, no conflict and no trace: unlike updateJd/revertJd — which write a
+ *  jd_revisions snapshot before every overwrite — this path wrote none, so the lost text
+ *  was not even reconstructable, and jdLastEditedAt (the staleness signal, MAX over
+ *  jd_revisions) never saw the change either.
+ *
+ *  THE PREDICATE — `body = '' AND analysis_status = 'analyzing'`, both conjuncts:
+ *   - `body = ''` is the edit guard. insertAnalyzingJd creates the placeholder with an
+ *     empty body and nothing but a build or an operator edit ever fills it, so a
+ *     non-empty body at landing time IS someone else's text.
+ *   - `analysis_status = 'analyzing'` is the finished-row guard, and it is not implied by
+ *     the first: a market-research-only / case-only build composes NO markdown, so a row
+ *     can legitimately be `ready` with an empty body. Without this conjunct a late or
+ *     duplicate run would overwrite that finished row's artifacts.
+ *
+ *  When the predicate fails the build result is not thrown away: the composed markdown is
+ *  filed into jd_revisions (when it is non-empty), so the operator can read it in the
+ *  Ledger's revision list and revert to it — the build's output becomes an offer, not an
+ *  overwrite. The artifacts (salary band, role, case) and the ready flip still land: they
+ *  are what the detail panels read, and leaving the row `analyzing` forever would be worse.
+ *
+ *  IMMEDIATE, like updateJd: the read→compare→write is only atomic if the write lock is
+ *  held from the SELECT — a DEFERRED transaction lets a second connection pass the same
+ *  check in the gap (.claude/CLAUDE.md § "A read→compute→write either locks or re-checks").
+ *
+ *  Tenancy: the by-slug read is exempt for the same reason the status writers are (a JD
+ *  slug is a globally unique PK, so it can only ever resolve one row) and it PROJECTS
+ *  workspace_id precisely so the jd_revisions write below stays workspace-scoped. */
+export function finishJdAnalysis(slug: string, input: { body: string; analysisJson: unknown }): JdFinishResult {
+  const db = ensureDb();
+  const tx = db.transaction((): JdFinishResult => {
+    const row = db
+      .prepare(`SELECT title, body, analysis_status, workspace_id FROM jds WHERE slug = ?`)
+      .get(slug) as { title: string; body: string; analysis_status: JdAnalysisStatus | null; workspace_id: string } | undefined;
+    if (!row) return { ok: false, reason: "not_found" };
+    const bodyWritten = row.body === "" && row.analysis_status === "analyzing";
+    if (!bodyWritten && input.body.trim()) {
+      // Recoverable, not lost. Only a non-empty composition is filed — an empty one
+      // would bump jdLastEditedAt (the analysis-staleness signal) for nothing.
+      db.prepare(`INSERT INTO jd_revisions (slug, title, body, created_at, workspace_id) VALUES (?, ?, ?, ?, ?)`).run(
+        slug,
+        row.title,
+        input.body,
+        new Date().toISOString(),
+        row.workspace_id
+      );
+      pruneJdRevisions(db, slug, row.workspace_id);
+    }
+    db.prepare(
+      `UPDATE jds SET body = CASE WHEN body = '' AND analysis_status = 'analyzing' THEN ? ELSE body END,
+              analysis_json = ?, analysis_status = 'ready', analysis_error = NULL
+       WHERE slug = ?`
+    ).run(input.body, JSON.stringify(input.analysisJson), slug);
+    return { ok: true, bodyWritten };
+  });
+  return tx.immediate();
 }
 
 /** The build errored — surface it on the row so the Ledger shows a failed chip + retry. */
@@ -152,8 +214,27 @@ export function hasJdCaseArtifact(workspaceId: string = DEFAULT_WORKSPACE_ID): b
   return row !== undefined;
 }
 
-export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): JdListItem[] {
+// The JD library read's page bounds, stated the way listJobsPage states its own.
+// A caller that omits `limit` still gets a PAGE, not the corpus — see the
+// `truncated` flag on JdsPage, and jdLibraryStats for a real count.
+export const JDS_PAGE_DEFAULT_LIMIT = 100;
+export const JDS_PAGE_MAX_LIMIT = 200;
+
+/** One page of the JD library plus an HONEST truncation flag — the same contract
+ *  JobsPage holds for the jobs list beside it. `listJds` used to answer a bare
+ *  array cut at a silent LIMIT, so no caller could tell "these are all your JDs"
+ *  from "these are the first N of more", and two of the three rendered `.length`
+ *  as a library total. */
+export type JdsPage = { jds: JdListItem[]; truncated: boolean; limit: number };
+
+export function listJdsPage(limit?: number, workspaceId: string = DEFAULT_WORKSPACE_ID): JdsPage {
   const db = ensureDb();
+  // Defensive clamp, identical in spirit to listJobsPage's: SQLite reads LIMIT -1
+  // as UNBOUNDED, so a negative/NaN/fractional value must never reach the bind.
+  const bound =
+    Number.isInteger(limit) && (limit as number) > 0
+      ? Math.min(limit as number, JDS_PAGE_MAX_LIMIT)
+      : JDS_PAGE_DEFAULT_LIMIT;
   // Pull only one char past the preview window to detect truncation, so the
   // full body is never read into memory for the list view.
   const rows = db
@@ -161,9 +242,9 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
       `SELECT slug, title, created_at, analysis_status, analysis_task_id,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
-       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`
     )
-    .all(workspaceId, limit) as Array<{
+    .all(workspaceId, bound + 1) as Array<{
     slug: string;
     title: string;
     created_at: string;
@@ -172,7 +253,10 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
     body_head: string;
     body_len: number;
   }>;
-  return rows.map((r) => ({
+  // Read ONE row past the page — cheap, exact, and it needs no second COUNT
+  // round-trip to know whether the slice was cut (listJobsPage's shape).
+  const truncated = rows.length > bound;
+  const jds = (truncated ? rows.slice(0, bound) : rows).map((r) => ({
     slug: r.slug,
     title: r.title,
     created_at: r.created_at,
@@ -180,6 +264,43 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
     analysis_task_id: r.analysis_task_id,
     preview: r.body_len > JD_PREVIEW_CHARS ? `${r.body_head.slice(0, JD_PREVIEW_CHARS)}…` : r.body_head,
   }));
+  return { jds, truncated, limit: bound };
+}
+
+/** The library's UNBOUNDED shape: how many active JDs this team has, how many are
+ *  mid-build or failed, and the newest one's title. The palette preview used to
+ *  derive all four from `listJds(200)` — a page's size presented as a library
+ *  total, the same class of claim listJobs' header warns about. A count is not a
+ *  page, so it gets its own query. */
+export type JdLibraryStats = {
+  total: number;
+  analyzing: number;
+  failed: number;
+  newest: { title: string; createdAt: string } | null;
+};
+
+export function jdLibraryStats(workspaceId: string = DEFAULT_WORKSPACE_ID): JdLibraryStats {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN analysis_status = 'analyzing' THEN 1 ELSE 0 END) AS analyzing,
+              SUM(CASE WHEN analysis_status = 'failed' THEN 1 ELSE 0 END) AS failed
+       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ?`
+    )
+    .get(workspaceId) as { total: number; analyzing: number | null; failed: number | null };
+  const newest = db
+    .prepare(
+      `SELECT title, created_at FROM jds
+       WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`
+    )
+    .get(workspaceId) as { title: string; created_at: string } | undefined;
+  return {
+    total: row.total,
+    analyzing: row.analyzing ?? 0,
+    failed: row.failed ?? 0,
+    newest: newest ? { title: newest.title, createdAt: newest.created_at } : null,
+  };
 }
 
 export function loadJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JdRow | null {
@@ -244,10 +365,49 @@ export function updateJd(
       new Date().toISOString(),
       workspaceId
     );
+    pruneJdRevisions(db, slug, workspaceId);
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(input.title, input.body, slug, workspaceId);
     return { ok: true };
   });
   return tx.immediate();
+}
+
+/** How many pre-edit snapshots a single JD keeps. Every edit, revert and finished
+ *  analysis INSERTs a FULL body copy into jd_revisions; listJdRevisions capped the
+ *  READ at 100 but nothing capped the TABLE, so a JD edited in a loop (or rebuilt
+ *  by the analysis pipeline repeatedly) grew the row store without bound for the
+ *  life of the install — invisible, because the UI only ever reads the head of it.
+ *  50 is well past any recruiter's real undo depth and keeps the worst case per
+ *  slug bounded at 50 bodies. */
+export const JD_REVISIONS_MAX = 50;
+
+/** Drop everything past the newest JD_REVISIONS_MAX snapshots for one slug.
+ *
+ *  `keepId` is never pruned: revertJd restores FROM a revision, and pruning the row
+ *  the restore is based on in the same transaction would delete the only copy of the
+ *  text a recruiter just chose to come back to. Called INSIDE the callers' existing
+ *  IMMEDIATE transactions, so the insert and its prune are one step (a separate
+ *  statement afterwards would let a reader see an over-cap history, and a crash
+ *  between them would leave it that way forever).
+ *
+ *  Workspace-scoped like every other jd_revisions statement — a churned JD in one
+ *  team must never prune a same-slug row belonging to another. */
+function pruneJdRevisions(
+  db: ReturnType<typeof ensureDb>,
+  slug: string,
+  workspaceId: string,
+  keepId: number | null = null
+): void {
+  db.prepare(
+    `DELETE FROM jd_revisions
+     WHERE slug = @slug AND workspace_id = @ws
+       AND id IS NOT @keep
+       AND id NOT IN (
+         SELECT id FROM jd_revisions
+         WHERE slug = @slug AND workspace_id = @ws
+         ORDER BY id DESC LIMIT @max
+       )`
+  ).run({ slug, ws: workspaceId, keep: keepId, max: JD_REVISIONS_MAX });
 }
 
 export type JdRevision = { id: number; slug: string; title: string; body: string; created_at: string };
@@ -308,6 +468,7 @@ export function revertJd(
       new Date().toISOString(),
       workspaceId
     );
+    pruneJdRevisions(db, slug, workspaceId, revisionId);
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(rev.title, rev.body, slug, workspaceId);
     return { ok: true, title: rev.title, body: rev.body };
   });
@@ -542,16 +703,27 @@ export function jobVisibleToWorkspace(id: string, workspaceId: string): boolean 
  *  variable limit, same pattern as interviewStatusByEntries — instead of one
  *  point SELECT per id. Returns records in the REQUESTED order; unknown ids and
  *  corrupt payloads (logged by safeRowParse) are skipped, matching getJob's
- *  per-row degradation. */
-export function getJobsByIds(ids: string[]): JobRecord[] {
+ *  per-row degradation.
+ *
+ *  Tenant scope: the same dual predicate as listJobs — the shared seeded corpus
+ *  (workspace_id NULL) plus this team's own authored openings. getJob's by-id
+ *  exemption does NOT extend here: "a point read returns exactly the one row you
+ *  named" is an argument about ONE id, and this takes N. It was safe only because
+ *  its callers launder the ids through a workspace-scoped list first, which is a
+ *  property of the caller, not of the read — so an id set from anywhere else (a
+ *  request body, a cache key, a future caller) would have crossed tenants silently.
+ *  Defaulted, so single-workspace callers are unchanged. */
+export function getJobsByIds(ids: string[], workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord[] {
   if (ids.length === 0) return [];
   const db = ensureDb();
   const byId = new Map<string, JobRecord>();
   for (const part of chunk(ids, SQL_IN_CHUNK)) {
     const placeholders = part.map(() => "?").join(",");
     const rows = db
-      .prepare(`SELECT id, payload_json FROM jobs WHERE id IN (${placeholders})`)
-      .all(...part) as { id: string; payload_json: string }[];
+      .prepare(
+        `SELECT id, payload_json FROM jobs WHERE id IN (${placeholders}) AND (workspace_id IS NULL OR workspace_id = ?)`
+      )
+      .all(...part, workspaceId) as { id: string; payload_json: string }[];
     for (const r of rows) {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "getJobsByIds", r.id);
       if (parsed) byId.set(r.id, parsed);

@@ -6,8 +6,9 @@ import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor, isTerminalCandidateStatus } from "@/app/_lib/application-status";
 import { parseNpsSubmission } from "@/app/_lib/candidate-nps";
 import { candidateNpsFor, recordCandidateNps } from "@/app/_lib/candidate-nps-store";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // W0.6b — candidate NPS capture on the public, token-gated status page.
 //
@@ -41,29 +42,34 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   try {
     const { token } = await context.params;
     if (!rateLimit(`nps:${clientIpFrom(request.headers)}:${token}`, NPS_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const resolved = resolve(token);
-    if (!resolved) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!resolved) return jsonRefusal("STATUS_LINK_INVALID", 404);
     return jsonOk({ asked: resolved.asked, answered: candidateNpsFor(resolved.entryId, resolved.workspaceId) });
   } catch (error) {
     return safeJsonError(error, "api:status:nps", "STATUS_NPS_READ_FAILED");
   }
 }
 
+/** Hard cap on this public door's request body: a 0-10 score and a short free-text comment, which the store clamps again.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_NPS_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
     if (!rateLimit(`nps:${clientIpFrom(request.headers)}:${token}`, NPS_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const resolved = resolve(token);
-    if (!resolved) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!resolved) return jsonRefusal("STATUS_LINK_INVALID", 404);
     // Refuse rather than silently store: a response captured mid-process would be folded
     // into a "candidate experience" figure that claims to measure completed journeys.
-    if (!resolved.asked) return NextResponse.json({ error: "not applicable yet" }, { status: 409 });
+    if (!resolved.asked) return jsonRefusal("STATUS_NPS_NOT_APPLICABLE", 409);
 
-    const body = (await request.json().catch(() => ({}))) as { score?: unknown; comment?: unknown };
+    const body = await readJsonWithLimit<{ score?: unknown; comment?: unknown }>(request, MAX_NPS_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_NPS_BODY_BYTES });
     const parsed = parseNpsSubmission(body);
     if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: 400 });
 

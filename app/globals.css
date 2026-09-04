@@ -28,6 +28,16 @@
      app/_lib/brand.ts mirror with one rule instead of a special case. */
   --color-white: #ffffff;
 
+  /* The ONE deliberately theme-INVARIANT surface. `--color-white` is a ROLE (the
+     raised card), so it remaps to #1d2630 after dark — correct for panels, wrong
+     for the plate under an image the app does not control. A tenant's uploaded
+     logo is usually a dark mark on transparency, and on the remapped plate it
+     went near-black on near-black. This token is the plate: the same real white
+     in both registers, declared identically in the dark block below so the pair
+     stays visible to anyone reading either half. Use it ONLY for third-party
+     artwork; a KandiDate surface belongs on `white`/`paper`. */
+  --color-white-fixed: #ffffff;
+
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
   --color-stone-200: #e6ddcc;
@@ -67,6 +77,27 @@
   --color-diagram-gap-stroke: var(--color-dial-stone);
   /* The one value with no brand counterpart: muted warm text on the gap fill. */
   --color-diagram-gap-text: #6b6557;
+
+  /*
+   * Container GROUP boxes — the `package`/`folder`/`database { … }` frames that
+   * wrap a diagram's phases. Kind-agnostic: `tagged` = the group carries a
+   * <<stereotype>>, `plain` = it does not.
+   *
+   * These were four raw literals in PlantUml.tsx (#9cb394 / #dcd8cf and two
+   * rgba() fills) while the comment three lines above them claimed the tokens
+   * already covered "every component box, CONTAINER, edge, label and status
+   * colour". They did not — and a group box is the LARGEST painted area on an
+   * architecture diagram, so Spark Dark drew a near-white frame on a #141b24
+   * canvas around every phase.
+   *
+   * Derived, not re-picked: each mixes brand tokens the dark block already
+   * re-tunes, so the frames flip with the theme for free — the same indirection
+   * as the status trichotomy above, and the reason no dark override is needed.
+   */
+  --color-diagram-group-tagged-stroke: color-mix(in srgb, var(--color-moss) 55%, var(--color-limewash));
+  --color-diagram-group-plain-stroke: var(--color-stone-300);
+  --color-diagram-group-tagged-fill: color-mix(in srgb, var(--color-limewash) 45%, transparent);
+  --color-diagram-group-plain-fill: color-mix(in srgb, var(--color-paper) 55%, transparent);
 
   /*
    * The shadow tokens point at a SECOND variable instead of holding their value
@@ -251,6 +282,9 @@ body {
   /* Neutrals — `bg-white` is the raised card surface, stone-* the fills and
      hairlines. Mapped onto the same ink-blue ramp as the canvas. */
   --color-white: #1d2630;
+  /* Deliberately NOT remapped — see the light block: this is the plate under a
+     tenant's own logo, which must stay a real white in both themes. */
+  --color-white-fixed: #ffffff;
   --color-stone-50: #222d39;
   --color-stone-100: #283442;
   --color-stone-200: #364453;

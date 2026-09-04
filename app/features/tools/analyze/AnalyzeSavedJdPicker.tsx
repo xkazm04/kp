@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import type { JdSummary } from "./AnalyzeTypes";
+import type { JdLibraryState } from "./analyzeJdLibraryState";
 
 export function AnalyzeSavedJdPicker({
   jds,
+  libraryState,
+  libraryTruncated = false,
+  onRetryLibrary,
   selectedSlug,
   loading = false,
   loadFailed = false,
@@ -14,6 +20,15 @@ export function AnalyzeSavedJdPicker({
   onClear,
 }: {
   jds: JdSummary[];
+  /** Whether the LIBRARY LIST loaded — a different fact from `loadFailed`, which
+   *  is about one picked JD's body. An empty `jds` used to mean all three of
+   *  loading / genuinely empty / failed, and this surface showed the middle one. */
+  libraryState: JdLibraryState;
+  /** GET /api/jds cut the page it answered (JDS_PAGE_MAX_LIMIT). The dropdown is
+   *  then the NEWEST N saved JDs, not the library — a recruiter who cannot find an
+   *  older role here would otherwise conclude it was deleted. */
+  libraryTruncated?: boolean;
+  onRetryLibrary: () => void;
   selectedSlug: string | null;
   loading?: boolean;
   // The last pick's body fetch failed (stale list after a delete/rename, network
@@ -23,6 +38,37 @@ export function AnalyzeSavedJdPicker({
   onClear: () => void;
 }) {
   const t = useTranslations("analyze");
+  // The route answers a store fault with a CODE (JD_LIST_FAILED), so the reason
+  // resolves in the reader's language instead of the client rendering a server
+  // string. The hook does not keep the payload — the code is the one the list
+  // route publishes — so the resolver is handed it explicitly.
+  const errorMessage = useErrorMessage();
+  // Still in flight: say so instead of asserting an empty library.
+  if (libraryState === "loading" && jds.length === 0) {
+    return (
+      <p role="status" className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
+        {t("jdLibraryLoading")}
+      </p>
+    );
+  }
+  // The list request itself failed. Distinct from the "no JDs saved" line below,
+  // which is a claim about the recruiter's data — one we can only make once a
+  // load has actually succeeded.
+  if (libraryState === "failed") {
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-coral/50 bg-white p-2"
+      >
+        <p className="text-sm font-medium text-coral">
+          {errorMessage({ code: "JD_LIST_FAILED" }, t("jdLibraryFailed"))}
+        </p>
+        <button type="button" onClick={onRetryLibrary} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+          {t("jdLibraryRetry")}
+        </button>
+      </div>
+    );
+  }
   if (jds.length === 0) {
     // A failed load is NOT an empty library. `loadFailed` is otherwise only
     // rendered in the populated branch below, so a ?jd= deep link whose body
@@ -75,12 +121,17 @@ export function AnalyzeSavedJdPicker({
           <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
         ) : null}
       </div>
+      {libraryTruncated ? (
+        <p role="status" className={`mt-1 ${META_LABEL}`}>
+          {t("jdLibraryTruncated", { count: jds.length })}
+        </p>
+      ) : null}
       <Select
         id="saved-jd-picker"
         ariaLabel={t("fromLibrary")}
         value={selectedSlug ?? ""}
         disabled={loading}
-        size="sm"
+        sizeVariant="sm"
         className="mt-1 w-full"
         onChange={(slug) => {
           if (!slug) {

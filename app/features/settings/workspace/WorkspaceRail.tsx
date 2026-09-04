@@ -69,13 +69,13 @@ export function WorkspaceRail({
                 >
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm ${isSelected ? "font-semibold text-ink" : "text-ink"}`}>{w.name ?? w.id}</span>
-                    <span className="mt-0.5 flex items-center gap-1 text-xs text-steel">
+                    <span className="mt-0.5 flex items-center gap-1 text-micro text-steel">
                       <Users size={12} aria-hidden />
                       {t("memberCount", { count })}
                     </span>
                   </span>
                   {isCurrent ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-moss">
+                    <span className="inline-flex items-center gap-1 text-micro font-medium text-moss">
                       <Check className="h-3.5 w-3.5" aria-hidden />
                       {t("current")}
                     </span>

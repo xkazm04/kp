@@ -33,7 +33,7 @@ product.
 | 3 | `startTask("analyze", …)` (`app/_lib/tasks.ts`) | The task row holds the **paths and options**, not the file. Detached from the request, so the analysis survives a navigation. | No |
 | 4 | `spawnPython(["-m", "pipeline.jobfit.cli", cvPath, …])` (`app/_lib/analyze-run.ts`) | A **child process** with the CV's *path* in `argv` and the parent's env. Pasted JD/company text over 8 KB is spilled to a file rather than passed inline, so it never lands in a command line. | No — but it is where hop 5 becomes possible |
 | 5 | The Python engine reads the file and calls a model | **This is the only hop that can egress candidate data.** The flagship analyzer is Gemini multimodal — `pipeline/jobfit/gemini.py`'s `get_client()` — and it uploads the candidate's *whole file*. With no key, or with a local endpoint, nothing leaves. See §4. | **Yes** |
-| 6 | `saveAnalysis()` (`app/_lib/db/analyses.ts`) | The pipeline's JSON result into `analyses.payload_json`, plus `cv_hash` (SHA-256 of the CV bytes). | No |
+| 6 | `saveAnalysis()` (`app/_lib/db/analyses.ts`) | The pipeline's JSON result into `analyses.payload_json`, plus `cv_hash` (SHA-256 of the CV bytes) and `engine` / `engine_provider` — whether a model ran at all, and which provider served it (NULL on legacy rows = unknown, never assumed `'llm'`). | No |
 | 7 | `finally { cleanupWorkdir(baseDir) }` (`app/_lib/analyze-run.ts`) | The temp dir and the CV file in it are removed. | — |
 
 Two properties are worth stating outright, because both are easy to assume

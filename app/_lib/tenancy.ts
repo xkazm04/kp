@@ -166,9 +166,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "application_status_links", // public status link (application-status-tenancy.test.ts)
   // The apply funnel's start rows (apply-session-store.ts). Minted from the public
   // apply surface, so workspace_id is derived from the OPENING (getJobWorkspace) —
-  // the same rule the submit routes file the resulting entry under. The rate read
-  // filters workspace_id; the back-link write is by the session's own
-  // client-generated PK, which carries no tenant meaning and grants nothing.
+  // the same rule the submit routes file the resulting entry under. The only
+  // reader is the abandonment sweep, which filters workspace_id when given one
+  // (and is a declared global sweep otherwise); the back-link write is by the
+  // session's own client-generated PK, which carries no tenant meaning and
+  // grants nothing. (The funnel-rate reader that used to be cited here was
+  // deleted with lot CA - it had no callers.)
   "apply_sessions",
   "skill_profiles", // durable skill credentials (skill-profiles-tenancy.test.ts)
   // Phase 1 — interview_sessions (voice AI interviews): the by-job enumeration
@@ -302,7 +305,12 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // hired_agents/agent_activity, which ARE workspace-scoped).
   "personas_bridge",
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
-  "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
+  // Deployment-level LLM metering ledger (sibling of billing_usage; written off-request
+  // from Python). ERASURE: exempt there too, and for a different reason than tenancy —
+  // the ledger records that a machine call happened (model, tokens, latency, cost), never
+  // who it was about, so an Art. 17 request has nothing in it to erase. Stated on the
+  // record in ERASURE_EXEMPT (db/pipeline.ts), which is the list a DPO reads.
+  "llm_usage",
   "scheduler", // global background-job scheduler state (ONE clock; its toggle's blast radius is the whole installation — operator-gated, see scheduler-store.ts)
   // One row per global sweep. Exempt as a ROW, not as a payload: its decisions_json
   // holds per-entry rows across every team, each stamped with the entry's workspaceId
@@ -324,7 +332,10 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // state: ONE kill-switch + promote-floor and ONE decision log — the sibling of
   // `scheduler`, not per-tenant customer data.
   "dev_control", // autonomy kill-switch + promote-floor (key/value, deployment control)
-  "dev_audit", // the orchestrator's immutable auto/human decision log
+  "dev_audit", // the orchestrator's immutable auto/human decision log. Since wave 21 the
+  // rows carry a workspace_id and the control room LISTS by it (kill-switch rows stay
+  // global) - the column is a listing filter over one deployment-level log, so the
+  // table stays exempt rather than becoming a scoped customer table.
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal

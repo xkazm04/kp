@@ -10,8 +10,8 @@ import { companionAction, coerceCompanionAction, coerceProposalPayload } from "@
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/companion/proposals/[id]/resolve — the operator's answer to one
 // companion proposal (docs/features/companion/README.md, WP3).
@@ -71,7 +71,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     if (!rateLimit(`companion-resolve:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      // RATE_LIMITED_ERROR through the refusal chokepoint (api-contracts.md §1.1).
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     if (decision === "decline") {

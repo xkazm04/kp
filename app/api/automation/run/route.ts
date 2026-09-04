@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { AutomationPassError, isPassInFlight, runAutomationPass } from "@/app/_lib/automation-pass";
 import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
@@ -16,6 +18,13 @@ export async function POST(request: Request) {
   // (mirrors the requireOperator guard on the other Python-spawning routes).
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown };
   const dryRun = body.dryRun === true;
   // TENANCY (phase 1): the sweep is global by design and the run log keeps the FULL
@@ -51,8 +60,13 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const status = error instanceof AutomationPassError ? error.status : 500;
+    // AutomationPassError is thrown ONLY from parseStderrError, so its message is the
+    // spawned pass's stderr — a Python traceback, the workdir path, a provider's body.
+    // The RUN LOG is the installation's own audit record and keeps that detail; the
+    // browser gets the code, resolved in the reader's language. The engine's status is
+    // preserved so a user-fixable 400 does not collapse into a 500.
     const message = error instanceof Error ? error.message : "Automation pass failed.";
     if (!dryRun && !joined) recordRun({ status: "error", error: message, startedAt, trigger: "manual" });
-    return NextResponse.json({ error: message }, { status });
+    return safeJsonError(error, "api:automation/run", "AUTOMATION_PASS_FAILED", status);
   }
 }

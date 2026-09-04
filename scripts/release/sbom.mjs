@@ -149,6 +149,34 @@ export function serialFor(components) {
   return `urn:uuid:${uuid}`;
 }
 
+/**
+ * Read a pinned build time: epoch seconds (the SOURCE_DATE_EPOCH convention) or
+ * an ISO instant. `null` when the value is absent or unreadable — a caller that
+ * was ASKED for a reproducible document must refuse rather than quietly stamp
+ * the wall clock on it.
+ */
+export function resolveTimestamp(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const asDate = /^\d+$/.test(raw) ? new Date(Number(raw) * 1000) : new Date(raw);
+  return Number.isNaN(asDate.getTime()) ? null : asDate.toISOString();
+}
+
+/**
+ * The timestamp a document gets when nothing pinned one.
+ *
+ * WHY THIS EXISTS AT ALL: everything else in the document is already derived
+ * from its content — the component lists are sorted, the serial number is a
+ * hash of them — so the clock was the single reason two builds of one tag
+ * differed byte for byte, and an operator could not check that the SBOM
+ * attached to a release is the one this tree produces. `SOURCE_DATE_EPOCH` is
+ * the cross-ecosystem convention for exactly this; the release workflow sets it
+ * from the tagged commit's own timestamp.
+ */
+export function defaultTimestamp(env = process.env) {
+  return resolveTimestamp(env.SOURCE_DATE_EPOCH) ?? new Date().toISOString();
+}
+
 export function buildSbom({
   name = 'kp',
   version,
@@ -156,7 +184,7 @@ export function buildSbom({
   image = null,
   npm = [],
   python = [],
-  timestamp = new Date().toISOString(),
+  timestamp = defaultTimestamp(),
 }) {
   const components = [...npm, ...python];
   const properties = [
@@ -245,9 +273,10 @@ export function pipList() {
 }
 
 export function parseArgs(argv) {
-  const out = { out: null, version: null, commit: null, image: null, npmOnly: false, includeDev: false };
+  const out = { out: null, version: null, commit: null, image: null, timestamp: null, npmOnly: false, includeDev: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--out') out.out = argv[++i];
+    else if (argv[i] === '--timestamp') out.timestamp = argv[++i];
     else if (argv[i] === '--version') out.version = argv[++i];
     else if (argv[i] === '--commit') out.commit = argv[++i];
     else if (argv[i] === '--image') out.image = argv[++i];
@@ -261,6 +290,17 @@ function main(argv) {
   const args = parseArgs(argv);
   const pkg = readJson('package.json');
   const version = (args.version ?? pkg.version ?? '0.0.0').replace(/^v/, '');
+
+  // An explicit --timestamp that cannot be read is an error, never a fallback:
+  // the caller asked for a reproducible document and would get a clock instead.
+  const pinned = args.timestamp === null ? null : resolveTimestamp(args.timestamp);
+  if (args.timestamp !== null && pinned === null) {
+    process.stderr.write(
+      `sbom: --timestamp "${args.timestamp}" is neither epoch seconds nor an ISO instant.\n` +
+        '  Pass `git log -1 --format=%cI <ref>` (or the seconds form, %ct).\n',
+    );
+    return 1;
+  }
 
   const npm = componentsFromLockfile(readJson('package-lock.json'), { includeDev: args.includeDev });
   const list = args.npmOnly ? [] : pipList();
@@ -280,6 +320,7 @@ function main(argv) {
     image: args.image,
     npm,
     python,
+    timestamp: pinned ?? defaultTimestamp(),
   });
 
   const problems = checkSbom(doc, { requirePython: !args.npmOnly });

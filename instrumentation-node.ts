@@ -232,6 +232,80 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer reminder sweep failed:", e);
     }
+    // Price drift (billing) — the ONE daily pass here, registered as a scheduler job
+    // beside the reminders one so it shares their bookkeeping: claimDueRun gates it to
+    // a single run per cadence (and survives restarts), and scheduler_runs records what
+    // it found instead of leaving it in server logs. The invariant it guards is "the
+    // price the catalog DISPLAYS equals the price the provider CHARGES", which until
+    // now was checked only by a setup script an operator runs once — i.e. never again
+    // after the dashboard edit that introduces the drift.
+    //
+    // Sits UNDER the autonomy pause with the other discretionary passes: it is an
+    // outbound provider read on a timer, and a stop control that leaves egress running
+    // is not one. Self-safe besides — runPriceReconcile answers `skipped` when billing
+    // is unconfigured or KP_OFFLINE is set, so a self-hosted install does nothing.
+    try {
+      const { ensureSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+      const PRICE_RECONCILE_JOB = "price_reconcile";
+      // Daily. The drift it looks for is a human dashboard edit, not an event — hourly
+      // would spend provider quota to learn the same thing 23 more times.
+      ensureSchedule(PRICE_RECONCILE_JOB, { enabled: true, intervalMinutes: 24 * 60 });
+      if (claimDueRun(PRICE_RECONCILE_JOB)) {
+        const startedAt = new Date().toISOString();
+        try {
+          const { runPriceReconcile } = await import("./app/_lib/billing/sync");
+          const r = await runPriceReconcile();
+          // A skipped run (no provider configured) records nothing: at a daily cadence
+          // that would be a row a day saying "billing is off" on every self-host.
+          if (!r.skipped) recordRun({ job: PRICE_RECONCILE_JOB, status: "ok", summary: r, startedAt });
+        } catch (e) {
+          recordRun({
+            job: PRICE_RECONCILE_JOB,
+            status: "error",
+            error: e instanceof Error ? e.message : String(e),
+            startedAt,
+          });
+          console.error("[clock] price reconcile failed:", e);
+        }
+      }
+    } catch (e) {
+      console.error("[clock] price reconcile bookkeeping failed:", e);
+    }
+    // Apply-funnel retention (apply-session-store.ts) — independent, best-effort,
+    // idempotent. `apply_sessions` is written from a PUBLIC door on every form open
+    // and had no delete anywhere in the tree, so the abandoned attempts (the
+    // majority, by construction) accrued forever. This drops the orphans past the
+    // store's stated window; rows that reached a filed entry are provenance and are
+    // never touched.
+    //
+    // Sits UNDER the autonomy pause, unlike the consent sweep below it: this is
+    // storage hygiene on our own bookkeeping, not a statutory duty about a
+    // candidate's identifiable data, so nothing goes unlawful while an operator has
+    // the machine halted and a paused clock should do as little as it can.
+    try {
+      const { sweepAbandonedApplySessions } = await import("./app/_lib/apply-session-store");
+      const swept = sweepAbandonedApplySessions();
+      if (swept) console.log("[clock] abandoned apply attempts swept:", swept);
+    } catch (e) {
+      console.error("[clock] apply-session retention sweep failed:", e);
+    }
+    // Rediscovery-alert retention (rediscovery-alert-store.ts) — independent,
+    // best-effort, idempotent. `rediscovery_alerts` likewise had no delete anywhere:
+    // dismissed rows are kept deliberately (the UNIQUE index is what makes dismissal
+    // sticky) and un-acted-on ones simply accrued, each carrying a candidate's NAME
+    // for a re-contact that never happened. This drops both past the store's stated
+    // windows. Sits beside the apply-session sweep and UNDER the autonomy pause for
+    // the same reason: it is storage hygiene on our own bookkeeping, and a paused
+    // machine should do as little as it can.
+    try {
+      const { pruneRediscoveryAlerts } = await import("./app/_lib/rediscovery-alert-store");
+      const { dismissed, stale } = pruneRediscoveryAlerts();
+      if (dismissed || stale) {
+        console.log(`[clock] rediscovery alerts pruned: ${dismissed} dismissed, ${stale} stale`);
+      }
+    } catch (e) {
+      console.error("[clock] rediscovery-alert retention sweep failed:", e);
+    }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();
   };

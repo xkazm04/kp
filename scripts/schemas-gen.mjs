@@ -1,116 +1,107 @@
-#!/usr/bin/env node
-// `npm run typecheck` needs Python. This is where that stops being a surprise.
+// Wrapper for the Python schema generator (`python -m pipeline.jobfit.codegen`).
 //
-// THE GAP THIS CLOSES: `AGENTS.md` tells an agent to verify a change with three
-// commands, and the first of them — `npm run typecheck` — runs
-// `python -m pipeline.jobfit.codegen` before tsc, because the TypeScript schemas
-// are generated from the Python models. On a machine that has just cloned this
-// repository and run `npm ci`, that command was:
+// WHY THIS EXISTS: `schemas:gen` is the first step of BOTH `npm run typecheck` and
+// `npm run build`, so it is the first thing a new contributor or a fresh CI image
+// runs — and it was a bare `python -m pipeline.jobfit.codegen`. On a machine where
+// the interpreter is `python3`, or where `pip install -r requirements.txt` has not
+// been run, that fails as a raw shell `command not found` or a pydantic
+// ModuleNotFoundError traceback under an npm exit-1 banner, naming neither the
+// contract that broke nor the command that fixes it. The generator itself cannot
+// say so: it has already failed to load.
 //
-//     'python' is not recognized as an internal or external command
-//     npm ERR! code 1
+// The wrapper adds three things and nothing else:
+//   * interpreter discovery — PYTHON_CMD (the same env var app/_lib/python-runner.ts
+//     honours), then the platform's usual candidates;
+//   * a diagnosis on failure — missing interpreter vs missing package — each with
+//     the exact command that fixes it;
+//   * argv passthrough, so `--check` (npm run schemas:check) and
+//     `--print-json-schema` behave exactly as before.
 //
-// …which says nothing about Python being a documented prerequisite, nothing
-// about `requirements.txt`, and nothing about which of the three documented
-// commands is the one that needs it. `guidance:check` proves the gate table and
-// ci.yml name the same steps; nothing checked that the documented commands SUCCEED
-// from a cold clone, so the first agent to try discovered the prerequisite as a
-// confusing failure. This turns it into a sentence.
+// It is idempotent: the generator rewrites app/_lib/schemas.generated.ts and
+// app/_lib/taxonomy.generated.ts from the Pydantic models, so running it twice is
+// the same as running it once. The exit code is the generator's own — `--check`
+// still answers 1 for a stale file, which is what CI reads.
 //
-// WHAT IT DOES, and deliberately nothing more: find an interpreter, run the
-// codegen through it, pass the arguments and the exit code straight back. The
-// behaviour on a machine that is already set up is identical to the command it
-// replaced — `python` is tried first, for exactly that reason.
-//
-//   npm run schemas:gen     # write the generated TypeScript
-//   npm run schemas:check    # fail if it would differ (the --check pass-through)
-//   KP_PYTHON=/path/to/python npm run schemas:gen
-//
-// EXIT CODES: the interpreter's own · 1 when no interpreter could be started at
-// all, which is the case that used to read as a generic npm failure.
+// Fixtures: scripts/__tests__/schemas-gen.test.mjs (run by `npm run test:docs`).
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { spawnSync } from 'node:child_process';
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const MODULE = "pipeline.jobfit.codegen";
 
-const MODULE = 'pipeline.jobfit.codegen';
-
-/**
- * Interpreters to try, in order. `python` first because that is what the
- * documented command used and what CI's `setup-python` puts on PATH — so a
- * working checkout runs exactly what it ran before. `py -3` is the Windows
- * launcher, which is present on installs where `python` is not.
- */
-export const CANDIDATES = [
-  ...(process.env.KP_PYTHON ? [[process.env.KP_PYTHON, []]] : []),
-  ['python', []],
-  ['python3', []],
-  ['py', ['-3']],
-];
-
-/** The prerequisite, said once, where the failure happens. */
-const PREREQUISITES = [
-  '',
-  'schemas:gen generates app/**/generated TypeScript from the Python models in pipeline/jobfit/,',
-  'so it is a prerequisite of `npm run typecheck` and `npm run build` — not an optional extra.',
-  '',
-  'From a fresh clone:',
-  '',
-  '  1. Install Python 3.12 (the version .github/workflows/ci.yml pins).',
-  '  2. pip install -r requirements.txt',
-  '  3. npm ci',
-  '',
-  'Point this at a specific interpreter with KP_PYTHON=/path/to/python.',
-  'The full list of what runs and what it needs is in AGENTS.md.',
-];
-
-const say = (lines) => process.stderr.write(`${lines.join('\n')}\n`);
-
-export function main(argv, { spawn = spawnSync } = {}) {
-  const tried = [];
-  for (const [cmd, prefix] of CANDIDATES) {
-    const args = [...prefix, '-m', MODULE, ...argv];
-    let res = spawn(cmd, args, { stdio: 'inherit' });
-    // The command this replaced ran through npm's shell, so it worked where the
-    // interpreter on PATH is a `.cmd`/`.bat` shim (scoop, conda, the Windows
-    // launcher) — which Node refuses to spawn directly. Falling back to a shell
-    // keeps every checkout that worked before working, and the arguments are
-    // fixed literal tokens, so there is nothing here for a shell to re-read.
-    if (res.error && res.error.code !== 'ENOENT' && res.error.code !== 'EACCES') {
-      res = spawn(cmd, args, { stdio: 'inherit', shell: true });
-    }
-    // ENOENT means this interpreter is not on PATH — try the next one. Anything
-    // else means it RAN, and its verdict is the answer: retrying a different
-    // interpreter after a real failure would hide the error and change which
-    // Python the generated file came from.
-    if (res.error && (res.error.code === 'ENOENT' || res.error.code === 'EACCES')) {
-      tried.push(`${cmd} (${res.error.code})`);
-      continue;
-    }
-    if (res.error) {
-      say([`schemas:gen: could not run ${cmd} — ${res.error.message}`, ...PREREQUISITES]);
-      return 1;
-    }
-    if (res.status !== 0) {
-      say([
-        '',
-        `schemas:gen: \`${cmd} -m ${MODULE}\` exited ${res.status}.`,
-        '',
-        'If the error above is a missing module, the pipeline dependencies are not installed:',
-        '',
-        '  pip install -r requirements.txt',
-        '',
-        'If it is a generation failure, the message above is the real one — this line is only',
-        'here so the prerequisite is never the thing you have to guess at.',
-      ]);
-    }
-    return res.status ?? 1;
-  }
-
-  say([`schemas:gen: no Python interpreter found. Tried: ${tried.join(', ')}.`, ...PREREQUISITES]);
-  return 1;
+/** Interpreters to try, in order. PYTHON_CMD wins outright when set — an operator
+ *  who names an interpreter means that one, and silently falling back to another
+ *  would generate from a different environment than they asked for. */
+export function pythonCandidates(env = process.env, platform = process.platform) {
+  const named = env.PYTHON_CMD?.trim();
+  if (named) return [named];
+  return platform === "win32" ? ["python", "python3", "py"] : ["python3", "python"];
 }
 
-// `exitCode` rather than `exit()`: the diagnosis above is written to a pipe in
-// CI, and exiting the instant after a write is how the last lines of it go
-// missing — which would be a particularly silly way to lose a message whose only
-// job is to be read.
-if (process.argv[1]?.endsWith('schemas-gen.mjs')) process.exitCode = main(process.argv.slice(2));
+/** First candidate that answers `--version`. `null` when none is installed. */
+export function findInterpreter(candidates, run = spawnSync) {
+  for (const candidate of candidates) {
+    const probe = run(candidate, ["--version"], { encoding: "utf8" });
+    // ENOENT surfaces as probe.error; a shim that exists but refuses (the Windows
+    // Store `python` stub answers non-zero) is treated as not installed too.
+    if (!probe.error && probe.status === 0) return candidate;
+  }
+  return null;
+}
+
+const MISSING_PYTHON_HINT = [
+  "schemas:gen could not find a Python interpreter.",
+  "",
+  "  This step generates app/_lib/schemas.generated.ts and taxonomy.generated.ts from",
+  "  the Pydantic models in pipeline/jobfit — `npm run typecheck` and `npm run build`",
+  "  both run it first, so neither can work without Python.",
+  "",
+  "  Install Python 3.11+ and its dependencies:",
+  "    pip install -r requirements.txt",
+  "  Or point the build at an interpreter you already have:",
+  "    PYTHON_CMD=/path/to/python npm run schemas:gen",
+].join("\n");
+
+const missingPackageHint = (interpreter) =>
+  [
+    `schemas:gen ran ${interpreter} but the pipeline package is not importable.`,
+    "",
+    "  Install the pipeline dependencies from the repo root:",
+    "    pip install -r requirements.txt",
+  ].join("\n");
+
+export function main(argv = process.argv.slice(2), { env = process.env, run = spawnSync } = {}) {
+  const interpreter = findInterpreter(pythonCandidates(env), run);
+  if (!interpreter) {
+    process.stderr.write(`${MISSING_PYTHON_HINT}\n`);
+    return 1;
+  }
+
+  const result = run(interpreter, ["-m", MODULE, ...argv], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    // UTF-8 in, UTF-8 out: the generated files carry non-ASCII and a Windows
+    // default locale (cp1250) mangles them — the same reason python-runner.ts
+    // pins these.
+    env: { ...env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
+  });
+
+  if (result.error) {
+    process.stderr.write(`schemas:gen could not run ${interpreter}: ${result.error.message}\n`);
+    return 1;
+  }
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+
+  // A ModuleNotFoundError here is an install problem, not a codegen problem, and
+  // the traceback alone does not say which requirements file to reach for.
+  if (result.status !== 0 && /No module named|ModuleNotFoundError/.test(result.stderr ?? "")) {
+    process.stderr.write(`\n${missingPackageHint(interpreter)}\n`);
+  }
+  return result.status ?? 1;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = main();
+}

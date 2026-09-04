@@ -27,12 +27,30 @@ import path from "node:path";
 
 const { createLifecycle, saveDevCase, createPosting, createSubmission, updateLifecycle, getLifecycle, getPosting, listOutbox } =
   await import("../../../../../_lib/db/devcase.ts");
+const { DEFAULT_WORKSPACE_ID } = await import("../../../../../_lib/db/workspaces.ts");
 const { POST } = await import("./route.ts");
 const { NextResponse } = await import("next/server");
 
 after(() => cleanupUnitDb());
 
-const WS = "ws-close-alpha";
+// THE TENANT THESE TWO BEHAVIORAL TESTS RUN AS (/perfect 2026-09-02, api-devcase-1).
+//
+// They used to build the whole chain in a NON-default workspace, because the defect they
+// were written for was the route re-deriving postings with a bare `listPostings()`. The
+// route now ALSO refuses a caller whose workspace is not the lifecycle's (the shared
+// owner guard in app/api/devcase/devcase-owned-lifecycle.ts), and a handler driven
+// directly here has no cookie jar, so `currentWorkspace()` falls back to the default
+// workspace for every call this file can make. A non-default chain is therefore now a
+// 404 — correctly — and could no longer exercise the close at all.
+//
+// So the close BEHAVIOUR (postings actually closed, wrap-up notes filed in the right
+// outbox, an honest no-postings report) is proven here in the default workspace, the
+// cross-tenant REFUSAL is proven behaviorally in
+// app/api/devcase/devcase-lifecycle-tenancy.test.ts, and the argument-threading that the
+// old non-default chain proved — `listPostings(lc.workspaceId)`, never a bare call — is
+// pinned by the source guard at the end of this file, the same instrument the
+// session-derived siblings below already rely on.
+const WS = DEFAULT_WORKSPACE_ID;
 
 // ENVIRONMENT NOTE. Inside a git worktree the node_modules junction breaks next/server's
 // dual-module identity under the bare `node --test` runner, so `NextResponse` resolves to
@@ -55,9 +73,9 @@ async function close(id: string): Promise<CloseBody | null> {
   }
 }
 
-test("closing a NON-DEFAULT team's lifecycle actually closes their postings and notifies their submitters", async () => {
-  // A whole case → posting → submission chain owned by ws-close-alpha. Each child
-  // inherits its parent's workspace, so nothing here touches the default tenant.
+test("closing a lifecycle actually closes its postings and notifies its submitters", async () => {
+  // A whole case → posting → submission chain. Each child inherits its parent's workspace,
+  // so the enumeration below runs against exactly the tenant the lifecycle names.
   const lc = createLifecycle({ title: "Backend engineer" }, false, "en", WS);
   const devCase = saveDevCase(
     { need: { title: "Backend engineer" }, analysis: {}, role: { title: "Backend engineer" }, case: { title: "Cache invalidation" } },
@@ -85,12 +103,12 @@ test("closing a NON-DEFAULT team's lifecycle actually closes their postings and 
   assert.equal(getPosting(posting.id)?.status, "closed", "the team's posting is actually closed");
   assert.equal(getLifecycle(lc.id)?.stage, "closed");
   assert.match(getLifecycle(lc.id)?.detail ?? "", /1 candidate\(s\) notified/, "the close counted the real notification");
-  // The wrap-up note landed in the TEAM's outbox, not the default tenant's.
+  // The wrap-up note landed in the LIFECYCLE's outbox — filed under `lc.workspaceId`,
+  // which is what makes it resendable by the team whose case was closed.
   assert.ok(
     listOutbox(20, WS).some((m) => m.ref === submission.id && m.kind === "rejection"),
-    "wrap-up note is in ws-close-alpha's outbox"
+    "wrap-up note is in the lifecycle's own outbox"
   );
-  assert.equal(listOutbox(20).some((m) => m.ref === submission.id), false, "the default tenant's outbox stays clean");
 
   if (body) {
     // Pre-fix this was { ok: true, notified: 0, postingsClosed: 0 } — a silent no-op.
@@ -124,6 +142,17 @@ const read = (p: string) => readFileSync(path.join(apiDir, p), "utf8");
 // "no bare call remains" assertions below.
 const code = (p: string) => read(p).replace(/\/\/[^\n]*/g, "");
 
+// The half of the original defect a default-workspace behavioral test can no longer see:
+// with `WS === DEFAULT_WORKSPACE_ID` a bare `listPostings()` and `listPostings(lc.workspaceId)`
+// return the same rows, so only the source can say which one the route calls.
+test("the close route enumerates postings in the LIFECYCLE's workspace, never the default one", () => {
+  const close = code("lifecycle/[id]/close/route.ts");
+  assert.match(close, /listPostings\(lc\.workspaceId\)/, "postings must be enumerated in the lifecycle's tenant");
+  assert.doesNotMatch(close, /listPostings\(\)/, "no bare listPostings() may remain");
+  assert.match(close, /listSubmissions\(posting\.id, lc\.workspaceId\)/, "submissions too");
+  assert.match(close, /workspaceId: lc\.workspaceId/, "and the wrap-up note files into that same tenant");
+});
+
 test("the session-derived dev-studio routes resolve currentWorkspace() and thread it into every scoped call", () => {
   const lifecycle = code("lifecycle/route.ts");
   assert.match(lifecycle, /currentWorkspace\(\)/);
@@ -142,7 +171,10 @@ test("the session-derived dev-studio routes resolve currentWorkspace() and threa
 
   const control = code("control/route.ts");
   assert.match(control, /currentWorkspace\(\)/);
-  assert.match(control, /reconcile\(\s*await currentWorkspace\(\)\s*\)/, "reconcile must sweep the caller's workspace");
+  // The tenant stays the FIRST argument; the sweep also takes the client key now that
+  // each resumed lifecycle spends a slot of the agent task budget (wave 18b), so the
+  // trailing arguments are open — what this pins is the workspace, not the arity.
+  assert.match(control, /reconcile\(\s*await currentWorkspace\(\)\s*(,[^)]*)?\)/, "reconcile must sweep the caller's workspace");
   assert.doesNotMatch(control, /listLifecycles\(\)/, "the control room's GET must be workspace-scoped");
   // The reconcile sweep spawns runners: both the dedupe probe and the task must
   // use the workspace being swept, or it checks the default team and duplicates.

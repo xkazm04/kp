@@ -10,6 +10,7 @@ import { useUrlInboxState } from "./nav/useUrlInboxState";
 import { prefetchTabChunk, warmLikelyTabChunks } from "./tabChunks";
 import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
+import { useCapabilities } from "./useCapabilities";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
 import { CompanionDockProvider } from "./companion/CompanionDockProvider";
@@ -46,6 +47,11 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   const search = params.toString();
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
+  // What this caller may actually do here. Resolved ONCE per document
+  // (useCapabilities.ts) and handed to the nav so the rail stops offering doors
+  // wave 18a's server gates already refuse — `null` while unknown, which locks
+  // nothing. See navCapabilities.ts for the table and why it fails open.
+  const capabilities = useCapabilities();
   // Below `md` the sidebar is an off-canvas drawer (a permanent rail at md+). Without
   // this, the full ~16-item nav stacked above content and pushed every page below the
   // fold on a phone — the studio was close to unusable on a handset.
@@ -191,6 +197,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
         navActive={navActive}
         active={active}
         attention={attention}
+        capabilities={capabilities}
         search={search}
         selectTab={selectTab}
         onSliceNav={(href) => nav.push(href)}

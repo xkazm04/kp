@@ -5,6 +5,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+// The cap is the ROUTE's — imported, never re-typed, so the composer's
+// disclosure and the server's refusal can never drift apart.
+import { ATTACHMENT_TEXT_MAX } from "@/app/api/intake/[id]/attachments/attachment-limits";
 import type { IntakeAttachment } from "./jdsIntakeLogic";
 
 // Reference material ("podklady"): a colleague's note pasted as text, or a
@@ -69,6 +72,8 @@ export function JdsIntakeAttachmentsPane({
     return () => window.clearTimeout(timer);
   }, [mode, jds]);
 
+  const tooLong = text.trim().length > ATTACHMENT_TEXT_MAX;
+
   const fade = {
     initial: { opacity: reduced ? 1 : 0 },
     animate: { opacity: 1 },
@@ -89,7 +94,11 @@ export function JdsIntakeAttachmentsPane({
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-body font-medium text-ink">{a.title}</span>
+                {/* An untitled note is stored untitled (the route no longer
+                    stamps the English word "Note" into everyone's data) — the
+                    reader's own language supplies the stand-in, at render time,
+                    so existing rows and new ones read the same. */}
+                <span className="text-body font-medium text-ink">{a.title || t("noteFallbackTitle")}</span>
                 <span className={CHIP_QUIET}>{a.kind === "jd" ? t("kindJd") : t("kindNote")}</span>
               </div>
               <p className="mt-1 line-clamp-3 whitespace-pre-line text-meta text-steel">{a.text.slice(0, 280)}</p>
@@ -138,11 +147,15 @@ export function JdsIntakeAttachmentsPane({
                 placeholder={t("notePlaceholder")}
                 onChange={(e) => setText(e.target.value)}
               />
+              {/* The cap is disclosed BEFORE the send, not discovered after it:
+                  the server refuses past it (INTAKE_ATTACHMENT_TOO_LONG) and
+                  used to silently truncate. */}
+              {tooLong ? <p className="text-meta text-red-700">{t("textCap", { max: ATTACHMENT_TEXT_MAX })}</p> : null}
               <div className="flex gap-2">
                 <button
                   type="button"
                   className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
-                  disabled={saving || !text.trim()}
+                  disabled={saving || !text.trim() || tooLong}
                   onClick={() => void commit({ kind: "note", title: title.trim(), text: text.trim() })}
                 >
                   {t("add")}

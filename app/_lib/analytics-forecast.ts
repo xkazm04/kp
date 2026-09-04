@@ -32,20 +32,56 @@ export type ForecastInput = {
   offerAcceptRate?: number | null;
 };
 
+/** The projection's METHOD, named once so the UI can state it instead of printing a
+ *  bare number. Inflow hires are a linear extrapolation: mean weekly inflow × the
+ *  horizon × the empirical conversion. It is not a time-series model, it assumes the
+ *  next N weeks look like the last few, and the range below is what says so. */
+export const FORECAST_METHOD = "velocity-x-conversion" as const;
+
+/** Minimum COMPLETED HIRES before the empirical conversion is allowed to drive a
+ *  projection. Every sibling figure on this page gates (`BOTTLENECK_MIN_SAMPLE` = 3,
+ *  the offer leg's min-offers floor, `MIN_CALIBRATION_OUTCOMES` = 20) and this one —
+ *  the single largest number the tab prints — gated at ONE hire: a 1-of-40 funnel
+ *  licensed "+7.5 hires over 12 weeks" to one decimal place. Three is the same floor
+ *  the bottleneck uses, and for the same reason: below it one outcome IS the trend. */
+export const MIN_FORECAST_HIRES = 3;
+
+/** Minimum weeks that actually RECEIVED candidates before the velocity mean is
+ *  allowed to be extrapolated forward. The mean is taken over every bucket (a quiet
+ *  week is real evidence of a low rate), but a mean built from one or two active weeks
+ *  is a burst, not a rate — and the 12-week horizon multiplies it by twelve. Four is a
+ *  month of observed inflow, the shortest span over which "candidates per week" is a
+ *  statement about the pipeline rather than about one good week. */
+export const MIN_FORECAST_INFLOW_WEEKS = 4;
+
+/** A projected horizon: the point estimate plus the band the inflow variance implies.
+ *  `low`/`high` are the same arithmetic run at velocity ∓ one standard deviation of the
+ *  weekly buckets, floored at zero (a negative weekly inflow is not a thing). */
+export type ForecastHorizon = { weeks: number; hires: number; low: number; high: number };
+
 export type Forecast = {
+  method: typeof FORECAST_METHOD;
   weeklyVelocity: number; // mean new candidates / week (1 decimal)
+  /** Population standard deviation of the weekly buckets (1 decimal) — the spread the
+   *  range is built from, exposed so the UI can name its own uncertainty basis. */
+  weeklyVelocityStdDev: number;
   overallConversionPct: number | null; // hired-reach / first-reach, null when no cohort
   inFlightExpectedHires: number; // expected hires from candidates already active
-  projected: { weeks: number; hires: number }[]; // inflow-driven hires per horizon
+  projected: ForecastHorizon[]; // inflow-driven hires per horizon, with their range
   etaDays: number | null; // average time-to-hire, the realization lag for inflow
   // Direction 1 — the accept rate (0..1) actually applied to the projection, or
   // null when none was supplied (or there was no offer leg to apply it to). Lets
   // the UI state its acceptance basis honestly ("assuming the observed NN%…").
   offerAcceptRate: number | null;
-  // True when there's enough signal to project (a non-empty cohort that has
-  // produced at least one hire). The UI shows a "not enough signal yet" state
+  // True when there's enough signal to project: a non-empty cohort that has produced
+  // at least MIN_FORECAST_HIRES hires, over at least MIN_FORECAST_INFLOW_WEEKS weeks
+  // that actually received candidates. The UI shows a "not enough signal yet" state
   // otherwise rather than a misleading flat-zero forecast.
   hasSignal: boolean;
+  /** What the floor was measured against, so the no-signal state can say what is
+   *  missing ("2 of 3 hires, 1 of 4 weeks with new candidates") instead of refusing
+   *  without a reason the reader can act on. */
+  signal: { hires: number; inflowWeeks: number; minHires: number; minInflowWeeks: number };
 };
 
 const DEFAULT_HORIZONS = [4, 8, 12];
@@ -53,6 +89,17 @@ const DEFAULT_HORIZONS = [4, 8, 12];
 function mean(xs: number[]): number {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 }
+
+/** Population (not sample) standard deviation: the buckets ARE the whole observed
+ *  span, not a draw from a larger set, and n-1 on a two-bucket window would inflate
+ *  the band for no reason a reader could name. */
+function stdDev(xs: number[]): number {
+  if (xs.length < 2) return 0;
+  const m = mean(xs);
+  return Math.sqrt(mean(xs.map((x) => (x - m) ** 2)));
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export function forecastHires(input: ForecastInput): Forecast {
   const { funnel, weeklyAdded, avgTimeToHireDays } = input;
@@ -101,19 +148,44 @@ export function forecastHires(input: ForecastInput): Forecast {
   }
   const inFlightExpectedHires = Math.round(inFlight * 10) / 10;
 
-  const hasSignal = overallConversion != null && hiredReached > 0;
-  const projected = horizons.map((weeks) => ({
+  // The floor. Two independent inputs feed the projection, so both are gated: the
+  // conversion it multiplies by (hires) and the velocity it multiplies (weeks that
+  // actually received candidates). Either alone is not enough — a hundred hires over
+  // one burst week extrapolates that week twelve times, and four steady weeks with one
+  // hire still divides by a cohort of one.
+  const inflowWeeks = weeklyAdded.filter((n) => n > 0).length;
+  const hasSignal =
+    overallConversion != null && hiredReached >= MIN_FORECAST_HIRES && inflowWeeks >= MIN_FORECAST_INFLOW_WEEKS;
+
+  const spread = stdDev(weeklyAdded);
+  const weeklyVelocityStdDev = round1(spread);
+  // The range is the SAME arithmetic at velocity ∓ one standard deviation. Floored at
+  // zero on the low side: the pipeline cannot receive a negative number of candidates,
+  // and a negative low bound would read as a forecast of un-hiring.
+  const project = (v: number, weeks: number) =>
+    hasSignal ? round1(Math.max(0, v) * weeks * (projectionConversion as number)) : 0;
+  const projected: ForecastHorizon[] = horizons.map((weeks) => ({
     weeks,
-    hires: hasSignal ? Math.round(weeklyVelocity * weeks * (projectionConversion as number) * 10) / 10 : 0,
+    hires: project(weeklyVelocity, weeks),
+    low: project(weeklyVelocity - spread, weeks),
+    high: project(weeklyVelocity + spread, weeks),
   }));
 
   return {
+    method: FORECAST_METHOD,
     weeklyVelocity,
+    weeklyVelocityStdDev,
     overallConversionPct,
     inFlightExpectedHires,
     projected,
     etaDays: avgTimeToHireDays,
     hasSignal,
+    signal: {
+      hires: hiredReached,
+      inflowWeeks,
+      minHires: MIN_FORECAST_HIRES,
+      minInflowWeeks: MIN_FORECAST_INFLOW_WEEKS,
+    },
     offerAcceptRate,
   };
 }

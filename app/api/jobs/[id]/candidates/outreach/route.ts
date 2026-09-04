@@ -6,7 +6,8 @@ import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { candidateOutreachSuppression } from "@/app/_lib/rediscovery-alert-store";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
 // its provider timeout so a slow-but-valid draft isn't killed at 60s (matches the
@@ -79,6 +80,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         },
         { status: 409 }
       );
+    }
+
+    // Per-IP, AFTER every cheap refusal (the 404, the missing-candidateId 400 and the
+    // GDPR 409 above) and BEFORE the first write and the automation_cli draft, so a
+    // rejected reach-out costs no budget. 60/10min: the recruiter works down a ranked
+    // list one click at a time and each accepted click drafts a paid first-touch and
+    // dispatches through the Outbox — generous enough for a genuine sourcing session,
+    // tight enough that a scripted loop cannot mail the whole pool. Session-gated, and
+    // in open mode that gate is a no-op for the whole API.
+    if (!rateLimit(`jobs-outreach:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // jobTitle / roleFamily come from the authoritative server-side record (the

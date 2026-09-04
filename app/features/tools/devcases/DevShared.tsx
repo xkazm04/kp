@@ -1,5 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
+import { useProbeKindLabel } from "./DevLabels";
 import { formatFraction } from "@/app/_lib/format";
 import type { LoadState } from "@/app/_lib/useLoader";
 import type { CoverProbe, FollowupQuestion, RubricDim } from "./DevTypes";
@@ -85,11 +89,16 @@ export function ProbeRow({
   tone?: keyof typeof PROBE_TONE;
   showDecisionSpace?: boolean;
 }) {
+  // The kind chip through the SAME hook the eval panel uses. De-underscoring the raw
+  // enum here while the panel one screen over localized it is exactly the split
+  // DevLabels exists to make impossible; `useProbeKindLabel` also owns the
+  // "kind absent" word, so the `?? "probe"` placeholder goes with it.
+  const probeKind = useProbeKindLabel();
   return (
     <>
       <p className="text-micro text-ink">
         <span className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${PROBE_TONE[tone]}`}>
-          {(probe.kind ?? "probe").replace(/_/g, " ")}
+          {probeKind(probe.kind)}
         </span>{" "}
         {probe.where ? (
           <>
@@ -140,6 +149,11 @@ export function FollowupQuestionItem({
   index: number;
   showDecision?: boolean;
 }) {
+  // The two interviewer-internal leads. They read as labels rather than copy, which is
+  // how they stayed English on both surfaces that render them — including the interview
+  // kit's exported Markdown, whose scaffolding is otherwise entirely in the reader's
+  // language (devcase-interview-kit.ts).
+  const t = useTranslations("devcase.followup");
   // EvalPanel renders the question inline (with an optional `[decision]` prefix)
   // and its notes as `block` spans inside one `<li>`; InterviewKit renders a
   // numbered `<p>` then `<p>` notes inside a card `<li>`. Branch on `showDecision`
@@ -149,8 +163,12 @@ export function FollowupQuestionItem({
       <>
         {q.decision ? <span className="text-steel">[{q.decision}] </span> : null}
         {q.question}
-        {q.listenFor ? <span className="block text-micro text-steel">Listen for: {q.listenFor}</span> : null}
-        {q.redFlag ? <span className="block text-micro text-coral/80">Red flag: {q.redFlag}</span> : null}
+        {q.listenFor ? (
+          <span className="block text-micro text-steel">{t("listenFor", { note: q.listenFor })}</span>
+        ) : null}
+        {q.redFlag ? (
+          <span className="block text-micro text-coral/80">{t("redFlag", { note: q.redFlag })}</span>
+        ) : null}
       </>
     );
   }
@@ -159,8 +177,8 @@ export function FollowupQuestionItem({
       <p className="font-medium text-ink">
         {index + 1}. {q.question}
       </p>
-      {q.listenFor ? <p className="mt-0.5 text-steel">Listen for: {q.listenFor}</p> : null}
-      {q.redFlag ? <p className="mt-0.5 text-coral/80">Red flag: {q.redFlag}</p> : null}
+      {q.listenFor ? <p className="mt-0.5 text-steel">{t("listenFor", { note: q.listenFor })}</p> : null}
+      {q.redFlag ? <p className="mt-0.5 text-coral/80">{t("redFlag", { note: q.redFlag })}</p> : null}
     </>
   );
 }

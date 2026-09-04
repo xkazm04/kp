@@ -19,12 +19,32 @@ export type Analytics = {
   rejected: number;
   declined: number;
   funnel: Funnel[];
+  /** This workspace's offer column, resolved server-side by ROLE (db/analytics.ts).
+   *  The offer panel's "who is sitting on an offer" deep link filters the board on it
+   *  instead of the literal "Offer", which resolved to nothing on a renamed board.
+   *  Optional so an older cached payload (or a fixture) still type-checks; absent and
+   *  null both mean "no offer column to link to" and the count renders as plain text. */
+  offerStage?: string | null;
   avgTimeToHireDays: number | null;
   // Median of the same time-to-hire samples — the ROI ledger's "median"-labeled tile
   // reads this (analytics-calibration-dashboards #1).
   medianTimeToHireDays: number | null;
+  /** How many hires the two statistics above were actually computed over — NOT
+   *  `hired`. A hire whose entry lacks one of the two timestamps is a real hire the
+   *  median cannot see (4 of 9 on the shipped corpus), so any surface that publishes
+   *  the median WITH a sample size must quote this and never `hired`. */
+  timeToHireSamples: number;
   // UAT M7 — blended overall cost per hire (Σ channel spend ÷ hires), all-time only.
   costPerHireCzk: number | null;
+  /** UAT KAT-ANA-2 — the age of the figure above: the OLDEST `channel_spend.updated_at`
+   *  among the rows summed into it (a blend is only as current as its stalest input).
+   *  Null whenever `costPerHireCzk` is. */
+  costPerHireAsOf: string | null;
+  /** UAT KAT-ANA-4 — hires on the EVENT-TIME basis: entries whose TERMINAL TRANSITION
+   *  landed inside the window, as distinct from the creation cohort `hired`. Every
+   *  per-hire figure with an event-time or ledger-time numerator divides by THIS, so
+   *  numerator and denominator describe the same window. */
+  hiresClosedInWindow: number;
   // compute-cost-per-hire — account-wide LLM compute cost from the usage ledger (USD,
   // read-only). Null when the window holds no metered calls. See the DB type note.
   computeCost: {
@@ -62,6 +82,12 @@ export type Analytics = {
   deltas: PeriodDeltas | null;
   // 82c2b8e8 — recruiter-set goals: per-stage conversion %% targets + a TTH goal.
   targets: { conversion: Record<string, number>; timeToHireDays: number | null };
+  /** Board entries in this window that every figure on the page LEFT OUT because
+   *  they are guided-demo residue (db/analytics.ts `notSim`). The exclusion is
+   *  right; its silence was not — after a demo run the funnel disagreed with the
+   *  board and nothing on screen said why. Optional so an older cached payload (or a
+   *  fixture) still type-checks; absent and 0 both mean "nothing to say". */
+  excludedSim?: number;
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).

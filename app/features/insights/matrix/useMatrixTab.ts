@@ -5,16 +5,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
-import type { Reasoning } from "@/app/features/shared/matchTypes";
 import { postPipelineAdd } from "@/app/_lib/useAddToPipeline";
+import { capabilityAwareReason } from "@/app/_lib/use-error-message";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import type { Cell } from "./MatrixShared";
-import { STRONG_THRESHOLD } from "./matrixStats";
+import type { Cell } from "./matrixCellClass";
+import { columnStats, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
 import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
-import { computePopoverPosition } from "./matrixPopover";
+import { computePopoverPosition, popoverDims } from "./matrixPopover";
+import { createFrameThrottle } from "./matrixAnchor";
+import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
 export function useMatrixTab() {
@@ -37,17 +39,30 @@ export function useMatrixTab() {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // Close the popover AND return focus to the cell that opened it — the missing half of
   // the dialog contract (a bare setPopover(null) left focus nowhere).
+  // grid-narrative-says-what-it-is: the in-flight reasoning request for the OPEN cell.
+  // /api/match/reasoning spawns Python and, on a cache miss, spends an LLM call — leaving
+  // it running after the reader closed the popover pays for an answer nobody will see.
+  const reasoningAbort = useRef<AbortController | null>(null);
+  const abortReasoning = useCallback(() => {
+    const ac = reasoningAbort.current;
+    reasoningAbort.current = null;
+    if (ac) ac.abort();
+  }, []);
   const closePopover = useCallback(() => {
+    abortReasoning();
     setPopover(null);
     const el = triggerRef.current;
     triggerRef.current = null;
     if (el && typeof el.focus === "function") el.focus();
-  }, []);
+  }, [abortReasoning]);
   // MAT2 — name the hard gate(s) behind a blocked cell. "Blocked: language"
   // and "blocked: seniority" demand opposite recruiter actions (renegotiate vs
   // skip); the bare dash hid that. Localized by the stable KoReason.key; cells
   // from an older cached grid without koKeys fall back to the generic label.
-  const blockedLabel = (c: { koKeys?: string[] }) => {
+  // grid-stays-still-while-you-scroll: this and the three handlers below are
+  // `useCallback`s because MatrixGridRow is memoized on them — a fresh identity per
+  // render would make that memo a silent no-op.
+  const blockedLabel = useCallback((c: { koKeys?: string[] }) => {
     const keys = c.koKeys ?? [];
     if (keys.length === 0) return t("blockedKo");
     const reasons = keys
@@ -57,7 +72,7 @@ export function useMatrixTab() {
       })
       .join(", ");
     return t("blockedKoNamed", { reasons });
-  };
+  }, [t]);
   const router = useRouter();
   const search = useSearchParams();
   // When arriving from a Pipeline position ("Rank candidates"), scope the matrix
@@ -83,26 +98,48 @@ export function useMatrixTab() {
   const [announce, setAnnounce] = useState("");
   // Last bulk-add outcome — drives the visible completion band (the sr-only
   // announce stays for screen readers; sighted users got nothing before).
-  const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number } | null>(null);
+  // `reason` (wave 19b): a bulk add that fails used to report a bare tally — "0
+  // added, 7 failed" — even when the door had refused with a code and named the
+  // permission the seat lacked. The localized sentence travels with the count.
+  const [lastAdd, setLastAdd] = useState<{ ok: number; failed: number; reason: string | null } | null>(null);
+
+  // matrix-answers-with-codes-and-retries (b). Bumping this re-runs the fetch effect;
+  // it is the retry button's whole mechanism, so a failed load is recoverable without
+  // a page reload (the error state used to be terminal).
+  const [reloadAt, setReloadAt] = useState(0);
+  const retryLoad = useCallback(() => {
+    setError(null);
+    setData(null);
+    setReloadAt((n) => n + 1);
+  }, []);
 
   useEffect(() => {
+    // /api/matrix spawns the Python scorer over the whole pool. Leaving the tab (or
+    // pressing retry) used to leave that request running with a `setData` waiting at
+    // the end of it — a state write into an unmounted tree, and on retry a race where
+    // the FIRST response could land after the second and overwrite it. The controller
+    // is both the cleanup and the ordering guarantee.
+    const ac = new AbortController();
     (async () => {
       try {
-        const r = await fetch("/api/matrix");
-        // The route returns a structured { error, code } body (from
-        // parseStderrError) on failure — resolve its machine `code` so the real
-        // cause reaches the screen in the reader's language instead of an opaque
-        // status code (or the server's English `error`).
+        const r = await fetch("/api/matrix", { signal: ac.signal });
+        // The route returns a structured { error, code } body — resolve its machine
+        // `code` so the real cause reaches the screen in the reader's language instead
+        // of an opaque status code (or the server's English `error`).
         const body = await r.json().catch(() => ({}));
+        if (ac.signal.aborted) return;
         if (!r.ok) throw new Error(errMsg(body, t("loadFailedStatus", { status: r.status })));
         if (body.error) throw new Error(errMsg(body, t("loadFailed")));
         setData(body as Matrix);
       } catch (e) {
+        // An abort is the reader leaving or retrying, never a failure to report.
+        if (ac.signal.aborted || isAbortError(e)) return;
         setError(e instanceof Error ? e.message : t("loadFailed"));
       }
     })();
+    return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reloadAt]);
 
   // deec915c popover a11y + layout tracking (bug-ui-scan-2026-07-09 (skill-matrix-coverage
   // #5)). Runs once per OPENED cell (keyed by candId|posId, NOT the rect) so scroll/resize
@@ -142,19 +179,43 @@ export function useMatrixTab() {
       }
     };
 
-    const reposition = () => {
+    // grid-stays-still-while-you-scroll. This used to be `setPopover({ ...cur, rect })`
+    // on EVERY scroll/resize event — a state update on the tab, so a trackpad flick
+    // re-rendered the whole grid subtree dozens of times a second and every one of the
+    // 200×N cells rebuilt its title and aria-label through the translator. Nothing in the
+    // grid depends on the anchor; only the popover element does. So the frame's work
+    // writes the two coordinates straight onto that element and React is not involved at
+    // all — a scroll burst now costs zero grid renders, not one per event.
+    //
+    // `popover.rect` stays the OPEN-time anchor (the first paint's position and what a
+    // re-render restores); these writes are the live correction on top of it.
+    const measure = () => {
       const el = triggerRef.current;
-      if (!el) return;
+      const node = dialogRef.current;
+      if (!el || !node || typeof el.getBoundingClientRect !== "function") return;
       const r = el.getBoundingClientRect();
-      const rect = computePopoverPosition({ left: r.left, bottom: r.bottom }, { width: window.innerWidth, height: window.innerHeight });
-      setPopover((cur) => (cur ? { ...cur, rect } : cur));
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      // Measure the REAL dialog rather than trusting the module's 320×340 guess: the card
+      // is `w-80 max-h-[60vh]`, so on a tall window its 340 was a 140px under-estimate (the
+      // popover was clamped further down the page than it needed to be) and on a short one
+      // an over-estimate. The clamp is only as good as the size it is given.
+      const rect = computePopoverPosition(
+        { left: r.left, bottom: r.bottom },
+        viewport,
+        popoverDims(viewport, node.getBoundingClientRect().height),
+      );
+      node.style.top = `${rect.top}px`;
+      node.style.left = `${rect.left}px`;
     };
+    const anchor = createFrameThrottle(measure, (cb) => window.requestAnimationFrame(cb), (h) => window.cancelAnimationFrame(h));
+    const reposition = () => anchor.schedule();
 
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", reposition);
     // Capture phase so the grid's OWN inner scroll container (overflow-auto) also fires it.
     window.addEventListener("scroll", reposition, true);
     return () => {
+      anchor.cancel();
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
@@ -267,6 +328,20 @@ export function useMatrixTab() {
     return out;
   }, [data, cols]);
 
+  // grid-chrome-holds-the-floor: the per-column distribution the header strip renders.
+  // ColumnStats used to compute this itself, in its own body, once per visible column on
+  // every render of the header row — an O(pool) sort + median + bucketing for a value
+  // that changes only when `colScores` does. Computed here, once, it is also a STABLE
+  // object per column, which is what lets the memoized ColumnStats actually skip.
+  const colStats = useMemo(() => {
+    const out: Record<number, ColumnStat> = {};
+    for (const key of Object.keys(colScores)) {
+      const i = Number(key);
+      out[i] = columnStats(colScores[i]);
+    }
+    return out;
+  }, [colScores]);
+
   // Coverage rollup (the value prop the context is named for): which OPEN roles have
   // ZERO strong fits in the pool. The per-column strong counts already exist (colScores
   // + STRONG_THRESHOLD); nothing surfaced "3 of 8 roles have no strong candidate — source
@@ -290,6 +365,9 @@ export function useMatrixTab() {
   // cell (that's what closePopover does); just clear the ref and close.
   const viewFullMatchAndClose = (candId: string, posId: string) => {
     open(candId, posId);
+    // Focus mode re-fetches the rationale for the pair it lands on, so the grid's
+    // in-flight request is money spent on a card that is being unmounted.
+    abortReasoning();
     triggerRef.current = null;
     setPopover(null);
   };
@@ -303,54 +381,73 @@ export function useMatrixTab() {
   // missing the prompt cache because neither had written it yet.
   const requestedReasoning = useRef<Set<string>>(new Set());
   // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
-  const fetchReasoning = (candId: string, posId: string) => {
+  const fetchReasoning = useCallback((candId: string, posId: string) => {
     const key = `${candId}|${posId}`;
     if (requestedReasoning.current.has(key)) return; // already loaded / in flight
     requestedReasoning.current.add(key);
+    const ac = new AbortController();
+    reasoningAbort.current = ac;
     setReasoning((cur) => ({ ...cur, [key]: { loading: true } }));
-    void fetch("/api/match/reasoning", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId: candId, jobId: posId, lang: locale }),
-    })
-      .then(async (r) => {
-        const p = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(errMsg(p, t("reasoningFailed")));
-        return p as { reasoning?: Reasoning; source?: string; cached?: boolean };
-      })
-      .then((p) => setReasoning((s) => ({ ...s, [key]: { data: p.reasoning, source: p.source, cached: p.cached } })))
-      .catch((e) => {
+    void fetchMatchReasoning({ profileId: candId, jobId: posId, lang: locale }, { signal: ac.signal }).then((out) => {
+      if (reasoningAbort.current === ac) reasoningAbort.current = null;
+      if (out.status === "aborted") {
+        // A deliberate close, not a failure: drop the loading state and release the
+        // de-dupe key so re-opening the same cell asks again. Rendering an error here
+        // would blame the user's own click.
+        requestedReasoning.current.delete(key);
+        setReasoning((cur) => {
+          if (!(key in cur)) return cur;
+          const next = { ...cur };
+          delete next[key];
+          return next;
+        });
+        return;
+      }
+      if (out.status === "failed") {
         // Release the key so re-opening the cell can retry — the old guard allowed that
         // too (it only skipped keys holding `data` or `loading`).
         requestedReasoning.current.delete(key);
-        setReasoning((s) => ({ ...s, [key]: { error: e instanceof Error ? e.message : t("reasoningFailed") } }));
-      });
-  };
+        setReasoning((cur) => ({ ...cur, [key]: { error: errMsg(out.body, t("reasoningFailed")) } }));
+        return;
+      }
+      const p = out.payload;
+      setReasoning((cur) => ({
+        ...cur,
+        // `narrativeLang` used to be dropped on the floor here, which is why the grid's
+        // popover could not say "shown in English" the way focus mode does.
+        [key]: { data: p.reasoning, source: p.source, cached: p.cached, narrativeLang: p.narrativeLang },
+      }));
+    });
+  }, [errMsg, locale, t]);
 
   // Open the popover anchored under the clicked cell (viewport-fixed from its rect),
   // and kick off the reasoning fetch for a scored cell. A blocked cell shows its KO
   // reason instead — there's no fit rationale to fetch.
-  const openCell = (cand: Candidate, pos: Position, cell: Cell, ev: React.MouseEvent<HTMLButtonElement>) => {
+  const openCell = useCallback((cand: Candidate, pos: Position, cell: Cell, ev: React.MouseEvent<HTMLButtonElement>) => {
     const r = ev.currentTarget.getBoundingClientRect();
     // Remember the trigger so focus can be restored on close and the popover can be
     // re-anchored to the LIVE cell rect on resize/scroll (skill-matrix-coverage #5).
     triggerRef.current = ev.currentTarget;
-    const rect = computePopoverPosition(
-      { left: r.left, bottom: r.bottom },
-      { width: typeof window !== "undefined" ? window.innerWidth : 1024, height: typeof window !== "undefined" ? window.innerHeight : 768 },
-    );
+    const viewport = {
+      width: typeof window !== "undefined" ? window.innerWidth : 1024,
+      height: typeof window !== "undefined" ? window.innerHeight : 768,
+    };
+    // The dialog is not mounted yet on this first placement, so there is nothing to
+    // measure — `popoverDims` falls back to the max-height the class list declares, and
+    // the effect above re-anchors against the real box on the next scroll/resize.
+    const rect = computePopoverPosition({ left: r.left, bottom: r.bottom }, viewport, popoverDims(viewport));
     setPopover({ candId: cand.id, posId: pos.id, cand, pos, cell, rect });
     if (!cell.blocked) fetchReasoning(cand.id, pos.id);
-  };
+  }, [fetchReasoning]);
 
-  const toggleCell = (candId: string, posId: string) =>
+  const toggleCell = useCallback((candId: string, posId: string) =>
     setSelected((s) => {
       const k = matrixCellKey(candId, posId);
       const n = new Set(s);
       if (n.has(k)) n.delete(k);
       else n.add(k);
       return n;
-    });
+    }), []);
 
   // File every selected (candidate → position) into the pipeline at Screened, in
   // one pass — sequentially, reusing the canonical postPipelineAdd so this surface
@@ -362,17 +459,32 @@ export function useMatrixTab() {
     setAdding(true);
     const failed = new Set<string>();
     let ok = 0;
+    // The FIRST coded refusal answers for the pass. Every cell in one bulk add goes
+    // through the same door with the same seat, so a capability refusal is about the
+    // operator, not the row — one sentence, not N identical ones. Local index misses
+    // (below) carry no code and leave this null, which is the honest outcome: the
+    // server was never asked.
+    let refusal: { code: string; capability: string | null } | null = null;
+    // One index pass over each axis instead of a find + a redundant findIndex PER
+    // selected cell: the two scans answered the same question twice (the record, then
+    // the position of the record), and a bulk add over a 200-candidate pool paid both
+    // for every tick. The maps also make the duplicate-id case explicit — a later
+    // duplicate loses, which is the same record `find`/`findIndex` already agreed on.
+    const candIdx = new Map<string, number>();
+    data.candidates.forEach((c, i) => { if (!candIdx.has(c.id)) candIdx.set(c.id, i); });
+    const posIdx = new Map<string, number>();
+    data.positions.forEach((p, i) => { if (!posIdx.has(p.id)) posIdx.set(p.id, i); });
     for (const key of selected) {
       const [candId, posId] = key.split("|");
-      const cand = data.candidates.find((c) => c.id === candId);
-      const pos = data.positions.find((p) => p.id === posId);
+      const ri = candIdx.get(candId) ?? -1;
+      const ci = posIdx.get(posId) ?? -1;
+      const cand = ri >= 0 ? data.candidates[ri] : undefined;
+      const pos = ci >= 0 ? data.positions[ci] : undefined;
       if (!cand || !pos) {
         failed.add(key);
         continue;
       }
-      const ri = data.candidates.findIndex((c) => c.id === candId);
-      const ci = data.positions.findIndex((p) => p.id === posId);
-      const score = ri >= 0 && ci >= 0 ? data.cells[ri]?.[ci]?.score ?? null : null;
+      const score = data.cells[ri]?.[ci]?.score ?? null;
       // A selectable cell always carries a real score, so a null here means the index
       // lookup missed (e.g. a duplicate id in candidates/positions). Fail the add rather
       // than silently filing the candidate with a null/incorrect match score.
@@ -393,15 +505,20 @@ export function useMatrixTab() {
         setAdded((a) => new Set(a).add(key));
       } else {
         failed.add(key);
+        if (!refusal && res.code) refusal = { code: res.code, capability: res.capability ?? null };
       }
     }
     setSelected(failed);
+    // Resolved from the CODE, in the reader's language; "" when the door named none
+    // (a transport blip or an older server), which keeps the tally as the whole
+    // message rather than inventing a cause.
+    const addReason = refusal ? capabilityAwareReason(errMsg, refusal, "") : "";
     setAnnounce(
       failed.size === 0
         ? t("addedAnnounce", { count: ok })
-        : t("addedPartial", { ok, failed: failed.size })
+        : `${t("addedPartial", { ok, failed: failed.size })}${addReason ? ` ${addReason}` : ""}`
     );
-    setLastAdd({ ok, failed: failed.size });
+    setLastAdd({ ok, failed: failed.size, reason: addReason || null });
     setAdding(false);
   };
 
@@ -438,6 +555,7 @@ export function useMatrixTab() {
     blockedLabel,
     data,
     error,
+    retryLoad,
     sortByFit,
     setSortByFit,
     family,
@@ -468,6 +586,7 @@ export function useMatrixTab() {
     rowStrong,
     colScores,
     coverage,
+    colStats,
     open,
     viewFullMatchAndClose,
     openCell,

@@ -68,6 +68,22 @@ def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: in
     return provider if provider.available() else None
 
 
+# Providers that speak the OpenAI Chat Completions wire format and therefore accept
+# a caller-supplied ``base_url`` — the local-model / in-VPC path (E-SH-5). ONE tuple,
+# because this rule is consumed twice here (resolve_provider and probe_provider) and
+# mirrored once in TypeScript (app/_lib/llm-model-defaults.ts BASE_URL_PROVIDERS,
+# which decides whether the Models keys panel even offers the field). It was spelled
+# out inline in both branches with nothing pinning either copy to the TS list: a
+# provider added to one side only means an operator saves a base URL, sees it saved,
+# and the adapter keeps calling the vendor cloud. app/_lib/llm-base-url-lockstep.test.ts
+# reads THIS declaration to keep the two sides honest.
+#
+# Not azure_openai (routes through its resource endpoint; the adapter overrides
+# _resolved_base_url to None) and not openrouter, whose endpoint override is an env
+# var only — adding either here is a real routing change, not a typo fix.
+BASE_URL_PROVIDERS: tuple[str, ...] = ("openai", "ollama", "qwen")
+
+
 # The use case a bare provider/key probe runs under. Deliberately its OWN name
 # rather than borrowing a production one: the probe is real metered spend, so it
 # lands in the usage ledger, and filing it under `match_reasoning` would inflate a
@@ -114,7 +130,7 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
     if provider_name == "azure_openai":
         kwargs["endpoint"] = keys.endpoint if keys else None
         kwargs["api_version"] = keys.api_version if keys else None
-    elif provider_name in ("openai", "ollama", "qwen"):
+    elif provider_name in BASE_URL_PROVIDERS:
         kwargs["base_url"] = keys.base_url if keys else None
 
     return ADAPTERS[provider_name](**kwargs)
@@ -123,11 +139,14 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
 def provider_availability(provider: Any) -> tuple[bool, str | None]:
     """``(usable, descent_reason)`` for ANY provider this registry hands out.
 
-    Providers that model their descent reasons answer themselves
-    (``ClaudeCliProvider.availability``: "offline_policy" vs "not_installed");
-    for adapters that still expose only the bare ``available()`` bool the
-    reason collapses to a generic ``"unavailable"`` (missing key/SDK — their
-    predicate does not discriminate yet). Call-site pattern::
+    Every provider this registry constructs now models its own descent reason -
+    ``ClaudeCliProvider.availability`` ("offline_policy" vs "not_installed") and,
+    since the adapters gained ``TextProvider.availability``, the whole metered
+    family (``base.AVAILABILITY_REASONS``). The generic ``"unavailable"`` below is
+    the floor for a duck-typed object that exposes only the bare bool - a test
+    fake, an in-process drill - and no longer the answer a real offline seal gets
+    (which is how an air-gapped install came to report its deliberate policy as
+    "missing key or SDK" in the usage ledger). Call-site pattern::
 
         ok, descent = provider_availability(provider)
         if not ok:
@@ -213,7 +232,7 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
     if provider_name == "azure_openai":
         kwargs["endpoint"] = keys.endpoint if keys else None
         kwargs["api_version"] = keys.api_version if keys else None
-    elif provider_name in ("openai", "ollama", "qwen"):
+    elif provider_name in BASE_URL_PROVIDERS:
         # Optional OpenAI-compatible endpoint override (E-SH-5). None here lets the
         # adapter fall back to its env var (OPENAI_BASE_URL / OLLAMA_BASE_URL) — for
         # ollama the adapter then defaults to the stock local server on :11434.

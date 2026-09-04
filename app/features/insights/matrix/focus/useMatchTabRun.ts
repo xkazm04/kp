@@ -1,11 +1,12 @@
 // Candidate-source options, the match run itself, the shortlist-to-group-eval ledger,
 // and the deep-link auto-run — split out of MatchTab.tsx so the component is left with
 // just the picker/result markup.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "@/app/features/shared/matchTypes";
 import { candidateOptionsPlaceholder, selectMatchView } from "./matchView";
+import { createRunSequence } from "./matchRunSequence";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Translator = ReturnType<typeof useTranslations>;
@@ -30,6 +31,8 @@ export function useMatchTabRun(t: Translator) {
   const [selProfile, setSelProfile] = useState("");
   const [selAnalysis, setSelAnalysis] = useState("");
 
+  // One sequence per hook instance; the ref keeps it stable across re-renders.
+  const runSeq = useRef(createRunSequence());
   const [result, setResult] = useState<MatchResponse | null>(null);
   const [matchRef, setMatchRef] = useState<MatchRef>({});
   const [loading, setLoading] = useState(false);
@@ -114,6 +117,13 @@ export function useMatchTabRun(t: Translator) {
   // a fresh run (server uses the archetype baseline) and on a reset.
   const runMatchFor = async (ref: MatchRef, weights?: WeightVector) => {
     if (!ref.profileId && !ref.analysisSlug) return;
+    // grid-narrative-says-what-it-is: last-write-wins. /api/match spawns Python, so a run
+    // over a big role set can outlast the next candidate's run — and the SLOWER, EARLIER
+    // response used to call setResult last, painting one candidate's name over another
+    // candidate's ranking with nothing on screen to suspect. `loading` and `error` are
+    // guarded too: a superseded run must not clear the newer one's spinner.
+    const ticket = runSeq.current.start();
+    const current = () => runSeq.current.isCurrent(ticket);
     setLoading(true);
     setError(null);
     // Don't clear the prior result on a re-rank/re-weight: clearing unmounts <MatchResults>
@@ -130,14 +140,19 @@ export function useMatchTabRun(t: Translator) {
       // An unknown deep-linked id resolves to 404 (Profile/Analysis not found) —
       // surface an honest, localized message rather than leaking the raw server
       // string or letting a doomed auto-run fail silently.
-      if (r.status === 404) throw new Error(t("candidateNotFound"));
+      // Prefer the route's code (MATCH_INPUT_INVALID since /perfect 2026-09-03) and
+      // keep the more specific "we could not find that candidate" as the fallback.
+      if (r.status === 404) throw new Error(errMsg(payload, t("candidateNotFound")));
       if (!r.ok) throw new Error(errMsg(payload, t("matchFailedStatus", { status: r.status })));
+      if (!current()) return; // a newer run owns the screen
       setResult(payload as MatchResponse);
       setMatchRef(ref);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t("matchFailed"));
+      // A superseded run's failure is not the reader's problem either: showing it would
+      // put an error over a newer run that is still in flight or already succeeded.
+      if (current()) setError(caught instanceof Error ? caught.message : t("matchFailed"));
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   };
 

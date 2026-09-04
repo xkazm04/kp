@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
+  BillingProviderTimeoutError,
   billingOrgForWorkspace,
   entitledPlan,
   hasActiveSubscription,
@@ -12,8 +13,10 @@ import {
 } from "@/app/_lib/billing";
 import { getBillingState } from "@/app/_lib/db/billing";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { requireBillingAuthority } from "../authority";
 
 
 // Start a checkout: body { plan: "starter"|"growth" } XOR { pack: "minutes_100" }.
@@ -23,17 +26,20 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // price/product) and BYOM is legacy (withdrawn from sale, still honored for whoever
 // holds it). isSelfServePlan (plans.ts) is the single encoding of that rule.
 
+// The spend door's throttle. Every accepted call mints a real, live checkout session
+// at the merchant of record; the authority gate above is a documented NO-OP in open
+// mode (KP_OPERATOR_PASSWORD unset makes the whole API open), so this limiter is the
+// only bound on an unauthenticated caller looping checkout sessions. 10/10min per IP
+// is far above any human buying pace — a person buys once, or retries a card twice.
+const CHECKOUT_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
+
 export async function POST(request: NextRequest) {
-  // Defense in depth (matches proxy.ts; no-op in open dev mode): only an operator
-  // starts a checkout, so an unauth caller can't spin up checkout sessions at will.
-  const denied = await requireOperator();
+  // Billing is `org:manage` (authority.ts): an owner decision, not a recruiter's.
+  const denied = await requireBillingAuthority();
   if (denied) return denied;
   const gateway = polarGatewayFromEnv();
   if (!gateway) {
-    return NextResponse.json(
-      { error: "Billing is not configured (set POLAR_ACCESS_TOKEN — see docs/features/billing/README.md)." },
-      { status: 503 }
-    );
+    return jsonRefusal("BILLING_NOT_CONFIGURED", 503);
   }
 
   // Org scope (org-plan Phase 3): the buying org — resolved from the caller's
@@ -43,22 +49,19 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => null)) as { plan?: unknown; pack?: unknown } | null;
   // A non-self-serve tier is a valid plan id but is never bought here — fail it with a
-  // clear message rather than letting it fall through to the gateway (which would 502
+  // clear reason rather than letting it fall through to the gateway (which would 502
   // on the missing/withdrawn product) or the generic 400 below. There are TWO distinct
   // reasons a plan isn't self-serve (plans.ts) and the caller needs the right one:
   // `contactSales` (Enterprise — custom-priced, talk to us) and `legacy` (BYOM —
   // WITHDRAWN from sale, nothing to talk about). One shared message told a would-be
   // BYOM buyer that Enterprise is contact-sales, which is simply not their situation.
+  // The tier's NAME rides beside the code as data, so an API consumer keeps it while
+  // the reader gets the sentence in their own language.
   if (body && isPlanId(body.plan) && body.plan !== "free" && !isSelfServePlan(body.plan)) {
     const plan = PLANS[body.plan];
-    return NextResponse.json(
-      {
-        error: plan.contactSales
-          ? `${plan.name} is a custom, contact-sales plan — talk to our team to get set up.`
-          : `${plan.name} is no longer sold. Pick one of the current plans, or self-host KP for free (AGPL-3.0) to keep running on your own model keys.`,
-      },
-      { status: 400 }
-    );
+    return jsonRefusal(plan.contactSales ? "BILLING_PLAN_CONTACT_SALES" : "BILLING_PLAN_WITHDRAWN", 400, {
+      plan: plan.name,
+    });
   }
   let req: CheckoutRequest;
   // Any contact-sales tier already returned above, so a non-free plan here is
@@ -84,19 +87,20 @@ export async function POST(request: NextRequest) {
     // end (entitledPlan keeps the plan there), which stays portal-only.
     const cancelLapsed = state?.status === "canceled" && entitledPlan(state).id === "free";
     if (hasActiveSubscription(state) && !cancelLapsed) {
-      return NextResponse.json(
-        { error: "You already have a plan — change it from the customer portal in Billing (Manage subscription), not a new checkout." },
-        { status: 403 }
-      );
+      return jsonRefusal("BILLING_ALREADY_SUBSCRIBED", 403);
     }
     req = { kind: "plan", plan: body.plan };
   } else if (body && isPackId(body.pack)) {
     req = { kind: "pack", pack: body.pack };
   } else {
-    return NextResponse.json(
-      { error: "Body must carry { plan: starter|growth } or { pack: minutes_100 }." },
-      { status: 400 }
-    );
+    return jsonRefusal("BILLING_CHECKOUT_BODY_INVALID", 400);
+  }
+
+  // AFTER every cheap refusal and BEFORE the provider hop: a body that was never
+  // going to buy anything must not consume the window, and a throttled call must
+  // never reach the merchant of record.
+  if (!rateLimit(`billing-checkout:${clientIpFrom(request.headers)}`, CHECKOUT_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
   try {
@@ -105,11 +109,16 @@ export async function POST(request: NextRequest) {
     // entitlement (the webhook lands the plan a moment later).
     const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=success`;
     const checkout = await gateway.createCheckout(req, { successUrl, orgId });
-    return NextResponse.json(checkout);
+    return jsonOk(checkout);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Checkout creation failed." },
-      { status: 502 }
-    );
+    // A provider that ran out of time is a DIFFERENT answer from a provider that said
+    // no: the buyer's next move is "try again in a moment", and the checkout was never
+    // retried for them (createCheckout is not idempotent), so nothing is pending.
+    if (error instanceof BillingProviderTimeoutError) {
+      return safeJsonError(error, "api/billing/checkout", "BILLING_PROVIDER_TIMEOUT", 504);
+    }
+    // The gateway's thrown message is its upstream HTTP body — internal detail, and
+    // in a language nobody here chose. Log it server-side, answer the stable code.
+    return safeJsonError(error, "api/billing/checkout", "BILLING_CHECKOUT_FAILED", 502);
   }
 }

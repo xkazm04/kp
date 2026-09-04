@@ -16,6 +16,7 @@ import { EYEBROW, INTRO, PANEL } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { labelize } from "@/app/_lib/format";
 import { ActivityDetailModal } from "./ActivityDetailModal";
@@ -74,12 +75,15 @@ export function ActivityTab() {
         </p>
       ) : (
         <div className={`${PANEL} animate-arrive-in p-5`}>
+          {/* This table has no sort, only two column filters — and a filter that
+              shrinks 500 rows to 3 is otherwise silent. */}
+          <TableStatus matched={filtered.length} filtered={Boolean(useCaseFilter || providerFilter)} />
           <div className="overflow-x-auto">
             <table className="w-full min-w-[56rem] text-base">
               <thead>
                 <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
-                  <th className="pb-2 pr-3 font-semibold">{t("colWhen")}</th>
-                  <th className="pb-2 pr-3 font-semibold">
+                  <th scope="col" className="pb-2 pr-3 font-semibold">{t("colWhen")}</th>
+                  <th scope="col" className="pb-2 pr-3 font-semibold">
                     <ColumnFilter
                       title={t("colUseCase")}
                       value={useCaseFilter}
@@ -90,7 +94,7 @@ export function ActivityTab() {
                       options={caseOptions}
                     />
                   </th>
-                  <th className="pb-2 pr-3 font-semibold">
+                  <th scope="col" className="pb-2 pr-3 font-semibold">
                     <ColumnFilter
                       title={t("colProvider")}
                       value={providerFilter}
@@ -101,10 +105,10 @@ export function ActivityTab() {
                       options={providerOptions}
                     />
                   </th>
-                  <th className="pb-2 pr-3 font-semibold">{t("colModel")}</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">{t("colTokens")}</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">{t("colCost")}</th>
-                  <th className="pb-2 font-semibold">{t("colSource")}</th>
+                  <th scope="col" className="pb-2 pr-3 font-semibold">{t("colModel")}</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-semibold">{t("colTokens")}</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-semibold">{t("colCost")}</th>
+                  <th scope="col" className="pb-2 font-semibold">{t("colSource")}</th>
                 </tr>
               </thead>
               <tbody>

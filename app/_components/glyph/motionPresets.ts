@@ -20,23 +20,26 @@
  * - Every preset degrades under `prefers-reduced-motion` per its `reduced` field.
  */
 
-export type EntrancePresetName = "draw" | "staggered-draw" | "fade-pop";
+export type EntrancePresetName = "staggered-draw" | "fade-pop";
 export type AmbientPresetName = "float" | "pulse";
-export type HoverPresetName = "hover-response";
 
 /**
- * Every preset name the renderer can actually reach. There is deliberately no
- * fourth "oneshot" layer: `MotionizedGlyph` composes exactly three props
- * (`entrance` / `ambient` / `hover`), so a preset outside those three records
- * would be documented API that no consumer could ever invoke. A `success-settle`
- * oneshot lived here unreachably until 2026-08 — `motionPresets.test.ts` now
- * asserts this union equals the three records' keys, so it cannot come back
- * without the prop that renders it.
+ * Every preset name the renderer can actually reach. `MotionizedGlyph` composes
+ * exactly two props (`entrance` / `ambient`), so a preset outside those two
+ * records would be documented API that no consumer could ever invoke. A
+ * `success-settle` oneshot lived here unreachably until 2026-08; a `draw`
+ * entrance and a `hover-response` layer did the same until 2026-09 — the first
+ * because every traced glyph in this repo is FILLED (a `pathLength` sweep on a
+ * fill traces the region boundary and reads as noise, as its own docstring
+ * warned), the second because no glyph in the app sits inside an interactive
+ * parent. `motionPresets.test.ts` asserts this union equals the two records'
+ * keys, so neither returns without the prop that renders it — and the rule the
+ * removals establish is stricter: a preset needs a real consumer, not a prop.
  */
-export type MotionPresetName = EntrancePresetName | AmbientPresetName | HoverPresetName;
+export type MotionPresetName = EntrancePresetName | AmbientPresetName;
 
 export interface MotionPreset {
-  kind: "entrance" | "loop" | "hover";
+  kind: "entrance" | "loop";
   /** `@keyframes` body (from/to or % steps). The renderer scopes it per instance. */
   keyframes: string;
   /** Seconds. For loops this is the period. */
@@ -49,7 +52,7 @@ export interface MotionPreset {
   direction?: "normal" | "alternate";
   /** `prefers-reduced-motion` fallback: cross-fade only, or don't run at all. */
   reduced: "opacity-only" | "none";
-  /** Loops/hover: apply to accent paths only, not the ink line-work. */
+  /** Loops: apply to accent paths only, not the ink line-work. */
   accentOnly?: boolean;
 }
 
@@ -58,20 +61,6 @@ export const REDUCED_FADE_KEYFRAMES = "from { opacity: 0; } to { opacity: 1; }";
 export const REDUCED_FADE_DURATION_S = 0.45;
 
 export const ENTRANCE_PRESETS: Record<EntrancePresetName, MotionPreset> = {
-  /**
-   * Stroke trace — the classic "self-drawing" line. STROKE/`--mono` traces only:
-   * on filled paths a `pathLength` dash sweep traces the region *boundary*, which
-   * reads as noise. Consumers with filled glyphs want `staggered-draw`.
-   */
-  draw: {
-    kind: "entrance",
-    keyframes: "from { opacity: 0; stroke-dashoffset: 1; } to { opacity: 1; stroke-dashoffset: 0; }",
-    durationS: 0.9,
-    ease: "cubic-bezier(0.16, 1, 0.3, 1)",
-    stagger: (delay, spread) => 0.08 + delay * spread,
-    iteration: 1,
-    reduced: "opacity-only",
-  },
   /** The default: per-path fade + scale-up, ordered by the emitted radial delay. */
   "staggered-draw": {
     kind: "entrance",
@@ -123,23 +112,8 @@ export const AMBIENT_PRESETS: Record<AmbientPresetName, MotionPreset> = {
   },
 };
 
-export const HOVER_PRESETS: Record<HoverPresetName, MotionPreset> = {
-  /**
-   * A `transition` on the wrapper `<g>`, not an animation — so it layers freely
-   * on top of whatever entrance/ambient the glyph already runs.
-   */
-  "hover-response": {
-    kind: "hover",
-    keyframes: "", // transition-driven; see MotionizedGlyph's hover rule
-    durationS: 0.18,
-    ease: "cubic-bezier(0.16, 1, 0.3, 1)",
-    reduced: "opacity-only",
-    accentOnly: true,
-  },
-};
-
 /**
- * Flat registry over the three renderable layers. `MotionizedGlyph` imports the
+ * Flat registry over the two renderable layers. `MotionizedGlyph` imports the
  * sub-records (it needs to know which layer a name belongs to); this record is
  * the lookup for anything that only has a bare preset name — and the surface the
  * set-equality guard in `motionPresets.test.ts` checks `MotionPresetName` against.
@@ -147,7 +121,6 @@ export const HOVER_PRESETS: Record<HoverPresetName, MotionPreset> = {
 export const MOTION_PRESETS: Record<MotionPresetName, MotionPreset> = {
   ...ENTRANCE_PRESETS,
   ...AMBIENT_PRESETS,
-  ...HOVER_PRESETS,
 };
 
 /**

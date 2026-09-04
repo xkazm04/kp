@@ -26,7 +26,11 @@ import { useTranslations } from "next-intl";
 
 // Section ids as they appear down the page — the order doubles as the
 // scroll-spy tiebreak when two sections straddle the viewport midline.
-const SECTIONS = [
+// Exported so the phone-width disclosure (sections/MobileNav.tsx) offers the
+// SAME five destinations: the rail is `lg:block`, so below that breakpoint this
+// list is the only in-page navigation there is, and two copies of it would
+// drift the moment a band is added.
+export const SECTIONS = [
   { id: "proof", key: "proof" },
   { id: "features", key: "features" },
   { id: "voice", key: "voice" },

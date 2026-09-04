@@ -223,10 +223,22 @@ export function getThread(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID
 }
 
 /** Rename a thread — the route derives the title from the first exchange rather
- *  than asking the operator to name a conversation before having it. */
+ *  than asking the operator to name a conversation before having it.
+ *
+ *  ONLY an untitled thread. Both callers (the message route and the digest leg)
+ *  read the thread, decide `!thread.title.trim()`, and rename many seconds later
+ *  — across a model call, in the digest's case. Without the precondition the
+ *  loser of that race silently overwrites the winner's title; with `title = ''`
+ *  in the WHERE it writes nothing and answers false, which is the compensating
+ *  re-check the house rule asks for when a read→compute→write does not hold a
+ *  lock. Renaming a thread that already has a title is not a supported operation
+ *  here: titles are derived once, never typed. */
 export function renameThread(id: string, title: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const res = ensureDb()
-    .prepare(`UPDATE companion_threads SET title = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .prepare(
+      `UPDATE companion_threads SET title = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND title = ''`
+    )
     .run(title.trim().slice(0, 200), new Date().toISOString(), id, workspaceId);
   return res.changes > 0;
 }

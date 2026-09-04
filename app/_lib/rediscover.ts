@@ -4,7 +4,7 @@ import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
-import { recordRediscoveryAlerts } from "./rediscovery-alert-store";
+import { recordRediscoveryAlerts, suppressedCandidateIds } from "./rediscovery-alert-store";
 import { priorDepthBoost, byPriorAwareRank } from "./rediscovery-rank";
 
 // The pure relevance filter lives in an import-free sibling so it's testable under
@@ -54,6 +54,10 @@ export type RediscoverResult = {
   rediscovered: Rediscovered[];
   skipped: { id: string; label: string; reason: string }[];
   more: number;
+  /** How many pool members were withheld by the consent gate (anonymized/erased or
+   *  lapsed consent). A COUNT, never a list: naming them in `skipped` would put the
+   *  identity back on the wire that the suppression exists to keep off it. */
+  suppressed: number;
 };
 
 /** Choose the ONE prior outcome that justifies resurfacing this candidate against
@@ -111,7 +115,25 @@ export async function rediscoverForJob(
   // currentWorkspace(); the background sweep leaves it at the default tenant
   // (its current behavior — a per-tenant sweep is a separate feature).
   const { entries: pool } = buildCandidatePool(opts.workspaceId);
-  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0 };
+  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0 };
+
+  // CONSENT AT RANK TIME, not only at the send door. `candidateOutreachSuppression`
+  // lived in this very module and was called from ONE place — /candidates/outreach —
+  // so an anonymized (Art. 17 erased) or lapsed-consent person was still ranked,
+  // still persisted as an alert row carrying their label, and still shown in the
+  // feed and the Rediscover panel; only the "Reach out" click was ever blocked. The
+  // gate belongs before the ranking: the person's data should not be processed for
+  // this purpose at all, and the surfaces should not display a name that erasure was
+  // supposed to remove. Filtering here also means one consent read for the whole
+  // pool instead of a per-row one, and it shrinks the payload the CLI scores.
+  const suppression = suppressedCandidateIds(pool.map((p) => p.id));
+  const eligible = suppression.size === 0 ? pool : pool.filter((p) => !suppression.has(p.id));
+  const suppressed = pool.length - eligible.length;
+  if (suppressed > 0) {
+    // Count only — the ids/labels are exactly what must not travel further.
+    console.log(`[rediscovery] job "${job.id}": ${suppressed} of ${pool.length} pool members withheld by the consent gate.`);
+  }
+  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed };
 
   const ranked = await rankPoolForJob<{
     candidates: {
@@ -122,15 +144,32 @@ export async function rediscoverForJob(
       result?: { total?: number };
     }[];
     skipped?: { id: string; label: string; reason: string }[];
-  }>(job.id, pool, job, { signal: opts.signal });
+  }>(job.id, eligible, job, { signal: opts.signal });
   // Prior-outcome labels (pickPrior) MUST read the SAME tenant the pool was built
   // for — an unscoped read defaults to the single workspace, so in any other team
   // the "silver medalist" priors would be mislabeled from (or missing against)
   // another tenant's pipeline history. Mirrors buildCandidatePool(opts.workspaceId).
   const outcomes = candidateOutcomes(opts.workspaceId);
 
-  const rediscovered = ranked.candidates
-    .filter((row) => row.koPassed && Math.round(row.result?.total ?? 0) >= SCORE_FLOOR)
+  // An UNSCORED row is not a low-scoring row. `Math.round(row.result?.total ?? 0)`
+  // folded a missing total to 0, which silently lost to SCORE_FLOOR — so a candidate
+  // whose scoring FAILED (no `result`, a null/NaN total) was indistinguishable from
+  // one the ranker judged a poor fit, and disappeared without ever reaching the
+  // `skipped` list that exists precisely to say "this person was not evaluated".
+  // Separate the two: an absent/non-finite total joins `skipped` with a reason; only
+  // a real number is compared against the floor.
+  const unscored: { id: string; label: string; reason: string }[] = [];
+  const admitted = ranked.candidates.filter((row) => {
+    if (!row.koPassed) return false;
+    const total = row.result?.total;
+    if (typeof total !== "number" || !Number.isFinite(total)) {
+      unscored.push({ id: row.candidateId, label: row.label, reason: "unscored" });
+      return false;
+    }
+    return Math.round(total) >= SCORE_FLOOR;
+  });
+
+  const rediscovered = admitted
     .map((row): Rediscovered | null => {
       const hist = outcomes.get(row.candidateId) ?? [];
       // Already in THIS role's pipeline → not a rediscovery.
@@ -162,20 +201,29 @@ export async function rediscoverForJob(
   const shown = rediscovered.slice(0, REDISCOVER_LIMIT);
   return {
     rediscovered: shown,
-    skipped: ranked.skipped ?? [],
+    skipped: [...(ranked.skipped ?? []), ...unscored],
     more: Math.max(0, rediscovered.length - shown.length),
+    suppressed,
   };
 }
 
-/** Rank a job and persist its silver medalists as standing alerts. Best-effort:
- *  a ranking failure is swallowed (returns 0) so it can never break the publish
- *  or sweep that calls it. */
+/** The outcome of one role's alert raise. `failed` distinguishes "ranked fine and
+ *  nobody qualified" from "the ranking broke" — the two used to be the same `0`, so
+ *  a publish whose recruiter_cli died reported "found nobody" to the recruiter and
+ *  logged nothing at all. */
+export type RaiseOutcome = { raised: number; failed: boolean };
+
+/** Rank a job and persist its silver medalists as standing alerts. Best-effort: a
+ *  ranking failure never breaks the publish or sweep that calls it — but it is
+ *  LOGGED with the job id and REPORTED as `failed`, not swallowed into a zero. */
 export async function raiseRediscoveryAlertsForJob(
   jobId: string,
   opts: { signal?: AbortSignal; workspaceId?: string } = {}
-): Promise<number> {
+): Promise<RaiseOutcome> {
   const job = getJob(jobId);
-  if (!job) return 0;
+  // Not a failure: the role is gone (deleted/never existed), so there is nothing to
+  // rank. Nothing to tell the recruiter beyond "no silver medalists".
+  if (!job) return { raised: 0, failed: false };
   // Thread the owning tenant so BOTH the outcome lookup (inside rediscoverForJob)
   // and the persisted alert rows land in the job's workspace — never always the
   // default. The on-demand route/publish pass their session workspace explicitly;
@@ -185,9 +233,20 @@ export async function raiseRediscoveryAlertsForJob(
   const workspaceId = opts.workspaceId ?? getJobWorkspace(jobId);
   try {
     const { rediscovered } = await rediscoverForJob(job, { ...opts, workspaceId });
-    return recordRediscoveryAlerts(job.id, job.title, rediscovered, workspaceId);
-  } catch {
-    return 0;
+    return { raised: recordRediscoveryAlerts(job.id, job.title, rediscovered, workspaceId), failed: false };
+  } catch (err) {
+    // Best-effort by design (a broken ranker must not fail a go-live), but a silent
+    // `return 0` made a dead pipeline look exactly like an empty one — to the
+    // operator AND to the server log. An abort is the ONE expected path here (the
+    // sweep's per-role timeout, or the client hanging up), so it is reported as a
+    // failure but logged quietly; anything else is a real fault and gets the stack.
+    const aborted = opts.signal?.aborted === true || (err instanceof Error && err.name === "AbortError");
+    if (aborted) {
+      console.warn(`[rediscovery] alert raise for job "${jobId}" was aborted (timeout or client hang-up) — no alerts raised.`);
+    } else {
+      console.error(`[rediscovery] alert raise FAILED for job "${jobId}" — no alerts raised:`, err);
+    }
+    return { raised: 0, failed: true };
   }
 }
 
@@ -236,18 +295,19 @@ export async function runWithPool<T>(
 /** raiseRediscoveryAlertsForJob wrapped in a per-role wall-clock TIMEOUT (bundled
  *  with the caller's abort signal). On timeout the combined signal aborts, which
  *  rankPoolForJob threads into spawnPython → the CLI child is SIGKILLed and the
- *  ranking rejects; raiseRediscoveryAlertsForJob already swallows that and returns
- *  0, so a hung role degrades to "surfaced nothing", never a stalled sweep. The
- *  `raise` dependency is injectable so the timeout is testable without a real CLI. */
+ *  ranking rejects; raiseRediscoveryAlertsForJob catches that and reports
+ *  `{raised:0, failed:true}`, so a hung role degrades to "surfaced nothing, and we
+ *  say so", never a stalled sweep. The `raise` dependency is injectable so the
+ *  timeout is testable without a real CLI. */
 export async function raiseForJobBounded(
   jobId: string,
   parentSignal: AbortSignal | undefined,
   opts: {
     timeoutMs?: number;
     workspaceId?: string;
-    raise?: (jobId: string, o: { signal?: AbortSignal; workspaceId?: string }) => Promise<number>;
+    raise?: (jobId: string, o: { signal?: AbortSignal; workspaceId?: string }) => Promise<RaiseOutcome>;
   } = {}
-): Promise<number> {
+): Promise<RaiseOutcome> {
   const timeoutMs = opts.timeoutMs ?? SWEEP_JOB_TIMEOUT_MS;
   const raise = opts.raise ?? raiseRediscoveryAlertsForJob;
   const ac = new AbortController();
@@ -268,9 +328,10 @@ export async function raiseForJobBounded(
 export type SweepDeps = {
   /** The published-role ids to sweep, most-relevant first (the caller truncates). */
   listPublishedJobIds: () => string[];
-  /** Rank ONE role and persist its silver-medalist alerts, returning how many were
-   *  newly surfaced. Bounded by a per-role timeout + the caller's abort signal. */
-  raiseForJob: (jobId: string, signal: AbortSignal | undefined) => Promise<number>;
+  /** Rank ONE role and persist its silver-medalist alerts, reporting how many were
+   *  newly surfaced AND whether the ranking failed. Bounded by a per-role timeout +
+   *  the caller's abort signal. */
+  raiseForJob: (jobId: string, signal: AbortSignal | undefined) => Promise<RaiseOutcome>;
 };
 
 // The on-demand sweep is triggered from a specific team's Refresh, so it must run
@@ -311,11 +372,13 @@ const sweepCursor = new Map<string, number>();
  *  so the request cost can never scale linearly with the catalog. Successive sweeps
  *  ROTATE through the catalog (sweepCursor) so the deferred roles are genuinely
  *  reached next time. `deps` is injectable for tests. Returns the roles actually
- *  swept, the newly-surfaced count, and how many roles were deferred (`truncated`). */
+ *  swept, the newly-surfaced count, how many roles were deferred (`truncated`), and
+ *  how many roles' rankings FAILED (`failedJobs`) — so "the sweep found nobody" and
+ *  "the sweep broke on every role" are never the same answer to the recruiter. */
 export async function sweepRediscoveryAlerts(
   opts: { signal?: AbortSignal; workspaceId?: string } = {},
   deps: SweepDeps = defaultSweepDeps(opts.workspaceId)
-): Promise<{ jobsSwept: number; newAlerts: number; truncated: number }> {
+): Promise<{ jobsSwept: number; newAlerts: number; truncated: number; failedJobs: number }> {
   const publishedIds = deps.listPublishedJobIds();
   const cursorKey = opts.workspaceId ?? "";
   // Rotate the catalog to the resume point, THEN apply the unchanged ceiling. `% length`
@@ -333,13 +396,20 @@ export async function sweepRediscoveryAlerts(
     );
   }
   let newAlerts = 0;
+  let failedJobs = 0;
   await runWithPool(roles, SWEEP_CONCURRENCY, async (jobId) => {
     if (opts.signal?.aborted) return; // client hung up — stop scheduling new work
     // Read-AFTER-await, then a synchronous += — `newAlerts += await …` would read
     // newAlerts BEFORE suspending and write back a stale sum, so concurrent workers
     // would lose increments (JS compound-assign reads the LHS before the RHS).
-    const added = await deps.raiseForJob(jobId, opts.signal);
-    newAlerts += added;
+    const outcome = await deps.raiseForJob(jobId, opts.signal);
+    newAlerts += outcome.raised;
+    if (outcome.failed) failedJobs += 1;
   });
-  return { jobsSwept: roles.length, newAlerts, truncated };
+  if (failedJobs > 0) {
+    console.warn(
+      `[rediscovery] sweep completed with ${failedJobs} of ${roles.length} role rankings failed — the feed below is incomplete.`
+    );
+  }
+  return { jobsSwept: roles.length, newAlerts, truncated, failedJobs };
 }

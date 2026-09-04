@@ -111,6 +111,9 @@ export const EVENT_KINDS = [
   // uncontaminated calibration arm. A machine decision about a person, so it is a feed
   // event like any other (UAT LUC-ANA-6).
   "screen_wave_holdout",
+  // screen-wave.ts — spared, but the holdout record could not be sealed: the event
+  // names the failure, never the arm membership that does not exist (lot D2).
+  "screen_wave_holdout_unsealed",
   // pipeline-entry-action.ts — the AI round passed and the hiring plan handed the
   // candidate to a human round. The human-oversight hand-off itself.
   "human_round_queued",
@@ -131,6 +134,8 @@ export const EVENT_KINDS = [
   "interview_reminder_sent",
   "interviewer_brief_sent",
   "interviewer_brief_skipped",
+  // interview/connect — the live call fell back to the other voice provider.
+  "interview_failover",
   "offer_sent",
   // comms-dispatch.ts — the offer-deadline nudge.
   "offer_reminder_sent",
@@ -145,6 +150,8 @@ export const EVENT_KINDS = [
   "offer_auto_extended",
   "offer_accept_blocked",
   "rejection_comms_failed",
+  // …and its offer-side sibling: the offer was drafted but the message never went out.
+  "offer_comms_failed",
   // The fairness backstop + the policy pass's aging/stale nudges (AUTOMATION_ALERT_KINDS).
   "fairness_gate_unknown_archetype",
   "fairness_gate_blocked_reject",
@@ -214,6 +221,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   auto_rejected: { Icon: XCircle, tone: "text-coral" },
   screening_hold: { Icon: PauseCircle, tone: "text-amber-600" },
   screen_wave_holdout: { Icon: Scale, tone: "text-steel" },
+  screen_wave_holdout_unsealed: { Icon: Scale, tone: "text-amber-600" },
   human_round_queued: { Icon: UserCheck, tone: "text-moss" },
   interview_scorecard: { Icon: ClipboardList, tone: "text-steel" },
   interview_prep_generated: { Icon: ClipboardList, tone: "text-steel" },
@@ -229,6 +237,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   interview_reminder_sent: { Icon: Mail, tone: "text-steel" },
   interviewer_brief_sent: { Icon: Mail, tone: "text-steel" },
   interviewer_brief_skipped: { Icon: MailWarning, tone: "text-amber-600" },
+  interview_failover: { Icon: Shuffle, tone: "text-amber-600" },
   offer_sent: { Icon: Mail, tone: "text-steel" },
   offer_reminder_sent: { Icon: Mail, tone: "text-steel" },
   comm_resent: { Icon: Send, tone: "text-steel" },
@@ -239,6 +248,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   offer_auto_extended: { Icon: Handshake, tone: "text-amber-600" },
   offer_accept_blocked: { Icon: Ban, tone: "text-amber-600" },
   rejection_comms_failed: { Icon: MailWarning, tone: "text-coral" },
+  offer_comms_failed: { Icon: MailWarning, tone: "text-coral" },
   fairness_gate_unknown_archetype: { Icon: Scale, tone: "text-coral" },
   fairness_gate_blocked_reject: { Icon: Scale, tone: "text-coral" },
   aging_alert: { Icon: Timer, tone: "text-amber-600" },
@@ -275,8 +285,22 @@ export function isEventKind(kind: string): kind is EventKind {
 // disposition_set/sim_attached have a detail variant. Everything else resolves by key.
 //
 // A HOOK (not a pure fn) so it reads the request locale.
+/** The `reason:<code>` wire format automation-run.ts writes into an event detail.
+ *  The prefix is duplicated rather than imported: automation-run.ts opens SQLite and
+ *  this module is a client component. automation-run.test.ts pins both sides. */
+function codedReason(detail: string | null | undefined): string | null {
+  const prefix = "reason:";
+  if (!detail || !detail.startsWith(prefix)) return null;
+  const code = detail.slice(prefix.length).trim();
+  return /^[A-Za-z]+$/.test(code) ? code : null;
+}
+
 export function useEventVerb(): (ev: PipelineEvent) => string {
   const t = useTranslations("pipeline.events");
+  // Coded automation details live in their OWN namespace: `pipeline.events` is
+  // set-equal to EVENT_KINDS (pipelineEventCatalog.test.ts fails on any key that is
+  // not a kind), so a `reasons` object could not live there.
+  const tReason = useTranslations("pipeline.eventReasons");
   const enumLabel = useEnumLabel();
   return (ev) => {
     // An unrecognized kind — a legacy row, or a writer that shipped ahead of this
@@ -284,6 +308,18 @@ export function useEventVerb(): (ev: PipelineEvent) => string {
     // unrecognized and shows the raw machine token: it must not be mistakable for a
     // first-class label the way a de-underscored English kind was.
     if (!isEventKind(ev.kind)) return t("unknownKind", { kind: ev.kind });
+    // A CODED detail — `reason:<code>`, written by automation-run.ts
+    // (`automationReasonDetail`) in place of the English sentences it used to store.
+    // Same record-vs-screen split automation-pass.ts runs: the token is the record,
+    // the catalog is the screen. Checked BEFORE the per-kind switch so it works for
+    // any kind whose writer adopts it. A detail this build has no word for, and every
+    // LEGACY row (English prose, or a machine handle like the rematch counterpart),
+    // falls straight through to the existing rendering.
+    const coded = codedReason(ev.detail);
+    if (coded) {
+      const key = `${coded}` as Parameters<typeof tReason>[0];
+      if (tReason.has(key)) return tReason(key);
+    }
     switch (ev.kind) {
       case "advanced":
         return t("advanced", { stage: enumLabel("stage", ev.toStage) });

@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   GEMINI_MAX_ATTEMPTS,
+  GEMINI_RETRY_AFTER_CAP_MS,
   geminiBackoffMs,
+  geminiRetryDelayMs,
   isTransientGeminiError,
+  retryAfterMs,
   withGeminiRetry,
 } from "./gemini-retry.ts";
 
@@ -105,4 +108,80 @@ test("backoff: exponential with bounded jitter", () => {
   assert.equal(geminiBackoffMs(0, () => 0), 500);
   assert.equal(geminiBackoffMs(1, () => 0), 1000);
   assert.equal(geminiBackoffMs(2, () => 1), 2250); // jitter tops out at +250ms
+});
+
+// --- Retry-After ------------------------------------------------------------
+// The server telling us when its bucket refills is better information than our
+// local schedule, and retrying before then is a guaranteed second 429.
+
+function rateLimited(retryAfter: string, kind: "headers" | "response" = "headers"): Error {
+  const error = apiError(429, "rate limited") as Error & Record<string, unknown>;
+  const headers = new Headers({ "Retry-After": retryAfter });
+  if (kind === "headers") error.headers = headers;
+  else error.response = { headers };
+  return error;
+}
+
+test("retry-after: delta-seconds, HTTP-date and plain-object headers all parse", () => {
+  const now = Date.parse("2026-10-21T07:28:00Z");
+  assert.equal(retryAfterMs(rateLimited("2"), now), 2000);
+  assert.equal(retryAfterMs(rateLimited("2", "response"), now), 2000);
+  assert.equal(retryAfterMs(rateLimited("Wed, 21 Oct 2026 07:28:03 GMT"), now), 3000);
+  // A date already past clamps to 0 rather than going negative.
+  assert.equal(retryAfterMs(rateLimited("Wed, 21 Oct 2026 07:27:00 GMT"), now), 0);
+  const plain = apiError(429) as Error & { headers: Record<string, string> };
+  plain.headers = { "retry-after": "1" };
+  assert.equal(retryAfterMs(plain, now), 1000);
+});
+
+test("retry-after: absent or unparseable falls back to the local schedule", () => {
+  assert.equal(retryAfterMs(apiError(429)), null);
+  assert.equal(retryAfterMs(rateLimited("   ")), null);
+  assert.equal(retryAfterMs(rateLimited("soon-ish")), null);
+  assert.equal(retryAfterMs(null), null);
+  // …and the delay policy therefore uses the backoff schedule unchanged.
+  assert.equal(geminiRetryDelayMs(apiError(429), 0, () => 0), 500);
+  assert.equal(geminiRetryDelayMs(rateLimited("soon-ish"), 1, () => 0), 1000);
+});
+
+test("retry-after: a longer wait wins, a shorter one never shortens the backoff", () => {
+  assert.equal(geminiRetryDelayMs(rateLimited("3"), 0, () => 0), 3000);
+  assert.equal(geminiRetryDelayMs(rateLimited("0.1"), 0, () => 0), 500);
+  assert.equal(geminiRetryDelayMs(rateLimited("0"), 1, () => 0), 1000);
+});
+
+test("retry-after: past the cap we stop retrying instead of holding the request open", () => {
+  assert.equal(geminiRetryDelayMs(rateLimited(String(GEMINI_RETRY_AFTER_CAP_MS / 1000 + 1)), 0, () => 0), null);
+});
+
+test("retry: withGeminiRetry sleeps for the header, not the schedule", async () => {
+  let calls = 0;
+  const sleeps: number[] = [];
+  const result = await withGeminiRetry(
+    async () => {
+      calls += 1;
+      if (calls === 1) throw rateLimited("2");
+      return "ok";
+    },
+    { sleep: async (ms) => void sleeps.push(ms), random: () => 0 }
+  );
+  assert.equal(result, "ok");
+  assert.deepEqual(sleeps, [2000]);
+});
+
+test("retry: a Retry-After past the cap rethrows the SDK error on attempt one", async () => {
+  let calls = 0;
+  const sleeps: number[] = [];
+  await assert.rejects(
+    withGeminiRetry(
+      async () => {
+        calls += 1;
+        throw rateLimited("60");
+      },
+      { sleep: async (ms) => void sleeps.push(ms), random: () => 0 }
+    ),
+    (error: unknown) => (error as { status?: number }).status === 429
+  );
+  assert.equal(calls, 1, "a 60s bucket must not be retried on our schedule");
+  assert.deepEqual(sleeps, []);
 });

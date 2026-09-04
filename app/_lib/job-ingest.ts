@@ -170,6 +170,29 @@ export function setJobStatus(jobId: string, status: "draft" | "published" | "clo
   db().prepare(`UPDATE jobs SET status = ? WHERE id = ?`).run(status, jobId);
 }
 
+/** What a publish attempt IS, read from the row's current lifecycle in one query.
+ *
+ *  `billable` is the half that used to be wrong. The publish route's own comment
+ *  said "closing and reopening a role never re-charges", and justified it with the
+ *  `published_at = COALESCE(...)` stamp above — but that stamp only guards the
+ *  TIMESTAMP; nothing about it reaches `jobPostGate` or `recordMeterUsage`. The
+ *  debit sat behind `prevStatus === "published"` alone, so a closed → published
+ *  reopen took the gate and the debit every time. `published_at` is the "this role
+ *  has been to market before" record, so it is what the once-per-job-EVER debit
+ *  must read. A job with no stamp (a draft, a seeded corpus row, a role closed
+ *  before the column existed) is a first go-live and bills.
+ *
+ *  Read-only and synchronous, so it is safe to call inside the publish transaction —
+ *  which is the point: the route reads the row it is about to flip under the same
+ *  write lock. Pinned by app/api/jobs/jobs-publish-billing.test.ts. */
+export function classifyPublish(jobId: string): { already: boolean; wasClosed: boolean; billable: boolean } {
+  const r = db()
+    .prepare(`SELECT status, published_at FROM jobs WHERE id = ?`)
+    .get(jobId) as { status: string | null; published_at: string | null } | undefined;
+  const status = r?.status ?? null;
+  return { already: status === "published", wasClosed: status === "closed", billable: !r?.published_at };
+}
+
 /** Can candidates apply to this job right now? NULL (seeded/live) and
  *  published accept; a draft was never publicly live, and a closed role's
  *  apply link must stop collecting candidates nobody will process. ONE

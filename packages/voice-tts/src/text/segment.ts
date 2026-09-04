@@ -44,7 +44,6 @@ function balanced(s: string): boolean {
 function isSentenceEnd(text: string, i: number): boolean {
   const ch = text[i];
   const next = text[i + 1];
-  const after = text.slice(i + 1, i + 3);
   // Needs whitespace (or end) after — plus optional closing quote/bracket.
   const rest = text.slice(i + 1);
   const m = /^[)"”»’'\]]*(\s|$)/.exec(rest);
@@ -61,7 +60,6 @@ function isSentenceEnd(text: string, i: number): boolean {
   }
   if (ABBREVIATIONS.has(word.toLowerCase().replace(/\.$/, ""))) return false;
   if (word.length === 1 && /\p{Lu}/u.test(word)) return false; // initials: "J. Novák"
-  void after;
   return true;
 }
 

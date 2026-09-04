@@ -1,8 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Loader2, RefreshCw, Scale } from "lucide-react";
+import { Loader2, RefreshCw, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { BTN_SECONDARY, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { Notice } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { AiVerdict } from "@/app/features/hiring/decisions/groupEval/GroupEvalAiVerdict";
 import { ComparisonTable } from "@/app/features/hiring/decisions/groupEval/GroupEvalComparisonTable";
 import { FairnessPanel } from "@/app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel";
@@ -95,7 +97,7 @@ export function GroupEvalModal({
           type="button"
           onClick={onRerun}
           disabled={loading}
-          className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-base font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
+          className={`${BTN_SECONDARY} h-9 px-3 text-base font-semibold`}
         >
           <RefreshCw size={14} /> {loading ? t("generating") : t("rerun")}
         </button>
@@ -106,12 +108,9 @@ export function GroupEvalModal({
           <Loader2 size={16} className="animate-spin text-coral" /> {t("generatingFull")}
         </p>
       ) : error && !evaluation ? (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden />
-          <span>
-            <span className="font-semibold">{t("unavailable")}</span> {error}
-          </span>
-        </div>
+        <Notice>
+          <span className="font-semibold">{t("unavailable")}</span> {error}
+        </Notice>
       ) : !evaluation ? (
         <p className="text-base text-steel">{t("noEval")}</p>
       ) : (
@@ -119,16 +118,16 @@ export function GroupEvalModal({
           <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} governanceMismatch={governanceMismatch} />
           {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
               a banner makes clear it didn't pick or seal a hire. */}
-          {governanceText(tt, evaluation) ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900">
-              <Scale size={18} className="mt-0.5 shrink-0" aria-hidden />
-              <span>{governanceText(tt, evaluation)}</span>
-            </div>
-          ) : null}
-          <AiVerdict comparison={evaluation.comparison} fallback={summaryText(tt, evaluation)} aiBacked={aiBacked} />
+          {governanceText(tt, evaluation) ? <Notice icon={Scale}>{governanceText(tt, evaluation)}</Notice> : null}
+          <AiVerdict
+            comparison={evaluation.comparison}
+            fallback={summaryText(tt, evaluation)}
+            aiBacked={aiBacked}
+            narrativeLang={evaluation.comparisonLang}
+          />
           {evaluation.eligibilityList?.length ? (
-            <section className="rounded-xl border border-stone-200 bg-white p-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-steel">{t("eligibilityList")}</p>
+            <section className={`${PANEL} p-4`}>
+              <p className={META_LABEL}>{t("eligibilityList")}</p>
               <ol className="mt-2 space-y-1">
                 {evaluation.eligibilityList.map((c) => (
                   <li key={c.entryId} className="flex items-center gap-2 text-base text-ink">

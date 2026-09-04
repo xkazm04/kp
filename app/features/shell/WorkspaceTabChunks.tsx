@@ -10,7 +10,7 @@
 // the hover/idle prefetch (so a click no longer starts the download it then waits on).
 // Going through the shared map is what makes the two provably request the same chunk.
 import dynamic from "next/dynamic";
-import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
+import { TranslatedErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { TAB_CHUNKS } from "./tabChunks";
 import type { WorkspaceTabId } from "./tabs";
 
@@ -59,7 +59,7 @@ const HiringTab = dynamic(() => TAB_CHUNKS.hiring().then((m) => ({ default: m.Hi
 // mode inside Analyze).
 export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceTabId; active: WorkspaceTabId }) {
   return (
-    <ErrorBoundary resetKey={navActive} label="This tab">
+    <TranslatedErrorBoundary resetKey={navActive} label="tab">
       <div key={navActive} className="animate-tab-in">
         {navActive === "pipeline" ? <PipelineTab /> : null}
         {navActive === "channels" ? <ChannelsTab /> : null}
@@ -88,6 +88,6 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "integrations" ? <IntegrationsTab /> : null}
         {navActive === "hiring" ? <HiringTab /> : null}
       </div>
-    </ErrorBoundary>
+    </TranslatedErrorBoundary>
   );
 }

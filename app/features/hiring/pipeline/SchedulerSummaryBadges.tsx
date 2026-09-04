@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { type DecisionOutcome } from "@/app/_lib/decision-attribution";
+import { SUMMARY_BUCKETS } from "./schedulerRunState";
 
 export type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number; errors?: number; evaluated?: number };
 // AUTO2 — the persisted per-run record the schedule GET has always returned
@@ -77,23 +78,22 @@ export function OutcomeChip({ outcome }: { outcome: DecisionOutcome }) {
   );
 }
 
-// The four buckets a policy pass moves entries into, tone-coded so the last-run
-// row reads at a glance — and so `held` (tracked by the backend, AutomationSummary)
-// is shown instead of silently dropped. Zero counts render dimmed (Badge.muted).
-// This is the ONE table of buckets: both the badge row (SummaryBadges) and the
-// "Run now" chip (describeTick, in SchedulerControl.tsx) are driven from it, so
-// adding a fifth outcome is a single-line change that can't leave the two
-// summaries out of sync. The per-bucket presentation; the human label is
-// localized via the `pipeline.scheduler` catalog (labelKey), so the chip and the
-// badges never drift.
-export const SUMMARY_COUNTS: { key: keyof Summary; tone: BadgeTone; icon: LucideIcon; labelKey: string }[] = [
-  { key: "advanced", tone: "positive", icon: ArrowUpRight, labelKey: "summaryAdvanced" },
-  { key: "rejected", tone: "critical", icon: XCircle, labelKey: "summaryRejected" },
-  { key: "held", tone: "neutral", icon: Pause, labelKey: "summaryHeld" },
-  { key: "alerts", tone: "caution", icon: AlertTriangle, labelKey: "summaryAlerts" },
+// Presentation for the shared bucket table. The ORDER and the catalog keys live
+// ONCE, in schedulerRunState.ts (pure, unit-tested) — both the badge row here and
+// the "Run now" chip (describeTick) read that table, so adding a sixth outcome is a
+// single-line change that cannot leave the two summaries out of sync. Zero counts
+// render dimmed (Badge.muted). `held` is shown rather than silently dropped.
+const BUCKET_STYLE: Record<string, { tone: BadgeTone; icon: LucideIcon }> = {
+  advanced: { tone: "positive", icon: ArrowUpRight },
+  rejected: { tone: "critical", icon: XCircle },
+  held: { tone: "neutral", icon: Pause },
+  alerts: { tone: "caution", icon: AlertTriangle },
   // AUTO2 — apply failures were tracked by the backend and invisible here.
-  { key: "errors", tone: "critical", icon: AlertTriangle, labelKey: "summaryErrors" },
-];
+  errors: { tone: "critical", icon: AlertTriangle },
+};
+
+export const SUMMARY_COUNTS: { key: keyof Summary; tone: BadgeTone; icon: LucideIcon; labelKey: string }[] =
+  SUMMARY_BUCKETS.map(({ key, labelKey }) => ({ key, labelKey, ...BUCKET_STYLE[key] }));
 
 // Render the last-run summary as semantic badges (one per bucket), every count
 // through the shared Badge so outcomes look identical to the rest of the pipeline.

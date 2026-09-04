@@ -7,6 +7,10 @@ import { briefPromoteBlockers } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+// The SAME classifier the companion dock uses on the same raw diagnostic - the
+// two surfaces read one Python fallback vocabulary, so they get one parser.
+import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
 import { briefItemCount } from "./jdsIntakeBriefModel";
 import { JdsIntakeAppMasterCard } from "./JdsIntakeAppMasterCard";
@@ -20,11 +24,16 @@ import { JdsIntakeSessionsTable } from "./JdsIntakeSessionsTable";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import { useIntakeLogic } from "./jdsIntakeLogic";
+import { intakeLang } from "@/app/_lib/intake-lang";
 
 // Role-intake dialog surface (docs/concepts/role-intake-dialog.md, Phase 1):
 // a coaching-register conversation with the requestor on the left, the live
 // RoleBrief filling in on the right, and Promote → the existing backgrounded
 // JD build. Ledger of past sessions when none is open.
+
+// One class string for every refusal line on this surface (recipes.ts holds the
+// shared surfaces; this is local enough to stay here).
+const RED = "text-body text-red-700";
 
 const SHAPE_KEY = {
   power_unit: "shape.powerUnit",
@@ -35,6 +44,9 @@ const SHAPE_KEY = {
 export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const t = useTranslations("library.tab.intake");
   const locale = useLocale();
+  // An API failure is shown from its machine `code`, never from the server's
+  // English `error` string (docs/architecture/api-contracts.md §1.1).
+  const resolveError = useErrorMessage();
   const {
     sessions,
     active,
@@ -42,6 +54,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     creating,
     promoting,
     degraded,
+    degradation,
     error,
     startNew,
     startAppMaster,
@@ -69,7 +82,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   // and importing that provider into the logic module would drag React and
   // next-intl into its node:test unit run. Called before the ledger early-return
   // so the hook order is stable across both branches.
-  const { scanState, composeAppMaster, composing, composeError, paired, dispatchState, dispatchAppMaster } =
+  const { scanState, scanFence, cancelScan, composeAppMaster, cancelCompose, composing, composeError, paired, dispatchState, dispatchAppMaster } =
     useAppMasterLogic(active, applySession);
   const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
@@ -96,7 +109,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             type="button"
             className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
             disabled={creating}
-            onClick={() => startNew(locale === "cs" ? "cs" : "en")}
+            onClick={() => startNew(intakeLang(locale))}
           >
             {creating ? t("starting") : t("new")}
           </button>
@@ -105,10 +118,12 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             not start from a blank conversation — it starts from an APP. */}
         <JdsIntakeAppMasterStart
           busy={creating}
-          onStart={(repo) => startAppMaster(locale === "cs" ? "cs" : "en", repo)}
+          onStart={(repo) => startAppMaster(intakeLang(locale), repo)}
         />
         {error ? (
-          <p className="mt-3 text-body text-red-700">{t(error === "appMaster" ? "appMaster.startError" : "error")}</p>
+          <p className="mt-3 text-body text-red-700">
+            {resolveError(error, t(error.kind === "appMaster" ? "appMaster.startError" : "error"))}
+          </p>
         ) : null}
         {/* Keyed on the loaded state, so the ledger fades in when the fetch
             lands (the key changes null → "loaded") instead of appearing under
@@ -133,8 +148,34 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   // The scan line the chat shows under the opener while the codebase is read.
   // Cleared the moment the dossier lands — the card then speaks for itself.
   const scanNote = scanState ? t(`appMaster.scan.${scanState}`) : null;
+  // A SECOND line, not a replacement: an unverified fence is true of a scan that
+  // otherwise completed cleanly, and folding it into scanNote would mean one of the
+  // two disclosures was always dropped.
+  const fenceNote = scanFence ? t(`appMaster.scan.${scanFence}`) : null;
   const objectiveCount = (active.brief?.facets ?? []).filter((f) => f.key?.startsWith("objective:")).length;
   const promoteHint = ready ? undefined : blockers.map((b) => t(`promoteMissing.${b}`)).join(" ");
+
+  // The degraded line says WHICH degradation. "No model configured" is a
+  // settings trip; "the model did not answer" is worth one retry; an
+  // unrecognised diagnostic keeps the generic sentence rather than being
+  // guessed at. Pre-fix all three read "AI is offline, so the guided checklist
+  // runs instead" and an operator on a keyless install retried forever.
+  const fallbackClass = degradation ? companionFallbackClass(degradation.reason) : null;
+  const degradedText =
+    fallbackClass === "noProvider"
+      ? t("degradedNoProvider")
+      : fallbackClass === "providerFailed"
+        ? t("degradedProviderFailed")
+        : t("degradedNote");
+  // The scripted path is written in four locales; a session opened in a fifth is
+  // SERVED one of them. Intl.DisplayNames names it in the reader's own language,
+  // so no catalog carries a list of language names.
+  const standInLanguage =
+    degradation?.lang && degradation.lang !== locale
+      ? t("standInLanguage", {
+          language: new Intl.DisplayNames([locale], { type: "language" }).of(degradation.lang) ?? degradation.lang,
+        })
+      : null;
 
   return (
     <div className={`${PANEL} animate-fade-in p-5`}>
@@ -208,13 +249,20 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
       {/* Status/error lines fade in and out (reduced motion: instant). */}
       <AnimatePresence initial={false}>
         {[
-          degraded ? { key: "degraded", cls: "text-meta text-steel", text: t("degradedNote") } : null,
+          degraded ? { key: "degraded", cls: "text-meta text-steel", text: degradedText } : null,
+          // The stand-in language is its own fact, not a flavour of the one
+          // above: the checklist DID answer, just not in the language this
+          // session was opened in, and only the reader can decide that matters.
+          standInLanguage ? { key: "standIn", cls: "text-meta text-steel", text: standInLanguage } : null,
           voiceNote === "stored" ? { key: "voiceStored", cls: "text-meta text-steel", text: t("voice.storedNote") } : null,
-          error === "send" ? { key: "send", cls: "text-body text-red-700", text: t("sendError") } : null,
-          error === "promote" ? { key: "promote", cls: "text-body text-red-700", text: t("promoteError") } : null,
-          error === "saveBrief" ? { key: "saveBrief", cls: "text-body text-red-700", text: t("edit.saveError") } : null,
-          error === "reopen" ? { key: "reopen", cls: "text-body text-red-700", text: t("reopen.error") } : null,
-          error === "attachment" ? { key: "attachment", cls: "text-body text-red-700", text: t("attachments.error") } : null,
+          // The server's refusal CODE decides the sentence; the per-affordance
+          // string below is only the fallback for a failure that carries none (an
+          // offline fetch). Five different refusals used to share one line each.
+          error?.kind === "send" ? { key: "send", cls: RED, text: resolveError(error, t("sendError")) } : null,
+          error?.kind === "promote" ? { key: "promote", cls: RED, text: resolveError(error, t("promoteError")) } : null,
+          error?.kind === "saveBrief" ? { key: "saveBrief", cls: RED, text: resolveError(error, t("edit.saveError")) } : null,
+          error?.kind === "reopen" ? { key: "reopen", cls: RED, text: resolveError(error, t("reopen.error")) } : null,
+          error?.kind === "attachment" ? { key: "attachment", cls: RED, text: resolveError(error, t("attachments.error")) } : null,
         ]
           .filter((n): n is { key: string; cls: string; text: string } => n !== null)
           .map((n) => (
@@ -258,6 +306,8 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
         brief={
           <JdsIntakeBriefPanel
             brief={active.brief}
+            intakeId={active.id}
+            updatedAt={active.updatedAt}
             frozen={active.status === "promoted"}
             saving={savingBrief}
             onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
@@ -269,10 +319,13 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
                   dossier={active.dossier}
                   appMaster={active.appMaster}
                   scanNote={scanNote}
+                  fenceNote={fenceNote}
                   objectiveCount={objectiveCount}
                   composing={composing}
-                  composeError={composeError !== null}
+                  composeError={composeError}
                   onCompose={active.status !== "promoted" ? composeAppMaster : undefined}
+                  onCancelCompose={cancelCompose}
+                  onCancelScan={cancelScan ?? undefined}
                   frozen={active.status === "promoted"}
                   paired={paired}
                   dispatchState={dispatchState}

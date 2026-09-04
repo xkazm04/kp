@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
-import { saveHumanScorecard } from "@/app/_lib/interview-prep";
+import { getInterviewPrep, saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
 
@@ -18,6 +20,13 @@ const MAX_COMPETENCY = 200;
 const MAX_EVIDENCE = 2_000;
 const MAX_SUMMARY = 4_000;
 
+// Abuse containment on the recruiter's verdict write (/perfect wave 37,
+// lib-voice-interview-11). It is a read-merge-write that can additionally SET AN
+// APPROVAL and seal a decision record, and the operator gate in front of it is a
+// documented no-op in open mode. One save per interview is the honest shape, so 60/10 min
+// leaves room to edit and re-save without leaving a scripted loop any.
+const SCORECARD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
+
 // POST ?entry=<id> → save the recruiter's human-filled scorecard onto the entry's
 // prep artifact. Validated field-by-field at the trust boundary (not cast): each
 // rating's competency is a bounded string, the rating clamps to [1, RATING_MAX],
@@ -25,9 +34,20 @@ const MAX_SUMMARY = 4_000;
 // canonical advance|hold|reject set. 404 when no prep artifact exists yet.
 export async function POST(request: NextRequest) {
   try {
+    // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
+    // not even requireOperator — so authority came down to holding a session, and the
+    // entry id is the only other thing the write needs. Every verb here is a recruiter
+    // act on another person’s hiring record, so each asks `pipeline:write`. It runs
+    // FIRST, ahead of the entry check and the throttle, so a refused seat can neither
+    // spend rate-limit budget nor learn which entry ids exist.
+    const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+    if (under) return under;
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
-      return NextResponse.json({ error: "entry is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
+    }
+    if (!rateLimit(`interview-scorecard:${clientIpFrom(request.headers)}`, SCORECARD_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as {
       ratings?: unknown;
@@ -46,6 +66,15 @@ export async function POST(request: NextRequest) {
     // the defect the DEC1 note further down was written to fix.
     const ws = await currentWorkspace();
     const pipelineEntry = getPipelineEntry(entry, ws);
+    // TENANCY: `saveHumanScorecard` is an unscoped by-`entry_id` point op, so this was
+    // the last verb of the interview-prep surface a foreign entry id could still WRITE
+    // through — overwriting another team's interviewer verdict. The workspace predicate
+    // rides the read that authorizes the write, exactly as on the other four verbs, and
+    // answers the SAME 404 the "no prep yet" path answers: to a caller who does not hold
+    // the entry the two are indistinguishable, deliberately.
+    if (!getInterviewPrep(entry, ws)) {
+      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+    }
 
     const parsed: ScorecardRating[] = [];
     if (Array.isArray(body.ratings)) {
@@ -100,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     const ok = saveHumanScorecard(entry, scorecard);
     if (!ok) {
-      return NextResponse.json({ error: "No interview prep to attach a scorecard to — generate it first." }, { status: 404 });
+      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
 
     // Decision SoR (moonshot D backfill): seal the human scorecard verdict —

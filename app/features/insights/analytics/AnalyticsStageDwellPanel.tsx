@@ -6,6 +6,7 @@ import type { OfferConversion } from "@/app/_lib/analytics-offer";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { OfferLegPanel } from "./AnalyticsOfferLegPanel";
+import { dwellBandHasContent, dwellBarPct, dwellMaxDays, dwellWaiting } from "./stageDwellGate";
 import type { Analytics } from "./AnalyticsTypes";
 
 // UAT KAT-ANA-3 / TOM-ANA-2 — the home for three payload fields the server computed
@@ -30,6 +31,7 @@ export function StageDwellPanel({
   stageDwell,
   koDeclined,
   offers,
+  offerStage,
   enumLabel,
   boardHref,
 }: {
@@ -37,6 +39,8 @@ export function StageDwellPanel({
   /** Applicants the eligibility gate turned away BEFORE the funnel's first stage. */
   koDeclined: number;
   offers: OfferConversion;
+  /** The workspace’s own offer column, forwarded to the offer panel’s board link. */
+  offerStage: string | null;
   enumLabel: (kind: string, value: string) => string;
   boardHref: (filter: { q?: string; stage?: string }) => string;
 }) {
@@ -46,10 +50,13 @@ export function StageDwellPanel({
   // „not yet" (briefNoDataClaim / the zero-transition guide), and a second refusal in
   // the same voice two inches below it is just louder, not more honest. Below at least
   // one of the three edges has something to report, so the band earns its rule.
-  if (stageDwell.length === 0 && koDeclined === 0 && offers.extended === 0) return null;
+  // The gate, the headline count and the bar scale are pure (stageDwellGate.ts) so
+  // `npm run test:unit` can execute them: the rule that decides whether a whole band
+  // of the briefing appears was an inline && chain inside JSX, which no test can reach.
+  if (!dwellBandHasContent(stageDwell, koDeclined, offers.extended)) return null;
 
-  const waiting = stageDwell.reduce((sum, s) => sum + s.count, 0);
-  const maxDays = Math.max(1, ...stageDwell.map((s) => s.avgDays));
+  const waiting = dwellWaiting(stageDwell);
+  const maxDays = dwellMaxDays(stageDwell);
 
   return (
     <section className="border-t border-stone-200 pt-6">
@@ -79,7 +86,7 @@ export function StageDwellPanel({
                 <span className="relative h-px flex-1 self-center bg-stone-200">
                   <span
                     className="absolute inset-y-0 -top-[2px] left-0 h-[5px] rounded-full bg-steel/60"
-                    style={{ width: `${Math.max(2, Math.round((s.avgDays / maxDays) * 100))}%` }}
+                    style={{ width: `${dwellBarPct(s.avgDays, maxDays)}%` }}
                     aria-hidden
                   />
                 </span>
@@ -104,7 +111,7 @@ export function StageDwellPanel({
       {/* …and the leg after the last stage. Honesty-gated below the min-offers floor
           by the panel itself, and it is also the only place the brief states the
           acceptance rate its forecast band silently assumes. */}
-      <OfferLegPanel offers={offers} boardHref={boardHref} />
+      <OfferLegPanel offers={offers} boardHref={boardHref} offerStage={offerStage} />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { pipelineAddBody, postPipelineAdd } from "./useAddToPipeline.ts";
+import { readFileSync } from "node:fs";
+import { pipelineAddBody, postPipelineAdd, postPipelineBatch } from "./useAddToPipeline.ts";
 
 // idea-cfa6103b — RecruiterCandidates and RediscoverPanel each hand-rolled the same
 // optimistic add-to-pipeline POST and had drifted (one sent roleFamily, the other
@@ -82,21 +83,84 @@ test("postPipelineAdd POSTs the built body as JSON to /api/pipeline", async () =
 
 const INPUT = { candidateId: "c1", candidateLabel: "Ada", archetype: "builder", matchScore: 82 };
 
-test("postPipelineAdd surfaces a body { error } on a non-OK status", async () => {
+// remaining-add-callers-read-the-code (wave 19b): the result no longer carries the
+// server's English `message`. It existed "as a last-resort fallback" and all three
+// remaining callers used it as the first resort, so an English sentence reached
+// every locale. What a caller gets is the machine half — code, capability, status —
+// and it supplies its own localized fallback.
+test("postPipelineAdd reports a non-OK status WITHOUT the server's English", async () => {
   stubFetch({ ok: false, status: 400, json: () => ({ error: "candidateId and jobId are required." }) });
   const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
-  assert.deepEqual(result, { ok: false, message: "candidateId and jobId are required." });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.status, 400);
+  assert.equal(result.ok === false && result.code, null);
+  assert.ok(!("message" in result), "the English half must not travel to the client");
 });
 
-test("postPipelineAdd falls back to a status message when the error body has none", async () => {
-  // e.g. an HTML 500: .json() throws, our catch yields null, no payload.error.
+test("postPipelineAdd carries the status when the error body is not JSON", async () => {
+  // e.g. an HTML 500: .json() throws, our catch yields null, no payload at all —
+  // the status is then the ONLY thing the caller learns, and that is enough for it
+  // to pick its own localized line.
   stubFetch({ ok: false, status: 500, json: () => { throw new Error("not json"); } });
   const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
-  assert.deepEqual(result, { ok: false, message: "Couldn't add (500)." });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.status, 500);
+  assert.equal(result.ok === false && result.code, null);
 });
 
 test("postPipelineAdd reports a thrown network error without throwing", async () => {
   stubFetch(() => { throw new Error("network down"); });
   const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
-  assert.deepEqual(result, { ok: false, message: "network down" });
+  assert.equal(result.ok, false);
+  // A transport blip is not a verdict: no status, no code, and never the raw
+  // exception text on a user-facing line.
+  assert.equal(result.ok === false && result.status, null);
+  assert.equal(result.ok === false && result.code, null);
+});
+
+// ---- gated-doors-clients-read-the-refusal (wave 18b) --------------------------
+// The write doors now refuse a seat that lacks the capability with a CODED 403
+// (FORBIDDEN_CAPABILITY, carrying `capability`). The transport helpers have to
+// carry the machine half back — a client that only gets `message` can render the
+// server's English and nothing else.
+
+test("postPipelineAdd carries the refusal CODE, status and capability back", async () => {
+  stubFetch({
+    ok: false,
+    status: 403,
+    json: () => ({ error: "Your role does not allow this action.", code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write" }),
+  });
+  const result = await postPipelineAdd("job1", "Staff Eng", INPUT);
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(result.ok === false && result.status, 403);
+  assert.equal(result.ok === false && result.capability, "pipeline:write");
+});
+
+test("postPipelineBatch carries a whole-request capability refusal, not just the status", async () => {
+  stubFetch({
+    ok: false,
+    status: 403,
+    json: () => ({ error: "Your role does not allow this action.", code: "FORBIDDEN_CAPABILITY", capability: "pipeline:write" }),
+  });
+  const res = await postPipelineBatch([{ id: "e1", action: "accept", expectedStage: "Screened" }]);
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.status, 403);
+  assert.equal(res.ok === false && res.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(res.ok === false && res.capability, "pipeline:write");
+});
+
+// The one localized sentence that names the capability. It is a CLIENT variant of
+// errors.FORBIDDEN_CAPABILITY (the code's own message stays placeholder-free, so
+// the ~12 consumers that resolve it without values keep working); a client holding
+// the data renders this one instead.
+test("errors.forbiddenCapabilityNeeds exists in all four catalogs and takes {capability}", () => {
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const cat = JSON.parse(readFileSync(new URL(`../../messages/${locale}.json`, import.meta.url), "utf8")) as {
+      errors: Record<string, string>;
+    };
+    const msg = cat.errors.forbiddenCapabilityNeeds;
+    assert.equal(typeof msg, "string", `messages/${locale}.json errors.forbiddenCapabilityNeeds is missing`);
+    assert.match(msg, /\{capability\}/, `messages/${locale}.json must name the capability as data`);
+  }
 });

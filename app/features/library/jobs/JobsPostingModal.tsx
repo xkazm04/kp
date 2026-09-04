@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRef } from "react";
 import { BarChart3, Bot, FileText, Gauge, History, Megaphone, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
@@ -8,7 +9,10 @@ import { JobLifecycleStrip } from "./JobsLifecycleStrip";
 import { RecruiterCandidates } from "./JobsRecruiterCandidates";
 import { RediscoverPanel } from "./JobsRediscoverPanel";
 import { CompareInterviews } from "./JobsCompareInterviews";
+import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { POSTING_LOCALES } from "./jobsMarkdown";
+import { POSTING_TAB_IDS, type PostingTabId } from "./jobsPostingModalTabs";
+import { useTablist } from "@/app/_components/ui/useTablist";
 import type { Job } from "./JobsTypes";
 import { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { JobsPostingModalFooter } from "./JobsPostingModalFooter";
@@ -27,6 +31,19 @@ const AgentFitTab = dynamic(() => import("./JobsAgentFitTab").then((m) => ({ def
   loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
 });
 
+// Label key + icon per tab id. The IDS live once, in jobsPostingModalTabs.ts —
+// this is only their presentation, and `Record<PostingTabId, …>` means adding an
+// id there is a type error here until the strip learns to render it.
+const TAB_META: Record<PostingTabId, { labelKey: "tabPosting" | "tabCoach" | "tabCampaign" | "tabCandidates" | "tabRediscover" | "tabCompare" | "tabAgentFit"; Icon: typeof FileText }> = {
+  posting: { labelKey: "tabPosting", Icon: FileText },
+  coach: { labelKey: "tabCoach", Icon: Gauge },
+  campaign: { labelKey: "tabCampaign", Icon: Megaphone },
+  candidates: { labelKey: "tabCandidates", Icon: BarChart3 },
+  rediscover: { labelKey: "tabRediscover", Icon: History },
+  compare: { labelKey: "tabCompare", Icon: Scale },
+  agentfit: { labelKey: "tabAgentFit", Icon: Bot },
+};
+
 // Clicking a job opens this: a publish-ready posting (Markdown) with a copy
 // action, plus the candidate ranking for the role in a second tab.
 export function JobPostingModal({
@@ -42,7 +59,14 @@ export function JobPostingModal({
   onChanged?: (status: "published" | "closed") => void;
 }) {
   const logic = useJobPostingModalLogic(job, onChanged);
-  const { t, tab, setTab, postingLang, setPostingLang, markdown, statusSuffix, confirmingClose, setConfirmingClose, closeRole } = logic;
+  // Roving tabindex: the strip is ONE tab stop and the arrow keys walk it, which
+  // is what `role="tablist"` already promised a screen-reader user. Pre-fix every
+  // button was tabbable and no arrow key did anything, so reaching "Agent fit"
+  // from "Posting" cost six Tab presses through a widget whose ARIA said otherwise.
+  // …now the shared hook (app/_components/ui/useTablist.ts), which was the
+  // promotion jobsPostingModalTabs.ts's note asked for on the third caller.
+  const { t, tab, setTab, postingLang, setPostingLang, markdown, statusSuffix, confirmingClose, setConfirmingClose, closeRole, lifecycleToken } = logic;
+  const tablist = useTablist({ ids: POSTING_TAB_IDS, active: tab, onSelect: setTab });
   return (
     <Modal
       title={job.title}
@@ -53,42 +77,33 @@ export function JobPostingModal({
     >
       {/* c91ec8b1 — the role's lifecycle at a glance, each segment linking to
           the tab that owns it (JD → channels → board → decisions → offers). */}
-      <JobLifecycleStrip jobId={job.id} jobTitle={job.title} />
+      <JobLifecycleStrip jobId={job.id} jobTitle={job.title} refreshToken={lifecycleToken} />
 
-      <div role="tablist" aria-label={t("viewsAria")} className="mb-3 flex gap-1 border-b border-stone-200">
-        {([
-          ["posting", "tabPosting", FileText],
-          ["coach", "tabCoach", Gauge],
-          ["campaign", "tabCampaign", Megaphone],
-          ["candidates", "tabCandidates", BarChart3],
-          ["rediscover", "tabRediscover", History],
-          ["compare", "tabCompare", Scale],
-          ["agentfit", "tabAgentFit", Bot],
-        ] as const).map(([id, labelKey, Icon]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`jobtab-${id}`}
-            aria-selected={tab === id}
-            aria-controls={`jobpanel-${id}`}
-            onClick={() => setTab(id)}
-            className={`focus-ring -mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
-              tab === id ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"
-            }`}
-          >
-            <Icon size={14} /> {t(labelKey)}
-          </button>
-        ))}
+      {/* Seven tabs do not fit a phone or a narrow split: the strip scrolls
+          horizontally instead of squeezing the labels off the modal's edge. */}
+      <div
+        {...tablist.tablistProps}
+        aria-label={t("viewsAria")}
+        className="mb-3 flex gap-1 overflow-x-auto border-b border-stone-200"
+      >
+        {POSTING_TAB_IDS.map((id) => {
+          const { labelKey, Icon } = TAB_META[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              {...tablist.tabProps(id)}
+              className={`focus-ring -mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
+                tab === id ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"
+              }`}
+            >
+              <Icon size={14} /> {t(labelKey)}
+            </button>
+          );
+        })}
       </div>
 
-      <div
-        role="tabpanel"
-        id={`jobpanel-${tab}`}
-        aria-labelledby={`jobtab-${tab}`}
-        tabIndex={0}
-        className="focus-ring rounded-lg"
-      >
+      <div {...tablist.panelProps} className="focus-ring rounded-lg">
         {tab === "posting" ? (
           <>
             {/* JOB3 — choose the posting's language independently of the app. */}
@@ -100,9 +115,7 @@ export function JobPostingModal({
                   type="button"
                   onClick={() => setPostingLang(loc)}
                   aria-pressed={postingLang === loc}
-                  className={`focus-ring rounded-full border px-2.5 py-0.5 text-sm font-semibold uppercase transition-colors ${
-                    postingLang === loc ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
-                  }`}
+                  className={`${CHIP_TOGGLE(postingLang === loc)} px-2.5 py-0.5 uppercase`}
                 >
                   {loc}
                 </button>

@@ -32,8 +32,11 @@ export function InterviewTelemetryStrip({
   t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
 }) {
   const talk = talkSharePercent(telemetry);
-  const pause = formatSpokenDuration(telemetry.longestResponseGapSec);
-  const duration = formatSpokenDuration(telemetry.durationSec);
+  // Parts, not a formatted string: the unit letters live in the 4 catalogs.
+  const pauseParts = formatSpokenDuration(telemetry.longestResponseGapSec);
+  const durationParts = formatSpokenDuration(telemetry.durationSec);
+  const pause = pauseParts ? t("duration", pauseParts) : null;
+  const duration = durationParts ? t("duration", durationParts) : null;
   const hintKey =
     telemetry.hint.offered && telemetry.hint.uptake !== "not_offered"
       ? HINT_LABEL_KEY[telemetry.hint.uptake]

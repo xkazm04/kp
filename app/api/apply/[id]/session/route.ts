@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { startApplySession, type ApplySessionFlow } from "@/app/_lib/apply-session-store";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Records that a candidate OPENED an application, which is the apply funnel's
 // missing denominator (see apply-session-store.ts). Called once by the client on
@@ -27,23 +28,28 @@ function coerceTag(raw: unknown): string | null {
   return typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 64) : null;
 }
 
+/** Hard cap on this public door's request body: a funnel attempt id plus its step markers — measurement only, so it is small by construction.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_APPLY_SESSION_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
     if (!rateLimit(`apply-session:${id}:${clientIpFrom(request.headers)}`, SESSION_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+    const body = await readJsonWithLimit<Record<string, unknown> | null>(request, MAX_APPLY_SESSION_BODY_BYTES, null);
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_APPLY_SESSION_BODY_BYTES });
     const sessionId = typeof body?.sessionId === "string" ? body.sessionId : "";
     const flow = coerceFlow(body?.flow);
     if (!SESSION_ID_RE.test(sessionId) || !flow) {
-      return NextResponse.json({ error: "Invalid session." }, { status: 400 });
+      return jsonRefusal("APPLY_SESSION_INVALID", 400);
     }
-    if (!getJob(id)) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    if (!getJob(id)) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
     // Don't count starts against a role that cannot be applied to — the submit
     // routes refuse those, so counting them would create guaranteed abandonment.
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: "Role closed." }, { status: 410 });
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
     startApplySession({
       id: sessionId,

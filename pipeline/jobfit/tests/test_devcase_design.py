@@ -75,7 +75,11 @@ class TestProbeRevealsEnforced(unittest.TestCase):
     def test_empty_or_missing_reveals_is_backfilled_per_kind(self):
         payload = self._payload_with_probes(
             [
-                {"id": "x1", "kind": "legacy_trap", "where": "old.py", "reveals": ""},          # empty string
+                # decisionSpace is filled so the ONLY thing under test here is the `reveals`
+                # backfill: _check_case also enforces probe STRENGTH now (a case with no
+                # load-bearing probe is one the TS approve gate blocks), and a fixture with
+                # no decision spaces would fail on that instead of on what this asserts.
+                {"id": "x1", "kind": "legacy_trap", "where": "old.py", "reveals": "", "decisionSpace": ["Work around it", "Fix it first"]},          # empty string
                 {"id": "x2", "kind": "verification_trap", "where": "tests"},                     # key absent
                 {"id": "x3", "kind": "ambiguity", "where": "brief", "reveals": "   "},            # whitespace-only
             ]

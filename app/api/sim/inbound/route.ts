@@ -7,7 +7,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { SIM_SCREEN_POLICY } from "@/app/features/shell/simulation/constants";
 
 
@@ -27,9 +27,9 @@ import { SIM_SCREEN_POLICY } from "@/app/features/shell/simulation/constants";
 export async function POST(request: NextRequest) {
   try {
     const { jobId } = (await request.json()) as { jobId?: string };
-    if (!jobId) return NextResponse.json({ error: "jobId is required." }, { status: 400 });
+    if (!jobId) return jsonRefusal("SIM_JOB_REQUIRED", 400);
     const job = getJob(jobId);
-    if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    if (!job) return jsonRefusal("SIM_JOB_NOT_FOUND", 404);
 
     // The sim write target — the caller's own team + the `(SIM)`-marked title.
     const target = simCvIntakeTarget(job, await currentWorkspace());
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       listPipeline(target.workspaceId).filter((e) => e.jobId === jobId).map((e) => e.candidateId)
     );
     const applicant = listMatrixProfiles(200, target.workspaceId).find((p) => !inPipeline.has(p.id));
-    if (!applicant) return NextResponse.json({ error: "No available applicant." }, { status: 404 });
+    if (!applicant) return jsonRefusal("SIM_NO_APPLICANT", 404);
 
     // Deterministic mid score so the inbound applicant survives screening (demo).
     // The floor is single-sourced + invariant-checked against the screen reject
@@ -78,6 +78,6 @@ export async function POST(request: NextRequest) {
     // /api/sim/apply-cv's response so the Channels note can say where it landed.
     return NextResponse.json({ ok: true, label: applicant.label, score, entryId: entry.id, jobTitle: target.jobTitle });
   } catch (error) {
-    return jsonError(error, "Inbound failed.");
+    return safeJsonError(error, "api:sim/inbound", "SIM_INBOUND_FAILED");
   }
 }

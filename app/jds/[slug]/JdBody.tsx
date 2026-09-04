@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Markdown } from "@/app/_components/Markdown";
@@ -18,13 +18,21 @@ export function JdBody({ markdown }: { markdown: string }) {
   // (and the copy button copied "" with a success check). Show an explicit placeholder
   // and hide copy when there's nothing to copy.
   const hasContent = markdown.trim().length > 0;
+  // The "copied ✓" reset timer escapes the component otherwise: a visitor who
+  // copies and navigates away leaves a 1.5 s timeout holding setCopied, which
+  // fires against an unmounted tree. Held in a ref so a second click restarts one
+  // timer rather than stacking two, and cleared on unmount.
+  const resetTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(resetTimer.current), []);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(markdown);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      window.clearTimeout(resetTimer.current);
+      resetTimer.current = window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked */
+      /* clipboard blocked (insecure origin or a denied permission) — the button
+         simply does not flip to its copied state; nothing to report. */
     }
   };
   return (

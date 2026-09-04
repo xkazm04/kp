@@ -51,7 +51,7 @@ export type ChunkedTabId = keyof typeof TAB_CHUNKS;
 
 /** History is consolidated into Analyze (see Workspace's navActive), so it warms
  *  the Analyze chunk rather than having none. */
-function chunkIdFor(id: WorkspaceTabId): ChunkedTabId | null {
+export function chunkIdFor(id: WorkspaceTabId): ChunkedTabId | null {
   if (id === "history") return "analyze";
   return id in TAB_CHUNKS ? (id as ChunkedTabId) : null;
 }
@@ -62,12 +62,28 @@ function chunkIdFor(id: WorkspaceTabId): ChunkedTabId | null {
 // must never be the thing that breaks a page.
 const requested = new Set<ChunkedTabId>();
 
+/**
+ * The bookkeeping, as a pure step: the chunk this tab still needs (claiming it in
+ * `seen` so nobody claims it twice), or null when there is nothing to start.
+ * Separated from the download so `node --test` can pin the one-attempt-per-tab
+ * property — a .tsx dynamic import cannot be evaluated by the unit runner, and
+ * "did we warm the right module?" is exactly the question a slower render never
+ * answers.
+ */
+export function claimChunk(seen: Set<ChunkedTabId>, id: WorkspaceTabId): ChunkedTabId | null {
+  const chunk = chunkIdFor(id);
+  if (!chunk || seen.has(chunk)) return null;
+  seen.add(chunk);
+  return chunk;
+}
+
 /** Start a tab's chunk download now. Safe to call on every hover — idempotent. */
 export function prefetchTabChunk(id: WorkspaceTabId): void {
-  const chunk = chunkIdFor(id);
-  if (!chunk || requested.has(chunk)) return;
-  requested.add(chunk);
+  const chunk = claimChunk(requested, id);
+  if (!chunk) return;
   void TAB_CHUNKS[chunk]().catch(() => {
+    // Release the claim: a prefetch that failed (offline blip, a deploy that moved
+    // the chunk) must not leave the tab permanently un-warmed for this document.
     requested.delete(chunk);
   });
 }

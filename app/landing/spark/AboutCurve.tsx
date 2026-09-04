@@ -9,8 +9,11 @@ import { LandingLangSwitch } from "./LandingLangSwitch";
 import { ABOUT_STEP_KEYS, StepArt, type AboutStepKey } from "./about-art";
 import { ART_TYPE_SCALE } from "./tokens";
 import { useStillMotion } from "./useStillMotion";
+import MobileNav, { type NavDestination } from "./sections/MobileNav";
+import LegalRow from "./sections/LegalRow";
 import { useTranslations } from "next-intl";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
+import { sourceRepoHref } from "@/app/_lib/source-repo";
 
 /*
  * /about — the public concept introduction as a scroll-drawn curved timeline of
@@ -121,11 +124,18 @@ export default function AboutCurve() {
   const pathLength = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
   const onSignIn = () => void enterWorkspace();
   const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
+  const destinations: NavDestination[] = [
+    { kind: "page", href: "/", label: t("nav.home") },
+    { kind: "page", href: "/market", label: t("nav.market") },
+    { kind: "page", href: sourceRepoHref(), label: t("nav.source"), external: true }
+  ];
 
   return (
+    <>
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
       {/* ── Topbar ─────────────────────────────────────────────── */}
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
+      {/* `relative` anchors MobileNav's disclosure panel (absolute, top-full). */}
+      <header className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
         <Link href="/">
           <Wordmark />
         </Link>
@@ -141,6 +151,11 @@ export default function AboutCurve() {
             {t("nav.signIn")}
           </button>
         </nav>
+        {/* The same disclosure the landing uses, with /about's OWN destinations
+            — this page has no scroll bands, so the list is its sibling pages.
+            Without it a phone visitor arriving from the sitemap could reach
+            nothing but the sign-in button. */}
+        <MobileNav destinations={destinations} />
       </header>
 
       {/* ── Hero ───────────────────────────────────────────────── */}
@@ -195,17 +210,26 @@ export default function AboutCurve() {
           className="mt-8 inline-flex items-center gap-2 rounded-xl border-[3px] border-[#17202a] bg-[#d65a4a] px-6 py-3 text-base font-bold text-white shadow-[4px_4px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
         >
           {t("closing.button")}
-          <ArrowRight className="h-5 w-5" />
+          {/* Decorative: the button already says where it goes, so the icon is
+              a second, unnamed announcement to a screen reader. */}
+          <ArrowRight className="h-5 w-5" aria-hidden />
         </button>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────────── */}
-      <footer className="mt-20 border-t-[3px] border-[#17202a]">
+    </main>
+      {/* Footer: OUTSIDE <main> so it keeps its contentinfo landmark - a footer inside main,
+          article or section has no role, and the public-pages spec (and screen readers)
+          look for the landmark. */}
+      <footer className="mt-20 border-t-[3px] border-[#17202a] bg-[#fdf8ee] text-[#17202a] font-[family-name:var(--font-spark-body)]">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[17px]">
           <div className="flex items-center gap-2 font-bold">
             <Wordmark size="sm" />
             <span>· {t("footer.tagline")}</span>
           </div>
+          {/* /about is in the sitemap, so it is a front door — and a front door
+              owes the policies. The row is the same component the landing
+              footer renders (sections/LegalRow.tsx), not a second copy. */}
+          <LegalRow />
           <div className="flex items-center gap-5">
             <Link href="/" className="font-bold text-[#42606f] hover:text-[#d65a4a]">
               {t("footer.home")}
@@ -214,6 +238,6 @@ export default function AboutCurve() {
           </div>
         </div>
       </footer>
-    </main>
+    </>
   );
 }

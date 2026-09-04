@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import type { Matrix } from "./matrixTabTypes";
+import { NOTICE } from "@/app/_components/ui/recipes";
 
 // The Fit Matrix's data-quality notices: unassessed-hidden count, the coverage
 // gap banner (open roles with no strong fit), the pool-cap notice, and the
@@ -35,7 +36,7 @@ export function MatrixDataNotices({
       {/* Coverage gap — the headline talent-intelligence signal: open roles with no
           strong fit. Only meaningful across ≥2 columns (a single scoped role is trivial). */}
       {!scopedPosition && coverage.total >= 2 && coverage.uncovered.length > 0 ? (
-        <div role="status" className="mt-3 flex flex-wrap items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+        <div role="status" className={`mt-3 flex flex-wrap items-start gap-2 ${NOTICE()} p-3 text-sm`}>
           <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-700" aria-hidden />
           <p className="text-amber-900">
             <span className="font-semibold">{t("coverageGap", { uncovered: coverage.uncovered.length, total: coverage.total })}</span>{" "}
@@ -47,7 +48,7 @@ export function MatrixDataNotices({
       {data && data.poolTotal != null && data.poolCap != null && data.poolTotal > data.poolCap ? (
         <p
           role="status"
-          className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          className={`flex items-center gap-1.5 ${NOTICE()} p-3 text-sm`}
           title={`${data.poolCap} of ${data.poolTotal} candidates scored`}
         >
           <AlertTriangle size={15} className="shrink-0 text-amber-700" aria-hidden />
@@ -56,6 +57,13 @@ export function MatrixDataNotices({
           <span>{t("ofCount", { shown: data.poolCap, total: data.poolTotal })}</span>
         </p>
       ) : null}
+
+      {/* grid-narrative-says-what-it-is: /api/matrix caches the SCORED grid keyed by the
+          profile+job payload (route.ts) and re-reads placements fresh on every response,
+          so a cached grid can sit under live pipeline rings. The route has always sent
+          `cached`; nothing rendered it, so "is this a fresh pass?" was unanswerable from
+          the screen. Quiet by design — this is provenance, not a warning. */}
+      {data?.cached ? <p className="text-meta text-stone-400">{t("servedFromCache")}</p> : null}
 
       {data && data.missing.length > 0 ? (
         <p className="rounded-md border border-amber-200 bg-amber-50/60 p-3 text-sm text-amber-800">

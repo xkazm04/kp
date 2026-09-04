@@ -12,6 +12,8 @@ import {
   foldVoiceExchange,
   foldVoiceSweep,
   readRepoScanResponse,
+  scanFenceWarningFor,
+  scanStateFor,
   type IntakeSession,
   type VoiceSweepResult,
 } from "./jdsIntakeLogic.ts";
@@ -39,6 +41,7 @@ const session = (id: string): IntakeSession => ({
   id,
   title: "Data Analyst",
   status: "open",
+  updatedAt: null,
   lang: "cs",
   transcript: [{ role: "interviewer", text: "What must they already know?" }],
   brief: brief("Data Analyst", "SQL"),
@@ -126,6 +129,30 @@ test("a repo-scan response is read through its { scan } wrapper, never flat", ()
 // note onto an unrelated session, and a `sent` dispatch state that disabled the
 // Dispatch button for a session nobody had dispatched. Asserted at the source: the
 // hook needs React to run, and the property is structural, not computational.
+// The compose failure is shown from the server's CODE, never from its English
+// `error` string, and a 180-second spawn is cancellable. Both are structural
+// properties of the hook's source (it needs React to run).
+test("useAppMasterLogic keeps the compose failure's code and can cancel the spawn", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+
+  assert.match(
+    src,
+    /useState<\{ code: string \| null \} \| null>\(null\)/,
+    "composeError must carry the code the card resolves, not a placeholder string"
+  );
+  assert.ok(!src.includes('setComposeError("compose")'), "the one-size-fits-all failure string is the old hole");
+  // The code comes off the response body, never the `error` message beside it.
+  assert.match(src, /setComposeError\(\{ code: body\?\.code \?\? null \}\)/);
+  assert.ok(!/setComposeError\(\{[^}]*error/.test(src), "the server's English string must not reach the card");
+
+  // Cancel: a controller is held, threaded into the fetch, and an abort is not
+  // reported as a failure.
+  assert.match(src, /const controller = new AbortController\(\)/);
+  assert.match(src, /signal: controller\.signal/);
+  assert.match(src, /!== "AbortError"/, "an aborted compose must not render as an error");
+  assert.match(src, /const cancelCompose = useCallback/);
+});
+
 test("useAppMasterLogic resets its per-session state when the intake changes", () => {
   const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
 
@@ -141,4 +168,107 @@ test("useAppMasterLogic resets its per-session state when the intake changes", (
   // NON-VACUITY: `paired` is bridge-level, not per-session, and must NOT be in
   // the reset — clearing it re-fetches /api/agents/bridge on every switch.
   assert.ok(!block.includes("setPaired("), "the bridge pairing is not per-session state");
+});
+
+
+// ---- The scan's one line -------------------------------------------------------
+//
+// A four-minute scan could say exactly two things about how it ended: "failed" and
+// "complete". Both were true and neither was useful — "git is not installed" and
+// "the clone timed out" are different problems with different remedies, and a
+// "complete" dossier that came off the file-walk floor because the agent died looks
+// identical to one an agent actually read. scanStateFor is where the row stops
+// under-claiming.
+
+test("a failure is named by its class, and an unnamed one still says failed", () => {
+  const base = { id: "s1", source: null, dossier: null } as const;
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "git_missing" }), "failedGitMissing");
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "offline_refused" }), "failedOfflineRefused");
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "cancelled" }), "failedCancelled");
+  // Unclassified, absent (a row written before the column existed), and a code this
+  // build has never heard of all fall to the generic line rather than to a key that
+  // does not resolve.
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "unknown" }), "failed");
+  assert.equal(scanStateFor({ ...base, status: "failed" }), "failed");
+  assert.equal(scanStateFor({ ...base, status: "failed", errorCode: "the_vibes_were_off" }), "failed");
+});
+
+test("a completion says nothing when it is clean, and says so when it fell back", () => {
+  const base = { id: "s1", source: "llm", dossier: null } as const;
+  // Nothing left to disclose: the card's own provenance chip covers the rest.
+  assert.equal(scanStateFor({ ...base, status: "complete" }), null);
+  assert.equal(scanStateFor({ ...base, status: "complete", fallbackClass: null }), null);
+  assert.equal(scanStateFor({ ...base, status: "complete", fallbackClass: "agent_timeout" }), "fellBackAgentTimeout");
+  assert.equal(
+    scanStateFor({ ...base, status: "complete", fallbackClass: "agent_not_installed" }),
+    "fellBackAgentNotInstalled"
+  );
+  // A class from a newer Python than this build knows still discloses the fallback.
+  assert.equal(scanStateFor({ ...base, status: "complete", fallbackClass: "agent_ran_away" }), "fellBackUnknown");
+});
+
+test("an in-flight scan is reported as itself", () => {
+  const base = { id: "s1", source: null, dossier: null } as const;
+  assert.equal(scanStateFor({ ...base, status: "queued" }), "queued");
+  assert.equal(scanStateFor({ ...base, status: "running" }), "running");
+});
+
+test("the scan can be cancelled, and only while there is something to cancel", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+  // The cancel goes through the EXISTING task-cancel door (DELETE /api/tasks/[id]
+  // via the provider), not a new endpoint.
+  assert.match(src, /cancelTask\(scanTaskId\)/);
+  // …on the task that belongs to THIS scan. The polled list projects params out, so
+  // the full record is fetched and matched by scanId; cancelling by kind alone would
+  // stop somebody else's scan.
+  assert.match(src, /\)\?\.scanId === scanId/);
+  // Never offered once the dossier has landed or the scan has ended.
+  assert.match(src, /scanState === "queued" \|\| scanState === "running"/);
+  assert.match(src, /!hasDossier/);
+});
+
+// The fence disclosure is a SECOND, independent fact about a scan: an agent can have
+// read the repository behind deny rules nobody has verified for the CLI it ran on,
+// and the run can still have completed perfectly. scanStateFor says nothing about
+// that, by design, so this is where it stops going unsaid.
+
+test("an unverified fence is disclosed on an otherwise clean completion", () => {
+  const base = { id: "s1", source: "llm" } as const;
+  const withFence = (state: string) =>
+    scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: { state } } as never });
+  assert.equal(withFence("unverified_version"), "fenceUnverified");
+  assert.equal(withFence("version_unknown"), "fenceVersionUnknown");
+});
+
+test("a verified fence, and a scan with no fence to verify, say nothing", () => {
+  const base = { id: "s1", source: "llm" } as const;
+  for (const state of ["verified", "not_applicable"]) {
+    assert.equal(
+      scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: { state } } as never }),
+      null,
+      state
+    );
+  }
+});
+
+test("a row with no fence block reads as no claim, not as a warning", () => {
+  const base = { id: "s1", source: "llm" } as const;
+  // A scan written before the field existed, a dossier the schema stripped it from,
+  // and a state this build has never heard of all fall silent — a warning nobody can
+  // act on is worse than none.
+  assert.equal(scanFenceWarningFor({ ...base, status: "complete", dossier: null }), null);
+  assert.equal(scanFenceWarningFor({ ...base, status: "complete", dossier: {} as never }), null);
+  assert.equal(
+    scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: "nope" } as never }),
+    null
+  );
+  assert.equal(
+    scanFenceWarningFor({ ...base, status: "complete", dossier: { scanFence: { state: "vibes" } } as never }),
+    null
+  );
+  // ...and an unfinished scan has not earned a claim about its fence either.
+  assert.equal(
+    scanFenceWarningFor({ ...base, status: "running", dossier: { scanFence: { state: "unverified_version" } } as never }),
+    null
+  );
 });

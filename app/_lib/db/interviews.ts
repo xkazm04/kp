@@ -29,6 +29,14 @@ export type InterviewedCandidate = {
   // interview minted nothing. The compare grid stamps these — the single
   // highest-trust artifact the pipeline produces must be visible, not implicit.
   observedSkills: string[];
+  /** What this interview COST, in USD, from the usage ledger (`llm_usage.request_id`
+   *  IS the session id, use case `interview_realtime`) — the same correlated SUM and
+   *  the same three honest states as InterviewSessionSummary.costUsd: a number, a real
+   *  0 for a self-hosted call, and `null` for unknown (no ledger row, or a provider
+   *  the price table does not cover). The compare grid weighs candidates side by side;
+   *  what each screen cost belongs on that table, and it was the one number the cohort
+   *  read could not answer. */
+  costUsd: number | null;
 };
 
 export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewedCandidate[] {
@@ -37,9 +45,16 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       // Include completed interviews even when the scorecard is missing (empty
       // transcript or a synthesis failure) — they render with blank ratings so a
       // finished interview is visible for manual review rather than silently gone.
-      `SELECT id, entry_id, candidate_label, scorecard_json, ended_at FROM interview_sessions
-       WHERE job_id = ? AND status = 'completed' AND workspace_id = ?
-       ORDER BY ended_at DESC`
+      // The cost rides on the SAME read (a correlated SUM, no per-row round trip) and
+      // is keyed by request id AND use case, exactly like the docket's ledger join —
+      // one fact, one query shape, so the compare table and the docket can never
+      // disagree about what a call cost.
+      `SELECT s.id, s.entry_id, s.candidate_label, s.scorecard_json, s.ended_at,
+              (SELECT SUM(u.cost_usd) FROM llm_usage u
+                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime') AS cost_usd
+         FROM interview_sessions s
+        WHERE s.job_id = ? AND s.status = 'completed' AND s.workspace_id = ?
+        ORDER BY s.ended_at DESC`
     )
     .all(jobId, workspaceId) as {
     id: string;
@@ -47,6 +62,7 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
     candidate_label: string | null;
     scorecard_json: string | null;
     ended_at: string | null;
+    cost_usd: number | null;
   }[];
 
   const seen = new Set<string>();
@@ -77,6 +93,9 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       confidence: sc.confidence ?? null,
       ratings: Array.isArray(sc.ratings) ? sc.ratings : [],
       observedSkills: Array.isArray(sc.observedSkills) ? sc.observedSkills.map(String) : [],
+      // Number.isFinite, not `?? null`: SQLite answers NULL both for "no ledger row"
+      // and for "a row priced NULL", and both mean unknown. A real 0 survives.
+      costUsd: Number.isFinite(r.cost_usd) ? (r.cost_usd as number) : null,
     });
   }
   return out;
@@ -121,6 +140,15 @@ export type InterviewSession = {
    *  as PipelineEntry.workspaceId. Every read here is `SELECT *`, so surfacing it
    *  costs nothing. */
   workspaceId: string;
+  /** The provider this call was originally asked to serve, when /connect had to fall
+   *  back to the other one. `provider` above is overwritten with whoever ACTUALLY
+   *  served (the completion ledger prices from it), so without this the recruiter's
+   *  own choice was lost. NULL = nothing fell back — never a copy of `provider`. */
+  failoverFrom: VoiceProviderId | null;
+  /** How many times this link was connected. 1 for the ordinary call AND for a link
+   *  that has not been opened yet; a dropped call that is retried (which the billing
+   *  path already treats as a separate attempt) makes it 2. */
+  attempts: number;
 };
 
 type InterviewRow = {
@@ -145,6 +173,8 @@ type InterviewRow = {
   created_at: string;
   updated_at: string | null;
   workspace_id: string | null;
+  failover_from: string | null;
+  attempts: number | null;
 };
 
 function rowToInterview(r: InterviewRow): InterviewSession {
@@ -172,6 +202,12 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     // Pre-tenancy rows have no workspace_id; they predate multi-workspace and are
     // the default team's by definition.
     workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+    // A stored value is only ever one of the known providers, but it is still row
+    // data: coerce it, and keep NULL as NULL (coerceProviderId's default would turn
+    // "nothing fell back" into "fell back from openai").
+    failoverFrom: r.failover_from ? coerceProviderId(r.failover_from, "openai") : null,
+    // A row written before the column existed reads as the single attempt it was.
+    attempts: Number.isFinite(r.attempts) ? Number(r.attempts) : 1,
   };
 }
 
@@ -194,6 +230,29 @@ export type InterviewSessionSummary = {
   hasTranscript: boolean;
   recommendation: InterviewRecommendation | null;
   ratingsCount: number;
+  /** What this call COST, in USD, read from the usage ledger the completion wrote
+   *  (`llm_usage.request_id` IS the session id, use case `interview_realtime`).
+   *
+   *  `null` is UNKNOWN and never a stand-in for free: a session that has not
+   *  completed has no ledger row yet, and an unpriced provider writes the row with
+   *  `cost_usd` NULL by design (minute-prices.ts mirrors base.py's convention -
+   *  metered by quantity, unpriced in money). `0` is a real, asserted zero: a call
+   *  a SELF-HOSTED provider served costs no per-minute credits, and saying so is
+   *  the whole point of running the voice service yourself.
+   *
+   *  Voice minutes are the one meter with real per-unit cost and the two providers
+   *  differ by ~60% per minute, yet this number had ZERO readers outside the
+   *  aggregate Models panel: a recruiter could not see what any single interview
+   *  cost, on the surface where they decide whether to run another. */
+  costUsd: number | null;
+  /** The provider the recruiter ASKED for, when the call fell back to the other one.
+   *  `provider` is who served; this is who was chosen and could not. NULL = no
+   *  failover, which is the overwhelming majority of calls. */
+  failoverFrom: VoiceProviderId | null;
+  /** Connect count for this link (1 = the ordinary call). Surfaced because a call
+   *  billed for the last of several attempts otherwise reads exactly like a clean
+   *  first-time one. */
+  attempts: number;
 };
 
 export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 100): InterviewSessionSummary[] {
@@ -205,12 +264,21 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       // bare IS NOT NULL kept reporting a transcript for an erased candidate:
       // their card indicator read "absent" while this ledger's docket card stayed
       // clickable into an evaluation with nothing behind it. One fact, one answer.
-      `SELECT id, entry_id, candidate_label, job_id, job_title, provider, status,
-              started_at, ended_at, created_at,
-              (transcript_json IS NOT NULL AND transcript_json != '[]') AS has_transcript, scorecard_json
-         FROM interview_sessions
-        WHERE mode = 'candidate' AND workspace_id = ?
-        ORDER BY created_at DESC
+      // The cost join, not a second round trip per row: llm_usage.request_id IS the
+      // session id, so the ledger row a completion wrote hangs directly off this
+      // read. SUM (not the bare column) because a reconnect that completes twice
+      // would leave two rows and the honest answer is what the call cost in total;
+      // SUM over an empty set is NULL, which is exactly the "unknown" this field
+      // means. llm_usage carries no workspace_id - it does not need one here, since
+      // the join's left side is already scoped and the request id is a session id.
+      `SELECT s.id, s.entry_id, s.candidate_label, s.job_id, s.job_title, s.provider, s.status,
+              s.started_at, s.ended_at, s.created_at, s.failover_from, s.attempts,
+              (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_transcript, s.scorecard_json,
+              (SELECT SUM(u.cost_usd) FROM llm_usage u
+                WHERE u.request_id = s.id AND u.use_case = 'interview_realtime') AS cost_usd
+         FROM interview_sessions s
+        WHERE s.mode = 'candidate' AND s.workspace_id = ?
+        ORDER BY s.created_at DESC
         LIMIT ?`
     )
     .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as {
@@ -226,6 +294,9 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
     created_at: string;
     has_transcript: number;
     scorecard_json: string | null;
+    cost_usd: number | null;
+    failover_from: string | null;
+    attempts: number | null;
   }[];
   return rows.map((r) => {
     const sc = safeRowParse<{ recommendation?: string; ratings?: unknown[] }>(r.scorecard_json, "interview.summary", r.id);
@@ -243,6 +314,12 @@ export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSP
       hasTranscript: Boolean(r.has_transcript),
       recommendation: sc?.recommendation != null ? coerceInterviewRecommendation(sc.recommendation) : null,
       ratingsCount: Array.isArray(sc?.ratings) ? sc.ratings.length : 0,
+      // Number.isFinite, not `?? null`: SQLite hands back NULL for "no ledger row"
+      // AND for "a row whose cost_usd is NULL", and both mean unknown. A real 0
+      // (a self-hosted call) is finite and survives.
+      costUsd: Number.isFinite(r.cost_usd) ? (r.cost_usd as number) : null,
+      failoverFrom: r.failover_from ? coerceProviderId(r.failover_from, "openai") : null,
+      attempts: Number.isFinite(r.attempts) ? Number(r.attempts) : 1,
     };
   });
 }
@@ -369,12 +446,22 @@ export function revokeInterviewSession(id: string): boolean {
 }
 
 /** Revoke every open session for an entry — the reissue half (a fresh link
- *  kills prior ones) and the terminal-transition cleanup. Returns the count. */
-export function revokeOpenInterviewSessions(entryId: string): number {
+ *  kills prior ones) and the terminal-transition cleanup. Returns the count.
+ *
+ *  Tenant-scoped (direction 1). `entry_id` is globally unique, so the bare read
+ *  this replaces let an operator on ANY team pull another team's live interview
+ *  credential by id alone; a foreign entry now revokes nothing and the route
+ *  answers the same 404 its siblings do. The tenant is a DEFAULTED parameter on
+ *  purpose — that is the shape `route-tenancy-coverage.test.ts` derives, so a
+ *  route that forgets to thread it is a red build rather than a silent
+ *  default-team write. */
+export function revokeOpenInterviewSessions(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const res = db
-    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND status IN ('created','in_progress','failed')`)
-    .run(entryId);
+    .prepare(
+      `UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND workspace_id = ? AND status IN ('created','in_progress','failed')`
+    )
+    .run(entryId, workspaceId);
   return res.changes;
 }
 
@@ -382,9 +469,18 @@ export function revokeOpenInterviewSessions(entryId: string): number {
  *  session WITH a transcript outranks a newer empty one: a reissued link minted
  *  while (or after) a call completed used to become the surfaced row, so
  *  hasTranscript read false and a finished, scored interview turned invisible
- *  on every recruiter surface (voice-interview-runtime #2). */
+ *  on every recruiter surface (voice-interview-runtime #2).
+ *
+ *  Tenant-scoped (wave 18b), like `latestInterviewByEntry` / `liveInterviewByEntry`
+ *  beside it. It was the LAST entry_id read here that took no workspace, and the
+ *  tenancy test carried a blanket entry_id exemption to cover it — so "did this
+ *  candidate sit an interview" (and, through /api/data, what a GDPR self-service
+ *  answer claims we hold about them) was answerable across tenants by entry id
+ *  alone. The exemption is now narrowed to id/token point reads, which are the
+ *  genuinely global capabilities (the candidate token IS the credential). */
 export function interviewStatusByEntries(
-  entryIds: string[]
+  entryIds: string[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> {
   if (entryIds.length === 0) return {};
   const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> = {};
@@ -399,10 +495,10 @@ export function interviewStatusByEntries(
         `SELECT s.id, s.entry_id, s.status, s.ended_at,
                 (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
          FROM interview_sessions s
-         WHERE s.entry_id IN (${placeholders})
+         WHERE s.entry_id IN (${placeholders}) AND s.workspace_id = ?
          ORDER BY has_tr DESC, s.created_at DESC`
       )
-      .all(...ids) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
+      .all(...ids, workspaceId) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
     for (const r of rows) {
       if (out[r.entry_id]) continue; // first = transcript-bearing if any, else latest
       out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
@@ -413,25 +509,33 @@ export function interviewStatusByEntries(
 
 /** Most-recent interview session for one entry (for the transcript modal) —
  *  same transcript-first preference as interviewStatusByEntries, so the modal
- *  can never disagree with the card indicator it was opened from. */
-export function latestInterviewByEntry(entryId: string): InterviewSession | null {
+ *  can never disagree with the card indicator it was opened from.
+ *
+ *  Tenant-scoped (direction 1): this returns the transcript AND the scorecard,
+ *  the most sensitive pair in the product, and it was reachable by entry id
+ *  alone from any team. */
+export function latestInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
   const r = ensureDb()
     .prepare(
-      `SELECT * FROM interview_sessions WHERE entry_id = ?
+      `SELECT * FROM interview_sessions WHERE entry_id = ? AND workspace_id = ?
        ORDER BY (transcript_json IS NOT NULL AND transcript_json != '[]') DESC, created_at DESC LIMIT 1`
     )
-    .get(entryId) as InterviewRow | undefined;
+    .get(entryId, workspaceId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 
 /** The newest live-candidate (in_progress) session for an entry — /create's
  *  reissue-guard read. Deliberately NOT latestInterviewByEntry: that read
  *  prefers transcript-bearing sessions, which would hide an active call behind
- *  an older completed one. */
-export function liveInterviewByEntry(entryId: string): InterviewSession | null {
+ *  an older completed one.
+ *
+ *  Tenant-scoped (direction 1), like its two neighbours above. */
+export function liveInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
   const r = ensureDb()
-    .prepare(`SELECT * FROM interview_sessions WHERE entry_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`)
-    .get(entryId) as InterviewRow | undefined;
+    .prepare(
+      `SELECT * FROM interview_sessions WHERE entry_id = ? AND workspace_id = ? AND status = 'in_progress' ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(entryId, workspaceId) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 
@@ -440,8 +544,21 @@ export function getInterviewSessionById(id: string): InterviewSession | null {
   return r ? rowToInterview(r) : null;
 }
 
-export function getInterviewSessionByToken(token: string): InterviewSession | null {
-  const r = ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ?`).get(token) as InterviewRow | undefined;
+/** Point read by the candidate's capability token.
+ *
+ *  `workspaceId` is OPTIONAL and defaults to no tenant filter — deliberately, and
+ *  unlike the entry-keyed reads above. The public surfaces (`/interview/[token]`,
+ *  /api/interview/connect, /api/interview/complete) have no session and no tenant:
+ *  the token IS the credential, and scoping them to a workspace would break every
+ *  candidate on a non-default team. A GATED recruiter action, on the other hand,
+ *  has a caller whose tenant is the authority and must pass it — see
+ *  /api/interview/simulate/attach, which was reading practice runs across tenants. */
+export function getInterviewSessionByToken(token: string, workspaceId?: string): InterviewSession | null {
+  const r = (
+    workspaceId
+      ? ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ? AND workspace_id = ?`).get(token, workspaceId)
+      : ensureDb().prepare(`SELECT * FROM interview_sessions WHERE token = ?`).get(token)
+  ) as InterviewRow | undefined;
   return r ? rowToInterview(r) : null;
 }
 
@@ -463,7 +580,15 @@ export function markInterviewStarted(id: string, consent: boolean): boolean {
     return (
       db
         .prepare(
-          `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), consent_at=COALESCE(consent_at, ?), updated_at=? WHERE id=? AND status != 'completed'`
+          // attempts counts CONNECTS, and the first one is already the 1 the column
+          // defaults to — so it increments only when started_at is already set, i.e.
+          // this is a reconnect on a link that has been live before. Computed in SQL
+          // off the pre-UPDATE row (same statement, so no read-then-write race) and
+          // inside the same status guard, so a refused connect on a completed session
+          // cannot inflate the count.
+          `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), consent_at=COALESCE(consent_at, ?), updated_at=?,
+                  attempts = attempts + (CASE WHEN started_at IS NULL THEN 0 ELSE 1 END)
+             WHERE id=? AND status != 'completed'`
         )
         .run(now, now, now, id).changes > 0
     );
@@ -471,7 +596,9 @@ export function markInterviewStarted(id: string, consent: boolean): boolean {
   return (
     db
       .prepare(
-        `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), updated_at=? WHERE id=? AND status != 'completed'`
+        `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), updated_at=?,
+                attempts = attempts + (CASE WHEN started_at IS NULL THEN 0 ELSE 1 END)
+           WHERE id=? AND status != 'completed'`
       )
       .run(now, now, id).changes > 0
   );
@@ -513,13 +640,20 @@ export function completeInterviewSession(
  *  updating it here keeps cost attribution + telemetry pointed at what served, not at
  *  what was requested. Guarded to a live (non-completed) row so a raced /complete
  *  can't be perturbed. */
-export function setInterviewSessionProvider(id: string, provider: VoiceProviderId): void {
+export function setInterviewSessionProvider(
+  id: string,
+  provider: VoiceProviderId,
+  /** The provider the call was asked to serve, when THIS write is a failover. Stored
+   *  with COALESCE so the FIRST fallen-from provider wins: that is the one the
+   *  recruiter actually chose, and a second failover on the same link must not
+   *  rewrite it into an intermediate. Omitted for a plain provider write, which then
+   *  leaves the column alone rather than inventing "fell back from itself". */
+  failoverFrom?: VoiceProviderId | null
+): void {
   const db = ensureDb();
-  db.prepare(`UPDATE interview_sessions SET provider=?, updated_at=? WHERE id=? AND status != 'completed'`).run(
-    provider,
-    new Date().toISOString(),
-    id
-  );
+  db.prepare(
+    `UPDATE interview_sessions SET provider=?, failover_from=COALESCE(failover_from, ?), updated_at=? WHERE id=? AND status != 'completed'`
+  ).run(provider, failoverFrom ?? null, new Date().toISOString(), id);
 }
 
 /** Attach the synthesized scorecard to an already-persisted session. Separate

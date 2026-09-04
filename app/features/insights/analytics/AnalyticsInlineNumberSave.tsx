@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useLocale } from "next-intl";
-import { parseLocaleNumber } from "./parseLocaleNumber";
+import { planInlineSave } from "./inlineNumberSavePlan";
+import { localizedFailureMessage } from "./analyticsFetchError";
 
 // One save-on-blur numeric input: holds the draft, re-seeds when the server
 // `value` changes (the in-render prop-resync pattern), validates (blank → null;
@@ -21,6 +22,7 @@ export function InlineNumberSave({
   ariaLabel,
   id,
   failedTitle,
+  announceFailure = false,
 }: {
   value: number | null;
   onSave: (value: number | null) => Promise<void>;
@@ -30,11 +32,23 @@ export function InlineNumberSave({
   ariaLabel?: string;
   id?: string;
   failedTitle: string;
+  /** Render the failure as a `role="alert"` line beside the field, in addition to
+   *  the coral border. Opt-in because the two hosts differ: the spend editor is the
+   *  ONLY write path to `channel_spend` (a lost write silently corrupts every
+   *  cost-per-hire figure), while the goals editor sits in a tight label/input/suffix
+   *  row where an inline sentence would land between the number and its unit. */
+  announceFailure?: boolean;
 }) {
   const locale = useLocale();
   const [draft, setDraft] = useState(value != null ? String(value) : "");
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // The failure is now a MESSAGE, not a flag: the route answers with a code
+  // (api-contracts.md §1.1) and a caller that resolves it throws a LocalizedFailure,
+  // so "your role may not do this" and "the write fell over" stop being the same red
+  // outline. Anything else caught here is an unlocalized accident and falls back to
+  // the caller's own `failedTitle`.
+  const [failure, setFailure] = useState<string | null>(null);
+  const failed = failure !== null;
   // Re-seed when the server value changes (post-save reload) — the in-render
   // "adjust state when a prop changes" pattern used across the codebase.
   const [seeded, setSeeded] = useState(value);
@@ -44,48 +58,29 @@ export function InlineNumberSave({
   }
 
   const save = async () => {
-    // Parse in the READER's notation (parseLocaleNumber). The previous version
-    // stripped spaces and handed the rest to `Number()`, which is en-US-only: it
-    // deliberately left `,` and `.` alone because each is a group separator in one
-    // shipped locale and a decimal separator in another, reasoning that guessing
-    // between 1.2 and 1200 "would turn a visible refusal into a silent wrong
-    // write". The asymmetry is that it already WAS one in `de` — `Number("12.000")`
-    // is 12, so an operator correcting a channel's spend to 12.000 stored 12 and
-    // cost-per-applicant answered accordingly, while `en`'s `12,000` failed
-    // visibly. Knowing the locale is what removes the guess: `1.234` is 1.234 in
-    // `en` and 1234 in `de`, and both are now read correctly instead of one being
-    // right by accident.
-    const parsed = parseLocaleNumber(draft, locale);
-    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
-      setFailed(true);
+    // The decision (locale-aware parse, zero-is-no-value, unchanged short-circuit,
+    // canonical re-seed) is `planInlineSave` — a pure module, so it is covered by an
+    // EXECUTING test rather than by reading this file. See inlineNumberSavePlan.ts
+    // for why each rule exists.
+    const plan = planInlineSave(draft, value, locale);
+    if (plan.kind === "invalid") {
+      setFailure(failedTitle);
       return;
     }
-    // BOTH stores behind this input CLEAR on a non-positive amount — setChannelSpend
-    // and setAnalyticsTarget each DELETE the row when `!(v > 0)` — and the routes
-    // still answer 200. So a typed `0` is "no value", never a stored zero, and the
-    // field has to say the same thing the column it feeds says. It didn't: typing 0
-    // over an EMPTY field posted, the row was deleted, `value` came back null
-    // (unchanged), so the prop-resync above never fired and `0` sat in the input for
-    // the rest of the session while cost-per-applicant went on rendering "—". A dash
-    // is a measurement boundary on these surfaces; an editor showing 0 beside it is
-    // the one claim it must not make. Normalizing here also collapses "007"/" 5000 "
-    // onto the value that will actually be stored.
-    const v = parsed != null && parsed > 0 ? parsed : null;
-    const canonical = v != null ? String(v) : "";
-    if (canonical !== draft) setDraft(canonical);
-    if (v === value) return; // unchanged — no request
+    if (plan.canonical !== draft) setDraft(plan.canonical);
+    if (plan.kind === "unchanged") return;
     setSaving(true);
-    setFailed(false);
+    setFailure(null);
     try {
-      await onSave(v);
-    } catch {
-      setFailed(true);
+      await onSave(plan.value);
+    } catch (err) {
+      setFailure(localizedFailureMessage(err, failedTitle));
     } finally {
       setSaving(false);
     }
   };
 
-  return (
+  const field = (
     <input
       id={id}
       type={inputType}
@@ -93,7 +88,7 @@ export function InlineNumberSave({
       value={draft}
       onChange={(e) => {
         setDraft(e.target.value);
-        if (failed) setFailed(false);
+        if (failed) setFailure(null);
       }}
       onBlur={save}
       onKeyDown={(e) => {
@@ -101,12 +96,27 @@ export function InlineNumberSave({
       }}
       disabled={saving}
       aria-label={ariaLabel}
-      title={failed ? failedTitle : undefined}
+      title={failed ? failure ?? failedTitle : undefined}
       aria-invalid={failed ? true : undefined}
       placeholder="—"
       className={`focus-ring h-8 bg-white caret-coral placeholder:text-steel ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
         failed ? "border-coral text-coral" : "border-stone-200 text-ink"
       }`}
     />
+  );
+  if (!announceFailure) return field;
+  return (
+    <span className="inline-flex flex-col items-end gap-1">
+      {field}
+      {/* A lost write, announced. The coral border plus a `title` tooltip was the
+          whole prior report: unreachable by keyboard, unannounced by a screen reader,
+          and identical for a refusal and an outage. role="alert" because the value the
+          reader believes they just stored is not stored. */}
+      {failure ? (
+        <span role="alert" className="max-w-[16rem] text-right text-meta text-coral">
+          {failure}
+        </span>
+      ) : null}
+    </span>
   );
 }

@@ -98,8 +98,9 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
      `"Permission denied"`.
    - `useTranscriptPersistence.ts` stashes each transcript POST body in
      `sessionStorage` under `kp.iv.<sessionId>` *before* sending it, and
-     **replays any stash left over on mount**. A 2xx or a 4xx (already
-     completed / bad token / consent) clears the stash; a network failure keeps
+     **replays any stash left over on mount**. A 2xx or a terminal 4xx (already
+     completed / bad token / consent) clears the stash; a network failure — or a
+     429 from `/complete`'s throttle, which is explicitly temporary — keeps
      it for the next mount, so a reload after the "we couldn't save your
      interview" banner recovers the record instead of dropping it.
 4. **Completion.** `app/api/interview/complete/route.ts` persists the
@@ -151,6 +152,19 @@ by both the portal page and `/api/interview/connect`:
   — are all skipped, and the link stays dead for `/connect`. Downgrading to
   `failed` instead would be wrong: `failed` is reconnectable by design and would
   hand a revoked credential back to the candidate.
+- **One live call per link.** The token *is* the session, so two browser tabs on
+  the same invite (or a forwarded link, or a reload racing the call it reloads)
+  both used to reach `/connect`, mint their own provider credentials and run two
+  real conversations for one screen — and at hang-up the second to finish was
+  answered `{ok: true, alreadyCompleted: true}`, its transcript discarded behind
+  a saved confirmation. `/connect` now refuses a second dial on a live session
+  with `INTERVIEW_ALREADY_LIVE` (409) plus `retryAfterMin` as data. The window is
+  `isInterviewSessionLive` — `LIVE_INTERVIEW_RECENCY_MIN = 30`, the **same**
+  authority `/create`'s reissue guard uses, so a link can never be at once too
+  live to reissue and free to re-dial. A genuinely dropped call does not wait the
+  grace out: every teardown path (hang-up, ICE drop, tab close via the unmount
+  beacon) POSTs `/complete`, which finalizes a non-substantive call `failed` —
+  reconnectable by design and no longer `in_progress`.
 - **Terminal.** `completed` is single-use: the portal shows the thank-you card
   (with the durable `/status/<token>` link) and `/connect` refuses with 409, both
   backed by the `status != 'completed'` compare-and-swap in
@@ -226,6 +240,59 @@ affordance, one endpoint, one set of semantics (billing gate, reissue guard, del
 truth) — the revoke control stays entry-scoped and is therefore not rendered there.
 Pinned in `app/_lib/devcase-interview-entry.test.ts`.
 
+## The interview-prep writes ask the SEAT
+
+Tenancy answers *which team’s rows*; it never answered *may this seat*. The four
+interview-prep write verbs asked **nothing** — not even `requireOperator()` — so
+authority came down to holding a session plus an entry id, and entry ids are not
+secret. A read-only **viewer** could therefore save an interviewer’s checklist and
+notes (`PUT /api/interview-prep`), merge questions into a prep pack (`POST`),
+weave or unassign one (`PATCH`), and file the human scorecard
+(`POST /api/interview-prep/scorecard`) whose recommendation sets the
+`scorecard_review` approval that opens the Interview→Offer gate and seals a decision
+record.
+
+All four now run `requireCapabilityCoded("pipeline:write", requireCapability)` as
+their FIRST statement — ahead of the entry check and the throttle, so a refused seat
+neither spends rate-limit budget nor learns which entry ids exist. A viewer gets
+`FORBIDDEN_CAPABILITY` (403) carrying `capability` as data; an unauthenticated caller
+gets 401; open dev mode is unchanged (every caller folds to owner). The read `GET`
+is untouched. Driven against the real handlers in
+`app/api/write-capability-gate.test.ts`, and the two rows are deleted from the
+`app/api/route-capability-coverage.test.ts` allowlist so the win is locked.
+
+## Tenant scope — the entry-keyed doors
+
+Three operator doors key on a **pipeline entry id and nothing else**: `POST
+/api/interview/create` (the reissue guard + revoke-first + the brief build),
+`POST /api/interview/revoke`, and `GET /api/interview/by-entry?entry=`. Entry ids
+are globally unique and not secret — several recruiter surfaces echo them — so
+until the store functions beneath took a workspace, an operator on one team
+holding a stranger's entry id could revoke another team's live interview link
+mid-call, read their candidate's verbatim transcript and AI scorecard, and mint a
+screen that emailed *their* candidate while `createInterviewSession` stamped the
+session with the **stranger's** workspace and the minutes gate had checked the
+caller's — gate and debit on two different tenants.
+
+`revokeOpenInterviewSessions`, `latestInterviewByEntry` and `liveInterviewByEntry`
+(`app/_lib/db/interviews.ts`) now take `workspaceId` in the defaulted-parameter
+shape `route-tenancy-coverage.test.ts` derives, and scope their SQL on it. The
+routes pass `await currentWorkspace()`; `buildGroundedInterview(entryId,
+workspace)` therefore resolves nothing for a foreign entry and `/create` answers
+the same **404** an unknown id gets. `/revoke` answers `{ ok: true, revoked: 0 }`
+and `/by-entry` `{ session: null }` — deliberately the same shapes an
+already-revoked / never-interviewed entry gets, because a distinct refusal would
+confirm which entry ids exist on other tenants.
+
+The `?entry=` read takes the **caller's** team, not `getEntryWorkspace(entry)`:
+resolving the tenant from the row about to be returned scoped the consent lookup
+to the stranger's tenant while still serving their transcript. Two callers outside
+the request layer pass the entry's own team instead (`candidate-timeline.ts`,
+`actOnPipelineEntry`'s reject-time revoke in `db/pipeline.ts`) — they already hold
+the authoritative entry. Pinned by
+`app/api/interview/interview-entry-tenancy.test.ts` (behavioural for the store
+predicate, source-level for the route contract).
+
 ## Surface
 
 | Path | Role |
@@ -233,7 +300,7 @@ Pinned in `app/_lib/devcase-interview-entry.test.ts`.
 | `app/api/interview/connect/route.ts` | Mints provider credentials + brief override |
 | `app/api/interview/create/route.ts` | Creates a real candidate session, from an `entryId` **or** a dev-case `submissionId` |
 | `app/api/interview/complete/route.ts` | Persists transcript, status, usage, scorecard |
-| `app/api/interview/simulate/route.ts` + `attach/route.ts` | Recruiter demo/simulation sessions |
+| `app/api/interview/simulate/route.ts` + `attach/route.ts` | Recruiter demo/simulation sessions. `attach` reads the session **scoped to the caller's workspace** and keys its `sim_attached` annotation on `simAttachDetail()` (`attach/sim-session.ts`), which folds an opaque per-session ref into the drawer line — so the store's detail-keyed dedup is idempotent per (session, entry): a repeat POST answers the same `attachRef` and writes nothing, while a genuinely different practice run is no longer swallowed as a duplicate |
 | `app/api/interview/revoke/route.ts`, `by-entry/route.ts`, `compare/route.ts` | Session management + cross-interview compare; `by-entry` also answers `?submission=` (the assignment-side reverse read) |
 | `app/_lib/devcase-interview-entry.ts` | Resolves (or promote-then-resolves) the pipeline entry a dev-case submission's screen hangs off |
 | `app/api/interview-prep/route.ts`, `.../scorecard/route.ts` | Prep chronology + scorecard read APIs |
@@ -253,10 +320,15 @@ Pinned in `app/_lib/devcase-interview-entry.test.ts`.
 | `app/_components/voice/VoiceInterview.tsx` | The live-call shell — phase, consent, finalize/beacon, and the call controls |
 | `app/_components/voice/transport/openai.ts` | OpenAI Realtime over raw WebRTC: connection setup, the H3 speaking meter, the H4 drop debounce, teardown, and the transcript-buffer half of the wire protocol |
 | `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language + `asr.keywords` overrides |
+| `app/_components/voice/availability-gate.ts` | The portal's start gate. The `/api/interview/connect` probe has THREE outcomes — `loading` / `ok` / `failed` — and `voiceStartGate` maps them to `checking` / `available` / `unavailable` / `unknown`. A **failed** probe used to be stored as `null`, the same value as "not asked yet", and the render read that as available: a keyless or unreachable server therefore rendered a normal Start that died at connect, while the `unavailableCandidate` copy written for that moment was unreachable. `unknown` now renders "we could not check" plus a **Check again** control and never a plain Start |
+| `app/_components/voice/timer-registry.ts` | Every delayed callback one call schedules — the 30 s connect timeout, the ElevenLabs disconnect-grace fallback, the finalize poll — in one registry the unmount effect empties. Two of the three were untracked `setTimeout`s that survived unmount and were harmless only because `finalizedRef` latches first. `sleep()` resolves on `clearAll()`, so a tab closed mid-hang-up unwinds the finalize path instead of leaking it |
+| `app/features/tools/interview/simBilling.ts` | What a simulation costs: `simBillableCeilingMin(mode)`, quoted by `InterviewStartPanel` before the recruiter starts. Mirrors `maxBillableInterviewMin` (the client cannot import `billing/enforce.ts` — it reaches better-sqlite3), and `simBilling.test.ts` imports both and asserts the same number mode by mode |
 | `app/_components/voice/useTranscriptPersistence.ts` | POST-with-retries to `/api/interview/complete`, the sessionStorage stash, and the online/visibility re-drive |
-| `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict) |
+| `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict). `micTestFailure` routes every `getUserMedia` rejection through `micErrorText`, so **not-found** and **busy** are no longer both reported as "denied"; `MIC_TEST_DURATION_MS` / `MIC_HEARD_RMS` name what were inline literals |
+| `app/_components/voice/transport/transport-error.ts` | `VoiceTransportError` + the status/throw classifier. Four client-origin codes (`VOICE_TRANSPORT_NETWORK` / `_AUTH` / `_TIMEOUT` / `_PROVIDER`) resolved through `errors.<CODE>`; the provider's response body goes to the console, never to the candidate |
+| `app/_components/voice/transcript-follow.ts` | `shouldFollow` (autoscroll only while the reader is at the tail), `foldTranscript` + `turnKey` (a bounded live log with full-transcript-stable keys) |
 | `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
-| `app/_components/voice/VoiceSettings.tsx`, `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
+| `app/_components/voice/VoiceSettings.tsx` (the provider picker consumes the same `availability-gate` the Start button does — an unchecked provider is disabled, with the same **Check again** line), `MicTestPanel.tsx`, `VoiceLiveControls.tsx`, `VoiceStatusPill.tsx`, `VoiceTranscript.tsx` | The view's leaf components (lab-only pickers, mic-test panel, live-call controls, status pill, transcript log) |
 
 ## Data model
 
@@ -330,6 +402,32 @@ see [`docs/architecture/localization.md`](../../architecture/localization.md).
 Both surfaces previously carried en+cs tables, so a German or French recruiter
 read English with no signal that anything was missing.
 
+The same rule reaches the **candidate's** side of the brief. Three things a
+candidate reads or hears were hard-coded English literals regardless of
+`pipeline_entries.locale`:
+
+- the **submission-debrief agenda** — the four-item run-of-show persisted on
+  `interview_sessions.run_of_show_json` by `POST /api/interview/create` and
+  rendered by the portal's `InterviewSidebar`;
+- the **"Recruiter-added questions"** topic the imported interview-kit questions
+  are injected under in the candidate-safe voice brief
+  (`buildCandidateSafeBrief`), which the agent narrates aloud; and
+- the **opening-language instruction**, which mapped `cs → Czech` and everything
+  else → English, so a German or French applicant's interviewer was told to open
+  in the one language they had just declined at apply.
+
+The first two now come from `interviewBriefStrings(entry.locale)` in
+`interview-prep-strings.ts` — the same locale-pinned catalog loader as the prep
+pack, reading the `interview.brief` namespace in all four catalogs. The third is
+`OPENING_LANGUAGE_NAMES` in `interview-run.ts`, a `Record<Locale, string>` so a
+new locale is a tsc error rather than a silent fallback to English. Because the
+topics now load a catalog, `buildCandidateSafeBrief` is **async**; the connect
+route resolves it once before `connectWithFailover` (whose `resolveAgentPrompt`
+is synchronous by contract, so a failover never awaits between attempts).
+`interview-run-locale.test.ts` pins all of it against a real entry: a `de` entry
+stores a German agenda, an absent or unsupported locale keeps English, and the
+opening-language table is checked for parity with `LOCALES`.
+
 The disclosure renders in **both** places a recruiter meets the rubric — the prep
 pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form
 (`ScheduleHumanScorecardForm`) — through one component,
@@ -357,6 +455,394 @@ archetype × family combination's version hash). Guards:
 (`pipeline/jobfit/automation.py`, which mirrors `industry_axes_for`) carries no
 `rubricCoverage` stamp — the field is optional and consumers must treat it as
 absent there.
+
+## The scorecard fences the transcript and cites only what was said (scorecard-v7)
+
+The scorecard prompt is the one in this package whose main input is written by the
+person it rates, and whose output opens the Interview→Offer gate. Four things were
+true of it before `scorecard-v7` and are not any more.
+
+**The transcript was unfenced.** It went into the prompt in bare triple quotes, so a
+candidate who spoke a triple-quote plus an instruction closed the quoting and the
+rest of their sentence read to the model as scoring instructions. It now enters
+through `fenced_untrusted("INTERVIEW_TRANSCRIPT", …)`
+(`pipeline/jobfit/devcase/provenance.py`) — the same fence the group-compare
+candidate block and the devcase prompts use. `json.dumps` inside the fence escapes
+the newlines a forged marker needs, and the fence's standing rule tells the model
+the block is evidence, never orders. Bound to the real prompt (not to the helper) by
+`pipeline/jobfit/tests/test_prompt_fences.py::_JSON_FENCE_SITES`, which proves each
+site non-vacuous by neutralising the fence and requiring the same assertion to fail.
+
+**The model's answer was pinned too loosely.** `_generate` pins the parse with
+`expected_keys` so an object echoed *after* the answer cannot win it (`_extract_json`
+otherwise takes the last value). The default is the deterministic template's own
+keys, and the match is ANY key — so a trailing `{"recommendation": "reject"}`
+satisfied it and flipped the verdict. `interview_scorecard` now passes
+`expected_keys=("ratings",)`: the one key a real scorecard always carries and a
+one-line verdict object never does.
+
+**Nothing checked that a quote was real.** The prompt asks for a "short,
+near-verbatim quote of the candidate's own words" and the only downstream guard
+(`isPlaceholderEvidence`, TS) knows the boilerplate, not invention — so a fabricated
+line reached the recruiter looking exactly like a real one. `ground_scorecard_evidence`
+now normalizes each quote (case, punctuation, whitespace — the axes near-verbatim
+drifts on) and requires it to occur in the transcript **the model was shown** (the
+head+tail `sample_scorecard_notes` sample, not the full stored transcript: a quote
+from an elided middle turn is one the model could not have read). A quote that does
+not occur is replaced with `UNGROUNDED_EVIDENCE`, which carries the cross-language
+`"Not assessed…"` prefix contract — so every surface that already filters the
+placeholder out of its quote list (`ScheduleInterviewScorecardRow`,
+`JobsCompareInterviewsEvidenceCard`) stops rendering it as a candidate quote with no
+read-side change. The rating itself is kept: this drops the *citation*, not the
+score. The count rides as `ungroundedEvidence` and the confidence band's **reason**
+names it, so "the interview was short" and "the model quoted lines that are not
+there" stop widening the band identically.
+
+**The prose never said which language it was in.** The summary and the
+recommendation rationale follow `language_directive(lang)` on the LLM path, but the
+deterministic template is English whatever was asked for — so a cs/de/fr session
+stored English prose inside localized chrome with nothing saying so, unlike every
+sibling narrative. The scorecard now stamps `narrativeLang`
+(`match_reasoning.narrative_lang_for`, the same helper `reasoning_cli` and
+`group_compare_cli` use) and `ScheduleInterviewAiScorecardSection` renders the honest
+note exactly as `MatchReasoningPanel` does for the match rationale.
+
+Additionally, the scoring instructions now carry the **same fairness clause the
+interviewer brief carries** (`pipeline/jobfit/eval/interview_eval.py::NON_NEGOTIABLES`):
+never lower a rating for nerves, hesitation, filler, silence or imperfect
+grammar/accent, and an honest "I don't know" is not a negative signal. The brief said
+it to the agent *running* the call; nothing said it to the model producing the
+*rating*, which is the half a hiring decision reads.
+
+`SCORECARD_PROMPT_VERSION` / `AUTOMATION_VERSION.scorecard` moved to `scorecard-v7`
+in lockstep (`test_prompt_version_sync.py`), so cached v6 scorecards self-invalidate.
+
+**Known gap:** grounding is a containment test against the sampled transcript, so a
+quote the model assembles from two separate turns fails it and is dropped as
+ungrounded — conservative in the safe direction (a citation is lost, never invented).
+The de/fr transcript detectors in the interview eval harness remain a follow-up.
+
+## Spend doors, throttles and refusal codes
+
+Four doors in this feature cost real money on an accepted call, and until this pass
+only one of them was throttled. Two more — the prep artifact's write verbs — cost no
+money but were the last unmetered writes on the surface, and are now bounded too.
+
+| Door | Budget | Guards |
+|---|---|---|
+| `POST /api/interview/create` | 20 / 10 min per IP (`CREATE_RATE_LIMIT`) | A model-backed run-of-show build **and** an email to the candidate, per call |
+| `POST /api/interview/simulate` | 20 / 10 min per IP (`SIMULATE_RATE_LIMIT`) | Mints a real billable session; on a self-hosted install it skips `meterGate`, so the limiter is the only bound |
+| `POST /api/interview/connect` | 6 / 10 min per **token** (120 when a self-hosted provider serves) | The provider credential mint |
+| `POST /api/interview/complete` | 10 / 10 min per **token + IP** (`COMPLETE_RATE_LIMIT`) | The transcript write, the `interview_minutes` debit and the LLM scorecard run + sealed decision |
+| `PUT` / `POST` / `PATCH /api/interview-prep` | 600 / 10 min per IP, ONE shared bucket (`PREP_WRITE_RATE_LIMIT`) | Three read-merge-writes against the same prep artifact |
+| `POST /api/interview-prep/scorecard` | 60 / 10 min per IP (`SCORECARD_RATE_LIMIT`) | The recruiter's verdict write, which on a recorded recommendation also sets the `scorecard_review` approval, records an automation event and seals a decision |
+
+The prep budget looks loose next to its neighbours and the reason is pinned in
+`rate-limit-contract.test.ts` so nobody tightens it into a bug: the interviewer's
+checklist/notes `PUT` is debounced at 600 ms and fires all through a live interview,
+and with `KP_TRUSTED_PROXY` unset `clientIpFrom` collapses the whole deployment into
+one bucket — so a tight ceiling would throttle the interviewer the door exists for,
+and every colleague beside them, mid-call. It still caps a script at one write a
+second. The scorecard door is tighter because one save per interview (plus an edit or
+two) is the honest shape. On both, the "you did not say which candidate" 400 is served
+BEFORE the limiter: a request that was never going to write must not spend the window.
+
+**Every refusal on these five verbs is now a code, not a sentence.**
+`INTERVIEW_ENTRY_REQUIRED` (400), `INTERVIEW_PREP_QUESTIONS_REQUIRED` (400, an empty
+import), `INTERVIEW_PREP_QUESTION_REQUIRED` (400, a weave with no question),
+`INTERVIEW_PREP_NOT_FOUND` (404) and `TOO_MANY_REQUESTS` (429). The 404 is deliberately
+ONE code for "never generated" and "belongs to another team" — indistinguishable to a
+caller who does not hold the entry, which is the tenancy property those routes were
+built around. `ScheduleHumanScorecardPanel` already resolves through
+`useErrorMessage`, so the recruiter now reads the refusal in their own language
+instead of the server's English.
+
+Three English constants used to shadow this contract — `CONSENT_REQUIRED_ERROR` and
+`CONSENT_NOT_RECORDED_ERROR` in `interview-consent.ts`, `INTERVIEW_LAB_DISABLED_ERROR`
+in `interview-lab.ts`. Their doc-comments claimed the routes shared them; grep says no
+route had read any of them since the refusals moved onto `jsonRefusal`, and all three
+are gone. Those two modules are the PREDICATE and the GATE; the wording is the
+catalog's. `interview-lab.test.ts` now pins the gate itself — production closed by
+default, open only on the exact `INTERVIEW_LAB_ENABLED=1` opt-in (not "true", not
+`0`), read per call rather than captured at import, and actually consulted by
+`/connect` before it mints. The lab page's disabled-state copy comes from
+`interview.lab.*` in all four catalogs.
+
+The candidate sidebar's duration chip was the other English leak: `durationChip` /
+`durationLabel` composed "~20 min" / "About 20 minutes" inside
+`interview-duration.mjs` and `InterviewSidebar` painted the chip verbatim beside an
+agenda next-intl had already localized. Both helpers are deleted; the chip resolves
+`interview.sidebar.durationChip` (`{min}` interpolated), and
+`interview-duration.test.ts` asserts every export of that module is a number, so a
+phrase cannot come back. `debriefDurationMin` — the arithmetic behind both the
+candidate brief's promise and the minted calendar link — is pinned by
+`interview-planned-minutes.test.ts`: the documented 8 + 3-per-question shape,
+monotonic, above the quick-screen floor and capped inside the grounded band.
+
+The **operator-side** telemetry strips leaked the same way, one layer down and in three
+places at once. `formatSpokenDuration` (`app/_lib/voice/telemetry-format.ts`) returned the
+finished string `"12m 30s"`, and `PipelineInterviewTelemetryStrip`,
+`ScheduleInterviewTelemetryStrip` and `JobsCompareInterviewsCohortTable` painted it verbatim
+beside labels next-intl had localized — so a Czech, German or French recruiter read an
+English unit on the longest-pause and spoken-duration signals. The projection now returns
+PARTS (`{ m, s }`) and each strip renders `t("duration", parts)`; the ICU message in all four
+catalogs picks the minutes-and-seconds / minutes-only / seconds-only shape in the reader's
+language (`scheduleTab.transcript.duration`, `jobs.compare.duration`). The unit letters
+cannot come back: `telemetry-format.test.ts` reads its own module and fails on any spliced
+unit or bare `"m"`/`"s"` literal, the same shape as the `interview-duration.test.ts` guard
+above.
+
+`/complete` is the odd one out and the reason its budget is keyed on **both**: it is a
+PUBLIC token route (`public-routes.ts`), so there is no operator gate to be a no-op —
+the token in the URL is the whole credential. Keying on the token alone would let one
+candidate's flaky network exhaust their own budget on legitimate retries; keying on the
+IP alone would throttle a whole NAT of candidates together. Its cheap refusals (400 /
+404 / 403 consent, and the idempotent `alreadyCompleted` reply that lets a retrying
+client settle) all run BEFORE the limiter and stay free forever. On the client,
+`useTranscriptPersistence` treats 429 as transient — the one 4xx that will improve on
+retry — so a throttled replay keeps its `sessionStorage` stash instead of discarding
+the candidate's transcript.
+
+Every route here is operator-gated, and open mode (`KP_OPERATOR_PASSWORD` unset) makes
+that gate a documented no-op for the whole API — so the limiter is the real bound, the
+same reasoning `app/api/rate-limit-contract.test.ts` already records for the JD
+library's four spend doors. All three are pinned there: key, budget, window, the
+expensive work each must precede, and the cheap refusal each must follow.
+
+`/create`'s five decisions run in a fixed order, and the order is the contract: the
+cheap 402 pre-gate and the "no candidate named" 400 serve free → the throttle →
+`buildGroundedInterview` (whose booked length sizes the next step) → the
+**authoritative** reservation of `maxBillableInterviewMin(bookedMin)` → the reissue
+revoke → the mint. The reservation before the revoke is load-bearing: refusing after
+killing the candidate's live link is the worst of both. Pinned by
+`app/api/interview/interview-spend-doors.test.ts`.
+
+### The minted credential is bounded and bound
+
+The ephemeral secret `/connect` hands the browser is the one artifact in this
+flow that can spend money at the provider on its own — a leaked one dials
+`/v1/realtime/calls` with no involvement from this server, and only the per-token
+connect throttle stood in its way. It now carries:
+
+- **A lifetime we state.** The OpenAI mint sends `expires_after`
+  (`OPENAI_SECRET_TTL_SEC = 120` — one dial, not a workday) instead of inheriting
+  the provider default, and the returned `expires_at` is **enforced**: absent,
+  malformed or already past is refused before the secret reaches the browser. It
+  had been parsed into the response type and read by nobody, so an expired
+  credential failed later at the SDP exchange, where it is indistinguishable from
+  a network fault.
+- **A binding to one session.** A truncated SHA-256 of the capability token rides
+  in the provider session's `metadata` (`interviewSessionFingerprint`) — a
+  fingerprint, never the token, which opens the whole interview and never leaves
+  this server. A provider that rejects the field gets exactly one retry without
+  it: an audit convenience must not fail a candidate's interview.
+- **Timeouts on every hop.** Both provider mints (15 s) and the browser's SDP
+  POST (12 s) carry an `AbortSignal.timeout`, all inside the client's 30 s
+  connect latch. Unbounded, a wedged provider — or a wedged *self-hosted* voice
+  service — held a route open on a session already flipped `in_progress`, and the
+  SDP fetch outlived the error card the candidate was already reading. An aborted
+  SDP POST classifies as `VOICE_TRANSPORT_TIMEOUT`, already localized.
+
+### Refusals answer with a code
+
+Every refusal on `/create` and `/connect` now goes through `jsonRefusal` with an
+`INTERVIEW_*` code from `REFUSAL_ERRORS`, so `useErrorMessage()` resolves
+`errors.<CODE>` in the reader's language (four catalogs, pinned by
+`npm run i18n:check`). `/connect` mattered most: it is a **public** surface opened
+from an invite deliberately rendered in the applicant's own language (`?lang=`), and
+it answered five different lifecycle refusals — not found, revoked, expired, already
+completed, consent missing — in hardcoded English.
+
+`INTERVIEW_ENTRY_REQUIRED`, `INTERVIEW_SUBMISSION_NOT_FOUND`,
+`INTERVIEW_SUBMISSION_NOT_EVALUATED`, `INTERVIEW_CALL_IN_PROGRESS`,
+`INTERVIEW_LINK_NOT_FOUND`, `INTERVIEW_LINK_INACTIVE`, `INTERVIEW_LINK_EXPIRED`,
+`INTERVIEW_ALREADY_COMPLETED`, `INTERVIEW_CONSENT_REQUIRED`,
+`INTERVIEW_PROVIDER_INVALID`, `INTERVIEW_PROVIDER_UNCONFIGURED`,
+`INTERVIEW_LAB_DISABLED`, `INTERVIEW_ALREADY_LIVE`, plus the shared
+`TOO_MANY_REQUESTS` and `PIPELINE_ENTRY_NOT_FOUND`. Diagnostic detail rides **alongside** the code rather
+than inside a sentence: the unconfigured 503 still names the missing env vars in
+`need`, where an operator can read them and a candidate never sees them.
+
+`/api/interview/complete` is now held to the same line. It is the **same
+candidate**, one hang-up later, and its last three refusals were still bare
+English — `"token is required"`, `"session not found"`, and a hardcoded consent
+sentence. They answer `INTERVIEW_LINK_NOT_FOUND` (both no-usable-session cases:
+to the reader they are one fact) and `INTERVIEW_CONSENT_REQUIRED`.
+
+### A discarded transcript is never reported as saved
+
+Every "this session is already finished" branch on `/complete` answered
+`{ok: true, alreadyCompleted: true}`. That is correct for the honest duplicate —
+the End fetch racing its own unload beacon, a network retry, a `sessionStorage`
+stash replayed on the next mount — and a retrying client has to settle rather
+than error. It was a green lie for the loser of a two-tab race, whose own
+conversation is nowhere in the stored record.
+
+`discardedTurnCount` (`app/_lib/voice/discarded-turns.ts`) draws the line by
+comparison, not by counting: a body the stored transcript already contains, in
+order, from its first turn on, is the same call reporting twice and still settles
+`200 {alreadyCompleted: true}`. Anything else — a divergence, or turns the record
+does not have — is a different conversation, refused
+`409 {ok: false, code: "INTERVIEW_ALREADY_COMPLETED", discardedTurns: n}` on both
+the terminal guard and the lost compare-and-swap branch, with a server log naming
+the session. The candidate reads `interview.voice.discardedTurns` in their own
+language instead of the Retry banner, which could only ever be refused again, and
+the stash is dropped so the discarded body is not re-POSTed on every mount.
+
+The id narrowing behind all of it lives once, in `app/api/interview/entry-id.ts`
+(`readEntityId`, `MAX_ID_LEN`) — four doors had re-typed the same "string, trimmed,
+non-empty, ≤ 120 chars" clause inline.
+
+### When the invite does not go out
+
+`POST /api/interview/create` returns `delivery` (the truthful outbox claim:
+`sent` / `queued` / `failed`) **and** `deliveryError`, a code saying *why* when it is
+not `sent`:
+
+- `INVITE_PROVIDER_UNCONFIGURED` — the provider has no keys on this server, so no
+  invite was attempted at all;
+- `INVITE_DISPATCH_FAILED` — the dispatch threw or dead-lettered.
+
+The remedy is the same for both (the link is in the response; hand it over), but the
+recruiter no longer has to guess which happened. Both are `errors.*` catalog keys in
+all four locales.
+
+### The candidate never reads the provider's words
+
+Three failure paths in the live-call shell used to render an upstream string
+straight into the candidate's error banner: the realtime transport threw
+`OpenAI calls ${status}: ${body}` (the provider's response body, sliced to 200
+chars), and the ElevenLabs SDK's own English `message` was shown both on
+`onError` and on a failed `startSession`. All three now resolve a **code**:
+`transport/transport-error.ts` classifies a failure as `VOICE_TRANSPORT_NETWORK`,
+`_AUTH`, `_TIMEOUT` or `_PROVIDER` and the shell renders `errors.<CODE>` through
+`useErrorMessage()`, in the reader's language. The real body still reaches the
+operator — once, on `console.error`.
+
+Those four codes are **client-origin**, so they deliberately do not appear in
+`STORE_ERRORS` / `REFUSAL_ERRORS` (the vocabulary a route handler emits; a code
+there that no handler can return would make the server contract lie). They are
+pinned to all four catalogs by `transport-error.test.ts`, the client-side twin of
+the registry check in `scripts/i18n-check.mjs`.
+
+### A closing answer lost to the grace is in the record
+
+When the OpenAI hang-up grace (`OAI_FINAL_TURN_GRACE_MS`) expires with a candidate
+transcription still in flight and an empty delta buffer, that closing answer is
+gone from the transcript the scorecard is built on. It used to be a
+`console.warn` — invisible to the recruiter reading the scorecard. It is now
+written **in band**, as a `system` turn (`interview.voice.closingTurnLostNote`),
+which is the path `capTranscriptTurns` already uses for its "turns omitted"
+marker: a system turn is persisted by `/api/interview/complete`, read by the
+scorer (`transcriptToNotes` prefixes it `System:`) and rendered by the recruiter's
+transcript modal (`ScheduleInterviewTranscriptTurns`). The console line stays for
+the operator, with the env-var remedy.
+
+### The live transcript keeps the reader's place
+
+`VoiceTranscript` pinned itself to the newest turn on **every** append, so a
+candidate who scrolled up to re-read the question they were answering was pulled
+back mid-call. It now follows only while the reader is at the tail
+(`shouldFollow`, measured from the reader's own scrolling), keys turns by their
+position in the full append-only transcript rather than by index in the rendered
+slice, and renders a bounded window (`MAX_VISIBLE_TURNS`) with a counted "earlier
+turns" line above it. The full transcript is the persisted record; the live log is
+a view of it.
+
+### Two best-effort catches that now say what was lost
+
+`/api/interview/complete` runs the usage-ledger write and the scorecard synthesis
+after the transcript is durable, and both stay **best-effort** — neither may fail a
+completion whose transcript is already saved. What changed is that neither is silent
+any more, and the choice was a **log, not a status column**:
+
+- the ledger row is the only record of what a call **cost** (the meter counts
+  quantity, not money), so a dropped write logs the session id, the billed minutes
+  and the provider;
+- a failed synthesis is already visible as an absent scorecard — the drawer offers
+  the transcript with no verdict and the Interview→Offer gate stays unapproved — so
+  the missing half was the *reason*, which only a log can carry. No
+  `scorecardStatus` column was added: it would state a fact the row already states.
+
+## What a call cost reaches the recruiter
+
+`/api/interview/complete` has written every completed call's cost to the usage
+ledger since tiger F1 — `llm_usage.request_id` **is** the session id, use case
+`interview_realtime`, provider + model + a duration-derived estimate from
+`app/_lib/voice/minute-prices.ts` — whose figures are midpoints of **public price
+bands, not contractual rates**, so an operator on a Business tier or a negotiated
+contract sets `KP_VOICE_MINUTE_USD_OPENAI` / `KP_VOICE_MINUTE_USD_ELEVENLABS`
+(USD per conversation minute, read at call time) and the ledger prices at what
+they actually pay. A malformed or negative value is refused with a console
+warning and the estimate stands; a self-hosted session stays $0 regardless.
+Voice minutes are the one meter with a real
+per-unit cost, and the two providers differ by roughly 60% per minute, yet that
+number had **no reader** outside the aggregate Models usage panel: the recruiter
+deciding whether to run another screen could not see what the last one cost.
+
+`InterviewSessionSummary` now carries `costUsd`, read in the same query that builds
+the AI-round docket (a correlated `SUM(cost_usd)` over `llm_usage` keyed by request
+id **and** use case — no extra round trip, and the left side is already
+workspace-scoped). The completed card in `ScheduleAiDocket` renders it beside the
+provider that served the call, in all four locales.
+
+The answer has **three** states and the third is the one that had no way to be said
+before:
+
+| `costUsd` | Means | Rendered |
+|---|---|---|
+| a number > 0 | The ledger priced this call | The amount, in the reader's locale |
+| `0` | A **self-hosted** provider served it, so no per-minute credits were spent | "no per-minute cost" |
+| `null` | Unknown: no ledger row yet (not completed), or an unpriced provider whose row carries `cost_usd` NULL by design | "cost unknown" |
+
+Collapsing `null` to `0` would tell a recruiter the priciest meter in the product is
+free. `app/api/interview/interview-session-cost.test.ts` pins all three states, the
+use-case keying, the multi-attempt total, and that the join did not widen the
+tenant scope of the list it rides on.
+
+`interviewedForJob` — the cohort behind the side-by-side compare view
+(`/api/interview/compare`) — carries the same `costUsd` on the same query shape, so
+the compare table and the docket can never disagree about what a screen cost. The
+compare grid itself lives in `app/features/library/jobs/` and does not render it yet.
+
+### …and how the call actually ran
+
+The same summary now also carries **`failoverFrom`** and **`attempts`**, backed by two
+additive columns on `interview_sessions` (`failover_from TEXT`, `attempts INTEGER NOT
+NULL DEFAULT 1`, migrated in the `app/_lib/db/core.ts` ALTER loop; no new table, so
+`app/_lib/tenancy.ts` is unchanged — the columns inherit the row's existing
+`workspace_id` scope).
+
+| Field | Written by | Honest null / floor |
+|---|---|---|
+| `failoverFrom` | `/api/interview/connect` when `connectWithFailover` had to use the other provider — `setInterviewSessionProvider(id, served, requested)`, `COALESCE`d so the FIRST fallen-from provider (the one the recruiter chose) wins | `null` = nothing fell back. Never a copy of `provider` |
+| `attempts` | `markInterviewStarted`, in the same guarded UPDATE: `+1` only when `started_at` is already set, so the first connect is the `1` the column defaults to and a refused connect on a completed session cannot inflate it | `1` for a link never opened and for the ordinary call. Never `0` |
+
+Both facts already existed and were both thrown away. `provider` is **overwritten in
+place** with whoever actually served (the completion ledger prices from it), so the
+requested provider survived only as a `console.warn`: a recruiter looking at a call
+billed on the other vendor had no way to learn that theirs was down. And
+`/api/interview/complete` already reasons about "the current attempt" when it bills
+(a `failed` session stays reconnectable by design, so the later of
+`started_at`/`updated_at` is when this attempt began) — but that reasoning lived
+inside one billing expression and left no trace, so a call billed for the third of
+three attempts read exactly like a clean first-time one.
+
+A failover on an entry-backed session ALSO writes an `interview_failover` pipeline
+event (`recordAutomationEvent`, actor `auto:interview-connect`, best-effort with a
+loud log on failure), so the swap is answerable from the candidate's timeline months
+later rather than from rotated server logs.
+
+The completed docket card renders the pair as a single amber line — `"2 attempts ·
+fell back from Openai"` — and **only when there is something to say**: an ordinary
+one-attempt call on the chosen provider stays quiet rather than carrying a "1 attempt"
+badge. Four locales.
+
+`app/_lib/db/interview-failover-attempts.test.ts` pins the columns on a fresh DB, the
+first-connect-does-not-increment rule, the refused-connect case, the COALESCE'd first
+failover, "a plain provider write invents no fallback", the cohort cost — and, in a
+child process, that a **pre-migration** `interview_sessions` table with a real row is
+carried forward across two boots with its transcript intact.
 
 ## Self-hosted voice
 
@@ -413,43 +899,25 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
 
 ## Known gaps
 
-- **Failover can cross the free→paid boundary with no reservation behind it.**
-  `app/api/interview/simulate/route.ts` deliberately skips the
-  `interview_minutes` gate when the ElevenLabs base URL is a self-hosted
-  (loopback/private) service, and `/api/interview/connect` raises the per-token
-  connect throttle to 120/10 min on the same premise — but it reads
-  `isSelfHostedVoice()` (an env fact) *before* the session's provider is
-  resolved, so an **OpenAI** session on an install that also runs a local voice
-  service gets the 120/10 min budget on a fully paid credential mint. The check
-  it wants is `isSelfHostedProvider(provider)`, which requires moving the
-  throttle below provider resolution. If the local service is
-  down, `connectWithFailover` retries on **OpenAI Realtime** — real money — and
-  `setInterviewSessionProvider` flips the session, so `/complete` debits the
-  meter and stamps the paid per-minute cost for a call no gate ever checked.
-  The seam already reports the crossing (`FailoverResult.provider` is the
-  provider that actually served, plus `failedOver`); the decision belongs in
-  the route — e.g. pass `availability: { ...voiceAvailability(), openai: false }`
-  when the preferred provider is the self-hosted one, or run the skipped
-  `meterGate` before accepting the paid alternate.
-- **Self-hosted minutes are gate-skipped but still debited.** `/simulate` skips
-  `meterGate` for a self-hosted provider ("metering a free simulation would make
-  a self-hosted install run out of a budget it is not consuming"), but
-  `/api/interview/complete` calls `recordMeterUsage("interview_minutes", …)`
-  unconditionally — so the quota is consumed without ever being reserved, and a
-  self-hosted install burns prepaid minutes on calls that cost nothing.
-  `voiceMinuteCostUsd` already returns `0` for those sessions; the meter debit
-  needs the symmetric `isSelfHostedProvider(session.provider)` check.
-- **The same env/session conflation, unconditionally wrong, in the intake voice
-  route.** `app/api/intake/[id]/voice-connect/route.ts` sizes its throttle with
-  `isSelfHostedVoice() ? 120 : 6` — but that route mints
-  `getVoiceAdapter("openai")` credentials and nothing else, so
-  `isSelfHostedProvider("openai")` is **always** false and the raise is never
-  earned: on any install with a loopback `ELEVENLABS_BASE_URL`, an authenticated
-  operator holding an open intake id mints 120 paid OpenAI Realtime credentials
-  per 10 minutes instead of 6. Unlike the `/api/interview/connect` case there is
-  no session provider to resolve — the limit is simply `6`. Both fixes must
-  update the pinned literals in `app/api/rate-limit-contract.test.ts`
-  (`limitDef`) in the same change.
+- **The free→paid boundary is now closed on all three seams that once crossed it.**
+  This section used to list three open gaps here; all three ship fixed, and the
+  code that fixed them is where the reasoning lives:
+  - `/api/interview/connect` sizes its per-token throttle from
+    `isSelfHostedProvider(provider)` — the SESSION fact — decided *after* provider
+    resolution, so an OpenAI session on an install that also runs a local voice
+    service gets the paid budget of 6/10 min, not the free 120. It also passes
+    `availability: { ...voiceAvailability(), openai: false }` when the preferred
+    provider is the self-hosted one, so a failover can no longer rescue a
+    gate-skipped session onto a paid provider.
+  - `/api/interview/complete` guards its `recordMeterUsage("interview_minutes", …)`
+    with the symmetric `isSelfHostedProvider(session.provider)`, so a self-hosted
+    install no longer burns prepaid minutes on calls that cost nothing. The
+    `llm_usage` row stays unconditional on purpose: `voiceMinuteCostUsd` prices
+    those at 0, and a $0 ledger row is the truthful record that a call happened.
+  - `app/api/intake/[id]/voice-connect/route.ts` mints `getVoiceAdapter("openai")`
+    and nothing else, so its limit is simply `6` — the raise was never earned there.
+
+  All three limits are pinned in `app/api/rate-limit-contract.test.ts`.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
   damage" failure — a spoken skill can be silently substituted for another
   before the scorecard scores it). Two biases now push against it: the

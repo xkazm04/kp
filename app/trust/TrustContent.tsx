@@ -14,12 +14,14 @@ import {
   CLASSIFICATION,
   DATA_RIGHTS,
   DISCLAIMER,
+  LAST_REVIEWED,
   SUBPROCESSORS,
   byWeakestFirst,
   postureSummary,
   type Posture,
 } from "@/app/_lib/trust-posture";
 import { CARD_PAD, EYEBROW, INTRO, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import LegalRow from "@/app/landing/spark/sections/LegalRow";
 
 // W0.5 — the public trust surface. A server component: static claims, no client state.
 // Copy and posture live in app/_lib/trust-posture.ts so they are reviewable as text and
@@ -61,6 +63,12 @@ export function TrustContent() {
           use, and the obligations apply in full from {CLASSIFICATION.appliesFrom}. This page states, article
           by article, which of them the product enforces today — including the ones it does not.
         </p>
+        {/* The page carried no date of its own — only the AI Act's application date,
+            which is a fact about the regulation, not about this page. A posture with
+            no review date cannot be told apart from an abandoned one, and /privacy and
+            /terms have always carried "Last updated". Rendered from the LAST_REVIEWED
+            constant so it cannot drift from the module the claims live in. */}
+        <p className="mt-3 text-sm text-steel">Last reviewed against the code: {LAST_REVIEWED}</p>
         {/* Lead with the shape. A reader who scrolls no further should still leave knowing
             how many obligations are NOT fully met — the partial + not-yet chips below,
             counted from OBLIGATIONS — rather than with a green impression. Never restate
@@ -138,8 +146,8 @@ export function TrustContent() {
           <table className="w-full min-w-[32rem] text-left">
             <thead>
               <tr className="border-b border-stone-200">
-                <th className="px-4 py-3 text-meta uppercase text-steel">Processor</th>
-                <th className="px-4 py-3 text-meta uppercase text-steel">Purpose</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Processor</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Purpose</th>
               </tr>
             </thead>
             <tbody>
@@ -156,6 +164,13 @@ export function TrustContent() {
 
       <footer className={`mt-10 ${PANEL_SUNKEN} ${CARD_PAD} space-y-2`}>
         <p className="text-body text-steel">{DISCLAIMER}</p>
+        {/* The legal row every public front door owes. The language switcher its
+            siblings carry is deliberately NOT here: this page is English-only by
+            design (see the file header), and offering a language control that
+            changes nothing on the page it sits on is a lie about the page. */}
+        <div className="pt-1">
+          <LegalRow tone="studio" />
+        </div>
         <p className="text-sm text-steel">
           Published in English only. The rest of the product is localized, but the wording of a compliance
           claim is load-bearing, and we would rather state it in one language we can stand behind than in

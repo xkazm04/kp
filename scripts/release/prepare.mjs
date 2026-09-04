@@ -29,9 +29,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { REPO_ROOT, git, lastTag } from './git.mjs';
 
-export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+export { REPO_ROOT, lastTag };
+
 const PKG = 'package.json';
 const CHART = 'deploy/helm/kp/Chart.yaml';
 const CHANGELOG = 'CHANGELOG.md';
@@ -112,6 +113,29 @@ export function changelogHasVersion(text, version) {
   return new RegExp(`^##\\s*\\[${version.replace(/\./g, '\\.')}\\]`, 'm').test(text);
 }
 
+/** Semver, with the optional pre-release and build-metadata parts named. */
+export const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/;
+
+/**
+ * What kind of release a version string names. Pure, so the publish gate reads
+ * one predicate instead of a shell pattern that has to be got right twice.
+ *
+ * WHY THE PUBLISH JOB NEEDS THIS: `latest` is what an operator gets when they
+ * pin nothing, and the workflow moved it on EVERY tag. Cutting `v0.2.0-rc1` to
+ * try a candidate on a staging cluster would therefore have re-pointed `latest`
+ * at a release candidate for everyone who never asked for one.
+ *
+ * FAIL-CLOSED: a string that is not a version reports `preRelease: true`. The
+ * caller's question is "may this be published as latest", and `false` is the
+ * answer that hands out the tag — an unparseable version must never earn it.
+ */
+export function releaseKind(version) {
+  const raw = String(version ?? '').trim().replace(/^v/, '');
+  const m = raw.match(SEMVER_RE);
+  if (!m) return { valid: false, preRelease: true, version: raw, prerelease: null };
+  return { valid: true, preRelease: m[4] !== undefined, version: raw, prerelease: m[4] ?? null };
+}
+
 /**
  * The invariant `--check` enforces. Pure, so it is directly testable.
  * @returns string[] problems (empty = coherent)
@@ -136,18 +160,9 @@ export function checkCoherence({ pkgVersion, chart, changelog }) {
 }
 
 // --- git helpers (not pure; not covered by fixtures) ------------------------
-
-function git(args) {
-  return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-}
-
-export function lastTag() {
-  try {
-    return git(['describe', '--tags', '--abbrev=0', '--match', 'v*']).trim() || null;
-  } catch {
-    return null;
-  }
-}
+//
+// `git` and `lastTag` are shared with the commit gate and the provenance query;
+// they live in ./git.mjs so a fix to the plumbing lands in one place.
 
 function subjectsSince(tag) {
   const range = tag ? `${tag}..HEAD` : 'HEAD';
@@ -162,9 +177,10 @@ function write(rel, text) {
 }
 
 export function parseArgs(argv) {
-  const out = { check: false, version: null, dryRun: false, includeInternal: false, date: null };
+  const out = { check: false, version: null, dryRun: false, includeInternal: false, date: null, prereleaseOf: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--check') out.check = true;
+    else if (argv[i] === '--prerelease-of') out.prereleaseOf = argv[++i];
     else if (argv[i] === '--version') out.version = argv[++i];
     else if (argv[i] === '--date') out.date = argv[++i];
     else if (argv[i] === '--dry-run') out.dryRun = true;
@@ -176,6 +192,19 @@ export function parseArgs(argv) {
 function main(argv) {
   const args = parseArgs(argv);
 
+  // The publish gate's question, answered by ONE predicate rather than by a
+  // shell pattern in the workflow that would have to be got right twice:
+  //   node scripts/release/prepare.mjs --prerelease-of v0.2.0-rc1   # -> true
+  if (args.prereleaseOf !== null) {
+    const kind = releaseKind(args.prereleaseOf);
+    if (!kind.valid) {
+      process.stderr.write(`release: "${args.prereleaseOf}" is not a semver version.\n`);
+      return 1;
+    }
+    process.stdout.write(`${kind.preRelease}\n`);
+    return 0;
+  }
+
   if (args.check || !args.version) {
     const problems = checkCoherence({
       pkgVersion: readVersionFromPackage(read(PKG)),
@@ -183,7 +212,15 @@ function main(argv) {
       changelog: read(CHANGELOG),
     });
     if (!problems.length) {
-      process.stdout.write('release:check ✓ package.json, Chart.yaml appVersion and CHANGELOG agree.\n');
+      // The pre-release status is REPORTED, never a failure: cutting a candidate
+      // is legitimate. What it changes is what its tag may publish — a
+      // pre-release never moves `latest` (.github/workflows/release.yml).
+      const kind = releaseKind(readVersionFromPackage(read(PKG)));
+      const note = kind.preRelease
+        ? `  ${kind.version} is a PRE-RELEASE (${kind.prerelease ?? 'unparseable'}): its tag publishes the image\n` +
+          '  and the GitHub release, and does NOT move the `latest` tag.\n'
+        : '';
+      process.stdout.write(`release:check ✓ package.json, Chart.yaml appVersion and CHANGELOG agree.\n${note}`);
       return 0;
     }
     process.stderr.write(`release:check ✗ ${problems.length} problem(s):\n\n`);
@@ -193,7 +230,8 @@ function main(argv) {
   }
 
   const version = String(args.version).replace(/^v/, '');
-  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
+  const kind = releaseKind(version);
+  if (!kind.valid) {
     process.stderr.write(`release: "${version}" is not a semver version.\n`);
     return 1;
   }
@@ -234,6 +272,7 @@ function main(argv) {
   write(CHART, nextChart);
   process.stdout.write(
     `release: prepared ${version} from ${subjects.length} commit(s) since ${tag ?? 'the beginning'}.\n` +
+      (kind.preRelease ? `  ${version} is a PRE-RELEASE — its tag will not move \`latest\`.\n` : '') +
       `  updated ${PKG}, ${CHART}, ${CHANGELOG}\n\n` +
       `Next: review the section, commit, then tag:\n` +
       `  git tag -a v${version} -m "v${version}" && git push origin v${version}\n` +

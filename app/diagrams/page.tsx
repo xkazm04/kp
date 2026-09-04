@@ -1,4 +1,7 @@
 import { getTranslations } from "next-intl/server";
+import { notFound } from "next/navigation";
+import { isOperator } from "@/app/_lib/auth/require-operator";
+import { EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
@@ -55,6 +58,15 @@ function Legend({ live, gate, gap }: { live: string; gate: string; gap: string }
 }
 
 export default async function DiagramsPage() {
+  // INTERNAL SURFACE (/perfect wave 21b). This explorer draws the repository's own
+  // module paths, the endpoints behind each step and an explicit off-spec admission
+  // ("the runtime extractor still calls Gemini"). That is an engineering artifact for
+  // the people who run this install, not product copy for anyone holding a valid
+  // cookie — and a demo cookie IS a valid session. Gate it exactly as the control
+  // room does: `isOperator()` (open dev -> true; a demo-workspace session -> false),
+  // answering the same 404 an unknown route does rather than confirming it exists.
+  // The About tab's link is hidden for the same seats.
+  if (!(await isOperator())) notFound();
   // bug-ui-scan-2026-07-09 (architecture-diagrams #3): page chrome / legend /
   // blurbs are localized; the diagram BODIES stay code identifiers (untranslated).
   const t = await getTranslations("diagrams");
@@ -63,9 +75,9 @@ export default async function DiagramsPage() {
   return (
     <WorkspaceShell active="about">
       <header className="border-b border-stone-200 pb-5">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
-        <p className="mt-2 max-w-3xl text-body text-steel">
+        <p className={EYEBROW}>{t("eyebrow")}</p>
+        <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
+        <p className={`mt-2 max-w-3xl ${INTRO}`}>
           {t.rich("intro", {
             path: () => <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">docs/diagrams/</code>,
             tag: () => <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{"<<v2>>"}</code>,
@@ -76,7 +88,7 @@ export default async function DiagramsPage() {
 
       <div className="mt-6 space-y-6">
         {items.map((it) => (
-          <section key={it.file} className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+          <section key={it.file} className={`${PANEL} p-5`}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-serif text-h2 text-ink">{t(`items.${it.key}.label`)}</h2>
               <code className="text-meta text-steel">docs/diagrams/{it.file}</code>

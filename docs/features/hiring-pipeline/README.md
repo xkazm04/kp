@@ -260,7 +260,36 @@ Save is **blocked** until every stranded step has a destination. The prompt is a
 select per removed step, offering only steps that **survive this edit** — mapping
 onto another column the same edit removes would move candidates out of one hole
 into another. It is also blocked if the occupancy read failed and the draft
-removes anything: a missing count must never make a removal look safe.
+removes anything: a missing count must never make a removal look safe — and it
+**says so**. A failed occupancy read paints its own line above the editor
+(`hiringPlan.occupancyUnknown`) with a **retry**, and the save bar names *that*
+reason rather than "fix the problems above", which used to appear over a page
+with no problems on it. The three refusal reasons are one value, not one boolean:
+`blockedReason` ∈ `problems` | `unmapped` | `occupancy` (`composerState.ts`).
+
+### Two savers, one plan
+
+Both writes are **preconditioned on the version the client read**. `GET
+/api/decisions/config` returns `versions` beside `configs` — per phase, the
+effective row's `updated_at`, resolved through the same cascade as the config
+itself (team override, else org baseline, else `null` for "nothing stored"). The
+composer echoes that token as `expectedUpdatedAt` on every write; the store
+re-asserts it inside an **IMMEDIATE** transaction and throws
+`DecisionConfigStaleError` if it moved, which the routes answer as **409**
+`DECISION_CONFIG_STALE` (rules) / `PIPELINE_AXIS_STALE` (axis, refused *before*
+anybody is moved). The tab then shows a standing banner with **Reload the saved
+plan**, which drops the local drafts and adopts what is stored — merging a draft
+onto a pipeline whose columns may no longer exist is exactly the lost update
+this closes. The token is opt-in: a writer with no read behind it (the first-run
+wizard composes the axis from nothing) omits the field. Versions are strictly
+increasing, so two saves inside one millisecond are still distinguishable.
+Pinned by `app/_lib/decision-config-version.test.ts` (5 checks).
+
+**Both write doors are rate-limited** per IP, after every cheap refusal:
+`decisions/config` at 60/10min (`CONFIG_RATE_LIMIT`) and `pipeline/stage-migration`
+at 20/10min (`MIGRATION_RATE_LIMIT`) — the latter moves real candidates. Operator
+gating is not the bound: open mode makes it a documented no-op for the whole API.
+Both are pinned in `app/api/rate-limit-contract.test.ts`.
 
 ### The migration itself
 
@@ -315,6 +344,17 @@ a stray preset click can never silently override the live policy. Dirty state
 is structural (`planEqualsStored`), **Discard changes** restores the last
 saved plan, and Save adopts the server's validated/normalized config back into
 the draft.
+
+**A failed post-save re-read is not a failed save.** Save re-reads the config
+and the occupancy afterwards; those two reads used to sit inside the same `try` as
+the writes, unguarded, so a 500 on either toasted "Couldn't save the plan" over
+two committed writes and invited a second save. `runComposerSave` separates them:
+the writes report `saved`, and a failed refresh gets its own line
+(`hiringPlan.refreshFailed`) with a retry.
+
+The state composition itself — dirty, blocked and *why*, the migration legs a save
+needs, what a discard restores, and what a save attempt actually did — is pure and
+unit-tested in `composerState.ts` / `composerState.test.ts` (10 checks).
 
 The tab holds **two coordinated drafts** (`useHiringComposer.ts`): the axis and
 the plan. Both read the same draft axis, so renaming a column updates the policy

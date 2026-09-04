@@ -7,7 +7,8 @@ import { recordAutomationEvent } from "./db/pipeline";
 import { getProfileRecord } from "./db/profiles";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
-import { getGroupEval, saveGroupEval } from "./group-eval";
+import { getGroupEval, readGroupEvalCohortState, saveGroupEval } from "./group-eval";
+import { candidateSetFingerprint } from "./group-eval-dedupe";
 import { isEarlyCareer } from "./archetypes";
 import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
@@ -18,7 +19,8 @@ import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
 import { eligibleRunnerUp, leadSeparation, separationNote } from "./group-eval-separation";
-import { fairnessCoversCohort, hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
+import { fairnessCoversCohort, hasComparableCohort, partitionCohortByConsent, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
+import { suppressedCandidateIds } from "./rediscovery-alert-store";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
@@ -195,6 +197,59 @@ export function fairnessTrackOf(
   return isEarlyCareer(archetype) ? "early_career" : "experienced";
 }
 
+// ---- Per-stage deadlines ----------------------------------------------------
+//
+// One group evaluation fans out to up to EIGHT Python processes: the recruiter
+// ranker (with --weights-llm and --embeddings, so two provider round-trips inside
+// one child), the `group_compare_cli` narrative, and up to GROUP_EVAL_CAP=6
+// concurrent per-candidate reasoning runs. Not one of them carried a deadline, so
+// every stage inherited python-runner's DEFAULT_TIMEOUT_MS — a 10-minute HANG
+// BACKSTOP, explicitly "not a deadline". A provider stalling mid-stream therefore
+// parked the modal's spinner (and a background task slot) for ten minutes before
+// falling back to the deterministic result it could have produced in seconds.
+//
+// These are the deadlines, stated per stage and sized to what the stage actually
+// does. Every one of them fails SOFT into the deterministic twin the stage already
+// has — that is the property that makes a deadline safe here: passing it costs
+// fidelity, never the result. `KP_GROUP_EVAL_STAGE_TIMEOUT_MS` overrides all three
+// (an operator knob for a slow self-hosted provider, and how the tests drive the
+// timeout path).
+const STAGE_TIMEOUT_OVERRIDE_MS = Number(process.env.KP_GROUP_EVAL_STAGE_TIMEOUT_MS);
+function stageTimeoutMs(fallback: number): number {
+  return Number.isFinite(STAGE_TIMEOUT_OVERRIDE_MS) && STAGE_TIMEOUT_OVERRIDE_MS > 0
+    ? STAGE_TIMEOUT_OVERRIDE_MS
+    : fallback;
+}
+/** Ranking: one child, but TWO enrichments inside it (LLM weight proposal +
+ *  embeddings) over a field of up to six. The most expensive stage, so the
+ *  longest deadline. */
+export const GROUP_EVAL_RANK_TIMEOUT_MS = 240_000;
+/** The comparison narrative: one prompt over an already-scored field. */
+export const GROUP_EVAL_COMPARE_TIMEOUT_MS = 150_000;
+/** Per-candidate reasoning: six of these run concurrently, each one prompt. The
+ *  deadline is PER CANDIDATE — a single stalled provider call degrades that
+ *  candidate to the deterministic rationale without holding the other five. */
+export const GROUP_EVAL_REASONING_TIMEOUT_MS = 150_000;
+
+/**
+ * The abort signal for one stage: the caller's cancellation OR this stage's own
+ * deadline, whichever fires first. Returned alongside the deadline signal itself so
+ * the caller can tell a TIMEOUT from an ordinary failure and disclose it honestly —
+ * `AbortSignal.any` reports only that it aborted, not which input did it.
+ */
+export function stageSignal(
+  signal: AbortSignal | undefined,
+  timeoutMs: number
+): { signal: AbortSignal; deadline: AbortSignal } {
+  const deadline = AbortSignal.timeout(timeoutMs);
+  return { signal: signal ? AbortSignal.any([signal, deadline]) : deadline, deadline };
+}
+
+/** A stage that did not produce its AI result, and why. Persisted on the payload so
+ *  a degraded evaluation is legible as degraded rather than passing itself off as a
+ *  full one — the same rule the comms layer follows with sent/queued/failed. */
+type DegradedStage = { stage: "ranking" | "comparison" | "reasoning"; reason: "timeout" | "failed" };
+
 // Rank the role's candidates against the role's job via the recruiter ranker
 // (ONE Python process for the whole field) to get the full MatchResult breakdown
 // per candidate. Best-effort: any failure returns an empty map and the eval
@@ -230,7 +285,7 @@ async function runGroupCompare(
   candidates: PerCandidate[],
   roleSalaryBand: number[],
   signal?: AbortSignal,
-): Promise<{ comparison: Comparison; source: string } | null> {
+): Promise<{ comparison: Comparison; source: string; narrativeLang: string } | null> {
   let workdir: string | null = null;
   try {
     workdir = await createWorkdir();
@@ -273,16 +328,32 @@ async function runGroupCompare(
       ["-m", "pipeline.jobfit.group_compare_cli", "--input-json", inputPath, "--lang", getWorkspaceDefaultLocale()],
       // buildLlmConfigEnv: the CLI resolves the group_compare use case — without
       // this env the configured BYOM provider/key re-route is silently dead.
-      { signal, env: buildLlmConfigEnv() }
+      // timeoutMs: this is the ONE spawn of the three this module owns directly, so
+      // the deadline is enforced by python-runner itself (a SIGKILL, not just an
+      // abort) rather than only through the composed signal.
+      { signal, timeoutMs: stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS), env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
       throw new Error(err.message);
     }
-    const parsed = parsePythonJson<{ comparison?: Comparison; source?: string }>(stdout, stderr);
+    const parsed = parsePythonJson<{ comparison?: Comparison; source?: string; narrativeLang?: string }>(
+      stdout,
+      stderr,
+    );
     if (!parsed.comparison?.headline) return null;
-    return { comparison: parsed.comparison, source: parsed.source ?? "deterministic" };
+    // `narrativeLang` is what the ENGINE says the text is written in, not what we asked
+    // for: the deterministic synthesis is English-only, so a workspace on cs/de/fr that
+    // fell back gets English prose. This payload is SHARED and PERSISTED, so re-deriving
+    // the language at render time from `source` (the mistake the per-match path already
+    // fixed) would tell every later reader the wrong thing. Legacy CLIs that predate the
+    // field say nothing, and "en" is what they in fact produced.
+    return {
+      comparison: parsed.comparison,
+      source: parsed.source ?? "deterministic",
+      narrativeLang: parsed.narrativeLang ?? "en",
+    };
   } catch (error) {
     console.warn(`[group-eval] compare summary failed for "${roleTitle}":`, error instanceof Error ? error.message : error);
     return null;
@@ -312,10 +383,32 @@ export async function runGroupEval(
   //     recruiter's chosen subset and `params.cohort` carries the FULL role cohort.
   //     The eval runs over the selection, but every coverage / drift bookkeeping stays
   //     anchored to the full cohort so a narrowed comparison never reads as a shrunk pool.
-  const requested = (params.candidates as GroupEvalCandidate[]) ?? [];
+  const rawRequested = (params.candidates as GroupEvalCandidate[]) ?? [];
   const cohortParam = params.cohort as GroupEvalCandidate[] | undefined;
   const hasSelectionParam = Array.isArray(cohortParam);
-  const cohort = hasSelectionParam ? cohortParam! : requested;
+  const rawCohort = hasSelectionParam ? cohortParam! : rawRequested;
+  // Consent / anonymization gate — BEFORE anything else touches the cohort.
+  //
+  // This is the app's most PII-dense operation: every compared member's label,
+  // archetype, salary expectation and CV-derived verdict is serialized into a prompt,
+  // sent to a provider, narrated, persisted into a shared row and (under
+  // `recommendation` governance) sealed into a decision record. Selection consulted
+  // NO consent state, so a candidate anonymized under a GDPR erasure, or one whose
+  // consent to be processed had lapsed, was compared and sealed like anyone else —
+  // while the very same suppression is enforced for outreach.
+  //
+  // suppressedCandidateIds is that shared predicate: workspace-GLOBAL (erasure is a
+  // property of the person, not the team), most-restrictive across every entry an
+  // identity owns, and fail-CLOSED — a broken consent read suppresses everyone, which
+  // degrades this run to "insufficient sample" rather than re-materializing an erased
+  // person into a model prompt. Applied to the FULL cohort and to an explicit
+  // selection alike: a recruiter cannot opt a suppressed candidate back in by picking
+  // them.
+  const suppressed = suppressedCandidateIds(rawCohort.map((c) => c.candidateId));
+  const { compared: cohort, excluded: consentExclusions } = partitionCohortByConsent(rawCohort, suppressed);
+  const requested = hasSelectionParam
+    ? rawRequested.filter((c) => !(c.candidateId && suppressed.has(c.candidateId.trim())))
+    : cohort;
   const totalCandidates = cohort.length;
   const idOf = (c: GroupEvalCandidate) => c.candidateId || c.entryId;
   // Server-validated membership + cap: a passed selection is filtered to members that
@@ -364,6 +457,13 @@ export async function runGroupEval(
   // role has never been evaluated as a top-N (before selection-rerun-cache a selection
   // run wrote the role-level row, so this keeps governance exactly as sticky as it was).
   const priorEval = getGroupEval(roleKey, workspaceId) ?? (cacheKey !== roleKey ? getGroupEval(cacheKey, workspaceId) : null);
+  // The CAS precondition, read HERE — before the first await, so it is genuinely
+  // "what this run saw when it started" — and re-asserted by the write at the end
+  // (see saveGroupEval). `cohortHash` is the order-independent fingerprint of the
+  // cohort this run ranks; it is what a later run compares against to decide whether
+  // the field it is about to overwrite is the one it read.
+  const expectedCohortState = readGroupEvalCohortState(cacheKey, workspaceId);
+  const cohortHash = candidateSetFingerprint(cohort.map((c) => ({ entryId: c.entryId, candidateId: c.candidateId })));
   const storedGovernanceMode = priorEval
     ? normalizeGovernanceMode((priorEval.payload as { governanceMode?: unknown }).governanceMode)
     : null;
@@ -408,6 +508,11 @@ export async function runGroupEval(
 
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
   const job = jobId ? getJob(jobId) : null;
+  // Which AI stages did not produce their result (see DegradedStage). Collected as
+  // the run goes and persisted on the payload, so "the deterministic fallback" is a
+  // stated fact rather than something the reader has to infer from missing prose.
+  const degraded: DegradedStage[] = [];
+  const rankStage = stageSignal(signal, stageTimeoutMs(GROUP_EVAL_RANK_TIMEOUT_MS));
   let rows = new Map<string, RecruiterRow>();
   let fairness: Fairness | null = null;
   if (job) {
@@ -415,10 +520,17 @@ export async function runGroupEval(
       const pool = input
         .map((c) => (c.candidateId ? poolEntryOf(c.candidateId, c.label, resolved.get(c.candidateId)) : null))
         .filter((e): e is CandidatePoolEntry => e !== null);
-      const ranked = await rankCandidates(job, pool, signal);
+      const ranked = await rankCandidates(job, pool, rankStage.signal);
       rows = ranked.rows;
       fairness = ranked.fairness;
     } catch (error) {
+      // A ranker failure was already soft (the eval degrades to the score-only view
+      // and robustness reports "unavailable"). What was missing is the DISCLOSURE:
+      // the payload said nothing about which stage did not run, so a degraded
+      // evaluation was indistinguishable from a full one. `rankStage.deadline` is
+      // how we tell our own timeout from any other failure — AbortSignal.any reports
+      // only that it aborted, never which input aborted it.
+      degraded.push({ stage: "ranking", reason: rankStage.deadline.aborted ? "timeout" : "failed" });
       console.warn(`[group-eval] recruiter ranking failed for "${roleKey}":`, error instanceof Error ? error.message : error);
     }
   }
@@ -457,11 +569,16 @@ export async function runGroupEval(
   // so they run in parallel; the field is already capped at 6, which is the
   // concurrency bound. Per-candidate failures degrade to the deterministic
   // source exactly as before.
+  //
+  // The deadline is PER CANDIDATE (its own stageSignal below), so one stalled
+  // provider call degrades that candidate to the deterministic rationale instead of
+  // holding the other five behind it.
   const reasonings = await Promise.all(
-    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null; promptVersion: string | null }> => {
-      if (!jobId || !c.candidateId) return { reasoning: {}, source: null, promptVersion: null };
+    input.map(async (c): Promise<{ reasoning: Reasoning; source: string | null; promptVersion: string | null; failed: DegradedStage["reason"] | null }> => {
+      if (!jobId || !c.candidateId) return { reasoning: {}, source: null, promptVersion: null, failed: null };
+      const stage = stageSignal(signal, stageTimeoutMs(GROUP_EVAL_REASONING_TIMEOUT_MS));
       try {
-        const out = await runReasoning({ jobId, profileId: c.candidateId }, signal, workspaceId);
+        const out = await runReasoning({ jobId, profileId: c.candidateId }, stage.signal, workspaceId);
         return {
           reasoning: (out.reasoning as Reasoning) ?? {},
           source: String(out.source ?? "deterministic"),
@@ -469,12 +586,23 @@ export async function runGroupEval(
           // It used to be dropped here, which is why the sealed lead could not say WHICH
           // prompt generated the reasoning behind it (EU AI Act Art. 12 traceability).
           promptVersion: typeof out.promptVersion === "string" ? out.promptVersion : null,
+          failed: null,
         };
       } catch {
-        return { reasoning: {}, source: "deterministic", promptVersion: null };
+        // Best-effort by design: a candidate whose reasoning run fails or passes its
+        // deadline keeps the deterministic rationale. Recorded (not swallowed) so the
+        // payload can say the cohort's reasoning was partly deterministic.
+        return { reasoning: {}, source: "deterministic", promptVersion: null, failed: stage.deadline.aborted ? "timeout" : "failed" };
       }
     })
   );
+  // Reasoning is per candidate but disclosed once for the cohort: "some of this
+  // field's rationales are deterministic" is the fact a reader needs, and a timeout
+  // is reported over a plain failure when either occurred (the stricter claim).
+  const reasoningFailures = reasonings.map((r) => r.failed).filter((f): f is DegradedStage["reason"] => f !== null);
+  if (reasoningFailures.length > 0) {
+    degraded.push({ stage: "reasoning", reason: reasoningFailures.includes("timeout") ? "timeout" : "failed" });
+  }
 
   // The distinct prompt versions behind this cohort's reasoning. Normally one; a mixed
   // set (a cache straddling a prompt bump) is recorded as-is rather than collapsed to
@@ -589,7 +717,17 @@ export async function runGroupEval(
   // It also spent a paid LLM round-trip (plus a Python spawn) to compare one candidate
   // against nobody. Below the floor there is nothing to compare: emit no narrative, and
   // AiVerdict falls back to the honest insufficient-sample summary.
-  const compare = comparable ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], signal) : null;
+  const compareStage = stageSignal(signal, stageTimeoutMs(GROUP_EVAL_COMPARE_TIMEOUT_MS));
+  const compare = comparable ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], compareStage.signal) : null;
+  // A null compare over a comparable field means the narrative did not arrive — the
+  // spawn failed, passed its deadline, or returned a headline-less body. Either way
+  // the modal falls back to `summary`, and the payload now says so rather than
+  // letting a deterministic one-liner read as the AI's considered comparison. (Below
+  // the min-cohort floor the narrative is deliberately not attempted, which is a
+  // policy decision already disclosed as "insufficient sample" — not a degradation.)
+  if (comparable && !compare) {
+    degraded.push({ stage: "comparison", reason: compareStage.deadline.aborted ? "timeout" : "failed" });
+  }
 
   // Summary is governance-aware: in committee/eligibility modes it must NOT read as
   // an AI verdict ("Recommended lead") — that's the very thing those modes reject.
@@ -780,6 +918,22 @@ export async function runGroupEval(
     // the recruiter picked an explicit subset, so the modal can disclose "comparing
     // your selection of {count} of {total}" honestly instead of the top-N wording.
     selection: useSelection ? { count: input.length, total: totalCandidates } : null,
+    // Consent/anonymization exclusions — the honest half of the gate above. A field
+    // that shrank because two people were erased or their consent lapsed must not
+    // read as a field that simply had fewer applicants, so the count and the REASONS
+    // are carried on the payload (an erasure and a lapsed consent are different
+    // facts). COUNTS ONLY, deliberately: this row is shared, persisted and readable
+    // by the whole team, so the gate must not write the excluded people's ids back
+    // into it — that is the thing the erasure removed. Null when nothing was
+    // excluded, so legacy payloads and clean cohorts are indistinguishable.
+    consentExcluded:
+      consentExclusions.length > 0
+        ? {
+            count: consentExclusions.length,
+            anonymized: consentExclusions.filter((e) => e.reason === "anonymized").length,
+            consentExpired: consentExclusions.filter((e) => e.reason === "consent_expired").length,
+          }
+        : null,
     // Every candidate label in the FULL role cohort at eval time — the modal diffs
     // this against the role's current pending entries to warn about pool drift
     // (anchored to the whole cohort, not just a narrowed selection).
@@ -842,10 +996,31 @@ export async function runGroupEval(
     // Structured, bold-formatted AI comparison (the modal prefers it).
     comparison: compare?.comparison ?? null,
     comparisonSource: compare?.source ?? null,
+    // The language the comparison prose is actually IN — the modal renders an honest
+    // "shown in <language>" note when it differs from the reader's locale, the same way
+    // MatchReasoningPanel does for the per-match rationale.
+    comparisonLang: compare?.narrativeLang ?? null,
+    // Which AI stages did not produce their result, and whether they timed out or
+    // failed. Up to eight Python processes back one evaluation and EVERY one of them
+    // degrades to a deterministic twin, so a saved eval could be almost entirely
+    // deterministic and read exactly like a full AI comparison. Null when every stage
+    // delivered — so a clean run and a legacy payload are indistinguishable, and the
+    // presence of this field always means something actually degraded.
+    degradedStages: degraded.length > 0 ? degraded : null,
   };
 
   // Persist under the run's cache key (roleKey for a top-N run, the selection key for
   // a selection run — selection-rerun-cache). Same workspace scoping either way.
-  saveGroupEval(cacheKey, roleTitle, payload, workspaceId);
+  // …under the CAS precondition read before the first spawn. A run over a cohort
+  // that has since been re-evaluated (or invalidated by a pipeline write) is the
+  // STALE one by construction — it is dropped rather than winning as last writer.
+  // The caller still gets its result; only the shared row is protected.
+  const persisted = saveGroupEval(cacheKey, roleTitle, payload, workspaceId, { cohortHash, expected: expectedCohortState });
+  if (!persisted) {
+    console.warn(
+      `[group-eval] dropped a stale result for "${cacheKey}": the stored eval moved while this run was computing ` +
+        `(expected cohort ${expectedCohortState.exists ? expectedCohortState.cohortHash ?? "<legacy>" : "<none>"}, ranked ${cohortHash}).`
+    );
+  }
   return payload;
 }

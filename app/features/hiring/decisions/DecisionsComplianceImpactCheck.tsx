@@ -56,10 +56,10 @@ export function DecisionsComplianceImpactCheck() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-meta uppercase tracking-wide text-steel">
-                <th className="py-1 pr-2 font-medium">{t("colGroup")}</th>
-                <th className="py-1 pr-2 font-medium">{t("colRate")}</th>
-                <th className="py-1 pr-2 font-medium">{t("colRatio")}</th>
-                <th className="py-1 font-medium">{t("colStatus")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colGroup")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colRate")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colRatio")}</th>
+                <th scope="col" className="py-1 font-medium">{t("colStatus")}</th>
               </tr>
             </thead>
             <tbody>

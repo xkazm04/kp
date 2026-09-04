@@ -75,12 +75,18 @@ export function ConsentPanel({
   const fmt = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso)) : "—";
 
-  // Status → token-driven chip colors (no hardcoded hex; mapped neutrals/status
-  // shades flip in dark mode). "expiring" warns amber, "expired"/"anonymized" red.
+  // Status → chip colours, through BRAND tokens (moss / dial-amber / coral) and the
+  // shared CHIP_QUIET recipe rather than the raw `amber-100 / red-100 / stone-200`
+  // shades this panel used to hand-roll. Those shades are mapped in dark mode, so
+  // they were legal — but they were a SIXTH palette on a thread that already reads
+  // through one, so "amber" here had to be learned separately from the amber the
+  // rest of the drawer uses. The reading states are unchanged and deliberately
+  // still coloured: "expiring" warns, "expired" is a live compliance failure, and
+  // a GDPR surface is the one place a muted-outcome chip would understate.
   const statusTone: Record<ConsentStatus, string> = {
     active: "bg-moss/15 text-moss",
-    expiring: "bg-amber-100 text-amber-800",
-    expired: "bg-red-100 text-red-700",
+    expiring: "bg-dial-amber/20 text-ink",
+    expired: "bg-coral/10 text-coral",
     anonymized: "bg-stone-200 text-steel",
     none: "bg-stone-100 text-steel",
   };

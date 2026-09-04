@@ -70,3 +70,66 @@ export function fairnessCoversCohort(
   if (comparedCandidateIds.length === 0) return false;
   return comparedCandidateIds.every((id) => !!id && set.has(id));
 }
+
+// ---- Consent / anonymization exclusion --------------------------------------
+//
+// A group evaluation is the most PII-dense thing the app does with a cohort: every
+// member's label, archetype, salary expectation, matched/missing skills and
+// CV-derived verdict are serialized into a prompt, sent to a provider, narrated,
+// and then PERSISTED into a shared row the whole team reads (and, under
+// `recommendation` governance, sealed into a decision record).
+//
+// Cohort selection consulted none of that. The app already knows two things that
+// forbid it — a candidate anonymized under a GDPR erasure, and a candidate whose
+// consent to be processed has lapsed — and already enforces both for OUTREACH via
+// `suppressedCandidateIds` (rediscovery-alert-store.ts: workspace-global, because
+// erasure is a property of the person not the team; most-restrictive across every
+// entry the identity owns; fail-CLOSED so a broken consent read suppresses
+// everybody rather than nobody). This applies the SAME verdict to the compared
+// field, so an erased person is not re-materialized into a model prompt and a
+// sealed comparison.
+//
+// Pure, like the rest of this module: the caller resolves the suppression map (a DB
+// read) and hands it in, so the exclusion rule itself stays unit-testable without a
+// database and the two consumers of the predicate can never disagree about it.
+
+/** One member removed from a comparison, and why. `reason` is the suppression
+ *  vocabulary of `suppressedCandidateIds` verbatim — an erasure and a lapsed
+ *  consent are DIFFERENT facts and are disclosed as such, never flattened into a
+ *  single "excluded". */
+export type ConsentExclusion = {
+  entryId: string;
+  candidateId: string;
+  reason: "anonymized" | "consent_expired";
+};
+
+/** Structural shape of a cohort member — the fields this filter reads. Kept
+ *  structural (no `GroupEvalCandidate` import) so this module stays
+ *  dependency-free and client-safe. */
+type CohortMember = { entryId: string; candidateId: string | null };
+
+/**
+ * Split a role cohort into the members that may be compared and the members that
+ * may not, given the suppression map for their durable identities.
+ *
+ * A member with NO `candidateId` is kept: suppression is keyed to a person, and a
+ * manually added pipeline row names none — dropping it would shrink the field on a
+ * technicality rather than on a consent fact. Every entry sharing a suppressed
+ * `candidateId` is excluded (one person can hold two entries in a role after a
+ * re-add; excluding only the first would carry the erased label straight back in).
+ * Order is preserved and the input array is never mutated.
+ */
+export function partitionCohortByConsent<T extends CohortMember>(
+  cohort: readonly T[],
+  suppressed: ReadonlyMap<string, ConsentExclusion["reason"]>
+): { compared: T[]; excluded: ConsentExclusion[] } {
+  const compared: T[] = [];
+  const excluded: ConsentExclusion[] = [];
+  for (const member of cohort) {
+    const candidateId = (member.candidateId ?? "").trim();
+    const reason = candidateId ? suppressed.get(candidateId) : undefined;
+    if (reason) excluded.push({ entryId: member.entryId, candidateId, reason });
+    else compared.push(member);
+  }
+  return { compared, excluded };
+}

@@ -4,6 +4,9 @@ import path from "node:path";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -12,6 +15,14 @@ import {
   spawnPython,
 } from "@/app/_lib/python-runner";
 
+
+// spawnPython's default is a TEN-MINUTE hang backstop — the right bound for a repo scan
+// and the wrong one for a panel the recruiter is watching. winnability_cli is
+// deterministic scoring over the (capped) pool with no model call, so it answers in well
+// under a second; without an explicit bound a wedged child held the coach's spinner for
+// nine minutes past the point the grade was useful, and the abandoned request's SIGKILL
+// only ever arrived if the recruiter closed the panel.
+const WINNABILITY_TIMEOUT_MS = 60_000;
 
 // idea-aa039d0c — pre-publish winnability coach. Grades a (draft) JD against the
 // SAME shared pool the recruiter ranking scores, reusing the production ko_filter
@@ -34,9 +45,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     // Same population the candidates tab ranks, so the coach and the ranking
     // never diverge on who's in the pool. Workspace-scoped like the ranking.
-    const { entries } = buildCandidatePool(ws);
+    const { entries, truncated } = buildCandidatePool(ws);
     if (entries.length === 0) {
-      return NextResponse.json({ poolSize: 0, note: "No saved candidates yet." });
+      // No `note`: it was English prose the client is forbidden to render (and the
+      // coach never read it — poolSize 0 already selects the empty state).
+      return NextResponse.json({ poolSize: 0, poolTruncated: truncated });
+    }
+
+    // Per-IP, AFTER the visibility gate and the empty-pool short-circuit (neither
+    // spawns anything, so both keep serving freely) and BEFORE the workdir + the
+    // winnability_cli child. 30/10min: the coach runs once per JD edit a recruiter
+    // stops to grade — a per-request spawn, so the same tight budget as the candidates
+    // ranking rather than publish's generous one.
+    if (!rateLimit(`jobs-winnability:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     workdir = await createWorkdir();
@@ -51,7 +73,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // child instead of letting it run to the backstop and pile up.
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.winnability_cli", "--input-json", inputPath, "--job-json", jobPath],
-      { signal: request.signal },
+      { signal: request.signal, timeoutMs: WINNABILITY_TIMEOUT_MS },
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
@@ -62,10 +84,22 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // trailing non-JSON at shutdown (asyncio "Event loop is closed", leaked-
     // semaphore / ResourceWarning — common on Windows) that would crash a parse.
     const payload = parsePythonJson<Record<string, unknown>>(stdout, stderr);
-    return NextResponse.json(payload);
+    // Echo the pool cap the same way the candidates route does (`poolTruncated`):
+    // the coach grades the SAME capped pool the ranking scores, so a verdict of
+    // "3 qualified of 40" computed over a truncated corpus has to say so — an
+    // unqualified "your JD only reaches 3 people" is a JD edit the recruiter
+    // would make for a reason that isn't true.
+    return NextResponse.json({ ...payload, poolTruncated: truncated });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to assess winnability.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // python-runner delivers its deadline as a REJECTION carrying a message, not a typed
+    // error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place that reading
+    // lives. A deadline WE set is a decision, not a store fault — so it is named, and the
+    // panel's existing retry affordance is the honest next step. Everything else is still
+    // a logged fault behind the generic code.
+    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+      return jsonRefusal("JOB_WINNABILITY_TIMEOUT", 504);
+    }
+    return safeJsonError(error, "api:jobs/winnability", "JOB_WINNABILITY_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

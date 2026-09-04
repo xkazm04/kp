@@ -3,6 +3,7 @@ import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { closeEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 
 // W8-1 (JOB1) — retire a role. The lifecycle was a one-way ratchet (NULL/draft
@@ -48,6 +49,6 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
     return NextResponse.json({ ok: true, status: "closed", alreadyClosed: already, withdrawn, withdrawalFailed });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Close failed." }, { status: 500 });
+    return safeJsonError(error, "api:jobs/close", "JOB_CLOSE_FAILED");
   }
 }

@@ -16,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import configure_stdio, emit_error, not_found
 from .llm import resolve_provider
 from .jobs import Job
 from .matching import MatchCandidate, load_corpus
@@ -25,9 +26,11 @@ from .transform import build_match_candidate
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    # The shared scaffold, not a third hand-rolled copy: recruiter_cli used to
+    # re-implement both the stdio reconfigure AND the stderr envelope, so it was the
+    # one CLI in this family that never picked up `errors=` handling or the `code`
+    # field. Everything the bridge sees now comes from _cli.py.
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Rank candidates against one job.")
     parser.add_argument("--input-json", type=Path, help="Input JSON file. Reads stdin if omitted.")
@@ -48,7 +51,9 @@ def main(argv: list[str] | None = None) -> int:
             jobs = load_corpus(args.jobs)
             job = next((j for j in jobs if j.id == job_id), None)
         if job is None:
-            raise ValueError(f"job not found: {job_id}")
+            # 404/`not_found` — the recruiter opened a job the corpus no longer
+            # carries; that is not an engine fault and must not read as one.
+            raise not_found(f"job not found: {job_id}")
 
         candidates: list[tuple[str, MatchCandidate]] = []
         skipped: list[dict[str, str]] = []
@@ -96,8 +101,7 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             fairness = None
     except Exception as exc:
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        return emit_error(exc)
 
     # Source field names/casing from the single Pydantic definition: pick the
     # recruiter-view keys straight out of Job.model_dump(by_alias=True) — the same

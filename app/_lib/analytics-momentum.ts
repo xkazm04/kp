@@ -46,16 +46,19 @@ export function momentumWeekLabel(weekStart: string, locale: string): string {
 
 export function weeklyMomentum(
   events: MomentumEvent[],
-  // `terminalStage` is the workspace's own final column. Passed in rather than
-  // hardcoded so a renamed terminal column still fills the `hired` series; the
-  // default keeps this pure module correct for the shipped axis and for callers
-  // that cannot resolve one.
-  opts?: { weeks?: number; now?: number; terminalStage?: string }
+  // `terminalStage` is the workspace's own final column and is REQUIRED. It used to
+  // default to the literal "Hired", which is not a fallback but a wrong answer with a
+  // friendly face: on a board whose final column is called "Signed" every completed
+  // hire landed in the `advanced` bars and the hire series read flat zero forever,
+  // with nothing on screen saying so. There is no correct default here — only the
+  // caller knows the axis — so the type asks for it and every caller resolves it from
+  // `stageWithRole("terminal", axis)`.
+  opts: { weeks?: number; now?: number; terminalStage: string }
 ): MomentumWeek[] {
-  const weeks = Math.max(1, opts?.weeks ?? MOMENTUM_WEEKS);
-  const now = opts?.now ?? Date.now();
+  const weeks = Math.max(1, opts.weeks ?? MOMENTUM_WEEKS);
+  const now = opts.now ?? Date.now();
   const start = now - weeks * WEEK_MS;
-  const terminalStage = opts?.terminalStage ?? "Hired";
+  const terminalStage = opts.terminalStage;
   const buckets: MomentumWeek[] = Array.from({ length: weeks }, (_, i) => ({
     weekStart: new Date(start + i * WEEK_MS).toISOString().slice(0, 10),
     added: 0,

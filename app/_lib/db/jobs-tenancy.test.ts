@@ -13,10 +13,17 @@ import path from "node:path";
 // ENUMERATION reads must carry workspace_id (via `(workspace_id IS NULL OR = ?)` or
 // a strict `= ?`), and the INSERT stamps it.
 //
-// EXEMPTION: by-id point ops (getJob, getJobsByIds, getJobStatus, getJobOwnerWorkspace,
+// EXEMPTION: by-id point ops (getJob, getJobStatus, getJobOwnerWorkspace,
 // setJobStatus, and insertJob's existence checks) are keyed on the globally-unique job id
 // PK — a by-id read/flip returns/touches exactly that one row and can't enumerate another
 // tenant.
+//
+// getJobsByIds USED to ride that exemption and no longer does. It is a `WHERE id IN (…)`
+// BATCH — the shape the generic guard below reads as a point op — so the exemption's
+// argument ("exactly that one row") never actually applied to it: hand it N ids and it
+// returns N rows from any tenant. It was safe only because its one caller launders the
+// ids through a workspace-scoped list first, which is a property of the CALLER, not of
+// the read. It now takes a workspace and filters on it, pinned by the third test below.
 //
 // That reasoning covers READS. It does NOT cover setJobStatus, which is a WRITE: "can't
 // enumerate another tenant" is not "can't MUTATE another tenant" — an unscoped by-id
@@ -65,3 +72,29 @@ for (const route of ["close", "publish"] as const) {
     assert.ok(gateAt > 0 && writeAt > gateAt, `${route} must run the ownership gate BEFORE setJobStatus`);
   });
 }
+
+// getJobsByIds is a BATCH read, not a point op — the generic guard above exempts it on
+// the `WHERE id` shape, so it needs its own pin. Source-level (the batch takes the
+// workspace as an argument, so a behavioral drive would only prove the caller passed it):
+// the SQL must carry the corpus-or-mine predicate and the workspace must be bound.
+test("getJobsByIds scopes its IN-query to the caller's workspace (corpus rows + own openings)", () => {
+  const jobsSrc = readFileSync(path.join(dir, "jobs.ts"), "utf8").replace(/\r\n/g, "\n");
+  const at = jobsSrc.indexOf("export function getJobsByIds");
+  assert.ok(at > 0, "getJobsByIds must still be exported from jobs.ts");
+  const body = jobsSrc.slice(at, jobsSrc.indexOf("\n}\n", at));
+
+  assert.match(
+    body,
+    /getJobsByIds\(\s*ids: string\[\],\s*workspaceId: string = DEFAULT_WORKSPACE_ID\s*\)/,
+    "getJobsByIds must TAKE a workspace, defaulted to DEFAULT_WORKSPACE_ID so single-workspace callers are unchanged"
+  );
+  const sql = body.match(/`SELECT[\s\S]*?`/);
+  assert.ok(sql, "expected the IN-query template literal");
+  assert.match(
+    sql[0],
+    /workspace_id IS NULL OR workspace_id = \?/,
+    "the batch must use listJobs' dual predicate: the shared seeded corpus + this team's own openings"
+  );
+  // The predicate is worthless if the value is never bound.
+  assert.match(body, /\.all\(\s*\.\.\.part,\s*workspaceId\s*\)/, "the workspace must be bound as the trailing parameter");
+});

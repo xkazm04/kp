@@ -11,7 +11,7 @@ import { Badge } from "@/app/_components/Badge";
 import { Modal } from "@/app/_components/Modal";
 import { labelize } from "@/app/_lib/format";
 import { ResendButton } from "@/app/features/tools/devcases/ResendButton";
-import { formatRecordedAt, statusTone, type Message, type StatusLabels } from "./channelsCommsHelpers";
+import { displayRecipient, displaySubject, formatRecordedAt, statusTone, type Message, type ReceiptLabels, type StatusLabels } from "./channelsCommsHelpers";
 import { BouncedResend } from "./ChannelsCommsBouncedResend";
 
 export function ChannelsCommsMessageModal({
@@ -19,6 +19,7 @@ export function ChannelsCommsMessageModal({
   name,
   roleLabel,
   statusLabels,
+  receiptLabels,
   onClose,
   onResent,
 }: {
@@ -26,13 +27,15 @@ export function ChannelsCommsMessageModal({
   name: string;
   roleLabel: string | null;
   statusLabels: StatusLabels;
+  /** Localized stand-ins for a receipt row's stored subject/recipient CODES. */
+  receiptLabels: ReceiptLabels;
   onClose: () => void;
   onResent: () => void;
 }) {
   const t = useTranslations("channels.comms");
   const locale = useLocale();
   return (
-    <Modal title={name} subtitle={roleLabel ?? message.recipient ?? undefined} onClose={onClose} size="lg">
+    <Modal title={name} subtitle={roleLabel ?? displayRecipient(message, receiptLabels) ?? undefined} onClose={onClose} size="lg">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge {...statusTone(message, statusLabels)} />
@@ -49,7 +52,10 @@ export function ChannelsCommsMessageModal({
         {message.bounced ? (
           <p className="flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
             <AlertTriangle size={12} aria-hidden />
-            {t("bouncedAt", { time: message.bouncedAt ? new Date(message.bouncedAt).toLocaleString() : "—", detail: message.bounceDetail ?? "—" })}
+            {/* formatRecordedAt, not a bare toLocaleString(): the locale is read three lines
+                up and every other timestamp on this surface already honours it, so the
+                bounce time was the one date rendering in the browser's language. */}
+            {t("bouncedAt", { time: message.bouncedAt ? formatRecordedAt(message.bouncedAt, locale) : "—", detail: message.bounceDetail ?? "—" })}
           </p>
         ) : null}
         {message.status === "failed" && !message.recovered && !message.bounced ? (
@@ -58,7 +64,9 @@ export function ChannelsCommsMessageModal({
             {message.failureDetail ? t("failureDetail", { detail: message.failureDetail }) : t("failureDetailUnknown")}
           </p>
         ) : null}
-        {message.subject ? <p className="font-semibold text-ink">{message.subject}</p> : null}
+        {displaySubject(message, receiptLabels) ? (
+          <p className="font-semibold text-ink">{displaySubject(message, receiptLabels)}</p>
+        ) : null}
         {message.body ? (
           <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-stone-200 bg-paper/50 p-3 font-sans text-sm leading-5 text-steel">
             {message.body}

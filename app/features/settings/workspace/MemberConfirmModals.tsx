@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { memberName } from "./workspaceAdminHelpers";
 import type { OrgMemberDto } from "./useWorkspaceAdmin";
 
@@ -72,18 +73,13 @@ function ConfirmModal({
       size="md"
       footer={
         <>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="focus-ring inline-flex h-9 items-center rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-steel hover:text-ink"
-          >
+          {/* The shared button recipes, not two hand-typed near-copies of them:
+              these had drifted off BTN_SECONDARY/BTN_PRIMARY and so missed the
+              Spark Dark sticker press every other dialog in the app has. */}
+          <button type="button" onClick={onCancel} className={`${BTN_SECONDARY} h-9 bg-white px-3 text-sm font-semibold text-steel hover:text-ink`}>
             {cancelLabel}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="focus-ring inline-flex h-9 items-center rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90"
-          >
+          <button type="button" onClick={onConfirm} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
             {confirmLabel}
           </button>
         </>

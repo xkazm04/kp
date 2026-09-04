@@ -210,6 +210,17 @@ the exchange are appended as episodes — the operator's message *before* the mo
 timeout can never cost them their own words. Keyless or unreachable, the reply
 says so in the operator's language rather than inventing an answer.
 
+- **A deterministic reply is answered, not remembered.** When `source` is
+  `deterministic` (`_worth_remembering` in `companion_cli.py`), `run_turn`
+  writes the operator's episode and **no assistant episode** — the person said
+  their half, but `UNREACHABLE_REPLY` is not something Candi knows, and appending
+  it made outage prose a permanently recallable memory that competes with the
+  real thing (`surface_recall` drops echoes and same-day commands, not this). A
+  keyless install would otherwise fill its own brain with apologies. `memoryEnabled`,
+  `indexSkipped` and the memory-off path are unchanged. `run_digest` applies the
+  same rule with only one half to apply it to: a degraded digest has no operator
+  message either, so it writes no episode at all and `episodePaths` is empty.
+
 ## What she is allowed to remember at you
 
 **Storage is never filtered. Surfacing is.** Every exchange is written and
@@ -298,6 +309,13 @@ Blocks ride to the client in the turn's `meta_json` (`CompanionTurnMeta.blocks`)
 are re-coerced at that boundary by `app/_lib/companion-blocks.ts` (a `meta_json`
 row written by an older build is untrusted input), and render through
 `app/_components/chat/ChatBlocks.tsx` → `ChatTable.tsx` / `ChatMiniChart.tsx`.
+**Both halves of that discard are counted.** `blockErrors` is produced in Python,
+where the raw fences were still visible; a block that satisfied
+`companion_blocks.py` and then failed the TS coercion — the stale stored turn
+this second gate exists for — used to be dropped in silence. `renderableBlocks()`
+now re-coerces at the point of drawing and adds what died there to the server's
+count, so the one chip both the dock and the voice strip render
+(`t("blocks.dropped")`) tells the truth about both.
 **The caps live in three places and must move together**: `companion_blocks.py`,
 `app/_components/chat/chatBlockTypes.ts`, and the renderers built to them.
 
@@ -562,7 +580,7 @@ Operator-gated routes, all workspace-scoped through the store's own tenancy.
 | `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns, its proposals AND `memoryEnabled` — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
 | `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something |
 | `POST /api/companion/[id]/message` | one exchange. Returns the thread's full turn list AND its live proposals |
-| `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled` |
+| `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled`. Per-IP 60/10min — it creates nothing and calls no model, but it is still a Python child per request, and in open mode the operator gate above it is a no-op for the whole API |
 | `POST /api/companion/brain` | **WP4.** `{action: "connect" \| "birth"}`. Records consent; `birth` runs `ensure_brain` first, so consent is never stamped over a brain that does not exist. Per-IP 20/10min, after the 400 so a malformed call never starts a process. There is no "decline" |
 | `POST /api/companion/proposals/[id]/resolve` | **WP3.** `{decision: "accept" \| "decline"}`. The one door that executes anything — see "The proposal lifecycle". Per-IP 60/10min, pinned in `app/api/rate-limit-contract.test.ts`, after the 404/400/409 refusals so a rejected call never consumes budget |
 
@@ -600,6 +618,37 @@ Throttle: per-IP 30/10min on the message route, pinned in
 `app/api/rate-limit-contract.test.ts`. It runs after the cheap refusals (404 for
 an unknown or other-tenant thread, 400 for an empty message) so a rejected call
 never consumes budget.
+
+### Refusals carry a code, and a vanished thread is one
+
+Every companion 4xx goes through the refusal chokepoint
+(`jsonRefusal` / `REFUSAL_ERRORS`, `docs/architecture/api-contracts.md` §1.1), so
+the dock resolves `errors.<CODE>` in the reader's language instead of printing
+the server's English. Two codes are the companion's own:
+
+- **`COMPANION_THREAD_NOT_FOUND` (404)** — an unknown or other-tenant thread, and
+  also a thread **deleted mid-request**. Both store writers re-check the thread
+  inside their own transaction and answer `null`; the route used to discard that
+  answer and reply `200` with a turn list missing the exchange it was reporting —
+  the one failure shape a dock cannot detect. The check on the operator's own turn
+  sits before the spawn, so a vanished thread never buys a model call.
+- **`TOO_MANY_REQUESTS` (429)** — the shared throttle, on all four routes. The
+  message is `RATE_LIMITED_ERROR` itself (the registry entry *is* the constant,
+  pinned by `rate-limit-contract.test.ts`); it is deliberately NOT the existing
+  `errors.RATE_LIMITED`, which is GitHub's upstream policy refusal and would
+  answer a throttled companion turn with advice about `GITHUB_TOKEN`.
+
+**Abort travels with the request.** `runCompanionTurn` takes the handler's
+`request.signal` and `spawnCompanion` hands it to `spawnPython`, so a closed tab
+or a dock unmounted mid-turn kills the child instead of leaving a 120-second
+spawn and a paid model call running to nobody.
+
+**The derived title is written under a precondition.** Both callers decide
+`!thread.title.trim()` from a read that predates the write — by a whole model call
+on the digest leg — so `renameThread`'s UPDATE re-asserts `title = ''` and reports
+`changes === 0` rather than overwriting the title the other leg just derived.
+
+Source guard for all of the above: `app/api/companion/companion-route-hygiene.test.ts`.
 
 ## Dock
 
@@ -659,6 +708,49 @@ says "you told me last week…" rather than citing a source id. When nothing she
 recalled carried an insight the strip is empty, which is the honest rendering.
 A degraded turn says so in the same quiet voice, and a dropped block or proposal
 is admitted rather than hidden.
+
+#### The states the engine already reported, now shown
+
+Four facts were being stored on every turn and rendered by nothing. The dock now
+reads what it is handed:
+
+| Fact | Where it comes from | What the dock says |
+| --- | --- | --- |
+| `meta.fallbackReason` | `companion_cli.py::_complete` — either the literal `"no provider available"` or `"<ExceptionType>: <message>"` | The degraded chip names the CLASS: *no model configured* (a settings trip) vs *the model did not answer* (an incident worth one retry). An unrecognised reason keeps the old generic chip rather than being guessed at. `companionFallbackClass` in `app/_lib/companion-turn.ts`, unit-tested. |
+| `meta.indexSkipped` | the message route and the digest run both store it | One quiet line under the state line: *this answer was not written to memory*. The NEWEST assistant turn's fact only — one blocked write does not make a conversation memoryless. Distinct from `state.memoryOff`, which is consent and IS fixable in setup. |
+| `meta.digest` | `companion-digest-run.ts` | A chip labelling the turn as the daily digest. An unannounced paragraph that appears above your own last message otherwise reads as a reply to it. |
+| the route's error `code` | `jsonRefusal` (see Transport) | The error line is a `role="alert"` region — outside the transcript's `aria-live="polite"`, because a failure must be heard now — resolving `TOO_MANY_REQUESTS` / `COMPANION_THREAD_NOT_FOUND` through `useErrorMessage()`, with a **Send it again** button beside it. |
+
+**Retry, and the duplicate it fixed.** A refused message is no longer put back
+into the shared orchestration machine's queue. That requeue is right for the voice
+caller the machine was written for (a dropped utterance exists nowhere), and wrong
+here: `ChatComposer` already RESTORES the draft on a false resolve, so the queued
+copy made the operator's next send coalesce their restored draft WITH it and ask
+Candi the same question twice, in one message. It also stranded anything typed
+while the failed turn was in flight, because `completeTurn` dispatches nothing on
+the tick that carries a `failed`. The refused message is held in `lastFailed`
+instead, and Retry re-sends it through the ordinary `send` path — so it still
+queues behind an in-flight turn and is still never re-dispatched on its own.
+
+**Late arm, no new poller.** `useAttention` already polls `/api/attention` every
+60 s for the sidebar badges, and `attention.companion` is the open-proposal count
+— which is exactly what a landed digest, or a proposal a sibling tab answered,
+moves. `CompanionDock` watches that number and calls `thread.refresh()` when it
+changes while the dock is open (`shouldRefetchCompanionThread`: open only, on a
+change only, never on the first observation, since the boot fetch just read the
+same thread). `refresh()` re-reads `GET /api/companion/threads` — the boot route,
+which already returns the newest thread's turns and proposals — so an accepted
+digest appears in place instead of waiting for a remount. Its one stated limit:
+it can only refresh the thread that is still the NEWEST one, and it never switches
+threads. Since `runCompanionDigestTask` writes into `listThreads()[0]` — the same
+thread the dock opens on — the digest case is the one it covers.
+
+**Keyboard.** Escape closes the window when the settings popover is not open, and
+closing returns focus to the rest pill. Still deliberately not a dialog: no focus
+trap, no `inert` page (see the geometry note above). The Escape gate is on
+`settingsOpen` rather than on propagation — the popover's own handler calls
+`stopPropagation`, but two listeners on `document` never see each other's
+propagation, so the gate is what actually stops one keypress dismissing both.
 
 **The speak control lives in that marginalia strip** (`CompanionSpeakButton`),
 first in the chip row. It acts on THIS answer, which is why it is not in the
@@ -943,6 +1035,19 @@ Nothing traps focus and nothing is inert — the page behind is the entire reaso
 this mode exists. The rest pill is unchanged and shared: the mode changes the
 OPEN state only, so a voice-mode operator whose deck is collapsed still has the
 pill as a door.
+
+**Parity with the window, three ways.** *Escape* closes the strip when the
+settings popover is not open, through the SAME close path the X uses — so focus
+lands back on the rest pill however it was dismissed. Bound to the document, not
+to the region: the strip is one focus stop that an operator working the page
+behind it does not have focus in. *Below `sm` the row wraps*: the prose takes the
+full first row and the controls sit beneath it, because at 360px the controls
+alone want ~332px of the ~312px available and a nowrap row squeezes her answer to
+nothing. Hiding the counter would have been cheaper and would have deleted the
+one affordance the mode exists for. *One live region for the answer* (the prose)
+and *one status region for busy* — the counter is no longer live and the ticker
+reuses `VoiceBusyNote` instead of duplicating it, so a single arrow press no
+longer fires three announcements at once.
 
 The input is one line (`<input>`, not a textarea): the operator gave up the
 column to keep the page visible, so the composer cannot claim it back, Enter has

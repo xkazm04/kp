@@ -19,7 +19,12 @@ import { complexityAssessment } from "./heuristics";
 const SKILL_ALIASES: Record<string, string[]> = {
   python: ["python", "fastapi", "django", "flask", "pandas", "numpy"],
   typescript: ["typescript", "ts"],
-  javascript: ["javascript", "node"],
+  // "node.js" and "nodejs" are listed EXPLICITLY: tokenizeForSkills keeps interior
+  // dots (so "node.js" survives as one token rather than splitting to "node"), which
+  // meant a JD saying "Node.js required" produced neither a match nor a gap — the
+  // silent false-negative shape this taxonomy exists to prevent. Both spellings live
+  // ONLY here, so the disjoint-bucket rule still holds (react owns next.js/nextjs).
+  javascript: ["javascript", "node", "node.js", "nodejs"],
   react: ["react", "frontend", "ui", "next.js", "nextjs"],
   go: ["go", "golang"],
   rust: ["rust"],

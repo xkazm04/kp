@@ -1,217 +1,64 @@
 "use client";
 
 /**
- * DevInspector — a dev-only "click a component, copy its source path" overlay.
+ * The production-safe boundary in front of {@link DevInspectorImpl} — a dev-only
+ * "click a component, copy its source path" overlay (see DevInspectorImpl.tsx for
+ * how to drive it).
  *
- * Usage (mirrors the personas desktop app):
- *   1. Launch with `npm run dev:inspect` (sets DEV_INSPECT=1 so the Turbopack
- *      loader stamps host elements with `data-loc`).
- *   2. Press `;` to enter keyboard mode, then `i` to arm the inspector.
- *   3. Hover highlights the element; RIGHT-CLICK copies a Claude-Code-friendly
- *      `src/.../File.tsx:LINE` to the clipboard (left-click is left untouched so
- *      you can keep operating the app). Default copy = the call site (the
- *      feature/page file that used the component); Alt+right-click copies the
- *      innermost element; click a HUD row to copy any enclosing file.
- *   4. `Esc` exits.
+ * WHY THIS STUB EXISTS. The root layout mounts the inspector behind a literal
+ * `process.env.NODE_ENV === "development" && <DevInspector />` gate
+ * (app/layout.tsx), and the comment on the implementation used to claim that gate
+ * kept the module "absent from production". It did not. The gate decides what is
+ * RENDERED; it does not decide what is BUNDLED. A "use client" component named in
+ * the layout's module graph becomes a client reference the router has to be able
+ * to load, so the whole inspector — the DOM walker, the HUD, the highlight chrome
+ * — was emitted into the production client build and listed in the root page's
+ * client-reference manifest. Measured against a real `npm run build` on main
+ * (2026-09-04): 20,253 bytes at `.next/static/chunks/<hash>.js`, reachable from
+ * `.next/server/app/page_client-reference-manifest.js`. Twenty kilobytes of
+ * devtools on the first paint of a marketing landing page, shipped to every
+ * visitor, to render nothing.
  *
- * Mounted only behind `process.env.NODE_ENV === 'development'` in the root
- * layout, so the module is absent from production. Without `dev:inspect` there
- * are no `data-loc` attributes and the HUD says how to enable source mapping.
+ * The fix is to make the module boundary itself conditional rather than the
+ * element: this stub is all that stays in the eager graph, and the implementation
+ * is reached through a dynamic `import()` inside a `NODE_ENV` branch. Bundlers
+ * inline `process.env.NODE_ENV` at build time, so in production the branch folds
+ * to `false` and the import is dead code; even where a bundler declines to drop
+ * it, the chunk becomes lazy — requested only if that branch runs, which in
+ * production it never does. Either way no production browser fetches it.
+ *
+ * KEEP IT THIS THIN. Anything imported here is imported by the whole app. New
+ * inspector code belongs in DevInspectorImpl.tsx (or a module only it imports),
+ * never beside this comment. `dev-inspector-bundle.test.ts` pins that.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-
-import { buildChain, dedupeChain, pickDefaultIndex, type LocEntry } from "./devLocate";
-import { HighlightBox, InspectorHud, NavHint, SourceLabel, Z } from "./devInspectorUi";
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* fall through to the legacy path */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
-}
-
-type Mode = "off" | "nav" | "armed";
-
-interface HoverState {
-  chain: LocEntry[];
-  pointerRect: DOMRect;
-  targetRect: DOMRect;
-  defaultIndex: number;
-}
+import { useEffect, useState, type ComponentType } from "react";
 
 export function DevInspector() {
-  const [mode, setMode] = useState<Mode>("off");
-  const [hover, setHover] = useState<HoverState | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
-  const [copyOk, setCopyOk] = useState(true);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const navTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Held as state rather than rendered directly so the async import has somewhere
+  // to land. `null` — the production value, forever — renders nothing.
+  const [Impl, setImpl] = useState<ComponentType | null>(null);
 
-  const doCopy = useCallback(async (loc: string) => {
-    const ok = await copyText(loc);
-    setCopyOk(ok);
-    setCopied(loc);
-    clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => setCopied(null), 1800);
+  useEffect(() => {
+    // The whole point of the file: the `import()` sits INSIDE the constant branch
+    // so it can be folded away, not beside it.
+    if (process.env.NODE_ENV !== "development") return;
+    let live = true;
+    void import("./DevInspectorImpl")
+      .then((mod) => {
+        // A resolve after unmount would set state on a dead component.
+        if (live) setImpl(() => mod.DevInspectorImpl);
+      })
+      .catch((err: unknown) => {
+        // Dev-only tool: a failed chunk load must never take the app down with it.
+        // Logged rather than dropped silently — a developer who pressed `;` and got
+        // nothing needs to know the module, not their keystroke, is what failed.
+        console.warn("[dev-inspector] the inspector chunk did not load", err);
+      });
+    return () => {
+      live = false;
+    };
   }, []);
 
-  // `;` enters keyboard mode, then `i` arms the inspector; Esc exits.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-      if (e.key === ";") {
-        e.preventDefault();
-        clearTimeout(navTimer.current);
-        setMode((m) => {
-          if (m === "nav") return "off";
-          if (m === "armed") return "armed"; // already inspecting; ignore
-          navTimer.current = setTimeout(() => {
-            setMode((cur) => (cur === "nav" ? "off" : cur));
-          }, 2000);
-          return "nav";
-        });
-        return;
-      }
-
-      if ((e.key === "i" || e.key === "I") && mode === "nav") {
-        e.preventDefault();
-        clearTimeout(navTimer.current);
-        setMode("armed");
-        return;
-      }
-
-      if (e.key === "Escape" && mode !== "off") {
-        clearTimeout(navTimer.current);
-        setMode("off");
-      }
-    };
-
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [mode]);
-
-  // Hover highlight + right-click copy, only while armed.
-  useEffect(() => {
-    if (mode !== "armed") return;
-
-    const prevCursor = document.body.style.cursor;
-    document.body.style.cursor = "crosshair";
-
-    const insideHud = (t: EventTarget | null) =>
-      t instanceof Element && t.closest("[data-devinspector]") !== null;
-
-    const onMove = (e: MouseEvent) => {
-      if (insideHud(e.target)) return; // keep last highlight while over the HUD
-      const chain = buildChain(e.target as Element | null);
-      if (chain.length === 0 || !chain[0]) {
-        setHover(null);
-        return;
-      }
-      const di = pickDefaultIndex(chain);
-      setHover({
-        chain,
-        pointerRect: chain[0].el.getBoundingClientRect(),
-        targetRect: (chain[di] ?? chain[0]).el.getBoundingClientRect(),
-        defaultIndex: di,
-      });
-    };
-
-    // Right-click copies (and suppresses the context menu). Left-click is left
-    // alone so the app stays usable while armed.
-    const onContextMenu = (e: MouseEvent) => {
-      if (insideHud(e.target)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const chain = buildChain(e.target as Element | null);
-      if (chain.length === 0 || !chain[0]) return;
-      const di = pickDefaultIndex(chain);
-      const pick = e.altKey ? chain[0] : (chain[di] ?? chain[0]);
-      void doCopy(pick.loc);
-    };
-
-    document.addEventListener("mousemove", onMove, true);
-    document.addEventListener("contextmenu", onContextMenu, true);
-    return () => {
-      document.body.style.cursor = prevCursor;
-      document.removeEventListener("mousemove", onMove, true);
-      document.removeEventListener("contextmenu", onContextMenu, true);
-      setHover(null);
-    };
-  }, [mode, doCopy]);
-
-  useEffect(
-    () => () => {
-      clearTimeout(copiedTimer.current);
-      clearTimeout(navTimer.current);
-    },
-    [],
-  );
-
-  // No hydration/mount gate needed: `mode` starts "off" everywhere (server and
-  // client alike) and only leaves "off" via client-side keydown handlers, so the
-  // document.body portals below are unreachable during SSR/hydration.
-  if (mode === "off") return null;
-
-  if (mode === "nav") {
-    return createPortal(
-      <div style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}>
-        <NavHint />
-      </div>,
-      document.body,
-    );
-  }
-
-  // armed
-  const mappingOn = document.querySelector("[data-loc]") !== null;
-  const defaultLoc =
-    hover && hover.chain[hover.defaultIndex] ? hover.chain[hover.defaultIndex]!.loc : null;
-  const crumbs = hover ? dedupeChain(hover.chain) : [];
-
-  return createPortal(
-    <div data-devinspector style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}>
-      {hover && hover.defaultIndex !== 0 && (
-        <HighlightBox rect={hover.pointerRect} variant="pointer" />
-      )}
-      {hover && <HighlightBox rect={hover.targetRect} variant="target" />}
-      {hover && defaultLoc && <SourceLabel rect={hover.pointerRect} loc={defaultLoc} />}
-
-      <InspectorHud
-        copied={copied}
-        copyOk={copyOk}
-        mappingOn={mappingOn}
-        crumbs={crumbs}
-        defaultLoc={defaultLoc}
-        onCopy={doCopy}
-      />
-    </div>,
-    document.body,
-  );
+  return Impl ? <Impl /> : null;
 }

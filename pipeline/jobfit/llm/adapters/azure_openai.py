@@ -8,7 +8,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, load_local_env
+# load_local_env re-exported so the base's ``_load_env`` dispatch (and the tests that
+# patch it on this module) resolve it HERE - it used to be called directly, which
+# bypassed the patchable seam and re-read .env on every endpoint resolution.
+from ..base import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMError, load_local_env, validate_base_url  # noqa: F401
 from .openai_api import OpenAIProvider
 
 _DEFAULT_API_VERSION = "2024-10-21"
@@ -42,10 +45,16 @@ class AzureOpenAIProvider(OpenAIProvider):
         return None
 
     def _resolved_endpoint(self) -> str | None:
+        """The resource endpoint, shape-checked like any other configured URL.
+
+        Through ``self._load_env()`` (the memoized, per-adapter-patchable seam), not
+        a direct ``load_local_env()``: this was the one adapter that bypassed it, so
+        it re-read .env on every resolution and ignored the test patch point."""
         if self.endpoint:
-            return self.endpoint
-        load_local_env()
-        return os.getenv("AZURE_OPENAI_ENDPOINT") or None
+            return validate_base_url(self.endpoint, setting="azure_openai endpoint")
+        self._load_env()
+        value = os.getenv("AZURE_OPENAI_ENDPOINT")
+        return validate_base_url(value, setting="AZURE_OPENAI_ENDPOINT") if value else None
 
     def _resolved_api_version(self) -> str:
         if self.api_version:
@@ -59,8 +68,20 @@ class AzureOpenAIProvider(OpenAIProvider):
         # sealed off; only a loopback/on-box endpoint stays usable under offline.
         return self._resolved_endpoint()
 
-    def available(self) -> bool:
-        return bool(self._resolved_endpoint()) and super().available()
+    def availability(self) -> tuple[bool, str | None]:
+        """Endpoint first, and named: an Azure deployment with a perfectly good key
+        cannot route without its resource endpoint, and reporting that as a missing
+        key sends the operator to re-check the one thing that was already right."""
+        if self._offline_blocked():
+            return False, "offline_policy"
+        try:
+            if not self._resolved_endpoint():
+                return False, "missing_endpoint"
+        except LLMError as exc:
+            if exc.subtype != "invalid_base_url":
+                raise
+            return False, "invalid_base_url"
+        return super().availability()
 
     def _make_client(self, timeout: int) -> Any:
         import openai

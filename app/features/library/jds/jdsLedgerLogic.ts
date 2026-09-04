@@ -15,7 +15,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { compareCells, useTableSort } from "@/app/_components/table/useTableSort";
-import { useJdLibrary } from "./jdsHooks";
+import { useHeldBuilds, useJdLibrary } from "./jdsHooks";
+import { useAnalyzingPoll } from "./jdsBuildPoll";
 import {
   coachHandoffBlock,
   facetCounts,
@@ -37,17 +38,16 @@ import type { FilterOption } from "./JdsLedgerFilterMenu";
 export function useLedgerLogic() {
   const t = useTranslations("library.tab");
   const enumLabel = useEnumLabel();
-  const { rows, error, reload, refresh } = useJdLibrary();
+  const { rows, total, truncated, error, reload, refresh } = useJdLibrary();
   // Poll while any JD is mid-build: the analyzing→ready flip happens server-side
   // (the detached jd_build handler), so there's no client event to react to — a
-  // silent in-place refresh picks it up without flickering the table. The interval
-  // clears itself once the last analyzing row settles.
+  // silent in-place refresh picks it up without flickering the table. The shared
+  // helper (jdsBuildPoll.ts) gates it on tab visibility, backs off as the build
+  // runs on, and STOPS after POLL_MAX_DURATION_MS rather than polling a row that a
+  // dead handler left "analyzing" forever; `pollStalled` is that giving-up, which
+  // the panel states above the table.
   const hasAnalyzing = useMemo(() => (rows ?? []).some((r) => r.analysis_status === "analyzing"), [rows]);
-  useEffect(() => {
-    if (!hasAnalyzing) return;
-    const id = setInterval(refresh, 3500);
-    return () => clearInterval(id);
-  }, [hasAnalyzing, refresh]);
+  const pollStalled = useAnalyzingPoll(hasAnalyzing, refresh);
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -55,6 +55,18 @@ export function useLedgerLogic() {
   const [field, setField] = useState<string | null>(null);
   const [seniority, setSeniority] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<JdRow | null>(null);
+  // Which JD's detail modal should open straight into the edit history. Set by the
+  // "build held as a revision" chip: the held draft IS a revision row, so the
+  // one-click route to it is the history list the editor already renders. Cleared
+  // whenever a row is opened any other way, so the deep-open is one-shot.
+  const [openHistoryFor, setOpenHistoryFor] = useState<string | null>(null);
+  const openRowAt = useCallback((row: JdRow, opts?: { history?: boolean }) => {
+    setOpenHistoryFor(opts?.history ? row.slug : null);
+    setOpenRow(row);
+  }, []);
+  // The slugs whose generated body was filed as a revision instead of published
+  // (see useHeldBuilds) — the ledger row and the detail modal both chip off this.
+  const heldBuilds = useHeldBuilds(rows);
   const [ingested, setIngested] = useState<{ slug: string; jobId: string | null } | null>(null);
 
   // winnability-apply — one-shot handoff from the winnability coach: land here with
@@ -198,6 +210,8 @@ export function useLedgerLogic() {
   return {
     t,
     rows,
+    total,
+    truncated,
     error,
     reload,
     query,
@@ -212,6 +226,10 @@ export function useLedgerLogic() {
     setSeniority,
     openRow,
     setOpenRow,
+    openRowAt,
+    openHistoryFor,
+    heldBuilds,
+    pollStalled,
     ingested,
     setIngested,
     coachEdit,

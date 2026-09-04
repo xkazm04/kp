@@ -1,18 +1,29 @@
 // Case/posting/lifecycle/outbox loaders + the JD picker + the codebase-refs form
 // fields, split out of DevTab.tsx. Everything here is read/intake state; the
 // write actions (publish/source/approve/lifecycle-run) stay in useDevTabActions.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useTranslations } from "next-intl";
 import { useLoader } from "@/app/_lib/useLoader";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 import type { DevCaseDetail, JdSummary, Lifecycle, OutboxItem, Posting, SelectedJd } from "./DevTypes";
+import { buildNeed } from "./buildNeed";
+import { shouldReloadOnReturn } from "./outboxRefresh";
 
 export function useDevTabData() {
+  const t = useTranslations("devcase.studio.jds");
+  const errorMessage = useErrorMessage();
   // JD-first intake: the saved job description IS the need's metadata (title +
   // stack + responsibilities live in its body); the form only adds codebases +
   // a seniority target on top.
   const [jds, setJds] = useState<JdSummary[]>([]);
   const [jd, setJd] = useState<SelectedJd | null>(null);
   const [jdLoading, setJdLoading] = useState(false);
+  // The picker is REQUIRED intake — nothing on the Define tab can run without a JD —
+  // so a failed fetch used to leave the entrance looking like an empty library and
+  // pointed the operator at "save one" in a library that already had some. The
+  // failure is now named, in the reader's language, with a way back.
+  const [jdsError, setJdsError] = useState<string | null>(null);
   const [repoUrls, setRepoUrls] = useState<string[]>([""]);
   const [seniority, setSeniority] = useState("medior");
 
@@ -20,11 +31,16 @@ export function useDevTabData() {
   // explicit banner/stale pill instead of looking identical to an empty pipeline.
   // /api/devcase returns FULL records (role/case/scenario JSON), so the detail
   // reader opens instantly from the already-loaded list — no second fetch.
-  const { data: cases, state: casesState, reload: loadCases } = useLoader<DevCaseDetail[]>(
+  // The read is PAGED, and the payload says whether the page was cut. It used to take
+  // the store's default of 50 silently, so a studio past fifty approved cases showed
+  // fifty newest and gave the reader no way to know the rest existed. The loader keeps
+  // the whole envelope so `truncated` survives to the table that has to say so.
+  const { data: casesPage, state: casesState, reload: loadCases } = useLoader<{ items: DevCaseDetail[]; truncated: boolean }>(
     "/api/devcase",
-    (p) => (p.cases as DevCaseDetail[]) ?? [],
-    [],
+    (p) => ({ items: (p.cases as DevCaseDetail[]) ?? [], truncated: p.truncated === true }),
+    { items: [], truncated: false },
   );
+  const cases = casesPage.items;
   const { data: postings, reload: loadPostings } = useLoader<Posting[]>(
     "/api/devcase/postings",
     (p) => (p.postings as Posting[]) ?? [],
@@ -40,26 +56,81 @@ export function useDevTabData() {
     (p) => (p.outbox as OutboxItem[]) ?? [],
     [],
   );
+  // When the outbox last STARTED a load. Read by the return-to-tab refresh below to
+  // collapse the focus/visibilitychange double-fire and to throttle an alt-tabbing
+  // reader; a ref, not state, because changing it must not re-render the tab.
+  const outboxAttemptAt = useRef<number | null>(null);
+  const reloadOutbox = useCallback(() => {
+    outboxAttemptAt.current = Date.now();
+    return loadOutbox();
+  }, [loadOutbox]);
+
   useEffect(() => {
     loadCases();
     loadPostings();
     loadLifecycles();
-    loadOutbox();
-  }, [loadCases, loadPostings, loadLifecycles, loadOutbox]);
+    reloadOutbox();
+  }, [loadCases, loadPostings, loadLifecycles, reloadOutbox]);
+
+  // Refresh the outbox when the reader COMES BACK to the tab. Dead letters and bounce
+  // receipts are produced by the relay long after the click that queued the message,
+  // so a tab left open showed a snapshot from before the failure existed. Returning is
+  // the one moment we know the reader is about to trust what is on screen. The
+  // decision (which event, how often) is the pure `shouldReloadOnReturn`; staleness
+  // semantics are untouched, because this goes through the same loader as every other
+  // read — a failed refresh keeps the last good rows and leaves the stale pill up.
+  useEffect(() => {
+    const onReturn = (event: "focus" | "visibilitychange") => () => {
+      if (
+        !shouldReloadOnReturn({
+          event,
+          visibility: document.visibilityState === "visible" ? "visible" : "hidden",
+          lastAttemptAt: outboxAttemptAt.current,
+          now: Date.now(),
+        })
+      ) {
+        return;
+      }
+      reloadOutbox();
+    };
+    const onFocus = onReturn("focus");
+    const onVisibility = onReturn("visibilitychange");
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [reloadOutbox]);
 
   // The saved-JD library backing the picker (same source as the Analyze tab).
+  const [jdsReloadKey, setJdsReloadKey] = useState(0);
+  const reloadJds = useCallback(() => setJdsReloadKey((n) => n + 1), []);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/jds")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((p) => {
-        if (!cancelled && p?.jds) setJds(p.jds as JdSummary[]);
-      })
-      .catch(() => {});
+    (async () => {
+      try {
+        const r = await fetch("/api/jds");
+        const body = (await r.json().catch(() => null)) as
+          | ({ jds?: unknown } & { code?: string | null })
+          | null;
+        if (cancelled) return;
+        if (!r.ok) {
+          setJdsError(errorMessage(body, t("failed")));
+          return;
+        }
+        setJdsError(null);
+        if (body?.jds) setJds(body.jds as JdSummary[]);
+      } catch {
+        // Not silent: without the library the whole Define flow is unreachable, so
+        // the operator is told and offered a retry rather than shown an empty picker.
+        if (!cancelled) setJdsError(t("failed"));
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [jdsReloadKey, errorMessage, t]);
 
   // Picking a JD fetches its full body — that body travels as need.jdText, the
   // primary statement of the need the analyze step extracts metadata from.
@@ -98,52 +169,18 @@ export function useDevTabData() {
   // with a real title + jdText. Stack/responsibilities are deliberately empty: the
   // analyze step extracts them from the JD body (the old free-text metadata fields
   // duplicated what every JD already says).
-  const buildNeed = () => {
-    // Promoted-intake JD → the brief's structured fields fill the need (the
-    // same fill runJdBuild does for JdBuildInput.brief — closing the dual-fill
-    // asymmetry noted in app/_lib/devcase-run.ts / UAT L1-EVA-3): stack from
-    // graded must-haves, responsibilities from 90-day outcomes, and the graded
-    // requirements themselves ride along for role design. jdText stays the
-    // prose anchor either way.
-    const brief = jd?.brief ?? null;
-    const musts = (brief?.requirements ?? []).filter((r) => r.kind === "must_have").map((r) => r.skill);
-    return {
-      title: (jd?.title ?? "").trim(),
-      stack: musts.slice(0, 10),
-      responsibilities: brief
-        ? [...(brief.successCriteria ?? []), ...(brief.responsibilities ?? [])].filter(Boolean).slice(0, 12)
-        : [],
-      codebaseRefs: repoUrls
-        .map((u) => u.trim())
-        .filter(Boolean)
-        .slice(0, MAX_CODEBASES)
-        .map((ref) => ({ kind: "github", ref })),
-      seniorityTarget: seniority,
-      // roleFamily: the brief's classified family when an intake backs the JD
-      // (the design/eval chain is domain-neutral since the rubric was
-      // de-industry-locked); the software_engineering constant remains the
-      // recorded default for JD-only needs, where nothing has classified them.
-      roleFamily: brief?.roleFamily || "software_engineering",
-      jdSlug: jd?.slug ?? "",
-      jdText: jd?.body ?? "",
-      ...(brief && (brief.requirements ?? []).length
-        ? {
-            statedRequirements: (brief.requirements ?? [])
-              .filter((r) => r.skill)
-              .map((r) => ({ skill: r.skill, kind: r.kind, hardness: r.hardness, weight: r.weight })),
-          }
-        : {}),
-    };
-  };
+  // The fold itself lives in buildNeed.ts, pure and tested: everything the analyze
+  // and design chain sees is built here, and inside a hook nothing could reach it.
+  const build = () => buildNeed({ jd, repoUrls, seniority });
 
   return {
-    jds, jd, jdLoading, pickJd,
+    jds, jd, jdLoading, pickJd, jdsError, reloadJds,
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
-    cases, casesState, loadCases,
+    cases, casesTruncated: casesPage.truncated, casesState, loadCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
-    outbox, outboxState, loadOutbox,
-    buildNeed,
+    outbox, outboxState, loadOutbox: reloadOutbox,
+    buildNeed: build,
   };
 }

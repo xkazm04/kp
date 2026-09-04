@@ -89,6 +89,14 @@ _RUBRIC = RUBRIC_DIMENSIONS
 
 PROBE_KINDS = ("ambiguity", "legacy_trap", "verification_trap", "underspecified")
 
+# Minimum distinct, defensible options a probe's decisionSpace needs to force a real
+# choice. THE probe-strength doctrine — a probe that admits one answer cannot separate a
+# strong submission from a naive one — and it is enforced in two languages: the TS approve
+# gate BLOCKS on it (MIN_PROBE_DECISION_OPTIONS in app/_lib/devcase-probe-audit.ts) while
+# this package's health eval validates designed cases against it. The two are pinned to
+# each other by tests/test_devcase_probe_constant_sync.py; move BOTH or neither.
+MIN_PROBE_DECISION_OPTIONS = 2
+
 # A cover-probe is meaningless without `reveals` — it IS the internal note on what a good vs
 # naive response implies, so the field is MANDATORY (see CoverProbe in models.py). The producer
 # (coerce, below) and the validator (lifecycle_eval._check_case) used to disagree: coerce kept a
@@ -438,9 +446,14 @@ def design_case(
                     "kind": kind,
                     "where": str(p.get("where") or ""),
                     "reveals": reveals,
-                    # decisionSpace is best-effort (unlike reveals): an empty list means the
-                    # probe predates / omitted the decision-space contract, and mint_followups
-                    # falls back to the probe outcome alone.
+                    # decisionSpace is not backfilled (unlike reveals): there is no honest
+                    # kind-keyed default for "which defensible options does THIS ambiguity
+                    # admit", and inventing one would manufacture the very discrimination the
+                    # audit is meant to measure. An empty list means the probe predates or
+                    # omitted the contract — mint_followups falls back to the probe outcome
+                    # alone, and the probe is REPORTED as non-discriminating on both sides of
+                    # the boundary (MIN_PROBE_DECISION_OPTIONS: the TS approve gate blocks the
+                    # case, lifecycle_eval._check_case flags it). Degrading, never silent.
                     "decisionSpace": _str_list(p.get("decisionSpace")),
                 }
             )

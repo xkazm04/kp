@@ -17,6 +17,8 @@ import {
   DOCK_PANEL_IDS,
   DOCK_TOOLBAR_PANEL_IDS,
   candiControl,
+  dockEscapeAction,
+  dockTabDomId,
   effectiveDockPanel,
   guideAction,
   nextToolbarIndex,
@@ -168,4 +170,48 @@ test("an out-of-range or empty row cannot produce an out-of-range index", () => 
   assert.equal(nextToolbarIndex(0, "ArrowRight", 0), null);
   assert.equal(nextToolbarIndex(99, "ArrowRight", 3), 1); // treated as index 0
   assert.equal(nextToolbarIndex(-1, "ArrowLeft", 3), 2);
+});
+
+// ── dockEscapeAction — one key, two surfaces ────────────────────────────────
+// Non-vacuity: the dock's Escape handler had no `defaultPrevented` guard at all
+// and lived on `window` while the companion's lives on `document`, so two
+// listeners on different targets never saw each other's propagation and ONE
+// keypress dismissed BOTH surfaces. It also restored no focus. Every assertion
+// below fails against that shape — the first because the guard did not exist,
+// the last because there was no `focusId` to return.
+
+const ESC = { key: "Escape", defaultPrevented: false, collapsed: false, modalUp: false };
+
+test("Escape the companion already handled is left alone — one key, one surface", () => {
+  // The companion window is stacked above the deck and marks its own key handled;
+  // this is what stops the same press from also emptying the dock's slot.
+  assert.equal(dockEscapeAction({ ...ESC, defaultPrevented: true, shown: "ops" }), null);
+});
+
+test("Escape closes the open panel and hands focus back to the control that opened it", () => {
+  assert.deepEqual(dockEscapeAction({ ...ESC, shown: "ops" }), {
+    closeCompanion: false,
+    focusId: dockTabDomId("ops"),
+  });
+  // The guide button outside the panel's right border carries the "sim" id, so
+  // the console's Escape lands on the one control that reopens it.
+  assert.deepEqual(dockEscapeAction({ ...ESC, shown: "sim" }), {
+    closeCompanion: false,
+    focusId: dockTabDomId("sim"),
+  });
+});
+
+test("Escape on her voice panel lowers the companion too — the slot alone is not her state", () => {
+  assert.deepEqual(dockEscapeAction({ ...ESC, shown: "candi" }), {
+    closeCompanion: true,
+    focusId: dockTabDomId("candi"),
+  });
+});
+
+test("Escape is not the dock's when there is nothing of its own to dismiss", () => {
+  assert.equal(dockEscapeAction({ ...ESC, shown: null }), null, "empty slot");
+  assert.equal(dockEscapeAction({ ...ESC, collapsed: true, shown: "ops" }), null, "deck down");
+  // A dialog the operator opened is always the more recent intent.
+  assert.equal(dockEscapeAction({ ...ESC, modalUp: true, shown: "ops" }), null, "own modal up");
+  assert.equal(dockEscapeAction({ ...ESC, key: "Enter", shown: "ops" }), null, "another key");
 });

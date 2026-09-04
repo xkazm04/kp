@@ -14,7 +14,7 @@ export function BrandingEditorForm({
   accent,
   onAccentChange,
   effectiveAccent,
-  accentIllegible,
+  accentWarning,
   logo,
   onLogoChange,
   dirty,
@@ -29,7 +29,11 @@ export function BrandingEditorForm({
   accent: string;
   onAccentChange: (v: string) => void;
   effectiveAccent: string;
-  accentIllegible: boolean;
+  /** The localized reason this accent cannot be stored, or null. Not a boolean any
+   *  more: an accent can fail in Studio Light (too pale for the cream canvas) or in
+   *  Spark Dark (no legible twin that is still the operator's color), and the two
+   *  ask for different fixes. */
+  accentWarning: string | null;
   logo: string;
   onLogoChange: (v: string) => void;
   dirty: boolean;
@@ -94,9 +98,9 @@ export function BrandingEditorForm({
           ) : null}
         </div>
         <p className="mt-1 text-sm text-steel">{t("accentHelp")}</p>
-        {accentIllegible ? (
+        {accentWarning ? (
           <p role="alert" className="mt-1 text-sm text-coral">
-            {t("accentContrast")}
+            {accentWarning}
           </p>
         ) : null}
       </div>

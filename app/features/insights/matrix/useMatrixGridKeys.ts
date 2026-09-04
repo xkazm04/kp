@@ -24,6 +24,7 @@ import {
 // keystroke; a query against the scroller costs one lookup per MOVE, and it stays
 // correct across a re-sort without anything having to invalidate a map.
 export function useMatrixGridKeys(size: MatrixGridSize) {
+  const { rows, cols } = size;
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   // The sticky corner <th>: its height is the header row's, its width the candidate
   // column's — i.e. exactly the two edges a focused cell can hide under.
@@ -64,20 +65,34 @@ export function useMatrixGridKeys(size: MatrixGridSize) {
   );
 
   /** Spread onto the focusable control of cell (row, col) — a body cell button, or a
-   *  column-header sort button at `MATRIX_HEADER_ROW`. */
-  const cellProps = (row: number, col: number) => ({
+   *  column-header sort button at `MATRIX_HEADER_ROW`.
+   *
+   *  grid-stays-still-while-you-scroll: `tabStop` is passed IN rather than read from
+   *  `roving` here, and the callback is stable, because the rows are memoized. If this
+   *  closed over `roving` it would be a new function on every focus move, every memoized
+   *  row would see a changed prop, and moving one cell would re-render all 200 of them —
+   *  the caller instead hands each row only its OWN roving column, so a row that is not
+   *  the focused one sees no change at all. */
+  const cellProps = useCallback(
+    (row: number, col: number, tabStop: boolean) => ({
     "data-mcell": `${row}:${col}`,
-    tabIndex: row === roving.row && col === roving.col ? 0 : -1,
+    tabIndex: tabStop ? 0 : -1,
     // Keeps the tab stop under the cell the reader actually reached — including via a
     // mouse click, and via the reasoning popover's focus restore on close.
     onFocus: () => setFocused((cur) => (cur.row === row && cur.col === col ? cur : { row, col })),
     onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      const next = matrixGridKeyMove(event, { row, col }, size);
+      const next = matrixGridKeyMove(event, { row, col }, { rows, cols });
       if (!next) return; // Enter/Space/Tab stay native — activation must equal a click
       event.preventDefault();
       moveTo(next);
     },
-  });
+    }),
+    // The PRIMITIVES of `size`, not the object: the caller builds a fresh {rows, cols}
+    // literal every render, so depending on it would defeat the stability the memoized
+    // rows rely on — while a genuine change in the grid's dimensions must still be seen
+    // by the arrow-key clamp.
+    [moveTo, rows, cols],
+  );
 
-  return { scrollerRef, cornerRef, cellProps };
+  return { scrollerRef, cornerRef, roving, cellProps };
 }

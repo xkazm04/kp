@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { commsVerdict, deriveCommsView, type OutboxRow } from "./comms-view.ts";
+import { commsVerdict, deriveCommsView, pageCommsFeed, type OutboxRow } from "./comms-view.ts";
 
 function row(p: Partial<OutboxRow> & { id: string; status: OutboxRow["status"]; createdAt: string }): OutboxRow {
   return {
@@ -166,4 +166,84 @@ test("commsVerdict agrees with the view it is derived from, row by row", () => {
   ]);
   const byId = Object.fromEntries(view.map((m) => [m.id, commsVerdict(m)]));
   assert.deepEqual(byId, { s: "bounced", f: "recovered", ok: "sent", orph: "orphaned" });
+});
+
+// ---- the window is not the ledger ---------------------------------------------
+//
+// `orphaned` is an ACCUSATION — "the relay reported a bounce for something we never
+// sent". The feed used to derive it over a fixed 200-row window, so a bounce whose
+// send had merely scrolled out of that window was flagged as an integration fault.
+
+test("a bounce with no send in a TRUNCATED window makes no orphan claim", () => {
+  const rows = [row({ id: "b", status: "bounced", createdAt: "t9", body: "550" })];
+  // Whole ledger: the send is genuinely absent, so the accusation stands.
+  assert.equal(deriveCommsView(rows)[0].orphaned, true);
+  assert.equal(commsVerdict(deriveCommsView(rows)[0]), "orphaned");
+  // Same rows, but the caller says older ones exist beyond its window: the receipt is
+  // still surfaced (hiding it would hide a real fault) and claims nothing.
+  const truncated = deriveCommsView(rows, { windowTruncated: true });
+  assert.equal(truncated.length, 1, "the receipt is still shown");
+  assert.equal(truncated[0].orphaned, false, "…but not accused");
+});
+
+test("a truncated window still folds the bounces whose sends it CAN see", () => {
+  const view = deriveCommsView(
+    [
+      row({ id: "a", status: "sent", createdAt: "t1" }),
+      row({ id: "b", status: "bounced", createdAt: "t2", body: "550" }),
+    ],
+    { windowTruncated: true }
+  );
+  assert.equal(view.length, 1);
+  assert.equal(view[0].bounced, true, "supersession is unchanged by the window flag");
+});
+
+// ---- the feed's cursor ---------------------------------------------------------
+
+const page = (n: number) =>
+  Array.from({ length: n }, (_, i) => row({ id: `r${i}`, status: "sent", createdAt: `t${i}` })).map((m) => ({
+    ...m,
+    deliverable: true,
+    recovered: false,
+    recoveredAt: null,
+    bounced: false,
+    bouncedAt: null,
+    bounceDetail: null,
+    orphaned: false,
+  }));
+
+test("pageCommsFeed walks the list with a cursor and stops exactly once", () => {
+  const all = page(5);
+  const first = pageCommsFeed(all, { limit: 2 });
+  assert.deepEqual(first.messages.map((m) => m.id), ["r0", "r1"]);
+  assert.equal(first.hasMore, true);
+  assert.equal(first.nextCursor, "r1");
+  assert.equal(first.cursorExpired, false);
+
+  const second = pageCommsFeed(all, { limit: 2, cursor: first.nextCursor });
+  assert.deepEqual(second.messages.map((m) => m.id), ["r2", "r3"]);
+  assert.equal(second.hasMore, true);
+
+  const third = pageCommsFeed(all, { limit: 2, cursor: second.nextCursor });
+  assert.deepEqual(third.messages.map((m) => m.id), ["r4"]);
+  assert.equal(third.hasMore, false, "the last page says so");
+  assert.equal(third.nextCursor, null, "…and hands back no cursor to loop on");
+});
+
+test("pageCommsFeed answers an exactly-full last page without claiming another", () => {
+  const p = pageCommsFeed(page(4), { limit: 2, cursor: "r1" });
+  assert.deepEqual(p.messages.map((m) => m.id), ["r2", "r3"]);
+  assert.equal(p.hasMore, false);
+  assert.equal(p.nextCursor, null);
+});
+
+test("a cursor that aged out of the window is said out loud, not answered from nowhere", () => {
+  const p = pageCommsFeed(page(3), { limit: 2, cursor: "gone" });
+  assert.equal(p.cursorExpired, true);
+  assert.deepEqual(p.messages.map((m) => m.id), ["r0", "r1"], "answered from the top");
+});
+
+test("an empty ledger pages to nothing rather than to a cursor", () => {
+  const p = pageCommsFeed([], { limit: 10 });
+  assert.deepEqual(p, { messages: [], hasMore: false, nextCursor: null, cursorExpired: false });
 });

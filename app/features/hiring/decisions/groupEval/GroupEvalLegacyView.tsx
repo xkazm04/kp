@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { koFailed } from "./groupEvalHelpers";
 import { topPickWhyText, type Translate } from "./localize";
 import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
@@ -42,9 +43,15 @@ export function LegacyView({ evaluation }: { evaluation: GroupEvalPayload }) {
           <div className="mt-2 grid gap-2 lg:grid-cols-2">
             {evaluation.candidates.map((c, i) => (
               <div key={i} className="rounded-md border border-stone-200 p-2.5">
-                <p className="flex items-center gap-2 text-base font-semibold text-ink">
+                <p className="flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
                   {c.label}
                   <ScoreBadge score={c.score} />
+                  {/* The SAME knock-out rule the enriched header enforces (koFailed). This
+                      view is still reached by every payload without a score breakdown — a
+                      job-less role, an old saved eval, the simulation's loading payload —
+                      and it rendered no KO pill at all, so a candidate who FAILED a
+                      knock-out read here as an ordinary contender. */}
+                  {koFailed(c) ? <Pill tone="coral">{t("ko")}</Pill> : null}
                   {c.seniority ? <span className="font-normal text-steel">{enumLabel("seniority", c.seniority)}</span> : null}
                 </p>
                 {c.verdict ? <p className="mt-0.5 text-base text-ink">{c.verdict}</p> : null}

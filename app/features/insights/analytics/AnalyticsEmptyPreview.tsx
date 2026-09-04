@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { PANEL_SUNKEN, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 import { UpstreamLinks, type AnalyticsEmptyProps } from "./AnalyticsEmptyShared";
@@ -46,10 +47,14 @@ export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProp
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-left`}>
       <div className="flex items-start gap-4">
+        {/* `fade-pop`, not the default stagger: at 80px a per-path reveal over a
+            dozen paths is visual noise rather than a reveal — the glyph should
+            land as one object. (motionPresets.ts says exactly this.) */}
         <MotionizedGlyph
           data={ANALYTICS_GLYPH.data}
           viewBox={ANALYTICS_GLYPH.viewBox}
-          className="hidden h-20 w-20 shrink-0 sm:block"
+          entrance="fade-pop"
+          className={`hidden ${GLYPH_SIZE.sm} shrink-0 sm:block`}
         />
         <div className="min-w-0">
           <p className="text-base font-semibold text-ink">{title}</p>

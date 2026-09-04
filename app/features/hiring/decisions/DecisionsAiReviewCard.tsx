@@ -19,6 +19,7 @@ import { useAiReviewCardLogic } from "./decisionsAiReviewCardLogic";
 import { AiReviewCardLadder } from "./DecisionsAiReviewCardLadder";
 import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export function AiReviewCard({
   entry,
@@ -92,8 +93,10 @@ export function AiReviewCard({
   // against an outcome, so it added a number a reviewer could weigh but not check;
   // the MEASURED confidence band still lives one click away in the full analysis
   // (onInspect). The derivation stays in the logic module under its guard —
-  // app/features/shared/confidence-vocabulary.test.ts.
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard } =
+  // app/features/shared/confidence-vocabulary.test.ts. `verdictSource` /
+  // `verdictProvider` are a different thing entirely and still render: WHICH ENGINE
+  // wrote the verdict is a disclosure, not a self-assessment.
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, verdictSource, verdictProvider } =
     useAiReviewCardLogic(entry);
   const tag = isOffer
     ? t("tagOffer")
@@ -184,6 +187,27 @@ export function AiReviewCard({
         </span>
       ) : null}
 
+      {/* WHICH ENGINE WROTE THIS — the template-verdict disclosure (automation-run.ts
+          stamps `verdictSource` on every approval payload it writes). The automation
+          degrades to deterministic templates on a keyless install, past the
+          ai_candidates allowance, or when a call fails — a product property, and one
+          the card used to hide: a template verdict rendered under the same "AI review"
+          tag, in the same grammar, as a model's. Same disclosure rule as the analysis
+          report's engine note, and the label LEADS (G1 — the disclosure is the
+          headline, never a footnote). An approval with no recorded provenance shows
+          nothing at all rather than asserting an engine nobody recorded. */}
+      {verdictSource === "template" ? (
+        <p className="mt-2 text-meta leading-4 text-amber-800" title={t("engineTemplateTitle")}>
+          <span className="font-semibold uppercase tracking-wide">{t("engineLabel")}</span> <span className="font-semibold">{t("engineTemplate")}</span>
+          <span className="mt-0.5 block text-steel">{t("engineTemplateNote")}</span>
+        </p>
+      ) : verdictProvider ? (
+        <p className="mt-2 text-meta leading-4 text-steel">
+          <span className="font-semibold uppercase tracking-wide">{t("engineLabel")}</span>{" "}
+          <span className="font-semibold text-ink">{t("engineLlm", { provider: verdictProvider })}</span>
+        </p>
+      ) : null}
+
       {/* Offer cards keep the band + deadline body (decision-critical); every
           other kind renders the Ladder — the AI's prose lives in the
           Full-analysis modal (AiNarrative), one click away via onInspect. */}
@@ -216,7 +240,7 @@ export function AiReviewCard({
             type="button"
             data-sim-click="accept"
             onClick={() => onAccept(isOffer ? ttlDays : undefined)}
-            className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
+            className={`${BTN_AFFIRM} h-9 flex-1 justify-center text-base`}
           >
             <Check size={16} /> {acceptLabel}
           </button>

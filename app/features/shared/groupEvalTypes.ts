@@ -217,6 +217,11 @@ export type GroupEvalPayload = {
   // Structured AI head-to-head narrative (the modal prefers it).
   comparison?: Comparison | null;
   comparisonSource?: string | null;
+  // Locale the comparison prose is actually written in, as STATED by the engine
+  // (group_compare_cli's `narrativeLang`) — the deterministic synthesis is
+  // English-only, so a cs/de/fr workspace that fell back holds English text here.
+  // Absent on evals saved before this field existed (→ no note is rendered).
+  comparisonLang?: string | null;
   // Canonical role requirements (must-have first) for the skills rows.
   requirements?: { skill: string; kind: string }[];
   // The role's recommended salary band [min, max] — the reference the salary

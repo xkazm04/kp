@@ -3,7 +3,7 @@
 import { Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
-import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, DIVIDER, PANEL } from "@/app/_components/ui/recipes";
 import { salesContactHref } from "@/app/_lib/sales-contact";
 import type { PlanDef } from "@/app/_lib/billing";
 import { PlanPrice } from "./BillingPlanPrice";
@@ -42,8 +42,14 @@ function PlanCard({
   onManage: () => void;
 }) {
   const t = useTranslations("billing.plans");
+  // The enterprise mailto subject is shared with the landing band — one string in
+  // the "common" namespace rather than two copies that drift.
+  const tCommon = useTranslations("common");
   return (
-    <div className={current ? "rounded-lg border border-coral/40 bg-coral/5 p-4 dark:rounded-2xl" : `${PANEL} p-4`}>
+    // The CURRENT plan is the same panel surface with the brand accent swapped in:
+    // composed from the recipe rather than a second hand-typed copy of it, which
+    // would drift the day PANEL gains a shadow or a dark-mode radius.
+    <div className={`${PANEL} p-4 ${current ? "border-coral/40 bg-coral/5 dark:rounded-2xl" : ""}`}>
       <div className="flex items-center justify-between gap-2">
         <p className="font-serif text-h3 text-ink">{plan.name}</p>
         {current ? <Badge tone="positive" label={t("current")} className="shrink-0" /> : null}
@@ -51,7 +57,7 @@ function PlanCard({
       {/* plans-checkout-billing-ui #5: price via the shared renderer so this card and
           the current-plan header apply the SAME contactSales-first rule. */}
       <PlanPrice plan={plan} size="card" />
-      <ul className="mt-3 space-y-1 border-t border-stone-200 pt-3 text-sm">
+      <ul className={`mt-3 space-y-1 ${DIVIDER} pt-3 text-sm`}>
         {Object.entries(plan.limits).map(([meter, limit]) => (
           <li key={meter} className="flex items-baseline justify-between gap-2">
             <span className="text-steel">{meterName(meter)}</span>
@@ -64,7 +70,10 @@ function PlanCard({
         // a Buy button. If they're somehow already entitled (a signed contract), the
         // "current" badge above is enough; no action needed.
         current ? null : (
-          <a href={salesContactHref()} className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}>
+          <a
+            href={salesContactHref(tCommon("salesEnquirySubject"))}
+            className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+          >
             {t("contactCta")}
           </a>
         )

@@ -46,6 +46,7 @@ export function JdsLedgerTable({
   onDuplicate,
   onIngested,
   onStartGenerate,
+  heldBuilds,
 }: {
   rows: JdRow[] | null;
   visible: JdRow[];
@@ -66,10 +67,12 @@ export function JdsLedgerTable({
   onSort: (col: JdSortCol) => void;
   reload: () => void;
   duplicating: string | null;
-  onOpenRow: (row: JdRow) => void;
+  onOpenRow: (row: JdRow, opts?: { history?: boolean }) => void;
   onDuplicate: (row: JdRow) => void;
   onIngested: (slug: string, jobId: string | null) => void;
   onStartGenerate: () => void;
+  /** Slugs whose generated body was held as a revision (useHeldBuilds). */
+  heldBuilds: Set<string>;
 }) {
   const t = useTranslations("library.tab");
   const enumLabel = useEnumLabel();
@@ -150,6 +153,7 @@ export function JdsLedgerTable({
                 onOpenRow={onOpenRow}
                 onDuplicate={onDuplicate}
                 onIngested={onIngested}
+                held={heldBuilds.has(row.slug)}
                 t={t}
               />
             ))

@@ -9,12 +9,15 @@ import { randomToken } from "../random-id";
 import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
+// Type-only: match-score.ts is pure, and the import is erased, so no cycle and no
+// server code follows PipelineEntryView into the client bundle.
+import type { MatchScoreProvenance } from "../match-score";
 // ONE THREAD: devcase-identity.ts owns the legacy "ds-" prefix string. Importing the
 // const rather than re-typing it is what keeps the contact join below and the
 // resolvers there from ever disagreeing about what a synthetic candidate id looks
 // like. That module is deliberately pure, so this is not a cycle.
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
-import { recordPipelineOutcome } from "../dev-outcomes";
+import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
 import { ensureDb, recordEvent, type PipelineEntry } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
@@ -43,13 +46,80 @@ import {
 export { PIPELINE_STAGES, FUNNEL_STAGES, SCREENING_STAGES, hasAdvancedPastScreening, isScreeningStage, screenStageOutcome };
 export type { PipelineStage, FunnelStage, ScreeningStage };
 
-// Canonical shape of a /api/pipeline row. That endpoint returns listPipeline()
-// (PipelineEntry[]) verbatim, so this IS the client-facing view contract. Client
-// consumers (SimulationProvider, ChannelsTab) import this with `import type`
-// instead of re-declaring divergent, partial local row types — those drift
-// silently from the server the moment a field is renamed. (`import type` is
-// erased at compile time, so no server code enters the client bundle.)
-export type PipelineEntryView = PipelineEntry;
+// Canonical shape of a /api/pipeline row — now an explicit ALLOWLIST rather than
+// "whatever the store row happens to hold".
+//
+// board-poll-carries-only-what-it-draws: the endpoint used to return listPipeline()
+// verbatim, and rowToEntry fills every PipelineEntry field whether or not the SELECT
+// asked for the column. So each 30s board poll shipped `contact` (the candidate's
+// email/phone), `locale`, the four consent columns, `anonymizedAt`, `workspaceId`,
+// `devCaseId` and `devSubmissionId` to the browser — nine fields, and NOT ONE of them
+// is read by any consumer of this payload. They were checked one at a time: the board
+// (pipelineTypes.Entry), the drawer (PipelineCandidateDrawerTypes), the bulk bar, the
+// off-axis strip, the Decisions queue, the Schedule grid, the Channels tab, the
+// simulation engine, the jobs lifecycle strip and the interview attach dialog all
+// declare their own row shape and none of them names one of the nine.
+//
+// `contact` is the one that matters beyond bytes: an operator-gated endpoint is not a
+// licence to serialize a store row, and the drawer reaches candidate contact through
+// its own bundle. It happens to be null today only because listPipeline's SELECT omits
+// the column — an accident of the query, not a contract. This makes it a contract.
+//
+// Everything a consumer DOES read stays, `notes` / `githubEvidence` / `approvalDetail`
+// included: the drawer hydrates its scratchpad and evidence card from the board-opened
+// entry, and the Decisions queue and Schedule grid both parse `approvalDetail`. Pinned
+// by app/features/hiring/pipeline/pipelineBoardProjection.test.ts.
+export const BOARD_ENTRY_FIELDS = [
+  "id",
+  "candidateId",
+  "candidateLabel",
+  "archetype",
+  "roleFamily",
+  "jobId",
+  "jobTitle",
+  "stage",
+  "matchScore",
+  "status",
+  "approvalKind",
+  "approvalDetail",
+  "createdAt",
+  "stageChangedAt",
+  "intakeDegraded",
+  "intakeDegradedReason",
+  "githubEvidence",
+  "githubHandle",
+  "notes",
+  "sourceChannel",
+  "sourceCampaign",
+  "sourceVariant",
+] as const satisfies readonly (keyof PipelineEntry)[];
+
+/** The three scores GET /api/pipeline STAMPS onto each row before it goes out
+ *  (match-score-resolve.ts + pipeline-transfer-score.ts). They are not store columns,
+ *  so they ride beside the allowlist rather than inside it. */
+export type BoardScoreStamps = {
+  canonicalScore?: number | null;
+  scoreProvenance?: MatchScoreProvenance | null;
+  transferScore?: number | null;
+};
+
+/** The client-facing view contract. Client consumers import this with `import type`
+ *  instead of re-declaring divergent, partial local row types — those drift silently
+ *  from the server the moment a field is renamed. (`import type` is erased at compile
+ *  time, so no server code enters the client bundle.) */
+export type PipelineEntryView = Pick<PipelineEntry, (typeof BOARD_ENTRY_FIELDS)[number]> & BoardScoreStamps;
+
+/** Project one stamped store row down to the board payload. Copies the allowlist by
+ *  NAME, so a column added to `pipeline_entries` reaches the browser only when somebody
+ *  adds it here on purpose — the previous shape leaked every new column by default. */
+export function boardEntryView<T extends PipelineEntry & BoardScoreStamps>(entry: T): PipelineEntryView {
+  const view = {} as Record<string, unknown>;
+  for (const field of BOARD_ENTRY_FIELDS) view[field] = entry[field];
+  view.canonicalScore = entry.canonicalScore ?? null;
+  view.scoreProvenance = entry.scoreProvenance ?? null;
+  view.transferScore = entry.transferScore ?? null;
+  return view as PipelineEntryView;
+}
 
 export type PipelineEvent = {
   id: number;
@@ -374,6 +444,53 @@ function parseGithubEvidence(githubJson: string | null | undefined, entryId: str
 // them into the statement is injection-safe.
 const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`).join(", ")})`;
 
+// ---- Coded event details --------------------------------------------------------
+//
+// The record-vs-screen split automation-run.ts already runs for its own events: the
+// STORE writes a machine token, the SCREEN resolves it in the reader's language. Six
+// of this file's `recordEvent` calls used to store an English SENTENCE as the detail
+// ("Role closed — candidate withdrawn from the pipeline."), which the activity feed
+// then painted verbatim — so a Czech or German recruiter read the localized verb
+// followed by an English explanation of it.
+//
+// The vocabulary is a literal array + derived union + a Record-typed rendering pin,
+// the closed-vocabulary idiom this repo uses for tabs.ts and EVENT_KINDS: a code with
+// no catalog entry in all four locales fails pipeline-event-reasons.test.ts.
+//
+// LEGACY ROWS STILL RENDER. useEventVerb only takes the coded branch when the detail
+// matches `reason:<letters>`; every row written before this change is English prose or
+// a machine handle and falls through to the existing rendering untouched. Nothing is
+// migrated, and nothing needs to be.
+export const PIPELINE_REASON_CODES = [
+  // closeEntriesByJobId / reopenEntriesByJobId — the JOB2 role-lifecycle pair.
+  "roleClosedWithdrawn",
+  "roleReopenedRestored",
+  // reinstatePipelineEntry — a human overruling the machine's auto-reject.
+  "autoRejectionReversed",
+  // mergeReapplication — a degraded intake resolved by hand.
+  "intakeCapturedManually",
+  // setEntryGithubEvidence — the drawer's on-demand deep dive.
+  "githubDeepDiveFromDrawer",
+  // setPipelineEntryStage — a recruiter dragging a card, as opposed to the
+  // automation pass's `auto_advanced`.
+  "manualStageMove",
+  // createPipelineEntry — the plain, non-degraded add. The degraded branch beside it
+  // keeps its free-text reason: that one is a real diagnostic, not a fixed sentence.
+  "addedToPipeline",
+] as const;
+export type PipelineReasonCode = (typeof PIPELINE_REASON_CODES)[number];
+
+/** Wire prefix for a coded event detail. Duplicated from automation-run.ts rather
+ *  than imported, for the reason stated there: the renderer that parses it
+ *  (pipelineEventCatalog.ts `useEventVerb`) is a client component and cannot import
+ *  a module that opens SQLite, so the prefix lives at each end and is pinned from
+ *  both sides by a test. */
+export const PIPELINE_REASON_PREFIX = "reason:";
+/** The detail string to STORE for a coded reason. */
+export function pipelineReasonDetail(code: PipelineReasonCode): string {
+  return `${PIPELINE_REASON_PREFIX}${code}`;
+}
+
 // Calibration of the ACTING score (REC-02). The analytics reliability curve used
 // to measure ONLY `analyses.score × recruiter disposition` — a pair nothing in
 // the pipeline flow ever writes (live n=0 with a full pipeline on disk) — while
@@ -554,6 +671,40 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
   return rows.map(rowToEntry);
 }
 
+/** The active placements of ONE candidate, newest-scoring first, CAPPED.
+ *
+ *  Exists because the caller that wants this (the command palette's profile preview)
+ *  was doing `listPipeline(ws).filter(e => e.candidateId === id).slice(0, 3)`: the
+ *  whole board hydrated through `rowToEntry` — every entry's github JSON, notes and
+ *  source attribution — to keep at most three rows, on a pane that opens on a
+ *  keystroke. This asks SQLite the question instead, and the LIMIT is in the query
+ *  rather than in the caller's `.slice`.
+ *
+ *  Projection, not entries: a preview needs a job title and a stage id, so this
+ *  returns exactly those two columns rather than a PipelineEntry the caller would
+ *  throw most of away. Same TERMINAL_STATUS exclusion as `listPipeline`, so "active"
+ *  means the same thing on both reads. */
+export function listCandidatePlacements(
+  candidateId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  limit = 3
+): Array<{ jobTitle: string | null; stage: string }> {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT job_title, stage
+         FROM pipeline_entries
+        WHERE candidate_id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
+        ORDER BY match_score DESC, job_title
+        LIMIT ?`
+    )
+    .all(candidateId, workspaceId, Math.max(0, Math.min(limit, 50)))
+    .map((r) => {
+      const row = r as { job_title: string | null; stage: string };
+      return { jobTitle: row.job_title, stage: row.stage };
+    });
+}
+
 /** JOB2 — when a recruiter closes a role, withdraw its still-IN-FLIGHT candidates so a
  *  filled role stops being chased and stops inflating the active funnel. Marks every
  *  `active`, non-Hired entry for the job `role_closed` (a DISTINCT terminal status — they
@@ -580,17 +731,29 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
       .all(jobId, hiredStage, workspaceId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
     let withdrawn = 0;
     for (const r of rows) {
-      // `AND status='active'` re-asserts what the SELECT filtered on, the same guard
-      // reopenEntriesByJobId carries (and for the same reason). Without it this UPDATE
-      // is a lost-update: the transaction is DEFERRED, so a hire — or a human merit
-      // reject — landing on another connection between the SELECT above and this row's
-      // write was overwritten back to `role_closed`, and given a withdrawal event it
-      // never earned. Resolving hiredStage by ROLE rather than by the literal 'Hired'
-      // (above) exists to stop a close from flipping a real hire; that care was undone
-      // one line later by a WHERE that did not re-check the status it had just read.
+      // The UPDATE re-asserts BOTH predicates the SELECT filtered on — `status='active'`
+      // AND `stage != <terminal>` — because the transaction is DEFERRED: the write lock
+      // is taken at the first write, not at BEGIN, so anything the SELECT read can move
+      // under the loop.
+      //
+      // The status half is the same guard reopenEntriesByJobId carries: without it a
+      // human merit reject landing on another connection mid-window was overwritten back
+      // to `role_closed` and given a withdrawal event it never earned.
+      //
+      // The STAGE half closes the other, worse half of the very incident this function's
+      // CAS work was opened for. A hire is a STAGE move, not a status move — the placed
+      // candidate keeps `status='active'` and moves into the terminal column. So a
+      // recruiter dropping someone onto Hired between the SELECT and this row's write
+      // satisfied `status='active'` and got withdrawn from the role they were hired
+      // into: exactly the outcome resolving `hiredStage` by ROLE (above) exists to
+      // prevent, undone one line later by a WHERE that re-checked only one of the two
+      // things it had just read. Re-asserting the stage makes that flip a no-op.
       const res = db
-        .prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=? AND status='active' AND workspace_id=?`)
-        .run(now, r.id, workspaceId);
+        .prepare(
+          `UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=?
+            WHERE id=? AND status='active' AND stage != ? AND workspace_id=?`
+        )
+        .run(now, r.id, hiredStage, workspaceId);
       if (res.changes === 0) continue; // lost the flip to a concurrent writer
       recordEvent(db, {
         entryId: r.id,
@@ -600,7 +763,7 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
         kind: "role_closed",
         fromStage: r.stage,
         toStage: r.stage,
-        detail: "Role closed — candidate withdrawn from the pipeline.",
+        detail: pipelineReasonDetail("roleClosedWithdrawn"),
       });
       withdrawn += 1;
     }
@@ -655,7 +818,7 @@ export function reopenEntriesByJobId(jobId: string, workspaceId: string = DEFAUL
         kind: "role_reopened",
         fromStage: r.stage,
         toStage: r.stage,
-        detail: "Role reopened — candidate restored to the pipeline.",
+        detail: pipelineReasonDetail("roleReopenedRestored"),
       });
       restored += 1;
     }
@@ -949,6 +1112,12 @@ export function reinstatePipelineEntry(
   // candidates parked on a RETIRED stage the board no longer draws: reversed on the
   // record, invisible in the queue that was supposed to re-review them.
   const landingStage = screenedLandingStage(getPipelineAxis(workspaceId).stages) || "Screened";
+  // IMMEDIATE: this is a read -> compute -> write (the status SELECT decides
+  // whether the reversal is legal, the UPDATE performs it). The UPDATE re-asserts
+  // status='rejected' too, so the lost-update window was already closed — but a
+  // deferred tx() takes its write lock only at the first write, which is where the
+  // house rule says to pick a strategy deliberately rather than to rely on both
+  // halves staying in place. Taking the lock at BEGIN makes the guard structural.
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row || row.status !== "rejected") return null;
@@ -970,12 +1139,12 @@ export function reinstatePipelineEntry(
       kind: "reinstated",
       fromStage: row.stage,
       toStage: landingStage,
-      detail: "Auto-rejection reversed for re-review.",
+      detail: pipelineReasonDetail("autoRejectionReversed"),
       actor: actorRef ?? null,
     });
     return getPipelineEntry(id, workspaceId);
   });
-  return tx();
+  return tx.immediate();
 }
 
 export type CreatePipelineInput = {
@@ -1169,7 +1338,7 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     archetype: input.archetype,
     kind: intakeDegraded ? "intake_degraded" : "added",
     toStage: stage,
-    detail: intakeDegraded ? intakeDegradedReason : "added to pipeline",
+    detail: intakeDegraded ? intakeDegradedReason : pipelineReasonDetail("addedToPipeline"),
   });
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return { entry: rowToEntry(row), created: true };
@@ -1395,7 +1564,7 @@ export function clearIntakeDegraded(id: string, workspaceId: string = DEFAULT_WO
     archetype: row.archetype,
     kind: "intake_resolved",
     toStage: row.stage,
-    detail: "intake captured manually",
+    detail: pipelineReasonDetail("intakeCapturedManually"),
   });
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
   return rowToEntry(updated);
@@ -1577,7 +1746,7 @@ export function setEntryGithubEvidence(id: string, githubJson: string, workspace
       archetype: row.archetype,
       kind: "github_evidence_attached",
       toStage: row.stage,
-      detail: "GitHub deep-dive run from the drawer",
+      detail: pipelineReasonDetail("githubDeepDiveFromDrawer"),
     });
   }
   const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
@@ -1706,6 +1875,68 @@ export function findEntryByErasureToken(token: string): PipelineEntry | null {
   return row ? rowToEntry(row) : null;
 }
 
+/** THE ERASURE RECORD — the counterpart of `TENANCY_SCOPED_TABLES` (tenancy.ts).
+ *
+ *  The tenancy manifest answers "which tables hold per-tenant data"; it says nothing
+ *  about whether an Art. 17 erasure REACHES them, and nothing was checking. A table
+ *  could (and did) join the manifest while staying invisible to the scrub: the
+ *  candidate survey comment, the whole dev-case family and the signed skill credential
+ *  all held a named person's words after the product had told them their data was gone.
+ *
+ *  So the two lists are now pinned to each other: erasure-full-scrub.test.ts reads the
+ *  manifest and asserts every scoped table is either WRITTEN by the erasure path (it
+ *  parses the SQL out of this file's erasure region — a claim here cannot outrun the
+ *  code), DELEGATED below, or listed here with the reason it is lawfully retained.
+ *  Adding a table to the manifest without doing one of the three turns the suite red.
+ *
+ *  A reason is a LEGAL basis or a factual "holds no personal data", not a shrug. */
+export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
+  // --- Holds no candidate personal data at all (company/role content). ---
+  ["jds", "Company-authored job descriptions and their AI builds — role content, no candidate data."],
+  ["jd_revisions", "The edit history of the above: recruiter-authored JD text, no candidate data."],
+  ["jd_templates", "The shared JD template library — reusable role copy, no candidate data."],
+  ["campaign_packs", "Generated job-posting copy for an opening — marketing text, no candidate data."],
+  ["jobs", "The openings corpus (seeded reference rows + a team's own openings), no candidate data."],
+  ["job_ingests", "Content-hash dedup keys for job ingest — hashes of JD text, no candidate data."],
+  ["dev_cases", "The work-sample assignment itself (scenario, seed tree), authored before any candidate exists."],
+  ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
+  ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],
+  ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
+  ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
+  ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
+  ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
+  ["channel_spend", "Per-channel spend totals — money, no candidate data."],
+  ["calendar_connections", "The RECRUITER's Google OAuth refresh token; the candidate never appears in it."],
+  ["repo_scans", "A machine read of the OPERATOR's own codebase (App-master), no candidate data."],
+  ["agent_fit_specs", "A job's AgentFitSpec — a specification of a ROLE for an AI worker, no natural person."],
+  ["hired_agents", "The hired AI-agent roster (spec, budget, report token). Art. 17 protects natural persons; an agent is software."],
+  ["agent_activity", "The AI-agent cost/activity ledger — machine telemetry, no natural person."],
+  ["group_evals", "Role-level group evaluation rubrics keyed by role_key, not by candidate."],
+  ["application_status_links", "A CSPRNG token ↔ entry id mapping. Carries no personal data itself, and the entry's own erasure nulls the data the link resolves to."],
+  ["apply_sessions", "Funnel telemetry for an apply attempt (job, flow, campaign, timestamps) — no name, contact or CV."],
+  ["outreach_state", "Send counters and replied/halted timestamps per entry. No content, no identifiers; and it is the record that STOPS further mail to an erased person, so deleting it would re-arm the contact it prevents."],
+  ["consent_events", "The consent/erasure audit trail itself (entry id, kind, timestamp). GDPR Art. 5(2) accountability: the proof that the erasure happened cannot be the thing the erasure deletes. It carries no name — the label was never snapshotted onto it."],
+  ["dev_session_events", "The observed-process log (keystroke/paste/run kinds, repo-relative paths, timings) under a server-computed SHA-256 hash chain. Free of personal identifiers by construction, and editing a row would break the tamper-evidence the assessment's integrity verdict rests on — the same Art. 17(3)(b)/(e) reasoning as decision_records."],
+  ["decision_records", "The tamper-evident decision hash chain, retained for adverse-action defensibility (Art. 17(3)(b)/(e) legal claims + compliance). Editing a row breaks the chain it exists to prove; the retention is DISCLOSED on /data instead of over-promised as deleted."],
+  ["companion_threads", "The operator's own assistant conversation. Operator personal data under their employer's controller relationship, not the candidate's — out of scope for a candidate erasure request."],
+  ["companion_turns", "As companion_threads: the operator's own conversation turns."],
+  ["companion_proposals", "As companion_threads: proposals the companion offered the operator."],
+  ["companion_brain_index", "As companion_threads: the read mirror of the operator's private notes."],
+  ["feedback", "In-product \"send feedback\" messages written BY an operator about the product. Not keyed to a candidate and not reachable from an entry; the submitter's own email is erased through their account, not through a candidate request."],
+  ["tasks", "The background-job queue. Rows are transient by design and are deleted wholesale by the retention prune (pruneFinishedTasks), not held. NOT keyed to an entry, so a per-candidate scrub cannot address them — see the residual note in docs/features/compliance/README.md."],
+  ["ats_links", "The vendor-id ↔ entry mapping for ATS sync. Holds no personal data (provider, external id, stage), and it must OUTLIVE the scrub: without it the next nightly sync re-imports the same person as a new candidate. Lot AA lands the delete (deleteAtsLinksForEntry) for the harder case where the operator disconnects the integration."],
+  // Not workspace-scoped (so not reached by the manifest pin), but recorded here because
+  // an erasure request WILL be asked about it: the LLM metering ledger.
+  ["llm_usage", "Deployment-level LLM metering (model, token counts, latency, cost), written off-request from the Python side. It records that a machine call happened, never who it was about — no candidate identifier or prompt text is stored — so there is nothing in it to erase."],
+]);
+
+/** Tables the erasure path scrubs through a NAMED function rather than inline SQL.
+ *  The test asserts the named function is actually called in the erasure region, so
+ *  this cannot become a claim about a call that was removed. */
+export const ERASURE_DELEGATED_SCRUBS: ReadonlyMap<string, string> = new Map([
+  ["profiles", "anonymizeProfile"],
+]);
+
 /** Erase this candidate's PII from every OTHER table that holds it keyed to the entry
  *  — the surfaces the entry/profile/analyses scrub in anonymizeEntry does NOT reach:
  *  the voice-interview transcript + scorecard, the outbound comms outbox, and the
@@ -1770,6 +2001,83 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
       if (tables.has("onboarding_signatures")) db.prepare(`UPDATE onboarding_signatures SET signer = NULL WHERE run_id = ?`).run(runId);
     }
   }
+  // The candidate's own free-text survey answer (candidate_nps, keyed by entry_id). The
+  // 0-10 SCORE stays — it is the de-identified candidate-experience measurement the
+  // metric pack is computed from and it names nobody; the comment is their own words.
+  if (tables.has("candidate_nps")) {
+    db.prepare(`UPDATE candidate_nps SET comment = NULL WHERE entry_id = ?`).run(entryId);
+  }
+  // --- The DEV-CASE family, reached through the entry's work-sample link. ---
+  //
+  // These rows are keyed by SUBMISSION, never by entry id, which is exactly why the
+  // scrub never saw them: `dev_submissions.candidate_ref` is a free-text name the
+  // candidate typed, `contact` their email, `notes` a recruiter sentence about them;
+  // `dev_sessions.files_json` is the code they authored (a README or file header
+  // routinely carries their name and email); `dev_session_chat.text` is their verbatim
+  // dialogue with the assistant; and `skill_profiles.profile_json` is a SIGNED,
+  // publicly-presentable credential naming them.
+  //
+  // THE JOIN: the entry's own `dev_submission_id`, written at promote
+  // (devcase-run.promoteSubmission), plus the LEGACY reading of an entry written before
+  // that column existed, whose candidate id was `ds-<submissionId>`. Both are consulted,
+  // in that order — the same rule as dev-outcomes.hireOutcomeRef, because the two
+  // disagreeing is precisely how a row gets missed. Read from the row HERE rather than
+  // passed in as a parameter, so anonymizeEntry's call site (and every other caller)
+  // stays untouched. The masking UPDATE above does not clear this column.
+  // getEntryWorkspace is the tenant-DERIVATION point read the pipeline_entries guard
+  // declares exempt (a by-id read of a globally-unique PK, whose whole job is to discover
+  // the tenant); the link read itself is then SCOPED to what it returns, so this stays a
+  // scoped read rather than a new tenant-blind one.
+  const linkWorkspaceId = getEntryWorkspace(entryId);
+  const submissionLink = db
+    .prepare(`SELECT dev_submission_id FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(entryId, linkWorkspaceId) as { dev_submission_id?: string | null } | undefined;
+  const legacySubmissionId = (candidateId ?? "").startsWith(LEGACY_SUBMISSION_CANDIDATE_PREFIX)
+    ? (candidateId ?? "").slice(LEGACY_SUBMISSION_CANDIDATE_PREFIX.length)
+    : "";
+  const submissionIds = [...new Set([(submissionLink?.dev_submission_id ?? "").trim(), legacySubmissionId].filter(Boolean))];
+  if (submissionIds.length > 0) {
+    const slots = submissionIds.map(() => "?").join(", ");
+    // The assignment's own record. status/eval_json/transfer_score stay: they are the
+    // de-identified assessment the retained recruitment record rests on.
+    if (tables.has("dev_submissions")) {
+      db.prepare(`UPDATE dev_submissions SET candidate_ref = ?, contact = NULL, notes = NULL WHERE id IN (${slots})`).run(masked, ...submissionIds);
+    }
+    // The live work session behind it. The observed EVENT log is deliberately left
+    // alone — it carries no identifiers and is under a server-computed hash chain whose
+    // integrity verdict an assessment rests on (ERASURE_EXEMPT["dev_session_events"]).
+    if (tables.has("dev_sessions")) {
+      const sessionIds = (
+        db.prepare(`SELECT id FROM dev_sessions WHERE submission_id IN (${slots})`).all(...submissionIds) as { id: string }[]
+      ).map((s) => s.id);
+      db.prepare(`UPDATE dev_sessions SET candidate_ref = ?, files_json = '[]' WHERE submission_id IN (${slots})`).run(masked, ...submissionIds);
+      if (sessionIds.length > 0 && tables.has("dev_session_chat")) {
+        const chatSlots = sessionIds.map(() => "?").join(", ");
+        // Blanked in place, like the outbox: the seq/role/channel columns stay as the
+        // "a captured dialogue happened" evidence trail, without any of its content.
+        db.prepare(`UPDATE dev_session_chat SET text = '' WHERE session_id IN (${chatSlots})`).run(...sessionIds);
+      }
+    }
+    // The signed skill credential. REVOKED as well as emptied, and deliberately so: an
+    // erased credential that still verified would be a public page vouching for a person
+    // whose data we just told them we deleted. verifySkillProfileToken already reports a
+    // revoked / non-substantive profile as a muted state rather than a confident verdict.
+    if (tables.has("skill_profiles")) {
+      db.prepare(
+        `UPDATE skill_profiles SET candidate_ref = ?, profile_json = '{}', revoked_at = COALESCE(revoked_at, ?) WHERE submission_id IN (${slots})`
+      ).run(masked, new Date().toISOString(), ...submissionIds);
+    }
+  }
+  // The calibration corpus. What makes it worth keeping is the PAIRING — the score we
+  // predicted against the outcome and the on-the-job rating — and that pairing names
+  // nobody once the label and the free-text note are gone, so this is a de-identification
+  // rather than a deletion. Keyed by `ref`: the submission id for a dev-case hire,
+  // `pe:<entryId>` for an ordinary board hire (dev-outcomes.hireOutcomeRef).
+  if (tables.has("dev_outcomes")) {
+    const outcomeRefs = [...submissionIds, `${PIPELINE_OUTCOME_REF_PREFIX}${entryId}`];
+    const refSlots = outcomeRefs.map(() => "?").join(", ");
+    db.prepare(`UPDATE dev_outcomes SET candidate_ref = ?, note = NULL WHERE ref IN (${refSlots})`).run(masked, ...outcomeRefs);
+  }
   // Rediscovery alerts are keyed by candidate_id (a rejected candidate resurfaced for a
   // new role), not entry_id — mask BOTH the candidate_label and the prior-decision label
   // snapshot (prior_label also carries the full name).
@@ -1796,12 +2104,39 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     if (row.anonymized_at) return rowToEntry(row); // already scrubbed — no-op
     const now = new Date().toISOString();
     const masked = maskCandidateName(row.candidate_label);
-    db.prepare(
+    // `AND anonymized_at IS NULL` re-asserts the guard the SELECT above just checked,
+    // and `changes === 0` turns a lost race into a clean no-op.
+    //
+    // The read on its own was never idempotence: TWO doors reach this function — the
+    // consent-expiry sweep (anonymizeExpiredConsents, on the instrumentation heartbeat)
+    // and the candidate's own /data/[token] erasure — and this transaction was DEFERRED,
+    // so both could pass the guard before either wrote. The second pass then masked an
+    // ALREADY-MASKED label (maskCandidateName of "First L." — a mask on a mask), re-ran
+    // the whole linked-PII scrub, and logged a SECOND consent event, so the audit trail
+    // showed a candidate erased twice and the sweep counted a row it did not scrub.
+    //
+    // .immediate() below takes the write lock at BEGIN, which closes the window for two
+    // writers on THIS process's connection; the re-assert closes it for a second
+    // connection on the same file (the sweep and a request handler are not the same
+    // process in every deployment). Both, deliberately — the house rule says pick a
+    // strategy, and an erasure is the one operation where a double-write is visible in a
+    // compliance record.
+    const claimed = db.prepare(
       `UPDATE pipeline_entries
           SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL,
               notes = NULL, erasure_token = NULL, anonymized_at = ?, updated_at = ?
-        WHERE id = ? AND workspace_id = ?`
+        WHERE id = ? AND workspace_id = ? AND anonymized_at IS NULL`
     ).run(masked, now, now, entryId, workspaceId);
+    if (claimed.changes === 0) {
+      // Another erasure won the row between our SELECT and this write. It has done — or
+      // is inside the same transaction as — every scrub below, so re-running them would
+      // only stack a mask on a mask and log a duplicate consent event. Return the row as
+      // it now stands: the caller asked for "this entry is erased", which is true.
+      const won = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as
+        | PipelineRow
+        | undefined;
+      return won ? rowToEntry(won) : null;
+    }
     // The label is snapshotted onto every audit event — mask those too so the
     // activity feed can't reconstruct the name after the row is scrubbed.
     db.prepare(`UPDATE pipeline_events SET candidate_label = ? WHERE entry_id = ? AND workspace_id = ?`).run(masked, entryId, workspaceId);
@@ -1859,7 +2194,12 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(updated);
   });
-  return tx();
+  // IMMEDIATE: read (is it already anonymized?) → compute (the mask, the linked
+  // analyses) → write, the shape the house rule says takes the write lock at BEGIN
+  // rather than at the first write. The claim UPDATE's `anonymized_at IS NULL`
+  // re-assert above is the second half of the same decision, for a writer on another
+  // connection. See actOnPipelineEntry for the canonical pairing.
+  return tx.immediate();
 }
 
 /** Sweep: anonymize every entry whose consent has lapsed (expires_at in the past)
@@ -1897,6 +2237,27 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
 // only receives the opaque `recentScreening` boolean and documents this contract —
 // it cannot see the number — so this constant is the one place the window is defined.
 export const SCREENING_OVERRIDE_GUARD_HOURS = 24;
+
+/** How many active entries ONE automation pass may hydrate — the stated bound on
+ *  `listActiveEntriesForAutomation`, which is the engine's whole input.
+ *
+ *  It read every tenant's every active entry with no LIMIT, on a heartbeat. That is the
+ *  unbounded-fan-in shape: the array, the enriching `screening%` event scan, and the
+ *  per-entry Python evaluation downstream all grow with the largest install on the box,
+ *  and the failure mode is a heartbeat that gets slower until it overlaps itself.
+ *
+ *  2000 is chosen to be far above a real single-tenant board (the demo corpus is dozens;
+ *  a busy team runs hundreds) and far below the point where one pass is a memory event —
+ *  i.e. it should never bind in practice, and when it does, the `console.warn` at the
+ *  call site is the signal that this install needs a paginated or per-tenant pass rather
+ *  than a bigger number here.
+ *
+ *  The cost of it binding, stated plainly: the pass is GLOBAL and the cap is shared, so a
+ *  tenant with a very large board can crowd a small one out of a single pass. The
+ *  oldest-waiting-first ordering bounds that to one pass — a crowded-out entry ages and
+ *  sorts ahead next time — but it does not eliminate it. A genuinely multi-tenant
+ *  deployment wants a per-tenant pass, which is a scheduler change, not a constant. */
+export const AUTOMATION_PASS_ENTRY_CAP = 2000;
 
 // `workspaceId` used to be widened in here because PipelineEntry didn't carry it —
 // that local workaround is what proved the base type should. It now comes from
@@ -2007,16 +2368,42 @@ export function getEntryWorkspace(id: string): string {
 // workspace_id so the caller's per-entry writes (actOnPipelineEntry/setApproval/… taking
 // entry.workspaceId) stay tenant-scoped; the enumeration itself must span teams, so both
 // reads are tagged `-- tenancy:global` (exempted in pipeline-{tenancy,events-tenancy}.test).
-export function listActiveEntriesForAutomation(): AutomationEntry[] {
+export function listActiveEntriesForAutomation(limit: number = AUTOMATION_PASS_ENTRY_CAP): AutomationEntry[] {
   const db = ensureDb();
+  const cap = Math.max(1, Math.min(Math.floor(limit), AUTOMATION_PASS_ENTRY_CAP));
   const rows = db
     .prepare(
+      // BOUNDED, and the ORDER BY is what makes the bound defensible. Unbounded, this
+      // hydrated EVERY tenant's every active entry into one array on a heartbeat tick;
+      // with a LIMIT and no ORDER BY it would have returned an arbitrary slice, so a
+      // candidate could sit outside the window forever while a newer one was processed
+      // on every pass. Oldest-waiting-first (stage_changed_at, then created_at, then the
+      // PK as the tiebreak that makes the order TOTAL) means the truncated tail is
+      // always the entries that have waited least, and an entry that misses one pass has
+      // aged and is nearer the front on the next — starvation-free by construction.
+      //
+      // Cross-tenant by design (`-- tenancy:global`, like the GDPR and tasks sweeps): the
+      // ONE automation engine serves every team, and the ordering column is neutral, so
+      // the cap is shared on waiting time rather than on tenant identity. Callers that
+      // want their own team's slice filter AFTER (tasks.ts) — see the cap constant for
+      // what that costs and why the number is set where it is.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, workspace_id
-       FROM pipeline_entries WHERE status = 'active' -- tenancy:global`
+       FROM pipeline_entries WHERE status = 'active' -- tenancy:global
+       ORDER BY stage_changed_at ASC, created_at ASC, id ASC
+       LIMIT ?`
     )
-    .all() as (PipelineRow & { workspace_id: string })[];
+    .all(cap) as (PipelineRow & { workspace_id: string })[];
+  if (rows.length === cap) {
+    // Truncation is an OPERATOR fact, not a silent degradation: at the cap the pass is
+    // no longer seeing the whole board, and the install has outgrown a single-pass
+    // sweep. Logged rather than thrown — a partial pass is still the right behaviour,
+    // and a heartbeat that refused to run would be strictly worse.
+    console.warn(
+      `[pipeline:automation] active-entry read hit its ${cap}-row cap — this pass is processing the ${cap} longest-waiting entries and the rest roll to the next pass.`
+    );
+  }
   const cutoff = new Date(Date.now() - SCREENING_OVERRIDE_GUARD_HOURS * 3600 * 1000).toISOString();
   const recent = new Set(
     (
@@ -2045,15 +2432,51 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
 }
 
 /** Set/clear a pending approval without a stage change (Task 1 hold, Task 5 scorecard gate). */
-export function setApproval(entryId: string, approvalKind: ApprovalKind | null, approvalDetail: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+/** Set (or clear) the pending approval on an entry.
+ *
+ *  `opts.expectedApprovalKind` is the same compare-and-swap `actOnPipelineEntry`
+ *  offers, for the callers that DECIDE from a snapshot and then write after a
+ *  slow hop. Two of them do: extendDraftedOffer clears the approval only after
+ *  `await dispatchOffer(...)` (a comms round trip), and the hybrid-handoff path
+ *  arms the calendar gate after `await humanActor()` + the plan read. Both used a
+ *  bare UPDATE, so a human who resolved the approval during that gap had their
+ *  decision silently overwritten by a stale one. `undefined` = the caller did not
+ *  snapshot it (the automation writers that RAISE an approval) → not checked;
+ *  `null` is a real expectation ("no pending approval when I decided").
+ *
+ *  Returns whether the write applied — false means the precondition failed and
+ *  the caller must answer the conflict rather than claim success. */
+export function setApproval(
+  entryId: string,
+  approvalKind: ApprovalKind | null,
+  approvalDetail: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: { expectedApprovalKind?: ApprovalKind | null }
+): boolean {
   const db = ensureDb();
-  db.prepare(`UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
-    approvalKind,
-    approvalDetail,
-    new Date().toISOString(),
-    entryId,
-    workspaceId
-  );
+  // `IS` rather than `=`: the expectation is legitimately NULL ("no approval was
+  // pending"), and `approval_kind = NULL` is never true in SQL.
+  const guarded = opts?.expectedApprovalKind !== undefined;
+  const res = db
+    .prepare(
+      `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
+        guarded ? ` AND approval_kind IS ?` : ``
+      }`
+    )
+    .run(
+      approvalKind,
+      approvalDetail,
+      new Date().toISOString(),
+      entryId,
+      workspaceId,
+      ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
+    );
+  if (res.changes === 0 && guarded) {
+    console.warn(
+      `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
+    );
+  }
+  return res.changes > 0;
 }
 
 export function recordAutomationEvent(
@@ -2349,7 +2772,7 @@ export function actOnPipelineEntry(
     // credential in their inbox. Best-effort; /connect's terminal-entry guard
     // is the backstop for paths that don't run through here (e.g. decline).
     try {
-      revokeOpenInterviewSessions(result.id);
+      revokeOpenInterviewSessions(result.id, result.workspaceId);
     } catch (error) {
       console.error("[pipeline:act] interview-link revoke failed", error);
     }
@@ -2410,7 +2833,7 @@ export function setPipelineEntryStage(
       fromStage: row.stage,
       kind: "moved",
       toStage,
-      detail: "manual",
+      detail: pipelineReasonDetail("manualStageMove"),
       actor: opts?.actorRef ?? null,
     });
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;

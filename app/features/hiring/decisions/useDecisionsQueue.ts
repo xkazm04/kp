@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
+import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
@@ -19,13 +20,23 @@ import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
 import { selectionCacheKey } from "./groupEval/cache-key";
 import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
+import { createTicketGate } from "./decisionsLatestWins";
+import { foldQueueLoadThrow, readQueueResponse } from "./decisionsQueueLoad";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
+import {
+  applyReinstateOutcome,
+  foldReinstateResponse,
+  type ReinstateFailure,
+  type ReinstateOutcome,
+} from "./decisionsReinstateOutcome";
 
 export function useDecisionsQueue() {
   const search = useSearchParams();
   const t = useTranslations("decisions");
   const tWave = useTranslations("decisions.wave"); // shared sealed-reason resolver scope
+  // A refused batch is answered from its CODE in the reader's language.
+  const errMsg = useErrorMessage();
   const locale = useLocale(); // PREP2 — prep pack language
   // REC-10 — "Offer sent" is only claimed when a relay delivers; without one
   // the letter is a terminal outbox row and the recruiter must hand over the link.
@@ -120,6 +131,9 @@ export function useDecisionsQueue() {
   // pending queue and refreshed on the same signals.
   const [reconsider, setReconsider] = useState<ReconsiderRow[]>([]);
   const [reinstating, setReinstating] = useState<ReadonlySet<string>>(new Set());
+  // Per-row reinstate failures, keyed by entry id: `{ code, status }`, resolved to
+  // the reader's language at the row (never the server's English `error` string).
+  const [reinstateErrors, setReinstateErrors] = useState<Readonly<Record<string, ReinstateFailure>>>({});
   // reconsider-earns-keep — the queue is a collapsed <details> at the bottom, but a
   // count chip in the header (below) surfaces it; clicking the chip opens the
   // details and scrolls to it. Controlled so the chip can drive it.
@@ -178,43 +192,98 @@ export function useDecisionsQueue() {
   // reconcile, which must always hit the network.
   const load = (opts?: { shared?: boolean }) => {
     const ticket = ++loadTicket.current;
-    return sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
+    return sharedGetJson<unknown>("/api/pipeline", { refresh: !opts?.shared })
       .then((p) => {
         if (ticket !== loadTicket.current) return; // superseded by a newer read or a landed decision
-        if (p.error) throw new Error(p.error);
-        setEntries((p.entries as Entry[]) ?? []);
+        // the-decisions-queue-answers-codes: the body is FOLDED, never thrown. The
+        // old chain re-threw `p.error` and painted `e.message`, so the queue's own
+        // failure was the one English sentence on a screen where every other
+        // refusal already resolves errors.<CODE> in the reader's language.
+        const read = readQueueResponse(p);
+        if (read.failure) {
+          setError(capabilityAwareReason(errMsg, read.failure, t("loadFailed")));
+          return;
+        }
+        setError(null); // a good read clears a previous failure
+        setEntries(read.entries);
       })
       .catch((e) => {
         if (ticket !== loadTicket.current) return;
-        setError(e instanceof Error ? e.message : t("loadFailed"));
+        setError(capabilityAwareReason(errMsg, foldQueueLoadThrow(e), t("loadFailed")));
       });
   };
-  const loadReconsider = () =>
-    fetch("/api/decisions/reconsider")
+  // Same one-writer-wins rule as `load`, for the reconsider queue: it fires from
+  // mount, from the live-refresh bus (other windows too) and after every
+  // reinstate, so a slow earlier response could re-list a row the recruiter had
+  // just reinstated away. The gate is pure (decisionsLatestWins.ts).
+  const reconsiderGate = useRef(createTicketGate());
+  const loadReconsider = () => {
+    const ticket = reconsiderGate.current.take();
+    return fetch("/api/decisions/reconsider")
       .then((r) => r.json())
-      .then((p) => setReconsider((p.items as ReconsiderRow[]) ?? []))
-      .catch(() => undefined);
+      .then((p) => {
+        if (!reconsiderGate.current.isLatest(ticket)) return; // superseded by a newer read
+        setReconsider((p.items as ReconsiderRow[]) ?? []);
+      })
+      .catch(() => {
+        /* best-effort: the reconsider queue is a safety valve BESIDE the pending
+           queue, not the screen's subject. A failed read leaves the last good list
+           (or the empty one) and the header count stays honest about what loaded;
+           the pending queue's own failure — the one the recruiter must act on — is
+           already surfaced as a coded alert above. */
+      });
+  };
+  // `load`/`loadReconsider` are re-created every render; the mount read must call
+  // the LATEST pair once without listing them as deps (that would refetch the queue
+  // on every keystroke). A ref updated after each render is the lint-clean shape:
+  // the mount effect depends on nothing but two stable refs.
+  const latestLoaders = useRef({ load, loadReconsider });
   useEffect(() => {
-    load({ shared: true }); // mount read may ride a sibling's in-flight request
-    loadReconsider();
+    latestLoaders.current = { load, loadReconsider };
+  });
+  useEffect(() => {
+    // The gate object is created once and never replaced, so capturing it here is
+    // the identity the cleanup needs (and keeps the ref out of the cleanup body).
+    const gate = reconsiderGate.current;
+    latestLoaders.current.load({ shared: true }); // mount read may ride a sibling's in-flight request
+    latestLoaders.current.loadReconsider();
+    return () => gate.invalidate(); // an unmounted tab writes nothing
   }, []);
   useLiveRefresh(() => {
     load();
     loadReconsider();
   }); // live-update both queues when the simulation / automation acts
 
+  // reinstate-and-rules-say-when-they-fail — the safety valve over irreversible
+  // auto-rejection must say when IT fails. This used to be `if (r.ok) { … }` with
+  // no else and no catch, fired as `void reinstate(item)`: a 409 removed nothing
+  // and said nothing, and a network drop rejected an unhandled promise while the
+  // button spun, re-enabled, and the row stayed. Every path now ends in the pure
+  // fold (decisionsReinstateOutcome.ts) — a removal, or a `{ code, status }` the
+  // row renders through useErrorMessage in the reader's language.
   const reinstate = async (item: ReconsiderRow) => {
     setReinstating((s) => new Set(s).add(item.id));
     try {
-      const r = await fetch(`/api/pipeline/${item.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reinstate" }),
-      });
-      if (r.ok) {
-        setReconsider((cur) => cur.filter((x) => x.id !== item.id));
-        load(); // the candidate is back in the active pipeline at Screened
+      let outcome: ReinstateOutcome;
+      try {
+        const r = await fetch(`/api/pipeline/${item.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "reinstate" }),
+        });
+        // A non-JSON body (a proxy's HTML 502) is not a reason to lose the status.
+        const body = await r.json().catch(() => null);
+        outcome = foldReinstateResponse(item.id, { ok: r.ok, status: r.status }, body);
+      } catch {
+        // The request never landed (offline, aborted, DNS). Folded, not thrown:
+        // an unhandled rejection is exactly the silence this direction removes.
+        outcome = foldReinstateResponse(item.id, null, null);
       }
+      // Both halves come from the same fold, applied as two independent functional
+      // updates (never a setState inside another's updater — that updater must stay pure).
+      setReconsider((cur) => applyReinstateOutcome(cur, {}, outcome).rows);
+      setReinstateErrors((cur) => applyReinstateOutcome([], cur, outcome).failures);
+      if (outcome.ok) load(); // the candidate is back in the active pipeline at Screened
     } finally {
       setReinstating((s) => {
         const n = new Set(s);
@@ -259,7 +328,11 @@ export function useDecisionsQueue() {
     fetch(`/api/decisions/jd-freshness?jobs=${encodeURIComponent(aiReviewJobKey)}`)
       .then((r) => r.json())
       .then((p) => alive && setJdEditedAt((p.editedAt as Record<string, string | null>) ?? {}))
-      .catch(() => undefined);
+      .catch(() => {
+        /* best-effort: this read only decides whether a card wears the "JD edited
+           since this score" chip. An unread map shows no chip — the score itself is
+           unchanged and every other disclosure on the card still renders. */
+      });
     return () => {
       alive = false;
     };
@@ -272,7 +345,11 @@ export function useDecisionsQueue() {
     fetch(`/api/decisions/peer-context?jobs=${encodeURIComponent(aiReviewJobKey)}`)
       .then((r) => r.json())
       .then((p) => alive && setPeerCtx((p.jobs as PeerContextMap) ?? {}))
-      .catch(() => undefined);
+      .catch(() => {
+        /* best-effort: peer facts are comparison CHROME beside the decision, never
+           the decision. A failed read hides the peer strip; nothing on the card
+           changes meaning without it. */
+      });
     return () => {
       alive = false;
     };
@@ -367,6 +444,7 @@ export function useDecisionsQueue() {
     let ok = 0;
     const failed = new Set<string>();
     const reasons = new Set<string>();
+    let requestReason: string | null = null;
     const items: PipelineBatchItem[] = targets.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
     const res = await postPipelineBatch(items);
     if (res.ok) {
@@ -397,8 +475,17 @@ export function useDecisionsQueue() {
         setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
       }
     } else {
-      // Transport-level failure — every attempted decision stays selected for retry.
+      // WHOLE-REQUEST failure — every attempted decision stays selected for retry.
+      // It used to end there: the band said "0 accepted · N couldn't be decided" and
+      // nothing else, even when the door had refused the seat with a code and named
+      // the permission it wanted. A whole-request refusal is not a per-id verdict —
+      // none was ever reached — so it OVERRIDES the per-id reasons below.
       for (const e of targets) failed.add(e.id);
+      requestReason = capabilityAwareReason(
+        errMsg,
+        { code: res.code, capability: res.capability },
+        t("batch.requestFailed")
+      );
     }
     // Successes clear; failures + any selected non-selectable strays stay selected.
     const untouched = [...selectedReviewIds].filter((id) => !targets.some((e) => e.id === id));
@@ -410,7 +497,7 @@ export function useDecisionsQueue() {
       ok,
       failed: failed.size,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: reasons.size ? [...reasons].join(" · ") : null,
+      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
     });
     setBulkBusy(false);
     await load();
@@ -430,12 +517,30 @@ export function useDecisionsQueue() {
   const visibleGroups = groups.filter((g) => !activeFilter || g.roleKey === activeFilter);
 
   // Which roles already have a saved evaluation (toggles the button label).
+  // Gated for the same reason (decisionsLatestWins.ts), and here the race is
+  // routine: `roleKeys` changes whenever the queue reloads, so a read for the OLD
+  // role set is normally still in flight. Its response is a whole-map replace, so
+  // letting it settle re-asserted "evaluated" chips for roles no longer on screen
+  // and dropped the ones that are — and setEvaluated is also written optimistically
+  // when an eval finishes, which a late response silently reverted.
+  const evaluatedGate = useRef(createTicketGate());
   useEffect(() => {
     if (!roleKeys) return;
+    const gate = evaluatedGate.current; // created once; captured so the cleanup holds no ref
+    const ticket = gate.take();
     fetch(`/api/decisions/group-eval?roles=${encodeURIComponent(roleKeys)}`)
       .then((r) => r.json())
-      .then((p) => setEvaluated(p.evaluated ?? {}))
-      .catch(() => undefined);
+      .then((p) => {
+        if (!gate.isLatest(ticket)) return; // superseded by a newer role set
+        setEvaluated(p.evaluated ?? {});
+      })
+      .catch(() => {
+        /* best-effort: this read only decides a BUTTON LABEL ("Group eval" vs
+           "View eval"). An unread map means every role offers the run, which is
+           the safe direction — the run itself re-reads the cache server-side, so
+           nothing is lost but a chip. Nothing here is worth an alert. */
+      });
+    return () => gate.invalidate(); // a re-keyed effect drops its predecessor
   }, [roleKeys]);
 
   // Watch the group-eval background task; its result is fetched on demand once it
@@ -561,10 +666,20 @@ export function useDecisionsQueue() {
     // nothing lists selection rows — a miss simply falls through to a fresh run.
     const tryCache = !rerun && (selectedSet ? true : Boolean(evaluated[g.roleKey]));
     if (tryCache) {
-      const p = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
-        .then((r) => r.json())
+      // A probe that FAILED — offline, a 500, an unparseable body — is NOT a cache
+      // miss, and it used to be indistinguishable from one: the `.catch(() => null)`
+      // fell straight through to a fresh paid run (the full <=8-process pipeline: LLM
+      // weights, embeddings, compare narrative) without ever telling the recruiter the
+      // cached comparison could not be checked. Disclose it and let them choose — the
+      // modal's Re-run button IS the "run fresh" the notice offers.
+      const probe = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
+        .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-      const payload = (p?.evaluation?.payload as GroupEvalPayload) ?? null;
+      if (!probe) {
+        setEvalError(t("evalCacheProbeFailed"));
+        return;
+      }
+      const payload = (probe?.evaluation?.payload as GroupEvalPayload) ?? null;
       // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
       // or removed between the list and this read). Surface an error so the modal doesn't fall
       // through to "No evaluation yet" for a role its own button promised had one. Only for the
@@ -575,7 +690,7 @@ export function useDecisionsQueue() {
       }
       if (payload) {
         setEvalData(payload);
-        setEvalCreatedAt((p?.evaluation?.createdAt as string) ?? null);
+        setEvalCreatedAt((probe?.evaluation?.createdAt as string) ?? null);
         // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
         // evalMode is unpersisted per-mount state that defaults to "recommendation", so
         // without this a rerun of a committee/eligibility role could re-send
@@ -671,7 +786,7 @@ export function useDecisionsQueue() {
     evalTaskId, setEvalTaskId,
     evalError, setEvalError,
     evaluated,
-    reconsider, reinstating, reinstate,
+    reconsider, reinstating, reinstate, reinstateErrors,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
     fmtDate, reconsiderReasonText,
     pending,

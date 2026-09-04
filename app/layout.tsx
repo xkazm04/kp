@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
@@ -10,6 +11,7 @@ import { getBrand } from "./_lib/brand-store";
 import { DEFAULT_BRAND } from "./_lib/brand-config";
 import { DARK, PAPER } from "./_lib/brand";
 import { siteUrl } from "./_lib/site-url";
+import { LOCALES } from "@/i18n/locales";
 import { PlausibleScript } from "./_lib/analytics/plausible";
 import "./globals.css";
 
@@ -50,9 +52,11 @@ const SITE_DESCRIPTION =
 const BRAND = "KandiDate";
 
 // SHELL5 — BCP-47 → OpenGraph locale code (underscored region form og:locale
-// expects). Keep in sync with the LOCALES universe: `de`/`fr` joined it after this
-// map was written, so a German or French share unfurled as `og:locale en_US` under
-// a `<html lang="de">` document — the exact drift the "keep in sync" note warns about.
+// expects). Covers the whole LOCALES universe (en/cs/de/fr) — `de`/`fr` were the
+// drift this map once had, where a German share unfurled as `og:locale en_US`
+// under a `<html lang="de">` document; both have been mapped since. Keep it in
+// lockstep with i18n/locales.ts: a locale added there and forgotten here silently
+// falls back to en_US rather than failing.
 const OG_LOCALE: Record<string, string> = { en: "en_US", cs: "cs_CZ", de: "de_DE", fr: "fr_FR" };
 
 // Anchors metadataBase (and so relative OG/Twitter/canonical URLs) to an
@@ -94,7 +98,22 @@ export async function generateMetadata(): Promise<Metadata> {
     // metadata resolver), so every page canonicalizes to itself on the
     // configured origin — killing www/query-param duplicates without pinning
     // every route to the site root.
-    alternates: { canonical: "./" },
+    // `languages` teaches a crawler that the four `?lang=` variants of THIS page
+    // are the same document in another language rather than four thin duplicates
+    // (which is how the shared JD links — `/jds/<slug>?lang=cs` — had been read).
+    // Values are relative for the same reason canonical is: Next resolves each
+    // against the current pathname, so every route advertises its own
+    // alternates. `x-default` names the fallback for a reader whose language
+    // matches none of them — the same answer i18n/locales.ts's DEFAULT_LOCALE
+    // gives on the server. The proxy turns `?lang=` into the NEXT_LOCALE cookie,
+    // so these URLs really do serve the language they claim.
+    alternates: {
+      canonical: "./",
+      languages: {
+        ...Object.fromEntries(LOCALES.map((l) => [l, `./?lang=${l}`])),
+        "x-default": "./"
+      }
+    },
     openGraph: {
       type: "website",
       siteName: BRAND,
@@ -137,13 +156,23 @@ export const viewport: Viewport = {
 // The marketing surfaces are hard-exempt (docs/design/README.md): a fixed Spark art
 // direction in literal hexes that must always render in the light register, so
 // the dark attribute is never set there regardless of the visitor's stored choice
-// or OS preference. Those surfaces are the public /about page (always) and the
-// home landing at '/' whenever the visitor hasn't entered the workspace. "Entered"
-// is the readable kp_entered cookie (app/_lib/auth/session.ts) — set on sign-in,
-// cleared on sign-out — the SAME signal the '/' server gate uses (in open mode),
-// so this pre-paint choice can't disagree with what the server actually renders.
-// Env-agnostic now that '/' serves the landing in both dev and prod.
-const THEME_SKIP_DARK = `var p=location.pathname;if(p.indexOf("/about")===0||(p==="/"&&!/(?:^|; )kp_entered=1/.test(document.cookie)))return;`;
+// or OS preference. The membership test is objective and mechanical — a route
+// whose page.tsx renders a component out of `app/landing/`, the same directory
+// `npm run design:check` exempts from the token law — and
+// `app/shell-headers.test.ts` derives that set from the source tree and fails when
+// this list falls behind it. It fell behind once already: `/market` (MarketPulse,
+// 87 literal hexes, zero `dark:` variants) shipped outside the list, so a
+// dark-preference visitor got `data-theme="dark"` on a document whose art never
+// moves.
+//
+// '/' is the fourth case and cannot be decided by path alone: it serves the
+// landing to a visitor who has not entered the workspace and the dashboard to one
+// who has. "Entered" is the readable kp_entered cookie (app/_lib/auth/session.ts)
+// — set on sign-in, cleared on sign-out — the SAME signal the '/' server gate uses
+// (in open mode), so this pre-paint choice can't disagree with what the server
+// actually renders. Env-agnostic now that '/' serves the landing in both dev and prod.
+const THEME_FIXED_ART_PATHS = ["/about", "/market"];
+const THEME_SKIP_DARK = `var p=location.pathname,x=${JSON.stringify(THEME_FIXED_ART_PATHS)};for(var i=0;i<x.length;i++)if(p===x[i]||p.indexOf(x[i]+"/")===0)return;if(p==="/"&&!/(?:^|; )kp_entered=1/.test(document.cookie))return;`;
 const THEME_INIT = `(function(){try{${THEME_SKIP_DARK}var t=localStorage.getItem("kp-theme");if(t!=="dark"&&t!=="light")t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}})()`;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -152,6 +181,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // catalog to every client component's useTranslations().
   const locale = await getLocale();
   const messages = await getMessages();
+  // The CSP nonce proxy.ts minted for THIS request. Next stamps it onto every
+  // script IT emits (framework bundles, the RSC payload chunks) by reading the
+  // forwarded Content-Security-Policy header; the pre-paint theme script below is
+  // the one script this app writes by hand, so it is the one that has to ask.
+  // Null whenever the proxy did not run (a build-time prerender) — the attribute
+  // is then omitted, which is why the policy is report-only until an owner flips
+  // it. This layout is already dynamic (getLocale reads cookies/headers), so a
+  // real request always renders with the nonce.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   // White-label brand (E3/E-BRD-3), read ONCE here: the accent goes to BrandStyle
   // (CSS-var override) and the whole config seeds BrandProvider so client components
   // (both sidebars, candidate headers) render the name/logo with no fetch/flash. A
@@ -167,7 +205,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={locale} className={`${inter.variable} ${fraunces.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="font-sans">
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         {/* Plausible (cookieless, env-gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN —
             renders nothing when unset). Its default pageview covers the landing
             view; custom funnel events go through track() in

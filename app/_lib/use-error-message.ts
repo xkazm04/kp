@@ -36,12 +36,21 @@ export function resolveErrorMessage(
   payload: ApiErrorPayload | null | undefined,
   fallback: string,
   has: (code: string) => boolean,
-  translate: (code: string) => string
+  translate: (code: string, values?: ErrorMessageValues) => string,
+  values?: ErrorMessageValues
 ): string {
   const code = payload?.code;
-  if (code && has(code)) return translate(code);
+  if (code && has(code)) return translate(code, values);
+  // No values on this branch on purpose: the fallback is a string the caller has
+  // already localized and interpolated, not a catalog key we could fill in.
   return fallback;
 }
+
+/** ICU placeholder values for a code whose message carries numbers or names
+ *  ("You have used {used} of {limit}"). Before this existed such a message had
+ *  to be assembled at the call site, which put it outside the `errors` catalog
+ *  and therefore outside every locale but English. */
+export type ErrorMessageValues = Record<string, string | number | Date>;
 
 /** The hook form, for components and other hooks.
  *
@@ -59,18 +68,26 @@ export function resolveErrorMessage(
  *  `t` from next-intl is itself a useMemo over the intl context, so it only
  *  changes when the locale or the catalog does — which is exactly when a bound
  *  resolver SHOULD change. */
-export function useErrorMessage(): (payload: ApiErrorPayload | null | undefined, fallback: string) => string {
+export function useErrorMessage(): (
+  payload: ApiErrorPayload | null | undefined,
+  fallback: string,
+  values?: ErrorMessageValues
+) => string {
   const t = useTranslations("errors");
   type ErrorKey = Parameters<typeof t>[0];
   return useCallback(
-    (payload: ApiErrorPayload | null | undefined, fallback: string) =>
+    (payload: ApiErrorPayload | null | undefined, fallback: string, values?: ErrorMessageValues) =>
       // `t.has`/`t` are typed to known keys; the code is a runtime string, so cast
       // at the boundary — the existence check guards against an unknown code.
       resolveErrorMessage(
         payload,
         fallback,
         (code) => t.has(code as ErrorKey),
-        (code) => t(code as ErrorKey)
+        // `values` is untyped against the catalog for the same reason the key is:
+        // the code arrives at runtime, so no key-specific value shape is knowable
+        // here. A message with no placeholders simply ignores them.
+        (code, vals) => t(code as ErrorKey, vals as never),
+        values
       ),
     [t]
   );
@@ -79,3 +96,29 @@ export function useErrorMessage(): (payload: ApiErrorPayload | null | undefined,
 /** The bound resolver's type. Non-hook helpers take one of these as a parameter
  *  so the call site (a component or hook) supplies it. */
 export type ErrorMessageResolver = ReturnType<typeof useErrorMessage>;
+
+/** The localized sentence for a refusal that may carry a capability.
+ *
+ *  gated-doors-clients-read-the-refusal — the write doors answer a seat without the
+ *  permission with a coded 403 (FORBIDDEN_CAPABILITY) carrying `capability`. The
+ *  code's OWN message (errors.FORBIDDEN_CAPABILITY) is deliberately
+ *  placeholder-free, because a dozen consumers resolve it with no values and a
+ *  required ICU argument would break every one of them; a client that HOLDS the
+ *  data renders the client variant `errors.forbiddenCapabilityNeeds` instead, which
+ *  names the permission the operator has to ask for.
+ *
+ *  Takes the bound resolver rather than calling the hook, so a non-hook helper can
+ *  fold a refusal exactly the same way as a component.
+ *
+ *  It lives HERE, not in the add-to-pipeline transport module it was born in: eight
+ *  surfaces import it and only two of them add a candidate. This module is the one
+ *  every client already imports for the rule it implements. */
+export function capabilityAwareReason(
+  resolve: ErrorMessageResolver,
+  payload: (ApiErrorPayload & { capability?: string | null }) | null | undefined,
+  fallback: string
+): string {
+  const generic = resolve(payload, fallback);
+  if (payload?.code !== "FORBIDDEN_CAPABILITY" || !payload.capability) return generic;
+  return resolve({ code: "forbiddenCapabilityNeeds" }, generic, { capability: payload.capability });
+}

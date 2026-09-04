@@ -1,4 +1,5 @@
 import type { PipelineEvent } from "./db/pipeline";
+import { firstGrapheme } from "./initials";
 
 // Public projection of the Activity feed (idea-4c41d103).
 //
@@ -30,12 +31,24 @@ export type PublicPipelineEvent = {
 };
 
 /** Reduce a display name to initials: "Marie Kovová" → "M. K.". Uses at most
- *  the first two whitespace-separated tokens; empty/whitespace input → null. */
+ *  the first two whitespace-separated tokens; empty/whitespace input → null.
+ *
+ *  Shares `firstGrapheme` with the avatar monogram helper (app/_lib/initials.ts)
+ *  rather than re-indexing with `p[0]`, which returns HALF a surrogate pair for a
+ *  name outside the basic plane. On THIS surface that is worse than an ugly avatar:
+ *  the public feed is a privacy projection, and a replacement glyph is a candidate
+ *  identifier that draws the eye instead of receding.
+ *
+ *  Only the letter-taking is shared. The OUTPUT contract deliberately differs from
+ *  `initials()`: dotted and space-separated ("M. K.", not "MK") because this reads as
+ *  prose in a feed line, and `null` rather than a caller-supplied fallback because an
+ *  unrenderable label here must be indistinguishable from an absent one. */
 export function initialsLabel(label: string | null): string | null {
   if (!label) return null;
   const parts = label.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (parts.length === 0) return null;
-  return parts.map((p) => `${p[0].toUpperCase()}.`).join(" ");
+  const marks = parts.map(firstGrapheme).filter(Boolean);
+  if (marks.length === 0) return null;
+  return marks.map((m) => `${m.toUpperCase()}.`).join(" ");
 }
 
 // rematch-story-navigable — the re-engagement details ("<job> -> <job> (<entryId>)"

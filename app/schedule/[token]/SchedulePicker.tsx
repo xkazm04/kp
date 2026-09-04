@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { BookedCard } from "./BookedCard";
 import { DeadLinkCard } from "./DeadLinkCard";
 import { ProposeSection } from "./ProposeSection";
 import { SlotPicker } from "./SlotPicker";
 import { useScheduleInvite } from "./use-schedule-invite";
+import { SCHEDULE_FOCUS_ID, scheduleSurface, type ScheduleSurface } from "./schedule-focus";
 
 /** The one error surface, shared by the fatal and the transient case below. */
 const ERROR_NOTE = "rounded-md border border-stone-200 bg-paper p-4 text-base text-coral";
@@ -22,6 +24,27 @@ const ERROR_NOTE = "rounded-md border border-stone-200 bg-paper p-4 text-base te
 export function SchedulePicker({ token }: { token: string }) {
   const tCommon = useTranslations("common");
   const s = useScheduleInvite(token);
+
+  // MOVE FOCUS WITH THE SURFACE. Booking, cancelling, withdrawing and "different time"
+  // each replace this component's whole body, unmounting whatever the candidate's focus
+  // was on and dropping it to <body> — so a keyboard user had to tab from the top of the
+  // document to learn whether their booking landed, and a screen-reader user was left on
+  // nothing. `scheduleSurface` is the SAME ordering the branches below render by (pure,
+  // unit-pinned in schedule-focus.test.ts), so the target can never disagree with what is
+  // on screen, and each surface renders its anchor id with tabIndex={-1}.
+  //
+  // Only on a CHANGE, and never on the first render that has an invite: an arriving load
+  // must not steal focus from a candidate who is already reading the page.
+  const surface = scheduleSurface({ closedReason: s.closedReason, confirmed: s.confirmed, rescheduling: s.rescheduling });
+  const lastSurface = useRef<ScheduleSurface | null>(null);
+  const loaded = s.invite !== null;
+  useEffect(() => {
+    if (!loaded) return;
+    if (lastSurface.current !== null && lastSurface.current !== surface) {
+      document.getElementById(SCHEDULE_FOCUS_ID[surface])?.focus();
+    }
+    lastSurface.current = surface;
+  }, [surface, loaded]);
 
   // The escalation surface, shared by the two stuck states (a fully-booked horizon
   // and the reschedule cap); each host decides whether to render it.

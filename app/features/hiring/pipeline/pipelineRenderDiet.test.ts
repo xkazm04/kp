@@ -176,3 +176,68 @@ test("eventsSignature: identical feed shares a signature; a new event breaks it"
   assert.equal(eventsSignature(a), eventsSignature([ev(2, "advanced"), ev(1, "added")]), "same feed ⇒ same signature");
   assert.notEqual(eventsSignature(a), eventsSignature([ev(3, "rejected"), ...a]), "a new event changes the signature");
 });
+
+// The board's per-tick cost, pinned as a shape rather than as a stopwatch number.
+// boardSignature runs over EVERY entry on EVERY 30s poll, so a per-entry cost that
+// quietly became super-linear (a nested scan, a re-stringify, a find over the axis)
+// would show up as a board that stutters on the big workspaces and nowhere else.
+// The absolute budget is generous on purpose — this guards against an O(n²)
+// regression, not against a slow CI box.
+function boardOf(n: number): Entry[] {
+  return Array.from({ length: n }, (_, i) =>
+    makeEntry({
+      id: `e${i}`,
+      candidateId: `c${i}`,
+      candidateLabel: `Candidate ${i}`,
+      stage: i % 2 ? "Interview" : "Screened",
+      matchScore: i % 100,
+    })
+  );
+}
+
+function msFor(entries: Entry[], now: number): number {
+  const t0 = performance.now();
+  boardSignature(entries, { now });
+  return performance.now() - t0;
+}
+
+test("boardSignature: stays O(n) over a 2000-entry board, inside the documented budget", () => {
+  const now = Date.parse("2026-02-01T00:00:00.000Z");
+  // Warm the JIT on throwaway boards so the measurement below is steady state.
+  for (let i = 0; i < 3; i++) msFor(boardOf(200), now);
+
+  const large = boardOf(2000); // fresh objects: the signature cache is cold for both
+
+  // Each size is measured as the BEST of several cold runs (fresh objects each time):
+  // a single sub-millisecond sample at 250 entries is dominated by timer noise and
+  // GC, and under a parallel gate one slow sample made the ratio read 27x on a loop
+  // that is linear. Min-of-N keeps the shape check about the algorithm, not the box.
+  const best = (size: number) => {
+    let t = Infinity;
+    for (let i = 0; i < 5; i++) t = Math.min(t, msFor(boardOf(size), now));
+    return t;
+  };
+  const tSmall = Math.max(best(250), 0.05);
+  const tLarge = best(2000);
+
+  // Budget: the whole 2000-entry tick, cold cache, under 100ms.
+  assert.ok(tLarge < 100, `2000-entry boardSignature took ${tLarge.toFixed(1)}ms (budget 100ms)`);
+  // Shape: 8× the entries must not cost anywhere near 8² × the time. A generous 24×
+  // ceiling (3× the linear factor) still fails loudly on a quadratic loop, which at
+  // this size would be ~64× or worse.
+  assert.ok(
+    tLarge < tSmall * 24,
+    `8× the entries cost ${(tLarge / tSmall).toFixed(1)}× the time — linear would be ~8×`
+  );
+  // And the output is exactly one record per entry: nothing is re-walked.
+  assert.equal(boardSignature(large, { now }).split("\n").length - 1, 2000);
+});
+
+test("boardSignature: a second tick over the SAME objects reuses the cached per-entry work", () => {
+  const now = Date.parse("2026-02-01T00:00:00.000Z");
+  const entries = boardOf(2000);
+  const cold = msFor(entries, now);
+  const warm = msFor(entries, now);
+  assert.ok(warm <= cold + 5, `warm tick ${warm.toFixed(1)}ms should not exceed cold ${cold.toFixed(1)}ms`);
+  assert.equal(boardSignature(entries, { now }), boardSignature(entries, { now }), "stable across ticks");
+});

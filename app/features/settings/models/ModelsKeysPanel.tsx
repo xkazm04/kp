@@ -16,8 +16,15 @@ import { ModelsKeyAddForm } from "./ModelsKeyAddForm";
 // Provider key store panel. Secrets are write-only by contract: the GET surface
 // is metadata (provider, scope, endpoint, updated date) and key material never
 // renders anywhere — not even masked. Saving needs the server-side KP_SECRET
-// (keys are encrypted at rest); that 400's message IS the operator fix, so it
-// is surfaced verbatim alongside the catalog hint.
+// (keys are encrypted at rest); that case now carries its OWN refusal code
+// (MODEL_KEY_ENCRYPTION_UNCONFIGURED), so the env-var fix renders under a
+// localized sentence instead of under the server's English one.
+//
+// SCOPE. This store is DEPLOYMENT-WIDE: provider_keys is keyed (provider, scope)
+// with no org or workspace column, so a key saved here is the key every workspace
+// on this install spends through. The "BYOM / Platform" selector reads like a
+// per-tenant choice and is not one — it picks which of two deployment-wide slots
+// the key fills — so the panel says the real scope out loud (storeScope).
 
 type KeysPayload = { keys: ProviderKeyMeta[]; providers: string[] };
 
@@ -109,10 +116,15 @@ export function KeysPanel() {
     }
     setSaving(true);
     setNote(null);
-    // The encryption-secret-missing 400 is detected on the SERVER's raw `error`
-    // (a machine signal, never rendered) so the localized `kpSecretHint` still
-    // shows under the localized message.
+    // The encryption-secret-missing 400 is recognised by its CODE. It used to be
+    // sniffed out of the server's English sentence (`error.includes("KP_SECRET")`)
+    // — the one string the client is contractually not allowed to read — so the
+    // hint silently stopped appearing the moment that sentence was reworded, and
+    // it never appeared at all for a reader whose locale is not English.
     let kpSecret = false;
+    // The row this save REPLACES, as the panel currently renders it. Its `updatedAt`
+    // is the precondition the store re-asserts under the write lock.
+    const replacing = findExistingKey(data?.keys, provider, scope);
     try {
       const r = await fetch("/api/llm/keys", {
         method: "PUT",
@@ -120,11 +132,20 @@ export function KeysPanel() {
         // bug-ui-scan-2026-07-09 (model-api-key-management #2): buildKeyRequestBody
         // includes endpoint/apiVersion ONLY for azure_openai, so a stale (hidden but
         // retained) Azure endpoint never rides along on a non-Azure key.
-        body: JSON.stringify(buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion, baseUrl })),
+        // …plus the row VERSION this panel is rendering, so a save composed against
+        // a row another admin has since replaced is refused (409 MODEL_KEY_STALE)
+        // instead of destroying their unrecoverable key.
+        body: JSON.stringify({
+          ...buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion, baseUrl }),
+          ...(replacing ? { expectedUpdatedAt: replacing.updatedAt } : {}),
+        }),
       });
       const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string; code?: string };
       if (!r.ok || !p.keys) {
-        kpSecret = p.error?.includes("KP_SECRET") === true;
+        kpSecret = p.code === "MODEL_KEY_ENCRYPTION_UNCONFIGURED";
+        // The stale refusal carries the CURRENT rows: reload onto them before the
+        // message lands, so "make your change again" is against what is stored.
+        if (p.code === "MODEL_KEY_STALE" && p.keys) setData((d) => (d ? { ...d, keys: p.keys! } : d));
         throw new Error(errMsg(p, t("saveFailed")));
       }
       setData((d) => (d ? { ...d, keys: p.keys! } : d));
@@ -173,6 +194,9 @@ export function KeysPanel() {
         <KeyRound size={16} className="text-coral" aria-hidden /> {t("title")}
       </h3>
       <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
+      {/* The store's real boundary, stated once. Without it the scope selector's
+          "BYOM (your key)" reads as "mine, not my colleagues'", which it is not. */}
+      <p className="mt-1 max-w-3xl text-sm text-steel">{t("storeScope")}</p>
 
       {loadFailed ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">

@@ -9,23 +9,20 @@ import { useLocale } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import type { BadgeTone } from "@/app/_components/Badge";
 import { CHIP_QUIET, STAT_LABEL } from "@/app/_components/ui/recipes";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 
 /** Locale-aware formatters — numbers, money, dates, and "3 d ago". */
 export function useFmt() {
   const locale = useLocale();
+  const fmt = useDateFormat();
   const num = (n: number) => new Intl.NumberFormat(locale).format(n);
   const usd = (n: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: n < 10 ? 2 : 0 }).format(n);
   const pct = (ratio: number) => `${Math.round(ratio * 100)} %`;
-  const date = (iso: string) => {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(d);
-  };
-  const dateTime = (iso: string) => {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime())
-      ? iso
-      : new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(d);
-  };
+  // The app's date shapes come from useDateFormat now (one vocabulary, one
+  // locale source); an unparseable value still echoes back rather than showing
+  // an em dash, because in the palette preview the raw string is the useful clue.
+  const date = (iso: string) => fmt.date(iso, { fallback: iso });
+  const dateTime = (iso: string) => fmt.dayTime(iso, { fallback: iso });
   const rel = (iso: string | null) => {
     if (!iso) return "—";
     const ms = Date.parse(iso) - Date.now();

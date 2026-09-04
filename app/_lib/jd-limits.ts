@@ -32,9 +32,18 @@ export const JD_BODY_MAX_LENGTH = 20000;
 export const JD_BUILD_TITLE_MIN_LENGTH = 2;
 export const JD_BUILD_NEED_MIN_LENGTH = 11;
 
+/** Why a JD's title/body was rejected. A CODE, not a sentence: the `error` string
+ *  below is canonical English written for the server log and for API consumers,
+ *  and the client resolves the code through the shared `errors` catalog in the
+ *  reader's language (app/_lib/use-error-message.ts). Before this the builder's
+ *  "Save as draft" banner printed this module's English verbatim into a cs/de/fr
+ *  workspace. The catalog messages mirror JD_TITLE_MAX_LENGTH / JD_BODY_MAX_LENGTH
+ *  as literals — change a cap here and the four `errors.JD_*` strings change with it. */
+export type JdFieldsErrorCode = "JD_FIELDS_REQUIRED" | "JD_TITLE_TOO_LONG" | "JD_BODY_TOO_LONG";
+
 export type JdFieldsResult =
   | { ok: true; title: string; body: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code: JdFieldsErrorCode };
 
 /** Required-and-length validation for a JD's title/body — the single source for
  *  both the bounds AND the exact error wording. Called by the write boundary
@@ -45,12 +54,12 @@ export type JdFieldsResult =
 export function validateJdFields(title: unknown, body: unknown): JdFieldsResult {
   const t = typeof title === "string" ? title.trim() : "";
   const b = typeof body === "string" ? body.trim() : "";
-  if (!t || !b) return { ok: false, error: "Title and body are both required." };
+  if (!t || !b) return { ok: false, error: "Title and body are both required.", code: "JD_FIELDS_REQUIRED" };
   if (t.length > JD_TITLE_MAX_LENGTH) {
-    return { ok: false, error: `Title must be ${JD_TITLE_MAX_LENGTH} characters or fewer.` };
+    return { ok: false, error: `Title must be ${JD_TITLE_MAX_LENGTH} characters or fewer.`, code: "JD_TITLE_TOO_LONG" };
   }
   if (b.length > JD_BODY_MAX_LENGTH) {
-    return { ok: false, error: `Body must be ${JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters or fewer.` };
+    return { ok: false, error: `Body must be ${JD_BODY_MAX_LENGTH.toLocaleString("en-US")} characters or fewer.`, code: "JD_BODY_TOO_LONG" };
   }
   return { ok: true, title: t, body: b };
 }

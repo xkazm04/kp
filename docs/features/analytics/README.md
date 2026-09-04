@@ -20,6 +20,47 @@ Not on `app/_lib/auth/public-routes.ts`, so a session is required;
 `/api/decisions/records` and `/api/analytics/calibration/apply-threshold` re-verify with
 `requireOperator()` on top.
 
+### The three write doors check a ROLE, not just a session (2026-09-03)
+
+`requireOperator()` answers "is there a valid, non-demo session" — it reads no role
+(`app/_lib/auth/require-operator.ts`). So every seat on the team, `viewer` included,
+could move the live auto-reject floor; and `POST /api/analytics/spend` and
+`POST /api/analytics/targets` carried no gate at all. All three now additionally require
+**`pipeline:write`** (`can()` in `app/_lib/auth/current-user.ts`) — the capability that
+already gates the rest of the recruiter's decision surface. A `viewer` holds `read` only
+and is refused **403 `ANALYTICS_POLICY_FORBIDDEN`**; no session is still 401.
+
+`apply-threshold` also stopped treating the operator's consent as optional.
+`suggestedThreshold` — the number the panel showed — is now **required**: it used to be
+compared only `if (typeof body.suggestedThreshold === "number")`, so a POST that omitted
+it skipped the staleness comparison entirely and applied whatever the live recommendation
+had become. The four outcomes are now distinct codes rather than one prose sentence:
+
+| Outcome | Status | Code |
+| --- | --- | --- |
+| No `suggestedThreshold` in the body | 400 | `CALIBRATION_SUGGESTION_REQUIRED` |
+| A `roleFamily` the app does not define | 400 | `CALIBRATION_FAMILY_UNKNOWN` |
+| Nothing to apply (the honesty gates closed) | 409 | `CALIBRATION_RECOMMENDATION_ABSENT` |
+| The live recommendation moved (carries `recommendation`) | 409 | `CALIBRATION_RECOMMENDATION_CHANGED` |
+
+`AnalyticsThresholdSuggestion.tsx` resolves the code through `useErrorMessage()`, so
+"the recommendation changed under you" and "the write fell over" no longer render the
+same red line. Pinned by `app/api/analytics/analytics-writes-authority.test.ts`.
+
+### Three expensive reads carry a per-IP budget
+
+`metric-pack`, `decisions` and `calibration/threshold-history` spend CPU and the shared
+SQLite connection rather than provider credit, which is why they had no limiter — and the
+metric pack hangs off a **download link**, which a browser or a prefetcher can pull with
+no click. Each now calls `rateLimit()` after its cheap refusals, answering
+`TOO_MANY_REQUESTS` (429): metric-pack 30/10 min, decisions 120/10 min (the log pages 20
+at a time on scroll), threshold-history 60/10 min. Pinned in
+`app/api/rate-limit-contract.test.ts`.
+
+`threshold-history` stays ungated by role deliberately — it returns policy-level seals
+(`policy:screening:*`, no candidate PII) and aggregate band rates, the same exposure class
+as the `/calibration` reads beside it. That is precisely why it needed a budget.
+
 ## Three sections, not one scroll
 
 | Section (`?sec=`) | Question | Holds |
@@ -76,6 +117,11 @@ Not on `app/_lib/auth/public-routes.ts`, so a session is required;
   below the k-anonymity floor (`BENCHMARK_MIN_ENTRIES = 20` / `BENCHMARK_MIN_TEAMS = 2`,
   `app/_lib/db/org-benchmarks.ts`) and biases `medianTimeToHireDays` low by structurally
   excluding slow hires. `analyticsWindowScope.test.ts` fails if either half drifts.
+- **Every benchmark figure is localized.** `interviewRatePct` / `hireRatePct` /
+  `medianTimeToHireDays` run through `useNumberFormat().grouped` and the
+  `orgBenchmark.pctValue` / `orgBenchmark.dayValue` catalog units, so the day suffix is
+  `d` / `d` / `T` / `j` per locale rather than a hard-coded English `d`. The team figure
+  uses the shared `STAT_VALUE` recipe.
 - **Below the floor, `totalEntries` is withheld too when one team is the only contributor.**
   The aggregate excludes the caller's own workspace, so in a 2-team org exactly one team feeds
   it — and the whole payload crosses the wire even though the locked panel prints only
@@ -137,6 +183,25 @@ call a stage weak.
   `avgTimeToHireDays != null && avg > goal`, which collapsed "no hires in this window" onto
   `false`, i.e. onto the **met** colour: a green "goal 30 d" beside a `—` and „no hires yet".
   A goal is not met by a cohort that produced no measurement.
+  The rule is a pure module now — `timeToHireGoalChip()` (`statGoalChip.ts`, executed by
+  `statGoalChip.test.ts`) — because a verdict expressed only as a colour cannot be asserted by
+  reading JSX. Same move for the dwell band's whole-band gate and bar scale
+  (`stageDwellGate.ts` / `stageDwellGate.test.ts`).
+- **The headline average names its sample.** The time-to-hire tile prints
+  `daysAvgOver` — "days avg over N hires" — from `timeToHireSamples`, NOT from `hired`: a hire
+  whose entry lacks one of the two timestamps is a real hire the mean cannot see (4 of 9 on the
+  shipped corpus). In a windowed view the hired tile adds `closedInWindowSub` when
+  `hiresClosedInWindow` differs from `hired` — the event-time basis every per-hire figure on
+  the tab divides by, so the two counts no longer disagree silently. Every figure in the
+  cluster is grouped in the reader's locale (`useNumberFormat`), and the tile composes the
+  `STAT_VALUE` recipe instead of re-typing it (the hand-typed copy had already lost `nums`).
+- **A failed goal save says which failure it was.** `AnalyticsTargetInput` threw a bare
+  `new Error()`, so a seat refused by policy (`ANALYTICS_POLICY_FORBIDDEN`) and a write that
+  fell over (`ANALYTICS_TARGET_SAVE_FAILED`) were one coral border and one keyboard-unreachable
+  tooltip — on the surface that sets the goal lines every figure here is judged against. It now
+  resolves the route's code through `useErrorMessage` and announces the failure
+  (`announceFailure`), exactly like the spend input; the fold both share is
+  `localizedSaveFailure()` (`analyticsSaveFailure.ts`).
 - **The zero-transition guard is on the render path** — `hasNoStageTransitions()` and
   `AnalyticsFunnelEmptyGuide` were correct, translated and reachable from nowhere. The review
   hatch `?funnelEmpty=1`, threaded through three files and destructured by no one, is
@@ -165,12 +230,57 @@ call a stage weak.
 columns, **grouped and labelled, never merged**. A dash under Spend means "not measured for
 this kind of surface", not "free", and the rule says so.
 
+- **The attribution model is FIRST-TOUCH and IMMUTABLE AT INTAKE — and now says so.**
+  Every per-source, per-channel and per-creative figure on this board rests on one rule that
+  had never been written down anywhere: an entry's `source_channel` / `source_campaign` /
+  `source_variant` are stamped **once, by whichever door the candidate first arrived
+  through**, and nothing relabels them afterwards. A second reach-out, a re-add from the
+  sourcing surface, a later apply on the same job — each is idempotent and each leaves the
+  original attribution standing (`app/_lib/sourcing-attribution.test.ts` pins exactly that:
+  the round-trip AND the no-relabel). So the board answers *"which door did this hire come
+  in through?"*, never *"which touch converted them?"* — there is no multi-touch weighting,
+  no last-touch override and no decay, and a campaign that re-engaged a candidate sourced
+  elsewhere gets no credit here by construction. That is a deliberate choice (a first-touch
+  number an operator can audit against one row beats a model they cannot), but reading a
+  variant table as *influence* rather than *origin* over-credits whichever channel happens
+  to find people first.
+- **Campaign and variant are capped at intake, truncated with a visible marker.** They are
+  untrusted third-party free text that becomes both a recruiter-visible label and the
+  group-by key `variantRowKey(jobId, campaign, variant)` builds a funnel row identity from.
+  `extractLead` (`app/_lib/lead-payload.ts`) caps each at `MAX_ATTRIBUTION_LENGTH` = 120
+  **code points** and appends an ellipsis, so a cut value is distinguishable from a genuine
+  120-character name; the lead itself is never refused over it. The cap sits at intake
+  rather than at each consumer, and matches the slice `inbound-lead.ts` already applied (a
+  test fails if that constant ever drops below it). Two campaigns sharing a 119-character
+  prefix still collapse into one row — inherent to any cap, and now at least visible.
+- **One median, one stated policy.** `medianHoursToDecision` here, `medianTimeToHireDays` on
+  the ROI ledger, the model matrix' p50 and the fit matrix' column median were four separate
+  implementations that disagreed on even-count ties and on invalid samples. They now share
+  `median()` in `app/_lib/stats.ts`: non-finite samples dropped (never sorted into the
+  middle), an empty sample `null` and never `0`, even counts the **mean of the two middles**,
+  and the result exact — each surface applies its own precision (0.1 h here, whole days on
+  the ledger, a band-safe floor on the matrix) and says why.
+- **The tab holds no recipe debt.** Every `app/features/insights/analytics/**` row is
+  gone from `app/_components/ui/recipe-debt.json`: the last one, the role-only actor badge
+  in `sections/DecisionRecordsTable.tsx`, composes `NOTICE("amber")` like its siblings.
+  The header's copy-link confirmation timer is also cleared on unmount, so a copy followed
+  by a tab switch no longer wakes a setState on an unmounted component.
 - **The spend write path is back.** Spend is an editable field on every channel row
   (`AnalyticsChannelSpendInput.tsx` → `POST /api/analytics/spend` → `setChannelSpend`), lifted
   into the board rather than restoring the deleted channel panel. A channel with recorded
   spend but **no attributed candidates still gets a row** (volume 0, per-unit figures `—`) —
   otherwise a stored figure divides into the blended cost-per-hire while being unreachable by
   any editor. `spend-write-path.test.ts` pins the chain.
+- **A failed spend write says which failure it was, out loud.** The editor resolves the
+  route's code (`ANALYTICS_POLICY_FORBIDDEN` 403 / `ANALYTICS_SPEND_SAVE_FAILED` 500) through
+  `useErrorMessage()` and throws a `LocalizedFailure`; `AnalyticsInlineNumberSave` renders it
+  in a `role="alert"` line beside the field (`announceFailure`, opt-in — the goals editor
+  keeps the border-only report in its tight label/input/suffix row). Previously a bare
+  `new Error()` made a policy refusal and a store outage the same coral outline plus a
+  keyboard-unreachable `title` tooltip.
+- **The save decision is a pure module.** `inlineNumberSavePlan.ts` owns the locale-aware
+  parse, the zero-is-no-value rule, the unchanged short-circuit and the canonical re-seed,
+  so `inlineNumberSavePlan.test.ts` EXECUTES them instead of reading the `.tsx` for them.
 - **A typed `0` is a clear, and the field now says so immediately.** `setChannelSpend` and
   `setAnalyticsTarget` both DELETE the row when `!(v > 0)` and the routes still answer 200, so
   zero is never a stored value. `AnalyticsInlineNumberSave` mirrors that rule before it posts:
@@ -319,8 +429,27 @@ it: should this score be allowed to decide at all.
   pipeline arm leads with the `circular` verdict beside the holdout's accrual horizon. A null
   threshold recommendation renders `ThresholdSuggestionAbsent`, naming the gate it failed and
   stating this is absence of evidence, not endorsement of the current floor; an empty
-  `familyFloors` map says every family screens at the global floor; a suggestion off a
+  `familyFloors` map says so explicitly rather than rendering a blank region; a suggestion off a
   high-leakage arm carries its contamination caveat beside the Apply button.
+- **The holdout arm's SIZE is an expectation, not a balance — by design.** Membership is a
+  pure function of `(jobId, entryId)` (`app/_lib/screen-wave-holdout.ts`), which is what makes
+  it stable across a preview/commit pair and immune to threshold-slider re-rolls. The cost of
+  that determinism is that the arm is *sampled*, never *balanced*: the realised count is
+  binomial around `rate × N`, so a small wave can spare noticeably more or fewer candidates
+  than the rate suggests, and nothing corrects it afterwards. Correcting it would mean either
+  re-rolling membership (breaking the approval-token re-derivation) or reassigning specific
+  people to hit a quota (which is the steering the hash exists to prevent). The accrual
+  horizon shown beside the `circular` verdict is the honest surface for it: the arm leads only
+  once it actually clears `minOutcomes`, whenever that happens to be.
+- **The floor is never shown without its switch.** The route ships
+  `autoRejectEnabled` (`screening.autoRejectEnabled`) beside `currentThreshold`, and the
+  shipped default is **false** — `screen-wave.ts` returns `autoRejectOff` and rejects
+  nobody. With the wave off, `AnalyticsReliabilityDiagram` draws **no** coral floor marker
+  (its screen-reader line says the floor is recorded but not enforced, `srThresholdOff`),
+  the panel legend reads `thresholdLegendOff`, and `AnalyticsFamilyFloorChips` swaps the
+  "every family is screened at the global N" sentence for `familyFloorsNoneOff` plus a
+  `role="status"` notice (`floorNotEnforced`). Both branches are pinned by
+  `analyticsCalibrationFloorGate.test.ts`.
 - **A score band is `[lo, hi)` — except at the top of the scale, where it closes.**
   `recommendScreeningThreshold` builds its above-floor band as `[T, min(100, T + bandWidth))`,
   so any floor at 90+ produced a band that could not see a perfect 100. With a floor at 95,
@@ -579,6 +708,15 @@ is coming" band, or the board's `source` / `channel` row groups with the spend e
 `AnalyticsOfferLegPanel` and `AnalyticsArchetypePanel` were **restored** into the Performance
 brief.
 
+`analyticsPayloadMirror.test.ts` guards the other end of the same seam. `AnalyticsTypes.Analytics`
+is a HAND-WRITTEN mirror of `PipelineAnalytics` (the client cannot import the server type — that
+module opens better-sqlite3), and nothing compared the two: `timeToHireSamples`, `costPerHireAsOf`
+and `hiresClosedInWindow` were sent on every request and declared nowhere, so the Economics
+surface carried its own OPTIONAL intersection of two of them (`sections/economicsTypes.ts`) with a
+comment asking a later change to delete it. The three fields are in the mirror, the intersection is
+gone, and the test now fails in both directions — a server field with no client declaration, and a
+client declaration the route never sends (only `deltas`, which the route adds, is exempt).
+
 ## Vocabulary: "confidence" was four quantities
 
 One word covered four unrelated numbers on scales **inverted against each other** (for a salary
@@ -616,17 +754,41 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time |
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
-| `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()`) |
+| `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
 | `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only); the sealed floor-over-time strip, read by the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain |
-| `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input |
-| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
+| `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
+| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
 | `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
 | `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
+**No stage name is spelled on this page.** Two English literals outlived the role layer that
+closed the rest: the offer panel's "who is sitting on an offer" link filtered the board on
+`"Offer"`, and `weeklyMomentum` *defaulted* its terminal stage to `"Hired"`. Both are answers
+that look like fallbacks and are simply wrong on a renamed board — an empty board view, and a
+hire series flat at zero forever. The payload now carries `offerStage` (`db/analytics.ts`,
+`stageWithRole("offer", axis)`; `null` when the axis declares no offer role, and the panel then
+renders the pending count as plain text rather than a link that cannot resolve), and
+`weeklyMomentum`'s `terminalStage` is a REQUIRED argument — there is no correct default, so the
+type asks for it. Pinned by `app/_lib/db/analytics-custom-axis.test.ts` (a board whose offer
+column is "Package") and by the hire-series test in `app/_lib/analytics-momentum.test.ts`.
+
+**The TTL core is not an analytics module.** `createTtlCache` lives in
+`app/_lib/ttl-cache.ts` — dependency-free, TTL + entry bound and *no invalidation policy of its
+own*. It used to be an export of `analytics-cache.ts`, and every consumer that reached for "the
+TTL idiom" reached for the analytics module with it: `pipeline-score-cache.ts` was built on
+`createAnalyticsCache`, whose key carries the per-workspace analytics write version, so saving a
+conversion goal or a channel spend figure retired the canonical-score fit map too and the next
+board poll paid a full `buildFreshestFits()` for a write about neither scores nor analyses.
+`analytics-cache.ts` now *composes* the core (and re-exports it, so the analytics, calibration and
+decision-records routes import their cache from the module whose keys they use); the score memo
+and `db/profiles.ts` take the core directly and are coupled to nobody. Pinned by
+`app/_lib/ttl-cache.test.ts` and by "an analytics settings write leaves the score memo intact"
+in `app/_lib/pipeline-score-cache.test.ts`.
+
 **The short-TTL memos are bounded, not just expiring.** `createTtlCache`
-(`app/_lib/analytics-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
+(`app/_lib/ttl-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
 whose key was not requested again. Three routes key it on raw query params — `?candidate` on
 `/api/decisions/records`, `?roleFamily` on both calibration routes — none of them a closed
 vocabulary, and `maxDuration` is serverless-only here, so a self-hosted process retained one
@@ -636,13 +798,75 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**The tab is on the type scale and on the recipes.** The nine `text-xs` classes across the
+automation, calibration, compute-cost and economics panels are now `text-micro` — the 14px floor
+the design system states, rather than a utility that renders below it. Thirteen files carried
+hand-typed `PANEL` / `META_LABEL` / `NOTICE("amber")` literals in
+`app/_components/ui/recipe-debt.json`; twenty-one of the twenty-two now compose the recipe and
+those twelve ceiling entries are DROPPED, which locks the win (the next literal to arrive in one
+of them is `undeclared`, and red). One row is kept on purpose:
+`sections/DecisionRecordsTable.tsx` `noticeAmber=1` is a `rounded` micro badge on a record row,
+and `NOTICE()` carries `rounded-lg dark:rounded-2xl` — the recipe is the wrong shape for it.
+
+**The two export buttons report a code, not a status.** The dossier export
+(`AnalyticsDecisionRecordsPanel`) and the whole-trail export (`sections/DecisionLogTable`) used to
+`throw new Error(String(res.status))` — and the number never reached a reader, because the catch
+downstream painted one flat sentence for every failure. `GET /api/analytics/decisions` answers
+`TOO_MANY_REQUESTS` (429, wait and retry) and `DECISION_LOG_LOAD_FAILED` (500, the read fell
+over) with codes, and those two were indistinguishable. Both paths now resolve the body's code
+through `useErrorMessage()` and throw a `LocalizedFailure`
+(`app/features/insights/analytics/analyticsFetchError.ts`), which the renderer unwraps with its
+own localized fallback; a caught Error's raw `.message` is never painted. `GET
+/api/decisions/records` still answers with `jsonError` (message, no code), so the dossier export
+resolves to its fallback sentence until that route is coded — the client is ready for it.
+
+**One answer to "we have no data" per page.** The Economics board's three taxonomies
+(`byChannel`, `bySource`, `byVariant`) are normalized onto one row model by
+`app/features/insights/analytics/sections/economicsRows.ts`, and `hireRate(hired, total)`
+returns `null` — not `0` — over an empty population, matching the dash `AnalyticsByRoleTable`
+prints for the same case. The board previously computed a variant's rate inline as
+`r.total ? … : 0`, so a creative nobody had ever applied through rendered as a "0 % hire rate"
+verdict, while the sorter beside it already treated the same row as absent. The rate is now a
+value whose empty case is a value; `economicsRows.test.ts` pins all three groups.
+
+**The window queries seek, they do not scan.** `pipeline_entries` and `pipeline_events` carry
+`idx_pipeline_entries_ws_created` / `idx_pipeline_events_ws_created` — `(workspace_id,
+created_at)`, workspace first because it is the equality predicate. Every windowed query in
+`pipelineAnalytics` is `created_at >= ? AND <notSim> AND workspace_id = ?`, and SQLite uses at
+most one index per table: with only the workspace-only and `created_at DESC` indexes the planner
+seeked by tenant and then date-filtered every row that tenant had ever written (it actually
+reached for `idx_pipeline_dev_case`). `app/_lib/db/analytics-window-index.test.ts` asserts the
+plan itself with EXPLAIN QUERY PLAN — an existence check on the index would only prove a CREATE
+ran, and a timing test on a throwaway DB proves nothing.
+
+**A write door retires its workspace's memo.** The TTL reasoning ("a write lands on the next
+read past the TTL") holds for a pipeline write nobody is watching; it does not hold for
+`POST /api/analytics/targets` and `POST /api/analytics/spend`, which are inline editors that
+`reload()` the payload the instant they succeed — inside the TTL. Both now call
+`invalidateAnalyticsWorkspace(ws)` (`app/_lib/analytics-cache.ts`) after the store write. It
+bumps a per-workspace WRITE VERSION that rides in the memo key rather than calling `clear()`, so
+every window of the written workspace is retired at once and no sibling tenant's fresh payload is
+collateral. Pinned end-to-end by `app/api/analytics/analytics-write-invalidates-read.test.ts`,
+which drives the real handlers: write, then read, and the read must carry the new figure.
+
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
-`analytics-cache.ts`, `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
+`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
 `decision-attribution.ts` — each with a colocated `.test.ts`. On the client,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
 to become executable values. Tables compose `app/_components/table/` (`TablePager`,
 `ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions).
+
+**Filter menus are comboboxes (2026-09-04).** `ColumnFilter mode="select"` and
+`SearchSelect` triggers carry `role="combobox"` + `aria-haspopup="listbox"` +
+`aria-controls`, and the shared `OptionList` is a `role="listbox"` of
+`role="option"` rows with `aria-selected`; the filter box drives them with
+Arrow/Home/End/Enter and announces the current row through `aria-activedescendant`.
+Before this the whole family had no `role=` at all — a div of buttons to a screen
+reader, and unreachable by keyboard past Tab — while the neighbouring `Select`
+primitive had been a full APG listbox for months. `mode="search"` deliberately
+stays a plain button: it opens a free-text box, not a list. Pinned by
+`app/_components/table/filter-a11y.test.ts`.
 
 ## Data model
 
@@ -664,7 +888,15 @@ calibration payload types.
 
 Load-bearing, not stylistic: an unknown cost renders as `—`, never `$0` ("free" and "unpriced"
 are different facts) · no verdict colour without a goal the org set · a ratio over 100 % is shown,
-not capped · the forecast refuses to project below its signal floor (`forecastHires().hasSignal`)
+not capped · the forecast **names its method and its floor**: `MIN_FORECAST_HIRES = 3` completed
+hires AND `MIN_FORECAST_INFLOW_WEEKS = 4` weeks that actually received candidates before it will
+project at all (both inputs are gated because both are multiplied — one hire in one burst week
+used to license a twelve-week projection to one decimal place, beside siblings gating at 3, 5 and
+20), the refusal states how far this workspace is from each (`forecast.signal`, rendered as
+`forecast.floorNote`), every horizon is labelled an *estimate* and carries the band at velocity ∓
+one standard deviation of the weekly buckets (floored at zero), and `forecast.method` prints the
+arithmetic — velocity × conversion, projected forward — under the figures · the forecast refuses
+to project below that floor (`forecastHires().hasSignal`)
 and **names the acceptance basis it substituted**: when an observed offer-accept rate applies,
 `forecastHires` rebuilds the offer→hire leg as `(offerReached / firstReached) × acceptRate`, so
 the horizons are NOT `overallConversionPct` — the figure the band's context sentence names — and
@@ -675,7 +907,7 @@ them. **That substitution requires a funnel of at least three rows.** The offer 
 reads as if every arrival reached an offer (a measured 60 % accept and 10 leads/week projected
 72 hires at 12 weeks where the real 10 % conversion gives 12). Entry + terminal is a legal saved
 axis — `validatePipelineStages` requires that much and no more — so such a board falls back to
-the funnel-derived conversion and echoes `offerAcceptRate: null` · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
+the funnel-derived conversion and echoes `offerAcceptRate: null` · an unknown floor in the threshold-history strip renders `—`, never `0` — `0` is a legal floor (accept everything), so the fix is `floorLabel()` in `thresholdHistoryRows.ts`, not a falsy test; the strip's plot already skipped nulls while the sentence and the sr-only list beside it printed a prior floor no seal ever recorded · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
 capped tables say what they dropped and where to reach it · the first-run empty state previews
 the metrics with literal em-dashes and never fabricates sample figures
 (`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.

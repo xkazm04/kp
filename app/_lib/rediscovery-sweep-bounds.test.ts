@@ -17,6 +17,7 @@ import {
   SWEEP_CONCURRENCY,
   SWEEP_MAX_ROLES,
   sweepRediscoveryAlerts,
+  type RaiseOutcome,
   type SweepDeps,
 } from "./rediscover.ts";
 
@@ -55,7 +56,7 @@ test("sweepRediscoveryAlerts caps roles per sweep, logs the truncation, and hono
       seen.push(jobId);
       await tick();
       active -= 1;
-      return 1; // each role surfaces one alert
+      return { raised: 1, failed: false }; // each role surfaces one alert
     },
   };
 
@@ -100,7 +101,7 @@ test("the ceiling DEFERS the excess to the next sweep — it never makes roles u
       listPublishedJobIds: () => roles,
       raiseForJob: async (jobId) => {
         batch.push(jobId);
-        return 0;
+        return { raised: 0, failed: false };
       },
     };
   };
@@ -133,19 +134,22 @@ test("raiseForJobBounded aborts a role whose ranking outruns the per-role timeou
   let sawAbort = false;
   // A ranking that never resolves on its own — only the timeout can end it.
   const hangingRaise = (_jobId: string, o: { signal?: AbortSignal }) =>
-    new Promise<number>((resolve) => {
+    new Promise<RaiseOutcome>((resolve) => {
       o.signal?.addEventListener("abort", () => {
         sawAbort = true;
-        resolve(0); // mirrors raiseRediscoveryAlertsForJob swallowing the abort → 0
+        // Mirrors raiseRediscoveryAlertsForJob catching the abort: zero alerts, and
+        // `failed` so the caller can tell it apart from a clean "nobody qualified".
+        resolve({ raised: 0, failed: true });
       });
     });
 
   const started = Date.now();
-  const n = await raiseForJobBounded("job-hang", undefined, { timeoutMs: 30, raise: hangingRaise });
+  const out = await raiseForJobBounded("job-hang", undefined, { timeoutMs: 30, raise: hangingRaise });
   const elapsed = Date.now() - started;
 
   assert.equal(sawAbort, true, "the per-role timeout must abort the ranking's signal");
-  assert.equal(n, 0, "an aborted role contributes zero alerts");
+  assert.equal(out.raised, 0, "an aborted role contributes zero alerts");
+  assert.equal(out.failed, true, "…and it is REPORTED as failed, not folded into a clean zero");
   assert.ok(elapsed >= 25, `should wait for the ~30ms timeout, waited ${elapsed}ms`);
   assert.ok(elapsed < 2000, "must not hang past the timeout");
 });
@@ -154,10 +158,40 @@ test("raiseForJobBounded passes a fast ranking's result through untouched (no ov
   let sawAbort = false;
   const fastRaise = (_jobId: string, o: { signal?: AbortSignal }) => {
     o.signal?.addEventListener("abort", () => { sawAbort = true; });
-    return Promise.resolve(3);
+    return Promise.resolve({ raised: 3, failed: false });
   };
-  const n = await raiseForJobBounded("job-fast", undefined, { timeoutMs: 1000, raise: fastRaise });
-  assert.equal(n, 3, "the real alert count flows through");
+  const out = await raiseForJobBounded("job-fast", undefined, { timeoutMs: 1000, raise: fastRaise });
+  assert.equal(out.raised, 3, "the real alert count flows through");
+  assert.equal(out.failed, false, "a clean run is never marked failed");
   await tick();
   assert.equal(sawAbort, false, "a job that finished in time is never aborted");
+});
+
+test("a sweep REPORTS failed rankings instead of folding them into a clean zero", async () => {
+  // The whole sweep used to answer with `newAlerts` alone, and a role whose
+  // recruiter_cli died contributed a silent 0 — so "every ranking broke" and
+  // "everything ran and nobody qualified" reached the recruiter's Refresh as the
+  // identical, reassuring "nothing new".
+  const roles = ["ok-1", "boom-1", "boom-2"];
+  const deps: SweepDeps = {
+    listPublishedJobIds: () => roles,
+    raiseForJob: async (jobId) =>
+      jobId.startsWith("boom") ? { raised: 0, failed: true } : { raised: 2, failed: false },
+  };
+  const origWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (...a: unknown[]) => warnings.push(a.join(" "));
+  let out: Awaited<ReturnType<typeof sweepRediscoveryAlerts>>;
+  try {
+    out = await sweepRediscoveryAlerts({ workspaceId: "ws-failures" }, deps);
+  } finally {
+    console.warn = origWarn;
+  }
+  assert.equal(out.jobsSwept, 3);
+  assert.equal(out.newAlerts, 2, "only the healthy role's alerts count");
+  assert.equal(out.failedJobs, 2, "the two broken rankings are reported, never swallowed");
+  assert.ok(
+    warnings.some((w) => /2 of 3 role rankings failed/.test(w)),
+    "a partially-failed sweep says so in the log too"
+  );
 });

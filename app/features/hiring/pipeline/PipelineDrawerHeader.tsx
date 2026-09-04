@@ -4,6 +4,7 @@
 // line, the staleness chip, the canonical match score, and the cohort prev/next
 // nav. Split out of PipelineCandidateDrawer.tsx.
 
+import { useMemo } from "react";
 import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
@@ -12,6 +13,7 @@ import { pipelineStageTone } from "@/app/_lib/status-tone";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { displayScoreOf } from "@/app/_lib/match-score";
 import { initials } from "@/app/_lib/initials";
+import { STICKY_BAR } from "@/app/_components/ui/recipes";
 import { styleFor } from "@/app/features/shared/pipelineTypes";
 // The drawer's narrow Pick of the board record — the header only ever renders the
 // identity fields, and typing it wider than its caller would reject the drawer's
@@ -52,12 +54,18 @@ export function PipelineDrawerHeader({
   const enumLabel = useEnumLabel();
   const locale = useLocale();
   const provenanceText = useScoreProvenanceText();
+  // ONE formatter per locale, not two per render. This header re-renders on every
+  // cohort step and every in-place refresh, and it was constructing an
+  // Intl.DateTimeFormat TWICE (the staleness chip's title and its label) each time
+  // — construction, not formatting, is the expensive half.
+  const dayFormat = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }), [locale]);
+  const staleOn = staleSince ? dayFormat.format(new Date(staleSince)) : null;
   const display = displayScoreOf(entry);
   const a = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
 
   return (
-    <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 p-4 backdrop-blur">
+    <header className={`${STICKY_BAR()} flex items-start gap-3 p-4`}>
       <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white ${a.bg}`}>{monogram}</span>
       <div className="min-w-0 flex-1">
         <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
@@ -91,9 +99,9 @@ export function PipelineDrawerHeader({
         {staleSince ? (
           <span
             className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-800"
-            title={t("jdEditedTitle", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+            title={t("jdEditedTitle", { date: staleOn ?? "" })}
           >
-            <History size={11} aria-hidden /> {t("jdEditedBadge", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(staleSince)) })}
+            <History size={11} aria-hidden /> {t("jdEditedBadge", { date: staleOn ?? "" })}
           </span>
         ) : null}
       </div>

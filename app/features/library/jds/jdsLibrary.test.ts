@@ -6,7 +6,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coachHandoffBlock, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jdsLibrary.ts";
+import { coachHandoffBlock, jdLibraryFooter, jdStatusChip, statusCategory, statusCounts, type JdRow } from "./jdsLibrary.ts";
 
 const row = (over: Partial<JdRow> = {}): JdRow => ({ slug: "s", title: "T", preview: "", created_at: "2026-01-01", ...over });
 
@@ -73,4 +73,39 @@ test("coachHandoffBlock re-derives to null once an analyzing target flips ready 
   const ready = [row({ slug: "j", analysis_status: "ready" })];
   assert.equal(coachHandoffBlock("j", analyzing), "analyzing");
   assert.equal(coachHandoffBlock("j", ready), null);
+});
+// ---- The footer states the library's real size (wave 40 follow-up) ----------
+// The ledger footer printed `entryCount` over `visible.length` while GET /api/jds
+// answered a 200-row page: a workspace holding 240 non-archived JDs read "200
+// entries" — a page's size presented as the library — and the Role search silently
+// could not reach the other 40. The route now carries `total` (the unbounded
+// jdLibraryStats count) and `truncated`; this fold decides what the footer may claim.
+test("with no total there is no M to state, so the footer stays a bare count", () => {
+  assert.deepEqual(jdLibraryFooter(12, null, false), { key: "entryCount", count: 12 });
+  // …even when the page was cut: "12 of ?" is not a line, and inventing an M is
+  // exactly the lie this fold exists to prevent.
+  assert.deepEqual(jdLibraryFooter(12, null, true), { key: "entryCount", count: 12 });
+  assert.deepEqual(jdLibraryFooter(0, Number.NaN, false), { key: "entryCount", count: 0 });
+});
+
+test("a whole, unfiltered library is stated plainly", () => {
+  assert.deepEqual(jdLibraryFooter(8, 8, false), { key: "entryCount", count: 8 });
+  assert.deepEqual(jdLibraryFooter(0, 0, false), { key: "entryCount", count: 0 });
+});
+
+test("a narrowed or cut view says N of M", () => {
+  // Filters narrowed the table: the library is bigger than what is on screen.
+  assert.deepEqual(jdLibraryFooter(3, 40, false), { key: "entryCountOfTotal", count: 3, total: 40 });
+  // The route cut the page: 200 rows in front of a 240-JD library.
+  assert.deepEqual(jdLibraryFooter(200, 240, true), { key: "entryCountOfTotal", count: 200, total: 240 });
+});
+
+test("a truncated page never reads as a complete library, whatever the numbers say", () => {
+  // `truncated` is asserted independently of the arithmetic: the route SAID rows
+  // were dropped, so a total that happens to equal the visible count (a stale
+  // count, a delete between the two reads) must not silently claim completeness.
+  assert.deepEqual(jdLibraryFooter(200, 200, true), { key: "entryCountOfTotal", count: 200, total: 200 });
+  // And a total below the visible count is incoherent — never state an M smaller
+  // than the N beside it.
+  assert.deepEqual(jdLibraryFooter(5, 2, true), { key: "entryCountOfTotal", count: 5, total: 5 });
 });

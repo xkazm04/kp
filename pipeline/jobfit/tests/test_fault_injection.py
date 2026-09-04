@@ -120,7 +120,7 @@ class ProtectedLanguageGuardTest(unittest.TestCase):
     def test_an_ordinary_draft_still_passes_through(self):
         # The false-positive guard: an unremarkable letter must survive coercion.
         class _Ok:
-            def complete_json(self, prompt, system=None):
+            def complete_json(self, prompt, system=None, expected_keys=None):
                 return {
                     "subject": "Your application — Backend Engineer",
                     "body": "Hi, thank you for your interest. We are moving forward with other candidates.",
@@ -168,7 +168,7 @@ class DegradationReasonTest(unittest.TestCase):
 
     def test_a_healthy_answer_records_nothing(self):
         class _Ok:
-            def complete_json(self, prompt, system=None):
+            def complete_json(self, prompt, system=None, expected_keys=None):
                 return {
                     "recommendation": "advance",
                     "confidence": 7,

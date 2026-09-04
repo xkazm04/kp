@@ -5,7 +5,7 @@
 // HTML5 DnD does not auto-scroll the drop container on its own). Split out of
 // PipelineBoard.tsx.
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // bug-ui pipeline #4 — native HTML5 DnD does NOT auto-scroll the drop container,
 // so on a board wide enough to overflow (240 + STAGES×280 = 1640px for 5 stages)
@@ -20,6 +20,39 @@ const MAX_EDGE_SPEED = 20; // px/frame at the very edge (ramps with proximity)
 
 export function usePipelineBoardScroll(dragEnabled: boolean) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // board-grid-has-a-name — whether there is anywhere left to page. The ◀/▶ controls
+  // were always enabled, so at either end of the board a click did nothing and the
+  // control gave no reason: a keyboard user tabbing the toolbar could not tell "this
+  // does nothing here" from "this is broken". Both start false, so on a board narrow
+  // enough not to overflow neither control ever arms.
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  // 1px of slack: a smooth scroll lands on a fractional scrollLeft, and browsers round
+  // scrollWidth, so an exact comparison flickers the controls at the extremes.
+  const syncExtents = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 1);
+    setCanScrollRight(el.scrollLeft < max - 1);
+  }, []);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    syncExtents();
+    el.addEventListener("scroll", syncExtents, { passive: true });
+    // The board's WIDTH changes without a scroll: the viewport resizes, and the axis
+    // itself is workspace-editable, so a column added or removed re-measures the
+    // content. Observe both boxes rather than only the viewport.
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(syncExtents) : null;
+    observer?.observe(el);
+    if (el.firstElementChild) observer?.observe(el.firstElementChild);
+    return () => {
+      el.removeEventListener("scroll", syncExtents);
+      observer?.disconnect();
+    };
+  }, [syncExtents]);
 
   // Click a stage header to glide that column to the centre of the viewport, so
   // a wide pipeline is navigable left↔right without dragging the scrollbar.
@@ -83,5 +116,5 @@ export function usePipelineBoardScroll(dragEnabled: boolean) {
   // Cancel any running loop on unmount so an rAF can't outlive the component.
   useEffect(() => stopAutoScroll, []);
 
-  return { scrollRef, centerColumn, scrollByColumn, onBoardDragOver, stopAutoScroll };
+  return { scrollRef, centerColumn, scrollByColumn, onBoardDragOver, stopAutoScroll, canScrollLeft, canScrollRight };
 }

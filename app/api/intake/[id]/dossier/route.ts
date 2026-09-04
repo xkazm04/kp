@@ -4,8 +4,9 @@ import { runIntakeAppMasterSync } from "@/app/_lib/intake-run";
 import { repoDossierSchema } from "@/app/_lib/schemas.generated";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { intakeLang } from "@/app/_lib/intake-lang";
 
 // POST /api/intake/[id]/dossier — an App-master session's repo scan finished:
 // fold the RepoDossier into the live brief as `codebase_dossier.*` facets
@@ -27,20 +28,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
-    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    if (intake.status === "promoted") {
-      return NextResponse.json({ error: "This intake was promoted — its grounding is frozen." }, { status: 409 });
-    }
-    if (!intake.scanId) {
-      return NextResponse.json({ error: "This intake was not started from a repo scan." }, { status: 400 });
-    }
+    // Every refusal below answers with a CODE (docs/architecture/api-contracts.md
+    // §1.1). They used to be bare English strings, so the card could only say
+    // "compose failed" — and said it in English regardless of the reader's
+    // locale. The reason a requestor cannot proceed IS the information here.
+    if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    if (intake.status === "promoted") return jsonRefusal("INTAKE_FROZEN", 409);
+    if (!intake.scanId) return jsonRefusal("INTAKE_NOT_FROM_SCAN", 400);
 
     const body = (await request.json().catch(() => ({}))) as { scanId?: unknown; dossier?: unknown };
     if (typeof body.scanId !== "string" || body.scanId.trim() !== intake.scanId) {
-      return NextResponse.json({ error: "scanId does not match this intake's scan." }, { status: 400 });
+      return jsonRefusal("INTAKE_SCAN_MISMATCH", 400);
     }
     const parsed = repoDossierSchema.safeParse(body.dossier);
-    if (!parsed.success) return NextResponse.json({ error: "dossier is not a RepoDossier" }, { status: 400 });
+    if (!parsed.success) return jsonRefusal("INTAKE_DOSSIER_INVALID", 400);
 
     // THROTTLE (rate-limit-contract.test.ts): this spawns Python — the merge is
     // deterministic but the population fit is a real, potentially-paid model
@@ -50,19 +51,42 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // refusals so a rejected post never spends. (Expensive marker:
     // `runIntakeAppMasterSync(`.)
     if (!rateLimit(`intake-dossier:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const sync = await runIntakeAppMasterSync({
-      brief: intake.brief,
-      dossier: parsed.data,
-      lang: intake.lang === "cs" ? "cs" : "en",
-    });
-    if (!updateIntakeDossier(id, { scanId: intake.scanId, dossier: parsed.data, brief: sync.brief }, ws)) {
-      return NextResponse.json({ error: "Intake not found." }, { status: 404 });
+    // The caller's signal rides into the spawn: a requestor who navigated away
+    // (or pressed Cancel on the compose sibling) should not leave a Python
+    // process reading a repository on their behalf.
+    const sync = await runIntakeAppMasterSync(
+      {
+        brief: intake.brief,
+        dossier: parsed.data,
+        lang: intakeLang(intake.lang),
+      },
+      request.signal
+    );
+    // COMPARE-AND-SWAP, not a blind write. `intake.updatedAt` was read BEFORE the
+    // spawn above, which can take minutes; a dialog turn landing inside that
+    // window has already replaced the brief this merge was computed from, and
+    // storing `sync.brief` over it would regress a value the requestor STATED —
+    // the one thing the merge rule forbids. The refusal is the honest outcome:
+    // the client re-posts on its next tick against the current row.
+    const write = updateIntakeDossier(
+      id,
+      { scanId: intake.scanId, dossier: parsed.data, brief: sync.brief, expectedUpdatedAt: intake.updatedAt },
+      ws
+    );
+    if (write === "missing") {
+      return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    }
+    if (write === "moved") {
+      return jsonRefusal("INTAKE_BRIEF_MOVED", 409);
     }
     return NextResponse.json({ brief: sync.brief, shape: sync.shape, dossier: parsed.data, fit: sync.fit });
   } catch (error) {
+    // An aborted request is not a fault: the client is gone, and logging it as a
+    // store error would file a deliberate cancel as an incident.
+    if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     return safeJsonError(error, "api:intake/dossier", "INTAKE_DOSSIER_FAILED");
   }
 }

@@ -51,7 +51,7 @@ export function DecisionsHeader({
             ariaLabel={t("filterTitle")}
             value={activeFilter ?? ""}
             onChange={(v) => setJobFilter(v || null)}
-            size="sm"
+            sizeVariant="sm"
             options={[
               { value: "", label: t("allRoles", { count: pending.length }) },
               ...jobOptions.map((o) => ({ value: o.key, label: `${o.label} (${pending.filter((e) => roleKeyOf(e) === o.key).length})` })),
@@ -62,7 +62,7 @@ export function DecisionsHeader({
           ariaLabel={t("govModeTitle")}
           value={evalMode}
           onChange={(v) => setEvalMode(v as typeof evalMode)}
-          size="sm"
+          sizeVariant="sm"
           options={[
             { value: "recommendation", label: t("govRecommendation") },
             { value: "committee", label: t("govCommittee") },

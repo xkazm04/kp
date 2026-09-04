@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import Wordmark from "../Wordmark";
+import MobileNav from "./MobileNav";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { sourceRepoHref } from "@/app/_lib/source-repo";
 
@@ -11,11 +12,16 @@ import { sourceRepoHref } from "@/app/_lib/source-repo";
  * The in-page section anchors (#how / #features / #pricing) used to sit here
  * next to /about and /market, competing with the links that actually leave the
  * page. They live in the scroll-revealed SectionRail now.
+ *
+ * Both of those surfaces are breakpoint-gated (`sm:flex` here, `lg:block` for
+ * the rail), which left a phone with no navigation whatsoever — so the same
+ * destinations, plus the rail's five section anchors, hang off ./MobileNav's
+ * disclosure below `sm`.
  */
 export default function Topbar() {
   const t = useTranslations("landing");
   return (
-    <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
+    <header className="relative mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
       <Wordmark />
       <nav className="hidden items-center gap-6 text-[17px] font-bold sm:flex">
         <a href="/about" className="hover:text-[#d65a4a]">
@@ -42,6 +48,7 @@ export default function Topbar() {
           {t("nav.signIn")}
         </button>
       </nav>
+      <MobileNav />
     </header>
   );
 }

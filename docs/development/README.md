@@ -5,6 +5,7 @@ the tooling that only exists in dev builds, and the command-line entry points.
 
 | Doc | Covers |
 | --- | --- |
+| [toolchain.md](toolchain.md) | What a checkout requires of the machine — the Node/npm pin, the line-ending contract, which lint laws reach which files, and the keyless e2e subset |
 | [testing-and-evaluation.md](testing-and-evaluation.md) | The verification commands, what each suite covers, the 14-fixture golden-set eval and its thresholds |
 | [change-review.md](change-review.md) | The two lenses that read a change back — a deterministic gate-integrity pass and an LLM review against this repo's own rules |
 | [benchmarks.md](benchmarks.md) | Dated model benchmark (2026-08-05): judged quality, reliability and economics across commercial and open models |

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { candidateOutcomes } from "@/app/_lib/db/pipeline";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, RATE_LIMITED_ERROR, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { filterRelevantAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
 import {
   dismissRediscoveryAlert,
@@ -92,15 +92,22 @@ export async function POST(request: Request) {
     // request has spawned nothing; the GET feed and PATCH dismiss stay unthrottled —
     // they are pure reads/writes and the feed polls them.
     if (!rateLimit(`rediscovery-sweep:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // Sweep the CALLER's catalog, not the default tenant's (rediscovery-alerts #1):
     // this POST is the feed's Refresh, fired from one team's session, so the roles
     // swept and the alerts raised must match the feed the same request returns below.
     const ws = await currentWorkspace();
-    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal, workspaceId: ws });
+    const { jobsSwept, newAlerts, truncated, failedJobs } = await sweepRediscoveryAlerts({
+      signal: request.signal,
+      workspaceId: ws,
+    });
     const alerts = relevantAlerts(ws);
-    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated });
+    // `failedJobs` is the honest half of `newAlerts`: a sweep whose rankings all died
+    // used to return the same `newAlerts: 0` as a sweep that ran perfectly and found
+    // nobody, so the Refresh reported a clean "nothing new" over a broken pipeline.
+    // Additive on the wire — existing consumers keep reading jobsSwept/newAlerts.
+    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated, failedJobs });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }

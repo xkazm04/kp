@@ -3,7 +3,7 @@
 // here, so it's a plain .ts file.
 import { normalizeArchetype } from "@/app/_lib/archetypes";
 import type { Reasoning } from "@/app/features/shared/matchTypes";
-import type { Cell } from "./MatrixShared";
+import type { Cell } from "./matrixCellClass";
 
 export type Candidate = { id: string; label: string; archetype: string | null };
 export type Position = { id: string; title: string; seniority: string; roleFamily: string };
@@ -23,15 +23,23 @@ export type Matrix = {
   // no longer a silent omission (skill-matrix-coverage #1).
   poolTotal?: number;
   poolCap?: number;
+  // Whether /api/matrix served this grid from its scored-grid cache (route.ts::respond)
+  // rather than re-spawning the scorer. Reported so the recruiter can tell a stale-ish
+  // read from a fresh pass before acting on it.
+  cached?: boolean;
 };
 
-export type ReasonState = { loading?: boolean; error?: string; data?: Reasoning; source?: string; cached?: boolean };
+// `cached` and `narrativeLang` mirror what /api/match/reasoning actually returns and what
+// focus mode (MatchReasoningPanel) already renders: whether the answer came from the
+// reasoning cache, and which language the engine wrote it in (it writes only en/cs).
+export type ReasonState = { loading?: boolean; error?: string; data?: Reasoning; source?: string; cached?: boolean; narrativeLang?: string };
 export type Popover = { candId: string; posId: string; cand: Candidate; pos: Position; cell: Cell; rect: { top: number; left: number } };
 
 // Dot colours are pure presentation, keyed by the canonical archetype id. The id set and
-// short labels come from the shared registry (ARCHETYPE_BADGE — the same source the Match
-// tab uses), so a newly added archetype renders with its OWN label (and a neutral dot when
-// no colour is configured) instead of silently mislabelling as bau/"Experienced".
+// short labels come from the shared registry (the same source the Match tab uses,
+// resolved through enums.archetype.<id>), so a newly added archetype renders with its OWN
+// label (and a neutral dot when no colour is configured) instead of silently mislabelling
+// as bau/"Experienced".
 const ARCH_DOT: Record<string, string> = {
   bau: "bg-steel",
   student: "bg-coral",

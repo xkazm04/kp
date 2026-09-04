@@ -19,6 +19,7 @@
 //      priced add-ons. The host route throttles; this adapter never retries a
 //      submission on its own, because a retry here is a second charge.
 import { wavInfo } from "../node/wav.ts";
+import { primaryLanguage } from "../validate.ts";
 import {
   SttError,
   type SttHost,
@@ -51,6 +52,12 @@ type TranscriptRow = {
   audio_duration?: number | null;
   language_code?: string | null;
   speech_model?: string | null;
+  /** The vendor echoes the ACCEPTED job configuration onto every row it returns,
+   *  so this is what the service ran with — not what this adapter asked for.
+   *  The API exposes no separate "redaction was applied" field; the accepted
+   *  configuration is the closest thing to one, and it is the field that
+   *  disagrees with the request when the service declined the add-on. */
+  redact_pii?: boolean | null;
   utterances?: { start: number; end: number; text: string; speaker?: string | null; confidence?: number | null }[] | null;
 };
 
@@ -141,6 +148,18 @@ export class AssemblyAiStt implements SttProvider {
     // revoked or a quota exhausted mid-minute), but a 429 is "busy", not "down".
     if (res.status !== 429) this.probeCache = null;
     this.host.log?.({ type: "error", provider: this.id, message: `${what}: ${res.status} ${detail}` });
+    // Throttling is not a fault, and collapsing it into `engine_failed` is how a
+    // concurrency ceiling reaches an operator as "the engine broke" — the two
+    // have opposite next actions (wait and repeat vs. investigate).
+    if (res.status === 429) {
+      const wait = retryAfterMs(res.headers.get("retry-after"));
+      throw new SttError(
+        "rate_limited",
+        `${what} was throttled${wait != null ? `; retry in ${Math.round(wait / 1000)}s` : ""}${detail ? `: ${detail}` : ""}`,
+        this.id,
+        wait ?? undefined,
+      );
+    }
     throw new SttError(
       res.status === 401 || res.status === 403 ? "unavailable" : "engine_failed",
       `${what} answered ${res.status}${detail ? `: ${detail}` : ""}`,
@@ -171,7 +190,16 @@ export class AssemblyAiStt implements SttProvider {
     // 2. Submit.
     const model = req.modelId || this.host.env("ASSEMBLYAI_MODEL")?.trim() || null;
     const body: Record<string, unknown> = { audio_url: audioUrl };
-    if (req.language) body.language_code = req.language;
+    // The vendor's async vocabulary is primary tags (`cs`, `de`) plus a handful
+    // of underscore-delimited English variants (`en_us`, `en_au`) — never the
+    // hyphenated BCP-47 regional the validation door normalizes to. Sending
+    // `cs-cz` verbatim is a 400 for a request that was perfectly well-formed at
+    // this package's door, so the regional tag is narrowed to its primary
+    // subtag here and the service picks the regional model itself. (Asking for
+    // one of the `en_*` variants stays possible through the request's modelId /
+    // ASSEMBLYAI_MODEL, which is where an account-level vocabulary belongs.)
+    const languageCode = primaryLanguage(req.language);
+    if (languageCode) body.language_code = languageCode;
     else body.language_detection = true;
     if (model) body.speech_model = model;
     if (req.diarize) body.speaker_labels = true;
@@ -222,6 +250,17 @@ export class AssemblyAiStt implements SttProvider {
     }));
     const durationMs =
       typeof row.audio_duration === "number" ? Math.round(row.audio_duration * 1000) : (wavInfo(req.audio)?.durationMs ?? null);
+    // Redaction is read off the row, and a disagreement is a refusal rather than
+    // a flag on a 200: a transcript that still carries the spans somebody asked
+    // to have removed is a privacy incident, and the caller cannot un-see it
+    // once this function has returned it. When the row does not carry the field
+    // at all the property is simply not claimed (`false`) — an unproven `true`
+    // is the one lie this package must never tell.
+    const redacted = row.redact_pii === true;
+    if (req.redactPii === true && row.redact_pii === false) {
+      this.host.log?.({ type: "error", provider: this.id, message: `transcript ${row.id} was not redacted` });
+      throw new SttError("unsupported", "the service did not apply PII redaction to this transcript", this.id);
+    }
     const elapsedMs = Date.now() - started;
     this.host.log?.({ type: "transcribe", provider: this.id, modelId: model, bytes: req.audio.byteLength, ms: elapsedMs, chars: text.length });
     return {
@@ -229,16 +268,28 @@ export class AssemblyAiStt implements SttProvider {
       // One segment covering the clip when the engine returned no turn structure —
       // an empty segment list would read as "nothing was said".
       segments: segments.length || !text ? segments : [{ start: 0, end: (durationMs ?? 0) / 1000, text, speaker: null, confidence: null }],
-      language: row.language_code ?? req.language ?? null,
+      language: row.language_code ?? languageCode,
       provider: this.id,
       modelId: row.speech_model ?? model,
       elapsedMs,
       durationMs,
       // What the engine DID, read back off the row — never an echo of the ask.
       diarized: (row.utterances?.length ?? 0) > 0,
-      redacted: req.redactPii === true,
+      redacted,
     };
   }
+}
+
+/** RFC 9110 Retry-After: delta-seconds or an HTTP-date. Null when absent or
+ *  unparseable — "the engine did not say" is a fact a host can act on (back off
+ *  on its own schedule), and a fabricated number is not. */
+function retryAfterMs(header: string | null): number | null {
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (/^\d+$/.test(trimmed)) return Math.min(Number(trimmed), 3600) * 1000;
+  const at = Date.parse(trimmed);
+  if (Number.isNaN(at)) return null;
+  return Math.max(0, Math.min(at - Date.now(), 3_600_000));
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {

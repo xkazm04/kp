@@ -31,6 +31,21 @@
  * snapshot without a local ingest server.
  *
  * Source: MPSV ČR (ISPV / RSCP), CC BY 4.0.
+ *
+ * STALENESS CONTRACT. Nothing rebuilds data/market_pulse.json automatically:
+ * `npm run market:build` / `npm run market:earnings` are run by an owner, by
+ * hand. The /market page treats a snapshot older than STALE_AFTER_DAYS = 60
+ * (app/landing/spark/market/data.ts) as stale and prints its age in the hero
+ * instead of quietly serving year-old pay figures. So sixty days is the cadence
+ * this module exists to serve — past it the page is telling every visitor the
+ * data is old. See docs/features/marketing/README.md.
+ *
+ * NETWORK CONTRACT. Every fetch here goes through fetchJson(): a
+ * FETCH_TIMEOUT_MS (20 s) AbortSignal.timeout and a KP_OFFLINE refusal. Both
+ * exist because this module runs inside build scripts — a hung data.mpsv.cz
+ * socket used to hang `npm run market:build` forever with no output, and an
+ * air-gapped install (docs/architecture/self-hosting.md §7) must be told the
+ * script cannot run rather than watch it stall until the kernel gives up.
  */
 
 export const ISPV_NATIONAL_URL = "https://data.mpsv.cz/od/soubory/ispv-zamestnani/ispv-zamestnani.json";
@@ -41,11 +56,55 @@ export const ISPV_REGIONAL_URL =
  *  snapshot publishes, and stops a survey estimate reading like a payslip. */
 export const round100 = (v) => (v == null || !Number.isFinite(v) ? null : Math.round(v / 100) * 100);
 
-async function getJson(url) {
-  const r = await fetch(url);
+/** How long any one MPSV/Pumper GET may take before the build gives up. Twenty
+ *  seconds: data.mpsv.cz serves multi-megabyte JSON and is occasionally slow, so
+ *  this is generous for a healthy endpoint and instant for a dead one. A bare
+ *  `await fetch(url)` has NO timeout — an endpoint that accepts the connection
+ *  and never answers hangs `npm run market:build` until someone notices. */
+export const FETCH_TIMEOUT_MS = 20_000;
+
+/** Mirrors isOffline() in app/_lib/offline.ts — these scripts run under bare
+ *  `node`, so they cannot import the TS module. Keep the vocabulary in step. */
+const TRUTHY = new Set(["1", "true", "yes", "on"]);
+
+/** True when KP_OFFLINE is set to a truthy value. */
+export function isOffline(env = process.env) {
+  return TRUTHY.has(String(env.KP_OFFLINE ?? "").trim().toLowerCase());
+}
+
+/**
+ * The one GET every market script makes. Pure apart from the injected fetch, so
+ * the fixtures can drive every branch without a network.
+ *
+ * Three failure modes, each with its own sentence, because the operator running
+ * `npm run market:build` reads only the last line before the exit code:
+ *   - KP_OFFLINE on  → refuse BEFORE touching the socket, and say the snapshot
+ *     is committed so an offline install needs no rebuild.
+ *   - timeout        → name the budget that was exceeded, not `AbortError`.
+ *   - non-2xx        → name the status.
+ */
+export async function fetchJson(url, { fetchImpl = fetch, timeoutMs = FETCH_TIMEOUT_MS, env = process.env } = {}) {
+  if (isOffline(env)) {
+    throw new Error(
+      `KP_OFFLINE is set — refusing to fetch ${url}. The market snapshot (data/market_pulse.json) is ` +
+        `committed, so an offline install needs no rebuild; unset KP_OFFLINE to refresh it.`
+    );
+  }
+  let r;
+  try {
+    r = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) });
+  } catch (err) {
+    const name = err && typeof err === "object" ? err.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      throw new Error(`GET ${url} → no response within ${timeoutMs} ms (FETCH_TIMEOUT_MS) — giving up.`);
+    }
+    throw new Error(`GET ${url} → ${(err && err.message) || err}`);
+  }
   if (!r.ok) throw new Error(`GET ${url} → ${r.status}`);
   return r.json();
 }
+
+const getJson = (url) => fetchJson(url);
 
 /**
  * Fetch both ISPV cuts and drop unusable rows.

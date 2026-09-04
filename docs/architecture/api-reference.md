@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_206 routes, 271 handlers._
+_207 routes, 274 handlers._
 
 ### `/api/agents`
 
@@ -415,8 +415,9 @@ _206 routes, 271 handlers._
 
 | Route | Methods | Auth |
 | --- | --- | --- |
+| `/api/me/capabilities` | GET | gated |
 | `/api/me/getting-started` | GET | gated |
-| `/api/me/onboarding` | POST | gated |
+| `/api/me/onboarding` | GET, POST | gated |
 
 ### `/api/offer`
 
@@ -504,7 +505,7 @@ _206 routes, 271 handlers._
 | `/api/sim/inbound` | POST | gated |
 | `/api/sim/offer-draft` | POST | gated |
 | `/api/sim/offer-link` | GET | gated |
-| `/api/sim/reset` | POST | gated |
+| `/api/sim/reset` | POST, DELETE | gated |
 | `/api/sim/screen-draft` | POST | gated |
 
 ### `/api/skill-profile`

@@ -10,7 +10,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { VOICE_MINUTE_PRICES, voiceMinuteCostUsd, voiceSessionModel, voiceUsageRow } from "./minute-prices.ts";
+import { VOICE_MINUTE_PRICES, voiceMinuteCostUsd, voiceMinutePriceUsd, voiceSessionModel, voiceUsageRow } from "./minute-prices.ts";
 import { VOICE_PROVIDER_ORDER } from "./types.ts";
 
 // Run `fn` with the given env vars set (undefined ⇒ cleared), restoring the
@@ -90,5 +90,51 @@ test("voiceUsageRow carries the serving provider — the two providers cost diff
     assert.equal(row.model, null);
     assert.equal(row.costUsd, voiceMinuteCostUsd("elevenlabs", 7));
     assert.notEqual(row.costUsd, voiceMinuteCostUsd("openai", 7));
+  });
+});
+
+// ── Operator price overrides (KP_VOICE_MINUTE_USD_<PROVIDER>) ────────────────
+// VOICE_MINUTE_PRICES are midpoints of PUBLIC price bands, not contractual rates.
+// An operator on a Business tier or a negotiated contract was priced wrong by
+// construction and could not correct the one number they reconcile spend against
+// without editing this file.
+
+test("an operator override replaces the built-in estimate", () => {
+  withEnv({ KP_VOICE_MINUTE_USD_OPENAI: "0.02" }, () => {
+    assert.equal(voiceMinutePriceUsd("openai"), 0.02);
+    assert.equal(voiceMinuteCostUsd("openai", 10), 0.2);
+    // …and only for the provider it names.
+    assert.equal(voiceMinutePriceUsd("elevenlabs"), VOICE_MINUTE_PRICES.elevenlabs);
+  });
+});
+
+test("a free override is honored — 0 is a rate, not an absent value", () => {
+  withEnv({ KP_VOICE_MINUTE_USD_ELEVENLABS: "0" }, () => {
+    assert.equal(voiceMinutePriceUsd("elevenlabs"), 0);
+    assert.equal(voiceMinuteCostUsd("elevenlabs", 30), 0);
+  });
+});
+
+test("a malformed or negative override falls back to the estimate rather than pricing at 0/NaN", () => {
+  for (const bad of ["$0.12", "abc", "-1", "   "]) {
+    withEnv({ KP_VOICE_MINUTE_USD_OPENAI: bad }, () => {
+      assert.equal(voiceMinutePriceUsd("openai"), VOICE_MINUTE_PRICES.openai, `override "${bad}" must not stick`);
+      assert.ok(Number.isFinite(voiceMinuteCostUsd("openai", 5)));
+    });
+  }
+});
+
+test("the override is read at CALL time, so a restart-free env change is picked up", () => {
+  withEnv({ KP_VOICE_MINUTE_USD_OPENAI: undefined }, () => {
+    assert.equal(voiceMinutePriceUsd("openai"), VOICE_MINUTE_PRICES.openai);
+  });
+  withEnv({ KP_VOICE_MINUTE_USD_OPENAI: "1.5" }, () => {
+    assert.equal(voiceMinutePriceUsd("openai"), 1.5);
+  });
+});
+
+test("a self-hosted session stays free even under an override — nothing per-minute is spent", () => {
+  withEnv({ KP_VOICE_MINUTE_USD_ELEVENLABS: "9.99", ELEVENLABS_BASE_URL: "http://localhost:8080" }, () => {
+    assert.equal(voiceMinuteCostUsd("elevenlabs", 12), 0);
   });
 });

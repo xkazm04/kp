@@ -1,39 +1,13 @@
+import { memo } from "react";
 import { useTranslations } from "next-intl";
-import { columnStats, MATRIX_BANDS, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
+import { MATRIX_BANDS, STRONG_THRESHOLD, type ColumnStat } from "./matrixStats";
+import { BLOCKED_CELL } from "./matrixCellClass";
 
-// koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
-// present only on blocked cells, localized by key via matrix.ko.* messages.
-export type Cell = { score: number | null; blocked: boolean; koKeys?: string[] };
-
-// Blocked/empty cells get a diagonal hatch so they read as "not applicable"
-// without relying on the grey fill alone (color-independent legibility).
-//
-// hatch-through-the-token-seam: the stripe was a raw `#d6d3d1` (stock Tailwind
-// stone-300) — the one hardcoded color left outside app/landing/. The ESLint hex gate
-// missed it because it anchored on `\b` after the hex and Tailwind spells spaces as
-// `_`, a word character, so `#d6d3d1_0px` had no boundary to find. Result: in Spark
-// Dark the FILL re-mapped through --color-stone-100 (#f1ebdd -> #283442) while the
-// stripe stayed light-theme stone-300 — a pale grey hatch burned across a dark cell.
-//
-// It now resolves through the token, which Tailwind 4 emits verbatim into the compiled
-// arbitrary value (measured: `background-image: repeating-linear-gradient(45deg,
-// var(--color-stone-300) 0px,…)`), so the stripe follows [data-theme="dark"] like every
-// other surface. Note the LIGHT stripe moves #d6d3d1 -> #d6cbb4: this repo's stone-300
-// is the warm Option-C neutral, not Tailwind's cool stock one, so the hatch now sits on
-// the same ramp as the stone-100 fill it is drawn over instead of one hue off it.
-export const BLOCKED_CELL =
-  "bg-stone-100 text-stone-400 [background-image:repeating-linear-gradient(45deg,var(--color-stone-300)_0px,var(--color-stone-300)_1px,transparent_1px,transparent_5px)]";
-
-// diverging score scale: poor -> coral, fair -> amber, good/strong -> moss.
-// Bands single-sourced in MATRIX_BANDS (matrix-stats.ts) — pick the highest band
-// whose inclusive floor the score clears.
-export function cellClass(c: Cell): string {
-  if (c.blocked || c.score == null) return BLOCKED_CELL;
-  const s = c.score;
-  let cls: string = MATRIX_BANDS[0].cellClass;
-  for (const b of MATRIX_BANDS) if (s >= b.min) cls = b.cellClass;
-  return cls;
-}
+// Cell, BLOCKED_CELL and cellClass moved to the JSX-free `matrixCellClass.ts` so they
+// are reachable from the unit runner; re-exported here because this module has been
+// their import site since the split out of MatrixTab.tsx.
+export { BLOCKED_CELL, cellClass } from "./matrixCellClass";
+export type { Cell } from "./matrixCellClass";
 
 // Per-band fill for the mini-histogram, mirroring cellClass's diverging scale so
 // the strip reads consistently with the grid below it. Same band order as columnStats' buckets.
@@ -42,11 +16,16 @@ const BAND_FILL = MATRIX_BANDS.map((b) => b.fill);
 // MAT2 — a compact distribution strip under a position header: a 5-bar histogram
 // of the column's non-blocked scores (bands match the legend) plus best / median /
 // strong-count. Reads the column's pool fit at a glance: deep bench vs one hit.
-export function ColumnStats({ scores }: { scores: number[] }) {
+//
+// grid-chrome-holds-the-floor: this used to run the columnStats pass in its own body,
+// once per visible column, on EVERY render of the header row — a sort, a median and five
+// buckets over the whole candidate pool for a number that only changes when the data
+// does. The stat now arrives precomputed from the hook's memo chain, and the component
+// is a memo boundary so the strip does not rebuild with the header around it.
+function ColumnStatsInner({ stat: s }: { stat: ColumnStat }) {
   const t = useTranslations("matrix");
-  const s: ColumnStat = columnStats(scores);
   if (s.count === 0) {
-    return <div className="mt-1 text-[10px] text-stone-400">{t("noFits")}</div>;
+    return <div className="mt-1 text-xs text-stone-400">{t("noFits")}</div>;
   }
   const maxBucket = Math.max(...s.buckets, 1);
   return (
@@ -63,7 +42,7 @@ export function ColumnStats({ scores }: { scores: number[] }) {
           />
         ))}
       </div>
-      <div className="mt-0.5 flex items-center gap-1 text-[10px] leading-none text-steel">
+      <div className="mt-0.5 flex items-center gap-1 text-xs leading-none text-steel">
         <span className="nums font-semibold text-ink">{s.best}</span>
         <span className="text-stone-400">·</span>
         <span className="nums">~{s.median}</span>
@@ -72,6 +51,8 @@ export function ColumnStats({ scores }: { scores: number[] }) {
     </div>
   );
 }
+
+export const ColumnStats = memo(ColumnStatsInner);
 
 export function MatrixLegend() {
   const t = useTranslations("matrix");

@@ -152,7 +152,10 @@ export async function intakeSubmission(input: {
     // The acknowledgement goes to the CANDIDATE, so it is written in their
     // language via the locale-pinned comms translator, not the recruiter's
     // request locale. It was hardcoded English in all four locales.
-    const t = await commsTranslator(input.locale);
+    // The SUBMISSION's team is the tenant here (intake arrives off-session), and it
+    // is the same one the ack row is filed under below — so a candidate who recorded
+    // no language hears this team's `default_locale`, not the DEFAULT team's.
+    const t = await commsTranslator(input.locale, submission.workspaceId);
     const role = (posting.roleTitle ?? "").trim();
     await sendComm({
       to: input.contact || input.candidateRef,

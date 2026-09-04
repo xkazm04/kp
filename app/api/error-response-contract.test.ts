@@ -199,78 +199,108 @@ const EXEMPT = new Map<string, string>([
 // the 81 (schedule/invite/bulk) was fixed in the same change rather than ceilinged, so
 // the list below is 80 across 67 — the first tooth of the ratchet, taken on the way in.
 const LEAK_CEILING = new Map<string, number>([
-  ["analytics/calibration/apply-threshold/route.ts", 1],
-  ["analytics/decisions/route.ts", 1],
-  ["analytics/metric-pack/route.ts", 1],
   ["analytics/route.ts", 1],
-  ["analytics/spend/route.ts", 1],
-  ["analytics/targets/route.ts", 1],
   ["archetypes/[id]/route.ts", 2],
   ["archetypes/route.ts", 2],
-  ["ats/config/route.ts", 1],
-  ["automation/[task]/route.ts", 1],
-  ["automation/run/route.ts", 1],
-  ["automation/schedule/route.ts", 1],
-  ["billing/checkout/route.ts", 1],
-  ["billing/portal/route.ts", 1],
+  // ats/config's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
+  // integrations-settings): the 500 answers safeJsonError(..., "ATS_CONFIG_SAVE_FAILED")
+  // and the new stale-write 409 is jsonRefusal("ATS_CONFIG_STALE"), so the panel resolves
+  // both in the reader's language. The row is deleted so the win is locked.
+  // automation/[task] and automation/run were FIXED, not ceilinged (/perfect wave 39,
+  // lib-automation): both spawn the Python engine and both forwarded parseStderrError's
+  // message whole. The 500s answer safeJsonError(..., "AUTOMATION_{TASK,PASS}_FAILED")
+  // at the engine's own status, and [task]'s four decided refusals are jsonRefusal
+  // codes, so the board's AI-actions grid resolves every one of them in the reader's
+  // language. The rows are deleted so the win is locked.
+  // automation/schedule's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
+  // pipeline-board-3): the 500 answers safeJsonError(..., "SCHEDULE_UPDATE_FAILED")
+  // and the interval 400 is jsonRefusal("SCHEDULE_INTERVAL_INVALID"), so the control
+  // dock resolves both in the reader's language. The row is deleted so the win is locked.
   ["channels/inbound/[token]/route.ts", 1],
-  ["channels/webhooks/route.ts", 3],
-  ["comms/relay/route.ts", 1],
+  // channels/webhooks' three leaks were FIXED, not ceilinged (/perfect wave 27,
+  // api-comms): the two 500s answer safeJsonError(..., "CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED")
+  // and every 400/404 is a jsonRefusal code, so the Add-receiver modal and the receiver
+  // list resolve them in the reader's language. The row is deleted so the win is locked.
   ["comms/relay/test/route.ts", 2],
-  ["decisions/config/route.ts", 1],
-  ["decisions/group-eval/route.ts", 1],
+  // decisions/config's single leak was FIXED, not ceilinged (/perfect 2026-09-02,
+  // pipeline-composer): the 500 answers safeJsonError(..., "DECISION_CONFIG_SAVE_FAILED")
+  // and both 400s are jsonRefusal codes, so the Hiring composer resolves them in the
+  // reader's language. The row is deleted so the win is locked.
+  // decisions/group-eval's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
+  // group-eval-ui): the 500 answers safeJsonError(..., "GROUP_EVAL_READ_FAILED"), so the
+  // Decisions modal resolves it in the reader's language. The row is deleted so the win
+  // is locked.
   ["decisions/screen-wave/route.ts", 1],
-  ["devcase/comms/route.ts", 1],
-  ["devcase/control/route.ts", 2],
-  ["devcase/feedback/route.ts", 1],
-  ["devcase/inbound/route.ts", 1],
-  ["devcase/lifecycle/[id]/approve/route.ts", 1],
-  ["devcase/lifecycle/[id]/close/route.ts", 1],
-  ["devcase/lifecycle/[id]/redesign/route.ts", 1],
-  ["devcase/lifecycle/route.ts", 2],
-  ["devcase/outcomes/route.ts", 2],
-  ["devcase/postings/route.ts", 1],
-  ["devcase/promote/route.ts", 1],
-  ["devcase/publish/route.ts", 1],
-  ["devcase/route.ts", 2],
-  ["devcase/source/route.ts", 1],
-  ["devcase/submit/route.ts", 1],
-  ["edge/route.ts", 1],
+  // The ten devcase rows that stood here (thirteen leaks across comms, control,
+  // inbound, lifecycle + its [id]/approve, [id]/close, [id]/redesign, outcomes,
+  // postings and promote) were FIXED, not ceilinged (/perfect 2026-09-02,
+  // api-devcase-1): every one now answers `safeJsonError(error, "api:devcase/<route>",
+  // "DEVCASE_*_FAILED")` against the twelve codes added to STORE_ERRORS in the same
+  // change, with four catalogue entries each. The entries are DELETED so the win is
+  // locked and a regression reads as `undeclared` rather than as budget already
+  // granted. Two devcase leaks remain in devcase/route.ts, still ceilinged below;
+  // source and submit burnt theirs down in wave 9 and their entries are gone.
+  // devcase/route.ts's last two leaks were FIXED, not ceilinged (/perfect wave 31,
+  // api-devcase-2): the list read answers safeJsonError(..., "DEVCASE_CASE_LIST_FAILED")
+  // and the manual approve safeJsonError(..., "DEVCASE_APPROVE_FAILED"), the same code
+  // its lifecycle sibling uses for the same human decision. The row is deleted so the
+  // win is locked and a regression reads as `undeclared` rather than as budget already
+  // granted - devcase/** now carries no ceiling at all.
   ["extract-text/route.ts", 1],
-  ["github-analysis/route.ts", 1],
-  ["jobs/[id]/assignments/route.ts", 1],
-  ["jobs/[id]/campaign/route.ts", 1],
-  ["jobs/[id]/candidates/route.ts", 1],
-  ["jobs/[id]/close/route.ts", 1],
-  ["jobs/[id]/publish/route.ts", 1],
-  ["jobs/[id]/rediscover/route.ts", 1],
-  ["jobs/[id]/route.ts", 1],
-  ["jobs/[id]/winnability/route.ts", 1],
-  ["jobs/ingest/route.ts", 1],
-  ["jobs/route.ts", 1],
+  // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect
+  // 2026-09-02, api-jobs): every one now answers `safeJsonError(error,
+  // "api:jobs/<route>", "JOB_*_FAILED")` against the JOB_* codes added to
+  // STORE_ERRORS in the same change. The entries are deleted so the win is locked and
+  // a regression reads as `undeclared` rather than as budget already granted.
   ["llm/activity/route.ts", 1],
-  ["llm/keys/route.ts", 1],
+  // llm/keys/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,
+  // model-keys-need-the-org-key): its catch forwarded saveProviderKey's own message —
+  // the resolved endpoint host, the rejected URL, the crypto helper's detail — and its
+  // four other 400s were bare English the panel had to substring-sniff. All of them now
+  // answer jsonRefusal("MODEL_KEY_*") with the provider as data. The entry is deleted so
+  // a regression reads as `undeclared` rather than as budget already granted.
   ["llm/keys/test/route.ts", 1],
   ["llm/test/route.ts", 1],
-  ["match/reasoning/route.ts", 1],
-  ["match/route.ts", 1],
-  ["matrix/route.ts", 1],
-  ["ops/route.ts", 1],
-  ["profile/candidates/route.ts", 1],
+  // match/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect 2026-09-03,
+  // match-route-answers-like-its-siblings): its leak was the WORST of the family —
+  // `parseStderrError`'s raw stderr, i.e. match_cli's traceback and the temp workdir
+  // path, forwarded verbatim. It now answers through app/api/matrix/matrix-error-code.ts
+  // like its two siblings: jsonRefusal for the 429 and the engine's 4xx, safeJsonError
+  // with MATCH_RUN_FAILED for the rest. The row is deleted so the win is locked and a
+  // regression reads as `undeclared` rather than as budget already granted.
+  // match/reasoning/route.ts and matrix/route.ts stood here at 1 each and are FIXED,
+  // not ceilinged (/perfect 2026-09-03, matrix-ui-2): both now answer through
+  // app/api/matrix/matrix-error-code.ts — jsonRefusal for the 429 and the engine's
+  // 4xx, safeJsonError with a MATRIX_*/MATCH_REASONING_* code for the rest. The rows
+  // are deleted so the win is locked and a regression reads as `undeclared`.
+  // ops/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect wave 17,
+  // api-workspace): its catch forwarded the thrown message for a payload built from
+  // better-sqlite3, the seed report and three log tails — the db file path, absolute
+  // seed paths and the log directory, all to the System strip. It now answers
+  // safeJsonError(error, "api:ops", "OPS_STATUS_FAILED"). The entry is DELETED so the
+  // win is locked and a regression reads as `undeclared` rather than as budget
+  // already granted; app/api/ops/ops-route.test.ts pins the code itself.
+  // profile/route.ts stood here at 4 and profile/candidates/route.ts at 1; both are
+  // FIXED, not ceilinged (/perfect wave 40, the-profile-door-is-throttled). All five
+  // catches now answer safeJsonError(error, "api:profile:*", "PROFILE_*_FAILED") against
+  // the codes added to STORE_ERRORS in the same change — the leaks were the spawn temp
+  // workdir path and PYTHON_CMD as well as SQLITE_* text, on a door any signed-in user
+  // reaches. The rows are DELETED so the win is locked and a regression reads as
+  // `undeclared` rather than as budget already granted.
   ["profile/draft/route.ts", 1],
-  ["profile/route.ts", 4],
   // schedule/invite/bulk/route.ts was here at 1 and is FIXED, not ceilinged — the
   // entry is deleted so the win is locked and a regression reads as `undeclared`.
   // It is worth naming because it is the reason this file is a scan rather than a
   // seventh hand-listed array: the leak was `results.push({ …, error: err.message })`
   // inside a per-entry loop, not a `NextResponse.json({ error: … })`, so BOTH
   // existing hygiene guards' regexes structurally could not see it.
-  ["tasks/[id]/retry/route.ts", 1],
+  // tasks/route.ts (2) and tasks/[id]/retry/route.ts (1) were here and are FIXED,
+  // not ceilinged — the entries are DELETED so the win is locked and a regression
+  // reads as `undeclared`. Both doors now answer through the chokepoint:
+  // safeJsonError on the two 500s, jsonRefusal + a TASK_* code on every refusal
+  // (/perfect wave 17, background-tasks).
   ["tasks/history/route.ts", 1],
-  ["tasks/route.ts", 2],
   ["tasks/seen/route.ts", 1],
-  ["workspace/export/route.ts", 1],
-  ["workspace/import/route.ts", 1],
 ]);
 
 test("no NEW route shapes a thrown error's own message into a client response", (t) => {

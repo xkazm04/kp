@@ -22,6 +22,7 @@ schema-valid ``AnalysisResult`` that renders on /history/<slug> like a real run.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -58,6 +59,22 @@ from .transform import build_match_candidate
 ROOT = Path(__file__).resolve().parents[2]
 CANDIDATES_PATH = ROOT / "data" / "seed_candidates" / "candidates.json"
 OUT_PATH = ROOT / "data" / "seed_analyses" / "analyses.json"
+
+
+def cv_hash_for(record: dict[str, Any]) -> str:
+    """Content-addressed identity for a seeded candidate, mirroring `cvVariantHash`.
+
+    A real analysis stamps `cv_hash` = SHA-256 of the uploaded CV bytes; a seeded one
+    has no bytes, so it hashes the canonical candidate record it was built from. That
+    keeps the two properties the column exists for: STABLE across a re-seed of the same
+    corpus, and DIFFERENT the moment the CV content is regenerated. Without it, every
+    seeded analysis carried a NULL hash — and NULL is the "legacy row, can't be judged"
+    value for History's re-run grouping, the same-CV cross-job linkage, and profile
+    lineage/staleness, so none of those surfaces were reachable on demo data.
+    """
+    canonical = json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
 
 ORG_DESCRIPTION = (
     "Česká spořitelna (a.s.) is the largest retail bank in the Czech Republic and part of "
@@ -480,6 +497,12 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
         analysis_engine="seed-deterministic",
         text_extractor="seed",
         model=None,
+        # No model ran: every number below comes from the pipeline's rule-based builders.
+        # The demo corpus this writes is seeded into `analyses` on first boot, so without
+        # this marker a fresh install's History is full of rows a recruiter would read as
+        # AI assessments.
+        engine_kind="deterministic",
+        engine_provider=None,
         parsing_notes=[
             "Seeded analysis (no LLM): scored against a drafted JD + organization description; "
             "insight sections reuse the live pipeline's deterministic builders."
@@ -519,6 +542,7 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
         "seniority": seniority,
         "score": score.total,
         "archetype": profile.archetype,
+        "cv_hash": cv_hash_for(record),
         "payload": result.model_dump(by_alias=True, exclude_none=True),
     }
 

@@ -3,8 +3,9 @@ import { getIntake } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getVoiceAdapter, missingVoiceEnv, voiceAvailability } from "@/app/_lib/voice";
-import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { intakeLang } from "@/app/_lib/intake-lang";
+import { rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 // Voice plane for the role-intake dialog
 // (docs/architecture/voice-conversation-plane.md): mint short-lived realtime
@@ -45,10 +46,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id } = await params;
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
-    if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    if (intake.status !== "open") {
-      return NextResponse.json({ error: "This intake session is closed." }, { status: 409 });
-    }
+    if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
+    if (intake.status !== "open") return jsonRefusal("INTAKE_CLOSED", 409);
 
     // THROTTLE (rate-limit-contract.test.ts): credential minting burns provider
     // credits — the same "most expensive operation" premise as
@@ -68,19 +67,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // ElevenLabs configured for a different feature.
     const voiceConnectLimit = 6;
     if (!rateLimit(`intake-voice-connect:${id}`, { limit: voiceConnectLimit, windowMs: 10 * 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const adapter = getVoiceAdapter("openai");
     if (!adapter.available()) {
-      const need = missingVoiceEnv(adapter).join(" and ");
-      return NextResponse.json(
-        { error: `openai is not configured — set ${need} in .env.local and restart.`, provider: "openai" },
-        { status: 503 }
-      );
+      // The env vars an operator must set ride alongside as DATA (`need`), not
+      // baked into an English sentence: the note is for the person running the
+      // install, and they read it in their own language like everything else.
+      return jsonRefusal("INTAKE_VOICE_NOT_CONFIGURED", 503, { provider: "openai", need: missingVoiceEnv(adapter) });
     }
 
-    const lang = intake.lang === "cs" ? "cs" : "en";
+    const lang = intakeLang(intake.lang);
     const connect = await adapter.connect({ instructions: RELAY_INSTRUCTIONS, language: lang, relay: true });
     return NextResponse.json({ provider: connect.provider, connect });
   } catch (error) {

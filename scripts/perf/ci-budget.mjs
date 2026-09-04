@@ -80,7 +80,14 @@ export function loadBudget(root = REPO_ROOT) {
     // A ceiling with no reason is how a budget becomes a number nobody dares
     // move. Same discipline as ts-debt.json and the `# ratchet:` marker in ruff.toml.
     if (!limit.why) throw new Error(`${BUDGET_FILE}: job '${name}' has no 'why'`);
+    // WHICH WORKFLOW the job belongs to. Required since the budget stopped being
+    // about ci.yml alone: two of the required contexts a pull request waits on
+    // are review.yml's, they run as a SEPARATE run with a separate wall-clock,
+    // and an entry that does not say which run it belongs to would be reported
+    // as renamed-or-deleted by whichever of the two happened to be judged.
+    if (!limit.workflow) throw new Error(`${BUDGET_FILE}: job '${name}' has no 'workflow'`);
   }
+  if (!budget.run.workflow) throw new Error(`${BUDGET_FILE}: 'run' has no 'workflow'`);
   return budget;
 }
 
@@ -165,8 +172,13 @@ export function evaluate(budget, jobs, { self = null } = {}) {
     }
   }
 
+  // Which workflow this run IS, inferred from the entries its jobs matched
+  // rather than from the environment: the API's job list is the only thing that
+  // is true for both a live run and a `--run <id>` of a past one.
+  const judgedWorkflows = new Set(rows.map((r) => budget.jobs[r.name]?.workflow));
+
   const runMinutes = runWallClockMinutes(judged);
-  if (runMinutes !== null && runMinutes > budget.run.maxMinutes) {
+  if (runMinutes !== null && judgedWorkflows.has(budget.run.workflow) && runMinutes > budget.run.maxMinutes) {
     findings.push({
       kind: 'run',
       target: '(whole run)',
@@ -177,8 +189,12 @@ export function evaluate(budget, jobs, { self = null } = {}) {
   // A stale entry is its own rot: it reads as a governed job long after the job
   // was renamed, and the rename is exactly how a ceiling stops applying. Only
   // reported when the run was complete enough to say so.
+  // …and scoped to that workflow: a review.yml run contains no ci.yml jobs, so
+  // reporting the other workflow's entries as renamed-or-deleted would be a
+  // finding on every single run.
   const seen = new Set(rows.map((r) => r.name));
-  for (const name of Object.keys(budget.jobs)) {
+  for (const [name, limit] of Object.entries(budget.jobs)) {
+    if (!judgedWorkflows.has(limit.workflow)) continue;
     if (!seen.has(name) && judged.length) {
       findings.push({
         kind: 'stale',

@@ -180,50 +180,107 @@ check('a budget that cannot be believed fails rather than passing vacuously', ()
   bad({ version: 1, slackPercent: 25 }, /'jobs' must be an object/);
   bad({ version: 1, slackPercent: 25, jobs: {} }, /run\.maxMinutes/);
   bad(
-    { version: 1, slackPercent: 25, jobs: { A: { maxMinutes: 1 } }, run: { maxMinutes: 5, why: 'x' } },
+    { version: 1, slackPercent: 25, jobs: { A: { maxMinutes: 1 } }, run: { maxMinutes: 5, why: 'x', workflow: 'ci.yml' } },
     /job 'A' has no 'why'/,
   );
   bad(
-    { version: 1, slackPercent: 25, jobs: { A: { why: 'x' } }, run: { maxMinutes: 5, why: 'x' } },
+    { version: 1, slackPercent: 25, jobs: { A: { why: 'x' } }, run: { maxMinutes: 5, why: 'x', workflow: 'ci.yml' } },
     /job 'A' has no numeric maxMinutes/,
   );
 });
 
 // --- the coupling this gate exists to protect --------------------------------
-check('the committed budget parses, and every ci.yml job has a ceiling under its timeout', () => {
-  const budget = loadBudget();
-  const workflow = fs.readFileSync(path.join(REPO_ROOT, '.github/workflows/ci.yml'), 'utf8');
 
-  // `name:` + `timeout-minutes:` at job level — the two lines the budget is
-  // keyed on and derived from. A job renamed in the workflow and not here is
-  // exactly the drift the `stale`/`undeclared` findings report at run time; this
-  // asserts it offline, on every push, before a run has to discover it.
-  const jobs = [...workflow.matchAll(/^    name: (.+)$\n(?:.*\n)*?^    timeout-minutes: (\d+)$/gm)].map((m) => ({
+/**
+ * The `name:` + `timeout-minutes:` pairs one workflow declares. CRLF normalized
+ * before matching: a Windows checkout with core.autocrlf=true turned this gate
+ * red locally while CI stayed green, hiding a real failure behind a known one.
+ */
+function jobsOf(file) {
+  const text = fs.readFileSync(path.join(REPO_ROOT, '.github/workflows', file), 'utf8').replace(/\r\n/g, '\n');
+  return [...text.matchAll(/^    name: (.+)$\n(?:.*\n)*?^    timeout-minutes: (\d+)$/gm)].map((m) => ({
     name: m[1].trim(),
     timeout: Number(m[2]),
   }));
-  assert.ok(jobs.length >= 5, `expected to find the ci.yml jobs, found ${jobs.length}`);
+}
 
-  for (const j of jobs) {
-    if (j.name === BUDGET_JOB_NAME) continue; // the judge does not judge itself
-    const limit = budget.jobs[j.name];
-    assert.ok(limit, `ci.yml job "${j.name}" has no ceiling in ${BUDGET_FILE}`);
-    assert.ok(
-      limit.maxMinutes < j.timeout,
-      `"${j.name}" is budgeted at ${limit.maxMinutes} min but killed at ${j.timeout} — a ceiling at or above ` +
-        'the timeout can never fire first, which makes it decoration',
-    );
+// TWO WORKFLOWS, not one. `review.yml`'s constitution and agent-review jobs are
+// both REQUIRED contexts in .github/rulesets/main.json — a pull request is not
+// green until they are — so a budget that only knew about ci.yml was describing
+// a fraction of the wall-clock the question "how long does a PR take" asks
+// about. Each entry declares which workflow it belongs to, and this reads every
+// workflow the budget names rather than a list kept here.
+check('the committed budget parses, and every budgeted workflow’s jobs have a ceiling under their timeout', () => {
+  const budget = loadBudget();
+  const workflows = [...new Set(Object.values(budget.jobs).map((l) => l.workflow))];
+  assert.ok(workflows.includes('ci.yml') && workflows.includes('review.yml'), 'both required workflows are budgeted');
+
+  for (const file of workflows) {
+    const jobs = jobsOf(file);
+    assert.ok(jobs.length >= 2, `expected to find the ${file} jobs, found ${jobs.length}`);
+
+    for (const j of jobs) {
+      if (j.name === BUDGET_JOB_NAME) continue; // the judge does not judge itself
+      const limit = budget.jobs[j.name];
+      assert.ok(limit, `${file} job "${j.name}" has no ceiling in ${BUDGET_FILE}`);
+      assert.equal(limit.workflow, file, `${BUDGET_FILE} files "${j.name}" under ${limit.workflow}, but it is in ${file}`);
+      assert.ok(
+        limit.maxMinutes < j.timeout,
+        `"${j.name}" is budgeted at ${limit.maxMinutes} min but killed at ${j.timeout} — a ceiling at or above ` +
+          'the timeout can never fire first, which makes it decoration',
+      );
+    }
+
+    const names = new Set(jobs.map((j) => j.name));
+    for (const [name, limit] of Object.entries(budget.jobs)) {
+      if (limit.workflow !== file) continue;
+      assert.ok(names.has(name), `${BUDGET_FILE} budgets "${name}", which ${file} no longer defines`);
+    }
   }
 
-  const names = new Set(jobs.map((j) => j.name));
-  for (const name of Object.keys(budget.jobs)) {
-    assert.ok(names.has(name), `${BUDGET_FILE} budgets "${name}", which ci.yml no longer defines`);
+  // Every REQUIRED check that is a job in a budgeted workflow must be budgeted:
+  // the required set is what a pull request actually waits on.
+  const ruleset = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, '.github/rulesets/main.json'), 'utf8'));
+  const required = ruleset.rules
+    .find((r) => r.type === 'required_status_checks')
+    .parameters.required_status_checks.map((c) => c.context);
+  const declared = new Set(workflows.flatMap((f) => jobsOf(f).map((j) => j.name)));
+  for (const context of required) {
+    if (!declared.has(context)) continue; // CodeQL and the audits live in workflows this budget does not cover
+    assert.ok(budget.jobs[context], `"${context}" is a required check with no ceiling in ${BUDGET_FILE}`);
   }
 
+  const ciJobs = Object.values(budget.jobs).filter((l) => l.workflow === budget.run.workflow);
   assert.ok(
-    budget.run.maxMinutes >= Math.max(...Object.values(budget.jobs).map((l) => l.maxMinutes)),
+    budget.run.maxMinutes >= Math.max(...ciJobs.map((l) => l.maxMinutes)),
     'the run ceiling must not be below the slowest job it contains, or it can never be met',
   );
+});
+
+// A budget spanning two workflows must not report the other one's jobs as gone
+// the moment it judges a run: a review.yml run contains no ci.yml jobs and vice
+// versa, and calling that "renamed or deleted" would be a finding on every run.
+check('a run is judged against its OWN workflow’s entries, never the other one’s', () => {
+  const twoWorkflows = {
+    ...BUDGET,
+    run: { maxMinutes: 24, why: 'the wall-clock a pull request waits on', workflow: 'ci.yml' },
+    jobs: {
+      Fast: { maxMinutes: 3, why: 'a dependency-free script over the diff', workflow: 'ci.yml' },
+      Slow: { maxMinutes: 15, why: 'the long pole', workflow: 'ci.yml' },
+      Lens: { maxMinutes: 9, why: 'a model reads the change back', workflow: 'review.yml' },
+    },
+  };
+  const ciRun = evaluate(twoWorkflows, [job('Fast', 0, 2), job('Slow', 0, 10)]);
+  assert.deepEqual(ciRun.findings, [], 'the review.yml entry is not stale, it simply was not in this run');
+
+  const reviewRun = evaluate(twoWorkflows, [job('Lens', 0, 4)]);
+  assert.deepEqual(reviewRun.findings, [], 'and the same holds in the other direction');
+
+  // Staleness is still reported INSIDE the workflow being judged.
+  const renamed = evaluate(twoWorkflows, [job('Fast', 0, 2)]);
+  assert.equal(renamed.findings.length, 1);
+  assert.equal(renamed.findings[0].kind, 'stale');
+  assert.equal(renamed.findings[0].target, 'Slow');
 });
 
 check('cli args parse', () => {

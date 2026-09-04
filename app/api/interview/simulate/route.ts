@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db/interviews";
 import { meterGate } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { coerceLanguage, defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
@@ -15,6 +16,14 @@ import {
   studentInterviewerInstructions,
   studentRunOfShow,
 } from "@/app/_lib/student-interview";
+
+// Per-IP spend door, the sibling of /create's. A simulation mints a REAL,
+// billable voice session that /complete debits exactly like a candidate screen -
+// and on a SELF-HOSTED install it skips meterGate entirely, so on that
+// deployment this limiter is the ONLY bound on how many sessions one caller can
+// mint. 20/10min: a recruiter trying the agent takes the call before starting
+// another, so twenty in ten minutes is far above honest pace.
+const SIMULATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 
 type SimMode = "student" | "student-case" | "regular";
@@ -78,7 +87,13 @@ export async function POST(request: NextRequest) {
     const workspace = await currentWorkspace();
     if (!isSelfHostedProvider(provider)) {
       const quota = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(durationMin), workspace });
-      if (quota) return NextResponse.json(quota, { status: 402 });
+      if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
+    }
+
+    // AFTER the 402 above (a refused meter costs no budget and must not be masked
+    // by one) and BEFORE the session row, which is the billable artifact.
+    if (!rateLimit(`interview-simulate:${clientIpFrom(request.headers)}`, SIMULATE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     const session = createInterviewSession({

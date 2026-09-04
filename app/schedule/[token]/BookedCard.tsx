@@ -3,11 +3,13 @@
 import type { ReactNode } from "react";
 import { CalendarClock, Check, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { SCHEDULE_FOCUS_ID } from "./schedule-focus";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { AddToCalendar } from "@/app/features/hiring/schedule/ScheduleAddToCalendar";
 import { candidateCalendarEvent } from "@/app/_lib/calendar-links";
 import type { Invite } from "./use-schedule-invite";
 import { useTzLabel } from "./use-schedule-invite";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 /** The confirmed-booking card: the slot, the delivery claim, the join / add-to-calendar
  *  / reschedule actions, the RSVP row and the withdraw exit. `proposeSection` is the
@@ -67,7 +69,9 @@ export function BookedCard({
     // action of the page previously swapped in visual-only, leaving SR users with no
     // signal that the slot was booked.
     <div role="status" aria-live="polite" className="rounded-lg border border-moss/40 bg-moss/5 p-5">
-      <p className="flex items-center gap-2 font-serif text-h2 text-ink">
+      {/* The focus anchor for this surface (schedule-focus.ts) — the primary action of
+          the whole page ends here, so this is where focus goes when the picker swaps out. */}
+      <p id={SCHEDULE_FOCUS_ID.booked} tabIndex={-1} className="flex items-center gap-2 font-serif text-h2 text-ink">
         <Check className="text-moss" aria-hidden /> {t("bookedTitle")}
       </p>
       <p className="mt-2 text-body text-ink">
@@ -137,7 +141,7 @@ export function BookedCard({
               type="button"
               disabled={rsvpPending !== null}
               onClick={() => onRsvp("confirm")}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className={`${BTN_AFFIRM} px-3 py-1.5 text-base`}
             >
               <Check size={15} aria-hidden /> {rsvpPending === "confirm" ? t("booking") : t("rsvpConfirm")}
             </button>

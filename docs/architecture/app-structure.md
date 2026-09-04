@@ -76,6 +76,15 @@ changes" pattern, guarded by the previously-seen param) rather than in an effect
 so there is no frame of the wrong tab before a correction. The effect does only
 the side effect: emptying the inbox.
 
+The three rules — what a cold load renders, when a param counts as an *arrival*,
+and when the inbox is emptied — are pure functions in `shell/nav/urlInbox.ts`
+(`initialInboxValue`, `arrivalAdoption`, `shouldEmptyInbox`), pinned by
+`urlInbox.test.ts`; the hook is the React plumbing around them. The rule worth
+reading twice is that an **absent** param is an arrival to *record* but never a
+value change: the hook clears the param it just consumed, so treating that
+absence as "the default arrived" would bounce every deep link back to Overview
+one frame after it landed.
+
 `parse` owns the vocabulary, so legacy ids (`?tab=profile`, `?tab=dev`) still
 resolve via `LEGACY_TAB_ALIASES` and a gated tab (`AGENTS_TAB_IN_NAV`) is
 *rejected* rather than adopted-then-corrected — a link to a gated view is inert
@@ -183,6 +192,71 @@ password-protected deploy has an anonymous principal to distinguish. A `/api/dem
 demo session is deliberately *not* an operator (see `require-operator.ts`), so it also
 sees the un-badged rail on these three pages.
 
+### The shell reads the caller's capabilities, and stops offering shut doors
+
+Until wave 19b nothing under `app/features/shell/` read a capability. The rail
+offered Organization, Billing, Models, Integrations and Workspaces to every member,
+and the palette's "Go to" list offered the same doors plus the guided-tour command —
+which starts a run that MOVES CANDIDATES, a pipeline write. Wave 18a's capability
+gates then refused each of those requests server-side, so a viewer's only feedback
+was a 403 rendered as a failed load.
+
+- **The table** is `shell/navCapabilities.ts`. Every entry mirrors the capability
+  the tab's own primary route already enforces — `organization` → `members:manage`
+  (`/api/org/invites`), `billing` / `models` / `integrations` → `org:manage`,
+  `workspace` → `team:manage` (`POST /api/workspaces`), `hiring` → `pipeline:write`
+  (`/api/decisions/config`), and the tour → `pipeline:write`. `branding` is
+  deliberately absent: its door is `requireOperator`, not a capability, so no entry
+  would be truthful. Pinned by `navCapabilities.test.ts`.
+- **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
+  per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
+  so a late mount sees the answer on its first render). A dedicated route rather
+  than `/api/org/members`' `callerCapabilities`, because that payload is the whole
+  member roster, it 401/403s for exactly the callers whose shell must still render,
+  and open dev mode / an operator-password session hold no membership row at all
+  (both fold to owner inside `callerCapabilities`). The deep-link sidebar
+  (`WorkspaceNav.tsx`) resolves the same set server-side — it has no client hook to
+  hang a fetch on — and passes `[]` for a non-operator.
+- **It fails open.** An unresolved set is `null`, and `null` locks nothing. A shell
+  that hid an owner's Billing tab because one GET blipped would be a worse failure
+  than the one this closes; the server gates remain the enforcement.
+- **Rail vs palette differ on purpose.** A locked rail row STAYS, disabled, with the
+  capability named in its tooltip (`nav.lockedTab` + `nav.capabilities.*`), because
+  a landmark that vanishes for the person who holds the key reads as a broken build.
+  The palette simply omits them: it is a search over things you can act on.
+
+### The tab error boundary speaks the reader's language
+
+`app/_components/ErrorBoundary.ts` is the fallback a reader meets when a tab's
+render throws. Its three strings were hardcoded English — the only shell copy
+outside the catalogs — because React error boundaries must be class components and a
+class cannot call `useTranslations`. They now arrive as a `messages` prop, and
+`TranslatedErrorBoundary` (a function component in the same file) resolves them from
+the `errorBoundary` catalog; the caller names a label KEY (`"tab"` / `"panel"`),
+never a string. The file is `.ts` with `createElement` rather than `.tsx`: `node
+--test` strips types but cannot compile JSX, and that is what makes
+`ErrorBoundary.test.ts` able to render the real fallback and assert the real strings
+(plus the `resetKey` contract that keeps a tab switch from inheriting the previous
+tab's fallback).
+
+### The badge poll backs off; the palette has a door on a phone
+
+- `shell/useAttention.ts` re-armed at a flat 60 s whether or not the last read
+  reached the server — one request a minute for ever, from every open tab, against a
+  restarting server or a laptop off the network. It now rides the tasks dock's curve
+  (`shell/attentionPoll.ts`, built on `app/_lib/task-poll-state.ts`'s constants):
+  60 s healthy, then 60 s / 2 m / 4 m / 8 m / 10 m capped, reset by one success. A
+  hidden document skips the request without counting a failure, and
+  `visibilitychange` reads immediately on return — coming back is when a stale badge
+  is most visibly wrong. Pinned by `attentionPoll.test.ts`.
+- Below `md` the palette's rail trigger lives inside the off-canvas `<aside>`, which
+  is `inert` while shut — so on a handset the global search had no door at all. The
+  mobile top bar now mounts a second `CommandPalette variant="bar" hotkey={false}`;
+  exactly one instance owns the document-level Ctrl/Cmd+K (the rail's), so one
+  keypress never opens two dialogs. That handler also refuses to open OVER another
+  dialog (`isAnyModalOpen()`) — stacking the palette on an unsaved edit dialog let
+  the reader Enter their way out of a form they were mid-way through.
+
 ### The command palette lives on the rail
 
 `shell/WorkspaceCommandPalette.tsx` is the Ctrl/Cmd+K search + navigator. Its
@@ -222,12 +296,43 @@ never `pipelineAnalytics` or a Python spawn). Operator-only tabs (billing, model
 integrations, organization, workspaces) resolve to `{ view: "restricted" }` for a
 demo session (`isOperator()`); the analysis view applies the same PII masking as
 `/api/analyses/[slug]`. Client side, `shell/palette/usePalettePreview.ts`
-(120 ms debounce, aborting, 30 s per-key memo) feeds `PalettePreviewPane.tsx`,
+(120 ms debounce, aborting) feeds `PalettePreviewPane.tsx`,
 which dispatches to one small renderer per view (`PreviewHiring.tsx`,
 `PreviewLibraryTools.tsx`, `PreviewInsightsSettings.tsx`, `PreviewEntities.tsx`)
 built from `previewBits.tsx` (Tiles/Tile, Row, Status dot, Chips, RankList,
 `useFmt`). Copy lives under the `palettePreview` catalog namespace. Adding a
 destination = one union member + one resolver case + one renderer.
+
+**"Cheap" means the read cannot grow with the corpus.** The pane opens on a
+keystroke, so a resolver's cost is a per-keystroke cost, and two of them had
+quietly stopped being cheap in a way no assertion about the ANSWER could see (the
+numbers were always right):
+
+- `resolveAgents` listed the hired agents and then called `getAgentAggregates`
+  **per agent** — one activity query per hire. It now reads
+  `getWorkspaceAgentTotals(ws)`: one grouped read, running the same per-agent
+  precedence rule (a month's rollup row is authoritative for that month; months
+  without one sum their execution events), so the totals are identical.
+- `resolveProfile` did `listPipeline(ws).filter(...).slice(0, 3)` — the whole
+  board hydrated through `rowToEntry`, github JSON and notes included, to keep
+  three rows. It now calls `listCandidatePlacements(id, ws, 3)`, a projection of
+  two columns with the LIMIT in SQL.
+
+[`bounded-reads.test.ts`](../../app/_lib/palette-preview/bounded-reads.test.ts)
+pins the property rather than a number: it counts PREPARED STATEMENTS around a
+resolver call and asserts the count is the same at 2 agents and at 8 (before the
+fix: 3 and 9). A new resolver that loops a store read fails there.
+
+The memo behind it lives in `shell/palette/previewCache.ts` and is keyed on
+**(workspace, query)**, not on the query alone: a palette query says nothing
+about whose numbers it asked for, so a query-only key let one document re-show
+the previous tenant's counts for the whole 30 s TTL after an in-place team
+switch. An unresolved tenant is not a key — nothing is read and nothing is
+written, so the worst case is a colder pane rather than a wrong one. The tenant
+comes from the same door `shell/recents.ts` uses (`GET /api/workspaces` →
+`current`; the session cookie carrying it is httpOnly), resolved once per
+document, and changing it empties the cache. `previewCache.test.ts` pins the
+scoping, the TTL boundary and the three response shapes that mean "error".
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group
@@ -248,12 +353,16 @@ carrying the awaiting-decisions beacon and the aiBusy pulse, at bottom CENTRE.
 Raised, it is a fixed footer ROW: a bordered panel box, the open/close handle
 above it, and the guided-demo button beyond its right border.
 
-- **Outside the borders** (`SimControlDockRail.tsx`) — `DockBrand`, the Candi
-  switch that lowers the deck, and the ONE guided-demo button. Neither ever hides,
-  because each is the only route to what it opens; the guide sheds its TEXT below
-  `md`, leaving a 44px square that still hits the touch target. The panel is
-  `min-w-0 flex-1`, so it absorbs the remaining width and wraps its own row rather
-  than colliding with the guide.
+- **Outside the borders** (`SimControlDockRail.tsx`) — the Candi power switch
+  (`DockBrand`, the only control that lowers the deck, carrying the aiBusy pulse)
+  and the ONE guided-demo button on the right. Round 4 removed the logo, the
+  "Control center" wordmark and the mode subtitle that used to sit beside the
+  switch ("it does not bring value" — operator, 2026-08-24); the switch is
+  icon-only at every width. Neither element ever hides, because each is the only
+  route to what it opens; the guide button sheds its LABEL below `md` instead,
+  leaving a square that still hits the touch target. The panel is `min-w-0
+  flex-1`, so it absorbs the remaining width and wraps its own row rather than
+  colliding with the guide.
 - **The handle is the same mark in the same column in both states.** `DockBrand`
   is absolutely positioned against the footer row's top-CENTRE (`bottom-full`),
   directly above where the collapsed orb rests, and `CandiSwitch` carries a
@@ -278,6 +387,20 @@ above it, and the guided-demo button beyond its right border.
   keyed by a single `panel` state (`DockPanelId = "sim" | "ops" | "command" |
   "schedule" | "candi"`). Re-selecting the active control closes it
   (`toggleDockPanel()`); Escape closes it too, leaving the row in place.
+
+**Keyboard truth, and the two surfaces that share Escape.** The whole Escape
+decision is `dockEscapeAction()` in `simControlDockLayers.ts`, pure and pinned by
+tests. ONE press dismisses ONE surface: the companion window is stacked above the
+deck, listens on `document` (which propagation reaches before `window`, where the
+dock listens) and now marks its own key handled with `preventDefault()`, and the
+dock ignores an already-handled event. So Escape closes her first and the next
+press closes what she was covering. Focus never falls to the body: dismissing a
+panel returns focus to the control that opened it (`dockTabDomId`, which the guide
+button outside the border carries too), and lowering the deck moves focus to the
+orb that replaces it. There is no focus trap in either direction — the dock is
+chrome, not a modal. In window mode "Ask Candi" is a TOGGLE, because the row
+announces it with `aria-pressed` and that is a promise the second press undoes the
+first.
 
 | Control | Where | Opens |
 | --- | --- | --- |
@@ -333,9 +456,17 @@ the sim panel the moment a run begins, and names the deck in the layer-1 subtitl
 | `sim` | a guided run is `running`, `done`, or **failed** (`error !== null`), or the page arrived at the public `/?sim=auto` entry | Guided demo |
 | `ops` | otherwise | Automations |
 
-`--sim-bar-h` (the height the sim overlays anchor above) is republished on every
-panel open/close for free: `usePublishBarHeight()` observes the deck with a
-`ResizeObserver` rather than recomputing on a state change.
+`--sim-bar-h` (the height the sim overlays and the companion window anchor above)
+is republished on every panel open/close for free: `usePublishBarHeight()`
+observes the deck with a `ResizeObserver` rather than recomputing on a state
+change. It tracks BOTH deck states — the raised footer row and the collapsed orb,
+one call switching refs — and measures from the viewport's bottom edge rather than
+reading `offsetHeight`, because the orb is a small fixed element sitting above
+that edge and what the companion has to clear is the whole occupied strip. The
+fallback in `app/globals.css` applies only before the first measurement.
+
+The guided demo behind the console has its own feature doc:
+[`docs/features/simulation/README.md`](../features/simulation/README.md).
 
 `error` is part of the predicate on purpose: the walk's failure path patches
 `{ running: false, error, status: "Failed: …" }` in one `setState`, so without it
@@ -439,16 +570,28 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 
 | File | Role |
 | --- | --- |
-| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the 2s/6s poll, start/cancel/retry, the read/unread ack, and `loadFailed` (the last poll did not reach the queue). Survives tab switches |
+| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the poll, start/cancel/retry, the read/unread ack, and the health flags (`loadFailed`, `queueUnreachable`). Survives tab switches. Its state machine and schedule are `app/_lib/task-poll-state.ts` |
 | `TasksIndicator.tsx` | Sidebar-footer entry: ONGOING count, unread badges, start-failure alert, load meter |
 | `TasksTab.tsx` | Header, start-error banner, the filter state (shared by the live table and the history pager) |
 | `TasksRunsPanel.tsx` | The recent window as ONE paginated table (`TablePager`, 20 rows) — and the dwell-ack, because this is where the visible page slice lives |
 | `TasksTable.tsx` | Table shell + `ColumnFilter` headers, shared by the live window and history |
-| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal |
+| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal. What the drawer SAYS is `app/_lib/task-outcome-summary.ts` |
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
+| `taskSearch.ts` (+ `.test.ts`) | The free-text predicate — `taskSearchNeedle` folds what was typed, `taskMatchesSearch` tests it against the RENDERED label and the raw kind |
 
-Five decisions are load-bearing:
+Eleven decisions are load-bearing:
+
+- **The search box is one predicate, and it speaks the reader's language.** The live
+  window and the history trail below it are a single question, so the filter is a
+  shared pure function (`taskSearch.ts`) rather than the same expression typed out in
+  `TasksTab.tsx` and `TasksHistory.tsx` — two copies is how a run matches above the
+  recent/history boundary and vanishes below it. It matches the label AS RENDERED
+  (`renderTaskLabel`), never the stored `kp.tl:{…}` catalog reference, with the raw
+  kind kept as a second haystack for an operator who knows the internal name. Needle
+  and haystack are BOTH diacritic-folded, so a Czech reader searching "prubeh" finds
+  "Průběh" — the previous `.toLowerCase()` made search in three of the four catalogs
+  worse than in English. The needle is folded once per keystroke, not once per row.
 
 - **Retry replays the persisted params, but only when they still resolve.**
   `POST /api/tasks/[id]/retry` re-runs a failed/interrupted/canceled row
@@ -461,6 +604,42 @@ Five decisions are load-bearing:
   the rows `TasksRunsPanel` actually drew — its page slice, already narrowed by the
   column filters. Acking the whole polled window while the table paginates 20 at a
   time acknowledged outcomes on pages the reader never turned to.
+- **One door, many prices.** `POST /api/tasks` fronts every kind in `HANDLERS`, so
+  the budget is per KIND CLASS (`app/_lib/task-budget.ts`): cheap 120/10min per IP,
+  metered 30/10min + 90/hour per workspace, agent 6/10min + 15/hour per workspace.
+  `POST /api/tasks/[id]/retry` applies the same class budget under the SAME keys —
+  a replay costs what the original did and cannot double an allowance. Full
+  reasoning in `docs/architecture/api-contracts.md` §1.4.
+- **Both doors refuse with a code.** Start and retry answer every refusal through
+  `jsonRefusal` with a `TASK_*` code (`TASK_KIND_UNKNOWN`, `TASK_BUDGET_EXHAUSTED`,
+  `TASK_NOT_FOUND`, `TASK_NOT_RETRYABLE`, `TASK_REPLAY_INPUTS_GONE`) and their 500s
+  through `safeJsonError`, so the dock's start-error banner resolves `errors.<CODE>`
+  in the reader's language instead of painting the handler's English. Their rows are
+  DELETED from `error-response-contract.test.ts` rather than lowered.
+- **Terminal is final.** `finishTask` guards on `status IN ('queued','running')`
+  like `markTaskRunning` and `setTaskProgress` always have, and returns whether it
+  wrote. Abort is cooperative — a Python child takes seconds to die — so a handler
+  finishing after a cancel used to overwrite the `canceled` row with `succeeded`
+  and its result, and a run returning after the wall-clock reaper undid the
+  reaper's `interrupted`.
+- **An outcome speaks its kind, or says nothing.** `taskOutcomeSummary(kind, result)`
+  (`app/_lib/task-outcome-summary.ts`, pure and unit-tested) returns `(label key,
+  value)` lines the drawer translates. Every kind in `HANDLERS` either has a mapper
+  or sits in `NO_TABLE_SUMMARY` with a stated reason, and the test fails on a kind
+  that has neither — before it, one kind (`batch_screen`) had a real renderer and
+  the other sixteen fell through an `Object.entries(result)` dump that printed the
+  raw handler key beside `String(value)`: the whole generated JD under `markdown`,
+  `cached true`, `source deterministic`, untranslated in all four locales. The
+  generic path is now an allowlist of the four envelope shapes every handler shares
+  (`source` / `applied` / `ok`+`total` / `cached`); a mapper reads defensively, so a
+  field it cannot find produces no line rather than a wrong one. Vocabulary tokens
+  render through `tasks.outcome.value.*`, so `held_for_review` never reaches a reader.
+- **The poll backs off when the queue stops answering.** `pollDelayMs` is 2s while
+  something is active and 6s otherwise, but after N consecutive failures it is
+  4s, 8s, 16s, 32s, then a 60s ceiling — one success resets it. A flat 2s against a
+  dead endpoint was 30 requests a minute per open tab for as long as the server was
+  down. After the SECOND consecutive failure `queueUnreachable` flips and the sidebar
+  says so: the counts and the frozen progress bar on screen are a snapshot, not live.
 - **An unread poll is not an empty one.** A dropped fetch or a 500 leaves `tasks`
   at `[]` on a first load; `loadFailed` carries that third state so the panel says
   the server is unreachable instead of asserting "No recent AI tasks" over runs it
@@ -489,7 +668,7 @@ rail carries the brand, the stepper and the language switch:
 | Step | Asks for | Persisted by `finish()` |
 | --- | --- | --- |
 | Welcome | nothing (the pitch) | — |
-| Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` |
+| Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` (reported, see below) |
 | Team | invites (optional) | `POST /api/org/invites` per row |
 | Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
 | Hand-off | how to begin (tour / solo) | stamps `POST /api/me/onboarding` |
@@ -511,13 +690,63 @@ Backward navigation is never capped.
 
 **`finish()` is best-effort per step, never silently so**
 (`setupOnboardingFinish.ts`). Each write is allowed to fail without sinking the
-rest, but the closing toast reports what actually landed: the invite POSTs are
-`allSettled` *and* their `ok` is read, so a row the route refuses (400 malformed
-address, 403 above the caller's role, 409 already a member) downgrades
-`setup.toast.saved` to `setup.toast.partial` instead of closing on a green claim
-nobody verified. The Team step keeps the first half of that bargain by refusing
-to stage an address the route would reject at all (`SetupInviteEditor.tsx`), so
-the common mistake is caught where it is made rather than four steps later.
+rest, but the closing claim is ONE truthful fold of all of them
+(`setupFinishOutcome.ts`): every write reports a `SetupPartResult` — `landed`,
+`skipped` (an empty invite list, an untouched axis, a blank name: legitimate
+answers) or `refused` with the server's machine CODE — and `foldSetupOutcome()`
+turns those into the toast. All landed → `setup.toast.saved`; anything refused →
+`setup.toast.partialLead` followed by one line per part naming **what** did not
+land and **why**, the reason resolved from the code through `useErrorMessage()`
+so it arrives in the reader's language.
+
+This matters because none of these writes throws. `setOrgName`/`setOrgLanguage`
+return `{ ok: false, code: "ORG_SETTINGS_FORBIDDEN" }` when the caller lacks
+`org:manage` (`_lib/org-actions.ts`), `POST /api/org/invites` refuses per address
+(400 malformed, 403 above the caller's role, 409 already a member) and the axis
+write can answer 409 — a finish that only watched for exceptions closed on a green
+"your workspace is set up" while the workspace kept the seed default as its
+identity on every generated JD, offer and candidate mail. Invite results carry the
+**address** as well as the code, so the partial line names the invitee that was
+refused. The Team step keeps the first half of that bargain by refusing to stage
+an address the route would reject at all (`SetupInviteEditor.tsx`), so the common
+mistake is caught where it is made rather than four steps later.
+
+`brand` is the fifth part, and it is in the fold for the REFUSAL only. The accent
+and the logo are decoration the operator can redo in Settings in one click, so a
+brand that lands says nothing in the closing sentence — but `PUT /api/brand`
+refuses an accent it cannot paint legibly in **both** themes
+(`BRAND_ACCENT_ILLEGIBLE_LIGHT` / `BRAND_ACCENT_ILLEGIBLE_DARK`) or a logo URL it
+cannot store (`BRAND_LOGO_INVALID`), and `persistSetupBrand()` used to fire that
+write and discard the response under a comment reading "brand is a nice-to-have".
+That was true of a failure and false of a refusal: the wizard closed green over a
+brand the server had never stored, and the operator's next clue was the app still
+wearing the default color. A network fault reports the same way, with a null code,
+because nothing was stored then either. The Company step keeps its half of the
+bargain the way the Team step does — its custom-color picker asks
+`accentIsLegible(hex, "light")` **and** `deriveDarkAccent(hex)` before accepting a
+pick, so the two-theme rule is enforced where the color is chosen rather than four
+steps later (docs/design/README.md, "The custom accent, in both themes").
+
+**The wizard survives a reload** (`setupDraft.ts` + `useSetupDraft.ts`, live mode
+only). Answers are mirrored into `sessionStorage` under a key scoped to the
+principal — `GET /api/me/onboarding` answers the same user-else-workspace identity
+the stamp writes under, because session storage outlives a logout inside one tab
+and the next person to sign in must not inherit a half-typed setup. Only the
+operator's own answers travel (name, accent, logo, invites, consent, the axis
+*draft*, the step); `pipeline.stored`/`counts` and the brain probe are re-read from
+the server, so the dirty check keeps comparing against real truth. The merge lets
+anything typed in this mount win over the restored value, and finishing or
+dismissing clears the slot — a dismissal is an answer, not an interruption.
+
+**It is a real dialog.** The overlay uses the shared `useDialogA11y()` (focus in
+on open, Tab trapped, Escape dismisses, page scroll locked), so it joins the same
+stack every other modal is on instead of running a bare `keydown` listener beside
+an `aria-modal` it never enforced. Each step change moves focus to the step's
+`<h2>` (`SetupWizardStepPane.tsx`, remounted per step so the move happens after
+the crossfade) and updates a persistent `aria-live` region with
+`setup.aria.stepAnnounce`; the org-name field therefore carries no `autoFocus` —
+two effects racing for focus on one commit is a coin flip, and the announcement
+has to win.
 
 **Step 4 replaced a "First role" step** that collected the inputs of a real
 backgrounded JD build. Authoring a job description belongs in the Library, where a
@@ -550,6 +779,51 @@ The journey won a `/prototype` round against a columns-preview of the same axis
 (deleted): a first-run reader does not recognise the board yet, so explaining the
 process beat rehearsing a screen. Nothing in the view is uppercase — `text-meta`
 is a form-section marker, and this step is prose.
+
+## The root document — what `app/layout.tsx` decides for every page
+
+Above every tab, every candidate token door and every marketing page sits one
+layout, and four of its decisions are contracts rather than implementation
+details. They had no assertion anywhere until `app/shell-headers.test.ts` (unit,
+source-derived) and `e2e/shell.spec.ts` (over the wire, in the keyless CI subset)
+landed; before that a regression in any of them shipped silently.
+
+**1. `<html lang>` and the language alternates.** `lang` is the per-request
+locale from `i18n/request.ts` (cookie → `Accept-Language` → `en`). Shared
+candidate links carry `?lang=`, which `proxy.ts` translates into the
+`NEXT_LOCALE` cookie, so the second click keeps the language. The document now
+also declares `alternates.languages` for all four locales plus an `x-default` —
+relative, so each route advertises **its own** alternates rather than the site
+root's — which is what stops a crawler reading `/jds/<slug>?lang=cs` as a thin
+duplicate of the English page. `og:locale` maps the same four (`OG_LOCALE`); a
+locale added to `i18n/locales.ts` and forgotten there falls back to `en_US`
+silently, so keep the two in lockstep.
+
+**2. The pre-paint theme bootstrap.** An inline script, evaluated before first
+paint (a React effect would run after it, which is a visible flash): an explicit
+`kp-theme` choice in `localStorage` wins, otherwise `prefers-color-scheme`
+decides. It now carries the request's CSP nonce — see §1.5b of
+[api-contracts.md](api-contracts.md) for where that comes from.
+
+**3. Which pages the dark theme may never reach.** `THEME_FIXED_ART_PATHS` in
+the layout. The membership test is mechanical: **a route whose `page.tsx`
+renders a component out of `app/landing/`** — the one directory
+`npm run design:check` exempts from the token law, i.e. a fixed art direction in
+literal hexes with no `dark:` variants. That is `/about` and `/market` today;
+`/` is the fourth case and cannot be decided by path, since it serves the landing
+only to a visitor without the `kp_entered` cookie (the same signal `app/page.tsx`'s
+server gate reads). `app/shell-headers.test.ts` derives the set from the source
+tree and fails when the list falls behind it — which it had: `/market`
+(MarketPulse, 87 literal hexes) shipped outside the list, so a dark-preference
+visitor got `data-theme="dark"` over artwork that cannot follow. The other three
+indexed pages — `/trust`, `/privacy`, `/terms` — are fully token-based and
+correctly render in both themes.
+
+**4. The icon.** `app/icon.svg` is served at `/icon.svg?<hash>` and linked from every
+document, but browsers, feed readers and unfurlers probe the well-known
+`/favicon.ico` root path unprompted — which answered 404. `next.config.ts`
+`redirects()` sends it to `/icon.svg` (the static-file convention keeps the extension; the bare `/icon` route is the generated `icon.tsx` variant this app does not use), temporary rather than permanent so the icon
+convention can change without fighting a 308 cached in every visitor's browser.
 
 ## Pinned filenames
 

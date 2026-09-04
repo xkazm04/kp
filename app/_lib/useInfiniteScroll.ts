@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { asRecord, isLoadFailure } from "./load-state";
 
 export type InfinitePhase = "initial" | "more" | "idle" | "error";
 
@@ -57,9 +58,11 @@ export function useInfiniteScroll<T>({ pageSize, buildUrl, selectPage, errorLabe
     setError(null);
     try {
       const res = await fetch(buildUrl(nextOffsetRef.current, pageSize));
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok || !body || body.error) {
-        throw new Error(body?.error || `Load failed (${res.status}).`);
+      const body = asRecord(await res.json().catch(() => null));
+      // The SAME rule useJsonFetch and useLoader read (load-state.ts) — this was
+      // the third hand-rolled copy of it.
+      if (isLoadFailure(res.ok, body)) {
+        throw new Error(typeof body?.error === "string" && body.error ? body.error : `Load failed (${res.status}).`);
       }
       const page = selectPage(body);
       setItems((prev) => [...prev, ...page.items]);

@@ -4,8 +4,22 @@ import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decis
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 export const maxDuration = 60;
+
+// The heaviest door in the Decisions tab and the only one that was unthrottled: a
+// commit rejects real candidates, seals a record each and QUEUES THEIR ADVERSE-ACTION
+// EMAIL, and the dry-run preview runs the same cohort ranking (a full scored read per
+// hit) — the sibling write doors /api/pipeline/batch and /api/decisions/config both
+// self-limit, this one did not. The operator gate above is a documented no-op in open
+// mode (KP_OPERATOR_PASSWORD unset), so the limiter is the real bound. One budget for
+// preview AND commit on purpose: the preview is the expensive half and a commit is
+// always preceded by one. 60/10min per IP sits far above a recruiter tuning the
+// sliders (the preview is debounced at 350ms) and pins a scripted loop at 6/min.
+const WAVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 // Run the screening auto-reject wave over one role's matched cohort. An optional
 // `override` rule lets the simulation/preview run it without changing the saved
@@ -18,6 +32,13 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
+  // proves a trusted session is present — in open mode it is true for everyone —
+  // so it is identity, never authority. This write is a recruiter operation: ask
+  // the seat for `pipeline:write`, so a viewer is refused with a code instead of
+  // silently mutating the board.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     // Tenant (P1): scope the whole wave — cohort read, approval token, commits, and
     // seals — to the caller's team. Without this the wave would rank and reject the
@@ -41,6 +62,12 @@ export async function POST(request: NextRequest) {
     // mutation/comms. Default false (commit), so an old client without the flag
     // behaves exactly as before; only an explicit `true` previews.
     const dryRun = body.dryRun === true;
+    // Placed after every cheap refusal (missing jobId, malformed override) so a request
+    // that was never going to run a wave costs no budget, and before runScreenWave —
+    // the cohort read, the commits, the seals and the comms.
+    if (!rateLimit(`screen-wave:${clientIpFrom(request.headers)}`, WAVE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // Human-approval gate (Art. 22): a commit must carry the approval token the
     // recruiter reviewed in the preview. Missing / no longer matching the live set /
     // older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (the token carries its own issue
@@ -77,7 +104,12 @@ export async function POST(request: NextRequest) {
     // No human approval (or a token that no longer matches the live set) → 409 so
     // the client re-previews and re-approves the current set before committing.
     if (error instanceof ScreenWaveApprovalError) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+      // `reason` is the machine-readable half of the same refusal (see
+      // SCREEN_WAVE_REFUSAL_REASONS). The five refusals ask the recruiter for five
+      // different things — approve the set / re-preview a changed set / re-preview an
+      // aged review / stop re-committing a review already spent / sign in or set
+      // KP_OPERATOR_NAME — and a client with only the sentence cannot branch on them.
+      return NextResponse.json({ error: error.message, reason: error.reason }, { status: 409 });
     }
     // runScreenWave's backstop throws DecisionConfigError on a bad override —
     // surface it as a 400 too, so a schema violation is never reported as a 500.

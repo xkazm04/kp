@@ -17,6 +17,14 @@ Either way it runs a trivial JSON prompt and emits one JSON line:
 On failure: { "ok": false, "provider": ..., "model": ..., "error": "..." }
 with exit code 0 (the verdict IS the payload — the admin Test buttons render
 it either way). Invoked by /api/llm/test and /api/llm/keys/test.
+
+A provider that cannot serve also carries "reason" — one of
+``base.AVAILABILITY_REASONS`` — and names it in the error text. The old line
+said "provider unavailable (missing key or SDK/CLI)" for every descent, so an
+operator who had deliberately set KP_OFFLINE was told to check a key, and the
+one repair the message named was the one that could not help. The "provider
+unavailable" phrase is kept verbatim because app/api/llm/test/verdict.ts
+classifies on it.
 """
 
 from __future__ import annotations
@@ -25,7 +33,18 @@ import argparse
 import json
 import time
 
-from .registry import probe_provider, resolve_provider
+from .registry import probe_provider, provider_availability, resolve_provider
+
+# Operator-facing repair for each descent reason. The reason itself is the machine
+# half (the ledger records it); this is the sentence that says what to actually do.
+_REASON_HINT = {
+    "offline_policy": "KP_OFFLINE is set and this provider's endpoint leaves the box",
+    "missing_key": "no API key resolved from the config or the environment",
+    "sdk_missing": "the provider SDK is not installed in this Python environment",
+    "missing_endpoint": "no Azure resource endpoint configured",
+    "invalid_base_url": "the configured base URL is not a valid credential-free http(s) endpoint",
+    "not_installed": "the Claude CLI is not on PATH",
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,10 +66,13 @@ def main(argv: list[str] | None = None) -> int:
         model = getattr(provider, "model", None)
         if type(provider).__name__ in ("ClaudeCliProvider", "MonitoredClaudeCli"):
             provider_name = "claude_cli"
-        if not provider.available():
+        usable, reason = provider_availability(provider)
+        if not usable:
+            hint = _REASON_HINT.get(reason or "", "missing key or SDK/CLI")
             print(json.dumps({
                 "ok": False, "provider": provider_name, "model": model,
-                "error": "provider unavailable (missing key or SDK/CLI)",
+                "reason": reason,
+                "error": f"provider unavailable ({reason or 'unavailable'}: {hint})",
             }, ensure_ascii=False))
             return 0
         started = time.monotonic()

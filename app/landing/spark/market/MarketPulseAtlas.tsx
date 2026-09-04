@@ -9,7 +9,7 @@
  * at once). Reuses the shared market parts.
  */
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ART_TYPE_SCALE, DISPLAY, HAND } from "../tokens";
 import { snapshot, fmtInt, fmtCzkShort, metricValues, type MapMetric } from "./data";
 import CzMap from "./CzMap";
@@ -36,6 +36,7 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: string; 
 
 export default function MarketPulseAtlas() {
   const t = useTranslations("jobMarket");
+  const locale = useLocale();
   const [metric, setMetric] = useState<MapMetric>("volume");
   // Preselect Praha (CZ010) so the detail card always shows a region — hovering
   // then only swaps its text, never collapses/expands the layout.
@@ -50,7 +51,7 @@ export default function MarketPulseAtlas() {
   // is NaN — which used to render as the literal words "Infinity" and "NaN" in
   // the legend and its aria-label. No values → no legend.
   const vals = metricValues(snapshot.regions, metric);
-  const fmt = metric === "volume" ? fmtInt : fmtCzkShort;
+  const fmt = (n: number) => (metric === "volume" ? fmtInt(n, locale) : fmtCzkShort(n, locale));
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const scale = vals.length ? { lo: fmt(min), mid: fmt((min + max) / 2), hi: fmt(max) } : null;
@@ -77,7 +78,7 @@ export default function MarketPulseAtlas() {
               {[...snapshot.regions].sort((a, b) => b.vacancies - a.vacancies).slice(0, 5).map((r, i) => (
                 <li key={r.code} className="flex items-baseline justify-between gap-2">
                   <span className="truncate text-[19px] font-bold">{i + 1}. {r.name}</span>
-                  <span className="shrink-0 text-[17px] font-bold text-[#42606f]">{fmtInt(r.vacancies)}</span>
+                  <span className="shrink-0 text-[17px] font-bold text-[#42606f]">{fmtInt(r.vacancies, locale)}</span>
                 </li>
               ))}
             </ol>
@@ -87,7 +88,19 @@ export default function MarketPulseAtlas() {
 
       {/* ── Salary field guide ───────────────────────────────── */}
       <section id="salary" className="mx-auto max-w-5xl px-6">
-        <SectionHead eyebrow={t("salary.eyebrow")} title={t("salary.title")} sub={t("salary.subtitle")} />
+        {/* The subtitle now states the BASIS (gross monthly) and the VINTAGE — the
+            survey year was in the snapshot's meta and never reached the reader, so a
+            German or French visitor could read a 2025 gross figure as this year's net.
+            No period in the snapshot → the sentence without it, never a guessed year. */}
+        <SectionHead
+          eyebrow={t("salary.eyebrow")}
+          title={t("salary.title")}
+          sub={
+            snapshot.meta.ispv_period
+              ? t("salary.subtitleDated", { period: snapshot.meta.ispv_period })
+              : t("salary.subtitle")
+          }
+        />
         <SalaryBands families={snapshot.reference_salaries} />
       </section>
 

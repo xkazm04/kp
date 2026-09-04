@@ -39,6 +39,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { useShellNavigate } from "./shallow-nav";
+import { arrivalAdoption, initialInboxValue, shouldEmptyInbox } from "./urlInbox";
 
 /**
  * @param param  the query key to watch (`"tab"`, `"sec"`).
@@ -57,7 +58,7 @@ export function useUrlInboxState<T extends string>(
 
   // Lazy initializer: a COLD load with the param already present must render the
   // right view on the first frame, not flash the fallback and correct itself.
-  const [value, setValue] = useState<T>(() => parse(incoming) ?? fallback);
+  const [value, setValue] = useState<T>(() => initialInboxValue(incoming, parse, fallback));
 
   // Adopt an arrival DURING RENDER, not in an effect — React's documented
   // "adjusting state when a prop changes" pattern. Doing it in an effect would
@@ -65,15 +66,17 @@ export function useUrlInboxState<T extends string>(
   // flash of the wrong tab), and it is what react-hooks/set-state-in-effect
   // exists to catch. Tracking the previous param is what makes this fire once
   // per ARRIVAL rather than on every render.
+  // The rules themselves are pure and pinned in urlInbox.ts (urlInbox.test.ts);
+  // what stays here is only the React plumbing around them.
   const [seen, setSeen] = useState<string | null>(incoming);
-  if (incoming !== seen) {
+  const adoption = arrivalAdoption(incoming, seen, parse, value);
+  if (adoption.isArrival) {
     setSeen(incoming);
-    const parsed = parse(incoming);
-    if (parsed != null) setValue(parsed);
+    if (adoption.value !== value) setValue(adoption.value);
   }
 
   useEffect(() => {
-    if (incoming == null) return;
+    if (!shouldEmptyInbox(incoming)) return;
     // The effect now does only the genuine side effect: emptying the inbox. An
     // unparseable value is cleared too — leaving `?tab=nonsense` in the bar would
     // make a later valid link to the same key look like a no-op, and the reader

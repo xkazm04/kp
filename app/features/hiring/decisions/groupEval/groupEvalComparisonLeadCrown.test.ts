@@ -135,10 +135,12 @@ test("the row order is the union in first-seen (rank) order, and a missing break
 });
 
 test("the KO pill takes precedence over the Lead crown in the header ternary", () => {
-  // koPassed === false must be checked BEFORE isLead so a KO candidate can never be
-  // crowned and the crown can never mask the KO pill.
-  const koIdx = headerSrc.indexOf("c.koPassed === false ? (");
+  // The KO must be checked BEFORE isLead so a KO candidate can never be crowned and
+  // the crown can never mask the KO pill. The predicate is the SHARED koFailed()
+  // helper (groupEvalHelpers.ts), which the legacy view renders from too — the two
+  // views state one rule, not two copies of it.
+  const koIdx = headerSrc.indexOf("koFailed(c) ? (");
   const leadIdx = headerSrc.indexOf(": isLead ? (");
   assert.ok(koIdx >= 0 && leadIdx >= 0, "both branches must exist");
-  assert.ok(koIdx < leadIdx, "the koPassed === false branch must come before the isLead branch");
+  assert.ok(koIdx < leadIdx, "the koFailed branch must come before the isLead branch");
 });

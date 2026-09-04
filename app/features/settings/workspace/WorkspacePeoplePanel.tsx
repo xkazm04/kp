@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { initials } from "@/app/_lib/initials";
 import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
-import { BTN_GHOST, BTN_PRIMARY, PANEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, CHIP, PANEL } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleLabel, roleTone, statusBadge } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
 import { holdsOwnerSeat, memberName } from "./workspaceAdminHelpers";
@@ -27,6 +27,7 @@ export function WorkspacePeoplePanel({
   error,
   canManageMembers,
   busy,
+  pendingMembers,
   onSeatMember,
   onConfirmRemoveFromWorkspace,
   onPatchMember,
@@ -39,6 +40,8 @@ export function WorkspacePeoplePanel({
   error: boolean;
   canManageMembers: boolean;
   busy: boolean;
+  /** Rows with a status write in flight - locked until the reload lands. */
+  pendingMembers: string[];
   onSeatMember: (userId: string, workspaceId: string, role: MemberRole) => void;
   onConfirmRemoveFromWorkspace: (member: OrgMemberDto, workspaceId: string) => void;
   onPatchMember: (userId: string, body: Record<string, unknown>) => void;
@@ -67,7 +70,7 @@ export function WorkspacePeoplePanel({
   }
 
   if (loading) return <div className={`${PANEL} reveal-quiet min-h-[18rem] lg:col-span-3`} aria-hidden />;
-  if (error) return <p className={`${PANEL} p-6 text-sm text-coral lg:col-span-3`}>{tm("loadError")}</p>;
+  if (error) return <p role="alert" className={`${PANEL} p-6 text-sm text-coral lg:col-span-3`}>{tm("loadError")}</p>;
 
   return (
     <div className={`${PANEL} overflow-hidden lg:col-span-3`}>
@@ -78,14 +81,15 @@ export function WorkspacePeoplePanel({
           // Shared with the By-workspace roster (workspaceAdminHelpers) so the two
           // lenses can never disagree about who is shielded from account-level writes.
           const isOwnerSomewhere = holdsOwnerSeat(m);
+          const pending = pendingMembers.includes(m.user.id);
           // Teams they could still join — the chip row already shows the rest.
           const joinable = workspaces.filter((w) => w.canManage && !m.teams.some((team) => team.workspaceId === w.id));
           return (
-            <li key={m.user.id} className="flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4">
+            <li key={m.user.id} aria-busy={pending} className="flex flex-wrap items-start gap-x-4 gap-y-3 px-5 py-4">
               <div className="flex min-w-[14rem] flex-1 items-center gap-2.5">
                 <span
                   aria-hidden
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold ${
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-micro font-semibold ${
                     m.teams[0] ? roleTone(m.teams[0].role) : "bg-stone-100 text-steel"
                   } ${disabled ? "opacity-50 grayscale" : ""}`}
                 >
@@ -93,7 +97,7 @@ export function WorkspacePeoplePanel({
                 </span>
                 <div className="min-w-0">
                   <p className={`truncate text-sm font-medium ${disabled ? "text-steel" : "text-ink"}`}>{displayName}</p>
-                  <p className="truncate text-xs text-steel">{m.user.email}</p>
+                  <p className="truncate text-micro text-steel">{m.user.email}</p>
                 </div>
               </div>
 
@@ -102,8 +106,9 @@ export function WorkspacePeoplePanel({
                 {canManageMembers && !isOwnerSomewhere && m.user.status !== "invited" ? (
                   <button
                     type="button"
+                    disabled={pending}
                     onClick={() => onPatchMember(m.user.id, { status: disabled ? "active" : "disabled" })}
-                    className="text-xs font-medium text-steel underline decoration-dotted underline-offset-2 hover:text-ink"
+                    className="text-micro font-medium text-steel underline decoration-dotted underline-offset-2 hover:text-ink disabled:opacity-50"
                   >
                     {disabled ? tm("enable") : tm("disable")}
                   </button>
@@ -112,11 +117,11 @@ export function WorkspacePeoplePanel({
 
               {/* The membership chips: one per team this person sits on. */}
               <div className="flex min-w-[16rem] flex-[2] flex-wrap items-center gap-1.5">
-                {m.teams.length === 0 ? <span className="text-xs italic text-steel">{t("notInAnyWorkspace")}</span> : null}
+                {m.teams.length === 0 ? <span className="text-micro italic text-steel">{t("notInAnyWorkspace")}</span> : null}
                 {m.teams.map((team) => (
                   <span
                     key={team.workspaceId}
-                    className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 py-0.5 pl-2 pr-1 text-xs text-ink dark:rotate-1"
+                    className={`${CHIP} gap-1 border-stone-200 bg-stone-50 py-0.5 pl-2 pr-1 text-micro text-ink`}
                   >
                     <span className="font-medium">{nameOf(team.workspaceId)}</span>
                     <span className="text-steel">{roleLabel(team.role, tm)}</span>
@@ -139,7 +144,7 @@ export function WorkspacePeoplePanel({
                       <Select
                         value={addWorkspaceId}
                         onChange={setAddWorkspaceId}
-                        size="sm"
+                        sizeVariant="sm"
                         ariaLabel={t("addToWorkspaceAria", { name: displayName })}
                         options={[
                           { value: "", label: t("addToWorkspacePlaceholder") },
@@ -149,11 +154,11 @@ export function WorkspacePeoplePanel({
                       <Select
                         value={addRole}
                         onChange={(v) => setAddRole(v as MemberRole)}
-                        size="sm"
+                        sizeVariant="sm"
                         ariaLabel={tm("inviteRoleAria")}
                         options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tm) }))}
                       />
-                      <button type="button" onClick={() => commitAdd(m.user.id)} disabled={!addWorkspaceId || busy} className={`${BTN_PRIMARY} h-7 px-2.5 text-xs`}>
+                      <button type="button" onClick={() => commitAdd(m.user.id)} disabled={!addWorkspaceId || busy} className={`${BTN_PRIMARY} h-7 px-2.5 text-micro`}>
                         {t("addMember")}
                       </button>
                       <button type="button" onClick={() => setAdding(null)} className={`${BTN_GHOST} h-7 w-7 justify-center`} aria-label={tm("confirmRemove.cancel")}>
@@ -164,7 +169,7 @@ export function WorkspacePeoplePanel({
                     <button
                       type="button"
                       onClick={() => openAdd(m.user.id)}
-                      className="focus-ring inline-flex items-center gap-0.5 rounded-full border border-dashed border-stone-300 px-2 py-0.5 text-xs text-steel hover:border-coral hover:text-coral"
+                      className="focus-ring inline-flex items-center gap-0.5 rounded-full border border-dashed border-stone-300 px-2 py-0.5 text-micro text-steel hover:border-coral hover:text-coral"
                     >
                       <Plus size={11} aria-hidden /> {t("addToWorkspace")}
                     </button>
@@ -178,6 +183,7 @@ export function WorkspacePeoplePanel({
                 {canManageMembers && !isOwnerSomewhere ? (
                   <button
                     type="button"
+                    disabled={pending}
                     onClick={() => onConfirmRemove(m)}
                     className={`${BTN_GHOST} h-8 w-8 justify-center`}
                     aria-label={tm("removeAria", { name: displayName })}

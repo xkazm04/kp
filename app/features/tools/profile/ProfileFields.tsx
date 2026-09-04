@@ -46,7 +46,7 @@ export function Select({
   disabled?: boolean;
   options: { value: string; label: string }[];
 }) {
-  return <UiSelect value={value} onChange={onChange} ariaLabel={ariaLabel} disabled={disabled} size="sm" className={className} options={options} />;
+  return <UiSelect value={value} onChange={onChange} ariaLabel={ariaLabel} disabled={disabled} sizeVariant="sm" className={className} options={options} />;
 }
 
 export function Textarea({ className = "", ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {

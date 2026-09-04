@@ -6,6 +6,7 @@ import { StatusLegend } from "@/app/_components/StatusChip";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { useTableSort } from "@/app/_components/table/useTableSort";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { Job } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
 import { JobsTableFrame } from "./JobsTable";
@@ -26,9 +27,18 @@ import type { useJobsList } from "./useJobsList";
 // no column to live in — "open roles only", a lifecycle predicate over the whole
 // query rather than a value in any cell — sits here as a toggle chip beside the
 // count it changes.
+//
+// TWO different "pages" meet here and they are not the same fact:
+//   list.page      — the ROUTE's honesty triple (truncated / matching / limit):
+//                    was the server's answer cut, and at what size.
+//   list.pageIndex — which 20-row slice of the answer this client is showing.
+// The summary line reads the first; the pager owns the second.
 export function JobsTabResults({ list, onOpen }: { list: ReturnType<typeof useJobsList>; onOpen: (job: Job) => void }) {
   const t = useTranslations("jobs.tab");
-  const { jobs, stats, error, fetching, anyFilter, clearAll, openOnly, setOpenOnly, page, setPage } = list;
+  // ONE `enums` translator subscription for the whole table, passed down. Each row
+  // used to open its own, so a 300-row catalog paid for 300 of them per render.
+  const enumLabel = useEnumLabel();
+  const { jobs, stats, page, error, fetching, anyFilter, clearAll, openOnly, setOpenOnly, pageIndex, setPageIndex } = list;
   // Sorting is client-side over the rows the query returned (the kit's contract);
   // filtering stays server-side in useJobsList.
   const { sorted, sort, toggle } = useTableSort<Job, JobSortCol>(jobs ?? [], JOB_SORT_ACCESSORS, { col: "title", dir: "asc" });
@@ -36,19 +46,32 @@ export function JobsTabResults({ list, onOpen }: { list: ReturnType<typeof useJo
   // the last page must land them on a page that exists. (The filter setters in
   // useJobsList already return to page 1 — this catches everything else, e.g. a
   // publish that drops a row out of an "open only" view.)
-  const safePage = clampPage(page, sorted.length);
+  const safePage = clampPage(pageIndex, sorted.length);
   const shown = pageSlice(sorted, safePage);
 
   return (
     <>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-base" aria-live="polite">
         {jobs && stats ? (
-          <span className="text-steel">
-            {t.rich("showing", {
-              shown: jobs.length,
-              total: stats.total,
-              b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
-            })}
+          // TRUNCATED IS NOT FILTERED. `stats.total` is the workspace-wide
+          // UNFILTERED count, so "Showing 300 of 340 roles" reads as "40 filtered
+          // out" — while the truth may be "40 roles this list offers no way to
+          // reach". When the route says the slice was cut, the line says so
+          // against `matching` (the unbounded count over the SAME predicate) and
+          // names the page size it was cut at.
+          <span className={page?.truncated ? "text-amber-700" : "text-steel"}>
+            {page?.truncated
+              ? t.rich("showingCut", {
+                  shown: jobs.length,
+                  matching: page.matching,
+                  limit: page.limit,
+                  b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
+                })
+              : t.rich("showing", {
+                  shown: jobs.length,
+                  total: stats.total,
+                  b: (chunks) => <span className="font-semibold nums text-ink">{chunks}</span>,
+                })}
           </span>
         ) : null}
         {/* Lifecycle filter: hide drafts + closed roles (default off — the full
@@ -115,11 +138,13 @@ export function JobsTabResults({ list, onOpen }: { list: ReturnType<typeof useJo
             <JobsTableFrame list={list} sort={sort} onSort={toggle}>
               <tbody className="divide-y divide-stone-200">
                 {shown.map((job) => (
-                  <JobRow key={job.id} job={job} onOpen={() => onOpen(job)} />
+                  // `onOpen` takes the job so the row's memo boundary is not erased
+                  // by a fresh arrow per row per render.
+                  <JobRow key={job.id} job={job} onOpen={onOpen} enumLabel={enumLabel} />
                 ))}
               </tbody>
             </JobsTableFrame>
-            <TablePager page={safePage} total={sorted.length} onPage={setPage} />
+            <TablePager page={safePage} total={sorted.length} onPage={setPageIndex} />
             {/* ONE THREAD (gap 8) — the same five-state legend the Assignments
                 ledger carries, so the vocabulary is learned once and holds for the
                 rest of the thread. Only rendered beside real rows: a legend over an

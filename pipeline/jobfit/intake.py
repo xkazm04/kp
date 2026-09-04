@@ -30,7 +30,7 @@ import re
 from typing import Any
 
 from .devcase.provenance import defuse_fence_markers, generate_with_fallback
-from .i18n import language_directive, normalize_lang
+from .i18n import DEFAULT_LANG, LANG_NAMES, language_directive, normalize_lang
 from .rolebrief import BriefFacet, BriefRequirement, RoleBrief, coerce_role_brief
 from .taxonomy import ROLE_FAMILIES, classify_role_family
 
@@ -401,12 +401,31 @@ def dossier_objectives(dossier: Any) -> list[dict]:
     return out[:12]
 
 
-def _dossier_facet(
-    key: str, label_en: str, label_cs: str, value: str, lang: str, importance: str, source: str
-) -> BriefFacet:
+# The `codebase_dossier.*` labels, in the dialog's language like every other
+# facet label. A machine reading the operator cannot read is a machine reading
+# they cannot correct at the read-back.
+_DOSSIER_LABELS: dict[str, dict[str, str]] = {
+    "stack": {"en": "Stack (read from the repo)", "cs": "Technologie (načteno z repozitáře)", "de": "Stack (aus dem Repository gelesen)", "fr": "Stack (lu dans le dépôt)"},
+    "declared_gates": {"en": "Declared gates", "cs": "Deklarované brány (gates)", "de": "Deklarierte Gates", "fr": "Contrôles déclarés"},
+    "contexts": {"en": "Contexts", "cs": "Kontexty", "de": "Kontexte", "fr": "Contextes"},
+    "hot_spots": {"en": "Hot spots", "cs": "Nejrušnější místa", "de": "Brennpunkte", "fr": "Points chauds"},
+    "risk_areas": {"en": "Risk areas", "cs": "Rizikové oblasti", "de": "Risikobereiche", "fr": "Zones à risque"},
+    "candidate_objectives": {"en": "Candidate objectives (proposed by the scan)", "cs": "Navržené cíle (ze skenu)", "de": "Vorgeschlagene Ziele (aus dem Scan)", "fr": "Objectifs proposés (par l'analyse)"},
+    "maintainer_load": {"en": "Maintainer load (estimate)", "cs": "Odhad zátěže údržby", "de": "Wartungslast (Schätzung)", "fr": "Charge de maintenance (estimation)"},
+}
+
+_DOSSIER_CONTEXT_COUNT: dict[str, str] = {
+    "en": "{n} contexts",
+    "cs": "{n} kontextů",
+    "de": "{n} Kontexte",
+    "fr": "{n} contextes",
+}
+
+
+def _dossier_facet(key: str, value: str, lang: str, importance: str, source: str) -> BriefFacet:
     return BriefFacet(
         key=f"{DOSSIER_FACET_PREFIX}.{key}",
-        label=label_cs if lang == "cs" else label_en,
+        label=_localized(_DOSSIER_LABELS[key], lang),
         value=value.strip()[:600],
         importance=importance,
         # Never "stated": a machine read this, the requestor did not say it.
@@ -425,26 +444,17 @@ def dossier_facets(dossier: Any, lang: str = "en") -> list[BriefFacet]:
     as an empty string the panel renders as "known to be nothing"."""
     if not isinstance(dossier, dict):
         return []
+    lang, _unscripted = _script_lang(lang)
     source = str(_d(dossier, "source", default="heuristic") or "heuristic")
     facets: list[BriefFacet] = []
 
     stack = [str(s).strip() for s in (_d(dossier, "stack", default=[]) or []) if str(s).strip()]
     if stack:
-        facets.append(
-            _dossier_facet(
-                "stack", "Stack (read from the repo)", "Technologie (načteno z repozitáře)",
-                ", ".join(stack[:12]), lang, "core", source,
-            )
-        )
+        facets.append(_dossier_facet("stack", ", ".join(stack[:12]), lang, "core", source))
 
     gates = [str(g).strip() for g in (_d(dossier, "declaredGates", "declared_gates", default=[]) or []) if str(g).strip()]
     if gates:
-        facets.append(
-            _dossier_facet(
-                "declared_gates", "Declared gates", "Deklarované brány (gates)",
-                "; ".join(gates[:10]), lang, "core", source,
-            )
-        )
+        facets.append(_dossier_facet("declared_gates", "; ".join(gates[:10]), lang, "core", source))
 
     contexts = _d(dossier, "contexts", default=[]) or []
     size = _d(dossier, "size", default={}) or {}
@@ -455,30 +465,22 @@ def dossier_facets(dossier: Any, lang: str = "en") -> list[BriefFacet]:
         names = ", ".join(
             str(c.get("name") or "").strip() for c in (contexts if isinstance(contexts, list) else [])[:6] if isinstance(c, dict)
         )
-        value = (
-            f"{count} kontextů" if lang == "cs" else f"{count} contexts"
-        ) + (f" — {names}…" if names else "")
-        facets.append(_dossier_facet("contexts", "Contexts", "Kontexty", value, lang, "valuable", source))
+        value = _localized(_DOSSIER_CONTEXT_COUNT, lang).format(n=count) + (f" — {names}…" if names else "")
+        facets.append(_dossier_facet("contexts", value, lang, "valuable", source))
 
     hot = _finding_lines(_d(dossier, "hotSpots", "hot_spots", default=[]))
     if hot:
-        facets.append(
-            _dossier_facet("hot_spots", "Hot spots", "Nejrušnější místa", "; ".join(hot), lang, "valuable", source)
-        )
+        facets.append(_dossier_facet("hot_spots", "; ".join(hot), lang, "valuable", source))
 
     risk = _finding_lines(_d(dossier, "riskAreas", "risk_areas", default=[]))
     if risk:
-        facets.append(
-            _dossier_facet("risk_areas", "Risk areas", "Rizikové oblasti", "; ".join(risk), lang, "core", source)
-        )
+        facets.append(_dossier_facet("risk_areas", "; ".join(risk), lang, "core", source))
 
     objectives = dossier_objectives(dossier)
     if objectives:
         facets.append(
             _dossier_facet(
                 "candidate_objectives",
-                "Candidate objectives (proposed by the scan)",
-                "Navržené cíle (ze skenu)",
                 "; ".join(f"{o['kpiKey']} — {o['label']}" for o in objectives[:8]),
                 lang,
                 "core",
@@ -488,11 +490,7 @@ def dossier_facets(dossier: Any, lang: str = "en") -> list[BriefFacet]:
 
     load = str(_d(dossier, "maintainerLoadEstimate", "maintainer_load_estimate", default="") or "").strip()
     if load:
-        facets.append(
-            _dossier_facet(
-                "maintainer_load", "Maintainer load (estimate)", "Odhad zátěže údržby", load, lang, "context", source
-            )
-        )
+        facets.append(_dossier_facet("maintainer_load", load, lang, "context", source))
 
     return facets
 
@@ -571,42 +569,62 @@ _Q: dict[str, dict[str, str]] = {
     "context": {
         "en": "Let's shape this role together — no wrong answers here; vague is fine, that's what this session is for. Think about the last month: where did the team feel the missing person most?",
         "cs": "Pojďme tu roli nadefinovat společně — nejsou tu žádné špatné odpovědi, klidně i mlhavě. Vzpomeňte si na poslední měsíc: kde tým nejvíc cítil, že tenhle člověk chybí?",
+        "de": "Lassen Sie uns diese Rolle gemeinsam schärfen — es gibt hier keine falschen Antworten, vage ist völlig in Ordnung, genau dafür ist dieses Gespräch da. Denken Sie an den letzten Monat: Wo hat das Team am deutlichsten gespürt, dass diese Person fehlt?",
+        "fr": "Définissons ce poste ensemble — il n'y a pas de mauvaise réponse ici, le flou est permis, c'est même l'objet de cet échange. Repensez au mois dernier : où l'équipe a-t-elle le plus ressenti l'absence de cette personne ?",
     },
     "title": {
         "en": "How would you call the role? A working title is enough.",
         "cs": "Jak byste roli nazvali? Stačí pracovní název.",
+        "de": "Wie würden Sie die Rolle nennen? Ein Arbeitstitel genügt.",
+        "fr": "Comment appelleriez-vous ce poste ? Un intitulé provisoire suffit.",
     },
     "success": {
         "en": "Imagine it's 90 days after they start and you're glad you hired them. What have they gotten done?",
         "cs": "Představte si, že je 90 dní po nástupu a jste rádi, že jste je přijali. Co mají hotovo?",
+        "de": "Stellen Sie sich vor, es sind 90 Tage nach dem Start und Sie sind froh, dass Sie eingestellt haben. Was hat die Person erreicht?",
+        "fr": "Imaginez : 90 jours après l'arrivée, vous êtes ravi de ce recrutement. Qu'est-ce que cette personne a accompli ?",
     },
     "musts": {
         "en": "Which capabilities are true dealbreakers — the ones without which those 90-day outcomes fail? One per line is fine.",
         "cs": "Které schopnosti jsou skutečně nezbytné — bez kterých by se ty výsledky za 90 dní nepovedly? Klidně jednu na řádek.",
+        "de": "Welche Fähigkeiten sind echte Ausschlusskriterien — die, ohne die diese 90-Tage-Ergebnisse scheitern? Gern eine pro Zeile.",
+        "fr": "Quelles compétences sont de véritables critères rédhibitoires — celles sans lesquelles ces résultats à 90 jours échouent ? Une par ligne convient très bien.",
     },
     "nices": {
         "en": "And what would be a bonus — nice to have, but trainable on the job?",
         "cs": "A co by bylo příjemným bonusem — hodí se, ale jde to doučit za pochodu?",
+        "de": "Und was wäre ein Bonus — schön zu haben, aber im Job erlernbar?",
+        "fr": "Et qu'est-ce qui serait un plus — appréciable, mais qui s'apprend en poste ?",
     },
     "seniority": {
         "en": "Level-wise, is this closer to junior, medior, senior, or lead? Neither is fine — say what feels right.",
         "cs": "Úrovní je to spíš junior, medior, senior, nebo lead? Klidně od oka.",
+        "de": "Vom Level her: eher Junior, Medior, Senior oder Lead? Ein grobes Gefühl reicht.",
+        "fr": "Côté niveau, est-ce plutôt junior, medior, senior ou lead ? Une estimation à la louche suffit.",
     },
     "languages": {
         "en": "Which working languages must they speak? Skip if it doesn't matter.",
         "cs": "Jaké pracovní jazyky musí ovládat? Klidně přeskočte, pokud na tom nezáleží.",
+        "de": "Welche Arbeitssprachen muss die Person sprechen? Überspringen Sie das, wenn es keine Rolle spielt.",
+        "fr": "Quelles langues de travail la personne doit-elle parler ? Passez si cela n'a pas d'importance.",
     },
     "team": {
         "en": "Who will they work with day to day — team size, who they report to?",
         "cs": "S kým budou denně pracovat — jak velký tým, komu se zodpovídají?",
+        "de": "Mit wem wird die Person täglich arbeiten — wie groß ist das Team, an wen berichtet sie?",
+        "fr": "Avec qui travaillera-t-elle au quotidien — quelle taille d'équipe, à qui rend-elle compte ?",
     },
     "urgency": {
         "en": "What happens if the seat stays empty another quarter?",
         "cs": "Co se stane, když místo zůstane neobsazené ještě čtvrt roku?",
+        "de": "Was passiert, wenn die Stelle noch ein weiteres Quartal unbesetzt bleibt?",
+        "fr": "Que se passe-t-il si le poste reste vacant un trimestre de plus ?",
     },
     "budget": {
         "en": "Any compensation range in mind? Totally fine to skip this one.",
         "cs": "Máte představu o mzdovém rozpětí? Klidně přeskočte.",
+        "de": "Haben Sie eine Gehaltsspanne im Kopf? Sie dürfen das gern überspringen.",
+        "fr": "Avez-vous une fourchette de rémunération en tête ? Vous pouvez tout à fait passer.",
     },
     # --- App master (shape `app_master`) ------------------------------------
     # Only what the scan cannot know. Every question below has a stable 40-char
@@ -615,34 +633,50 @@ _Q: dict[str, dict[str, str]] = {
     "am_context": {
         "en": "Let's define who owns this app. While the scan reads the code: what should be different about this app in three months — and who would feel it?",
         "cs": "Pojďme určit, kdo tuto aplikaci vlastní. Zatímco sken čte kód: co má být za tři měsíce jinak — a kdo to pozná?",
+        "de": "Lassen Sie uns festlegen, wem diese Anwendung gehört. Während der Scan den Code liest: Was soll in drei Monaten an dieser Anwendung anders sein — und wer würde es merken?",
+        "fr": "Déterminons qui est responsable de cette application. Pendant que l'analyse lit le code : qu'est-ce qui devra être différent dans trois mois — et qui s'en apercevra ?",
     },
     "am_objectives": {
         "en": "Which outcomes should this role be measured on? One per line, each with a target and a window — e.g. \"gate pass rate — 95% within 60 days\".",
         "cs": "Na kterých výsledcích má být tato role měřena? Jeden na řádek, s cílem a lhůtou — např. „úspěšnost bran — 95 % do 60 dnů“.",
+        "de": "An welchen Ergebnissen soll diese Rolle gemessen werden? Eines pro Zeile, jeweils mit Zielwert und Zeitfenster — z. B. „Bestehensquote der Gates — 95 % innerhalb von 60 Tagen“.",
+        "fr": "Sur quels résultats ce rôle doit-il être évalué ? Un par ligne, avec une cible et une échéance — par exemple « taux de réussite des contrôles — 95 % sous 60 jours ».",
     },
     "am_mandate_rung": {
         "en": "How far may the holder go on their own? 0 — read and report only. 1 — re-run existing work. 2 — open a branch and propose a change a human merges. Deploying, merging and changing the gates are never granted.",
         "cs": "Jak daleko smí držitel role zajít sám? 0 — jen číst a hlásit. 1 — znovu spustit existující práci. 2 — otevřít větev a navrhnout změnu, kterou sloučí člověk. Nasazení, sloučení a změny bran se neudělují nikdy.",
+        "de": "Wie weit darf die Rolleninhaberin oder der Rolleninhaber allein gehen? 0 — nur lesen und berichten. 1 — bestehende Arbeit erneut ausführen. 2 — einen Branch öffnen und eine Änderung vorschlagen, die ein Mensch merged. Deployen, Mergen und das Ändern der Gates werden nie gewährt.",
+        "fr": "Jusqu'où le titulaire peut-il aller seul ? 0 — lire et rendre compte uniquement. 1 — relancer un travail existant. 2 — ouvrir une branche et proposer une modification qu'un humain fusionne. Le déploiement, la fusion et la modification des contrôles ne sont jamais accordés.",
     },
     "am_forbidden": {
         "en": "Six change classes are forbidden by default: deleting or skipping a test, suppression directives, gate configuration, dependency bumps to satisfy a check, credentials or permissions, delivery configuration. Do all six stand, or is one negotiable here?",
         "cs": "Šest tříd změn je zakázáno ve výchozím nastavení: smazání nebo přeskočení testu, potlačovací direktivy, konfigurace bran, povýšení závislosti kvůli kontrole, přihlašovací údaje a oprávnění, konfigurace nasazení. Platí všech šest, nebo je některá vyjednatelná?",
+        "de": "Sechs Änderungsklassen sind standardmäßig verboten: einen Test löschen oder überspringen, Unterdrückungsdirektiven, Gate-Konfiguration, ein Abhängigkeits-Update nur um eine Prüfung zu bestehen, Zugangsdaten und Berechtigungen, Deployment-Konfiguration. Gelten alle sechs, oder ist eine davon hier verhandelbar?",
+        "fr": "Six classes de modifications sont interdites par défaut : supprimer ou ignorer un test, les directives de suppression d'avertissement, la configuration des contrôles, une montée de version de dépendance pour satisfaire une vérification, les identifiants et permissions, la configuration de déploiement. Les six tiennent-elles toutes, ou l'une est-elle négociable ici ?",
     },
     "am_budget": {
         "en": "What monthly budget ceiling should this role run under, in USD?",
         "cs": "Jaký měsíční rozpočtový strop má tato role mít, v USD?",
+        "de": "Unter welcher monatlichen Budgetobergrenze soll diese Rolle laufen, in USD?",
+        "fr": "Sous quel plafond budgétaire mensuel ce rôle doit-il fonctionner, en USD ?",
     },
     "am_owner": {
         "en": "Who reviews the holder's proposals and answers an escalation? A name or a role is enough.",
         "cs": "Kdo bude posuzovat návrhy držitele role a odpovídat na eskalace? Stačí jméno nebo role.",
+        "de": "Wer prüft die Vorschläge der Rolleninhaberin oder des Rolleninhabers und beantwortet eine Eskalation? Ein Name oder eine Funktion genügt.",
+        "fr": "Qui examine les propositions du titulaire et répond en cas d'escalade ? Un nom ou une fonction suffit.",
     },
     "am_probation": {
         "en": "How many days of probation before you decide to keep this role or retire it?",
         "cs": "Kolik dní zkušební doby, než se rozhodnete roli ponechat, nebo ukončit?",
+        "de": "Wie viele Tage Probezeit, bevor Sie entscheiden, diese Rolle zu behalten oder zu beenden?",
+        "fr": "Combien de jours de période d'essai avant de décider de conserver ce rôle ou d'y mettre fin ?",
     },
     "am_population": {
         "en": "Last one: may this role be held by an AI agent, by a human, or by either? \"Either\" is a fine answer — it stays visibly undecided.",
         "cs": "Poslední otázka: může tuto roli zastávat AI agent, člověk, nebo obojí? „Obojí“ je v pořádku — zůstane viditelně nerozhodnuto.",
+        "de": "Zum Schluss: Darf diese Rolle von einem KI-Agenten, von einem Menschen oder von beiden gehalten werden? „Beides“ ist eine gute Antwort — sie bleibt sichtbar unentschieden.",
+        "fr": "Dernière question : ce rôle peut-il être tenu par un agent IA, par un humain, ou par l'un ou l'autre ? « L'un ou l'autre » est une réponse valable — cela reste visiblement indécis.",
     },
 }
 
@@ -652,12 +686,30 @@ _Q: dict[str, dict[str, str]] = {
 # other facet label. `objective:<kpiKey>` is handled separately (one facet per
 # chosen KPI, so its key is not fixed here).
 _AM_SLOT_FACET: dict[str, tuple[str, dict[str, str]]] = {
-    "am_mandate_rung": ("mandate.scopeRung", {"en": "Mandate — how far alone", "cs": "Mandát — jak daleko sám"}),
-    "am_forbidden": ("mandate.forbiddenClasses", {"en": "Forbidden change classes", "cs": "Zakázané třídy změn"}),
-    "am_budget": ("budget.monthlyUsd", {"en": "Monthly budget ceiling", "cs": "Měsíční rozpočtový strop"}),
-    "am_owner": ("mandate.owner", {"en": "Review owner", "cs": "Kdo posuzuje návrhy"}),
-    "am_probation": ("tenure.probationDays", {"en": "Probation", "cs": "Zkušební doba"}),
-    "am_population": ("role.population", {"en": "Who may hold the role", "cs": "Kdo může roli zastávat"}),
+    "am_mandate_rung": (
+        "mandate.scopeRung",
+        {"en": "Mandate — how far alone", "cs": "Mandát — jak daleko sám", "de": "Mandat — wie weit allein", "fr": "Mandat — jusqu'où seul"},
+    ),
+    "am_forbidden": (
+        "mandate.forbiddenClasses",
+        {"en": "Forbidden change classes", "cs": "Zakázané třídy změn", "de": "Verbotene Änderungsklassen", "fr": "Classes de modifications interdites"},
+    ),
+    "am_budget": (
+        "budget.monthlyUsd",
+        {"en": "Monthly budget ceiling", "cs": "Měsíční rozpočtový strop", "de": "Monatliche Budgetobergrenze", "fr": "Plafond budgétaire mensuel"},
+    ),
+    "am_owner": (
+        "mandate.owner",
+        {"en": "Review owner", "cs": "Kdo posuzuje návrhy", "de": "Prüfende Person", "fr": "Responsable de la revue"},
+    ),
+    "am_probation": (
+        "tenure.probationDays",
+        {"en": "Probation", "cs": "Zkušební doba", "de": "Probezeit", "fr": "Période d'essai"},
+    ),
+    "am_population": (
+        "role.population",
+        {"en": "Who may hold the role", "cs": "Kdo může roli zastávat", "de": "Wer die Rolle halten darf", "fr": "Qui peut tenir ce rôle"},
+    ),
 }
 
 # The app-master script: context and a working title first (a brief still needs
@@ -674,7 +726,62 @@ _APP_MASTER_SCRIPT = [
     "am_population",
 ]
 
-_SKIP_WORDS = re.compile(r"^\s*(skip|no|none|ne|nevím|nemám|later|-|—)\s*\.?\s*$", re.IGNORECASE)
+
+# The locales the deterministic script is actually WRITTEN in — DERIVED from the
+# tables above rather than declared, so a locale added to half of `_Q` never
+# counts as scripted. `LANG_NAMES` (i18n.py) is the app's locale vocabulary; a
+# locale in there but missing here is one the scripted path cannot serve, and
+# `_script_lang` says so out loud instead of quietly handing a German operator
+# English prose (which `.get(lang, ...["en"])` did for de and fr for months).
+SCRIPT_LANGS: tuple[str, ...] = tuple(
+    lang for lang in LANG_NAMES if all(lang in variants for variants in _Q.values())
+)
+
+
+def _script_lang(value: object) -> tuple[str, str | None]:
+    """(language the script is served in, the requested locale it stands in for).
+
+    The second element is None whenever the script HAS the requested locale.
+    When it is not None the turn carries an explicit `fallbackLang` field — a
+    machine-readable disclosure the caller can surface, rather than the silent
+    substitution the old per-lookup `.get(..., ["en"])` performed."""
+    lang = normalize_lang(value)
+    if lang in SCRIPT_LANGS:
+        return lang, None
+    return DEFAULT_LANG, lang
+
+
+def _localized(table: dict, lang: str):
+    """One row of a 4-locale table (a prose string, or a labels dict).
+
+    The `en` fallback is a last resort for a half-filled table — which
+    `SCRIPT_LANGS` already excludes from the scripted set; disclosure of an
+    unscripted locale is `_script_lang`'s job, not this lookup's."""
+    entry = table.get(lang)
+    return entry if entry else table["en"]
+
+
+# Facet labels the scripted path writes — dialog-language prose like every other
+# label (intake_system_brief tells the LLM path the same). Before this the four
+# story-shape labels were English in EVERY locale.
+_LABELS: dict[str, dict[str, str]] = {
+    "why_now": {"en": "Why now", "cs": "Proč teď", "de": "Warum jetzt", "fr": "Pourquoi maintenant"},
+    "team_context": {"en": "Team context", "cs": "Kontext týmu", "de": "Team-Kontext", "fr": "Contexte d'équipe"},
+    "urgency": {"en": "Urgency", "cs": "Naléhavost", "de": "Dringlichkeit", "fr": "Urgence"},
+    "budget_band": {"en": "Compensation", "cs": "Odměňování", "de": "Vergütung", "fr": "Rémunération"},
+    "grade_label": {"en": "Grade / level (as stated)", "cs": "Úroveň (jak uvedeno)", "de": "Stufe / Level (wie genannt)", "fr": "Niveau (tel qu'indiqué)"},
+    "correction": {"en": "Correction", "cs": "Oprava při potvrzení", "de": "Korrektur", "fr": "Correction"},
+}
+
+
+def _label(key: str, lang: str) -> str:
+    return _localized(_LABELS[key], lang)
+
+_SKIP_WORDS = re.compile(
+    r"^\s*(skip|no|none|ne|nevím|nemám|later|nein|keine|keins|[üu]berspringen|sp[äa]ter"
+    r"|non|aucun|aucune|passer|plus tard|-|—)\s*\.?\s*$",
+    re.IGNORECASE,
+)
 
 _SENIORITY_TOKENS = ("junior", "medior", "senior", "lead")
 
@@ -774,7 +881,7 @@ def _apply_answer(
     if not text or _SKIP_WORDS.match(text):
         return brief
     if slot == "context":
-        brief.facets.append(_stated_facet("why_now", "Why now", text, "core", source_turn))
+        brief.facets.append(_stated_facet("why_now", _label("why_now", lang), text, "core", source_turn))
     elif slot == "title":
         brief.title = text.splitlines()[0].strip(" .")[:120]
         brief.spine_provenance["title"] = "stated"
@@ -812,7 +919,7 @@ def _apply_answer(
             brief.facets.append(
                 _stated_facet(
                     "grade_label",
-                    "Úroveň (jak uvedeno)" if lang == "cs" else "Grade / level (as stated)",
+                    _label("grade_label", lang),
                     text,
                     "core",
                     source_turn,
@@ -821,14 +928,14 @@ def _apply_answer(
     elif slot == "languages":
         brief.languages.extend([l[:40] for l in _split_items(text)][:5])
     elif slot == "team":
-        brief.facets.append(_stated_facet("team_context", "Team context", text, source_turn=source_turn))
+        brief.facets.append(_stated_facet("team_context", _label("team_context", lang), text, source_turn=source_turn))
     elif slot == "urgency":
-        brief.facets.append(_stated_facet("urgency", "Urgency", text, "core", source_turn))
+        brief.facets.append(_stated_facet("urgency", _label("urgency", lang), text, "core", source_turn))
     elif slot == "budget":
-        brief.facets.append(_stated_facet("budget_band", "Compensation", text, "context", source_turn))
+        brief.facets.append(_stated_facet("budget_band", _label("budget_band", lang), text, "context", source_turn))
     # --- App master: the six answers a codebase scan cannot produce ---------
     elif slot == "am_context":
-        brief.facets.append(_stated_facet("why_now", "Why now", text, "core", source_turn))
+        brief.facets.append(_stated_facet("why_now", _label("why_now", lang), text, "core", source_turn))
     elif slot == "am_objectives":
         objectives = dossier_objectives(dossier)
         for line in _split_lines(text) or [text[:300]]:
@@ -840,7 +947,7 @@ def _apply_answer(
             brief.success_criteria.append(line[:300])
     elif slot in _AM_SLOT_FACET:
         key, labels = _AM_SLOT_FACET[slot]
-        brief.facets.append(_stated_facet(key, labels.get(lang, labels["en"]), text, "core", source_turn))
+        brief.facets.append(_stated_facet(key, _localized(labels, lang), text, "core", source_turn))
     return brief
 
 
@@ -917,40 +1024,65 @@ def _readback_facets(brief: RoleBrief) -> list[BriefFacet]:
     return answers + dossier
 
 
+_READBACK_STRINGS: dict[str, dict[str, str]] = {
+    "en": {
+        "head": "Here's what I took away — please correct anything that's off:",
+        "role": "Role",
+        "success": "Done in 90 days",
+        "musts": "Dealbreakers",
+        "nices": "Nice to have",
+        "languages": "Languages",
+        "tail": "What did I get wrong or miss? If everything holds, just say OK.",
+    },
+    "cs": {
+        "head": "Tady je, co jsem si odnesl — opravte mě prosím, jestli něco nesedí:",
+        "role": "Role",
+        "success": "Za 90 dní hotovo",
+        "musts": "Nezbytné",
+        "nices": "Výhodou",
+        "languages": "Jazyky",
+        "tail": "Co jsem pochopil špatně nebo co chybí? Pokud všechno sedí, stačí napsat OK.",
+    },
+    "de": {
+        "head": "Hier ist, was ich mitgenommen habe — bitte korrigieren Sie alles, was nicht stimmt:",
+        "role": "Rolle",
+        "success": "In 90 Tagen erledigt",
+        "musts": "Ausschlusskriterien",
+        "nices": "Von Vorteil",
+        "languages": "Sprachen",
+        "tail": "Was habe ich falsch verstanden oder übersehen? Wenn alles passt, schreiben Sie einfach OK.",
+    },
+    "fr": {
+        "head": "Voici ce que j'ai retenu — corrigez-moi si quelque chose ne va pas :",
+        "role": "Poste",
+        "success": "Fait en 90 jours",
+        "musts": "Critères rédhibitoires",
+        "nices": "Atouts",
+        "languages": "Langues",
+        "tail": "Qu'ai-je mal compris ou oublié ? Si tout est juste, répondez simplement OK.",
+    },
+}
+
+
 def _readback(brief: RoleBrief, lang: str) -> str:
     musts = [r.skill for r in brief.requirements if r.kind == "must_have"]
     nices = [r.skill for r in brief.requirements if r.kind == "nice_to_have"]
     # Only print seniority the requestor actually gave — a schema default in the
     # sign-off read-back is a false claim (UAT L1-CONV-3).
     seniority = f" ({brief.seniority})" if brief.spine_provenance.get("seniority") == "stated" else ""
-    if lang == "cs":
-        lines = ["Tady je, co jsem si odnesl — opravte mě prosím, jestli něco nesedí:"]
-        lines.append(f"• Role: {brief.title or '—'}{seniority}")
-        if brief.success_criteria:
-            lines.append(f"• Za 90 dní hotovo: {'; '.join(brief.success_criteria[:4])}")
-        if musts:
-            lines.append(f"• Nezbytné: {', '.join(musts[:8])}")
-        if nices:
-            lines.append(f"• Výhodou: {', '.join(nices[:8])}")
-        if brief.languages:
-            lines.append(f"• Jazyky: {', '.join(brief.languages)}")
-        for f in _readback_facets(brief):
-            lines.append(f"• {f.label}: {f.value[:160]}")
-        lines.append("Co jsem pochopil špatně nebo co chybí? Pokud všechno sedí, stačí napsat OK.")
-        return "\n".join(lines)
-    lines = ["Here's what I took away — please correct anything that's off:"]
-    lines.append(f"• Role: {brief.title or '—'}{seniority}")
+    s = _localized(_READBACK_STRINGS, lang)
+    lines = [s["head"], f"• {s['role']}: {brief.title or '—'}{seniority}"]
     if brief.success_criteria:
-        lines.append(f"• Done in 90 days: {'; '.join(brief.success_criteria[:4])}")
+        lines.append(f"• {s['success']}: {'; '.join(brief.success_criteria[:4])}")
     if musts:
-        lines.append(f"• Dealbreakers: {', '.join(musts[:8])}")
+        lines.append(f"• {s['musts']}: {', '.join(musts[:8])}")
     if nices:
-        lines.append(f"• Nice to have: {', '.join(nices[:8])}")
+        lines.append(f"• {s['nices']}: {', '.join(nices[:8])}")
     if brief.languages:
-        lines.append(f"• Languages: {', '.join(brief.languages)}")
+        lines.append(f"• {s['languages']}: {', '.join(brief.languages)}")
     for f in _readback_facets(brief):
         lines.append(f"• {f.label}: {f.value[:160]}")
-    lines.append("What did I get wrong or miss? If everything holds, just say OK.")
+    lines.append(s["tail"])
     return "\n".join(lines)
 
 
@@ -961,23 +1093,55 @@ def _readback(brief: RoleBrief, lang: str) -> str:
 # material was first attached no longer STARTS with this line. A prefix-only
 # test then missed it and folded the requestor's "ok" into the last scripted
 # slot — inventing a stated `budget_band: "ok"` facet they never gave.
-_READBACK_PREFIXES = ("Here's what I took away", "Tady je, co jsem si odnesl")
+# 23 chars: the longest prefix every locale's head line shares in full.
+_READBACK_MATCH_CHARS = 23
+_READBACK_PREFIXES = tuple(s["head"][:_READBACK_MATCH_CHARS] for s in _READBACK_STRINGS.values())
 
 _CONFIRM_WORDS = re.compile(
-    r"^\s*(ok(ay)?|ano|jo|sed[íi]|souhlas\w*|spr[áa]vn[ěe]|yes|correct|looks good|nic|v po[řr][áa]dku|plat[íi])\s*[.!]?\s*$",
+    r"^\s*(ok(ay)?|ano|jo|sed[íi]|souhlas\w*|spr[áa]vn[ěe]|yes|correct|looks good|nic|v po[řr][áa]dku|plat[íi]"
+    r"|ja|stimmt|passt|genau|richtig|einverstanden|oui|exact|d'accord|tout [àa] fait)\s*[.!]?\s*$",
     re.IGNORECASE,
 )
 
 
+_CLOSE_STRINGS: dict[str, dict[str, str]] = {
+    "en": {
+        "role_word": "role",
+        "corrected": "Got it — noted: “{correction}”. Closing the {title} brief with that correction; it's ready to promote. <<END>>",
+        "confirmed": "Thanks for confirming. The {title} brief is closed and ready to promote. <<END>>",
+    },
+    "cs": {
+        "role_word": "role",
+        "corrected": "Rozumím — poznamenal jsem: „{correction}“. Zadání pro roli {title} tím uzavírám a je připravené k vytvoření inzerátu. <<END>>",
+        "confirmed": "Děkuji za potvrzení. Zadání pro roli {title} je uzavřené a připravené k vytvoření inzerátu. <<END>>",
+    },
+    "de": {
+        "role_word": "Rolle",
+        "corrected": "Verstanden — notiert: „{correction}“. Damit schließe ich das Anforderungsprofil für {title} ab; es ist bereit zur Veröffentlichung. <<END>>",
+        "confirmed": "Danke für die Bestätigung. Das Anforderungsprofil für {title} ist abgeschlossen und bereit zur Veröffentlichung. <<END>>",
+    },
+    "fr": {
+        "role_word": "poste",
+        "corrected": "Entendu — noté : « {correction} ». Je clôture le cahier des charges pour {title} avec cette correction ; il est prêt à être publié. <<END>>",
+        "confirmed": "Merci pour la confirmation. Le cahier des charges pour {title} est clôturé et prêt à être publié. <<END>>",
+    },
+}
+
+
 def _close_reply(brief: RoleBrief, lang: str, correction: str | None) -> str:
-    title = brief.title or ("role" if lang != "cs" else "role")
-    if lang == "cs":
-        if correction:
-            return f"Rozumím — poznamenal jsem: „{correction[:200]}“. Zadání pro roli {title} tím uzavírám a je připravené k vytvoření inzerátu. <<END>>"
-        return f"Děkuji za potvrzení. Zadání pro roli {title} je uzavřené a připravené k vytvoření inzerátu. <<END>>"
+    s = _localized(_CLOSE_STRINGS, lang)
+    title = brief.title or s["role_word"]
     if correction:
-        return f"Got it — noted: “{correction[:200]}”. Closing the {title} brief with that correction; it's ready to promote. <<END>>"
-    return f"Thanks for confirming. The {title} brief is closed and ready to promote. <<END>>"
+        return s["corrected"].format(title=title, correction=correction[:200])
+    return s["confirmed"].format(title=title)
+
+
+_SCAN_PROPOSED: dict[str, str] = {
+    "en": "The scan proposed these:",
+    "cs": "Sken navrhl tyto:",
+    "de": "Der Scan hat diese vorgeschlagen:",
+    "fr": "L'analyse a proposé ceci :",
+}
 
 
 def _scripted_question(slot: str, lang: str, dossier: Any | None) -> str:
@@ -985,14 +1149,14 @@ def _scripted_question(slot: str, lang: str, dossier: Any | None) -> str:
     objectives appended to the objectives slot so the requestor RANKS a real
     list instead of inventing one the scan already proposed. Appended AFTER the
     stable 40-char prefix `_asked_slots` recovers the slot by."""
-    text = _Q[slot].get(lang, _Q[slot]["en"])
+    text = _localized(_Q[slot], lang)
     if slot != "am_objectives":
         return text
     objectives = dossier_objectives(dossier)
     if not objectives:
         return text
     listing = "\n".join(f"• {o['label']} ({o['kpiKey']})" for o in objectives[:6])
-    header = "Sken navrhl tyto:" if lang == "cs" else "The scan proposed these:"
+    header = _localized(_SCAN_PROPOSED, lang)
     return f"{text}\n\n{header}\n{listing}"
 
 
@@ -1004,7 +1168,13 @@ def deterministic_turn(
     exhausted, READ BACK and WAIT — the close only happens on the requestor's
     next message (confirm → close; anything else → captured as their stated
     correction, then close). The old same-turn read-back+close locked the
-    composer on the invited correction (UAT L1-CONV-2, 3/3 Characters)."""
+    the composer on the invited correction (UAT L1-CONV-2, 3/3 Characters).
+
+    A locale the script does not carry is DISCLOSED on the turn as
+    `fallbackLang` (the language actually served) instead of being silently
+    substituted — see `_script_lang`."""
+    lang, unscripted = _script_lang(lang)
+    disclosure = {"fallbackLang": lang} if unscripted else {}
     shape = detect_shape(
         turns + ([{"role": "candidate", "text": message}] if message else []),
         app_master=dossier is not None,
@@ -1021,7 +1191,7 @@ def deterministic_turn(
             brief.facets.append(
                 _stated_facet(
                     "correction",
-                    "Correction" if lang != "cs" else "Oprava při potvrzení",
+                    _label("correction", lang),
                     correction,
                     "core",
                     # The message lands at index len(turns) once appended.
@@ -1033,6 +1203,7 @@ def deterministic_turn(
             "brief": brief.model_dump(by_alias=True),
             "shape": shape or "story",
             "done": True,
+            **disclosure,
         }
 
     # Recover which slot the new message answers: the LAST scripted question the
@@ -1053,7 +1224,7 @@ def deterministic_turn(
     if remaining:
         slot = remaining[0]
         reply = _scripted_question(slot, lang, dossier)
-        return {"reply": reply, "brief": brief.model_dump(by_alias=True), "shape": shape, "done": False}
+        return {"reply": reply, "brief": brief.model_dump(by_alias=True), "shape": shape, "done": False, **disclosure}
 
     # Script exhausted → classify the role family from everything captured
     # (UAT L1-HRBP-2: a clinical intake must not promote as software), then
@@ -1069,7 +1240,13 @@ def deterministic_turn(
     if family:
         brief.role_family = family
         brief.spine_provenance.setdefault("role_family", "inferred")
-    return {"reply": _readback(brief, lang), "brief": brief.model_dump(by_alias=True), "shape": shape or "story", "done": False}
+    return {
+        "reply": _readback(brief, lang),
+        "brief": brief.model_dump(by_alias=True),
+        "shape": shape or "story",
+        "done": False,
+        **disclosure,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1187,14 +1364,16 @@ def opening_turn(lang: str = "en", shape: str | None = None) -> dict:
     while the requestor reads this, and asking "where did the team feel the
     missing person most?" of somebody who just handed over a codebase would
     waste the one turn that sets the register."""
-    lang = normalize_lang(lang)
+    lang, unscripted = _script_lang(lang)
     slot = "am_context" if shape == APP_MASTER_SHAPE else "context"
     return {
-        "reply": _Q[slot].get(lang, _Q[slot]["en"]),
+        "reply": _localized(_Q[slot], lang),
         "brief": RoleBrief(prompt_version=INTAKE_PROMPT_VERSION).model_dump(by_alias=True),
         "shape": APP_MASTER_SHAPE if shape == APP_MASTER_SHAPE else None,
         "done": False,
         "source": "deterministic",
+        # An unscripted locale is disclosed, never silently swapped.
+        **({"fallbackLang": lang} if unscripted else {}),
     }
 
 
@@ -1211,6 +1390,16 @@ _ATTACH_ACK = {
     "cs": (
         "Vidím přiložené podklady ({titles}). V offline režimu je neumím sám vytěžit do zadání — "
         "klidně mi klíčové body vložte do odpovědí a zapíšou se jako vaše slova. "
+    ),
+    "de": (
+        "Ich sehe die angehängten Unterlagen ({titles}). Offline kann ich Dokumente nicht selbst in das "
+        "Anforderungsprofil einlesen — fügen Sie die Kernpunkte einfach in Ihre Antworten ein, dann "
+        "landen sie als Ihre Worte. "
+    ),
+    "fr": (
+        "Je vois les documents joints ({titles}). Hors ligne, je ne peux pas les exploiter moi-même dans "
+        "le cahier des charges — recopiez les points clés dans vos réponses et ils seront enregistrés "
+        "comme vos propres mots. "
     ),
 }
 
@@ -1287,7 +1476,7 @@ def run_intake_turn(
         # skip if any prior agent turn already carries the ack line's opening.
         items = [a for a in (attachments or []) if isinstance(a, dict) and str(a.get("text", "")).strip()]
         if items and not result["done"]:
-            ack = _ATTACH_ACK.get(lang, _ATTACH_ACK["en"])
+            ack = _localized(_ATTACH_ACK, lang)
             marker = ack[:24]
             if not any(marker in said for said in _agent_turns(turns)):
                 titles = ", ".join(str(a.get("title") or a.get("kind") or "attachment")[:60] for a in items[:5])
@@ -1469,8 +1658,14 @@ def run_voice_turn(
 
     def deterministic() -> dict:
         result = deterministic_turn(turns, base.model_copy(deep=True), message, lang)
-        # The scripted engine extracts inline for free — hand its brief back.
-        return {"reply": result["reply"], "done": result["done"], "brief": result["brief"]}
+        # The scripted engine extracts inline for free — hand its brief back,
+        # and with it any unscripted-locale disclosure it made.
+        return {
+            "reply": result["reply"],
+            "done": result["done"],
+            "brief": result["brief"],
+            **({"fallbackLang": result["fallbackLang"]} if "fallbackLang" in result else {}),
+        }
 
     def coerce(payload: Any) -> dict:
         text = payload.get("reply") if isinstance(payload, dict) else payload

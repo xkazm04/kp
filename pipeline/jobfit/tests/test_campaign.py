@@ -56,7 +56,7 @@ class _FakeProvider:
         self.prompt: str | None = None
         self.system: str | None = None
 
-    def complete_json(self, prompt: str, *, system: str | None = None):
+    def complete_json(self, prompt: str, *, system: str | None = None, expected_keys=None):
         self.prompt = prompt
         self.system = system
         if self._exc:

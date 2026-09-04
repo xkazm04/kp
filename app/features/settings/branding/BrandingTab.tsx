@@ -7,7 +7,16 @@ import { EYEBROW, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipe
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { Defer } from "@/app/_components/ui/Defer";
 import { CORAL } from "@/app/_lib/brand";
-import { accentIsLegible, isBrandFormDirty, normalizeHex6, type BrandConfig, type BrandFormValues } from "@/app/_lib/brand-config";
+import {
+  accentIsLegible,
+  deriveDarkAccent,
+  isBrandFormDirty,
+  isHexColor,
+  normalizeHex6,
+  type BrandConfig,
+  type BrandFormValues,
+} from "@/app/_lib/brand-config";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BrandingEditorForm } from "./BrandingEditorForm";
 
 // Tier 3 (docs/design/loading-choreography.md): the live preview panel is secondary to
@@ -33,6 +42,10 @@ function applyLiveAccent(accent: string | null): void {
 
 export function BrandingTab() {
   const t = useTranslations("branding");
+  // The server answers a refusal with a CODE, never a sentence to render: the door
+  // now distinguishes a malformed hex from one that is illegible in Studio Light
+  // from one with no Spark Dark twin, and each arrives in the reader's language.
+  const errorMessage = useErrorMessage();
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [name, setName] = useState("");
@@ -66,12 +79,27 @@ export function BrandingTab() {
   // 6-digit hex (so `${accent}1a` alpha suffixes and the color input never break),
   // else the product default coral (so the swatch is never blank).
   const effectiveAccent = normalizeHex6(accent.trim()) ?? CORAL;
+  // What Spark Dark will actually paint. Derived, never typed: the same literal in
+  // both theme blocks is the bug this replaces (docs/design/README.md). Falls back
+  // to the light value only when no twin exists — which is also the case `save`
+  // blocks, so the preview never shows a dark card the door would refuse.
+  const effectiveAccentDark = deriveDarkAccent(effectiveAccent) ?? effectiveAccent;
 
-  // A valid-hex accent that fails WCAG contrast (invisible white button text /
-  // focus rings). Drives both a live inline warning and a hard block on save, so
-  // the operator can't ship an unreadable accent app-wide + on candidate pages.
-  const accentIllegible =
-    /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accent.trim()) && !accentIsLegible(accent.trim());
+  // A valid-hex accent the app cannot paint legibly — and WHICH THEME it fails in,
+  // because the operator's next move differs ("pick something darker" vs "this one
+  // has no twin that is still your brand"). Drives a live inline warning and a hard
+  // block on save, so an unreadable accent can't ship app-wide + on candidate pages.
+  // `isHexColor` is imported, not re-typed: this line used to carry its own copy of
+  // the regex brand-config owns, so the two could disagree about what a color is.
+  const typedHex = accent.trim();
+  const accentProblem: "light" | "dark" | null = !isHexColor(typedHex)
+    ? null
+    : !accentIsLegible(typedHex, "light")
+      ? "light"
+      : deriveDarkAccent(typedHex) === null
+        ? "dark"
+        : null;
+  const accentWarning = accentProblem === "light" ? t("accentContrast") : accentProblem === "dark" ? t("accentContrastDark") : null;
 
   // Whether the form diverges from the last loaded/saved state (Save-enabled + guard).
   const dirty = isBrandFormDirty({ name, accent, logo }, baseline);
@@ -90,8 +118,8 @@ export function BrandingTab() {
   }, [dirty]);
 
   const save = useCallback(async () => {
-    if (accent.trim() && !accentIsLegible(accent.trim())) {
-      setStatus({ kind: "error", text: t("accentContrast") });
+    if (accentWarning) {
+      setStatus({ kind: "error", text: accentWarning });
       return;
     }
     setSaving(true);
@@ -102,7 +130,15 @@ export function BrandingTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName: name, accentColor: accent, logoUrl: logo }),
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        // The door REFUSES a bad accent/logo now (it used to answer 200 with the
+        // value quietly nulled), so the reason is real information: resolve the
+        // code into the reader's language rather than rendering the server's
+        // English sentence or a generic "save failed" over a specific refusal.
+        const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+        setStatus({ kind: "error", text: errorMessage(payload, t("saveFailed")) });
+        return;
+      }
       const saved = (await r.json()) as BrandConfig;
       // Reflect what the server actually stored (a bad color/URL comes back null),
       // and re-baseline so the form is now clean and Reset reverts to the saved value.
@@ -118,7 +154,7 @@ export function BrandingTab() {
     } finally {
       setSaving(false);
     }
-  }, [name, accent, logo, t]);
+  }, [name, accent, logo, t, accentWarning, errorMessage]);
 
   // Revert the form to the last loaded/saved values (NOT empty) — this is the
   // "discard my edits" affordance. To wipe the brand entirely, clear the fields and
@@ -159,7 +195,7 @@ export function BrandingTab() {
             accent={accent}
             onAccentChange={setAccent}
             effectiveAccent={effectiveAccent}
-            accentIllegible={accentIllegible}
+            accentWarning={accentWarning}
             logo={logo}
             onLogoChange={(v) => {
               setLogo(v);
@@ -181,6 +217,7 @@ export function BrandingTab() {
             <BrandPreview
               name={name}
               effectiveAccent={effectiveAccent}
+              effectiveAccentDark={effectiveAccentDark}
               logo={logo}
               logoError={logoError}
               onLogoError={() => setLogoError(true)}

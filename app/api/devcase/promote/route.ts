@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSubmission } from "@/app/_lib/db/devcase";
+import { safeJsonError } from "@/app/_lib/api-response";
+// The shared by-id owner guard (sibling module - a route file may export only handlers).
+import { ownedSubmission } from "../devcase-owned-lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
@@ -15,12 +17,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: string };
     if (!body.submissionId) return NextResponse.json({ error: "submissionId is required." }, { status: 400 });
-    const sub = getSubmission(body.submissionId);
-    // getSubmission is a by-id point read (globally-unique id), so ownership is
-    // checked here: promoting writes a pipeline entry carrying the candidate's
-    // name and contact, and a known id from another team must not be promotable.
-    // promoteSubmission itself derives every write's tenant from this same row.
-    if (!sub || sub.workspaceId !== (await currentWorkspace())) {
+    // getSubmission is a by-id point read (globally-unique id), so ownership is checked
+    // here — through the SHARED guard all six by-id doors now use: promoting writes a
+    // pipeline entry carrying the candidate's name and contact, and a known id from another
+    // team must not be promotable. promoteSubmission itself derives every write's tenant
+    // from this same row.
+    const sub = ownedSubmission(body.submissionId, await currentWorkspace());
+    if (!sub) {
       return NextResponse.json({ error: "submission not found" }, { status: 404 });
     }
     if (!sub.evaluation) return NextResponse.json({ error: "evaluate the submission first." }, { status: 400 });
@@ -32,8 +35,15 @@ export async function POST(request: NextRequest) {
     if (result) {
       try {
         observedSkills = (await mintObservedFromSubmission(body.submissionId, result.entryId)).credited;
-      } catch {
-        /* minting is enrichment, not a gate */
+      } catch (mintError) {
+        // Enrichment, not a gate — the promotion stands either way. But it is an outcome an
+        // operator would act on (the candidate's profile silently gains no observed skills),
+        // so it is LOGGED rather than dropped, the shape the close route's wrap-up send
+        // failure already uses.
+        console.error(
+          `[devcase:promote] observed-skill minting failed for submission "${body.submissionId}":`,
+          mintError instanceof Error ? mintError.message : mintError
+        );
       }
     }
     return NextResponse.json({
@@ -44,6 +54,8 @@ export async function POST(request: NextRequest) {
       observedSkills,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Promote failed." }, { status: 500 });
+    // promoteSubmission writes pipeline rows and the observed-skill mint spawns; the
+    // thrown message carries SQLITE_* detail, the db path or child stderr.
+    return safeJsonError(error, "api:devcase/promote", "DEVCASE_PROMOTE_FAILED");
   }
 }

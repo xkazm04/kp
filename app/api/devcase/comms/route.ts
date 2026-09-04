@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { listOutbox } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
@@ -12,6 +13,8 @@ export async function GET() {
   try {
     return NextResponse.json({ outbox: listOutbox(50, await currentWorkspace()), relayConfigured: Boolean(process.env.COMMS_WEBHOOK_URL) });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list outbox." }, { status: 500 });
+    // better-sqlite3 read: a thrown message carries SQLITE_* codes and the absolute
+    // db path. Log it, answer a code the studio renders in the reader's language.
+    return safeJsonError(error, "api:devcase/comms", "DEVCASE_OUTBOX_FAILED");
   }
 }

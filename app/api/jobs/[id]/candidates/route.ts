@@ -5,6 +5,8 @@ import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
 import { PipelineError } from "@/app/_lib/python-runner";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -35,6 +37,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     if (entries.length === 0) {
       return NextResponse.json({ job: null, candidates: [], note: "No saved candidates yet." });
+    }
+
+    // Per-IP, AFTER the visibility gate and the empty-pool short-circuit (both must keep
+    // answering freely — neither spawns anything) and BEFORE the recruiter_cli child.
+    // 30/10min: the panel ranks once per role opened, so clicking through a shortlist of
+    // roles is a legitimate burst, while a polling tab is pinned. Tighter than publish's
+    // budget because this is a per-REQUEST spawn a reader triggers by navigating.
+    if (!rateLimit(`jobs-candidates:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Pass the DB job directly so newly-ingested jobs (not in the static corpus)
@@ -84,9 +95,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // status/code (e.g. a 400 invalid_input), so a user-fixable failure stays a
     // 400 instead of collapsing to 500 — preserving the prior inline behavior.
     if (error instanceof PipelineError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
     }
-    const message = error instanceof Error ? error.message : "Failed to rank candidates.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");
   }
 }

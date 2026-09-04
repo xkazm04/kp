@@ -1682,9 +1682,16 @@ async function runScenario(scenario, opts) {
           // every undecided mandate in the app, and the generic findFirst read
           // another project's `retired` as ours (sweeps #18/#21). The tick is now
           // scoped server-side too; the filter here is the driver's own guarantee.
-          const details = Array.isArray(summary?.phases)
-            ? summary.phases.flatMap((p) => (Array.isArray(p?.details) ? p.details : []))
-            : [];
+          // Both tick-summary shapes are legitimate (mergeTickSummaries exists for exactly
+          // that): an array of phases from the real bridge, a phase->body map from the
+          // stub. Reading only the array recorded `decisionSource: "none"` against a tick
+          // that plainly answered - found by the regenerated bench fixture (wave 32).
+          const phaseList = Array.isArray(summary?.phases)
+            ? summary.phases
+            : summary?.phases && typeof summary.phases === "object"
+              ? Object.entries(summary.phases).map(([phase, body]) => ({ phase, ...(body && typeof body === "object" ? body : {}) }))
+              : [];
+          const details = phaseList.flatMap((p) => (Array.isArray(p?.details) ? p.details : []));
           const mine = details.find((d) => d && d.personaId === result.hire.personaId && d.decision);
           const reported = mine ? mine.decision : undefined;
           const decision =

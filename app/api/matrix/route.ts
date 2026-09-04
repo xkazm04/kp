@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJobsByIds } from "@/app/_lib/db/jobs";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
+import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
 
 
 // koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
@@ -23,17 +25,21 @@ type MatrixOut = {
   missingCandidates: { id: string; label: string; error: string }[];
 };
 
-// Single-entry, content-addressed cache for the scored grid (idea-4b0dfc70).
-// The matrix is a DETERMINISTIC O(N*M) computation behind a Python process
-// spawn, and it was rebuilt from scratch on every visit to a frequently-
-// revisited tab. The key is a hash of the EXACT JSON handed to the scorer
-// (profiles + requested ids + job records) — profiles/jobs carry no updated_at
-// column, so content-addressing the real inputs is the only edit-safe
-// invalidation, mirroring the reasoning cache's content-hash contract. The
-// stringify cost paid on a hit is the same stringify a miss needs for
-// writeFile, i.e. the hit path does strictly less work. In-process single
-// entry by design (one corpus state matters; kp runs one server process).
-let matrixCache: { key: string; matrix: MatrixOut } | null = null;
+// Bounded, content-addressed LRU for the scored grid (idea-4b0dfc70, bounded here).
+// The matrix is a DETERMINISTIC O(N*M) computation behind a Python process spawn, and
+// it was rebuilt from scratch on every visit to a frequently-revisited tab. The key is
+// a hash of the workspace plus the EXACT JSON handed to the scorer (profiles +
+// requested ids + job records): profiles/jobs carry no updated_at column, so
+// content-addressing the real inputs is the only edit-safe invalidation, mirroring the
+// reasoning cache's content-hash contract. The stringify cost paid on a hit is the same
+// stringify a miss needs for writeFile, i.e. the hit path does strictly less work.
+//
+// It used to be a SINGLE in-process entry, on the premise that "one corpus state
+// matters". Tenancy ended that: the grid is scored per workspace, so two tenants with
+// the tab open evicted each other on every poll and the hit rate collapsed to zero.
+// A few entries now, LRU-bounded so the memory is a stated number rather than one grid
+// per distinct corpus state forever. See app/_lib/matrix-cache.ts and its tests.
+const matrixCache = createBoundedCache<MatrixOut>();
 
 // Candidate x open-position fit heatmap. Scores are deterministic (no LLM).
 export async function GET(request: NextRequest) {
@@ -56,7 +62,12 @@ export async function GET(request: NextRequest) {
     // silently vanishing from the grid; matrix_cli reports any still-unresolved ids.
     // One IN-query for the whole position set (idea-f946db9d) — this sat on the
     // matrix critical path as M point SELECTs before Python even started.
-    const dbJobs = getJobsByIds(positions.map((p) => p.id));
+    const dbJobs = getJobsByIds(
+      positions.map((p) => p.id),
+      // Tenant scope: the batch now filters (workspace_id IS NULL OR = ?) itself rather
+      // than trusting that its ids were laundered through a scoped list first.
+      ws
+    );
     const jobsJson = JSON.stringify(dbJobs);
 
     // Re-attach titles to unresolved ids + fetch placements on EVERY response
@@ -78,14 +89,12 @@ export async function GET(request: NextRequest) {
         cached,
       });
 
-    const key = createHash("sha1")
-      .update(profilesJson)
-      .update("\u0000")
-      .update(jobIds)
-      .update("\u0000")
-      .update(jobsJson)
-      .digest("hex");
-    if (matrixCache?.key === key) return respond(matrixCache.matrix, true);
+    // The workspace is an explicit key axis: two tenants can hold identical corpus
+    // JSON (a seeded demo corpus cloned per workspace), and "one tenant's grid is
+    // never served as another's" belongs in the key, not in a comment.
+    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson });
+    const hit = matrixCache.get(key);
+    if (hit) return respond(hit, true);
 
     workdir = await createWorkdir();
     const profilesPath = path.join(workdir, "profiles.json");
@@ -111,15 +120,22 @@ export async function GET(request: NextRequest) {
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      // matrix-answers-with-codes-and-retries: the runner's machine code, not its
+      // message. matrix_cli's stderr carries the temp workdir path and a Python
+      // traceback; the grid needs a code it can localize, not that.
+      const answer = matrixEngineAnswer(err, MATRIX_GRID_SURFACE);
+      return answer.kind === "refusal"
+        ? jsonRefusal(answer.code, err.status)
+        : safeJsonError(new Error(err.message), "api:matrix", answer.code, err.status);
     }
 
     const matrix = parsePythonJson<MatrixOut>(stdout, stderr);
-    matrixCache = { key, matrix };
+    matrixCache.set(key, matrix);
     return respond(matrix, false);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Matrix build failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // better-sqlite3, fs and the spawn itself all throw with internal detail in
+    // `.message` (the db path, the temp workdir) — logged, never forwarded.
+    return safeJsonError(error, "api:matrix", "MATRIX_BUILD_FAILED");
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

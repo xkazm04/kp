@@ -1,27 +1,40 @@
 import { NextResponse } from "next/server";
 import { countRecentDevSessionsForToken, devSessionWatermark, getPostingByToken, startDevSession } from "@/app/_lib/db/devcase";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // The per-token/day session throttle lives in a sibling module: Next's generated
 // route types reject any non-handler `export const` here (backlog item 57).
 import { MAX_SESSIONS_PER_TOKEN_DAY, SESSION_WINDOW_MS } from "./session-limits";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // Live Work Surface (moonshot E) — start an in-product work session for a dev-case
 // apply token. Validates the token maps to an OPEN posting (don't orphan sessions
 // against a closed/missing posting), then mints a session.
+/** Hard cap on this public door's request body: an apply token and a candidate reference.
+ *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
+const MAX_SESSION_MINT_BODY_BYTES = 8 * 1024;
+
 export async function POST(request: Request) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { token?: unknown; candidateRef?: unknown };
+    const body = await readJsonWithLimit<{ token?: unknown; candidateRef?: unknown }>(request, MAX_SESSION_MINT_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SESSION_MINT_BODY_BYTES });
     const token = typeof body.token === "string" ? body.token.trim() : "";
-    if (!token) return NextResponse.json({ error: "token is required" }, { status: 400 });
+    // A PUBLIC door rendered in en/cs/de/fr for someone with no account: "token is
+    // required" was bare English with no code, so the work surface had nothing to
+    // resolve and painted the server's sentence (or nothing at all) at the reader.
+    if (!token) return jsonRefusal("DEVCASE_APPLY_TOKEN_REQUIRED", 400);
     const posting = getPostingByToken(token);
     if (!posting || posting.status === "closed") {
-      return NextResponse.json({ error: "This case is not accepting submissions." }, { status: 404 });
+      // A CODE, not English prose: this is a public candidate surface the app renders
+      // in cs/de/fr, and the work surface resolves the code through the reader's
+      // `errors` catalog. The two causes stay lumped on purpose (see the code's note in
+      // api-response.ts) — separating them would make this an apply-token oracle.
+      return jsonRefusal("DEVCASE_SESSION_UNAVAILABLE", 404);
     }
     // Per-token/day throttle (bug-ui-scan-2026-07-09 #2): reject once a token has minted
     // its daily quota of sessions, so a leaked link can't amplify into unbounded rows.
     const since = new Date(Date.now() - SESSION_WINDOW_MS).toISOString();
     if (countRecentDevSessionsForToken(token, since) >= MAX_SESSIONS_PER_TOKEN_DAY) {
-      return NextResponse.json({ error: "Too many sessions started for this case. Try again later." }, { status: 429 });
+      return jsonRefusal("DEVCASE_SESSION_QUOTA", 429);
     }
     const candidateRef = typeof body.candidateRef === "string" ? body.candidateRef.trim() || null : null;
     const session = startDevSession({ token, candidateRef });
@@ -32,6 +45,8 @@ export async function POST(request: Request) {
     // mild note, a foreign mark is the decisive tell.
     return NextResponse.json({ sessionId: session.id, watermark: devSessionWatermark(session.id) });
   } catch (error) {
-    return jsonError(error, "Failed to start the work session.");
+    // The thrown message here is better-sqlite3 detail plus the absolute db path,
+    // on an unauthenticated candidate surface. Log it, answer the code.
+    return safeJsonError(error, "api:devcase/session", "DEVCASE_SESSION_START_FAILED");
   }
 }

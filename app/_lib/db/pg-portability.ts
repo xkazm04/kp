@@ -49,8 +49,12 @@ const RULES: { key: string; title: string; fix: string; pattern: RegExp }[] = [
   {
     key: "pragma",
     title: ".pragma() / PRAGMA",
-    fix: "SQLite-only (WAL / foreign_keys / busy_timeout). Drop, or map to connection/pool settings.",
-    pattern: /\.pragma\s*\(|\bPRAGMA\s/i,
+    fix: "SQLite-only (WAL / foreign_keys / busy_timeout). Drop, or map to connection/pool settings. The `pragma_*()` TABLE-VALUED form (pragma_table_info in scripts/db-dump.mjs) is a schema query — Postgres answers it from information_schema / pg_catalog instead.",
+    // The third alternative catches the table-valued form — `SELECT … FROM
+    // pragma_table_info('t')` — which db-dump.mjs uses to enumerate every column of every
+    // table. Neither `.pragma(` nor `PRAGMA ` matches it, so the dump script's one hard
+    // dependency on SQLite's schema introspection went unlisted.
+    pattern: /\.pragma\s*\(|\bPRAGMA\s|\bpragma_[a-z_]+\s*\(/i,
   },
   {
     key: "sync_txn",
@@ -92,32 +96,68 @@ const RULES: { key: string; title: string; fix: string; pattern: RegExp }[] = [
   // legitimate) — audit those by hand from the schema, not via this checklist.
 ];
 
-function walkTsFiles(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = path.join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      walkTsFiles(full, acc);
-      continue;
-    }
-    // Skip tests and THIS audit module (its rule literals would self-match).
-    if (!full.endsWith(".ts")) continue;
-    if (full.endsWith(".test.ts")) continue;
-    if (full.includes("pg-portability")) continue;
-    acc.push(full);
+/** A source file this audit reads: the TypeScript data layer, plus the `.mjs` operator
+ *  scripts that carry their OWN SQL and pragmas (see auditRoots). Tests and THIS audit
+ *  module are skipped — the latter's rule literals would self-match. */
+function isAuditable(full: string): boolean {
+  if (full.endsWith(".test.ts") || full.endsWith(".test.mjs")) return false;
+  if (full.includes("pg-portability")) return false;
+  return full.endsWith(".ts") || full.endsWith(".mjs");
+}
+
+/** Collect auditable files under `entry`, which may be a directory OR a single file. */
+function walkSourceFiles(entry: string, acc: string[] = []): string[] {
+  if (!statSync(entry).isDirectory()) {
+    if (isAuditable(entry)) acc.push(entry);
+    return acc;
   }
+  for (const name of readdirSync(entry)) walkSourceFiles(path.join(entry, name), acc);
   return acc;
 }
 
-/** Scan `root` (typically app/_lib) for SQLite-isms, grouped by category. */
-export function auditPgPortability(root: string): PortabilityCategory[] {
+/**
+ * The roots a full audit covers, resolved against the repo root.
+ *
+ * `app/_lib` alone was never the whole data layer: `scripts/db-dump.mjs` and
+ * `scripts/db-load.mjs` ARE the operator's backup/restore path, and they hold their own
+ * SQL and their own pragmas (`pragma_table_info`, `journal_mode = WAL`, `busy_timeout`,
+ * and a synchronous `db.transaction()` wrapping the entire load — the sync→async blocker
+ * again, outside the app). Those are exactly the constructs this checklist exists to
+ * enumerate, so leaving them unscanned let the audit report a smaller dialect surface than
+ * the deployment has: a port that migrated every app store but left the dump/load tooling
+ * speaking SQLite is discovered on the day someone tries to restore a backup.
+ *
+ * Named FILES rather than all of `scripts/`: the rest of that tree is build, release and
+ * docs tooling that never opens the store, and sweeping it in would bury the real findings.
+ */
+export function auditRoots(repoRoot: string): string[] {
+  return [
+    path.join(repoRoot, "app", "_lib"),
+    path.join(repoRoot, "scripts", "db-dump.mjs"),
+    path.join(repoRoot, "scripts", "db-load.mjs"),
+  ];
+}
+
+/**
+ * Scan one or more roots (each a directory or a single file) for SQLite-isms, grouped by
+ * category.
+ *
+ * `base` is what finding paths are reported relative to. Pass the repo root when auditing
+ * several roots, so `app/_lib/db/core.ts` and `scripts/db-load.mjs` stay distinguishable;
+ * it defaults to the root itself for a single root, preserving the original
+ * `app/_lib`-relative output.
+ */
+export function auditPgPortability(roots: string | string[], base?: string): PortabilityCategory[] {
+  const rootList = Array.isArray(roots) ? roots : [roots];
+  const relBase = base ?? (rootList.length === 1 ? rootList[0] : process.cwd());
   const categories: PortabilityCategory[] = RULES.map((r) => ({
     key: r.key,
     title: r.title,
     fix: r.fix,
     findings: [],
   }));
-  for (const file of walkTsFiles(root)) {
-    const rel = path.relative(root, file).replace(/\\/g, "/");
+  for (const file of rootList.flatMap((root) => walkSourceFiles(root))) {
+    const rel = path.relative(relBase, file).replace(/\\/g, "/");
     const lines = readFileSync(file, "utf8").split(/\r?\n/);
     lines.forEach((line, i) => {
       RULES.forEach((rule, r) => {

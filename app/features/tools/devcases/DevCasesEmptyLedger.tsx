@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { DEV_CASES_GLYPH } from "@/app/_components/glyph/glyphs/devCasesGlyph";
 import { BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, PANEL, STAT, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 // The six control IDs, in reading order. The WORDS live in
@@ -50,7 +51,7 @@ export function CasesEmptyLedger({ onDefine }: { onDefine: () => void }) {
           <MotionizedGlyph
             data={DEV_CASES_GLYPH.data}
             viewBox={DEV_CASES_GLYPH.viewBox}
-            className="mx-auto h-28 w-28 lg:mx-0"
+            className={`mx-auto ${GLYPH_SIZE.lg} lg:mx-0`}
           />
           <p className={`mt-2 ${EYEBROW}`}>{t("eyebrow")}</p>
           <h3 className="mt-1 font-serif text-h2 text-ink">{t("title")}</h3>

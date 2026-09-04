@@ -14,6 +14,7 @@ import {
   addStage,
   axisEqualsStored,
   axisProblems,
+  AXIS_MAX_STAGES,
   draftFromStored,
   draftToStored,
   mintStageId,
@@ -201,4 +202,38 @@ test("renaming and reordering strand nobody — only removal can", () => {
   const reordered = moveStage(start(), "Interview", -1);
   assert.deepEqual(strandedByDraft(renamed, savedStages(), counts), []);
   assert.deepEqual(strandedByDraft(reordered, savedStages(), counts), []);
+});
+
+// ---- the ceiling -----------------------------------------------------------
+
+test("axisProblems refuses one column past AXIS_MAX_STAGES, and accepts exactly it", () => {
+  // The only branch of the validator with no coverage, and the one whose off-by-one
+  // is invisible on the shipped five-column axis: a `>=` here would refuse the last
+  // legal column, and a `>` on the SERVER's list length would accept a draft the
+  // server then rejects — the client check exists precisely so a recruiter is not
+  // told "invalid" after arranging a dozen columns.
+  const fill = (n: number) => {
+    let draft = start();
+    // Every added column is an interview-role stage, which lands before the terminal
+    // one, so nothing but the COUNT can make these drafts invalid.
+    for (let i = draft.stages.length; i < n; i += 1) draft = addStage(draft, `Round ${i}`, "interview");
+    return draft;
+  };
+
+  const atMax = fill(AXIS_MAX_STAGES);
+  assert.equal(atMax.stages.length, AXIS_MAX_STAGES);
+  assert.deepEqual(axisProblems(atMax), [], "the maximum itself is legal");
+
+  const overMax = addStage(atMax, "One too many", "interview");
+  assert.equal(overMax.stages.length, AXIS_MAX_STAGES + 1);
+  assert.deepEqual(
+    axisProblems(overMax).filter((p) => p.code === "tooMany"),
+    [{ code: "tooMany", max: AXIS_MAX_STAGES }],
+    "the problem carries the max so the UI can name the limit without re-deriving it"
+  );
+
+  // And the client agrees with the server, which is the whole contract this suite
+  // is about: the same over-long axis is refused by validateDecisionConfig too.
+  const stored = draftToStored(overMax, savedStages());
+  assert.equal(validateDecisionConfig("pipelineStages", stored).ok, false, "the server refuses it too");
 });

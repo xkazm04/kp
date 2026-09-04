@@ -23,12 +23,12 @@ test("chat knockout buttons are tonally neutral — neither answer is signposted
   const koBlock = src.slice(src.indexOf('step.type === "ko"'), src.indexOf('step.type === "choice"'));
   assert.ok(koBlock.length > 0, "could not locate the ko control block");
   assert.equal(
-    (koBlock.match(/hover:border-coral\/50/g) ?? []).length,
+    (koBlock.match(/\$\{BTN_SECONDARY\}/g) ?? []).length,
     2,
-    "both KO buttons use the same neutral coral hover as the quick form and the choice buttons"
+    "both KO buttons compose the SAME shared recipe — neither can be restyled on its own"
   );
   // The rendered classes only — the block's prose deliberately explains the moss ban.
-  const classNames = [...koBlock.matchAll(/className="([^"]*)"/g)].map((m) => m[1]);
+  const classNames = [...koBlock.matchAll(/className=\{`([^`]*)`\}/g)].map((m) => m[1]);
   assert.ok(classNames.length >= 2, "expected a className on each KO button");
   for (const cls of classNames) {
     assert.doesNotMatch(
@@ -63,13 +63,18 @@ test("a declined outcome is recoverable in place", () => {
 
 test("the quick form's submit is always live and names what is missing", () => {
   const src = read("quick/QuickApplyForm.tsx");
-  assert.match(src, /disabled=\{submitting\}\r?\n\s*className="focus-ring mt-5/, "submit is disabled only while POSTing");
+  assert.match(
+    src,
+    /disabled=\{submitting\}\r?\n\s*aria-describedby=[^\r\n]*\r?\n\s*className=\{`\$\{BTN_PRIMARY\} mt-5/,
+    "submit is disabled only while POSTing"
+  );
   assert.doesNotMatch(src, /disabled=\{!ready\}/, "the dead !ready-disabled submit is gone");
   assert.match(src, /firstMissingControlId/, "an incomplete submit resolves the first blocking control");
   assert.match(src, /setIncompleteError\(t\("quick\.incompleteHint"\)\)/, "…and raises a localized hint");
-  assert.match(src, /incompleteError \? \(\r?\n\s*<p role="alert"/, "the hint renders as an assertive alert");
+  assert.match(src, /incompleteError \? \(\r?\n\s*<p id="qa-incomplete-error" role="alert"/, "the hint renders as an assertive alert");
   assert.match(src, /el\?\.focus\(\);/, "…and moves focus to that control");
   assert.match(src, /el\?\.scrollIntoView\(/, "…and scrolls it into view (KO gates sit below the fold on a phone)");
+  assert.match(src, /jumpTo\(missing\)/, "…through the one shared jump helper");
 });
 
 test("the quick form keeps its honeypot and the strict server KO contract untouched", () => {

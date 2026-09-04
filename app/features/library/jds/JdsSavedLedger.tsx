@@ -33,6 +33,8 @@ export function LibrarySavedJdsLedger() {
   const {
     t,
     rows,
+    total,
+    truncated,
     error,
     reload,
     query,
@@ -46,6 +48,10 @@ export function LibrarySavedJdsLedger() {
     seniority,
     setSeniority,
     setOpenRow,
+    openRowAt,
+    openHistoryFor,
+    heldBuilds,
+    pollStalled,
     ingested,
     setIngested,
     coachEdit,
@@ -78,6 +84,8 @@ export function LibrarySavedJdsLedger() {
         ingested={ingested}
         setIngested={setIngested}
         visible={visible}
+        total={total}
+        truncated={truncated}
         query={query}
         setQuery={setQuery}
         searchOpen={searchOpen}
@@ -94,7 +102,9 @@ export function LibrarySavedJdsLedger() {
         sort={sort}
         onSort={onSort}
         duplicating={duplicating}
-        onOpenRow={setOpenRow}
+        heldBuilds={heldBuilds}
+        pollStalled={pollStalled}
+        onOpenRow={openRowAt}
         onDuplicate={startDuplicate}
         onStartGenerate={goToIntake}
         t={t}
@@ -104,6 +114,8 @@ export function LibrarySavedJdsLedger() {
         <LedgerDetailModal
           row={effectiveOpenRow}
           stagedSuggestion={stagedForOpenRow}
+          held={heldBuilds.has(effectiveOpenRow.slug)}
+          openHistory={openHistoryFor === effectiveOpenRow.slug}
           onClose={() => {
             setOpenRow(null);
             setCoachDismissed(true);

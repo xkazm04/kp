@@ -1,7 +1,6 @@
 import { Clock, Headphones, ListChecks, Mic, Volume2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
-import { durationChip } from "@/app/_lib/interview-duration.mjs";
+import { CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 // The agenda labels are NOT trusted copy — see the scrub below. candidateSafeTopic
 // is the shared shape-based sanitizer from the candidate-brief boundary; it is
 // pure and dependency-free (only the persona constants ride along), so it is safe
@@ -44,8 +43,8 @@ export function InterviewSidebar({
             <p className={`flex items-center gap-1.5 ${META_LABEL}`}>
               <ListChecks size={14} className="text-moss" /> {t("agendaTitle")}
             </p>
-            <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 text-sm text-steel">
-              <Clock size={12} /> {durationChip(durationMin)}
+            <span className={`${CHIP_QUIET} inline-flex items-center gap-1 bg-paper`}>
+              <Clock size={12} /> {t("durationChip", { min: durationMin })}
             </span>
           </div>
           <ol className="mt-3.5 space-y-2.5">
@@ -62,7 +61,9 @@ export function InterviewSidebar({
         </section>
       ) : null}
 
-      <section className="rounded-lg border border-stone-200 bg-paper/60 p-4">
+      {/* The readiness panel was the one surface here still hand-rolling the
+          panel shell, so it missed Spark Dark's drawn outline entirely. */}
+      <section className={`${PANEL} bg-paper/60 p-4`}>
         <p className={`flex items-center gap-1.5 ${META_LABEL}`}>
           <Headphones size={14} className="text-moss" /> {t("beforeTitle")}
         </p>

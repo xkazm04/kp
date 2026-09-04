@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { labelize } from "@/app/_lib/format";
 import { labelOr } from "@/app/_lib/use-enum-label";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { JdsIntakeBriefTitle } from "./JdsIntakeBriefTitle";
 import { prepareFacets, sortByWeight, type BriefRequirement } from "./jdsIntakeBriefModel";
 import {
@@ -36,7 +37,7 @@ import {
 //    (jdsIntakeBriefModel.ts); a `context`-graded line drops to steel, because
 //    background should stay background.
 
-const HEADING = "flex items-center gap-2 text-meta uppercase text-steel";
+const HEADING = `flex items-center gap-2 ${META_LABEL}`;
 
 function Heading({ hue, label, count }: { hue: string; label: string; count?: number }) {
   return (

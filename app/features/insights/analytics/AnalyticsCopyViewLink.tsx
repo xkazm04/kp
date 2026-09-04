@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Link2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
@@ -25,6 +25,18 @@ import type { AnalyticsSectionId } from "./sections/analyticsSections";
 export function AnalyticsCopyViewLink({ section, days }: { section: AnalyticsSectionId; days: number | null }) {
   const t = useTranslations("analytics");
   const [state, setState] = useState<{ kind: "idle" | "copied" } | { kind: "manual"; url: string }>({ kind: "idle" });
+  // The 2 s "Link copied" reset outlived the component: this button sits in the
+  // always-rendered analytics header, which unmounts on every tab switch, so a copy
+  // followed immediately by leaving the tab left a timer that woke up to setState on
+  // an unmounted component. Held in a ref so the effect below can clear it, and so a
+  // second copy inside the window restarts the countdown instead of stacking timers.
+  const resetTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
+    },
+    [],
+  );
 
   const copy = async () => {
     // SSR never runs this handler; the guard keeps the component safe to render on
@@ -36,7 +48,11 @@ export function AnalyticsCopyViewLink({ section, days }: { section: AnalyticsSec
     });
     if (await copyText(url)) {
       setState({ kind: "copied" });
-      window.setTimeout(() => setState((cur) => (cur.kind === "copied" ? { kind: "idle" } : cur)), 2000);
+      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
+      resetTimer.current = window.setTimeout(() => {
+        resetTimer.current = null;
+        setState((cur) => (cur.kind === "copied" ? { kind: "idle" } : cur));
+      }, 2000);
     } else {
       setState({ kind: "manual", url });
     }

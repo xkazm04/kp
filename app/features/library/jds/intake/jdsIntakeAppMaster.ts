@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
-import { readRepoScanResponse, type IntakeSession, type RepoScanView, type ScanState } from "./jdsIntakeLogic";
+import {
+  readRepoScanResponse,
+  scanFenceWarningFor,
+  scanStateFor,
+  type IntakeSession,
+  type RepoScanView,
+  type ScanFenceWarning,
+  type ScanState,
+} from "./jdsIntakeLogic";
 
 // App master (docs/features/app-master/README.md): the client half of the third
 // intake shape. Two jobs, both split out of jdsIntakeLogic so that file stays
@@ -46,11 +54,21 @@ export function useAppMasterLogic(
   /** The identity-checked session updater from useIntakeLogic. */
   applySession: (intakeId: string, patch: Partial<IntakeSession>) => void
 ) {
-  const { tasks } = useTasks();
+  const { tasks, fetchTask, cancelTask } = useTasks();
   const [scanState, setScanState] = useState<ScanState>(null);
+  // The fence disclosure, held beside `scanState` rather than inside it: they are
+  // two independent facts about the same run (see ScanFenceWarning).
+  const [scanFence, setScanFence] = useState<ScanFenceWarning>(null);
   const [composing, setComposing] = useState(false);
-  const [composeError, setComposeError] = useState<string | null>(null);
+  // The server's machine CODE, never its English `error` string — the card
+  // resolves it through the `errors` catalog in the reader's language, exactly
+  // as the dispatch control below already does. A single placeholder string used
+  // to collapse a throttle, "the scan has not landed" and "answer the dialog
+  // first" into one line that told the requestor nothing about what to do next.
+  const [composeError, setComposeError] = useState<{ code: string | null } | null>(null);
   const inFlight = useRef(false);
+  // The in-flight compose, so it can be cancelled (see composeAppMaster).
+  const composeAbort = useRef<AbortController | null>(null);
   // The scan whose dossier was already posted — a second POST would re-merge
   // the same facets and re-spend on the population fit for no new information.
   const posted = useRef<string | null>(null);
@@ -74,7 +92,13 @@ export function useAppMasterLogic(
         const scan = readRepoScanResponse(await res.json());
         if (!scan) throw new Error("unrecognized /api/repo-scan payload");
         if (cancelled) return;
-        setScanState(scan.status);
+        // The row's own honest reading of itself: which failure, or which agent
+        // fallback is hiding behind a "complete". Not `scan.status`, which
+        // collapsed both to one word.
+        setScanState(scanStateFor(scan));
+        // Read off the SCAN row, not off the dossier the intake keeps: the intake
+        // copy is zod-parsed against repoDossierSchema, which drops `scanFence`.
+        setScanFence(scanFenceWarningFor(scan));
         if (scan.status !== "complete" || !scan.dossier) return;
         posted.current = scanId;
         const post = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/dossier`, {
@@ -86,6 +110,12 @@ export function useAppMasterLogic(
           // Refused (429/409/offline): let the next tick try again rather than
           // silently leaving a finished scan unattached to its session.
           posted.current = null;
+          // 409 = INTAKE_BRIEF_MOVED: a dialog turn landed while the merge was
+          // being computed, so the server re-read rather than overwrote. That is
+          // the system working, not a fault — retry on the next tick WITHOUT
+          // claiming the scan is unreachable, which is what the catch below would
+          // otherwise render under an intake that is perfectly reachable.
+          if (post.status === 409) return;
           throw new Error(`HTTP ${post.status}`);
         }
         const payload = (await post.json()) as {
@@ -95,7 +125,10 @@ export function useAppMasterLogic(
         };
         if (cancelled) return;
         applySession(intakeId, { brief: payload.brief, shape: payload.shape, dossier: payload.dossier });
-        setScanState(null);
+        // A clean completion has nothing left to say; a completion that fell back
+        // keeps saying so, because the dossier is thinner than the card looks and
+        // this is the moment the requestor can still fix the agent and re-scan.
+        setScanState(scanStateFor(scan));
       } catch {
         // The queue or the scan route did not answer. `tasks` is stale rather
         // than empty, so say "unreachable" instead of rendering silence as done.
@@ -112,25 +145,94 @@ export function useAppMasterLogic(
     };
   }, [tasks, scanId, intakeId, hasDossier, applySession]);
 
+  // ---- Cancelling the scan --------------------------------------------------
+  //
+  // The engine already threads the abort signal end to end (runRepoScan → the git
+  // clone and the Python child both take it), and DELETE /api/tasks/[id] is the door
+  // to it — but no surface ever knocked, so a four-minute scan of the wrong
+  // repository could only be waited out.
+  //
+  // Finding WHICH task is this scan's is the one awkward part: the polled task list
+  // projects `params` out (they can be multi-MB), so the scanId is not on it. The
+  // active `repo_scan` rows are few — at most the two runner slots plus a queue — so
+  // the full record is fetched for those and matched by params.scanId. Resolved once
+  // per session and cached; a wrong guess here would cancel somebody else's scan.
+  const [scanTaskId, setScanTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!scanId || scanTaskId || hasDossier) return;
+    const candidates = tasks.filter((t) => t.kind === "repo_scan" && (t.status === "queued" || t.status === "running"));
+    if (candidates.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const candidate of candidates) {
+        const full = await fetchTask(candidate.id);
+        if (cancelled) return;
+        if ((full?.params as { scanId?: unknown } | null)?.scanId === scanId) {
+          setScanTaskId(candidate.id);
+          return;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks, scanId, scanTaskId, hasDossier, fetchTask]);
+
+  /** `null` when there is nothing to cancel — the control is then not rendered at
+   *  all, rather than rendered dead. A queued scan cancels as truly as a running
+   *  one: the `repo_scan` handler's `onCancelQueued` hook moves the row to
+   *  `failed`/`cancelled` so it cannot sit at `queued` forever. */
+  const cancellable =
+    scanTaskId !== null &&
+    (scanState === "queued" || scanState === "running") &&
+    !hasDossier;
+  const cancelScan = useCallback(() => {
+    if (!scanTaskId) return;
+    void cancelTask(scanTaskId);
+  }, [scanTaskId, cancelTask]);
+
   const composeAppMaster = useCallback(async () => {
     if (!intakeId || composing) return;
+    // The compose spawn can run for minutes. Holding its controller is what makes
+    // the Cancel below a real cancel rather than a UI lie: aborting the fetch
+    // aborts `request.signal` server-side, which the route threads into the
+    // Python spawn.
+    const controller = new AbortController();
+    composeAbort.current = controller;
     setComposing(true);
     setComposeError(null);
     try {
-      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/compose-app-master`, { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/compose-app-master`, {
+        method: "POST",
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { code?: string } | null;
+        setComposeError({ code: body?.code ?? null });
+        return;
+      }
       const data = (await res.json()) as AppMasterCompose & { brief: IntakeSession["brief"] };
       // applySession is identity-checked, like every other late response here.
       applySession(intakeId, {
         brief: data.brief,
         appMaster: { spec: data.spec, fit: data.fit, composedAt: data.composedAt },
       });
-    } catch {
-      setComposeError("compose");
+    } catch (err) {
+      // A cancel is not a failure and must not be reported as one; the button
+      // simply returns to idle.
+      if ((err as { name?: string } | null)?.name !== "AbortError") setComposeError({ code: null });
     } finally {
+      if (composeAbort.current === controller) composeAbort.current = null;
       setComposing(false);
     }
   }, [intakeId, composing, applySession]);
+
+  /** Abort an in-flight compose. Safe to call when nothing is running. */
+  const cancelCompose = useCallback(() => {
+    composeAbort.current?.abort();
+    composeAbort.current = null;
+  }, []);
 
   // ---- P4: dispatch the composed spec to Personas ---------------------------
 
@@ -165,9 +267,26 @@ export function useAppMasterLogic(
   if (stateForIntake !== intakeId) {
     setStateForIntake(intakeId);
     setScanState(null);
+    setScanFence(null);
     setComposeError(null);
     setDispatchState({ status: "idle" });
+    // …and the task this session's scan resolved to. Cancelling the PREVIOUS
+    // session's scan from the new session's button is exactly the class of bug the
+    // reset block exists to prevent.
+    setScanTaskId(null);
   }
+
+  // A compose belongs to the session it was started from, so a session switch
+  // aborts it — the spawn behind it can run for minutes, and nobody is waiting
+  // for it any more. In an EFFECT's cleanup, not in the render-phase reset
+  // above: touching a ref during render is exactly what react-hooks/refs
+  // forbids, and the reset block runs during render.
+  useEffect(() => {
+    return () => {
+      composeAbort.current?.abort();
+      composeAbort.current = null;
+    };
+  }, [intakeId]);
 
   useEffect(() => {
     if (!isAppMaster || paired !== null) return;
@@ -212,5 +331,19 @@ export function useAppMasterLogic(
     }
   }, [intakeId, dispatchState.status]);
 
-  return { scanState, composeAppMaster, composing, composeError, paired, dispatchState, dispatchAppMaster };
+  return {
+    scanState,
+    /** What this session's scan can claim about the secret-file fence it ran
+     *  behind. `null` = nothing to disclose. */
+    scanFence,
+    /** Cancel this session's scan, or `null` when there is nothing to cancel. */
+    cancelScan: cancellable ? cancelScan : null,
+    composeAppMaster,
+    cancelCompose,
+    composing,
+    composeError,
+    paired,
+    dispatchState,
+    dispatchAppMaster,
+  };
 }

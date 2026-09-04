@@ -20,11 +20,19 @@ from ...claude_cli import ClaudeCliProvider
 from .._style import _make_styler, should_color
 from ..runner import glyph, verdict_banner  # eval/runner.py — the shared report chrome
 from . import app_client, tts
+from .seal import voice_backend_available
 from .session_runner import format_wer_table, percentile, run_voice_scenario, voice_checks
 
 
 async def _run(args) -> int:
     st = _make_styler(should_color(args))
+
+    # E-SH-4: the spoken plane is a real cloud session and has no on-box alternative. Refuse
+    # under the no-egress seal with the eval contract's exit 2, before anything is minted.
+    ok, why = voice_backend_available()
+    if not ok:
+        sys.stderr.write(f"v0_smoke: {why}\n")
+        return 2
 
     from ..interview_eval import select_scenarios
 
@@ -66,7 +74,8 @@ async def _run(args) -> int:
 
     run = await run_voice_scenario(
         scenario, base_url=args.base_url, kind=args.kind, sim_mode=args.sim_mode,
-        entry_id=args.entry, turns=args.turns, timeout=args.timeout, provider=provider, on_event=on_event,
+        entry_id=args.entry, turns=args.turns, timeout=args.timeout, provider=provider,
+        max_minutes=args.max_minutes, on_event=on_event,
     )
 
     issues = voice_checks(run, wer_budget=args.wer_budget, latency_budget_s=args.latency_budget)
@@ -81,6 +90,9 @@ async def _run(args) -> int:
         passed=passed, s=st))
 
     print(f"\nconversation_id: {run.conversation_id}")
+    if run.budget_stopped:
+        # A short run must never read as a short conversation: say the ceiling stopped it.
+        print(f"stopped early: {run.stopped_reason}")
     print(f"wall {run.wall_s:.1f}s · agent audio {run.agent_audio_s:.1f}s · interruptions {run.interruptions} "
           f"· brief={'ours' if run.agent_prompt_used else 'DASHBOARD'}")
     if issues:
@@ -112,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--entry", default=None, help="Pipeline entry id (with --kind entry).")
     p.add_argument("--turns", type=int, default=2)
     p.add_argument("--timeout", type=float, default=90.0)
+    p.add_argument("--max-minutes", type=float, default=0.0,
+                   help="Wall-clock ceiling on the PAID call (0 = unlimited). A spent budget stops "
+                        "the conversation cleanly; the transcript so far is still persisted and scored.")
     p.add_argument("--wer-budget", type=float, default=0.35)
     p.add_argument("--latency-budget", type=float, default=8.0)
     p.add_argument("--no-color", action="store_true")

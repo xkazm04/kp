@@ -1,12 +1,18 @@
 "use client";
 
+import { memo } from "react";
 import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { CandRow } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
 import { JobsRecruiterCandidatesCard } from "./JobsRecruiterCandidatesCard";
 
-export function CandidateColumn({
+// MEMO BOUNDARY (per column). The two columns share a parent that re-renders on
+// every add, every reach-out and every toggle; without this, filing an
+// experienced candidate repainted the early-career column too. It holds only
+// because the hook hands down stable `rows` (pre-ordered + memoized), stable
+// handlers and a stable `fair` lookup — see jobsCandidatesMemo.test.ts.
+export const CandidateColumn = memo(function CandidateColumn({
   title,
   rows,
   highlight,
@@ -57,11 +63,11 @@ export function CandidateColumn({
               added={added(c.candidateId)}
               adding={adding(c.candidateId)}
               error={error(c.candidateId)}
-              onAdd={() => onAdd(c)}
+              onAdd={onAdd}
               reached={reached(c.candidateId)}
               reaching={reaching(c.candidateId)}
               reachError={reachError(c.candidateId)}
-              onReach={() => onReach(c)}
+              onReach={onReach}
               fair={fair?.(c.candidateId)}
             />
           ))}
@@ -69,4 +75,4 @@ export function CandidateColumn({
       )}
     </div>
   );
-}
+});

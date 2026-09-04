@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from pipeline.jobfit import profile_cli
+from pipeline.jobfit import _cli, profile_cli
 
 
 def _run(intake: str) -> tuple[int, str, str]:
@@ -78,6 +78,56 @@ class TestProfileCliErrorStatus(unittest.TestCase):
         self.assertIn("profile", payload)
         self.assertIn("archetype", payload)
         self.assertIn("completeness", payload)
+
+    def test_routing_reasons_ship_a_localizable_twin(self):
+        # The panel renders the ROUTER's explanation; `reasons` is English prose, so
+        # the wire also carries `reasonCodes` ({kind, params}) for the catalogs — one
+        # code per reason, same order. Without this key the cs/de/fr reader gets the
+        # English sentence, which is the defect it closes.
+        code, out, _err = _run(json.dumps({"profile": {}, "signals": {"isEnrolled": True}}))
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self.assertEqual(len(payload["reasonCodes"]), len(payload["reasons"]))
+        self.assertEqual(payload["reasonCodes"][0]["kind"], "signal_enrolled")
+
+
+class TestProfileCliSpeaksTheSharedVocabulary(unittest.TestCase):
+    """profile_cli used to declare its own ERR_* literals and hand-roll the envelope.
+
+    It now imports the words from `_cli` and prints through `emit_error`, which is what
+    let it leave the shrinking LOCAL_ERR_HOLDOUTS ratchet in test_cli_error_envelope.
+    These are the non-vacuity checks for that removal.
+    """
+
+    def test_it_declares_no_local_error_words_of_its_own(self) -> None:
+        # An identity check is impossible once the literals are gone, so assert the
+        # absence directly: a re-declared ERR_* is how a lone typo ships a code that
+        # resolves to no errors.<CODE> catalog key in any of the four locales.
+        source = Path(profile_cli.__file__).read_text(encoding="utf-8")
+        self.assertNotRegex(source, r'(?m)^ERR_[A-Z_]+\s*=\s*"')
+
+    def test_every_code_it_emits_is_in_the_shared_set(self) -> None:
+        _rc, _out, bad_json = _run("{ not json")
+        with mock.patch("pipeline.jobfit.profile_cli.normalize_profile", side_effect=RuntimeError("boom")):
+            _rc2, _out2, fault = _run(json.dumps({"profile": {}}))
+        for stream in (bad_json, fault):
+            self.assertIn(_last_json(stream)["code"], _cli.ERROR_CODES)
+
+    def test_the_envelope_is_the_single_line_the_bridge_parses(self) -> None:
+        # parseStderrError reads the LAST line of stderr only.
+        _rc, _out, err = _run(json.dumps({"profile": {"displayName": "Věra", "yearsExperience": "x"}}))
+        self.assertEqual(len([ln for ln in err.splitlines() if ln.strip()]), 1)
+
+    def test_one_replaced_stream_does_not_crash_the_cli(self) -> None:
+        # The open-coded reconfigure pair this CLI carried tested sys.stdout and then
+        # called sys.stderr.reconfigure unconditionally, so a harness capturing only
+        # one stream died with an AttributeError before line one. configure_stdio
+        # guards each stream separately; _run replaces BOTH, so also assert the
+        # single-stream case the old form actually broke on.
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):  # stdout real, stderr replaced
+            profile_cli.configure_stdio()
+        self.assertEqual(buf.getvalue(), "")
 
 
 if __name__ == "__main__":

@@ -30,11 +30,7 @@ export type Candidate = {
 
 // Keyed by the InterviewRecommendation union so every canonical verdict is
 // styled (a new verdict in the contract is a compile error here until handled).
-export const REC_STYLE: Record<InterviewRecommendation, string> = {
-  advance: "bg-moss/15 text-moss",
-  hold: "bg-dial-amber/20 text-ink",
-  reject: "bg-coral/10 text-coral",
-};
+export { RECOMMENDATION_CHIP_CLASS as REC_STYLE } from "@/app/_lib/status-tone";
 export const CONF_STYLE: Record<string, string> = {
   tight: "text-moss",
   moderate: "text-steel",

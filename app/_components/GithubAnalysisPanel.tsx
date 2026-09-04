@@ -7,6 +7,9 @@ import { hasEvidenceIncomplete, type GithubNote } from "@/app/_lib/github-eviden
 import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
+import { NOTICE, PANEL } from "./ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 
 // Analysis findings arrive as `{ kind, params }` (app/_lib/github-evidence.ts):
 // the server decides WHAT was observed, this panel decides how it reads, in the
@@ -22,10 +25,40 @@ function useFindingText(): (note: GithubNote) => string {
   };
 }
 
+/** What a failed deep-dive hands the panel.
+ *
+ *  `{ code }` is the shape to write: the failure is named by the machine code the
+ *  route already sent (`{ error, code }`), and the panel resolves it in the
+ *  READER's language — the github catalog first (results.github.errors.*, the
+ *  route's own vocabulary), then the app-wide `errors` namespace for the shared
+ *  doors (throttling, capability), then the generic line. `fallback` is for a
+ *  caller that has an already-localized sentence worth preferring over the
+ *  generic one.
+ *
+ *  A bare string is the LEGACY form: a line the caller already resolved. Two call
+ *  sites still produce one — app/features/tools/analyze (resolveAnalyzeErrorText,
+ *  which folds a Retry-After into the sentence) and
+ *  app/features/tools/devcases/useDevSubmissionRow — both outside this lot's write
+ *  set; neither leaks English today, and both should hand over the code instead
+ *  once their state can carry it. */
+export type GithubPanelError =
+  | string
+  | {
+      code: string;
+      fallback?: string | null;
+      /** Seconds until the boundary says a retry can succeed — the route forwards
+       *  GitHub's own `Retry-After` / `x-ratelimit-reset` on a RATE_LIMITED answer.
+       *  Rendered as a second line beside the Retry button, so "try again shortly"
+       *  becomes a time the reader can act on instead of an invitation to retry
+       *  straight back into the same wall. Absent whenever the boundary gave no
+       *  hint — the panel then says nothing rather than guessing a number. */
+      retryAfterSec?: number | null;
+    };
+
 type GithubAnalysisPanelProps = {
   status: "idle" | "loading" | "done" | "error";
   analysis: GithubAnalysis | null;
-  error: string | null;
+  error: GithubPanelError | null;
   /** Non-fatal degradation note shown above the result (e.g. JD-blind run). */
   warning?: string | null;
   /** GH5 — re-fire the deep-dive alone. Rate limits are this route's dominant
@@ -36,10 +69,42 @@ type GithubAnalysisPanelProps = {
 
 export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry }: GithubAnalysisPanelProps) {
   const t = useTranslations("results.github");
+  const ghErrMsg = useGithubErrorMessage();
+  const appErrMsg = useErrorMessage();
+  // A sentinel, not an empty string: "this catalog does not know the code" has to
+  // be distinguishable from "this catalog answers with nothing", or an unknown
+  // code would stop the walk at the first resolver. Same technique as
+  // useAnalyzeForm's nullIfUnknown.
+  const UNKNOWN = "__github_panel_unknown_code__";
+  const errorText =
+    error == null
+      ? null
+      : typeof error === "string"
+        ? error
+        : (() => {
+            const fromGithub = ghErrMsg({ code: error.code }, UNKNOWN);
+            if (fromGithub !== UNKNOWN) return fromGithub;
+            const fromApp = appErrMsg({ code: error.code }, UNKNOWN);
+            if (fromApp !== UNKNOWN) return fromApp;
+            return error.fallback ?? t("errors.ANALYSIS_FAILED");
+          })();
+  // Minutes once the wait passes a minute — "try again in 900 seconds" is a number
+  // a reader has to do arithmetic on. Both forms are ICU-pluralized in the catalog
+  // (Czech needs one/few/other on each).
+  const retryAfterSec =
+    error && typeof error !== "string" && typeof error.retryAfterSec === "number" && error.retryAfterSec > 0
+      ? error.retryAfterSec
+      : null;
+  const retryHint =
+    retryAfterSec === null
+      ? null
+      : retryAfterSec < 60
+        ? t("retryAfterSeconds", { seconds: retryAfterSec })
+        : t("retryAfterMinutes", { minutes: Math.ceil(retryAfterSec / 60) });
   if (status === "idle") return null;
 
   return (
-    <section className="animate-fade-in rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`animate-fade-in ${PANEL} p-5`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -64,7 +129,8 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
 
       {status === "error" ? (
         <div className="mt-4 rounded-md bg-red-50 p-3">
-          <p className="text-base text-red-700">{error}</p>
+          <p className="text-base text-red-700">{errorText}</p>
+          {retryHint ? <p className="mt-1 text-sm text-red-700">{retryHint}</p> : null}
           {onRetry ? (
             <button
               type="button"
@@ -78,7 +144,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
       ) : null}
 
       {warning ? (
-        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50/60 p-3 text-base text-amber-800" role="status">
+        <p className={`mt-4 ${NOTICE("amber")} p-3 text-base`} role="status">
           {warning}
         </p>
       ) : null}
@@ -280,9 +346,11 @@ function CodeReviewBlock({
       {review.partial ? (
         <p className="mt-2 text-sm leading-5 text-amber-800">{tReview("partial")}</p>
       ) : null}
-      {review.error ? (
-        <p className="mt-2 rounded-md bg-red-50 p-2 text-sm text-red-700">{review.error}</p>
-      ) : null}
+      {/* `review.error` is a stable DIAGNOSTIC code for the server log (see
+          github/code-review.ts REVIEW_DIAGNOSTIC), never prose — this used to render
+          the thrown provider message verbatim, in English, to every reader. The
+          localized line for the same failure is `reason`, rendered as `summary`
+          above, so there is nothing left to show here. */}
       {review.reposReviewed.length ? (
         <p className="mt-2 text-sm text-steel">{t("reposReviewed", { repos: review.reposReviewed.join(", ") })}</p>
       ) : null}

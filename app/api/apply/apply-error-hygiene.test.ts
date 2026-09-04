@@ -87,21 +87,90 @@ test("the conversational re-apply response gates its tokens on proven ownership"
   );
   // Proof is the ?lead= capability token resolving to THIS entry — the emailed
   // enrichment walk, which must keep working — never the submitted name/email.
+  // The unproven duplicate now RETURNS before the merge (the write gate,
+  // behaviourally pinned by [id]/reapply-capability-gate.test.ts), so the only
+  // acknowledgeReapply call left in that branch is the tokenless early exit.
   assert.match(
     conversational,
-    /followup,\s*\n\s*\/\/[\s\S]{0,220}?\n\s*leadEntry !== null\s*\n\s*\);/,
-    "the name/email-matched duplicate passes `leadEntry !== null` as its proof"
+    /if \(!leadEntry\) \{[\s\S]{0,600}?acknowledgeReapply\(existing\.id, t\("alreadyMessage"\), \[\], false, workspaceId, \{\}, false\);/,
+    "a duplicate without the lead token must return the tokenless acknowledgement BEFORE any merge"
+  );
+  // The event is a write too, so it rides the same proof.
+  assert.match(
+    fn[0],
+    /if \(proven\) recordAutomationEvent\(entryId, "re_applied"/,
+    "an unproven repeat must not write a `re_applied` line onto the matched person's timeline"
   );
 });
 
-test("the deliberate human-written 4xx validation copy is untouched", () => {
-  // These are client-safe by construction and tell the applicant what to fix —
-  // adopting safeJsonError must not have swept them up.
-  const conversational = read("[id]/route.ts");
-  assert.match(conversational, /"Your name is too long\."/);
-  assert.match(conversational, /"Please enter a valid email address\."/);
-  assert.match(conversational, /"Application payload too large\."/);
-  const quick = read("[id]/quick/route.ts");
-  assert.match(quick, /"Please enter your name\."/);
-  assert.match(quick, /"Please enter a valid email address\."/);
+test("every validation refusal on both doors carries a CODE, not English prose", () => {
+  // This test used to assert the OPPOSITE — that the hand-written English
+  // sentences ("Your name is too long.") stayed in the routes. They were
+  // client-safe, but they were also the only thing the door had to show: with no
+  // `code`, useErrorMessage fell through to the generic "something went wrong" in
+  // all four languages, on a PUBLIC surface a candidate reaches in their own. The
+  // copy now lives in REFUSAL_ERRORS (canonical English for the log and for API
+  // consumers) and the client renders `errors.<CODE>` instead.
+  const refusals = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  for (const rel of ["[id]/route.ts", "[id]/quick/route.ts"] as const) {
+    const src = read(rel);
+    // ZERO bare `{ error: … }` bodies now remain on either door.
+    const bare = [...src.matchAll(/NextResponse\.json\(\{ error: ([^,}]+)/g)].map((m) => m[1].trim());
+    // Two survivors were retired in turn. The throttle was a codeless
+    // `{ error: RATE_LIMITED_ERROR }` and now answers `jsonRefusal("TOO_MANY_REQUESTS",
+    // 429)` like every other limited route (rate-limit-contract.test.ts owns that
+    // contract). The last one was the closed-role 410, whose message WAS localized
+    // server-side from the `apply` catalog — which reads correct and was not: the
+    // client resolves what it renders from the CODE (applySubmitFailure →
+    // useErrorMessage), so a bodied sentence with no code fell through to the generic
+    // "something went wrong" in all four languages. It is now APPLY_ROLE_CLOSED; the
+    // PAGE gate still renders t("roleClosed"), which is a different surface.
+    assert.deepEqual(bare, [], `${rel} still answers a validation refusal with a codeless body`);
+    for (const [, code] of src.matchAll(/jsonRefusal\("([A-Z_]+)"/g)) {
+      assert.ok(new RegExp(`\n  ${code}:`).test(refusals), `${code} is not declared in REFUSAL_ERRORS`);
+    }
+  }
+});
+
+test("a refusal that names a field carries the cap as DATA", () => {
+  // "Too long" that cannot say how long is a dead end on a public door: the
+  // number is interpolated into the localized message, so it rides beside the
+  // code rather than being baked into an English sentence.
+  const src = read("[id]/route.ts");
+  assert.match(src, /jsonRefusal\("APPLY_NAME_TOO_LONG", 400, \{ field: "name", max: MAX_NAME_LENGTH \}\)/);
+  assert.match(src, /jsonRefusal\("APPLY_ANSWER_TOO_LONG", 400, \{ field: overlong\[0\], max: MAX_TEXT_LENGTH \}\)/);
+  assert.match(src, /jsonRefusal\("APPLY_EMAIL_TOO_LONG", 400, \{ field: "email", max: MAX_EMAIL_LENGTH \}\)/);
+  // …and the rejected answer is named by its STEP ID, which is what lets the door
+  // re-ask that one question instead of restarting the conversation.
+  assert.match(src, /\["student_project", studentProject\]/, "the free-text cap check is keyed by step id");
+});
+
+test("the two SECONDARY apply doors answer with codes too, not English prose", () => {
+  // The funnel-start route and the profile-gap follow-up are the same trust
+  // boundary as the submissions above — public, unauthenticated, candidate-facing —
+  // and both were still answering bare English: "Invalid session.", "Role not
+  // found.", "Role closed.", a shared `{ error: "not found" }` on three distinct
+  // 404 paths, and "Could not save your answers." on the 500. None carried a code,
+  // so none of them reached a candidate in their own language.
+  const refusals = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+  for (const rel of ["[id]/session/route.ts", "[id]/followup/route.ts"] as const) {
+    const src = read(rel);
+    assert.deepEqual(
+      [...src.matchAll(/NextResponse\.json\(\s*\{\s*error:/g)].map((m) => m[0]),
+      [],
+      `${rel} still answers a refusal with a bodied message instead of a code`
+    );
+    for (const [, code] of src.matchAll(/jsonRefusal\("([A-Z_]+)"/g)) {
+      assert.ok(new RegExp(`\n  ${code}:`).test(refusals), `${code} is not declared in REFUSAL_ERRORS`);
+    }
+  }
+  // The follow-up's three 404 paths stay INDISTINGUISHABLE — one shared responder,
+  // so a caller cannot probe which of "no such token" / "wrong job" / "no profile
+  // row" it hit.
+  const followup = read("[id]/followup/route.ts");
+  assert.match(followup, /const notFound = \(\) => jsonRefusal\("FOLLOWUP_LINK_NOT_FOUND", 404\);/);
+  assert.equal((followup.match(/return notFound\(\);/g) ?? []).length, 3, "all three 404 paths share the one responder");
+  // …and its 500 goes through the SAFE responder, so profile_cli's reason reaches
+  // the log and never the candidate.
+  assert.match(followup, /safeJsonError\(\s*new Error\(rebuilt\.reason[\s\S]{0,120}?"FOLLOWUP_FAILED"/);
 });

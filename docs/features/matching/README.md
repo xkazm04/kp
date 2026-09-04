@@ -319,7 +319,52 @@ ranked, a dimension superlative ("the strongest skills match", "the fewest unmet
 must-haves") needs two *measured* candidates to be a comparison at all, and the
 headline says "the *k* scored of *n* candidates" when the field is partly
 unmeasured. The LLM half is told the same rule in `build_prompt`
-(`group-compare-v3`): a null score means never measured, not a zero.
+(`group-compare-v4`): a null score means never measured, not a zero.
+
+**The comparison path now carries the controls its sibling had** (`group-compare-v4`).
+Until wave 26 it was the un-hardened half of the reasoning pair: the whole context
+(candidate labels and per-candidate verdicts, both CV-derived — `group-eval-run.ts`)
+was `json.dumps`'d into the prompt bare, and the answer was whatever top-level JSON
+value came last in the reply. Today:
+
+- The candidate rows go in behind `fenced_untrusted('CANDIDATE_FIELD', …)`, the same
+  fence `match_reasoning` puts around `CANDIDATE_CV`. The binding — helper to real
+  prompt — is `test_prompt_fences._JSON_FENCE_SITES`, which also proves itself
+  non-vacuous by removing the fence and requiring the assertion to fail.
+- `label` and `verdict` are cut at explicit char budgets (`COMPARE_LABEL_MAX_CHARS`,
+  `COMPARE_VERDICT_MAX_CHARS`) with a `[truncated at N chars]` marker; the per-match
+  path bounds `summary` / `experienceHighlights` / `aspirations` / `workLinks` the same
+  way (`match-reasoning-v5`). In-budget prose is byte-identical.
+  Pinned in `tests/test_prompt_budgets.py`.
+- **Both** paths pass `expected_keys` to the JSON extraction, so a trailing object
+  injected through a candidate-authored field cannot beat the genuine answer
+  (`claude_cli._extract_json` returns the *last* value otherwise).
+- The system prompt states the protected-attribute rule where the ranking is made:
+  labels are identifiers, and gender / ethnicity / nationality / age must never be
+  inferred from a name or influence the order. This is the only prompt in the engine
+  that hands the model real names side by side and asks it to rank them.
+- A grounding post-check drops any `keyPoint` that states a number the facts do not
+  carry or **bolds** a candidate who is not in the field; if that leaves nothing, the
+  deterministic synthesis serves (and reports `source="deterministic"`). On the
+  per-match side the same check now covers the **verdict's numbers** — the prompt
+  orders it to quote the match total, and an invented "88/100" over a 77 is a
+  measurement claim, not a phrasing choice.
+- `group_compare_cli` sits on the shared CLI scaffold: `configure_stdio`,
+  `emit_error` (so a malformed payload answers `invalid_input`/400 with a code
+  instead of an anonymous 500), and `normalize_lang`.
+- Both CLIs name a **mid-flight** descent. A provider that passed the availability
+  gate and then timed out used to record a deterministic serve with a blank reason;
+  `generate(..., on_fallback=…)` hands back `describe_fallback(exc)`
+  ("`TimeoutError: timed out after 120s`") and the ledger records it.
+
+**The comparison states its own language.** `group_compare_cli` emits
+`narrativeLang` from `match_reasoning.narrative_lang_for(source, lang)` and
+`group-eval-run.ts` persists it as `comparisonLang` on the saved payload. The
+deterministic synthesis is built from English literals, so a `cs`/`de`/`fr`
+workspace that fell back holds English prose in a **shared, persisted** record —
+`AiVerdict` renders the same honest "shown in {language}" note `MatchReasoningPanel`
+does, instead of every later reader being told the text is in their language.
+Evals saved before the field carry no `comparisonLang` and render no note.
 
 **`group_compare` reports its own provenance honestly.** An under-delivered
 model payload (a headline with no `keyPoints`) is replaced *wholesale* by the
@@ -336,7 +381,7 @@ competencies and early-career candidates on 6 BARS-anchored constructs
 (problem decomposition, learning agility, coachability, conceptual depth,
 motivation & direction, communication & collaboration); every rating requires a
 verbatim transcript quote, and "not assessed" is a legal answer. Match
-reasoning (`pipeline/jobfit/match_reasoning.py`, prompt `match-reasoning-v3`)
+reasoning (`pipeline/jobfit/match_reasoning.py`, prompt `match-reasoning-v5`)
 is archetype-conditional:
 experienced candidates get track-record verification, students get a
 "judge on potential" frame, career-switchers get a bridge narrative (prior-domain
@@ -348,10 +393,16 @@ the grounding post-check accepts highlight/summary-grounded strengths, and a
 core-backfilled result reports `source=deterministic`.
 
 `narrativeLang` states the language the rationale was actually **produced** in,
-not the one that was asked for. `runReasoning` derives it through
-`narrativeLangFor` (`reasoning-cache-policy.ts`): only a `source="llm"` answer is
-in the engine language, because the deterministic template is English-only by
-construction. It used to be stamped with the requested locale unconditionally,
+not the one that was asked for. **The engine now says so itself**: `reasoning_cli`
+emits the field from `match_reasoning.narrative_lang_for(source, lang)` — the side
+that produced the words — and `narrativeLangFor` (`reasoning-cache-policy.ts`)
+reads it, validating the code against the app's four locales before forwarding a
+string that came off a subprocess's stdout. The derivation below survives as the
+fallback for verdicts cached before the field existed (the TTL is 168h): only a
+`source="llm"` answer is in the engine language, because the deterministic
+template is English-only by construction. Two places inferring a property of the
+text from a sibling field is what broke this note once already, so the inference
+is now a fallback rather than the contract. It used to be stamped with the requested locale unconditionally,
 which suppressed `MatchReasoningPanel`'s honest "shown in {language}" note — that
 note fires on `narrativeLang !== locale` — so a Czech recruiter whose request
 fell back (no provider, an outage, or past the `ai_candidates` allowance, which
@@ -424,8 +475,14 @@ the group-eval `low_fit` risk, and `Badge.tsx::scoreToFitTier`, the fallback tha
 bands a bare numeric score on surfaces with no server-emitted `fitTier`. That last
 one used to re-hardcode both literals, so tuning the shared floor would have moved
 every gate and left the badge the recruiter reads on the old scale. Pinned by
-`app/_lib/fit-thresholds.test.ts`. The TS↔Python pairing itself stays hand-kept —
-one number on each side of the boundary, and both sides say so.
+`app/_lib/fit-thresholds.test.ts`. The TS↔Python pairing is no longer hand-kept:
+`pipeline/jobfit/tests/test_fit_threshold_sync.py` reads the numeric literals out of
+`fit-thresholds.ts` and compares them to `matching.py`'s constants, both directions
+enumerated, plus the ordering and the tier VOCABULARY (`scoreToFitTier`'s three
+return strings against `matching.FitTier`). It is the shape
+`test_prompt_version_sync.py` uses for the eight cached prompt versions. Move a floor
+on one side alone and CI reddens instead of a recruiter reading "promising" from the
+gate that admitted them and "partial" on the badge beside their name.
 
 ### Both modes say when their field was cut
 Every list on this surface is capped, so each cap is stated rather than hidden —
@@ -448,6 +505,361 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   or the account genuinely has none ("No saved profiles (build one in Profile)"). A
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
+
+### A pipeline write expires that role's cached evaluations
+The eval cache had no TTL and no invalidation of any kind, and a SELECTION key is
+stable across pipeline writes **by construction**: `<role>#sel:<n>-<hash>` over the
+same entry ids hashes identically however far those candidates have since moved.
+A recruiter who rejected two of a compared four and reopened the identical
+selection was served the cached comparison — a lead crowned over a field that no
+longer existed. The modal's pool-drift diff (`evaluatedLabels` against the live
+pending entries) only *discloses* that; a disclosure the reader has to notice is
+not a cache policy.
+
+`invalidateGroupEvalSelection(roleKey, workspaceId)`
+(`app/_lib/group-eval.ts`) drops the role's top-N row **and** every `#sel:` row for
+it, scoped to one tenant, with the LIKE pattern `ESCAPE`d because `roleKeyOf` falls
+back to the free-text job title (`Data % Analyst` is a legal role key).
+`pipeline-entry-action.ts` calls it on every successful entry action —
+`set_stage`, accept/reject, the human-round routing and the offer extension —
+because that layer is where both routes and the automation pass already meet, and
+`db/pipeline.ts` must not reach into another store's cache. Deleting rather than
+TTL-ing is deliberate: a cohort that moved makes the stored comparison wrong
+immediately, and the next open simply re-runs. The call is best-effort inside a
+`try` — expiring a cache must never turn a completed decision into a failed
+request.
+
+### A group evaluation persists against the cohort it actually ranked
+`saveGroupEval` was an unconditional upsert at the end of a run that spends up to
+eight Python processes and can take minutes, so two runs over one role — a
+recruiter reopening the modal while a background `group_eval` task is still
+working, or two recruiters on the same role — both wrote, and the last to finish
+won regardless of which cohort it had ranked. The dedupe key
+(`group-eval-dedupe.ts`) narrows that window to genuinely different requests; it
+cannot close it, because a run that started before a pipeline write still finishes
+after it.
+
+The compute cannot sit inside a transaction (it spawns subprocesses, and an
+`await` inside `db.transaction()` silently forfeits atomicity), so the write
+re-asserts what the read saw — the `actOnPipelineEntry` `expectedStage` shape,
+keyed here on the cohort. `group_evals` carries a `cohort_hash` column
+(`candidateSetFingerprint` of the cohort the run ranked);
+`readGroupEvalCohortState` gives a run its precondition **before its first await**,
+and `saveGroupEval(…, { cohortHash, expected })` lands only if the row is still in
+that state — no row then and none now, or the same hash. Otherwise the stored eval
+is newer and ours is the stale one: the write is dropped, `false` comes back, and
+`runGroupEval` logs which result it discarded and against which cohort. The
+caller still receives its payload; only the shared row is protected. A legacy row
+(`cohort_hash` NULL) is adopted by a run that read null — `IS`, not `=`, so
+three-valued logic cannot make pre-column rows permanently unwritable. Callers
+with no prior observation (tests, scripts) omit `cas` and get the historical
+upsert.
+
+### Every AI stage of a group evaluation has a deadline, and says when it fell back
+One evaluation fans out to up to **eight** Python processes: the recruiter ranker
+(`--weights-llm` **and** `--embeddings`, so two provider round-trips inside one
+child), the `group_compare_cli` narrative, and up to `GROUP_EVAL_CAP` = 6
+concurrent per-candidate reasoning runs. None of them passed a timeout, so each
+inherited `python-runner.ts`'s `DEFAULT_TIMEOUT_MS` — a ten-minute **hang
+backstop** its own comment calls "not a deadline". A stalled provider parked the
+modal spinner and a background task slot for ten minutes before falling back to a
+deterministic result it could have produced in seconds.
+
+`group-eval-run.ts` now states one deadline per stage —
+`GROUP_EVAL_RANK_TIMEOUT_MS` (240s, the two-enrichment child),
+`GROUP_EVAL_COMPARE_TIMEOUT_MS` (150s) and `GROUP_EVAL_REASONING_TIMEOUT_MS`
+(150s, **per candidate**, so one stalled call does not hold the other five).
+`KP_GROUP_EVAL_STAGE_TIMEOUT_MS` overrides all three for a slow self-hosted
+provider. The compare spawn — the one this module owns directly — hands
+`spawnPython` an explicit `timeoutMs`, so its deadline is a SIGKILL rather than
+only an abort; the two indirect stages get a composed `stageSignal` (the caller's
+cancellation OR the stage's deadline), which returns the deadline signal
+separately so a caller cancellation is never mis-reported as a timeout.
+
+Deadlines are safe here because every stage already degrades **soft** into a
+deterministic twin — passing one costs fidelity, never the result. That is also
+what made the old behaviour unreadable: an evaluation whose ranking, narrative and
+rationales had all fallen back was shaped exactly like a full AI comparison. The
+payload now carries `degradedStages: [{ stage, reason }]` — `ranking` |
+`comparison` | `reasoning`, each `timeout` or `failed` — and is null when every
+stage delivered, so its presence always means something really degraded. A field
+below the min-cohort floor reports nothing: its narrative was **declined** by
+policy, not lost, and is already disclosed as "insufficient sample".
+
+### The compared cohort is gated on consent, and says what it removed
+A group evaluation is the PII-densest thing this surface does: every compared
+member's label, archetype, salary expectation, matched/missing skills and
+CV-derived verdict is serialized into a `group_compare_cli` prompt, sent to a
+provider, narrated, persisted into a shared `group_evals` row and — under
+`recommendation` governance — sealed into a decision record. Cohort selection
+consulted no consent state at all, so a candidate anonymized under an Art. 17
+erasure, or one whose consent to be processed had lapsed, was compared, narrated
+and sealed exactly like anyone else. The identical suppression was already
+enforced two doors away, for rediscovery ranking and for outreach.
+
+`runGroupEval` now resolves `suppressedCandidateIds`
+(`app/_lib/rediscovery-alert-store.ts` — workspace-GLOBAL, because an erasure is a
+property of the person not the team; most-restrictive across every entry an
+identity owns; fail-CLOSED, so a broken consent read suppresses everybody) and
+partitions the cohort through the pure `partitionCohortByConsent`
+(`app/_lib/group-eval-cohort.ts`) before selection, capping or ranking. The gate
+applies to an explicit recruiter selection as well: picking a suppressed candidate
+cannot opt them back in. A member with no `candidateId` is kept — suppression is
+keyed to a person and a manually added pipeline row names none.
+
+The removal is disclosed rather than silent. The payload carries
+`consentExcluded: { count, anonymized, consentExpired }` (null when nothing was
+excluded, so legacy payloads and clean cohorts are indistinguishable) so a field
+that shrank because two people were erased cannot read as a field that simply had
+fewer applicants. **Counts only, deliberately** — the row is shared, persisted and
+readable by the whole team, so the gate does not write the excluded people's ids
+back into the very record the erasure removed them from.
+
+### The unresolved-pair fallback now refuses glue in all four languages
+When NEITHER surface of a skill pair resolves in the taxonomy,
+`taxonomy.unresolved_pair_score` falls back to a capped Jaccard over the two
+*distinctive* token sets, requiring at least one shared "head" token — which is what
+stops "management of X" vs "management of Y" scoring as related when X and Y differ.
+The discipline lives entirely in `_FALLBACK_STOPWORDS`, and that list covered English
+and Czech while `i18n.LANG_NAMES` has shipped en/cs/de/fr for some time: measured
+before the fix, "Entwicklung von Datenbanken" vs "Entwicklung von Netzwerken" scored
+0.15 and "Gestion de projets" vs "Gestion de risques" scored 0.1 on pure glue, while
+the English equivalent correctly scored 0.0. German and French glue plus their generic
+role nouns (`entwicklung`, `gestion`, `compétences`…) are now listed, in NFC-casefolded
+form because `normalize_text` does not fold diacritics. Acronyms that collide with glue
+(`est`, `sur`, `par`, `son`) are deliberately left OUT — a stopword can only remove
+credit. `pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py` holds one
+glue-only pair and one genuinely-related pair per language, and reddens when a fifth
+locale reaches `LANG_NAMES` without a stopword pass.
+
+The word tokenizer itself is now single-sourced as `taxonomy.WORD_RE`; `matching`'s
+`_WORD_RE` and `taxonomy_check`'s `_CORPUS_WORD_RE` alias it, so the scan that AUDITS
+the matcher can no longer split words differently from the matcher it audits.
+
+### Three skill buckets on the card, not two
+`matching.py` splits a required skill three ways — `matched_skills` (at or above
+`_MATCH_THRESHOLD`), `unproven_skills` (scored above zero but under it, with
+`unproven_skill_strength` and an `unproven_skill_reason` of `adjacency` /
+`provenance` / `both`), and `missing_skills` (an exact zero). The report
+(`JobFitTab.tsx::UnprovenSkillsBlock`) and Decisions
+(`DecisionsAnalysisParts.tsx::UnprovenChips`) have rendered all three; the match
+**card** — the surface a recruiter actually picks interviewees on — rendered only
+the outer two, dropping precisely the bucket an interview exists to resolve.
+`focus/MatchCardSkillChips.tsx` now renders it as a third, amber chip class
+(`? <skill>` + a reason badge, strength in the tooltip), capped at
+`UNPROVEN_CAP` = 5 and folded into the same "+N more" expander. The six strings
+come from `decisions.summary` verbatim rather than a fork into `match`, and an
+absent/unknown reason code degrades to the neutral "claimed" label instead of
+asserting a distinction the pipeline did not make. Absent bucket = no chrome, so
+an analysis from before round 7 renders exactly as it did.
+
+### The grid announces where you are in it
+The grid has had `role="grid"` and a roving tabindex since
+`matrix-grid-arrow-keys`, so arrow keys move focus around a rectangle — but the
+cells were bare `<td>`s, so a screen reader could read the cell's own label and
+nothing about its position. `MatrixGrid.tsx` now carries the rest of the pattern:
+`role="gridcell"` on the cell, `role="columnheader"` / `role="rowheader"` on the
+sticky headers, 1-based `aria-rowindex` / `aria-colindex` that count the header
+row and the candidate column (header row = 1, data row `r` = `r + 2`; candidate
+column = 1, position column `ci` = `ci + 2`), and the `aria-rowcount` /
+`aria-colcount` that make those indices "of" something. Pinned structurally by
+`matrixGridRoles.test.ts` — indices only mean anything while the counts agree
+with them.
+
+### The narrative says what it is, on both surfaces
+`/api/match/reasoning` reports three things about an answer besides the answer:
+`source` (`llm` vs the deterministic fallback), `cached`, and `narrativeLang` —
+the language the engine actually wrote in, which is only ever `en` or `cs`.
+Candidate focus (`app/features/shared/MatchReasoningPanel.tsx`) has rendered all
+three; the grid's cell popover rendered the same sentences with none of them, and
+`useMatrixTab` dropped `narrativeLang` on the floor entirely. A de or fr reader
+therefore read English text in the grid with nothing saying so, and could not tell
+a cached rule-based summary from a fresh LLM one.
+`MatrixReasoningPopover.tsx` now carries the same strip, reusing
+`match.shared.sourceLlm` / `sourceRuleBased` / `cachedSuffix` /
+`narrativeInLanguage` **key for key** rather than re-wording them — the bespoke
+`matrix.reasoningDeterministic` footnote it replaces said half of it in a second
+vocabulary. The grid itself gained the matching disclosure: `/api/matrix` has
+always returned `cached` (`route.ts::respond`, set when the scored-grid cache
+key hits), and `MatrixDataNotices` now renders it as `matrix.servedFromCache`.
+Placements are re-read fresh on every response, so a cached grid legitimately
+sits under live pipeline rings — which is exactly why the state has to be
+readable.
+
+### A cell you stopped reading stops costing money
+The reasoning call spawns Python and, on a miss, spends an LLM call.
+`fetchMatchReasoning` (`matrixReasoningFetch.ts`, split out of the hook so it can
+be driven by a fetch double) takes an `AbortSignal`, and `closePopover` /
+"View full match" abort it. An abort is a third outcome, not a failure: it leaves
+no error card and releases the de-dupe key so re-opening the cell asks again.
+On the focus side the symmetric bug was ordering — `runMatchFor` fires from the
+candidate picker, the weights panel and the deep-link auto-run, and a slow
+earlier run could `setResult` after a fast later one, showing one candidate's
+name over another's ranking. `createRunSequence` (`focus/matchRunSequence.ts`) is
+a last-write-wins ticket; superseded runs drop their result, their error and
+their `loading` reset. A counter rather than an abort on purpose: the older run
+may already have paid for its spawn and its answer is still worth caching
+server-side — it just must not reach the screen. Pinned by
+`matrixReasoningFetch.test.ts` and `focus/matchRunSequence.test.ts`.
+
+### All three matrix-family routes answer with a code, and the grid offers a way back
+`GET /api/matrix`, `POST /api/match/reasoning` and `POST /api/match` all spawn Python behind
+`parseStderrError`, which produces a machine `code` beside the message
+and status — and both threw it away, answering a bare `{ error: err.message }`.
+Two things followed on screen: `useErrorMessage` had no code to resolve, so every
+failure on the grid and in the popover rendered as the same generic sentence; and
+the reasoning route's 429 — the one failure whose remedy is simply to wait — was
+indistinguishable from an engine crash, so a rate-limited recruiter was never
+told to slow down.
+
+`matrixEngineAnswer` (`app/api/matrix/matrix-error-code.ts`, pure and unit-tested
+because a route handler needs a request scope the unit runner cannot give it)
+decides: a 429 is `TOO_MANY_REQUESTS`; a runner code that names a registered
+refusal is forwarded as that refusal; any other 4xx becomes the surface's own
+refusal (`MATRIX_INPUT_INVALID` / `MATCH_REASONING_UNAVAILABLE`); a 5xx is a
+store error (`MATRIX_BUILD_FAILED` / `MATCH_REASONING_FAILED` / `MATCH_RUN_FAILED`)
+whose real message — a traceback, the temp workdir path, provider stderr — is
+logged and withheld. All three routes' rows are gone from
+`error-response-contract.test.ts`'s ceiling rather than lowered.
+
+**The code is now chosen where the failure is raised, not guessed from the status.**
+`parseStderrError` derives one (`400 -> invalid_input`, `404 -> not_found`,
+`504 -> timeout`, else `engine_error`) only when the CLI emitted none — and until
+recently the matching CLIs emitted none, because `_cli.emit_error` printed just
+`{error, status: 500}`. So "job not found" and a genuine engine fault left the
+engine identical. `pipeline/jobfit/_cli.py` now owns the vocabulary
+(`ERROR_CODES`) and `CliError` / `not_found()` / `invalid_input()` name it at the
+raise site; an un-annotated pydantic or JSON failure classifies as the caller's
+400 rather than an engine fault. `recruiter_cli` dropped its hand-rolled
+`configure_stdio` + envelope for the shared scaffold at the same time.
+`pipeline/jobfit/tests/test_cli_error_envelope.py` pins the vocabulary against
+`PYTHON_ERROR_CODES` in `python-runner.ts` in both directions.
+
+`POST /api/match` — the candidate-focus ranking behind the Match panel — joined
+last, and it had the worst of the three leaks: it forwarded `parseStderrError`'s
+raw stderr, so `match_cli`'s Python traceback and the absolute temp workdir path
+reached the browser verbatim. It now maps through the same
+`matrixEngineAnswer` against `MATCH_RUN_SURFACE`, so a failed run resolves
+`MATCH_INPUT_INVALID` (the profile/analysis the body named is gone),
+`TOO_MANY_REQUESTS`, or `MATCH_RUN_FAILED` in the reader's language.
+
+The reasoning route no longer re-derives that code from the HTTP status.
+`ReasoningError` (`app/_lib/reasoning-run.ts`) carried message + status only, so the
+runner's own `not_found` / `invalid_input` was produced by `parseStderrError` and then
+dropped one frame later: a request that named no job at all was answered "that match
+can no longer be explained — the candidate or role behind it is gone", pointing the
+reader at "refresh the grid" for a malformed body. Every throw site now stamps a code
+(including the `match-input` resolution failures, whose 404 is a genuinely absent
+profile and whose 400 is a malformed pair), and the route forwards it through a
+declared table: `not_found` → `MATCH_REASONING_UNAVAILABLE`, `invalid_input` →
+`MATCH_REASONING_INPUT_INVALID`. Anything the table does not name still falls through
+to `matrixEngineAnswer`, unchanged. Pinned by `app/_lib/reasoning-error-code.test.ts`.
+
+### The two matching caches are keyed by tenant, and the grid's is bounded
+Both caches on this surface content-address their inputs, and both used to carry a
+tenancy invariant in a comment rather than in the key.
+
+The **reasoning cache** (`reasoning-cache-key.ts`) keyed on five axes — prompt version,
+candidate content, job content, locale, corpus fingerprint — and argued that the tenant
+was implied, because the candidate hash and the corpus fingerprint "differ per tenant
+anyway". That holds only while those two axes never collapse, and two workspaces seeded
+from the same demo corpus collapse both. `workspaceId` is now axis 6. Adding it retires
+the existing reasoning cache ONCE — the first request per (candidate, job, locale,
+corpus, tenant) recomputes, the same accepted cost as a `REASONING_PROMPT_VERSION` bump
+and bounded by the 168h TTL either way.
+
+The **scored-grid cache** behind `GET /api/matrix` was a SINGLE in-process entry, on the
+premise that "one corpus state matters". Tenancy ended that premise: the grid is scored
+per workspace from that workspace's profiles and open positions, so two tenants with the
+tab open evicted each other on every poll and the hit rate fell to zero — every visit
+paying a Python spawn for a deterministic O(N×M) computation the cache existed to avoid.
+It is now a small LRU (`app/_lib/matrix-cache.ts`, capacity 8) keyed by a hash of the
+workspace plus the exact JSON handed to the scorer. Bounded rather than a plain map
+because the value is a whole grid and the key is a content hash: unbounded, it would hold
+one grid per distinct corpus state forever. Pinned by `app/_lib/matrix-cache.test.ts`
+(eviction order, read-promotes, capacity refused below 1, the key's axes and separator).
+
+**It is also rate-limited now**: 60/10min per IP on `match:<ip>`, placed after
+the body parse (a malformed request must still be refused honestly) and before
+`createWorkdir` — the route spawns `match_cli` AND writes the whole live job
+corpus to a temp file per request, so a throttled call must leave neither a child
+process nor a temp directory behind. Pinned in `rate-limit-contract.test.ts`. Its
+two pure input guards moved to `app/api/match/match-request.ts`
+(`resolveMatchLimit`, the 1..200 clamp; `sanitizeMatchWeights`, the finite-number
+type gate) so the boundary is tested rather than only described.
+
+The grid's own fetch was also a dead end: no `AbortController`, so leaving the
+tab left a `setData` waiting for an unmounted tree, and the error state was a
+bare red line with nothing to press. It now aborts on unmount, and the error
+panel renders the resolved code plus a retry that re-runs the fetch
+(`retryLoad`). Two decisions the tab had been making inline in JSX moved into the
+tested `matrixTabState.ts`: `deriveMatrixMode` (the override-expiry stamp that
+makes a second "View full match" work after the reader toggled back to the grid)
+and `pickGridState` (the six-way branch whose ORDER is the contract — an error
+outranks a stale `?job=`, which outranks an empty pool, which outranks a pool
+filtered to nothing).
+
+### The header strip costs what the data costs, not what the render costs
+The row memo had a mirror image above it. Each position `<th>` renders
+`ColumnStats`, which called `columnStats(scores)` in its own body — a sort, a
+median and five buckets over the whole candidate pool — once per visible column,
+on every render of the header row, for a value that changes only when the grid's
+data does. `useMatrixTab` now computes `colStats` in the same memo chain as
+`colScores`, and `ColumnStats` takes the finished `ColumnStat` and is itself a
+`memo` boundary (a module-level `EMPTY_COLUMN_STAT` stands in for an unscored
+column, so no fresh object crosses that boundary). Pinned structurally by
+`matrixGridMemo.test.ts`.
+
+The popover's clamp had the opposite problem — a parameter nobody passed.
+`computePopoverPosition` accepted a `PopoverDims`, and every call site let it
+default to 320 × 340 while the dialog it clamps is `w-80 max-h-[60vh]`: the width
+agreed, the height was viewport-relative and so wrong in both directions.
+`popoverDims(viewport, measuredHeight?)` (`matrixPopover.ts`) restates the class
+list once — 320 wide, a 60vh ceiling — and the re-anchor pass measures the real
+dialog box, capped by that ceiling. The first placement has nothing to measure
+yet and takes the ceiling. `matrixPopover.test.ts` covers the short-viewport
+case, which is where the old constant was furthest off.
+
+Same pass: the bulk add's per-cell `find` plus a redundant `findIndex` on each
+axis collapsed into one index map per axis, and the grid's chrome moved onto the
+shared recipes (`BTN_SECONDARY`, `TOGGLE_GROUP`/`toggleBtn`, `CHIP`,
+`CHIP_TOGGLE`, `PANEL`, `BTN_PRIMARY`) with the two `text-[10px]` labels in the
+stats strip raised to the 14px type floor.
+
+### The grid does not re-render while you scroll
+The popover follows its cell: `useMatrixTab` listens for `scroll` in the capture
+phase (so the grid's own `overflow-auto` scroller fires it too) plus `resize`,
+and re-anchors from the live trigger rect. Both fire at input rate, and each
+event used to call `setPopover({ ...cur, rect })` — a state update on the tab, so
+a trackpad flick re-rendered the entire grid subtree tens of times a second and
+every one of the up-to-200 × N cells rebuilt its `title` and `aria-label` through
+the translator, for a change no cell can see. Two changes:
+
+- **One measurement per frame, and no React in it.** `createFrameThrottle`
+  (`matrixAnchor.ts`, DOM- and React-free with `raf`/`caf` injected) coalesces a
+  burst into a single run, and that run writes `style.top` / `style.left` on the
+  popover element directly. `matrixAnchor.test.ts` drives fake frames and states
+  both numbers: a 40-event burst cost 40 full-grid renders before and costs 1
+  measurement with 0 grid renders now. `popover.rect` remains the open-time
+  anchor that a genuine re-render restores.
+- **The row is a memo boundary.** `MatrixGridRow.tsx` is `memo`'d and receives
+  per-row *signatures* (`selSig` / `addSig`) rather than the shared selection and
+  added `Set`s — a Set is a new object on every toggle, so passing it would
+  re-render all 200 rows when one cell changed — plus its own `rovingCol` rather
+  than the whole roving cell, so arrowing between cells re-renders two rows
+  instead of every row. That only holds while the functions crossing the boundary
+  keep stable identities, so `blockedLabel` / `fetchReasoning` / `openCell` /
+  `toggleCell` are `useCallback`s and `useMatrixGridKeys` returns a `useCallback`
+  `cellProps` keyed on `size`'s primitives. `matrixGridMemo.test.ts` pins each of
+  those, because a reverted `useCallback` makes the memo a silent no-op that
+  neither review nor runtime shows.
+
+No markup or layout changed, both themes are unaffected (the cell's classes are
+untouched), and the existing keyboard tests still pass. **Virtualization is
+deliberately not here**: the pool is capped at `MATRIX_POOL_CAP` = 200 rows and,
+with the memo, a full re-render only happens when the data or the filters
+actually change. Windowing becomes the next step if that cap rises past roughly
+500 rows, or if the grid ever renders an uncapped pool.
 
 ### The grid's controls describe the grid they actually produce
 
@@ -585,8 +997,39 @@ rounding one — `market_salary_cli._fallback` threads its `market` through to
 `role_band` for exactly this reason (pinned by
 `tests/test_market_config.py::MarketSeamStragglersTest`). The CLI's deterministic
 fallback is labelled honestly (`confidence: "low"`, `source: "deterministic"`,
-and a summary naming the internal table) and localizes its summary for `en`/`cs`,
-degrading to English for the other app locales rather than failing.
+and a summary naming the internal table), and that summary is written natively in
+**all four app locales** (`_FALLBACK_SUMMARY`, en/cs/de/fr) because it is
+interpolated into a candidate-facing posting — an unknown code still resolves to
+English rather than raising.
+
+### The band says which dataset it came from and how old it is
+
+`role_band` returns two numbers and nothing else, so a band read off a 2025
+vintage reads identically in three years, and a family hand-entered with no
+sample behind it (`source: "manual"`, no `sample_k` — `product_project`,
+`hr_people`) renders exactly like one measured on 838 rows. `taxonomy.role_benchmark`
+is the same lookup carrying the provenance with the numbers:
+
+| Field | Source | Meaning |
+| --- | --- | --- |
+| `band` | `role_band` (identical by construction, pinned by a test) | the anchor `(low, high)` |
+| `sourceId` | `MarketConfig.benchmark_source_id` | the dataset identity (`cz-ispv-2025`, `de-berlin-sample`) |
+| `asOf` | the market block's `generated_at` | ISO-8601 vintage, `""` when the block carries none (the Berlin sample) |
+| `sampleK` | the role's `sample_k` | positive int, or `null` for **no sample** — never `0` |
+
+`market_salary_cli` puts that on the wire as `result.benchmark` on the
+DETERMINISTIC result only. A grounded (live-web) band carries `benchmark: null`
+— explicitly present, so the TS normalizer never distinguishes "absent" from "not
+applicable" — because crediting a model's web read to the internal table would
+name a dataset the figure did not come from. `taxonomy.THIN_SAMPLE_K` (30) is the
+shared threshold below which a real band is still too thinly evidenced to read as
+a market fact; the TS side mirrors it in `app/_lib/salary-benchmark.ts`. Pinned by
+`tests/test_market_salary_cli.py`.
+
+`salary_band.py` mirrors exactly one TS export, `normalizeSalaryBand`. It used to
+also carry a `band_error` documented as a mirror of a `salaryBandError` that
+`app/_lib/salary-band.ts` does not export, with no non-test caller on the Python
+side either; it was removed, and a test asserts it does not come back.
 
 ## Known gaps
 
@@ -598,6 +1041,13 @@ degrading to English for the other app locales rather than failing.
   `matrix.ofCount`); closing it needs the two routes to return the count, following
   the `listJobsPage`/`countJobs` template in `app/_lib/db/jobs.ts`. Deep links
   (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
+- The grid's cells carry **no per-cell confidence or provenance**: a cell shows one
+  number, and whether that number rests on evidenced or self-declared skills is
+  only readable after opening the cell's reasoning popover. Surfacing it in the
+  cell needs a per-cell provenance summary from the Python pass (`/api/matrix`
+  currently returns `{score, blocked, koKeys}` only) — a pipeline change, not a
+  UI one, so the match card's three-bucket split above is the honest interim:
+  the unproven bucket is visible on the card, not yet in the grid.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.

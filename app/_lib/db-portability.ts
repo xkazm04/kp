@@ -15,6 +15,34 @@ import { ORG_CONFIG_NOT_PORTABLE, orgExportClass } from "./tenancy";
 // the same WAL + busy_timeout pragmas the scripts use, so it waits for (and is
 // atomic under) the app's live connection instead of failing on SQLITE_BUSY.
 
+/** A refusal the portability engine DECIDED on, carrying the code the routes answer
+ *  with. The messages are unchanged — they are the operator-facing English a script run
+ *  still prints, and `db-portability-org.test.ts` pins several of them — but a route no
+ *  longer has to forward prose to say what happened: it reads `.code` and `.status` and
+ *  lets the client render `errors.<CODE>` in the reader's language. Everything else this
+ *  module throws is an accident (better-sqlite3, fs) and stays a 500 behind
+ *  safeJsonError. */
+export class PortabilityError extends Error {
+  readonly code: PortabilityErrorCode;
+  readonly status: number;
+  constructor(code: PortabilityErrorCode, status: number, message: string) {
+    super(message);
+    this.name = "PortabilityError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/** The codes {@link PortabilityError} can carry. Every one has a REFUSAL_ERRORS entry
+ *  and four catalog entries; `RESTORE_FOREIGN_ORG` predates this class and is shared
+ *  with the import route's own check. */
+export type PortabilityErrorCode =
+  | "PORTABILITY_NO_DATABASE"
+  | "PORTABILITY_TABLES_POPULATED"
+  | "RESTORE_FOREIGN_ORG"
+  | "RESTORE_SCOPE_TAKEN"
+  | "RESTORE_UNSAFE_IDENTIFIER";
+
 export const DUMP_FORMAT = "kp-db-dump";
 export const DUMP_VERSION = 1;
 // The UI export's default exclusions (same as the script's documented --skip
@@ -53,7 +81,11 @@ const SAFE_IDENT = /^[A-Za-z0-9_]+$/;
 
 export function dumpWorkspace(skip: ReadonlySet<string> = new Set(DEFAULT_EXPORT_SKIP)): DumpPayload {
   if (!existsSync(DB_PATH)) {
-    throw new Error("No workspace database exists yet — start the app and try again.");
+    throw new PortabilityError(
+      "PORTABILITY_NO_DATABASE",
+      503,
+      "No workspace database exists yet — start the app and try again."
+    );
   }
   const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
   try {
@@ -168,7 +200,11 @@ export function loadWorkspace(payload: DumpPayload, opts: { replace: boolean }):
       return ((db.prepare(`SELECT COUNT(*) AS n FROM "${t.name}"`).get() as { n: number }).n ?? 0) > 0;
     });
     if (populated.length > 0 && !opts.replace) {
-      throw new Error(`Refusing to load — these tables already contain rows: ${populated.map((t) => t.name).join(", ")}.`);
+      throw new PortabilityError(
+        "PORTABILITY_TABLES_POPULATED",
+        409,
+        `Refusing to load — these tables already contain rows: ${populated.map((t) => t.name).join(", ")}.`
+      );
     }
     const loadAll = db.transaction(() => {
       const summary: { name: string; rows: number }[] = [];
@@ -305,7 +341,11 @@ function orgPredicate(table: string, scope: OrgScope): { sql: string; params: un
 /** Back up one organization: its teams' data, its identity, its billing record. */
 export function dumpOrg(orgId: string): OrgDumpPayload {
   if (!existsSync(DB_PATH)) {
-    throw new Error("No workspace database exists yet — start the app and try again.");
+    throw new PortabilityError(
+      "PORTABILITY_NO_DATABASE",
+      503,
+      "No workspace database exists yet — start the app and try again."
+    );
   }
   const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
   try {
@@ -402,7 +442,9 @@ function resolveRestoreScope(db: Database.Database, payload: OrgDumpPayload, org
       const row = owner.get(id) as { org_id: string } | undefined;
       // Absent is fine: the restore re-creates it. Owned by someone else is not.
       if (row && row.org_id !== orgId) {
-        throw new Error(
+        throw new PortabilityError(
+          "RESTORE_SCOPE_TAKEN",
+          409,
           `Refusing to restore — ${table.slice(0, -1)} "${id}" in this backup now belongs to a different organization.`
         );
       }
@@ -462,7 +504,9 @@ export type OrgRestoreSummary = {
  *  database exactly as it was. */
 export function restoreOrg(payload: OrgDumpPayload, orgId: string): OrgRestoreSummary {
   if (payload.orgId !== orgId) {
-    throw new Error(
+    throw new PortabilityError(
+      "RESTORE_FOREIGN_ORG",
+      409,
       `This backup belongs to a different organization (${payload.orgId}). A backup is restored into the organization it came from.`
     );
   }
@@ -479,7 +523,11 @@ export function restoreOrg(payload: OrgDumpPayload, orgId: string): OrgRestoreSu
       const tables: OrgRestoreSummary["tables"] = [];
       for (const t of payload.tables) {
         if (!SAFE_IDENT.test(t.name) || !t.columns.every((c) => SAFE_IDENT.test(c))) {
-          throw new Error(`Refusing to restore — unsafe identifier in table "${t.name}".`);
+          throw new PortabilityError(
+            "RESTORE_UNSAFE_IDENTIFIER",
+            400,
+            `Refusing to restore — unsafe identifier in table "${t.name}".`
+          );
         }
         // A table this build no longer has: its rows have nowhere to go, and creating it
         // from the file's DDL would resurrect a retired schema. Skip, don't guess.
@@ -529,7 +577,9 @@ export type OrgRestorePlan = {
  *  many the delete would clear. Never writes. */
 export function planOrgRestore(payload: OrgDumpPayload, orgId: string): OrgRestorePlan {
   if (payload.orgId !== orgId) {
-    throw new Error(
+    throw new PortabilityError(
+      "RESTORE_FOREIGN_ORG",
+      409,
       `This backup belongs to a different organization (${payload.orgId}). A backup is restored into the organization it came from.`
     );
   }

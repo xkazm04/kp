@@ -255,6 +255,27 @@ class AnalysisMetadata(_Base):
     analysis_engine: str
     text_extractor: str
     model: str | None = None
+    # WHETHER A MODEL RAN AT ALL, as a closed two-value fact rather than something a
+    # reader has to infer from the free-text ``analysis_engine`` above. That field is a
+    # label ("gemini", "seed-deterministic") whose vocabulary nobody constrains, and the
+    # app persists analyses from BOTH producers into one table: a deterministically
+    # seeded analysis was stored indistinguishable from a model one, with no column, no
+    # marker, and only a transient served-from-cache flag on the live result. A recruiter
+    # reading a saved report could not tell which of the two they were looking at, and
+    # that is precisely the distinction "degrades gracefully keyless" makes load-bearing.
+    #   "llm"           — an LLM produced the assessment (analyze_cv).
+    #   "deterministic" — no model ran; the numbers come from rule-based builders
+    #                     (seed_analyses.py, and any future keyless fallback).
+    #
+    # OPTIONAL, and defaulting to None rather than to "llm": every analysis persisted
+    # before this field existed has no marker, and "assume a model ran" is exactly the
+    # claim that must never be fabricated. An absent value reads as UNKNOWN at the
+    # consumer, which is the truth about a legacy row. Both live producers state it.
+    engine_kind: str | None = None
+    # The provider that served it, by the registry's own name ("gemini", "claude_cli",
+    # "openai"…) — NOT the model id, which ``model`` already carries. None for a
+    # deterministic result, because there is no provider to name.
+    engine_provider: str | None = None
     parsing_notes: list[str] = Field(default_factory=list)
     grounding_sources: list[str] = Field(default_factory=list)
     deterministic_evidence: DeterministicEvidence | None = None

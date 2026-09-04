@@ -10,7 +10,8 @@ import { findingsSource } from "./DevHelpers";
 import { ProvenanceStrip } from "./DevProvenanceStrip";
 import { ScoreBar } from "./DevScoreBar";
 import { LOW_CONFIDENCE } from "./DevTypes";
-import type { DimensionScore, EvalBundle } from "./DevTypes";
+import type { AuthenticityReason, DimensionScore, EvalBundle } from "./DevTypes";
+import { isAuthenticityReasonKind } from "@/app/_lib/devcase-authenticity";
 
 export function DevEvalPanelScores({
   ev,
@@ -23,8 +24,22 @@ export function DevEvalPanelScores({
 }) {
   const t = useTranslations("devcase.processTrace");
   const tr = useTranslations("devcase.evalPanel");
+  // The authenticity penalties are findings the scorer emitted, not copy it wrote — the
+  // sentence is composed HERE, in the interviewer's language. Three arms, deliberately:
+  //   • a kind this build knows      → the localized sentence, with the engine's params;
+  //   • a legacy English string      → itself. Bundles are persisted, and runs saved
+  //     before the codes existed hold prose. Rendering it is honest about what that run
+  //     produced; dropping it would hide evidence from the person doing the interview.
+  //   • an unknown kind (older/newer producer) → nothing. A raw key is worse than a
+  //     shorter list at an interviewer who is about to ask a person about their work.
+  const reasonText = (r: AuthenticityReason | string): string => {
+    if (typeof r === "string") return r;
+    if (!isAuthenticityReasonKind(r.kind)) return "";
+    return tr(`authenticityReason.${r.kind}` as Parameters<typeof tr>[0], r.params);
+  };
   const e = ev.evaluation ?? {};
   const x = ev.transfer ?? {};
+  const authenticityReasons = (ev.authenticity?.reasons ?? []).map(reasonText).filter(Boolean);
 
   return (
     <>
@@ -60,14 +75,9 @@ export function DevEvalPanelScores({
             submission for the live ownership-verifying interview. */}
         {ev.authenticity ? (
           <span
-            /* The `reasons` themselves stay English prose for now — they are
-                constructed sentence-by-sentence in devcase-authenticity.ts and
-                localizing them means a codes+params contract shared with the Python
-                evidence[] producers. Tracked as a named gap in the feature doc; the
-                FRAME around them is translated so the tooltip is not wholly English. */
             title={
-              ev.authenticity.reasons.length
-                ? tr("authenticityTitle", { score: ev.authenticity.score, reasons: ev.authenticity.reasons.join(" ") })
+              authenticityReasons.length
+                ? tr("authenticityTitle", { score: ev.authenticity.score, reasons: authenticityReasons.join(" ") })
                 : tr("authenticityCleanTitle", { score: ev.authenticity.score })
             }
             className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${

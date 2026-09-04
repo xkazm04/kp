@@ -73,7 +73,14 @@ test("the route authorizes the entry in the caller's workspace before returning 
     /getPipelineEntry\(entryId, workspaceId\)/,
     "the entry is looked up in the CALLER'S team — the scoping doubles as the authorization check"
   );
-  assert.match(src, /status: 404/, "an entry outside the caller's team is a 404, not a token");
+  // The refusal is now a CODE, not English prose (/perfect wave 16): the public demo
+  // resolves `errors.SIM_ENTRY_NOT_FOUND` in the reader's language. Still a 404, and
+  // still the thing that stands between an entry id and another tenant's offer token.
+  assert.match(
+    src,
+    /jsonRefusal\("SIM_ENTRY_NOT_FOUND", 404\)/,
+    "an entry outside the caller's team is a 404, not a token"
+  );
   // And the token may only ride out after that check — never straight off the
   // workspace-blind helper.
   assert.doesNotMatch(

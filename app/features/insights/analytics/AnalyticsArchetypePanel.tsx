@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import type { Analytics } from "./AnalyticsTypes";
+import { PANEL } from "@/app/_components/ui/recipes";
 
 // The "by archetype" advance-rate card: which candidate profiles actually get
 // through. Split out of AnalyticsTab.tsx to keep that file under the 200-line cap.
@@ -19,7 +20,7 @@ export function AnalyticsArchetypePanel({ byArchetype }: { byArchetype: Analytic
   const t = useTranslations("analytics");
   const enumLabel = useEnumLabel();
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <div className={`${PANEL} p-5`}>
       <h3 className="font-serif text-h2 text-ink">{t("byArchetype")}</h3>
       <ul className="mt-3 space-y-3">
         {byArchetype.map((a) => (

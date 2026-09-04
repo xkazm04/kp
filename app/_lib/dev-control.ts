@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE } from "./auth/session";
 
 // Direction D — oversight & audit, kept in a self-contained connection (its own tables) so
 // the autonomous pipeline has an immutable decision log + a kill switch, independent of the
@@ -26,6 +27,22 @@ function db(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_dev_audit_created ON dev_audit (id DESC);
     CREATE TABLE IF NOT EXISTS dev_control (key TEXT PRIMARY KEY, value TEXT);
   `);
+  // TENANCY (/perfect wave 21, internal-explorers). `dev_audit` is a declared
+  // deployment-level table (app/_lib/tenancy.ts), but its FREE-TEXT payload is not:
+  // `outcome_recorded` writes the candidate ref into `reason`, and the control room
+  // rendered every row to every operator — so one studio's audit panel listed another
+  // studio's candidates. This column attributes a row to the workspace that produced
+  // it, and `listAudit` scopes on it.
+  const cols = (d.prepare(`PRAGMA table_info(dev_audit)`).all() as Array<{ name: string }>).map((c) => c.name);
+  if (!cols.includes("workspace_id")) {
+    d.exec(`ALTER TABLE dev_audit ADD COLUMN workspace_id TEXT`);
+    // Pre-migration rows carry no attribution, and every one of them was written by an
+    // install whose whole API was single-tenant — i.e. the default workspace. Backfilling
+    // them there keeps a single-tenant deployment's panel exactly as it was, and makes a
+    // NEWLY minted tenant start from an empty log rather than inheriting someone else's.
+    d.prepare(`UPDATE dev_audit SET workspace_id = ? WHERE workspace_id IS NULL`).run(DEFAULT_WORKSPACE);
+  }
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_dev_audit_ws ON dev_audit (workspace_id, id DESC)`);
   _db = d;
   return d;
 }
@@ -41,19 +58,62 @@ export type AuditEvent = {
   createdAt: string;
 };
 
-/** Append an immutable audit record of an automated or human decision. */
-export function recordAudit(input: { lifecycleId?: string | null; actor: Actor; action: string; reason?: string; ref?: string }): void {
+/** The DEPLOYMENT-WIDE control events. The kill switch is not one tenant's business:
+ *  `autonomy` lives in dev_control, a single global key, so pausing halts every
+ *  workspace's orchestrator and every operator has to be able to see that it happened.
+ *  Neither row carries candidate data — the payload is "kill switch engaged" — which is
+ *  what makes them safe to keep global. Anything not listed here is tenant business and
+ *  is scoped by workspace. */
+export const GLOBAL_AUDIT_ACTIONS = ["paused", "resumed"] as const;
+const GLOBAL_ACTIONS = new Set<string>(GLOBAL_AUDIT_ACTIONS);
+
+/** Append an immutable audit record of an automated or human decision.
+ *
+ *  `workspaceId` attributes the row to the tenant that produced it. It is OPTIONAL
+ *  because most writers (the orchestrator, the pipeline store, offer-finalize) record
+ *  without a tenant in hand; an unattributed row falls back to the default workspace,
+ *  which is where a single-tenant install's rows have always effectively lived. A
+ *  GLOBAL_AUDIT_ACTIONS row is stored unattributed (NULL) on purpose — see above. */
+export function recordAudit(input: {
+  lifecycleId?: string | null;
+  actor: Actor;
+  action: string;
+  reason?: string;
+  ref?: string;
+  workspaceId?: string | null;
+}): void {
   try {
     db()
-      .prepare(`INSERT INTO dev_audit (lifecycle_id, actor, action, reason, ref, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(input.lifecycleId ?? null, input.actor, input.action, input.reason ?? null, input.ref ?? null, new Date().toISOString());
+      .prepare(`INSERT INTO dev_audit (lifecycle_id, actor, action, reason, ref, workspace_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(
+        input.lifecycleId ?? null,
+        input.actor,
+        input.action,
+        input.reason ?? null,
+        input.ref ?? null,
+        GLOBAL_ACTIONS.has(input.action) ? null : (input.workspaceId ?? DEFAULT_WORKSPACE),
+        new Date().toISOString()
+      );
   } catch {
     /* audit must never break the pipeline */
   }
 }
 
-export function listAudit(limit = 80): AuditEvent[] {
-  const rows = db().prepare(`SELECT * FROM dev_audit ORDER BY id DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+/** The control room's audit listing.
+ *
+ *  SCOPED, not projected: pass the caller's workspace and another tenant's rows never
+ *  leave the DB, so no projection has to be trusted to strip a candidate ref out of free
+ *  text. The deployment-wide kill-switch rows (GLOBAL_AUDIT_ACTIONS, stored NULL) ride
+ *  along for everyone. Omitting `workspaceId` returns the WHOLE log and is for tests and
+ *  maintenance scripts only — no request handler may call it that way. */
+export function listAudit(limit = 80, workspaceId?: string): AuditEvent[] {
+  const rows = (
+    workspaceId === undefined
+      ? db().prepare(`SELECT * FROM dev_audit ORDER BY id DESC LIMIT ?`).all(limit)
+      : db()
+          .prepare(`SELECT * FROM dev_audit WHERE workspace_id = ? OR workspace_id IS NULL ORDER BY id DESC LIMIT ?`)
+          .all(workspaceId, limit)
+  ) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: r.id as number,
     lifecycleId: (r.lifecycle_id as string) ?? null,

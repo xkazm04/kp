@@ -31,7 +31,15 @@ export function useProfileTabDeepLinks(args: {
       fetch(`/api/profile?id=${encodeURIComponent(id)}`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
         .then((p) =>
-          setEditor({ mode: "edit", editingId: id, initialPayload: (p.profile?.payload as ProfilePayload) ?? null })
+          setEditor({
+            mode: "edit",
+            editingId: id,
+            initialPayload: (p.profile?.payload as ProfilePayload) ?? null,
+            // The version this session may overwrite. Without it a save is a
+            // last-write-wins race with any other tab holding the same row.
+            initialUpdatedAt: (p.updatedAt as string | null) ?? null,
+            nonce: Date.now(),
+          })
         )
         .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
     [t, setEditor, setNote]
@@ -44,7 +52,7 @@ export function useProfileTabDeepLinks(args: {
   // v2Profile is the analysis's normalized profile dump, hydrated exactly like an
   // edit — reusing the one payload→form mapping, never a second one.
   const openFromAnalysis = useCallback(
-    (slug: string, rebuildProfileId: string | null) =>
+    (slug: string, rebuildProfileId: string | null, rebuildUpdatedAt?: string | null) =>
       fetch(`/api/analyses/${encodeURIComponent(slug)}`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
         .then((p) => {
@@ -53,7 +61,12 @@ export function useProfileTabDeepLinks(args: {
             mode: rebuildProfileId ? "edit" : "create",
             editingId: rebuildProfileId,
             initialPayload: v2,
+            // A rebuild PUTs an existing row, so it carries the same version guard as
+            // a plain edit (openRebuild read it one request earlier). A first build
+            // POSTs and has nothing to race.
+            initialUpdatedAt: rebuildProfileId ? rebuildUpdatedAt ?? null : null,
             sourceAnalysisSlug: slug,
+            nonce: Date.now(),
           });
         })
         .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
@@ -70,8 +83,9 @@ export function useProfileTabDeepLinks(args: {
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
         .then((p) => {
           const div = p.divergence as { diverged: boolean; editedAt: string | null } | null;
-          if (div?.diverged) setRebuildWarn({ slug, profileId, editedAt: div.editedAt });
-          else void openFromAnalysis(slug, profileId);
+          const updatedAt = (p.updatedAt as string | null) ?? null;
+          if (div?.diverged) setRebuildWarn({ slug, profileId, editedAt: div.editedAt, updatedAt });
+          else void openFromAnalysis(slug, profileId, updatedAt);
         })
         .catch(() => setNote({ text: t("deepLinkError"), tone: "info" })),
     [openFromAnalysis, t, setNote, setRebuildWarn]

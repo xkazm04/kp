@@ -650,7 +650,14 @@ export function getAgentAggregates(hiredAgentId: string, workspaceId: string = D
   const rows = db
     .prepare(`SELECT * FROM agent_activity WHERE hired_agent_id = ? AND workspace_id = ?`)
     .all(hiredAgentId, workspaceId) as AgentActivityRow[];
+  return foldActivity(rows);
+}
 
+/** The fold ONE agent's activity rows reduce to. Extracted so the workspace-wide
+ *  roll-up below runs the identical precedence rule instead of a second copy of it
+ *  that could drift — the rule (a month's rollup row beats that month's execution
+ *  events) is the whole reason these totals are not a SUM() in SQL. */
+function foldActivity(rows: AgentActivityRow[]): AgentAggregates {
   const rollupMonths = new Set(
     rows.filter((r) => r.kind === "rollup" && r.period).map((r) => String(r.period).slice(0, 7))
   );
@@ -707,4 +714,58 @@ export function getAgentAggregates(hiredAgentId: string, workspaceId: string = D
   agg.monthCostUsd = Math.round(agg.monthCostUsd * 100) / 100;
   agg.successRate = agg.runs > 0 ? Math.round((agg.successes / agg.runs) * 1000) / 1000 : null;
   return agg;
+}
+
+/** Workspace-wide agent totals in ONE activity query, for a surface that wants the
+ *  roll-up and not the roster: how many agents, how many runs, how many succeeded,
+ *  and this month's spend.
+ *
+ *  The command palette's Agents preview used to build this by listing the hired
+ *  agents and calling `getAgentAggregates` per agent — a read that grows a query per
+ *  agent on a pane that opens on a KEYSTROKE. Here the activity table is read once
+ *  for the whole workspace and grouped in memory, so the cost is two statements
+ *  regardless of headcount, and the per-agent precedence rule is the SAME
+ *  `foldActivity` the roster uses (a month's rollup row is authoritative for that
+ *  month; months without one sum their execution events).
+ *
+ *  `successRate` is null when nothing has run — never 0, which would read as "every
+ *  run failed" on a workspace whose agents simply have not run yet. */
+export function getWorkspaceAgentTotals(workspaceId: string = DEFAULT_WORKSPACE_ID): {
+  agents: number;
+  runs: number;
+  successes: number;
+  successRate: number | null;
+  monthCostUsd: number;
+} {
+  const db = agentsDb();
+  const agents = (
+    db.prepare(`SELECT COUNT(*) AS n FROM hired_agents WHERE workspace_id = ?`).get(workspaceId) as { n: number }
+  ).n;
+  const rows = db
+    .prepare(`SELECT * FROM agent_activity WHERE workspace_id = ?`)
+    .all(workspaceId) as AgentActivityRow[];
+
+  const byAgent = new Map<string, AgentActivityRow[]>();
+  for (const r of rows) {
+    const bucket = byAgent.get(r.hired_agent_id);
+    if (bucket) bucket.push(r);
+    else byAgent.set(r.hired_agent_id, [r]);
+  }
+
+  let runs = 0;
+  let successes = 0;
+  let monthCostUsd = 0;
+  for (const agentRows of byAgent.values()) {
+    const agg = foldActivity(agentRows);
+    runs += agg.runs;
+    successes += agg.successes;
+    monthCostUsd += agg.monthCostUsd;
+  }
+  return {
+    agents,
+    runs,
+    successes,
+    successRate: runs > 0 ? successes / runs : null,
+    monthCostUsd: Math.round(monthCostUsd * 100) / 100,
+  };
 }

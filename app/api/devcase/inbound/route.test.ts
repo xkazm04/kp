@@ -78,7 +78,10 @@ test("the per-token BURST window refuses the over-quota application — no row, 
   const res = await POST(inboundReq(token, "grace"));
   // Pre-fix there was NO limiter here, so this returned 200 and minted the submission.
   assert.equal(res.status, 429, "the token's burst budget is exhausted");
-  assert.deepEqual(await res.json(), { error: RATE_LIMITED_ERROR }, "the shared 429 envelope, not a bespoke message");
+  // The shared 429 envelope, now produced by the refusal CHOKEPOINT: the same message
+  // (REFUSAL_ERRORS.TOO_MANY_REQUESTS *is* RATE_LIMITED_ERROR) plus the machine code the
+  // public apply form needs to say "throttled" in the reader's language.
+  assert.deepEqual(await res.json(), { error: RATE_LIMITED_ERROR, code: "TOO_MANY_REQUESTS" });
   assert.equal(listSubmissions(postingId, DEFAULT_WORKSPACE_ID).length, 0, "a refused call writes nothing");
 });
 

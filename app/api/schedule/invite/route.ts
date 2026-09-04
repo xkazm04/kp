@@ -1,15 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
 import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
+import { resolveCommsLocale } from "@/app/_lib/comms-locale";
+import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // POST → recruiter mints a self-scheduling link for a pipeline entry. The
@@ -25,18 +28,32 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // AUTHORIZATION, in lock-step with the bulk sibling (write-routes-check-a-capability).
+  // requireOperator above only proves a trusted session is present — in open mode it is
+  // true for everyone, and with a password set it is true for a VIEWER seat as well. So
+  // it is identity, never authority. Minting a scheduling link MAILS a candidate on the
+  // team's behalf, which is a recruiter operation: ask the seat for `pipeline:write` and
+  // refuse a read-only member with a code instead of sending the invitation.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   const ws = await currentWorkspace();
   try {
     // Throttle per-IP so link-minting can't be used to flood the comms provider
     // (idea-3e49abaf); generous enough for any human recruiter, and a second line
     // of defence behind the operator gate above.
     if (!rateLimit(`invite:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 60_000 })) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const body = (await request.json().catch(() => ({}))) as { entryId?: string };
-    if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });
+    // Every refusal below is a CODE, never a sentence. The lifecycle panel's re-invite
+    // (useScheduleInviteLifecycle) resolves `code` through useErrorMessage and falls back
+    // to its own localized line — so with no code on the wire a non-English recruiter read
+    // a generic "action failed" for a refusal whose reason IS the remedy. The bulk sibling
+    // was migrated in wave 40; this is the same migration for the single door.
+    if (!body.entryId) return jsonRefusal("SCHEDULE_INVITE_ENTRY_REQUIRED", 400);
     const entry = getPipelineEntry(body.entryId, ws);
-    if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
+    // The board's own code, the same one the week grid's book refusal answers.
+    if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     // Never invite a rejected/withdrawn candidate. The bulk sibling has always refused a
     // terminal entry ("the same stale-token doctrine the single flows enforce") — but this
     // route did not, and both of its UI gates (the drawer's `showLinks`, the lifecycle
@@ -46,7 +63,7 @@ export async function POST(request: NextRequest) {
     // whose link answers "This interview is no longer available." the moment they book.
     // Hired keeps status 'active', so this only refuses genuinely closed-out candidates.
     if (entry.status !== "active") {
-      return NextResponse.json({ error: "That candidate is no longer active — no invite was sent." }, { status: 409 });
+      return jsonRefusal("SCHEDULE_INVITE_ENTRY_INACTIVE", 409);
     }
 
     const invite = createScheduleInvite({
@@ -71,7 +88,21 @@ export async function POST(request: NextRequest) {
     let dispatched = false;
     let delivery: DeliveryClaim = "failed";
     try {
-      const link = `${publicBaseUrl(new URL(request.url).origin)}/schedule/${invite.token}`;
+      // The EMAILED link is pinned to the candidate's own language, like the status
+      // link in the ack letter, the erasure link in every candidate comm and the voice
+      // interview link: an ABSOLUTE link opened from an email carries no NEXT_LOCALE
+      // cookie, so unpinned it resolves from Accept-Language and drops the Czech
+      // candidate who just read a Czech invitation onto an English booking page
+      // (proxy.ts turns ?lang= back into the cookie). Same resolution the letter
+      // itself uses — dispatchScheduleInvite reads candidateLocale off this entry.
+      //
+      // Only the emailed link. The `url` returned below is opened by the RECRUITER
+      // (the drawer's copy button, the Schedule tab's window.open), and ?lang= there
+      // would rewrite their own cookie and flip the console's language.
+      const link = pinLinkLocale(
+        `${publicBaseUrl(new URL(request.url).origin)}/schedule/${invite.token}`,
+        resolveCommsLocale(entry.locale, entry.workspaceId ?? undefined)
+      );
       const status = await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });
       delivery = deliveryClaim(isRelayConfigured(), status);
       dispatched = delivery !== "failed";

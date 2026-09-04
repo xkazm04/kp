@@ -9,6 +9,27 @@ import { setWorkspaceOnboardingState } from "@/app/_lib/db/workspaces";
 // never re-fires it. Deliberately NOT an operator route — any signed-in member
 // stamps their OWN user row; identity-less sessions (open dev mode, operator
 // password) fall back to the workspace-level state, same split as the gate.
+/**
+ * Who the wizard's saved draft belongs to.
+ *
+ * The first-run wizard mirrors its answers into sessionStorage so a reload three
+ * steps in does not throw away the org name, the staged invites and the board
+ * draft (setupDraft.ts). sessionStorage survives a logout/login inside one tab, so
+ * that slot has to be keyed by principal — otherwise the next person to sign in on
+ * this machine is handed the previous one's half-finished setup.
+ *
+ * It answers the SAME identity split the stamp above writes under: the user row
+ * when the session has one, else the workspace (open dev mode / operator
+ * password). The value is an opaque scope string the caller already has the right
+ * to know — its own — and nothing is created by asking.
+ */
+export async function GET() {
+  const session = await currentSession();
+  const userId = currentUserId(session);
+  const scope = userId ? `u:${userId}` : `w:${session ? currentWorkspaceId(session) : DEFAULT_WORKSPACE}`;
+  return NextResponse.json({ scope });
+}
+
 export async function POST(req: Request) {
   const session = await currentSession();
   if (process.env.KP_OPERATOR_PASSWORD) {

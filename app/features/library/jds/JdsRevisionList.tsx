@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { RotateCcw } from "lucide-react";
 import type { JdRevision } from "./jdsEditClient";
 
@@ -34,6 +34,14 @@ export function JdRevisionList({
   revertingLabel: string;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
+  // Revert REPLACES the JD body from a snapshot, and its button sat one gap away
+  // from the harmless View toggle, firing on the first click with no way back.
+  // Same inline confirm the template manager's delete uses: the id awaiting a
+  // second, deliberate click (null = none).
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  // Only the confirm/cancel pair lives here, so it reads from the shared
+  // `jdRevisions` namespace rather than being passed twice by two hosts.
+  const t = useTranslations("jdRevisions");
   // The stamp is the ONLY thing that tells two revisions of the same JD apart
   // (their titles are usually identical), and it decides which snapshot the
   // recruiter reverts to — so it must read in the APP's locale, not the OS's.
@@ -57,18 +65,42 @@ export function JdRevisionList({
             >
               {expanded === rev.id ? hideLabel : viewLabel}
             </button>
-            <button
-              type="button"
-              onClick={() => onRevert(rev.id)}
-              disabled={reverting !== null || gateBlocked}
-              title={gateBlocked ? gateReason : undefined}
-              className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
-            >
-              <RotateCcw size={12} aria-hidden /> {reverting === rev.id ? revertingLabel : revertLabel}
-            </button>
+            {confirmingId === rev.id && reverting === null ? (
+              <span className="animate-fade-in ml-auto inline-flex items-center gap-1" role="group" aria-label={t("revertPrompt")}>
+                <span className="text-micro font-semibold text-coral">{t("revertPrompt")}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingId(null);
+                    onRevert(rev.id);
+                  }}
+                  className="focus-ring rounded-md border border-coral/40 bg-coral/5 px-2 py-0.5 text-micro font-semibold text-coral hover:bg-coral/10"
+                >
+                  {t("revertConfirm")}
+                </button>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setConfirmingId(null)}
+                  className="focus-ring rounded-md px-2 py-0.5 text-micro font-semibold text-steel hover:bg-stone-100"
+                >
+                  {t("revertCancel")}
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingId(rev.id)}
+                disabled={reverting !== null || gateBlocked}
+                title={gateBlocked ? gateReason : undefined}
+                className="focus-ring ml-auto inline-flex items-center gap-1 rounded-md border border-coral/40 bg-white px-2 py-0.5 font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+              >
+                <RotateCcw size={12} aria-hidden /> {reverting === rev.id ? revertingLabel : revertLabel}
+              </button>
+            )}
           </div>
           {expanded === rev.id ? (
-            <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 font-mono text-xs text-ink">
+            <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-stone-50 p-2 font-mono text-sm text-ink">
               {rev.body}
             </pre>
           ) : null}

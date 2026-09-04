@@ -23,6 +23,7 @@ from typing import Any
 from ...claude_cli import ClaudeCliProvider
 from . import app_client, audio
 from .el_ws import ElVoiceSession
+from .seal import refuse_if_offline
 from .wer import WerResult, corpus_entity_fidelity, corpus_wer, entity_fidelity, normalize, wer
 
 # Speech streams at REAL-TIME pace, so every word costs ElevenLabs seconds. A written-style answer
@@ -46,6 +47,53 @@ def clip_spoken(text: str) -> str:
 def was_heard(hypothesis: str) -> bool:
     """EL emits "..." for an utterance it captured no words from — a DROPPED turn, not a transcript."""
     return bool(normalize(hypothesis))
+
+
+class WallBudget:
+    """A wall-clock ceiling on one spoken run — ``BudgetedProvider`` (interview_optimize.py)
+    applied to the resource this plane actually spends.
+
+    The optimizer meters PROVIDER CALLS because that is where its money goes. Here the money is
+    ElevenLabs MINUTES, and a spoken run had no ceiling on them at all: ``turns`` bounds how many
+    times we speak and ``timeout`` bounds ONE wait, so a scenario whose agent keeps replying just
+    under the per-wait timeout could burn ``turns x timeout`` seconds — and a sweep multiplies
+    that by every scenario. ``max_minutes`` of 0 means unlimited, and the clock still runs, so
+    every run can report what it cost (the same "meter always, cap on request" rule).
+
+    A spent budget is a CLEAN STOP, not an error: the transcript collected so far is still
+    persisted and scored, and the stop is recorded on the run (``budget_stopped`` /
+    ``stopped_reason``) so a short run is never read as a short conversation.
+    """
+
+    def __init__(self, max_minutes: float = 0.0):
+        self.max_minutes = max(0.0, max_minutes)
+        self._started = time.monotonic()
+
+    @property
+    def elapsed_minutes(self) -> float:
+        return (time.monotonic() - self._started) / 60.0
+
+    @property
+    def remaining_s(self) -> float | None:
+        """Seconds left, or None when unlimited."""
+        if not self.max_minutes:
+            return None
+        return self.max_minutes * 60.0 - (time.monotonic() - self._started)
+
+    def spent(self) -> bool:
+        left = self.remaining_s
+        return left is not None and left <= 0
+
+    def bound(self, timeout: float) -> float:
+        """``timeout``, clipped to what is left. Never below 1 s — a sub-second wait would
+        report a healthy agent as silent instead of reporting the budget."""
+        left = self.remaining_s
+        if left is None:
+            return timeout
+        return max(1.0, min(timeout, left))
+
+    def reason(self) -> str:
+        return (f"wall budget spent: {self.elapsed_minutes:.1f} of {self.max_minutes:.1f} minutes")
 
 
 def percentile(values: list[float], p: float) -> float | None:
@@ -75,6 +123,9 @@ class VoiceRun:
     condition: str = "clean"      # audio degradation applied to our speech (V2)
     barge_in: bool = False        # this run tried to interrupt the agent mid-utterance
     barged: bool = False          # the agent actually yielded (an interruption event fired)
+    budget_minutes: float = 0.0   # the wall ceiling this run was given (0 = unlimited)
+    budget_stopped: bool = False  # the run ended because the ceiling was reached, not the script
+    stopped_reason: str | None = None  # why it stopped early — a clean stop, never an error
 
     @property
     def pairs(self) -> list[tuple[str, str]]:
@@ -107,6 +158,9 @@ class VoiceRun:
             "condition": self.condition,
             "barge_in": self.barge_in,
             "barged": self.barged,
+            "budget_minutes": self.budget_minutes,
+            "budget_stopped": self.budget_stopped,
+            "stopped_reason": self.stopped_reason,
             "latencies": [round(x, 3) for x in self.latencies_s],
             "latency_p50": percentile(self.latencies_s, 0.5),
             "latency_p95": percentile(self.latencies_s, 0.95),
@@ -201,14 +255,22 @@ async def run_voice_scenario(
     noise_snr_db: float | None = None,
     barge_in: bool = False,
     barge_in_delay: float = 1.5,
+    max_minutes: float = 0.0,
     seed: int = 0,
     on_event=None,
 ) -> VoiceRun:
     """Speak one scenario end to end and persist it exactly as the browser does.
 
     ``gain`` / ``noise_snr_db`` degrade our audio (the V2 probes). ``barge_in`` cuts in
-    ``barge_in_delay`` s into the agent's reply to turn 1 to test that it yields."""
+    ``barge_in_delay`` s into the agent's reply to turn 1 to test that it yields.
+    ``max_minutes`` caps the paid wall-clock (:class:`WallBudget`; 0 = unlimited, metered
+    either way) — a spent budget stops the conversation cleanly and is recorded on the run."""
+    # This run opens a REAL wss:// session to api.elevenlabs.io. Refuse it under the E-SH-4
+    # no-egress seal here, before a session is minted or a minute is spent.
+    refuse_if_offline("speak a scenario into a real ElevenLabs realtime session")
+    budget = WallBudget(max_minutes)
     run = VoiceRun(scenario=scenario.name)
+    run.budget_minutes = budget.max_minutes
     run.condition = audio.describe(gain, noise_snr_db)
     run.barge_in = barge_in
     effect = audio.make_effect(gain=gain, noise_snr_db=noise_snr_db, seed=seed)
@@ -241,13 +303,16 @@ async def run_voice_scenario(
             call.begin_turn()
             dur = await call.speak(text, _voice_for(text, lang), effect=effect)
             say("spoke", f"({dur:.1f}s) {text}")
-            got = await (call.wait_for_agent_turn(timeout=timeout) if wait_full
-                         else call.wait_for_agent_start(timeout=timeout))
+            # Never wait past the budget: the ceiling is on PAID wall-clock, so it has to
+            # bound the waits too, not just the turn count.
+            wait_s = budget.bound(timeout)
+            got = await (call.wait_for_agent_turn(timeout=wait_s) if wait_full
+                         else call.wait_for_agent_start(timeout=wait_s))
             run.ground_truth.append(text)
             run.heard.append(" ".join(call.result.user_transcripts[heard_from:]).strip())
             return got
 
-        if not await call.wait_for_agent_turn(timeout=timeout):
+        if not await call.wait_for_agent_turn(timeout=budget.bound(timeout)):
             run.errored = "agent never spoke"
         elif barge_in and turns >= 2:
             # Turn 1, then cut in mid-reply and check the agent yields (emits an interruption).
@@ -267,11 +332,27 @@ async def run_voice_scenario(
         else:
             say("agent", call.result.agent_responses[-1] if call.result.agent_responses else "(audio only)")
             for i in range(turns):
+                # A spent budget ends the conversation cleanly BETWEEN turns — the transcript
+                # so far is still persisted and scored below; the stop is recorded, never
+                # dressed up as an error or left to look like a short conversation.
+                if budget.spent():
+                    run.budget_stopped = True
+                    run.stopped_reason = budget.reason()
+                    say("budget", f"stopping after {i} turn(s) — {run.stopped_reason}")
+                    break
                 text = scenario.first_message if i == 0 else _persona_reply(
                     provider, scenario.candidate_prompt, call.result.turns, "Could you say a bit more about that?"
                 )
                 if not await _say_and_hear(text, wait_full=True):
-                    run.errored = "agent did not reply within timeout"
+                    # A wait the BUDGET cut short is a stop, not a silent agent. Reporting it
+                    # as "agent did not reply" would send a reader hunting a defect that is
+                    # only the ceiling they asked for.
+                    if budget.spent():
+                        run.budget_stopped = True
+                        run.stopped_reason = budget.reason()
+                        say("budget", f"stopped mid-turn — {run.stopped_reason}")
+                    else:
+                        run.errored = "agent did not reply within timeout"
                     break
                 say("agent", call.result.agent_responses[-1] if call.result.agent_responses else "(audio only)")
 

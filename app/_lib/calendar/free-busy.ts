@@ -10,12 +10,16 @@
 // narrow `calendar.freebusy` scope cannot see them, which is deliberate: kp needs to know
 // *that* you are busy, never *why*).
 
+import { DEFAULT_INTERVIEW_MINUTES } from "./constants";
+
 /** One busy window from a provider. Half-open [start, end) — the convention Google uses. */
 export type BusyInterval = { start: string; end: string };
 
-/** Default interview length when a caller does not say. Matches the scheduling copy's
- *  assumption; passed explicitly wherever a real duration is known. */
-export const DEFAULT_SLOT_MINUTES = 45;
+/** Default interview length when a caller does not say; passed explicitly wherever a real
+ *  duration is known. Re-exported from constants.ts — this file and calendar-links.ts each
+ *  declared their own 45, so the recruiter's event and the candidate's .ics could drift
+ *  apart the moment either changed. One number, two names, one source. */
+export const DEFAULT_SLOT_MINUTES = DEFAULT_INTERVIEW_MINUTES;
 
 /**
  * WAS the calendar consulted, and if not, WHY — the honest three-state a human can act on.

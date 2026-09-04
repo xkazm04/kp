@@ -23,7 +23,7 @@
 // useHiringComposer.
 import { Loader2, RotateCcw, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_AFFIRM, EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { PlanImpactStrip } from "./PipelineComposerBits";
 import { PipelineStepsEditor } from "./PipelineStepsEditor";
 import { useHiringComposer } from "./useHiringComposer";
@@ -48,6 +48,39 @@ export function HiringTab() {
         <div className="reveal-quiet min-h-[28rem]" aria-hidden />
       ) : (
         <>
+          {/* Somebody stored a newer plan while this draft was being edited. The save
+              was refused BEFORE anything was written, so the honest move is to show
+              what is stored — merging a draft onto a pipeline whose columns may not
+              exist any more is how a lost update looks from the inside. */}
+          {c.staleConflict ? (
+            <p role="alert" className="flex flex-wrap items-center gap-2 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
+              {t("stale")}
+              <button
+                type="button"
+                onClick={() => void c.reloadPlan()}
+                className="focus-ring rounded-md px-2 py-0.5 text-sm font-semibold underline hover:bg-coral/10"
+              >
+                {t("staleReload")}
+              </button>
+            </p>
+          ) : null}
+
+          {/* The occupancy read failed. Said out loud, with the retry: it is what
+              refuses a column removal, and a reader shown "fix the problems
+              above" over a page with no problems on it cannot act on that. */}
+          {c.countsFailed ? (
+            <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {t("occupancyUnknown")}
+              <button
+                type="button"
+                onClick={() => void c.retryCounts()}
+                className="focus-ring rounded-md px-2 py-0.5 text-sm font-semibold text-amber-900 underline hover:bg-amber-100"
+              >
+                {t("occupancyRetry")}
+              </button>
+            </p>
+          ) : null}
+
           <PipelineStepsEditor
             draft={c.axis}
             onChange={c.setAxis}
@@ -68,7 +101,15 @@ export function HiringTab() {
             }`}
           >
             <span className={`text-sm ${c.dirty ? "font-semibold text-amber-800" : "text-steel"}`} role="status">
-              {c.blocked ? t("blocked") : c.dirty ? t("unsaved") : t("allSaved")}
+              {c.blockedReason === "occupancy"
+                ? t("blockedOccupancy")
+                : c.blockedReason === "unmapped"
+                  ? t("blockedStranded")
+                  : c.blockedReason === "problems"
+                    ? t("blocked")
+                    : c.dirty
+                      ? t("unsaved")
+                      : t("allSaved")}
             </span>
             <span className="ml-auto flex items-center gap-2">
               {c.dirty ? (
@@ -85,13 +126,29 @@ export function HiringTab() {
                 type="button"
                 onClick={() => void c.save()}
                 disabled={!c.dirty || c.saving || c.blocked}
-                className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-moss px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className={`${BTN_AFFIRM} h-8 px-3 text-sm`}
               >
                 {c.saving ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Save size={13} aria-hidden />}
                 {c.saving ? t("saving") : t("save")}
               </button>
             </span>
           </div>
+
+          {/* The writes landed; the re-read behind them did not. Its own line, not
+              a "save failed" toast over a committed save — that lie invites a
+              second save of a plan that is already stored. */}
+          {c.refreshFailed ? (
+            <p role="status" className="flex flex-wrap items-center gap-2 rounded-md border border-stone-200 bg-paper px-3 py-2 text-sm text-steel">
+              {t("refreshFailed")}
+              <button
+                type="button"
+                onClick={() => void c.retryRefresh()}
+                className="focus-ring rounded-md px-2 py-0.5 text-sm font-semibold text-ink underline hover:bg-stone-100"
+              >
+                {t("refreshRetry")}
+              </button>
+            </p>
+          ) : null}
 
           {/* The live preview: the board these steps and this policy produce. */}
           <PlanImpactStrip plan={c.plan} axis={c.axis.stages} />

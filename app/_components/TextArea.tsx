@@ -23,7 +23,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   // Own the text size so a caller's `text-sm` (e.g. a monospace body) wins over
   // the base without an `!important` fight (Tailwind orders text-* by scale).
   const size = sizeVariant === "sm" ? "text-sm leading-5" : "text-base leading-6";
-  // Coral hover-border matches the Select/FileInput affordance so sibling controls
+  // Coral hover-border matches the Select affordance so sibling controls
   // in one form row respond identically to the cursor.
   const border = invalid ? "border-red-400" : "border-stone-200 hover:border-coral/40";
   return <textarea ref={ref} aria-invalid={invalid || undefined} className={`${BASE} ${size} ${border} ${className}`} {...rest} />;

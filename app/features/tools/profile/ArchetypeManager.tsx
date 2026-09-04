@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeDef } from "@/app/features/shared/profileTypes";
+import { ArchetypeArchiveConfirmModal } from "./ArchetypeArchiveConfirmModal";
 import { ArchetypeManagerList } from "./ArchetypeManagerList";
 import { ArchetypeManagerViewPanel } from "./ArchetypeManagerViewPanel";
 import { ArchetypeManagerEditPanel } from "./ArchetypeManagerEditPanel";
 import { useArchetypeManagerActions } from "./useArchetypeManagerActions";
-import { displayWeightPct, weightPctSum, weightPctSumOk, type Draft } from "./ArchetypeManagerTypes";
+import { displayWeightPct, weightPctSum, weightPctSumOk, type Draft, type Slot } from "./ArchetypeManagerTypes";
 
 const BUILT_IN = new Set<string>(BUILT_IN_ARCHETYPE_IDS);
 
@@ -29,16 +30,23 @@ function toDraft(a: ArchetypeDef): Draft {
   };
 }
 
-const BLANK_DRAFT: Draft = {
-  id: "",
-  label: "",
-  badge: "",
-  applyLabel: "",
-  scoringModel: "experienced",
-  fairnessProtected: false,
-  pct: { skills: 50, career: 35, personal: 15 },
-  dim: { skills: "Skills", career: "Career", personal: "Personal" },
-};
+// The three dimension labels are what the VIEW panel prints beside each weight bar and
+// what the matcher's explanation carries, so a new archetype born with hardcoded
+// English ("Skills", "Career", "Personal") shipped English into a Czech workspace on
+// every create. Seeded from the catalog instead — an operator who wants different words
+// still overwrites them in the form, which is the point of the field.
+function blankDraft(dim: Record<Slot, string>): Draft {
+  return {
+    id: "",
+    label: "",
+    badge: "",
+    applyLabel: "",
+    scoringModel: "experienced",
+    fairnessProtected: false,
+    pct: { skills: 50, career: 35, personal: 15 },
+    dim,
+  };
+}
 
 export function ArchetypeManager({
   archetypes,
@@ -52,8 +60,29 @@ export function ArchetypeManager({
   const t = useTranslations("profile.archetypes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<"view" | "edit" | "create">("view");
-  const [draft, setDraft] = useState<Draft>(BLANK_DRAFT);
+  const blank = useMemo(() => blankDraft({ skills: t("dimSkills"), career: t("dimCareer"), personal: t("dimPersonal") }), [t]);
+  const [draft, setDraft] = useState<Draft>(blank);
   const [showArchived, setShowArchived] = useState(false);
+  // The retire confirm and the blast radius it names. `routedCount` stays null until
+  // the roster read lands, so the dialog never invents a number.
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; label: string } | null>(null);
+  const [routedCount, setRoutedCount] = useState<number | null>(null);
+
+  const requestArchive = useCallback((id: string, label: string) => {
+    setArchiveTarget({ id, label });
+    setRoutedCount(null);
+    void fetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("profiles unavailable"))))
+      .then((p) => {
+        const rows = (p.profiles as { archetype: string | null }[]) ?? [];
+        setRoutedCount(rows.filter((row) => row.archetype === id).length);
+      })
+      .catch(() => {
+        // best-effort: the count is context, never the gate. A failed read leaves the
+        // dialog on its "counting" line rather than claiming a confident zero.
+        setRoutedCount(null);
+      });
+  }, []);
 
   // Active vs retired: retired archetypes leave the pickers (this left list) and move to
   // a collapsed section below; the entry stays in the registry so profiles routed to it
@@ -94,7 +123,7 @@ export function ArchetypeManager({
     setMode("edit");
   };
   const startCreate = () => {
-    setDraft(BLANK_DRAFT);
+    setDraft(blank);
     setError(null);
     setMode("create");
   };
@@ -161,7 +190,7 @@ export function ArchetypeManager({
                 onEdit={startEdit}
                 canArchive={!BUILT_IN.has(selected.id)}
                 archiving={busyArchiveId === selected.id}
-                onArchive={() => void setArchived(selected.id, true)}
+                onArchive={() => requestArchive(selected.id, selected.label)}
               />
             ) : (
               <ArchetypeManagerEditPanel
@@ -179,6 +208,20 @@ export function ArchetypeManager({
           </div>
         </div>
       )}
+
+      {archiveTarget ? (
+        <ArchetypeArchiveConfirmModal
+          label={archiveTarget.label}
+          routedCount={routedCount}
+          busy={busyArchiveId === archiveTarget.id}
+          onClose={() => setArchiveTarget(null)}
+          onConfirm={() => {
+            const id = archiveTarget.id;
+            setArchiveTarget(null);
+            void setArchived(id, true);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

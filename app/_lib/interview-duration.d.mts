@@ -9,5 +9,3 @@ export const PROVIDER_HEADROOM_MIN: number;
 export const PROVIDER_CAP_MIN: number;
 export const PROVIDER_MAX_DURATION_SECONDS: number;
 
-export function durationLabel(min: number): string;
-export function durationChip(min: number): string;

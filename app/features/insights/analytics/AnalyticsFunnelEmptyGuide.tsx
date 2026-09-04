@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { UpstreamLinks, type AnalyticsEmptyLink } from "./AnalyticsEmptyShared";
@@ -45,7 +46,7 @@ export function FunnelEmptyGuide({ funnel, stageLabel, links }: Props) {
         <MotionizedGlyph
           data={ANALYTICS_GLYPH.data}
           viewBox={ANALYTICS_GLYPH.viewBox}
-          className="hidden h-24 w-24 shrink-0 sm:block"
+          className={`hidden ${GLYPH_SIZE.md} shrink-0 sm:block`}
         />
         <div className="min-w-0">
           <p className="text-base font-semibold text-ink">{t("title")}</p>

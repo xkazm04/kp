@@ -23,7 +23,85 @@
 // Keep this surface in step with what app code actually imports from `next/server`
 // (today: NextRequest, NextResponse, after, connection) — an ESM import of a name this
 // file does not export is a link-time SyntaxError, not a failed assertion.
-export class NextRequest extends Request {}
+// `NextRequest` is NOT a bare `Request`: handlers read `request.nextUrl` (26 sites,
+// e.g. app/api/comms/route.ts and app/api/decisions/group-eval/route.ts) and proxy.ts
+// reads `req.cookies` and calls `nextUrl.clone()`. A shim that stopped at `extends
+// Request` left `nextUrl` undefined, so every one of those handlers threw inside its own
+// try/catch and answered 500 — which reads in a test like a product bug and is exactly
+// why decisions-auth.test.ts and pipeline-routes.test.ts were written off as
+// "known worktree-only failures" for thirty waves. The export-name coverage test could
+// not see it: a missing PROPERTY is a runtime undefined, not a link-time SyntaxError.
+// next-server-shim.test.ts now scans the request PROPERTY surface too.
+
+/** `nextUrl` is a URL with `.clone()` (proxy.ts rewrites it). */
+class ShimNextURL extends URL {
+  clone() {
+    return new ShimNextURL(this.href);
+  }
+}
+
+/** Reader/writer over the request's own `cookie` header, matching the members
+ *  proxy.ts uses: `.get(name)?.value` and `.set(name, value)` (which rewrites the
+ *  header, so a downstream clone of the request carries the new value). */
+function requestCookies(headers) {
+  const parse = () => {
+    const raw = headers.get("cookie") ?? "";
+    const out = new Map();
+    for (const part of raw.split(";")) {
+      const eq = part.indexOf("=");
+      if (eq < 0) continue;
+      const name = part.slice(0, eq).trim();
+      if (name) out.set(name, part.slice(eq + 1).trim());
+    }
+    return out;
+  };
+  const write = (jar) => {
+    const serialized = [...jar].map(([n, v]) => `${n}=${v}`).join("; ");
+    if (serialized) headers.set("cookie", serialized);
+    else headers.delete("cookie");
+  };
+  return {
+    get(name) {
+      const key = typeof name === "object" && name !== null ? name.name : name;
+      const jar = parse();
+      return jar.has(key) ? { name: key, value: jar.get(key) } : undefined;
+    },
+    getAll() {
+      return [...parse()].map(([name, value]) => ({ name, value }));
+    },
+    has(name) {
+      return parse().has(name);
+    },
+    set(name, value) {
+      const jar = parse();
+      if (typeof name === "object" && name !== null) jar.set(name.name, name.value);
+      else jar.set(name, value);
+      write(jar);
+      return this;
+    },
+    delete(name) {
+      const jar = parse();
+      const existed = jar.delete(typeof name === "object" && name !== null ? name.name : name);
+      write(jar);
+      return existed;
+    },
+  };
+}
+
+export class NextRequest extends Request {
+  #nextUrl;
+  #cookies;
+
+  get nextUrl() {
+    this.#nextUrl ??= new ShimNextURL(this.url);
+    return this.#nextUrl;
+  }
+
+  get cookies() {
+    this.#cookies ??= requestCookies(this.headers);
+    return this.#cookies;
+  }
+}
 
 // `NextResponse` carries a `cookies` writer that plain `Response` does not, and
 // handlers that re-mint the session (auth/switch-workspace, login, logout) call it

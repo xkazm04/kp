@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { AiReviewCard } from "./DecisionsAiReviewCard";
 import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
+import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export function DecisionsAiReviewsSection({
   visibleAiReviews,
@@ -139,9 +140,9 @@ export function DecisionsAiReviewsSection({
                 type="button"
                 onClick={() => void bulkDecideReviews("accept")}
                 disabled={bulkBusy}
-                className="focus-ring rounded-md bg-moss px-3 py-1 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50"
+                className={`${BTN_AFFIRM} px-3 py-1 text-sm`}
               >
-                {t("batch.accept", { count: selectedReviews.length })}
+                {bulkBusy ? t("batch.accepting") : t("batch.accept", { count: selectedReviews.length })}
               </button>
               {confirmingBulkReject ? (
                 <>

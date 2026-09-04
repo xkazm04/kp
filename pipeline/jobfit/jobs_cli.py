@@ -8,6 +8,9 @@ RoleSpec) into a Job — no LLM. `ingest` parses a prose ad via the Claude CLI
 (subscription) then normalizes. Output:
     {"job": {<Job, camelCase>}, "source": "deterministic" | "llm"}.
 Invoked by /api/jds/save (authored JDs) and /api/jobs/ingest (prose ads).
+On failure the shared {"error", "status", "code"} envelope goes to stderr, so a
+malformed record answers 400/invalid_input and a missing provider 500/engine_error
+instead of both reaching the browser as the same anonymous 500.
 """
 
 from __future__ import annotations
@@ -17,13 +20,12 @@ import json
 import sys
 from pathlib import Path
 
+from ._cli import CliError, configure_stdio, emit_error, invalid_input
 from .jobs import ingest_raw_ad, normalize_job
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    configure_stdio(errors="replace")
 
     parser = argparse.ArgumentParser(description="Structure a job ad / role record into a Job.")
     parser.add_argument("command", choices=["normalize", "ingest"])
@@ -40,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
         else:  # ingest
             text = args.ad_file.read_text(encoding="utf-8") if args.ad_file else sys.stdin.read()
             if not text.strip():
-                raise ValueError("ingest requires non-empty ad text")
+                raise invalid_input("ingest requires non-empty ad text")
             from .llm import resolve_provider
 
             provider = resolve_provider("jd_ingest", timeout=120)
@@ -49,8 +51,11 @@ def main(argv: list[str] | None = None) -> int:
             job = ingest_raw_ad(text, provider=provider, job_id=args.job_id)
             source = "llm"
     except Exception as exc:  # noqa: BLE001 — clean error envelope on stderr
-        print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        # The shared envelope names the failure: a bad record is the caller's
+        # input (400/invalid_input), a missing provider is an engine fault (500).
+        # Exit 2 mirrors the sibling CLIs for a failure named at the raise site.
+        rc = emit_error(exc)
+        return 2 if isinstance(exc, CliError) and exc.status == 400 else rc
 
     print(json.dumps({"job": job.model_dump(by_alias=True), "source": source}, ensure_ascii=False))
     return 0

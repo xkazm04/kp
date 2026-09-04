@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { interviewStatusByEntries } from "@/app/_lib/db/interviews";
 import { getJob } from "@/app/_lib/db/jobs";
 import { anonymizeEntry, findEntryByErasureToken } from "@/app/_lib/db/pipeline";
 import { heldDataCategories } from "@/app/_lib/data-held";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Abuse containment (2026-09-01): this was the one public token door with NO
 // throttle while status / offer / schedule / apply all have one — and its POST is
@@ -31,16 +31,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   try {
     const { token } = await context.params;
     if (!rateLimit(`data-view:${clientIpFrom(request.headers)}:${token}`, DATA_VIEW_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entry = findEntryByErasureToken(token);
-    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!entry) return jsonRefusal("DATA_LINK_INVALID", 404);
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
     // #5 — project the "what we hold" list from what this entry ACTUALLY has, so we
     // never claim to hold interview records / scores for a candidate who only applied.
     const held = heldDataCategories({
       hasContact: entry.contact != null,
-      hasInterview: interviewStatusByEntries([entry.id])[entry.id] != null,
+      hasInterview: interviewStatusByEntries([entry.id], entry.workspaceId ?? undefined)[entry.id] != null,
       hasScore: entry.matchScore != null,
     });
     return jsonOk({
@@ -65,10 +65,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Throttle BEFORE the lookup: an irreversible write must never be the cheap
     // thing a flood reaches first.
     if (!rateLimit(`data-erase:${clientIpFrom(request.headers)}:${token}`, DATA_ERASE_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entry = findEntryByErasureToken(token);
-    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!entry) return jsonRefusal("DATA_LINK_INVALID", 404);
     // Tenant (P1): erase inside the entry's OWN team. anonymizeEntry scrubs under
     // `WHERE id = ? AND workspace_id = ?`, so the bare call matched NO row for any
     // candidate outside the default workspace — the scrub silently did nothing while

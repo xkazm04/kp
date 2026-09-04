@@ -38,6 +38,11 @@ export function useScheduleInviteLifecycle() {
   // fresh as the fetch, which is the honest claim anyway.
   const [loadedAt, setLoadedAt] = useState(0);
   const [failed, setFailed] = useState(false);
+  // The agenda read is BOUNDED (GET /api/schedule clamps `?limit=`, default 200) and
+  // now says when it hit that bound. A panel that renders a clipped list as the whole
+  // lifecycle is making a claim the server did not: the oldest invites simply stopped
+  // existing on this surface, silently.
+  const [truncated, setTruncated] = useState(false);
   // Direction 2 — recruiter-side invite control. `armed` is the two-step inline
   // confirm latch (token+action) reused from the app's delete idiom; `busy` gates a
   // row while its action is in flight. (The recruiter reschedule sub-flow was
@@ -116,8 +121,9 @@ export function useScheduleInviteLifecycle() {
   // mutation must not attach to a request that started before the write.
   const loadInvites = useCallback(async (opts?: { refresh?: boolean }) => {
     try {
-      const p = await sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule", opts);
+      const p = await sharedGetJson<{ invites?: ScheduleInvite[]; truncated?: boolean }>("/api/schedule", opts);
       setInvites(p.invites ?? []);
+      setTruncated(p.truncated === true);
       setLoadedAt(Date.now());
     } catch {
       setFailed(true);
@@ -128,10 +134,11 @@ export function useScheduleInviteLifecycle() {
   // agenda and both mount in the same tick, so the two GETs coalesce into one.
   useEffect(() => {
     let alive = true;
-    sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule")
+    sharedGetJson<{ invites?: ScheduleInvite[]; truncated?: boolean }>("/api/schedule")
       .then((p) => {
         if (!alive) return;
         setInvites(p.invites ?? []);
+        setTruncated(p.truncated === true);
         setLoadedAt(Date.now());
       })
       .catch(() => {
@@ -157,6 +164,7 @@ export function useScheduleInviteLifecycle() {
     invites,
     loadedAt,
     failed,
+    truncated,
     armed,
     setArmed,
     busy,

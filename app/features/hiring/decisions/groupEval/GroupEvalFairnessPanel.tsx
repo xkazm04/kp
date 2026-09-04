@@ -1,13 +1,18 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { isFairnessAligned } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness, FairnessScheme, RobustnessStatus } from "@/app/features/shared/groupEvalTypes";
 
 // ---- Fairness check (cross-scheme dynamic-weight matrix) -------------------
-const fmtScheme = (s: FairnessScheme): string =>
-  `S ${Math.round(s.skills * 100)} · C ${Math.round(s.career * 100)} · P ${Math.round(s.personal * 100)}`;
+// The three initials are COPY, not code: "S · C · P" spells skills/career/personal
+// only in English (in Czech it is D · K · O). They come from the catalog, and the
+// column header carries the spelled-out title for anyone the initials fail.
+type SchemeInitials = { skills: string; career: string; personal: string };
+const fmtScheme = (s: FairnessScheme, i: SchemeInitials): string =>
+  `${i.skills} ${Math.round(s.skills * 100)} · ${i.career} ${Math.round(s.career * 100)} · ${i.personal} ${Math.round(s.personal * 100)}`;
 
 // Renders the fairness matrix: each candidate (row) re-scored under every
 // candidate's bounded weighting (column), the mean, the robust order, and the
@@ -64,6 +69,7 @@ export function FairnessPanel({
     return null;
   }
   const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds, weightSource } = fairness;
+  const schemeInitials: SchemeInitials = { skills: t("schemeSkillsShort"), career: t("schemeCareerShort"), personal: t("schemePersonalShort") };
   const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
 
   if (!adjusted) {
@@ -107,14 +113,14 @@ export function FairnessPanel({
           <caption className="sr-only">{t("fairnessMatrixCaption")}</caption>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("scoredCandidate")}</th>
+              <th scope="col" className={`sticky left-0 bg-white p-2 text-left ${META_LABEL}`}>{t("scoredCandidate")}</th>
               {labels.map((l, j) => (
                 <th key={candidateIds[j] ?? j} scope="col" className="min-w-[120px] p-2 text-left align-bottom">
                   <p className="font-medium text-ink">{t("underLabel", { label: l })}</p>
-                  <p className="text-meta text-steel nums">{fmtScheme(schemes[j])}</p>
+                  <p className="text-meta text-steel nums" title={t("schemeWeightsTitle")}>{fmtScheme(schemes[j], schemeInitials)}</p>
                 </th>
               ))}
-              <th scope="col" className="p-2 text-left text-meta uppercase text-steel">{t("mean")}</th>
+              <th scope="col" className={`p-2 text-left ${META_LABEL}`}>{t("mean")}</th>
             </tr>
           </thead>
           <tbody>
@@ -147,7 +153,7 @@ export function FairnessPanel({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <span className="text-meta uppercase text-steel">{t("robustOrder")}</span>
+        <span className={META_LABEL}>{t("robustOrder")}</span>
         {ranking.map((l, i) => (
           <span key={i} className="inline-flex items-center gap-1.5">
             {i > 0 ? <ArrowRight size={12} className="text-steel" aria-hidden /> : null}

@@ -3,6 +3,7 @@
 import { SearchX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
+import { CHIP, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import type { KoReason, MatchResponse, ScoreDimension } from "@/app/features/shared/matchTypes";
 import { isEarlyCareer } from "@/app/features/shared/matchTypes";
@@ -153,9 +154,14 @@ export function KoReasonsNote({ koFiltered, reasons }: { koFiltered: number; rea
 }
 
 // Shared dashed-card shell mirroring the app-wide EmptyState treatment (icon + copy).
+// The surface is PANEL_SUNKEN (the recipe for an inert, receded panel) plus the
+// one modifier that makes it an empty state rather than content — the dashed
+// border. It used to re-type the whole string, which is how it kept the Studio
+// Light-only `bg-paper/50` and missed the sunken panel's `dark:rounded-2xl`
+// sticker radius: on Spark Dark this was the one square card on the page.
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-10 text-center">
+    <div className={`${PANEL_SUNKEN} flex flex-col items-center gap-3 border-dashed px-6 py-10 text-center`}>
       <SearchX className="h-8 w-8 text-steel" aria-hidden />
       <div>{children}</div>
     </div>
@@ -171,16 +177,20 @@ export function Chip({
   value: string | number;
   tone?: "neutral" | "green" | "amber";
 }) {
-  const toneClass =
-    tone === "green"
-      ? "border-green-200 bg-green-50 text-green-800"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-800"
-        : "border-stone-200 bg-paper text-ink";
+  // The shape is the CHIP recipe (pill, stone border, dual-theme rest/hover tilt);
+  // only the SEMANTIC paint is added here, and it is Badge's tone vocabulary
+  // rather than the hand-rolled amber advisory this used to carry — an advisory
+  // block's colors on an inline fact were the wrong loan, and the ledger counted
+  // them as a NOTICE("amber") that had escaped the recipe.
+  // Border+fill on the pill, and the matching text color on the VALUE (a child's
+  // own color wins over the parent's, so the tone has to be stated where the
+  // number is). The label stays steel in every tone, as it always was.
+  const shell = tone === "green" ? "border-moss/30 bg-moss/10" : tone === "amber" ? "border-amber-300 bg-amber-100" : "";
+  const valueTone = tone === "green" ? "text-moss" : tone === "amber" ? "text-amber-700" : "text-ink";
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm ${toneClass}`}>
+    <span className={`${CHIP} px-2.5 ${shell}`}>
       <span className="uppercase tracking-wide text-steel">{label}</span>
-      <span className="font-semibold">{value}</span>
+      <span className={`font-semibold ${valueTone}`}>{value}</span>
     </span>
   );
 }

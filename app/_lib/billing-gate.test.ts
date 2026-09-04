@@ -68,8 +68,12 @@ const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, rec
 const { billingOverview, entitledPlan, hasActiveSubscription, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"
 );
-const { jobPostGate, meterGate } = await import("./billing/enforce.ts");
-const { ingestBillingWebhook } = await import("./billing/sync.ts");
+const { jobPostGate, meterGate, QUOTA_CODE, QUOTA_MESSAGE } = await import("./billing/enforce.ts");
+// The registry side of the same refusal. enforce.ts cannot import this module (it
+// pulls next/server and is reachable from client components), so the sentence exists
+// twice on purpose and the test below is what keeps the two copies one answer.
+const { REFUSAL_ERRORS, jsonRefusal } = await import("./api-response.ts");
+const { ingestBillingWebhook, runPriceReconcile } = await import("./billing/sync.ts");
 const { currentPeriod, PLANS } = await import("./billing/plans.ts");
 
 import type { BillingEvent, BillingGateway, ProductMap } from "./billing/gateway.ts";
@@ -244,11 +248,32 @@ test("canceled with an unparseable period end keeps the plan (don't cut a paying
   assert.equal(entitledPlan(getBillingState(), new Date("2026-06-15T00:00:00Z")).id, "free");
 });
 
+test("the quota verdict IS the registered refusal — same code, same sentence, same body", async () => {
+  // The code used to be the unregistered string "quota_exceeded" beside a hand-built
+  // English sentence, so useErrorMessage() had nothing to resolve and every locale
+  // read English on the highest-intent upsell moment in the app.
+  assert.equal(QUOTA_CODE, "BILLING_QUOTA_EXCEEDED");
+  assert.ok(QUOTA_CODE in REFUSAL_ERRORS, "the quota code must be a registered refusal");
+  assert.equal(
+    QUOTA_MESSAGE,
+    REFUSAL_ERRORS[QUOTA_CODE],
+    "enforce.ts declares the sentence separately (it cannot import next/server) — the copies must not drift"
+  );
+  // And the verdict a route returns verbatim must be byte-identical to what the
+  // chokepoint would have produced, so `NextResponse.json(verdict, { status: 402 })`
+  // is the same wire answer as jsonRefusal(...).
+  upsertBillingState({ plan: "free", status: "none", provider: "test" });
+  recordMeterUsage("ai_candidates", 999);
+  const verdict = meterGate("ai_candidates");
+  assert.ok(verdict);
+  assert.deepEqual(verdict, await jsonRefusal(QUOTA_CODE, 402, { meter: verdict.meter, plan: verdict.plan }).json());
+});
+
 test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open", () => {
   upsertBillingState({ plan: "free", status: "none", provider: "polar" });
   // ai_candidates: the free allowance was fully consumed earlier in this file → hard gate fires.
   const verdict = meterGate("ai_candidates");
-  assert.equal(verdict?.code, "quota_exceeded");
+  assert.equal(verdict?.code, "BILLING_QUOTA_EXCEEDED");
   assert.equal(verdict?.meter, "ai_candidates");
   assert.equal(verdict?.plan, "free");
   // interview_minutes: free includes 0, but the pack balance keeps it open.
@@ -261,7 +286,7 @@ test("meterGate minUnits requires the whole action to fit, not just any remainin
   assert.equal(meterGate("interview_minutes", { minUnits: 1 }), null);
   // ...but a booked action needing more than the balance must 402, so one leftover
   // minute can't unlock a full interview.
-  assert.equal(meterGate("interview_minutes", { minUnits: 1_000_000 })?.code, "quota_exceeded");
+  assert.equal(meterGate("interview_minutes", { minUnits: 1_000_000 })?.code, "BILLING_QUOTA_EXCEEDED");
 });
 
 test("billing alerts: a paid-but-unmapped event is recorded as a queryable worklist row", () => {
@@ -289,7 +314,7 @@ test("jobPostGate meters published roles per org, and paid plans get their allow
   assert.equal(jobPostGate(), null, "the free plan's first role publishes");
   recordMeterUsage("job_posts", 1);
   const verdict = jobPostGate();
-  assert.equal(verdict?.code, "quota_exceeded", "…and the second is refused");
+  assert.equal(verdict?.code, "BILLING_QUOTA_EXCEEDED", "…and the second is refused");
   assert.equal(verdict?.meter, "job_posts", "the verdict names the meter, not a cap");
 
   upsertBillingState({ plan: "growth", status: "active", provider: "polar" });
@@ -391,4 +416,40 @@ test("a refund past already-spent minutes floors the shown balance at 0 (ledger 
   const minutes = billingOverview().meters.find((m) => m.meter === "interview_minutes");
   assert.equal(minutes?.credits, 0);
   assert.equal(minutes?.remaining, 0);
+});
+
+// ---- the daily price-drift pass, end to end (fake provider, real alert table) ------
+
+test("price reconcile: unconfigured or offline is a no-op, not a failure", async () => {
+  // polarGatewayFromEnv() answers null for BOTH (see its header), and the clock calls
+  // this unconditionally — a self-hosted install must record nothing at all.
+  assert.deepEqual(await runPriceReconcile(null), { skipped: true, checked: 0, drifts: 0, alerted: false });
+});
+
+test("price reconcile: drift opens ONE durable alert and stays one across runs", async () => {
+  const products = { starter: "p_s", growth: null, byom: null, minutePack: null };
+  // The provider charges 40 Kč more than the catalog displays — the exact money-trust
+  // break that used to surface only after a real charge.
+  const wrong = { prices: [{ price_currency: "CZK", price_amount: (PLANS.starter.priceCzk + 40) * 100 }] };
+  const source = { configuredProducts: () => products, fetchProduct: async () => wrong };
+  const before = listBillingAlerts().length;
+  const first = await runPriceReconcile(source);
+  assert.equal(first.skipped, false);
+  assert.equal(first.alerted, true);
+  const alert = listBillingAlerts().find((a) => a.kind === "price_drift");
+  assert.ok(alert, "a price drift must land in the same worklist as an unmapped product");
+  assert.equal(alert.providerRef, "price-drift:p_s");
+  // Tomorrow's run on the same misconfiguration must NOT pile up a second row.
+  assert.equal((await runPriceReconcile(source)).alerted, false);
+  assert.equal(listBillingAlerts().length, before + 1);
+});
+
+test("price reconcile: a provider it cannot read raises nothing", async () => {
+  const before = listBillingAlerts().length;
+  const r = await runPriceReconcile({
+    configuredProducts: () => ({ starter: "p_unreadable", growth: null, byom: null, minutePack: null }),
+    fetchProduct: async () => null,
+  });
+  assert.deepEqual(r, { skipped: false, checked: 0, drifts: 0, alerted: false });
+  assert.equal(listBillingAlerts().length, before, "an unreadable product must not alarm");
 });

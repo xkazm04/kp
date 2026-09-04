@@ -30,6 +30,19 @@
  *         PUMPER_URL=http://host:port  overrides the endpoint.
  *         --force  write the snapshot even if validateSnapshot() rejects it.
  *
+ * STALENESS CONTRACT. Nobody schedules this. `data/market_pulse.json` is
+ * committed and rebuilt by hand, and the /market page calls it stale past
+ * STALE_AFTER_DAYS = 60 (app/landing/spark/market/data.ts) — printing the
+ * snapshot's age in the hero rather than serving old pay figures silently. Sixty
+ * days is therefore the cadence this script owes; see the "Rebuild cadence" note
+ * in docs/features/marketing/README.md.
+ *
+ * NETWORK CONTRACT. Every GET below (Pumper, the MPSV codelists, ISPV) runs
+ * through fetchJson() from scripts/lib/market-earnings.mjs: a 20 s
+ * AbortSignal.timeout and a KP_OFFLINE refusal. A bare `await fetch()` here used
+ * to hang the build forever on an endpoint that accepted the connection and then
+ * said nothing — including a Pumper that had died mid-export.
+ *
  * A snapshot that fails validateSnapshot() is NOT written and the process exits
  * 1. The documented workflow is `npm run market:build && npm run market:apply`,
  * and market:apply re-levels every shipped salary band from this file — so a
@@ -41,7 +54,14 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchIspv, regionalEarnings, sphereEarnings, nationalEarnings } from "./lib/market-earnings.mjs";
+import {
+  fetchIspv,
+  fetchJson,
+  isOffline,
+  regionalEarnings,
+  sphereEarnings,
+  nationalEarnings,
+} from "./lib/market-earnings.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = path.join(ROOT, "data");
@@ -71,11 +91,9 @@ const FAMILY_LABEL_EN = {
 const FAMILY_ORDER = Object.keys(FAMILY_LABEL_EN);
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-async function getJson(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`GET ${url} → ${r.status}`);
-  return r.json();
-}
+/** Every GET this script makes — timeout + KP_OFFLINE refusal, shared with the
+ *  earnings module so Pumper and data.mpsv.cz cannot hang the build differently. */
+const getJson = (url) => fetchJson(url);
 /** Pumper /export → array of the stored record `data` objects. */
 function records(exp) {
   const arr = Array.isArray(exp) ? exp : exp.records || exp.data || exp.items || [];
@@ -137,6 +155,14 @@ function familyOf(cz) {
 
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
+  // Refuse up front rather than per-URL: an air-gapped operator should be told
+  // once, before six parallel fetches each reject with the same sentence.
+  if (isOffline()) {
+    throw new Error(
+      "KP_OFFLINE is set — this build pulls from Pumper and data.mpsv.cz and cannot run offline. " +
+        "data/market_pulse.json is committed, so an offline install already has a snapshot."
+    );
+  }
   console.log(`[market-pulse] pulling datasets from ${PUMPER} …`);
   const [aggRaw, regionRaw, samplesRaw, wagesRaw, freshRaw] = await Promise.all([
     getJson(`${PUMPER}/datasets/mpsv-vpm/role_region_agg/export`),

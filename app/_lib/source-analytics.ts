@@ -2,6 +2,8 @@
 // DB-free so the median math and the pause heuristic are unit-tested in
 // isolation (source-analytics.test.ts); db.ts feeds them the windowed rows.
 
+import { median } from "./stats";
+
 // Campaign and variant names are recruiter-entered free text (source_campaign /
 // source_variant, captured at intake), so a PRINTABLE delimiter inside one of them
 // forges another pair's key: campaign "spring|A" × variant "v1" and campaign
@@ -65,14 +67,15 @@ export const VARIANT_RULE = {
   fairShareFactor: 0.5,
 } as const;
 
-/** Median of durations (ms) in hours, 0.1h precision. Negative/NaN durations
- *  (clock skew, malformed timestamps) are dropped, not clamped; null when
- *  nothing valid remains. */
+/** Median of durations (ms) in hours, 0.1h precision. The median itself is the
+ *  shared one (app/_lib/stats.ts — non-finite dropped, even counts averaged,
+ *  empty ⇒ null); what belongs to THIS surface is the domain filter and the
+ *  precision. Negative durations (clock skew, a decision timestamped before the
+ *  entry it decides) are dropped, not clamped: a negative time-to-decision is a
+ *  broken record, and clamping it to 0 would pull the median toward "instant". */
 export function medianHours(durationsMs: readonly number[]): number | null {
-  const valid = durationsMs.filter((d) => Number.isFinite(d) && d >= 0).sort((a, b) => a - b);
-  if (valid.length === 0) return null;
-  const mid = Math.floor(valid.length / 2);
-  const ms = valid.length % 2 ? valid[mid] : (valid[mid - 1] + valid[mid]) / 2;
+  const ms = median(durationsMs.filter((d) => d >= 0));
+  if (ms === null) return null;
   return Math.round((ms / 3_600_000) * 10) / 10;
 }
 

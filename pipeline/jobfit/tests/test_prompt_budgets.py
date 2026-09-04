@@ -7,6 +7,20 @@ from pathlib import Path
 from unittest import mock
 
 import pipeline.jobfit.gemini as G
+import pipeline.jobfit.group_compare as GC
+import pipeline.jobfit.match_reasoning as MR
+from pipeline.jobfit.jobs import normalize_job
+from pipeline.jobfit.matching import score_job
+
+_JOB = normalize_job(
+    {
+        "title": "Senior Backend Engineer",
+        "seniority": "senior",
+        "role_family": "software_engineering",
+        "description": "Backend team.",
+        "requirements": [{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}],
+    }
+)
 
 
 class CapBlockTest(unittest.TestCase):
@@ -110,6 +124,73 @@ class EvalFixturesFarUnderCapsTest(unittest.TestCase):
                 G.CV_TEXT_BLOCK_MAX_CHARS // 2,
                 f"{fixture.name} ({size} chars) is no longer far under the CV budget",
             )
+
+class ReasoningPromptBudgetsTest(unittest.TestCase):
+    """The per-match reasoning prompt inlines four candidate-authored free-prose fields
+    VERBATIM (summary, experienceHighlights, aspirations, workLinks) and nothing bounded
+    them: a CV can carry a 200 KB "summary", which is billed on every Explain-fit call
+    and pushes the role facts out of the model's attention. Same contract as the gemini
+    blocks above — an over-budget block is cut with an explicit marker, an in-budget one
+    is byte-identical."""
+
+    def _ctx(self, **fields: object) -> dict:
+        cand = MR.MatchCandidate(
+            skills=["Python"],
+            seniority="senior",
+            role_family="software_engineering",
+            languages=["English"],
+            **fields,  # type: ignore[arg-type]
+        )
+        return MR.reasoning_context(cand, _JOB, score_job(cand, _JOB))
+
+    def test_an_oversized_summary_is_cut_with_a_marker(self) -> None:
+        ctx = self._ctx(summary="S" * (MR.SUMMARY_MAX_CHARS + 500))
+        self.assertIn(f"[truncated at {MR.SUMMARY_MAX_CHARS} chars]", ctx["candidate"]["summary"])
+        self.assertNotIn("S" * (MR.SUMMARY_MAX_CHARS + 1), MR.build_prompt(ctx))
+
+    def test_an_oversized_highlight_link_and_aspiration_are_cut(self) -> None:
+        ctx = self._ctx(
+            experience_highlights=["H" * (MR.HIGHLIGHT_MAX_CHARS + 50)],
+            work_links=["L" * (MR.WORK_LINK_MAX_CHARS + 50)],
+            aspirations=["A" * (MR.ASPIRATION_MAX_CHARS + 50)],
+        )
+        cand = ctx["candidate"]
+        self.assertIn(f"[truncated at {MR.HIGHLIGHT_MAX_CHARS} chars]", cand["experienceHighlights"][0])
+        self.assertIn(f"[truncated at {MR.WORK_LINK_MAX_CHARS} chars]", cand["workLinks"][0])
+        self.assertIn(f"[truncated at {MR.ASPIRATION_MAX_CHARS} chars]", cand["aspirations"][0])
+
+    def test_ordinary_cv_prose_passes_through_untouched(self) -> None:
+        summary = "Senior Python engineer, 8 years, payments."
+        highlight = "Cut checkout latency 40% by rewriting the ledger sync."
+        ctx = self._ctx(summary=summary, experience_highlights=[highlight], aspirations=["Lead a platform team."])
+        prompt = MR.build_prompt(ctx)
+        self.assertEqual(ctx["candidate"]["summary"], summary)
+        self.assertIn(highlight, prompt)
+        self.assertNotIn("[truncated at", prompt)
+
+
+class GroupComparePromptBudgetsTest(unittest.TestCase):
+    """The comparison prompt inlines each candidate's LABEL and per-candidate VERDICT —
+    both derived from CV text (group-eval-run.ts) — and neither was bounded."""
+
+    def _ctx(self, **cand: object) -> dict:
+        base = {"label": "Alice", "archetype": "bau", "seniority": "senior", "total": 70}
+        return {"roleTitle": "Backend Engineer", "candidates": [{**base, **cand}]}
+
+    def test_an_oversized_verdict_is_cut_with_a_marker(self) -> None:
+        prompt = GC.build_prompt(self._ctx(verdict="V" * (MR.COMPARE_VERDICT_MAX_CHARS + 500)))
+        self.assertIn(f"[truncated at {MR.COMPARE_VERDICT_MAX_CHARS} chars]", prompt)
+        self.assertNotIn("V" * (MR.COMPARE_VERDICT_MAX_CHARS + 1), prompt)
+
+    def test_an_oversized_label_is_cut_with_a_marker(self) -> None:
+        prompt = GC.build_prompt(self._ctx(label="L" * (MR.COMPARE_LABEL_MAX_CHARS + 200)))
+        self.assertIn(f"[truncated at {MR.COMPARE_LABEL_MAX_CHARS} chars]", prompt)
+
+    def test_ordinary_candidate_prose_passes_through_untouched(self) -> None:
+        verdict = "Strong senior backend fit; ships payments infrastructure."
+        prompt = GC.build_prompt(self._ctx(verdict=verdict))
+        self.assertIn(verdict, prompt)
+        self.assertNotIn("[truncated at", prompt)
 
 
 if __name__ == "__main__":

@@ -1,23 +1,36 @@
 "use client";
 
-import { AlertTriangle, Loader2, Lock, RefreshCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { AlertTriangle, GitBranch, Loader2, Lock, RefreshCw } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
+import { formatBenchmarkAsOf, isThinBenchmark } from "@/app/_lib/salary-benchmark";
+import { ConfidenceBadge } from "@/app/_components/Badge";
+import { confidenceGrade } from "@/app/_components/results/salary/salaryGauge.logic";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { dedupeBy } from "@/app/_lib/dedupe";
-import { caseTaskLabel, type CaseArtifact } from "./jdsLedgerArtifacts";
+import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
+import { caseTaskLabel, type CaseArtifact, type SnapshotArtifact } from "./jdsLedgerArtifacts";
 
 // In-progress placeholder shown in the detail while the detached build runs.
 // Extracted verbatim from LibrarySavedJdsLedger.tsx so that file stays under the
 // 200-line split threshold.
-export function BuildingPanel() {
+export function BuildingPanel({ progress, stalled = false }: { progress?: string | null; stalled?: boolean }) {
   const t = useTranslations("library.tab");
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300 bg-paper/50 px-6 py-12 text-center">
       <Loader2 size={28} className="animate-spin text-blue-700" aria-hidden />
       <p className="text-sm font-semibold text-ink">{t("buildingTitle")}</p>
+      {/* The jd_build task's own live progress line, read off the polled task list
+          via the row's analysis_task_id. It costs nothing extra (the Tasks poll
+          already carries progressMsg) and it is the difference between "something
+          is happening" and knowing which stage of the chain is running. */}
+      {progress ? <p className="text-sm font-semibold text-blue-700">{progress}</p> : null}
       <p className="max-w-sm text-sm text-steel">{t("buildingBody")}</p>
+      {/* The poll gave up (POLL_MAX_DURATION_MS). The row may still say "analyzing"
+          forever — a detached handler that died writes neither ready nor failed — so
+          say the surface stopped watching rather than spinning a lie. */}
+      {stalled ? <p className="max-w-sm text-sm font-semibold text-amber-800">{t("pollStalledNote")}</p> : null}
     </div>
   );
 }
@@ -49,11 +62,33 @@ export function FailedPanel({ error, retrying, retryError, onRetry }: { error: s
 // page) — the recruiter-facing surface for the grounded band + its cited sources.
 export function SalaryCard({ salary, sources, source }: { salary: unknown; sources?: string[]; source?: string }) {
   const t = useTranslations("library.tab");
+  // The benchmark vocabulary and the evidence-grade words are SHARED with the
+  // report's salary tab (report.panel.* / report.confidence.*) rather than
+  // duplicated into library.tab: the same quantity read twice in two surfaces must
+  // read the same in all four languages.
+  const tr = useTranslations("report");
+  const locale = useLocale();
   // Reader-locale digit grouping (format.ts number-locale contract).
   const n = useNumberFormat();
   const s = normalizeMarketSalary(salary);
   const links = dedupeBy(safeHttpLinks(sources ?? []), (l) => l.href).slice(0, 3);
   const provenance = source === "llm" ? t("provWebGrounded") : source === "deterministic" ? t("provEstimated") : source ?? t("provEstimated");
+  // The engine's confidence is a free string ("grounded" is a fourth grade the
+  // badge's own token map never knew), so grade it through the SAME helper the
+  // report's gauge uses. This card used to print the raw English word — "medium"
+  // beside a fully localized card, which is also the one place in the app where
+  // this quantity was not a badge.
+  const confidenceLabels = {
+    high: tr("confidence.high"),
+    medium: tr("confidence.medium"),
+    low: tr("confidence.low"),
+    unknown: tr("confidence.unknown"),
+  };
+  // Provenance of the DETERMINISTIC band: which table, how old, how many rows.
+  // Null for a grounded band (the cited sources below are its provenance) and for
+  // any payload built before the field existed.
+  const benchmark = s.benchmark;
+  const asOf = formatBenchmarkAsOf(benchmark?.asOf, locale);
   return (
     <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -61,7 +96,8 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
         {s.available ? (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-ink">
             <Lock size={12} className="text-steel" aria-hidden />
-            {n.salaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })} · {s.confidence}
+            {n.salaryRange(s.suggestedMinimum, s.suggestedMaximum, { currency: s.currency })}
+            <ConfidenceBadge value={confidenceGrade(s.confidence)} labels={confidenceLabels} />
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-sm font-semibold text-steel">
@@ -70,6 +106,23 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
         )}
       </div>
       {s.summary ? <p className="mt-1.5 text-sm text-ink">{s.summary}</p> : null}
+      {benchmark ? (
+        <p className="mt-1.5 text-sm text-steel">
+          {asOf
+            ? tr("panel.benchmarkVintage", { source: benchmark.sourceId, date: asOf })
+            : tr("panel.benchmarkVintageUndated", { source: benchmark.sourceId })}
+          {isThinBenchmark(benchmark) ? (
+            <>
+              {" · "}
+              <span className="font-medium text-amber-800">
+                {benchmark.sampleK === null
+                  ? tr("panel.benchmarkNoSample")
+                  : tr("panel.benchmarkThin", { count: benchmark.sampleK })}
+              </span>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       {links.length ? (
         <p className="mt-1 text-sm text-steel">
           {t("sourcesLabel")}{" "}
@@ -86,18 +139,71 @@ export function SalaryCard({ salary, sources, source }: { salary: unknown; sourc
 }
 
 // The interview case (shown when "Case analysis" was ticked) — read-only overview.
+// The repo the build actually READ, when the recruiter supplied one. runJdBuild has
+// persisted this snapshot into analysis_json since repo grounding shipped and nothing
+// ever rendered it, so a JD grounded in a real codebase looked exactly like one
+// written from a paragraph of prose — the recruiter had no way to tell whether the
+// must-haves came from the code or from the model's prior. Same read-only card shape
+// as SalaryCard, because it answers the same kind of question: where did this come
+// from?
+export function RepoGroundingCard({ snapshot }: { snapshot: SnapshotArtifact }) {
+  const t = useTranslations("library.tab");
+  const n = useNumberFormat();
+  // The ref is operator-supplied and rides through a Python child — link it only when
+  // it is a safe http(s) URL, exactly like the salary sources above; otherwise it is
+  // shown as plain text.
+  const link = safeHttpLinks([snapshot.ref ?? ""])[0];
+  // Deduped across the two lists: a scan routinely reports "typescript" as both a
+  // detected language and an inferred stack entry, and two identical chips read as a
+  // rendering bug rather than as agreement.
+  const tags = dedupeBy(
+    [...(snapshot.languages ?? []), ...(snapshot.inferredStack ?? [])].filter(Boolean),
+    (tag) => tag.toLowerCase(),
+  ).slice(0, 6);
+  return (
+    <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-meta uppercase tracking-wide text-steel">{t("repoGrounding")}</p>
+        {snapshot.ref ? (
+          <span className={CHIP}>
+            <GitBranch size={12} className="text-steel" aria-hidden />
+            {link ? (
+              <a href={link.href} target="_blank" rel="noreferrer" className="text-coral hover:underline">
+                {snapshot.ref}
+              </a>
+            ) : (
+              snapshot.ref
+            )}
+          </span>
+        ) : null}
+      </div>
+      {tags.length ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span key={tag} className={CHIP_QUIET}>{tag}</span>
+          ))}
+        </div>
+      ) : null}
+      {typeof snapshot.loc === "number" && snapshot.loc > 0 ? (
+        // Reader-locale digit grouping (format.ts number-locale contract).
+        <p className="mt-2 text-sm text-steel">{t("repoLoc", { loc: n.grouped(snapshot.loc) })}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function CaseCard({ kase }: { kase: CaseArtifact }) {
   const t = useTranslations("library.tab");
   const tasks = Array.isArray(kase.tasks) ? kase.tasks : [];
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+    <div className={`${PANEL} p-4`}>
       <p className="text-meta uppercase tracking-wide text-coral">{t("interviewCase")}</p>
       {kase.title ? <h3 className="mt-1 font-serif text-h3 font-semibold text-ink">{kase.title}</h3> : null}
       {kase.brief ? <p className="mt-2 whitespace-pre-line text-sm text-steel">{kase.brief}</p> : null}
       {tasks.length ? (
         <ul className="mt-3 space-y-1">
           {tasks.map((task, i) => (
-            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task)}</li>
+            <li key={i} className="text-sm text-ink">• {caseTaskLabel(task, t("caseTaskFallback"))}</li>
           ))}
         </ul>
       ) : null}

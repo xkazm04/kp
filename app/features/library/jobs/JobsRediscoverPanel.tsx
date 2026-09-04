@@ -34,6 +34,9 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
     // How many silver medalists cleared the bar BEYOND the ones returned —
     // rediscoverForJob slices at REDISCOVER_LIMIT (20) and reports the remainder.
     more?: number;
+    // Pool members the consent gate withheld before the ranking even ran
+    // (anonymized/erased, or every grant lapsed). A count, never a list.
+    suppressed?: number;
   }>(`/api/jobs/${encodeURIComponent(jobId)}/rediscover`, t("loadFailed"));
   const data = body ? body.rediscovered ?? [] : null;
   const skipped = body?.skipped ?? [];
@@ -42,6 +45,15 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
   // presenting a cut slice as "the past candidates who clear the bar for this role"
   // on the one surface whose promise is that nobody falls through the cracks.
   const more = typeof body?.more === "number" && body.more > 0 ? body.more : 0;
+  // Rediscovery now filters the pool through the candidate-level consent gate BEFORE
+  // ranking it, so this list can be short — or empty — for a reason that has nothing
+  // to do with fit. Unexplained, that is exactly the "someone fell through the
+  // cracks" impression this panel exists to prevent; and it is also the honest
+  // compliance answer (the people are excluded BECAUSE their consent lapsed or their
+  // data was erased). A count only: naming them would undo the suppression.
+  const suppressed = typeof body?.suppressed === "number" && body.suppressed > 0 ? body.suppressed : 0;
+  const suppressedNote =
+    suppressed > 0 ? <p className="mt-2 text-sm text-steel">{t("suppressed", { count: suppressed })}</p> : null;
   const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId, "sourcing");
 
@@ -61,6 +73,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
     return (
       <div>
         <SkippedCandidatesNote skipped={skipped} />
+        {suppressedNote}
         <EmptyState
           icon={History}
           title={t("emptyTitle")}
@@ -76,6 +89,7 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
         {[announce, reachAnnounce].filter(Boolean).join(" ")}
       </p>
       <SkippedCandidatesNote skipped={skipped} />
+      {suppressedNote}
       <p className="text-base text-steel">
         {t.rich("intro", {
           jobTitle,

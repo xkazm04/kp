@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
@@ -6,8 +6,8 @@ import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // Abuse containment, in the same shape as every other PUBLIC token route (offer,
 // schedule, data, invite — all throttled per token AND client). The token is a
@@ -32,17 +32,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     const { token } = await context.params;
     // Throttle BEFORE the store reads, so a flood is rejected cheaply.
     if (!rateLimit(`status:${clientIpFrom(request.headers)}:${token}`, STATUS_RATE_LIMIT)) {
-      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const entryId = getEntryIdByStatusToken(token);
-    if (!entryId) return NextResponse.json({ error: "not found" }, { status: 404 });
+    // Coded, never prose: this is a PUBLIC door whose link rides an email written
+    // in the candidate's own language (api-contracts.md 1.1).
+    if (!entryId) return jsonRefusal("STATUS_LINK_INVALID", 404);
     // Tenant scope from the entry itself (token-driven flow, no session), exactly
     // as the sibling /decisions route does. Without it this read fell through to
     // DEFAULT_WORKSPACE_ID, so a candidate of any other team got a 404 on their
     // own status link.
     const workspaceId = getEntryWorkspace(entryId);
     const entry = getPipelineEntry(entryId, workspaceId);
-    if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!entry) return jsonRefusal("STATUS_LINK_INVALID", 404);
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
     return jsonOk({
       status: candidateStatusFor(entry.status, entry.stage, roleOf(entry.stage, getPipelineAxis(workspaceId).stages)),

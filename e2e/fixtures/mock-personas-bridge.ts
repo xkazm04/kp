@@ -1,5 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { AddressInfo } from "node:net";
+// `import type`, not a value import: scripts/app-master-bench/personas-contract.test.mjs
+// loads this file through node's type STRIPPING (no compile step), and stripping
+// only erases syntax that is unambiguously a type. A bare `import { AddressInfo }`
+// survives erasure as a real runtime import and dies on `node:net` having no such
+// export — which is exactly how far that test got on its first run.
+import type { AddressInfo } from "node:net";
 
 // A stand-in for the Personas desktop app's management API, so the whole
 // App-master hire path can be battle-tested WITHOUT Personas installed

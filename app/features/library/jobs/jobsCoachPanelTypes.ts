@@ -26,5 +26,8 @@ export type Winnability = {
   // couldn't score (a malformed/partially-extracted profile). Surfaced so the
   // recruiter sees the counts were computed over a reduced denominator.
   skipped?: { id: string; label: string; reason: string }[];
-  note?: string;
+  // The shared candidate pool hit its caps, so every count above was computed over
+  // a reduced denominator. Echoed by the route exactly as the candidates ranking
+  // echoes it, so both surfaces admit the same cap in the same words.
+  poolTruncated?: boolean;
 };

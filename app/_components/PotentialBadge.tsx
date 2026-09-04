@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -25,11 +25,42 @@ export type PotentialExplanation = {
 export function PotentialBadge({ potential, className = "" }: { potential: PotentialExplanation; className?: string }) {
   const t = useTranslations("potential");
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const pct = Math.round(potential.score * 100);
   const signals = potential.learningSignals ?? [];
   const transferable = potential.transferableSkills ?? [];
   const distance = potential.domainDistance ?? null;
   const hasDetail = signals.length > 0 || transferable.length > 0 || distance !== null;
+
+  // Dismissal, the same shape Select uses for its menu (Select.tsx): Escape closes and
+  // returns focus to the trigger, a pointer-down anywhere outside closes without
+  // stealing focus. The badge sits inline in dense candidate rows and tables, so
+  // without this the only way to close it was to find and re-click the trigger — and
+  // an open popover covered the rows beneath it while the operator hunted.
+  //
+  // Listener lives on `document` and only while open, so a closed badge costs nothing;
+  // the trigger's own click is excluded (it toggles) via the rootRef containment test.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [open]);
 
   const label = (
     <>
@@ -47,8 +78,9 @@ export function PotentialBadge({ potential, className = "" }: { potential: Poten
   }
 
   return (
-    <span className={`relative inline-flex ${className}`}>
+    <span ref={rootRef} className={`relative inline-flex ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
@@ -77,10 +109,10 @@ export function PotentialBadge({ potential, className = "" }: { potential: Poten
           ) : null}
           {transferable.length > 0 ? (
             <div className="mt-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-steel">{t("transferable")}</p>
+              <p className="text-meta uppercase tracking-wide text-steel">{t("transferable")}</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {transferable.map((skill) => (
-                  <span key={skill} className="rounded-full bg-moss/10 px-2 py-0.5 text-xs font-medium text-moss">
+                  <span key={skill} className="rounded-full bg-moss/10 px-2 py-0.5 text-micro font-medium text-moss">
                     {skill}
                   </span>
                 ))}

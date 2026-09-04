@@ -132,7 +132,9 @@ export function useAgentFitLogic(jobId: string) {
       const r = await fetch(`/api/agents/${encodeURIComponent(agent.id)}/refresh`, { method: "POST" });
       const p = (await r.json().catch(() => null)) as { refreshed?: boolean; reason?: string; error?: string; code?: string } | null;
       if (!r.ok) throw new Error(errMsg(p, t("refreshFailed")));
-      if (p?.refreshed === false && p.reason) setRefreshNote(p.reason);
+      // A 200 that refused to refresh carries a machine code beside its English reason
+      // (wave 20); resolve the code, never paint the prose.
+      if (p?.refreshed === false && (p.code || p.reason)) setRefreshNote(errMsg(p, t("refreshFailed")));
       reloadAgents();
     } catch (e) {
       setRefreshNote(e instanceof Error && e.message ? e.message : t("refreshFailed"));

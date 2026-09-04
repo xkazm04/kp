@@ -4,7 +4,16 @@ import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+
+// Per-IP, over the shared 10-minute window — the same budget the other
+// once-per-role jobs spend doors carry (ingest, campaign, publish). This handler
+// was the one jobs route that started a BACKGROUNDED LLM task with no throttle:
+// it is operator-gated, but open mode (KP_OPERATOR_PASSWORD unset) makes that a
+// documented no-op for the whole API, so it must self-limit. 20 sits far above a
+// recruiter re-deriving one role's agent spec and below any scripted loop.
+const AGENT_FIT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 // Agent-candidate bridge — POST starts the BACKGROUNDED job → AgentFitSpec
 // transform (task kind `agent_fit`, one LLM call with a keyless deterministic
@@ -44,6 +53,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const job = getJob(id);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    }
+    // AFTER the cheap refusals (the operator gate and the visibility 404 above):
+    // a rejected call spends nothing, so it must neither consume the budget nor be
+    // masked by it. Refused through the chokepoint, so the spec panel renders
+    // errors.TOO_MANY_REQUESTS in the reader's language.
+    if (!rateLimit(`jobs-agent-fit:${clientIpFrom(request.headers)}`, AGENT_FIT_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // Dedupe key = the job id (task-dedupe.ts), so a double-click coalesces onto
     // the in-flight run instead of paying twice.

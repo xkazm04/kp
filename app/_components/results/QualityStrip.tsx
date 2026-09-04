@@ -4,6 +4,8 @@ import { useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { authenticityBand, splitSanityChecks } from "@/app/_lib/sanity-checks";
+import { NOTICE } from "@/app/_components/ui/recipes";
+import { EngineNote } from "./shared";
 
 // The engine's per-analysis trust ledger (`sanityChecks`), surfaced (SCOR2).
 // The pipeline states every repair, degradation and self-contradiction it
@@ -51,7 +53,7 @@ export function QualityStrip({ checks }: { checks: string[] }) {
   }
 
   return (
-    <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-panel">
+    <div role="status" className={`${NOTICE("amber")} p-4 shadow-panel`}>
       <div className="flex flex-wrap items-center gap-2">
         <AlertTriangle size={16} className="text-amber-600" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-amber-800">{t("title")}</span>
@@ -82,17 +84,25 @@ function TrustBand({ band }: { band: "high" | "medium" | "low" }) {
 
 function CheckList({ items, tone }: { items: string[]; tone: "warn" | "ok" }) {
   return (
-    <ul className={`mt-2 space-y-1 text-sm ${tone === "warn" ? "text-amber-900" : "text-steel"}`}>
-      {items.map((check) => (
-        <li key={check} className="flex items-start gap-1.5">
-          {tone === "warn" ? (
-            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
-          ) : (
-            <Check size={13} className="mt-0.5 shrink-0 text-moss" aria-hidden />
-          )}
-          {check}
-        </li>
-      ))}
-    </ul>
+    <>
+      {/* The chrome above is localized; these sentences are NOT — they are the
+          engine's own deterministic English ("Salary range needs manual review"),
+          shown verbatim so a degraded run is not paraphrased. A Czech reader was
+          given no way to tell which half was machine text; this label says so —
+          and it is the SAME label the engine panel now carries (shared.tsx). */}
+      <EngineNote className="mt-2" />
+      <ul className={`mt-1 space-y-1 text-sm ${tone === "warn" ? "text-amber-900" : "text-steel"}`}>
+        {items.map((check) => (
+          <li key={check} className="flex items-start gap-1.5">
+            {tone === "warn" ? (
+              <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
+            ) : (
+              <Check size={13} className="mt-0.5 shrink-0 text-moss" aria-hidden />
+            )}
+            {check}
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

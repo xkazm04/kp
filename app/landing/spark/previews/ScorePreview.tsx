@@ -3,13 +3,16 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { AMBER, DISPLAY, LIMEWASH, MOSS, STEEL } from "../tokens";
-import { PreviewNote, stamp } from "./shared";
+import { PreviewNote, entrance, stamp } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /* 01 · Job-fit scoring — the dial, stamped. */
 export default function ScorePreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   const R = 56;
   const C = 2 * Math.PI * R;
   // Scores are illustrative data, not copy — only the factor names translate.
@@ -35,10 +38,10 @@ export default function ScorePreview() {
             strokeDasharray={C}
             initial={{ strokeDashoffset: C }}
             animate={{ strokeDashoffset: C * (1 - 0.87) }}
-            transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
+            transition={entrance(reduce, { duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.25 })}
           />
         </svg>
-        <motion.div {...stamp(0.85)} className="absolute inset-0 grid place-items-center">
+        <motion.div {...stamp(0.85, reduce)} className="absolute inset-0 grid place-items-center">
           <div
             className={`${DISPLAY} grid h-20 w-20 place-items-center rounded-full border-[3px] border-[#17202a] text-3xl font-extrabold text-white shadow-[3px_3px_0_#17202a]`}
             style={{ background: MOSS }}
@@ -60,7 +63,7 @@ export default function ScorePreview() {
                 style={{ background: f.color }}
                 initial={{ width: 0 }}
                 animate={{ width: `${f.v}%` }}
-                transition={{ delay: 0.45 + i * 0.16, type: "spring", bounce: 0.25 }}
+                transition={entrance(reduce, { delay: 0.45 + i * 0.16, type: "spring", bounce: 0.25 })}
               />
             </div>
           </div>

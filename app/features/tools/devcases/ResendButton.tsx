@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { isAdverseResend, resendOutcome, type ResendOutcomeKind } from "@/app/_lib/comms-resend-outcome";
 
 // W6-1 — re-dispatch a dead-lettered message through the live channel (a NEW
 // outbox row; the original stays as the append-only audit record). Shared by
@@ -15,10 +17,12 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // again. Both halves of a resend's outcome are now reported: why the server refused,
 // and whether the new send actually landed.
 //
-// FOUR outcomes, because the recorded row's own status is the only thing that says
-// whether a candidate will receive this: refused (non-2xx) ▸ dead-lettered again
-// (`failed`/`bounced`) ▸ recorded but undeliverable (`queued` — no relay) ▸ actually
-// relayed (`sent`). Only the last one may say "Resent".
+// FIVE outcomes, derived ONCE in app/_lib/comms-resend-outcome.ts (this fold used to
+// be duplicated verbatim in ChannelsCommsBouncedResend.tsx, and both copies were blind
+// to the same one): refused ▸ REFUSED-BUT-RECOVERED (409 + `recovered` — the message
+// is already being delivered, so it is calm, never red) ▸ dead-lettered again ▸
+// recorded but undeliverable (`queued` — no relay) ▸ actually relayed (`sent`). Only
+// the last may say "Resent".
 export function ResendButton({ id, onResent, compact = false }: { id: string; onResent?: () => void; compact?: boolean }) {
   const t = useTranslations("channels.comms");
   // The outbox-row copy this button needs beyond the shared comms vocabulary.
@@ -26,73 +30,83 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
-  const [state, setState] = useState<"idle" | "busy" | "done" | "queued" | "deadLettered" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | ResendOutcomeKind>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  // Settled and nothing left to do: the message is out (or is going out), so clicking
+  // again could only duplicate it. The two adverse outcomes stay clickable — a retry
+  // is exactly the recruiter's next move.
+  const settled = state === "sent" || state === "queued" || state === "recovered";
   const resend = async () => {
-    if (state === "busy" || state === "done") return;
+    if (state === "busy" || settled) return;
     setState("busy");
     setMessage(null);
     try {
       const r = await fetch(`/api/comms/${encodeURIComponent(id)}/resend`, { method: "POST" });
-      const payload = (await r.json().catch(() => null)) as
-        | { error?: string; code?: string; entry?: { status?: string; failureDetail?: string | null } }
-        | null;
-      if (!r.ok) {
-        setMessage(t("resendRejected", { reason: errMsg(payload, t("resendFailed")) }));
-        setState("error");
-        return;
+      const payload = await r.json().catch(() => null);
+      const outcome = resendOutcome(r.ok, r.status, payload);
+      setState(outcome.kind);
+      switch (outcome.kind) {
+        case "refused":
+          setMessage(t("resendRejected", { reason: errMsg(outcome, t("resendFailed")) }));
+          return;
+        case "recovered":
+          // 409, but the send HAPPENED — the route refuses a second dispatch of a
+          // message already on its way. Reporting "couldn't re-send" over a delivery
+          // is the failure this outcome exists to stop.
+          setMessage(t("resendRecovered"));
+          onResent?.();
+          return;
+        case "deadLettered":
+          // Recorded, but the relay rejected it again — claiming "Resent" here is
+          // exactly the false green this state exists to prevent. Refresh either way:
+          // the new row is real audit, whatever its outcome.
+          setMessage(outcome.detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail: outcome.detail })}` : t("resendDeadLettered"));
+          onResent?.();
+          return;
+        case "queued":
+          // Recorded, but NOTHING WILL DELIVER IT. `queued` is the terminal
+          // local-outbox state (comms-status.ts), reached when no relay is configured
+          // — and the relay is a stored, UI-editable capability (comms-relay.ts
+          // resolves env ▸ stored ▸ nothing), so it can be gone by the time a recruiter
+          // chases a dead letter produced while it was wired.
+          setMessage(t("relayNotConfigured"));
+          onResent?.();
+          return;
+        default:
+          onResent?.();
       }
-      // Recorded, but NOTHING WILL DELIVER IT. `queued` is the terminal local-outbox
-      // state (comms-status.ts), reached when no relay is configured — and the relay
-      // is a stored, UI-editable capability (comms-relay.ts resolves env ▸ stored ▸
-      // nothing), so it can be gone by the time a recruiter chases a dead letter that
-      // was produced while it was wired. Saying "Resent" for a row that never leaves
-      // the building is the same green lie the dead-letter branch below prevents.
-      if (payload?.entry?.status === "queued") {
-        setMessage(t("relayNotConfigured"));
-        setState("queued");
-        onResent?.();
-        return;
-      }
-      // Recorded, but the relay rejected it again — claiming "Resent" here is exactly
-      // the false green the dead-letter state exists to prevent. Refresh either way:
-      // the new row is real audit, whatever its outcome.
-      if (payload?.entry?.status === "failed" || payload?.entry?.status === "bounced") {
-        const detail = payload.entry.failureDetail;
-        setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
-        setState("deadLettered");
-        onResent?.();
-        return;
-      }
-      setState("done");
-      onResent?.();
     } catch {
       setMessage(t("resendFailed"));
-      setState("error");
+      setState("refused");
     }
   };
-  const adverse = state === "error" || state === "deadLettered";
+  const adverse = state !== "idle" && state !== "busy" && isAdverseResend(state);
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       <button
         type="button"
         onClick={resend}
-        disabled={state === "busy" || state === "done" || state === "queued"}
+        disabled={state === "busy" || settled}
         title={td("resendTitle")}
-        className={`focus-ring inline-flex shrink-0 items-center gap-1 rounded border border-stone-200 bg-white font-semibold text-coral hover:bg-coral/5 disabled:opacity-50 ${
+        // The shared secondary action plus this button's own size/tone. It used to
+        // re-type the whole class string, so it missed the dual-theme press-down and
+        // border every other secondary control on the surface has.
+        className={`${BTN_SECONDARY} shrink-0 font-semibold text-coral hover:bg-coral/5 ${
           compact ? "px-1.5 py-0.5 text-micro" : "px-2 py-1 text-sm"
         }`}
       >
         <RefreshCw size={compact ? 10 : 12} className={state === "busy" ? "animate-spin" : ""} aria-hidden />
-        {state === "done"
+        {state === "sent"
           ? t("resent")
-          : state === "queued"
-            ? t("statusQueued")
-            : adverse
-              ? td("retryResend")
-              : state === "busy"
-                ? t("resending")
-                : t("resend")}
+          : state === "recovered"
+            ? t("statusRecovered")
+            : state === "queued"
+              ? t("statusQueued")
+              : adverse
+                ? td("retryResend")
+                : state === "busy"
+                  ? t("resending")
+                  : t("resend")}
       </button>
       {message ? (
         <span

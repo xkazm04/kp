@@ -128,3 +128,124 @@ test("the shim's NextResponse.json answers like the real one", async () => {
   withCookie.cookies.set("kp_session", "abc", { path: "/", httpOnly: true });
   assert.equal(withCookie.cookies.get("kp_session")?.value, "abc");
 });
+
+// ---------------------------------------------------------------------------
+// The PROPERTY surface. Export names are only half the contract: `NextRequest`
+// was `class NextRequest extends Request {}` for thirty waves, so `request.nextUrl`
+// — read by 26 handlers — was `undefined`, every one of them threw inside its own
+// try/catch and answered 500, and two route tests were written off as "known
+// worktree-only failures". A missing property is a runtime undefined, not a
+// link-time SyntaxError, so the export scan above cannot see it. This scan reads
+// the members the tree actually touches on its request object and asserts each one
+// resolves on a shim instance.
+
+/** Comment- and string-stripped source, so a path in prose (app/api/foo/route.ts)
+ *  is not mistaken for a `request.ts` member read. */
+function code(source: string): string {
+  const BLOCK_COMMENT = new RegExp("/\\*[\\s\\S]*?\\*/", "g");
+  const LINE_COMMENT = new RegExp("(^|[^:])//[^\\n]*", "gm");
+  const TEMPLATE = new RegExp("`(?:\\\\.|[^`\\\\])*`", "g");
+  const SINGLE = new RegExp("'(?:\\\\.|[^'\\\\\\n])*'", "g");
+  const DOUBLE = new RegExp('"(?:\\\\.|[^"\\\\\\n])*"', "g");
+  return source
+    .replace(BLOCK_COMMENT, " ")
+    .replace(LINE_COMMENT, "$1 ")
+    .replace(TEMPLATE, '""')
+    .replace(SINGLE, '""')
+    .replace(DOUBLE, '""');
+}
+
+/** Every member read off a request-shaped parameter in a route handler or proxy.ts. */
+function requestMembers(): Map<string, string[]> {
+  const byMember = new Map<string, string[]>();
+  const files = [
+    ...SCAN_DIRS.flatMap((dir) => [...sourceFiles(dir)]).filter(
+      (file) => path.basename(file) === "route.ts"
+    ),
+    ...SCAN_FILES.filter((file) => {
+      try {
+        return statSync(file).isFile();
+      } catch {
+        return false;
+      }
+    }),
+  ];
+  const member = new RegExp("\\b(?:request|req)\\.([A-Za-z_$][\\w$]*)", "g");
+  for (const file of files) {
+    for (const match of code(readFileSync(file, "utf8")).matchAll(member)) {
+      const seen = byMember.get(match[1]) ?? [];
+      seen.push(path.relative(REPO_ROOT, file));
+      byMember.set(match[1], seen);
+    }
+  }
+  return byMember;
+}
+
+test("the shim's NextRequest carries every member route handlers read off the request", async () => {
+  const { NextRequest } = (await loadShim()) as unknown as {
+    NextRequest: new (url: string) => object;
+  };
+  const probe = new NextRequest("http://localhost/api/probe?entry=e1");
+  const members = requestMembers();
+
+  // A scan that found nothing would pass vacuously. `nextUrl` is the member whose
+  // absence caused the 500s, so it is the canary: if this assertion ever fails the
+  // pattern went stale, not the tree.
+  assert.ok(members.has("nextUrl"), "scan found no request.nextUrl read — pattern is stale");
+  assert.ok(members.has("json"), "scan found no request.json read — pattern is stale");
+
+  const missing = [...members.entries()]
+    .filter(([name]) => !(name in probe))
+    .map(([name, files]) => `${name} (first read in ${files[0]})`);
+
+  assert.deepEqual(
+    missing,
+    [],
+    "route handlers read members next-server-shim.mjs's NextRequest does not carry. " +
+      "In a linked checkout the shim IS next/server for the whole unit suite, so a missing " +
+      "member is an `undefined` that surfaces as a 500 from the handler's own catch — a " +
+      "product bug that is not one."
+  );
+});
+
+test("the shim's nextUrl and cookies behave the way handlers and proxy.ts use them", async () => {
+  const { NextRequest } = (await loadShim()) as unknown as {
+    NextRequest: new (
+      url: string,
+      init?: { headers?: Record<string, string> }
+    ) => {
+      url: string;
+      headers: Headers;
+      nextUrl: URL & { clone: () => URL };
+      cookies: {
+        get: (name: string) => { name: string; value: string } | undefined;
+        set: (name: string, value: string) => unknown;
+      };
+    };
+  };
+
+  // Handlers: request.nextUrl.searchParams.get(...) — app/api/comms/route.ts:19.
+  const req = new NextRequest("http://localhost/api/comms?entry=e1&status=queued", {
+    headers: { cookie: "kp_session=abc; kp_locale=en" },
+  });
+  assert.equal(req.nextUrl.searchParams.get("entry"), "e1");
+  assert.equal(req.nextUrl.pathname, "/api/comms");
+
+  // proxy.ts:144 — nextUrl.clone() must give an independently mutable URL.
+  const cloned = req.nextUrl.clone();
+  cloned.pathname = "/landing";
+  assert.equal(cloned.pathname, "/landing");
+  assert.equal(req.nextUrl.pathname, "/api/comms", "clone() must not alias the original");
+
+  // proxy.ts:150,172,176 — read the session/locale cookie, then rewrite one.
+  assert.equal(req.cookies.get("kp_session")?.value, "abc");
+  assert.equal(req.cookies.get("nope"), undefined);
+  req.cookies.set("kp_locale", "cs");
+  assert.equal(req.cookies.get("kp_locale")?.value, "cs");
+  assert.match(req.headers.get("cookie") ?? "", /kp_locale=cs/);
+
+  // A NextRequest is still a Request: the members handlers use most must survive.
+  for (const name of ["json", "headers", "url", "signal", "text", "formData", "method"]) {
+    assert.ok(name in req, `NextRequest lost the plain-Request member ${name}`);
+  }
+});

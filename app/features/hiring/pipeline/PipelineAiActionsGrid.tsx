@@ -6,29 +6,32 @@
 
 import { Ban, Banknote, ClipboardList, Mail, Shuffle, Sparkles, UserCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { SCREENING_STAGES } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
+import { pipelineDrawerActionIds } from "./pipelineDrawerActions";
 // The drawer's narrow Pick of the board record — this helper only reads stage and
 // status, and typing it against the full board Entry would reject its only caller.
-import type { Entry, Result, TaskId } from "./PipelineCandidateDrawerTypes";
+import type { Entry, TaskId } from "./PipelineCandidateDrawerTypes";
+import type { Result } from "./PipelineCandidateDrawerTypes";
 
-const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
-  // Screening is the triage gate for both pre-interview stages (SCREENING_STAGES):
-  // at Accepted it screens a fresh applicant into Screened (or into Screened held
-  // for review); at Screened it advances to Interview or holds. So the top of the
-  // funnel — where triage volume is highest — is now individually actionable.
-  { id: "screen", label: "Screen with AI", icon: UserCheck, stages: [...SCREENING_STAGES], note: "A confident pass advances the candidate; otherwise it holds for your review in Decisions." },
-  { id: "prep", label: "Interview prep", icon: ClipboardList, stages: ["Screened", "Interview"] },
-  { id: "scorecard", label: "Synthesize scorecard", icon: ClipboardList, stages: ["Interview"], note: "From your notes → a structured scorecard in Decisions." },
-  { id: "offer", label: "Draft offer", icon: Banknote, stages: ["Offer"], note: "Salary from the role band, scaled by fit → an offer to approve in Decisions." },
-  { id: "outreach", label: "Draft outreach", icon: Mail, stages: "all" },
-  { id: "rejection", label: "Draft rejection", icon: Ban, stages: ["Accepted", "Screened", "Interview", "Offer"] },
-  { id: "rematch", label: "Explore alternatives", icon: Shuffle, stages: ["Screened", "Interview", "Offer"] },
-];
+// The glyph each action wears. The ORDER and the stage gating live in the pure
+// pipelineDrawerActions module (unit-tested against a renamed axis); this map is
+// the render half, and there is no English `label` beside it — the button text is
+// resolved from the catalog (`pipeline.actions.<id>`) in four locales.
+const ACTION_ICON: Record<TaskId, typeof Mail> = {
+  screen: UserCheck,
+  prep: ClipboardList,
+  scorecard: ClipboardList,
+  offer: Banknote,
+  outreach: Mail,
+  rejection: Ban,
+  rematch: Shuffle,
+};
 
-export function pipelineDrawerActionsFor(entry: Entry) {
-  return ACTIONS.filter((act) => act.stages === "all" || act.stages.includes(entry.stage)).filter(
-    (act) => entry.status === "active" || act.id === "rematch"
-  );
+export type DrawerAction = { id: TaskId; icon: typeof Mail };
+
+/** The AI actions offered for `entry` on THIS workspace's board, in funnel order. */
+export function pipelineDrawerActionsFor(entry: Entry, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): DrawerAction[] {
+  return pipelineDrawerActionIds(entry, axis).map((id) => ({ id, icon: ACTION_ICON[id] }));
 }
 
 export function PipelineAiActionsGrid({
@@ -37,7 +40,7 @@ export function PipelineAiActionsGrid({
   result,
   onRun,
 }: {
-  actions: typeof ACTIONS;
+  actions: DrawerAction[];
   busy: TaskId | null;
   result: Result | null;
   onRun: (task: TaskId) => void;

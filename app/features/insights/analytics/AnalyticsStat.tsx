@@ -2,6 +2,8 @@
 
 import type { Delta } from "@/app/_lib/analytics-deltas";
 import { DeltaChip } from "./AnalyticsDeltaChip";
+import { META_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
+import type { GoalChip } from "./statGoalChip";
 
 // One tile of the Analytics header's compact key-stat cluster. Split out of
 // AnalyticsTab.tsx to keep that file under the 200-line cap.
@@ -21,22 +23,19 @@ export function Stat({
   // For time-to-hire a smaller number is the win, so a negative delta is good.
   lowerIsBetter?: boolean;
   unit?: "pts" | "days";
-  // 82c2b8e8 — a "goal Nd" pill, coral when the figure misses the goal.
-  //
-  // `missed: null` = NOT MEASURED, and it is not the same as "met". The copy behind
-  // `text` is only „goal 30 d" — no verdict word — so the colour IS the verdict, and
-  // moss over a figure that does not exist reads as a goal being cleared. A window
-  // with no hires renders "—" beside this pill, and it wore the met colour. Grey is
-  // the tab's own answer for an unjudged number (analytics.briefNoGoalNote:
-  // "Stages without a goal stay grey: a reading, not a verdict"), so an unmeasured
-  // figure wears it too.
-  goalChip?: { text: string; missed: boolean | null };
+  // 82c2b8e8 — a "goal Nd" pill, coral when the figure misses the goal, moss when it
+  // meets it, GREY when nothing was measured. The verdict itself is `timeToHireGoalChip`
+  // (statGoalChip.ts), pinned by statGoalChip.test.ts — this tile only paints it.
+  goalChip?: GoalChip;
 }) {
   return (
     <div className="bg-white px-4 py-2.5">
-      <p className="text-meta uppercase text-steel">{label}</p>
+      <p className={META_LABEL}>{label}</p>
       <div className="mt-0.5 flex items-baseline gap-1.5">
-        <p className="font-serif text-h2 leading-none text-ink">{value}</p>
+        {/* STAT_VALUE, not a re-typed copy of it: the hand-typed string had drifted
+            off the recipe already (it lost `nums`, so these figures did not sit on
+            tabular numerals and the cluster's columns jittered as the numbers moved). */}
+        <p className={`${STAT_VALUE} text-ink`}>{value}</p>
         {delta ? <DeltaChip delta={delta} lowerIsBetter={lowerIsBetter} unit={unit} /> : null}
         {goalChip ? (
           <span

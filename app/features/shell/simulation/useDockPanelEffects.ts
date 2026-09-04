@@ -10,7 +10,7 @@
 // allowed to move the slot that is not a click on the row. Everything else about
 // the slot is a pure transition in `dockPanelSlot` / `simControlDockLayers`.
 import { useEffect, useRef } from "react";
-import type { DockPanelId } from "./simControlDockLayers";
+import { dockEscapeAction, type DockPanelId } from "./simControlDockLayers";
 
 export function useDockPanelEffects({
   mode,
@@ -49,16 +49,34 @@ export function useDockPanelEffects({
   }, [mode, setCollapsed, setPanel, closeDock]);
 
   // Escape closes the OPEN PANEL, not the deck — the layer-1 row stays put, which
-  // is the affordance that says how to get the panel back.
+  // is the affordance that says how to get the panel back. The whole decision
+  // (is this key ours? did something above us already answer it? where does
+  // focus go?) is `dockEscapeAction`, pure and pinned beside it; this effect is
+  // only the plumbing that asks and obeys.
   useEffect(() => {
     if (collapsed || shown === null || modalUp) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      // Her panel's state is her own `open`, so emptying the slot is not enough:
-      // without this, Escape would hide the input and leave the strip on screen
-      // with nothing to type into.
-      if (shown === "candi") closeDock?.();
+      const act = dockEscapeAction({
+        key: e.key,
+        defaultPrevented: e.defaultPrevented,
+        collapsed,
+        shown,
+        modalUp,
+      });
+      if (!act) return;
+      // Mark it handled, both directions: the companion's `document` listener
+      // runs FIRST (propagation reaches document before window) and now marks
+      // its own, which is what the guard above reads; this marks ours so any
+      // later listener on `window` shows the operator the same courtesy.
+      e.preventDefault();
+      if (act.closeCompanion) closeDock?.();
       setPanel(null);
+      // The dock is chrome, not a modal — no trap to release — but a panel
+      // dismissed from the keyboard must not drop focus onto the body. Read from
+      // the DOM rather than plumbed as a ref: the ids are already the ARIA
+      // association between each control and the region it opens, and one of the
+      // targets (the guide button) is outside the toolbar entirely.
+      document.getElementById(act.focusId)?.focus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

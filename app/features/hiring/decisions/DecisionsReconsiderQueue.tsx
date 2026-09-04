@@ -6,9 +6,11 @@
 // DecisionsTab to keep that file's render shell under the 200-line cap.
 import { RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Defer } from "@/app/_components/ui/Defer";
 import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
 import type { ReconsiderReason, ReconsiderRow } from "./decisionsQueueTypes";
+import type { ReinstateFailure } from "./decisionsReinstateOutcome";
 
 export function DecisionsReconsiderQueue({
   reconsider,
@@ -17,6 +19,7 @@ export function DecisionsReconsiderQueue({
   setReconsiderOpen,
   reinstating,
   reinstate,
+  reinstateErrors,
   fmtDate,
   reconsiderReasonText,
 }: {
@@ -26,10 +29,15 @@ export function DecisionsReconsiderQueue({
   setReconsiderOpen: (open: boolean) => void;
   reinstating: ReadonlySet<string>;
   reinstate: (item: ReconsiderRow) => void;
+  /** Per-row `{ code, status }` for a reinstate that did not land, keyed by entry id. */
+  reinstateErrors: Readonly<Record<string, ReinstateFailure>>;
   fmtDate: (iso: string) => string;
   reconsiderReasonText: (r: ReconsiderReason) => string | null;
 }) {
   const t = useTranslations("decisions");
+  // The failure line is resolved from the machine code, in the reader's language —
+  // never from the server's English `error` string.
+  const errMsg = useErrorMessage();
   if (reconsider.length === 0) return null;
   return (
     // Tier 3: a secondary, collapsed-by-default region — deferred one idle
@@ -84,6 +92,16 @@ export function DecisionsReconsiderQueue({
                   {/* reconsider-earns-keep — the machine reject reason, read back
                       from the sealed decision record. An auto-reject audit is no
                       longer a bare list: the recruiter sees WHY it fell out. */}
+                  {/* reinstate-and-rules-say-when-they-fail — a reinstate that did not
+                      land says so ON THE ROW. Before this the ok branch had no else and
+                      the caller fired it as `void`: the button span, re-enabled, and the
+                      row simply stayed, with the failure escaping as an unhandled
+                      rejection. */}
+                  {reinstateErrors[item.id] ? (
+                    <p role="alert" className="mt-1 text-meta font-semibold text-coral">
+                      {errMsg(reinstateErrors[item.id], t("reinstateFailed"))}
+                    </p>
+                  ) : null}
                   {reasonText ? (
                     <p className="mt-1 text-meta text-steel">
                       <span className="font-semibold uppercase tracking-wide text-stone-400">{t("reconsiderReasonLabel")}</span>{" "}

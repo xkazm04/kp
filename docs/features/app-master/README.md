@@ -202,6 +202,81 @@ allowlist contains a write tool or a bare unscoped `Bash` — a bare `Bash` gran
 is a write grant with extra steps. `--add-dir` is deliberately unused: the
 session is confined to `cwd`.
 
+### …and secret files are out of scope
+
+Read-only is not the same as *may read everything*. The session was confined to
+`cwd` with `Read`/`Grep`/`Glob` and only DIRECTORIES were ever skipped, so
+`.env`, `.env.local`, `*.pem`, `id_rsa`, `.netrc` and their kind sat inside its
+reach — and the model's free-text `riskAreas` / `hotSpots` land verbatim in
+`dossier_json` and go out on the wire. Three layers now, from one list
+(`SECRET_FILE_GLOBS`, `pipeline/jobfit/repo_scan.py`):
+
+1. **The CLI is told no.** `bind_provider_to_repo` appends
+   `--settings '{"permissions":{"deny":["Read(./.env)","Read(./**/*.pem)",…]}}'`
+   — two rules per glob, because CLI path rules are anchored. `Read(...)` rules
+   ONLY: asked for `Glob(./.env)` the CLI answers *"not matched by file
+   permission checks — only Read(path) rules are … Read rules cover all
+   file-reading tools"* (verified live on **v2.1.258, 2026-09-02**, where a
+   session given these rules was refused both a `Read` and a `Grep` of a real
+   `.env`). The payload grants nothing; it can only take access away.
+2. **The walk never touches them either.** `walk_files` does not count them (the
+   file EXTENSION feeds the stack line, so a counted `*.pem` publishes "this repo
+   keeps private keys" by another door), `read_kpi_signals` does not name them,
+   and `read_churn` drops them — git history is the one place a committed `.env`
+   surfaces without the filesystem walk ever opening it.
+3. **A deterministic backstop, whatever the provider.** Layer 1 is a fence with
+   assumptions in it (a flag, a rule grammar, a CLI version) and every non-Claude
+   adapter has no fence at all — it answers from the grounding, and text can carry
+   anything. So `redact_dossier` sweeps every refined free-text field at the WIRE
+   boundary (`repo_scan_cli`) for secret-SHAPED values — AWS key ids, PEM blocks,
+   `sk-`/`ghp_`/`xox…` tokens, `NAME_KEY=<20+ chars>` — masks them `[redacted]`
+   and puts the count on the envelope as `redactions`. A redaction nobody can see
+   is a silent edit of the operator's data. The pattern set is deliberately
+   narrow: a URL, a git sha and an ordinary sentence must survive untouched, and
+   `test_repo_scan.RedactionTest` pins both directions.
+4. **…and the fence says whether it can still be trusted.** Layer 1's semantics
+   — that a `Read` deny rule also covers Grep and Glob, that a path rule is
+   anchored the way `claude_deny_rules` assumes — were verified live against ONE
+   CLI version. These tools ship weekly, and nothing at runtime used to notice
+   when the installed one had moved past it, so an upstream change to the rule
+   grammar would widen what the agent may read and the scan would report the
+   same confident nothing. It cannot be re-verified without a live session, so
+   the scan DISCLOSES instead: `VERIFIED_FENCE_CLI_VERSIONS` is the allow-list of
+   versions the contract was actually checked against, and every scan stamps a
+   `scanFence` block — on the envelope AND inside the dossier, which is the copy
+   that survives to the row:
+
+   | `state` | `verified` | Means |
+   | --- | --- | --- |
+   | `verified` | true | an in-repo agent ran, on a CLI in the allow-list |
+   | `unverified_version` | **false** | it ran on a CLI nobody has checked the rules against |
+   | `version_unknown` | **false** | it ran, and the CLI would not report a version |
+   | `not_applicable` | true | no in-repo agent read the files (keyless, `--no-llm`, or a text-API adapter answering from the grounding) — there is no fence to verify |
+
+   An unverified fence is a **disclosure, not a failure**: the deny rules are
+   still sent and layer 3 still runs. The runner logs it, and the intake card
+   shows a second amber line beside the scan note (`appMaster.scan.fenceUnverified`
+   / `.fenceVersionUnknown`, four locales) — `scanFenceWarningFor`,
+   `app/features/library/jds/intake/jdsIntakeLogic.ts`. `verified` is DERIVED from
+   `state` on the TS side, so a payload claiming `true` cannot talk its way past
+   the narrowing, and `REPO_SCAN_FENCE_STATES` is asserted equal to Python's
+   `FENCE_STATES` by a test that reads the tuple out of the source file.
+
+   Bumping the allow-list is a deliberate act: re-run the live check (ask a bound
+   session to read `.env` and to grep it — both must be refused), refresh the
+   dated comment on `claude_deny_rules`, then add the version.
+5. **The walk stays inside the root it was given.** `repo-scan-target.ts` fences
+   the ROOT (below); nothing fenced what the tree *inside* it points at, so a
+   symlinked manifest aimed at `~/.aws/credentials` was a file the heuristic walk
+   would open, count and let the stack line describe. `walk_files` now resolves
+   every symlink — files and directories — against the root's own realpath and
+   skips the ones that escape, counting them as `scanFence.skippedSymlinks` (a
+   walk that quietly skipped half a repo under-reports it, and the number is how
+   the operator finds out). A link that stays inside the root is read as normal;
+   an unresolvable one is treated as an escape. `test_repo_scan.SymlinkContainmentTest`
+   pins all three, and skips with a stated reason where the platform cannot create
+   a symlink (Windows without developer mode).
+
 ### Where the local path is gated
 
 `rootPath` is **fail-closed** (`app/_lib/repo-scan-target.ts`). A server that
@@ -244,8 +319,47 @@ queued scan must not outlive the permission that admitted it — then spawns
 outcome onto the row itself, success *and* failure, so a reaped task leaves an
 honest `failed` row rather than one stuck at `running`.
 
-`GET /api/repo-scan/[id]` returns the row with one field withheld: the resolved
-`rootPath`, replaced by `isLocal: true`. That is the *server's* filesystem after
+**The outcome is a CODE, not a sentence.** A four-minute scan used to end in one
+of two words. `repo_scans.error_code` (`RepoScanErrorCode`, `db/repo-scans.ts`)
+now names *which* failure — `target_refused`, `offline_refused`, `git_missing`,
+`clone_failed`, `clone_timeout`, `cancelled`, `engine_failed`, `unknown` — set at
+the throw site that observed it (`RepoScanFailure`), never reconstructed later by
+matching English; `error` stays the diagnostic line for the server log. An
+aborted run classifies as `cancelled` **first**, whatever the killed step raised,
+so a Cancel is never reported as an engine fault.
+
+`repo_scans.fallback_class` is the other half: a dossier can *complete* on the
+heuristic floor because the in-repo agent failed, and that read identically to a
+dossier an agent produced. The class is assigned in Python
+(`repo_scan.classify_fallback`, the single definition of `FALLBACK_CLASSES`),
+travels on the CLI envelope as `fallbackClass`, and is mirrored in TS
+(`REPO_SCAN_FALLBACK_CLASSES`) under a set-equality test that reads the Python
+tuple out of the source. The raw reason line is stored beside it and stays
+server-side. A keyless install is **not** a fallback — no agent ran, so nothing
+fell back, and the column stays `null`.
+
+**Phases.** The runner reports `ctx.progress` at `clone` → `walk` → `saving`
+(`REPO_SCAN_PHASE`), so the task row names the live phase instead of showing
+minutes of undifferentiated "running". There is deliberately no `model` phase:
+the agent session runs inside the Python child, which speaks once, at the end, so
+that boundary is not observable from the runner and a guessed one would be the
+cosmetic timeline this replaced.
+
+**Cancel.** The intake card offers "Stop the scan" while a scan is queued or
+running; it goes through the existing `DELETE /api/tasks/[id]` door, matched to
+*this* scan by fetching the full task record and comparing `params.scanId` (the
+polled list projects `params` out). A running scan ends through the abort signal
+the runner already threads into the clone and the Python child; a **queued** one
+is closed by the `repo_scan` handler's `onCancelQueued` hook
+(`cancelQueuedRepoScan`), so it can never sit at `queued` after its task is gone.
+Either way the row lands `failed` / `cancelled`.
+
+`GET /api/repo-scan/[id]` returns the row with TWO fields withheld: the resolved
+`rootPath`, replaced by `isLocal: true`, and `fallbackReason` — the raw
+`"<ExceptionType>: <message>"` line, which is English, unbounded and can quote
+provider output. `errorCode` and `fallbackClass` go out instead, and the intake
+renders them per locale (`library.tab.intake.appMaster.scan.*`); the client never
+renders the server's `error` string. That is the *server's* filesystem after
 symlink resolution, which can differ from what the operator typed. The dossier's
 own `repo.rootPath` still carries it — that is the binding an `AppMasterSpec`
 needs — so this is a projection choice, not a redaction claim.
@@ -682,12 +796,16 @@ spec was composed, and it travels with the spec.
 | `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
 | `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
 | `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |
-| `runRepoScan(params, signal, workspaceId, lang)` | function | `app/_lib/repo-scan-run.ts` — the `repo_scan` task body |
+| `runRepoScan(params, signal, workspaceId, lang, onProgress, deps)` | function | `app/_lib/repo-scan-run.ts` — the `repo_scan` task body. `deps` injects clone/spawn for the unit test; production passes neither |
 | `shallowClone` / `toRepoScanEnvelope` / `scratchDirFor` / `CLONE_DEPTH` / `CLONE_TIMEOUT_MS` | function / const | the URL path and the envelope contract |
-| `createRepoScan` / `getRepoScanRecord` / `listRepoScans` / `markRepoScanRunning` / `completeRepoScan` / `failRepoScan` | store | `app/_lib/db/repo-scans.ts` |
+| `RepoScanFailure` / `classifyRepoScanError` / `REPO_SCAN_PHASE` | class / function / const | the failure class recorded at the throw site, and the observable phases |
+| `REPO_SCAN_ERROR_CODES` / `REPO_SCAN_FALLBACK_CLASSES` | const | the two closed vocabularies the row stores; the second mirrors `FALLBACK_CLASSES` in `repo_scan.py` |
+| `createRepoScan` / `getRepoScanRecord` / `listRepoScans` / `markRepoScanRunning` / `completeRepoScan` / `failRepoScan` / `cancelQueuedRepoScan` | store | `app/_lib/db/repo-scans.ts` |
 | task kind `repo_scan`, dedupe `repo_scan:<scanId>` | task | `app/_lib/tasks.ts`, `app/_lib/task-dedupe.ts` |
-| `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` | Python | `pipeline/jobfit/repo_scan.py` |
-| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope |
+| `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` / `classify_fallback` / `FALLBACK_CLASSES` | Python | `pipeline/jobfit/repo_scan.py` |
+| `SECRET_FILE_GLOBS` / `is_secret_file` / `claude_deny_rules` / `repo_scan_settings_json` / `redact_secret_values` / `redact_dossier` | Python | same file — the one secret-file list and its three consumers |
+| `VERIFIED_FENCE_CLI_VERSIONS` / `FENCE_STATES` / `fence_state_for` / `fence_stamp` / `provider_cli_version` | Python | `pipeline/jobfit/repo_scan.py` — the fence's own disclosure; mirrored as `REPO_SCAN_FENCE_STATES` in `app/_lib/repo-scan-run.ts` |
+| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope, plus `fallbackClass`, a `redactions` count and the `fence` / `fenceState` / `fenceVerified` disclosure (also stamped inside the dossier as `scanFence`) |
 | `ClaudeCliProvider.with_repo_access(cwd)` / `cli_args()` / `READ_ONLY_TOOLS` / `WRITE_TOOL_DENYLIST` / `READ_ONLY_PERMISSION_MODE` / `PERMISSION_MODES` | Python | `pipeline/jobfit/claude_cli.py` — the read-only repo binding |
 | `repo_scan` LLM use case | config | `pipeline/jobfit/llm/capabilities.py` (`{json}`, 6144 max tokens) + `LLM_USE_CASES` in `app/_lib/llm-config.ts` (Settings → Models, "roles" section) |
 
@@ -806,6 +924,16 @@ session-independent DB at `%LOCALAPPDATA%\kp-bench\kp-soak.sqlite`) and never
 boots the Personas app — the operator's window down is a recorded `bridge-down`
 miss, which is a measurement. Protocol, per-night record shape, the failure
 taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
+
+The runner's *reasoning* — the miss taxonomy (`MISS_CLASSES`, a literal array
+plus a runtime guard, so a typo'd class stops being indistinguishable from a real
+one), the one-record-one-verdict rule, the calendar-gap backfill and reading the
+log — is exported above `main()` and pinned by `soak/night.test.mjs`. Importing
+the module runs nothing; only being the process entry point starts a night. That
+half was the most-revised code in this area, twenty-odd review rounds defended
+entirely by comments, and it had no test. `npm run test:bench-driver` globs
+`scripts/app-master-bench/**/*.test.mjs`, so a test in a subdirectory is picked
+up rather than silently ungated.
 
 ### Tenure mode — hire once, tenure many (c1-exam §1)
 
@@ -1331,13 +1459,14 @@ the prose, and **nothing fails when the number goes backwards**.
 ```bash
 npm run bench:app-master     # the sweep
 npm run bench:gate           # the verdict
+npm run bench:gate -- --max-age-days 30   # a wider freshness window, on purpose
 ```
 
 [`gate.mjs`](../../../scripts/app-master-bench/gate.mjs) reads the newest
 `result.json` per scenario, compares it against the committed baseline
 [`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
 writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
-counts four things as a regression:
+counts six things as a regression:
 
 | | |
 | --- | --- |
@@ -1345,6 +1474,12 @@ counts four things as a regression:
 | run incomplete | `result.ok` is false; the failed phase is named |
 | expectation failed | any `expectations[].ok === false`, with its delta |
 | expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
+| `stub` | the run carries `personas.stub: true` — it ran against the in-process stub, so every number it holds is canned (see *Honesty properties* below). The gate was the one reader in the bench that never asked: a whole sweep against canned Personas used to exit 0 while the report beside it printed **EVERYTHING IT REPORTS IS CANNED**. |
+| `stale` | the newest run for that scenario finished *before* the baseline it is compared to was recorded (it cannot certify a bar raised after it), or it is older than `--max-age-days` (default **14**). A run whose `finishedAt` will not parse is undatable, and undatable is not fresh. |
+
+The verdict on a row names the dominant reason — a genuine `fail` outranks
+`stub`, which outranks `stale` — while `reason` still carries every problem
+found, so a row is never quietly re-labelled into something smaller.
 
 A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
@@ -1359,10 +1494,30 @@ allowed — edit the baseline in the same change and say which number moved.
 ### Honesty properties, and what stays unmeasured
 
 - **`--stub-personas` numbers are canned.** The stub
-  (`scripts/app-master-bench/stub.mjs`) is a port of the e2e mock plus the three
-  routes P6a adds; it does not run an agent, gate a branch or spend a cent. Runs
-  against it are stamped `personas.stub: true` and the report marks the row.
-  They prove the driver's loop, nothing about the App master.
+  (`scripts/app-master-bench/stub.mjs`) answers the same contract as the e2e
+  mock plus the three routes P6a adds; it does not run an agent, gate a branch or
+  spend a cent. Runs against it are stamped `personas.stub: true`, the report
+  marks the row, and **`bench:gate` refuses them** (verdict `stub`). They prove
+  the driver's loop, nothing about the App master.
+- **The two doubles are checked against ONE contract, not against each other.**
+  There are two hand-written stand-ins for the Personas management API —
+  `scripts/app-master-bench/stub.mjs` (bench, in-process) and
+  `e2e/fixtures/mock-personas-bridge.ts` (Playwright) — and the stub's header
+  used to *claim* to be a port of the mock with nothing checking it. Both are now
+  driven through
+  [`scripts/app-master-bench/personas-contract.mjs`](../../../scripts/app-master-bench/personas-contract.mjs),
+  a conformance probe derived from the real callers
+  (`app/_lib/agent-hire/pairing.ts` + `bridge-client.ts`), by
+  `personas-contract.test.mjs` in `npm run test:bench-driver`. Three differences
+  are **declared** there, asserted in both directions, and explained:
+
+  | | mock | stub | |
+  | --- | --- | --- | --- |
+  | `/pair/claim` polls to a token | 2 | 1 | the desktop app waits for a human; the bench stub is a headless bridge, so the first claim carries the key. **The bench therefore never exercises kp's pairing WAIT — only the e2e journey does.** |
+  | `/health` `headlessBridge` | absent | `true` | the flag the soak runner reads to decide it can drive Personas unattended |
+  | status right after dispatch | `pending_approval` | `active` | the mock's ladder is driven by the spec; the stub auto-executes, because a bench night cannot wait on a human |
+
+  Anything else that differs is drift, and fails that test.
 - **The driver pairs twice, on purpose.** kp's `pk_` key is stored encrypted
   server-side and never crosses the API, so the driver mints its **own**
   `personas:test` key for the tick calls (cached at
@@ -1441,6 +1596,24 @@ The schemas travel three ways once the later phases land:
 
 ## Known gaps
 
+- **The probation reader in `run.mjs` handles only ONE of the two documented
+  tick shapes.** `mergeTickSummaries` exists precisely because a tick summary
+  arrives either as an array of phase results (the real bridge, §13.6) or as an
+  object map (the stub) — but the probation reader
+  (`run.mjs`, the `Array.isArray(summary?.phases)` branch) reads only the array,
+  so against the stub it finds no details, records `decision: null,
+  decisionSource: "none"`, and the `probation` expectation fails on a tick that
+  plainly answered `"activated"`. That reader was narrowed on 2026-08-26
+  (`31f2851c`) to scope the decision to this hire, and nothing re-ran the stub
+  against it: the recorded fixture predates the change, so no test noticed for
+  nine days while `probation` sat in `baseline.json`'s `requiredExpectations` for
+  four scenarios. The stub now carries the `details` array the reader wants
+  (`stub.mjs`, probation phase); the remaining half is normalising the two
+  shapes in the reader — one `Object.entries(...).map(([phase, body]) => ({phase,
+  ...body}))` fallback, the same normalisation `mergeTickSummaries` already
+  performs. **Until that lands, `--stub-personas` runs cannot measure
+  `probation`** — which the committed fixture now records honestly rather than
+  hiding.
 - **Retranslation passed with machine raters only.** T3 (2026-08-23) used blind
   Sonnet raters, not humans; the residual single-rater misses are all adjacent
   levels (C5 L4↔L5, A2 L4↔L5). A human-rater pass is still owed before the

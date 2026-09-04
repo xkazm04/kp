@@ -20,6 +20,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { kindLabel, parseEventActor } from "@/app/_lib/decision-attribution";
+import { localizedFailureMessage } from "../analyticsFetchError";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
@@ -34,6 +35,7 @@ import {
   shortHash,
 } from "../analyticsDecisionLogTypes";
 import { DecisionRecordDetail } from "./DecisionRecordDetail";
+import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 
 type Col = "seq" | "kind" | "subject" | "actor" | "createdAt" | "keyId";
 
@@ -132,8 +134,11 @@ export function DecisionRecordsTable({
     setDossierError(null);
     try {
       await onExportDossier(candidateRef);
-    } catch {
-      setDossierError(t("dossierFailed"));
+    } catch (err) {
+      // The panel resolved the server's code in the reader's language before
+      // throwing; anything else that lands here (a network drop, a parse) is an
+      // unlocalized accident and gets the generic sentence.
+      setDossierError(localizedFailureMessage(err, t("dossierFailed")));
     } finally {
       setDossierBusy(null);
     }
@@ -141,7 +146,7 @@ export function DecisionRecordsTable({
 
   return (
     <>
-      <p className="mt-3 text-meta uppercase text-steel">{t("timeZoneNote", { zone })}</p>
+      <p className={`mt-3 ${META_LABEL}`}>{t("timeZoneNote", { zone })}</p>
       {dossierError ? (
         <p role="alert" className="mt-2 text-sm text-red-700">
           {dossierError}
@@ -258,7 +263,7 @@ export function DecisionRecordsTable({
                         const who = parseEventActor(r.actor);
                         return who.kind === "human" && who.name === null ? (
                           <span
-                            className="ml-1.5 rounded border border-amber-300 bg-amber-50 px-1 py-0.5 font-sans text-meta uppercase text-amber-800"
+                            className={`ml-1.5 ${NOTICE()} px-1 py-0.5 font-sans text-meta uppercase`}
                             title={t("actorRoleOnlyTitle")}
                           >
                             {t("actorRoleOnly")}

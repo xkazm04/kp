@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
 // Talent rediscovery (on-demand panel): rank the whole candidate pool against
@@ -23,9 +25,17 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
     }
 
+    // Per-IP, AFTER the visibility gate (a refused role costs no budget) and BEFORE the
+    // recruiter_cli child that ranks the whole pool. 30/10min matches the candidates
+    // ranking next door: the panel spawns once per role opened, so browsing a shortlist
+    // is legitimate while a reopening panel cannot keep the box busy.
+    if (!rateLimit(`jobs-rediscover:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+
     // Threads the request's AbortSignal so abandoning rediscovery (clicking to the
     // next role, closing the panel) promptly SIGKILLs the recruiter_cli child.
-    const { rediscovered, skipped, more } = await rediscoverForJob(job, {
+    const { rediscovered, skipped, more, suppressed } = await rediscoverForJob(job, {
       signal: request.signal,
       workspaceId: ws,
     });
@@ -37,11 +47,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       // candidates fall through the cracks" — never silently drops them.
       skipped,
       more,
+      // Pool members withheld by the consent gate (anonymized/erased, or every
+      // grant lapsed). A COUNT, never a list — naming them would put the identity
+      // back on the wire the suppression exists to keep off it. The panel says so:
+      // an unexplained short list is the one thing this surface, whose promise is
+      // that nobody falls through the cracks, must never show.
+      suppressed,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Rediscovery failed." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:jobs/rediscover", "JOB_REDISCOVER_FAILED");
   }
 }

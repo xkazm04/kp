@@ -38,10 +38,45 @@ export type AuthenticityInput = {
   integrityCompromised?: boolean;
 };
 
+// ── The reasons are FINDINGS, not copy ───────────────────────────────────────
+//
+// Each penalty below used to push an English sentence onto `reasons`, and the reviewer
+// panel joined them into the tooltip of an otherwise-translated badge — so a Czech,
+// German or French interviewer read "Single bulk commit — no incremental history." in
+// English, inside a frame that was localized around it. That is the same
+// `{ kind, params }` contract this repo already uses for a CalibrationRationale and a
+// GithubFinding (docs/architecture/localization.md → "analysis output that is data, not
+// copy"): the engine decides WHICH penalties fired and with what numbers, and the
+// surface writes the sentence in the reader's language.
+//
+// Literal array + derived union + the runtime guard the panel needs for a persisted
+// bundle, the shape this repo uses for every closed vocabulary.
+export const AUTHENTICITY_REASON_KINDS = [
+  "singleBulkCommit",
+  "fewCommits",
+  "noCommitHistory",
+  "bulkPaste",
+  "integrityFailed",
+  "noDecisionsLog",
+  "bursty",
+  "bigBang",
+  "unreadableIteration",
+  "lowReadBeforeWrite",
+] as const;
+export type AuthenticityReasonKind = (typeof AUTHENTICITY_REASON_KINDS)[number];
+export type AuthenticityReason = { kind: AuthenticityReasonKind; params?: Record<string, number> };
+
+/** Is this a reason kind THIS build knows? Bundles are persisted, so a panel can be
+ *  handed a kind minted by an older or newer evaluation run; the caller falls back to
+ *  showing nothing for it rather than rendering a raw key at an interviewer. */
+export function isAuthenticityReasonKind(v: unknown): v is AuthenticityReasonKind {
+  return AUTHENTICITY_REASON_KINDS.includes(v as AuthenticityReasonKind);
+}
+
 export type Authenticity = {
   score: number; // 0..100 — higher = more evidence of genuine incremental authorship
   band: AuthenticityBand;
-  reasons: string[]; // the penalties that fired, candidate-neutral and interviewer-facing
+  reasons: AuthenticityReason[]; // the penalties that fired, candidate-neutral and interviewer-facing
 };
 
 // BELOW this an authenticity score is "suspect" — the auto-promote gate holds it for
@@ -60,7 +95,7 @@ const MIXED_THRESHOLD = 70;
 export const PASTE_BULK_CHARS = 600;
 
 export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
-  const reasons: string[] = [];
+  const reasons: AuthenticityReason[] = [];
   let score = 100;
 
   // A single bulk commit is the strongest paste-from-LLM tell. commitCount === 0
@@ -72,13 +107,13 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   // Live Work Surface (it scored the cleanest submissions as half-suspect).
   if (input.commitCount === 1 && !input.observed) {
     score -= 40;
-    reasons.push("Single bulk commit — no incremental history.");
+    reasons.push({ kind: "singleBulkCommit" });
   } else if (input.commitCount >= 2 && input.commitCount <= 3) {
     score -= 12;
-    reasons.push("Very few commits — thin development trail.");
+    reasons.push({ kind: "fewCommits", params: { n: input.commitCount } });
   } else if (input.commitCount === 0 && !input.observed) {
     score -= 15;
-    reasons.push("No readable commit history.");
+    reasons.push({ kind: "noCommitHistory" });
   }
 
   // Observed sessions waive the commit-history penalties (no git by design), which
@@ -88,7 +123,7 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   // and is HELD for the ownership-verifying interview rather than auto-advancing.
   if (input.observed && input.observedBulkPaste) {
     score -= 65;
-    reasons.push("Large bulk paste with no incremental build-up — possible paste-from-LLM.");
+    reasons.push({ kind: "bulkPaste", params: { chars: PASTE_BULK_CHARS } });
   }
 
   // A broken hash chain / backdated timestamps mean the observed trace was
@@ -97,24 +132,24 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   // ownership-verifying interview, never auto-advanced).
   if (input.observed && input.integrityCompromised) {
     score -= 70;
-    reasons.push("Event-log integrity check failed (broken hash chain or backdated timestamps) — the observed trace cannot be trusted.");
+    reasons.push({ kind: "integrityFailed" });
   }
 
   // The forced DECISIONS.md authorship artifact (case-design contract) is absent.
   if (!input.decisionsLogPresent) {
     score -= 25;
-    reasons.push("Mandated DECISIONS log is missing.");
+    reasons.push({ kind: "noDecisionsLog" });
   }
 
   // All work landed in one short burst rather than an incremental rhythm.
   if (input.bursty === true) {
     score -= 15;
-    reasons.push("Work landed in a single burst, not incrementally.");
+    reasons.push({ kind: "bursty" });
   }
 
   if (input.iterationPattern === "big-bang") {
     score -= 15;
-    reasons.push("Big-bang iteration pattern — no visible build-up.");
+    reasons.push({ kind: "bigBang" });
   } else if (input.iterationPattern === "unclear") {
     // ZERO-COST, deliberately. This branch used to subtract 5 — a penalty for the
     // ABSENCE of evidence, on a signal class this repo's own red-team round proved
@@ -124,13 +159,13 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
     // SUSPECT_THRESHOLD gating auto-promotion, those points were real. The note stays
     // in `reasons` so the reviewer still sees that the axis was unreadable — an
     // unreadable signal is something for a human to ask about, not something to score.
-    reasons.push("Iteration pattern couldn't be read from the trace.");
+    reasons.push({ kind: "unreadableIteration" });
   }
 
   // Little evidence they read the existing code before generating changes.
   if (input.readBeforeWrite != null && input.readBeforeWrite < 0.3) {
     score -= 15;
-    reasons.push("Little evidence of reading before writing.");
+    reasons.push({ kind: "lowReadBeforeWrite" });
   }
 
   score = Math.max(0, Math.min(100, score));

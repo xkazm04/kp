@@ -7,8 +7,10 @@ import dynamic from "next/dynamic";
 import { ArrowRight, Play } from "lucide-react";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
+import { useCapabilities } from "@/app/features/shell/useCapabilities";
+import { commandAllowed } from "@/app/features/shell/navCapabilities";
 import { CHAPTERS, type ChapterDef } from "./chapters";
-import { ChapterRail } from "./ChapterRail";
+import { ChapterJumpList, ChapterRail } from "./ChapterRail";
 import { Scene } from "./stage/Scene";
 
 /*
@@ -87,6 +89,14 @@ function Chapter({ chapter, children }: { chapter: ChapterDef; children: React.R
 export function AboutTab() {
   const t = useTranslations("about");
   const sim = useSimulation();
+  // /perfect wave 21b: /diagrams is now operator-only (it draws this repository's own
+  // module paths and its off-spec admissions), so the door stops being offered to a seat
+  // the route will 404 at. `read` is the floor a demo cookie does NOT clear - it resolves
+  // to the empty set - while every real member and the open-dev/operator caller holds it.
+  // Unknown caps still show the link, the same fail-open the nav takes: hiding a door from
+  // the person holding the key over one blipped GET is the worse failure.
+  const caps = useCapabilities();
+  const canSeeArchitecture = commandAllowed("read", caps);
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
@@ -95,12 +105,14 @@ export function AboutTab() {
         <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
         <p className={`mt-3 ${INTRO}`}>{t("intro")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-          <Link
-            href="/diagrams"
-            className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
-          >
-            {t("archLink")} <ArrowRight size={15} aria-hidden />
-          </Link>
+          {canSeeArchitecture ? (
+            <Link
+              href="/diagrams"
+              className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
+            >
+              {t("archLink")} <ArrowRight size={15} aria-hidden />
+            </Link>
+          ) : null}
           {!sim.running ? (
             <button
               type="button"
@@ -113,6 +125,12 @@ export function AboutTab() {
           ) : null}
         </div>
       </header>
+
+      {/* Below `xl` there is no gutter for the rail, so the same six links ride
+          above the deck as a sticky chip row. It sits here rather than beside
+          the rail because a jump list a reader has to scroll to the BOTTOM to
+          find is not a jump list. */}
+      <ChapterJumpList chapters={CHAPTERS} />
 
       <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,1fr)_13rem]">
         <div className="min-w-0">

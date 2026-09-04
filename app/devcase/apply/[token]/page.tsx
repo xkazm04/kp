@@ -3,8 +3,10 @@ import { getTranslations } from "next-intl/server";
 import { Markdown } from "@/app/_components/Markdown";
 import { getDevCase, getPostingByToken } from "@/app/_lib/db/devcase";
 import { caseToMarkdown } from "@/app/features/tools/devcases/DevHelpers";
+import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
 import type { CaseScenario, RoleSpec, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { DevApplyForm } from "./DevApplyForm";
 import { LiveWorkSurface } from "./LiveWorkSurface";
 
@@ -36,7 +38,7 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
       <main className="mx-auto max-w-xl px-4 py-12">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">{posting.caseTitle || posting.roleTitle || t("fallbackTitle")}</h1>
-        <p className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">{t("closed")}</p>
+        <p className={`mt-4 ${PANEL_SUNKEN} p-4 text-body text-steel`}>{t("closed")}</p>
       </main>
     );
   }
@@ -44,7 +46,21 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
   const devCase = posting.caseId ? getDevCase(posting.caseId) : null;
   const kase = (devCase?.case ?? null) as CaseScenario | null;
   const role = (devCase?.role ?? null) as RoleSpec | null;
-  const markdown = kase ? caseToMarkdown(kase, role) : null;
+  // The assignment document is the thing the CANDIDATE reads, so its section
+  // headings come from the reader's catalog. They were English literals inside
+  // caseToMarkdown, so a Czech applicant got a Czech page wrapped around
+  // "## Brief" / "## Tasks" / "~4h timebox". The internal readers (the case detail
+  // and the review drawer) keep the English defaults for now — see
+  // docs/features/dev-case/README.md.
+  const markdown = kase
+    ? caseToMarkdown(kase, role, {
+        fallbackTitle: t("assignment.fallbackTitle"),
+        timebox: t("assignment.timebox", { hours: timeboxHoursForDisplay(kase.timeboxHours) }),
+        brief: t("assignment.brief"),
+        handed: t("assignment.handed"),
+        tasks: t("assignment.tasks"),
+      })
+    : null;
 
   // The persisted seed is the FROZEN assignment (bug-ui-scan-2026-07-09 #1): the
   // orchestrator materializes it ONCE, before minting this posting's token, and the
@@ -91,11 +107,11 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
       <AiDisclosure showDataConsent className="mt-4" />
 
       {markdown ? (
-        <section className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <section className={`mt-6 ${PANEL} p-5`}>
           <Markdown content={markdown} />
         </section>
       ) : (
-        <p className="mt-6 rounded-lg border border-stone-200 bg-paper/60 p-4 text-body text-steel">
+        <p className={`mt-6 ${PANEL_SUNKEN} p-4 text-body text-steel`}>
           {t("briefUnavailable")}
         </p>
       )}
@@ -106,7 +122,7 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
       {seedFiles.length > 0 ? (
         <LiveWorkSurface token={token} seedFiles={seedFiles} note={seedNote} />
       ) : (
-        <section className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
+        <section className={`mt-6 ${PANEL_SUNKEN} p-4`}>
           <h2 className="font-serif text-h3 text-ink">{t("submitHeading")}</h2>
           <p className="mt-1 text-sm text-steel">{t("submitHint")}</p>
           <DevApplyForm token={token} />

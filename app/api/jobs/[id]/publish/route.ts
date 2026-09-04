@@ -3,13 +3,23 @@ import { jobPostGate, recordMeterUsage } from "@/app/_lib/billing";
 import { ensureDb } from "@/app/_lib/db/core";
 import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
-import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { classifyPublish, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/library/jobs/JobsTypes";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
-export const maxDuration = 60;
+// 180, matching every sibling that spawns a child on this surface (jobs/ingest,
+// candidates/outreach, rediscovery/alerts): a go-live runs TWO spawning steps back to
+// back — runSourceForRole's recruiter child, then the rediscovery alert fan-out — and
+// 60s was under the ad-parse provider timeout alone. NOTE this bounds nothing on a
+// self-hosted `next start`, which never kills a handler; it matters only where a
+// platform enforces it (Vercel), and the real bound is the per-child timeout inside
+// python-runner. The value is here so that platform doesn't 504 a valid go-live and
+// orphan the children mid-source.
+export const maxDuration = 180;
 
 // Take a draft job live: flip its status to 'published' and source candidates
 // into the pipeline (the step that used to happen implicitly on save). Idempotent
@@ -32,6 +42,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // endpoint doesn't confirm another tenant's job id exists.
     if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
+    // Per-IP, AFTER the 404 and the ownership gate (a refused publish costs no budget)
+    // and BEFORE the billing transaction and the two spawning steps below. 20/10min is
+    // deliberately GENEROUS — publishing is a deliberate, once-per-role act a recruiter
+    // performs a handful of times a day, and a bulk go-live over a freshly imported req
+    // list is a legitimate burst, so a legitimate operator never meets this. It exists
+    // only to stop a loop: every accepted publish debits a metered unit AND spawns a
+    // sourcing child plus an alert fan-out. Session-gated, and in open mode
+    // (KP_OPERATOR_PASSWORD unset) that gate is a no-op for the whole API.
+    if (!rateLimit(`jobs-publish:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+
     // Billing hard gate: one of the two units the customer actually pays for — a role
     // taken to market. Re-publishing an already-live job is always allowed and never
     // charges (idempotent). The gate, the status flip and the debit run in ONE
@@ -48,25 +70,34 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // caller, and the role already live and unmetered. Pinned by
     // publish-atomicity.test.ts, which drives exactly this sequence.
     const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof jobPostGate> } => {
-      const prevStatus = getJobStatus(id);
-      const wasPublished = prevStatus === "published";
-      if (wasPublished) return { already: true, wasClosed: false, quota: null };
+      // ONE read of the row's lifecycle: is it already live, was it closed (a
+      // reopen), and has it EVER been to market (`published_at`)?
+      const transition = classifyPublish(id);
+      if (transition.already) return { already: true, wasClosed: false, quota: null };
       // Taking a role to market is one of the two things the customer actually pays
       // for, so the gate and the debit are the same transaction as the status flip:
       // a publish that is refused must not charge, and one that succeeds must not
-      // escape the meter. `published_at` is COALESCE-stamped inside setJobStatus, so
-      // this fires once per job EVER — closing and reopening a role never re-charges,
-      // which is why the debit sits under the `wasPublished` early-return above.
-      const quota = jobPostGate(new Date(), ws);
+      // escape the meter.
+      //
+      // The debit fires once per job EVER — closing and REOPENING a role does not
+      // re-charge. That is what this comment claimed before the rule was actually
+      // implemented: it pointed at the `published_at = COALESCE(...)` stamp inside
+      // setJobStatus, which guards the timestamp and nothing else, while the skip
+      // above tested only `prevStatus === "published"`. A closed→published reopen
+      // therefore took the gate AND the debit on every reopen. `published_at` is the
+      // record of "this role has been live before", so it is what the once-per-job
+      // rule reads (`classifyPublish().billable`). A never-stamped row — a draft, a
+      // seeded corpus role — is a first go-live and still bills.
+      const quota = transition.billable ? jobPostGate(new Date(), ws) : null;
       if (!quota) {
         setJobStatus(id, "published");
-        recordMeterUsage("job_posts", 1, new Date(), ws);
+        if (transition.billable) recordMeterUsage("job_posts", 1, new Date(), ws);
       }
       // A reopen is a closed→published transition; remember it so the entries this
       // role's close withdrew are restored explicitly below (not left to sourcing).
-      return { already: false, wasClosed: prevStatus === "closed", quota };
+      return { already: false, wasClosed: transition.wasClosed, quota };
     })();
-    if (gate.quota) return NextResponse.json(gate.quota, { status: 402 });
+    if (gate.quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: gate.quota.meter, plan: gate.quota.plan });
     const already = gate.already;
 
     // REOPEN (job-postings-lifecycle #1): reopening a CLOSED role is an explicit,
@@ -142,20 +173,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // fdb45cd0 — the moment a role goes live, raise standing rediscovery alerts:
     // rank the pool against it and persist "a candidate you rejected from Role X
     // clears the bar for this new role" hits to the dismissable feed. Best-effort
-    // (raiseRediscoveryAlertsForJob swallows its own failures) and only on the
+    // (raiseRediscoveryAlertsForJob contains its own failures) and only on the
     // genuine go-live, not idempotent re-publishes. The just-sourced candidates
-    // are excluded by rediscoverForJob (they're now active in this role).
+    // are excluded by rediscoverForJob (they're now active in this role), as is
+    // anyone the consent gate suppresses (anonymized/erased or lapsed consent).
     let silverMedalists = 0;
+    // Report the raise HONESTLY, the same way `sourcingWarning` distinguishes "found
+    // nobody" from "sourcing broke". The raise used to swallow a ranking failure into
+    // a 0 that the response then presented as "0 silver medalists" — a green lie about
+    // a step that never ran. false = the raise ran cleanly (even if it found nobody).
+    let silverMedalistsFailed = false;
     if (!already) {
-      silverMedalists = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
+      const raise = await raiseRediscoveryAlertsForJob(id, { signal: request.signal, workspaceId: ws });
+      silverMedalists = raise.raised;
+      silverMedalistsFailed = raise.failed;
     }
 
     // `skipped` = candidates whose payload failed to parse (not low matches), so an empty
     // pipeline after publish can be told apart from a pool that failed to load.
     // `sourcingWarning` (non-null) = the sourcing step errored; the UI shows it instead of
     // a misleading "sourced 0" success.
-    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished: already, reopened });
+    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, silverMedalistsFailed, alreadyPublished: already, reopened });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
+    return safeJsonError(error, "api:jobs/publish", "JOB_PUBLISH_FAILED");
   }
 }

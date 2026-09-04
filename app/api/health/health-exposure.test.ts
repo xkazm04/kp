@@ -12,10 +12,23 @@
 // worse than the case that gate was built for.
 //
 // Two invariants:
-//   1. the VERDICT stays public — ok / db / seeds / clock / engines and the status
-//      code, which is all an uptime monitor needs and carries no tenant detail;
+//   1. the VERDICT stays public — ok / db / seeds / clock and the status code, which is
+//      all an uptime monitor needs and carries no tenant detail;
 //   2. the DETAIL rides isOperator() — and is OMITTED rather than blanked, because an
 //      empty `degradedReasons` beside a 503 would be a confident lie.
+//
+// `engines` MOVED from (1) to (2) deliberately (/perfect wave 17, api-workspace). This
+// file used to bless it as public with the note "the shell + demo read it" — but the
+// signed-in shell IS trusted by isOperator(), so that argument only ever covered the
+// anonymous case, and what the anonymous case receives is SECRET PRESENCE: whether this
+// box has a Gemini key configured, and whether a `claude` CLI is installed on it.
+// That is reconnaissance — which credential is worth attacking, and whether the LLM
+// path is a local process on this host rather than a cloud call — and no uptime monitor
+// has ever needed it. It is not a degradedReason either (engine-preflight.ts: running
+// keyless is a designed mode), so removing it from the public half changes no verdict
+// and no status code. A demo/anonymous surface that read it now renders its honest
+// "engine status unknown" third state (useEngineAvailability.ts) instead of a fact it
+// was never entitled to.
 //
 // unit-db.ts must stay the first project import (isolated throwaway DB).
 //   npm run test:unit
@@ -91,8 +104,9 @@ test("an ANONYMOUS caller gets the verdict and no deployment detail", async () =
   assert.equal(body.db, "ok");
   assert.ok(body.seeds === "ok" || body.seeds === "degraded");
   assert.equal(typeof body.clock, "string");
-  assert.equal(typeof body.engines?.gemini, "boolean", "engine preflight stays public (the shell + demo read it)");
-  // The deployment's business volume, queue and failure paths — gone.
+  // The deployment's business volume, queue, failure paths — and which provider
+  // credentials this host carries — gone.
+  assert.equal(body.engines, undefined, "secret PRESENCE is not a public readiness fact — see the header");
   assert.equal(body.tables, undefined, "row counts across every tenant must not reach an anonymous caller");
   assert.equal(body.queue, undefined, "queue depth counts every tenant's runs");
   assert.equal(
@@ -106,12 +120,15 @@ test("the anonymous demo session is not an operator either", async () => {
   cookieValue = signSession(DEMO_WORKSPACE, Date.now());
   const body = await probe();
   assert.equal(body.tables, undefined, "the /api/demo visitor is exactly the caller /api/ops refuses");
+  assert.equal(body.engines, undefined, "…including the engine map");
   assert.equal(body.db, "ok", "…and still gets a usable readiness verdict");
 });
 
 test("a signed-in operator still gets the full payload", async () => {
   cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
   const body = await probe();
+  assert.equal(typeof body.engines?.gemini, "boolean", "the shell's engine read is trusted, so it is unchanged");
+  assert.equal(typeof body.engines?.claudeCli, "boolean");
   assert.ok(body.tables, "the detail is gated, not deleted");
   for (const t of ["jobs", "profiles", "pipeline_entries", "analyses", "tasks"]) {
     assert.equal(typeof body.tables?.[t], "number", `tables.${t} must survive for the operator view`);

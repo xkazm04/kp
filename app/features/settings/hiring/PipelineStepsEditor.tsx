@@ -235,7 +235,7 @@ export function PipelineStepsEditor({
                   value={mapping[s.stage.id] ?? ""}
                   onChange={(target) => onMap(s.stage.id, target)}
                   ariaLabel={t("mapAria", { stage: s.stage.label })}
-                  size="sm"
+                  sizeVariant="sm"
                   // Only steps that SURVIVE this edit are offered: mapping onto
                   // another column the same edit removes would move candidates
                   // out of one hole into another.

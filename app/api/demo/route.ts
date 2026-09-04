@@ -1,48 +1,55 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { DEMO_WORKSPACE, SESSION_COOKIE, signSession } from "@/app/_lib/auth/session";
 import { demoSessionAllowed } from "@/app/_lib/workspace-lock";
-import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { jsonRefusal } from "@/app/_lib/api-response";
 
 
-// Public, anonymous entry to the guided product simulation (B1 / UAT). A prospect
-// has no operator session, so the fail-closed proxy (proxy.ts) would 401 every
-// recruiter API the sim drives. Rather than expose those APIs publicly, this mints
-// a session SCOPED TO AN ISOLATED "demo" workspace: the proxy then lets the sim's
-// calls through with a legitimate session, and currentWorkspace() (the tenancy
-// seam) scopes every read/write to "demo" — so the keyless JD→Hired demo never
-// touches the real seeded workspace. Lands on '/?sim=auto', which auto-starts the
-// run (see SimulationProvider). The marketing "Try the live demo" CTA points here.
-// A demo session is not a login — keep it short. One guided run is minutes.
-const DEMO_SESSION_MAX_AGE_S = 60 * 60; // 1 hour
+// Public, anonymous entry to the guided product simulation (B1 / UAT).
+//
+// WHAT THIS DOOR CAN HONESTLY DO TODAY — the previous version of this comment
+// claimed the opposite, and the walk's own comments quoted it:
+//
+//   * OPEN deploy (no KP_SECRET / no operator password): the fail-closed proxy
+//     passes everything through and `resolveCaller()` hands out OWNER_CAPS, so the
+//     scripted walk really does run. No cookie is needed — and `signSession()`
+//     would throw without the secret. This is the demo path that works.
+//   * GATED deploy: minting a "demo"-workspace session does NOT make the walk
+//     work. `resolveCaller()` (app/_lib/auth/current-user.ts) treats a
+//     DEMO_WORKSPACE session as `{ authed: false, caps: EMPTY_CAPS }`, so the
+//     walk's very first write — POST /api/jds/save, which requires an operator
+//     with `jd:write` — answers 401, and so do /api/decisions/screen-wave and
+//     /api/schedule/invite. Nothing seeds the "demo" workspace either, so even a
+//     permitted walk would source zero applicants and halt on "intake returned
+//     none". The session was a door onto a room with no floor.
+//
+// So a gated deploy REFUSES here with a code the landing renders, instead of
+// minting a session and letting the prospect discover the 401 four steps into a
+// narrated tour. Two distinct reasons, because they are two distinct operator
+// actions: DEMO_DISABLED (KP_DEMO_ENABLED is off — turn it on) and
+// DEMO_NOT_PROVISIONED (it is on, but the demo tenant has no capabilities and no
+// corpus — nothing the operator can flip today).
+//
+// Granting a demo session `pipeline:write` inside the isolated demo tenant and
+// seeding that tenant at first mint is an OWNER DECISION (it re-opens the
+// blast-radius question for jds/save, screen-wave and schedule/invite). It is
+// deliberately not built here; when it is, this branch becomes the mint again.
+
+/** Query param the landing reads to name the refusal (DemoUnavailableNotice). */
+const UNAVAILABLE_PATH = "/?demo=unavailable&code=";
 
 export async function GET(request: NextRequest) {
-  // Abuse containment: this endpoint mints a session + the run seeds rows in the
-  // demo workspace. Per-IP fixed window, same tool as the public token routes.
+  // Abuse containment: on an open deploy this lands on a run that seeds rows.
+  // Per-IP fixed window, same tool as the public token routes.
   if (!rateLimit(`demo:${clientIpFrom(request.headers)}`, { limit: 12, windowMs: 10 * 60_000 })) {
-    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
 
-  // In an open dev deploy (no KP_SECRET / no operator password) the proxy passes
-  // through, so no cookie is needed — and signSession() would throw without the
-  // secret. In a gated deploy, mint the isolated demo session — but ONLY when the
-  // public demo is explicitly allowed: while tenancy is half-built, this anonymous
-  // recruiter session can read the real tenant's PII via the ~28 unscoped tables, so
-  // by default a gated deploy refuses to mint it and lands back on the marketing
-  // page — with `?demo=unavailable`, so the landing can SAY so (DemoUnavailableNotice)
-  // instead of dead-ending the "Try the live demo" CTA on a silent no-op reload.
-  if (process.env.KP_SECRET && !demoSessionAllowed()) {
-    return NextResponse.redirect(new URL("/?demo=unavailable", request.url));
-  }
-
-  const res = NextResponse.redirect(new URL("/?sim=auto", request.url));
   if (process.env.KP_SECRET) {
-    res.cookies.set(SESSION_COOKIE, signSession(DEMO_WORKSPACE), {
-      httpOnly: true,
-      secure: true, // accepted on http://localhost too (matches /api/auth/login)
-      sameSite: "lax",
-      path: "/",
-      maxAge: DEMO_SESSION_MAX_AGE_S,
-    });
+    const code = demoSessionAllowed() ? "DEMO_NOT_PROVISIONED" : "DEMO_DISABLED";
+    return NextResponse.redirect(new URL(`${UNAVAILABLE_PATH}${code}`, request.url));
   }
-  return res;
+
+  // Open deploy: land on '/?sim=auto', which auto-starts the run (see
+  // SimulationProvider). The marketing "Try the live demo" CTA points here.
+  return NextResponse.redirect(new URL("/?sim=auto", request.url));
 }

@@ -143,3 +143,44 @@ export function nextToolbarIndex(current: number, key: string, count: number): n
       return null;
   }
 }
+
+/** What ONE Escape keypress does to the dock — the whole decision, pure, because
+ *  the dock is not the only surface listening for that key.
+ *
+ *  TWO SURFACES, ONE KEY. The companion window is stacked ABOVE the deck (it
+ *  floats at `bottom: calc(var(--sim-bar-h) + 8px)`, i.e. on top of the footer
+ *  row) and it is the more recent intent whenever it is up, so it is the one
+ *  Escape dismisses first. It listens on `document`; this dock listens on
+ *  `window`, so the companion's handler always runs first by propagation order
+ *  — and it now marks the event handled. Reading `defaultPrevented` here is
+ *  therefore what stops one keypress from closing two surfaces. The dock marks
+ *  its own for the same reason in the other direction: anything above it that
+ *  listens later (a future overlay on `window`) gets the same courtesy.
+ *
+ *  `focusId` is where focus goes afterwards. The dock is chrome, not a modal —
+ *  there is no trap to release — but a panel dismissed by keyboard must not drop
+ *  focus onto the body, so it returns to the layer-1 control that opened it
+ *  (`dockTabDomId`, which the guide button outside the border carries too). */
+export type DockEscape = { closeCompanion: boolean; focusId: string };
+export function dockEscapeAction({
+  key,
+  defaultPrevented,
+  collapsed,
+  shown,
+  modalUp,
+}: {
+  key: string;
+  defaultPrevented: boolean;
+  collapsed: boolean;
+  shown: DockPanelId | null;
+  modalUp: boolean;
+}): DockEscape | null {
+  if (key !== "Escape" || defaultPrevented) return null;
+  // Nothing to dismiss (deck down, slot empty), or the dock's own modal owns the
+  // key — a dialog the operator opened is always the more recent intent.
+  if (collapsed || shown === null || modalUp) return null;
+  // Her panel's state is her own `open`, so emptying the slot is not enough:
+  // without this, Escape would hide the input and leave the strip on screen with
+  // nothing to type into. Reached only when she did NOT handle the key herself.
+  return { closeCompanion: shown === "candi", focusId: dockTabDomId(shown) };
+}

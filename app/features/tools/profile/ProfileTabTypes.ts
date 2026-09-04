@@ -16,9 +16,21 @@ export type EditorState = {
   mode: EditorMode;
   editingId: string | null;
   initialPayload: ProfilePayload | null;
+  // The row's `updated_at` when this editor opened. Rides into the PUT as
+  // `expectedUpdatedAt` so a save is refused rather than overwriting a newer version.
+  initialUpdatedAt?: string | null;
   // Set when the editor was opened FROM a saved CV analysis (build-from-analysis or
   // rebuild-from-latest) — carried into the save so lineage is stamped.
   sourceAnalysisSlug?: string | null;
+  // Bumped on every open. The editor is keyed on it, so re-opening the SAME profile
+  // (the answer to a refused stale save) genuinely remounts with the fresh payload
+  // instead of keeping the state it was built with.
+  nonce?: number;
 };
 
-export type RebuildWarn = { slug: string; profileId: string; editedAt: string | null };
+export type RebuildWarn = { slug: string; profileId: string; editedAt: string | null; updatedAt?: string | null };
+
+/** The remount identity of an editor session: mode + row + open. */
+export function editorKey(editor: EditorState): string {
+  return `${editor.mode}:${editor.editingId ?? "new"}:${editor.nonce ?? 0}`;
+}

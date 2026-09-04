@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   changelogHasVersion,
+  releaseKind,
   checkCoherence,
   classify,
   parseArgs,
@@ -135,6 +136,37 @@ check('the chart version may move independently of appVersion', () => {
   assert.deepEqual(checkCoherence({ ...coherent, chart: { version: '0.3.1', appVersion: '0.1.0' } }), []);
 });
 
+// --- a pre-release is a release nobody should be upgraded into by accident ----
+//
+// `latest` is the tag an operator gets when they pin nothing, and the publish
+// job moved it on EVERY tag. Cutting v0.2.0-rc1 to try it on a staging cluster
+// would therefore have re-pointed `latest` at a release candidate for everyone.
+check('a pre-release is recognised by its identifier, and a plain semver is not', () => {
+  for (const v of ['0.2.0-rc1', '1.0.0-beta.2', 'v2.3.4-alpha', '1.0.0-0']) {
+    assert.equal(releaseKind(v).preRelease, true, `${v} is a pre-release`);
+    assert.equal(releaseKind(v).valid, true, `${v} is still a valid version`);
+  }
+  for (const v of ['0.1.0', '1.2.3', 'v10.20.30', '1.2.3+build.5']) {
+    assert.equal(releaseKind(v).preRelease, false, `${v} is a plain semver`);
+    assert.equal(releaseKind(v).valid, true);
+  }
+});
+
+check('a version that is not semver is invalid, never quietly \"stable\"', () => {
+  for (const v of ['', 'latest', '1.2', '1.2.3.4', 'rc1']) {
+    const kind = releaseKind(v);
+    assert.equal(kind.valid, false, `${v} is not a version`);
+    // The publish gate reads `preRelease`; an unparseable version must not read
+    // as `false` there, because false is what earns the `latest` tag.
+    assert.equal(kind.preRelease, true, `${v} must never be treated as publishable as latest`);
+  }
+});
+
+check('the identifier itself is reported, so a caller can name it', () => {
+  assert.equal(releaseKind('0.2.0-rc1').prerelease, 'rc1');
+  assert.equal(releaseKind('0.1.0').prerelease, null);
+});
+
 check('cli args parse', () => {
   assert.deepEqual(parseArgs(['--check']), {
     check: true,
@@ -142,8 +174,10 @@ check('cli args parse', () => {
     dryRun: false,
     includeInternal: false,
     date: null,
+    prereleaseOf: null,
   });
   assert.equal(parseArgs(['--version', '1.2.3']).version, '1.2.3');
+  assert.equal(parseArgs(['--prerelease-of', 'v0.2.0-rc1']).prereleaseOf, 'v0.2.0-rc1');
 });
 
 // --- the real tree ----------------------------------------------------------

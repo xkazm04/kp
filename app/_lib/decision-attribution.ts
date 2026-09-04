@@ -59,6 +59,10 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // audit trail with an attribution. (It stays excluded from the CANDIDATE-facing copy —
   // status-decisions.ts:44 — which is a separate, deliberate projection decision.)
   screen_wave_holdout: { auto: true, tone: "text-steel" },
+  // Lot D2: the wave spared the candidate but the holdout record could NOT be sealed,
+  // so the event names the failure, not the arm (screen-wave.ts). Still a machine
+  // decision about that candidate; amber because an operator should retry the seal.
+  screen_wave_holdout_unsealed: { auto: true, tone: "text-amber-600" },
   // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
   // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
   ko_declined: { auto: true, tone: "text-coral" },
@@ -72,6 +76,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // address, so the brief never went — a gap the recruiter must close.
   interviewer_brief_sent: { auto: true, tone: "text-steel" },
   interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
+  // The live call fell back to the other voice provider (interview/connect). A SYSTEM
+  // transition the recruiter should see beside the session, not a delivery.
+  interview_failover: { auto: true, tone: "text-amber-600" },
   // The offer-deadline nudge the sweep dispatches (comms-dispatch.ts:588). A live writer
   // that reached the log as NEZNÁMÉ and counted in no rollup — including `commsDelivered`,
   // even though it is a real message to a real candidate (see COMM_SENT_KINDS below).
@@ -79,6 +86,12 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // The generated rejection draft, sibling of offer_drafted (automation-run.ts).
   rejection_drafted: { auto: true, tone: "text-steel" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
+  // Its offer-side sibling (pipeline-entry-action.ts): the offer was drafted and an
+  // offer row minted, but the message did not go out, so the approval is left open
+  // and re-approving re-sends the SAME link. Marked auto like every other
+  // comms-failure marker: the delivery attempt the machine made is what failed, not
+  // the recruiter's decision, which stands and is sealed on its own.
+  offer_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
   // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
   // nudges + the fairness backstop's downgrade signal, written via

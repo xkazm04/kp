@@ -16,15 +16,17 @@ import dataclasses
 import os
 import random
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
+from urllib.parse import urlsplit
 
-from ..claude_cli import _extract_json
+from ..json_values import extract_json as _extract_json
 from . import monitor
-from .offline import is_local_url, is_offline
+from .offline import UNIX_SOCKET_SCHEMES, is_local_url, is_offline
 
 DEFAULT_TIMEOUT_S = 180
 # The wrapped use cases return deliberately short JSON (sub-KB rationales,
@@ -102,6 +104,79 @@ def load_local_env() -> None:
     root = Path(__file__).resolve().parents[3]
     load_dotenv(root / ".env.local", override=False)
     load_dotenv(root / ".env", override=False)
+
+
+# Why a provider is not usable — the closed vocabulary ``availability()`` answers
+# with, shared by every adapter and by ClaudeCliProvider ("not_installed" is its
+# own; the rest are the adapters'). A bare False was the whole reason an operator
+# could "fix" an offline seal by re-checking a key that was never the problem:
+# these are repaired in four different places, so the ledger and the CLI say which.
+AVAILABILITY_REASONS: tuple[str, ...] = (
+    "offline_policy",   # KP_OFFLINE, and this adapter's endpoint leaves the box
+    "missing_key",      # no api_key configured and no env var set
+    "sdk_missing",      # the provider SDK is not installed in this environment
+    "missing_endpoint",  # Azure: no resource endpoint (a key alone cannot route)
+    "invalid_base_url",  # a configured endpoint that fails the shape check below
+    "not_installed",    # claude_cli: the binary is not on PATH
+)
+
+
+def endpoint_host(url: str | None) -> str | None:
+    """``scheme://host[:port]`` for an endpoint, or None.
+
+    The ONLY form an endpoint may take in an error message or a log line: a
+    configured base URL can carry a key in its userinfo or query string (the
+    self-host docs even show gateways that authenticate that way), and the
+    offline-block error used to print the whole thing — into an operator's
+    terminal, and into whatever collects it."""
+    if not url or not url.strip():
+        return None
+    candidate = url.strip()
+    parsed = urlsplit(candidate if "://" in candidate else f"//{candidate}")
+    host = parsed.hostname
+    if not host:
+        return None
+    try:
+        port = parsed.port
+    except ValueError:  # a malformed port; the host alone is still the safe part
+        port = None
+    scheme = f"{parsed.scheme}://" if parsed.scheme else ""
+    return f"{scheme}{host}" + (f":{port}" if port else "")
+
+
+def validate_base_url(raw: str, *, setting: str) -> str:
+    """Shape-check an operator-supplied inference endpoint, or raise ``LLMError``.
+
+    The Python half of ``assertValidBaseUrl`` (app/_lib/llm-config.ts): parseable,
+    http/https (or a unix-socket scheme, which is as on-box as an endpoint gets),
+    a host present, and NO embedded credentials — which would otherwise reach the
+    SDK, the provider's access log, and any message that echoed the URL.
+
+    That check ran only on the TypeScript write path, so a base URL arriving from
+    the environment (OPENAI_BASE_URL / OLLAMA_BASE_URL / QWEN_BASE_URL / …) was
+    used raw. This validates BOTH doors, at resolve time.
+
+    The message never contains ``raw``: only the scheme, or the reason. Callers
+    that need to name the endpoint use :func:`endpoint_host`."""
+    candidate = (raw or "").strip()
+    if not candidate:
+        raise LLMError(f"{setting} is empty", subtype="invalid_base_url")
+    parsed = urlsplit(candidate)
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https") and scheme not in UNIX_SOCKET_SCHEMES:
+        raise LLMError(
+            f"{setting} must be an absolute http(s) URL (got scheme {scheme or '<none>'!r})",
+            subtype="invalid_base_url",
+        )
+    if parsed.username or parsed.password:
+        raise LLMError(
+            f"{setting} must not embed credentials — configure the key as the "
+            f"provider's API key instead",
+            subtype="invalid_base_url",
+        )
+    if not parsed.hostname:
+        raise LLMError(f"{setting} names no host", subtype="invalid_base_url")
+    return candidate.rstrip("/")
 
 
 class LLMError(RuntimeError):
@@ -190,6 +265,13 @@ class TextProvider:
         # Telemetry label only — the registry stamps which use case this
         # instance serves so LightTrack events carry the operation.
         self.use_case = use_case
+        # .env is read ONCE per instance, behind a lock: _load_env used to run on
+        # every key/base-URL resolution — i.e. on every availability check and every
+        # retry — and map() drives those from a ThreadPoolExecutor, so N workers
+        # raced on the same dotenv parse and os.environ mutation for a file whose
+        # contents cannot change mid-process.
+        self._env_lock = threading.Lock()
+        self._env_loaded = False
 
     # -- to implement ---------------------------------------------------------
 
@@ -199,11 +281,23 @@ class TextProvider:
     # -- key / SDK availability (shared across the direct adapters) -----------
 
     def _load_env(self) -> None:
-        """Best-effort .env load, dispatched through the adapter's OWN module so a
-        per-adapter ``load_local_env`` monkeypatch (tests) still intercepts it."""
-        mod = sys.modules.get(type(self).__module__)
-        loader = getattr(mod, "load_local_env", load_local_env)
-        loader()
+        """Best-effort .env load, ONCE per instance, dispatched through the adapter's
+        OWN module so a per-adapter ``load_local_env`` monkeypatch (tests) still
+        intercepts it.
+
+        Idempotent by construction (``load_dotenv(override=False)``), so the memo
+        changes cost, not behaviour: the file is parsed once instead of once per
+        attempt per worker thread. The lock makes the first load happen exactly
+        once even when ``map()``'s executor resolves keys concurrently."""
+        if self._env_loaded:
+            return
+        with self._env_lock:
+            if self._env_loaded:
+                return
+            mod = sys.modules.get(type(self).__module__)
+            loader = getattr(mod, "load_local_env", load_local_env)
+            loader()
+            self._env_loaded = True
 
     def _resolved_key(self) -> str | None:
         if self.api_key:
@@ -258,7 +352,9 @@ class TextProvider:
         ``available()`` so even a direct ``complete()`` can never breach the seal."""
         if not self._offline_blocked():
             return
-        target = self._offline_egress_url() or f"{self.name}'s default cloud endpoint"
+        # Host only, never the configured URL: a base URL can carry a credential in
+        # its userinfo or query string, and this message goes to a terminal and a log.
+        target = endpoint_host(self._offline_egress_url()) or f"{self.name}'s default cloud endpoint"
         raise LLMError(
             f"KP_OFFLINE is set (air-gapped no-egress mode), but provider "
             f"{self.name!r} would send prompts to {target!r}, which is not an "
@@ -269,13 +365,39 @@ class TextProvider:
             subtype="offline_egress_blocked",
         )
 
-    def available(self) -> bool:
-        # Hard no-egress mode: a cloud engine must not fire even if a key is set.
+    def availability(self) -> tuple[bool, str | None]:
+        """``(usable, descent_reason)`` — the shape ``ClaudeCliProvider.availability``
+        established, now answered by every adapter.
+
+        The reason is one of :data:`AVAILABILITY_REASONS`. Until this existed the
+        adapters had only the bare bool, so ``registry.provider_availability``
+        collapsed every one of them to a generic ``"unavailable"``: under the
+        offline policy an air-gapped install reported its deliberate seal in the
+        usage ledger and on the Test button as "missing key or SDK", and an
+        operator's repair for that is to re-enter a key that was never wrong.
+
+        A configured endpoint that fails the shape check degrades here (rather than
+        raising) so routing still falls back deterministically; a direct
+        ``complete()`` on the same provider raises, because a call that was
+        actually made must not fail silently."""
         if self._offline_blocked():
-            return False
+            return False, "offline_policy"
         if not self._resolved_key():
+            return False, "missing_key"
+        if not self._import_sdk():
+            return False, "sdk_missing"
+        return True, None
+
+    def available(self) -> bool:
+        """True if this provider can serve. The one predicate; ``availability``
+        carries its reason (same split as ClaudeCliProvider)."""
+        try:
+            return self.availability()[0]
+        except LLMError:
+            # Misconfiguration surfaced during resolution (an invalid base URL).
+            # Availability is a routing question — answer it False and let the
+            # call path raise the actionable error.
             return False
-        return self._import_sdk()
 
     # -- shared surface (ClaudeCliProvider-compatible) ------------------------
 

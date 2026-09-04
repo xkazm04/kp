@@ -250,6 +250,16 @@ export function setChannelPull(
   // Validated HERE, at the write, as well as at every pull: an operator who pastes a
   // loopback or plain-http endpoint learns immediately instead of discovering it in
   // a `last_pull_error` fifteen minutes later. Same SSRF posture as the relay.
+  //
+  // STRING-LEVEL on purpose, and it is NOT the security boundary. A store write is
+  // synchronous (better-sqlite3), and a DNS resolution is not — but more to the
+  // point, resolving here would prove nothing: the pull runs off a clock, so the
+  // address that answers at fetch time is unrelated to the one that answered at save
+  // time. `pullOneSource` (pull-pass.ts) therefore re-vets with
+  // `assertPublicHttpsEndpointResolved` immediately before it fetches, which is what
+  // closes the DNS-rebinding pivot. This check is the operator's fast feedback; that
+  // one is the gate. Same split the ATS webhook boundary uses (ats-config-store.ts
+  // writes, ats-egress.ts resolves).
   const url = input.url && input.url.trim() ? assertPublicHttpsEndpoint(input.url.trim(), "pullUrl") : null;
   const current = db
     .prepare(`SELECT pull_secret FROM channel_webhooks WHERE token = ? AND workspace_id = ?`)

@@ -8,6 +8,10 @@
     "url": "git+https://github.com/xkazm04/kp.git"
   },
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  },
+  "packageManager": "npm@11.6.2",
   "scripts": {
     "prepare": "node scripts/hooks/install.mjs",
     "hooks:install": "node scripts/hooks/install.mjs",
@@ -44,7 +48,7 @@
     "guidance:check": "node scripts/docs/check-guidance.mjs",
     "api:docs": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/docs/api-reference.mjs",
     "api:check": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/docs/api-reference.mjs --check",
-    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs && node scripts/docs/__tests__/api-reference.test.mjs",
+    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs && node scripts/__tests__/schemas-gen.test.mjs && node scripts/docs/__tests__/toolchain-pin.test.mjs && node scripts/docs/__tests__/keyless-e2e-pin.test.mjs && node scripts/__tests__/market-fetch.test.mjs && node scripts/docs/__tests__/api-reference.test.mjs",
     "release:check": "node scripts/release/prepare.mjs --check",
     "release:prepare": "node scripts/release/prepare.mjs",
     "commit:check": "node scripts/release/commit-msg.mjs",
@@ -56,18 +60,20 @@
     "review:gate": "node scripts/review/gate-check.mjs",
     "agent:dispatch": "node scripts/agent/dispatch.mjs",
     "ci:budget": "node scripts/perf/ci-budget.mjs",
-    "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs",
+    "perf:budget": "node scripts/perf/check-budget.mjs",
+    "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs && node scripts/perf/__tests__/check-budget.test.mjs && node scripts/perf/__tests__/devbench.test.mjs",
     "security:actions": "node scripts/security/check-actions.mjs",
     "security:secrets": "node scripts/security/secret-scan.mjs",
-    "test:security": "node scripts/security/__tests__/secret-scan.test.mjs",
+    "test:security": "node scripts/security/__tests__/secret-scan.test.mjs && node scripts/security/__tests__/check-actions.test.mjs",
     "deploy:check": "node scripts/deploy/check-chart.mjs",
     "test:deploy": "node scripts/deploy/__tests__/check-chart.test.mjs",
-    "test:review": "node scripts/review/__tests__/constitution-check.test.mjs && node scripts/review/__tests__/gate-check.test.mjs",
-    "test:agent": "node scripts/agent/__tests__/dispatch.test.mjs && node scripts/agent/__tests__/injection.test.mjs && node scripts/agent/__tests__/provenance.test.mjs",
+    "test:skills": "node --test \".claude/skills/motionize/tools/__tests__/*.test.mjs\"",
+    "test:review": "node scripts/review/__tests__/constitution-check.test.mjs && node scripts/review/__tests__/gate-check.test.mjs && node scripts/review/__tests__/workflow-yaml.test.mjs && node scripts/review/__tests__/agent-review.test.mjs",
+    "test:agent": "node scripts/agent/__tests__/dispatch.test.mjs && node scripts/agent/__tests__/injection.test.mjs && node scripts/agent/__tests__/provenance.test.mjs && node scripts/agent/__tests__/budget.test.mjs",
     "test:lint-ratchet": "node scripts/lint/__tests__/ratchet.test.mjs && node scripts/lint/__tests__/ruff-ratchet.test.mjs && node scripts/lint/__tests__/ts-ratchet.test.mjs",
     "bench:app-master": "node scripts/app-master-bench/run.mjs --all --report",
     "bench:gate": "node scripts/app-master-bench/gate.mjs",
-    "test:bench-driver": "node --test \"scripts/app-master-bench/*.test.mjs\"",
+    "test:bench-driver": "node scripts/run-unit-tests.mjs \"scripts/app-master-bench/**/*.test.mjs\"",
     "design:check": "node scripts/design/check-design-tokens.mjs",
     "onboard:ui": "node scripts/onboard-ui/server.mjs",
     "polar:setup": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/polar-setup.mjs",
@@ -77,6 +83,7 @@
     "pipeline:sample": "python -m pipeline.jobfit.cli samples/sample-cv.txt",
     "db:dump": "node scripts/db-dump.mjs",
     "db:load": "node scripts/db-load.mjs",
+    "secrets:rotate": "node scripts/secrets-rotate.mjs",
     "db:pg-audit": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/pg-portability-audit.mjs"
   },
   "dependencies": {

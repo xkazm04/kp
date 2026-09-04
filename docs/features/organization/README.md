@@ -17,7 +17,12 @@ inventing a second scoping dimension.
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
-  — company identity only: org name, app language, backup/restore.
+  — company identity only: org name, app language, backup/restore. There is **no
+  domain row**: `organizations.domain` exists in the schema but nothing in the app
+  ever writes it (`createOrganization` is called once, from `signup-service.ts`,
+  with no domain), so every install has it NULL and the panel was rendering a
+  hardcoded `"csas.cz"` behind a padlock — a demo string presented as a locked
+  company fact. It is gone until a surface actually sets the column.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
@@ -55,6 +60,29 @@ inventing a second scoping dimension.
   `addMemberToWorkspace`. It previously did not, and an `admin` could strip the
   org's only owner with one call while `DELETE` on the same route refused it
   (pinned in `app/api/workspaces/workspaces-route.test.ts`).
+- **…and the backstop holds under concurrency.** All four writes run through ONE
+  seam, `org-service`'s `underOwnerLock`: a `db.transaction(...).immediate()`
+  whose callback performs the owner-set read (`isSoleOwner` / `ownerSeatCount`)
+  **inside** the lock. They used to read, decide and write unlocked, so two
+  operators demoting the org's TWO owners at the same moment both saw a two-seat
+  owner set, both concluded "not the last one", and both committed — the exact
+  state the guard exists to prevent. Under `BEGIN IMMEDIATE` the second caller
+  waits, re-reads a one-seat set and is refused. The seam also re-asserts the
+  invariant AFTER the write and rolls back with `last_owner` if the org would be
+  left ownerless anyway, so a future operation that forgets its pre-check orphans
+  nothing. Pinned by `app/_lib/org-service.test.ts` (a rival demotion forced by a
+  trigger; the sequential pair leaving exactly one owner; a source-level check
+  that each of the four takes the lock and reads inside it).
+- **Removing or disabling a member closes the way back in.** An invite is a
+  deferred account — redeeming one activates or re-creates the user with the
+  invited role and a fresh password — so `removeMember` and
+  `setMemberStatus(id, "disabled")` now also revoke the org's **pending invites
+  addressed to that email** (`revokePendingInvitesForEmail`,
+  `app/_lib/db/invites.ts`), in the same transaction as the removal. Without it
+  an old link in the ex-member's inbox re-minted the account at the invited role
+  while the roster showed the seat gone. Scoped to the acting org: a pending
+  invite to the same person from a DIFFERENT org is untouched. A removal
+  **preview** (`dryRun`) revokes nothing.
 - Open-mode + operator-password sessions fold to `owner` so local dev is
   unchanged.
 - **Disabling a member bites immediately, not at next login.**
@@ -70,6 +98,40 @@ inventing a second scoping dimension.
   `callerOrgCapabilities`/`callerDelegationCeiling`) does not consult the status,
   so a disabled admin's live session can still reach member/team administration —
   see Known gaps.
+- **A login costs the same whether or not the account exists.**
+  `verifyCredentials` (`app/_lib/db/users.ts`) verifies against
+  `DUMMY_PASSWORD_HASH` (`app/_lib/auth/password.ts` — a real scrypt hash of a
+  throwaway secret, computed once at module load) when the email is unknown, the
+  account is disabled, or an invited user has no credential row yet. It used to
+  return before the hash in all three cases, so the deliberately uniform 401 was
+  undone by the clock: microseconds for "no such account" against ~40ms for "wrong
+  password" is a user-existence oracle any client can measure.
+  `app/_lib/auth/credentials.test.ts` counts the scrypt work rather than the wall
+  clock, so the property is pinned without a timing flake.
+- **A stored hash carries its own parameters, and upgrades itself on login.** The
+  format is `v1$scrypt$<N>$<r>$<p>$<saltB64url>$<hashB64url>`
+  (`app/_lib/auth/password.ts`). It used to be a bare `<salt>:<hash>` with the cost
+  implied by node's defaults, so there was no way to ask whether a row was behind:
+  raising the cost later meant either invalidating every password in the install or
+  carrying an undocumented "hashes written before <date> are cheap" rule forever.
+  `needsRehash(stored)` now answers that from the row alone — true for a legacy
+  untagged value or one below `CURRENT`, false for anything unparseable (no caller
+  will ever hold a plaintext proven against it) and for stronger-than-current
+  parameters. `verifyCredentials` rewrites the credential on a **successful** login,
+  the one moment the plaintext is legitimately in hand; a failed login rewrites
+  nothing, and a legacy hash whose password is below today's floor is left alone
+  rather than pushed through a write `setUserPassword` would refuse. Legacy values
+  still verify at node's defaults, so the change logs nobody out. Pinned by
+  `app/_lib/auth/password.test.ts` (both formats, both directions of `needsRehash`,
+  malformed values failing closed) and `credentials.test.ts` (the in-place rewrite,
+  the failed-login no-op, the below-floor no-op).
+- **The password floor is enforced at the store write.** `MIN_PASSWORD_LENGTH`
+  lives in `app/_lib/auth/password.ts` (users.ts cannot import `org-service.ts` —
+  org-service imports users) and `setUserPassword` throws below it. Signup and
+  invite redemption still answer their own `weak_password` refusal first; the
+  store check is what covers every OTHER path — `createUser({ password })`, an
+  admin reset, a script — which had no floor at all. `org-service.ts` re-states
+  the constant for its callers and the two are pinned equal by a test.
 - **The login throttle's storage is bounded, not just its counters.**
   `app/_lib/auth/login-throttle.ts` keeps one `login_attempts` row per bucket key
   (`login:acct:<email>` / `login:ip:<ip>` / `login:op:<ip>`). Rows used to be
@@ -270,6 +332,30 @@ Request-scope wrappers live in `current-user.ts`:
 nothing) and `callerOrgCapabilities()` / `requireOrgCapability(cap)` for calls
 that target no single workspace, i.e. creating one.
 
+**The two org SETTINGS writes take `org:manage`, like every route beside them.**
+`setOrgName` / `setOrgLanguage` (`app/_lib/org-actions.ts`) are server actions,
+which are reachable by any signed-in member with a POST — and `setOrgLanguage`
+writes `workspaces.default_locale`, the shared row that decides the language of
+background automation passes and of every candidate email sent without a request
+cookie, so a recruiter could re-language the company's outbound comms. Both now
+call `requireOrgCapability("org:manage")` (the same helper the export route uses:
+resolved org-wide from live memberships, so an admin of one team is not an
+administrator here) and answer `{ ok: false, code }` rather than silently doing
+nothing — the console renders the code, and a refused save never ticks over to
+"Saved". Pinned by `app/_lib/org-actions.test.ts`. The org NAME's storage stays a
+per-browser cookie; the gate is about who may write it, not where it lives.
+
+`setOrgLanguage` writes `workspaces.default_locale` for **every team in the caller's
+org**, not only the one their session sits on. The setting is org-wide on every
+other axis — the Organization tab, the label "App language", an `org:manage`
+capability resolved across the org — so writing a single row left a sibling team's
+automation passes and candidate emails in the previous language while the console
+reported "Saved". The org is resolved from the current workspace
+(`getWorkspaceOrgId`), so an operator-password / open-dev caller with no identity
+claims still writes the whole org, and an unlinked legacy workspace (`org_id` NULL)
+keeps the single-row behaviour. A single-team deployment — the seeded shape — is
+unaffected, since its org holds exactly one row.
+
 **Entering** a team is separate from administering it:
 `POST /api/auth/switch-workspace` requires a real membership (plus an org match).
 An org admin can seat people on a team they don't belong to, but cannot park a
@@ -297,8 +383,9 @@ routes below. The switch route now refuses on the workspace the session came fro
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
+| Rate limits | `POST /api/org/invites` — `org-invite:<ip>`, 30/10min; `GET /api/workspace/export` — `org-export:<ip>`, 10/10min (both on the in-process limiter, `app/_lib/rate-limit.ts`). `GET`/`POST /api/invite/[token]` — `invite-view:<ip>:<token>` / `invite-redeem:<ip>:<token>`, 10/min each, on the **persisted** store (`app/_lib/auth/login-throttle.ts`) that `/api/auth/login` and `/api/auth/register` use: kp can run as several workers over one `kp.sqlite`, and a per-process Map would hand a flood one full budget per worker on the door that mints a user, a membership and a session. Every attempt counts, success included. All pinned in `app/api/rate-limit-contract.test.ts` |
 | Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts` (`addMemberToWorkspace`, `removeMemberFromWorkspace`), `app/_lib/bulk-invite.ts` |
-| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin`, `workspaceAdminHelpers`) |
+| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin` + the pure `workspaceAdminLoad` fold, `workspaceAdminHelpers`) |
 | Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |
 | Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
@@ -324,6 +411,29 @@ way to put them on a second team.
 Removing somebody **from a workspace** and removing them **from the organization**
 are now distinct actions with distinct confirms: the first is reversible in two
 clicks, the second deletes the account. They used to be the same red X.
+
+**Every member write leaves a receipt, and locks the row it is writing.** A role
+change and a status toggle used to do neither: the PATCH went out, the reload came
+back, and the only evidence was one word changing inside a select — while every
+other mutation on this console toasted. Both now toast
+(`workspaceAdmin.members.roleUpdated` / `statusUpdated`) and hold a **per-member**
+lock (`pendingMembers` in `WorkspaceTab`, `aria-busy` on the row, the controls
+disabled) until the reload lands, so a double click cannot send two PATCHes and the
+row never sits silently on its old value. Per-member and not panel-wide on purpose:
+locking the whole console would freeze four other rows an administrator is working
+through. The permissions dialog and the language setting keep their own tickers
+(`saving` / `saved` / `saveFailed`).
+
+**A partial reload says so.** `foldWorkspaceAdminLoad`
+(`app/features/settings/workspace/workspaceAdminLoad.ts`, pinned by
+`workspaceAdminLoad.test.ts`) is the pure fold over the three parallel answers, and
+it separates three states the inline promise chain could not: a failed **members**
+request is the error state (coral, and the previous roster is kept rather than
+blanked — an emptied roster reads as "everybody is gone"); a failed **teams** or
+**invites** request for a caller who may read them is `partial`, which the console
+renders as an amber note over the previous reading; and a missing invites answer for
+a caller **without** `members:manage` is the complete answer, not a failure, because
+that endpoint refuses them by design.
 
 **Membership-scoped vs account-scoped controls ask different ownership
 questions.** Role, seat permissions and remove-from-team write one membership, so
@@ -381,6 +491,25 @@ copy is fully localized (`workspaceAdmin.org.backup`) — comprehension is a saf
 property here, not a nicety — while the table names it lists stay verbatim, being
 schema identifiers.
 
+**The upload is bounded, and every refusal carries a code.** `POST /api/workspace/import`
+caps the body at **32 MB** (`MAX_IMPORT_BODY_BYTES`): `content-length` is an advisory
+fast-reject and `readTextWithLimit` is the enforcing read, the same contract the public
+machine endpoints use. It replaced a bare `request.json()`, which parsed the whole upload
+into the heap before anything judged it — so a restore could take down the server every
+other route shares. Over the cap answers `IMPORT_BODY_TOO_LARGE` (413).
+
+The engine's own refusals are `PortabilityError`s carrying a code and a status, not prose:
+`PORTABILITY_NO_DATABASE` (503), `RESTORE_FOREIGN_ORG` / `RESTORE_SCOPE_TAKEN` /
+`PORTABILITY_TABLES_POPULATED` (409), `RESTORE_UNSAFE_IDENTIFIER` (400), plus
+`IMPORT_DUMP_REQUIRED` / `IMPORT_DUMP_MALFORMED` (400) at the door. Both routes answer a
+decision with `jsonRefusal` and an accident with `safeJsonError`
+(`WORKSPACE_EXPORT_FAILED` / `WORKSPACE_RESTORE_FAILED`) — before this, a
+better-sqlite3 message with `SQLITE_*` codes and the absolute db path reached the panel,
+in English, in every locale. `OrganizationBackupPanel` resolves `body.code` through
+`useErrorMessage`, so each one renders in the reader's language;
+`import-body-limit.test.ts` pins the cap, the coded answers, and that every
+`PortabilityErrorCode` has a `REFUSAL_ERRORS` entry.
+
 Round-trip behaviour is pinned by `app/_lib/db-portability-org.test.ts` (multi-org:
 scope, refusal, rollback, the bystander org, and that a dual-tier table's team-private
 rows come back while its shared tier stays untouched) and
@@ -398,6 +527,102 @@ direction LOOKS dangerous before any prose is read. The three scope facts (every
 the org, integration settings and provider keys excluded, restores back into this
 deployment) are three separate lines instead of subordinate clauses, and the internal
 codename is gone from user-facing copy.
+
+### Refusal codes
+
+Every deliberate 4xx on these doors carries a machine `code` from `REFUSAL_ERRORS`
+(`app/_lib/api-response.ts`), which the console resolves through `useErrorMessage()`
+in the reader's language — the server's English `error` is never rendered:
+
+| Code | Where | Status |
+|---|---|---|
+| `INVITE_EMAIL_INVALID` | `POST /api/org/invites` | 400 |
+| `INVITE_ROLE_ABOVE_PRIVILEGE` | `POST /api/org/invites` (delegation ceiling) | 403 |
+| `INVITE_ALREADY_MEMBER` | `POST /api/org/invites` | 409 |
+| `RESTORE_FOREIGN_ORG` | `POST /api/workspace/import` — the file names another org | 409 |
+| `RESTORE_REPLACE_REQUIRED` | `POST /api/workspace/import` — `apply` without `replace`; carries `existingRows` + `populated` | 409 |
+| `MEMBER_PERMISSIONS_CHANGED` | `PATCH /api/org/members/[userId]` — the seat moved under the editor | 409 |
+| `ORG_SETTINGS_FORBIDDEN` / `ORG_LANGUAGE_INVALID` | `setOrgName` / `setOrgLanguage` | — (action result) |
+| `TOO_MANY_REQUESTS` | the invite mint and the org export | 429 |
+
+Route tests: `app/api/org/org-routes.test.ts` (invites POST/GET/DELETE, the
+delegation ceiling, the permissions race) and
+`app/api/workspace/import/import-route.test.ts` (both 409 branches, plus the dry
+run and the applied restore).
+
+### Editing one seat's permissions is a compare-and-swap
+
+`PATCH /api/org/members/[userId]` with `capabilities` re-sends the WHOLE desired
+set, computed from what the editor loaded. Two administrators on one member
+therefore raced last-writer-wins, silently: the second save recomputed grants for
+capabilities its author never touched and erased the first's change with no error.
+`MemberPermissionsModal` now sends `expectedCapabilities` — the seat exactly as it
+rendered it — and the route re-reads the membership inside
+`db.transaction(...).immediate()`, comparing the live effective capability set
+against that snapshot (falling back to the row the request itself read when a
+caller sends none) and refusing with `MEMBER_PERMISSIONS_CHANGED` when it moved.
+Nothing is written on a refusal, and the console reloads the roster so the next
+decision is made against what the seat now says.
+
+### The invite accept door (`/invite/[token]`)
+
+The one surface in this feature an outsider sees, and the only one reached without
+a session: a colleague opens the emailed link, `AcceptForm.tsx` previews the invite
+through `GET /api/invite/[token]`, and the redeem `POST` sets the password, adds the
+membership and signs them in.
+
+Both verbs are classified through **`app/invite/[token]/invite-result.ts`**
+(`classifyInviteResult`, pinned by `invite-result.test.ts`) — the same extraction,
+for the same reason, as `app/login/login-result.ts`. Before it, the form had two
+endings: every non-ok preview response *and* every fetch-level failure became
+`{ valid: false }`, which renders "This link is invalid, already used, or expired.
+Ask an admin to send a new one." So the door's own 10/min limiter (429), a 5xx and a
+dropped connection all told a colleague their invitation was dead and sent them to
+ask for a replacement that would behave identically. The classifier splits them:
+
+| Outcome | From | The form shows |
+| --- | --- | --- |
+| `dead` | 404 (no redeemable invite) · 410 (consumed / lapsed on redeem) | The unavailable panel. No retry: a retry over a consumed invite is a loop with no exit. |
+| `rateLimited` | 429 | "Too many attempts", the invitation stated to be still valid, plus a retry. |
+| `retry` | 5xx · network drop · the 15 s abort | "Couldn't load your invitation", plus a retry. |
+| `weakPassword` / `emailTaken` / `alreadyActive` | 400 / 409 with the reason code | The existing inline field messages. |
+
+Two consequences worth naming. A redeem that answers **410** now swaps the whole
+surface to the dead ending rather than leaving a generic line under a form that can
+never succeed again. And both fetches run under a 15 s `AbortController` budget
+(`INVITE_TIMEOUT_MS`), mirroring `LOGIN_TIMEOUT_MS`, so a stalled request cannot
+strand the invitee on a spinner or a dead "Setting up…" button.
+
+**Redeem lands on the dashboard.** A successful `POST` mints the session cookie
+*and* the readable `kp_entered` marker, exactly as `/api/auth/login` and
+`/api/auth/register` do (`app/_lib/auth/session.ts` `ENTERED_COOKIE`). It used to
+set only the session: `AcceptForm` redirects to `/`, and in OPEN mode (no
+`KP_OPERATOR_PASSWORD`) the `/` gate reads **only** that marker
+(`hasEnteredWorkspace`, `app/_lib/auth/home-gate-server.ts`) — so a colleague who
+had just joined the team was handed the public landing page. Both cookies are set
+inside the same best-effort `try`: with no `KP_SECRET` nothing is signed, so
+neither is written and no marker claims a session that does not exist.
+
+**One transaction, not four writes.** `acceptInvite` (`app/_lib/org-service.ts`)
+runs inside `db.transaction(...).immediate()` with the redeemable-invite read
+re-asserted **inside** the lock. It is a read→compute→write over the invite, user,
+credential and membership stores, and it ran unlocked: two processes redeeming one
+link both saw a pending invite and both wrote a password, only the loser's
+`markInviteAccepted` no-op'ing. The second caller is now refused structurally
+(`invalid`) and writes nothing, and a redeem interrupted between the membership
+write and the mark rolls back rather than seating a member on a pending invite.
+The session signing stays in the route, outside the transaction — nothing is
+awaited between BEGIN and COMMIT. Pinned by `app/_lib/org-service.test.ts` (two
+callers on one link; a rival consuming the token mid-flight) and, at HTTP level, by
+`app/api/invite/[token]/invite-accept-route.test.ts` — the reason→status map
+(400 weak / 409 taken / 409 already active / 410 dead), the cookie attributes, and
+the signing-failure-after-consume path that must still answer `ok`.
+
+`GET /api/invite/[token]` answers **`orgName: null`** for an org with no name,
+where it used to answer the English literal `"your organization"` — a server-side
+string spliced into a four-locale eyebrow by code that has no idea who is reading.
+The fallback is now the catalog's (`invite.orgNameFallback`), resolved in the
+invitee's language.
 
 ## Copy & localization
 
@@ -524,12 +749,6 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - **No workspace deletion.** Rename exists; delete does not, deliberately — a
   team's candidates, decisions and audit chain outlive its label, and there is no
   reassign-or-purge story yet.
-- **`POST /api/org/invites` emits no error `code`.** All three of its refusals —
-  invalid address (400), inviting above your own privileges (403), and the
-  address already belonging to an active member (409) — return only a canonical
-  English `error`. The panel therefore routes the payload through
-  `useErrorMessage()` and always lands on the localized generic
-  (`workspaceAdmin.members.inviteFailed`), so the *specific* reason is lost in
-  every language, English included. Fixing it means giving the route real codes
-  plus matching `errors.*` catalog entries; no code is invented client-side in
-  the meantime.
+- *(closed 2026-09-02)* `POST /api/org/invites` used to emit no error `code` on
+  any of its three refusals, so the panel always painted the localized generic.
+  All three now answer through `jsonRefusal` — see **Refusal codes** below.

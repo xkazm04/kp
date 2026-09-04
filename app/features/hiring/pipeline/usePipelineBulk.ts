@@ -40,10 +40,29 @@ export function usePipelineBulk({
   const [bulkBusy, setBulkBusy] = useState(false);
   // `verb` selects the result label so the same status line reads correctly for a
   // stage move vs. a bulk accept/reject (bdc7fc01).
-  // `reason` carries the server's verbatim failure explanation (the 409 vs 422
-  // guidance) for a bulk action whose entries were refused, so a batch failure is
-  // no longer a bare count — the recruiter sees WHY, like the drag + drawer do.
-  const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "moved" | "accepted" | "rejected" | "invited" | "drafted"; reason?: string | null } | null>(null);
+  // A bulk failure says WHY, not just how many — like the drag + drawer do. TWO
+  // channels, deliberately: `reason` is a message this CLIENT already localized (the
+  // whole-request refusal: the operator gate, a transport blip, an outreach task's
+  // own error), while `reasonCodes` are the SERVER's per-id refusal codes (the 409
+  // concurrency loss vs the 422 forbidden transition). The codes used to arrive as
+  // English prose and were painted verbatim, so a Czech, German or French board read
+  // its hottest refusals in English; the bar now resolves them through
+  // errors.<CODE> in the reader's language.
+  const [bulkResult, setBulkResult] = useState<{
+    ok: number;
+    failed: number;
+    verb: "moved" | "accepted" | "rejected" | "invited" | "drafted";
+    reason?: string | null;
+    reasonCodes?: string[];
+    /** The permission a FORBIDDEN_CAPABILITY refusal wanted (wave 18a ships it beside
+     *  the code). Data for the bar's localized sentence - one per whole-request
+     *  refusal, never per-id: a capability answer is about the seat, not the row. */
+    refusalCapability?: string | null;
+    /** The TASK RUNNER's own stored diagnostic for a failed background run. English
+     *  prose with no code to resolve, so it is never the sentence the recruiter reads
+     *  — the bar carries it as details (a `title`) beside the localized line. */
+    diagnostic?: string | null;
+  } | null>(null);
   // Bulk outreach runs as a BACKGROUND task (N letters = N LLM calls), so unlike the
   // synchronous move/decide it can't resolve inline — we track the task id and apply
   // the failures-stay-selected grammar when it finishes. lastOutreachApplied guards
@@ -163,6 +182,20 @@ export function usePipelineBulk({
   // operator-gated in lock-step (batch-authz-parity).
   const batchRequestReason = (res: { ok: false; status?: number }): string =>
     res.status === 401 || res.status === 403 ? t("bulkNotPermitted") : t("bulkRequestFailed");
+  // gated-doors-clients-read-the-refusal - the gate answers with a CODE now
+  // (FORBIDDEN_CAPABILITY, carrying the capability it wanted). Prefer it over the
+  // generic "not permitted" line: the code resolves in the reader's language AND
+  // names the permission the operator has to ask for. No code (a transport blip, an
+  // older server) still falls back to the client's own sentence.
+  const batchRequestRefusal = (res: {
+    ok: false;
+    status?: number;
+    code?: string | null;
+    capability?: string | null;
+  }): { reason: string | null; codes: string[]; capability: string | null } =>
+    res.code
+      ? { reason: null, codes: [res.code], capability: res.capability ?? null }
+      : { reason: batchRequestReason(res), codes: [], capability: null };
   const bulkMove = async () => {
     if (!bulkStage || selectedIds.size === 0 || bulkBusy) return;
     setBulkBusy(true);
@@ -172,10 +205,13 @@ export function usePipelineBulk({
     // A whole-request refusal reason (operator gate / transport), distinct from the
     // per-id server reasons — it overrides the per-id line when the whole call fell.
     let requestReason: string | null = null;
-    // Distinct server reasons across the refused entries (a batch can mix a 409
-    // concurrency loss with a 422 forbidden transition) — deduped so the status
-    // line names WHY, not just how many.
-    const reasons = new Set<string>();
+    // ...and its coded half, when the door named one (the capability gate does).
+    let requestCodes: string[] = [];
+    let requestCapability: string | null = null;
+    // Distinct server refusal CODES across the refused entries (a batch can mix a
+    // 409 concurrency loss with a 422 forbidden transition) — deduped so the status
+    // line names WHY, not just how many, and localized where it is rendered.
+    const reasonCodes = new Set<string>();
     // Build the batch: skip vanished entries; count an already-at-target card as
     // moved without a round trip (the server would no-op it anyway).
     const items: PipelineBatchItem[] = [];
@@ -195,14 +231,17 @@ export function usePipelineBulk({
           if (r.ok) moved += 1;
           else {
             failures.add(r.id);
-            if (r.reason) reasons.add(r.reason);
+            if (r.code) reasonCodes.add(r.code);
           }
         }
       } else {
         // Whole-request failure (operator gate refusal or transport blip) — every
         // attempted item stays selected for retry, with an honest refusal reason.
         for (const it of items) failures.add(it.id);
-        requestReason = batchRequestReason(res);
+        const refusal = batchRequestRefusal(res);
+        requestReason = refusal.reason;
+        requestCodes = refusal.codes;
+        requestCapability = refusal.capability;
       }
     }
     setSelectedIds(failures);
@@ -210,7 +249,11 @@ export function usePipelineBulk({
       ok: moved,
       failed: failures.size,
       verb: "moved",
-      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+      // A whole-request refusal OVERRIDES the per-id codes: when the call itself
+      // fell, no per-id verdict was ever reached.
+      reason: requestReason,
+      reasonCodes: requestCodes.length ? requestCodes : requestReason ? [] : [...reasonCodes],
+      refusalCapability: requestCapability,
     });
     setBulkBusy(false);
     await load();
@@ -240,10 +283,12 @@ export function usePipelineBulk({
     dispatchBulkConfirm({ type: "fired" });
     let ok = 0;
     const failed = new Set<string>();
-    // Same as bulkMove: surface the server's distinct reasons for refused decides
-    // (e.g. a 409 stage change that lost the CAS in the gap) rather than a count.
-    const reasons = new Set<string>();
+    // Same as bulkMove: surface the server's distinct refusal codes for refused
+    // decides (e.g. a 409 stage change that lost the CAS in the gap), not a count.
+    const reasonCodes = new Set<string>();
     let requestReason: string | null = null;
+    let requestCodes: string[] = [];
+    let requestCapability: string | null = null;
     const items: PipelineBatchItem[] = awaiting.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
     const res = await postPipelineBatch(items);
     if (res.ok) {
@@ -251,14 +296,17 @@ export function usePipelineBulk({
         if (r.ok) ok += 1;
         else {
           failed.add(r.id);
-          if (r.reason) reasons.add(r.reason);
+          if (r.code) reasonCodes.add(r.code);
         }
       }
     } else {
       // Whole-request failure (operator gate refusal or transport blip) — every
       // attempted decision stays selected for retry, with an honest refusal reason.
       for (const e of awaiting) failed.add(e.id);
-      requestReason = batchRequestReason(res);
+      const refusal = batchRequestRefusal(res);
+      requestReason = refusal.reason;
+      requestCodes = refusal.codes;
+      requestCapability = refusal.capability;
     }
     // Successes deselect; failures + any selected non-awaiting entries stay selected.
     const untouched = [...selectedIds].filter((id) => !awaiting.some((e) => e.id === id));
@@ -267,7 +315,9 @@ export function usePipelineBulk({
       ok,
       failed: failed.size,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+      reason: requestReason,
+      reasonCodes: requestCodes.length ? requestCodes : requestReason ? [] : [...reasonCodes],
+      refusalCapability: requestCapability,
     });
     setBulkBusy(false);
     await load();
@@ -284,24 +334,69 @@ export function usePipelineBulk({
     dispatchBulkConfirm({ type: "fired" });
     let ok = 0;
     const failed = new Set<string>();
+    // gated-doors-clients-read-the-refusal - this door is capability-gated too, and
+    // `if (r.ok)` alone made a viewer's refusal render as "0 invited, N failed" with
+    // no reason at all. The whole-request refusal is read exactly the way the batch
+    // one is: its CODE, plus the capability it named.
+    let requestReason: string | null = null;
+    let requestCodes: string[] = [];
+    let requestCapability: string | null = null;
+    // Distinct PER-ITEM refusal codes, deduped — the same channel bulkMove/bulkDecide
+    // use for the batch route's per-id verdicts.
+    const itemCodes = new Set<string>();
     try {
       const r = await fetch("/api/schedule/invite/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entryIds: selectedActive.map((e) => e.id) }),
       });
-      const d = (await r.json().catch(() => null)) as { results?: { entryId: string; ok: boolean }[] } | null;
+      const d = (await r.json().catch(() => null)) as
+        | { results?: { entryId: string; ok: boolean; code?: string }[]; code?: string; capability?: string }
+        | null;
       if (r.ok && d?.results) {
-        for (const res of d.results) (res.ok ? (ok += 1) : failed.add(res.entryId));
+        for (const res of d.results) {
+          if (res.ok) {
+            ok += 1;
+            continue;
+          }
+          failed.add(res.entryId);
+          // gated-doors-clients-read-the-refusal — the per-item branch used to read
+          // NOTHING but `ok`, so a cohort where half the rows were refused rendered
+          // "3 invited · 4 couldn't be invited" with no reason at all: not the cap,
+          // not "no longer active", not a mint failure. A per-item CODE is read the
+          // same way the batch route's is and resolves through the bar's existing
+          // errors.<CODE> fold, in the reader's language.
+          if (res.code) itemCodes.add(res.code);
+        }
       } else {
         for (const e of selectedActive) failed.add(e.id);
+        const refusal = batchRequestRefusal({ ok: false, status: r.status, code: d?.code ?? null, capability: d?.capability ?? null });
+        requestReason = refusal.reason;
+        requestCodes = refusal.codes;
+        requestCapability = refusal.capability;
       }
     } catch {
+      // A transport blip has no verdict to read - the cohort stays selected and the
+      // client's own sentence is the honest answer.
       for (const e of selectedActive) failed.add(e.id);
+      requestReason = t("bulkRequestFailed");
     }
     const untouched = [...selectedIds].filter((id) => !selectedActive.some((e) => e.id === id));
     setSelectedIds(new Set([...failed, ...untouched]));
-    setBulkResult({ ok, failed: failed.size, verb: "invited" });
+    setBulkResult({
+      ok,
+      failed: failed.size,
+      verb: "invited",
+      // A whole-request refusal OVERRIDES the per-item verdicts (no per-item verdict
+      // was ever reached). Otherwise: the server's per-item codes, which the bulk
+      // invite route now mints for every refused row (SCHEDULE_BULK_* — /perfect wave
+      // 40, lib-scheduling; it used to answer English prose like "not active", which is
+      // NOT code-resolvable and must never be painted onto a localized board). The
+      // honest localized line below stays as the floor for a server that sends none.
+      reason: requestReason ?? (failed.size > 0 && itemCodes.size === 0 ? t("bulkInviteItemsRefused") : null),
+      reasonCodes: requestCodes.length ? requestCodes : requestReason ? [] : [...itemCodes],
+      refusalCapability: requestCapability,
+    });
     setBulkBusy(false);
     await load();
   };
@@ -341,7 +436,18 @@ export function usePipelineBulk({
     if (outreachTask.status === "failed" || outreachTask.status === "interrupted" || outreachTask.status === "canceled") {
       if (lastOutreachApplied.current === outreachTaskId) return;
       lastOutreachApplied.current = outreachTaskId;
-      setBulkResult({ ok: 0, failed: selectedIds.size, verb: "drafted", reason: outreachTask.error });
+      // The runner's `error` is its own ENGLISH diagnostic (useTaskResult passes the
+      // polled record's string through unchanged — there is no code to resolve), and
+      // painting it here put the queue's English onto every localized board. The line
+      // is localized now; the diagnostic rides as details for whoever is debugging.
+      // The runner gaining a CODE is the tasks context's follow-up.
+      setBulkResult({
+        ok: 0,
+        failed: selectedIds.size,
+        verb: "drafted",
+        reason: t("bulkTaskIncomplete"),
+        diagnostic: outreachTask.error,
+      });
       setOutreachTaskId(null);
       return;
     }
@@ -358,7 +464,9 @@ export function usePipelineBulk({
     setBulkResult({ ok: res?.ok ?? 0, failed: failed.size, verb: "drafted", reason: null });
     setOutreachTaskId(null);
     void load();
-  }, [outreachTaskId, outreachTask.status, outreachTask.full, outreachTask.error, selectedIds, load]);
+    // `t` joins the deps for the localized task-incomplete line; it is a stable
+    // next-intl binding per namespace/locale, so it cannot re-fire the completion.
+  }, [outreachTaskId, outreachTask.status, outreachTask.full, outreachTask.error, selectedIds, load, t]);
 
   return {
     selectMode,

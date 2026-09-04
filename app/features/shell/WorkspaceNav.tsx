@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
+import { callerCapabilities } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
@@ -55,6 +56,12 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
       console.error("[WorkspaceNav] attention counts unavailable", error);
     }
   }
+  // Same capability gate as the SPA shell (navCapabilities.ts), resolved
+  // server-side here — this sidebar has no client hook to hang a fetch on. A
+  // non-operator (the anonymous reader of a shared /jds/<slug> link, where this
+  // nav also renders) holds nothing, so every settings door shows locked rather
+  // than as a live link into a 403.
+  const capabilities = operator ? await callerCapabilities() : [];
   const t = await getTranslations("nav");
   return (
     <>
@@ -77,6 +84,7 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
         groups={NAV_GROUPS}
         navActive={active}
         attention={attention}
+        capabilities={capabilities}
         // A detail page carries no live tab query — compose the badge-slice hrefs off an
         // empty search, exactly as the flat renderer did.
         search=""

@@ -21,21 +21,25 @@ import json
 import sys
 from pathlib import Path
 
-from .archetype import ARCHETYPES, detect_archetype
+from . import registry
+from ._cli import configure_stdio, emit_error, invalid_input
+from .archetype import ARCHETYPES
 from .profile import CandidateProfileV2, completeness_gaps, normalize_profile
 
 # --- Honest error taxonomy (mirrors automation_cli.py / devcase_cli.py) ------
 #   400 / invalid_input — a malformed intake draft (pydantic ValidationError) or
 #                         bad JSON (json.JSONDecodeError); user-correctable
 #   500 / engine_error  — an unexpected fault (retry/escalate, don't edit input)
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
+# The WORDS are `_cli.ERROR_CODES`, imported rather than re-spelled: a local literal
+# is a divergence waiting to happen (a lone "notfound" resolves to no errors.<CODE>
+# catalog key), and the ratchet in tests/test_cli_error_envelope.py shrank by this file.
 
 
 def main(argv: list[str] | None = None) -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
+    # The guarded scaffold, not the open-coded pair: the old form tested only
+    # sys.stdout and then called sys.stderr.reconfigure unconditionally, so a harness
+    # (or a test) capturing one stream died with an AttributeError before line one.
+    configure_stdio()
 
     parser = argparse.ArgumentParser(description="Route + score a candidate intake draft.")
     parser.add_argument("--input-json", type=Path, help="Input JSON file. Reads stdin if omitted.")
@@ -51,7 +55,10 @@ def main(argv: list[str] | None = None) -> int:
         declared = signals.get("selfDeclared")
         self_declared = declared if declared in ARCHETYPES else None
 
-        archetype, confidence, reasons = detect_archetype(
+        # detect_detailed, not detect_archetype: the 4th element is the LOCALIZABLE
+        # twin of `reasons` ({kind, params} codes the catalogs translate). The English
+        # sentences still ship beside it — same additive shape as missingGaps/missing.
+        archetype, confidence, reasons, reason_codes = registry.detect_detailed(
             self_declared=self_declared,
             years_relevant_experience=signals.get("yearsRelevantExperience", profile.years_experience),
             is_enrolled=signals.get("isEnrolled"),
@@ -72,12 +79,11 @@ def main(argv: list[str] | None = None) -> int:
         # user-correctable, so they map to 400 invalid_input — the editor can
         # surface a field-level hint instead of a scary 500. Exit 2 matches
         # jobfit/cli.py and python-runner's parseStderrError fallback.
-        print(json.dumps({"error": str(exc), "status": 400, "code": ERR_INVALID_INPUT}, ensure_ascii=False), file=sys.stderr)
+        emit_error(invalid_input(str(exc)))
         return 2
     except Exception as exc:
         # Genuine engine failure — the caller should retry/escalate, not edit input.
-        print(json.dumps({"error": str(exc), "status": 500, "code": ERR_ENGINE}, ensure_ascii=False), file=sys.stderr)
-        return 1
+        return emit_error(exc)
 
     print(
         json.dumps(
@@ -86,6 +92,12 @@ def main(argv: list[str] | None = None) -> int:
                 "archetype": archetype,
                 "confidence": confidence,
                 "reasons": reasons,
+                # Machine-readable twin of `reasons`, same order: each routing reason
+                # as {kind, params}. ADDITIVE — `reasons` (rendered English) stays for
+                # back-compat; the panel renders the codes through the four catalogs
+                # and falls back to the string at the same index for a result built
+                # before this field existed.
+                "reasonCodes": reason_codes,
                 "completeness": score,
                 "missing": missing,
                 # Machine-readable twin of `missing`, same biggest-gap-first order:

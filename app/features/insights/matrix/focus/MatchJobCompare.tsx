@@ -53,9 +53,9 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
         <table className="w-full min-w-[40rem] border-collapse text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("roleHeader")}</th>
+              <th scope="col" className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("roleHeader")}</th>
               {matches.map((m) => (
-                <th key={m.jobId} className="min-w-[140px] p-2 text-left align-bottom">
+                <th key={m.jobId} scope="col" className="min-w-[140px] p-2 text-left align-bottom">
                   <p className="font-semibold text-ink">{m.title}</p>
                   <p className="text-meta text-steel">
                     {t("roleMeta", { company: m.company ?? "—", family: m.roleFamily ? enumLabel("family", m.roleFamily) : "—", seniority: m.seniority ?? "—" })}

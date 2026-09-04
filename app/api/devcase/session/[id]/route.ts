@@ -3,6 +3,12 @@ import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, g
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { rateLimit } from "@/app/_lib/rate-limit";
+// The flush byte budget lives in a sibling module: Next's generated route types
+// reject any non-handler `export const` here (backlog item 57).
+import { chargeFlushBytes } from "../session-limits";
+import { readTextWithLimit } from "@/app/_lib/request-body";
 
 // Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
 // fires every ~8s per active candidate, and the token→posting→case chain it used
@@ -30,6 +36,17 @@ function midFlightUpdateForToken(token: string): { afterMinutes: number; update:
 
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  // OPERATOR-ONLY. This route lives under the PUBLIC `/api/devcase/session` prefix
+  // (its three siblings are candidate doors, each proving the apply token), but
+  // the read is the recruiter's: it returns the candidate's whole transcript and
+  // file tree. The workspace comparison below is a TENANT check, not an auth
+  // check - `currentWorkspace()` resolves to the default workspace for an
+  // anonymous caller - and session ids are Math.random ids, never a boundary.
+  // Without this gate an anonymous caller on a default-workspace deployment
+  // could enumerate ids and read candidate work. Open dev mode is unaffected
+  // (the gate is a no-op there), which is what the ownership test relies on.
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const { id } = await params;
     const session = getDevSession(id);
@@ -69,6 +86,10 @@ const KINDS = new Set(["open", "edit", "decision_log", "submit", "paste"]);
 const MAX_EVENTS = 500; // per flush
 const MAX_FILES = 50;
 const MAX_FILE_BYTES = 256 * 1024;
+/** Hard cap on this public door's request body, enforced on the BYTES READ rather
+ *  than on the caller's content-length: MAX_FILES x MAX_FILE_BYTES = 12.8 MB of file
+ *  contents, plus room for the JSON envelope and its escaping. */
+const MAX_FLUSH_BODY_BYTES = 16 * 1024 * 1024;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -79,14 +100,58 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
     if (session.status !== "active") return NextResponse.json({ error: "session already submitted" }, { status: 409 });
 
-    const body = (await request.json().catch(() => ({}))) as { events?: unknown; files?: unknown; token?: unknown };
+    // Read the body as TEXT first: its byte length is what the per-token daily budget
+    // charges, and JSON.parse of the same string costs nothing extra.
+    //
+    // UNDER A HARD CAP, aborting the stream rather than buffering: this is the read
+    // the byte budget below was written for, and until it had one the budget could
+    // only charge for a flush that had ALREADY been buffered whole. An unauthenticated
+    // caller holding an apply link could hand this route a gigabyte and the process
+    // paid for it before a single limiter ran. 16 MB is the route's own admitted
+    // maximum (MAX_FILES 50 x MAX_FILE_BYTES 256 KB = 12.8 MB of file contents) plus
+    // room for the JSON envelope and its escaping, so no legitimate flush meets it.
+    const raw = await readTextWithLimit(request, MAX_FLUSH_BODY_BYTES);
+    if (raw === null) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_FLUSH_BODY_BYTES });
+    let parsed: unknown = {};
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch {
+      // A malformed body is treated as an empty one, exactly as the previous
+      // `request.json().catch(() => ({}))` did — the coercion below drops it anyway,
+      // and a candidate mid-assessment must not see a parse error for a flaky flush.
+      parsed = {};
+    }
+    const body = (parsed ?? {}) as { events?: unknown; files?: unknown; token?: unknown };
     // A session id alone is not authority to append to this session's observed process log
     // or to OVERWRITE its file tree — that second one destroys another candidate's work.
     // The caller must present the apply token that minted the session
     // (devcase-session-auth.ts). 403, deliberately not 404/409: those tell the client the
     // session is dead and to re-mint, which would spin the per-token/day session quota.
-    if (session.token && !sessionTokenMatches(session.token, body.token)) {
+    //
+    // A TOKENLESS session (fixtures/dev seeds; the public mint always carries one) used to
+    // take a `session.token && …` carve-out and walk STRAIGHT PAST this gate and past both
+    // budgets below — a session id was full authority over it. The submit sibling already
+    // refused those outright; the flush now agrees, so there is one rule on all three
+    // mutating doors and no row shape that is exempt from the throttle.
+    if (!session.token || !sessionTokenMatches(session.token, body.token)) {
       return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
+    }
+
+    // THROTTLE (rate-limit-contract.test.ts) — the same two-window shape the chat sibling
+    // carries, and for the same reason: this is a PUBLIC route that appends rows and
+    // OVERWRITES a file tree, admitting 50 x 256 KB = 12.8 MB per call, and it carried no
+    // bound at all. Budgets and their arithmetic: ../session-limits.ts. Both windows run
+    // AFTER the 404/409/403 refusals (a rejected call never consumes budget) and BEFORE
+    // the first write.
+    if (!rateLimit(`devcase-flush:${id}`, { limit: 200, windowMs: 10 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+    if (!rateLimit(`devcase-flush-token:${session.token}`, { limit: 60_000, windowMs: 24 * 60 * 60_000 })) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
+    // …and the bound the two counts cannot express: BYTES per apply token per day.
+    if (!chargeFlushBytes(session.token, raw.length)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     let seq = 0;

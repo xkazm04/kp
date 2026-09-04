@@ -24,14 +24,29 @@ import { isLocale } from "@/i18n/locales";
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
 // by pipeline/jobfit/tests/test_prompt_version_sync.py (CI fails on divergence).
 // Exported so the cache-first test can reconstruct the exact key runReasoning uses.
-export const REASONING_PROMPT_VERSION = "match-reasoning-v4";
+//
+// v5 (/perfect wave 26): the prompt now caps the candidate-authored prose blocks
+// (summary / highlights / aspirations / links) at explicit budgets and the answer is
+// pinned by expected_keys, so a v4 slot was produced by a materially different prompt.
+export const REASONING_PROMPT_VERSION = "match-reasoning-v5";
 const CACHE_TTL_HOURS = 168;
 
 export class ReasoningError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /**
+   * The runner's stable machine code — "not_found" / "invalid_input" /
+   * "engine_error", the same vocabulary `parseStderrError` (python-runner.ts)
+   * already produces. It used to be dropped here, so /api/match/reasoning
+   * re-derived a code from the HTTP status and answered "the candidate or role
+   * behind it is gone" for a request that named no candidate at all. Two
+   * different remedies — fix the request vs refresh the grid — wore one
+   * sentence. Every throw site below stamps one; see reasoning-error-code.test.ts.
+   */
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -54,7 +69,7 @@ export async function runReasoning(
   signal?: AbortSignal,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<Record<string, unknown>> {
-  if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
+  if (!body.jobId) throw new ReasoningError("jobId is required.", 400, "invalid_input");
   // The engine narrative supports EVERY shipped locale: pipeline/jobfit/i18n.py
   // LANG_NAMES carries en/cs/de/fr and `language_directive` names German and
   // French, so `--lang de|fr` reaches the prompt as its own language. This used to
@@ -80,7 +95,11 @@ export async function runReasoning(
   // paid zero Python-spawn and zero corpus/candidate serialization. Only a MISS
   // creates a workdir, serializes the inputs + corpus, and spawns the CLI.
   const input = resolveMatchInput(body, workspaceId);
-  if ("error" in input) throw new ReasoningError(input.error, input.status);
+  // match-input resolves against the DB, so its 404 is a genuinely absent profile/
+  // analysis and its 400 is a malformed pair — the same two codes the Python runner
+  // emits, so the route has ONE vocabulary to forward whichever side refused.
+  if ("error" in input)
+    throw new ReasoningError(input.error, input.status, input.status === 404 ? "not_found" : "invalid_input");
   // Same live-corpus hand-off as /api/match: a recruiter-ingested --job-id must
   // resolve here instead of raising "job not found" against the static seed. Read
   // now (a DB read, NOT a serialization) because its fingerprint is a cache axis.
@@ -101,6 +120,12 @@ export async function runReasoning(
     jobPayload: getJob(body.jobId),
     lang: requestedLang,
     corpusFingerprint: computeCorpusFingerprint(corpusJobs.map((j) => j.id)),
+    // Sixth axis: the TENANT, named rather than inferred. The comment above used to
+    // argue this was implied — the candidate content hash and the corpus fingerprint
+    // "differ per tenant anyway" — but two workspaces seeded from the same demo
+    // corpus collapse both. One-time invalidation of the existing cache is accepted;
+    // see reasoning-cache-key.ts.
+    workspaceId,
   });
   const cached = lookupPromptCache(hash, REASONING_PROMPT_VERSION);
   if (cached) return { ...(cached as object), cached: true, narrativeLang: engineLang };
@@ -139,7 +164,7 @@ export async function runReasoning(
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) {
       const err = parseStderrError(stderr, exitCode);
-      throw new ReasoningError(err.message, err.status);
+      throw new ReasoningError(err.message, err.status, err.code);
     }
     // parsePythonJson, not raw JSON.parse (idea-37493de3): reasoning_cli invokes
     // an LLM, and the interpreter can print shutdown chatter after the JSON line

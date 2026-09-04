@@ -27,10 +27,16 @@ export const ARCHETYPE_LABEL: Record<string, string> = Object.fromEntries(
   ARCHETYPES.map((a) => [a.id, a.label])
 );
 
-/** Short badge labels (compact lists, e.g. recruiter candidate cards). */
-export const ARCHETYPE_BADGE: Record<string, string> = Object.fromEntries(
-  ARCHETYPES.map((a) => [a.id, a.badge])
-);
+// There is deliberately NO exported ARCHETYPE_BADGE map. The short badge form is
+// display copy, and a `Record<id, string>` of registry English is a raw-English
+// export that reads like a localized one: two recruiter cards rendered
+// `ARCHETYPE_BADGE[c.archetype] ?? c.archetype` and printed "Experienced" into a
+// cs/de/fr workspace, while the panels beside them used the localized path. Render
+// a badge with `useEnumLabel()("archetype", archetypeDisplayKey(id))` — four
+// locales, and the `?? id` fallback (which leaked a bare slug for an unrecognized
+// archetype) becomes the honest "Unrouted" label. `npm run i18n:check` requires an
+// `enums.archetype.<id>` entry for every archetype in the registry, so the badge
+// column below stays the vocabulary while the catalogs hold the words.
 
 /** Early-career archetypes that are NEVER auto-rejected — the fairness
  *  guarantee DecisionRulesModal advertises. Mirror of the pipeline's

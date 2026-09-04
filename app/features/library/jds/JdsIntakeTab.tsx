@@ -7,11 +7,11 @@ import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { BTN_GHOST } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, PANEL } from "@/app/_components/ui/recipes";
 import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { switchTab, duplicateToBuilder, type AuthorNavState } from "./jdsLedgerNav";
-import { readIntentPrompt } from "./jdsLedgerArtifacts";
+import { readBuildIntent } from "./jdsLedgerArtifacts";
 import type { GeneratePrefill } from "./jdsLibrary";
 import { DUPLICATE_PARAM, opensOnGenerate } from "./jdsIntakeTabEntry";
 
@@ -61,20 +61,37 @@ export function JdsIntakeTab() {
   // ORIGINAL prompt rather than from the rendered markdown.
   const loadDuplicate = useCallback(async (slug: string) => {
     let need = "";
-    let meta: { title?: string; company?: string; seniority?: string; roleFamily?: string } = {};
+    let title = "";
+    let intent: ReturnType<typeof readBuildIntent> = null;
     try {
       const src = (await fetch(`/api/jds/${encodeURIComponent(slug)}?intent=1`).then((r) => r.json())) as
-        | { title?: string; body?: string; preview?: string; company?: string; seniority?: string; roleFamily?: string; build_input_json?: string | null }
+        | { title?: string; body?: string; build_input_json?: string | null }
         | null;
-      const prompt = readIntentPrompt(src?.build_input_json);
-      need = prompt || (typeof src?.body === "string" ? src.body : "");
-      meta = { title: src?.title, company: src?.company, seniority: src?.seniority, roleFamily: src?.roleFamily };
+      intent = readBuildIntent(src?.build_input_json);
+      title = typeof src?.title === "string" ? src.title : "";
+      need = intent?.needText || (typeof src?.body === "string" ? src.body : "");
     } catch {
       // A failed read is not a failed Duplicate: the builder opens empty-but-open
       // rather than swallowing the click, and the recruiter can type.
       need = "";
     }
-    setPrefill({ title: meta.title ?? "", company: meta.company, seniority: meta.seniority, roleFamily: meta.roleFamily, need });
+    // Everything but the title comes from the stored INTENT, which is what the
+    // build actually used. The ledger row (which carries company/seniority/family
+    // from the linked job) is not in scope here — that is the cost of the split —
+    // but for a Generated JD the intent holds the same fields plus the build
+    // CHOICES no column ever showed: template, output language, repo. Dropping
+    // those is what made a copy of a Czech JD rendered through the company
+    // template come back English and AI-formatted.
+    setPrefill({
+      title,
+      company: intent?.company || undefined,
+      seniority: intent?.seniority || undefined,
+      roleFamily: intent?.roleFamily || undefined,
+      need,
+      templateId: intent?.templateId || undefined,
+      lang: intent?.lang || undefined,
+      repoUrl: intent?.repoUrl || undefined,
+    });
     setNav((s) => duplicateToBuilder(s));
   }, []);
 
@@ -92,11 +109,14 @@ export function JdsIntakeTab() {
     url.searchParams.delete(DUPLICATE_PARAM);
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Real deps, no suppression: `loadDuplicate` is a stable useCallback and the
+    // strip above makes a re-run a no-op — the next render's `search` no longer
+    // carries the param, so the guard returns before anything is fetched. That is
+    // what makes the one-shot honest rather than asserted by a disabled lint rule.
+  }, [search, loadDuplicate]);
 
   return (
-    <section className="stagger-children rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+    <section className={`${PANEL} stagger-children p-5`}>
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
         <div className="min-w-0">
           <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>

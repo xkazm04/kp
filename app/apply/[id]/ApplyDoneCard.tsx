@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import type { ApplyOutcome } from "./apply-chat-types";
 
 /** The outcome card that closes the conversation — the last bubble in the
@@ -30,7 +31,7 @@ export function ApplyDoneCard({ done, onRestart }: { done: ApplyOutcome; onResta
       {done.result === "accepted" && done.statusToken ? (
         <a
           href={`/status/${done.statusToken}`}
-          className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+          className={`${BTN_SECONDARY} mt-3 gap-1.5 bg-white px-3 py-1.5 text-base font-semibold`}
         >
           {t("trackStatus")}
         </a>
@@ -46,7 +47,7 @@ export function ApplyDoneCard({ done, onRestart }: { done: ApplyOutcome; onResta
           <button
             type="button"
             onClick={onRestart}
-            className="focus-ring rounded-md bg-ink px-4 py-2 text-base font-semibold text-white hover:bg-steel"
+            className={`${BTN_PRIMARY} px-4 py-2 text-base font-semibold`}
           >
             {t("startOver")}
           </button>

@@ -3,9 +3,21 @@ import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
 import { spawnPython } from "@/app/_lib/python-runner";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { jsonRefusal } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractConfigKeys, scrubKeyMaterial, shapeVerdict } from "./verdict.ts";
 
 export const maxDuration = 90;
+
+// THROTTLE (rate-limit-contract.test.ts). Every click here spawns a Python child
+// that makes a REAL, billable completion through the pinned provider — the same
+// spend shape /api/profile/draft carries a budget for — and this door had none.
+// It is operator-gated, but open mode makes that gate a documented no-op for the
+// whole API, and on a password-gated deploy any seat satisfies it. 30/10min per
+// IP: the Models table is one click per row and holds a couple of dozen rows, so
+// an operator proving every pin in one sitting stays under it while a scripted
+// loop meets it at once.
+const CANARY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
 // Models admin "Test" button: one canary completion through the REAL
 // resolution path (KP_LLM_CONFIG → registry → adapter), so a saved pin is
@@ -19,6 +31,11 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as { useCase?: unknown } | null;
   if (!body || !isLlmUseCase(body.useCase) || body.useCase === "*") {
     return NextResponse.json({ error: "Unknown useCase.", useCases: LLM_USE_CASES }, { status: 400 });
+  }
+  // After the operator gate AND after the unknown-useCase 400: a malformed call
+  // costs nothing and must be refused honestly rather than counted as traffic.
+  if (!rateLimit(`llm-canary:${clientIpFrom(request.headers)}`, CANARY_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   // Build the config env once so we can also mine the decrypted key bytes out of
   // it for the response scrub backstop (below).

@@ -180,7 +180,10 @@ check('a write with no contents is refused rather than writing "undefined"', () 
 });
 
 check('deleting a test is refused here, before the constitution check ever sees it', () => {
-  for (const p of ['app/_lib/x.test.ts', 'pipeline/jobfit/tests/test_x.py', 'scripts/release/__tests__/x.mjs']) {
+  // `__tests__/` outside a protected prefix: the gate suites under scripts/ are
+  // now refused by PROTECTED_PREFIXES one step earlier, so they cannot exercise
+  // the delete rule itself.
+  for (const p of ['app/_lib/x.test.ts', 'pipeline/jobfit/tests/test_x.py', 'packages/voice-tts/__tests__/x.mjs']) {
     assert.match(problemsOf(plan({ files: [{ path: p, action: 'delete' }] })), /deleting a test/, p);
   }
 });
@@ -318,6 +321,72 @@ check('every gate file in this tree is inside a protected prefix', () => {
   for (const rel of mustBeProtected) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} moved — update this list AND PROTECTED_PREFIXES`);
     assert.ok(pathProblem(rel), `${rel} exists but a dispatched agent could write it`);
+  }
+});
+
+// The list above is hand-maintained, which means it is only ever as complete as
+// the last person who remembered it. This one is DERIVED: every script the gates
+// actually run — resolved from the npm scripts that .github/workflows invoke,
+// plus the script paths the workflows run directly — has to be refused. Add a
+// gate to CI and this fails until its script is inside a protected prefix, which
+// is the only version of this rule that stays true without anyone maintaining it.
+
+/** The npm script names the workflows invoke, expanded through `npm run` chains. */
+export function gateScriptPaths(root = REPO_ROOT) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const dir = path.join(root, '.github/workflows');
+  const names = new Set();
+  const paths = new Set();
+  // The trailing guard matters: without it `baseline.json` matches as `baseline.js`.
+  const FILE_RE = /(?:^|[\s"'])(scripts\/[\w./-]+\.(?:mjs|js|py))(?![\w.])/g;
+  for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    const text = fs.readFileSync(path.join(dir, file), 'utf8');
+    for (const m of text.matchAll(/npm run ([a-z0-9:_-]+)/g)) names.add(m[1]);
+    for (const m of text.matchAll(FILE_RE)) paths.add(m[1]);
+  }
+  const seen = new Set();
+  const walk = (name) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const cmd = pkg.scripts?.[name];
+    if (!cmd) return;
+    for (const m of cmd.matchAll(/npm run ([a-z0-9:_-]+)/g)) walk(m[1]);
+    for (const m of cmd.matchAll(FILE_RE)) paths.add(m[1]);
+  };
+  for (const name of names) walk(name);
+  // A glob in a script body ("scripts/app-master-bench/**/*.test.mjs") names a
+  // directory, not a file; the prefix check below covers it through its dir.
+  return [...paths].filter((p) => !p.includes('*')).sort();
+}
+
+check('every script a CI gate runs is refused — the set is derived, not remembered', () => {
+  const gateFiles = gateScriptPaths();
+  assert.ok(gateFiles.length >= 30, `expected to derive the gate scripts, found ${gateFiles.length}`);
+  for (const rel of gateFiles) {
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} is named by a gate but does not exist`);
+    assert.ok(
+      pathProblem(rel),
+      `${rel} runs as a CI gate but a dispatched agent could write it — add its prefix to PROTECTED_PREFIXES`,
+    );
+  }
+});
+
+// The numbers a gate compares against are the other half of it: a ceiling an
+// agent can raise is a gate it can switch off without touching a script.
+check('the ceiling and manifest files the gates read are refused too', () => {
+  const ceilings = [
+    'package.json',        // every gate command is a line in it
+    'ci-budget.json',      // the pipeline wall-clock ceilings
+    'perf-budget.json',    // the import-graph ceilings
+    'ts-debt.json',        // the suppression ratchet
+    'agent-budget.json',   // what an agent lane may spend
+    '.github/dependabot.yml',
+    'deploy/helm/kp/values.yaml',
+    'deploy/helm/kp/templates/secret.yaml',
+  ];
+  for (const rel of ceilings) {
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} moved — update this list AND PROTECTED_PREFIXES`);
+    assert.ok(pathProblem(rel), `${rel} exists but a dispatched agent could raise its own ceiling in it`);
   }
 });
 

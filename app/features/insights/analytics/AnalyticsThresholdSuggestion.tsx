@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { labelize } from "@/app/_lib/format";
 import type { CalibrationLeakage, ThresholdRecommendation } from "@/app/_lib/calibration";
 
@@ -35,6 +36,13 @@ export function ThresholdSuggestion({
   onApplied: () => void;
 }) {
   const t = useTranslations("analytics.calibration");
+  // The server answers a refusal with a CODE, never with prose the UI may paint
+  // (api-contracts.md 1.1). This panel used to `throw new Error()` on any non-2xx and
+  // print one flat sentence, so "the recommendation changed under you" (409 — reload
+  // and read the new number) and "the write fell over" (500 — the floor may not have
+  // moved) were the same red line. Resolve `errors.<CODE>` in the reader's language;
+  // the generic sentence stays as the fallback for a code the catalog has not met.
+  const errMsg = useErrorMessage();
   // The outcome of an apply is REMEMBERED WITH THE SCOPE IT MOVED.
   //
   // The panel keeps this component mounted across a role-family switch on purpose:
@@ -51,7 +59,7 @@ export function ThresholdSuggestion({
     | { kind: "idle" }
     | { kind: "applying" }
     | { kind: "done"; scope: string; previous: number; next: number }
-    | { kind: "error"; scope: string };
+    | { kind: "error"; scope: string; message: string };
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   // A settled phase from another scope reads as `idle` here — never reset in place,
   // so an apply still in flight keeps the button disabled until its response lands.
@@ -68,12 +76,22 @@ export function ThresholdSuggestion({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ suggestedThreshold: rec.suggestedThreshold, ...(roleFamily ? { roleFamily } : {}) }),
       });
-      if (!r.ok) throw new Error();
-      const body = (await r.json()) as { previousThreshold: number; newThreshold: number };
-      setPhase({ kind: "done", scope, previous: body.previousThreshold, next: body.newThreshold });
+      const body = (await r.json().catch(() => ({}))) as {
+        previousThreshold?: number;
+        newThreshold?: number;
+        code?: string;
+        error?: string;
+      };
+      if (!r.ok) {
+        setPhase({ kind: "error", scope, message: errMsg(body, t("recError")) });
+        return;
+      }
+      setPhase({ kind: "done", scope, previous: body.previousThreshold ?? rec.currentThreshold, next: body.newThreshold ?? rec.suggestedThreshold });
       onApplied();
     } catch {
-      setPhase({ kind: "error", scope });
+      // The fetch itself never reached the server (offline, aborted): there is no code
+      // to resolve, so the panel's own generic sentence is the honest answer.
+      setPhase({ kind: "error", scope, message: t("recError") });
     }
   };
 
@@ -126,7 +144,7 @@ export function ThresholdSuggestion({
           </button>
           {shown.kind === "error" ? (
             <span className="text-sm text-coral" role="alert">
-              {t("recError")}
+              {shown.message}
             </span>
           ) : null}
         </div>

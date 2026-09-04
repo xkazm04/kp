@@ -22,6 +22,7 @@ import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import type { Scorecard, ScorecardRating, ScorecardEntities } from "@/app/_lib/interview-scorecard";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { noteUnmountAction, resolveNoteSave, shouldHydrateNote } from "./pipelineDrawerNote";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 
 export type InterviewOutcome = {
@@ -68,6 +69,12 @@ export function usePipelineCandidateDrawerState({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The task runner's own stored diagnostic for a failed/interrupted run. It is the
+  // runner's ENGLISH prose (a Python traceback tail, a provider message) with no code
+  // to resolve, so it is never the sentence the recruiter reads — it rides the error
+  // line as a `title` for whoever is debugging. See the note at the render-phase
+  // consumption below.
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   // Voice 1st-round screen and self-scheduling both mint a tokenized candidate link.
   // The shared POST/url/copy plumbing lives in useTokenLink; only the endpoint, the
@@ -260,6 +267,7 @@ export function usePipelineCandidateDrawerState({
   const run = async (task: TaskId, candNote: string) => {
     setBusy(task);
     setError(null);
+    setErrorDetail(null);
     setResult(null);
     setPendingId(null);
     const started = await startTask("automation", {
@@ -415,7 +423,16 @@ export function usePipelineCandidateDrawerState({
     setBusy(null);
     setPendingId(null);
   } else if (pendingId && (actionStatus === "failed" || actionStatus === "canceled" || actionStatus === "interrupted")) {
-    setError(actionError ?? t("taskIncomplete"));
+    // The runner's diagnostic is NOT a client-safe, localizable answer: it has no code
+    // (useTaskResult passes `polled.error` through unchanged) and it is written in
+    // English by the queue. Coalescing it OVER the localized line — `actionError ??
+    // t("taskIncomplete")` — meant a failed run painted the runner's English onto a
+    // Czech, German or French drawer whenever a diagnostic existed, i.e. in the common
+    // case. The localized line is now what renders; the diagnostic is carried as
+    // details (a `title` on the error paragraph). The runner GAINING a code is the
+    // tasks context's follow-up — it is the only place that can mint one.
+    setError(t("taskIncomplete"));
+    setErrorDetail(actionError);
     setBusy(null);
     setPendingId(null);
   } else if (pendingId && resultUnavailable) {
@@ -425,6 +442,7 @@ export function usePipelineCandidateDrawerState({
     // Resolve the busy state and surface the inline error; the action button
     // unlocking again is the retry affordance.
     setError(t("resultLoadFailed"));
+    setErrorDetail(null);
     setBusy(null);
     setPendingId(null);
     setResultLostCount((n) => n + 1);
@@ -488,18 +506,19 @@ export function usePipelineCandidateDrawerState({
         body: JSON.stringify({ action: "set_notes", notes: value }),
       })
         .then((r) => {
-          if (r.ok) {
-            noteSavedRef.current = true;
-            // Clear the dirty flag so the unmount flush only re-POSTs a GENUINELY
-            // unsaved trailing edit — previously it was never reset, so every close
-            // after any edit fired a redundant second save. Only clear it when
-            // nothing newer was typed while this save was in flight (else the newer
-            // keystroke's own debounce / the unmount flush must still persist it).
-            if (latestNoteRef.current === value) noteDirtyRef.current = false;
-            setNoteStatus("saved");
-          } else {
-            setNoteStatus("error");
-          }
+          // The note's bookkeeping is ONE pure decision (pipelineDrawerNote.ts, pinned
+          // by pipelineDrawerNote.test.ts): a success clears the dirty flag ONLY when
+          // nothing newer was typed while the save was in flight, and any landed save
+          // means the board's copy is stale and owes the single close-time refresh.
+          const res = resolveNoteSave({
+            ok: r.ok,
+            savedValue: value,
+            latestValue: latestNoteRef.current,
+            savedThisSession: noteSavedRef.current,
+          });
+          noteSavedRef.current = res.savedThisSession;
+          if (res.clearDirty) noteDirtyRef.current = false;
+          setNoteStatus(res.status);
         })
         .catch(() => setNoteStatus("error"));
     }, 600);
@@ -515,7 +534,7 @@ export function usePipelineCandidateDrawerState({
   // Reading noteDirtyRef here (after its declaration, like the unmount flush) — never in
   // the fetch effect above — keeps the immutability rule satisfied.
   useEffect(() => {
-    if (bundleNotes !== null && !noteDirtyRef.current) setCandNote(bundleNotes);
+    if (shouldHydrateNote(bundleNotes, noteDirtyRef.current)) setCandNote(bundleNotes as string);
   }, [bundleNotes]);
 
   // Flush a pending edit on unmount (drawer close). The debounce effect's
@@ -524,7 +543,8 @@ export function usePipelineCandidateDrawerState({
   // the request survive the unmount/navigation.
   useEffect(() => {
     return () => {
-      if (noteDirtyRef.current) {
+      const owed = noteUnmountAction({ dirty: noteDirtyRef.current, savedThisSession: noteSavedRef.current });
+      if (owed === "flush") {
         // A genuinely-unsaved trailing edit — the debounce timer was cancelled by
         // this unmount. Flush it with keepalive, then refresh the board ONCE the
         // write lands so reopening the candidate hydrates the note, not a stale blank.
@@ -540,7 +560,7 @@ export function usePipelineCandidateDrawerState({
           .catch(() => {
             /* note save is best-effort — the debounced write already ran for all but the last pause */
           });
-      } else if (noteSavedRef.current) {
+      } else if (owed === "refresh") {
         // Nothing left to flush (the debounce already saved and cleared the dirty
         // flag), but a save DID land this session, so the board's entry.notes is
         // stale — do the single deferred board refresh now, on close, instead of on
@@ -553,7 +573,7 @@ export function usePipelineCandidateDrawerState({
 
   return {
     dialogRef,
-    busy, error, result,
+    busy, error, errorDetail, result,
     voiceProvider, setVoiceProvider, voice, sched,
     resolvingIntake, intakeErr, resolveIntake,
     movingStage, moveErr, moveStage,

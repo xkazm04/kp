@@ -169,6 +169,36 @@ ping (`POST /api/ats/test`).
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
 - **An empty URL disables delivery** rather than queuing undeliverable events.
+- **Every field is a partial update, and the document carries a version.** `setAtsConfig`
+  keeps what it is not told about (`webhookUrl` / `events` / `webhookSecret` omitted =
+  keep; `""` or `null` = clear), so a save that only changes the endpoint no longer
+  rewrites the event subscriptions. That was the actual failure: the save was a
+  whole-document write of a snapshot taken when the tab loaded, so two operators editing
+  side by side silently dropped each other's subscriptions — while the inbound ATS panel
+  right next to it already sent partials. On top of that, `ats_config.version` is bumped
+  on every accepted write and rides on the public view; the panel echoes the version it
+  read as `expectedVersion`, and the store re-asserts it inside an IMMEDIATE transaction.
+  A save composed against a config someone else has since replaced is refused —
+  `409 ATS_CONFIG_STALE`, nothing written, the *current* config returned beside the code so
+  the panel can offer "reload what's stored" and let the operator re-apply against it
+  rather than retry the same body one round later. Same doctrine, same shape, as
+  `comms-relay-store.ts` and the decision-config store. Pinned by
+  `app/_lib/ats-config-version.test.ts`.
+- **The config 500 answers a code, never the thrown message.** A better-sqlite3 constraint,
+  the absolute db path, or an at-rest crypto failure naming the key env var used to be
+  forwarded verbatim; it is now `safeJsonError(…, "ATS_CONFIG_SAVE_FAILED")` — the detail
+  goes to the server log, the panel renders the localized message.
+- **Both network doors are throttled per IP.** `POST /api/ats/test` fires a server-side
+  POST at an operator-set URL (20/10min, key `ats-test:<ip>`) and `GET
+  /api/calendar/google/start` mints a state cookie and redirects a browser into Google's
+  consent screen (30/10min, key `gcal-oauth-start:<ip>`). Both sat behind nothing but the
+  operator gate, which open mode (`KP_OPERATOR_PASSWORD` unset) makes a documented no-op
+  for the whole API — so unthrottled, the ping was an amplifier and a reachability oracle
+  aimed at whatever host the config names (the SSRF guard vets the *address*, not the
+  *rate*), and the OAuth start was cookie churn plus unattributed traffic at Google from
+  this deployment's address. Each limiter sits *after* the operator gate (a rejected caller
+  spends no budget) and *before* the expensive work. Pinned in
+  `app/api/rate-limit-contract.test.ts`.
 - **Every team's outcomes mirror through this one endpoint.** `ats_config` and the
   `ats_delivery` ledger are org-level by design (`app/_lib/tenancy.ts`): one deployment-wide
   mirror of every tenant, not one webhook per hiring team. The *record* behind an event is
@@ -197,11 +227,12 @@ ping (`POST /api/ats/test`).
   so treating "no `config` in the answer" as a failure is what keeps a blank endpoint field
   and a "· not set" secret badge from being rendered over a configured deployment. Saying
   so was only half the guard, though: the toast scrolls away and Save stayed live over the
-  blank form. Save is a WHOLE-DOCUMENT write (`webhookUrl` + `events` go up on every
-  submit) and an empty URL is a legitimate "disable delivery", so the server cannot tell a
-  deliberate clear from a form that never loaded — one click would wipe a working endpoint
-  and its subscriptions. Save is now gated on the config having actually been read back,
-  with the reason held on screen beside the button rather than in a toast.
+  blank form. The save is a partial now, but the diff it sends is computed against what
+  the server last confirmed — which a form that never loaded holds as blanks, so every
+  field would read as "the operator cleared it", and an empty URL is a legitimate "disable
+  delivery". Save is gated on the config having actually been read back, with the reason
+  held on screen beside the button rather than in a toast; the same gate is what supplies
+  the `expectedVersion` a save echoes.
 - **A failed outcome announces itself as one.** Every result line on this tab uses
   `role={ok ? "status" : "alert"}` with a failure tone — the convention
   `IntegrationsAtsForm` and `IntegrationsCallbackBanner` already followed and the calendar,
@@ -225,6 +256,11 @@ ping (`POST /api/ats/test`).
   which follows the OS: a Czech operator on an en-US machine read `3/4/2026` inside a Czech
   sentence with no way to tell 3 April from 4 March. They resolve through `useFormatter()`
   now, the same idiom as `ProfileRosterRow` and the billing panels.
+- **The `Send test` gate is a pinned rule, not an expression.** `webhookTestable(savedUrl,
+  url)` (`integrationsWebhookGate.ts`) lives outside the component and is asserted by
+  `integrationsLogic.test.ts`, because a rule of that shape loosens quietly during an
+  unrelated edit — and the loosened version reports the *previous* endpoint's 200 under
+  the address on screen.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for
@@ -241,8 +277,80 @@ ping (`POST /api/ats/test`).
   other PII read boundary; `anonymizeExpiredConsents` is a deferred sweep with no
   production caller, so this read-time gate is the enforcement, not an optimization.
 
+### Receiver contract
+
+What a receiver must implement to accept a delivery from kp, and what it may rely on.
+
+| Header | Value |
+| --- | --- |
+| `X-Kp-Event` | the event id (`candidate.hired`, …, or `ping` for the test delivery) |
+| `X-Kp-Timestamp` | the ISO-8601 instant the delivery was signed — the SAME value the envelope carries in `sentAt` |
+| `X-Kp-Signature` | `sha256=<hex>`, present only when a signing secret is configured |
+
+**Verification, in order** (`verifyWebhookSignature` in `app/_lib/ats-webhook.ts` is the
+reference implementation — port it, or read it as the spec):
+
+1. Reject the delivery unless `X-Kp-Timestamp` parses and sits within **300 seconds**
+   (`SIGNATURE_TOLERANCE_SECONDS`) of your clock, in **either** direction. Symmetric on
+   purpose: a receiver whose clock runs ahead must not reject a correct sender, and "the
+   future" is not a safer direction than "the past". The window covers honest skew plus
+   flight time and stays far under the retry ladder's reach (6 attempts, exponential from
+   one minute), so a legitimate retry re-signs rather than arriving stale.
+2. Compute `HMAC-SHA256(secret, "<X-Kp-Timestamp>.<raw body>")` over the **raw request
+   body bytes**, never a re-serialization, and compare it to `X-Kp-Signature` in constant
+   time.
+
+**Why the timestamp is in the signed input and not merely beside it.** The signature used
+to cover the body alone, which made it valid forever: one captured delivery — a proxy log,
+a misconfigured receiver, a retry history — could be replayed verbatim at any later moment
+and it verified. Binding the instant into the HMAC is what makes the window enforceable;
+an attacker who advances the header to beat the window invalidates the signature.
+
+**Migration.** `signWebhookBody(secret, body)` without a timestamp is still the original
+body-only scheme, and `verifyWebhookSignature` without a `timestamp` option still checks
+it — a receiver written against the old contract keeps working. A verifier that *asks* for
+the timestamped scheme and finds no usable header is REFUSED rather than silently
+downgraded to the replayable one: that downgrade is the attack.
+
+> **Every consumer of `signWebhookBody` sends the timestamp** (grepped 2026-09-03, three
+> senders, all done): `app/_lib/ats-egress.ts` (`deliver`, the ATS webhook — one instant
+> is the envelope's `sentAt`, the header, and the HMAC input), `app/_lib/comms.ts` (the
+> candidate-comms relay; its bounded retry ladder reuses the same instant deliberately —
+> it is the same delivery, and the ladder finishes far inside the window) and
+> `app/api/comms/relay/test/route.ts` (the relay test ping, built exactly like a real
+> delivery so a receiver wired against the ping is wired against production traffic).
+> Pinned by `app/_lib/ats-egress-delivery.test.ts`, which asserts the header rides, the
+> envelope agrees with it, the signature verifies only under the timestamped scheme, and
+> a replay past the window does not.
+
 The envelope, signing and delivery/retry semantics live in
 [../comms/outbound-export.md](../comms/outbound-export.md).
+
+## Personas bridge
+
+The pairing card (`IntegrationsPersonasPanel` + `integrationsPersonasLogic`) is a
+two-phase flow: `POST /api/agents/pair {phase:"start"}` mints a nonce, then a claim poll
+waits for a human to approve in the Personas desktop app (a 300s in-memory TTL on that
+side).
+
+- **The claim poll backs off and stops when nobody is looking.** It was a fixed 2s tick
+  for the full five minutes — 150 identical requests to watch a human decide, on a
+  settings tab the operator has usually walked away from. The gap now grows 2s → ×1.5 →
+  capped at 15s (`CLAIM_POLL_MS` / `CLAIM_POLL_FACTOR` / `CLAIM_POLL_MAX_MS`), so a quick
+  approval is still noticed in seconds while a full TTL costs ~25 rounds; and the poll
+  parks entirely while `document.visibilityState === "hidden"`, resuming *immediately* at
+  the fast gap when the tab comes back — which is exactly when an approval is most likely
+  to be waiting. The cap is deliberately far under the TTL: an unbounded curve would
+  eventually out-wait the deadline.
+- **The three ways the flow ENDS are pure and pinned.** `claimStep()` is the branch table
+  of one round (deadline first, then paired / server error / retry) and
+  `isSupersededAttempt()` is the guard that drops a continuation from an attempt the
+  operator cancelled or restarted. All three used to be inline expressions with nothing
+  asserting them; `integrationsLogic.test.ts` pins them, including that a claim landing
+  *after* the deadline is a timeout even when it says `paired`.
+- **The base-URL field uses the shared `TextInput`**, like every other control on this
+  tab — it was the one bare `<input>` left on the `FIELD` recipe, which the recipe's own
+  note asks new fields not to do.
 
 ## Surface
 
@@ -256,7 +364,9 @@ The envelope, signing and delivery/retry semantics live in
 | `app/features/settings/integrations/IntegrationsAtsRow.tsx` | One stored connection + removal confirm |
 | `app/features/settings/integrations/IntegrationsWebhookPanel.tsx` | Outbound `kp.ats.v1` write-back: endpoint, signing secret, event subscriptions, test ping |
 | `app/features/settings/integrations/IntegrationsWebhookFields.tsx` | That panel's form fields (URL / secret / events) |
-| `app/api/ats/config/route.ts`, `app/api/ats/test/route.ts` | Write-back config (secret write-only) + test delivery |
+| `app/features/settings/integrations/integrationsWebhookGate.ts` | `webhookTestable` — when "Send test" may be offered |
+| `app/features/settings/integrations/integrationsPersonasLogic.ts` | The Personas pairing hook + its pure backoff / round / attempt-guard helpers |
+| `app/api/ats/config/route.ts`, `app/api/ats/test/route.ts` | Write-back config (secret write-only, versioned, partial) + rate-limited test delivery |
 | `app/_lib/calendar/callback-status.ts` | Canonical callback vocabulary + tone + scope slug |
 | `app/_lib/calendar/google-oauth.ts` | Scopes, consent URL, token exchange, revoke, `missingScopes` |
 | `app/_lib/calendar/token-store.ts` | Encrypted per-workspace grant; `getCalendarConnection` never returns a token |
@@ -276,6 +386,10 @@ The envelope, signing and delivery/retry semantics live in
   `access_token`, `access_expires_at`, `scopes_json`, `missing_scopes_json`, `connected_at`.
 - `ats_connections` — PK `provider`. `base_url`, encrypted `api_token`, `field_map_json`,
   `enabled`, `updated_at`.
+- `ats_config` — the outbound webhook. ONE row (`id = 1`), org-level by design
+  (`app/_lib/tenancy.ts`). `webhook_url`, encrypted `webhook_secret`, `events_json`,
+  `version` (optimistic-concurrency token, bumped on every accepted write; back-filled to
+  `0` by an `ALTER TABLE` on stores created before it existed), `updated_at`.
 
 ## Known gaps
 

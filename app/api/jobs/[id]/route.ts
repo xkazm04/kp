@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { safeJsonError } from "@/app/_lib/api-response";
 
 // Point-read one job by id. GET /api/jobs enumerates a ranked, LIMIT-300 slice, so a
 // ?job=<id> deep link (minted by the Command Palette, the Pipeline board and the JD
@@ -22,6 +23,6 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     }
     return NextResponse.json({ job });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load job." }, { status: 500 });
+    return safeJsonError(error, "api:jobs/get", "JOB_LOAD_FAILED");
   }
 }

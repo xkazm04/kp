@@ -1,6 +1,8 @@
 "use client";
 
 import { Columns3 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { rubricCompare } from "@/app/_lib/devcase-compare";
 import type { RubricDim, Submission } from "./DevTypes";
 
@@ -16,6 +18,7 @@ export function CompareSubmissions({
   rubricDims: RubricDim[];
   submissions: Submission[];
 }) {
+  const t = useTranslations("devcase.studio.compare");
   const { axes, columns, leaderByAxis } = rubricCompare(rubricDims, submissions);
   // A comparison needs at least two evaluated candidates and an axis to compare on.
   if (columns.length < 2 || axes.length === 0) return null;
@@ -29,32 +32,29 @@ export function CompareSubmissions({
   // filters on, so the two counts can't disagree.
   const evaluatedTotal = submissions.filter((s) => s.evaluation?.evaluation).length;
   const hidden = evaluatedTotal - columns.length;
-  const truncationNote =
-    hidden > 0
-      ? `Ranked by transfer fit — the axis leader below is the strongest of these ${columns.length}, not of the whole cohort. ${hidden} further evaluated submission${hidden === 1 ? " is" : "s are"} not in this matrix.`
-      : null;
+  const truncationNote = hidden > 0 ? t("truncated", { shown: columns.length, hidden }) : null;
 
   const shortRef = (ref: string | null, i: number) => (ref ? ref.split(/[@\s]/)[0].slice(0, 14) : `#${i + 1}`);
 
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        <Columns3 size={13} className="text-coral" /> Compare on rubric axes
+        <Columns3 size={13} className="text-coral" /> {t("title")}
         <span className="text-coral">
-          · {hidden > 0 ? `top ${columns.length} of ${evaluatedTotal}` : columns.length}
+          · {hidden > 0 ? t("topOf", { shown: columns.length, total: evaluatedTotal }) : columns.length}
         </span>
       </h3>
       {truncationNote ? <p className="mt-1 text-micro text-steel">{truncationNote}</p> : null}
-      <div className="mt-2 overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
+      <div className={`mt-2 overflow-x-auto ${PANEL}`}>
         <table className="w-full text-micro">
           <thead>
             <tr className="border-b border-stone-200 text-steel">
-              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide">Axis</th>
+              <th scope="col" className="px-3 py-2 text-left font-semibold uppercase tracking-wide">{t("axis")}</th>
               {columns.map((col, i) => (
-                <th key={col.id} className="px-3 py-2 text-right font-semibold text-ink">
+                <th key={col.id} scope="col" className="px-3 py-2 text-right font-semibold text-ink">
                   <span className="block truncate">{shortRef(col.candidateRef, i)}</span>
                   <span className="text-micro font-normal text-steel">
-                    fit {col.transferScore != null ? col.transferScore : "—"}
+                    {t("fit", { score: col.transferScore != null ? col.transferScore : "—" })}
                   </span>
                 </th>
               ))}
