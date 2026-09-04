@@ -58,7 +58,7 @@ export function AnalyzeSavedJdPicker({
         <p className="text-sm font-medium text-coral">
           {errorMessage({ code: "JD_LIST_FAILED" }, t("jdLibraryFailed"))}
         </p>
-        <button type="button" onClick={onRetryLibrary} className={BTN_SECONDARY}>
+        <button type="button" onClick={onRetryLibrary} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
           {t("jdLibraryRetry")}
         </button>
       </div>
