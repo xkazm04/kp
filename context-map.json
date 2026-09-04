@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T14:50:04.243Z",
+  "generated_at": "2026-09-04T15:17:10.306Z",
   "provenance": {
-    "git_commit": "d8e87b45de483b3878f2d7debed8c60d81fe427f",
-    "git_commit_count": 2768,
+    "git_commit": "d27fc7bef6817609c49a1152fb8de48d1b1a3f3c",
+    "git_commit_count": 2786,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T14:50:04.243Z"
+    "generated_at": "2026-09-04T15:17:10.306Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3209,
+    "files": 3216,
     "groups": 17,
     "use_cases": 12
   },
@@ -1854,6 +1854,7 @@
         "app/_lib/applicant-profile-timeout.test.ts",
         "app/_lib/applicant-profile.ts",
         "app/_lib/archetype-display.test.ts",
+        "app/_lib/archetype-registry-lockstep.test.ts",
         "app/_lib/archetype-registry.test.ts",
         "app/_lib/archetype-registry.ts",
         "app/_lib/candidate-link-locale.test.ts",
@@ -1867,10 +1868,12 @@
         "app/_lib/candidate-timeline.ts",
         "app/_lib/profile-draft-run.ts",
         "app/api/archetypes/[id]/route.ts",
+        "app/api/archetypes/route.test.ts",
         "app/api/archetypes/route.ts",
         "app/api/profile/candidates/route.ts",
         "app/api/profile/draft/route.test.ts",
         "app/api/profile/draft/route.ts",
+        "app/api/profile/profile-route.test.ts",
         "app/api/profile/profile-spawn-timeout.test.ts",
         "app/api/profile/route.ts"
       ],
@@ -6121,6 +6124,7 @@
         "app/api/jds/authz-parity.test.ts",
         "app/api/jds/error-message-hygiene.test.ts",
         "app/api/jds/generate/route.ts",
+        "app/api/jds/jds-list-route.test.ts",
         "app/api/jds/route.ts",
         "app/api/jds/save/ingest-job.ts",
         "app/api/jds/save/route.ts",
@@ -6407,6 +6411,7 @@
       "description": "Thread step 1 (JD/Job) persistence: the `jds`, `jd_revisions`, `jobs`, `role_intakes` and `campaign_packs` stores with their tenancy tests; `jobsStatusMerge.ts` reconciles the draft|published|closed axis the Jobs tab renders.",
       "entry_points": [],
       "file_paths": [
+        "app/_lib/db/campaign-store.test.ts",
         "app/_lib/db/campaign-tenancy.test.ts",
         "app/_lib/db/campaign.ts",
         "app/_lib/db/intakes-tenancy.test.ts",
@@ -6418,7 +6423,9 @@
         "app/_lib/db/jobs.ts",
         "app/features/library/jobs/jobsStatusMerge.test.ts",
         "app/features/library/jobs/jobsStatusMerge.ts",
+        "app/features/library/jobs/jobsTabDeepLink.test.ts",
         "app/features/library/jobs/jobsTabDeepLink.ts",
+        "app/features/library/jobs/useJobsList.test.ts",
         "app/features/library/jobs/useJobsList.ts"
       ],
       "group": "Job & JD Management",
