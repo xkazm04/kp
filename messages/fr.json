@@ -1721,7 +1721,13 @@
     "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
     "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
     "FOLLOWUP_LINK_NOT_FOUND": "Ce lien de profil n’est pas valide. Votre candidature est bien conservée. Demandez-en un nouveau au recruteur.",
-    "ANALYZE_TIMEOUT": "L’analyse a pris trop de temps et a été interrompue. Réessayez, ou avec moins de CV à la fois."
+    "ANALYZE_TIMEOUT": "L’analyse a pris trop de temps et a été interrompue. Réessayez, ou avec moins de CV à la fois.",
+    "ANALYSES_LIST_FAILED": "L’historique des analyses n’a pas pu être chargé. Réessayez.",
+    "ANALYSIS_LOAD_FAILED": "Cette analyse n’a pas pu être chargée. Réessayez.",
+    "ANALYSIS_SAVE_FAILED": "Cette modification de l’analyse n’a pas pu être enregistrée. Réessayez.",
+    "ANALYSIS_NOT_FOUND": "Cette analyse ne se trouve pas dans cet espace de travail.",
+    "ANALYSIS_GITHUB_INVALID": "Cette analyse GitHub était illisible et n’a pas été jointe.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1721,7 +1721,13 @@
     "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
     "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
     "FOLLOWUP_LINK_NOT_FOUND": "This profile link isn't valid. Your application is safely filed. Ask the recruiter for a fresh one.",
-    "ANALYZE_TIMEOUT": "The analysis took too long and was stopped. Try again, or with fewer CVs at once."
+    "ANALYZE_TIMEOUT": "The analysis took too long and was stopped. Try again, or with fewer CVs at once.",
+    "ANALYSES_LIST_FAILED": "Could not load the analysis history. Please try again.",
+    "ANALYSIS_LOAD_FAILED": "Could not load this analysis. Please try again.",
+    "ANALYSIS_SAVE_FAILED": "Could not save that change to the analysis. Please try again.",
+    "ANALYSIS_NOT_FOUND": "That analysis is not in this workspace.",
+    "ANALYSIS_GITHUB_INVALID": "That GitHub analysis could not be read and was not attached.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "That GitHub analysis is too large to attach."
   },
   "resilience": {
     "notFoundEyebrow": "404",

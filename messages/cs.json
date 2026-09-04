@@ -1721,7 +1721,13 @@
     "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
     "APPLY_SESSION_INVALID": "Tento pokus o přihlášku se nepodařilo zahájit. Načtěte stránku znovu a zkuste to prosím ještě jednou.",
     "FOLLOWUP_LINK_NOT_FOUND": "Tento odkaz na profil není platný. Vaše přihláška je v bezpečí uložená. Požádejte náboráře o nový.",
-    "ANALYZE_TIMEOUT": "Analýza trvala příliš dlouho a byla zastavena. Zkuste to znovu, nebo s méně životopisy najednou."
+    "ANALYZE_TIMEOUT": "Analýza trvala příliš dlouho a byla zastavena. Zkuste to znovu, nebo s méně životopisy najednou.",
+    "ANALYSES_LIST_FAILED": "Historii analýz se nepodařilo načíst. Zkuste to prosím znovu.",
+    "ANALYSIS_LOAD_FAILED": "Tuto analýzu se nepodařilo načíst. Zkuste to prosím znovu.",
+    "ANALYSIS_SAVE_FAILED": "Změnu v analýze se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ANALYSIS_NOT_FOUND": "Tato analýza v tomto pracovním prostoru není.",
+    "ANALYSIS_GITHUB_INVALID": "Analýzu GitHubu se nepodařilo přečíst a nebyla připojena.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Analýza GitHubu je příliš velká na připojení."
   },
   "resilience": {
     "notFoundEyebrow": "404",

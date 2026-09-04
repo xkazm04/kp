@@ -80,7 +80,6 @@ const ALLOWED = new Map<string, string>([
   ["agents/dispatch/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["agents/pair/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["agents/report/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["analyses/[slug]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["analytics/calibration/apply-threshold/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["analytics/spend/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["analytics/targets/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

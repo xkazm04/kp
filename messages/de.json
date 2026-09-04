@@ -1721,7 +1721,13 @@
     "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
     "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
     "FOLLOWUP_LINK_NOT_FOUND": "Dieser Profil-Link ist ungültig. Ihre Bewerbung ist sicher hinterlegt. Bitten Sie um einen neuen Link.",
-    "ANALYZE_TIMEOUT": "Die Analyse hat zu lange gedauert und wurde abgebrochen. Versuchen Sie es erneut oder mit weniger Lebensläufen auf einmal."
+    "ANALYZE_TIMEOUT": "Die Analyse hat zu lange gedauert und wurde abgebrochen. Versuchen Sie es erneut oder mit weniger Lebensläufen auf einmal.",
+    "ANALYSES_LIST_FAILED": "Der Analyseverlauf konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYSIS_LOAD_FAILED": "Diese Analyse konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYSIS_SAVE_FAILED": "Diese Änderung an der Analyse konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYSIS_NOT_FOUND": "Diese Analyse liegt nicht in diesem Arbeitsbereich.",
+    "ANALYSIS_GITHUB_INVALID": "Diese GitHub-Analyse war nicht lesbar und wurde nicht angehängt.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Diese GitHub-Analyse ist zu groß zum Anhängen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
