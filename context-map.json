@@ -6,16 +6,16 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
-  "generated_at": "2026-09-04T10:29:27.049Z",
+  "generated_at": "2026-09-04T10:56:56.093Z",
   "provenance": {
-    "git_commit": "9ec9609bef61657f6409f7728ba0f209a0d4bdb6",
-    "git_commit_count": 2625,
+    "git_commit": "74a5d316ab2a39914943938ab8b4c3c3b94bc343",
+    "git_commit_count": 2639,
     "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
     "prior_contexts": 143,
     "prior_avg_files_per_context": 6.7,
     "prior_generated_at": "2026-08-20T22:16:31.027Z",
     "prior_unmapped_files": 326,
-    "generated_at": "2026-09-04T10:29:27.049Z"
+    "generated_at": "2026-09-04T10:56:56.093Z"
   },
   "taxonomy": {
     "context_categories": [
@@ -36,7 +36,7 @@
   },
   "stats": {
     "contexts": 161,
-    "files": 3113,
+    "files": 3124,
     "groups": 17,
     "use_cases": 12
   },
@@ -6866,7 +6866,8 @@
         "scripts/jobfit.py",
         "scripts/lib/market-earnings.mjs",
         "scripts/perf/devbench.mjs",
-        "scripts/pg-portability-audit.mjs"
+        "scripts/pg-portability-audit.mjs",
+        "scripts/secrets-rotate.mjs"
       ],
       "group": "Platform Infrastructure",
       "group_id": "7345227e-e0bc-493c-a48c-c5106a902f7b",
@@ -7099,11 +7100,13 @@
       "description": "[auto-seeded — pending sweep enrichment] Lib Infra Runtime 1: 12 source + 8 test file(s) under app/_lib. Reads/writes llm_usage, organizations, users, workspaces.",
       "entry_points": [],
       "file_paths": [
+        "app/_lib/db-path.test.ts",
         "app/_lib/db-path.ts",
         "app/_lib/db-portability-org.test.ts",
         "app/_lib/db-portability-shared-tier.test.ts",
         "app/_lib/db-portability.ts",
         "app/_lib/db.ts",
+        "app/_lib/engine-preflight.test.ts",
         "app/_lib/engine-preflight.ts",
         "app/_lib/env.test.ts",
         "app/_lib/env.ts",
@@ -7112,9 +7115,11 @@
         "app/_lib/logger.ts",
         "app/_lib/offline.test.ts",
         "app/_lib/offline.ts",
+        "app/_lib/ops-telemetry.test.ts",
         "app/_lib/ops-telemetry.ts",
         "app/_lib/public-base-url.test.ts",
         "app/_lib/public-base-url.ts",
+        "app/_lib/python-runner-concurrency.test.ts",
         "app/_lib/python-runner-stdin.test.ts",
         "app/_lib/python-runner.ts",
         "app/_lib/rate-limit.test.ts",
@@ -7918,6 +7923,7 @@
         "app/api/search/search-route.test.ts",
         "app/api/workspace/export-guard.test.ts",
         "app/api/workspace/export/route.ts",
+        "app/api/workspace/import/import-body-limit.test.ts",
         "app/api/workspace/import/import-route.test.ts",
         "app/api/workspace/import/route.ts",
         "app/api/workspaces/[id]/members/[userId]/route.ts",
@@ -7978,6 +7984,8 @@
         "app/features/shell/tasks/TasksTab.tsx",
         "app/features/shell/tasks/TasksTable.tsx",
         "app/features/shell/tasks/TasksTableRow.tsx",
+        "app/features/shell/tasks/taskSearch.test.ts",
+        "app/features/shell/tasks/taskSearch.ts",
         "app/features/shell/tasks/tasksProviderTypes.ts",
         "app/features/shell/tasks/tasksTabHelpers.test.ts",
         "app/features/shell/tasks/tasksTabHelpers.ts",
@@ -8024,11 +8032,14 @@
       "file_paths": [
         "app/_lib/task-dedupe.test.ts",
         "app/_lib/task-dedupe.ts",
+        "app/_lib/task-label.test.ts",
         "app/_lib/task-label.ts",
         "app/_lib/task-maintenance.test.ts",
         "app/_lib/task-maintenance.ts",
+        "app/_lib/task-pump.ts",
         "app/_lib/task-view.test.ts",
         "app/_lib/task-view.ts",
+        "app/_lib/tasks-pump.test.ts",
         "app/_lib/tasks-window.ts",
         "app/_lib/tasks.ts",
         "app/features/shell/setup/setupPipelinePresets.test.ts",
