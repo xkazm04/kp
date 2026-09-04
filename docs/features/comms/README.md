@@ -281,6 +281,17 @@ dispatchers thread their caller's `opts.workspaceId`). Omitting it read the
 NULL-locale candidate filed into it was written to in the default team's language.
 Locked by `comms-dispatch-locale.test.ts` ("falls back to ITS OWN team's default").
 
+**The signature enforces it now.** `commsTranslator` used to take the locale alone,
+so any caller holding a raw (possibly NULL) `locale` and no workspace silently
+resolved against the *default* team — which is exactly how the dev-case feedback
+brief and the intake acknowledgement kept the defect after the dispatchers were
+fixed. It is now overloaded: one argument is accepted only for an ALREADY-RESOLVED
+`Locale` (what `candidateLocale` / `resolveCommsLocale` return — re-resolving one is
+idempotent), and a raw `string | null | undefined` must be paired with the workspace
+it belongs to. `buildFeedbackBrief` takes `workspaceId` on its input for that reason;
+`distribution.intakeSubmission` passes the SUBMISSION's team, the same tenant the
+acknowledgement row is filed under. Locked by `comms-translator-tenant.test.ts`.
+
 **Catalog composition.** The deterministic bodies live in the `comms.*` namespace
 and render through a locale-pinned translator (`comms-translator.ts` →
 `catalog-translator.ts`), so next-intl's compile-time key checking cannot see them.

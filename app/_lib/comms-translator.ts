@@ -1,4 +1,5 @@
 import { resolveCommsLocale } from "./comms-locale";
+import type { Locale } from "@/i18n/locales";
 import { namespaceTranslator, type CatalogTranslator } from "./catalog-translator";
 
 /*
@@ -23,7 +24,31 @@ import { namespaceTranslator, type CatalogTranslator } from "./catalog-translato
 export type CommsTranslator = CatalogTranslator;
 
 /** Translator for the `comms` namespace, pinned to the candidate's locale.
- *  Synchronous after the first load per locale. */
-export async function commsTranslator(locale: string | null | undefined): Promise<CommsTranslator> {
-  return namespaceTranslator(resolveCommsLocale(locale), "comms");
+ *  Synchronous after the first load per locale.
+ *
+ *  THE TENANT IS PART OF THE QUESTION. `resolveCommsLocale` falls back to the
+ *  WORKSPACE's `default_locale` when the candidate has no recorded language, so a
+ *  caller that hands over a raw, possibly-NULL locale and no workspace resolves
+ *  against the DEFAULT team — writing to a second team's NULL-locale candidate in
+ *  the default team's language. That defect was fixed dispatcher-by-dispatcher and
+ *  kept regrowing here, because the signature allowed it: `commsTranslator(x)`
+ *  compiled whatever `x` was.
+ *
+ *  The overloads make it a TYPE error instead of a review question:
+ *    • one argument is accepted ONLY for an ALREADY-RESOLVED `Locale` (what
+ *      `candidateLocale`/`resolveCommsLocale` return — re-resolving one is
+ *      idempotent and needs no tenant);
+ *    • a raw `string | null | undefined` MUST be paired with the workspace it
+ *      belongs to.
+ *  Pass `null` for the tenant only where there genuinely is none, and say why. */
+export async function commsTranslator(locale: Locale): Promise<CommsTranslator>;
+export async function commsTranslator(
+  locale: string | null | undefined,
+  workspaceId: string | null | undefined
+): Promise<CommsTranslator>;
+export async function commsTranslator(
+  locale: string | null | undefined,
+  workspaceId?: string | null
+): Promise<CommsTranslator> {
+  return namespaceTranslator(resolveCommsLocale(locale, workspaceId ?? undefined), "comms");
 }

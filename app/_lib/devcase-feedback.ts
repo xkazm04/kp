@@ -27,6 +27,10 @@ export type FeedbackInput = {
   gaps: string[];
   /** The candidate's locale, carried on their pipeline entry. */
   locale?: string | null;
+  /** The team this submission belongs to. Required alongside a raw `locale` because
+   *  a NULL one resolves to the WORKSPACE's `default_locale` — without it the letter
+   *  falls back to the DEFAULT team's language for a candidate who is not theirs. */
+  workspaceId?: string | null;
   /**
    * The language the BULLETS are actually written in — `narrativeLang`, stamped by the
    * Python evaluator onto the evaluation/transfer artifacts (evaluate.py).
@@ -48,11 +52,11 @@ export type FeedbackBrief = { subject: string; body: string };
 const clean = (xs: string[]) => xs.map((s) => s.trim()).filter(Boolean);
 
 export async function buildFeedbackBrief(input: FeedbackInput): Promise<FeedbackBrief> {
-  const t = await commsTranslator(input.locale);
+  const t = await commsTranslator(input.locale, input.workspaceId);
   // The locale the letter is being WRITTEN in — resolved the same way commsTranslator
   // resolves it, so the comparison below is against the language the reader actually
   // gets rather than against the raw (possibly null) input.
-  const letterLocale = resolveCommsLocale(input.locale);
+  const letterLocale = resolveCommsLocale(input.locale, input.workspaceId ?? undefined);
   const bulletLang = (input.narrativeLang ?? "").trim().toLowerCase().split("-")[0];
   // An ABSENT stamp is "no claim", never "English": a bundle scored before the evaluator
   // took a language carries no narrativeLang, and guessing one would let us print a
