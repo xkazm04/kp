@@ -407,6 +407,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         const confirmationStatus = await dispatchInterviewConfirmation(entry, slot, {
           shortNotice,
           durationMin: booked.durationMin,
+          // THE LETTER'S AUTHORITY FOR THE TIME. `slot` is the stored label, minted by
+          // schedule-slots.slotLabel from hardcoded English DOW/MON in the INTERVIEWER's
+          // zone with no zone marker - the right string for the picker chips and the
+          // recruiter agenda, and the one thing the localized template interpolated. So a
+          // Czech candidate in New York read a Czech letter whose only load-bearing fact
+          // said "Tue 9 Jun - 10:00": English inside Czech prose, on a clock they are not
+          // on, while candidate_tz (captured on THIS request, two lines above) was never
+          // used outbound. The dispatcher formats the absolute instant in the candidate's
+          // own zone and language, with the zone named, and falls back to the interview
+          // zone (then to this label) rather than ever costing them the confirmation.
+          slotAtIso: booked.slotAt,
+          candidateTz: booked.candidateTz,
           // The candidate's one durable way back to reschedule (SCH2) / .ics —
           // the picker page is gone once the tab closes.
           // Pinned to the candidate's own language, exactly like the invite that started
