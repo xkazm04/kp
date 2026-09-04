@@ -192,15 +192,15 @@ check('a budget that cannot be believed fails rather than passing vacuously', ()
 // --- the coupling this gate exists to protect --------------------------------
 check('the committed budget parses, and every ci.yml job has a ceiling under its timeout', () => {
   const budget = loadBudget();
-  const workflow = fs.readFileSync(path.join(REPO_ROOT, '.github/workflows/ci.yml'), 'utf8');
+  const workflow = fs.readFileSync(path.join(REPO_ROOT, '.github/workflows/ci.yml'), 'utf8').replace(/\r\n/g, '\n');
 
-  // CRLF-tolerant (`?$`): a Windows checkout with core.autocrlf=true turned this
+  // CRLF normalized before matching: a Windows checkout with core.autocrlf=true turned this
   // gate red locally while CI stayed green, hiding a real failure behind a known one.
   // `name:` + `timeout-minutes:` at job level — the two lines the budget is
   // keyed on and derived from. A job renamed in the workflow and not here is
   // exactly the drift the `stale`/`undeclared` findings report at run time; this
   // asserts it offline, on every push, before a run has to discover it.
-  const jobs = [...workflow.matchAll(/^    name: (.+?)\r?$\n(?:.*\n)*?^    timeout-minutes: (\d+)\r?$/gm)].map((m) => ({
+  const jobs = [...workflow.matchAll(/^    name: (.+)$\n(?:.*\n)*?^    timeout-minutes: (\d+)$/gm)].map((m) => ({
     name: m[1].trim(),
     timeout: Number(m[2]),
   }));
