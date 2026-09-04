@@ -3,6 +3,8 @@
 // Turns "find the green cell" into a portfolio read — is a role deep-benched or a
 // one-lucky-hit?
 
+import { median } from "@/app/_lib/stats";
+
 // Single source of truth for the diverging score scale (45/60/72/85 edges). The
 // grid cell color (cellClass), the histogram fill (BAND_FILL), the legend rows,
 // and the histogram bucket edges are all derived from this one ordered table, so
@@ -55,16 +57,16 @@ export function columnStats(scores: number[]): ColumnStat {
     buckets[b] += 1;
   }
   const sorted = [...scores].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  // Floor (not round) the even-count midpoint so a band-straddling pair like [71, 72] reports
-  // 71, never rounding UP to 72 and falsely crossing STRONG_THRESHOLD when only half the pool
-  // is strong. The "median averages the two middles" test (exact integer) is unaffected.
-  const median =
-    sorted.length % 2 === 0 ? Math.floor((sorted[mid - 1] + sorted[mid]) / 2) : sorted[mid];
+  // The median is the shared one (app/_lib/stats.ts — non-finite dropped, even counts
+  // averaged, empty ⇒ null); the FLOOR is this surface's own. Floor (not round) the
+  // even-count midpoint so a band-straddling pair like [71, 72] reports 71, never
+  // rounding UP to 72 and falsely crossing STRONG_THRESHOLD when only half the pool is
+  // strong. Odd counts are already integers, so the floor is a no-op there.
+  const mid = median(scores);
   return {
     count: scores.length,
     best: sorted[sorted.length - 1],
-    median,
+    median: mid === null ? null : Math.floor(mid),
     strong,
     buckets,
   };
