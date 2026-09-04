@@ -58,7 +58,7 @@
     "agent:dispatch": "node scripts/agent/dispatch.mjs",
     "ci:budget": "node scripts/perf/ci-budget.mjs",
     "perf:budget": "node scripts/perf/check-budget.mjs",
-    "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs && node scripts/perf/__tests__/check-budget.test.mjs",
+    "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs && node scripts/perf/__tests__/check-budget.test.mjs && node scripts/perf/__tests__/devbench.test.mjs",
     "security:actions": "node scripts/security/check-actions.mjs",
     "security:secrets": "node scripts/security/secret-scan.mjs",
     "test:security": "node scripts/security/__tests__/secret-scan.test.mjs && node scripts/security/__tests__/check-actions.test.mjs",
