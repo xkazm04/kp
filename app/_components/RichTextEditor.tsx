@@ -59,6 +59,11 @@ export function RichTextEditor({
 }) {
   const locked = disabled || readOnly;
   const tCommon = useTranslations("common");
+  // Toolbar button names and the editor's own accessible name are the only strings
+  // this primitive produces itself — and a shared primitive's literal is inherited by
+  // every consumer, so an English one here reached all four locales on both builders
+  // that mount the editor (JdsBuilder, JdsTemplateManagerEditor).
+  const t = useTranslations("richTextEditor");
   const ref = useRef<HTMLDivElement>(null);
   // The markdown the editor's DOM currently reflects — so a `value` prop change we
   // DIDN'T originate (a Duplicate prefill, a reset) re-seeds, while our own onChange
@@ -166,23 +171,23 @@ export function RichTextEditor({
       className={`overflow-hidden rounded-md border border-stone-200 bg-white transition-colors focus-within:border-coral/50 focus-within:ring-2 focus-within:ring-coral/20 ${className}`}
     >
       <div className="flex flex-wrap items-center gap-0.5 border-b border-stone-200 bg-paper px-1.5 py-1" role="toolbar" aria-label={tCommon("formatting")} aria-disabled={locked || undefined}>
-        <TB label="Bold" active={marks.bold} disabled={locked} onClick={() => run("bold")}>
+        <TB label={t("bold")} active={marks.bold} disabled={locked} onClick={() => run("bold")}>
           <Bold size={15} aria-hidden />
         </TB>
-        <TB label="Italic" active={marks.italic} disabled={locked} onClick={() => run("italic")}>
+        <TB label={t("italic")} active={marks.italic} disabled={locked} onClick={() => run("italic")}>
           <Italic size={15} aria-hidden />
         </TB>
-        <TB label="Underline" active={marks.underline} disabled={locked} onClick={() => run("underline")}>
+        <TB label={t("underline")} active={marks.underline} disabled={locked} onClick={() => run("underline")}>
           <UnderlineIcon size={15} aria-hidden />
         </TB>
         <span className="mx-1 h-5 w-px bg-stone-200" aria-hidden />
-        <TB label="Heading" active={marks.heading} disabled={locked} onClick={toggleHeading}>
+        <TB label={t("heading")} active={marks.heading} disabled={locked} onClick={toggleHeading}>
           <Heading size={15} aria-hidden />
         </TB>
-        <TB label="Bulleted list" active={marks.ul} disabled={locked} onClick={() => run("insertUnorderedList")}>
+        <TB label={t("bulletedList")} active={marks.ul} disabled={locked} onClick={() => run("insertUnorderedList")}>
           <List size={15} aria-hidden />
         </TB>
-        <TB label="Numbered list" active={marks.ol} disabled={locked} onClick={() => run("insertOrderedList")}>
+        <TB label={t("numberedList")} active={marks.ol} disabled={locked} onClick={() => run("insertOrderedList")}>
           <ListOrdered size={15} aria-hidden />
         </TB>
       </div>
@@ -197,7 +202,7 @@ export function RichTextEditor({
           aria-multiline="true"
           // Always name the textbox: caller-supplied label, else the placeholder,
           // else a generic fallback — a role=textbox must never be nameless (a11y).
-          aria-label={ariaLabel || placeholder || "Rich text editor"}
+          aria-label={ariaLabel || placeholder || t("editorLabel")}
           aria-disabled={locked || undefined}
           contentEditable={!locked}
           suppressContentEditableWarning

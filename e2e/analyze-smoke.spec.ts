@@ -173,7 +173,10 @@ const GITHUB_INPUT_VARIANTS: Array<{ label: string; value: string }> = [
 test("a11y — result tabs have no serious/critical WCAG violations", async ({ page }) => {
   await stubGithubAnalysis(page);
   await page.goto("/");
-  await expectNoSeriousA11yViolations(page); // landing page
+  // NOT the landing: seedDevAuth() ran in beforeEach, so '/' is the WORKSPACE
+  // dashboard here. The landing's own accessibility is covered keylessly by
+  // e2e/landing.spec.ts; this call audits the analyze surface before a run.
+  await expectNoSeriousA11yViolations(page); // workspace dashboard, pre-analysis
   await attachCv(page, sampleCv);
   await fillJobDescription(page);
   await runAnalysis(page);

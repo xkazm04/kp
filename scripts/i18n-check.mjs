@@ -25,6 +25,15 @@ const MESSAGES_DIR = join(REPO_ROOT, "messages");
 // attribute that matters. `aria-label` is unambiguous: unlike `title`, nothing
 // in this tree uses it as a component prop, so a literal match is always a real
 // untranslated accessible name.
+// The second half of the same blind spot, found in wave 25: the regex below only
+// sees `aria-label="literal"`. RichTextEditor named its contentEditable surface
+// `aria-label={ariaLabel || placeholder || "Rich text editor"}` — an EXPRESSION, so
+// nothing looked at it, and the fallback name (the one a nameless textbox actually
+// gets) was English on both builders that mount the editor. `ariaLabelLiterals`
+// below reads inside the expression container instead: a string it contains is fine
+// when it is a CALL ARGUMENT (a `t("key")` message key, which is what a localized
+// name looks like) and a finding when it is anything else — a bare fallback, a
+// ternary arm, a concatenation.
 const PRIMITIVES_DIR = join(REPO_ROOT, "app", "_components");
 const HARDCODED_ARIA = /aria-label="[^"{]/;
 // The public marketing tree (`/`, `/about`, `/market`) is fully migrated and is
@@ -308,14 +317,59 @@ function tsxFiles(dir) {
   return out;
 }
 
+/**
+ * Every string/template literal inside an `aria-label={…}` expression container on
+ * this line that is NOT a call argument.
+ *
+ * Bounded by BRACE MATCHING, not by end-of-line: `aria-label={t("close")}
+ * className="focus-ring …"` must not report the className. Quotes inside the
+ * expression are skipped while matching so an ICU brace in a message (`t("a {b}")`)
+ * cannot close it early.
+ *
+ * "Call argument" is the allowance because that is exactly what a LOCALIZED name
+ * looks like here — `t("someKey")`, `t("k", { n })`. A literal in any other
+ * position (`x || "Rich text editor"`, `cond ? "A" : "B"`) is a name four locales
+ * would read in English.
+ */
+function ariaLabelLiterals(line) {
+  const found = [];
+  for (let m = line.indexOf("aria-label={"); m !== -1; m = line.indexOf("aria-label={", m + 1)) {
+    let depth = 0;
+    let quote = "";
+    for (let i = m + "aria-label=".length; i < line.length; i++) {
+      const ch = line[i];
+      if (quote) {
+        if (ch === "\\") i++;
+        else if (ch === quote) quote = "";
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") {
+        quote = ch;
+        // The character that OPENS this literal decides its role: `(` or `,` means it
+        // sits in an argument list, anything else means it is being used as a value.
+        const before = line.slice(0, i).replace(/\s+$/, "").slice(-1);
+        if (before !== "(" && before !== ",") found.push(ch);
+        continue;
+      }
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        if (depth === 1) break;
+        depth--;
+      }
+    }
+  }
+  return found;
+}
+
 let primitiveFileCount = 0;
 for (const file of tsxFiles(PRIMITIVES_DIR)) {
   primitiveFileCount++;
   const lines = readFileSync(file, "utf8").split(LINE_BREAK);
+  const rel = relative(REPO_ROOT, file).split("\\").join("/");
   lines.forEach((line, i) => {
-    if (HARDCODED_ARIA.test(line)) {
+    if (HARDCODED_ARIA.test(line) || ariaLabelLiterals(line).length > 0) {
       problems.push(
-        `${relative(REPO_ROOT, file).split("\\").join("/")}:${i + 1} — hardcoded aria-label in a shared primitive; ` +
+        `${rel}:${i + 1} — hardcoded aria-label in a shared primitive; ` +
           `route it through useTranslations() so all 4 locales get it`
       );
     }

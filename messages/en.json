@@ -724,7 +724,9 @@
       "about": "About the app",
       "market": "Market Pulse",
       "source": "Source",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "menuOpen": "Open menu",
+      "menuClose": "Close menu"
     },
     "hero": {
       "badge": "Automated hiring, human-approved",
@@ -9849,5 +9851,18 @@
       "tab": "This tab",
       "panel": "This panel"
     }
+  },
+  "richTextEditor": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "heading": "Heading",
+    "bulletedList": "Bulleted list",
+    "numberedList": "Numbered list",
+    "editorLabel": "Rich text editor"
+  },
+  "select": {
+    "filterFor": "Filter {label}",
+    "filterOptions": "Filter options"
   }
 }

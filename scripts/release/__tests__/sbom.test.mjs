@@ -20,6 +20,7 @@ import {
   parseArgs,
   purlNpm,
   purlPypi,
+  resolveTimestamp,
   serialFor,
 } from '../sbom.mjs';
 
@@ -147,6 +148,49 @@ check('the serial number is derived from the contents, not from a clock', () => 
   assert.notEqual(a, serialFor(componentsFromPipList([{ name: 'x', version: '1' }])));
 });
 
+// --- reproducibility ----------------------------------------------------------
+//
+// Everything else about this document is already content-derived: the component
+// lists are sorted and the serial number is a hash of them. The wall clock was
+// the one input that made two builds of one tag differ byte for byte, which is
+// exactly the claim an operator wants to check ("is the SBOM attached to v0.1.0
+// the one this tree produces?") and could not.
+check('SOURCE_DATE_EPOCH pins the timestamp, so two builds are byte-identical', () => {
+  const before = process.env.SOURCE_DATE_EPOCH;
+  process.env.SOURCE_DATE_EPOCH = '1756771200';
+  try {
+    const inputs = { version: '0.1.0', commit: 'abc123', npm: componentsFromLockfile(LOCK), python: [] };
+    const a = JSON.stringify(buildSbom({ ...inputs }), null, 2);
+    const b = JSON.stringify(buildSbom({ ...inputs }), null, 2);
+    assert.equal(a, b, 'two runs over the same inputs must produce the same bytes');
+    assert.equal(JSON.parse(a).metadata.timestamp, '2025-09-02T00:00:00.000Z');
+  } finally {
+    if (before === undefined) delete process.env.SOURCE_DATE_EPOCH;
+    else process.env.SOURCE_DATE_EPOCH = before;
+  }
+});
+
+check('a timestamp is read as epoch seconds or as an ISO instant, and nothing else', () => {
+  assert.equal(resolveTimestamp('1756771200'), '2025-09-02T00:00:00.000Z');
+  assert.equal(resolveTimestamp('2025-09-02T00:00:00Z'), '2025-09-02T00:00:00.000Z');
+  // A value that cannot be read is null — the caller refuses rather than
+  // silently stamping the wall clock onto a document asked to be reproducible.
+  assert.equal(resolveTimestamp('yesterday'), null);
+  assert.equal(resolveTimestamp(''), null);
+  assert.equal(resolveTimestamp(undefined), null);
+});
+
+check('with no pin the document still carries a real timestamp', () => {
+  const before = process.env.SOURCE_DATE_EPOCH;
+  delete process.env.SOURCE_DATE_EPOCH;
+  try {
+    const doc = buildSbom({ version: '0.1.0', npm: componentsFromLockfile(LOCK), python: [] });
+    assert.match(doc.metadata.timestamp, /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    if (before !== undefined) process.env.SOURCE_DATE_EPOCH = before;
+  }
+});
+
 check('an empty or half-read document is refused, not published', () => {
   const empty = buildSbom({ version: '0.1.0', npm: [], python: [] });
   const problems = checkSbom(empty);
@@ -171,6 +215,8 @@ check('cli args parse', () => {
   assert.equal(args.version, '1.2.3');
   assert.equal(args.npmOnly, true);
   assert.equal(args.includeDev, false);
+  assert.equal(args.timestamp, null);
+  assert.equal(parseArgs(['--timestamp', '2025-09-02T00:00:00Z']).timestamp, '2025-09-02T00:00:00Z');
 });
 
 // --- against the real tree ---------------------------------------------------

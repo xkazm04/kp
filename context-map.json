@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-03T18:02:44.860Z",
+ "generated_at": "2026-09-04T04:30:38.990Z",
  "provenance": {
-  "git_commit": "cd18bd1225328eafb698944f9b89b45ab3f18bba",
-  "git_commit_count": 2422,
+  "git_commit": "e408bb4006cc2164f712078fc96d2f14be32fb02",
+  "git_commit_count": 2441,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-03T18:02:44.860Z"
+  "generated_at": "2026-09-04T04:30:38.990Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3005,
+  "files": 3006,
   "groups": 17,
   "use_cases": 12
  },
@@ -2651,6 +2651,7 @@
     "app/landing/spark/sections/Footer.tsx",
     "app/landing/spark/sections/Hero.tsx",
     "app/landing/spark/sections/Marquee.tsx",
+    "app/landing/spark/sections/MobileNav.tsx",
     "app/landing/spark/sections/Proof.tsx",
     "app/landing/spark/sections/Topbar.tsx",
     "app/landing/spark/sections/TrustPillars.tsx",
@@ -3420,6 +3421,7 @@
     "app/_components/icons/JobFitIcon.tsx",
     "app/_components/icons/SalaryIcon.tsx",
     "app/_components/icons/index.ts",
+    "app/_components/primitives-have-consumers.test.ts",
     "app/_components/ui/Defer.tsx",
     "app/_components/ui/LoadingGap.tsx",
     "app/_components/ui/PipelineShapeBar.tsx",
@@ -3478,7 +3480,6 @@
     "app/_components/CompletionCta.tsx",
     "app/_components/FactorChart.tsx",
     "app/_components/FactorChartBody.tsx",
-    "app/_components/FileInput.tsx",
     "app/_components/GithubAnalysisPanel.tsx",
     "app/_components/LanguageSwitcher.tsx",
     "app/_components/LoadStatus.tsx",
@@ -3486,7 +3487,6 @@
     "app/_components/Meter.tsx",
     "app/_components/Modal.tsx",
     "app/_components/PotentialBadge.tsx",
-    "app/_components/Radio.tsx",
     "app/_components/RichTextEditor.tsx",
     "app/_components/RouteError.tsx",
     "app/_components/RouteLoading.tsx"
@@ -3590,7 +3590,6 @@
     "app/_components/puml/measure.ts",
     "app/_components/puml/parse.test.ts",
     "app/_components/puml/parse.ts",
-    "app/_components/radio.a11y.test.ts",
     "app/_components/scoreDial.logic.test.ts",
     "app/_components/scoreDial.logic.ts",
     "app/_components/segmented-control-selection.test.ts",
@@ -6936,6 +6935,7 @@
     "e2e/jds-pipeline-column.spec.ts",
     "e2e/journey-one-thread.spec.ts",
     "e2e/journey-role-to-schedule.spec.ts",
+    "e2e/landing.spec.ts",
     "e2e/modal-escape.spec.ts",
     "e2e/profile-builder.spec.ts",
     "e2e/quality-tables.spec.ts",
@@ -8832,6 +8832,7 @@
     "scripts/release/__tests__/provenance.test.mjs",
     "scripts/release/__tests__/sbom.test.mjs",
     "scripts/release/commit-msg.mjs",
+    "scripts/release/git.mjs",
     "scripts/release/prepare.mjs",
     "scripts/release/provenance.mjs",
     "scripts/release/sbom.mjs",

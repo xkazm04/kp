@@ -458,6 +458,22 @@ steps, a per-channel accent, a hover dock tile), not unmigrated copies; the two
 `StructuredReadout` stays a single-consumer component on purpose — the reason is
 in its header.
 
+**Retired primitives (2026-09-03): `FileInput`, `Radio`.** The same re-decision,
+applied one level up from the recipes: both were fully built, dual-theme correct
+and imported by nothing. `Radio` even carried its own a11y source-guard
+(`radio.a11y.test.ts`), which made it read as *more* alive than the primitives
+that actually ship — and every apparent `<Radio` in the tree resolved to the
+`lucide-react` icon of the same name. `FileInput`'s one real idea, the
+`focus-within` ring on a label wrapping an `sr-only` file input, already lives on
+as `DROP_ZONE_FOCUS` in `app/features/tools/analyze/analyzeSurfaces.ts`, which is
+now its only copy. Single-choice input, when a surface needs one: group native
+`<input type="radio">` with a shared `name`, or reach for `SegmentedControl`.
+
+`app/_components/primitives-have-consumers.test.ts` now holds the line — a
+top-level primitive with no importer outside itself fails `npm run test:unit`. A
+primitive nobody renders is not free: it is read as live vocabulary, copied by
+new code, and it accrues fixes for bugs no user can hit.
+
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.

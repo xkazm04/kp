@@ -24,12 +24,13 @@
 // A reviewer reading `git log` sees the claim and can disagree with it. That is
 // the whole point: the trade is one line of justification, not a suppression.
 
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+// The same wrappers the release scripts use. Shared rather than copied for
+// one concrete reason: this reads `git log --format=%B` over a whole range,
+// and node's default 1MB stdout buffer throws ENOBUFS on a long one.
+import { REPO_ROOT, git, revExists } from '../release/git.mjs';
 import { evaluate } from './check-doc-sync.mjs';
-
-const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const MAP_PATH = path.join(REPO_ROOT, 'scripts/docs/feature-doc-map.json');
 
 // Recognised on any commit in the range. Deliberately permissive about the
@@ -46,10 +47,6 @@ export function parseArgs(argv) {
   return out;
 }
 
-function git(args) {
-  return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8' });
-}
-
 /** Resolve the range endpoints, falling back to the parent commit. */
 export function resolveRange({ base, head }, revExists) {
   if (base && revExists(base)) return { base, head };
@@ -60,15 +57,6 @@ export function resolveRange({ base, head }, revExists) {
 
 function main(argv) {
   const args = parseArgs(argv);
-  const revExists = (rev) => {
-    try {
-      git(['rev-parse', '--verify', '--quiet', `${rev}^{commit}`]);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const range = resolveRange(args, revExists);
   if (!revExists(range.base)) {
     // A single-commit repository or an unresolvable base. Nothing to compare;

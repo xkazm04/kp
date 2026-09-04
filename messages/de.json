@@ -724,7 +724,9 @@
       "about": "Über die App",
       "market": "Marktpuls",
       "source": "Quellcode",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "menuOpen": "Menü öffnen",
+      "menuClose": "Menü schließen"
     },
     "hero": {
       "badge": "Automatisiertes Recruiting, vom Menschen freigegeben",
@@ -9849,5 +9851,18 @@
       "tab": "Dieser Tab",
       "panel": "Dieses Panel"
     }
+  },
+  "richTextEditor": {
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "underline": "Unterstrichen",
+    "heading": "Überschrift",
+    "bulletedList": "Aufzählungsliste",
+    "numberedList": "Nummerierte Liste",
+    "editorLabel": "Rich-Text-Editor"
+  },
+  "select": {
+    "filterFor": "{label} filtern",
+    "filterOptions": "Optionen filtern"
   }
 }

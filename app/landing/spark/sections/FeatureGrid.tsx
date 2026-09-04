@@ -69,40 +69,49 @@ export default function FeatureGrid({
           {FEATURES.map((f, i) => (
             <motion.div
               key={f.preview}
-              role="button"
-              tabIndex={0}
-              aria-haspopup="dialog"
-              aria-expanded={preview === f.preview}
               onHoverStart={() => onHoverOpen(f.preview)}
               onHoverEnd={() => {
                 if (!pinned) onLeave();
-              }}
-              onClick={() => onPin(f.preview)}
-              onFocus={() => onHoverOpen(f.preview)}
-              onBlur={() => {
-                if (!pinned) onLeave();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onPin(f.preview);
-                }
               }}
               initial={{ opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0, rotate: f.rotate }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ delay: (i % 3) * 0.1, type: "spring", bounce: 0.3 }}
               whileHover={{ rotate: 0, y: -6 }}
-              className={`${STICKER} group relative cursor-pointer overflow-hidden p-6 text-left focus-ring`}
+              className={`${STICKER} group relative overflow-hidden p-6 text-left`}
             >
               <FeatureCardArt preview={f.preview} />
               {/* The art is absolutely positioned, so it would paint over
                   statically-positioned text. One positioned wrapper puts the
                   copy back on top without a z-index on every line. */}
               <div className="relative">
-                <h3 className={`${DISPLAY} text-xl font-bold`}>{t(`features.${f.preview}.title`)}</h3>
-                <p className="mt-2 text-[17px] leading-relaxed text-[#42606f]">{t(`features.${f.preview}.body`)}</p>
+                <h3 id={`feature-${f.preview}-title`} className={`${DISPLAY} text-xl font-bold`}>
+                  {t(`features.${f.preview}.title`)}
+                </h3>
+                <p id={`feature-${f.preview}-body`} className="mt-2 text-[17px] leading-relaxed text-[#42606f]">
+                  {t(`features.${f.preview}.body`)}
+                </p>
               </div>
+              {/* The whole card is the control, but the control is NOT the card.
+                  A `role="button"` wrapper made its children part of the button's
+                  own accessible name, so all nine <h3>s vanished from the heading
+                  outline and the body copy was read as part of a label. A real
+                  <button> stretched over the card keeps the click target while
+                  the heading and body stay themselves; the button borrows them
+                  for its name and description instead of swallowing them. */}
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={preview === f.preview}
+                aria-labelledby={`feature-${f.preview}-title`}
+                aria-describedby={`feature-${f.preview}-body`}
+                onClick={() => onPin(f.preview)}
+                onFocus={() => onHoverOpen(f.preview)}
+                onBlur={() => {
+                  if (!pinned) onLeave();
+                }}
+                className="absolute inset-0 z-10 cursor-pointer rounded-[inherit] focus-ring"
+              />
             </motion.div>
           ))}
         </div>

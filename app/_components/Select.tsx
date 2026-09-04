@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { selectConsumesKeyWhileOpen } from "./select-keys";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { Check, ChevronDown, type LucideIcon, Search } from "lucide-react";
 
 // Canonical single-select — the dual-theme replacement for a native <select>.
@@ -75,6 +76,10 @@ export function Select({
   noMatchesLabel?: string;
   invalid?: boolean;
 }) {
+  // The filter box names itself, so unlike the caller-supplied `searchPlaceholder`
+  // / `noMatchesLabel` microcopy there is nobody to localize it — it was English in
+  // all four locales (found by the aria-label expression check in scripts/i18n-check.mjs).
+  const t = useTranslations("select");
   const listId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -294,7 +299,7 @@ export function Select({
                       // drives) — otherwise a searchable Select announces nothing.
                       aria-controls={listId}
                       aria-activedescendant={activeDescendant}
-                      aria-label={ariaLabel ? `${ariaLabel} — filter` : "Filter options"}
+                      aria-label={ariaLabel ? t("filterFor", { label: ariaLabel }) : t("filterOptions")}
                       className="focus-ring w-full rounded-md border border-stone-200 bg-white py-1.5 pl-8 pr-2 text-sm text-ink placeholder:text-steel caret-coral"
                     />
                   </div>

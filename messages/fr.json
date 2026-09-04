@@ -724,7 +724,9 @@
       "about": "À propos de l’app",
       "market": "Pouls du marché",
       "source": "Code source",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "menuOpen": "Ouvrir le menu",
+      "menuClose": "Fermer le menu"
     },
     "hero": {
       "badge": "Recrutement automatisé, validé par un humain",
@@ -9849,5 +9851,18 @@
       "tab": "Cet onglet",
       "panel": "Ce panneau"
     }
+  },
+  "richTextEditor": {
+    "bold": "Gras",
+    "italic": "Italique",
+    "underline": "Souligné",
+    "heading": "Titre",
+    "bulletedList": "Liste à puces",
+    "numberedList": "Liste numérotée",
+    "editorLabel": "Éditeur de texte enrichi"
+  },
+  "select": {
+    "filterFor": "Filtrer {label}",
+    "filterOptions": "Filtrer les options"
   }
 }

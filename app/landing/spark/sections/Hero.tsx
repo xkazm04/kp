@@ -218,11 +218,21 @@ export default function Hero() {
           transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
           className="relative z-10"
         >
+          {/* The page's largest-contentful-paint element, so its bytes ARE the
+              hero's paint time. It shipped as a 1024x1024 PNG (270 213 B) drawn
+              at 460 CSS px: four times the pixels anyone sees, in a format with
+              no lossy mode, on the one image marked `priority`. The committed
+              source is now a 920x920 WebP (34 116 B, -87%) — twice the rendered
+              box, so it still holds up on a 2x phone — with `sizes` declaring
+              the real display width so the optimizer's srcset can go smaller
+              still on a 1x screen. spark-mascot.png stays as the lossless master
+              the WebP is regenerated from; nothing links to it. */}
           <Image
-            src="/landing/spark-mascot.png"
+            src="/landing/spark-mascot.webp"
             alt={t("hero.mascotAlt")}
             width={460}
             height={460}
+            sizes="460px"
             priority
             className="drop-shadow-[0_24px_32px_rgba(23,32,42,0.18)]"
           />
