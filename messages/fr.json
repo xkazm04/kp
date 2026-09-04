@@ -1311,7 +1311,8 @@
     "no": "Non",
     "close": "Fermer",
     "scanningCv": "Analyse du CV en cours",
-    "formatting": "Mise en forme"
+    "formatting": "Mise en forme",
+    "salesEnquirySubject": "Demande de renseignements sur l'offre Enterprise"
   },
   "aiDisclosure": {
     "title": "Comment ça marche",

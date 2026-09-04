@@ -42,6 +42,9 @@ function PlanCard({
   onManage: () => void;
 }) {
   const t = useTranslations("billing.plans");
+  // The enterprise mailto subject is shared with the landing band — one string in
+  // the "common" namespace rather than two copies that drift.
+  const tCommon = useTranslations("common");
   return (
     // The CURRENT plan is the same panel surface with the brand accent swapped in:
     // composed from the recipe rather than a second hand-typed copy of it, which
@@ -67,7 +70,10 @@ function PlanCard({
         // a Buy button. If they're somehow already entitled (a signed contract), the
         // "current" badge above is enough; no action needed.
         current ? null : (
-          <a href={salesContactHref()} className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}>
+          <a
+            href={salesContactHref(tCommon("salesEnquirySubject"))}
+            className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+          >
             {t("contactCta")}
           </a>
         )

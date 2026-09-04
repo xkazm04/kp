@@ -1311,7 +1311,8 @@
     "no": "No",
     "close": "Close",
     "scanningCv": "Scanning CV",
-    "formatting": "Formatting"
+    "formatting": "Formatting",
+    "salesEnquirySubject": "Enterprise plan enquiry"
   },
   "aiDisclosure": {
     "title": "How this works",

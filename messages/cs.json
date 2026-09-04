@@ -1311,7 +1311,8 @@
     "no": "Ne",
     "close": "Zavřít",
     "scanningCv": "Probíhá analýza CV",
-    "formatting": "Formátování"
+    "formatting": "Formátování",
+    "salesEnquirySubject": "Poptávka plánu Enterprise"
   },
   "aiDisclosure": {
     "title": "Jak to funguje",

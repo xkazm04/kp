@@ -1311,7 +1311,8 @@
     "no": "Nein",
     "close": "Schließen",
     "scanningCv": "Lebenslauf wird gescannt",
-    "formatting": "Formatierung"
+    "formatting": "Formatierung",
+    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif"
   },
   "aiDisclosure": {
     "title": "So funktioniert es",
