@@ -22,6 +22,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
 import { runScreenWave, UNSCORED_KEEP_RATIONALE } from "./screen-wave.ts";
 import { listDecisionRecords } from "./decision-record-store.ts";
+import { setRelayHostLookupForTests } from "./comms.ts";
 
 after(() => cleanupUnitDb());
 
@@ -193,7 +194,15 @@ test("a candidate a recruiter moves mid-wave is skipped with NO sealed record (t
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   const { port } = server.address() as { port: number };
   const prevRelay = process.env.COMMS_WEBHOOK_URL;
-  process.env.COMMS_WEBHOOK_URL = `http://127.0.0.1:${port}/relay`;
+  // The relay channel vets its host before the first byte leaves (wave 38b): a
+  // loopback literal is refused at the string gate, so the fixture presents a
+  // public-looking https host, resolves it to a public address through the test
+  // seam, and rewrites the fetch to the loopback server that actually answers.
+  process.env.COMMS_WEBHOOK_URL = "https://relay.invalid/relay";
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+    realFetch(String(input).replace("https://relay.invalid", `http://127.0.0.1:${port}`), init)) as typeof fetch;
 
   const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 };
   try {
@@ -229,6 +238,8 @@ test("a candidate a recruiter moves mid-wave is skipped with NO sealed record (t
     // …while the candidate who really was rejected keeps their record.
     assert.deepEqual(listDecisionRecords({ candidateRef: first.id }).map((r) => r.kind), ["auto_rejected"]);
   } finally {
+    globalThis.fetch = realFetch;
+    setRelayHostLookupForTests(undefined);
     if (prevRelay === undefined) delete process.env.COMMS_WEBHOOK_URL;
     else process.env.COMMS_WEBHOOK_URL = prevRelay;
     await new Promise<void>((resolve) => server.close(() => resolve()));
