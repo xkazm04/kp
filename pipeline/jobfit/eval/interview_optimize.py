@@ -23,6 +23,18 @@ brief — plus the before/after VALIDATION pass-rates and a per-round accept/rej
     python -m pipeline.jobfit.eval.interview_optimize --rounds 3 --bank core --judge
     python -m pipeline.jobfit.eval.interview_optimize --scenario adversarial_asks_score --ablate no_decision
       # self-test: strip a guardrail, watch the loop re-derive it.
+    python -m pipeline.jobfit.eval.interview_optimize --max-calls 120 --max-minutes 20 --strict
+
+SPEND: this is the only entry point in the suite that runs the engine in a LOOP —
+rounds x folds x scenarios, plus a judge pass — and it had no ceiling of any kind,
+so a bad --rounds could burn a session's budget with nothing to stop it. --max-calls
+and --max-minutes bound it; every run counts its provider calls and reports them,
+budget or no budget. Exhausting a budget is not a failure, it stops the loop and
+says so in the round log.
+
+Exit codes follow the suite-wide contract in eval/__main__.py: 0 ran, 1 --strict
+could not certify (nothing measured, or no held-out fold), 2 the run could not be
+performed.
 
 Design: docs/development/voice-interview-testing.md §4.4.
 """
@@ -33,6 +45,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from typing import Any, Callable
 
 from .._cli import configure_stdio
@@ -52,6 +65,75 @@ _ABLATIONS: dict[str, str] = {
     "disclosure": r"(Open with one sentence stating you are an AI assistant[^.]*\.\s*"
                   r"|Begin by briefly introducing yourself as an AI assistant[^.]*\.\s*)",
 }
+
+
+class BudgetExceeded(RuntimeError):
+    """The loop asked for one more provider call than the run was allowed."""
+
+
+class BudgetedProvider:
+    """Counts (and optionally caps) what the hill-climb spends.
+
+    The loop re-evaluates its working set every round on BOTH folds and may judge
+    each row on top, so its cost is rounds x folds x scenarios — the one place in
+    this suite where a mistyped flag turns into real money. Wrapping the provider
+    is the whole seam: every call the optimizer makes goes through ``complete``,
+    ``complete_json`` or ``map``, so nothing downstream needs to know it is metered.
+
+    ``max_calls``/``max_minutes`` of 0 mean unlimited — the counter still runs, so
+    every report can say what the run actually cost.
+    """
+
+    def __init__(self, inner: Any, *, max_calls: int = 0, max_minutes: float = 0.0):
+        self._inner = inner
+        self.max_calls = max(0, max_calls)
+        self.max_minutes = max(0.0, max_minutes)
+        self.calls = 0
+        self._started = time.monotonic()
+
+    @property
+    def elapsed_minutes(self) -> float:
+        return (time.monotonic() - self._started) / 60.0
+
+    def _charge(self, n: int = 1) -> None:
+        if self.max_calls and self.calls + n > self.max_calls:
+            raise BudgetExceeded(
+                f"call budget spent: {self.calls} of {self.max_calls} used, {n} more requested"
+            )
+        if self.max_minutes and self.elapsed_minutes >= self.max_minutes:
+            raise BudgetExceeded(
+                f"time budget spent: {self.elapsed_minutes:.1f} of {self.max_minutes:.1f} minutes"
+            )
+        self.calls += n
+
+    def complete(self, *args: Any, **kwargs: Any) -> Any:
+        self._charge()
+        return self._inner.complete(*args, **kwargs)
+
+    def complete_json(self, *args: Any, **kwargs: Any) -> Any:
+        self._charge()
+        return self._inner.complete_json(*args, **kwargs)
+
+    def map(self, prompts: list[str], **kwargs: Any) -> Any:
+        # A batch is N calls, not one — a judge pass over 6 scenarios spends 6.
+        self._charge(len(prompts))
+        return self._inner.map(prompts, **kwargs)
+
+    def available(self) -> bool:
+        return self._inner.available()
+
+    def report(self) -> dict[str, Any]:
+        return {
+            "calls": self.calls,
+            "max_calls": self.max_calls or None,
+            "minutes": round(self.elapsed_minutes, 2),
+            "max_minutes": self.max_minutes or None,
+        }
+
+    def __getattr__(self, name: str) -> Any:
+        # Anything else (e.g. `model`, which judging.resolve_judge_provider reads)
+        # belongs to the wrapped provider.
+        return getattr(self._inner, name)
 
 
 def _ablate(brief: str, kind: str | None) -> str:
@@ -174,7 +256,10 @@ def optimize(
     # Can't hold out a validation fold (need both folds non-empty) → refuse to accept anything.
     # An "improvement" measured only in-sample is exactly the overfit this guards against.
     if not train or not val:
-        base_rows = _eval(scenarios, patches)
+        try:
+            base_rows = _eval(scenarios, patches)
+        except BudgetExceeded:
+            base_rows = []
         base_score = _score(base_rows)
         return {
             "patches": [],
@@ -187,46 +272,71 @@ def optimize(
                          "reason": "insufficient scenarios to hold out a validation fold — no rule accepted"}],
             "base_rows": base_rows,
             "final_rows": base_rows,
+            "budget_stop": None,
+            "spend": _spend(provider),
         }
 
-    train_current = _eval(train, patches)
-    val_current = _eval(val, patches)
+    budget_stop: str | None = None
+    try:
+        train_current = _eval(train, patches)
+        val_current = _eval(val, patches)
+    except BudgetExceeded as exc:
+        # The budget ran out before a single fold was scored: there is no baseline to
+        # compare against, so the honest answer is "nothing measured", not "no rule helped".
+        empty = list(_score([]))
+        return {
+            "patches": [], "base_score": empty, "final_score": empty, "total": len(scenarios),
+            "train": [s.name for s in train], "validation": [s.name for s in val],
+            "history": [{"round": 0, "proposed": [], "accepted": False, "score": empty,
+                         "reason": f"budget exhausted before the baseline: {exc}"}],
+            "base_rows": [], "final_rows": [], "budget_stop": str(exc),
+            "spend": _spend(provider),
+        }
     base_val_rows = val_current
     best_val = _score(val_current)
     history = [{"round": 0, "proposed": [], "accepted": True, "score": list(best_val),
                 "train_score": list(_score(train_current)), "reason": "baseline"}]
 
     for rnd in range(1, rounds + 1):
-        failing = _failing(train_current)  # propose ONLY from train-fold failures
-        if not failing:
-            history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best_val),
-                            "reason": "no training failures — converged"})
+        try:
+            failing = _failing(train_current)  # propose ONLY from train-fold failures
+            if not failing:
+                history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best_val),
+                                "reason": "no training failures — converged"})
+                break
+            proposed = propose_patches(base_brief, patches, failing, provider)
+            if not proposed:
+                history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best_val),
+                                "reason": "optimizer proposed nothing"})
+                break
+            cand_train = _eval(train, patches + proposed)
+            cand_val = _eval(val, patches + proposed)
+            cand_val_score = _score(cand_val)
+            # Accept ONLY on a held-out (validation) reliability improvement with no new val regression.
+            new_val_fail = _reliable_fail_set(cand_val) - _reliable_fail_set(val_current)
+            accepted = _accept(cand_val_score, best_val, new_val_fail)
+            if accepted:
+                reason = "improved on validation"
+            elif new_val_fail:
+                reason = f"validation regressed: {', '.join(sorted(new_val_fail))}"
+            elif _score(cand_train)[0] > _score(train_current)[0]:
+                reason = "train-only gain — not accepted (no validation improvement)"
+            else:
+                reason = "no validation improvement"
+            if accepted:
+                patches, best_val, train_current, val_current = (
+                    patches + proposed, cand_val_score, cand_train, cand_val
+                )
+            history.append({"round": rnd, "proposed": proposed, "accepted": accepted,
+                            "score": list(cand_val_score), "reason": reason})
+        except BudgetExceeded as exc:
+            # A spent budget stops the loop; it is not a failed round. Everything
+            # accepted so far still stands and the log says why the climb ended.
+            budget_stop = str(exc)
+            history.append({"round": rnd, "proposed": [], "accepted": False,
+                            "score": list(best_val),
+                            "reason": f"budget exhausted — loop stopped: {exc}"})
             break
-        proposed = propose_patches(base_brief, patches, failing, provider)
-        if not proposed:
-            history.append({"round": rnd, "proposed": [], "accepted": False, "score": list(best_val),
-                            "reason": "optimizer proposed nothing"})
-            break
-        cand_train = _eval(train, patches + proposed)
-        cand_val = _eval(val, patches + proposed)
-        cand_val_score = _score(cand_val)
-        # Accept ONLY on a held-out (validation) reliability improvement with no new val regression.
-        new_val_fail = _reliable_fail_set(cand_val) - _reliable_fail_set(val_current)
-        accepted = _accept(cand_val_score, best_val, new_val_fail)
-        if accepted:
-            reason = "improved on validation"
-        elif new_val_fail:
-            reason = f"validation regressed: {', '.join(sorted(new_val_fail))}"
-        elif _score(cand_train)[0] > _score(train_current)[0]:
-            reason = "train-only gain — not accepted (no validation improvement)"
-        else:
-            reason = "no validation improvement"
-        if accepted:
-            patches, best_val, train_current, val_current = (
-                patches + proposed, cand_val_score, cand_train, cand_val
-            )
-        history.append({"round": rnd, "proposed": proposed, "accepted": accepted,
-                        "score": list(cand_val_score), "reason": reason})
 
     return {
         "patches": patches,
@@ -238,7 +348,15 @@ def optimize(
         "history": history,
         "base_rows": base_val_rows,
         "final_rows": val_current,
+        "budget_stop": budget_stop,
+        "spend": _spend(provider),
     }
+
+
+def _spend(provider: Any) -> dict[str, Any] | None:
+    """What this run cost, when the provider is metered (main always wraps it)."""
+    report = getattr(provider, "report", None)
+    return report() if callable(report) else None
 
 
 def _reliability(rows: list[ie.Row]) -> str:
@@ -265,6 +383,15 @@ def _format_report(result: dict[str, Any], *, color: bool = False) -> str:
         f"validation {result.get('validation', [])}. Rules are fit on train and accepted only on "
         f"held-out validation reliability improvement._\n",
     ]
+    # Always print what the run cost, budget or no budget: the loop is the only
+    # entry point in the suite that runs the engine rounds x folds x scenarios.
+    spend = result.get("spend")
+    if spend:
+        cap = f" of {spend['max_calls']}" if spend.get("max_calls") else " (no cap)"
+        mins = f" · {spend['minutes']} min" + (f" of {spend['max_minutes']}" if spend.get("max_minutes") else "")
+        lines.append(f"_Spend: {spend['calls']} provider call(s){cap}{mins}._\n")
+    if result.get("budget_stop"):
+        lines.append(f"> ⚠ The climb stopped early: {result['budget_stop']}. Accepted rules still stand.\n")
     if result["patches"]:
         lines.append("## Accepted rules (fold these into the brief)\n")
         for i, p in enumerate(result["patches"], 1):
@@ -296,6 +423,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--judge", action="store_true", help="Include LLM-judge quality in the score.")
     parser.add_argument("--briefs", choices=["port", "ts"], default="port")
     parser.add_argument("--ablate", choices=list(_ABLATIONS), help="Strip a guardrail first (self-test).")
+    parser.add_argument("--max-calls", type=int, default=0,
+                        help="Stop the climb after this many provider calls (0 = no cap). The "
+                             "loop costs rounds x folds x scenarios, so this is the real ceiling.")
+    parser.add_argument("--max-minutes", type=float, default=0.0,
+                        help="Stop the climb after this many wall-clock minutes (0 = no cap).")
+    parser.add_argument("--strict", action="store_true",
+                        help="Exit non-zero when the run could not measure anything to accept a "
+                             "rule on (the suite-wide contract in eval/__main__.py).")
     parser.add_argument("--no-color", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -314,7 +449,11 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("interview_optimize: needs the Claude CLI (the sim + optimizer engine)\n")
         return 2
 
-    result = optimize(scenarios, provider, rounds=args.rounds, judge=args.judge, brief_mode=args.briefs, ablate=args.ablate)
+    # Meter every run, cap it when asked: 0/0 counts without limiting.
+    metered = BudgetedProvider(provider, max_calls=args.max_calls, max_minutes=args.max_minutes)
+    result = optimize(
+        scenarios, metered, rounds=args.rounds, judge=args.judge, brief_mode=args.briefs, ablate=args.ablate
+    )
 
     if args.json:
         printable = {k: v for k, v in result.items() if k not in ("base_rows", "final_rows")}
@@ -323,6 +462,17 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(printable, indent=2, ensure_ascii=False))
     else:
         print(_format_report(result, color=use_color))
+
+    # Exit-code contract (eval/__main__.py): --strict refuses to report success on a
+    # run that never measured a fold — an empty validation set or a budget spent
+    # before the baseline means no rule COULD have been accepted.
+    measured = bool(result.get("final_rows")) and bool(result.get("validation"))
+    if args.strict and not measured:
+        sys.stderr.write(
+            "interview_optimize: nothing was measured (no held-out fold, or the budget was spent "
+            "before the baseline) — --strict cannot certify\n"
+        )
+        return 1
     return 0
 
 

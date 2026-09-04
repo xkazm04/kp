@@ -569,8 +569,10 @@ def main(argv: list[str] | None = None) -> int:
     except (FileNotFoundError, json.JSONDecodeError):
         jobs = []
     if not jobs:
+        # The run could not be performed at all — nothing was scored, so this is a 2
+        # and not a failed gate. Exit-code contract: eval/__main__.py.
         sys.stderr.write(_empty_corpus_message(_DEFAULT_CORPUS))
-        return 1
+        return 2
 
     report = run(jobs)
     if args.json:

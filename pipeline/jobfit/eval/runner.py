@@ -568,8 +568,15 @@ def main(argv: list[str] | None = None) -> int:
 
     load_local_env()
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
-        sys.stderr.write("eval: GEMINI_API_KEY not set, skipping\n")
-        return 0
+        # Nothing was measured. Exit-code contract (eval/__main__.py): that is a 0
+        # for a plain run — keyless is a supported state — but --strict asked for a
+        # verdict this run cannot give, so it must not answer "pass".
+        sys.stderr.write(
+            "eval: GEMINI_API_KEY not set, skipping"
+            + (" — --strict cannot certify an unmeasured run" if args.strict else "")
+            + "\n"
+        )
+        return 1 if args.strict else 0
 
     fixtures, load_errors = _load_fixtures(args.filter, args.fixtures_dir)
     for err in load_errors:
