@@ -356,7 +356,7 @@ class FakeProvider:
         self.payload = payload
         self.seen_prompt: str | None = None
 
-    def complete_json(self, prompt: str, *, system: str | None = None):
+    def complete_json(self, prompt: str, *, system: str | None = None, expected_keys=None):
         self.seen_prompt = prompt
         return self.payload
 
