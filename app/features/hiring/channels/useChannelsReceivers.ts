@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 export type ReceiverJob = { id: string; title: string };
 
@@ -30,12 +32,19 @@ export function useReceivers({
   reload: () => void;
   onChanged?: () => void;
 }) {
+  const t = useTranslations("channels");
+  // Refusals resolve from the machine `code`, never the server's English `error` —
+  // app/_lib/use-error-message.ts.
+  const errMsg = useErrorMessage();
   const [revoking, setRevoking] = useState<string | null>(null);
-  // Did the last revoke FAIL? (channels-i18n-honesty) This used to be an `error` string
-  // holding a hardcoded English sentence that no pane ever read — so a failed revoke was
+  // WHY the last revoke failed, already localized — or null when the last one worked.
+  // (channels-i18n-honesty made this a boolean, because a failed revoke used to be
   // indistinguishable from a successful one: the row simply stayed put and nothing said
-  // why. The hook reports the fact; the pane renders the localized message.
-  const [revokeFailed, setRevokeFailed] = useState(false);
+  // why. It is a MESSAGE now because revoke is no longer only "the store said no":
+  // /perfect wave 27 gated it on `org:manage` and throttled it per IP, so a recruiter
+  // seat and a burst are two distinct, actionable outcomes that a single "Couldn't
+  // remove it" sentence would flatten back into a shrug.)
+  const [revokeFailed, setRevokeFailed] = useState<string | null>(null);
 
   // null (not []) while the tab's fetch is in flight, so the panes keep telling
   // "haven't loaded yet" apart from "genuinely no receivers" — the same contract
@@ -49,19 +58,25 @@ export function useReceivers({
     async (token: string) => {
       if (revoking) return;
       setRevoking(token);
-      setRevokeFailed(false);
+      setRevokeFailed(null);
       try {
         const r = await fetch(`/api/channels/webhooks/${encodeURIComponent(token)}`, { method: "DELETE" });
-        if (!r.ok) throw new Error();
+        if (!r.ok) {
+          const p = (await r.json().catch(() => null)) as { code?: string; error?: string } | null;
+          setRevokeFailed(errMsg(p, t("add.removeFailed")));
+          return;
+        }
         reload();
         onChanged?.();
       } catch {
-        setRevokeFailed(true);
+        // The request never completed (offline, aborted): no code, no body — the
+        // localized generic is the only honest answer.
+        setRevokeFailed(t("add.removeFailed"));
       } finally {
         setRevoking(null);
       }
     },
-    [revoking, reload, onChanged]
+    [revoking, reload, onChanged, errMsg, t]
   );
 
   return { receivers, load: reload, revoke, revoking, revokeFailed };

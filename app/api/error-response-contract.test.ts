@@ -213,7 +213,10 @@ const LEAK_CEILING = new Map<string, number>([
   // and the interval 400 is jsonRefusal("SCHEDULE_INTERVAL_INVALID"), so the control
   // dock resolves both in the reader's language. The row is deleted so the win is locked.
   ["channels/inbound/[token]/route.ts", 1],
-  ["channels/webhooks/route.ts", 3],
+  // channels/webhooks' three leaks were FIXED, not ceilinged (/perfect wave 27,
+  // api-comms): the two 500s answer safeJsonError(..., "CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED")
+  // and every 400/404 is a jsonRefusal code, so the Add-receiver modal and the receiver
+  // list resolve them in the reader's language. The row is deleted so the win is locked.
   ["comms/relay/test/route.ts", 2],
   // decisions/config's single leak was FIXED, not ceilinged (/perfect 2026-09-02,
   // pipeline-composer): the 500 answers safeJsonError(..., "DECISION_CONFIG_SAVE_FAILED")

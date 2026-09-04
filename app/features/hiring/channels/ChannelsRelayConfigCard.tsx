@@ -126,9 +126,15 @@ export function RelayConfigCard() {
     setNote(null);
     try {
       const r = await fetch("/api/comms/relay/test", { method: "POST" });
-      const d = (await r.json().catch(() => null)) as { ok?: boolean; status?: number; reason?: string } | null;
+      const d = (await r.json().catch(() => null)) as { ok?: boolean; status?: number; reason?: string; code?: string; error?: string } | null;
       if (d?.ok) {
         setNote({ ok: true, text: t("testOk", { status: d.status ?? 200 }) });
+      } else if (d?.code) {
+        // The probe is now `org:manage`-gated and throttled (/perfect wave 27), so a
+        // refusal arrives as a CODE with no `reason` — which the old branch painted as
+        // the nonsense "HTTP ?". A refusal is about the CALLER, not the endpoint, so it
+        // replaces the whole sentence rather than filling its {reason} slot.
+        setNote({ ok: false, text: errMsg(d, t("testFailed", { reason: `HTTP ${d.status ?? "?"}` })) });
       } else {
         setNote({ ok: false, text: t("testFailed", { reason: d?.reason ?? `HTTP ${d?.status ?? "?"}` }) });
       }
@@ -137,7 +143,7 @@ export function RelayConfigCard() {
     } finally {
       setBusy(false);
     }
-  }, [t]);
+  }, [t, errMsg]);
 
   // Tier 2 (docs/design/loading-choreography.md) applied per-BIT rather than to the
   // whole card: the config read may still be in flight, or have failed / been denied

@@ -1669,7 +1669,14 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "Ce lien de candidature n’est pas valide. Demandez-en un nouveau au recruteur.",
     "DEVCASE_SESSION_NOT_FOUND": "Cette session de travail est introuvable. Rouvrez votre lien de candidature pour en démarrer une nouvelle.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Un nom et un lien vers votre solution sont tous deux obligatoires.",
-    "DEVCASE_SESSION_START_FAILED": "Impossible d’ouvrir la session de travail. Veuillez réessayer."
+    "DEVCASE_SESSION_START_FAILED": "Impossible d’ouvrir la session de travail. Veuillez réessayer.",
+    "CHANNEL_UNKNOWN": "kp ne peut rien recevoir sur ce canal.",
+    "CHANNEL_JOB_NOT_FOUND": "Ce poste n’est pas disponible.",
+    "CHANNEL_TOKEN_REQUIRED": "Un jeton de récepteur est requis.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "Ce récepteur est introuvable.",
+    "CHANNEL_PULL_URL_INVALID": "Cette URL de récupération n’est pas autorisée. Utilisez une URL https:// publique.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3577,7 +3584,8 @@
       "schemeSkillsShort": "Cp",
       "schemeCareerShort": "Ca",
       "schemePersonalShort": "Pe",
-      "schemeWeightsTitle": "Pondération : compétences / carrière / personnel"
+      "schemeWeightsTitle": "Pondération : compétences / carrière / personnel",
+      "narrativeInLanguage": "Cette comparaison est affichée en {language}."
     },
     "empty": {
       "batonEyebrow": "Témoin passé",

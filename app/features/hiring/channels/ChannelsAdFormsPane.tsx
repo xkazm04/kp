@@ -58,7 +58,7 @@ export function AdFormsPane({
 
       {revokeFailed ? (
         <p role="alert" className="text-sm font-medium text-coral">
-          {t("add.removeFailed")}
+          {revokeFailed}
         </p>
       ) : null}
 

@@ -9,20 +9,49 @@ import {
 } from "@/app/_lib/db/channels";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
 
 
 // E3 (Erika gap) — recruiter management of inbound channel webhooks. Each
 // webhook binds one (channel, job, candidate-language) and yields the public
-// receiver URL /api/channels/inbound/[token]. Listing/creating is a recruiter
-// surface (trusted environment, like the rest of the workspace APIs); the
-// RECEIVER is the public, token-gated boundary.
+// receiver URL /api/channels/inbound/[token]. The RECEIVER is the public,
+// token-gated boundary; these are its ADMINISTRATION doors.
+//
+// AUTHORIZATION (/perfect wave 27, api-comms). "Listing/creating is a recruiter
+// surface (trusted environment)" was the whole gate: currentWorkspace() resolves a
+// TENANT, it does not decide AUTHORITY, and in open mode (KP_OPERATOR_PASSWORD unset)
+// every caller — an anonymous demo cookie included — satisfied it. What these writes
+// actually do is INSTALLATION wiring: POST mints a permanent public ingress token bound
+// to a role, PATCH stores a URL AND A SECRET that the clock later fetches on this
+// server's behalf (an outbound reach the operator owns, not the recruiter), and DELETE
+// permanently kills a live lead intake. That is org administration — `org:manage`,
+// resolved org-wide, which recruiters and viewers do not hold.
+//
+// Per-IP budget on the writes. They are operator-gated, and open mode makes that gate a
+// documented no-op for the ENTIRE API, so the limiter is the real bound: without it
+// POST was an unmetered public-token mint and a probe for which role ids exist (404 vs
+// 200), and PATCH was an unmetered oracle for the stored-URL SSRF guard, one candidate
+// host at a time. 60/10min sits far above a recruiter wiring receivers by hand.
+const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 export async function GET() {
   return NextResponse.json({ webhooks: listChannelWebhooks(await currentWorkspace()) });
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
+  // AFTER the authority gates, so a refused caller never spends the budget, and before
+  // any parsing or store work.
+  if (!rateLimit(`channel-receiver:${clientIpFrom(request.headers)}`, RECEIVER_WRITE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
     const body = (await request.json().catch(() => ({}))) as {
       channel?: unknown;
@@ -31,7 +60,9 @@ export async function POST(request: NextRequest) {
     };
     const channel = String(body.channel ?? "");
     if (!isWebhookChannel(channel)) {
-      return NextResponse.json({ error: `Unknown webhook channel: ${channel || "(empty)"}.` }, { status: 400 });
+      // The rejected value rides as DATA, not inside the message: the client resolves
+      // the code and never renders the server's English string (api-contracts.md 1.1).
+      return jsonRefusal("CHANNEL_UNKNOWN", 400, { channel: channel || null });
     }
     const ws = await currentWorkspace();
     const jobId = String(body.jobId ?? "").trim();
@@ -45,7 +76,7 @@ export async function POST(request: NextRequest) {
     // team's confidential role title, with its inbound leads filed into the caller's
     // pipeline against it.
     if (!job || !jobVisibleToWorkspace(jobId, ws)) {
-      return NextResponse.json({ error: "Job not found." }, { status: 404 });
+      return jsonRefusal("CHANNEL_JOB_NOT_FOUND", 404);
     }
     // The language inbound leads (and their acknowledgements) are treated as —
     // chosen at creation like the posting/apply-link language toggles.
@@ -56,10 +87,9 @@ export async function POST(request: NextRequest) {
     // flattening the key is a compile error rather than a silently dead auto-select.
     return NextResponse.json({ webhook } satisfies { webhook: ChannelWebhookRecord });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create the webhook." },
-      { status: 500 }
-    );
+    // better-sqlite3 detail and the absolute db path used to ride the wire here, and
+    // the Add-receiver modal painted it verbatim in every locale.
+    return safeJsonError(error, "api:channels/webhooks", "CHANNEL_WEBHOOK_CREATE_FAILED");
   }
 }
 
@@ -79,10 +109,17 @@ export async function POST(request: NextRequest) {
  * point another team's receiver at your server.
  */
 export async function PATCH(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
+  if (under) return under;
+  if (!rateLimit(`channel-receiver:${clientIpFrom(request.headers)}`, RECEIVER_WRITE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
   try {
     const body = (await request.json().catch(() => ({}))) as { token?: unknown; pullUrl?: unknown; pullSecret?: unknown };
     const token = String(body.token ?? "").trim();
-    if (!token) return NextResponse.json({ error: "token is required." }, { status: 400 });
+    if (!token) return jsonRefusal("CHANNEL_TOKEN_REQUIRED", 400);
     const pullUrl = body.pullUrl === null || body.pullUrl === undefined || body.pullUrl === "" ? null : String(body.pullUrl);
     const secret = body.pullSecret === undefined ? undefined : String(body.pullSecret);
     // A malformed/unsafe URL throws out of the store's validation — answer 400 with
@@ -92,16 +129,21 @@ export async function PATCH(request: NextRequest) {
     try {
       ok = setChannelPull(token, { url: pullUrl, secret }, ws);
     } catch (e) {
-      return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid pull URL." }, { status: 400 });
+      // The validator's own sentence names the refused host and field — but this catch
+      // also covers the encrypted STORE WRITE inside setChannelPull, whose thrown
+      // message carries SQLITE_* detail and the absolute db path. The two are
+      // indistinguishable from here, so the reason goes to the server log and the
+      // caller gets the code (api-contracts.md 1.1). Narrowing this to a 400 for a
+      // typed validation error and a 500 otherwise needs a typed error out of
+      // db/channels.ts — recorded, not guessed at here.
+      console.error("[api:channels/webhooks] CHANNEL_PULL_URL_INVALID", e);
+      return jsonRefusal("CHANNEL_PULL_URL_INVALID", 400);
     }
     // Same answer as an unknown token, for the same reason the receiver gives it:
     // a caller must not be able to probe which tokens exist in another team.
-    if (!ok) return NextResponse.json({ error: "Webhook not found." }, { status: 404 });
+    if (!ok) return jsonRefusal("CHANNEL_WEBHOOK_NOT_FOUND", 404);
     return NextResponse.json({ pull: getChannelPullConfig(token, ws) });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to update the webhook." },
-      { status: 500 }
-    );
+    return safeJsonError(error, "api:channels/webhooks", "CHANNEL_WEBHOOK_UPDATE_FAILED");
   }
 }

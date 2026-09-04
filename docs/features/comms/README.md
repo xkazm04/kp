@@ -480,12 +480,44 @@ air-gapped.
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Recruiter console: list / mint / revoke inbound receivers. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
+| `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. |
+| `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
 | `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables and the shared clipboard state. |
 | `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
 | `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+
+## Who may administer a receiver
+
+`currentWorkspace()` resolves a **tenant**; it does not decide **authority**. It was the
+only thing standing in front of the three receiver writes, so a viewer seat satisfied
+them exactly as well as an owner — and in open mode (`KP_OPERATOR_PASSWORD` unset, a
+documented no-op for the whole API) so did an anonymous demo cookie.
+
+What those writes actually do is installation wiring, not recruiting:
+
+| Door | What one accepted call does |
+| --- | --- |
+| `POST /api/channels/webhooks` | Mints a permanent PUBLIC ingress token bound to a role. Its 404-vs-200 also told the caller which role ids exist. |
+| `PATCH /api/channels/webhooks` | Stores a pull URL **and a secret** that the clock later fetches on this server's behalf — an outbound reach the operator owns. |
+| `DELETE /api/channels/webhooks/[token]` | Permanently kills a live lead intake. |
+
+All three now require **`org:manage`** (`requireCapabilityCoded`, org-wide — recruiters
+and viewers do not hold it) behind `requireOperator`, and share **one** per-IP budget
+(`channel-receiver`, 60/10 min) so switching verbs does not buy a second allowance.
+Refusals are codes, not prose: `FORBIDDEN_CAPABILITY`, `TOO_MANY_REQUESTS`,
+`CHANNEL_UNKNOWN`, `CHANNEL_JOB_NOT_FOUND`, `CHANNEL_TOKEN_REQUIRED`,
+`CHANNEL_WEBHOOK_NOT_FOUND`, `CHANNEL_PULL_URL_INVALID`, and the two store 500s
+`CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED`. The Add-receiver modal and the receiver panes
+resolve them in the reader's language (`useErrorMessage`); the revoke fold carries the
+message rather than a single "Couldn't remove it", because a recruiter seat and a burst
+are two different, actionable outcomes.
+
+Behaviour is driven against the real handlers in
+`app/api/channels/channels-doors-gate.test.ts`; the limiter call sites are pinned by
+`app/api/rate-limit-contract.test.ts`.
 
 ## Channels tab: paging and the render cascade
 
@@ -631,6 +663,11 @@ already returns alongside the entries. Both rules are pinned by
   ternary, which handles only `anonymized` and treats everything else as a consent
   lapse. Both halves want the same change: carry the delivery status in
   `OutreachResult` and map every reason 1:1 at the consumer.
+- **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
+  and the encrypted store write, and the two are indistinguishable from the route, so a
+  store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
+  server-side) instead of a 500. Separating them needs a typed error out of
+  `db/channels.ts`.
 - **Pull sources have no UI.** `PATCH /api/channels/webhooks` is the only way to
   set `pullUrl` / `pullSecret`; the receiver table shows neither the pull URL nor
   `last_pull_error`, so a source that has been failing for a week is visible only
