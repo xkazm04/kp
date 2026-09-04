@@ -239,7 +239,8 @@ That gap is the whole reason for the Brain/Voice split.
 ```bash
 python -m pipeline.jobfit.eval.interview_eval                 # curated core, simulate + reliability
 python -m pipeline.jobfit.eval.interview_eval --no-llm        # validate golden transcripts (offline, CI)
-python -m pipeline.jobfit.eval.interview_eval --judge         # + LLM quality scoring
+python -m pipeline.jobfit.eval.interview_eval --judge         # + LLM quality scoring (judge pinned off the engine)
+python -m pipeline.jobfit.eval.interview_eval --judge --judge-provider opus   # choose the judge model
 python -m pipeline.jobfit.eval.interview_eval --bank fixed    # the stable 100-scenario regression set
 python -m pipeline.jobfit.eval.interview_eval --sample 20 --seed 3   # + 20 rotating discovery draws
 python -m pipeline.jobfit.eval.interview_eval --baseline runs/base.json --update-baseline  # record a baseline
@@ -267,12 +268,23 @@ fails the gate if the downstream score is malformed.
 ```bash
 python -m pipeline.jobfit.eval.interview_optimize --rounds 3 --bank core --judge   # hill-climb the brief
 python -m pipeline.jobfit.eval.interview_optimize --scenario adversarial_asks_score --ablate no_decision  # self-test
+python -m pipeline.jobfit.eval.interview_optimize --max-calls 120 --max-minutes 20 --strict   # bounded run
 ```
 
 `interview_optimize` runs the eval, feeds the failing transcripts to an optimizer LLM, and keeps
 only proposed guardrail rules that raise the pass-rate with zero new reliability regressions —
 outputting a diffable set of rules to fold into the brief. `--ablate {no_decision,disclosure}`
 strips a guardrail first so you can watch the loop re-derive it.
+
+**Spend.** This is the only entry point that runs the engine rounds × folds ×
+scenarios, so it is the only one with a budget: `--max-calls` and `--max-minutes`
+bound the climb (0 = uncapped). Every run counts its provider calls — a judge batch
+counts as N, not 1 — and prints the spend in the report either way. A spent budget
+**stops** the climb, keeps the rules already accepted, and records why in the round
+log; it is not a failed run. Exit codes follow the suite-wide contract in
+`pipeline/jobfit/eval/__main__.py` (0 ran · 1 `--strict` could not certify · 2 the
+run could not be performed), and `--judge` here is advisory only: acceptance is
+driven by the deterministic reliability signal, never by the judge's scores.
 
 Bank: `--bank core` (curated 11, fast default) or `--bank fixed` (curated + a deterministic,
 behaviour-balanced top-up to `--n`, default 100 — the stable regression set); `--sample N

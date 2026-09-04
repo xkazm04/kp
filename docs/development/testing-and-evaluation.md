@@ -37,8 +37,9 @@ or a live server was not running:
 
 | Suite | Needs |
 | --- | --- |
-| `test:eval` / `test:eval:strict` | `GEMINI_API_KEY`; skips with exit 0 without one |
-| `automation_eval --judge` | a live Claude CLI judge |
+| `test:eval` | `GEMINI_API_KEY`; skips with exit 0 without one |
+| `test:eval:strict` | same, but a keyless run exits **1** — `--strict` asks for a verdict this run cannot give |
+| `automation_eval --judge` | a live Claude CLI judge, and a judge model that is **not** the engine's (below) |
 | `bench:app-master` | a running kp **and** Personas (or `--stub-personas`) |
 | `test:e2e` (full) | provider keys for the Analyze suite |
 
@@ -57,6 +58,61 @@ cleanly without a Gemini key, includes a11y checks) and `e2e/profile-builder.spe
 (deterministic build/save round-trip, no API key needed). The deterministic keyless
 e2e subset and how to run it against an already-running server are listed in
 [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands".
+
+## The exit-code contract
+
+Five eval entry points used four conventions, and the prompt hill-climb could not
+fail at all — so a script could not tell "the gate failed" from "the run never
+happened". One contract now, stated in `pipeline/jobfit/eval/__main__.py` and
+carried by runner, matching_eval, automation_eval, intake_eval, interview_eval,
+interview_optimize, fault_eval and thresholds:
+
+| Exit | Means |
+| --- | --- |
+| 0 | the run happened, and under `--strict` every gate it could measure passed |
+| 1 | a gate FAILED under `--strict`, or the run measured/accepted nothing while being asked to certify |
+| 2 | the run could NOT be performed — unusable flags, no engine, an empty selection, a refused judge |
+
+Two rules keep it readable: **`--strict` is what asks for a verdict** (without it
+a failing gate still prints FAIL and exits 0, because these reports are read by
+people at least as often as by CI), and **a data-integrity failure ignores
+`--strict`** (a malformed fixture exits 1 either way).
+
+## The judge is not the engine
+
+`automation_eval --judge` used to generate every output with one provider and then
+hand that same provider the "you are a strict QA reviewer" prompt, under a
+docstring claiming an independent judge. A model grading its own work is
+self-assessment. `pipeline/jobfit/eval/judging.py` now resolves the judge for both
+harnesses:
+
+```bash
+python -m pipeline.jobfit.eval.automation_eval --judge                      # judge pinned to sonnet
+python -m pipeline.jobfit.eval.automation_eval --judge --judge-provider opus
+python -m pipeline.jobfit.eval.automation_eval --judge --allow-same-judge   # prints that scores are self-assessment
+```
+
+Judging with the engine's own model is refused unless `--allow-same-judge` is
+passed, and taking that concession prints it into the run's own log. Where the
+engine rode the Claude CLI's unpinned default, the run says independence is "by
+pin only" rather than implying more than it can prove. `interview_eval --judge`
+carries the same two flags. The same module owns the fail-closed reading of a
+`--judge` run that produced zero usable scores (the quality axis is unmeasured, so
+the gate cannot certify) — it was fixed twice, in two pasted copies, before it
+lived in one place.
+
+## Spend ceilings on the hill-climb
+
+`interview_optimize` re-evaluates its working set on both folds every round and may
+judge each row on top, so its cost is rounds x folds x scenarios. It had no ceiling
+of any kind. `--max-calls` and `--max-minutes` bound it; every run counts its
+provider calls and prints them in the report whether or not a cap was set. A spent
+budget stops the climb, keeps the rules already accepted, and says so in the round
+log — it is not a failed run.
+
+```bash
+python -m pipeline.jobfit.eval.interview_optimize --rounds 3 --max-calls 120 --max-minutes 20 --strict
+```
 
 ## Route-handler tests and `next/server`
 
@@ -174,12 +230,32 @@ Each fixture is hand-verified (`label`, `expected_role_family`, `expected_senior
 supported (e.g., `["data_ai", "software_engineering"]` for genuinely ambiguous AI
 engineers). The runner scores every fixture on four axes:
 
-| Metric           | Threshold |
-| ---------------- | --------- |
-| `role_family`    | 85%       |
-| `seniority`      | 70%       |
-| `salary_overlap` | 60%       |
-| `skill_recall`   | 75%       |
+| Metric           | Threshold | Measured | Slack |
+| ---------------- | --------- | -------- | ----- |
+| `role_family`    | 85%       | 98%      | 20pt  |
+| `seniority`      | 80%       | 100%     | 20pt  |
+| `salary_overlap` | 72%       | 96.8%    | 25pt  |
+| `salary_coverage`| 90%       | —        | 10pt  |
+| `skill_recall`   | 75%       | 95.2%    | 20pt  |
+
+Those bars are not free-floating numbers any more. Every threshold in
+`pipeline/jobfit/eval/thresholds.py` is a `Bar` carrying **why** it protects what
+it protects, the number the pipeline actually **measured** (with the date, the
+command and the corpus), and the **slack** — how far below that measurement the
+bar is allowed to sit. `pipeline/jobfit/tests/test_thresholds.py` fails when a bar
+falls outside its own slack, which is how `role_relevance_at5` was caught sitting
+at 0.60 against a deterministic 0.857: a quarter of the ranking could have rotted
+without turning the gate red. It is 0.84 now.
+
+```bash
+python -m pipeline.jobfit.eval.thresholds            # the table, with reasons and measurements
+python -m pipeline.jobfit.eval.thresholds --tighten  # propose the ratchet; exit 1 while one is outstanding
+```
+
+A bar with no recorded run says `UNMEASURED` and its `why` must say what it would
+take to measure it (`salary_coverage` predates the coverage/overlap split;
+`QUALITY_THRESHOLD` needs a judged run). "Nobody measured this" and "measured and
+fine" never look the same in the table.
 
 `salary_overlap` is containment-aware — a Gemini range fully inside the expected band
 scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixture

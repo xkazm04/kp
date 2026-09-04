@@ -21,9 +21,22 @@ are pinned in CI by `pipeline/jobfit/tests/test_automation_eval.py`
 (deterministic path, no network).
 
 **Quality** *(`--judge`, LLM-as-judge — gate: mean ≥ 3.5 / 5)*
-An independent Claude CLI judge rates each output 1–5 on task-specific
-criteria (grounded / specific / right tone / right language / non-leading /
-fair). Judge calls are batched via `ClaudeCliProvider.map`.
+A Claude CLI judge rates each output 1–5 on task-specific criteria (grounded /
+specific / right tone / right language / non-leading / fair). Judge calls are
+batched via `ClaudeCliProvider.map`.
+
+The judge is **not** the engine. It is pinned to a different model (`sonnet` by
+default, `--judge-provider MODEL` to choose); judging with the model that
+generated the outputs is refused unless `--allow-same-judge` is passed, and that
+concession prints itself into the run — a model grading its own work is
+self-assessment, not an independent check. Where the engine ran on the CLI's
+unpinned default, the run says independence is "by pin only" rather than claiming
+more than it can prove. The resolution, the score parsing and the fail-closed
+quality gate live in `pipeline/jobfit/eval/judging.py`, shared with
+`interview_eval` (which takes the same two flags).
+
+A `--judge` run that produced **zero** usable scores fails the quality gate closed:
+the axis is unmeasured, so `--strict` must not certify on reliability alone.
 
 ## Scenarios
 
