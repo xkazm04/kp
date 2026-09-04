@@ -11,6 +11,22 @@
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes";
 
+/**
+ * Drop a deleted profile's entry from the staleness map.
+ *
+ * The optimistic delete pruned `profiles` and left `stale` holding the removed id
+ * forever: a sibling map keyed by profile id that only ever GREW for the life of
+ * the panel, and — because ids are content-free — the next profile to inherit that
+ * key would have worn a "Newer CV" badge it never earned. Returns the SAME object
+ * when the id was not staled, so a delete of a current profile re-renders nothing.
+ */
+export function pruneStale(stale: StaleMap, removedId: string): StaleMap {
+  if (!(removedId in stale)) return stale;
+  const next = { ...stale };
+  delete next[removedId];
+  return next;
+}
+
 /** A profile's one-word standing, and the vocabulary the Status column filters on. */
 export type RosterStatus = "current" | "stale" | "retired";
 

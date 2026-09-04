@@ -5190,7 +5190,7 @@
     },
     "result": {
       "confidence": "concordance des signaux {pct} %",
-      "saved": "enregistré · {id}",
+      "saved": "enregistré · {name}",
       "preview": "aperçu (non enregistré)",
       "routing": "Orientation : {reasons}",
       "completeness": "Complétude",
@@ -5210,7 +5210,21 @@
         "has_activity": "un stage, une activité ou une certification"
       },
       "matchNow": "Rapprocher maintenant",
-      "complete": "Le profil semble complet pour son archétype."
+      "complete": "Le profil semble complet pour son archétype.",
+      "reasons": {
+        "default": "aucun signal fort : classement par défaut, expérimenté",
+        "self_declared": "déclaré par le candidat : {archetype}",
+        "signal_enrolled": "actuellement en formation",
+        "signal_expected_graduation": "diplôme prévu : {expected_graduation}",
+        "signal_yre_low": "moins d’un an d’expérience pertinente",
+        "signal_yre_high": "{years_relevant_experience} ans d’expérience pertinente",
+        "signal_education_dominant": "la formation domine le CV",
+        "signal_switch_strong": "souhaite changer de domaine et possède une expérience substantielle",
+        "signal_switch_weak": "souhaite changer de domaine",
+        "contradiction_student_experienced": "contradiction : 3 ans ou plus d’expérience pertinente pour un étudiant",
+        "contradiction_bau_early_career": "contradiction : formation en cours / moins d’un an d’expérience évoque un début de carrière",
+        "contradiction_switcher_no_experience": "note : une reconversion suppose généralement une expérience professionnelle antérieure"
+      }
     },
     "fields": {
       "remove": "Retirer"

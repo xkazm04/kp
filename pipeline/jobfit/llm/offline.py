@@ -29,7 +29,10 @@ _TRUTHY = {"1", "true", "yes", "on"}
 # public host — the mDNS / Docker / K8s / LAN conventions a self-host actually uses.
 _LOCAL_HOST_SUFFIXES = (".local", ".internal", ".lan", ".home.arpa")
 # Unix-domain-socket URL schemes (openai/httpx transports): on-box by construction.
-_UNIX_SOCKET_SCHEMES = {"unix", "unix+http", "http+unix", "unix+https", "https+unix"}
+# Public because base.validate_base_url has to accept exactly these alongside
+# http/https — a shape check that rejected them would seal off the most on-box
+# endpoint there is, which is the opposite of what the offline mode wants.
+UNIX_SOCKET_SCHEMES = frozenset({"unix", "unix+http", "http+unix", "unix+https", "https+unix"})
 
 
 def is_offline(env: Mapping[str, str] | None = None) -> bool:
@@ -64,7 +67,7 @@ def is_local_url(url: str | None) -> bool:
     # A bare ``host:port`` (no scheme) would parse the host as the scheme — prefix
     # ``//`` so it lands in netloc; a real ``scheme://…`` already contains ``://``.
     parsed = urlsplit(candidate if "://" in candidate else f"//{candidate}")
-    if parsed.scheme.lower() in _UNIX_SOCKET_SCHEMES:
+    if parsed.scheme.lower() in UNIX_SOCKET_SCHEMES:
         return True
     host = (parsed.hostname or "").strip().rstrip(".").lower()
     if not host:

@@ -362,6 +362,9 @@ the test.
 | `no-probes` | liveness/readiness declared but not applied, or missing |
 | `volume-access-mode-shared` | `persistence.accessMode` other than `ReadWriteOnce` |
 | `env-contract-drift` | an env key the chart **sets** that `.env.example` does not document |
+| `env-contract-dropped` | an env key in `ENV_CONTRACT_REQUIRED` the chart **stopped** setting |
+| `secret-renders-empty-instead-of-failing` | a `required` removed from `KP_OPERATOR_PASSWORD` / `KP_SECRET` in the Secret template |
+| `open-mode-shipped-on` | a chart that sets `KP_ALLOW_OPEN` truthy, or an `.env.example` that never documents it |
 
 The first two and the last are the ones to understand before editing the chart.
 The replica rules are **data integrity, not a scaling preference**: a change that
@@ -371,6 +374,30 @@ a release is defined partly by its environment contract
 (`docs/architecture/releases.md` §versioning); a key renamed on one side of it is
 an upgrade break that shows up on a running install as a setting that quietly
 stopped applying, never as a failed deploy.
+
+The env contract runs in BOTH directions, and the reverse half is the expensive
+one. A key ADDED to the chart and not to `.env.example` is undocumented
+configuration; a key **dropped** from the chart is a setting that silently
+stopped applying. `ENV_CONTRACT_REQUIRED` names the three the chart must go on
+setting — `KP_DB_PATH`, `KP_OPERATOR_PASSWORD`, `KP_SECRET` — each with what
+actually breaks without it. Dropping `KP_DB_PATH` from the ConfigMap fails no
+deploy: `app/_lib/db-path.ts` derives a path from the launch directory, so the
+pod opens a different, empty database inside its own container layer and loses
+every write on the next restart.
+
+`secret-renders-empty-instead-of-failing` guards the guard. `templates/secret.yaml`
+wraps both auth values in Helm's `required`, so `helm install` fails with a
+message rather than rendering an empty `KP_OPERATOR_PASSWORD` and starting an app
+with no login. Deleting one `required` is a two-word edit that leaves the key set,
+documented and in the Secret — no other policy here notices it.
+
+`open-mode-shipped-on` covers the flag one layer below that. A production build
+refuses to boot with no operator password unless **`KP_ALLOW_OPEN=1`** says the
+operator meant it, which makes it the only thing that can undo the `required`
+above for a whole release. It is off by default, it is now documented in
+`.env.example` and commented out in `values.yaml` with its consequence, and the
+policy fails if the chart ever ships it on. Set it only where something else does
+the gating — an authenticating proxy, a CI e2e run, an air-gapped box.
 
 Changing a policy is a deliberate edit to `POLICIES` in
 `scripts/deploy/check-chart.mjs` with the reason — a line a reviewer can disagree

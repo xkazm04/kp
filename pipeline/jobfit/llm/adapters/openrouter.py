@@ -25,23 +25,14 @@ _DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 class OpenRouterProvider(OpenAIProvider):
     name = "openrouter"
     _env_keys = ("OPENROUTER_API_KEY",)
-
-    def _resolved_base_url(self) -> str | None:
-        """Fixed OpenRouter endpoint; an explicit ``base_url`` / ``OPENROUTER_BASE_URL``
-        wins (for an OpenRouter-compatible proxy)."""
-        if self.base_url:
-            return self.base_url
-        self._load_env()
-        return os.getenv("OPENROUTER_BASE_URL") or _DEFAULT_BASE_URL
-
-    def available(self) -> bool:
-        # Unlike a keyless self-hosted OpenAI-compatible endpoint, OpenRouter ALWAYS
-        # needs a key — so availability rides on the key, not just the SDK import.
-        # _offline_blocked() (base) seals off the default openrouter.ai cloud host
-        # under KP_OFFLINE; only an on-box OPENROUTER_BASE_URL would stay usable.
-        if self._offline_blocked():
-            return False
-        return bool(self._resolved_key()) and self._import_sdk()
+    # Fixed OpenRouter endpoint; an explicit ``base_url`` / ``OPENROUTER_BASE_URL``
+    # wins (for an OpenRouter-compatible proxy).
+    _base_url_env = ("OPENROUTER_BASE_URL",)
+    _default_base_url = _DEFAULT_BASE_URL
+    # Unlike a keyless self-hosted OpenAI-compatible endpoint, OpenRouter ALWAYS
+    # needs a key. _offline_blocked() (base) seals off the default openrouter.ai
+    # cloud host under KP_OFFLINE; only an on-box OPENROUTER_BASE_URL stays usable.
+    _base_url_implies_keyless = False
 
     def _make_client(self, timeout: int) -> Any:
         import openai

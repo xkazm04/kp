@@ -27,6 +27,30 @@ export function profileEditorBackupKey(editingId: string | null): string {
   return `${BACKUP_PREFIX}${editingId ?? "new"}`;
 }
 
+/**
+ * Merge a persisted backup over the form state it should restore INTO.
+ *
+ * Spread, never replace: a backup written by an older build can be missing fields
+ * this one has, and a partial restore must not blank them. Anything unusable — no
+ * backup, unparseable JSON, a stored `null`, an array, a primitive — returns the
+ * SAME state object, so a corrupt slot costs the safety net and never the edit in
+ * front of the recruiter. Pure, and exported, so both halves are pinned at runtime
+ * (useProfileEditorFields.test.ts) instead of only inside an effect.
+ */
+export function applyBackup(state: ProfileFormState, raw: string | null | undefined): ProfileFormState {
+  if (!raw) return state;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    /* best-effort: a truncated or hand-edited slot is not a restorable intake —
+       the recruiter simply starts from the payload the editor loaded with. */
+    return state;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return state;
+  return { ...state, ...(parsed as Partial<ProfileFormState>) };
+}
+
 // hydrate() maps a stored payload (edit/duplicate) — or null (blank create) — into form
 // state honestly: it never pre-fills education/languages/seniority the candidate didn't
 // declare, so a blank intake's completeness reflects real input rather than unchosen
@@ -94,13 +118,9 @@ export function useProfileEditorFields(initialPayload: ProfilePayload | null, ed
       if (!alive) return;
       try {
         const raw = window.sessionStorage.getItem(backupKey);
-        if (raw) {
-          const parsed = JSON.parse(raw) as Partial<ProfileFormState> | null;
-          // Spread over the loaded state, never replace it: a backup written by an older
-          // build can be missing fields this one has, and a partial restore must not
-          // blank them.
-          if (parsed && typeof parsed === "object") setState((s) => ({ ...s, ...parsed }));
-        }
+        // applyBackup owns the parse + the partial merge and returns the same state
+        // for anything unusable, so React bails out of a no-op restore by identity.
+        if (raw) setState((s) => applyBackup(s, raw));
       } catch {
         /* best-effort: a private window, a full quota or a disabled store must never
            stop the editor from opening — the recruiter simply starts from the payload. */

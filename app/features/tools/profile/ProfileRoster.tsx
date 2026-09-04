@@ -11,6 +11,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
 import { ProfileRosterTable } from "./ProfileRosterTable";
 import {
+  pruneStale,
   rosterFacets,
   rosterRows,
   type RosterFilters,
@@ -88,11 +89,15 @@ export function ProfileRoster({
   }, []);
 
   const load = useCallback(() => {
-    let alive = true;
-    fetch("/api/profile")
+    // The fetch is CANCELLED on unmount or refetch, not merely ignored: an `alive`
+    // flag still lets a superseded request finish, hold its connection and parse a
+    // body nobody reads — and on a tab the recruiter left, the roster kept a request
+    // in flight against a component that no longer exists.
+    const controller = new AbortController();
+    fetch("/api/profile", { signal: controller.signal })
       .then((r) => r.json())
       .then((p) => {
-        if (!alive) return;
+        if (controller.signal.aborted) return;
         // The localized fallback, never the server's English `error` — the same rule
         // the delete path below already follows (app/_lib/use-error-message.ts). This
         // read used to `setError(p.error)`, so a failing GET /api/profile put a raw
@@ -106,11 +111,11 @@ export function ProfileRoster({
         }
       })
       .catch(() => {
-        if (alive) setError(t("loadFailed"));
+        // An abort is OUR cancellation, never a failure to report: showing
+        // "could not load" because the reader navigated away would be a lie.
+        if (!controller.signal.aborted) setError(t("loadFailed"));
       });
-    return () => {
-      alive = false;
-    };
+    return () => controller.abort();
   }, [t]);
 
   useEffect(() => load(), [load]);
@@ -131,8 +136,11 @@ export function ProfileRoster({
         throw new Error(errMsg(payload as { error?: string; code?: string } | null, t("deleteFailed")));
       }
       setConfirmingId(null);
-      // Optimistic local prune, then tell the matrix to refetch.
+      // Optimistic local prune, then tell the matrix to refetch. BOTH maps: the
+      // staleness sidecar is keyed by profile id, so leaving the deleted id in it
+      // kept a row's "Newer CV" state alive after the row was gone.
       setProfiles((prev) => (prev ? prev.filter((p) => p.id !== id) : prev));
+      setStale((prev) => pruneStale(prev, id));
       onChanged?.();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("deleteFailed"));

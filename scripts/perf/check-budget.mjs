@@ -297,7 +297,18 @@ export function findValueImporters(barrelRel, root = REPO_ROOT, files = null) {
  * budget file that cannot be parsed has to fail the build, never widen it.
  */
 export function loadBudget(root = REPO_ROOT) {
-  const budget = JSON.parse(fs.readFileSync(path.join(root, BUDGET_FILE), 'utf8'));
+  const file = path.join(root, BUDGET_FILE);
+  if (!fs.existsSync(file)) {
+    // An error that does not name its own fix is a tool people stop running.
+    // The raw ENOENT this used to surface said the file was missing and left the
+    // reader to discover that `--record` is what writes it.
+    throw new Error(
+      `${BUDGET_FILE} does not exist, so there is nothing to measure against. ` +
+        'Run `npm run perf:budget -- --record` to write it from the current tree (ceilings are the ' +
+        'measurement plus slackPercent), read every ceiling, then commit it.',
+    );
+  }
+  const budget = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (budget.version !== 1) throw new Error(`${BUDGET_FILE}: unsupported version ${budget.version}`);
   if (typeof budget.slackPercent !== 'number') throw new Error(`${BUDGET_FILE}: slackPercent must be a number`);
   for (const key of ['entries', 'groups', 'barrels']) {

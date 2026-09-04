@@ -21,7 +21,8 @@ import json
 import sys
 from pathlib import Path
 
-from .archetype import ARCHETYPES, detect_archetype
+from . import registry
+from .archetype import ARCHETYPES
 from .profile import CandidateProfileV2, completeness_gaps, normalize_profile
 
 # --- Honest error taxonomy (mirrors automation_cli.py / devcase_cli.py) ------
@@ -51,7 +52,10 @@ def main(argv: list[str] | None = None) -> int:
         declared = signals.get("selfDeclared")
         self_declared = declared if declared in ARCHETYPES else None
 
-        archetype, confidence, reasons = detect_archetype(
+        # detect_detailed, not detect_archetype: the 4th element is the LOCALIZABLE
+        # twin of `reasons` ({kind, params} codes the catalogs translate). The English
+        # sentences still ship beside it — same additive shape as missingGaps/missing.
+        archetype, confidence, reasons, reason_codes = registry.detect_detailed(
             self_declared=self_declared,
             years_relevant_experience=signals.get("yearsRelevantExperience", profile.years_experience),
             is_enrolled=signals.get("isEnrolled"),
@@ -86,6 +90,12 @@ def main(argv: list[str] | None = None) -> int:
                 "archetype": archetype,
                 "confidence": confidence,
                 "reasons": reasons,
+                # Machine-readable twin of `reasons`, same order: each routing reason
+                # as {kind, params}. ADDITIVE — `reasons` (rendered English) stays for
+                # back-compat; the panel renders the codes through the four catalogs
+                # and falls back to the string at the same index for a result built
+                # before this field existed.
+                "reasonCodes": reason_codes,
                 "completeness": score,
                 "missing": missing,
                 # Machine-readable twin of `missing`, same biggest-gap-first order:

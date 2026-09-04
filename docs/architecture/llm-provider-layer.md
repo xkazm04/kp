@@ -292,12 +292,18 @@ at the two ends that care, and no intermediate call site can forget to forward i
 
 **Deterministic serves carry a descent reason.** A `source:"deterministic"`
 sidecar line may now name WHY the floor served: `emit_deterministic(use_case,
-reason=...)` writes an optional `reason` key — `"offline_policy"` (KP_OFFLINE
-veto), `"not_installed"` (no CLI binary), `"unavailable"` (a bare-bool adapter:
-missing key/SDK), or `"disabled"` (`--no-llm`) — fed by the shared
-`provider_availability(provider)` predicate in `pipeline/jobfit/llm/registry.py`
-(`ClaudeCliProvider.availability()` supplies the discriminated reasons; other
-adapters still collapse to the generic one). The key is omitted when the cause
+reason=...)` writes an optional `reason` key — one of `base.AVAILABILITY_REASONS`
+(`"offline_policy"`, `"missing_key"`, `"sdk_missing"`, `"missing_endpoint"`,
+`"invalid_base_url"`, `"not_installed"`) or `"disabled"` (`--no-llm`) — fed by the
+shared `provider_availability(provider)` predicate in
+`pipeline/jobfit/llm/registry.py`. **Every** provider the registry hands out now
+answers with its own reason: `ClaudeCliProvider.availability()` as before, and the
+metered adapters through `TextProvider.availability()` (Azure adds
+`missing_endpoint`, the OpenAI family `invalid_base_url`). The generic
+`"unavailable"` is now only the floor for a duck-typed object exposing the bare
+bool — a test fake, an in-process drill. Before that, an air-gapped install
+recorded its DELIBERATE `KP_OFFLINE` seal in the ledger as "missing key/SDK" — a
+diagnosis whose only repair is the one thing that cannot help. The key is omitted when the cause
 is unknown (an LLM call that failed mid-flight), and `parseLedgerLine` ignores
 it, so ingestion into `llm_usage` is unchanged — the diagnosis lives in the
 NDJSON sidecar. The Python CLI seats (`reasoning`, `automation`, `campaign`,
@@ -413,8 +419,13 @@ saving one.
 - `classifyProviderError` (`app/api/llm/test/verdict.ts`) reads the raw text ONLY
   to pick that code, and its marker precedence matters: the `unavailable` code
   renders as *"Nothing to call: no usable key or SDK on the server"* — a verdict
-  about **kp's own config** — so it is matched on `test_cli`'s full phrase
-  (`"provider unavailable (missing key or SDK/CLI)"`), never the bare word.
+  about **kp's own config** — so it is matched on `test_cli`'s phrase
+  `"provider unavailable"`, never the bare word `unavailable`. `test_cli` now
+  spells the descent out after it — `provider unavailable (offline_policy: …)` —
+  and carries the same value as a `reason` field in its JSON envelope; the phrase
+  is kept verbatim precisely because this classifier reads it. (The *client* copy
+  is still the single `unavailable` reason: mapping each descent onto its own
+  localized sentence is a `verdict.ts` + catalog change, not made here.)
   Everything else `test_cli` reports is a raw provider exception, and a
   provider-side 503 spells "unavailable" too (`ServerError: 503 UNAVAILABLE …`,
   `Error code: 503 - … 'Service Unavailable'`); those now land on the
@@ -579,8 +590,9 @@ operator actually configured).
 
 ### Validation, and why it differs from Azure's
 
-A base URL is checked for SHAPE only — parseable, `http`/`https`, no embedded
-credentials — and is deliberately NOT run through
+A base URL is checked for SHAPE only — parseable, `http`/`https` (or a
+unix-domain-socket scheme), a host present, no embedded credentials — and is
+deliberately NOT run through
 `assertPublicHttpsEndpointResolved`, the SSRF guard applied to Azure endpoints. That
 guard rejects loopback, LAN and non-https on purpose. Here those are the normal,
 intended values. The threat models genuinely differ:
@@ -593,6 +605,23 @@ intended values. The threat models genuinely differ:
 
 It replaces the `OPENAI_BASE_URL` / `OLLAMA_BASE_URL` env vars and sits at the same
 trust level as them.
+
+**Both doors are checked.** `assertValidBaseUrl` (`app/_lib/llm-config.ts`) guards
+the save; `base.validate_base_url` guards resolution in Python, so an endpoint
+arriving from the ENVIRONMENT (`OPENAI_BASE_URL` / `OLLAMA_BASE_URL` /
+`QWEN_BASE_URL` / `OPENROUTER_BASE_URL` / `AZURE_OPENAI_ENDPOINT`) gets the same
+rules instead of going straight to the SDK. A malformed one is a routing descent
+(`availability()` → `invalid_base_url`, deterministic fallback), while an actual
+call raises — a request that WAS made never degrades silently. No message ever
+echoes the URL: `base.endpoint_host` reduces it to `scheme://host[:port]`, because
+a base URL can carry a credential in its userinfo or query string.
+
+The provider list itself is single-sourced per side and pinned across them:
+`BASE_URL_PROVIDERS` in `app/_lib/llm-model-defaults.ts` ↔ `BASE_URL_PROVIDERS` in
+`pipeline/jobfit/llm/registry.py` (consumed by both `resolve_provider` and
+`probe_provider`), with `app/_lib/llm-base-url-lockstep.test.ts` failing on drift —
+a provider the panel offers but the registry never threads is a saved setting that
+silently does nothing.
 
 ### A blank box is a delete, so the boxes show what is stored
 
@@ -618,4 +647,13 @@ the PUT rejects an Azure save without one — but its `apiVersion` could.)
 Under `KP_OFFLINE=1` an on-box base URL stays usable while an off-box one is sealed
 off — the adapter reports its resolved base URL as its egress target, so the check
 runs against the host you configured rather than the vendor's default cloud
-(`_offline_egress_url` in `adapters/openai_api.py`).
+(`_offline_egress_url` in `adapters/openai_api.py`). The refusal names the endpoint
+as `scheme://host` only, and every sealed adapter reports `offline_policy` from
+`availability()` rather than a generic "unavailable".
+
+The OpenAI-compatible adapters share ONE resolver and ONE availability rule
+(`adapters/openai_api.py`), parameterized by three class attributes —
+`_base_url_env`, `_default_base_url`, `_base_url_implies_keyless`. They used to be
+four byte-identical `_resolved_base_url` copies and two identical `available()`
+bodies, which is how the offline gate went missing from Qwen's copy once
+(`test_llm_offline.py`'s 2026-08-22 audit note).

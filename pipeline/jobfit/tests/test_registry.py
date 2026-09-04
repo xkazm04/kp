@@ -131,5 +131,79 @@ class RegistryShapeTest(unittest.TestCase):
         self.assertLess(registry._DETECTION["defaultConfidence"], threshold)
 
 
+class RoutingReasonKindsTest(unittest.TestCase):
+    """The routing reasons are LOCALIZABLE, not English prose.
+
+    `detect` has always returned rendered English sentences ("currently enrolled",
+    "3 years of relevant experience"), and the profile result panel joined them into
+    a "Routing: …" line — so a cs/de/fr recruiter read the router's explanation in
+    English. `detect_detailed` returns the same reasons as {kind, params} codes the
+    four catalogs translate; the strings stay for every existing consumer
+    (soft_signals' prefix scan, signals_absent, stored analyses).
+    """
+
+    def test_every_reason_declares_a_kind(self) -> None:
+        det = registry._DETECTION
+        self.assertTrue(det.get("defaultReasonKind"))
+        self.assertTrue(det.get("selfDeclaredReasonKind"))
+        for rule in det["signals"]:
+            if rule.get("reason"):
+                self.assertTrue(rule.get("reasonKind"), f"signal '{rule['id']}' has a reason but no reasonKind")
+        for declared, rules in det["contradictions"].items():
+            for rule in rules:
+                self.assertTrue(rule.get("reasonKind"), f"contradiction of '{declared}' has no reasonKind")
+
+    def test_reason_kinds_are_unique(self) -> None:
+        kinds = registry.reason_kinds()
+        self.assertEqual(len(kinds), len(set(kinds)), "a reason kind is declared twice — one catalog entry, two meanings")
+
+    def test_runtime_guard_rejects_a_reason_without_a_kind(self) -> None:
+        with self.assertRaises(RuntimeError):
+            registry._validate_reason_kinds(
+                {
+                    "defaultReasonKind": "default",
+                    "selfDeclaredReasonKind": "self_declared",
+                    "signals": [{"id": "orphan", "reason": "something happened"}],
+                    "contradictions": {},
+                }
+            )
+
+    def test_no_signal_yields_the_default_kind(self) -> None:
+        archetype, confidence, reasons, codes = registry.detect_detailed()
+        self.assertEqual(archetype, registry._DETECTION["defaultArchetype"])
+        self.assertEqual([c["kind"] for c in codes], ["default"])
+        self.assertEqual(codes[0]["params"], {})
+        # The legacy strings are untouched — signals_absent still reads them.
+        self.assertTrue(registry.signals_absent(reasons))
+
+    def test_self_declaration_carries_the_archetype_as_a_param(self) -> None:
+        _, _, _, codes = registry.detect_detailed(self_declared="student")
+        self.assertEqual(codes[0], {"kind": "self_declared", "params": {"archetype": "student"}})
+
+    def test_a_contradiction_appends_its_own_kind(self) -> None:
+        _, confidence, reasons, codes = registry.detect_detailed(self_declared="student", years_relevant_experience=6.0, is_enrolled=False)
+        self.assertEqual([c["kind"] for c in codes], ["self_declared", "contradiction_student_experienced"])
+        self.assertEqual(len(codes), len(reasons))
+        self.assertLess(confidence, registry._DETECTION["selfDeclaredConfidence"])
+
+    def test_signal_params_are_taken_from_the_reason_template(self) -> None:
+        # Only the placeholders the template actually names become params — a code
+        # whose sentence interpolates nothing carries an empty params dict.
+        _, _, _, codes = registry.detect_detailed(years_relevant_experience=5.0, has_substantial_experience=True)
+        by_kind = {c["kind"]: c["params"] for c in codes}
+        self.assertEqual(by_kind["signal_yre_high"], {"years_relevant_experience": 5.0})
+        _, _, _, enrolled = registry.detect_detailed(is_enrolled=True)
+        self.assertEqual(enrolled[0], {"kind": "signal_enrolled", "params": {}})
+
+    def test_detect_and_detect_detailed_agree_on_the_strings(self) -> None:
+        # detect() is the back-compatible face of the same computation: same
+        # archetype, same confidence, same rendered reasons, one per code.
+        kwargs = {"years_relevant_experience": 0.5, "is_enrolled": True, "expected_graduation": "2027-06"}
+        a1, c1, r1 = registry.detect(**kwargs)
+        a2, c2, r2, codes = registry.detect_detailed(**kwargs)
+        self.assertEqual((a1, c1, r1), (a2, c2, r2))
+        self.assertEqual(len(codes), len(r2))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -5190,7 +5190,7 @@
     },
     "result": {
       "confidence": "Signalübereinstimmung {pct} %",
-      "saved": "gespeichert · {id}",
+      "saved": "gespeichert · {name}",
       "preview": "Vorschau (nicht gespeichert)",
       "routing": "Zuordnung: {reasons}",
       "completeness": "Vollständigkeit",
@@ -5210,7 +5210,21 @@
         "has_activity": "ein Praktikum, eine Aktivität oder Zertifizierung"
       },
       "matchNow": "Jetzt matchen",
-      "complete": "Das Profil wirkt vollständig für seinen Archetyp."
+      "complete": "Das Profil wirkt vollständig für seinen Archetyp.",
+      "reasons": {
+        "default": "kein starkes Signal: Standardeinstufung erfahren",
+        "self_declared": "selbst angegeben: {archetype}",
+        "signal_enrolled": "aktuell immatrikuliert",
+        "signal_expected_graduation": "voraussichtlicher Abschluss: {expected_graduation}",
+        "signal_yre_low": "weniger als ein Jahr einschlägige Erfahrung",
+        "signal_yre_high": "{years_relevant_experience} Jahre einschlägige Erfahrung",
+        "signal_education_dominant": "die Ausbildung dominiert den Lebenslauf",
+        "signal_switch_strong": "möchte die Branche wechseln und hat umfangreiche Erfahrung",
+        "signal_switch_weak": "möchte die Branche wechseln",
+        "contradiction_student_experienced": "Widerspruch: 3+ Jahre einschlägige Erfahrung bei einem Studierenden",
+        "contradiction_bau_early_career": "Widerspruch: Immatrikulation / unter einem Jahr Erfahrung deutet auf Berufseinstieg hin",
+        "contradiction_switcher_no_experience": "Hinweis: ein Quereinstieg setzt in der Regel Berufserfahrung voraus"
+      }
     },
     "fields": {
       "remove": "Entfernen"

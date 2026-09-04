@@ -79,6 +79,17 @@ class TestProfileCliErrorStatus(unittest.TestCase):
         self.assertIn("archetype", payload)
         self.assertIn("completeness", payload)
 
+    def test_routing_reasons_ship_a_localizable_twin(self):
+        # The panel renders the ROUTER's explanation; `reasons` is English prose, so
+        # the wire also carries `reasonCodes` ({kind, params}) for the catalogs — one
+        # code per reason, same order. Without this key the cs/de/fr reader gets the
+        # English sentence, which is the defect it closes.
+        code, out, _err = _run(json.dumps({"profile": {}, "signals": {"isEnrolled": True}}))
+        self.assertEqual(code, 0)
+        payload = _last_json(out)
+        self.assertEqual(len(payload["reasonCodes"]), len(payload["reasons"]))
+        self.assertEqual(payload["reasonCodes"][0]["kind"], "signal_enrolled")
+
 
 if __name__ == "__main__":
     unittest.main()

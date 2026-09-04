@@ -88,8 +88,12 @@ const GOOD = {
   ].join('\n'),
   service: 'spec:\n  type: {{ .Values.service.type }}\n',
   configmap: 'data:\n  KP_DB_PATH: /data/kp.sqlite\n  NODE_ENV: production\n',
-  secret: 'stringData:\n  KP_SECRET: {{ .Values.auth.secret | quote }}\n',
-  envExample: 'APP_ORIGIN=\n# KP_DB_PATH=\nKP_SECRET=\n',
+  secret: [
+    'stringData:',
+    '  KP_OPERATOR_PASSWORD: {{ required "kp: auth.operatorPassword is required" .Values.auth.operatorPassword | quote }}',
+    '  KP_SECRET: {{ required "kp: auth.secret is required" .Values.auth.secret | quote }}',
+  ].join('\n'),
+  envExample: 'APP_ORIGIN=\n# KP_DB_PATH=\nKP_SECRET=\nKP_OPERATOR_PASSWORD=\n# KP_ALLOW_OPEN=0\n',
 };
 
 const broken = (patch) => runPolicies({ ...GOOD, ...patch });
@@ -199,6 +203,57 @@ check('the contract covers the ConfigMap and the Secret, not only values.env', (
 
 check('NODE_ENV is exempt with a stated reason, not silently ignored', () => {
   assert.deepEqual(checkEnvContract(GOOD), [], 'the fixture pins NODE_ENV and .env.example does not document it');
+});
+
+// The reverse direction. A key the chart STOPS setting fails no deploy and
+// raises no error — the pod comes up, and the setting is simply gone.
+check('a key the chart stops setting is a finding, not a quiet upgrade break', () => {
+  const f = checkEnvContract({ ...GOOD, configmap: 'data:\n  NODE_ENV: production\n' });
+  assert.ok(has(f, 'env-contract-dropped'));
+  assert.match(f[0].message, /KP_DB_PATH/);
+  assert.match(f[0].fix, /empty database/, 'the finding must say what actually breaks, not just which key moved');
+});
+
+check('the required half reads the Secret too, so deleting a secret key is caught', () => {
+  const f = checkEnvContract({ ...GOOD, secret: 'stringData:\n  KP_SECRET: x\n' });
+  assert.ok(f.some((x) => x.rule === 'env-contract-dropped' && /KP_OPERATOR_PASSWORD/.test(x.message)));
+});
+
+// --- the install must fail, not render empty ----------------------------------
+
+check('a `required` deleted from the Secret template is a finding', () => {
+  const loosened = GOOD.secret.replace('{{ required "kp: auth.operatorPassword is required" ', '{{ ');
+  const f = broken({ secret: loosened });
+  assert.ok(has(f, 'secret-renders-empty-instead-of-failing'));
+  assert.match(f[0].message, /KP_OPERATOR_PASSWORD is rendered without/);
+  assert.match(f[0].message, /runs kp OPEN/, 'the message names the consequence, not just the missing token');
+});
+
+check('both guarded keys are checked, not just the first one', () => {
+  const f = broken({ secret: GOOD.secret.replace('{{ required "kp: auth.secret is required" ', '{{ ') });
+  assert.ok(has(f, 'secret-renders-empty-instead-of-failing'));
+  assert.match(f[0].message, /KP_SECRET/);
+});
+
+// --- the flag that undoes the guard one layer down ----------------------------
+
+check('a chart that ships KP_ALLOW_OPEN on is a finding', () => {
+  const f = broken({ values: GOOD.values.replace('  APP_ORIGIN: ""', '  APP_ORIGIN: ""\n  KP_ALLOW_OPEN: "1"') });
+  assert.ok(has(f, 'open-mode-shipped-on'));
+  assert.match(f.find((x) => x.rule === 'open-mode-shipped-on').message, /no login/);
+});
+
+check('the flag COMMENTED OUT in values is the documented default, not a finding', () => {
+  const commented = GOOD.values.replace('  APP_ORIGIN: ""', '  APP_ORIGIN: ""\n  # KP_ALLOW_OPEN: "1"');
+  assert.ok(!has(broken({ values: commented }), 'open-mode-shipped-on'));
+  // …and neither is an explicit off.
+  assert.ok(!has(broken({ values: GOOD.values.replace('  APP_ORIGIN: ""', '  APP_ORIGIN: ""\n  KP_ALLOW_OPEN: "0"') }), 'open-mode-shipped-on'));
+});
+
+check('the flag must be documented, because an operator meets it as a refused boot', () => {
+  const f = broken({ envExample: GOOD.envExample.replace('# KP_ALLOW_OPEN=0\n', '') });
+  assert.ok(has(f, 'open-mode-shipped-on'));
+  assert.match(f.find((x) => x.rule === 'open-mode-shipped-on').message, /does not document KP_ALLOW_OPEN/);
 });
 
 // --- against the real chart ---------------------------------------------------

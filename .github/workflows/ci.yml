@@ -537,6 +537,7 @@ jobs:
           npx playwright test
           modal-escape
           profile-builder
+          profile-roster
           landing
           public-pages
           shell.spec

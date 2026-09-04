@@ -470,6 +470,12 @@ type `Č` on their keyboard still finds `Čapek`. `candidateMatrixView.ts` uses 
 same fold for the matrix's name filter; the two projections search one population,
 so a name findable in one and invisible in the other would be the bug.
 
+The roster's own load is cancelled, not just ignored: `GET /api/profile` carries an
+`AbortController` signal aborted on unmount and before a refetch, and an abort is
+never reported as a load failure. A delete prunes BOTH client maps — the rows and
+the `stale` sidecar keyed by profile id (`pruneStale`) — so a deleted profile's
+"Newer CV" state cannot outlive its row.
+
 Rebuild-from-latest (the roster's amber "Newer CV" action) is a CALLBACK into
 `ProfileTab`'s `openRebuild`, not a `?fromAnalysis=…&rebuild=…` URL push. The
 roster only ever renders inside the tab that owns the deep-link effect, and that
@@ -498,6 +504,22 @@ no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
 manual review**. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
+
+**The routing explanation is localized, and the receipt names the profile.** The
+router renders its reasons in English ("currently enrolled", "no strong signal…"),
+so `registry.detect_detailed` emits each one ALSO as a `{kind, params}` code —
+kinds declared in `archetypes.json` (`defaultReasonKind`, `selfDeclaredReasonKind`,
+a `reasonKind` per signal and contradiction; a reason without one raises at
+import), params derived from the reason's own template so they cannot drift from
+the sentence. `profile_cli` ships them as `reasonCodes` beside `reasons` — additive,
+exactly like `missingGaps` beside `missing` — and `ProfileResultPanel` renders them
+through `profile.result.reasons.<kind>` in the four catalogs, falling back per
+reason to the router's English string for a result built before the field existed
+(`profileRoutingReasons.ts`; its test fails when a kind has no catalog entry in any
+of the four). The saved receipt shows the profile's display name (or a short
+opaque reference), not the store id the recruiter cannot act on. The panel is
+`ProfileResultPanel` — it used to export `ResultPanel`, the name
+`app/_components/results/ResultPanel.tsx` already owns for the CV-analysis report.
 
 **Retiring an archetype asks first.** `Retire` used to pull the archetype out of
 every picker on one click with no question and no blast radius. It now opens

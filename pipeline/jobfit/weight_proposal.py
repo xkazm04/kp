@@ -177,7 +177,9 @@ def generate(
         return deterministic_proposals(candidates, job), "deterministic"
     try:
         prompt = f"{build_prompt(proposal_context(candidates, job))}\n\n{language_directive(lang)}"
-        payload = provider.complete_json(prompt, system=_SYSTEM)
+        # "proposals" is the one key _coerce reads; naming it pins the answer
+        # object even when the model echoes the prompt's example alongside it.
+        payload = provider.complete_json(prompt, system=_SYSTEM, expected_keys=("proposals",))
         return _coerce(payload, candidates, job), "llm"
     except Exception:
         return deterministic_proposals(candidates, job), "deterministic"

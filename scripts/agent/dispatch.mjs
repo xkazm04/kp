@@ -56,10 +56,17 @@
 // AGENT_TASK_COMMENT, AGENT_TASK_ACTOR, AGENT_TASK_ASSOCIATION. Issue text is
 // attacker-controlled on a public repository; it is data, and it stays data.
 //
+// WHAT IT MAY SPEND: the lane holds a Meter from scripts/agent/budget.mjs and is
+// asked BEFORE every call whether that call fits under `agent-budget.json`'s
+// ceiling for the `dispatch` lane. Fail-closed in both directions — a lane with
+// no declared entry, or a budget file that will not parse, declines rather than
+// running unmetered — and a ceiling reached mid-run is reported as a decline,
+// because a ceiling is a decision this repository made, not a fault.
+//
 // EXIT CODES: 0 a plan was produced (and applied unless --dry-run) · 1 the model
 // proposed something the guard refuses · 2 the model backend failed or replied
-// unparsably · 3 no backend, or the model declined the task (both are normal
-// answers, and neither is a change).
+// unparsably · 3 no backend, no declared budget for the lane, or the model
+// declined the task (all normal answers, and none of them is a change).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -74,8 +81,22 @@ import {
 } from '../review/agent-review.mjs';
 import { checkSubject } from '../release/commit-msg.mjs';
 import { promptDigest, renderProvenance } from './provenance.mjs';
+import {
+  BudgetExceeded,
+  Meter,
+  estimateTokens,
+  loadBudget as loadAgentBudget,
+  render as renderSpend,
+} from './budget.mjs';
 
 export const DEFAULT_MODEL = process.env.KP_AGENT_MODEL || 'claude-opus-5';
+
+/**
+ * The lane this driver spends under. `agent-budget.json` must declare it or the
+ * Meter refuses to build and the run declines — a lane with no ceiling is a bill
+ * nobody agreed to. Exported because the fixture pins the coupling by name.
+ */
+export const LANE = 'dispatch';
 
 /**
  * This driver's own version, as a digest of its source rather than a number.
@@ -113,6 +134,18 @@ export const TRUSTED_ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
  * What a dispatched change may not touch, and why. Written as prefixes so a new
  * file under any of them is covered the day it lands, rather than the day
  * someone remembers to add it here.
+ *
+ * THE SET IS NOT A TASTE. `scripts/agent/__tests__/dispatch.test.mjs` derives the
+ * scripts every CI gate actually runs — from the npm scripts `.github/workflows`
+ * invoke, expanded through their `npm run` chains — and fails if any one of them
+ * is writable here. That is why `scripts/design/`, `scripts/release/` and
+ * `scripts/app-master-bench/` are on this list: they run gates, so protecting
+ * four script folders and not the other five was an omission, not a decision.
+ *
+ * A GATE IS ALSO ITS NUMBERS. A ceiling file an agent may raise is a gate it can
+ * switch off without touching a line of the script that reads it — hence
+ * `ci-budget.json`, `ts-debt.json`, `agent-budget.json` and `package.json`, which
+ * is where every gate command is named in the first place.
  */
 export const PROTECTED_PREFIXES = [
   { prefix: '.git/', why: 'the repository database itself' },
@@ -126,6 +159,20 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/hooks/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/docs/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/lint/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/design/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/deploy/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/perf/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/release/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/app-master-bench/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/i18n-check.mjs', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/run-unit-tests.mjs', why: 'the runner every unit gate goes through' },
+  { prefix: 'package.json', why: 'every gate command is a line in it' },
+  { prefix: 'ci-budget.json', why: 'the pipeline wall-clock ceilings a gate compares against' },
+  { prefix: 'perf-budget.json', why: 'the import-graph ceilings a gate compares against' },
+  { prefix: 'ts-debt.json', why: 'the suppression ratchet a gate compares against' },
+  { prefix: 'agent-budget.json', why: 'what an agent lane may spend — an agent may not raise its own ceiling' },
+  { prefix: 'deploy/helm/', why: 'the deployed shape, judged by the chart policy' },
+  { prefix: '.github/dependabot.yml', why: 'what keeps the actions and dependencies this gate trusts current' },
   { prefix: 'package-lock.json', why: 'a resolved lockfile npm writes, never a model' },
   { prefix: '.env', why: 'secrets' },
 ];
@@ -481,6 +528,36 @@ export function parseArgs(argv) {
   return out;
 }
 
+/**
+ * Wrap a backend's `ask` in the lane's meter. Two things happen per call and the
+ * ORDER is the point: `assertRoom` is asked BEFORE the call, so a run that would
+ * cross its ceiling never spends the money, and `record` runs after, so the
+ * ledger holds what it actually spent rather than what it intended to.
+ *
+ * The usage is ESTIMATED, and says so. `callAnthropic` in scripts/review/ returns
+ * the reply text and nothing else, so the exact `usage` block the API reports is
+ * not reachable from here; recording zero instead would meter the lane as free.
+ * When that function starts returning usage, pass it through and drop the flag —
+ * `priceOf` already refuses to put a dollar figure on an estimate, so nothing
+ * downstream has to change.
+ */
+function metered(backend, meter) {
+  if (!meter) return backend;
+  return {
+    ...backend,
+    ask: async (prompt) => {
+      meter.assertRoom(prompt);
+      const reply = await backend.ask(prompt);
+      meter.record({
+        model: backend.model ?? 'claude-cli',
+        usage: { input_tokens: estimateTokens(prompt), output_tokens: estimateTokens(reply) },
+        estimated: true,
+      });
+      return reply;
+    },
+  };
+}
+
 function backendFor(model) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (apiKey) {
@@ -506,6 +583,20 @@ async function main(argv) {
 
   assertTrusted({ actor: process.env.AGENT_TASK_ACTOR, association: process.env.AGENT_TASK_ASSOCIATION });
 
+  // The lane's ceiling, resolved BEFORE a backend is chosen. Fail-closed: an
+  // undeclared lane, or a budget file that cannot be believed, is a decline —
+  // never a run that spends unmetered because the meter would not build.
+  let meter;
+  try {
+    meter = new Meter({ lane: LANE, budget: loadAgentBudget() });
+  } catch (err) {
+    process.stderr.write(
+      `dispatch: NO BUDGET for lane "${LANE}" — ${err.message}\n` +
+        '  Nothing was proposed. A lane runs under a declared ceiling or it does not run.\n',
+    );
+    return 3;
+  }
+
   const backend = backendFor(args.model);
   if (!backend) {
     process.stdout.write(
@@ -524,12 +615,17 @@ async function main(argv) {
     return 3;
   };
 
+  const ask = metered(backend, meter);
+
   // Round 1 — which files would you need to read?
   const rubric = buildRubric();
   let look;
   try {
-    look = extractJson(await backend.ask(buildLookPrompt({ rubric, task, inventory: repoInventory() })));
+    look = extractJson(await ask.ask(buildLookPrompt({ rubric, task, inventory: repoInventory() })));
   } catch (err) {
+    // A ceiling is a DECISION the repository made, not a backend fault: it is
+    // reported as a decline, with the message that says which ceiling and why.
+    if (err instanceof BudgetExceeded) return declineWith(`Stopped by the agent budget: ${err.message}`);
     process.stderr.write(`dispatch: the model backend FAILED — ${err.message}\n`);
     return 2;
   }
@@ -544,8 +640,9 @@ async function main(argv) {
   // Round 2 — the change itself.
   let plan;
   try {
-    plan = extractJson(await backend.ask(buildProposePrompt({ task, look, sources, rubric })));
+    plan = extractJson(await ask.ask(buildProposePrompt({ task, look, sources, rubric })));
   } catch (err) {
+    if (err instanceof BudgetExceeded) return declineWith(`Stopped by the agent budget: ${err.message}`);
     process.stderr.write(`dispatch: the model backend FAILED — ${err.message}\n`);
     return 2;
   }
@@ -583,6 +680,18 @@ async function main(argv) {
   // The workflow needs the subject verbatim for the commit; stdout is markdown.
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `subject=${String(plan.subject).replace(/\n/g, ' ')}\n`);
+  }
+
+  // What this run spent, on the record. stderr rather than stdout: stdout is the
+  // proposal the workflow pastes onto the issue, and stderr is the run log.
+  const spend = renderSpend(meter.summary(), meter.budget);
+  process.stderr.write(`${spend}\n`);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### What this dispatch spent\n\n${spend}\n`);
+    } catch {
+      /* best-effort: the run summary is a convenience, never the reason a dispatch fails */
+    }
   }
   return 0;
 }

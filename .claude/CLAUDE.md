@@ -71,6 +71,10 @@ pipeline/jobfit/              # Python side: extraction, scoring, LLM registry,
 messages/{en,cs,de,fr}.json   # next-intl catalogs — en is the source of truth
 e2e/                          # Playwright; deterministic keyless subset =
                               # journey-role-to-schedule + modal-escape + profile-builder
+                              # + profile-roster (the saved-profile ledger: column
+                              #   filters, the 20-row pager, the confirm-guarded
+                              #   delete — fixtures created THROUGH /api/profile,
+                              #   which is pure profile_cli logic, so keyless)
                               # + landing (the public landing: a11y per band, the
                               #   spotlight's focus contract, phone nav — the ONLY
                               #   spec that must not seedDevAuth)

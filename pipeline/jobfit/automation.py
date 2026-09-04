@@ -293,7 +293,13 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
         # THIS descent was resolved at the availability gate and is the caller's.
         return deterministic(), "deterministic"
     try:
-        payload = provider.complete_json(prompt, system=_system_prompt())
+        # Pin the answer BY SHAPE: the deterministic template is this call site's
+        # schema, so its top-level keys select the model's real answer even when the
+        # prompt's example object is echoed after it (_extract_json otherwise takes
+        # the LAST value). Every caller's builder is a pure dict factory.
+        payload = provider.complete_json(
+            prompt, system=_system_prompt(), expected_keys=tuple(deterministic())
+        )
     except Exception as exc:  # noqa: BLE001 — every failure degrades; the reason is recorded
         _note_degradation(_call_failure_reason(exc))
         return deterministic(), "deterministic"

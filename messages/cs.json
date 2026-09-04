@@ -5190,7 +5190,7 @@
     },
     "result": {
       "confidence": "shoda signálů {pct} %",
-      "saved": "uloženo · {id}",
+      "saved": "uloženo · {name}",
       "preview": "náhled (neuloženo)",
       "routing": "Směrování: {reasons}",
       "completeness": "Úplnost",
@@ -5210,7 +5210,21 @@
         "has_activity": "stáž, aktivita nebo certifikace"
       },
       "matchNow": "Spárovat teď",
-      "complete": "Profil vypadá pro svůj archetyp úplný."
+      "complete": "Profil vypadá pro svůj archetyp úplný.",
+      "reasons": {
+        "default": "žádný silný signál: výchozí zařazení zkušený",
+        "self_declared": "uvedeno kandidátem: {archetype}",
+        "signal_enrolled": "aktuálně studuje",
+        "signal_expected_graduation": "očekávané ukončení studia: {expected_graduation}",
+        "signal_yre_low": "méně než rok relevantní praxe",
+        "signal_yre_high": "{years_relevant_experience} let relevantní praxe",
+        "signal_education_dominant": "vzdělání je dominantní částí životopisu",
+        "signal_switch_strong": "chce změnit obor a má rozsáhlou praxi",
+        "signal_switch_weak": "chce změnit obor",
+        "contradiction_student_experienced": "rozpor: 3+ roky relevantní praxe u studenta",
+        "contradiction_bau_early_career": "rozpor: studium / méně než rok praxe ukazuje na začátek kariéry",
+        "contradiction_switcher_no_experience": "poznámka: změna oboru obvykle předpokládá předchozí profesní praxi"
+      }
     },
     "fields": {
       "remove": "Odebrat"

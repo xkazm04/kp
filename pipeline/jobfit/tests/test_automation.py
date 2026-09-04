@@ -154,7 +154,7 @@ class _CaptureProvider:
         self.prompt = None
         self.system = None
 
-    def complete_json(self, prompt, system=None):
+    def complete_json(self, prompt, system=None, expected_keys=None):
         self.prompt = prompt
         self.system = system
         return self.payload
