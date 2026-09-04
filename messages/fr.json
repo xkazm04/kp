@@ -8428,7 +8428,8 @@
       "colCreated": "Créé",
       "open": "Ouvrir",
       "untitledAssignment": "Épreuve",
-      "stageAria": "Étape de l’exercice : {stage}"
+      "stageAria": "Étape de l’exercice : {stage}",
+      "truncated": "Affichage des {count} affectations les plus récentes. Les plus anciennes ne sont pas listées."
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",

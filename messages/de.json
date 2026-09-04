@@ -8428,7 +8428,8 @@
       "colCreated": "Erstellt",
       "open": "Öffnen",
       "untitledAssignment": "Aufgabe",
-      "stageAria": "Aufgabenphase: {stage}"
+      "stageAria": "Aufgabenphase: {stage}",
+      "truncated": "Es werden die {count} neuesten Assignments gezeigt. Ältere sind nicht gelistet."
     },
     "evalPanel": {
       "capabilityScores": "Kompetenzwerte",

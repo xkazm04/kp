@@ -15,8 +15,28 @@ import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/a
 // 60/10min per IP is far above a reviewer signing off designs by hand.
 const APPROVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
+// The library read was a SILENT truncation: `listDevCases(undefined, ws)` took the
+// store default of 50 and the payload said nothing about it, so a studio with more
+// than fifty approved cases showed fifty, sorted newest-first, and every older case
+// simply did not exist as far as the Cases table was concerned - no count, no notice,
+// no way to ask for the rest. The page size is now a request parameter and the answer
+// SAYS whether it was cut.
+const DEFAULT_CASE_LIMIT = 50;
+const MAX_CASE_LIMIT = 500;
+
+/** `?limit=` as a page size: a positive integer, clamped to MAX_CASE_LIMIT; anything
+ *  else (absent, blank, NaN, negative, 1e9) falls back to the default rather than
+ *  refusing - a malformed page size is not worth a 400 on a read. Module-local: a
+ *  route file may export only handlers, so it is driven through GET in route.test.ts. */
+function caseLimitFrom(raw: string | null): number {
+  if (raw === null || raw.trim() === "") return DEFAULT_CASE_LIMIT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return DEFAULT_CASE_LIMIT;
+  return Math.min(n, MAX_CASE_LIMIT);
+}
+
 // GET: approved case scenarios. POST: the human gate — approve a designed role+case.
-export async function GET() {
+export async function GET(request: NextRequest) {
   // AUTHORITY (/perfect wave 31). This door hands back FULL approved-case records -
   // role, case, need and analysis JSON - and asked nothing at all about the caller.
   // Reading the library is a `read` act, so identity presence is the whole gate here;
@@ -27,7 +47,12 @@ export async function GET() {
     // Scoped: an unscoped list showed the DEFAULT team's approved cases — full
     // role/case/need JSON — in every other team's Cases table, beside their own
     // postings. The sibling routes (/postings, /lifecycle, /comms) already scope.
-    return NextResponse.json({ cases: listDevCases(undefined, await currentWorkspace()) });
+    const limit = caseLimitFrom(new URL(request.url).searchParams.get("limit"));
+    // Read one MORE than the page: the extra row is the whole evidence that a page
+    // was cut, and it costs one row rather than a second COUNT(*) over the table.
+    const rows = listDevCases(limit + 1, await currentWorkspace());
+    const truncated = rows.length > limit;
+    return NextResponse.json({ cases: truncated ? rows.slice(0, limit) : rows, limit, truncated });
   } catch (error) {
     // better-sqlite3's SQLITE_* detail and the absolute db path rode this message to
     // the studio verbatim; they stay in the server log and the reader gets the code.
@@ -76,6 +101,7 @@ export async function POST(request: NextRequest) {
     if (!rateLimit(`devcase-approve:${clientIpFrom(request.headers)}`, APPROVE_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
+    const ws = await currentWorkspace();
     const saved = saveDevCase(
       {
         need: body.need ?? null,
@@ -83,12 +109,18 @@ export async function POST(request: NextRequest) {
         role: body.role,
         case: body.case,
       },
-      await currentWorkspace()
+      ws
     );
     // Audit the human approval exactly as the lifecycle route does (any probe-audit
     // override is recorded). Separation of duties (author != approver) is a larger
     // product change and is intentionally NOT enforced here — see the follow-up note.
-    recordAudit({ lifecycleId: null, actor: "human", action: "approved", ref: saved.id, reason: gate.auditReason ?? undefined });
+    // …with the WORKSPACE the case was just saved under. `workspaceId` is optional on
+    // recordAudit and an unattributed row falls back to the DEFAULT tenant, so this row
+    // - two lines after the case was saved under the caller's team, with the tenant
+    // already in hand - was listing every studio's manual approvals in the default
+    // team's audit panel. "approved" is not in GLOBAL_AUDIT_ACTIONS (dev-control.ts):
+    // only the kill switch is deployment-wide.
+    recordAudit({ lifecycleId: null, actor: "human", action: "approved", ref: saved.id, reason: gate.auditReason ?? undefined, workspaceId: ws });
     return NextResponse.json({ ok: true, ...saved });
   } catch (error) {
     // saveDevCase is a store transaction: the thrown message carries SQLITE_* codes and

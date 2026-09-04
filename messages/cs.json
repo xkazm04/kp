@@ -8428,7 +8428,8 @@
       "colCreated": "Vytvořeno",
       "open": "Otevřít",
       "untitledAssignment": "Zadání",
-      "stageAria": "Fáze zadání: {stage}"
+      "stageAria": "Fáze zadání: {stage}",
+      "truncated": "Zobrazeno {count} nejnovějších zadání. Starší se nezobrazují."
     },
     "evalPanel": {
       "capabilityScores": "Skóre schopností",

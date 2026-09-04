@@ -8428,7 +8428,8 @@
       "colCreated": "Created",
       "open": "Open",
       "untitledAssignment": "Assignment",
-      "stageAria": "Assignment stage: {stage}"
+      "stageAria": "Assignment stage: {stage}",
+      "truncated": "Showing the {count} most recent assignments. Older ones are not listed."
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",

@@ -17,10 +17,11 @@ process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-devcas
 delete process.env.DATABASE_URL;
 
 let POST: (typeof import("./route.ts"))["POST"];
+let GET: (typeof import("./route.ts"))["GET"];
 let listAudit: (typeof import("@/app/_lib/dev-control"))["listAudit"];
 
 before(async () => {
-  ({ POST } = await import("./route.ts"));
+  ({ POST, GET } = await import("./route.ts"));
   ({ listAudit } = await import("@/app/_lib/dev-control"));
 });
 
@@ -81,4 +82,39 @@ test("approving without a role and a case answers DEVCASE_CASE_FIELDS_REQUIRED",
   const res = await POST(post({ role, case: undefined }) as never);
   assert.equal(res.status, 400);
   assert.equal(((await res.json()) as { code?: string }).code, "DEVCASE_CASE_FIELDS_REQUIRED");
+});
+
+
+// ---- the library read stops SILENTLY truncating ---------------------------------
+//
+// `listDevCases(undefined, ws)` took the store default of 50 and the payload said
+// nothing about it, so a studio with more than fifty approved cases showed fifty and
+// every older case simply did not exist as far as the Cases table was concerned.
+function get(query = ""): Request {
+  return new Request(`http://localhost/api/devcase${query}`, { method: "GET" });
+}
+
+test("the case list says when it was cut, and ?limit sets the page size", async () => {
+  // The three approves above (plus this file's own 400 case) left cases in the store.
+  const page = await GET(get("?limit=1") as never);
+  assert.equal(page.status, 200);
+  const body = (await page.json()) as { cases: unknown[]; limit: number; truncated: boolean };
+  assert.equal(body.limit, 1);
+  assert.equal(body.cases.length, 1, "?limit is the page size, not a suggestion");
+  assert.equal(body.truncated, true, "the answer must SAY a page was cut");
+
+  // …and a page that fits is not claimed as truncated.
+  const all = (await (await GET(get("?limit=500") as never)).json()) as { cases: unknown[]; truncated: boolean };
+  assert.equal(all.truncated, false);
+  assert.ok(all.cases.length >= 2, "the whole library comes back when it fits");
+});
+
+test("a malformed ?limit falls back to the default rather than refusing a read", async () => {
+  for (const q of ["", "?limit=", "?limit=0", "?limit=-4", "?limit=abc", "?limit=2.5"]) {
+    const body = (await (await GET(get(q) as never)).json()) as { limit: number };
+    assert.equal(body.limit, 50, `${q || "(none)"} must fall back to the default page size`);
+  }
+  // …and an absurd one is clamped, never handed to the store.
+  const huge = (await (await GET(get("?limit=1000000") as never)).json()) as { limit: number };
+  assert.equal(huge.limit, 500);
 });
