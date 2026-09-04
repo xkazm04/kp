@@ -23,9 +23,6 @@
     "_components/AnalysisProgress.tsx": {
       "btnAffirm": 1
     },
-    "_components/ErrorBoundary.tsx": {
-      "noticeAmber": 1
-    },
     "_components/GithubAnalysisPanel.tsx": {
       "panel": 5
     },
@@ -33,9 +30,6 @@
       "panel": 1
     },
     "_components/PotentialBadge.tsx": {
-      "panel": 1
-    },
-    "_components/Select.tsx": {
       "panel": 1
     },
     "_components/chat/ChatMiniChart.tsx": {
@@ -61,9 +55,6 @@
     },
     "_components/results/interview/SoftSignalsSection.tsx": {
       "chipQuiet": 1
-    },
-    "_components/table/FilterMenu.tsx": {
-      "panel": 1
     },
     "_components/voice/VoiceSettings.tsx": {
       "metaLabel": 2
@@ -426,9 +417,6 @@
     },
     "jds/[slug]/page.tsx": {
       "noticeAmber": 1
-    },
-    "offer/[token]/OfferClient.tsx": {
-      "rawDate": 1
     },
     "skill/[token]/page.tsx": {
       "panel": 1,

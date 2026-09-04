@@ -13,6 +13,7 @@ import { pipelineStageTone } from "@/app/_lib/status-tone";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { displayScoreOf } from "@/app/_lib/match-score";
 import { initials } from "@/app/_lib/initials";
+import { STICKY_BAR } from "@/app/_components/ui/recipes";
 import { styleFor } from "@/app/features/shared/pipelineTypes";
 // The drawer's narrow Pick of the board record — the header only ever renders the
 // identity fields, and typing it wider than its caller would reject the drawer's
@@ -64,7 +65,7 @@ export function PipelineDrawerHeader({
   const monogram = initials(entry.candidateLabel);
 
   return (
-    <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 p-4 backdrop-blur">
+    <header className={`${STICKY_BAR()} flex items-start gap-3 p-4`}>
       <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-base font-semibold text-white ${a.bg}`}>{monogram}</span>
       <div className="min-w-0 flex-1">
         <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>

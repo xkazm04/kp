@@ -5,6 +5,7 @@ import { selectConsumesKeyWhileOpen } from "./select-keys";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Check, ChevronDown, type LucideIcon, Search } from "lucide-react";
+import { POPOVER } from "@/app/_components/ui/recipes";
 
 // Canonical single-select — the dual-theme replacement for a native <select>.
 //
@@ -302,7 +303,7 @@ export function Select({
                   left: Math.max(8, Math.min(rect.left, (typeof window !== "undefined" ? window.innerWidth : 1280) - rect.width - 8)),
                   minWidth: rect.width,
                 }}
-                className="animate-fade-in fixed z-[61] max-w-[calc(100vw-1rem)] rounded-lg border border-stone-200 bg-white shadow-pop motion-reduce:animate-none"
+                className={`${POPOVER} animate-fade-in fixed z-[61] max-w-[calc(100vw-1rem)] motion-reduce:animate-none`}
               >
                 {withSearch ? (
                   <div className="relative border-b border-stone-100 p-1.5">

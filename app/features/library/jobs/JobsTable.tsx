@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { Th } from "./JobsShared";
+import { STICKY_HEAD } from "@/app/_components/ui/recipes";
 
 // Scrollable table shell with an sr-only caption and a pinned header, so column
 // meaning is never lost while scrolling the long corpus. Children is the
@@ -10,7 +11,7 @@ export function JobsTableFrame({ children }: { children: React.ReactNode }) {
     <div className="max-h-[70vh] overflow-auto rounded-lg border border-stone-200">
       <table className="min-w-full divide-y divide-stone-200">
         <caption className="sr-only">{t("caption")}</caption>
-        <thead className="sticky top-0 z-10 bg-paper">
+        <thead className={STICKY_HEAD()}>
           <tr>
             <th scope="col" className="w-8 px-2 py-3">
               <span className="sr-only">{t("expandRow")}</span>

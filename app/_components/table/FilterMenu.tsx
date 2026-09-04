@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
-import { FIELD } from "@/app/_components/ui/recipes";
+import { FIELD, POPOVER } from "@/app/_components/ui/recipes";
 
 export type Option = { value: string; label: string };
 
@@ -223,7 +223,7 @@ export function AnchoredMenu({
         onClick={() => onClose("dismiss")}
         className="fixed inset-0 z-[60] cursor-default"
       />
-      <div ref={menuRef} style={style} className="fixed z-[70] rounded-lg border border-stone-200 bg-white shadow-pop">
+      <div ref={menuRef} style={style} className={`${POPOVER} fixed z-[70]`}>
         {children}
       </div>
     </>,

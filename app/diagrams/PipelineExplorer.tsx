@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PlantUml } from "@/app/_components/puml/PlantUml";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
-import { META_LABEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, STICKY_BAR } from "@/app/_components/ui/recipes";
 import { STEP_DETAILS, type StepDetail, type StepStatus } from "./pipelineSteps";
 
 // bug-ui-scan-2026-07-09 (architecture-diagrams #3): status pill labels now come
@@ -91,7 +91,7 @@ function StepDrawer({ id, detail, onClose }: { id: string; detail: StepDetail; o
         aria-label={title}
         className="animate-drawer-in pointer-events-auto relative flex h-full w-full flex-col overflow-y-auto border-l border-stone-200 bg-paper shadow-overlay focus:outline-none lg:w-1/2"
       >
-        <header className="sticky top-0 z-10 flex items-start gap-3 border-b border-stone-200 bg-paper/95 px-6 py-4 backdrop-blur">
+        <header className={`${STICKY_BAR()} flex items-start gap-3 px-6 py-4`}>
           <div className="min-w-0 flex-1">
             <span className={`inline-block rounded-full px-2.5 py-0.5 text-meta ${cls}`}>{t(`status.${detail.status}`)}</span>
             <h2 className="mt-1 font-serif text-h2 text-ink">{title}</h2>

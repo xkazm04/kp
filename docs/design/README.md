@@ -445,10 +445,11 @@ btnAffirm=5 rawDate=15` over 168 files.
 of the win again: the hand-typed advisory was `rounded-md border-amber-200` with no
 `dark:rounded-2xl`, so it was the one square-cornered box on a Spark Dark surface
 after `NOTICE()` had already been given the sticker radius. Its entry is gone from
-`recipe-debt.json`, which locks it. `Select`'s `panel: 1` is deliberately still
-standing: its portalled menu is `shadow-pop`, and `PANEL` hardcodes `shadow-panel`
-plus the dark sticker ride that comes with it, so composing it would restyle the
-open menu. That literal wants a `POPOVER` recipe, not `PANEL`.
+`recipe-debt.json`, which locks it. `Select`'s `panel: 1` stood deliberately until
+2026-09-04: its portalled menu is `shadow-pop`, and `PANEL` hardcodes `shadow-panel`
+plus the dark sticker ride that comes with it, so composing it would have restyled
+the open menu. That literal wanted a `POPOVER` recipe, not `PANEL` — it now has one
+(below), and both it and `table/FilterMenu` are burnt down, their entries dropped.
 
 **First burn-down, same day:** `panel` 107 → 92, `metaLabel` 76 → 53,
 `chipQuiet` 10 → 9, `noticeAmber` 62 → 61 (40 lines) across `ExtractionTab`,
@@ -482,6 +483,36 @@ now its only copy. Single-choice input, when a surface needs one: group native
 top-level primitive with no importer outside itself fails `npm run test:unit`. A
 primitive nobody renders is not free: it is read as live vocabulary, copied by
 new code, and it accrues fixes for bugs no user can hit.
+
+### Three words for the layers above the page (2026-09-04)
+
+| Word | Replaces |
+| --- | --- |
+| `STICKY_HEAD(layer)` | five hand-rolled pinned table headers across **three** z-layers (10/20/30) and three fills |
+| `STICKY_BAR(on)` | three sticky bars (chapter rail, pipeline drawer header, diagram explorer header) drifted on layer AND rule |
+| `POPOVER` | the anchored pop shell, re-typed in `Select`, `table/FilterMenu` and four feature menus |
+
+`STICKY_HEAD` has exactly two tiers because there are exactly two facts:
+`"head"` is a column-header row, `"corner"` is the cell frozen on **both** axes
+in a grid with row headers — and the corner must sit *above* the head, or the
+row-header column scrolls over it. Spelled three ways, a table that borrowed its
+neighbour's class string got a corner that scrolled under its own rows.
+
+`STICKY_BAR` keeps `on: "paper" | "white"` because the translucent fill is a real
+difference (which surface the bar floats above); the z-layer and the ruled edge
+were not.
+
+**`POPOVER` is not `PANEL`, and that is the whole point.** `PANEL` hardcodes
+`shadow-panel`, which takes the Spark Dark sticker ride in `globals.css` — 2px
+drawn outline, 16px radius, offset shadow. A menu that presses out of the page
+like a sticker reads as a card someone dropped on the table rather than as a
+layer hanging off its trigger, so the pop layer keeps `shadow-pop` (its own
+token, a hard offset in *both* registers). That is why the ratchet carried
+`Select`'s `panel: 1` instead of "fixing" it.
+
+Four feature menus (`PipelineCandidateMenu`, `PipelineFilterMenu`,
+`JdsLedgerFilterMenu`, `MatrixReasoningPopover`) still re-type the shell and are
+the recipe's remaining fix-as-you-touch population.
 
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
