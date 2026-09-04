@@ -505,6 +505,42 @@ const ROUTES: RouteSpec[] = [
     expensive: "claimPairing(nonce)",
     servedBefore: "if (!nonce)",
   },
+  // ADDED /perfect wave 38 (agent-workforce), WITH the limiters. The bridge had
+  // FOUR outbound doors and only two were throttled: `grep -rn "rateLimit" in
+  // app/api/agents/` named dispatch, pair and report, while the connector CATALOG
+  // and the status REFRESH poll - both of which open a socket to the Personas app
+  // and hold a 5s deadline against it - had nothing at all. Neither spends money,
+  // but both are egress from a route whose `requireOperator()` gate open mode makes
+  // a documented no-op for the WHOLE API, which is the same reasoning that put a
+  // budget on /api/search.
+  {
+    rel: "./agents/catalog/route.ts",
+    key: "`agent-catalog:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "CATALOG_RATE_LIMIT",
+    optsDef: "const CATALOG_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The bridge call itself. The catalog NEVER fails by contract (it degrades to
+    // the built-in list), so there is no cheap refusal ahead of it to keep serving:
+    // the limiter is the first thing after the operator gate.
+    expensive: "await fetchConnectorCatalog()",
+  },
+  {
+    rel: "./agents/[id]/refresh/route.ts",
+    // DELIBERATELY laxer than dispatch's 10 and sized like the pairing CLAIM poll:
+    // this is the PULL half of the bridge, polled per roster row while a hire is
+    // being approved, so a dispatch-sized ceiling would refuse the honest wait the
+    // door exists for.
+    key: "`agent-refresh:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "REFRESH_RATE_LIMIT",
+    optsDef: "const REFRESH_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await fetchRequestStatus(agent.requestId)",
+    // The "never dispatched" answer could never reach Personas and names the one
+    // remedy (re-dispatch); telling that caller to slow down would hide it.
+    servedBefore: '"AGENT_REFRESH_NOT_DISPATCHED"',
+  },
   {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
