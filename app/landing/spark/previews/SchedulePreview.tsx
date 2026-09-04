@@ -4,13 +4,16 @@ import { Check, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { AMBER, MOSS, STEEL } from "../tokens";
-import { ConfirmBar, pop } from "./shared";
+import { ConfirmBar, entrance, pop } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /* 03 · Self-scheduling — slots deal themselves out. */
 export default function SchedulePreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   // Weekday abbreviations differ per language (Mon/Po/Mo/Lun), so they come
   // from the catalog as an array rather than being hardcoded English.
   const days = t.raw("previews.schedule.days") as string[];
@@ -42,13 +45,13 @@ export default function SchedulePreview() {
                 key={`${d}-${row}`}
                 initial={{ opacity: 0, scale: 0.5, rotate: picked ? -8 : 0 }}
                 animate={{ opacity: 1, scale: picked ? 1.08 : 1, rotate: 0 }}
-                transition={{ delay: 0.2 + (row * days.length + col) * 0.06, type: "spring", bounce: 0.45 }}
+                transition={entrance(reduce, { delay: 0.2 + (row * days.length + col) * 0.06, type: "spring", bounce: 0.45 })}
                 className="nums relative rounded-lg border-2 border-[#17202a] px-1 py-2"
                 style={picked ? { background: MOSS, color: "#fff" } : { background: "#fff" }}
               >
                 {time}
                 {picked && (
-                  <motion.span {...pop(1.0)} className="absolute -right-2 -top-2" aria-hidden>
+                  <motion.span {...pop(1.0, reduce)} className="absolute -right-2 -top-2" aria-hidden>
                     <Sparkles className="h-4 w-4" style={{ color: AMBER }} />
                   </motion.span>
                 )}

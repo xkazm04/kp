@@ -4,7 +4,8 @@ import { Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { AMBER, MOSS, STEEL } from "../tokens";
-import { ROW } from "./shared";
+import { ROW, entrance } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /* 09 · Offer to hired — the last mile. */
 const STEPS = [
@@ -18,6 +19,8 @@ export default function OfferPreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   return (
     <div>
       <p className="text-[17px] font-bold">{t("previews.offer.title", { name: "Petr K." })}</p>
@@ -27,7 +30,7 @@ export default function OfferPreview() {
             key={s.key}
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.28 + i * 0.13, type: "spring", bounce: 0.4 }}
+            transition={entrance(reduce, { delay: 0.28 + i * 0.13, type: "spring", bounce: 0.4 })}
             className={`${ROW} flex items-center gap-3 p-3`}
           >
             <span

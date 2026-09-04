@@ -4,7 +4,8 @@ import { Check, Mic } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { CORAL, LIMEWASH, MOSS, STEEL } from "../tokens";
-import { ConfirmBar, pop } from "./shared";
+import { ConfirmBar, entrance, pop } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /*
  * 02 · Voice screening — it speaks Czech too.
@@ -21,6 +22,8 @@ export default function VoicePreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   const lines = [
     { who: "ai" as const, text: t("previews.voice.demoAi") },
     { who: "them" as const, text: t("previews.voice.demoThem") }
@@ -31,7 +34,7 @@ export default function VoicePreview() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <motion.span
-            {...pop(0.15)}
+            {...pop(0.15, reduce)}
             className="grid h-10 w-10 place-items-center rounded-full border-[3px] border-[#17202a]"
             style={{ background: CORAL }}
           >
@@ -60,7 +63,7 @@ export default function VoicePreview() {
             key={i}
             initial={{ opacity: 0, scale: 0.85, x: line.who === "ai" ? -24 : 24 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{ delay: 0.35 + i * 0.3, type: "spring", bounce: 0.4 }}
+            transition={entrance(reduce, { delay: 0.35 + i * 0.3, type: "spring", bounce: 0.4 })}
             className={`max-w-[88%] rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[17px] leading-snug ${
               line.who === "ai" ? "bg-white" : "ml-auto"
             }`}

@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { AMBER, CORAL, HAND, INK, MOSS, STEEL } from "../tokens";
-import { ROW, StampChip, pop } from "./shared";
+import { ROW, StampChip, entrance, pop } from "./shared";
+import { useStillMotion } from "../useStillMotion";
 
 /* 06 · Gates & receipts — cards dealt, human signs. */
 // Candidate names are fictional sample data and ride in as placeholders, so a
@@ -18,6 +19,8 @@ export default function GatesPreview() {
   // next-intl's typed catalog only exposes TOP-LEVEL namespaces, so scope to
   // `landing` and reach this preview's keys by path.
   const t = useTranslations("landing");
+  // Reduced motion: the transition, never the markup — see ./shared.tsx.
+  const reduce = useStillMotion();
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -30,7 +33,7 @@ export default function GatesPreview() {
             key={item.key}
             initial={{ opacity: 0, y: 26, rotate: i % 2 === 0 ? -3 : 3 }}
             animate={{ opacity: 1, y: 0, rotate: 0 }}
-            transition={{ delay: 0.35 + i * 0.16, type: "spring", bounce: 0.4 }}
+            transition={entrance(reduce, { delay: 0.35 + i * 0.16, type: "spring", bounce: 0.4 })}
             className={`${ROW} p-3.5`}
           >
             <div className="flex items-start justify-between gap-3">
@@ -55,7 +58,7 @@ export default function GatesPreview() {
           </motion.div>
         ))}
       </div>
-      <motion.p {...pop(1.0)} className={`${HAND} mt-4 -rotate-1 text-base`} style={{ color: MOSS }}>
+      <motion.p {...pop(1.0, reduce)} className={`${HAND} mt-4 -rotate-1 text-base`} style={{ color: MOSS }}>
         {t("previews.gates.signed", { time: "14:02", name: "M. Horáková" })}
       </motion.p>
     </div>
