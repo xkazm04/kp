@@ -379,8 +379,12 @@ session, and reacting to the transcripts the protocol returns.
 - **Local TTS with Czech exists and is free.** [Piper](https://github.com/rhasspy/piper) runs
   ~15 M-param ONNX voices on CPU (`en_US-lessac-medium`, `cs_CZ-jirka-medium`), measured here at
   **2.5× real-time** and resampled 22 050 → 16 000 Hz with `soxr`. Generation is fully offline; only
-  the EL session egresses (so the harness inherits the same `KP_OFFLINE` seal as
-  `elevenlabs_backend.py`).
+  the EL session egresses. That session is sealed by `KP_OFFLINE` the same way
+  `elevenlabs_backend.py` is — see §9.12, which is where the seal actually lives; until
+  2026-09-02 this line claimed an inheritance that no code implemented.
+- **Only `en` and `cs` can be spoken.** The app ships four locales; the voice plane has two Piper
+  voices. `de`/`fr` are **refused with a reason**, never substituted with the English voice —
+  §9.12.
 
 ### 9.2 The metric no other plane can produce: ground-truth WER
 
@@ -472,6 +476,8 @@ Voices live in `data/piper` (gitignored, ~63 MB each); Piper measured at **2.5×
 
     npm run dev -- -p 3100          # kp's own port (:3000 is Vibeman here)
     python -m pipeline.jobfit.eval.voice.v0_smoke --base-url http://localhost:3100 --turns 2
+    # …and with a ceiling on the paid call (a spent budget stops it cleanly, §9.12):
+    python -m pipeline.jobfit.eval.voice.v0_smoke --base-url http://localhost:3100 --max-minutes 3
 
 **Result:** `5/5 checks PASS · corpus WER 0.00% over 40 words · first-audio latency 0.33 s / 3.59 s`,
 transcript persisted through the app (5 turns). ~2.5 EL minutes across three runs.
@@ -684,8 +690,24 @@ direction that flatters or misattributes a run.
 | `v0_smoke` preflight | `tts.available(args.lang or "en")` — a Czech scenario on a box with no `cs_CZ` model passed the "fail before spending ElevenLabs minutes" gate, minted a **real** session, then raised inside `speak()` on the first utterance. | Resolves the scenario first and preflights the voice it will actually synthesize. `--lang` remains an explicit override. |
 
 Pinned offline by `TestAgentAudioFormatClock`, `TestSpeechEndReference`, `TestSmokePreflight` and
-`TestNormalize.test_edge_punctuation_is_not_a_word` in `tests/test_voice_harness.py` (51 tests, no
+`TestNormalize.test_edge_punctuation_is_not_a_word` in `tests/test_voice_harness.py` (77 tests, no
 network, no minutes).
+
+---
+
+## 9.12 Seal, budget, and the two silent substitutions (2026-09-02)
+
+Five properties the harness described but did not have. All five are pinned offline —
+`tests/test_voice_harness.py` (77 tests) and the new `tests/test_app_client.py` (12 tests, a
+`http.server` on 127.0.0.1 standing in for the app); no network, no ElevenLabs minutes.
+
+| Where | Was | Now |
+|---|---|---|
+| **`KP_OFFLINE` seal** (`voice/seal.py`) | §9.1 said the harness "inherits the same seal as `elevenlabs_backend.py`". It did not: no file under `eval/voice/` mentioned `KP_OFFLINE`, so an air-gapped install could open a signed `wss://api.elevenlabs.io` session and stream a candidate's synthesized speech to a cloud host. | One seal, shared. `voice_backend_available()` is the preflight (`interview_eval --backend voice` and `v0_smoke` both **exit 2** with the reason, the same contract `--backend elevenlabs` already used); `refuse_if_offline()` raises `OfflineRefused` at the egress itself — `ElVoiceSession.__aenter__`, `run_voice_scenario`, and the `app_client` calls that mint EL credentials. Reading `/api/interview/connect` availability over loopback stays legal: the seal is about cloud egress, not the on-box hop. |
+| **Wall budget** (`session_runner.WallBudget`, `v0_smoke --max-minutes`) | A run was bounded by `--turns` and a per-wait `--timeout` only. An agent replying just under the timeout could burn `turns × timeout` seconds of **paid** call, multiplied by every scenario in a sweep. | The `BudgetedProvider` shape (`interview_optimize.py`) applied to minutes instead of calls: `--max-minutes` (0 = unlimited, and the clock runs either way so a run can always report its cost). A spent budget bounds the waits and stops the conversation **cleanly between turns** — the transcript so far is still persisted and scored, and the stop is recorded on the run (`budget_stopped` / `stopped_reason`, both in `metrics()`) so a short run is never read as a short conversation or as "agent did not reply". |
+| **Unsupported language** (`voice/tts.py`) | `voice_path()` read `VOICES.get(lang) or VOICES["en"]`: a `de`/`fr` scenario was spoken by `en_US-lessac-medium`, EL's ASR transcribed the resulting nonsense, and the WER / entity numbers described a defect the interviewer never had. | `supported()` / `UNSUPPORTED_LANGS = ("de", "fr")`; `available()` returns the reason and `voice_path()` / `synthesize()` raise `UnsupportedLanguage`. The `v0_smoke` preflight already resolves the scenario's own language, so an unsupported one now fails **before** a session is minted, naming the language. Adding one is a `VOICES` entry plus a `python -m piper.download_voices` line here. |
+| **`base_url` validation** (`voice/app_client.py`) | The only statement about where this client may point was the lint comment `# noqa: S310 (localhost)`, and the module had no test at all — it posts candidate transcripts and mints provider credentials at whatever `--base-url` it is handed. | `validate_base_url()` runs on every call: an `http(s)` URL whose host is loopback, a private-IP literal, or a container/LAN name (`is_local_url`, the same predicate the no-egress seal uses), else a host named in `KP_VOICE_APP_ALLOWED_HOSTS` (comma-separated, for a staging box you mean to target). Everything else raises `AppError` naming the host. |
+| **Spelled-out numbers** (`wer.normalize`) | We synthesize the candidate's speech from text we wrote ("a team of **five**") while EL's ASR writes **digits** ("a team of **5**"), so every number was charged as a substitution against a transcript that was perfectly correct — a content-free tax on exactly the work-history utterances a persona is full of. | Table-driven folding for `en` + `cs`, including compounds (`twenty five` → `25`, `sto dvacet` → `120`). Only the properly-accented Czech spellings are listed: folding `pet` and `pět` to the same 5 would hide the dropped-diacritic error this module exists to catch, and `pet`/`set`/`tri` are ordinary English words. `TECH_TERMS` also lost its three `kubernetes` entries (a set, so a repeat was invisible at runtime and in review); the source is now pinned against repeats. |
 
 ---
 

@@ -1433,7 +1433,15 @@ def main(argv: list[str] | None = None) -> int:
     elif args.backend == "voice":
         # Audio-in-the-loop: real EL realtime sessions, real-time pacing, real EL minutes.
         from .voice import app_client, tts
+        from .voice.seal import voice_backend_available
 
+        # E-SH-4 no-egress seal, the same refusal --backend elevenlabs already carried: the
+        # spoken plane IS a cloud session (api.elevenlabs.io) with no on-box alternative, so
+        # under KP_OFFLINE it is refused here rather than sealed one layer too late.
+        ok, why = voice_backend_available()
+        if not ok:
+            sys.stderr.write(f"interview_eval: --backend voice refused — {why}\n")
+            return 2
         ok, why = tts.available("en")
         if not ok:
             sys.stderr.write(f"interview_eval: --backend voice needs local TTS — {why}\n")

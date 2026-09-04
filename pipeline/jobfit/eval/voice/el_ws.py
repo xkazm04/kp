@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from websockets.asyncio.client import connect as ws_connect
 
 from . import tts
+from .seal import refuse_if_offline
 
 CHUNK_MS = 100
 # Pause after the agent's audio has finished PLAYING before we take our turn.
@@ -84,6 +85,10 @@ class ElVoiceSession:
     # -- lifecycle ----------------------------------------------------------
 
     async def __aenter__(self):
+        # The E-SH-4 no-egress seal, at the exact byte of egress: this socket is a
+        # wss:// session to api.elevenlabs.io carrying the candidate's speech. The
+        # CLI preflights refuse earlier (exit 2); this catches a direct library caller.
+        refuse_if_offline("open the ElevenLabs realtime WebSocket")
         self._ws = await ws_connect(self.signed_url, max_size=16 * 1024 * 1024, ping_interval=20)
         await self._send_init()
         self._recv_task = asyncio.create_task(self._recv_loop())

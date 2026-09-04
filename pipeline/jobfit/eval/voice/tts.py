@@ -26,10 +26,28 @@ SAMPLE_WIDTH = 2
 CHANNELS = 1
 
 # One voice per interview language. Swap/extend for the accent matrix (V2).
+#
+# The app ships four locales (en, cs, de, fr) but only TWO have a Piper voice here, and there is
+# no silent substitute: a German scenario spoken by ``en_US-lessac-medium`` produced English-
+# accented nonsense, EL's ASR transcribed the nonsense, and the WER/entity numbers that came back
+# described a defect the interviewer never had. Unsupported languages are therefore REFUSED with
+# the reason (:func:`available`, :func:`voice_path`), not quietly spoken in English.
 VOICES: dict[str, str] = {
     "en": "en_US-lessac-medium",
     "cs": "cs_CZ-jirka-medium",
 }
+# Languages the app supports that the voice plane cannot speak — named in the refusal so the
+# reader learns "no voice model", not "unknown language". Adding one is a VOICES entry plus a
+# `python -m piper.download_voices` line in docs/development/voice-interview-testing.md.
+UNSUPPORTED_LANGS: tuple[str, ...] = ("de", "fr")
+
+
+class UnsupportedLanguage(RuntimeError):
+    """No local Piper voice exists for this interview language."""
+
+
+def supported(lang: str) -> bool:
+    return (lang or "") in VOICES
 
 
 def voice_dir() -> Path:
@@ -40,13 +58,30 @@ def voice_dir() -> Path:
     return Path(__file__).resolve().parents[4] / "data" / "piper"
 
 
+def unsupported_reason(lang: str) -> str:
+    """Why ``lang`` cannot be spoken — one sentence, for a preflight or a raise."""
+    extra = " (the app supports it in text; the voice plane does not)" if lang in UNSUPPORTED_LANGS else ""
+    return (
+        f"no local Piper voice for language {lang!r}{extra} — the voice plane speaks "
+        f"{', '.join(sorted(VOICES))} only. Speaking it in English would score the WRONG audio, "
+        "so this refuses instead of substituting a voice."
+    )
+
+
 def voice_path(lang: str) -> Path:
-    name = VOICES.get(lang) or VOICES["en"]
+    """The .onnx for ``lang``. Raises :class:`UnsupportedLanguage` rather than falling back to
+    English — the old ``VOICES.get(lang) or VOICES["en"]`` made every unsupported language a
+    silently mis-spoken run."""
+    name = VOICES.get(lang)
+    if not name:
+        raise UnsupportedLanguage(unsupported_reason(lang))
     return voice_dir() / f"{name}.onnx"
 
 
 def available(lang: str = "en") -> tuple[bool, str]:
     """(ok, reason) — is the TTS engine usable for this language?"""
+    if not supported(lang):
+        return False, unsupported_reason(lang)
     try:
         import piper  # noqa: F401
     except ImportError:
@@ -88,6 +123,8 @@ def resample_to_16k(pcm: bytes, src_rate: int) -> bytes:
 
 @lru_cache(maxsize=4)
 def _load_voice(lang: str):
+    if not supported(lang):
+        raise UnsupportedLanguage(unsupported_reason(lang))
     from piper import PiperVoice
 
     ok, why = available(lang)
