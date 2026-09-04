@@ -1727,7 +1727,8 @@
     "ANALYSIS_SAVE_FAILED": "Could not save that change to the analysis. Please try again.",
     "ANALYSIS_NOT_FOUND": "That analysis is not in this workspace.",
     "ANALYSIS_GITHUB_INVALID": "That GitHub analysis could not be read and was not attached.",
-    "ANALYSIS_GITHUB_TOO_LARGE": "That GitHub analysis is too large to attach."
+    "ANALYSIS_GITHUB_TOO_LARGE": "That GitHub analysis is too large to attach.",
+    "COMPLIANCE_LOOKUP_FAILED": "Couldn’t load the compliance information. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3236,7 +3237,14 @@
       }
     },
     "eventReasons": {
-      "offerAutoExtended": "Offer extended unattended per the hiring plan (offer gate: auto)."
+      "offerAutoExtended": "Offer extended unattended per the hiring plan (offer gate: auto).",
+      "roleClosedWithdrawn": "Role closed. Candidate withdrawn from the pipeline.",
+      "roleReopenedRestored": "Role reopened. Candidate restored to the pipeline.",
+      "autoRejectionReversed": "Auto-rejection reversed for re-review.",
+      "intakeCapturedManually": "Intake captured manually.",
+      "githubDeepDiveFromDrawer": "GitHub deep-dive run from the candidate drawer.",
+      "manualStageMove": "Moved manually by a recruiter.",
+      "addedToPipeline": "Added to the pipeline."
     }
   },
   "decisions": {

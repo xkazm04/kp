@@ -52,10 +52,59 @@ months" it used to assert. The two folds are pure and tested
 DB lifecycle: `recordEntryConsent`, `anonymizeEntry` (masks the label, nulls
 contact/GitHub fields, scrubs the linked profile + analyses, and — via
 `scrubEntryLinkedPii`, `pipeline.ts:1341` — the interview transcript/
-scorecard, comms outbox, offer payload, interview-prep payload, the retired
+scorecard, comms outbox, offer payload, interview-prep payload, the candidate
+survey comment, the dev-case family (submission, live-work session, captured chat,
+skill credential) and the calibration row, the retired
 onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
+
+**The erasure list is pinned to the tenancy manifest.** The full-scrub test used to
+assert that the tables it knew about were clean, and nothing asserted that the set of
+tables it knew about was the set of tables holding candidate data. So a new per-tenant
+table could join `TENANCY_SCOPED_TABLES` (`app/_lib/tenancy.ts`, which IS
+machine-checked) and stay invisible to erasure — which is how the candidate survey
+comment, the whole dev-case family and the signed skill credential came to survive an
+Art. 17 request while `/data` told the candidate their data was gone.
+`erasure-full-scrub.test.ts` now reads the manifest and requires every scoped table to
+be one of three things: **written** by the erasure region (it parses the SQL out of
+`db/pipeline.ts`, so a claim cannot outrun the code), **delegated** via
+`ERASURE_DELEGATED_SCRUBS` (currently `profiles` → `anonymizeProfile`), or listed in
+**`ERASURE_EXEMPT`** (`db/pipeline.ts`) with the legal or factual reason it is lawfully
+retained. Adding a table to the manifest without doing one of the three turns the suite
+red. `ERASURE_EXEMPT` is the list a DPO reads: it carries `decision_records` (the
+Art. 17(3)(b)/(e) hash chain), `dev_session_events` (the tamper-evident observed-process
+log, which holds no identifiers), `consent_events` (the Art. 5(2) proof that the erasure
+happened cannot be what the erasure deletes), `outreach_state` (deleting it would re-arm
+the contact it prevents), `ats_links` and `llm_usage`, among others.
+
+**What the dev-case reach added.** Those rows are keyed by *submission*, never by entry
+id, which is why the scrub never saw them. The join is the entry's own
+`dev_submission_id` (written at promote, `devcase-run.promoteSubmission`) plus the legacy
+reading of a pre-link entry whose candidate id was `ds-<submissionId>` — the same order
+`dev-outcomes.hireOutcomeRef` uses, because the two disagreeing is how a row gets missed.
+Through it, erasure now also masks `dev_submissions.candidate_ref` and nulls its
+`contact`/`notes`, drops `dev_sessions.files_json` (the candidate's authored tree) and
+blanks `dev_session_chat.text` (their verbatim prompts), and **revokes** the
+`skill_profiles` credential as well as emptying its payload — an erased credential that
+still verified would be a public page vouching for a scrubbed person. `candidate_nps`
+loses its free-text `comment` (the 0-10 score stays: it names nobody and is the
+candidate-experience measurement), and `dev_outcomes` loses `candidate_ref` and `note`
+while keeping the predicted-score / outcome / rating pairing — a de-identification, not a
+deletion. `dev_submissions.eval_json` and `transfer_score` likewise stay as the retained,
+de-identified assessment record.
+
+**An erasure happens exactly once, under concurrency.** Two doors reach
+`anonymizeEntry` — the consent-expiry sweep and the candidate's own
+`/data/[token]` request — and the "already scrubbed" check used to be a bare read
+on a DEFERRED transaction, so both could pass it before either wrote. The second
+pass then masked an already-masked label, re-ran the whole linked-PII scrub, and
+logged a **second** `consent_events` row, so the accountability record (Art. 5(2))
+showed one candidate erased twice. The transaction now runs `.immediate()` and its
+claiming UPDATE re-asserts `anonymized_at IS NULL`, returning the row unchanged on
+`changes === 0`. The candidate-facing guarantee is unchanged — an erasure was
+always meant to be idempotent; the implementation now matches it, and
+`pipeline-erasure-once.test.ts` pins the single consent event.
 `decision_records` is **deliberately excluded** from the scrub — the code
 comment at `pipeline.ts:1332-1335` states the GDPR Art. 17(3)(b)/(e)
 legal-claims/compliance basis for retaining the sealed chain post-erasure.
@@ -87,6 +136,29 @@ every content write, and `anonymizeProfile` goes through `updateProfile`), and
 `seedAnalyses` skips any row linked — by `anonymizeEntry`'s own normalized-label +
 workspace rule — to a `pipeline_entries` row carrying `anonymized_at`. Untouched seed
 rows still refresh. `seed-analyses-preserve.test.ts` pins both directions.
+
+**The “what we hold” list never over-claims, on either side.** `heldDataCategories`
+(`app/_lib/data-held.ts`) projects the categories from what the entry ACTUALLY has, and
+the route sends them. The client (`app/data/[token]/DataClient.tsx`) used to fall back to
+`Object.keys(heldLabel)` when the field was absent, which re-armed the same hardcoded
+five-item claim it removed — on a response that simply said nothing. `renderableHeldCategories`
+replaces it: a missing or malformed field renders NOTHING, unlabelled and repeated keys are
+dropped, and the “What we hold” heading is hidden with the list rather than left over an
+empty box. Pinned in `app/_lib/data-held.test.ts`.
+
+**The jurisdiction route answers the shaped envelope.** `GET /api/compliance` returns
+`{ jurisdiction, consentRetentionMonths }` — the caller’s active regime (normalized at the
+read boundary, so a stale or hand-edited row lands on the EU default rather than an empty
+legal framework) and the window derived from `KP_CONSENT_TTL_DAYS`. It had no `try`/`catch`:
+`getActiveRegimeId` opens the decision-config store’s own SQLite connection, so a locked or
+unreachable database threw out of the handler and Next answered its framework 500 — an
+unreadable body on the route that feeds the candidate-facing AI disclosure, with the raw
+SQLITE_* detail and db path closest to a public surface. It now answers
+`safeJsonError(…, "COMPLIANCE_LOOKUP_FAILED")`. Pinned by `app/api/compliance/compliance-route.test.ts`
+(happy envelope, unknown-regime normalization, coded failure with no thrown detail on the
+wire) and `app/_lib/compliance-regimes.test.ts`, which pins the normalization boundary and
+the deliberate rule that only the US names a codified adverse-impact standard (the EEOC
+four-fifths rule) — every other regime’s null is the contract, not a gap.
 
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
@@ -354,6 +426,9 @@ name variants — this closes what was gap G3 in the original conformity pack.
   `consent_source`, `anonymized_at`, `erasure_token`.
 - `consent_events` (append-only): `id, entry_id, kind, detail, created_at` —
   `kind ∈ granted|renewed|expiring_notified|expired|anonymized|erasure_requested|erased`.
+- `ERASURE_EXEMPT` (`app/_lib/db/pipeline.ts`): table → the reason it is lawfully
+  retained through an Art. 17 erasure. Pinned to `TENANCY_SCOPED_TABLES` by
+  `erasure-full-scrub.test.ts`.
 - `decision_records`: the hash-chained sealed decision log (HMAC-keyed per row
   via `key_id` when `KP_DECISION_HMAC_KEY` is set — see Flows above) — never
   scrubbed by erasure (retained per Art. 17(3) exemption).

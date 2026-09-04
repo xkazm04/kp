@@ -8,6 +8,7 @@ import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { renderableHeldCategories } from "@/app/_lib/data-held";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type DataView = {
@@ -148,9 +149,11 @@ export function DataClient() {
     interview: t("held.interview"),
     scores: t("held.scores"),
   };
-  // #5 — render only the categories the API says we actually hold; defensively fall
-  // back to the full known set if the field is absent, and drop any unknown key.
-  const held = (view?.held ?? Object.keys(heldLabel)).filter((h) => h in heldLabel);
+  // #5 — render only the categories the API says we actually hold. The fallback that
+  // used to sit here (`?? Object.keys(heldLabel)`) re-armed the hardcoded five-item
+  // over-claim on a response that omitted the field; a missing field is no evidence,
+  // so the honest render is nothing. See renderableHeldCategories for the whole rule.
+  const held = renderableHeldCategories(view?.held, Object.keys(heldLabel));
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
@@ -215,15 +218,21 @@ export function DataClient() {
           {view.company ? <p className="mt-1 text-body text-steel">{view.company}</p> : null}
 
           <div className="mt-6 rounded-lg border border-stone-200 bg-paper p-5">
-            <p className="text-meta uppercase tracking-wide text-steel">{t("heldTitle")}</p>
-            <ul className="mt-2 space-y-1.5" role="list">
-              {held.map((h) => (
-                <li key={h} className="flex items-start gap-2 text-body text-ink">
-                  <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-steel" />
-                  {heldLabel[h]}
-                </li>
-              ))}
-            </ul>
+            {/* Nothing to list means no heading either: a “What we hold” panel over an
+                empty bullet list reads as a rendering fault on a legal surface. */}
+            {held.length > 0 ? (
+              <>
+                <p className="text-meta uppercase tracking-wide text-steel">{t("heldTitle")}</p>
+                <ul className="mt-2 space-y-1.5" role="list">
+                  {held.map((h) => (
+                    <li key={h} className="flex items-start gap-2 text-body text-ink">
+                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-steel" />
+                      {heldLabel[h]}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
             {view.appliedAt ? (
               <p className="mt-3 text-meta text-steel">
                 {t("appliedOn", {

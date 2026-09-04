@@ -285,6 +285,11 @@ export const STORE_ERRORS = {
   // Both sit directly over better-sqlite3 (setChannelSpend / setAnalyticsTarget) and
   // were forwarding `error.message` verbatim — a UNIQUE/CHECK constraint string or the
   // absolute db path, painted into the Economics board in English for every locale.
+  /** GET /api/compliance — the workspace’s active jurisdiction + the enforced consent
+   *  retention window. It reads the decision-config store’s own SQLite connection, and it
+   *  is the route the CANDIDATE-facing AI disclosure calls, so a thrown SQLITE_* message or
+   *  db path must never be what a candidate’s browser receives. */
+  COMPLIANCE_LOOKUP_FAILED: "Could not load the compliance information. Please try again.",
   ANALYTICS_SPEND_SAVE_FAILED: "Could not save that spend figure. Please try again.",
   ANALYTICS_TARGET_SAVE_FAILED: "Could not save that target. Please try again.",
   /** The decision log page read (/api/analytics/decisions). Two full-table reads plus

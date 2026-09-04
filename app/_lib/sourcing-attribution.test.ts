@@ -1,4 +1,21 @@
-// Sourcing channel attribution (direction 2). The reach-out route now persists an
+// Sourcing channel attribution — THE MODEL IS FIRST-TOUCH, IMMUTABLE AT INTAKE.
+//
+// That name had never been written down, here or in the analytics doc, even though
+// every per-source / per-channel / per-creative figure on the Economics board rests
+// on it. Stated once: an entry's source_channel (and source_campaign /
+// source_variant beside it) is stamped ONCE, by whichever door the candidate first
+// arrived through, and NOTHING relabels it afterwards. No last-touch override, no
+// multi-touch weighting, no decay. The board therefore answers "which door did this
+// person come in through?", never "which touch converted them?" — a campaign that
+// re-engaged a candidate sourced elsewhere earns no credit here BY CONSTRUCTION, and
+// the two tests below are what make that true rather than aspirational.
+//
+// (Immutability is not a policy check anywhere; it is a property of the write path —
+// the re-add is idempotent, so there is no second write to relabel with. Anything
+// that later adds a genuine re-attribution path has to break test 2 to do it, which
+// is the point.) See docs/features/analytics/README.md § Economics.
+//
+// The reach-out route now persists an
 // honest source_channel on the entry it mints for a rediscovered/sourced candidate
 // (was null). This pins the two load-bearing db-level guarantees the route relies on:
 //   1. sourceChannel round-trips through createPipelineEntry onto the entry (→ the

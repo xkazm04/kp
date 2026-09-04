@@ -47,6 +47,36 @@ function pipelineUpdates(body: string): string[] {
   return [...body.matchAll(/UPDATE pipeline_entries SET [^`]*/g)].map((m) => m[0].replace(/\s+/g, " ").trim());
 }
 
+/** Bind the EXTRACTED statement's `?` placeholders by the column each one sits against,
+ *  rather than by a hand-counted positional list.
+ *
+ *  The replay below runs the shipped SQL verbatim, so its parameter arity is whatever the
+ *  shipped SQL currently has — and it changed the moment close's UPDATE grew its second
+ *  guard (`AND stage != ?`, the terminal-column re-assert). A positional `.run(a, b, c)`
+ *  broke at that point with `Too few parameter values`, which is a harness failure dressed
+ *  up as a guard failure. Reading the column names out of the statement means a future
+ *  guard either binds automatically or fails with a message that names the placeholder
+ *  nobody supplied. */
+function bindParams(sql: string, values: Record<string, unknown>): unknown[] {
+  const columns = [...sql.matchAll(/([A-Za-z_]+)\s*(?:=|!=|<>)\s*\?/g)].map((m) => m[1]);
+  assert.ok(columns.length > 0, `no bindable placeholders found in the extracted statement:\n${sql}`);
+  return columns.map((c) => {
+    assert.ok(c in values, `the replay has no value for the '${c}' placeholder — add one to the fixture`);
+    return values[c];
+  });
+}
+
+/** The fixture's values, keyed by the column each binds to. `stage` is the TERMINAL
+ *  column close resolves by role: the fixture row sits on 'Screen', so `stage != ?`
+ *  passes and the STATUS guard is what these cases are actually measuring. The stage
+ *  guard's own race has its own file (pipeline-close-stage.test.ts). */
+const REPLAY_VALUES: Record<string, unknown> = {
+  updated_at: "2026-01-02",
+  id: "e1",
+  stage: "Hired",
+  workspace_id: "workspace",
+};
+
 test("closeEntriesByJobId re-asserts status='active' on the row it read", () => {
   const updates = pipelineUpdates(functionBody("closeEntriesByJobId"));
   assert.equal(updates.length, 1, `expected exactly one UPDATE, saw ${updates.length}: ${updates.join(" | ")}`);
@@ -160,7 +190,7 @@ for (const { fn, from, concurrent } of CASES) {
 
       // A: the guarded UPDATE, taken verbatim from the shipped function.
       const sql = pipelineUpdates(functionBody(fn))[0];
-      const res = a.prepare(sql).run("2026-01-02", "e1", "workspace");
+      const res = a.prepare(sql).run(...bindParams(sql, REPLAY_VALUES));
       assert.equal(res.changes, 0, "the guard must make A's write a no-op — this is the lost update it exists to prevent");
 
       const now = a.prepare(`SELECT status FROM pipeline_entries WHERE id='e1'`).get() as { status: string };
@@ -188,7 +218,7 @@ test("without the guard, the identical sequence silently overwrites the concurre
 
       const unguarded = pipelineUpdates(functionBody(fn))[0].replace(new RegExp(`\s*AND status='${from}'`), "");
       assert.doesNotMatch(unguarded, new RegExp(`status='${from}'`), "the control must actually have the guard removed");
-      const res = a.prepare(unguarded).run("2026-01-02", "e1", "workspace");
+      const res = a.prepare(unguarded).run(...bindParams(unguarded, REPLAY_VALUES));
 
       assert.equal(res.changes, 1, "the unguarded statement writes — that is the bug");
       const now = a.prepare(`SELECT status FROM pipeline_entries WHERE id='e1'`).get() as { status: string };

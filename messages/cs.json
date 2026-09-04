@@ -1727,7 +1727,8 @@
     "ANALYSIS_SAVE_FAILED": "Změnu v analýze se nepodařilo uložit. Zkuste to prosím znovu.",
     "ANALYSIS_NOT_FOUND": "Tato analýza v tomto pracovním prostoru není.",
     "ANALYSIS_GITHUB_INVALID": "Analýzu GitHubu se nepodařilo přečíst a nebyla připojena.",
-    "ANALYSIS_GITHUB_TOO_LARGE": "Analýza GitHubu je příliš velká na připojení."
+    "ANALYSIS_GITHUB_TOO_LARGE": "Analýza GitHubu je příliš velká na připojení.",
+    "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3236,7 +3237,14 @@
       }
     },
     "eventReasons": {
-      "offerAutoExtended": "Nabídka byla odeslána automaticky podle náborového plánu (brána nabídky: automatická)."
+      "offerAutoExtended": "Nabídka byla odeslána automaticky podle náborového plánu (brána nabídky: automatická).",
+      "roleClosedWithdrawn": "Pozice uzavřena. Kandidát stažen z náboru.",
+      "roleReopenedRestored": "Pozice znovu otevřena. Kandidát vrácen do náboru.",
+      "autoRejectionReversed": "Automatické zamítnutí zrušeno k opětovnému posouzení.",
+      "intakeCapturedManually": "Údaje doplněny ručně.",
+      "githubDeepDiveFromDrawer": "Hloubková analýza GitHubu spuštěna z detailu kandidáta.",
+      "manualStageMove": "Přesunuto ručně náborářem.",
+      "addedToPipeline": "Přidáno do náboru."
     }
   },
   "decisions": {

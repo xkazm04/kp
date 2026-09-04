@@ -7,6 +7,7 @@ import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/ap
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { intakeLead } from "@/app/_lib/lead-intake";
+import { capAttribution } from "@/app/_lib/lead-payload";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
@@ -139,8 +140,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       email,
       locale: applicantLocale,
       sourceChannel: "quick-apply",
-      sourceCampaign: campaign || null,
-      sourceVariant: variant || null,
+      // The quick door bypasses extractLead, so it caps the attribution itself:
+      // the same helper, the same marker, one group-by key length everywhere.
+      sourceCampaign: campaign ? capAttribution(campaign) : null,
+      sourceVariant: variant ? capAttribution(variant) : null,
       channelLabel: "quick apply",
       // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
       // watching an SMTP round-trip: the ack dispatch runs after this response.

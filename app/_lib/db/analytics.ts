@@ -29,6 +29,7 @@ import {
   type VariantRecommendation,
   type VariantStat,
 } from "../source-analytics";
+import { median } from "../stats";
 
 // ---- Pipeline analytics (Insights tab) ------------------------------------
 // Snapshot-based so it stays correct even when the event history is sparse: an
@@ -224,15 +225,14 @@ export type ChannelEconomics = {
   costPerHireCzk: number | null;
 };
 
-// Rounded median of a numeric sample (empty → null). The average of the two
-// middle values on an even-length sample, matching the OrgBenchmarkPanel's
-// median contract so the two "median time-to-hire" surfaces agree.
+// Rounded median of a numeric sample (empty → null). The median is the shared one
+// (app/_lib/stats.ts — non-finite dropped, even counts averaged, empty ⇒ null), so
+// the OrgBenchmarkPanel's "median time-to-hire" and every other median surface
+// answer the same question the same way; only the whole-day rounding is local
+// (this figure is read as days, and half a day is noise at this sample size).
 function medianRounded(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-  return Math.round(median);
+  const m = median(values);
+  return m === null ? null : Math.round(m);
 }
 
 // ANA2 — `windowDays` scopes the snapshot metrics to the COHORT of entries

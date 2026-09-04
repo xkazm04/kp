@@ -8,6 +8,8 @@
  *  ./llm-quality-scores by `bake_quality.py`; re-bake (don't hand-edit) after a run.
  *  See docs/architecture/llm-model-matrix.md. */
 
+import { median } from "./stats";
+
 export interface QualityDims {
   relevance: number;
   correctness: number;
@@ -176,8 +178,12 @@ export interface ModelOverall {
   reliability: number | null;
 }
 
-const median = (xs: number[]): number =>
-  xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : 0;
+// The median is the shared one (app/_lib/stats.ts). This site's local copy took the
+// UPPER of the two middles on an even sample — 20 ms for [10, 20] where every other
+// median surface said 15 — and answered 0 for an empty sample, a latency the overview
+// would have printed as a measurement. Both are now the shared policy's answers
+// (mean of the middles; null for "nothing measured"), which is why `p50Ms` below can
+// hand the shared median's null straight through.
 
 /** Per-model overall = mean composite across its measured ops, plus coverage,
  *  outright wins, and a median latency. */
@@ -211,7 +217,7 @@ export function modelOverall(scores: QualityScores, model: string): ModelOverall
     measured: comps.length,
     total: ops.length,
     wins,
-    p50Ms: lats.length ? median(lats) : null,
+    p50Ms: median(lats),
     reliability: rels.length ? rels.reduce((s, v) => s + v, 0) / rels.length : null,
   };
 }

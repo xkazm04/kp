@@ -1727,7 +1727,8 @@
     "ANALYSIS_SAVE_FAILED": "Cette modification de l’analyse n’a pas pu être enregistrée. Réessayez.",
     "ANALYSIS_NOT_FOUND": "Cette analyse ne se trouve pas dans cet espace de travail.",
     "ANALYSIS_GITHUB_INVALID": "Cette analyse GitHub était illisible et n’a pas été jointe.",
-    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe."
+    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe.",
+    "COMPLIANCE_LOOKUP_FAILED": "Impossible de charger les informations de conformité. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3236,7 +3237,14 @@
       }
     },
     "eventReasons": {
-      "offerAutoExtended": "Offre envoyée automatiquement selon le plan de recrutement (porte offre : automatique)."
+      "offerAutoExtended": "Offre envoyée automatiquement selon le plan de recrutement (porte offre : automatique).",
+      "roleClosedWithdrawn": "Poste clôturé. Candidat retiré du pipeline.",
+      "roleReopenedRestored": "Poste rouvert. Candidat réintégré au pipeline.",
+      "autoRejectionReversed": "Refus automatique annulé pour réexamen.",
+      "intakeCapturedManually": "Informations saisies manuellement.",
+      "githubDeepDiveFromDrawer": "Analyse GitHub approfondie lancée depuis la fiche candidat.",
+      "manualStageMove": "Déplacé manuellement par un recruteur.",
+      "addedToPipeline": "Ajouté au pipeline."
     }
   },
   "decisions": {

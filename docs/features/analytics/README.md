@@ -211,6 +211,36 @@ call a stage weak.
 columns, **grouped and labelled, never merged**. A dash under Spend means "not measured for
 this kind of surface", not "free", and the rule says so.
 
+- **The attribution model is FIRST-TOUCH and IMMUTABLE AT INTAKE — and now says so.**
+  Every per-source, per-channel and per-creative figure on this board rests on one rule that
+  had never been written down anywhere: an entry's `source_channel` / `source_campaign` /
+  `source_variant` are stamped **once, by whichever door the candidate first arrived
+  through**, and nothing relabels them afterwards. A second reach-out, a re-add from the
+  sourcing surface, a later apply on the same job — each is idempotent and each leaves the
+  original attribution standing (`app/_lib/sourcing-attribution.test.ts` pins exactly that:
+  the round-trip AND the no-relabel). So the board answers *"which door did this hire come
+  in through?"*, never *"which touch converted them?"* — there is no multi-touch weighting,
+  no last-touch override and no decay, and a campaign that re-engaged a candidate sourced
+  elsewhere gets no credit here by construction. That is a deliberate choice (a first-touch
+  number an operator can audit against one row beats a model they cannot), but reading a
+  variant table as *influence* rather than *origin* over-credits whichever channel happens
+  to find people first.
+- **Campaign and variant are capped at intake, truncated with a visible marker.** They are
+  untrusted third-party free text that becomes both a recruiter-visible label and the
+  group-by key `variantRowKey(jobId, campaign, variant)` builds a funnel row identity from.
+  `extractLead` (`app/_lib/lead-payload.ts`) caps each at `MAX_ATTRIBUTION_LENGTH` = 120
+  **code points** and appends an ellipsis, so a cut value is distinguishable from a genuine
+  120-character name; the lead itself is never refused over it. The cap sits at intake
+  rather than at each consumer, and matches the slice `inbound-lead.ts` already applied (a
+  test fails if that constant ever drops below it). Two campaigns sharing a 119-character
+  prefix still collapse into one row — inherent to any cap, and now at least visible.
+- **One median, one stated policy.** `medianHoursToDecision` here, `medianTimeToHireDays` on
+  the ROI ledger, the model matrix' p50 and the fit matrix' column median were four separate
+  implementations that disagreed on even-count ties and on invalid samples. They now share
+  `median()` in `app/_lib/stats.ts`: non-finite samples dropped (never sorted into the
+  middle), an empty sample `null` and never `0`, even counts the **mean of the two middles**,
+  and the result exact — each surface applies its own precision (0.1 h here, whole days on
+  the ledger, a band-safe floor on the matrix) and says why.
 - **The tab holds no recipe debt.** Every `app/features/insights/analytics/**` row is
   gone from `app/_components/ui/recipe-debt.json`: the last one, the role-only actor badge
   in `sections/DecisionRecordsTable.tsx`, composes `NOTICE("amber")` like its siblings.
@@ -382,6 +412,16 @@ it: should this score be allowed to decide at all.
   stating this is absence of evidence, not endorsement of the current floor; an empty
   `familyFloors` map says so explicitly rather than rendering a blank region; a suggestion off a
   high-leakage arm carries its contamination caveat beside the Apply button.
+- **The holdout arm's SIZE is an expectation, not a balance — by design.** Membership is a
+  pure function of `(jobId, entryId)` (`app/_lib/screen-wave-holdout.ts`), which is what makes
+  it stable across a preview/commit pair and immune to threshold-slider re-rolls. The cost of
+  that determinism is that the arm is *sampled*, never *balanced*: the realised count is
+  binomial around `rate × N`, so a small wave can spare noticeably more or fewer candidates
+  than the rate suggests, and nothing corrects it afterwards. Correcting it would mean either
+  re-rolling membership (breaking the approval-token re-derivation) or reassigning specific
+  people to hit a quota (which is the steering the hash exists to prevent). The accrual
+  horizon shown beside the `circular` verdict is the honest surface for it: the arm leads only
+  once it actually clears `minOutcomes`, whenever that happens to be.
 - **The floor is never shown without its switch.** The route ships
   `autoRejectEnabled` (`screening.autoRejectEnabled`) beside `currentThreshold`, and the
   shipped default is **false** — `screen-wave.ts` returns `autoRejectOff` and rejects
