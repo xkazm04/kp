@@ -17,7 +17,8 @@ export function isInterviewLabEnabled(): boolean {
   return process.env.NODE_ENV !== "production" || process.env.INTERVIEW_LAB_ENABLED === "1";
 }
 
-/** User-facing API error when the lab path is disabled. Shared by the route and
- *  the lab page so the contract has a single source of truth. */
-export const INTERVIEW_LAB_DISABLED_ERROR =
-  "The interview lab is disabled in production. Set INTERVIEW_LAB_ENABLED=1 to opt in.";
+// The refusal sentence that used to live here as INTERVIEW_LAB_DISABLED_ERROR is
+// gone. /connect answers jsonRefusal("INTERVIEW_LAB_DISABLED", 403) and the lab
+// page renders its own copy from the catalog, so an English constant here was a
+// third source of truth that neither of them read. This module is the GATE; the
+// wording is the catalog's. interview-lab.test.ts pins the gate's two answers.

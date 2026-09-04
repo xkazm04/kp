@@ -1,7 +1,6 @@
 import { Clock, Headphones, ListChecks, Mic, Volume2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
-import { durationChip } from "@/app/_lib/interview-duration.mjs";
 // The agenda labels are NOT trusted copy — see the scrub below. candidateSafeTopic
 // is the shared shape-based sanitizer from the candidate-brief boundary; it is
 // pure and dependency-free (only the persona constants ride along), so it is safe
@@ -45,7 +44,7 @@ export function InterviewSidebar({
               <ListChecks size={14} className="text-moss" /> {t("agendaTitle")}
             </p>
             <span className={`${CHIP_QUIET} inline-flex items-center gap-1 bg-paper`}>
-              <Clock size={12} /> {durationChip(durationMin)}
+              <Clock size={12} /> {t("durationChip", { min: durationMin })}
             </span>
           </div>
           <ol className="mt-3.5 space-y-2.5">

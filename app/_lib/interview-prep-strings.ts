@@ -65,3 +65,29 @@ export async function studentPrepStrings(lang: string | null | undefined): Promi
     scenario: (durationMin, who, focus) => t("scenario", { durationMin, who, focus }),
   };
 }
+
+/** The DEBRIEF/BRIEF scaffolding that is written for the CANDIDATE rather than
+ *  for the recruiter holding the browser: the submission-debrief agenda that is
+ *  persisted on `interview_sessions.run_of_show_json` and rendered on the
+ *  candidate portal, and the topic the recruiter-added questions are injected
+ *  under in the candidate-safe voice brief.
+ *
+ *  Same document-reader rule as the prep pack above — the reader is the applicant,
+ *  so the language is the ENTRY's locale (`pipeline_entries.locale`, the language
+ *  they chose at apply), never the request's. These were hard-coded English
+ *  literals until wave 37: a German applicant's portal listed a four-item agenda
+ *  in English while every other word on the page was German. */
+export type InterviewBriefStrings = {
+  /** The four-phase submission-debrief agenda, in order. */
+  debriefRunOfShow: string[];
+  /** Topic heading for the recruiter's imported interview-kit questions. */
+  recruiterAddedQuestions: string;
+};
+
+export async function interviewBriefStrings(lang: string | null | undefined): Promise<InterviewBriefStrings> {
+  const t = await namespaceTranslator(prepLocale(lang), "interview.brief");
+  return {
+    debriefRunOfShow: [t("debriefApproach"), t("debriefDecisions"), t("debriefCounterfactuals"), t("debriefQuestions")],
+    recruiterAddedQuestions: t("recruiterAddedQuestions"),
+  };
+}

@@ -1686,7 +1686,10 @@
     "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer.",
     "PROFILE_BUILD_TIMEOUT": "Le traitement du profil a pris trop de temps et a été interrompu. Essayez d’enregistrer à nouveau.",
     "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez.",
-    "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté."
+    "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté.",
+    "INTERVIEW_PREP_NOT_FOUND": "Il n'existe pas encore de préparation d'entretien pour ce candidat. Générez-la d'abord.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Choisissez au moins une question à ajouter à la préparation.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Indiquez quelle question déplacer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2032,7 +2035,8 @@
       "beforeTitle": "Avant de commencer",
       "tipQuiet": "Trouvez un endroit calme, avec peu de bruit de fond.",
       "tipHeadphones": "Utilisez un casque si possible. Cela facilite l’alternance de parole.",
-      "tipMic": "Autorisez l’accès au microphone lorsque votre navigateur vous le demande."
+      "tipMic": "Autorisez l’accès au microphone lorsque votre navigateur vous le demande.",
+      "durationChip": "~{min} min"
     },
     "voice": {
       "loading": "Chargement de l’entretien vocal…",
@@ -2124,6 +2128,18 @@
       "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
       "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]",
       "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu."
+    },
+    "brief": {
+      "debriefApproach": "Votre exercice à emporter : votre approche",
+      "debriefDecisions": "Analyse des décisions",
+      "debriefCounterfactuals": "Scénarios alternatifs",
+      "debriefQuestions": "Vos questions",
+      "recruiterAddedQuestions": "Questions ajoutées par le recruteur"
+    },
+    "lab": {
+      "eyebrow": "Interne · MVP vocal",
+      "title": "Laboratoire d'entretien vocal",
+      "disabledBody": "Le laboratoire est désactivé en production : il génère de vrais identifiants de fournisseur sans jeton de session. Définissez <flag>INTERVIEW_LAB_ENABLED=1</flag> pour l'activer, ou utilisez la simulation recruteur, qui passe par une session tokenisée."
     }
   },
   "palette": {
@@ -2428,6 +2444,12 @@
       "student": "Étudiant",
       "career_switcher": "Reconverti",
       "unrouted": "Non orienté"
+    },
+    "archetypeLong": {
+      "bau": "Profil expérimenté",
+      "student": "Étudiant / début de carrière",
+      "career_switcher": "En reconversion",
+      "unrouted": "Pas encore orienté"
     },
     "seniority": {
       "junior": "Junior",

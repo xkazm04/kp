@@ -137,6 +137,16 @@ rides the envelope as `candidate.email` — see outbound-export.md.
 Confirmed interviews get one timed reminder, fired by the heartbeat sweep
 (`sendDueInterviewReminders` → `dueReminders`), pinned in
 `app/_lib/interview-reminder-policy.ts` / `interview-reminder-policy.test.ts`:
+The *policy* (when a reminder is owed) is pure and lives there; the *loop* that
+claims, retries and gives up is `app/_lib/interview-reminders.ts`, now covered by
+`interview-reminders.test.ts` over a throwaway SQLite file — one delivery per
+booking and no second send on the next tick, a failed dispatch left to age past
+its backoff rather than released for an immediate retry, the cap terminal (past
+`REMINDER_MAX_ATTEMPTS` the invite never returns to the sweep), and no reminder
+at all for a candidate who has left the interview track. Its dispatcher is an
+injectable parameter (`ReminderDispatch`) defaulting to the real
+`dispatchInterviewReminder`, so the loop is testable with no comms provider and
+the heartbeat call site is unchanged.
 
 | Constant | Value | Role |
 |---|---|---|

@@ -36,9 +36,10 @@ export type ReasonState = { loading?: boolean; error?: string; data?: Reasoning;
 export type Popover = { candId: string; posId: string; cand: Candidate; pos: Position; cell: Cell; rect: { top: number; left: number } };
 
 // Dot colours are pure presentation, keyed by the canonical archetype id. The id set and
-// short labels come from the shared registry (ARCHETYPE_BADGE — the same source the Match
-// tab uses), so a newly added archetype renders with its OWN label (and a neutral dot when
-// no colour is configured) instead of silently mislabelling as bau/"Experienced".
+// short labels come from the shared registry (the same source the Match tab uses,
+// resolved through enums.archetype.<id>), so a newly added archetype renders with its OWN
+// label (and a neutral dot when no colour is configured) instead of silently mislabelling
+// as bau/"Experienced".
 const ARCH_DOT: Record<string, string> = {
   bau: "bg-steel",
   student: "bg-coral",

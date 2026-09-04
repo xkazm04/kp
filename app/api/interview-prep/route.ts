@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInterviewPrep, listPreparedEntries, prepJdEditedAt, saveInterviewPrep, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
 import { assignImportedBlock, mergeImportedQuestions, normalizeIncoming, readImportedEntries, MAX_BLOCK_REF_LEN, MAX_IMPORT_QUESTION_LEN } from "./importMerge.ts";
 
@@ -12,6 +13,16 @@ import { assignImportedBlock, mergeImportedQuestions, normalizeIncoming, readImp
 const MAX_NOTES_LENGTH = 8 * 1024;
 const MAX_CHECKED_KEYS = 200;
 const MAX_INTERVIEWER_LENGTH = 120; // a name/email, never long
+
+// Abuse containment on the THREE write verbs (/perfect wave 37, lib-voice-interview-11).
+// Every one of them is a read-merge-write against the prep artifact, and the surface is
+// operator-gated — which open mode (KP_OPERATOR_PASSWORD unset) makes a documented no-op
+// for the whole API, so this is the real bound. Deliberately generous: the interviewer's
+// checklist/notes PUT is debounced at 600 ms and fires all through a live interview, so a
+// tight budget would throttle the one caller the door exists for. 600/10 min still caps a
+// script at one write a second, which is what containment means here. The read GET is not
+// metered: it is a point read the modal issues on open.
+const PREP_WRITE_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 
 // Read interview-prep artifacts (generated via the background task interview_prep).
 //   GET ?entry=<id>          → the artifact for one pipeline entry (or null)
@@ -48,7 +59,10 @@ export async function PUT(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
-      return NextResponse.json({ error: "entry is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
+    }
+    if (!rateLimit(`interview-prep:${clientIpFrom(request.headers)}`, PREP_WRITE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // TENANCY: prove this team owns the artifact BEFORE the merge write. The write
     // path (saveInterviewPrepProgress) is keyed by the globally-unique entry id, so
@@ -57,7 +71,7 @@ export async function PUT(request: NextRequest) {
     // to a caller who does not hold the entry, deliberately.
     const ws = await currentWorkspace();
     if (!getInterviewPrep(entry, ws)) {
-      return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
+      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
     const body = (await request.json().catch(() => ({}))) as { checked?: unknown; notes?: unknown; interviewer?: unknown };
 
@@ -73,7 +87,7 @@ export async function PUT(request: NextRequest) {
 
     const ok = saveInterviewPrepProgress(entry, { checked, notes, interviewer });
     if (!ok) {
-      return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
+      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -91,12 +105,15 @@ export async function POST(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
-      return NextResponse.json({ error: "entry is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
     const body = (await request.json().catch(() => ({}))) as { questions?: unknown };
     const incoming = normalizeIncoming(body.questions);
     if (incoming.length === 0) {
-      return NextResponse.json({ error: "questions is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_PREP_QUESTIONS_REQUIRED", 400);
+    }
+    if (!rateLimit(`interview-prep:${clientIpFrom(request.headers)}`, PREP_WRITE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
     // Read-merge-write through the existing full-payload save path (getInterviewPrep +
@@ -106,7 +123,7 @@ export async function POST(request: NextRequest) {
     // read the pack back nor have questions merged into it.
     const existing = getInterviewPrep(entry, await currentWorkspace());
     if (!existing) {
-      return NextResponse.json({ error: "No interview prep to import into — generate it first." }, { status: 404 });
+      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
     const prior = readImportedEntries(existing.payload);
     const merged = mergeImportedQuestions(prior, incoming);
@@ -130,12 +147,15 @@ export async function PATCH(request: NextRequest) {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
-      return NextResponse.json({ error: "entry is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
     const body = (await request.json().catch(() => ({}))) as { question?: unknown; blockRef?: unknown };
     const question = typeof body.question === "string" ? body.question.trim().slice(0, MAX_IMPORT_QUESTION_LEN) : "";
     if (!question) {
-      return NextResponse.json({ error: "question is required" }, { status: 400 });
+      return jsonRefusal("INTERVIEW_PREP_QUESTION_REQUIRED", 400);
+    }
+    if (!rateLimit(`interview-prep:${clientIpFrom(request.headers)}`, PREP_WRITE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     // null / "" / missing ⇒ unassign; otherwise the target block's topic (bounded).
     const blockRef = typeof body.blockRef === "string" && body.blockRef.trim() ? body.blockRef.trim().slice(0, MAX_BLOCK_REF_LEN) : null;
@@ -144,7 +164,7 @@ export async function PATCH(request: NextRequest) {
     // workspace predicate rides the read that authorizes it.
     const existing = getInterviewPrep(entry, await currentWorkspace());
     if (!existing) {
-      return NextResponse.json({ error: "No interview prep to update — generate it first." }, { status: 404 });
+      return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
     const prior = readImportedEntries(existing.payload);
     const merged = assignImportedBlock(prior, question, blockRef);

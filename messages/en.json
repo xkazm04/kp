@@ -1686,7 +1686,10 @@
     "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again.",
     "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
     "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again.",
-    "COMMS_SUPPRESSED": "This candidate can no longer be contacted."
+    "COMMS_SUPPRESSED": "This candidate can no longer be contacted.",
+    "INTERVIEW_PREP_NOT_FOUND": "There is no interview prep pack for this candidate yet. Generate it first.",
+    "INTERVIEW_PREP_QUESTIONS_REQUIRED": "Pick at least one question to add to the prep pack.",
+    "INTERVIEW_PREP_QUESTION_REQUIRED": "Say which question to move."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2032,7 +2035,8 @@
       "beforeTitle": "Before you start",
       "tipQuiet": "Find a quiet spot with little background noise.",
       "tipHeadphones": "Use headphones if you can. It keeps the turn-taking clean.",
-      "tipMic": "Allow microphone access when your browser prompts you."
+      "tipMic": "Allow microphone access when your browser prompts you.",
+      "durationChip": "~{min} min"
     },
     "voice": {
       "loading": "Loading voice interview…",
@@ -2124,6 +2128,18 @@
       "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
       "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]",
       "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record."
+    },
+    "brief": {
+      "debriefApproach": "Your take-home: how you approached it",
+      "debriefDecisions": "Decisions deep-dive",
+      "debriefCounterfactuals": "Counterfactuals",
+      "debriefQuestions": "Your questions",
+      "recruiterAddedQuestions": "Recruiter-added questions"
+    },
+    "lab": {
+      "eyebrow": "Internal · voice MVP",
+      "title": "Voice interview lab",
+      "disabledBody": "The lab is disabled in production: it mints live provider credentials without a session token. Set <flag>INTERVIEW_LAB_ENABLED=1</flag> to opt in, or use the recruiter simulation, which runs through a tokenized session."
     }
   },
   "palette": {
@@ -2428,6 +2444,12 @@
       "student": "Student",
       "career_switcher": "Switcher",
       "unrouted": "Unrouted"
+    },
+    "archetypeLong": {
+      "bau": "Experienced",
+      "student": "Student / early-career",
+      "career_switcher": "Career-switcher",
+      "unrouted": "Not yet routed"
     },
     "seniority": {
       "junior": "Junior",

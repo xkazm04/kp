@@ -128,5 +128,8 @@ export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // edit the Python lists and run `python -m pipeline.jobfit.codegen`; the build
 // and `npm run schemas:check` gate fail if this file drifts from Python.
 export { EVIDENCE_KINDS, SKILL_LEVELS, PROVENANCE } from "@/app/_lib/taxonomy.generated";
-// Single source of truth for archetype labels (app/_lib/archetypes).
-export { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
+// No archetype-label re-export: the labels are catalog copy, resolved with
+// useEnumLabel("archetypeLong" | "archetype", archetypeDisplayKey(id)). The raw
+// ARCHETYPE_LABEL map stays internal to app/_lib/archetypes (it is the id vocabulary
+// isKnownArchetype checks own-key membership against), and re-exporting it from a
+// feature barrel is what put registry English on three recruiter surfaces.

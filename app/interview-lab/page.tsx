@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { TtsComparePanel } from "@/app/_components/voice/TtsComparePanel";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
@@ -16,29 +17,33 @@ export const metadata = { title: "Voice interview lab" };
 // force-dynamic) with no useful static shell to prerender.
 export const instant = false;
 
+// The inline code chip, written once: five of them render env-var names in this page.
+const CODE = "rounded bg-stone-100 px-1 py-0.5 text-[0.9em]";
+
 export default async function InterviewLabPage() {
   // /diagrams is operator-only since wave 21b; a seat that cannot open it gets no link.
   const showDiagrams = await isOperator();
+  // Server component, so the async translator — useTranslations would need a client
+  // tree and this page is dynamic per request by design (see `instant` above).
+  const t = await getTranslations("interview.lab");
   // The lab exercises the tokenless credential-minting path, which is gated in
   // production (idea-6236b597; see interview-lab.ts). Say so instead of
   // rendering a client whose Start would 403.
   if (!isInterviewLabEnabled()) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
-        <p className="text-meta uppercase text-coral">Internal · voice MVP</p>
-        <h1 className="mt-1 font-serif text-display text-ink">Voice interview lab</h1>
+        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+        <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
         <p className="mt-2 max-w-2xl text-body text-steel">
-          The lab is disabled in production — it mints live provider credentials without a session token. Set{" "}
-          <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">INTERVIEW_LAB_ENABLED=1</code> to opt in, or
-          use the recruiter simulation, which runs through a tokenized session.
+          {t.rich("disabledBody", { flag: (chunks) => <code className={CODE}>{chunks}</code> })}
         </p>
       </main>
     );
   }
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <p className="text-meta uppercase text-coral">Internal · voice MVP</p>
-      <h1 className="mt-1 font-serif text-display text-ink">Voice interview lab</h1>
+      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+      <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 max-w-2xl text-body text-steel">
         A/B the realtime providers on a short first-round screen. Pick a provider and language, consent, then talk —
         the live transcript is captured and stored. Set <code className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">OPENAI_API_KEY</code>{" "}

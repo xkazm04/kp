@@ -149,7 +149,12 @@ export const MODES = ["remote", "hybrid", "onsite"];
 
 // Archetype taxonomy + the early-career fairness predicate live in one canonical
 // module (app/_lib/archetypes) so the protected set is never hand-copied.
-export { ARCHETYPE_BADGE, isEarlyCareer } from "@/app/_lib/archetypes";
+// `archetypeDisplayKey` replaced the ARCHETYPE_BADGE re-export: the badge label is
+// resolved via useEnumLabel("archetype", …) at the render site, so the two recruiter
+// cards below stop printing the registry's raw English into a cs/de/fr workspace —
+// and an unrecognized archetype renders as the honest "Unrouted" rather than as
+// itself (see archetypeDisplayKey's header for why that matters to the fairness gate).
+export { archetypeDisplayKey, isEarlyCareer } from "@/app/_lib/archetypes";
 
 // provLabel moved to sub_match/MatchTypes (the canonical provenance→badge mapping,
 // which includes the highest-trust `observed` bucket and resolves its display text

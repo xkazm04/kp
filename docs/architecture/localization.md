@@ -110,19 +110,60 @@ log — and `status` is what distinguishes a refusal from a fault from a blip.
 The rule: **a shared client helper never returns a user-facing sentence.** If
 callers need one, give them the code and let them resolve it.
 
-### Two guards, in `npm run i18n:check`
+### Three guards, in `npm run i18n:check`
 
 - **Leak guard** — fails on `x.error || …`, `x.error ?? …`, and the ternary
   spelling `typeof x.error === "string" ? x.error : …` anywhere under the UI
   directories. The ternary form was added after it turned out to hide 8 live
   leaks the first pattern could not see.
-- **Code parity** — every code in **both** registries (`STORE_ERRORS` and
-  `REFUSAL_ERRORS`) must have an `errors.<CODE>` message in `en.json`. Without
-  it, `useErrorMessage` silently falls through to the caller's generic fallback
-  and the specific reason is lost in all four languages. The check parses the
-  registries out of `api-response.ts`, so adding a code without its message
-  fails the gate rather than degrading quietly — and it fails loudly if either
-  registry's shape changes under it.
+- **Code parity** — every machine error code the app can put on the wire must
+  resolve to a message in `en.json` (and so, via the parity check above, in all
+  four). Without it, `useErrorMessage` silently falls through to the caller's
+  generic fallback and the specific reason is lost in all four languages.
+
+  Until this gate was widened it read only `api-response.ts`, so the ~30 codes
+  declared anywhere else resolved *by luck*: deleting one of their four catalog
+  entries produced a green build and a generic message. It now sweeps all three
+  shapes a code arrives in:
+
+  | Shape | Where | How the gate finds it |
+  | --- | --- | --- |
+  | Central registries | `STORE_ERRORS` / `REFUSAL_ERRORS` in `api-response.ts` | parses the two `as const` blocks |
+  | Satellite registries | a vocabulary deliberately declared *away* from `api-response.ts` — a CLIENT-origin transport code no handler can return (`VOICE_TRANSPORT_*`), a validator's own union (`JdFieldsErrorCode`), a lone exported constant (`PAIR_NO_SECRET_CODE`) | `SATELLITE_ERROR_SOURCES` in the script, one extractor per declaration shape |
+  | Inline codes | `code: "SOMETHING"` written at the emit site in a route handler | swept out of the whole `app/**` tree (tests excluded — they mint unknown codes on purpose) |
+
+  The inline sweep is the half that makes the gate **self-extending**: a new
+  route cannot add an unlocalized code without adding its copy, and no manifest
+  edit is needed to notice it. The satellite list exists only because a
+  declaration *shape* cannot be guessed; each entry fails loudly — naming the
+  file and the declaration — if its file moves or its shape changes under the
+  extractor, on the same "a scan whose scope silently evaporates is worse than
+  no scan" rule the marketing-page scan follows.
+
+  A code counts as localized under any namespace in `ERROR_NAMESPACES`
+  (`errors`, plus `results.github.errors` — see below). Adding a namespace there
+  widens what counts as localized, so it is a deliberate act.
+
+- **Archetype labels** — the same contract in a different namespace, and the
+  reason two raw-English exports are gone. `ARCHETYPE_BADGE` (rendered by two
+  recruiter cards) and `ARCHETYPE_LABEL` (rendered by the analysis banner) were
+  `Record<id, string>` maps of the shared registry's English that read like
+  localized lookups. Every archetype is now shown through `useEnumLabel`, which
+  falls back to `labelize(id)` — English, silently — for a missing entry, so the
+  gate reads the registry (`pipeline/jobfit/archetypes.json`, the id vocabulary
+  for both languages) and requires a label in **two** namespaces for every
+  archetype plus the `unrouted` fail-closed display key:
+
+  | Namespace | Form | Rendered by |
+  | --- | --- | --- |
+  | `enums.archetype.<id>` | compact badge (`Switcher`) | dense recruiter lists |
+  | `enums.archetypeLong.<id>` | full label (`Career-switcher`) | the analysis banner |
+
+  The registry's `label` / `badge` columns stay the vocabulary; the words live in
+  the catalogs. Python is unaffected — it reads `pythonLabel`. A new archetype
+  therefore arrives with eight catalog entries, and `ARCHETYPE_LABEL` is no
+  longer re-exported from `matchTypes` / `profileTypes`: a barrel handing feature
+  code the raw map is how this reached three surfaces.
 
 `ERROR_LEAK_ALLOW` in the script lists the verified exceptions. Two kinds
 qualify, and both are commented at the entry:

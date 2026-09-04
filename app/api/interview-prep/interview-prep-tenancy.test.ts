@@ -144,13 +144,17 @@ test("POST /api/interview-prep/scorecard refuses a foreign entry id", async () =
   // another team's entry id. saveHumanScorecard is an unscoped by-id point op, so
   // without a gate this OVERWRITES that team's scorecard.
   const { POST } = await import("./scorecard/route.ts");
-  // The handler reads `request.nextUrl.searchParams` and `request.json()` and nothing
-  // else. Neither the real NextRequest (outside a Next request context) nor the test
-  // shim populates `nextUrl`, so the two members the handler actually uses are supplied
-  // directly — the alternative is booting Next to assert a workspace predicate.
+  // The handler reads `request.nextUrl.searchParams`, `request.headers` (the key the
+  // per-IP limiter is built from) and `request.json()` and nothing else. Neither the real
+  // NextRequest (outside a Next request context) nor the test shim populates `nextUrl`,
+  // so the three members the handler actually uses are supplied directly — the
+  // alternative is booting Next to assert a workspace predicate. Empty headers are the
+  // honest shape: with no trusted proxy declared `clientIpFrom` answers
+  // SHARED_CLIENT_KEY, which is exactly what a real self-hosted deploy does.
   const url = new URL(`http://localhost/api/interview-prep/scorecard?entry=${encodeURIComponent(entry.id)}`);
   const res = (await POST({
     nextUrl: url,
+    headers: new Headers(),
     json: async () => ({ ratings: [{ competency: "Ownership", rating: 4 }], recommendation: "advance" }),
   } as never)) as unknown as Response;
   assert.equal(res.status, 404, "a foreign entry id must be refused, not written");

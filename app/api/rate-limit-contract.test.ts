@@ -1440,6 +1440,54 @@ const ROUTES: RouteSpec[] = [
     // keystroke — it must never spend the window.
     servedBefore: "if (q.length < MIN_QUERY_LENGTH)",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect wave 37 (lib-voice-interview-11), with the limiters themselves.
+  // The interview-prep surface is FIVE write verbs and carried no throttle at all —
+  // `grep -rn "rateLimit" app/api/interview-prep/` returned nothing — while its voice
+  // twins next door have been pinned here since 2026-09-02. Every one of them is a
+  // read-merge-write against the prep artifact, and two of them do more than store a
+  // string: the scorecard POST can SET AN APPROVAL and seal a decision record. All of
+  // them sit behind `requireOperator` alone, which open mode (KP_OPERATOR_PASSWORD
+  // unset) makes a documented no-op for the WHOLE API — so, exactly as for the JD
+  // library's spend doors, the limiter is the real bound and not a second belt.
+  {
+    // The three write verbs (PUT progress, POST import, PATCH weave) share ONE bucket
+    // on purpose: they mutate the same artifact, so a per-verb allowance would just be
+    // three windows to walk in turn. 600/10 min is deliberately loose and the reason is
+    // pinned here so nobody "tightens" it into a bug: the checklist/notes PUT is
+    // debounced at 600 ms and fires all through a live interview, and with
+    // KP_TRUSTED_PROXY unset clientIpFrom collapses the whole deployment into ONE
+    // bucket — so a tight ceiling would throttle the interviewer this door exists for,
+    // and every colleague beside them, mid-call. It still caps a script at one write a
+    // second, which is what containment means for a door that spends no money.
+    rel: "./interview-prep/route.ts",
+    key: "`interview-prep:${clientIpFrom(request.headers)}`",
+    limit: 600,
+    optsSrc: "PREP_WRITE_RATE_LIMIT",
+    optsDef: "const PREP_WRITE_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The PUT's merge write — the first of the three verbs in file order, so this is
+    // the occurrence that must follow the limiter.
+    expensive: "saveInterviewPrepProgress(entry, {",
+    // "You did not say which candidate" was never going to write anything; it must not
+    // spend the window, and a caller who sent a malformed request must not be told to
+    // slow down when the real answer is that the request was empty.
+    servedBefore: 'jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400)',
+  },
+  {
+    // Tighter than its siblings because the honest shape is ONE save per interview,
+    // plus a re-save or two after an edit. This is also the only verb of the five that
+    // reaches beyond the artifact: on a recorded recommendation it sets the
+    // scorecard_review approval, records an automation event and seals a decision.
+    rel: "./interview-prep/scorecard/route.ts",
+    key: "`interview-scorecard:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "SCORECARD_RATE_LIMIT",
+    optsDef: "const SCORECARD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "saveHumanScorecard(entry, scorecard)",
+    servedBefore: 'jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400)',
+  },
 ];
 
 for (const spec of ROUTES) {

@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { useTranslations } from "next-intl";
-import { ARCHETYPE_BADGE, isEarlyCareer } from "./JobsTypes";
+import { archetypeDisplayKey, isEarlyCareer } from "./JobsTypes";
 import type { CandRow } from "./JobsTypes";
 // Canonical provenance→badge mapping (incl. the highest-trust `observed` bucket),
 // resolved to a localized label via enumLabel at the render site — the JobsTypes
@@ -76,7 +76,7 @@ export const JobsRecruiterCandidatesCard = memo(function JobsRecruiterCandidates
         <ConfidenceBandBadge level={res.confidence.level} drivers={res.confidence.drivers} copy={bandCopy} />
         <span className="font-medium text-ink">{c.label}</span>
         <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-sm font-semibold text-white">
-          {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
+          {enumLabel("archetype", archetypeDisplayKey(c.archetype))}
         </span>
         <FitTierBadge tier={res.fitTier} score={res.total} labels={fitLabels} />
         <span className="ml-auto flex items-center gap-1.5">

@@ -1204,6 +1204,21 @@ export const REFUSAL_ERRORS = {
    *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
    *  stop trying, not to retry, so the sentence says so. */
   COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
+  // ---- Interview-prep refusals (/perfect wave 37, lib-voice-interview-11).
+  // The five write verbs of /api/interview-prep answered bare English sentences with
+  // no code, while their voice twins next door had been coded since 2026-09-02. The
+  // human scorecard form renders through useErrorMessage, so every one of them painted
+  // the server's English at whatever language the recruiter reads the app in.
+  /** The pack this verb would read, merge into or attach a scorecard to does not
+   *  exist for this caller (404). Deliberately ONE code for "never generated" and
+   *  "belongs to another team": the two are indistinguishable to a caller who does not
+   *  hold the entry, which is the tenancy property the routes' own comments record. */
+  INTERVIEW_PREP_NOT_FOUND: "There is no interview prep pack for this candidate yet. Generate it first.",
+  /** An import arrived with nothing importable in it (400) — an empty list, or one
+   *  whose every item normalized away. */
+  INTERVIEW_PREP_QUESTIONS_REQUIRED: "Pick at least one question to add to the prep pack.",
+  /** A weave/unassign arrived without naming the question to move (400). */
+  INTERVIEW_PREP_QUESTION_REQUIRED: "Say which question to move.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

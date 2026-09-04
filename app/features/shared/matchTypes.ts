@@ -173,9 +173,12 @@ export type MatchRef = { profileId?: string; analysisSlug?: string };
 export type Reasoning = { verdict: string; strengths: string[]; gaps: string[]; interviewProbes: string[] };
 export type ReasoningState = { loading?: boolean; error?: string; source?: string; cached?: boolean; narrativeLang?: string; data?: Reasoning };
 
-// Archetype labels + the early-career fairness predicate live in one canonical
-// module (app/_lib/archetypes) so the protected set is never hand-copied.
-export { ARCHETYPE_LABEL, isEarlyCareer, archetypeDisplayKey } from "@/app/_lib/archetypes";
+// The archetype display key + the early-career fairness predicate live in one
+// canonical module (app/_lib/archetypes) so the protected set is never hand-copied.
+// ARCHETYPE_LABEL is deliberately NOT re-exported here: it is the registry's raw
+// ENGLISH, and a barrel that hands it to feature code is how it reached two recruiter
+// cards and the analysis banner. Labels come from enums.archetype(Long).<id>.
+export { isEarlyCareer, archetypeDisplayKey } from "@/app/_lib/archetypes";
 
 // The match total to write back to the pipeline snapshot when a fresh match run
 // files a candidate. A fresh /api/match `m.total` (producer C in match-score.ts)
