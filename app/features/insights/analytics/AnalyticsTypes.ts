@@ -29,8 +29,22 @@ export type Analytics = {
   // Median of the same time-to-hire samples — the ROI ledger's "median"-labeled tile
   // reads this (analytics-calibration-dashboards #1).
   medianTimeToHireDays: number | null;
+  /** How many hires the two statistics above were actually computed over — NOT
+   *  `hired`. A hire whose entry lacks one of the two timestamps is a real hire the
+   *  median cannot see (4 of 9 on the shipped corpus), so any surface that publishes
+   *  the median WITH a sample size must quote this and never `hired`. */
+  timeToHireSamples: number;
   // UAT M7 — blended overall cost per hire (Σ channel spend ÷ hires), all-time only.
   costPerHireCzk: number | null;
+  /** UAT KAT-ANA-2 — the age of the figure above: the OLDEST `channel_spend.updated_at`
+   *  among the rows summed into it (a blend is only as current as its stalest input).
+   *  Null whenever `costPerHireCzk` is. */
+  costPerHireAsOf: string | null;
+  /** UAT KAT-ANA-4 — hires on the EVENT-TIME basis: entries whose TERMINAL TRANSITION
+   *  landed inside the window, as distinct from the creation cohort `hired`. Every
+   *  per-hire figure with an event-time or ledger-time numerator divides by THIS, so
+   *  numerator and denominator describe the same window. */
+  hiresClosedInWindow: number;
   // compute-cost-per-hire — account-wide LLM compute cost from the usage ledger (USD,
   // read-only). Null when the window holds no metered calls. See the DB type note.
   computeCost: {
