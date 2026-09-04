@@ -90,38 +90,37 @@ export function linkApplySession(sessionId: string | null | undefined, entryId: 
   }
 }
 
-/** KPI "Candidate apply-to-pipeline rate": % of attempts started in the window
- *  that reached a filed pipeline entry. `windowDays` bounds the cohort; attempts
- *  younger than `graceHours` are excluded because a candidate mid-application is
- *  not an abandonment yet — counting them would drag the rate down by however
- *  fast you happen to read it. */
-export function applyToPipelineRate(
-  windowDays = 30,
-  graceHours = 24,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
-): { started: number; filed: number; ratePct: number | null; byFlow: Record<string, { started: number; filed: number }> } {
-  const rows = db()
+/** RETENTION — delete the attempts that started and never became anything.
+ *
+ *  `apply_sessions` is minted from a PUBLIC, unauthenticated door: one row per
+ *  form open, per job, per candidate. Nothing ever deleted from it. A grep for a
+ *  DELETE across app/ and scripts/ found none, so the table only grew — with the
+ *  abandonment rows, which are the majority by construction, growing fastest. On a
+ *  long-lived self-hosted install that is an unbounded table of stale
+ *  client-minted ids, campaign tags and variant tags: storage nobody reads and
+ *  personal-adjacent trail nobody needs, kept forever because deleting it was
+ *  never anybody's job.
+ *
+ *  Scope is deliberately narrow. Only rows with NO `entry_id` — an attempt that
+ *  reached a filed application is provenance for a real pipeline entry and is left
+ *  alone. `olderThanDays` is the stated window: 180 days, far outside any funnel
+ *  report (the historical rate read looked back 30) so a sweep can never eat a
+ *  cohort someone is still measuring.
+ *
+ *  `workspaceId` bounds the sweep to one team when a caller has one. The clock
+ *  passes NONE: retention is a whole-deployment duty, exactly like the consent
+ *  sweep beside it, and a per-tenant loop would leave any workspace nobody
+ *  enumerated growing forever. Returns the number of rows removed. */
+export function sweepAbandonedApplySessions(olderThanDays = 180, workspaceId?: string): number {
+  const days = Math.max(1, Math.floor(olderThanDays));
+  const scope = workspaceId ?? null;
+  const res = db()
     .prepare(
-      `SELECT flow, entry_id FROM apply_sessions
-        WHERE workspace_id = ?
-          AND started_at >= datetime('now', ?)
-          AND started_at <= datetime('now', ?)`
+      `DELETE FROM apply_sessions
+        WHERE entry_id IS NULL
+          AND started_at < datetime('now', ?)
+          AND (? IS NULL OR workspace_id = ?)`
     )
-    .all(workspaceId, `-${Math.max(1, Math.floor(windowDays))} days`, `-${Math.max(0, Math.floor(graceHours))} hours`) as {
-    flow: string;
-    entry_id: string | null;
-  }[];
-  const byFlow: Record<string, { started: number; filed: number }> = {};
-  let filed = 0;
-  for (const r of rows) {
-    const b = (byFlow[r.flow] ??= { started: 0, filed: 0 });
-    b.started += 1;
-    if (r.entry_id) {
-      b.filed += 1;
-      filed += 1;
-    }
-  }
-  // null rather than 0 on an empty cohort: "no one applied yet" and "everyone
-  // abandoned" are different facts and must not render as the same number.
-  return { started: rows.length, filed, ratePct: rows.length ? Math.round((filed / rows.length) * 1000) / 10 : null, byFlow };
+    .run(`-${days} days`, scope, scope);
+  return res.changes;
 }

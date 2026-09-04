@@ -482,6 +482,23 @@ so profile_cli's reason reaches the log and never the candidate. The *page*-leve
 closed-role gate still renders `t("roleClosed")`; that is a different surface.
 Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
 
+**Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
+`app/_lib/apply-session-store.ts`) is written from a public door on every form
+open and nothing in the tree ever deleted from it, so the abandonment rows — the
+majority by construction — accrued forever on a long-lived install.
+`sweepAbandonedApplySessions(olderThanDays = 180, workspaceId?)` runs from the
+server clock (`instrumentation-node.ts`) beside the other sweeps, deleting only
+rows with **no `entry_id`** past the window; an attempt that reached a filed entry
+is provenance for a real pipeline row and is never touched. The clock calls it
+unscoped, so it covers every tenant — storage hygiene is deployment-wide — but it
+sits *under* the autonomy pause, unlike the statutory consent sweep beside it.
+The dead `applyToPipelineRate` reader (no callers anywhere) was deleted rather
+than wired; the rows it read are still kept for 180 days, well outside its own
+30-day window, so a future analytics surface can reintroduce a reader over them.
+Both stores now have behavioural tests: `apply-session-store.test.ts` (idempotent
+start, write-once back-link, the sweep's scope) and `application-status-store.test.ts`
+(one token per entry, the UNIQUE backstop under an interleaved insert, resolve).
+
 Consequently the **"newly reachable" re-acknowledgement carries the status
 link** too (`app/api/apply/[id]/route.ts`, pinned by
 `apply-ack-after-response.test.ts`). That ack is the only one a candidate whose
