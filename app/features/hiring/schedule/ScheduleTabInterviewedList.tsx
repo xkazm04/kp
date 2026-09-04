@@ -5,6 +5,7 @@
 // ScheduleTab.tsx to keep the tab file under the 200-line cap.
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { ArrowRight, ClipboardList, FileText, UserRound } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
@@ -42,7 +43,7 @@ export function ScheduleTabInterviewedList({
         // human scorecard is what admitted the card to this list).
         const humanLed = !interviews[e.id]?.hasTranscript;
         return (
-          <div key={e.id} className="rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
+          <div key={e.id} className={`${PANEL} p-2.5`}>
             <div className="flex w-full items-start gap-2">
               <CandidateCardHeader
                 entry={e}

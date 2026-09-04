@@ -506,6 +506,115 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### A pipeline write expires that role's cached evaluations
+The eval cache had no TTL and no invalidation of any kind, and a SELECTION key is
+stable across pipeline writes **by construction**: `<role>#sel:<n>-<hash>` over the
+same entry ids hashes identically however far those candidates have since moved.
+A recruiter who rejected two of a compared four and reopened the identical
+selection was served the cached comparison — a lead crowned over a field that no
+longer existed. The modal's pool-drift diff (`evaluatedLabels` against the live
+pending entries) only *discloses* that; a disclosure the reader has to notice is
+not a cache policy.
+
+`invalidateGroupEvalSelection(roleKey, workspaceId)`
+(`app/_lib/group-eval.ts`) drops the role's top-N row **and** every `#sel:` row for
+it, scoped to one tenant, with the LIKE pattern `ESCAPE`d because `roleKeyOf` falls
+back to the free-text job title (`Data % Analyst` is a legal role key).
+`pipeline-entry-action.ts` calls it on every successful entry action —
+`set_stage`, accept/reject, the human-round routing and the offer extension —
+because that layer is where both routes and the automation pass already meet, and
+`db/pipeline.ts` must not reach into another store's cache. Deleting rather than
+TTL-ing is deliberate: a cohort that moved makes the stored comparison wrong
+immediately, and the next open simply re-runs. The call is best-effort inside a
+`try` — expiring a cache must never turn a completed decision into a failed
+request.
+
+### A group evaluation persists against the cohort it actually ranked
+`saveGroupEval` was an unconditional upsert at the end of a run that spends up to
+eight Python processes and can take minutes, so two runs over one role — a
+recruiter reopening the modal while a background `group_eval` task is still
+working, or two recruiters on the same role — both wrote, and the last to finish
+won regardless of which cohort it had ranked. The dedupe key
+(`group-eval-dedupe.ts`) narrows that window to genuinely different requests; it
+cannot close it, because a run that started before a pipeline write still finishes
+after it.
+
+The compute cannot sit inside a transaction (it spawns subprocesses, and an
+`await` inside `db.transaction()` silently forfeits atomicity), so the write
+re-asserts what the read saw — the `actOnPipelineEntry` `expectedStage` shape,
+keyed here on the cohort. `group_evals` carries a `cohort_hash` column
+(`candidateSetFingerprint` of the cohort the run ranked);
+`readGroupEvalCohortState` gives a run its precondition **before its first await**,
+and `saveGroupEval(…, { cohortHash, expected })` lands only if the row is still in
+that state — no row then and none now, or the same hash. Otherwise the stored eval
+is newer and ours is the stale one: the write is dropped, `false` comes back, and
+`runGroupEval` logs which result it discarded and against which cohort. The
+caller still receives its payload; only the shared row is protected. A legacy row
+(`cohort_hash` NULL) is adopted by a run that read null — `IS`, not `=`, so
+three-valued logic cannot make pre-column rows permanently unwritable. Callers
+with no prior observation (tests, scripts) omit `cas` and get the historical
+upsert.
+
+### Every AI stage of a group evaluation has a deadline, and says when it fell back
+One evaluation fans out to up to **eight** Python processes: the recruiter ranker
+(`--weights-llm` **and** `--embeddings`, so two provider round-trips inside one
+child), the `group_compare_cli` narrative, and up to `GROUP_EVAL_CAP` = 6
+concurrent per-candidate reasoning runs. None of them passed a timeout, so each
+inherited `python-runner.ts`'s `DEFAULT_TIMEOUT_MS` — a ten-minute **hang
+backstop** its own comment calls "not a deadline". A stalled provider parked the
+modal spinner and a background task slot for ten minutes before falling back to a
+deterministic result it could have produced in seconds.
+
+`group-eval-run.ts` now states one deadline per stage —
+`GROUP_EVAL_RANK_TIMEOUT_MS` (240s, the two-enrichment child),
+`GROUP_EVAL_COMPARE_TIMEOUT_MS` (150s) and `GROUP_EVAL_REASONING_TIMEOUT_MS`
+(150s, **per candidate**, so one stalled call does not hold the other five).
+`KP_GROUP_EVAL_STAGE_TIMEOUT_MS` overrides all three for a slow self-hosted
+provider. The compare spawn — the one this module owns directly — hands
+`spawnPython` an explicit `timeoutMs`, so its deadline is a SIGKILL rather than
+only an abort; the two indirect stages get a composed `stageSignal` (the caller's
+cancellation OR the stage's deadline), which returns the deadline signal
+separately so a caller cancellation is never mis-reported as a timeout.
+
+Deadlines are safe here because every stage already degrades **soft** into a
+deterministic twin — passing one costs fidelity, never the result. That is also
+what made the old behaviour unreadable: an evaluation whose ranking, narrative and
+rationales had all fallen back was shaped exactly like a full AI comparison. The
+payload now carries `degradedStages: [{ stage, reason }]` — `ranking` |
+`comparison` | `reasoning`, each `timeout` or `failed` — and is null when every
+stage delivered, so its presence always means something really degraded. A field
+below the min-cohort floor reports nothing: its narrative was **declined** by
+policy, not lost, and is already disclosed as "insufficient sample".
+
+### The compared cohort is gated on consent, and says what it removed
+A group evaluation is the PII-densest thing this surface does: every compared
+member's label, archetype, salary expectation, matched/missing skills and
+CV-derived verdict is serialized into a `group_compare_cli` prompt, sent to a
+provider, narrated, persisted into a shared `group_evals` row and — under
+`recommendation` governance — sealed into a decision record. Cohort selection
+consulted no consent state at all, so a candidate anonymized under an Art. 17
+erasure, or one whose consent to be processed had lapsed, was compared, narrated
+and sealed exactly like anyone else. The identical suppression was already
+enforced two doors away, for rediscovery ranking and for outreach.
+
+`runGroupEval` now resolves `suppressedCandidateIds`
+(`app/_lib/rediscovery-alert-store.ts` — workspace-GLOBAL, because an erasure is a
+property of the person not the team; most-restrictive across every entry an
+identity owns; fail-CLOSED, so a broken consent read suppresses everybody) and
+partitions the cohort through the pure `partitionCohortByConsent`
+(`app/_lib/group-eval-cohort.ts`) before selection, capping or ranking. The gate
+applies to an explicit recruiter selection as well: picking a suppressed candidate
+cannot opt them back in. A member with no `candidateId` is kept — suppression is
+keyed to a person and a manually added pipeline row names none.
+
+The removal is disclosed rather than silent. The payload carries
+`consentExcluded: { count, anonymized, consentExpired }` (null when nothing was
+excluded, so legacy payloads and clean cohorts are indistinguishable) so a field
+that shrank because two people were erased cannot read as a field that simply had
+fewer applicants. **Counts only, deliberately** — the row is shared, persisted and
+readable by the whole team, so the gate does not write the excluded people's ids
+back into the very record the erasure removed them from.
+
 ### The unresolved-pair fallback now refuses glue in all four languages
 When NEITHER surface of a skill pair resolves in the taxonomy,
 `taxonomy.unresolved_pair_score` falls back to a capped Jaccard over the two

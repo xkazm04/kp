@@ -1742,7 +1742,9 @@
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Diese Person steht nicht mehr auf diesem Board. Laden Sie neu und versuchen Sie es erneut.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde kein Terminlink gesendet.",
     "SCHEDULE_BULK_MINT_FAILED": "Für diese Person konnte kein Terminlink erstellt werden. Die übrigen sind davon nicht betroffen.",
-    "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang."
+    "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Wählen Sie eine Person aus, bevor Sie einen Terminlink erstellen.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde keine Einladung gesendet."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3703,7 +3705,13 @@
       "schemeCareerShort": "K",
       "schemePersonalShort": "P",
       "schemeWeightsTitle": "Gewichtung: Fähigkeiten / Karriere / Persönliches",
-      "narrativeInLanguage": "Dieser Vergleich wird auf {language} angezeigt."
+      "narrativeInLanguage": "Dieser Vergleich wird auf {language} angezeigt.",
+      "consentExcludedNote": "{count, plural, one {# Kandidat wurde aus diesem Vergleich ausgenommen} other {# Kandidaten wurden aus diesem Vergleich ausgenommen}}, weil sie gelöscht wurden oder ihre Einwilligung abgelaufen ist. Die Rangfolge unten umfasst das übrige Feld.",
+      "degradedNote": "Eingeschränkt: {stages}. Diese Schritte sind auf das deterministische Ergebnis zurückgefallen, der Vergleich ist daher dünner als ein vollständiger KI-Lauf.",
+      "degradedNoteTimeout": "Eingeschränkt (Zeitüberschreitung): {stages}. Diese Schritte sind auf das deterministische Ergebnis zurückgefallen, der Vergleich ist daher dünner als ein vollständiger KI-Lauf.",
+      "degradedStageRanking": "Rangfolge",
+      "degradedStageComparison": "KI-Vergleich",
+      "degradedStageReasoning": "Begründungen der Kandidaten"
     },
     "empty": {
       "batonEyebrow": "Staffelstab übergeben",
@@ -3790,7 +3798,8 @@
       "declineProposals": "Alle ablehnen",
       "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?",
       "cancelling": "Wird storniert…",
-      "markingNoShow": "Wird markiert…"
+      "markingNoShow": "Wird markiert…",
+      "truncated": "Es werden nur die neuesten Einladungen angezeigt. Ältere sind hier nicht aufgeführt."
     },
     "eyebrow": "Entscheidungen · Planung",
     "title": "Interview-Kalender",
@@ -4016,7 +4025,8 @@
       "noteNext": "Als Nächstes"
     },
     "liveStale": "Der Live-Status der Interviews ist veraltet.",
-    "liveRetry": "Erneut versuchen"
+    "liveRetry": "Erneut versuchen",
+    "invitesTruncated": "Es werden nur die neuesten Gespräche angezeigt. Ältere Einladungen fehlen in dieser Liste."
   },
   "library": {
     "tab": {

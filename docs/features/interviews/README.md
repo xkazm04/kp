@@ -240,6 +240,27 @@ affordance, one endpoint, one set of semantics (billing gate, reissue guard, del
 truth) — the revoke control stays entry-scoped and is therefore not rendered there.
 Pinned in `app/_lib/devcase-interview-entry.test.ts`.
 
+## The interview-prep writes ask the SEAT
+
+Tenancy answers *which team’s rows*; it never answered *may this seat*. The four
+interview-prep write verbs asked **nothing** — not even `requireOperator()` — so
+authority came down to holding a session plus an entry id, and entry ids are not
+secret. A read-only **viewer** could therefore save an interviewer’s checklist and
+notes (`PUT /api/interview-prep`), merge questions into a prep pack (`POST`),
+weave or unassign one (`PATCH`), and file the human scorecard
+(`POST /api/interview-prep/scorecard`) whose recommendation sets the
+`scorecard_review` approval that opens the Interview→Offer gate and seals a decision
+record.
+
+All four now run `requireCapabilityCoded("pipeline:write", requireCapability)` as
+their FIRST statement — ahead of the entry check and the throttle, so a refused seat
+neither spends rate-limit budget nor learns which entry ids exist. A viewer gets
+`FORBIDDEN_CAPABILITY` (403) carrying `capability` as data; an unauthenticated caller
+gets 401; open dev mode is unchanged (every caller folds to owner). The read `GET`
+is untouched. Driven against the real handlers in
+`app/api/write-capability-gate.test.ts`, and the two rows are deleted from the
+`app/api/route-capability-coverage.test.ts` allowlist so the win is locked.
+
 ## Tenant scope — the entry-keyed doors
 
 Three operator doors key on a **pipeline entry id and nothing else**: `POST

@@ -133,8 +133,13 @@ const ALLOWED = new Map<string, string>([
   ["intake/[id]/voice-connect/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["intake/[id]/voice-turn/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["intake/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["interview-prep/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["interview-prep/scorecard/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // interview-prep/route.ts and interview-prep/scorecard/route.ts were judged and
+  // CLOSED (/perfect wave 40, scheduling-and-interview-prep) alongside their two
+  // schedule siblings. This surface asked NOTHING - not even requireOperator - so a
+  // viewer could save an interviewer’s checklist and notes, merge questions into a
+  // prep pack and file the human scorecard whose recommendation OPENS the
+  // Interview→Offer gate and seals a decision record. All four verbs now ask
+  // pipeline:write; write-capability-gate.test.ts drives each for the viewer 403.
   ["interview/complete/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/connect/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/create/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
@@ -165,8 +170,12 @@ const ALLOWED = new Map<string, string>([
   ["rediscovery/alerts/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["repo-scan/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["schedule/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["schedule/invite/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["schedule/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // schedule/invite/route.ts and schedule/route.ts were judged and CLOSED (/perfect
+  // wave 40, scheduling-and-interview-prep): both ask pipeline:write, the capability
+  // their bulk sibling has asked since wave 18a. A viewer seat could mint and mail a
+  // scheduling link, and cancel or move a booked interview. The rows are deleted so
+  // the win is locked; app/api/schedule/invite/invite-gate-tenancy.test.ts drives the
+  // real handlers for the viewer 403.
   ["sim/apply-cv/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["sim/inbound/route.ts", "guided-sim sandbox — writes only the demo corpus"],
   ["sim/offer-draft/route.ts", "guided-sim sandbox — writes only the demo corpus"],

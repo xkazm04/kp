@@ -17,6 +17,7 @@ import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-sc
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { invalidateGroupEvalSelection } from "@/app/_lib/group-eval";
 import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
 // One canonical move/decide action against a single pipeline entry, shared by the
@@ -108,6 +109,37 @@ function acceptWouldReachTerminal(stage: string, axis: readonly StageDef[]): boo
 }
 
 const ok = (body: Record<string, unknown>): EntryActionResult => ({ status: 200, body });
+
+/**
+ * Expire the role's cached group evaluations after a write that moved its cohort.
+ *
+ * The Decisions "group evaluation" cache (`app/_lib/group-eval.ts`) had no TTL and no
+ * invalidation. Its SELECTION keys are stable across pipeline writes by construction
+ * — `<role>#sel:<n>-<hash>` over the same entry ids hashes identically however far
+ * those candidates have since moved — so rejecting two of a compared four and
+ * reopening the identical selection served the cached comparison: a lead crowned
+ * over a field that no longer exists. This is the write side of that cache, and the
+ * only place that knows a cohort just changed.
+ *
+ * Called from the ENTRY-ACTION layer rather than from `db/pipeline.ts`: the store
+ * module must not reach across into another store's cache, and this is the seam both
+ * routes and the automation pass already go through.
+ *
+ * `roleKey` mirrors `roleKeyOf` (decisionsQueueTypes.ts): jobId ?? jobTitle ??
+ * "unassigned" — the same key the eval was persisted under.
+ *
+ * Best-effort by design: expiring a cache must never turn a completed decision into
+ * a failed request. A miss costs one stale modal open (which the pool-drift banner
+ * still discloses); a throw here would cost the recruiter their decision.
+ */
+function expireCachedGroupEvals(entry: PipelineEntry | null | undefined, workspaceId: string): void {
+  if (!entry) return;
+  try {
+    invalidateGroupEvalSelection(entry.jobId ?? entry.jobTitle ?? "unassigned", workspaceId);
+  } catch (error) {
+    console.warn("[pipeline-entry-action] group-eval cache expiry failed:", error instanceof Error ? error.message : error);
+  }
+}
 
 /** Every refusal on this helper answers a CODE (api-contracts.md 1.1), never a
  *  hand-written sentence: both callers put these straight on the wire — the single
@@ -242,6 +274,7 @@ export async function extendDraftedOffer(
       link,
     });
   }
+  expireCachedGroupEvals(entry, workspaceId);
   return ok({ entry: getPipelineEntry(entry.id, workspaceId), offerExtended: true, link });
 }
 
@@ -283,6 +316,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       // The CAS lost in the gap or the entry is closed out — the caller's view is stale.
       return err(409, "PIPELINE_MOVE_CONFLICT", { entry: fresh });
     }
+    expireCachedGroupEvals(moved, workspaceId);
     return ok({ entry: moved });
   }
 
@@ -402,6 +436,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
           handoff: "human_round",
         },
       });
+      expireCachedGroupEvals(current, workspaceId);
       return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });
     }
   }
@@ -450,5 +485,6 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
   }
   // A human reject is the gate; the candidate hears about it (queued by default).
   if (action === "reject") await dispatchRejection(updated);
+  expireCachedGroupEvals(updated, workspaceId);
   return ok({ entry: updated });
 }

@@ -393,6 +393,25 @@ fewer candidates than the comparison (the ranker's pool drops entries it cannot
 resolve), so the orders are compared on the matrix's own field, and a comparison
 that cannot be made states **nothing** rather than defaulting to "agrees".
 
+**The comparison discloses who was withheld, and what fell back.** A group
+evaluation excludes cohort members who were anonymized (an Art. 17 erasure) or
+whose consent to be processed has lapsed, through the same fail-closed predicate
+outreach uses; and every one of its up-to-eight AI stages degrades soft into a
+deterministic twin. Both facts are recorded on the saved payload
+(`consentExcluded`, `degradedStages` — see `docs/features/matching/README.md`) and
+are now folded for the reader by `groupEval/groupEvalDisclosure.ts` and rendered by
+`GroupEvalNotices.tsx` in the same amber `Notice` the drift and governance warnings
+use: a caveat on the comparison, never a calm or confirming tone.
+
+The consent notice is a **count only** — the payload deliberately never carries the
+excluded people's ids, so the disclosure cannot re-materialize what the erasure
+removed. The degraded notice names the stages in a fixed order and distinguishes a
+*timeout* from a *failure*, because the two ask an operator for different things.
+Without it an evaluation whose ranking, narrative and rationales had all fallen
+back was indistinguishable from a full AI comparison — and a field that shrank for
+a consent reason read as a field that simply had fewer applicants. Pinned by
+`groupEval/groupEvalDisclosure.test.ts`.
+
 **Name/gender-proxy neutrality.** `pipeline/jobfit/tests/test_name_neutrality.py`
 now pins byte-identity of the deterministic scorer's output across
 Czech-male/Czech-female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated

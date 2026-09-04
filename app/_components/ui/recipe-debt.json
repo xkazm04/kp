@@ -139,14 +139,10 @@
     "features/hiring/pipeline/SchedulerToolbar.tsx": {
       "noticeAmber": 1
     },
-    "features/hiring/schedule/ScheduleAiDocket.tsx": {
-      "panel": 3
-    },
     "features/hiring/schedule/ScheduleAiEvalPreview.tsx": {
       "chipQuiet": 1
     },
     "features/hiring/schedule/ScheduleCalendar.tsx": {
-      "panel": 1,
       "metaLabel": 1
     },
     "features/hiring/schedule/ScheduleInterviewPrepHeader.tsx": {
@@ -155,14 +151,8 @@
     "features/hiring/schedule/ScheduleInterviewTranscriptTurns.tsx": {
       "metaLabel": 1
     },
-    "features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx": {
-      "panel": 1
-    },
     "features/hiring/schedule/ScheduleInviteRecruiterControls.tsx": {
       "noticeAmber": 1
-    },
-    "features/hiring/schedule/ScheduleTabInterviewedList.tsx": {
-      "panel": 1
     },
     "features/insights/about/AboutTab.tsx": {
       "panel": 1

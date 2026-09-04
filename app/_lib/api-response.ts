@@ -828,6 +828,17 @@ export const REFUSAL_ERRORS = {
    *  dropped so it stays selected and the recruiter can send the next batch; the cap
    *  rides alongside in `max`. */
   SCHEDULE_BULK_OVER_CAP: "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
+  // ---- The SINGLE invite door (/perfect wave 40, scheduling-and-interview-prep).
+  // Its bulk sibling was migrated one wave earlier; this door still answered three
+  // hand-built English sentences, and the third of them reached the recruiter panel
+  // verbatim - useScheduleInviteLifecycle resolves `code` and, finding none, painted
+  // its own generic "action failed" over a refusal whose reason IS the remedy.
+  /** The mint POST carried no entryId (400). Nothing was minted or mailed. */
+  SCHEDULE_INVITE_ENTRY_REQUIRED: "Pick a candidate before creating a scheduling link.",
+  /** The linked candidate is hired, rejected or withdrawn (409). Both UI gates on this
+   *  door read a CLIENT-side snapshot, so a drawer left open while the candidate was
+   *  closed out in another tab used to mint a link AND mail an interview invitation. */
+  SCHEDULE_INVITE_ENTRY_INACTIVE: "That candidate is no longer active, so no invite was sent.",
   /** The submitted meeting link is not http(s), or does not parse (400). The link is
    *  rendered as a trusted "Join" anchor and baked into calendar events, so anything
    *  else is refused rather than sanitized. */

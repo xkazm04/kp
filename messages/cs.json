@@ -1742,7 +1742,9 @@
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Tento kandidát už na nástěnce není. Načtěte stránku znovu a zkuste to znovu.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Tento kandidát už není aktivní, odkaz pro plánování se neodeslal.",
     "SCHEDULE_BULK_MINT_FAILED": "Pro tohoto kandidáta se nepodařilo vytvořit odkaz pro plánování. Ostatních se to nedotklo.",
-    "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce."
+    "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Než vytvoříte odkaz pro plánování, vyberte kandidáta.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Tento kandidát už není aktivní, pozvánka se neodeslala."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3703,7 +3705,13 @@
       "schemeCareerShort": "K",
       "schemePersonalShort": "O",
       "schemeWeightsTitle": "Váhy: dovednosti / kariéra / osobnostní",
-      "narrativeInLanguage": "Toto srovnání je zobrazeno v jazyce {language}."
+      "narrativeInLanguage": "Toto srovnání je zobrazeno v jazyce {language}.",
+      "consentExcludedNote": "{count, plural, one {# kandidát byl z tohoto srovnání vynechán} few {# kandidáti byli z tohoto srovnání vynecháni} other {# kandidátů bylo z tohoto srovnání vynecháno}}, protože byli vymazáni nebo jim vypršel souhlas. Pořadí níže pokrývá zbytek pole.",
+      "degradedNote": "Omezeno: {stages}. Tyto fáze se vrátily k deterministickému výsledku, srovnání je proto slabší než plný běh AI.",
+      "degradedNoteTimeout": "Omezeno (vypršel čas): {stages}. Tyto fáze se vrátily k deterministickému výsledku, srovnání je proto slabší než plný běh AI.",
+      "degradedStageRanking": "řazení",
+      "degradedStageComparison": "srovnání AI",
+      "degradedStageReasoning": "zdůvodnění kandidátů"
     },
     "empty": {
       "batonEyebrow": "Štafeta předána",
@@ -3790,7 +3798,8 @@
       "declineProposals": "Zamítnout vše",
       "declineProposalsPrompt": "Zamítnout navržené termíny?",
       "cancelling": "Ruším…",
-      "markingNoShow": "Označuji…"
+      "markingNoShow": "Označuji…",
+      "truncated": "Zobrazujeme jen nejnovější pozvánky. Starší zde nejsou uvedené."
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
@@ -4016,7 +4025,8 @@
       "noteNext": "Další"
     },
     "liveStale": "Živý stav pohovorů je zastaralý.",
-    "liveRetry": "Zkusit znovu"
+    "liveRetry": "Zkusit znovu",
+    "invitesTruncated": "Zobrazujeme jen nejnovější pohovory. Starší pozvánky v tomto seznamu nejsou."
   },
   "library": {
     "tab": {

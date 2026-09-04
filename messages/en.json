@@ -1742,7 +1742,9 @@
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "That candidate is no longer on this board. Reload and try again.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "That candidate is no longer active, so no scheduling link was sent.",
     "SCHEDULE_BULK_MINT_FAILED": "Couldn't create a scheduling link for this candidate. The rest of the batch was unaffected.",
-    "SCHEDULE_BULK_OVER_CAP": "Too many candidates for one send, so this one was not invited. Send the rest in a second batch."
+    "SCHEDULE_BULK_OVER_CAP": "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Pick a candidate before creating a scheduling link.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "That candidate is no longer active, so no invite was sent."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3703,7 +3705,13 @@
       "schemeCareerShort": "C",
       "schemePersonalShort": "P",
       "schemeWeightsTitle": "Weighting: skills / career / personal",
-      "narrativeInLanguage": "This comparison is shown in {language}."
+      "narrativeInLanguage": "This comparison is shown in {language}.",
+      "consentExcludedNote": "{count, plural, one {# candidate was withheld} other {# candidates were withheld}} from this comparison because they were erased or their consent has lapsed. The ranking below covers the rest of the field.",
+      "degradedNote": "Degraded: {stages}. Those stages fell back to the deterministic result, so the comparison is thinner than a full AI run.",
+      "degradedNoteTimeout": "Degraded (timed out): {stages}. Those stages fell back to the deterministic result, so the comparison is thinner than a full AI run.",
+      "degradedStageRanking": "ranking",
+      "degradedStageComparison": "AI comparison",
+      "degradedStageReasoning": "candidate rationales"
     },
     "empty": {
       "batonEyebrow": "Baton passed",
@@ -3790,7 +3798,8 @@
       "declineProposals": "Decline all",
       "declineProposalsPrompt": "Decline the proposed times?",
       "cancelling": "Cancelling…",
-      "markingNoShow": "Marking…"
+      "markingNoShow": "Marking…",
+      "truncated": "Showing the most recent invites only. Older ones are not listed here."
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
@@ -4016,7 +4025,8 @@
       "noteNext": "Next"
     },
     "liveStale": "Live interview status is out of date.",
-    "liveRetry": "Retry"
+    "liveRetry": "Retry",
+    "invitesTruncated": "Showing the most recent interviews only. Older invites are not on this list."
   },
   "library": {
     "tab": {

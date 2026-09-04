@@ -1742,7 +1742,9 @@
     "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Ce candidat ne figure plus sur ce tableau. Rechargez la page et réessayez.",
     "SCHEDULE_BULK_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucun lien de planification n’a été envoyé.",
     "SCHEDULE_BULK_MINT_FAILED": "Impossible de créer un lien de planification pour ce candidat. Les autres n’ont pas été affectés.",
-    "SCHEDULE_BULK_OVER_CAP": "Trop de candidats pour un seul envoi, celui-ci n’a pas été invité. Envoyez le reste dans un second lot."
+    "SCHEDULE_BULK_OVER_CAP": "Trop de candidats pour un seul envoi, celui-ci n’a pas été invité. Envoyez le reste dans un second lot.",
+    "SCHEDULE_INVITE_ENTRY_REQUIRED": "Sélectionnez un candidat avant de créer un lien de planification.",
+    "SCHEDULE_INVITE_ENTRY_INACTIVE": "Ce candidat n’est plus actif, aucune invitation n’a été envoyée."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3703,7 +3705,13 @@
       "schemeCareerShort": "Ca",
       "schemePersonalShort": "Pe",
       "schemeWeightsTitle": "Pondération : compétences / carrière / personnel",
-      "narrativeInLanguage": "Cette comparaison est affichée en {language}."
+      "narrativeInLanguage": "Cette comparaison est affichée en {language}.",
+      "consentExcludedNote": "{count, plural, one {# candidat a été écarté de cette comparaison} other {# candidats ont été écartés de cette comparaison}} car ils ont été effacés ou leur consentement a expiré. Le classement ci-dessous couvre le reste du champ.",
+      "degradedNote": "Dégradé : {stages}. Ces étapes se sont repliées sur le résultat déterministe, la comparaison est donc plus pauvre qu'une exécution IA complète.",
+      "degradedNoteTimeout": "Dégradé (délai dépassé) : {stages}. Ces étapes se sont repliées sur le résultat déterministe, la comparaison est donc plus pauvre qu'une exécution IA complète.",
+      "degradedStageRanking": "classement",
+      "degradedStageComparison": "comparaison IA",
+      "degradedStageReasoning": "justifications des candidats"
     },
     "empty": {
       "batonEyebrow": "Témoin passé",
@@ -3790,7 +3798,8 @@
       "declineProposals": "Tout refuser",
       "declineProposalsPrompt": "Refuser les créneaux proposés ?",
       "cancelling": "Annulation…",
-      "markingNoShow": "Marquage…"
+      "markingNoShow": "Marquage…",
+      "truncated": "Seules les invitations les plus récentes sont affichées. Les plus anciennes ne sont pas listées ici."
     },
     "eyebrow": "Décisions · Planification",
     "title": "Calendrier des entretiens",
@@ -4016,7 +4025,8 @@
       "noteNext": "Ensuite"
     },
     "liveStale": "Le statut des entretiens en direct n'est plus à jour.",
-    "liveRetry": "Réessayer"
+    "liveRetry": "Réessayer",
+    "invitesTruncated": "Seuls les entretiens les plus récents sont affichés. Les invitations plus anciennes ne figurent pas dans cette liste."
   },
   "library": {
     "tab": {

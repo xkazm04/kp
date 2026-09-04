@@ -1026,6 +1026,28 @@ const ROUTES: RouteSpec[] = [
     expensive: "await proposeFreeSlots(",
   },
   {
+    // ADDED /perfect wave 40 (scheduling-and-interview-prep), with the limiter itself.
+    // The RECRUITER half of the same read, and the last verb on this route with no
+    // budget while both write verbs carried one. It is the single list two live
+    // surfaces hydrate from - the Schedule tab (useScheduleTab.load) and the invite
+    // lifecycle panel (useScheduleInviteLifecycle.loadInvites) - each of which reloads
+    // after every mutation, and the `?slots=1` branch additionally fans out to the
+    // interviewer’s connected Google calendar per hit, exactly like the candidate door
+    // above. 120/min per IP: two operators reloading hard sit an order of magnitude
+    // under it, and a scripted loop is pinned at 2/s.
+    rel: "./schedule/route.ts",
+    key: "`sched-list:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    windowMs: 60_000,
+    windowSrc: "60_000",
+    optsSrc: "SCHEDULE_LIST_RATE_LIMIT",
+    optsDef: "const SCHEDULE_LIST_RATE_LIMIT = { limit: 120, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The agenda read itself. The bare name also appears in the import block above
+    // the limiter, so the marker carries its opening parenthesis.
+    expensive: "listScheduleInvites(",
+  },
+  {
     // ADDED /perfect wave 39 (lib-automation), with the limiter itself. The per-entry
     // AI step the board's actions grid fires: one POST spawns a Python child AND spends
     // on the configured model, and `outreach` additionally DISPATCHES a letter to a

@@ -372,6 +372,34 @@ can never exceed the total" are now enforced rather than assumed. The recruiter'
 cancel and no-show confirms carry a busy label plus `aria-busy` in flight; they
 were disabled-only, so a slow round-trip read as a dead button.
 
+## The agenda read is bounded, throttled, and says so
+
+`GET /api/schedule` is the ONE list two live surfaces hydrate from — the Schedule
+tab’s week grid (`useScheduleTab.load`) and the invite lifecycle panel
+(`useScheduleInviteLifecycle`) — and both reload it after every mutation. It served
+a hard-coded `listScheduleInvites(200, ws)`: no cursor, no way to ask for more and,
+worse, no signal that there was more. A team past 200 live invites silently lost the
+oldest of them from the agenda, from the lifecycle buckets **and from the grid’s
+booked markers** — an hour that WAS taken stopped being drawn as taken, which is the
+one thing the shared slot pool exists to prevent.
+
+| Field | Meaning |
+| --- | --- |
+| `?limit=` (request) | clamped, never trusted: junk / `0` / negative folds to the default 200, an absurd ask caps at 1000, a fraction truncates |
+| `limit` (response) | the bound the server actually applied |
+| `truncated` | there were more rows than `limit` — one row past the bound is fetched so the claim is a fact, not a guess |
+
+Both surfaces render the flag rather than presenting a clipped list as whole:
+`scheduleTab.invitesTruncated` above the grid and `scheduleTab.lifecycle.truncated`
+under the panel heading. Pinned by
+`app/api/schedule/schedule-list-bounds.test.ts`.
+
+The read is also throttled — `sched-list:<ip>` at **120/min**, the last verb on this
+route with no budget while both write verbs carried one. The `?slots=1` branch fans
+out to the interviewer’s connected Google calendar per hit, exactly like the
+candidate door. Its spec lives with every other limited door’s in
+`app/api/rate-limit-contract.test.ts`.
+
 ## What the recruiter is told when a booking is refused
 
 `POST /api/schedule {action:"book"}` — the week grid's Confirm — answers every
@@ -468,6 +496,36 @@ a regex looking for `NextResponse.json({ error: … })`. Pinned by
 `app/api/schedule/invite/invite-gate-tenancy.test.ts`, which also asserts every
 `SCHEDULE_BULK_*` the route emits is declared in `REFUSAL_ERRORS` and present in
 all four catalogs.
+
+### The SINGLE invite door
+
+`POST /api/schedule/invite` is the per-candidate half of the same action, and it was
+the last door on this feature still answering hand-built English. Three sentences —
+`"entryId is required"`, `"pipeline entry not found"` and `"That candidate is no longer
+active"` — went out with no `code`, and the third one is the one a recruiter actually
+meets: `useScheduleInviteLifecycle.reinvite` resolves `code` through `useErrorMessage()`
+and, finding none, painted its own generic `actionFailed` toast over a refusal whose
+reason IS the remedy. All three are now codes:
+
+| Code | Status | Fires when |
+| --- | --- | --- |
+| `SCHEDULE_INVITE_ENTRY_REQUIRED` | 400 | the POST body carries no `entryId` |
+| `PIPELINE_ENTRY_NOT_FOUND` | 404 | the entry is not on **this team’s** board (the board’s own code, reused) |
+| `SCHEDULE_INVITE_ENTRY_INACTIVE` | 409 | hired / rejected / withdrawn — the panel’s `canReinvite` reads a client-side snapshot |
+
+### Both invite doors, and the manage door, ask the SEAT
+
+`requireOperator()` answers "is a trusted, non-demo session present?" — in open mode
+that is true for everyone, and with `KP_OPERATOR_PASSWORD` set it is true for a VIEWER
+seat as well. It is identity, never authority. So `POST /api/schedule/invite` and both
+mutating verbs of `POST`/`PATCH /api/schedule` now ask `pipeline:write` through
+`requireCapabilityCoded(...)`, exactly as `/api/schedule/invite/bulk` has since wave
+18a: a read-only member could otherwise mint a scheduling link and mail it to a
+candidate, cancel a booked interview, mark a no-show or rewrite the join link. A
+refused seat gets `FORBIDDEN_CAPABILITY` (403) carrying `capability` as data, so the UI
+can name the permission to ask for. Open dev mode is unchanged (every caller folds to
+owner). Driven against the real handlers in
+`app/api/schedule/invite/invite-gate-tenancy.test.ts`.
 
 ## What the CANDIDATE is told when their door refuses
 

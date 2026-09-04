@@ -23,15 +23,15 @@
   ],
   "ceilings": {
     "eslint:react-hooks/exhaustive-deps": {
-      "max": 39,
+      "max": 38,
       "why": "Effects deliberately narrower than their closure: mount-only restores, one-shot hydration, seed-once-per-step. The single largest class here and the one most worth reading twice — 39 places where the compiler's dependency analysis was overruled by hand. Retired by the same move each time: hoist the value into a ref or a stable callback so the honest dependency list is also the correct one."
     },
     "directive:unreasoned": {
-      "max": 39,
+      "max": 36,
       "why": "The second axis: an eslint directive with no `-- why` on its line. 17 of today's 59 explain themselves and 42 do not, which is the difference between a deliberate exception and one nobody has re-read. This ceiling can only fall, so a NEW suppression must carry its reason even when its rule still has room under the ceiling above."
     },
     "eslint:react-hooks/set-state-in-effect": {
-      "max": 9,
+      "max": 8,
       "why": "State seeded from a browser-only source (localStorage, sessionStorage, a URL param) in an effect, because doing it in an initializer would be an SSR hydration mismatch. Retired when the surface moves the read to the server or to a client-only boundary."
     },
     "eslint:@next/next/no-img-element": {

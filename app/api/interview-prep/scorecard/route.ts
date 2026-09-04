@@ -7,7 +7,8 @@ import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersion
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
@@ -33,6 +34,14 @@ const SCORECARD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 // canonical advance|hold|reject set. 404 when no prep artifact exists yet.
 export async function POST(request: NextRequest) {
   try {
+    // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
+    // not even requireOperator — so authority came down to holding a session, and the
+    // entry id is the only other thing the write needs. Every verb here is a recruiter
+    // act on another person’s hiring record, so each asks `pipeline:write`. It runs
+    // FIRST, ahead of the entry check and the throttle, so a refused seat can neither
+    // spend rate-limit budget nor learn which entry ids exist.
+    const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+    if (under) return under;
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
