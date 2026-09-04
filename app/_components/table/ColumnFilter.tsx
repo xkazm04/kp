@@ -57,6 +57,16 @@ export function ColumnFilter({
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const active = value.trim() !== "";
   const open = () => setAnchor(anchor ? null : ref.current!.getBoundingClientRect());
+  // Closing the menu used to leave focus on the removed backdrop, i.e. on the
+  // page body BEHIND the table — a keyboard reader who filtered a column then
+  // had to Tab from the top of the document back to where they were. Every
+  // deliberate close (Escape, backdrop, picking a row) hands focus back to the
+  // trigger it came from; a close caused by SCROLL does not, or the header
+  // would be yanked back under the reader (see AnchoredMenu's `reason`).
+  const close = (reason: "dismiss" | "reposition" = "dismiss") => {
+    setAnchor(null);
+    if (reason === "dismiss") ref.current?.focus({ preventScroll: true });
+  };
   const TriggerIcon = mode === "search" ? Search : Filter;
   const label = mode === "search" ? t("filters.searchColumn", { column: title }) : t("filters.filterColumn", { column: title });
   // Only `mode="select"` opens a listbox. The `mode="search"` menu is a free-text box,
@@ -105,7 +115,7 @@ export function ColumnFilter({
         </button>
       )}
       {anchor ? (
-        <AnchoredMenu anchor={anchor} width={224} onClose={() => setAnchor(null)}>
+        <AnchoredMenu anchor={anchor} width={224} onClose={close}>
           {mode === "search" ? (
             <div className="relative p-2">
               <Search size={13} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-steel" aria-hidden />
@@ -126,7 +136,7 @@ export function ColumnFilter({
               clearLabel={t("filters.allOf", { column: title })}
               onPick={(v) => {
                 onChange(v);
-                setAnchor(null);
+                close();
               }}
             />
           )}
@@ -156,6 +166,12 @@ export function SearchSelect({
   const listId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const selected = options.find((o) => o.value === value);
+  // Same contract as ColumnFilter's: a deliberate close returns focus to the
+  // field, a scroll-driven one leaves the viewport alone.
+  const close = (reason: "dismiss" | "reposition" = "dismiss") => {
+    setAnchor(null);
+    if (reason === "dismiss") ref.current?.focus({ preventScroll: true });
+  };
   return (
     <>
       <button
@@ -173,7 +189,7 @@ export function SearchSelect({
         <ChevronDown size={14} className="shrink-0 text-steel" aria-hidden />
       </button>
       {anchor ? (
-        <AnchoredMenu anchor={anchor} width={Math.max(anchor.width, 224)} onClose={() => setAnchor(null)}>
+        <AnchoredMenu anchor={anchor} width={Math.max(anchor.width, 224)} onClose={close}>
           <OptionList
             listId={listId}
             options={options}
@@ -181,7 +197,7 @@ export function SearchSelect({
             searchable
             onPick={(v) => {
               onChange(v);
-              setAnchor(null);
+              close();
             }}
           />
         </AnchoredMenu>

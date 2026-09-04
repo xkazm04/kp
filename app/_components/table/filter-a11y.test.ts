@@ -60,3 +60,30 @@ test("a trigger that opens an option list is a combobox pointing at it", () => {
 test("aria-expanded is on every trigger, including the free-text one", () => {
   assert.equal((columnFilter.match(/aria-expanded=\{Boolean\(anchor\)\}/g) ?? []).length, 3);
 });
+
+test("closing the menu hands focus back to the trigger", () => {
+  // The menu is portalled to document.body and its backdrop is removed on close,
+  // so focus landed on the page BODY behind the table: a keyboard reader who
+  // filtered a column had to Tab from the top of the document back to where they
+  // were. Both owners restore it, on every DELIBERATE close — Escape, backdrop,
+  // and picking a row all funnel through the same `close()`.
+  assert.equal((columnFilter.match(/ref\.current\?\.focus\(\{ preventScroll: true \}\)/g) ?? []).length, 2);
+  assert.equal((columnFilter.match(/const close = \(reason: "dismiss" \| "reposition" = "dismiss"\)/g) ?? []).length, 2);
+  // …and NOT on a close caused by scroll: pulling focus to the trigger would
+  // scroll the header back under the reader, undoing the scroll that closed it.
+  assert.match(columnFilter, /if \(reason === "dismiss"\) ref\.current\?\.focus/);
+  assert.match(filterMenu, /onClose: \(reason: "dismiss" \| "reposition"\) => void/);
+  assert.match(filterMenu, /onCloseRef\.current\("reposition"\)/, "scroll and resize are repositions");
+  assert.match(filterMenu, /if \(e\.key === "Escape"\) onCloseRef\.current\("dismiss"\)/);
+  assert.match(filterMenu, /onClick=\{\(\) => onClose\("dismiss"\)\}/, "the backdrop is a dismissal");
+});
+
+test("the menu's window listeners are registered once, not on every render", () => {
+  // Every call site passes `onClose` as an inline arrow, so an effect keyed on it
+  // tore down and re-added all four window listeners on every render of the
+  // surrounding table for as long as the menu stayed open. The `useEvent` shape —
+  // a ref holding the latest callback, an effect with no deps — fixes it without
+  // making the callback identity the call sites' problem.
+  assert.match(filterMenu, /const onCloseRef = useRef\(onClose\);/);
+  assert.match(filterMenu, /window\.removeEventListener\("keydown", onKey\);\s*\};\s*\}, \[\]\);/);
+});
