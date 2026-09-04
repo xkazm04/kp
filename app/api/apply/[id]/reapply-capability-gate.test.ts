@@ -23,6 +23,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { register, registerHooks } from "node:module";
+import type { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 
 // Point next/server at the shared shim BEFORE the route loads (hooks only affect
@@ -56,7 +57,6 @@ registerHooks({
   },
 });
 
-const { NextRequest } = await import("../../../_lib/testing/next-server-shim.mjs");
 const { POST } = await import("./route.ts");
 const { insertJob } = await import("../../../_lib/job-ingest.ts");
 const { createPipelineEntry, listEntriesForJob, listPipelineEventsForEntry, listConsentEvents, ensureLeadEnrichToken } =
@@ -89,12 +89,14 @@ function seedVictim(name: string): string {
 
 /** A POST at the public apply door. `lead` is the ?lead= capability token when the
  *  caller has one — the whole variable under test. */
-function applyRequest(body: Record<string, unknown>) {
-  return new NextRequest(`http://localhost/api/apply/${JOB_ID}`, {
+function applyRequest(body: Record<string, unknown>): NextRequest {
+  // A plain Request is enough here: this handler reads only `url`, `headers` and the
+  // body — never `nextUrl`/`cookies`, the two members the shim exists to add.
+  return new Request(`http://localhost/api/apply/${JOB_ID}`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `10.0.0.${Math.floor(Math.random() * 250) + 1}` },
     body: JSON.stringify(body),
-  });
+  }) as unknown as NextRequest;
 }
 
 const params = { params: Promise.resolve({ id: JOB_ID }) };

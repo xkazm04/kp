@@ -43,13 +43,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const sessionId = typeof body?.sessionId === "string" ? body.sessionId : "";
     const flow = coerceFlow(body?.flow);
     if (!SESSION_ID_RE.test(sessionId) || !flow) {
-      return NextResponse.json({ error: "Invalid session." }, { status: 400 });
+      return jsonRefusal("APPLY_SESSION_INVALID", 400);
     }
-    if (!getJob(id)) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    if (!getJob(id)) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
     // Don't count starts against a role that cannot be applied to — the submit
     // routes refuse those, so counting them would create guaranteed abandonment.
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: "Role closed." }, { status: 410 });
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
     startApplySession({
       id: sessionId,

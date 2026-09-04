@@ -466,6 +466,22 @@ writes to `apply_sessions` under the caller's own attempt id, never to the entry
 A returning applicant who lost their link is not stranded — the enrichment link
 is re-sent to the address on file, the one channel that can be authenticated.
 
+**Every refusal on all four apply doors carries a code.** The two submissions were
+moved onto `REFUSAL_ERRORS` earlier; the last bodied message on them was the
+closed-role 410, which answered the `apply` catalog's `roleClosed` sentence
+localized *server*-side — correct-looking and wrong, because the client resolves
+what it renders from the CODE (`applySubmitFailure` -> `useErrorMessage`), so a
+bodied sentence with no code fell through to the generic "something went wrong" in
+all four languages. It is now `APPLY_ROLE_CLOSED`. The two secondary doors joined
+them: `POST /api/apply/[id]/session` answers `APPLY_SESSION_INVALID` /
+`APPLY_ROLE_NOT_FOUND` / `APPLY_ROLE_CLOSED`, and `POST /api/apply/[id]/followup`
+answers one `FOLLOWUP_LINK_NOT_FOUND` on all three of its 404 paths (no such
+token, token for another job, entry with no profile row — deliberately
+indistinguishable) with its 500 going through `safeJsonError(..., "FOLLOWUP_FAILED")`
+so profile_cli's reason reaches the log and never the candidate. The *page*-level
+closed-role gate still renders `t("roleClosed")`; that is a different surface.
+Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
+
 Consequently the **"newly reachable" re-acknowledgement carries the status
 link** too (`app/api/apply/[id]/route.ts`, pinned by
 `apply-ack-after-response.test.ts`). That ack is the only one a candidate whose

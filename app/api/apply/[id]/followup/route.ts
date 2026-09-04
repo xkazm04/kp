@@ -38,8 +38,11 @@ const MAX_ANSWERS = 12;
 
 // Deliberately identical for "no such token", "token for another job", and "entry
 // has no profile row": a public capability route must not let a caller probe
-// which of those it hit.
-const NOT_FOUND = { error: "not found" };
+// which of those it hit. ONE code, so the three stay indistinguishable AND the
+// candidate reads the reason in their own language — the bare `{ error: "not
+// found" }` this replaces was lowercase English on a surface whose reader is by
+// construction not an operator.
+const notFound = () => jsonRefusal("FOLLOWUP_LINK_NOT_FOUND", 404);
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const job = getJob(id);
-    if (!job) return NextResponse.json(NOT_FOUND, { status: 404 });
+    if (!job) return notFound();
 
     // The cap is enforced on the BYTES READ, not on content-length: that header is
     // advisory, so a caller who omits it (chunked) or lies about it walked past the
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const token = coerceLeadTokenParam(body.lead);
     const target = token ? findEntryByLeadToken(token) : null;
     if (!target || target.entry.jobId !== job.id) {
-      return NextResponse.json(NOT_FOUND, { status: 404 });
+      return notFound();
     }
     const entry = target.entry;
     // Same tenant the application filed into (a public candidate has no session).
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const profileId = entry.candidateId;
     const record = profileId ? getProfileRecord(profileId, workspaceId) : null;
     if (!profileId || !record || typeof record.payload !== "object" || record.payload === null) {
-      return NextResponse.json(NOT_FOUND, { status: 404 });
+      return notFound();
     }
 
     // Fold the answers in (self_declared provenance for skills, TYPED evidence for
@@ -114,8 +117,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // The saved profile is untouched (renormalize writes only on success), so
       // the recorded gaps stay too — the candidate can retry, and the recruiter
       // still sees exactly what is missing.
-      console.error(`[apply:followup] gap merge failed for entry ${entry.id}: ${rebuilt.reason}`);
-      return NextResponse.json({ error: "Could not save your answers." }, { status: 500 });
+      // The registered code (whose message says the application itself is safely
+      // filed — it is) plus the profile_cli reason in the server log, through the
+      // one responder that does both. The English sentence this replaces was the
+      // only thing a Czech candidate saw here.
+      return safeJsonError(
+        new Error(rebuilt.reason ?? "renormalize failed"),
+        "api:apply:followup",
+        "FOLLOWUP_FAILED"
+      );
     }
 
     setEntryProfileGaps(entry.id, rebuilt.missingGaps, workspaceId);

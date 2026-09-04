@@ -196,7 +196,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // gate alone is the documented anti-pattern: the API used to accept
     // applications for any existing job forever, drafts included).
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
+      // Coded like every other refusal on this door. It used to answer the `apply`
+      // catalog's own `roleClosed` sentence, localized SERVER-side from the request
+      // — which reads correct and was not: the client resolves what it renders from
+      // the CODE (applySubmitFailure -> useErrorMessage), so a bodied message with
+      // no code fell straight through to the generic "something went wrong" in all
+      // four languages. The page-level gate keeps using t("roleClosed"); this is the
+      // API's half of the same fact.
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
 
     // Reject an oversized body BEFORE buffering it into the heap. Content-Length used
