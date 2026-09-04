@@ -96,9 +96,23 @@ sees the same `bounced` row it would have seen live, only later.
 No durable queue or background worker — retries happen inline, bounded,
 within the send (`WebhookChannel.deliver`):
 
+- Each attempt is bounded by **`AbortSignal.timeout(10s)`**
+  (`COMMS_RELAY_TIMEOUT_MS`; `KP_COMMS_RELAY_TIMEOUT_MS` overrides it). Node's
+  `fetch` has no default timeout, so a receiver that accepts the connection and
+  then goes quiet used to hold the recruiter's click open indefinitely — three
+  times over. A timed-out attempt is transient and reads `timeout after
+  10000ms` in `failure_detail`. A fresh signal is created per attempt (a hoisted
+  one would give attempt 3 no budget).
 - **Transient** failures (network/DNS errors, `408`, `425`, `429`, any `5xx`
   — `isRetryableHttpStatus`) retry with exponential backoff:
   `COMMS_RELAY_RETRY` = `maxAttempts: 3`, `baseDelayMs: 200` (200ms, then 400ms).
+- **Retries are idempotent.** Every attempt of one message carries the same
+  `messageId` in the `kp.comm.v1` envelope and the same value in the
+  `Idempotency-Key` header, so a receiver that already accepted attempt 1 drops
+  attempt 2 instead of delivering the offer twice. `OutboundMessage.messageId`
+  lets a caller re-sending an already-recorded message reuse its identity;
+  otherwise the channel mints one per send. Wire contract:
+  [`outbound-export.md`](./outbound-export.md).
 - **Permanent** failures (other `4xx`) dead-letter immediately — retrying a
   caller/config error changes nothing.
 - Exhausted retries or a permanent failure record the message `failed` and
