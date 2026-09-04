@@ -2124,6 +2124,13 @@
       "transcriptFolded": "Earlier turns are folded away ({count} in total). The full transcript is saved with your interview.",
       "closingTurnLostNote": "[Your closing answer could not be transcribed before the call ended, so it is missing from this transcript.]",
       "discardedTurns": "This recording was not saved: another window finished this interview first, so {count} turns from this call are not in the record."
+    },
+    "brief": {
+      "debriefApproach": "Your take-home: how you approached it",
+      "debriefDecisions": "Decisions deep-dive",
+      "debriefCounterfactuals": "Counterfactuals",
+      "debriefQuestions": "Your questions",
+      "recruiterAddedQuestions": "Recruiter-added questions"
     }
   },
   "palette": {

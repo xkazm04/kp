@@ -8,10 +8,10 @@ import { briefIntentSummary } from "./intake-brief";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import type { PipelineEntry } from "./db/core";
 import type { VoiceTurn } from "./voice/types";
-import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
 import { getInterviewPrep } from "./interview-prep";
+import { interviewBriefStrings } from "./interview-prep-strings";
 import { runInterviewPrep, type ChronologyBlock } from "./interview-prep-run";
 import { buildScorecardNotes, coverageFromNotes, transcriptToNotes } from "./interview-transcript";
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
@@ -119,10 +119,38 @@ function composeImportedRunOfShowLine(imported: string[]): string {
 // a real locale, not the workspace-default guess), tell the agent to OPEN in it instead of the
 // bilingual greet-then-detect. The follow/lock rules (PERSONA_LANGUAGE_DETECT) still apply, so a
 // candidate who switches is still followed. A null preferred language leaves the bilingual opener.
+// ONE table, every locale in i18n/locales.ts. The names are English on purpose:
+// they are read by the agent inside an English instruction, not by the candidate.
+// It used to be `preferred === "cs" ? "Czech" : "English"`, which told a German or
+// French applicant's interviewer to open in English — the exact language the
+// candidate had just declined at apply. `Record<Locale, …>` makes adding a locale
+// a tsc error here rather than a silent fallback (locale-language-names parity
+// test in interview-run.test.ts pins it too, for the .mjs/JSON readers).
+export const OPENING_LANGUAGE_NAMES: Record<Locale, string> = {
+  en: "English",
+  cs: "Czech",
+  de: "German",
+  fr: "French",
+};
+
 function withOpeningLanguage(instructions: string, preferred: Locale | null): string {
   if (!preferred) return instructions;
-  const name = preferred === "cs" ? "Czech" : "English";
+  const name = OPENING_LANGUAGE_NAMES[preferred];
   return `${instructions} The candidate chose to apply in ${name}, so open the interview in ${name} (you may still follow them if they switch language later).`;
+}
+
+/** The no-feedback / no-praise closing rule every interviewer brief ends on. It
+ *  was byte-duplicated across composeBrief and composeDebriefBrief, differing in
+ *  exactly three words ("the agenda is" vs "the questions are"), so a wording fix
+ *  landed in one brief and not the other. `covered` is that clause. */
+function noJudgementClose(covered: "the agenda is" | "the questions are"): string {
+  return (
+    "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the " +
+    "candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right " +
+    "instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, " +
+    `“understood”, “tell me more”), not by approving. When ${covered} covered, invite the candidate's questions, thank ` +
+    "them, and say a human recruiter will review the conversation."
+  );
 }
 
 export function composeBrief(
@@ -163,7 +191,7 @@ export function composeBrief(
     `Then lead the conversation through this run of show (about ${durationMin} minutes total), keeping each topic roughly time-boxed. Ask the listed questions naturally, one at a time, with short follow-ups, and adapt to the candidate's answers:`,
     runOfShow + importedLine,
     ...(roleIntent ? [roleIntent] : []),
-    "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the agenda is covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
+    noJudgementClose("the agenda is"),
   ].join(" ");
 }
 
@@ -183,7 +211,32 @@ export { debriefDurationMin, plannedInterviewMinutes, submissionFollowups, type 
 // Candidate-facing agenda for the submission debrief — deliberately generic: the
 // followups' decision/red-flag notes are interviewer-internal and must never leak
 // into the run-of-show the candidate sees.
-const DEBRIEF_RUN_OF_SHOW = ["Your take-home — how you approached it", "Decisions deep-dive", "Counterfactuals", "Your questions"];
+// It used to be a module-level English array. The agenda is PERSISTED on the
+// session (`run_of_show_json`) and rendered to the applicant on the candidate
+// portal, so it belongs to the ENTRY's language, not to whoever pressed "Create
+// link": a German applicant read four English bullets under an otherwise German
+// page. It now comes from `interviewBriefStrings(entry.locale)` — the same
+// locale-pinned catalog loader the prep pack uses (interview-prep-strings.ts).
+
+/** The company / role / opening-language facts every brief in this module derives
+ *  from the entry — byte-duplicated between buildGroundedInterview and
+ *  buildCandidateSafeBrief until wave 37, which is how the two agendas were free
+ *  to disagree about the role line they name. */
+function entryBriefContext(entry: PipelineEntry) {
+  const job = entry.jobId ? getJob(entry.jobId) : null;
+  const company = job?.company || "Česká spořitelna";
+  const title = entry.jobTitle || job?.title || "the role";
+  const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
+  return {
+    company,
+    title,
+    roleLine: ctx ? `${title} (${ctx})` : title,
+    // Only an EXPLICIT candidate locale (not the workspace-default guess) is confident
+    // enough to fix the opening language and the agenda language; anything unknown keeps
+    // the bilingual greet-then-detect opener and the default catalog.
+    preferredLang: (isLocale(entry.locale) ? entry.locale : null) as Locale | null,
+  };
+}
 
 /** The agent brief for a SUBMISSION DEBRIEF: the candidate completed the take-home
  *  and its evaluation minted authorship questions from THEIR observed decisions
@@ -217,7 +270,7 @@ function composeDebriefBrief(
     `Open by letting them walk you through their approach in their own words for a couple of minutes, then work through these questions (about ${durationMin} minutes total), one at a time, adapting natural follow-ups to their answers — push gently for the WHY, the alternative they rejected, and what would make them decide differently:`,
     questions,
     "If an answer stays generic, ask for the specific moment in THEIR submission where they made that call. An honest “I don't know” or “the tool suggested it and I kept it” is useful signal — acknowledge it neutrally and move on.",
-    "Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer or tell the candidate their thinking, instinct, or approach is right (avoid “great”, “impressive”, “exactly right”, “the right instinct”, “on the right track”) — stay warm by showing interest and inviting them to continue (“thank you”, “understood”, “tell me more”), not by approving. When the questions are covered, invite the candidate's questions, thank them, and say a human recruiter will review the conversation.",
+    noJudgementClose("the questions are"),
   ].join(" ");
 }
 
@@ -272,14 +325,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
   const entry = getPipelineEntry(entryId, ws);
   if (!entry) throw new Error("pipeline entry not found");
 
-  const job = entry.jobId ? getJob(entry.jobId) : null;
-  const company = job?.company || "Česká spořitelna";
-  const title = entry.jobTitle || job?.title || "the role";
-  const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
-  const roleLine = ctx ? `${title} (${ctx})` : title;
-  // Only an EXPLICIT candidate locale (not the workspace-default guess) is confident enough to
-  // fix the opening language; anything unknown keeps the bilingual greet-then-detect opener.
-  const preferredLang: Locale | null = isLocale(entry.locale) ? entry.locale : null;
+  const { company, title, roleLine, preferredLang } = entryBriefContext(entry);
 
   // Entries promoted from an evaluated dev-case submission get the SUBMISSION
   // DEBRIEF: the take-home's evaluation minted authorship questions from their
@@ -294,7 +340,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
         composeDebriefBrief(company, roleLine, entry.candidateLabel ?? null, followups, durationMin),
         preferredLang
       ),
-      runOfShow: DEBRIEF_RUN_OF_SHOW,
+      runOfShow: (await interviewBriefStrings(entry.locale)).debriefRunOfShow,
       durationMin,
       candidateLabel: entry.candidateLabel ?? null,
       jobId: entry.jobId ?? null,
@@ -406,7 +452,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
  *  coachability stage directions do not. Read-only like plannedInterviewMinutes
  *  (never generates missing prep); returns null when there is nothing grounded
  *  to say, so the caller falls back to the generic candidate-safe prompt. */
-export function buildCandidateSafeBrief(entryId: string): string | null {
+export async function buildCandidateSafeBrief(entryId: string): Promise<string | null> {
   // Tenant from the ENTRY, never a session: the only caller is the PUBLIC token
   // route /api/interview/connect, where the candidate has no workspace. Bare, this
   // read resolved against the DEFAULT team and returned null everywhere else, so
@@ -416,13 +462,11 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
   const entry = getPipelineEntry(entryId, briefWs);
   if (!entry) return null;
 
-  const job = entry.jobId ? getJob(entry.jobId) : null;
-  const company = job?.company || "Česká spořitelna";
-  const title = entry.jobTitle || job?.title || "the role";
-  const ctx = [job?.seniority, job?.location, job?.workMode].filter(Boolean).join(" · ");
-  const roleLine = ctx ? `${title} (${ctx})` : title;
-  const preferredLang: Locale | null = isLocale(entry.locale) ? entry.locale : null;
+  const { company, roleLine, preferredLang } = entryBriefContext(entry);
   const candidateLabel = entry.candidateLabel ?? null;
+  // The candidate-facing topics in this brief are written FOR the applicant, so they
+  // ride the entry's language like the stored agenda above.
+  const strings = await interviewBriefStrings(entry.locale);
 
   // Same branch order as buildGroundedInterview: debrief > case-grounded student >
   // generic student > grounded prep > null (generic fallback).
@@ -431,9 +475,9 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
     const questions = followups.map(sanitizeFollowupQuestion).filter((q): q is string => q !== null);
     if (questions.length === 0) return null;
     const blocks: CandidateSafeBlock[] = [
-      { topic: "Your take-home — how you approached it", questions: [] },
-      { topic: "Decisions deep-dive", questions },
-      { topic: "Your questions", questions: [] },
+      { topic: strings.debriefRunOfShow[0], questions: [] },
+      { topic: strings.debriefRunOfShow[1], questions },
+      { topic: strings.debriefRunOfShow[3], questions: [] },
     ];
     return withOpeningLanguage(
       composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: debriefDurationMin(followups.length), blocks }),
@@ -475,7 +519,7 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
   const askedAloud = blocks.flatMap((b) => b.questions);
   const imported = importedQuestionsForBrief(prep?.importedQuestions, askedAloud).slice(0, MAX_BRIEF_IMPORTED_QUESTIONS);
   if (imported.length > 0) {
-    const extra = sanitizeChronologyBlock({ topic: "Recruiter-added questions", questions: imported });
+    const extra = sanitizeChronologyBlock({ topic: strings.recruiterAddedQuestions, questions: imported });
     if (extra) blocks.push(extra);
   }
   return withOpeningLanguage(
@@ -521,7 +565,12 @@ export function interviewAsrKeywords(entryId: string | null | undefined): string
 export async function runInterviewScorecard(
   entryId: string,
   transcript: VoiceTurn[],
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  // REQUIRED (wave 37). It used to default to DEFAULT_WORKSPACE_ID, so a caller that
+  // forgot it scored, read the entry for telemetry, and minted observed skills against
+  // the WRONG tenant — silently, on any team but the first. The one caller
+  // (/api/interview/complete) already derives the entry’s team; making it required means
+  // the next caller cannot forget.
+  workspaceId: string
 ): Promise<Record<string, unknown> | null> {
   const scNotes = buildScorecardNotes(transcript);
   const { notes, truncated, droppedTurns, droppedChars, keptTurns, totalTurns } = scNotes;

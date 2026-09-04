@@ -2124,6 +2124,13 @@
       "transcriptFolded": "Ältere Redebeiträge sind eingeklappt ({count} insgesamt). Das vollständige Transkript wird zu Ihrem Interview gespeichert.",
       "closingTurnLostNote": "[Ihre abschließende Antwort konnte vor Ende des Gesprächs nicht transkribiert werden und fehlt daher in diesem Transkript.]",
       "discardedTurns": "Diese Aufzeichnung wurde nicht gespeichert: Ein anderes Fenster hat dieses Interview zuerst abgeschlossen, daher fehlen {count} Redebeiträge aus diesem Gespräch im Protokoll."
+    },
+    "brief": {
+      "debriefApproach": "Ihre Take-home-Aufgabe: Ihr Vorgehen",
+      "debriefDecisions": "Entscheidungen im Detail",
+      "debriefCounterfactuals": "Was-wäre-wenn-Szenarien",
+      "debriefQuestions": "Ihre Fragen",
+      "recruiterAddedQuestions": "Vom Recruiter ergänzte Fragen"
     }
   },
   "palette": {

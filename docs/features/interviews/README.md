@@ -381,6 +381,32 @@ see [`docs/architecture/localization.md`](../../architecture/localization.md).
 Both surfaces previously carried en+cs tables, so a German or French recruiter
 read English with no signal that anything was missing.
 
+The same rule reaches the **candidate's** side of the brief. Three things a
+candidate reads or hears were hard-coded English literals regardless of
+`pipeline_entries.locale`:
+
+- the **submission-debrief agenda** — the four-item run-of-show persisted on
+  `interview_sessions.run_of_show_json` by `POST /api/interview/create` and
+  rendered by the portal's `InterviewSidebar`;
+- the **"Recruiter-added questions"** topic the imported interview-kit questions
+  are injected under in the candidate-safe voice brief
+  (`buildCandidateSafeBrief`), which the agent narrates aloud; and
+- the **opening-language instruction**, which mapped `cs → Czech` and everything
+  else → English, so a German or French applicant's interviewer was told to open
+  in the one language they had just declined at apply.
+
+The first two now come from `interviewBriefStrings(entry.locale)` in
+`interview-prep-strings.ts` — the same locale-pinned catalog loader as the prep
+pack, reading the `interview.brief` namespace in all four catalogs. The third is
+`OPENING_LANGUAGE_NAMES` in `interview-run.ts`, a `Record<Locale, string>` so a
+new locale is a tsc error rather than a silent fallback to English. Because the
+topics now load a catalog, `buildCandidateSafeBrief` is **async**; the connect
+route resolves it once before `connectWithFailover` (whose `resolveAgentPrompt`
+is synchronous by contract, so a failover never awaits between attempts).
+`interview-run-locale.test.ts` pins all of it against a real entry: a `de` entry
+stores a German agenda, an absent or unsupported locale keeps English, and the
+opening-language table is checked for parity with `LOCALES`.
+
 The disclosure renders in **both** places a recruiter meets the rubric — the prep
 pack header (`ScheduleInterviewPrepHeader`) and the human scorecard form
 (`ScheduleHumanScorecardForm`) — through one component,

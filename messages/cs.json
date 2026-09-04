@@ -2124,6 +2124,13 @@
       "transcriptFolded": "Starší repliky jsou skryté (celkem {count}). Celý přepis se ukládá k vašemu pohovoru.",
       "closingTurnLostNote": "[Vaši závěrečnou odpověď se nepodařilo přepsat před koncem hovoru, v tomto přepisu proto chybí.]",
       "discardedTurns": "Tato nahrávka nebyla uložena: pohovor dříve dokončilo jiné okno, takže {count} promluv z tohoto hovoru v záznamu není."
+    },
+    "brief": {
+      "debriefApproach": "Vaše domácí úloha: jak jste k ní přistupovali",
+      "debriefDecisions": "Rozbor rozhodnutí",
+      "debriefCounterfactuals": "Co kdyby",
+      "debriefQuestions": "Vaše otázky",
+      "recruiterAddedQuestions": "Otázky doplněné náborářem"
     }
   },
   "palette": {

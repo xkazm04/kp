@@ -2124,6 +2124,13 @@
       "transcriptFolded": "Les tours plus anciens sont repliés ({count} au total). La transcription complète est enregistrée avec votre entretien.",
       "closingTurnLostNote": "[Votre réponse finale n’a pas pu être transcrite avant la fin de l’appel ; elle est donc absente de cette transcription.]",
       "discardedTurns": "Cet enregistrement n'a pas été sauvegardé : une autre fenêtre a terminé cet entretien en premier, donc {count} tours de parole de cet appel ne figurent pas dans le compte rendu."
+    },
+    "brief": {
+      "debriefApproach": "Votre exercice à emporter : votre approche",
+      "debriefDecisions": "Analyse des décisions",
+      "debriefCounterfactuals": "Scénarios alternatifs",
+      "debriefQuestions": "Vos questions",
+      "recruiterAddedQuestions": "Questions ajoutées par le recruteur"
     }
   },
   "palette": {

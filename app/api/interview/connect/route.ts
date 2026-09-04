@@ -227,17 +227,29 @@ export async function POST(request: NextRequest) {
     // say) keep the generic prompt built only from the public job title + booked
     // length. Reused as the failover closure below so the EL/OAI brief paths never
     // fork between the primary attempt and a fallback.
+    //
+    // The grounded half is resolved BEFORE the failover call rather than inside the
+    // closure: buildCandidateSafeBrief became async in wave 37 (its candidate-facing
+    // topics now come from the locale-pinned catalog, so a German applicant's agenda
+    // is German), and connectWithFailover's `resolveAgentPrompt` is synchronous by
+    // contract — a failover must not await between the two connect attempts. The brief
+    // is provider-independent (it is built from the ENTRY), so hoisting it changes
+    // nothing about which prompt each provider gets; it only means a candidate-mode
+    // OpenAI session pays for one brief build it will not use, which is why it is
+    // gated on candidate mode + an entry rather than built unconditionally.
+    let groundedCandidateBrief: string | null = null;
+    if (session.mode === "candidate" && session.entryId) {
+      try {
+        groundedCandidateBrief = await buildCandidateSafeBrief(session.entryId);
+      } catch {
+        /* grounding is enrichment — fall back to the generic candidate-safe prompt */
+      }
+    }
     const resolveAgentPrompt = (served: VoiceProviderId): string | null => {
       if (served !== "elevenlabs" || session.mode !== "candidate") return null;
-      let grounded: string | null = null;
-      if (session.entryId) {
-        try {
-          grounded = buildCandidateSafeBrief(session.entryId);
-        } catch {
-          /* grounding is enrichment — fall back to the generic candidate-safe prompt */
-        }
-      }
-      return grounded ?? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin });
+      return (
+        groundedCandidateBrief ?? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin })
+      );
     };
 
     // Provider failover (Direction 3): the session is already in_progress
