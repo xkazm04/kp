@@ -590,7 +590,8 @@
       "strengthsHeading": "Das ist aufgefallen:",
       "growthHeading": "Hier lässt sich weiter wachsen:",
       "noSpecifics": "Wir haben Ihren Einsatz bei der Aufgabe geschätzt und wünschen Ihnen alles Gute für Ihre Suche.",
-      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse."
+      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse.",
+      "engineNote": "Hinweis zu diesem Schreiben: Die obigen Feststellungen hat unser Bewertungssystem in {language} verfasst, nicht in der Sprache dieser Nachricht."
     }
   },
   "language": {

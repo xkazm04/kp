@@ -590,7 +590,8 @@
       "strengthsHeading": "Ce qui nous a marqués :",
       "growthHeading": "Les pistes de progression :",
       "noSpecifics": "Nous avons apprécié l’effort fourni sur cet exercice et vous souhaitons pleine réussite dans vos recherches.",
-      "signoff": "Merci encore pour votre temps et votre intérêt."
+      "signoff": "Merci encore pour votre temps et votre intérêt.",
+      "engineNote": "Remarque sur cette lettre : les constats ci-dessus ont été rédigés par notre moteur d'évaluation en {language}, et non dans la langue de ce message."
     }
   },
   "language": {

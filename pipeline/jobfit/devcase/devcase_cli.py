@@ -3,7 +3,7 @@
     python -m pipeline.jobfit.devcase.devcase_cli analyze-need      --need-json N [--snapshot-json S | --snapshots-json SS] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli design-artifacts  --need-json N --analysis-json A [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli reflect-commits     --commits-json C [--probes-json P] [--no-llm]
-    python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--no-llm]
+    python -m pipeline.jobfit.devcase.devcase_cli evaluate-submission --commits-json C --case-json K --role-json R [--probes-json P] [--lang L] [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli interview-scenario  --case-json K --role-json R [--no-llm]
     python -m pipeline.jobfit.devcase.devcase_cli observed-interview  --case-json K --role-json R --scorecard-json S --profile-json P
     python -m pipeline.jobfit.devcase.devcase_cli observed-skills    --case-json K --role-json R --evaluation-json E --transfer-json T --profile-json P
@@ -15,6 +15,10 @@ evaluate-submission also accepts the observed-evidence inputs (LLM-era controls;
 optional): --chat-json (captured prompt channel), --seed-json (frozen seed incl.
 internal canaries), --files-json (submitted tree), --baseline-json (frozen one-shot
 solutions) — each quietly no-ops when absent.
+--lang writes the evaluation/transfer/followup NARRATIVE (strengths, concerns,
+summary, gaps, the interview questions) in that language on BOTH the LLM and the
+deterministic path; each artifact stamps it back as `narrativeLang`, so a consumer
+never has to guess which language the bullets it is about to render are in.
 
 Output: one JSON object {"result","source","perStepSources"[,"fallbackReason"][,"confidence"]}
 to stdout — a uniform provenance envelope every command shares. `perStepSources` maps each
@@ -471,12 +475,12 @@ def main(argv: list[str] | None = None) -> int:
             if canaries or basesim.get("available"):
                 extras["checkEvidence"] = _checks.check_evidence(canaries, basesim)
             extras = extras or None
-            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, extras=extras, submission=submission_work or None, provider=provider)
-            transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider)
+            evaluation, esrc = _evaluate.evaluate_submission(reflection, tooling, case, role, extras=extras, submission=submission_work or None, provider=provider, lang=args.lang)
+            transfer, xsrc = _evaluate.score_transfer(evaluation, role, provider=provider, lang=args.lang)
             # The interview hand-off: candidate-specific authorship questions minted from
             # THIS submission's observed decisions — the scores above are hypotheses the
             # live conversation verifies (the artifact alone can be wholly LLM-produced).
-            followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, provider=provider)
+            followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, provider=provider, lang=args.lang)
             # JUDGE INDEPENDENCE (one-thread gap 5) — a CONFIGURATION fact about the
             # install, stamped onto the evaluation a reviewer will read.
             #

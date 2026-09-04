@@ -590,7 +590,8 @@
       "strengthsHeading": "What stood out:",
       "growthHeading": "Areas to keep growing:",
       "noSpecifics": "We appreciated your effort on the exercise and wish you the very best in your search.",
-      "signoff": "Thanks again for your time and interest."
+      "signoff": "Thanks again for your time and interest.",
+      "engineNote": "A note on this letter: the findings above were written by our review engine in {language}, not in the language of this message."
     }
   },
   "language": {

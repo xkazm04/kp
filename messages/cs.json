@@ -590,7 +590,8 @@
       "strengthsHeading": "Co nás zaujalo:",
       "growthHeading": "Kde je prostor růst:",
       "noSpecifics": "Vážíme si úsilí, které jste do úkolu vložili, a přejeme vám hodně štěstí při hledání.",
-      "signoff": "Ještě jednou děkujeme za váš čas a zájem."
+      "signoff": "Ještě jednou děkujeme za váš čas a zájem.",
+      "engineNote": "Poznámka k tomuto dopisu: zjištění výše sepsal náš hodnoticí systém v jazyce {language}, nikoli v jazyce této zprávy."
     }
   },
   "language": {
