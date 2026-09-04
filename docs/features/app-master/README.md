@@ -925,6 +925,16 @@ boots the Personas app — the operator's window down is a recorded `bridge-down
 miss, which is a measurement. Protocol, per-night record shape, the failure
 taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
 
+The runner's *reasoning* — the miss taxonomy (`MISS_CLASSES`, a literal array
+plus a runtime guard, so a typo'd class stops being indistinguishable from a real
+one), the one-record-one-verdict rule, the calendar-gap backfill and reading the
+log — is exported above `main()` and pinned by `soak/night.test.mjs`. Importing
+the module runs nothing; only being the process entry point starts a night. That
+half was the most-revised code in this area, twenty-odd review rounds defended
+entirely by comments, and it had no test. `npm run test:bench-driver` globs
+`scripts/app-master-bench/**/*.test.mjs`, so a test in a subdirectory is picked
+up rather than silently ungated.
+
 ### Tenure mode — hire once, tenure many (c1-exam §1)
 
 The preamble (`scan` → `activate`) is ~14 calls and most of a run's wall clock,

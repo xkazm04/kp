@@ -64,7 +64,7 @@
     "test:lint-ratchet": "node scripts/lint/__tests__/ruff-ratchet.test.mjs && node scripts/lint/__tests__/ts-ratchet.test.mjs",
     "bench:app-master": "node scripts/app-master-bench/run.mjs --all --report",
     "bench:gate": "node scripts/app-master-bench/gate.mjs",
-    "test:bench-driver": "node --test \"scripts/app-master-bench/*.test.mjs\"",
+    "test:bench-driver": "node --test \"scripts/app-master-bench/**/*.test.mjs\"",
     "design:check": "node scripts/design/check-design-tokens.mjs",
     "onboard:ui": "node scripts/onboard-ui/server.mjs",
     "polar:setup": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/polar-setup.mjs",
