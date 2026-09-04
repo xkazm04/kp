@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-04T05:48:15.695Z",
+ "generated_at": "2026-09-04T06:14:11.568Z",
  "provenance": {
-  "git_commit": "622fafce20fd74e7622a9b339ead4e637bdb4a31",
-  "git_commit_count": 2484,
+  "git_commit": "0644689d6bee447a905c079b91446c12237dcc50",
+  "git_commit_count": 2498,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-04T05:48:15.695Z"
+  "generated_at": "2026-09-04T06:14:11.568Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3027,
+  "files": 3033,
   "groups": 17,
   "use_cases": 12
  },
@@ -979,6 +979,7 @@
     "app/landing/spark/market/CzMap.tsx",
     "app/landing/spark/market/MarketPulseApp.tsx",
     "app/landing/spark/market/MarketPulseAtlas.tsx",
+    "app/landing/spark/market/data.test.ts",
     "app/landing/spark/market/data.ts",
     "app/landing/spark/market/marketColors.test.ts",
     "app/landing/spark/market/marketColors.ts",
@@ -4958,6 +4959,8 @@
     "app/_lib/devcase-reference.ts",
     "app/_lib/devcase-transitions.test.ts",
     "app/_lib/devcase-transitions.ts",
+    "app/_lib/intake-transcript.test.ts",
+    "app/_lib/intake-transcript.ts",
     "app/_lib/llm-config-probe-env.test.ts",
     "app/_lib/matrix-cache.test.ts",
     "app/_lib/matrix-cache.ts",
@@ -5239,6 +5242,7 @@
     "app/features/hiring/pipeline/pipelineSelectionScope.test.ts",
     "app/features/hiring/pipeline/pipelineSelectionScope.ts",
     "app/features/hiring/pipeline/pipelineStageFilter.test.ts",
+    "app/features/hiring/pipeline/pipelineTabHelpers.test.ts",
     "app/features/hiring/pipeline/pipelineTabHelpers.ts",
     "app/features/hiring/pipeline/pipelineTranslator.ts",
     "app/features/hiring/pipeline/pipelineViews.test.ts",
@@ -6137,6 +6141,7 @@
     "app/api/intake/[id]/voice-connect/route.ts",
     "app/api/intake/[id]/voice-turn/route.ts",
     "app/api/intake/attachments-guard.test.ts",
+    "app/api/intake/intake-degradation-contract.test.ts",
     "app/api/intake/intake-refusal-guard.test.ts",
     "app/api/intake/route.ts"
    ],
@@ -6690,6 +6695,7 @@
     "app/_lib/intake-draft.ts",
     "app/_lib/intake-export.test.ts",
     "app/_lib/intake-export.ts",
+    "app/_lib/intake-run.test.ts",
     "app/_lib/intake-run.ts",
     "app/_lib/useAddToPipeline.test.ts",
     "app/_lib/useAddToPipeline.ts",
