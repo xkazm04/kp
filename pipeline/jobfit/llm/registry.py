@@ -139,11 +139,14 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
 def provider_availability(provider: Any) -> tuple[bool, str | None]:
     """``(usable, descent_reason)`` for ANY provider this registry hands out.
 
-    Providers that model their descent reasons answer themselves
-    (``ClaudeCliProvider.availability``: "offline_policy" vs "not_installed");
-    for adapters that still expose only the bare ``available()`` bool the
-    reason collapses to a generic ``"unavailable"`` (missing key/SDK — their
-    predicate does not discriminate yet). Call-site pattern::
+    Every provider this registry constructs now models its own descent reason -
+    ``ClaudeCliProvider.availability`` ("offline_policy" vs "not_installed") and,
+    since the adapters gained ``TextProvider.availability``, the whole metered
+    family (``base.AVAILABILITY_REASONS``). The generic ``"unavailable"`` below is
+    the floor for a duck-typed object that exposes only the bare bool - a test
+    fake, an in-process drill - and no longer the answer a real offline seal gets
+    (which is how an air-gapped install came to report its deliberate policy as
+    "missing key or SDK" in the usage ledger). Call-site pattern::
 
         ok, descent = provider_availability(provider)
         if not ok:

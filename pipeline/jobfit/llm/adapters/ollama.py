@@ -12,8 +12,6 @@ egress guard, same as the other adapters)."""
 
 from __future__ import annotations
 
-import os
-
 # Re-exported so the base's ``_load_env`` dispatch (and tests that patch it on this
 # module) resolve it here — same reason openai_api re-exports it.
 from ..base import load_local_env  # noqa: F401
@@ -28,16 +26,9 @@ class OllamaProvider(OpenAIProvider):
     # apiKey (e.g. an authenticating proxy in front of Ollama) still flows
     # through the inherited _make_client.
     _env_keys = ()
-
-    def _resolved_base_url(self) -> str:
-        """Configured base URL → OLLAMA_BASE_URL env → the stock local server."""
-        if self.base_url:
-            return self.base_url
-        self._load_env()
-        return os.getenv("OLLAMA_BASE_URL") or _DEFAULT_BASE_URL
-
-    def available(self) -> bool:
-        # A base URL always resolves (loopback default), so the inherited
-        # OpenAIProvider.available() already lands on the right rule: offline
-        # egress check first, then SDK import — never a key requirement.
-        return super().available()
+    # Configured base URL → OLLAMA_BASE_URL → the stock local server. A base URL
+    # therefore ALWAYS resolves, which lands the inherited availability rule exactly
+    # where this adapter wants it: offline egress check, then SDK import, never a
+    # key requirement.
+    _base_url_env = ("OLLAMA_BASE_URL",)
+    _default_base_url = _DEFAULT_BASE_URL
