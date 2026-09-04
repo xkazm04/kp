@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from . import automation
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT, ERR_NOT_FOUND
 from .llm import emit_deterministic, provider_availability, resolve_provider
 from .matching import MatchCandidate, load_corpus, score_job
 
@@ -50,9 +51,13 @@ def _use_case_for(command: str) -> str:
 #   400 / invalid_input — bad arguments, malformed JSON, or pydantic validation
 #   500 / engine_error  — an unexpected fault (retry/escalate, don't edit input)
 # Mirrors the codes already emitted by devcase_cli.py.
-ERR_NOT_FOUND = "not_found"
-ERR_INVALID_INPUT = "invalid_input"
-ERR_ENGINE = "engine_error"
+#
+# The WORDS are not ours to spell: they are `_cli.ERROR_CODES`, the closed set
+# `app/_lib/python-runner.ts::PYTHON_ERROR_CODES` mirrors and the four catalogs
+# resolve as `errors.<CODE>`. Re-declaring them here as local literals meant the
+# contract was held by a test comparing strings across seven files rather than by
+# the type system, and a lone typo would have shipped a code the client can never
+# resolve. Imported, not copied (tests/test_cli_error_envelope.py pins that).
 
 
 class NotFoundError(Exception):

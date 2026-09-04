@@ -28,6 +28,14 @@
 // The exit-code contract itself is pinned by app/_lib/testing/gate-exit-code.test.ts,
 // which drives this launcher from a deliberately polluted environment.
 //
+// 3. A per-test TIMEOUT. Node's runner waits FOREVER by default, so one test that
+//    never settles — an unresolved promise, a socket nobody closes, a prompt on
+//    stdin — hangs the gate until a CI job timeout or a human kills it, and the
+//    output at that point names no test. `--test-timeout` turns that into a normal
+//    red: the hung test fails, the rest of the suite still reports, and the exit
+//    code is non-zero. KP_TEST_TIMEOUT_MS overrides the default (the exit-code
+//    fixture drives a deliberately hanging file with a short one).
+//
 // Args: none → the full suite (the two default globs). Any argv → run exactly
 // those files/patterns instead: `npm run test:unit -- app/_lib/offline.test.ts`.
 import { spawn } from "node:child_process";
@@ -41,6 +49,16 @@ for (const key of ["NODE_TEST_CONTEXT", "DATABASE_URL", "KP_DB_BACKEND", "KP_OFF
 const DEFAULT_PATTERNS = ["app/**/*.test.ts", "packages/**/*.test.ts", "edge/**/*.test.ts"];
 const patterns = process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_PATTERNS;
 
+// Per-test ceiling. 120 s is far above the slowest real test here (the exit-code
+// fixtures, which each spawn a whole runner, land around 5 s) and far below any CI
+// job budget, so it only ever fires on a genuine hang.
+const DEFAULT_TEST_TIMEOUT_MS = 120_000;
+const overriddenTimeout = Number(process.env.KP_TEST_TIMEOUT_MS);
+const testTimeoutMs =
+  Number.isFinite(overriddenTimeout) && overriddenTimeout > 0
+    ? overriddenTimeout
+    : DEFAULT_TEST_TIMEOUT_MS;
+
 const child = spawn(
   process.execPath,
   [
@@ -49,6 +67,7 @@ const child = spawn(
     "--experimental-transform-types",
     "--disable-warning=ExperimentalWarning",
     "--test-isolation=process",
+    `--test-timeout=${testTimeoutMs}`,
     "--test",
     ...patterns,
   ],

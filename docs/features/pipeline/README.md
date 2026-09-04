@@ -258,7 +258,7 @@ strands nobody, and moving them would rewrite closed history.
 
 | Module / route | Purpose |
 |---|---|
-| `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `POLICY` dict holds the hard-coded defaults. |
+| `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `POLICY` dict holds the hard-coded defaults. `interview_scorecard` additionally fences its transcript, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
 | `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
 | `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. |

@@ -37,6 +37,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
+from .json_values import extract_json, scan_json_values
+
 # Keys we strip from the child environment so the CLI uses the subscription
 # (interactive auth) instead of falling back to metered API billing.
 _API_KEY_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
@@ -761,56 +763,9 @@ class ClaudeCliProvider:
         )
 
 
-def _scan_json_values(text: str) -> list[Any]:
-    """Every top-level JSON value embedded in ``text``, in order of appearance.
-
-    Walks the string, and at each ``{``/``[`` attempts ``raw_decode``; on success
-    it records the value and skips past it, on failure it advances one char. A
-    nested ``{`` inside a decoded value is consumed as part of that value, so the
-    list holds only *top-level* values (an array of objects is one entry).
-    """
-    decoder = json.JSONDecoder()
-    values: list[Any] = []
-    idx, n = 0, len(text)
-    while idx < n:
-        if text[idx] in "{[":
-            try:
-                value, end = decoder.raw_decode(text, idx)
-                values.append(value)
-                idx = end
-                continue
-            except json.JSONDecodeError:
-                pass
-        idx += 1
-    return values
-
-
-def _extract_json(text: str, *, expected_keys: Sequence[str] | None = None) -> Any:
-    """Best-effort JSON extraction from an LLM text answer.
-
-    Returns the LAST complete top-level JSON value (preferring a fenced ```json
-    block when present). Returning the last value — not the first — is deliberate:
-    few-shot prompts often make the model echo the example schema object before
-    the real answer, and the old first-value behaviour silently returned that
-    echo. When ``expected_keys`` is given, the last value carrying any of those
-    keys wins, which pins the answer even if it isn't the trailing value.
-    Raises ``ValueError`` if nothing parses.
-    """
-    text = (text or "").strip()
-    if not text:
-        raise ValueError("empty text")
-
-    # Prefer fenced blocks (the model's deliberate answer envelope) if any parse.
-    candidates: list[Any] = []
-    for block in re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL):
-        candidates.extend(_scan_json_values(block.strip()))
-    if not candidates:
-        candidates = _scan_json_values(text)
-    if not candidates:
-        raise ValueError("no JSON value found")
-
-    if expected_keys:
-        keyed = [v for v in candidates if isinstance(v, dict) and any(k in v for k in expected_keys)]
-        if keyed:
-            return keyed[-1]
-    return candidates[-1]
+# The scanner and the CLI's selection policy live in ``json_values`` — one copy
+# for every adapter (gemini.py carried a near-verbatim duplicate, and llm/base.py
+# imported this module's private name to reach it). These aliases keep the long-
+# established private spellings working for the call sites and tests that use them.
+_scan_json_values = scan_json_values
+_extract_json = extract_json

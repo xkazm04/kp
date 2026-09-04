@@ -409,6 +409,72 @@ archetype × family combination's version hash). Guards:
 `rubricCoverage` stamp — the field is optional and consumers must treat it as
 absent there.
 
+## The scorecard fences the transcript and cites only what was said (scorecard-v7)
+
+The scorecard prompt is the one in this package whose main input is written by the
+person it rates, and whose output opens the Interview→Offer gate. Four things were
+true of it before `scorecard-v7` and are not any more.
+
+**The transcript was unfenced.** It went into the prompt in bare triple quotes, so a
+candidate who spoke a triple-quote plus an instruction closed the quoting and the
+rest of their sentence read to the model as scoring instructions. It now enters
+through `fenced_untrusted("INTERVIEW_TRANSCRIPT", …)`
+(`pipeline/jobfit/devcase/provenance.py`) — the same fence the group-compare
+candidate block and the devcase prompts use. `json.dumps` inside the fence escapes
+the newlines a forged marker needs, and the fence's standing rule tells the model
+the block is evidence, never orders. Bound to the real prompt (not to the helper) by
+`pipeline/jobfit/tests/test_prompt_fences.py::_JSON_FENCE_SITES`, which proves each
+site non-vacuous by neutralising the fence and requiring the same assertion to fail.
+
+**The model's answer was pinned too loosely.** `_generate` pins the parse with
+`expected_keys` so an object echoed *after* the answer cannot win it (`_extract_json`
+otherwise takes the last value). The default is the deterministic template's own
+keys, and the match is ANY key — so a trailing `{"recommendation": "reject"}`
+satisfied it and flipped the verdict. `interview_scorecard` now passes
+`expected_keys=("ratings",)`: the one key a real scorecard always carries and a
+one-line verdict object never does.
+
+**Nothing checked that a quote was real.** The prompt asks for a "short,
+near-verbatim quote of the candidate's own words" and the only downstream guard
+(`isPlaceholderEvidence`, TS) knows the boilerplate, not invention — so a fabricated
+line reached the recruiter looking exactly like a real one. `ground_scorecard_evidence`
+now normalizes each quote (case, punctuation, whitespace — the axes near-verbatim
+drifts on) and requires it to occur in the transcript **the model was shown** (the
+head+tail `sample_scorecard_notes` sample, not the full stored transcript: a quote
+from an elided middle turn is one the model could not have read). A quote that does
+not occur is replaced with `UNGROUNDED_EVIDENCE`, which carries the cross-language
+`"Not assessed…"` prefix contract — so every surface that already filters the
+placeholder out of its quote list (`ScheduleInterviewScorecardRow`,
+`JobsCompareInterviewsEvidenceCard`) stops rendering it as a candidate quote with no
+read-side change. The rating itself is kept: this drops the *citation*, not the
+score. The count rides as `ungroundedEvidence` and the confidence band's **reason**
+names it, so "the interview was short" and "the model quoted lines that are not
+there" stop widening the band identically.
+
+**The prose never said which language it was in.** The summary and the
+recommendation rationale follow `language_directive(lang)` on the LLM path, but the
+deterministic template is English whatever was asked for — so a cs/de/fr session
+stored English prose inside localized chrome with nothing saying so, unlike every
+sibling narrative. The scorecard now stamps `narrativeLang`
+(`match_reasoning.narrative_lang_for`, the same helper `reasoning_cli` and
+`group_compare_cli` use) and `ScheduleInterviewAiScorecardSection` renders the honest
+note exactly as `MatchReasoningPanel` does for the match rationale.
+
+Additionally, the scoring instructions now carry the **same fairness clause the
+interviewer brief carries** (`pipeline/jobfit/eval/interview_eval.py::NON_NEGOTIABLES`):
+never lower a rating for nerves, hesitation, filler, silence or imperfect
+grammar/accent, and an honest "I don't know" is not a negative signal. The brief said
+it to the agent *running* the call; nothing said it to the model producing the
+*rating*, which is the half a hiring decision reads.
+
+`SCORECARD_PROMPT_VERSION` / `AUTOMATION_VERSION.scorecard` moved to `scorecard-v7`
+in lockstep (`test_prompt_version_sync.py`), so cached v6 scorecards self-invalidate.
+
+**Known gap:** grounding is a containment test against the sampled transcript, so a
+quote the model assembles from two separate turns fails it and is dropped as
+ungrounded — conservative in the safe direction (a citation is lost, never invented).
+The de/fr transcript detectors in the interview eval harness remain a follow-up.
+
 ## Spend doors, throttles and refusal codes
 
 Four doors in this feature cost real money on an accepted call, and until this pass

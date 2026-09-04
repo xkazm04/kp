@@ -94,6 +94,67 @@ Two consequences worth knowing before you write a route test:
   for every name imported from `next/server` and fails if the shim is missing one — it
   runs in `npm run test:unit`, including in a normal checkout where the shim is otherwise
   dormant, which is where that import gets written.
+- The shim's **property** surface is the other half, and it is the half that bit. A
+  `NextRequest` is not a plain `Request`: handlers read `request.nextUrl.searchParams`
+  (26 sites) and `proxy.ts` reads `req.cookies` and calls `nextUrl.clone()`. For thirty
+  waves the shim was `class NextRequest extends Request {}`, so `nextUrl` was `undefined`,
+  every one of those handlers threw inside its own `try/catch` and answered **500**, and
+  `app/api/decisions/decisions-auth.test.ts` and `app/api/pipeline/pipeline-routes.test.ts`
+  were carried as "known worktree-only failures" rather than read as the shim gap they
+  were. A missing property is a runtime `undefined`, not a load-time error, so the export
+  scan could not see it. The same test now also walks every `request.<member>` read in
+  `app/api/**/route.ts` and `proxy.ts` and asserts each resolves on a shim instance. Both
+  route tests pass in a worktree today; if you add a handler that reads a new request
+  member, that scan tells you before the 500 does.
+
+## The unit gate: exit code and timeout
+
+`npm run test:unit` does not call `node --test` directly — it goes through
+[`scripts/run-unit-tests.mjs`](../../scripts/run-unit-tests.mjs), because two things have
+to be true before the runner boots and neither can be fixed from inside it:
+
+- **The environment is scrubbed.** `NODE_TEST_CONTEXT` inherited from any ancestor
+  `node --test` flips a fresh runner into child-reporting mode — failures print and the
+  process exits **0**. Node decides that during bootstrap, before `--import` preloads run,
+  so only the parent that spawns the runner can delete it. `DATABASE_URL`,
+  `KP_DB_BACKEND` and `KP_OFFLINE` go with it, so store and egress behaviour comes from
+  the test file rather than from whichever shell hosts the run.
+- **A hang is bounded.** The launcher passes `--test-timeout`, default **120 000 ms**
+  (`KP_TEST_TIMEOUT_MS` overrides it). Node's runner otherwise waits forever, so one test
+  that never settles pins the gate until a CI job timeout kills it — and the output at
+  that point names a dead job, not a test. With the ceiling, a hang is an ordinary red
+  with the offending test named, and the rest of the suite still reports.
+
+`npm run test:bench-driver` runs through the same launcher for the first reason: the bench
+driver is *the* documented source of an inherited `NODE_TEST_CONTEXT`, so a bare
+`node --test` there is a runner nothing scrubs.
+
+`app/_lib/testing/gate-exit-code.test.ts` pins all of it from the outside — it drives the
+real launcher from a deliberately polluted environment and asserts that a failing suite
+exits non-zero, a passing one exits zero, ambient backend env never reaches a test file, a
+hanging file fails instead of blocking, and `test:bench-driver` still goes through the
+launcher.
+
+## `schemas:gen`: the Python step in front of typecheck and build
+
+Both `npm run typecheck` and `npm run build` run `schemas:gen` first, so it is the first
+command a fresh clone or a new CI image executes. It goes through
+[`scripts/schemas-gen.mjs`](../../scripts/schemas-gen.mjs) rather than a bare
+`python -m pipeline.jobfit.codegen`:
+
+- it finds the interpreter — `PYTHON_CMD` if set (the same variable
+  `app/_lib/python-runner.ts` honours), else `python`/`python3`/`py` on Windows and
+  `python3`/`python` elsewhere;
+- a missing interpreter and a missing package are told apart, and each says the command
+  that fixes it (`pip install -r requirements.txt`, or `PYTHON_CMD=…`) instead of a raw
+  `command not found` or a pydantic traceback under an npm exit-1 banner;
+- argv passes straight through, so `npm run schemas:check` (`--check`) keeps its exit-code
+  contract: 1 for a stale generated file, and that failure is *not* dressed up as an
+  install problem.
+
+It is idempotent — the generator rewrites `app/_lib/schemas.generated.ts` and
+`app/_lib/taxonomy.generated.ts` from the Pydantic models. Fixtures:
+`scripts/__tests__/schemas-gen.test.mjs`, run by `npm run test:docs`.
 
 ## Eval harness
 

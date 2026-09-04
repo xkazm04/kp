@@ -7,7 +7,7 @@
 // keep the modal file under the 200-line cap.
 
 import { Quote } from "lucide-react";
-import type { useTranslations } from "next-intl";
+import { useLocale, type useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
@@ -35,6 +35,20 @@ export function AiScorecardSection({
   t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
 }) {
   const enumLabel = useEnumLabel();
+  const locale = useLocale();
+  // Honest narrative language, exactly as MatchReasoningPanel states it for the
+  // match rationale. The summary + recommendation rationale follow the requested
+  // --lang on the LLM path, but the deterministic template is English whatever was
+  // asked for — so a cs/de/fr recruiter was shown English prose inside localized
+  // chrome with nothing saying so. The scorecard stamps `narrativeLang`
+  // (automation.py, scorecard-v7); it rides the stored scorecard object rather than
+  // the pure Scorecard type, like `telemetry` and `coverage`, so it is narrowed here
+  // and a legacy row (no stamp) shows nothing — the pre-v7 behaviour exactly.
+  const narrativeLang = (sc as { narrativeLang?: unknown }).narrativeLang;
+  const narrativeLangName =
+    typeof narrativeLang === "string" && narrativeLang && narrativeLang !== locale
+      ? (new Intl.DisplayNames([locale], { type: "language" }).of(narrativeLang) ?? narrativeLang)
+      : null;
   return (
     <section className="rounded-md border border-stone-200 bg-paper p-3">
       <div className="flex items-center justify-between gap-2">
@@ -52,6 +66,11 @@ export function AiScorecardSection({
       {coverage ? (
         <p className="mt-2 rounded-md bg-dial-amber/15 px-2.5 py-1.5 text-sm text-ink">
           {t("coverageCaveat", { kept: coverage.keptTurns, total: coverage.totalTurns })}
+        </p>
+      ) : null}
+      {narrativeLangName ? (
+        <p className="mt-1.5 text-sm italic text-steel">
+          {t("narrativeInLanguage", { language: narrativeLangName })}
         </p>
       ) : null}
       {sc.summary ? <p className="mt-1.5 text-base text-ink">{sc.summary}</p> : null}

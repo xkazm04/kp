@@ -3902,7 +3902,8 @@
       "readbackCorrectedHint": "Entendu dans la transcription → la correction indiquée par le candidat",
       "readbackUnconfirmedFlag": "non confirmé",
       "readbackUnconfirmedHint": "Mentionné plus tôt mais non repris lors de la relecture (peut-être une erreur de transcription)",
-      "readbackNote": "D’après le récapitulatif final : le candidat a confirmé ou corrigé les technologies entendues par l’intervieweur."
+      "readbackNote": "D’après le récapitulatif final : le candidat a confirmé ou corrigé les technologies entendues par l’intervieweur.",
+      "narrativeInLanguage": "Ce résumé de la scorecard est affiché en {language}."
     },
     "relay": {
       "label": "Où se trouve le témoin",

@@ -60,7 +60,11 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // v6 — same locale-axis fix as screen: the scorecard summary is recruiter-facing
   // prose generated in the requested --lang, so the locale now splits its key;
   // bumped so the wrongly-shared v5 entries self-invalidate.
-  scorecard: "scorecard-v6",
+  // v7 — the transcript now enters the prompt through the untrusted-data fence
+  // (candidate speech was the one unfenced block in the package) and the scoring
+  // instructions carry the interviewer brief's no-penalty-for-nerves clause; both
+  // change the prompt bytes, so cached v6 scorecards must self-invalidate.
+  scorecard: "scorecard-v7",
   rematch: "rematch-v1",
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer

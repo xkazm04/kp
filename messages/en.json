@@ -3902,7 +3902,8 @@
       "readbackCorrectedHint": "Heard in the transcript → what the candidate said it should be",
       "readbackUnconfirmedFlag": "unconfirmed",
       "readbackUnconfirmedHint": "Mentioned earlier but not reached in the read-back (possibly a transcription error)",
-      "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard."
+      "readbackNote": "From the closing read-back: the candidate confirmed or corrected the technologies the interviewer heard.",
+      "narrativeInLanguage": "This scorecard summary is shown in {language}."
     },
     "relay": {
       "label": "Where the baton is",
