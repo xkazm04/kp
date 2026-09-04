@@ -305,7 +305,12 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // hired_agents/agent_activity, which ARE workspace-scoped).
   "personas_bridge",
   "login_attempts", // brute-force throttle counters keyed by email/IP — deployment-global, no tenant dimension
-  "llm_usage", // deployment-level LLM metering ledger (sibling of billing_usage; written off-request from Python)
+  // Deployment-level LLM metering ledger (sibling of billing_usage; written off-request
+  // from Python). ERASURE: exempt there too, and for a different reason than tenancy —
+  // the ledger records that a machine call happened (model, tokens, latency, cost), never
+  // who it was about, so an Art. 17 request has nothing in it to erase. Stated on the
+  // record in ERASURE_EXEMPT (db/pipeline.ts), which is the list a DPO reads.
+  "llm_usage",
   "scheduler", // global background-job scheduler state (ONE clock; its toggle's blast radius is the whole installation — operator-gated, see scheduler-store.ts)
   // One row per global sweep. Exempt as a ROW, not as a payload: its decisions_json
   // holds per-entry rows across every team, each stamped with the entry's workspaceId

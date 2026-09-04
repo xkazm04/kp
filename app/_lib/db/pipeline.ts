@@ -17,7 +17,7 @@ import type { MatchScoreProvenance } from "../match-score";
 // resolvers there from ever disagreeing about what a synthetic candidate id looks
 // like. That module is deliberately pure, so this is not a cycle.
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
-import { recordPipelineOutcome } from "../dev-outcomes";
+import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
 import { ensureDb, recordEvent, type PipelineEntry } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
@@ -1997,6 +1997,83 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
       if (tables.has("onboarding_intake")) db.prepare(`UPDATE onboarding_intake SET answers_json = '{}' WHERE run_id = ?`).run(runId);
       if (tables.has("onboarding_signatures")) db.prepare(`UPDATE onboarding_signatures SET signer = NULL WHERE run_id = ?`).run(runId);
     }
+  }
+  // The candidate's own free-text survey answer (candidate_nps, keyed by entry_id). The
+  // 0-10 SCORE stays — it is the de-identified candidate-experience measurement the
+  // metric pack is computed from and it names nobody; the comment is their own words.
+  if (tables.has("candidate_nps")) {
+    db.prepare(`UPDATE candidate_nps SET comment = NULL WHERE entry_id = ?`).run(entryId);
+  }
+  // --- The DEV-CASE family, reached through the entry's work-sample link. ---
+  //
+  // These rows are keyed by SUBMISSION, never by entry id, which is exactly why the
+  // scrub never saw them: `dev_submissions.candidate_ref` is a free-text name the
+  // candidate typed, `contact` their email, `notes` a recruiter sentence about them;
+  // `dev_sessions.files_json` is the code they authored (a README or file header
+  // routinely carries their name and email); `dev_session_chat.text` is their verbatim
+  // dialogue with the assistant; and `skill_profiles.profile_json` is a SIGNED,
+  // publicly-presentable credential naming them.
+  //
+  // THE JOIN: the entry's own `dev_submission_id`, written at promote
+  // (devcase-run.promoteSubmission), plus the LEGACY reading of an entry written before
+  // that column existed, whose candidate id was `ds-<submissionId>`. Both are consulted,
+  // in that order — the same rule as dev-outcomes.hireOutcomeRef, because the two
+  // disagreeing is precisely how a row gets missed. Read from the row HERE rather than
+  // passed in as a parameter, so anonymizeEntry's call site (and every other caller)
+  // stays untouched. The masking UPDATE above does not clear this column.
+  // getEntryWorkspace is the tenant-DERIVATION point read the pipeline_entries guard
+  // declares exempt (a by-id read of a globally-unique PK, whose whole job is to discover
+  // the tenant); the link read itself is then SCOPED to what it returns, so this stays a
+  // scoped read rather than a new tenant-blind one.
+  const linkWorkspaceId = getEntryWorkspace(entryId);
+  const submissionLink = db
+    .prepare(`SELECT dev_submission_id FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+    .get(entryId, linkWorkspaceId) as { dev_submission_id?: string | null } | undefined;
+  const legacySubmissionId = (candidateId ?? "").startsWith(LEGACY_SUBMISSION_CANDIDATE_PREFIX)
+    ? (candidateId ?? "").slice(LEGACY_SUBMISSION_CANDIDATE_PREFIX.length)
+    : "";
+  const submissionIds = [...new Set([(submissionLink?.dev_submission_id ?? "").trim(), legacySubmissionId].filter(Boolean))];
+  if (submissionIds.length > 0) {
+    const slots = submissionIds.map(() => "?").join(", ");
+    // The assignment's own record. status/eval_json/transfer_score stay: they are the
+    // de-identified assessment the retained recruitment record rests on.
+    if (tables.has("dev_submissions")) {
+      db.prepare(`UPDATE dev_submissions SET candidate_ref = ?, contact = NULL, notes = NULL WHERE id IN (${slots})`).run(masked, ...submissionIds);
+    }
+    // The live work session behind it. The observed EVENT log is deliberately left
+    // alone — it carries no identifiers and is under a server-computed hash chain whose
+    // integrity verdict an assessment rests on (ERASURE_EXEMPT["dev_session_events"]).
+    if (tables.has("dev_sessions")) {
+      const sessionIds = (
+        db.prepare(`SELECT id FROM dev_sessions WHERE submission_id IN (${slots})`).all(...submissionIds) as { id: string }[]
+      ).map((s) => s.id);
+      db.prepare(`UPDATE dev_sessions SET candidate_ref = ?, files_json = '[]' WHERE submission_id IN (${slots})`).run(masked, ...submissionIds);
+      if (sessionIds.length > 0 && tables.has("dev_session_chat")) {
+        const chatSlots = sessionIds.map(() => "?").join(", ");
+        // Blanked in place, like the outbox: the seq/role/channel columns stay as the
+        // "a captured dialogue happened" evidence trail, without any of its content.
+        db.prepare(`UPDATE dev_session_chat SET text = '' WHERE session_id IN (${chatSlots})`).run(...sessionIds);
+      }
+    }
+    // The signed skill credential. REVOKED as well as emptied, and deliberately so: an
+    // erased credential that still verified would be a public page vouching for a person
+    // whose data we just told them we deleted. verifySkillProfileToken already reports a
+    // revoked / non-substantive profile as a muted state rather than a confident verdict.
+    if (tables.has("skill_profiles")) {
+      db.prepare(
+        `UPDATE skill_profiles SET candidate_ref = ?, profile_json = '{}', revoked_at = COALESCE(revoked_at, ?) WHERE submission_id IN (${slots})`
+      ).run(masked, new Date().toISOString(), ...submissionIds);
+    }
+  }
+  // The calibration corpus. What makes it worth keeping is the PAIRING — the score we
+  // predicted against the outcome and the on-the-job rating — and that pairing names
+  // nobody once the label and the free-text note are gone, so this is a de-identification
+  // rather than a deletion. Keyed by `ref`: the submission id for a dev-case hire,
+  // `pe:<entryId>` for an ordinary board hire (dev-outcomes.hireOutcomeRef).
+  if (tables.has("dev_outcomes")) {
+    const outcomeRefs = [...submissionIds, `${PIPELINE_OUTCOME_REF_PREFIX}${entryId}`];
+    const refSlots = outcomeRefs.map(() => "?").join(", ");
+    db.prepare(`UPDATE dev_outcomes SET candidate_ref = ?, note = NULL WHERE ref IN (${refSlots})`).run(masked, ...outcomeRefs);
   }
   // Rediscovery alerts are keyed by candidate_id (a rejected candidate resurfaced for a
   // new role), not entry_id — mask BOTH the candidate_label and the prior-decision label
