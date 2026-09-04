@@ -50,3 +50,25 @@ test("a custom minSample threshold is honored", () => {
   assert.equal(pickBottleneck({ A: [5, 5] }, 5), null);
   assert.deepEqual(pickBottleneck({ A: [5, 5] }, 2), { stage: "A", avgDaysInStage: 5, entryCount: 2 });
 });
+
+test("a tie is broken by stage name, not by the order the stages arrived in", () => {
+  // Two stages, identical average wait and identical sample. The winner used to be
+  // whichever key `Object.entries` yielded first — insertion order, which is the
+  // order the DB's GROUP BY happened to return. The amber banner names ONE stage and
+  // sends the recruiter there, so which of two equal stages it names must not depend
+  // on a query's row order: the same board rendered twice could accuse a different
+  // stage each time, and nothing on screen would say the two were tied.
+  const days = [40, 40, 40];
+  const zetaFirst = pickBottleneck({ Zeta: days, Alpha: days });
+  const alphaFirst = pickBottleneck({ Alpha: days, Zeta: days });
+  assert.equal(zetaFirst?.stage, "Alpha", "the tie resolves to the first stage by name");
+  assert.deepEqual(zetaFirst, alphaFirst, "input order cannot change the verdict");
+});
+
+test("a tie in the ROUNDED average still follows the real average", () => {
+  // avgDaysInStage is rounded for display; the pick is made on the raw mean, so a
+  // stage that is genuinely slower keeps the banner even when both round to 40.
+  const a = pickBottleneck({ Alpha: [39.6, 39.6, 39.6], Beta: [40.4, 40.4, 40.4] });
+  assert.equal(a?.stage, "Beta", "the larger raw average wins before the name rule applies");
+  assert.equal(a?.avgDaysInStage, 40);
+});
