@@ -72,6 +72,10 @@ const { POST: automationSchedule } = await import("./automation/schedule/route.t
 const { POST: automationRun } = await import("./automation/run/route.ts");
 const { POST: automationTask } = await import("./automation/[task]/route.ts");
 const { POST: inviteBulk } = await import("./schedule/invite/bulk/route.ts");
+const { POST: inviteSingle } = await import("./schedule/invite/route.ts");
+const { POST: schedulePost, PATCH: schedulePatch } = await import("./schedule/route.ts");
+const { PUT: prepPut, POST: prepPost, PATCH: prepPatch } = await import("./interview-prep/route.ts");
+const { POST: scorecardPost } = await import("./interview-prep/scorecard/route.ts");
 const { POST: jdsSave } = await import("./jds/save/route.ts");
 const { POST: jdsGenerate } = await import("./jds/generate/route.ts");
 const { PATCH: jdPatch } = await import("./jds/[slug]/route.ts");
@@ -126,6 +130,20 @@ const DOORS: Door[] = [
   { name: "POST /api/automation/run", capability: "pipeline:write", call: () => automationRun(req({ dryRun: true })) },
   { name: "POST /api/automation/[task]", capability: "pipeline:write", call: () => automationTask(req({ entryId: "e1" }), params({ task: "screen" })) },
   { name: "POST /api/schedule/invite/bulk", capability: "pipeline:write", call: () => inviteBulk(req({ entryIds: ["e1"] })) },
+  // /perfect wave 40 (scheduling-and-interview-prep): the four doors that mirror the
+  // bulk row above and were still identity-only. A viewer could mint and mail a
+  // scheduling link, cancel or move a booked interview, rewrite the join link, save
+  // an interviewer’s checklist/notes onto another seat’s prep pack, merge questions
+  // into it, and file the human scorecard whose recommendation OPENS the
+  // Interview→Offer gate and seals a decision record. Every one of those is a
+  // recruiter act, so every one asks pipeline:write.
+  { name: "POST /api/schedule/invite", capability: "pipeline:write", call: () => inviteSingle(req({ entryId: "e1" })) },
+  { name: "POST /api/schedule", capability: "pipeline:write", call: () => schedulePost(req({ action: "cancel", token: "t1" })) },
+  { name: "PATCH /api/schedule", capability: "pipeline:write", call: () => schedulePatch(req({ token: "t1", meetingUrl: "https://meet.test/x" })) },
+  { name: "PUT /api/interview-prep", capability: "pipeline:write", call: () => prepPut(req({ notes: "x" })) },
+  { name: "POST /api/interview-prep", capability: "pipeline:write", call: () => prepPost(req({ questions: ["q"] })) },
+  { name: "PATCH /api/interview-prep", capability: "pipeline:write", call: () => prepPatch(req({ question: "q", blockRef: null })) },
+  { name: "POST /api/interview-prep/scorecard", capability: "pipeline:write", call: () => scorecardPost(req({ ratings: [] })) },
   { name: "POST /api/jds/save", capability: "pipeline:write", call: () => jdsSave(req({ slug: "x", markdown: "# x" })) },
   { name: "POST /api/jds/generate", capability: "pipeline:write", call: () => jdsGenerate(req({ role: "Dev" })) },
   { name: "PATCH /api/jds/[slug]", capability: "pipeline:write", call: () => jdPatch(req({ archived: true }), params({ slug: "x" })) },

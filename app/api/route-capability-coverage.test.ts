@@ -133,8 +133,13 @@ const ALLOWED = new Map<string, string>([
   ["intake/[id]/voice-connect/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["intake/[id]/voice-turn/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["intake/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["interview-prep/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["interview-prep/scorecard/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // interview-prep/route.ts and interview-prep/scorecard/route.ts were judged and
+  // CLOSED (/perfect wave 40, scheduling-and-interview-prep) alongside their two
+  // schedule siblings. This surface asked NOTHING - not even requireOperator - so a
+  // viewer could save an interviewer’s checklist and notes, merge questions into a
+  // prep pack and file the human scorecard whose recommendation OPENS the
+  // Interview→Offer gate and seals a decision record. All four verbs now ask
+  // pipeline:write; write-capability-gate.test.ts drives each for the viewer 403.
   ["interview/complete/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/connect/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["interview/create/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
