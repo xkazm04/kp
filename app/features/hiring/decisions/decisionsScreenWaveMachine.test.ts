@@ -103,3 +103,29 @@ test("opening the commit clears a stale error and cancelling closes the confirm"
   assert.equal(waveReduce(s, { type: "commitStarted" }).error, null);
   assert.equal(waveReduce({ ...s, confirmOpen: true }, { type: "confirmClosed" }).confirmOpen, false);
 });
+
+// ---- the outcome of the irreversible action is announced -----------------------
+// The wave commit is the one action in this directory that cannot be undone, and
+// its result reached a screen-reader user only if they went looking: the committed
+// banner lived in one branch of a ternary and the modal's only aria-live region in
+// the other, so committing swapped the live region OUT. The modal is .tsx with no
+// component runner here, so the contract is pinned by reading the source
+// (decisionsRulesLoad.test.ts's technique). CRLF-normalized on purpose: this
+// checkout is CRLF while the worktree may be LF.
+import { readFileSync } from "node:fs";
+
+const modalSrc = readFileSync(new URL("./DecisionsScreenWaveModal.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+
+test("the committed banner IS a polite live region, mounted before the commit lands", () => {
+  const region = /<p\n\s+role="status"\n\s+aria-live="polite"([\s\S]*?)<\/p>/.exec(modalSrc);
+  assert.ok(region, "a role=status / aria-live=polite paragraph exists at the top of the modal body");
+  assert.match(region[1], /committedBanner/, "…and it is the committed banner, not a second element that could drift from it");
+  assert.match(region[1], /commsFailures/, "…including the partial-commit warning");
+});
+
+test("the live region is not inside the committed branch, so it exists to be updated", () => {
+  const bannerAt = modalSrc.indexOf("committedBanner");
+  const branchAt = modalSrc.indexOf("{committed ? (\n        <div");
+  assert.ok(bannerAt > 0 && branchAt > 0, "both landmarks found");
+  assert.ok(bannerAt < branchAt, "the region is rendered BEFORE the committed/preview fork, so it is mounted either way");
+});

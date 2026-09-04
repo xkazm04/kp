@@ -103,9 +103,6 @@
     "features/hiring/decisions/DecisionsRoleRow.tsx": {
       "panel": 1
     },
-    "features/hiring/decisions/DecisionsScreenWaveLists.tsx": {
-      "rawDate": 1
-    },
     "features/hiring/pipeline/PassPreviewModal.tsx": {
       "noticeAmber": 1
     },

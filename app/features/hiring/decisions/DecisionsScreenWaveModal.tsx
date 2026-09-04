@@ -98,9 +98,24 @@ export function ScreenWaveModal({
         )
       }
     >
-      {committed ? (
-        <div className="space-y-3">
-          <p className="flex items-center gap-2 rounded-md border border-moss/40 bg-moss/5 p-3 text-base text-ink">
+      {/* THE OUTCOME OF AN IRREVERSIBLE ACTION IS ANNOUNCED. This banner used to
+          live inside the `committed` branch, and the modal's only aria-live region
+          inside the OTHER branch — so committing the wave swapped the live region
+          out for the banner and the result (N rejected, N kept, comms failures)
+          reached a screen-reader user only if they went looking for it. The region
+          is mounted for the modal's whole life now and is empty until the commit
+          lands, which is the shape an assistive technology actually announces; the
+          same element IS the visible banner, so there is one text, not a mirror
+          that can drift from it. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={
+          committed ? "mb-3 flex items-center gap-2 rounded-md border border-moss/40 bg-moss/5 p-3 text-base text-ink" : "sr-only"
+        }
+      >
+        {committed ? (
+          <>
             <Check size={16} className="text-moss" />
             {t.rich("committedBanner", {
               rejected: committed.rejected,
@@ -111,9 +126,11 @@ export function ScreenWaveModal({
             {committed.commsFailures > 0 ? (
               <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
             ) : null}
-          </p>
-          {lists}
-        </div>
+          </>
+        ) : null}
+      </p>
+      {committed ? (
+        <div className="space-y-3">{lists}</div>
       ) : (
         <div className="space-y-4">
           {/* Override controls — drive the live preview. */}
