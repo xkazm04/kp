@@ -12,6 +12,36 @@ loadEnv({ path: ".env.local" });
 // reads the same variable so the entry cookie lands on the right origin.
 const overrideBaseUrl = process.env.KP_E2E_BASE_URL;
 
+// ─── The keyless release subset ──────────────────────────────────────────────
+// The specs ci.yml's `e2e-keyless` job runs against a production build with NO
+// provider env set — the run that certifies "degrades gracefully keyless" as a
+// product property. It lived only as eight positional arguments inside a
+// workflow `run:` block, so the release gate's contents were invisible from the
+// suite itself: a new keyless spec is added by remembering to edit a YAML step,
+// and forgetting is silent (it just never runs, green).
+//
+// Declared here instead, beside the config that shapes the run, and pinned to
+// the workflow by scripts/docs/__tests__/keyless-e2e-pin.test.mjs — which fails
+// when the two lists diverge IN EITHER DIRECTION. `.claude/CLAUDE.md`'s subset
+// line is derived from this array too (it had already drifted: it still named
+// app-master-hire, which needs KP_APP_MASTER_REPO_ROOTS and is not in the job).
+//
+// These are playwright FILE FILTERS, not paths, and they are deliberately named
+// one by one rather than by a shared prefix: a filter that widens as files are
+// added is how a slow or key-needing spec ends up in the release gate without
+// anyone deciding to put it there. `shell.spec`, not `shell` — a bare `shell`
+// would also pull in shell-tab-state.spec.ts, which is exactly that widening.
+export const KEYLESS_SPECS = [
+  "modal-escape",
+  "profile-builder",
+  "profile-roster",
+  "landing",
+  "public-pages",
+  "shell.spec",
+  "journey-role-to-schedule",
+  "journey-one-thread"
+] as const;
+
 export default defineConfig({
   testDir: "./e2e",
   // A committed `test.only` runs that ONE test, marks every sibling skipped, and
@@ -21,6 +51,19 @@ export default defineConfig({
   // shape of silent-green this repo's guards keep being caught by. CI-only, so a
   // local `.only` while iterating still works.
   forbidOnly: !!process.env.CI,
+  // A browser end-to-end run has a genuine flake floor a unit test does not —
+  // an animation frame, a slow cold-start compile, a race on the one SQLite
+  // file. ONE retry in CI, and zero locally: a locally-flaky test is a defect
+  // you want to see the first time, while in CI an unretried flake blocks a
+  // release on something that was never broken. One, not two: a test that needs
+  // two retries is failing, and hiding that is worse than the red build.
+  retries: process.env.CI ? 1 : 0,
+  // Pinned rather than left to the default (50% of cores) because every spec
+  // shares ONE production server and ONE SQLite file in the keyless job. Two is
+  // what a 4-core GitHub runner resolves to today, so this changes nothing now
+  // — it stops a larger runner from silently raising the concurrency these
+  // specs' shared fixture state has never been tested at.
+  workers: process.env.CI ? 2 : undefined,
   timeout: 120_000,
   expect: {
     timeout: 30_000

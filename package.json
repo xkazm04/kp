@@ -45,7 +45,7 @@
     "docs:check": "node scripts/docs/check-adrs.mjs",
     "docs:check:diff": "node scripts/docs/check-doc-sync-diff.mjs",
     "guidance:check": "node scripts/docs/check-guidance.mjs",
-    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs && node scripts/__tests__/schemas-gen.test.mjs && node scripts/docs/__tests__/toolchain-pin.test.mjs",
+    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs && node scripts/__tests__/schemas-gen.test.mjs && node scripts/docs/__tests__/toolchain-pin.test.mjs && node scripts/docs/__tests__/keyless-e2e-pin.test.mjs",
     "release:check": "node scripts/release/prepare.mjs --check",
     "release:prepare": "node scripts/release/prepare.mjs",
     "commit:check": "node scripts/release/commit-msg.mjs",
