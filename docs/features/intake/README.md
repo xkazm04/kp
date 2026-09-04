@@ -306,6 +306,18 @@ language), so "you are reading German because the checklist has no Polish" is a
 stated fact rather than a silent substitution. Pinned by
 `app/api/intake/intake-degradation-contract.test.ts`.
 
+### The composed need text speaks the session's language
+
+`needTextFromBrief` (`app/_lib/intake-brief.ts`) flattens the brief into the
+JD build's `needText` — the string persisted as `build_input` and replayed on
+every task re-run. Its four structural labels ("Done in 90 days", "Must have",
+"Nice to have", the "Context" fallback) were English constants, so a Czech,
+German or French session persisted English headings stapled to prose in another
+language. They now come from a four-locale literal table keyed on the session's
+`lang`, which `/promote` and `jd-build-run` both pass; a language the table does
+not carry falls to `en`. Deliberately not next-intl: the string is a server
+artifact composed where no request locale is in scope.
+
 ### Per-turn budgets
 
 Every intake spawn used to inherit `python-runner`'s ten-minute HANG backstop.

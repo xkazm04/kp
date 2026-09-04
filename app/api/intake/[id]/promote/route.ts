@@ -55,8 +55,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     };
     const brief = intake.brief;
     const title = (brief.title ?? "").trim();
-    const needText = needTextFromBrief(brief);
     const lang = intakeLang(intake.lang);
+    // The composed need text carries the session's language, labels included - it
+    // is persisted as this build's input and replayed on every task re-run.
+    const needText = needTextFromBrief(brief, lang);
     const options = {
       description: true,
       // Opt-out (UAT L1-HRBP-6): the market layer is Czech-single-market, so a
