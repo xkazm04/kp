@@ -4,8 +4,11 @@ Two tripwires, both for failures that leave a green run:
 
 1. SKIPS. `python -m unittest` reports `OK (skipped=N)` and exits 0 even when a
    *critical* test never ran (a removed fixture, an unset env var). This wrapper
-   prints a per-test skip summary and fails when the skip count exceeds a known
-   baseline, so a newly-skipping test trips CI instead of disappearing.
+   prints a per-test skip summary and holds the count between a CEILING and a
+   FLOOR, so a newly-skipping test trips CI instead of disappearing AND a
+   tolerated skip that quietly started running is recorded instead of leaving a
+   free slot the next silent skip can move into. Neither direction is fixed by
+   the gate; both are fixed by editing the number deliberately.
 2. HERMETICITY. `tests/__init__.py` installs two layers so no test can emit to a
    real LightTrack server or read a developer's `.env.local`. Nothing tests THAT
    guard: deleting either layer leaves every test in the suite passing (verified
@@ -28,12 +31,29 @@ import sys
 import unittest
 from pathlib import Path
 
-# Skips we knowingly tolerate in a keyless CI: the live Claude-CLI smoke, the
-# Gemini-key PDF test, the two personal-CV fixtures that are not in the repo, and
-# the interview-eval grounded bridge (spawns node + better-sqlite3, which the
-# Python-only CI job does not install).
+# THE CEILING. Skips we knowingly tolerate in a keyless CI: the live Claude-CLI
+# smoke, the Gemini-key PDF test, the two personal-CV fixtures that are not in the
+# repo, and the interview-eval grounded bridge (spawns node + better-sqlite3,
+# which the Python-only CI job does not install). The derivation site by site —
+# including the skip sites in the tree that do NOT fire, and why — is the comment
+# beside `KP_SKIP_BASELINE` in .github/workflows/ci.yml.
 # Bump this DELIBERATELY (with a comment) when a new tolerated skip is added.
 SKIP_BASELINE = int(os.getenv("KP_SKIP_BASELINE", "5"))
+
+# THE FLOOR, and why it is not simply the ceiling. Exactly one tolerated skip is
+# ENVIRONMENT-conditional rather than unconditional: test_interview_eval's
+# grounded DB-fixture bridge skips where node_modules is absent (CI's Python-only
+# job) and RUNS in a full developer checkout. The other four skip everywhere — an
+# env var CI never sets, and three fixtures deliberately not in the repo. So the
+# count is legitimately SKIP_BASELINE in CI and SKIP_BASELINE - 1 locally, and a
+# floor set at the ceiling would fail every developer's run.
+#
+# Below the floor is the failure this half exists for, and it had gone unnoticed
+# since the baseline was first written: a tolerated skip started running again (a
+# fixture landed, a key appeared) and nobody lowered the number, so the ceiling
+# now carries spare room a NEW silent skip can take without tripping anything. The
+# message names the number to record.
+ENV_CONDITIONAL_SKIPS = 1
 
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parents[2]
@@ -88,20 +108,33 @@ def main() -> int:
     suite = loader.discover(str(TESTS_DIR), top_level_dir=str(REPO_ROOT))
     result = unittest.TextTestRunner(verbosity=1).run(suite)
 
-    if result.skipped:
-        sys.stderr.write(f"\nSkipped {len(result.skipped)} test(s):\n")
-        for test, reason in result.skipped:
-            sys.stderr.write(f"  - {test.id()} :: {reason}\n")
+    skipped = len(result.skipped)
+    floor = max(0, SKIP_BASELINE - ENV_CONDITIONAL_SKIPS)
+    # Reported unconditionally. A run that skipped NOTHING is as much a fact about
+    # this suite as one that skipped four, and only one of the two used to be said.
+    sys.stderr.write(f"\nSkipped {skipped} test(s); tolerated {floor}-{SKIP_BASELINE}.\n")
+    for test, reason in result.skipped:
+        sys.stderr.write(f"  - {test.id()} :: {reason}\n")
 
     if not result.wasSuccessful():
         return 1
     if os.getenv("ALLOW_SKIP") == "1":
         return 0
-    if len(result.skipped) > SKIP_BASELINE:
+    if skipped > SKIP_BASELINE:
         sys.stderr.write(
-            f"\nTRIPWIRE: {len(result.skipped)} skipped > baseline {SKIP_BASELINE}. "
+            f"\nTRIPWIRE: {skipped} skipped > ceiling {SKIP_BASELINE}. "
             "A critical test may be silently skipping. Investigate, then either fix the "
             "cause, set ALLOW_SKIP=1 for a local run, or raise KP_SKIP_BASELINE deliberately.\n"
+        )
+        return 1
+    if skipped < floor:
+        sys.stderr.write(
+            f"\nTRIPWIRE: {skipped} skipped < floor {floor} (ceiling {SKIP_BASELINE}, of which "
+            f"{ENV_CONDITIONAL_SKIPS} is environment-conditional). A tolerated skip is running "
+            "again — good news, and the reason to record it: the ceiling now carries "
+            f"{floor - skipped} slot(s) a new silent skip could take without tripping anything. "
+            f"Set KP_SKIP_BASELINE to {skipped + ENV_CONDITIONAL_SKIPS} in .github/workflows/ci.yml "
+            "and strike the site from the derivation comment beside it.\n"
         )
         return 1
     return 0

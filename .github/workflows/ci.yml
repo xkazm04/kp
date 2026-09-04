@@ -370,20 +370,41 @@ jobs:
       - name: Run gated Python suite
         run: npm run test:python:gate
         env:
-          # Expected skips in keyless CI — derivation (must total exactly this):
-          #   +1 test_claude_cli.LiveSmokeTest.test_real_cli_pong
-          #      (gated on KP_CLAUDE_CLI_LIVE=1, which CI never sets)
-          #   +2 test_pdf_parsing_quality pypdf tests on the personal CV fixtures
-          #      (linkedin-profile.pdf / technical-cv.pdf are intentionally not in the repo)
-          #   +1 test_pdf_parsing_quality.test_gemini_pdf_extraction_returns_structured_skills
+          # Expected skips in keyless CI. This is a CEILING and, one
+          # environment-conditional slot below it, a FLOOR: run_gated.py fails on
+          # skips > 5 (a new silent skip) AND on skips < 4 (a tolerated skip that
+          # started running again, leaving room a new silent one could take
+          # unnoticed). Both are fixed by editing this number, never by the gate.
+          #
+          # THE SITES THAT FIRE HERE (this is the derivation of the 5):
+          #   +1 test_claude_cli.py:407 LiveSmokeTest.test_real_cli_pong
+          #      (skipUnless KP_CLAUDE_CLI_LIVE=1, which CI never sets). Its inner
+          #      `claude CLI not on PATH` skip at :414 is unreachable behind it.
+          #   +2 test_pdf_parsing_quality.py:32,:50 — the pypdf tests on the
+          #      personal CV fixtures (linkedin-profile.pdf / technical-cv.pdf are
+          #      intentionally not in the repo)
+          #   +1 test_pdf_parsing_quality.py:56 test_gemini_pdf_extraction_...
           #      (needs that fixture AND a GEMINI_API_KEY — CI has neither)
-          #   +0 test_llm_base.GeminiAdapterTest (its google-genai skip does NOT
-          #      fire: requirements.txt installs the SDK)
-          #   +1 test_interview_eval.TestGroundedBridge (the grounded DB-fixture
-          #      bridge spawns node + better-sqlite3; this Python-only job
-          #      installs no node_modules)
-          #   = 5. The gate trips on skips > 5, so any NEW skip fails the build.
-          # Bump deliberately (with a derivation edit) when adding a tolerated skip.
+          #   +1 test_interview_eval.py:574 the grounded DB-fixture bridge
+          #      (spawns node + better-sqlite3; this Python-only job installs no
+          #      node_modules). THE ONE environment-conditional entry: it RUNS in
+          #      a full checkout, which is why the floor is 4 and not 5.
+          #   = 5
+          #
+          # THE SITES THAT DO NOT FIRE, listed so "the count changed" can be
+          # answered without re-deriving the whole tree:
+          #   test_llm_base.py:409,:475      google-genai IS installed by requirements.txt
+          #   test_llm_self_host.py:124      the openai SDK IS installed likewise
+          #   test_interview_eval.py:423,:425 node is preinstalled on the runner and
+          #                                  the brief bridge needs no node_modules
+          #   test_market_config.py:402      same — node is on PATH
+          #   test_repo_scan.py:243,:526     git is available
+          #   test_repo_scan.py:398          context-map.json is committed
+          #   test_repo_scan.py:538          the fixture commit takes here
+          #   test_repo_scan.py:825          symlink creation works on the runner
+          #
+          # Change either bound deliberately, with a derivation edit in the same
+          # commit; run_gated.py's message names the number to record.
           KP_SKIP_BASELINE: "5"
 
       # AI-BEHAVIOUR EVALS AS A GATE, not as something someone remembers to run.
