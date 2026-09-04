@@ -1727,7 +1727,8 @@
     "ANALYSIS_SAVE_FAILED": "Cette modification de l’analyse n’a pas pu être enregistrée. Réessayez.",
     "ANALYSIS_NOT_FOUND": "Cette analyse ne se trouve pas dans cet espace de travail.",
     "ANALYSIS_GITHUB_INVALID": "Cette analyse GitHub était illisible et n’a pas été jointe.",
-    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe."
+    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe.",
+    "COMPLIANCE_LOOKUP_FAILED": "Impossible de charger les informations de conformité. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

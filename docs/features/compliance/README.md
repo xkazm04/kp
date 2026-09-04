@@ -146,6 +146,20 @@ replaces it: a missing or malformed field renders NOTHING, unlabelled and repeat
 dropped, and the “What we hold” heading is hidden with the list rather than left over an
 empty box. Pinned in `app/_lib/data-held.test.ts`.
 
+**The jurisdiction route answers the shaped envelope.** `GET /api/compliance` returns
+`{ jurisdiction, consentRetentionMonths }` — the caller’s active regime (normalized at the
+read boundary, so a stale or hand-edited row lands on the EU default rather than an empty
+legal framework) and the window derived from `KP_CONSENT_TTL_DAYS`. It had no `try`/`catch`:
+`getActiveRegimeId` opens the decision-config store’s own SQLite connection, so a locked or
+unreachable database threw out of the handler and Next answered its framework 500 — an
+unreadable body on the route that feeds the candidate-facing AI disclosure, with the raw
+SQLITE_* detail and db path closest to a public surface. It now answers
+`safeJsonError(…, "COMPLIANCE_LOOKUP_FAILED")`. Pinned by `app/api/compliance/compliance-route.test.ts`
+(happy envelope, unknown-regime normalization, coded failure with no thrown detail on the
+wire) and `app/_lib/compliance-regimes.test.ts`, which pins the normalization boundary and
+the deliberate rule that only the US names a codified adverse-impact standard (the EEOC
+four-fifths rule) — every other regime’s null is the contract, not a gap.
+
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET

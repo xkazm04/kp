@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
 import { getActiveRegimeId } from "@/app/_lib/decision-config-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { consentRetentionMonths } from "@/app/_lib/consent";
+import { normalizeRegimeId } from "@/app/_lib/compliance-regimes";
+import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
 
 // P1-1 — the workspace's active compliance jurisdiction, read by the public
@@ -33,8 +34,23 @@ export async function GET() {
   // consentRetentionMonths() stays global on purpose: it derives from the
   // KP_CONSENT_TTL_DAYS env knob, which is a deployment-level setting with no
   // per-workspace tier to read.
-  return NextResponse.json({
-    jurisdiction: getActiveRegimeId(await currentWorkspace()),
-    consentRetentionMonths: consentRetentionMonths(),
-  });
+  //
+  // SHAPED ENVELOPE. This handler had no try/catch and a bare NextResponse.json, and
+  // it is not infallible: getActiveRegimeId opens the decision-config store’s own
+  // SQLite connection, so a locked / corrupt / unreachable database threw straight out
+  // and Next answered its framework 500 — a body neither consumer can read, on the
+  // route that feeds the CANDIDATE-facing AI disclosure. safeJsonError logs the thrown
+  // detail server-side (SQLITE_* text, the absolute db path) and puts a code on the
+  // wire, which the client resolves through errors.<CODE> in the reader’s language.
+  try {
+    return jsonOk({
+      // Normalized at this read boundary as well as in the store: this value is rendered
+      // as a legal framework, so a stale or hand-edited row must land on the EU default
+      // rather than paint an empty jurisdiction (compliance-regimes.test.ts).
+      jurisdiction: normalizeRegimeId(getActiveRegimeId(await currentWorkspace())),
+      consentRetentionMonths: consentRetentionMonths(),
+    });
+  } catch (error) {
+    return safeJsonError(error, "api:compliance", "COMPLIANCE_LOOKUP_FAILED");
+  }
 }

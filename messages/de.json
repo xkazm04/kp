@@ -1727,7 +1727,8 @@
     "ANALYSIS_SAVE_FAILED": "Diese Änderung an der Analyse konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "ANALYSIS_NOT_FOUND": "Diese Analyse liegt nicht in diesem Arbeitsbereich.",
     "ANALYSIS_GITHUB_INVALID": "Diese GitHub-Analyse war nicht lesbar und wurde nicht angehängt.",
-    "ANALYSIS_GITHUB_TOO_LARGE": "Diese GitHub-Analyse ist zu groß zum Anhängen."
+    "ANALYSIS_GITHUB_TOO_LARGE": "Diese GitHub-Analyse ist zu groß zum Anhängen.",
+    "COMPLIANCE_LOOKUP_FAILED": "Die Compliance-Informationen konnten nicht geladen werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
