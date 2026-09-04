@@ -2740,7 +2740,8 @@
       "agent_dispatched": "a été envoyé à Personas comme demande de persona",
       "agent_activated": "est entré en service comme persona Personas",
       "onboarding_started": "a démarré l’intégration (module retiré)",
-      "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)"
+      "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)",
+      "screen_wave_holdout_unsealed": "a été épargné par la vague de présélection, mais son enregistrement de témoin de calibrage n'a pas pu être scellé"
     },
     "relTime": {
       "today": "aujourd’hui",
@@ -7023,7 +7024,8 @@
         "agent_dispatched": "Demande de persona envoyée",
         "agent_activated": "Persona mise en service",
         "onboarding_started": "Intégration démarrée (module retiré)",
-        "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)"
+        "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)",
+        "screen_wave_holdout_unsealed": "Épargné par la vague, enregistrement témoin non scellé"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d’attente dans la boîte d’envoi (non remise)",

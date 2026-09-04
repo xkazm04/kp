@@ -2740,7 +2740,8 @@
       "agent_dispatched": "was sent to Personas as a persona request",
       "agent_activated": "went live as a Personas persona",
       "onboarding_started": "started onboarding (retired module)",
-      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)"
+      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)",
+      "screen_wave_holdout_unsealed": "was spared by the screening wave, but its calibration holdout record could not be sealed"
     },
     "relTime": {
       "today": "today",
@@ -7023,7 +7024,8 @@
         "agent_dispatched": "Persona request dispatched",
         "agent_activated": "Persona went live",
         "onboarding_started": "Onboarding started (retired module)",
-        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)"
+        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)",
+        "screen_wave_holdout_unsealed": "Spared by the wave, holdout record unsealed"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",

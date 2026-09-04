@@ -2740,7 +2740,8 @@
       "agent_dispatched": "byl/a odeslán/a do Personas jako požadavek na personu",
       "agent_activated": "byl/a spuštěn/a jako persona v Personas",
       "onboarding_started": "zahájil/a onboarding (zrušený modul)",
-      "onboarding_intake_submitted": "odeslal/a onboardingový dotazník (zrušený modul)"
+      "onboarding_intake_submitted": "odeslal/a onboardingový dotazník (zrušený modul)",
+      "screen_wave_holdout_unsealed": "byl/a vlnou screeningu ušetřen/a, ale záznam kalibračního vzorku se nepodařilo zapečetit"
     },
     "relTime": {
       "today": "dnes",
@@ -7023,7 +7024,8 @@
         "agent_dispatched": "Požadavek na personu odeslán",
         "agent_activated": "Persona spuštěna",
         "onboarding_started": "Onboarding zahájen (zrušený modul)",
-        "onboarding_intake_submitted": "Onboardingový dotazník odeslán (zrušený modul)"
+        "onboarding_intake_submitted": "Onboardingový dotazník odeslán (zrušený modul)",
+        "screen_wave_holdout_unsealed": "Ušetřeno vlnou, záznam vzorku nezapečetěn"
       },
       "kindsQueued": {
         "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",

@@ -2740,7 +2740,8 @@
       "agent_dispatched": "wurde als Persona-Anfrage an Personas übermittelt",
       "agent_activated": "ging als Personas-Persona live",
       "onboarding_started": "startete das Onboarding (eingestelltes Modul)",
-      "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)"
+      "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)",
+      "screen_wave_holdout_unsealed": "wurde von der Screening-Welle verschont, aber der Kalibrierungs-Kontrollgruppen-Eintrag konnte nicht versiegelt werden"
     },
     "relTime": {
       "today": "heute",
@@ -7023,7 +7024,8 @@
         "agent_dispatched": "Persona-Anfrage übermittelt",
         "agent_activated": "Persona live geschaltet",
         "onboarding_started": "Onboarding gestartet (eingestelltes Modul)",
-        "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)"
+        "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)",
+        "screen_wave_holdout_unsealed": "Von der Welle verschont, Kontrollgruppen-Eintrag unversiegelt"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",
