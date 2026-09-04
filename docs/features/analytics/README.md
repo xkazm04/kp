@@ -211,6 +211,11 @@ call a stage weak.
 columns, **grouped and labelled, never merged**. A dash under Spend means "not measured for
 this kind of surface", not "free", and the rule says so.
 
+- **The tab holds no recipe debt.** Every `app/features/insights/analytics/**` row is
+  gone from `app/_components/ui/recipe-debt.json`: the last one, the role-only actor badge
+  in `sections/DecisionRecordsTable.tsx`, composes `NOTICE("amber")` like its siblings.
+  The header's copy-link confirmation timer is also cleared on unmount, so a copy followed
+  by a tab switch no longer wakes a setState on an unmounted component.
 - **The spend write path is back.** Spend is an editable field on every channel row
   (`AnalyticsChannelSpendInput.tsx` → `POST /api/analytics/spend` → `setChannelSpend`), lifted
   into the board rather than restoring the deleted channel panel. A channel with recorded

@@ -35,7 +35,7 @@ import {
   shortHash,
 } from "../analyticsDecisionLogTypes";
 import { DecisionRecordDetail } from "./DecisionRecordDetail";
-import { META_LABEL } from "@/app/_components/ui/recipes";
+import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 
 type Col = "seq" | "kind" | "subject" | "actor" | "createdAt" | "keyId";
 
@@ -263,7 +263,7 @@ export function DecisionRecordsTable({
                         const who = parseEventActor(r.actor);
                         return who.kind === "human" && who.name === null ? (
                           <span
-                            className="ml-1.5 rounded border border-amber-300 bg-amber-50 px-1 py-0.5 font-sans text-meta uppercase text-amber-800"
+                            className={`ml-1.5 ${NOTICE()} px-1 py-0.5 font-sans text-meta uppercase`}
                             title={t("actorRoleOnlyTitle")}
                           >
                             {t("actorRoleOnly")}
