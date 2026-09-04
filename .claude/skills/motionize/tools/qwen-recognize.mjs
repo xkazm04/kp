@@ -15,6 +15,7 @@
  */
 import { readFileSync } from "fs";
 import { extname } from "path";
+import { fetchWithTimeout } from "./http.mjs";
 
 const BASE = (process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1").replace(/\/+$/, "");
 const QUOTA = /quota|arrearage|exceed|insufficient|throttl|rate.?limit|too many requests|allocated|free.?tier/i;
@@ -51,11 +52,12 @@ async function main() {
 
   let lastErr = "";
   for (const model of models) {
-    const res = await fetch(`${BASE}/chat/completions`, {
+    // The request carries a base64 PNG, so the upload leg is the slow one.
+    const res = await fetchWithTimeout(`${BASE}/chat/completions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model, messages: [{ role: "user", content }], temperature: 0.2, max_tokens: 4096 }),
-    });
+    }, 120_000);
     if (res.ok) {
       const json = await res.json();
       const text = json.choices?.[0]?.message?.content;

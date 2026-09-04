@@ -20,6 +20,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { dirname, resolve, basename } from "path";
+import { fetchWithTimeout } from "./http.mjs";
 
 const API_KEY = process.env.OPENAI_API_KEY;
 const BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
@@ -88,11 +89,12 @@ async function generate(args) {
   if (args.background) body.background = args.background; // transparent|opaque|auto
 
   process.stderr.write(`[openai] ${MODEL} generate ${body.size} quality=${body.quality}\n`);
-  const res = await fetch(`${BASE_URL}/images/generations`, {
+  // gpt-image renders synchronously and can genuinely take minutes at high quality.
+  const res = await fetchWithTimeout(`${BASE_URL}/images/generations`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${API_KEY}` },
     body: JSON.stringify(body),
-  });
+  }, 300_000);
   if (!res.ok) {
     const t = await res.text();
     fail({ error: `OpenAI API ${res.status}`, details: t.slice(0, 800), model: MODEL });
@@ -132,11 +134,11 @@ async function edit(args) {
   }
 
   process.stderr.write(`[openai] ${MODEL} edit (${images.length} input image(s))\n`);
-  const res = await fetch(`${BASE_URL}/images/edits`, {
+  const res = await fetchWithTimeout(`${BASE_URL}/images/edits`, {
     method: "POST",
     headers: { authorization: `Bearer ${API_KEY}` },
     body: form,
-  });
+  }, 300_000);
   if (!res.ok) {
     const t = await res.text();
     fail({ error: `OpenAI API ${res.status}`, details: t.slice(0, 800), model: MODEL });

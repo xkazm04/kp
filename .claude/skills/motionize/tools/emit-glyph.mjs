@@ -20,12 +20,34 @@
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const a = {};
   for (let i = 2; i < argv.length; i++) {
     if (argv[i].startsWith("--")) { const k = argv[i].slice(2), n = argv[i + 1]; if (n && !n.startsWith("--")) { a[k] = n; i++; } else a[k] = true; }
   }
   return a;
+}
+
+/**
+ * Parsed CLI args → the `svgToGlyphData` options, in ONE place.
+ *
+ * Three CLIs feed the same core (this one, `trace.mjs --emit`, `trace-set.mjs`)
+ * and each used to build this object by hand. `trace.mjs` silently dropped
+ * `--slab-min-area` that way — the flag the docstring advertises parsed fine and
+ * then went nowhere, so a one-pass trace could not tune the slab threshold at all.
+ * `overrides` is for the one option a caller genuinely resolves differently
+ * (trace-set picks `surfaceFill` per glyph key from a `key=#hex` map).
+ */
+export function glyphOptionsFromArgs(args, overrides = {}) {
+  const num = (k) => (args[k] === undefined || args[k] === true ? undefined : Number(args[k]));
+  return {
+    order: args.order,
+    whiteKeep: num("white-keep"),
+    surfaceFill: args["surface-fill"] || null,
+    surfaceTolerance: num("surface-tolerance"),
+    slabMinArea: num("slab-min-area") ?? null,
+    ...overrides,
+  };
 }
 const rgb = (hex) => { const m = /^#([0-9a-f]{6})$/i.exec(hex); if (!m) return null; const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 // "Light" = high luminance (catches white AND light lavender/panel highlights)
@@ -146,14 +168,7 @@ function main() {
   const args = parseArgs(process.argv);
   if (!args.input || !args.output || !args.name) { console.error("Usage: --input svg --output data.ts --name NAME"); process.exit(1); }
   const svg = readFileSync(args.input, "utf8");
-  const { ts, elements, dropped } = svgToGlyphData(svg, {
-    name: args.name,
-    order: args.order,
-    whiteKeep: args["white-keep"] ? Number(args["white-keep"]) : undefined,
-    surfaceFill: args["surface-fill"] || null,
-    surfaceTolerance: args["surface-tolerance"] ? Number(args["surface-tolerance"]) : undefined,
-    slabMinArea: args["slab-min-area"] ? Number(args["slab-min-area"]) : null,
-  });
+  const { ts, elements, dropped } = svgToGlyphData(svg, { name: args.name, ...glyphOptionsFromArgs(args) });
   const abs = resolve(args.output);
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, ts);
