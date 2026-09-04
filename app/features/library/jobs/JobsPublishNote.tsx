@@ -32,6 +32,8 @@ function useSentence(): (s: PublishSentence) => string {
         return t("publishSkipped", { count });
       case "silverMedalists":
         return t("publishSilver", { count });
+      case "silverMedalistsFailed":
+        return t("publishSilverFailed");
     }
   };
 }

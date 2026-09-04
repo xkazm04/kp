@@ -59,6 +59,8 @@ onboarding intake/signature tables where a pre-removal database still has
 them, and rediscovery-alert labels, all in one transaction),
 and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
 
+**Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
+
 **The erasure list is pinned to the tenancy manifest.** The full-scrub test used to
 assert that the tables it knew about were clean, and nothing asserted that the set of
 tables it knew about was the set of tables holding candidate data. So a new per-tenant

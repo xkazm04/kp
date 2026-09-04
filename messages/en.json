@@ -4736,7 +4736,8 @@
       "publishStopWaiting": "Stop waiting",
       "publishAbandoned": "Stopped waiting. The role may already be live, but the candidate sweep was cancelled. Reopen this role to check.",
       "publishLastResult": "Last publish",
-      "retry": "Retry"
+      "retry": "Retry",
+      "publishSilverFailed": "Rediscovery couldn't run for this role, so no past candidates were flagged. That is not the same as none qualifying."
     },
     "posting": {
       "copied": "Copied",
@@ -4883,7 +4884,8 @@
         "closed": "Reached the finish line on a role that closed under them. A proven, available candidate at a {score}% fit for {jobTitle}.",
         "elsewhere": "Already in motion on another role; also a {score}% fit for {jobTitle}. A redeploy worth weighing.",
         "reached": "Got as far as {stage} last time. Surfaced ahead of shallower priors."
-      }
+      },
+      "suppressed": "{count, plural, one {# past candidate was left out: their consent has lapsed or their data was erased.} other {# past candidates were left out: their consent has lapsed or their data was erased.}}"
     },
     "rediscoveryFeed": {
       "title": "Silver medalists",
@@ -4902,7 +4904,8 @@
       "loadFailed": "Couldn't load silver medalists.",
       "retry": "Retry",
       "dismissFailed": "Couldn't dismiss that match. It's back in the list.",
-      "addFailed": "Couldn't add to the pipeline."
+      "addFailed": "Couldn't add to the pipeline.",
+      "sweptIncomplete": "{count, plural, one {# role couldn't be ranked, so this list is incomplete.} other {# roles couldn't be ranked, so this list is incomplete.}}"
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",

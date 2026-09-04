@@ -4736,7 +4736,8 @@
       "publishStopWaiting": "Nicht weiter warten",
       "publishAbandoned": "Warten beendet. Die Stelle ist wahrscheinlich bereits live, die Kandidatensuche wurde jedoch abgebrochen. Öffnen Sie die Stelle erneut, um nachzusehen.",
       "publishLastResult": "Letzte Veröffentlichung",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "publishSilverFailed": "Die Wiederentdeckung konnte für diese Stelle nicht ausgeführt werden, deshalb wurde niemand markiert. Das heißt nicht, dass niemand passt."
     },
     "posting": {
       "copied": "Kopiert",
@@ -4883,7 +4884,8 @@
         "closed": "Erreichte die Zielgerade einer Stelle, die dann geschlossen wurde. Ein/e bewährte/r, verfügbare/r Kandidat/in mit {score}% Eignung für {jobTitle}.",
         "elsewhere": "Bereits für eine andere Stelle im Prozess; zugleich {score}% Eignung für {jobTitle}. Eine Umbesetzung, die eine Überlegung wert ist.",
         "reached": "Kam letztes Mal bis {stage}. Wird vor flacheren früheren Verläufen einsortiert."
-      }
+      },
+      "suppressed": "{count, plural, one {# frühere Person wurde ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.} other {# frühere Personen wurden ausgelassen: Einwilligung abgelaufen oder Daten gelöscht.}}"
     },
     "rediscoveryFeed": {
       "title": "Zweitplatzierte",
@@ -4902,7 +4904,8 @@
       "loadFailed": "Silbermedaillisten konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "dismissFailed": "Der Treffer konnte nicht entfernt werden. Er steht wieder in der Liste.",
-      "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden."
+      "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden.",
+      "sweptIncomplete": "{count, plural, one {# Stelle konnte nicht bewertet werden, diese Liste ist daher unvollständig.} other {# Stellen konnten nicht bewertet werden, diese Liste ist daher unvollständig.}}"
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",

@@ -69,3 +69,35 @@ test("the last result outlives the modal that produced it, per job", () => {
   assert.deepEqual(lastPublishResult("jd-fe"), { alreadyPublished: true });
   assert.equal(lastPublishResult("jd-unknown"), null);
 });
+
+test("THE FIX: a BROKEN rediscovery raise is not the silence of a clean zero", () => {
+  // raiseRediscoveryAlertsForJob used to swallow a dead ranker into `0`, and the
+  // note simply printed no rediscovery line at all — pixel-identical to a go-live
+  // that ranked the whole pool and flagged nobody. The recruiter read a complete,
+  // green success over a step that never ran.
+  const brokenIn = { sourced: 2, silverMedalists: 0, silverMedalistsFailed: true };
+  const cleanIn = { sourced: 2, silverMedalists: 0 };
+  assert.notDeepEqual(
+    publishNoteSentences(brokenIn).sentences,
+    publishNoteSentences(cleanIn).sentences,
+    "the two must never render identically"
+  );
+  assert.deepEqual(keys(brokenIn), ["wentLive", "sourced", "silverMedalistsFailed"]);
+  assert.equal(publishNoteSentences(brokenIn).tone, "warn", "the role is live, but something it promised did not happen");
+  assert.deepEqual(keys(cleanIn), ["wentLive", "sourced"]);
+  assert.equal(publishNoteSentences(cleanIn).tone, "ok");
+});
+
+test("a failed raise REPLACES the count — a number from a step that never ran is noise", () => {
+  const input = { sourced: 1, silverMedalists: 4, silverMedalistsFailed: true };
+  assert.equal(keys(input).includes("silverMedalists"), false, "no count line survives alongside the failure");
+  assert.deepEqual(keys(input), ["wentLive", "sourced", "silverMedalistsFailed"]);
+});
+
+test("sourcing failure still wins the note — it precedes the raise entirely", () => {
+  // sourcingWarning returns early, so a publish that broke at sourcing never even
+  // reaches the rediscovery line. Pinned so the new branch cannot reorder it.
+  const input = { sourcingWarning: "boom", silverMedalistsFailed: true };
+  assert.deepEqual(keys(input), ["wentLive", "sourcingFailed"]);
+  assert.equal(publishNoteSentences(input).tone, "warn");
+});
