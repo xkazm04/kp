@@ -7584,7 +7584,6 @@
     "previewName": "Ihre Marke",
     "previewButton": "Primäre Aktion",
     "previewBadge": "Badge",
-    "previewLink": "Ein <a>hervorgehobener Link</a> in Ihrer Akzentfarbe.",
     "accentContrastDark": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Genug aufgehellt, um auf dunklem Grund zu lesen, wäre es eine andere Farbe, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
     "previewBothThemes": "Ihr Akzent in beiden Themes. Der Spark-Dark-Wert wird aus dem eingegebenen abgeleitet.",
     "previewThemeLight": "Studio Light",
@@ -7962,7 +7961,8 @@
         "steel": "Stahlblau",
         "ink": "Tinte",
         "custom": "Eigene",
-        "illegible": "Diese Farbe ist für Buttons und Fokusringe zu hell. Wählen Sie eine dunklere."
+        "illegible": "Diese Farbe ist für Buttons und Fokusringe zu hell. Wählen Sie eine dunklere.",
+        "illegibleDark": "Diese Farbe hat keine lesbare Spark-Dark-Variante. Wählen Sie einen helleren oder kräftigeren Ton."
       },
       "logoLabel": "Logo-URL",
       "logoInvalid": "Geben Sie eine https://-Bild-URL ein."
@@ -8091,7 +8091,8 @@
         "orgName": "Firmenname",
         "language": "App-Sprache",
         "invites": "Team-Einladungen",
-        "pipeline": "Board-Spalten"
+        "pipeline": "Board-Spalten",
+        "brand": "Markenfarbe und Logo"
       },
       "reasonUnknown": "konnte nicht gespeichert werden. Sie können das in den Einstellungen nachholen.",
       "line": "{part}: {reason}",

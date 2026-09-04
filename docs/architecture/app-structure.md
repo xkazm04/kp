@@ -632,7 +632,7 @@ rail carries the brand, the stepper and the language switch:
 | Step | Asks for | Persisted by `finish()` |
 | --- | --- | --- |
 | Welcome | nothing (the pitch) | — |
-| Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` |
+| Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` (reported, see below) |
 | Team | invites (optional) | `POST /api/org/invites` per row |
 | Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
 | Hand-off | how to begin (tour / solo) | stamps `POST /api/me/onboarding` |
@@ -674,6 +674,22 @@ identity on every generated JD, offer and candidate mail. Invite results carry t
 refused. The Team step keeps the first half of that bargain by refusing to stage
 an address the route would reject at all (`SetupInviteEditor.tsx`), so the common
 mistake is caught where it is made rather than four steps later.
+
+`brand` is the fifth part, and it is in the fold for the REFUSAL only. The accent
+and the logo are decoration the operator can redo in Settings in one click, so a
+brand that lands says nothing in the closing sentence — but `PUT /api/brand`
+refuses an accent it cannot paint legibly in **both** themes
+(`BRAND_ACCENT_ILLEGIBLE_LIGHT` / `BRAND_ACCENT_ILLEGIBLE_DARK`) or a logo URL it
+cannot store (`BRAND_LOGO_INVALID`), and `persistSetupBrand()` used to fire that
+write and discard the response under a comment reading "brand is a nice-to-have".
+That was true of a failure and false of a refusal: the wizard closed green over a
+brand the server had never stored, and the operator's next clue was the app still
+wearing the default color. A network fault reports the same way, with a null code,
+because nothing was stored then either. The Company step keeps its half of the
+bargain the way the Team step does — its custom-color picker asks
+`accentIsLegible(hex, "light")` **and** `deriveDarkAccent(hex)` before accepting a
+pick, so the two-theme rule is enforced where the color is chosen rather than four
+steps later (docs/design/README.md, "The custom accent, in both themes").
 
 **The wizard survives a reload** (`setupDraft.ts` + `useSetupDraft.ts`, live mode
 only). Answers are mirrored into `sessionStorage` under a key scoped to the

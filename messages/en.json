@@ -7584,7 +7584,6 @@
     "previewName": "Your brand",
     "previewButton": "Primary action",
     "previewBadge": "Badge",
-    "previewLink": "A <a>highlighted link</a> in your accent.",
     "accentContrastDark": "That accent has no readable Spark Dark version. Lifting it enough to read on the dark canvas would make it a different color, so pick a brighter or more saturated one.",
     "previewBothThemes": "Your accent in both themes. The Spark Dark value is derived from the one you type.",
     "previewThemeLight": "Studio Light",
@@ -7962,7 +7961,8 @@
         "steel": "Steel blue",
         "ink": "Ink",
         "custom": "Custom",
-        "illegible": "That color is too light for buttons and focus rings. Pick a darker one."
+        "illegible": "That color is too light for buttons and focus rings. Pick a darker one.",
+        "illegibleDark": "That color has no readable Spark Dark version. Pick a brighter or more saturated one."
       },
       "logoLabel": "Logo URL",
       "logoInvalid": "Enter an https:// image URL."
@@ -8091,7 +8091,8 @@
         "orgName": "Company name",
         "language": "App language",
         "invites": "Teammate invites",
-        "pipeline": "Board columns"
+        "pipeline": "Board columns",
+        "brand": "Brand color and logo"
       },
       "reasonUnknown": "it couldn’t be saved. You can finish it in Settings.",
       "line": "{part}: {reason}",

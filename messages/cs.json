@@ -7584,7 +7584,6 @@
     "previewName": "Vaše značka",
     "previewButton": "Hlavní akce",
     "previewBadge": "Odznak",
-    "previewLink": "<a>Zvýrazněný odkaz</a> ve vaší akcentní barvě.",
     "accentContrastDark": "Tento akcent nemá čitelnou variantu pro Spark Dark. Zesvětlení potřebné pro tmavé pozadí by z něj udělalo jinou barvu, zvolte proto jasnější nebo sytější odstín.",
     "previewBothThemes": "Váš akcent v obou vzhledech. Hodnota pro Spark Dark se odvozuje z té, kterou zadáte.",
     "previewThemeLight": "Studio Light",
@@ -7962,7 +7961,8 @@
         "steel": "Ocelová modrá",
         "ink": "Inkoustová",
         "custom": "Vlastní",
-        "illegible": "Tato barva je pro tlačítka a zvýraznění příliš světlá. Zvolte tmavší."
+        "illegible": "Tato barva je pro tlačítka a zvýraznění příliš světlá. Zvolte tmavší.",
+        "illegibleDark": "Tato barva nemá čitelnou variantu pro Spark Dark. Zvolte jasnější nebo sytější odstín."
       },
       "logoLabel": "URL loga",
       "logoInvalid": "Zadejte adresu obrázku začínající https://."
@@ -8091,7 +8091,8 @@
         "orgName": "Název firmy",
         "language": "Jazyk aplikace",
         "invites": "Pozvánky pro kolegy",
-        "pipeline": "Sloupce nástěnky"
+        "pipeline": "Sloupce nástěnky",
+        "brand": "Barva značky a logo"
       },
       "reasonUnknown": "nepodařilo se uložit. Dokončit to můžete v Nastavení.",
       "line": "{part}: {reason}",
