@@ -144,14 +144,26 @@ callers need one, give them the code and let them resolve it.
   (`errors`, plus `results.github.errors` — see below). Adding a namespace there
   widens what counts as localized, so it is a deliberate act.
 
-- **Archetype labels** — the same contract in a different namespace. The
-  recruiter surfaces render an archetype through `enums.archetype.<id>`, and
-  `useEnumLabel` falls back to `labelize(id)` — English, silently — for a
-  missing entry. The gate reads the shared registry
-  (`pipeline/jobfit/archetypes.json`, the id vocabulary for both languages) and
-  requires a label for every archetype plus the `unrouted` fail-closed display
-  key. This replaced `ARCHETYPE_BADGE`, a raw-English export two recruiter cards
-  still rendered directly.
+- **Archetype labels** — the same contract in a different namespace, and the
+  reason two raw-English exports are gone. `ARCHETYPE_BADGE` (rendered by two
+  recruiter cards) and `ARCHETYPE_LABEL` (rendered by the analysis banner) were
+  `Record<id, string>` maps of the shared registry's English that read like
+  localized lookups. Every archetype is now shown through `useEnumLabel`, which
+  falls back to `labelize(id)` — English, silently — for a missing entry, so the
+  gate reads the registry (`pipeline/jobfit/archetypes.json`, the id vocabulary
+  for both languages) and requires a label in **two** namespaces for every
+  archetype plus the `unrouted` fail-closed display key:
+
+  | Namespace | Form | Rendered by |
+  | --- | --- | --- |
+  | `enums.archetype.<id>` | compact badge (`Switcher`) | dense recruiter lists |
+  | `enums.archetypeLong.<id>` | full label (`Career-switcher`) | the analysis banner |
+
+  The registry's `label` / `badge` columns stay the vocabulary; the words live in
+  the catalogs. Python is unaffected — it reads `pythonLabel`. A new archetype
+  therefore arrives with eight catalog entries, and `ARCHETYPE_LABEL` is no
+  longer re-exported from `matchTypes` / `profileTypes`: a barrel handing feature
+  code the raw map is how this reached three surfaces.
 
 `ERROR_LEAK_ALLOW` in the script lists the verified exceptions. Two kinds
 qualify, and both are commented at the entry:

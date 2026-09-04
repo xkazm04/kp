@@ -560,13 +560,26 @@ for (const file of sourceFiles(join(REPO_ROOT, "app"))) {
   }
 }
 
-// The archetype vocabulary is the same contract in a different namespace. The
-// recruiter surfaces render an archetype through `enums.archetype.<id>` (wave 37
-// deleted ARCHETYPE_BADGE, the raw-English export two of those cards still used),
-// and useEnumLabel falls back to labelize(id) for a missing entry — English, silently.
+// The archetype vocabulary is the same contract in a different namespace. Wave 37
+// deleted BOTH raw-English exports the recruiter surfaces rendered — ARCHETYPE_BADGE
+// (two candidate cards) and ARCHETYPE_LABEL's use in the analysis banner — so every
+// archetype is now shown through useEnumLabel, which falls back to labelize(id) for a
+// missing entry: English, silently, in all four locales.
+//
+// TWO label sets, because the registry always had two columns and they are not
+// interchangeable. Both are keyed by the same ids:
+//   enums.archetype.<id>     — the compact BADGE form, for dense recruiter lists
+//                              ("Student", "Switcher")
+//   enums.archetypeLong.<id> — the full label, for a surface with room for it
+//                              ("Student / early-career")
 // The shared registry is the id vocabulary for BOTH languages, so a new archetype
-// must arrive with its four labels. `unrouted` is not in the registry: it is the
-// fail-closed display key archetypeDisplayKey stamps for anything unrecognized.
+// must arrive with eight entries. `unrouted` is not in the registry: it is the
+// fail-closed display key archetypeDisplayKey stamps for anything unrecognized, and
+// it is exactly the value a reader sees when routing failed, so it is not optional.
+const ARCHETYPE_LABEL_NAMESPACES = [
+  ["enums.archetype", "the compact badge form the recruiter lists render"],
+  ["enums.archetypeLong", "the full label the analysis banner renders"]
+];
 const archetypeRegistryPath = join(REPO_ROOT, "pipeline", "jobfit", "archetypes.json");
 if (!existsSync(archetypeRegistryPath)) {
   problems.push(
@@ -575,12 +588,17 @@ if (!existsSync(archetypeRegistryPath)) {
   );
 } else {
   const registryIds = JSON.parse(readFileSync(archetypeRegistryPath, "utf8")).archetypes.map((a) => a.id);
+  if (!registryIds.length) {
+    problems.push(`pipeline/jobfit/archetypes.json parsed to zero archetypes (did its shape change?)`);
+  }
   for (const id of [...registryIds, "unrouted"]) {
-    if (!baseKeys.includes(`enums.archetype.${id}`)) {
-      problems.push(
-        `archetype \`${id}\` has no \`enums.archetype.${id}\` label in messages/${DEFAULT_LOCALE}.json — ` +
-          `add it (in all 4 catalogs) so the recruiter surfaces show a localized badge instead of labelize("${id}")`
-      );
+    for (const [ns, what] of ARCHETYPE_LABEL_NAMESPACES) {
+      if (!baseKeys.includes(`${ns}.${id}`)) {
+        problems.push(
+          `archetype \`${id}\` has no \`${ns}.${id}\` label in messages/${DEFAULT_LOCALE}.json (${what}) — ` +
+            `add it (in all 4 catalogs) so the surface shows a localized label instead of labelize("${id}")`
+        );
+      }
     }
   }
 }

@@ -2445,6 +2445,12 @@
       "career_switcher": "Switcher",
       "unrouted": "Unrouted"
     },
+    "archetypeLong": {
+      "bau": "Experienced",
+      "student": "Student / early-career",
+      "career_switcher": "Career-switcher",
+      "unrouted": "Not yet routed"
+    },
     "seniority": {
       "junior": "Junior",
       "medior": "Medior",

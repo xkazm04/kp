@@ -2445,6 +2445,12 @@
       "career_switcher": "Reconverti",
       "unrouted": "Non orienté"
     },
+    "archetypeLong": {
+      "bau": "Profil expérimenté",
+      "student": "Étudiant / début de carrière",
+      "career_switcher": "En reconversion",
+      "unrouted": "Pas encore orienté"
+    },
     "seniority": {
       "junior": "Junior",
       "medior": "Confirmé",

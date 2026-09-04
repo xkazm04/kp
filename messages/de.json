@@ -2445,6 +2445,12 @@
       "career_switcher": "Quereinsteiger",
       "unrouted": "Nicht zugeordnet"
     },
+    "archetypeLong": {
+      "bau": "Berufserfahren",
+      "student": "Studium / Berufseinstieg",
+      "career_switcher": "Quereinsteiger",
+      "unrouted": "Noch nicht zugeordnet"
+    },
     "seniority": {
       "junior": "Junior",
       "medior": "Medior",

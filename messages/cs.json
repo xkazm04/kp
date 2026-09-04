@@ -2445,6 +2445,12 @@
       "career_switcher": "Změna oboru",
       "unrouted": "Nezařazeno"
     },
+    "archetypeLong": {
+      "bau": "Zkušený profesionál",
+      "student": "Student / začátečník",
+      "career_switcher": "Změna oboru",
+      "unrouted": "Zatím nezařazeno"
+    },
     "seniority": {
       "junior": "Junior",
       "medior": "Medior",
