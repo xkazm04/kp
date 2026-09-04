@@ -8,7 +8,7 @@
 
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 import type { BadgeTone } from "@/app/_components/Badge";
-import { commsVerdict } from "@/app/_lib/comms-view";
+import { commsVerdict, isReceiptRecipient, isReceiptSubject } from "@/app/_lib/comms-view";
 import { labelize } from "@/app/_lib/format";
 
 export type Message = {
@@ -82,6 +82,26 @@ export function statusTone(m: Message, labels: StatusLabels): { tone: BadgeTone;
       return { tone: "neutral", label: labelize(m.status) };
   }
 }
+
+// A delivery-receipt row carries CODES where a message carries a subject and a
+// recipient (comms-view.ts RECEIPT_*_CODE): it is written by a relay callback that has
+// no reader and no request locale, so the ledger stores what the row IS and this
+// surface says it in the reader's language. Legacy rows — written before the codes,
+// carrying the English literals — resolve through the same predicates, so the table
+// has no line of untranslated English left in it.
+export type ReceiptLabels = { subject: string; recipient: string };
+
+export function commsReceiptLabels(t: (key: "receiptSubject" | "receiptRecipient") => string): ReceiptLabels {
+  return { subject: t("receiptSubject"), recipient: t("receiptRecipient") };
+}
+
+/** The subject to SHOW for a row — the stored one, or the localized receipt label. */
+export const displaySubject = (m: Message, labels: ReceiptLabels): string | null =>
+  isReceiptSubject(m.subject) ? labels.subject : m.subject;
+
+/** …and the recipient, for the name column, the search index and the modal subtitle. */
+export const displayRecipient = (m: Message, labels: ReceiptLabels): string | null =>
+  isReceiptRecipient(m.recipient) ? labels.recipient : m.recipient;
 
 // RECORDED, not "Sent". The header said Sent over EVERY row — including the queued
 // ones nothing will deliver and the failed ones that never left — and rendered a bare

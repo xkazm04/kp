@@ -5460,7 +5460,9 @@
       "statusFailed": "Échec",
       "statusRecovered": "Rattrapé",
       "statusBounced": "Non distribué",
-      "resendRecovered": "Déjà en cours de remise. Ce message est en route."
+      "resendRecovered": "Déjà en cours de remise. Ce message est en route.",
+      "receiptSubject": "Accusé de livraison",
+      "receiptRecipient": "Retour du relais"
     },
     "eyebrow": "Studio des entrées",
     "title": "Par où les candidats arrivent",

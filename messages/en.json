@@ -5460,7 +5460,9 @@
       "statusFailed": "Failed",
       "statusRecovered": "Recovered",
       "statusBounced": "Bounced",
-      "resendRecovered": "Already being delivered. This message is on its way."
+      "resendRecovered": "Already being delivered. This message is on its way.",
+      "receiptSubject": "Delivery receipt",
+      "receiptRecipient": "Relay callback"
     },
     "eyebrow": "Inbound studio",
     "title": "Where candidates come in",

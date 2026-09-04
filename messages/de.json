@@ -5460,7 +5460,9 @@
       "statusFailed": "Fehlgeschlagen",
       "statusRecovered": "Behoben",
       "statusBounced": "Unzustellbar",
-      "resendRecovered": "Wird bereits zugestellt. Diese Nachricht ist unterwegs."
+      "resendRecovered": "Wird bereits zugestellt. Diese Nachricht ist unterwegs.",
+      "receiptSubject": "Zustellbestätigung",
+      "receiptRecipient": "Relay-Rückmeldung"
     },
     "eyebrow": "Eingangsstudio",
     "title": "Wo Kandidat/innen hereinkommen",

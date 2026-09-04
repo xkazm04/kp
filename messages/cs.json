@@ -5460,7 +5460,9 @@
       "statusFailed": "Selhalo",
       "statusRecovered": "Napraveno",
       "statusBounced": "Nedoručeno",
-      "resendRecovered": "Už se doručuje. Tato zpráva je na cestě."
+      "resendRecovered": "Už se doručuje. Tato zpráva je na cestě.",
+      "receiptSubject": "Potvrzení o doručení",
+      "receiptRecipient": "Hlášení od relay"
     },
     "eyebrow": "Studio příjmu",
     "title": "Kudy kandidáti přicházejí",
