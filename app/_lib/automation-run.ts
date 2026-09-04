@@ -8,6 +8,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
+import { listLlmConfig } from "./db/llm";
 import {
   computeAutomationCacheKey,
   computeCorpusFingerprint,
@@ -100,16 +101,106 @@ const TTL_HOURS = 168;
 // so an in-process guard suffices; on send failure the entry is released so a retry works.
 const outreachInFlight = new Set<string>();
 
+// The refusals THIS module decides, as machine tokens. A route answers each with
+// its own `jsonRefusal` code, in the reader's language; everything else that
+// reaches the catch is a spawned-engine failure whose message carries internal
+// detail (Python tracebacks, the workdir path, provider stderr) and must be
+// answered with a STORE code instead. Without this split the two were
+// indistinguishable at the boundary — both arrived as `AutomationError` and both
+// had their raw `.message` forwarded.
+export const AUTOMATION_REFUSALS = ["unknown_task", "entry_not_found", "entry_has_no_profile"] as const;
+export type AutomationRefusal = (typeof AUTOMATION_REFUSALS)[number];
+
 export class AutomationError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Present ONLY on this module's own refusals (see AUTOMATION_REFUSALS). An
+   *  engine failure carries none — that is how a route tells "you asked for
+   *  something that isn't there" from "the pipeline broke". */
+  refusal?: AutomationRefusal;
+  constructor(message: string, status: number, refusal?: AutomationRefusal) {
     super(message);
     this.status = status;
+    this.refusal = refusal;
   }
 }
 
 export type AutomationResult = { result: Record<string, unknown>; source: string; applied: string };
 type CliPayload = { result: Record<string, unknown>; source: string };
+
+// ---- Verdict provenance (llm vs template) -----------------------------------
+//
+// The CLI already tells us which engine actually answered: `source` is "llm" only
+// when the model's payload survived coercion, and "deterministic" for every
+// degrade — keyless install, unmetered workspace (`--no-llm`), a failed call, or a
+// payload coercion discarded (pipeline/jobfit/automation.py `_generate`). The
+// cache key splits on it too (`degraded` axis, automation-cache-key.ts), so the
+// two outputs never share an entry.
+//
+// It was returned to the caller and then DROPPED: `setApproval` persisted the bare
+// result, so the review card in Decisions rendered a deterministic template's
+// verdict in exactly the grammar it renders a model's. A recruiter ratifying an
+// "AI review" deserves to know when no AI was involved — the same disclosure rule
+// the analysis report's EngineNote already applies to machine prose.
+//
+// FIELD NAME. The obvious `source` is TAKEN on this payload: Scorecard.source is
+// "ai" | "human" (who CONDUCTED the interview — app/_lib/interview-scorecard.ts),
+// read by the review card's `isHumanScorecard`. Two different questions, so two
+// different fields: `verdictSource` is which ENGINE produced the verdict.
+export const VERDICT_SOURCES = ["llm", "template"] as const;
+export type VerdictSource = (typeof VERDICT_SOURCES)[number];
+
+/** Persisted beside every approval payload this module writes. `provider` is the
+ *  configured routing target for the `automation` use case — null on a template
+ *  verdict, where no provider was asked. */
+export type VerdictProvenance = { verdictSource: VerdictSource; verdictProvider: string | null };
+
+/** The CLI's `source` word, read as an engine. Anything that is not literally
+ *  "llm" is a template serve — "deterministic" today, and any future degrade word
+ *  fails to the honest side rather than claiming the model answered. */
+export function verdictSourceOf(source: string): VerdictSource {
+  return source === "llm" ? "llm" : "template";
+}
+
+/** The provider the `automation` use case routes to, for the disclosure line. Read
+ *  from the SAME config buildLlmConfigEnv serializes into KP_LLM_CONFIG, so the
+ *  label names the engine the spawn was actually pointed at. An unconfigured
+ *  install falls through to the Claude CLI (buildLlmConfigEnv returns `{}` and
+ *  Python defaults to it), which is what the label then says. Never throws — a
+ *  provenance label must not be able to fail a drafting run. */
+export function automationProviderLabel(): string | null {
+  try {
+    const rows = listLlmConfig();
+    const row = rows.find((r) => r.useCase === "automation") ?? rows.find((r) => r.useCase === "*");
+    return row?.provider ?? "claude_cli";
+  } catch {
+    // best-effort: the disclosure degrades to "engine not named", never to a failed draft.
+    return null;
+  }
+}
+
+// ---- Structured event/result reasons ----------------------------------------
+//
+// The three places this module used to hand a reader a hard-coded ENGLISH sentence.
+// Same split automation-pass.ts already runs (`reasonCode` + `reasonParams` beside a
+// canonical English `reason`): a machine token the UI resolves in the reader's
+// language, with the legacy prose still rendering for rows written before the codes
+// existed.
+//
+//   • `offerAutoExtended`  — the offer_auto_extended pipeline event's detail.
+//   • `rematchSkippedHired` — the rematch result's `reason`, painted verbatim by
+//     PipelineCandidateResultView.
+//   • the auto-ratify seal's `reasonCode` (below, at the seal itself) — resolved by
+//     waveReasonText through `decisions.wave.reasons.*` like every other sealed reason.
+export const AUTOMATION_REASON_CODES = ["offerAutoExtended", "rematchSkippedHired"] as const;
+export type AutomationReasonCode = (typeof AUTOMATION_REASON_CODES)[number];
+/** Wire prefix for a coded event detail. Parsed by the event-detail renderer
+ *  (pipelineEventCatalog.ts `useEventVerb`), which cannot import this module — it
+ *  is a client component and this file opens SQLite. Pinned from both sides by
+ *  automation-run.test.ts. */
+export const AUTOMATION_REASON_PREFIX = "reason:";
+export function automationReasonDetail(code: AutomationReasonCode): string {
+  return `${AUTOMATION_REASON_PREFIX}${code}`;
+}
 
 // Read the model's recommendation at the TS parse boundary, validated against the
 // canonical advance|hold|reject contract. A present-but-off-taxonomy value (model
@@ -136,16 +227,16 @@ export async function runAutomationTask(
   lang?: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
 ): Promise<AutomationResult> {
-  if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
+  if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404, "unknown_task");
   // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
   // (passed by the batch sweep as entry.workspaceId, or by the route as currentWorkspace()).
   // The recordAutomationEvent calls' EVENTS auto-derive their tenant from the entry, so they
   // stay correct regardless; threading workspaceId keeps their label/title enrichment right.
   const entry = getPipelineEntry(entryId, workspaceId);
-  if (!entry) throw new AutomationError("entry not found", 404);
-  if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400);
+  if (!entry) throw new AutomationError("entry not found", 404, "entry_not_found");
+  if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400, "entry_has_no_profile");
   const rec = getProfileRecord(entry.candidateId, workspaceId);
-  if (!rec) throw new AutomationError("candidate profile not found", 400);
+  if (!rec) throw new AutomationError("candidate profile not found", 400, "entry_has_no_profile");
 
   // Rematch REDIRECTS a candidate to a better-fit role and closes out their current
   // entry (idea-9ad8a777). A Hired candidate is placed — never redirect them, and
@@ -155,7 +246,14 @@ export async function runAutomationTask(
   // background-task path.) Resolved by ROLE, not the literal "Hired": a workspace
   // that renamed its final column must not start re-matching its placed hires.
   if (task === "rematch" && stageHasRole(entry.stage, "terminal", getPipelineAxis(workspaceId).stages)) {
-    return { result: { found: false, reason: "candidate is hired; rematch skipped" }, source: "skipped", applied: "skipped_hired" };
+    return {
+      // `reason` stays the canonical English (older clients paint it verbatim);
+      // `reasonCode` is the structured mirror PipelineCandidateResultView resolves
+      // through `pipeline.result.reasons.*` in the reader's language.
+      result: { found: false, reason: "candidate is hired; rematch skipped", reasonCode: "rematchSkippedHired" },
+      source: "skipped",
+      applied: "skipped_hired",
+    };
   }
 
   const version = AUTOMATION_VERSION[task];
@@ -192,7 +290,16 @@ export async function runAutomationTask(
   // Letter tasks render in the entry's resolved comms locale (pa-l2-null-locale):
   // resolved HERE — not left to the CV-language guess inside Python — so the
   // letter provably matches the locale comms-dispatch wraps it in.
-  const letterLang = LETTER_TASKS.has(task) ? resolveCommsLocale(entry.locale) : undefined;
+  // …resolved in the ENTRY'S OWN TEAM (lib-comms-11: the last untenanted letter-locale
+  // site). resolveCommsLocale falls back to a WORKSPACE default_locale for a NULL-locale
+  // candidate, and an omitted id reads the DEFAULT workspace's — so a legacy-locale
+  // candidate filed into a team that set its own language got the letter BODY drafted in
+  // the default team's language while comms-dispatch wrapped it in their own team's
+  // chrome. `entry.workspaceId` is the row's OWN tenant (rowToEntry always carries it,
+  // defaulting a legacy NULL column to the default team) — the same value
+  // comms-dispatch.candidateLocale threads, so the drafted body and the dispatched
+  // wrapper now resolve their language from one authority.
+  const letterLang = LETTER_TASKS.has(task) ? resolveCommsLocale(entry.locale, entry.workspaceId) : undefined;
   // Recruiter-narrative tasks (prep/screen/scorecard) render in the caller's UI
   // locale when it passed one (getServerLocale, request scope), else the org's
   // configured language (the workspace default) — so a background pass localizes
@@ -200,7 +307,14 @@ export async function runAutomationTask(
   const uiLang: Locale | undefined = UI_LANG_TASKS.has(task)
     ? isLocale(lang)
       ? lang
-      : getWorkspaceDefaultLocale()
+      // …the ENTRY'S OWN team's default, not a fixed tenant's. A bare
+      // getWorkspaceDefaultLocale() read the DEFAULT workspace, so a background pass
+      // over a team that set its own language wrote that team's screening rationale,
+      // interview prep and scorecard summary in the default team's language — the same
+      // untenanted defect the letter locale had one line below. The resolved locale is
+      // a cache-key axis, so non-default teams re-key and their wrongly-shared entries
+      // self-invalidate; the default team's keys are byte-identical.
+      : getWorkspaceDefaultLocale(entry.workspaceId)
     : undefined;
   // Billing degrade, resolved BEFORE the key (not at spawn time): past the
   // ai_candidates allowance the run spends the deterministic templates
@@ -290,6 +404,20 @@ export async function runAutomationTask(
   }
 
   const result = payload.result;
+  // WHICH ENGINE ANSWERED, carried onto everything this run persists. Computed once
+  // from the CLI's own word (a cache HIT keeps the source it was stored with, which is
+  // why the degrade is a cache-key axis), then stamped on (a) every approval payload, so
+  // the Decisions review card can disclose a template verdict, and (b) every automation
+  // event's ACTOR — the structured "who acted" column the decision log already parses
+  // ("auto:<engine>"), rather than the parsed `detail`, which several kinds own.
+  const verdictSource = verdictSourceOf(payload.source);
+  const verdictProvider = verdictSource === "llm" ? automationProviderLabel() : null;
+  const provenance: VerdictProvenance = { verdictSource, verdictProvider };
+  const engineActor = `auto:automation-${verdictSource}`;
+  /** The approval payload the recruiter's card reads: the model's/template's result
+   *  plus the provenance. Spread order is deliberate — provenance is written by THIS
+   *  module and must not be shadowed by a same-named key coming out of Python. */
+  const approvalDetail = (): string => JSON.stringify({ ...result, ...provenance });
   let applied = "drafted";
 
   if (task === "screen") {
@@ -317,8 +445,8 @@ export async function runAutomationTask(
       }
     }
     if (holdForReview) {
-      setApproval(entry.id, "screening_review", JSON.stringify(result), workspaceId);
-      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId);
+      setApproval(entry.id, "screening_review", approvalDetail(), workspaceId);
+      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId, engineActor);
       // interviewPlan screeningGate="auto" — the workspace chose to trust the
       // AI's ADVANCE verdicts: a review parked only for confidence (recommendation
       // advance, route hold) is ratified unattended through the SAME accept
@@ -343,7 +471,12 @@ export async function runAutomationTask(
             policyVersion: "interview-plan",
             candidateRef: entry.id,
             rationale: "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
-            reasonCode: "accept",
+            // Resolved through `decisions.wave.reasons.*` by waveReasonText, the ONE
+            // sealed-reason resolver the records panel + decision log share — so this
+            // rationale reads in the auditor's language instead of falling back to the
+            // byte-stable English. A dedicated code, not the generic "accept" a human
+            // acceptance seals: the two are different decisions with different readers.
+            reasonCode: "autoRatifiedScreening",
             inputs: { fromStage: entry.stage, approvalKind: "screening_review" },
           });
           applied = "auto_ratified";
@@ -352,12 +485,12 @@ export async function runAutomationTask(
     }
     if (applied !== "auto_ratified") applied = screenApplied;
   } else if (task === "scorecard") {
-    setApproval(entry.id, "scorecard_review", JSON.stringify(result), workspaceId);
-    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId);
+    setApproval(entry.id, "scorecard_review", approvalDetail(), workspaceId);
+    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId, engineActor);
     applied = "scorecard_ready";
   } else if (task === "offer") {
-    setApproval(entry.id, "offer_review", JSON.stringify(result), workspaceId);
-    recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId);
+    setApproval(entry.id, "offer_review", approvalDetail(), workspaceId);
+    recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId, engineActor);
     applied = "offer_ready";
     // interviewPlan offerGate="auto" — extend the freshly-drafted offer to the
     // candidate unattended, through the SAME extend path a recruiter's approval
@@ -374,7 +507,7 @@ export async function runAutomationTask(
       if (fresh && fresh.approvalKind === "offer_review") {
         try {
           await extendDraftedOffer(fresh, workspaceId, "", null, "auto:interview-plan");
-          recordAutomationEvent(entry.id, "offer_auto_extended", "Offer extended unattended per the hiring plan (offer gate: auto).", workspaceId);
+          recordAutomationEvent(entry.id, "offer_auto_extended", automationReasonDetail("offerAutoExtended"), workspaceId, engineActor);
           applied = "offer_sent";
         } catch (error) {
           // The draft is parked at offer_review as if the gate were human — an
@@ -458,7 +591,7 @@ export async function runAutomationTask(
       }
     }
   } else {
-    recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "", workspaceId);
+    recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "", workspaceId, engineActor);
     applied = "drafted";
   }
 

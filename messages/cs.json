@@ -1311,7 +1311,8 @@
     "no": "Ne",
     "close": "Zavřít",
     "scanningCv": "Probíhá analýza CV",
-    "formatting": "Formátování"
+    "formatting": "Formátování",
+    "salesEnquirySubject": "Poptávka plánu Enterprise"
   },
   "aiDisclosure": {
     "title": "Jak to funguje",
@@ -1710,7 +1711,13 @@
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Tento akcent nemá čitelnou variantu pro Spark Dark. Je příliš tmavý na to, aby se dal zesvětlit bez změny barvy, zvolte proto jasnější nebo sytější odstín.",
     "BRAND_LOGO_INVALID": "Odkaz na logo musí být URL začínající https:// a dostatečně krátká na uložení.",
     "BRAND_LOAD_FAILED": "Branding se nepodařilo načíst. Zkuste to prosím znovu.",
-    "BRAND_SAVE_FAILED": "Branding se nepodařilo uložit. Zkuste to prosím znovu."
+    "BRAND_SAVE_FAILED": "Branding se nepodařilo uložit. Zkuste to prosím znovu.",
+    "AUTOMATION_TASK_FAILED": "Tento AI krok se u kandidáta nepodařilo spustit. Zkuste to prosím znovu.",
+    "AUTOMATION_PASS_FAILED": "Automatický průchod se nepodařilo spustit. Zkuste to prosím znovu.",
+    "AUTOMATION_TASK_UNKNOWN": "Takový krok automatizace neexistuje.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Tento kandidát není na této nástěnce.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
+    "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3131,7 +3138,10 @@
       },
       "noBand": "Pro tuto pozici ani trh není nastavené mzdové pásmo, takže nebyla navržena žádná částka. Doplňte ji při schvalování.",
       "unpricedAmount": "Částka k doplnění",
-      "unpricedTitle": "Pro tento návrh nebyla navržena žádná mzda. Částku nastavte při schvalování nabídky."
+      "unpricedTitle": "Pro tento návrh nebyla navržena žádná mzda. Částku nastavte při schvalování nabídky.",
+      "reasons": {
+        "rematchSkippedHired": "Tento kandidát je přijat. Jiná role se nehledala."
+      }
     },
     "applied": {
       "advanced": "Postoupil/a o fázi.",
@@ -3214,6 +3224,9 @@
         "anonymized": "Žádná zpráva se neodeslala. Tento kandidát byl anonymizován.",
         "suppressed": "Žádná zpráva se neodeslala. Oslovení tohoto kandidáta je pozastaveno (vypršel souhlas, nebo byla sekvence zastavena)."
       }
+    },
+    "eventReasons": {
+      "offerAutoExtended": "Nabídka byla odeslána automaticky podle náborového plánu (brána nabídky: automatická)."
     }
   },
   "decisions": {
@@ -3340,7 +3353,12 @@
       "selfReportLabel": "Vlastní hodnocení modelu",
       "selfReportValue": "{pct} ze 100",
       "selfReportNote": "vlastní známka modelu za tento závěr. Nikdo ji neporovnal se skutečnými výsledky.",
-      "selfReportTitle": "Model měl vynést závěr a zároveň uvedl, jak jistý si je. To vypovídá o modelu, ne o kandidátovi: nestojí za tím žádný výsledek, žádný kontrolní vzorek ani základní míra. Měřený protějšek, tedy jak často pásmo skóre skutečně postoupí, je statistika za celý soubor a najdete ji v sekci kvality v Analytice."
+      "selfReportTitle": "Model měl vynést závěr a zároveň uvedl, jak jistý si je. To vypovídá o modelu, ne o kandidátovi: nestojí za tím žádný výsledek, žádný kontrolní vzorek ani základní míra. Měřený protějšek, tedy jak často pásmo skóre skutečně postoupí, je statistika za celý soubor a najdete ji v sekci kvality v Analytice.",
+      "engineLabel": "Zdroj",
+      "engineTemplate": "Šablona (model se nepoužil)",
+      "engineTemplateNote": "Text napsala vestavěná šablona, ne model. Berte ho jako výchozí bod a zdůvodnění si ověřte sami.",
+      "engineTemplateTitle": "Automatizace běžela bez modelu (chybí API klíč, je vyčerpaný limit AI, nebo volání selhalo), takže tento verdikt vytvořila deterministická šablona.",
+      "engineLlm": "Model · {provider}"
     },
     "rules": {
       "title": "Pravidla rozhodování · Screening",
@@ -3463,7 +3481,8 @@
         "unscored": "bez skóre: shoda zatím nezměřena. Vyloučeno z automatického zamítání (nejdřív ohodnotit)",
         "holdout": "ponecháno jako kalibrační kontrolní vzorek: {pct} % kandidátů určených k automatickému zamítnutí se záměrně ponechává, aby jejich skutečné výsledky ověřily správnost skóre (shoda {score}, práh {threshold})",
         "approvedByNote": "Schválil/a {who}.",
-        "approverUnidentified": "Schvalovatel nebyl identifikován."
+        "approverUnidentified": "Schvalovatel nebyl identifikován.",
+        "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická)."
       }
     },
     "summary": {
@@ -3952,7 +3971,8 @@
       "readbackUnconfirmedFlag": "nepotvrzeno",
       "readbackUnconfirmedHint": "Zmíněno dříve, ale při zopakování nepotvrzeno (možná chyba přepisu)",
       "readbackNote": "Ze závěrečného zopakování: kandidát potvrdil nebo opravil technologie, které tazatel slyšel.",
-      "narrativeInLanguage": "Toto shrnutí hodnoticí karty se zobrazuje v jazyce {language}."
+      "narrativeInLanguage": "Toto shrnutí hodnoticí karty se zobrazuje v jazyce {language}.",
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
     },
     "relay": {
       "label": "Kde je štafeta",
@@ -4896,7 +4916,8 @@
       "telemetryPause": "pauza {dur}",
       "telemetryHintIntegrated": "nápověda zapracována",
       "telemetryHintAcknowledged": "nápověda zmíněna",
-      "telemetryHintMissed": "nápověda nevyužita"
+      "telemetryHintMissed": "nápověda nevyužita",
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
     },
     "candidates": {
       "failedStatus": "Selhalo ({status}).",

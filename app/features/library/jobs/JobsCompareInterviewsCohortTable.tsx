@@ -23,7 +23,9 @@ function TelemetrySignals({
 }) {
   if (!telemetry) return null;
   const talk = talkSharePercent(telemetry);
-  const pause = formatSpokenDuration(telemetry.longestResponseGapSec);
+  // Parts, not a formatted string: the unit letters live in the 4 catalogs.
+  const pauseParts = formatSpokenDuration(telemetry.longestResponseGapSec);
+  const pause = pauseParts ? t("duration", pauseParts) : null;
   const hintKey =
     telemetry.hint.offered && telemetry.hint.uptake !== "not_offered"
       ? (

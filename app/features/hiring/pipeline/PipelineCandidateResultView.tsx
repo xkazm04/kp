@@ -31,6 +31,17 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
   // benchmark hint already keeps; the candidate's own band now keeps it too.
   const { grouped } = useNumberFormat();
   const d = result.data as Record<string, unknown>;
+  // WHY NO ALTERNATIVE — in the reader's language. A skipped rematch used to paint the
+  // server's English sentence ("candidate is hired; rematch skipped") verbatim on a
+  // Czech recruiter's screen. automation-run.ts now emits `reasonCode` beside that
+  // sentence (the record-vs-screen split automation-pass.ts already runs); the English
+  // stays canonical for a legacy row and for anything this build has no word for.
+  const rematchReason = (): string => {
+    const code = typeof d.reasonCode === "string" ? d.reasonCode : "";
+    const key = `reasons.${code}` as Parameters<typeof t>[0];
+    if (code && t.has(key)) return t(key);
+    return d.reason ? String(d.reason) : t("noAlternative");
+  };
   // Localized applied-outcome label, falling back to the English source for any
   // key not yet in the catalog.
   const appliedKey = result.applied as Parameters<typeof tApplied>[0];
@@ -175,7 +186,7 @@ export function ResultView({ result, roleFamily }: { result: Result; roleFamily?
               <p className="text-steel">{String(d.rationale ?? "")}</p>
             </>
           ) : (
-            <p className="text-steel">{d.reason ? String(d.reason) : t("noAlternative")}</p>
+            <p className="text-steel">{rematchReason()}</p>
           )}
         </div>
       )}

@@ -244,6 +244,43 @@ strands nobody, and moving them would rewrite closed history.
    (`offline_policy` / `not_installed` / `unavailable` / `disabled`) on purpose,
    and which fault must record which reason is gated by
    [`fault_eval`](../../development/fault-injection.md#what-the-operator-reads-back).
+
+   **That verdict provenance now reaches the recruiter, not just the ledger.**
+   `automation-run.ts` reads the CLI's `source` once per run and stamps
+   `verdictSource` (`"llm" | "template"`) plus `verdictProvider` onto every
+   approval payload it writes (screening / scorecard / offer), and passes the
+   engine as the pipeline event's **actor** (`auto:automation-llm` /
+   `auto:automation-template`) rather than into a `detail` several kinds already
+   parse. The Decisions review card
+   (`DecisionsAiReviewCard` + `decisionsAiReviewCardLogic`) discloses a template
+   verdict in amber above the body and names the provider beside a model one; an
+   approval persisted before this shipped carries no provenance and discloses
+   **nothing**, never a guessed engine. Until this, a keyless or
+   allowance-exhausted install rendered a deterministic template's verdict in
+   exactly the grammar it renders the model's, under the same "AI review" tag.
+
+   **The letter locale is resolved in the entry's own team.** `letterLang` is
+   `resolveCommsLocale(entry.locale, entry.workspaceId)` — omitting the workspace
+   read the DEFAULT team's `default_locale`, so a NULL-locale candidate filed into
+   a team with its own language had the letter *body* drafted in one language and
+   wrapped by `comms-dispatch` in another. The resolved locale is a cache-key axis,
+   so the fix self-invalidates the wrongly-keyed entries. The recruiter-narrative
+   locale (`uiLang`, for screen / prep / scorecard) has the same scope: with no caller
+   UI locale, a background pass falls back to `getWorkspaceDefaultLocale(entry.workspaceId)`,
+   the entry's OWN team, not the default tenant's. Both are cache-key axes, so a
+   non-default team re-keys once and its wrongly-shared entries self-invalidate; the
+   default team's keys are byte-identical.
+
+   **Three hard-coded English sentences became codes.** The `offer_auto_extended`
+   event detail is now `reason:offerAutoExtended` (rendered through
+   `pipeline.eventReasons.*` by `useEventVerb`; the prefix is duplicated in
+   `pipelineEventCatalog.ts` because that client module cannot import the
+   SQLite-backed writer, and `automation-run.test.ts` pins both sides), the
+   skipped-rematch result carries `reasonCode: "rematchSkippedHired"` beside its
+   canonical English (`pipeline.result.reasons.*`), and the auto-ratify seal's
+   `reasonCode` is `autoRatifiedScreening`, which `waveReasonText` resolves through
+   `decisions.wave.reasons.*` like every other sealed reason. Legacy rows keep
+   rendering their stored prose.
 5. **Offer-stage group evaluation.** `GroupEvalModal` /
    `app/_lib/group-eval-run.ts` compares a role's candidates (incorporating the
    interview scorecard, not just match score) before a recruiter extends an

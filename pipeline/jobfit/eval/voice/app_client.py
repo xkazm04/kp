@@ -7,31 +7,88 @@ transcript persist, and — for entry-backed sessions — the scorecard.
 
 Requires the dev server (`npm run dev`, default http://localhost:3000). The tokenless lab path is
 dev-only (`isInterviewLabEnabled()`).
+
+Two guards sit in front of every request, because this module posts candidate-shaped payloads
+and mints ElevenLabs credentials:
+
+* **``base_url`` is validated in code** (:func:`validate_base_url`), not asserted in a lint
+  comment. The harness talks to a dev server, so the only legal targets are loopback /
+  private-network hosts — plus whatever an operator explicitly allowlists in
+  ``KP_VOICE_APP_ALLOWED_HOSTS`` for a staging box. A typo'd or attacker-supplied public
+  ``--base-url`` used to be handed straight to ``urllib.request.urlopen``.
+* **The KP_OFFLINE seal** (:mod:`.seal`) refuses the calls that mint ElevenLabs credentials
+  or dispatch an invite. Reading ``/api/interview/connect`` availability is a loopback GET and
+  stays legal — the seal is about cloud egress, not about the on-box hop.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 from typing import Any
+from urllib.parse import urlsplit
+
+from ...llm.offline import is_local_url
+from .seal import refuse_if_offline
 
 DEFAULT_BASE_URL = "http://localhost:3000"
+
+# Extra hosts an operator may target on purpose (a staging deploy behind a VPN, a tunnel).
+# Comma-separated hostnames; the scheme/port are not part of the match.
+ALLOWED_HOSTS_ENV = "KP_VOICE_APP_ALLOWED_HOSTS"
 
 
 class AppError(RuntimeError):
     pass
 
 
+def allowed_hosts(env: dict[str, str] | None = None) -> frozenset[str]:
+    """Hostnames explicitly allowlisted through ``KP_VOICE_APP_ALLOWED_HOSTS``."""
+    raw = (env if env is not None else os.environ).get(ALLOWED_HOSTS_ENV, "")
+    return frozenset(h.strip().rstrip(".").lower() for h in raw.split(",") if h.strip())
+
+
+def validate_base_url(base_url: str) -> str:
+    """Return ``base_url`` (trailing slash stripped) or raise :class:`AppError`.
+
+    Legal: an ``http(s)`` URL whose host is loopback, a private-IP literal, a single-label
+    container/LAN name or a ``*.local``/``*.internal``/``*.lan``/``*.home.arpa`` service name
+    (the same rule the no-egress seal uses, :func:`pipeline.jobfit.llm.offline.is_local_url`),
+    or a host named in ``KP_VOICE_APP_ALLOWED_HOSTS``. Everything else is refused: this client
+    posts transcripts and mints provider credentials, and it is only ever meant to talk to the
+    operator's own kp server."""
+    url = (base_url or "").strip()
+    if not url:
+        raise AppError("base_url is empty — pass the kp server, e.g. http://localhost:3000")
+    parsed = urlsplit(url)
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https"):
+        raise AppError(f"base_url {url!r} must be an http(s) URL (got scheme {parsed.scheme!r})")
+    host = (parsed.hostname or "").strip().rstrip(".").lower()
+    if not host:
+        raise AppError(f"base_url {url!r} has no host")
+    if host in allowed_hosts() or is_local_url(url):
+        return url.rstrip("/")
+    raise AppError(
+        f"base_url {url!r} is not a loopback/private kp server. The voice harness posts "
+        f"candidate transcripts and mints provider credentials, so it only talks to your own "
+        f"server; add {host!r} to {ALLOWED_HOSTS_ENV} if you really mean it."
+    )
+
+
 def _post(base_url: str, path: str, body: dict, *, timeout: int = 60) -> dict[str, Any]:
+    base_url = validate_base_url(base_url)
     req = urllib.request.Request(
-        f"{base_url.rstrip('/')}{path}",
+        f"{base_url}{path}",
         data=json.dumps(body).encode("utf-8"),
         method="POST",
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (localhost)
+        # validate_base_url above has already proven the host is loopback/private/allowlisted.
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (validated above)
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")[:400]
@@ -41,8 +98,10 @@ def _post(base_url: str, path: str, body: dict, *, timeout: int = 60) -> dict[st
 
 
 def get_availability(base_url: str = DEFAULT_BASE_URL, *, timeout: int = 30) -> dict[str, bool]:
+    """Read the app's provider availability. A loopback GET: legal under KP_OFFLINE."""
+    base_url = validate_base_url(base_url)
     try:
-        with urllib.request.urlopen(f"{base_url.rstrip('/')}/api/interview/connect", timeout=timeout) as resp:  # noqa: S310
+        with urllib.request.urlopen(f"{base_url}/api/interview/connect", timeout=timeout) as resp:  # noqa: S310 (validated above)
             return json.loads(resp.read().decode("utf-8")).get("availability", {})
     except urllib.error.URLError as exc:
         raise AppError(f"GET /api/interview/connect failed ({exc.reason}). Is the dev server running at {base_url}?") from exc
@@ -61,6 +120,7 @@ def simulate(
     only for candidate-mode sessions (connect/route.ts:176), so the tokenless lab path silently
     tests ElevenLabs' stale dashboard prompt instead of ours. No pipeline entry is touched and no
     invite is dispatched. No entry ⇒ no scorecard: use :func:`create` for that."""
+    refuse_if_offline("mint an ElevenLabs voice session through the app")
     body: dict[str, Any] = {"mode": mode, "provider": provider}
     if language:
         body["language"] = language
@@ -78,6 +138,7 @@ def create(
     """Mint an ENTRY-BACKED candidate session: the grounded brief for that entry, and — because
     the session carries an entryId — /complete also synthesizes the scorecard. Side effects: it
     revokes the entry's open sessions and dispatches an invite through the Outbox."""
+    refuse_if_offline("mint an entry-backed ElevenLabs voice session through the app")
     body: dict[str, Any] = {"entryId": entry_id, "provider": provider, "force": force}
     if language:
         body["language"] = language
@@ -97,6 +158,9 @@ def connect(
 
     Omit ``token`` for a throwaway lab session (dev only); pass a candidate link's token to drive a
     real entry-backed session (that's the path that produces a scorecard)."""
+    # The signedUrl this returns IS the cloud egress: minting it under the seal is the step
+    # that would put a candidate's synthesized speech on api.elevenlabs.io.
+    refuse_if_offline("mint ElevenLabs realtime credentials")
     body: dict[str, Any] = {"provider": provider, "consent": consent}
     if token:
         body["token"] = token

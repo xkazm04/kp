@@ -1,3 +1,5 @@
+import { isOffline } from "./offline";
+
 // Fetch a Google Font with a hard deadline so a slow/stalled font server degrades
 // gracefully (no-font fallback) instead of hanging the OG/icon routes or the build.
 async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 4000): Promise<Response> {
@@ -33,6 +35,18 @@ export type OgFontDescriptor = { name: string; data: ArrayBuffer; weight: OgFont
 // font-or-nothing graceful-degradation contract in one place: a forgotten guard
 // would otherwise feed a null `data` into ImageResponse.
 export async function loadOgFonts(specs: ReadonlyArray<OgFontSpec>): Promise<OgFontDescriptor[]> {
+  // KP_OFFLINE: an air-gapped install makes NO outbound call, and fonts.googleapis.com
+  // is outbound. The global fetch guard (app/_lib/offline.ts, installed in
+  // instrumentation.ts) would reject these two requests anyway and loadGoogleFont's
+  // catch would turn each rejection into the same `null` — so the OUTPUT is already
+  // right. What is wrong without this line is the behaviour on the way there: two
+  // rejected fetches per OG render, each burning the 4 s abort timer's setup and
+  // writing a guard log line, for a result that was knowable before the first one.
+  // Deciding up front also keeps the promise honest to a reader: `grep KP_OFFLINE
+  // app/_lib/og-fonts.ts` used to come back empty on a file whose whole job is
+  // network I/O, which is exactly how an egress hole hides. next/og renders the
+  // image with its default face, which is the same fallback a timeout produces.
+  if (isOffline()) return [];
   const loaded = await Promise.all(specs.map((s) => loadGoogleFont(s.family, s.weight)));
   const fonts: OgFontDescriptor[] = [];
   specs.forEach((spec, i) => {
@@ -85,6 +99,12 @@ export async function loadGoogleFont(family: string, weight: number): Promise<Ar
     if (!fontRes.ok || !(fontType.includes("font") || fontType.includes("octet-stream"))) return null;
     return await fontRes.arrayBuffer();
   } catch {
+    // Every failure mode of a remote font lands here — the 4 s abort, DNS, TLS, a
+    // rejection from the KP_OFFLINE fetch guard — and every one of them means the
+    // same thing to the caller: no bytes. The OG image is decorative chrome on a
+    // link preview; it renders in next/og's default face and nobody is blocked.
+    // Deliberately not logged: these routes are public and uncached-on-error, so a
+    // font server having a bad afternoon would write one line per crawler hit.
     return null;
   }
 }

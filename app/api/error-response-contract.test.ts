@@ -206,8 +206,12 @@ const LEAK_CEILING = new Map<string, number>([
   // integrations-settings): the 500 answers safeJsonError(..., "ATS_CONFIG_SAVE_FAILED")
   // and the new stale-write 409 is jsonRefusal("ATS_CONFIG_STALE"), so the panel resolves
   // both in the reader's language. The row is deleted so the win is locked.
-  ["automation/[task]/route.ts", 1],
-  ["automation/run/route.ts", 1],
+  // automation/[task] and automation/run were FIXED, not ceilinged (/perfect wave 39,
+  // lib-automation): both spawn the Python engine and both forwarded parseStderrError's
+  // message whole. The 500s answer safeJsonError(..., "AUTOMATION_{TASK,PASS}_FAILED")
+  // at the engine's own status, and [task]'s four decided refusals are jsonRefusal
+  // codes, so the board's AI-actions grid resolves every one of them in the reader's
+  // language. The rows are deleted so the win is locked.
   // automation/schedule's single leak was FIXED, not ceilinged (/perfect 2026-09-03,
   // pipeline-board-3): the 500 answers safeJsonError(..., "SCHEDULE_UPDATE_FAILED")
   // and the interval 400 is jsonRefusal("SCHEDULE_INTERVAL_INVALID"), so the control

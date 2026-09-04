@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { localeCookieOptions } from "@/i18n/cookie";
 import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/locales";
 import { requireOrgCapability } from "./auth/current-user";
 import { currentWorkspace } from "./auth/current-workspace";
@@ -8,7 +9,7 @@ import { getWorkspaceOrgId, listWorkspacesByOrg, setWorkspaceDefaultLocale } fro
 import { ORG_NAME_COOKIE, sanitizeOrgName } from "./org-settings";
 
 // One year — the org identity should persist across sessions, matching the
-// NEXT_LOCALE cookie's lifetime (i18n/actions.ts).
+// NEXT_LOCALE cookie's lifetime (LOCALE_COOKIE_MAX_AGE in i18n/cookie.ts).
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 /** What an org setting write answers with. A server action cannot hand back a
@@ -80,11 +81,7 @@ export async function setOrgLanguage(locale: Locale): Promise<OrgSettingResult> 
   // tell a recruiter they lack a permission when they actually sent nonsense.
   if (!isLocale(locale)) return { ok: false, code: "ORG_LANGUAGE_INVALID" };
   if (await orgManageDenied()) return { ok: false, code: "ORG_SETTINGS_FORBIDDEN" };
-  (await cookies()).set(LOCALE_COOKIE, locale, {
-    path: "/",
-    maxAge: ONE_YEAR_SECONDS,
-    sameSite: "lax",
-  });
+  (await cookies()).set(LOCALE_COOKIE, locale, localeCookieOptions());
   const workspace = await currentWorkspace();
   // Resolved from the workspace rather than the session's `org` claim so an
   // operator-password / open-dev caller (no identity claims at all) still writes the

@@ -35,8 +35,12 @@ export function PipelineInterviewTelemetryStrip({
   t: ReturnType<typeof useTranslations<"scheduleTab.transcript">>;
 }) {
   const talk = talkSharePercent(telemetry);
-  const pause = formatSpokenDuration(telemetry.longestResponseGapSec);
-  const duration = formatSpokenDuration(telemetry.durationSec);
+  // The projection returns PARTS; the units are the catalog's, so "12m 30s" is
+  // English only when the reader is (t("duration") is an ICU message per locale).
+  const pauseParts = formatSpokenDuration(telemetry.longestResponseGapSec);
+  const durationParts = formatSpokenDuration(telemetry.durationSec);
+  const pause = pauseParts ? t("duration", pauseParts) : null;
+  const duration = durationParts ? t("duration", durationParts) : null;
   const hintKey =
     telemetry.hint.offered && telemetry.hint.uptake !== "not_offered" ? HINT_LABEL_KEY[telemetry.hint.uptake] : null;
   const langKey = telemetry.language ? LANG_LABEL_KEY[telemetry.language.verdict] : null;

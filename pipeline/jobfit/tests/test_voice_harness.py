@@ -5,10 +5,12 @@ The WebSocket driver and the smoke CLI need a live agent, so they're exercised b
 WER (the metric the whole plane rests on), the 16 kHz PCM contract, and the request mapping.
 """
 
+import os
 import unittest
 
 from pipeline.jobfit.eval.voice import tts
-from pipeline.jobfit.eval.voice.wer import corpus_wer, normalize, wer
+from pipeline.jobfit.eval.voice import wer as wer_module
+from pipeline.jobfit.eval.voice.wer import TECH_TERMS, corpus_wer, normalize, wer
 
 
 class TestNormalize(unittest.TestCase):
@@ -634,6 +636,308 @@ class TestSmokePreflight(unittest.TestCase):
             ie.select_scenarios, tts.available = orig_sel, orig_av
 
         self.assertEqual(asked, ["cs"])
+
+
+class _OfflineEnv:
+    """KP_OFFLINE=1 for one block, restoring whatever was there."""
+
+    def __init__(self, value: str | None = "1"):
+        self.value = value
+        self.saved: str | None = None
+
+    def __enter__(self):
+        self.saved = os.environ.get("KP_OFFLINE")
+        if self.value is None:
+            os.environ.pop("KP_OFFLINE", None)
+        else:
+            os.environ["KP_OFFLINE"] = self.value
+        return self
+
+    def __exit__(self, *exc):
+        if self.saved is None:
+            os.environ.pop("KP_OFFLINE", None)
+        else:
+            os.environ["KP_OFFLINE"] = self.saved
+        return False
+
+
+class TestOfflineSeal(unittest.TestCase):
+    """E-SH-4: the spoken plane refuses to egress under KP_OFFLINE.
+
+    ``elevenlabs_backend`` has carried this seal since it was written, and
+    docs/development/voice-interview-testing.md §9.1 claimed the harness "inherits the same
+    KP_OFFLINE seal". It did not: nothing in ``voice/`` mentioned the flag, so an air-gapped
+    install could open a signed wss:// session to api.elevenlabs.io and stream a candidate's
+    synthesized speech to a cloud host. These pin the claim.
+    """
+
+    def test_preflight_refuses_with_the_reason(self):
+        from pipeline.jobfit.eval.voice.seal import voice_backend_available
+
+        with _OfflineEnv():
+            ok, why = voice_backend_available()
+        self.assertFalse(ok)
+        self.assertIn("KP_OFFLINE", why)
+        self.assertIn("api.elevenlabs.io", why)
+
+    def test_preflight_allows_when_the_flag_is_unset(self):
+        from pipeline.jobfit.eval.voice.seal import voice_backend_available
+
+        with _OfflineEnv(None):
+            self.assertEqual(voice_backend_available(), (True, ""))
+
+    def test_websocket_driver_refuses_before_it_connects(self):
+        import asyncio
+
+        from pipeline.jobfit.eval.voice.el_ws import ElVoiceSession
+        from pipeline.jobfit.eval.voice.seal import OfflineRefused
+
+        async def _go():
+            async with ElVoiceSession("wss://api.elevenlabs.io/v1/convai/conversation?token=x"):
+                pass  # unreachable — the seal raises in __aenter__
+
+        with _OfflineEnv(), self.assertRaises(OfflineRefused) as cm:
+            asyncio.run(_go())
+        self.assertIn("realtime WebSocket", str(cm.exception))
+
+    def test_session_runner_refuses_before_a_session_is_minted(self):
+        import asyncio
+
+        from pipeline.jobfit.eval.interview_eval import _scenario_from_dict
+        from pipeline.jobfit.eval.voice.seal import OfflineRefused
+        from pipeline.jobfit.eval.voice.session_runner import run_voice_scenario
+
+        scn = _scenario_from_dict({"name": "s", "candidate_prompt": "p", "first_message": "hi"})
+        with _OfflineEnv(), self.assertRaises(OfflineRefused):
+            asyncio.run(run_voice_scenario(scn, base_url="http://localhost:3000", turns=1))
+
+    def test_eval_cli_exits_2_on_the_voice_backend(self):
+        """The eval contract's refusal code — the same one --backend elevenlabs returns."""
+        from pipeline.jobfit.eval import interview_eval as ie
+
+        with _OfflineEnv():
+            code = ie.main(["--backend", "voice", "--scenario", "swe_senior_strong", "--no-color"])
+        self.assertEqual(code, 2)
+
+
+class TestWallBudget(unittest.TestCase):
+    """A spoken run is metered in PAID minutes, and a spent ceiling stops it cleanly.
+
+    ``turns`` bounds how often we speak and ``timeout`` bounds ONE wait, so before this a
+    scenario whose agent kept replying just under the timeout could burn turns x timeout
+    seconds of real ElevenLabs time, multiplied by every scenario in a sweep.
+    """
+
+    def test_unlimited_meters_without_capping(self):
+        from pipeline.jobfit.eval.voice.session_runner import WallBudget
+
+        b = WallBudget(0.0)
+        self.assertIsNone(b.remaining_s)
+        self.assertFalse(b.spent())
+        self.assertEqual(b.bound(90.0), 90.0)
+        self.assertGreaterEqual(b.elapsed_minutes, 0.0)  # the clock runs anyway
+
+    def test_a_spent_budget_is_spent_and_clips_the_wait(self):
+        import time as _t
+
+        from pipeline.jobfit.eval.voice.session_runner import WallBudget
+
+        b = WallBudget(0.001)  # 60 ms
+        _t.sleep(0.08)
+        self.assertTrue(b.spent())
+        # Never a sub-second wait: that would report a healthy agent as silent.
+        self.assertEqual(b.bound(90.0), 1.0)
+        self.assertIn("wall budget spent", b.reason())
+
+    def test_a_live_budget_clips_a_longer_timeout(self):
+        from pipeline.jobfit.eval.voice.session_runner import WallBudget
+
+        b = WallBudget(1.0)  # 60 s
+        self.assertLessEqual(b.bound(90.0), 60.0)
+        self.assertEqual(b.bound(5.0), 5.0)  # a shorter timeout still wins
+
+    def test_a_run_stops_cleanly_and_records_the_stop(self):
+        """The transcript so far is persisted and scored; the stop is recorded, never dressed
+        up as an error and never left looking like a short conversation."""
+        import asyncio
+
+        from pipeline.jobfit.eval.interview_eval import _scenario_from_dict
+        from pipeline.jobfit.eval.voice import session_runner
+
+        class _FakeResult:
+            def __init__(self):
+                self.conversation_id = "c1"
+                self.turns = [{"role": "interviewer", "text": "hello"}]
+                self.agent_responses = ["hello"]
+                self.user_transcripts = []
+                self.ground_truth = []
+                self.latencies_s = []
+                self.interruptions = 0
+                self.agent_audio_s = 1.0
+                self.errored = None
+
+        class _FakeCall:
+            def __init__(self, *a, **kw):
+                self.result = _FakeResult()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+            def begin_turn(self):
+                pass
+
+            async def speak(self, text, lang="en", *, effect=None):
+                # Real speech is paced in real time; 50 ms stands in for it so the 30 ms
+                # ceiling below is genuinely reached rather than raced.
+                await asyncio.sleep(0.05)
+                self.result.ground_truth.append(text)
+                return 1.0
+
+            async def wait_for_agent_turn(self, timeout=90.0):
+                return True
+
+            async def wait_for_agent_start(self, timeout=30.0):
+                return True
+
+        completed: list[dict] = []
+        orig = (session_runner.app_client.simulate, session_runner.app_client.connect,
+                session_runner.app_client.complete, session_runner.ElVoiceSession)
+        session_runner.app_client.simulate = lambda base_url, **kw: {"token": "tok"}
+        session_runner.app_client.connect = lambda base_url, **kw: {
+            "sessionId": "s1", "token": "tok", "agentPrompt": "brief",
+            "connect": {"signedUrl": "wss://example.invalid/x"},
+        }
+        session_runner.app_client.complete = lambda base_url, **kw: (
+            completed.append(kw), {"session": {"transcript": kw["transcript"]}})[1]
+        session_runner.ElVoiceSession = _FakeCall
+        try:
+            scn = _scenario_from_dict({"name": "s", "candidate_prompt": "p", "first_message": "hi"})
+            with _OfflineEnv(None):
+                run = asyncio.run(session_runner.run_voice_scenario(
+                    scn, base_url="http://localhost:3000", turns=4, timeout=5.0,
+                    max_minutes=0.0005,  # 30 ms — spent before the first candidate turn
+                ))
+        finally:
+            (session_runner.app_client.simulate, session_runner.app_client.connect,
+             session_runner.app_client.complete, session_runner.ElVoiceSession) = orig
+
+        self.assertTrue(run.budget_stopped)
+        self.assertIn("wall budget spent", run.stopped_reason or "")
+        self.assertIsNone(run.errored)                      # a stop, not a failure
+        self.assertEqual(run.budget_minutes, 0.0005)
+        self.assertLess(len(run.ground_truth), 4)           # it really stopped early
+        self.assertEqual(len(completed), 1)                 # …and still persisted what it had
+        m = run.metrics()
+        self.assertTrue(m["budget_stopped"])
+        self.assertEqual(m["budget_minutes"], 0.0005)
+        self.assertIn("wall budget spent", m["stopped_reason"])
+
+
+class TestUnsupportedLanguageRefusal(unittest.TestCase):
+    """A language with no Piper voice is REFUSED, not spoken in English.
+
+    ``voice_path`` used to read ``VOICES.get(lang) or VOICES["en"]``: a de/fr scenario was
+    synthesized by ``en_US-lessac-medium``, EL's ASR transcribed the resulting nonsense, and
+    the WER / entity-fidelity numbers described a defect the interviewer never had.
+    """
+
+    def test_unsupported_languages_are_declared(self):
+        self.assertEqual(tts.UNSUPPORTED_LANGS, ("de", "fr"))
+        for lang in tts.UNSUPPORTED_LANGS:
+            self.assertNotIn(lang, tts.VOICES)
+
+    def test_available_refuses_with_a_reason_that_names_the_language(self):
+        for lang in ("de", "fr", "es"):
+            with self.subTest(lang=lang):
+                ok, why = tts.available(lang)
+                self.assertFalse(ok)
+                self.assertIn(repr(lang), why)
+                self.assertIn("en", why)
+                self.assertIn("cs", why)
+
+    def test_voice_path_raises_instead_of_falling_back_to_english(self):
+        with self.assertRaises(tts.UnsupportedLanguage):
+            tts.voice_path("de")
+        # The supported ones still resolve to their own model, not to a shared default.
+        self.assertIn("en_US-lessac-medium", tts.voice_path("en").name)
+        self.assertIn("cs_CZ-jirka-medium", tts.voice_path("cs").name)
+
+    def test_synthesize_refuses_before_it_loads_a_model(self):
+        with self.assertRaises(tts.UnsupportedLanguage):
+            tts.synthesize("Guten Tag", "de")
+
+    def test_supported_is_the_single_predicate(self):
+        self.assertTrue(tts.supported("en"))
+        self.assertTrue(tts.supported("cs"))
+        self.assertFalse(tts.supported("de"))
+        self.assertFalse(tts.supported(""))
+
+
+class TestNumberNormalization(unittest.TestCase):
+    """Spelled-out numbers fold to digits (en + cs), table-driven.
+
+    We synthesize the candidate's speech from text we wrote ("a team of five"), while EL's ASR
+    writes digits ("a team of 5"). Every number in an utterance was charged as a substitution
+    against a transcript that was perfectly correct.
+    """
+
+    def test_english_units_teens_and_tens(self):
+        self.assertEqual(normalize("five years"), ["5", "years"])
+        self.assertEqual(normalize("fifteen people"), ["15", "people"])
+        self.assertEqual(normalize("a team of twenty"), ["a", "team", "of", "20"])
+
+    def test_english_compounds(self):
+        self.assertEqual(normalize("twenty five"), ["25"])
+        self.assertEqual(normalize("twenty-five"), ["25"])
+        self.assertEqual(normalize("two hundred"), ["200"])
+        self.assertEqual(normalize("three thousand five hundred"), ["3500"])
+
+    def test_czech_folds_only_the_accented_spellings(self):
+        self.assertEqual(normalize("pět let"), ["5", "let"])
+        self.assertEqual(normalize("dvacet pět lidí"), ["25", "lidí"])
+        self.assertEqual(normalize("sto dvacet"), ["120"])
+        # A dropped diacritic stays a REAL ASR error — folding "pet" to 5 would hide it, and
+        # "pet"/"set"/"tri" are ordinary English words a bare-ASCII table would eat.
+        self.assertEqual(normalize("pet"), ["pet"])
+        self.assertEqual(normalize("we set up the pipeline"), ["we", "set", "up", "the", "pipeline"])
+
+    def test_the_fold_makes_the_words_and_the_digits_the_same_transcript(self):
+        self.assertEqual(wer("I led a team of five for three years", "I led a team of 5 for 3 years").wer, 0.0)
+        self.assertEqual(wer("pět let v Praze", "5 let v Praze").wer, 0.0)
+
+    def test_ordinary_words_survive(self):
+        # "and" only joins when a number is open AND another number follows.
+        self.assertEqual(normalize("design and delivery"), ["design", "and", "delivery"])
+        self.assertEqual(normalize("two hundred and fifty"), ["250"])
+        self.assertEqual(normalize("five and delivery"), ["5", "and", "delivery"])
+        self.assertEqual(normalize("no numbers here"), ["no", "numbers", "here"])
+
+    def test_digits_pass_through_untouched(self):
+        self.assertEqual(normalize("42 and 7"), ["42", "and", "7"])
+
+
+class TestTechTermsSource(unittest.TestCase):
+    """The TECH_TERMS literal is a set, so a repeated entry is invisible at runtime and in a
+    diff — "kubernetes" was written three times before anyone noticed. A duplicate means the
+    list is being appended to blind, so the SOURCE is pinned."""
+
+    def test_no_term_is_written_twice(self):
+        import re as _re
+        from pathlib import Path
+
+        src = Path(wer_module.__file__).read_text(encoding="utf-8").replace("\r\n", "\n")
+        block = src.split("TECH_TERMS: frozenset[str] = frozenset({", 1)[1].split("})", 1)[0]
+        terms = _re.findall(r'"([a-z0-9+#.]+)"', block)
+        dupes = sorted({t for t in terms if terms.count(t) > 1})
+        self.assertEqual(dupes, [], f"TECH_TERMS repeats {dupes}")
+        self.assertEqual(len(terms), len(TECH_TERMS))
+
+    def test_the_set_still_covers_what_the_gate_needs(self):
+        for term in ("kubernetes", "postgresql", "react", "typescript"):
+            self.assertIn(term, TECH_TERMS)
 
 
 if __name__ == "__main__":

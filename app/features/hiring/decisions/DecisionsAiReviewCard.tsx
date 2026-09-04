@@ -77,7 +77,7 @@ export function AiReviewCard({
   // `unpriced` / `hasBand` — the honest-unpriced-offer state, derived in the logic
   // module (see the UNPRICED DRAFTS note there): an offer draft whose fail-safe
   // proposed no figure must show no figure, and no band meter without a band.
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport } =
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport, verdictSource, verdictProvider } =
     useAiReviewCardLogic(entry);
   const tag = isOffer
     ? t("tagOffer")
@@ -179,6 +179,27 @@ export function AiReviewCard({
           <span className="font-semibold uppercase tracking-wide">{t("selfReportLabel")}</span>{" "}
           <span className="nums font-semibold text-ink">{t("selfReportValue", { pct: modelSelfReport })}</span>
           <span className="mt-0.5 block text-stone-400">{t("selfReportNote")}</span>
+        </p>
+      ) : null}
+
+      {/* WHICH ENGINE WROTE THIS — the template-verdict disclosure (automation-run.ts
+          stamps `verdictSource` on every approval payload it writes). The automation
+          degrades to deterministic templates on a keyless install, past the
+          ai_candidates allowance, or when a call fails — a product property, and one
+          the card used to hide: a template verdict rendered under the same "AI review"
+          tag, in the same grammar, as a model's. Same disclosure rule as the analysis
+          report's engine note, and the label LEADS (G1 — the disclosure is the
+          headline, never a footnote). An approval with no recorded provenance shows
+          nothing at all rather than asserting an engine nobody recorded. */}
+      {verdictSource === "template" ? (
+        <p className="mt-2 text-meta leading-4 text-amber-800" title={t("engineTemplateTitle")}>
+          <span className="font-semibold uppercase tracking-wide">{t("engineLabel")}</span> <span className="font-semibold">{t("engineTemplate")}</span>
+          <span className="mt-0.5 block text-steel">{t("engineTemplateNote")}</span>
+        </p>
+      ) : verdictProvider ? (
+        <p className="mt-2 text-meta leading-4 text-steel">
+          <span className="font-semibold uppercase tracking-wide">{t("engineLabel")}</span>{" "}
+          <span className="font-semibold text-ink">{t("engineLlm", { provider: verdictProvider })}</span>
         </p>
       ) : null}
 

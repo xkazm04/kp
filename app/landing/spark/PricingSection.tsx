@@ -34,6 +34,8 @@ const TIER_STYLES = [
 
 export default function PricingSection() {
   const t = useTranslations("landing");
+  // Shared with the Billing tab's Enterprise card — see app/_lib/sales-contact.ts.
+  const tCommon = useTranslations("common");
   return (
     <section id="pricing" className="border-y-[3px] border-[#17202a] bg-[#caa54c] py-24">
       <div className="mx-auto w-full max-w-7xl px-6">
@@ -156,7 +158,7 @@ export default function PricingSection() {
                 ))}
               </ul>
               <a
-                href={salesContactHref()}
+                href={salesContactHref(tCommon("salesEnquirySubject"))}
                 onClick={() => track("landing_cta_click", { placement: "pricing", plan: "enterprise" })}
                 className={`${BTN} mt-5 bg-[#17202a] text-[#fdf8ee]`}
               >

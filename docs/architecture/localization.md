@@ -322,6 +322,34 @@ runs with no request cookie:
 Either way the caller follows with `router.refresh()` so the server re-renders
 under the new locale.
 
+### The cookie has one writer of its options, and one resolver
+
+Three places write `NEXT_LOCALE` — `setLocale` (`i18n/actions.ts`),
+`setOrgLanguage` (`app/_lib/org-actions.ts`) and the `?lang=` override in
+`proxy.ts` — and all three take their options from **`localeCookieOptions()`**
+(`i18n/cookie.ts`). One policy, one place to harden: site-wide `path`, a
+year-long `maxAge` (`LOCALE_COOKIE_MAX_AGE`), `sameSite: "lax"`, and `secure`
+**only** when `NODE_ENV=production`.
+
+The two conditional parts are deliberate, not defaults:
+
+- **`lax`, never `strict`.** A candidate following a `?lang=cs` link from an
+  email arrives cross-site on a top-level GET, and `strict` withholds the cookie
+  on exactly that first navigation — the one where it matters.
+- **`secure` only in production.** A self-hosted install is routinely reached
+  over plain HTTP on a LAN (`docs/architecture/self-hosting.md`), where a
+  `secure` cookie is silently dropped by the browser and the switcher appears to
+  do nothing.
+
+Reading it back is `getServerLocale()` (`i18n/server.ts`), the single server-side
+resolution path shared by `i18n/request.ts` and every API route that threads a
+language into a backend call. Its precedence is **cookie → `Accept-Language` →
+`en`**, with `isLocale()` guarding each step: an unsupported cookie value does
+not win and does not stop the chain, it falls through to the header.
+`resolveAcceptLanguage` folds a regional tag onto its primary subtag (`cs-CZ` →
+`cs`) and honours the header's own order, so the first *supported* tag wins
+rather than the first tag. All of it is pinned by `i18n/locales.test.ts`.
+
 ### `AppLanguage` is `Locale`, not a subset of it
 
 `APP_LANGUAGES` in `app/features/shared/memberUi.ts` carries each language's own

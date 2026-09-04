@@ -4,7 +4,18 @@
 // out of the card component so the JSX shell stays under the 200-line cap.
 import { type Entry, type Offer, type Scorecard, type Screening } from "@/app/features/shared/decisionsTypes";
 
-export type ParsedApproval = Screening & Scorecard & Offer;
+// VERDICT PROVENANCE (automation-run.ts). Every approval payload that module writes
+// now carries which ENGINE produced the verdict — "llm" when the model's answer
+// survived coercion, "template" for every degrade (keyless install, an unmetered
+// workspace running `--no-llm`, a failed call, a payload the coercer discarded) —
+// plus the configured provider for the llm case. Declared inline rather than
+// imported: automation-run.ts opens SQLite and this module is client-side.
+//
+// NOT named `source`: Scorecard.source is already "ai" | "human" (who CONDUCTED
+// the interview), which `isHumanScorecard` below reads. Different question.
+// Optional throughout — an approval written before this shipped carries neither.
+export type VerdictProvenanceFields = { verdictSource?: "llm" | "template"; verdictProvider?: string | null };
+export type ParsedApproval = Screening & Scorecard & Offer & VerdictProvenanceFields;
 
 export function useAiReviewCardLogic(entry: Entry) {
   let parsed: ParsedApproval | null = null;
@@ -79,5 +90,15 @@ export function useAiReviewCardLogic(entry: Entry) {
   // both are excluded; an absent value renders nothing at all.
   const modelSelfReport = !isOffer && !isScorecard && typeof parsed?.confidence === "number" ? Math.max(0, Math.min(100, Math.round(parsed.confidence))) : null;
 
-  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport };
+  // WHICH ENGINE WROTE THIS VERDICT — the disclosure the card renders. A template
+  // verdict is a deterministic fallback, not a model's judgment, and the card used
+  // to present the two in identical grammar; a recruiter ratifying an "AI review"
+  // has to be able to tell them apart. Unknown (an approval persisted before the
+  // provenance shipped) stays null and discloses NOTHING rather than guessing "llm":
+  // an invented provenance is worse than an absent one.
+  const verdictSource = parsed?.verdictSource === "llm" || parsed?.verdictSource === "template" ? parsed.verdictSource : null;
+  // Only meaningful beside an llm verdict; a template one asked no provider.
+  const verdictProvider = verdictSource === "llm" && typeof parsed?.verdictProvider === "string" && parsed.verdictProvider.trim() ? parsed.verdictProvider : null;
+
+  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport, verdictSource, verdictProvider };
 }

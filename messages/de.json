@@ -1311,7 +1311,8 @@
     "no": "Nein",
     "close": "Schließen",
     "scanningCv": "Lebenslauf wird gescannt",
-    "formatting": "Formatierung"
+    "formatting": "Formatierung",
+    "salesEnquirySubject": "Anfrage zum Enterprise-Tarif"
   },
   "aiDisclosure": {
     "title": "So funktioniert es",
@@ -1710,7 +1711,13 @@
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Er ist zu dunkel, um ihn ohne Farbwechsel aufzuhellen, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
     "BRAND_LOGO_INVALID": "Der Logo-Link muss eine https://-URL sein und kurz genug zum Speichern.",
     "BRAND_LOAD_FAILED": "Branding konnte nicht geladen werden. Bitte erneut versuchen.",
-    "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen."
+    "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "AUTOMATION_TASK_FAILED": "Dieser KI-Schritt konnte für diese Person nicht ausgeführt werden. Bitte erneut versuchen.",
+    "AUTOMATION_PASS_FAILED": "Der Automatisierungslauf konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "AUTOMATION_TASK_UNKNOWN": "Diesen Automatisierungsschritt gibt es nicht.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
+    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3131,7 +3138,10 @@
       },
       "noBand": "Für diese Position bzw. diesen Markt ist kein Gehaltsband hinterlegt, daher wurde kein Betrag vorgeschlagen. Legen Sie ihn bei der Freigabe fest.",
       "unpricedAmount": "Betrag noch festzulegen",
-      "unpricedTitle": "Für diesen Entwurf wurde kein Gehalt vorgeschlagen. Legen Sie den Betrag bei der Freigabe des Angebots fest."
+      "unpricedTitle": "Für diesen Entwurf wurde kein Gehalt vorgeschlagen. Legen Sie den Betrag bei der Freigabe des Angebots fest.",
+      "reasons": {
+        "rematchSkippedHired": "Diese Person ist eingestellt. Es wurde keine andere Rolle gesucht."
+      }
     },
     "applied": {
       "advanced": "Um eine Phase weitergeleitet.",
@@ -3214,6 +3224,9 @@
         "anonymized": "Es wurde keine Nachricht gesendet. Diese Person wurde anonymisiert.",
         "suppressed": "Es wurde keine Nachricht gesendet. Die Ansprache dieser Person ist gesperrt (Einwilligung abgelaufen oder die Sequenz wurde gestoppt)."
       }
+    },
+    "eventReasons": {
+      "offerAutoExtended": "Angebot gemäß Einstellungsplan automatisch versendet (Angebots-Gate: automatisch)."
     }
   },
   "decisions": {
@@ -3340,7 +3353,12 @@
       "selfReportLabel": "Selbsteinschätzung des Modells",
       "selfReportValue": "{pct} von 100",
       "selfReportNote": "die eigene Bewertung des Modells für dieses Urteil. Sie wurde nie an echten Ergebnissen gemessen.",
-      "selfReportTitle": "Das Modell sollte ein Urteil fällen und hat zusätzlich angegeben, wie sicher es sich fühlt. Diese Angabe sagt etwas über das Modell aus, nicht über die Kandidatin oder den Kandidaten: dahinter steht kein Ergebnis, keine Holdout-Gruppe und keine Basisrate. Das gemessene Gegenstück, wie oft ein Score-Band tatsächlich weiterkommt, ist eine Statistik über eine ganze Kohorte und steht im Qualitätsbereich der Analytics."
+      "selfReportTitle": "Das Modell sollte ein Urteil fällen und hat zusätzlich angegeben, wie sicher es sich fühlt. Diese Angabe sagt etwas über das Modell aus, nicht über die Kandidatin oder den Kandidaten: dahinter steht kein Ergebnis, keine Holdout-Gruppe und keine Basisrate. Das gemessene Gegenstück, wie oft ein Score-Band tatsächlich weiterkommt, ist eine Statistik über eine ganze Kohorte und steht im Qualitätsbereich der Analytics.",
+      "engineLabel": "Quelle",
+      "engineTemplate": "Vorlage (kein Modell im Einsatz)",
+      "engineTemplateNote": "Von der eingebauten Vorlage verfasst, nicht von einem Modell. Als Ausgangspunkt lesen und die Begründung selbst prüfen.",
+      "engineTemplateTitle": "Die Automatisierung lief ohne Modell (kein API-Schlüssel, KI-Kontingent aufgebraucht oder Aufruf fehlgeschlagen), daher stammt dieses Urteil aus einer deterministischen Vorlage.",
+      "engineLlm": "Modell · {provider}"
     },
     "rules": {
       "title": "Entscheidungsregeln · Screening",
@@ -3463,7 +3481,8 @@
         "unscored": "nicht bewertet: noch kein Match-Score. Von der Auto-Ablehnung ausgeschlossen (Bewertung nötig)",
         "holdout": "als Kalibrierungs-Kontrollgruppe behalten: {pct} % der eigentlich automatisch abgelehnten Kandidaten werden bewusst behalten, damit ihre tatsächlichen Ergebnisse die Richtigkeit des Scores prüfen können (Match {score}, Schwelle {threshold})",
         "approvedByNote": "Genehmigt von {who}.",
-        "approverUnidentified": "Genehmigende Person nicht identifiziert."
+        "approverUnidentified": "Genehmigende Person nicht identifiziert.",
+        "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch)."
       }
     },
     "summary": {
@@ -3952,7 +3971,8 @@
       "readbackUnconfirmedFlag": "unbestätigt",
       "readbackUnconfirmedHint": "Früher erwähnt, aber beim Zurücklesen nicht bestätigt (möglicherweise ein Transkriptionsfehler)",
       "readbackNote": "Aus der abschließenden Wiederholung: Die Kandidatin oder der Kandidat hat die vom Interviewer gehörten Technologien bestätigt oder korrigiert.",
-      "narrativeInLanguage": "Diese Scorecard-Zusammenfassung wird auf {language} angezeigt."
+      "narrativeInLanguage": "Diese Scorecard-Zusammenfassung wird auf {language} angezeigt.",
+      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}"
     },
     "relay": {
       "label": "Wo der Staffelstab liegt",
@@ -4896,7 +4916,8 @@
       "telemetryPause": "Pause {dur}",
       "telemetryHintIntegrated": "Hinweis eingebaut",
       "telemetryHintAcknowledged": "Hinweis aufgegriffen",
-      "telemetryHintMissed": "Hinweis nicht aufgegriffen"
+      "telemetryHintMissed": "Hinweis nicht aufgegriffen",
+      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}"
     },
     "candidates": {
       "failedStatus": "Fehlgeschlagen ({status}).",

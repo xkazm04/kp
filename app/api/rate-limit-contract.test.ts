@@ -1002,6 +1002,29 @@ const ROUTES: RouteSpec[] = [
     expensive: "await proposeFreeSlots(",
   },
   {
+    // ADDED /perfect wave 39 (lib-automation), with the limiter itself. The per-entry
+    // AI step the board's actions grid fires: one POST spawns a Python child AND spends
+    // on the configured model, and `outreach` additionally DISPATCHES a letter to a
+    // candidate. Its sibling /api/jobs/[id]/candidates/outreach — the SAME
+    // runAutomationTask("outreach") call — has been throttled since /perfect 2026-09-02
+    // while this door had nothing at all. Operator-gated, and open mode makes that gate
+    // a documented no-op for the whole API. 20/10min per IP: a recruiter working a
+    // shortlist legitimately fires a handful in a sitting; a scripted loop never stays
+    // under it.
+    rel: "./automation/[task]/route.ts",
+    key: "`automation-task:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "AUTOMATION_TASK_RATE_LIMIT",
+    optsDef: "const AUTOMATION_TASK_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL with its arguments: a bare `runAutomationTask(` also appears in this
+    // route's import, above the limiter.
+    expensive: "await runAutomationTask(body.entryId,",
+    // The missing-entryId 400 keeps its semantics ahead of the throttle, so a broken
+    // body neither consumes budget nor is masked by a 429.
+    servedBefore: 'jsonRefusal("AUTOMATION_ENTRY_REQUIRED", 400)',
+  },
+  {
     // ADDED /perfect 2026-09-03 (pipeline-board-3), with the limiter itself. The
     // scheduler dock's "Run now" door: `{"tick": true}` forces a FULL policy pass —
     // the same Python-spawning sweep over every active entry that /api/automation/run
