@@ -5397,7 +5397,12 @@
       "select": "Vyberte…",
       "filterColumn": "Filtrovat: {column}"
     },
-    "sortBy": "Seřadit podle: {column}"
+    "sortBy": "Seřadit podle: {column}",
+    "status": {
+      "sortedAsc": "Seřazeno podle sloupce {column}, vzestupně",
+      "sortedDesc": "Seřazeno podle sloupce {column}, sestupně",
+      "matched": "{count, plural, =0 {Filtru neodpovídá žádný řádek} one {# řádek odpovídá filtru} few {# řádky odpovídají filtru} other {# řádků odpovídá filtru}}"
+    }
   },
   "channels": {
     "comms": {

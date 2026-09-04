@@ -31,6 +31,7 @@ import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapabilit
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import type { SortState } from "@/app/_components/table/useTableSort";
 import { META_LABEL, NOTICE, PANEL } from "@/app/_components/ui/recipes";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
@@ -155,6 +156,16 @@ export function DecisionLogTable({
   const kindOptions = Object.keys(DECISION_META)
     .map((k) => ({ value: k, label: kindLabel(t, k, { relayConfigured }) }))
     .sort((a, b) => compareNames(a.label, b.label, locale, "asc"));
+
+  // The VISIBLE header titles, keyed by the wire column the sort state carries —
+  // an announcement that says "createdAt" names a database column, not the header
+  // the reader clicked.
+  const SORT_TITLE: Record<Col, string> = {
+    createdAt: t("colWhen"),
+    candidateLabel: t("colCandidate"),
+    jobTitle: t("colRole"),
+    kind: t("colDecision"),
+  };
 
   const attributionOptions = [
     { value: "auto", label: t("attribution.auto") },
@@ -296,6 +307,16 @@ export function DecisionLogTable({
         <LoadingGap className="mt-3 min-h-[15rem]" />
       ) : (
         <>
+          {/* Server-paged: the sort and the filters are re-READS, so nothing on
+              screen changes gradually — the table simply becomes a different table.
+              Announced, or a screen-reader auditor operates a control and is told
+              nothing happened. */}
+          <TableStatus
+            columnTitle={SORT_TITLE[sort.col]}
+            dir={sort.dir}
+            matched={total}
+            filtered={Boolean(kind || attribution || query)}
+          />
           {/* A table forced past the viewport by min-w scrolls inside this div. A bare
                 overflow container is not reachable without a pointer in every browser
                 (current Chrome/Firefox focus scroll containers on their own; Safari

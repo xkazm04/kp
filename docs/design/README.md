@@ -606,6 +606,41 @@ the bare `aria-hidden` form — fix-as-you-touch, not a migration.
   [`app/_components/primitive-copy-defaults.test.ts`](../../app/_components/primitive-copy-defaults.test.ts),
   in the unit gate rather than under `scripts/` so it runs without a new alias.
 
+### Tables announce their own changes (2026-09-04)
+
+Sorting a table **reorders** it and filtering **shrinks** it. Both happen entirely
+in the visual channel: the control confirms the press ("Sort by Candidate"), and
+then a different set of rows is silently on screen. Before this pass the only
+`aria-live` anywhere in `app/_components/table/` was `TablePager`'s range line —
+so the Archetypes roster, the decision log, the Activity ledger and the Tasks
+window all changed shape without saying so.
+
+[`TableStatus`](../../app/_components/table/TableStatus.tsx) is the shared
+`sr-only` `role="status"` region every sortable/filterable table mounts:
+
+```tsx
+<TableStatus columnTitle={SORT_TITLE[sort.col]} dir={sort.dir} matched={filtered.length} filtered={anyFilter} />
+```
+
+Three rules it encodes:
+
+- **A region, not a `speak()` call.** The sentence is derived from the state the
+  table already renders, so it cannot drift out of step with the rows — a hook
+  that speaks can be forgotten on one of three filter setters. Re-rendering with
+  different text is what makes a live region fire.
+- **`aria-atomic`**, because the sentence is one fact in two clauses; without it
+  a reader can be handed "descending" with no column named.
+- **An unfiltered table says nothing about matching.** `filtered` gates the count:
+  "174 rows match" on a table nobody narrowed is noise on every render.
+- The column is named by its **visible title**, never its wire key — the sort
+  state carries `createdAt`, the header says *When*.
+
+Copy is `table.status.*` in four locales (`sortedAsc` / `sortedDesc` / a plural
+`matched`). [`table-status.test.ts`](../../app/_components/table/table-status.test.ts)
+pins the region's attributes, the catalog's ICU shapes, and — the half that
+actually rots — the list of surfaces that must MOUNT it: a shared region nobody
+renders announces nothing, and the table still looks correct in review.
+
 ### One size vocabulary across the field primitives (2026-09-04)
 
 `TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`

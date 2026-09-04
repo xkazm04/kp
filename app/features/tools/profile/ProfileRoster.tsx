@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
@@ -158,6 +159,16 @@ export function ProfileRoster({
   // fight the setter above.
   const safePage = clampPage(page, filtered.length);
   const shown = pageSlice(filtered, safePage);
+  // The sort/filter announcement (TableStatus) needs the column's VISIBLE title,
+  // not its wire key — "sorted by name" is not what the header says in any of the
+  // four locales. Same catalog keys the header row renders.
+  const SORT_TITLE = {
+    name: t("colName"),
+    archetype: t("colArchetype"),
+    family: t("colFamily"),
+    completeness: t("colCompleteness"),
+  } as const;
+  const anyFilter = Object.values(filters).some((v) => String(v).trim() !== "");
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -192,6 +203,9 @@ export function ProfileRoster({
           <ProfileEmptyState view="list" archetypes={archetypes ?? []} onNewProfile={onNewProfile} />
         ) : (
           <>
+            {/* Sorting reorders these rows and filtering shrinks them; without
+                this neither event reaches a screen reader at all. */}
+            <TableStatus columnTitle={SORT_TITLE[sort.col]} dir={sort.dir} matched={filtered.length} filtered={anyFilter} />
             <ProfileRosterTable
               shown={shown}
               loading={loading}

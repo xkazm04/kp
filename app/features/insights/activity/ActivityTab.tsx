@@ -16,6 +16,7 @@ import { EYEBROW, INTRO, PANEL } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { labelize } from "@/app/_lib/format";
 import { ActivityDetailModal } from "./ActivityDetailModal";
@@ -74,6 +75,9 @@ export function ActivityTab() {
         </p>
       ) : (
         <div className={`${PANEL} animate-arrive-in p-5`}>
+          {/* This table has no sort, only two column filters — and a filter that
+              shrinks 500 rows to 3 is otherwise silent. */}
+          <TableStatus matched={filtered.length} filtered={Boolean(useCaseFilter || providerFilter)} />
           <div className="overflow-x-auto">
             <table className="w-full min-w-[56rem] text-base">
               <thead>
