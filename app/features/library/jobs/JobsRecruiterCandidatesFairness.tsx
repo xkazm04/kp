@@ -3,7 +3,8 @@
 import { memo, useMemo } from "react";
 import { Scale } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ARCHETYPE_BADGE } from "./JobsTypes";
+import { archetypeDisplayKey } from "./JobsTypes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { CandRow, FairnessMatrix } from "./JobsTypes";
 
 // JOB4 — the ranker has always shipped per-candidate KO reasons for the
@@ -17,6 +18,7 @@ import type { CandRow, FairnessMatrix } from "./JobsTypes";
 // that is collapsed most of the time.
 export const NotEligibleSection = memo(function NotEligibleSection({ rows }: { rows: CandRow[] }) {
   const t = useTranslations("jobs.candidates");
+  const enumLabel = useEnumLabel();
   // Near-misses (a single KO reason) first — they're the candidates a relaxed
   // must-have might rescue. Hooks run before the early return, per the rules of hooks.
   const sorted = useMemo(() => [...rows].sort((a, b) => a.koReasons.length - b.koReasons.length), [rows]);
@@ -31,7 +33,7 @@ export const NotEligibleSection = memo(function NotEligibleSection({ rows }: { r
           <li key={c.candidateId} className="flex flex-wrap items-baseline gap-1.5 text-sm">
             <span className="font-medium text-ink">{c.label}</span>
             <span className="rounded-full bg-ink/90 px-1.5 py-0.5 text-meta text-white">
-              {ARCHETYPE_BADGE[c.archetype] ?? c.archetype}
+              {enumLabel("archetype", archetypeDisplayKey(c.archetype))}
             </span>
             {c.koReasons.length === 1 ? (
               <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-meta text-amber-800">

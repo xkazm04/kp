@@ -8,7 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { archStyle, STAGE_INITIAL } from "./matrixTabTypes.ts";
-import { ARCHETYPE_BADGE, normalizeArchetype } from "@/app/_lib/archetypes.ts";
+import { ARCHETYPE_LABEL, normalizeArchetype } from "@/app/_lib/archetypes.ts";
 
 test("a blank/absent archetype degrades to the experienced default", () => {
   for (const blank of [null, "", "   "]) {
@@ -25,7 +25,9 @@ test("an UNKNOWN archetype never mislabels as bau — it keeps its own id, neutr
 });
 
 test("every registered archetype resolves to its OWN id (label comes from the id)", () => {
-  for (const id of Object.keys(ARCHETYPE_BADGE)) {
+  // ARCHETYPE_LABEL, not the deleted ARCHETYPE_BADGE: both were keyed by the same
+  // registry ids, and only the id vocabulary is what this test needs.
+  for (const id of Object.keys(ARCHETYPE_LABEL)) {
     assert.equal(archStyle(id).id, id, `${id} must keep its identity`);
     assert.equal(typeof archStyle(id).bg, "string");
     assert.ok(archStyle(id).bg.length > 0, `${id} needs some dot class`);
