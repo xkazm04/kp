@@ -41,7 +41,19 @@ function useFindingText(): (note: GithubNote) => string {
  *  app/features/tools/devcases/useDevSubmissionRow — both outside this lot's write
  *  set; neither leaks English today, and both should hand over the code instead
  *  once their state can carry it. */
-export type GithubPanelError = string | { code: string; fallback?: string | null };
+export type GithubPanelError =
+  | string
+  | {
+      code: string;
+      fallback?: string | null;
+      /** Seconds until the boundary says a retry can succeed — the route forwards
+       *  GitHub's own `Retry-After` / `x-ratelimit-reset` on a RATE_LIMITED answer.
+       *  Rendered as a second line beside the Retry button, so "try again shortly"
+       *  becomes a time the reader can act on instead of an invitation to retry
+       *  straight back into the same wall. Absent whenever the boundary gave no
+       *  hint — the panel then says nothing rather than guessing a number. */
+      retryAfterSec?: number | null;
+    };
 
 type GithubAnalysisPanelProps = {
   status: "idle" | "loading" | "done" | "error";
@@ -76,6 +88,19 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
             if (fromApp !== UNKNOWN) return fromApp;
             return error.fallback ?? t("errors.ANALYSIS_FAILED");
           })();
+  // Minutes once the wait passes a minute — "try again in 900 seconds" is a number
+  // a reader has to do arithmetic on. Both forms are ICU-pluralized in the catalog
+  // (Czech needs one/few/other on each).
+  const retryAfterSec =
+    error && typeof error !== "string" && typeof error.retryAfterSec === "number" && error.retryAfterSec > 0
+      ? error.retryAfterSec
+      : null;
+  const retryHint =
+    retryAfterSec === null
+      ? null
+      : retryAfterSec < 60
+        ? t("retryAfterSeconds", { seconds: retryAfterSec })
+        : t("retryAfterMinutes", { minutes: Math.ceil(retryAfterSec / 60) });
   if (status === "idle") return null;
 
   return (
@@ -105,6 +130,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
       {status === "error" ? (
         <div className="mt-4 rounded-md bg-red-50 p-3">
           <p className="text-base text-red-700">{errorText}</p>
+          {retryHint ? <p className="mt-1 text-sm text-red-700">{retryHint}</p> : null}
           {onRetry ? (
             <button
               type="button"
@@ -320,9 +346,11 @@ function CodeReviewBlock({
       {review.partial ? (
         <p className="mt-2 text-sm leading-5 text-amber-800">{tReview("partial")}</p>
       ) : null}
-      {review.error ? (
-        <p className="mt-2 rounded-md bg-red-50 p-2 text-sm text-red-700">{review.error}</p>
-      ) : null}
+      {/* `review.error` is a stable DIAGNOSTIC code for the server log (see
+          github/code-review.ts REVIEW_DIAGNOSTIC), never prose — this used to render
+          the thrown provider message verbatim, in English, to every reader. The
+          localized line for the same failure is `reason`, rendered as `summary`
+          above, so there is nothing left to show here. */}
       {review.reposReviewed.length ? (
         <p className="mt-2 text-sm text-steel">{t("reposReviewed", { repos: review.reposReviewed.join(", ") })}</p>
       ) : null}

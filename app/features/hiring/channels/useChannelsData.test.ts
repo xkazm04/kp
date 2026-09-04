@@ -12,6 +12,7 @@
 //      stageWithRole("entry", …) (cv-intake.ts), so a composed axis parked every
 //      inbound application somewhere the tab's `=== "Accepted"` filter could not see.
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
@@ -59,4 +60,22 @@ test("countWaitingAtEntry follows a composed axis by ROLE, not by the name Accep
 
 test("countWaitingAtEntry falls back to the shipped axis when the payload carries none", () => {
   assert.equal(countWaitingAtEntry([entry("Accepted")], []), 1);
+});
+
+// 3. The tab's two own fetches are ABORTED when it unmounts, and nothing settles state
+//    after that. /api/jobs?limit=200 is ~201 KB: switching away mid-flight used to let
+//    it run to completion and then write into a component React had torn down. A source
+//    guard rather than a render test — the rule is about the shape of the effect, and
+//    the unit runner has no DOM.
+test("the data hook aborts its own in-flight fetches on unmount", () => {
+  const src = readFileSync(new URL("./useChannelsData.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  assert.match(src, /new AbortController\(\)/, "the mount effect must own a controller");
+  assert.match(src, /return \(\) => ac\.abort\(\)/, "…and abort it in the cleanup");
+  // Both fetches this hook owns carry the signal. sharedGetJson deliberately does NOT:
+  // its request may be shared with another hook, so aborting it would cancel theirs.
+  const signalled = src.match(/fetch\("\/api\/[^"]+", \{ signal \}\)/g) ?? [];
+  assert.equal(signalled.length, 2, `both own fetches must pass the signal, found ${signalled.length}`);
+  assert.doesNotMatch(src, /sharedGetJson<[^>]*>\([^)]*signal/, "a shared request must not be aborted on our unmount");
+  // An aborted load settles nothing: every setter (and the failure mark) checks first.
+  assert.ok((src.match(/signal\?\.aborted/g) ?? []).length >= 4, "every settle path must check the signal");
 });

@@ -3410,7 +3410,10 @@
       "anyAdverse": "Impact défavorable potentiel : au moins un groupe est sous le seuil de 80 %.",
       "insufficientSample": "Échantillon insuffisant : aucun groupe n’atteint {min} candidats, le ratio des quatre cinquièmes n’a donc pas de valeur probante. Cela ne signifie pas qu’aucun impact défavorable n’a été constaté.",
       "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80 %.",
-      "parseIgnored": "Lignes lues : {read} sur {total}. Ignorées : {ignored} (lignes : {rows}). Chaque ligne doit comporter : groupe, sélectionnés, total. Le résultat ci-dessous est calculé uniquement sur les lignes correctement lues."
+      "parseIgnored": "Lignes lues : {read} sur {total}. Ignorées : {ignored} (lignes : {rows}). Chaque ligne doit comporter : groupe, sélectionnés, total. Le résultat ci-dessous est calculé uniquement sur les lignes correctement lues.",
+      "jurisdictionUnconfirmed": "Aucune juridiction n’est enregistrée pour cet espace de travail. La valeur affichée est celle par défaut, que personne n’a confirmée.",
+      "jurisdictionReadFailed": "La juridiction enregistrée n’a pas pu être lue. La valeur affichée est celle par défaut, pas nécessairement celle que servent vos informations aux candidats.",
+      "covered5Unconfirmed": "Les données personnelles sont traitées conformément au {dataLaw}, avec effacement en libre-service. La durée de conservation n’a pas pu être lue ; aucun chiffre n’est donc indiqué ici."
     },
     "wave": {
       "title": "Vague de présélection · {role}",
@@ -5508,7 +5511,11 @@
       "statusBounced": "Non distribué",
       "resendRecovered": "Déjà en cours de remise. Ce message est en route.",
       "receiptSubject": "Accusé de livraison",
-      "receiptRecipient": "Retour du relais"
+      "receiptRecipient": "Retour du relais",
+      "olderExist": "{count, plural, one {# message affiché} other {# messages affichés}}. Il en existe de plus anciens.",
+      "loadOlder": "Charger les plus anciens",
+      "loadingOlder": "Chargement des plus anciens…",
+      "beyondWindow": "Des messages plus anciens existent, mais ils sont hors de portée de cette vue."
     },
     "eyebrow": "Studio des entrées",
     "title": "Par où les candidats arrivent",
@@ -5625,7 +5632,9 @@
     "careers": {
       "empty": "Aucun poste publié pour l’instant. Publiez un poste et son lien de candidature apparaîtra ici.",
       "applyLink": "lien de candidature",
-      "publishRole": "Publier un poste"
+      "publishRole": "Publier un poste",
+      "showingOf": "{shown} sur {total} affichés",
+      "viewAllRoles": "Tous les postes"
     },
     "receivers": {
       "role": "Poste",
@@ -5918,7 +5927,10 @@
         "BAD_SHAPE": "GitHub a renvoyé une réponse inattendue. Réessayez sous peu.",
         "NOT_A_PERSON": "Cet identifiant correspond à une organisation GitHub, pas à un compte personnel. Saisissez l’identifiant d’un développeur.",
         "REQUEST_THROTTLED": "Trop de requêtes. Veuillez réessayer sous peu.",
-        "ANALYSIS_FAILED": "L’analyse GitHub a échoué. Réessayez sous peu."
+        "ANALYSIS_FAILED": "L’analyse GitHub a échoué. Réessayez sous peu.",
+        "JD_TOO_LONG": "La description de poste est trop longue pour l’analyse GitHub approfondie. Raccourcissez-la et réessayez.",
+        "OFFLINE": "Cette installation fonctionne hors ligne ; GitHub n’a donc pas été contacté.",
+        "RESPONSE_TOO_LARGE": "GitHub a renvoyé une réponse anormalement volumineuse. Réessayez sous peu."
       },
       "review": {
         "partial": "Preuves partielles : une partie des données du dépôt n’a pas pu être récupérée lors de cette exécution (probablement une limitation de débit), considérez donc cette lecture comme incomplète.",
@@ -5929,7 +5941,8 @@
         "throttled": "Impossible de rassembler les signaux publics des dépôts. GitHub limite probablement le débit (indéterminable). Réessayez sous peu.",
         "noSignals": "Les dépôts examinés n’exposent aucun README, commit ou fichier public à évaluer.",
         "malformed": "Gemini a renvoyé une revue des signaux de dépôt mal formée.",
-        "requestFailed": "La requête de revue des signaux de dépôt par Gemini a échoué."
+        "requestFailed": "La requête de revue des signaux de dépôt par Gemini a échoué.",
+        "offline": "Cette installation fonctionne hors ligne (KP_OFFLINE) ; l’analyse des signaux de dépôts par Gemini n’a pas été lancée."
       },
       "finding": {
         "signal": {
@@ -5970,7 +5983,9 @@
           "metadata": "Langage principal et topics du dépôt issus des métadonnées GitHub.",
           "notRead": "Non lus : contenus de fichiers, arborescences imbriquées, dépôts privés et branches autres que la branche par défaut."
         }
-      }
+      },
+      "retryAfterSeconds": "Vous pouvez réessayer dans environ {seconds, plural, one {# seconde} other {# secondes}}.",
+      "retryAfterMinutes": "Vous pouvez réessayer dans environ {minutes, plural, one {# minute} other {# minutes}}."
     }
   },
   "workspaceAdmin": {

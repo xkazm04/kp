@@ -28,6 +28,18 @@ reads "enforced." Its content is single-sourced in `app/_lib/trust-posture.ts`
 the article map in `ai-act-conformity.md` and should be treated as the
 authoritative "current posture" when it and the doc disagree.
 
+**The recruiter-facing posture block states its own confidence.** The
+compliance section inside the Decision Rules modal
+(`app/features/hiring/decisions/DecisionsComplianceSection.tsx`) reads the saved
+jurisdiction from `GET /api/decisions/config` and the effective retention
+window from `GET /api/compliance`. Both reads can fail, and the block now says
+so rather than falling back to a plausible default: an unread jurisdiction
+renders the default *labelled* as unconfirmed (or as a failed read), and an
+unread retention window prints a line that names no number at all
+(`decisions.compliance.covered5Unconfirmed`) instead of the hardcoded "12
+months" it used to assert. The two folds are pure and tested
+(`decisionsComplianceFold.ts` / `.test.ts`).
+
 ## Flows
 
 **Consent → retention → anonymize.** A required consent step
@@ -330,6 +342,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 | AI disclosure UI | `app/_components/AiDisclosure.tsx` |
 | Provenance dossier | `app/_lib/provenance-dossier.ts` |
 | Compliance posture board | `app/trust/page.tsx`, `app/trust/TrustContent.tsx`, `app/_lib/trust-posture.ts` |
+| Recruiter-facing posture block (Decision Rules modal) | `app/features/hiring/decisions/DecisionsComplianceSection.tsx`, state in `decisionsComplianceState.ts`, pure folds in `decisionsComplianceFold.ts` (tested) |
 | Public compliance JSON | `app/api/compliance/route.ts` |
 | Approver identity for sealed approvals | `app/_lib/auth/operator-approver.ts` — `approverIdentity()` / `resolveApprover()` / `humanActor()` over `currentUserId()` + `app/_lib/db/users.ts`, falling back to `operatorApprover()` (env `KP_OPERATOR_NAME`) |
 | Actor on the operational log | `pipeline_events.actor` (`app/_lib/db/core.ts`) — nullable, no backfill; parsed by `parseEventActor()` in `app/_lib/decision-attribution.ts` |

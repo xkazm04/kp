@@ -26,6 +26,10 @@ import { CopyLink, Stat } from "./ChannelsTabWidgets";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import type { ChannelJob } from "./useChannelsData";
 
+/** Published roles shown inline on the Careers stage. The full library is one tab
+ *  away, so this pane stays a preview — but a preview has to say it is one. */
+const CAREERS_PREVIEW = 8;
+
 export function ChannelsTabStage({
   section,
   active,
@@ -186,8 +190,9 @@ export function ChannelsTabStage({
                 }
               />
             ) : (
+              <>
               <ul className="animate-arrive-in space-y-1.5">
-                {jobs.slice(0, 8).map((j) => {
+                {jobs.slice(0, CAREERS_PREVIEW).map((j) => {
                   const url = `${base}/apply/${j.id}`;
                   return (
                     <li key={j.id} className="flex flex-wrap items-center gap-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
@@ -202,6 +207,23 @@ export function ChannelsTabStage({
                   );
                 })}
               </ul>
+              {/* The list is a PREVIEW, and it used to end without saying so: eight
+                  rows out of up to two hundred (useChannelsData reads limit=200),
+                  while the stat tile a few inches above showed the real number. The
+                  count and the way to the rest belong together. */}
+              {jobs.length > CAREERS_PREVIEW ? (
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-steel">
+                  <span className="nums">{t("careers.showingOf", { shown: CAREERS_PREVIEW, total: jobs.length })}</span>
+                  <button
+                    type="button"
+                    onClick={() => router.push(buildTabSwitchUrl("jobs", search.toString()))}
+                    className="focus-ring inline-flex items-center gap-1 rounded font-semibold text-coral hover:underline"
+                  >
+                    {t("careers.viewAllRoles")} <ArrowRight size={12} aria-hidden />
+                  </button>
+                </p>
+              ) : null}
+              </>
             )
           ) : null}
         </div>

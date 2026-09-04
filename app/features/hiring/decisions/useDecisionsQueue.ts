@@ -20,6 +20,8 @@ import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
 import { selectionCacheKey } from "./groupEval/cache-key";
 import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
+import { createTicketGate } from "./decisionsLatestWins";
+import { foldQueueLoadThrow, readQueueResponse } from "./decisionsQueueLoad";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
 import {
@@ -190,25 +192,62 @@ export function useDecisionsQueue() {
   // reconcile, which must always hit the network.
   const load = (opts?: { shared?: boolean }) => {
     const ticket = ++loadTicket.current;
-    return sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
+    return sharedGetJson<unknown>("/api/pipeline", { refresh: !opts?.shared })
       .then((p) => {
         if (ticket !== loadTicket.current) return; // superseded by a newer read or a landed decision
-        if (p.error) throw new Error(p.error);
-        setEntries((p.entries as Entry[]) ?? []);
+        // the-decisions-queue-answers-codes: the body is FOLDED, never thrown. The
+        // old chain re-threw `p.error` and painted `e.message`, so the queue's own
+        // failure was the one English sentence on a screen where every other
+        // refusal already resolves errors.<CODE> in the reader's language.
+        const read = readQueueResponse(p);
+        if (read.failure) {
+          setError(capabilityAwareReason(errMsg, read.failure, t("loadFailed")));
+          return;
+        }
+        setError(null); // a good read clears a previous failure
+        setEntries(read.entries);
       })
       .catch((e) => {
         if (ticket !== loadTicket.current) return;
-        setError(e instanceof Error ? e.message : t("loadFailed"));
+        setError(capabilityAwareReason(errMsg, foldQueueLoadThrow(e), t("loadFailed")));
       });
   };
-  const loadReconsider = () =>
-    fetch("/api/decisions/reconsider")
+  // Same one-writer-wins rule as `load`, for the reconsider queue: it fires from
+  // mount, from the live-refresh bus (other windows too) and after every
+  // reinstate, so a slow earlier response could re-list a row the recruiter had
+  // just reinstated away. The gate is pure (decisionsLatestWins.ts).
+  const reconsiderGate = useRef(createTicketGate());
+  const loadReconsider = () => {
+    const ticket = reconsiderGate.current.take();
+    return fetch("/api/decisions/reconsider")
       .then((r) => r.json())
-      .then((p) => setReconsider((p.items as ReconsiderRow[]) ?? []))
-      .catch(() => undefined);
+      .then((p) => {
+        if (!reconsiderGate.current.isLatest(ticket)) return; // superseded by a newer read
+        setReconsider((p.items as ReconsiderRow[]) ?? []);
+      })
+      .catch(() => {
+        /* best-effort: the reconsider queue is a safety valve BESIDE the pending
+           queue, not the screen's subject. A failed read leaves the last good list
+           (or the empty one) and the header count stays honest about what loaded;
+           the pending queue's own failure — the one the recruiter must act on — is
+           already surfaced as a coded alert above. */
+      });
+  };
+  // `load`/`loadReconsider` are re-created every render; the mount read must call
+  // the LATEST pair once without listing them as deps (that would refetch the queue
+  // on every keystroke). A ref updated after each render is the lint-clean shape:
+  // the mount effect depends on nothing but two stable refs.
+  const latestLoaders = useRef({ load, loadReconsider });
   useEffect(() => {
-    load({ shared: true }); // mount read may ride a sibling's in-flight request
-    loadReconsider();
+    latestLoaders.current = { load, loadReconsider };
+  });
+  useEffect(() => {
+    // The gate object is created once and never replaced, so capturing it here is
+    // the identity the cleanup needs (and keeps the ref out of the cleanup body).
+    const gate = reconsiderGate.current;
+    latestLoaders.current.load({ shared: true }); // mount read may ride a sibling's in-flight request
+    latestLoaders.current.loadReconsider();
+    return () => gate.invalidate(); // an unmounted tab writes nothing
   }, []);
   useLiveRefresh(() => {
     load();
@@ -289,7 +328,11 @@ export function useDecisionsQueue() {
     fetch(`/api/decisions/jd-freshness?jobs=${encodeURIComponent(aiReviewJobKey)}`)
       .then((r) => r.json())
       .then((p) => alive && setJdEditedAt((p.editedAt as Record<string, string | null>) ?? {}))
-      .catch(() => undefined);
+      .catch(() => {
+        /* best-effort: this read only decides whether a card wears the "JD edited
+           since this score" chip. An unread map shows no chip — the score itself is
+           unchanged and every other disclosure on the card still renders. */
+      });
     return () => {
       alive = false;
     };
@@ -302,7 +345,11 @@ export function useDecisionsQueue() {
     fetch(`/api/decisions/peer-context?jobs=${encodeURIComponent(aiReviewJobKey)}`)
       .then((r) => r.json())
       .then((p) => alive && setPeerCtx((p.jobs as PeerContextMap) ?? {}))
-      .catch(() => undefined);
+      .catch(() => {
+        /* best-effort: peer facts are comparison CHROME beside the decision, never
+           the decision. A failed read hides the peer strip; nothing on the card
+           changes meaning without it. */
+      });
     return () => {
       alive = false;
     };
@@ -470,12 +517,30 @@ export function useDecisionsQueue() {
   const visibleGroups = groups.filter((g) => !activeFilter || g.roleKey === activeFilter);
 
   // Which roles already have a saved evaluation (toggles the button label).
+  // Gated for the same reason (decisionsLatestWins.ts), and here the race is
+  // routine: `roleKeys` changes whenever the queue reloads, so a read for the OLD
+  // role set is normally still in flight. Its response is a whole-map replace, so
+  // letting it settle re-asserted "evaluated" chips for roles no longer on screen
+  // and dropped the ones that are — and setEvaluated is also written optimistically
+  // when an eval finishes, which a late response silently reverted.
+  const evaluatedGate = useRef(createTicketGate());
   useEffect(() => {
     if (!roleKeys) return;
+    const gate = evaluatedGate.current; // created once; captured so the cleanup holds no ref
+    const ticket = gate.take();
     fetch(`/api/decisions/group-eval?roles=${encodeURIComponent(roleKeys)}`)
       .then((r) => r.json())
-      .then((p) => setEvaluated(p.evaluated ?? {}))
-      .catch(() => undefined);
+      .then((p) => {
+        if (!gate.isLatest(ticket)) return; // superseded by a newer role set
+        setEvaluated(p.evaluated ?? {});
+      })
+      .catch(() => {
+        /* best-effort: this read only decides a BUTTON LABEL ("Group eval" vs
+           "View eval"). An unread map means every role offers the run, which is
+           the safe direction — the run itself re-reads the cache server-side, so
+           nothing is lost but a chip. Nothing here is worth an alert. */
+      });
+    return () => gate.invalidate(); // a re-keyed effect drops its predecessor
   }, [roleKeys]);
 
   // Watch the group-eval background task; its result is fetched on demand once it

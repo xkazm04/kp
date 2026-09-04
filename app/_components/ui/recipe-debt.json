@@ -85,10 +85,6 @@
     "features/hiring/channels/ChannelsSetupGuide.tsx": {
       "panel": 1
     },
-    "features/hiring/channels/ChannelsTabWidgets.tsx": {
-      "panel": 1,
-      "metaLabel": 1
-    },
     "features/hiring/decisions/DecisionsAiReviewCard.tsx": {
       "rawDate": 2
     },
@@ -106,9 +102,6 @@
     },
     "features/hiring/decisions/DecisionsRoleRow.tsx": {
       "panel": 1
-    },
-    "features/hiring/decisions/DecisionsScreenWaveLists.tsx": {
-      "rawDate": 1
     },
     "features/hiring/pipeline/PassPreviewModal.tsx": {
       "noticeAmber": 1

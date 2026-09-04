@@ -5,7 +5,8 @@
 // from the approved preview: CAS skips, per-candidate comms failures). Split
 // out of DecisionsScreenWaveModal so that component stays under 200 lines.
 import { AlertTriangle, History } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { familyOverrideRejectCount, rowEffectiveFloor } from "./decisionsFloorDisclosure";
 import type { WaveDecision } from "./decisionsScreenWaveTypes";
 
@@ -28,8 +29,13 @@ export function DecisionsScreenWaveLists({
   globalFloor: number | null;
   t: ReturnType<typeof useTranslations<"decisions.wave">>;
 }) {
-  const locale = useLocale();
-  const shortDate = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso));
+  // The app's one date idiom (useDateFormat), not a re-typed Intl option bag: same
+  // "3 Sep 2026" shape as every other surface, null-safe, and it follows the
+  // reader's chosen locale + time zone through the intl context rather than the
+  // machine's. `staleSince` is a store timestamp, so it can legitimately be absent
+  // or malformed — the hook renders the fallback instead of "Invalid Date".
+  const fmt = useDateFormat();
+  const shortDate = (iso: string) => fmt.date(iso);
   // Direction 2 — the "JD edited since this score" chip, shared by both row lists.
   const staleChip = (d: WaveDecision) =>
     d.stale && d.staleSince ? (

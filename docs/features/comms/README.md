@@ -620,10 +620,37 @@ Behaviour is driven against the real handlers in
 and the email/ad-form receiver tables. It replaced the ledger's "Show more"
 button, which appended another 40 rows to the same list until the column filters
 (which live in the table header) had scrolled far out of reach. Paging is a pure
-client-side slice — the comms read is already capped at 200 rows server-side — and
-the page index is **clamped**, never reset from an effect, so filtering down to
-fewer pages lands the reader on one that exists. Any filter change returns to page
-one. The pager renders nothing when everything fits on one page.
+client-side slice over the rows the ledger has **loaded**, and the page index is
+**clamped**, never reset from an effect, so filtering down to fewer pages lands the
+reader on one that exists. Any filter change returns to page one. The pager renders
+nothing when everything fits on one page.
+
+**The ledger consumes the cursor contract (§7).** `ChannelsCommsTable` reads one
+server page at a time (`?limit=200`) and folds each response through the pure reducer
+in `channelsCommsPaging.ts` (`mergeCommsPage`, locked by `channelsCommsPaging.test.ts`).
+It asked for `?limit=500` — the whole derivation window — and looked at `messages`
+only, which made `hasMore` structurally unreachable and left `truncated` unread: the
+table simply ended, and "these are all the messages" looked exactly like "these are the
+newest 500 of far more". Now:
+
+- the caption says `Showing N — older ones exist` (`channels.comms.olderExist`) instead
+  of `N messages` whenever either fact is true;
+- **Load older** appends the next cursor page — and appears *only* while a cursor
+  actually reaches more rows;
+- once it does not but `truncated` is set, the sentence
+  (`channels.comms.beyondWindow`) is the whole affordance: the oldest rows sit outside
+  the derivation window and no button gets them, which is precisely what a dead "load
+  older" would have hidden.
+
+The reducer holds the three rules a component cannot be trusted to re-derive: a body
+with no `messages` array is a **failure**, never an empty ledger; `hasMore` without a
+`nextCursor` is not more (that pair is how a client pages forever); and a page answered
+with `cursorExpired` came back from the *top*, so it replaces rather than appends.
+
+**The careers list says it is a preview.** `ChannelsTabStage` shows the first 8
+published roles; past that it renders `Showing 8 of N` (`channels.careers.showingOf`)
+with a link into the Jobs tab. The stat tile beside it had been showing the real N all
+along while the list ended silently at eight.
 
 **Chrome renders before data; only data waits.** Two cascade gaps on the Comms
 section are closed:

@@ -3410,7 +3410,10 @@
       "anyAdverse": "Potential adverse impact: at least one group is below the 80% threshold.",
       "insufficientSample": "Insufficient sample: no group reaches {min} applicants, so the four-fifths ratio is not meaningful. This is not a finding of no adverse impact.",
       "noAdverse": "No group falls below the 80% four-fifths threshold.",
-      "parseIgnored": "Read {read} of {total} rows. {ignored} ignored (rows: {rows}). Each row needs: group, selected, total. The result below is computed only on the rows that parsed."
+      "parseIgnored": "Read {read} of {total} rows. {ignored} ignored (rows: {rows}). Each row needs: group, selected, total. The result below is computed only on the rows that parsed.",
+      "jurisdictionUnconfirmed": "No jurisdiction is saved for this workspace. The default below is in force, but nobody has confirmed it.",
+      "jurisdictionReadFailed": "The saved jurisdiction couldn’t be read. What is shown is the default, not necessarily what your candidate disclosures serve.",
+      "covered5Unconfirmed": "Personal data is processed under {dataLaw} with self-service erasure. The retention window couldn’t be read, so no figure is stated here."
     },
     "wave": {
       "title": "Screening wave · {role}",
@@ -5508,7 +5511,11 @@
       "statusBounced": "Bounced",
       "resendRecovered": "Already being delivered. This message is on its way.",
       "receiptSubject": "Delivery receipt",
-      "receiptRecipient": "Relay callback"
+      "receiptRecipient": "Relay callback",
+      "olderExist": "Showing {count, plural, one {# message} other {# messages}}. Older ones exist.",
+      "loadOlder": "Load older",
+      "loadingOlder": "Loading older…",
+      "beyondWindow": "Older messages exist, but they're beyond this view's reach."
     },
     "eyebrow": "Inbound studio",
     "title": "Where candidates come in",
@@ -5625,7 +5632,9 @@
     "careers": {
       "empty": "No published roles yet. Publish a job and its apply link appears here.",
       "applyLink": "apply link",
-      "publishRole": "Publish a role"
+      "publishRole": "Publish a role",
+      "showingOf": "Showing {shown} of {total}",
+      "viewAllRoles": "All roles"
     },
     "receivers": {
       "role": "Role",
@@ -5918,7 +5927,10 @@
         "BAD_SHAPE": "GitHub returned an unexpected response. Try again shortly.",
         "NOT_A_PERSON": "That handle is a GitHub organization, not a personal account. Enter an individual developer's username.",
         "REQUEST_THROTTLED": "Too many requests. Please try again shortly.",
-        "ANALYSIS_FAILED": "The GitHub analysis failed. Try again shortly."
+        "ANALYSIS_FAILED": "The GitHub analysis failed. Try again shortly.",
+        "JD_TOO_LONG": "The job description is too long for the GitHub deep dive. Shorten it and try again.",
+        "OFFLINE": "This deployment runs offline, so GitHub was not contacted.",
+        "RESPONSE_TOO_LARGE": "GitHub returned an unexpectedly large response. Try again shortly."
       },
       "review": {
         "partial": "Partial evidence: some repository data couldn't be fetched this run (likely rate limiting), so treat this as an incomplete read.",
@@ -5929,7 +5941,8 @@
         "throttled": "Couldn't gather public repo signals. GitHub may be rate-limiting (could not determine). Try again shortly.",
         "noSignals": "Reviewed repositories expose no public README, commit, or file signals to assess.",
         "malformed": "Gemini returned a malformed repo-signal review payload.",
-        "requestFailed": "The Gemini repo-signal review request failed."
+        "requestFailed": "The Gemini repo-signal review request failed.",
+        "offline": "This deployment runs offline (KP_OFFLINE), so the Gemini repo-signal review was not attempted."
       },
       "finding": {
         "signal": {
@@ -5970,7 +5983,9 @@
           "metadata": "Primary language and repository topics from GitHub metadata.",
           "notRead": "Not read: file bodies, nested/recursive directory trees, private repos, and non-default branches."
         }
-      }
+      },
+      "retryAfterSeconds": "You can try again in about {seconds, plural, one {# second} other {# seconds}}.",
+      "retryAfterMinutes": "You can try again in about {minutes, plural, one {# minute} other {# minutes}}."
     }
   },
   "workspaceAdmin": {

@@ -2,10 +2,19 @@ import { NextResponse } from "next/server";
 import { logGithub, newRequestId } from "@/app/_lib/logger";
 import { parseGithubUsername } from "@/app/_lib/github-handle";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { REFUSAL_ERRORS } from "@/app/_lib/api-response";
+import { REFUSAL_ERRORS, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { githubCacheKey, readGithubCache, writeGithubCache } from "@/app/_lib/github/cache";
 import { buildGithubAnalysis, isTransientlyDegraded } from "@/app/_lib/github/analysis";
-import { GithubAnalysisError } from "@/app/_lib/github/client";
+import { GITHUB_ERRORS, GithubAnalysisError } from "@/app/_lib/github/client";
+
+// The pasted job description reaches the Gemini prompt, and only the CACHE KEY was
+// ever capped (github/cache.ts normalizes to 4000 chars for hashing) — the prompt
+// itself took the whole string. A 2 MB paste was therefore an uncapped spend on the
+// deployment's own Gemini key, from any caller who could reach this door. Refuse
+// past this length rather than silently truncating: a JD this long is a mistake, and
+// analyzing a third of one and calling it a job fit is the worse failure.
+const GITHUB_JD_MAX_CHARS = 20_000;
 
 // HTTP shell for the public-GitHub candidate analysis. Everything it needs —
 // the REST client, the ranking/skill heuristics, the Gemini deep review, the
@@ -18,6 +27,16 @@ export async function POST(request: Request) {
   const requestId = newRequestId();
   const startedAt = Date.now();
 
+  // AUTHORIZATION, not identity. This door spends the DEPLOYMENT's money — up to
+  // ~31 GitHub REST calls and one paid Gemini call per uncached run — and produces
+  // a hiring judgement about a named person. It asks for `pipeline:write`, the
+  // recruiter capability that already governs "acts on candidates" (moves, decisions,
+  // comms): a `viewer` seat may read the board but must not be able to commission
+  // an assessment or burn the org's provider budget. Open dev and an operator session
+  // both fold to owner, so local use is unchanged.
+  const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (denied) return denied;
+
   const body = await request.json().catch(() => null);
   const rawProfile = typeof body?.profile === "string" ? body.profile.trim() : "";
   const jobDescription = typeof body?.jobDescriptionText === "string" ? body.jobDescriptionText : "";
@@ -27,9 +46,15 @@ export async function POST(request: Request) {
   // English for the server log and API consumers, `code` is what the UI resolves
   // in the reader's language (docs/architecture/localization.md).
   if (!username) {
+    return NextResponse.json({ error: GITHUB_ERRORS.HANDLE_REQUIRED, code: "HANDLE_REQUIRED" }, { status: 400 });
+  }
+  // The prompt budget, refused at the door rather than absorbed downstream. `max` is
+  // DATA beside the code so the panel can name the limit in the reader's language
+  // instead of the server shipping an English sentence with a number in it.
+  if (jobDescription.length > GITHUB_JD_MAX_CHARS) {
     return NextResponse.json(
-      { error: "Enter a GitHub username or profile URL.", code: "HANDLE_REQUIRED" },
-      { status: 400 }
+      { error: GITHUB_ERRORS.JD_TOO_LONG, code: "JD_TOO_LONG", max: GITHUB_JD_MAX_CHARS },
+      { status: 413 }
     );
   }
 
@@ -82,21 +107,30 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(validated);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "GitHub analysis failed.";
     const code = error instanceof GithubAnalysisError ? error.code : "ANALYSIS_FAILED";
+    // The CANONICAL English for the code — never the thrown error's `.message`. The
+    // raw cause still reaches the operator (the log line below plus console.error),
+    // but an undici/provider internal string can no longer ride a 200 payload onto a
+    // recruiter's screen in a language they did not choose (api-contracts.md §1.1).
+    const message = GITHUB_ERRORS[code];
+    if (!(error instanceof GithubAnalysisError)) console.error("[api:github-analysis] ANALYSIS_FAILED", error);
+    // `retryAfterSec` is present only when GitHub itself said when to come back
+    // (Retry-After / x-ratelimit-reset). The panel turns an open-ended "try again
+    // shortly" into a time the reader can act on.
+    const retryAfterSec = error instanceof GithubAnalysisError ? error.retryAfterSec : undefined;
     void logGithub({
       request_id: requestId,
       github_user: username,
       duration_ms: Date.now() - startedAt,
       status: "error",
       rest_repos: 0,
-      error: message,
+      error: error instanceof Error ? error.message : String(error),
     });
     // Optional analysis: surface the failure as a 200 + {error, code} so the
     // browser console doesn't flag a Bad Gateway every time GitHub rate-limits
     // a request. The frontend detects the failure by the presence of `error`
     // regardless of status code, and renders the localized `code` inside the
     // GithubAnalysisPanel error state.
-    return NextResponse.json({ error: message, code });
+    return NextResponse.json(retryAfterSec ? { error: message, code, retryAfterSec } : { error: message, code });
   }
 }

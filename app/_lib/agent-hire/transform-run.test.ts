@@ -17,8 +17,9 @@
 // runner is imported, hence the dynamic imports.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 
 process.env.PYTHON_CMD = "kp-no-python-for-the-agent-fit-test";
@@ -40,8 +41,19 @@ function job(id: string): string {
 }
 
 /** Temp workdirs the runner has left behind (createWorkdir → mkdtemp "jobfit-"). */
+// The whole unit suite runs in parallel and every Python spawn mints a `jobfit-*`
+// workdir under the SAME os.tmpdir(), so counting that shared root is a race
+// (the wave-38d gate saw 5 !== 4 from a sibling suite's spawn). Point the OS temp
+// root at a private directory for this process before the first spawn: os.tmpdir()
+// re-reads TMP/TEMP/TMPDIR on every call, so the runner's mkdtemp lands here too.
+const privateTmp = mkdtempSync(path.join(os.tmpdir(), "agentfit-test-"));
+process.env.TMPDIR = privateTmp;
+process.env.TMP = privateTmp;
+process.env.TEMP = privateTmp;
+after(() => rmSync(privateTmp, { recursive: true, force: true }));
+
 function workdirCount(): number {
-  return readdirSync(os.tmpdir(), { withFileTypes: true }).filter((e) => e.isDirectory() && e.name.startsWith("jobfit-")).length;
+  return readdirSync(privateTmp, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name.startsWith("jobfit-")).length;
 }
 
 test("agentFitArgs threads the workspace's language into the CLI", () => {
