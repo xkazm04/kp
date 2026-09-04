@@ -188,6 +188,13 @@ class LLMError(RuntimeError):
         self.subtype = subtype
 
 
+# The termination reasons that mean "cut off at the token cap", lowercased, across
+# every vocabulary this layer fronts: OpenAI-compatible ("length"), Anthropic
+# ("max_tokens"), Gemini ("MAX_TOKENS"). Kept as data rather than a chain of
+# per-adapter conditionals — a new upstream adds a row, not a branch.
+_TRUNCATED_FINISH_REASONS: frozenset[str] = frozenset({"length", "max_tokens"})
+
+
 @dataclass(frozen=True)
 class LLMResult:
     """One completion: the answer text plus normalized envelope metadata.
@@ -203,6 +210,24 @@ class LLMResult:
     usage: dict[str, Any] = field(default_factory=dict)
     cost_usd: float | None = None
     duration_ms: int = 0
+    # The upstream's OWN termination reason, unnormalized ("length", "max_tokens",
+    # "MAX_TOKENS", "end_turn", "STOP", …). The normalized question is
+    # :meth:`truncated`; this is the raw value, kept because the normalized one is
+    # the caller's contract and the raw one is the operator's only evidence that
+    # the mapping is still right. None when the adapter did not report it.
+    finish_reason: str | None = None
+
+    @property
+    def truncated(self) -> bool:
+        """Whether the upstream cut this answer off at the token cap.
+
+        One question over three vocabularies. ``gemini.GroundedAnswer`` has modelled
+        this since the direct door existed; the shared adapter layer that replaced
+        it for every other provider did not, so hitting max_tokens came back as an
+        ordinary successful completion with a half-written body — a truncation
+        spelled as a normal answer, which is the one thing normalization may never
+        do to a termination reason."""
+        return (self.finish_reason or "").lower() in _TRUNCATED_FINISH_REASONS
 
     def json(self) -> Any:
         """Parse ``text`` as JSON (tolerates markdown fences / surrounding prose)."""
@@ -558,6 +583,29 @@ class TextProvider:
         # back and asks for the JSON value alone. A single formatting slip (stray
         # prose, a markdown fence, a trailing comma) would otherwise discard an
         # already-paid completion and silently drop the call site to its
+        if result.truncated:
+            # A repair CANNOT help here and is not free. The answer was cut off at
+            # max_tokens, so the re-prompt runs under the same cap against a longer
+            # prompt and truncates again — two paid completions to reach the same
+            # deterministic fallback, ending in "did not return parseable JSON",
+            # which names neither the cause nor the repair. Truncation at the cap is
+            # this layer's most-measured failure (capabilities.USE_CASE_MAX_TOKENS
+            # exists because of it), so say so, and name the setting that fixes it.
+            err = LLMError(
+                f"{self.name} was cut off at max_tokens={self.max_tokens} "
+                f"(finish_reason={result.finish_reason!r}), so its JSON is "
+                f"incomplete — raise params.maxTokens for use case "
+                f"{self.use_case or '<unset>'}",
+                provider=self.name,
+                subtype="truncated",
+            )
+            # complete() metered the call as a success — text WAS returned and paid
+            # for — so surface the error too, exactly as the unparseable branch does.
+            monitor.emit_error(
+                provider=self.name, model=self.model, use_case=self.use_case,
+                error=err, duration_ms=result.duration_ms,
+            )
+            raise err
         # deterministic fallback. Bounded to exactly ONE extra call; it goes
         # through complete() so it is retried/metered like any other request, and
         # it gets only the time LEFT on the shared deadline (see the docstring).

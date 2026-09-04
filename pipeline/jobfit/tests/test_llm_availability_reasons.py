@@ -418,12 +418,51 @@ class EnvLoadedOncePerInstanceTests(unittest.TestCase):
             self.assertEqual(provider._resolved_api_version(), "2099-01-01")
 
 
+class _FakeChatResponse:
+    """The shape openai's chat.completions.create returns, as far as _call reads it."""
+
+    def __init__(self, *, finish_reason: str, content: str) -> None:
+        message = type("Msg", (), {"content": content})()
+        self.choices = [type("Choice", (), {"message": message, "finish_reason": finish_reason})()]
+        self.usage = type("Usage", (), {
+            "prompt_tokens": 10, "completion_tokens": 5, "prompt_tokens_details": None,
+        })()
+
+
+class _FakeOpenAIClient:
+    def __init__(self, resp: _FakeChatResponse) -> None:
+        create = lambda **_kwargs: resp  # noqa: E731 - a one-expression SDK stub
+        self.chat = type("Chat", (), {"completions": type("C", (), {"create": staticmethod(create)})()})()
+
+
 class ResultShapeGuard(unittest.TestCase):
     """Non-vacuity for the module: LLMResult still imports and the adapters are real."""
 
     def test_adapters_are_the_registered_ones(self) -> None:
         self.assertTrue(issubclass(ADAPTERS["openai"], TextProvider))
         self.assertEqual(LLMResult(text="t", provider="p", model="m").text, "t")
+
+    def test_the_openai_family_stamps_the_upstream_termination_reason(self) -> None:
+        """A `truncated` flag nothing populates is decoration. Drive the real
+        `_call` against a stubbed SDK response and assert the reason arrives.
+
+        This is the door the whole finding turns on: hitting max_tokens on an
+        OpenAI-compatible provider used to come back as an ordinary success with a
+        half-written body, because `_raise_on_error_response` checks the
+        finish_reason for "error"/"content_filter" and nothing read "length"."""
+        provider = _adapter("openai", api_key="k")
+        resp = _FakeChatResponse(finish_reason="length", content='{"a": 1')
+        with mock.patch.object(type(provider), "_make_client", return_value=_FakeOpenAIClient(resp)):
+            result = provider._call("p", system=None, timeout=10)
+        self.assertEqual(result.finish_reason, "length")
+        self.assertTrue(result.truncated)
+
+        # Non-vacuity: a normal stop is not reported as truncated.
+        ok = _FakeChatResponse(finish_reason="stop", content='{"a": 1}')
+        with mock.patch.object(type(provider), "_make_client", return_value=_FakeOpenAIClient(ok)):
+            result = provider._call("p", system=None, timeout=10)
+        self.assertEqual(result.finish_reason, "stop")
+        self.assertFalse(result.truncated)
 
 
 if __name__ == "__main__":

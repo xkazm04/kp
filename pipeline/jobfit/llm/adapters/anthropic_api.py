@@ -48,6 +48,9 @@ class AnthropicProvider(TextProvider):
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
         cached = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+        # Anthropic spells the token-cap stop "max_tokens"; base._TRUNCATED_FINISH_
+        # REASONS holds every vocabulary this layer fronts.
+        stop_reason = getattr(resp, "stop_reason", None)
         return LLMResult(
             text=text,
             provider=self.name,
@@ -58,4 +61,5 @@ class AnthropicProvider(TextProvider):
                 "cached_tokens": cached,
             },
             cost_usd=price_usd(self.model, input_tokens, output_tokens),
+            finish_reason=str(stop_reason) if stop_reason else None,
         )

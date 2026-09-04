@@ -144,12 +144,44 @@ signal that it *is* one. Each adapter raises a typed `LLMError` instead:
 | HTTP 200 with no `choices` | same | `empty_choices` |
 | `finish_reason` = `error` / `content_filter` | same | `content_filter` |
 | Gemini response with no text (safety/recitation block, or a stop with no parts — `.text` raises or is `None`) | `gemini_api._call` | `empty_response` |
+| A JSON answer cut off at the token cap | `base.complete_json` | `truncated` |
 | Parseable-JSON failure surviving the one repair re-prompt | `base.complete_json` | `unparseable_json` |
 
 Where the tokens were already billed (a Gemini block bills the prompt; a paid
 completion that came back as unusable JSON), the adapter emits the usage line
 **before** raising, so the spend still reaches the ledger and the failure still
 reaches LightTrack — the same success-then-error pair `complete_json` uses.
+
+### The termination reason survives translation
+
+`LLMResult.finish_reason` carries the upstream's **own** stop reason, unnormalized
+— `"length"` (OpenAI-compatible), `"max_tokens"` (Anthropic), `"MAX_TOKENS"` /
+`"STOP"` (Gemini) — and `LLMResult.truncated` is the one normalized question over
+those three vocabularies (`base._TRUNCATED_FINISH_REASONS`). The raw value is kept
+deliberately: the normalized flag is the caller's contract, the raw string is the
+operator's only evidence that the mapping is still right.
+
+This closes a gap that ran the whole length of the fold-in. `gemini.py` has
+modelled truncation since the direct door existed (`GroundedAnswer.finish_reason`,
+`.truncated`, the `output_truncated` code, the `_parse_truncated` salvage), and the
+shared adapter layer that replaced it for every other provider carried **no**
+termination reason at all — so hitting `max_tokens` on `anthropic` / `openai` /
+`openrouter` / `qwen` / `ollama` came back as an ordinary successful completion
+with a half-written body. Truncation at the cap is this layer's most-measured
+failure (`USE_CASE_MAX_TOKENS` exists because of it), and it was the one shape the
+"a non-answer is never an answer" rule above did not cover.
+
+`complete_json` now branches on it: a truncated answer raises `truncated`
+**without** buying the repair re-prompt, because the re-prompt runs under the same
+cap against a longer prompt and truncates identically — two paid completions to
+reach the same deterministic fallback, ending in a diagnosis (`unparseable_json`)
+that names neither the cause nor the repair. The `truncated` message names both,
+including the `params.maxTokens` setting for the use case that hit it.
+
+Plain `complete()` is deliberately unchanged: a truncated prose answer still
+returns, because the callers that take one (`intake.run_voice_turn`, the companion,
+the eval personas) want the partial text, and they can now ask `.truncated` for
+themselves.
 
 ### The direct `gemini.py` seam has its own typed vocabulary
 
@@ -220,7 +252,22 @@ now read the same function.
 
 Python's `TextProvider.complete` retries only *transient* failures
 (`base.is_transient_error`: 408/429/5xx/529 or a timeout marker), 3 attempts,
-`0.5s * 2^attempt` + jitter, capped by the call's deadline. `app/_lib/gemini-retry.ts`
+`0.5s * 2^attempt` + jitter, capped by the call's deadline.
+
+That deadline is a **total wall-clock ceiling, and it spans the whole logical
+call — including `complete_json`'s repair re-prompt.** Each retry gets only the
+time remaining, and the repair is a second `complete()`, so passing it the same
+`timeout` gave it a *fresh* full budget and made a JSON call's real worst case
+`2 x` what the caller configured. That is past the ceiling at every call site:
+`intake_cli` pins `role_intake` at 120s against `intake-run.ts`'s
+`INTAKE_DIALOG_TIMEOUT_MS = 120_000`, `group_compare` at 120s against 150_000ms.
+The `spawnPython` SIGKILL that follows is exactly what the deadline exists to
+avoid, and it takes the metering line for spend that already happened with it.
+`complete_json` therefore takes the deadline once and hands the repair what is
+left; when nothing is left it refuses the repair and says so rather than starting
+a call the host's wall clock will kill mid-flight.
+
+`app/_lib/gemini-retry.ts`
 is the TS mirror of that policy for the one Gemini call site that never reaches
 Python (`app/_lib/github/code-review.ts`), and the two classification lists are now
 pinned to `base.py` by `app/_lib/llm-capabilities-lockstep.test.ts` — a code or
@@ -789,3 +836,17 @@ The OpenAI-compatible adapters share ONE resolver and ONE availability rule
 four byte-identical `_resolved_base_url` copies and two identical `available()`
 bodies, which is how the offline gate went missing from Qwen's copy once
 (`test_llm_offline.py`'s 2026-08-22 audit note).
+
+**The endpoint is shape-checked before the offline gate consults it**, in both
+`OpenAIProvider.availability()` and `AzureOpenAIProvider.availability()`. The
+offline check resolves the same URL (`_offline_blocked` → `_allowed_offline` →
+`_offline_egress_url`), so running it first put the shape check outside the only
+handler that catches it: under `KP_OFFLINE`, an endpoint with credentials in its
+userinfo threw `invalid_base_url` straight out of a method whose contract is to
+*return* a reason. `available()` masked that (it swallows `LLMError`), but
+`provider_availability()` — the door every CLI reads its descent reason from —
+did not, so a routing question reached the caller's catch-all as an
+`engine_error`: no deterministic answer, and no `deterministic` ledger line for
+the descent. Azure's reason priority is unchanged by the ordering —
+`invalid_base_url`, then `offline_policy`, then `missing_endpoint` — because a
+seal that would refuse the call anyway is the honest repair to name.

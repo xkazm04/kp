@@ -98,6 +98,10 @@ class GeminiProvider(TextProvider):
             model=self.model,
             usage=normalized_usage,
             cost_usd=cost_usd,
+            # gemini.py has modelled this since the direct door existed
+            # (GroundedAnswer.finish_reason / .truncated); the shared layer now
+            # carries the same raw value for every provider. "MAX_TOKENS" here.
+            finish_reason=_finish_reason(resp),
         )
 
     def complete_document(

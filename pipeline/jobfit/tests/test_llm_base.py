@@ -208,6 +208,53 @@ class CompleteJsonTest(unittest.TestCase):
             fake.complete_json("x")
         self.assertEqual(len(fake.calls), 2)
 
+    def test_a_truncated_answer_is_named_and_does_not_buy_a_second_call(self) -> None:
+        """Truncation at the cap is this layer's most-measured failure — it is why
+        capabilities.USE_CASE_MAX_TOKENS exists — and it used to arrive as an
+        ordinary success with a half-written body. complete_json then paid for a
+        repair re-prompt that runs under the SAME cap against a LONGER prompt, so
+        it truncates identically: two paid completions to reach the deterministic
+        fallback, ending in 'did not return parseable JSON', which names neither
+        the cause nor the setting that fixes it."""
+        fake = FakeProvider([
+            LLMResult(
+                text='{"verdict": "ok", "rationale": "the answer was cut off mid-',
+                provider="fake", model="fake-1", finish_reason="length",
+            ),
+            _result('{"verdict": "ok"}'),  # a repair result that must never be fetched
+        ])
+        with mock.patch("pipeline.jobfit.llm.base.monitor") as monitor:
+            with self.assertRaises(LLMError) as ctx:
+                fake.complete_json("x")
+        # ONE paid call, not two: the repair was never issued.
+        self.assertEqual(len(fake.calls), 1)
+        self.assertEqual(ctx.exception.subtype, "truncated")
+        # The message names the cause AND the repair.
+        self.assertIn("max_tokens", str(ctx.exception))
+        self.assertIn("maxTokens", str(ctx.exception))
+        # A paid call that came back unusable still surfaces as an error.
+        self.assertTrue(monitor.emit_error.called)
+
+    def test_the_truncation_flag_reads_every_upstream_vocabulary(self) -> None:
+        """One question over three spellings. gemini.GroundedAnswer has modelled
+        this since the direct door existed; the shared layer that replaced it for
+        every other provider carried no termination reason at all."""
+        for reason, expected in (
+            ("length", True),        # OpenAI-compatible
+            ("max_tokens", True),    # Anthropic
+            ("MAX_TOKENS", True),    # Gemini
+            ("end_turn", False),
+            ("stop", False),
+            ("STOP", False),
+            (None, False),
+        ):
+            with self.subTest(finish_reason=reason):
+                res = LLMResult(text="x", provider="p", model="m", finish_reason=reason)
+                self.assertEqual(res.truncated, expected)
+                # The RAW value survives regardless — it is the operator's only
+                # evidence that the normalization above is still correct.
+                self.assertEqual(res.finish_reason, reason)
+
     def test_the_repair_reprompt_shares_the_deadline_it_does_not_restart_it(self) -> None:
         """The deadline spans BOTH calls, so a JSON call cannot cost 2× its budget.
 

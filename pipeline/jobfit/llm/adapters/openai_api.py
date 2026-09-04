@@ -203,6 +203,11 @@ class OpenAIProvider(TextProvider):
 
         choice = resp.choices[0] if getattr(resp, "choices", None) else None
         text = (getattr(getattr(choice, "message", None), "content", None) or "") if choice else ""
+        # The upstream's own termination reason, unnormalized. "length" here means
+        # the answer was cut off at max_tokens; LLMResult.truncated is the
+        # normalized question and complete_json branches on it rather than paying
+        # for a repair re-prompt the same cap will truncate again.
+        finish_reason = getattr(choice, "finish_reason", None) if choice else None
         usage = getattr(resp, "usage", None)
         input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
@@ -221,4 +226,5 @@ class OpenAIProvider(TextProvider):
             # subclasses this _call but its deployment-name models don't prefix-
             # match, so they stay cost_usd=None by design (priced server-side).
             cost_usd=price_usd(self.model, input_tokens, output_tokens),
+            finish_reason=str(finish_reason) if finish_reason else None,
         )
