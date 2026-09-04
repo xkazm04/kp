@@ -441,6 +441,15 @@ win: it is then undeclared, and the next literal to arrive there is red.
 Seeded 2026-09-03 at `panel=107 metaLabel=76 chipQuiet=10 noticeAmber=62
 btnAffirm=5 rawDate=15` over 168 files.
 
+**`RubricCoverageNote` burnt down (2026-09-04)** — one `noticeAmber`, and the shape
+of the win again: the hand-typed advisory was `rounded-md border-amber-200` with no
+`dark:rounded-2xl`, so it was the one square-cornered box on a Spark Dark surface
+after `NOTICE()` had already been given the sticker radius. Its entry is gone from
+`recipe-debt.json`, which locks it. `Select`'s `panel: 1` is deliberately still
+standing: its portalled menu is `shadow-pop`, and `PANEL` hardcodes `shadow-panel`
+plus the dark sticker ride that comes with it, so composing it would restyle the
+open menu. That literal wants a `POPOVER` recipe, not `PANEL`.
+
 **First burn-down, same day:** `panel` 107 → 92, `metaLabel` 76 → 53,
 `chipQuiet` 10 → 9, `noticeAmber` 62 → 61 (40 lines) across `ExtractionTab`,
 `CompareTab`, `DecisionRecordDetail`, `QualityInstrument`, `StructuredReadout`

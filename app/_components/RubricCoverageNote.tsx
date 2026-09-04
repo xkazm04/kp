@@ -31,6 +31,7 @@
 
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { isDisclosedGap, type RubricCoverage } from "@/app/_lib/interview-rubric";
 
@@ -44,7 +45,11 @@ export function RubricCoverageNote({ coverage, className = "" }: { coverage: Rub
     return (
       <p
         role="status"
-        className={`flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 p-2 text-meta text-amber-800 ${className}`}
+        // The amber advisory is `NOTICE("amber")`, not a hand-typed copy of it: the
+        // hand-typed one was `rounded-md` with no `dark:rounded-2xl`, i.e. the one
+        // square-cornered box on a Spark Dark surface where everything else had taken
+        // the sticker radius — exactly the repair a copy does not receive.
+        className={`${NOTICE("amber")} flex items-start gap-1.5 p-2 text-meta ${className}`}
       >
         <Info size={13} className="mt-0.5 shrink-0" aria-hidden /> {t("no_family")}
       </p>

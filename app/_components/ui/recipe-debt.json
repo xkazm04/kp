@@ -35,9 +35,6 @@
     "_components/PotentialBadge.tsx": {
       "panel": 1
     },
-    "_components/RubricCoverageNote.tsx": {
-      "noticeAmber": 1
-    },
     "_components/Select.tsx": {
       "panel": 1
     },
