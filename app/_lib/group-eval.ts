@@ -72,6 +72,15 @@ function db(): Database.Database {
   } catch {
     /* rebuild raced/failed — the composite CREATE above still governs a fresh table */
   }
+  // The cohort a stored eval was computed against (candidateSetFingerprint of the
+  // role's cohort at run time). NULL on every row written before this column existed
+  // — a legacy row is adopted by the first CAS write that expected `null`, never
+  // permanently locked. Same duplicate-column guard as workspace_id above.
+  try {
+    d.exec(`ALTER TABLE group_evals ADD COLUMN cohort_hash TEXT`);
+  } catch {
+    /* column already exists — idempotent */
+  }
   _db = d;
   return d;
 }
@@ -83,32 +92,108 @@ export type GroupEval = {
   createdAt: string;
 };
 
+/** What a caller observed about a role's stored eval BEFORE it started computing —
+ *  the precondition a CAS write re-asserts. `exists: false` means "there was no row
+ *  for this key"; `cohortHash: null` on an existing row means a legacy row written
+ *  before the column existed (adoptable, not locked). */
+export type GroupEvalCohortState = { exists: boolean; cohortHash: string | null };
+
+/** Read the CAS precondition for a key. Deliberately separate from getGroupEval:
+ *  the callers that need this need only the two fields, and adding them to
+ *  `GroupEval` would push a persistence detail onto every payload reader. */
+export function readGroupEvalCohortState(
+  roleKey: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): GroupEvalCohortState {
+  const row = db()
+    .prepare(`SELECT cohort_hash FROM group_evals WHERE role_key = ? AND workspace_id = ?`)
+    .get(roleKey, workspaceId) as { cohort_hash: string | null } | undefined;
+  return row ? { exists: true, cohortHash: row.cohort_hash ?? null } : { exists: false, cohortHash: null };
+}
+
+/**
+ * Persist one evaluation. Returns whether the write actually landed.
+ *
+ * A group-eval run is a read→compute→write that CANNOT hold a transaction: the
+ * compute spawns up to eight Python processes and takes minutes, and an `await`
+ * inside `db.transaction()` silently forfeits atomicity (the house rule). So the
+ * write re-asserts what the read saw, exactly like `actOnPipelineEntry`'s
+ * `expectedStage` — here keyed on the cohort the run actually ranked.
+ *
+ * Without `cas` this is the historical unconditional upsert, kept for callers that
+ * genuinely have no prior observation (tests, scripts, and the invalidation-driven
+ * paths that are not racing anybody).
+ *
+ * With `cas` the write lands only if the row is still in the state the run started
+ * from — no row then, still no row now; or the same `cohortHash` it read. Otherwise
+ * a newer evaluation is already there and OURS is the stale one: it is dropped, and
+ * `false` is returned so the caller can log which result it discarded and why. That
+ * is the case the dedupe key narrows but cannot close, because a run that started
+ * before a pipeline write still finishes after it.
+ */
 export function saveGroupEval(
   roleKey: string,
   roleTitle: string | null,
   payload: Record<string, unknown>,
-  workspaceId: string = DEFAULT_WORKSPACE_ID
-): void {
-  db()
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  cas?: { cohortHash: string; expected: GroupEvalCohortState }
+): boolean {
+  const row = {
+    role_key: roleKey,
+    role_title: roleTitle,
+    payload_json: JSON.stringify(payload),
+    created_at: new Date().toISOString(),
+    workspace_id: workspaceId,
+    cohort_hash: cas?.cohortHash ?? null,
+  };
+  if (!cas) {
+    // Upsert on the composite identity (role_key, workspace_id): a re-run replaces
+    // THIS team's eval for the role, and two teams sharing a roleKey each keep their
+    // own row. (The old ON CONFLICT(role_key) + workspace_id WHERE guard silently
+    // dropped the second tenant's write — see the composite-PK note in db().)
+    db()
+      .prepare(
+        `INSERT INTO group_evals (role_key, role_title, payload_json, created_at, workspace_id, cohort_hash)
+         VALUES (@role_key, @role_title, @payload_json, @created_at, @workspace_id, @cohort_hash)
+         ON CONFLICT(role_key, workspace_id) DO UPDATE SET
+           role_title = excluded.role_title,
+           payload_json = excluded.payload_json,
+           created_at = excluded.created_at,
+           cohort_hash = excluded.cohort_hash`
+      )
+      .run(row);
+    return true;
+  }
+  if (!cas.expected.exists) {
+    // The run saw NO eval for this key. If one appeared while it computed, that run
+    // is newer than ours by construction — DO NOTHING and report the drop.
+    const res = db()
+      .prepare(
+        `INSERT INTO group_evals (role_key, role_title, payload_json, created_at, workspace_id, cohort_hash)
+         VALUES (@role_key, @role_title, @payload_json, @created_at, @workspace_id, @cohort_hash)
+         ON CONFLICT(role_key, workspace_id) DO NOTHING`
+      )
+      .run(row);
+    return res.changes > 0;
+  }
+  // The run saw a row carrying `expected.cohortHash`. `IS` (not `=`) so a legacy
+  // row's NULL compares equal to the null the caller read from it, instead of the
+  // three-valued `NULL = NULL` that would make every pre-column row unwritable.
+  // A row that vanished under us (an invalidation) is NOT re-created here: no rows
+  // match, changes === 0, and the stale result is dropped rather than resurrected.
+  const res = db()
     .prepare(
-      // Upsert on the composite identity (role_key, workspace_id): a re-run replaces
-      // THIS team's eval for the role, and two teams sharing a roleKey each keep their
-      // own row. (The old ON CONFLICT(role_key) + workspace_id WHERE guard silently
-      // dropped the second tenant's write — see the composite-PK note in db().)
-      `INSERT INTO group_evals (role_key, role_title, payload_json, created_at, workspace_id)
-       VALUES (@role_key, @role_title, @payload_json, @created_at, @workspace_id)
-       ON CONFLICT(role_key, workspace_id) DO UPDATE SET
-         role_title = excluded.role_title,
-         payload_json = excluded.payload_json,
-         created_at = excluded.created_at`
+      `UPDATE group_evals
+          SET role_title = @role_title,
+              payload_json = @payload_json,
+              created_at = @created_at,
+              cohort_hash = @cohort_hash
+        WHERE role_key = @role_key
+          AND workspace_id = @workspace_id
+          AND cohort_hash IS @expected_cohort_hash`
     )
-    .run({
-      role_key: roleKey,
-      role_title: roleTitle,
-      payload_json: JSON.stringify(payload),
-      created_at: new Date().toISOString(),
-      workspace_id: workspaceId,
-    });
+    .run({ ...row, expected_cohort_hash: cas.expected.cohortHash });
+  return res.changes > 0;
 }
 
 export function getGroupEval(roleKey: string, workspaceId: string = DEFAULT_WORKSPACE_ID): GroupEval | null {

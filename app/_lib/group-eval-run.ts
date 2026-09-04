@@ -7,7 +7,8 @@ import { recordAutomationEvent } from "./db/pipeline";
 import { getProfileRecord } from "./db/profiles";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "./db/workspaces";
 import { runReasoning } from "./reasoning-run";
-import { getGroupEval, saveGroupEval } from "./group-eval";
+import { getGroupEval, readGroupEvalCohortState, saveGroupEval } from "./group-eval";
+import { candidateSetFingerprint } from "./group-eval-dedupe";
 import { isEarlyCareer } from "./archetypes";
 import { APP_CURRENCY } from "./format";
 import { isSameCurrency } from "./salary-band";
@@ -456,6 +457,13 @@ export async function runGroupEval(
   // role has never been evaluated as a top-N (before selection-rerun-cache a selection
   // run wrote the role-level row, so this keeps governance exactly as sticky as it was).
   const priorEval = getGroupEval(roleKey, workspaceId) ?? (cacheKey !== roleKey ? getGroupEval(cacheKey, workspaceId) : null);
+  // The CAS precondition, read HERE — before the first await, so it is genuinely
+  // "what this run saw when it started" — and re-asserted by the write at the end
+  // (see saveGroupEval). `cohortHash` is the order-independent fingerprint of the
+  // cohort this run ranks; it is what a later run compares against to decide whether
+  // the field it is about to overwrite is the one it read.
+  const expectedCohortState = readGroupEvalCohortState(cacheKey, workspaceId);
+  const cohortHash = candidateSetFingerprint(cohort.map((c) => ({ entryId: c.entryId, candidateId: c.candidateId })));
   const storedGovernanceMode = priorEval
     ? normalizeGovernanceMode((priorEval.payload as { governanceMode?: unknown }).governanceMode)
     : null;
@@ -1003,6 +1011,16 @@ export async function runGroupEval(
 
   // Persist under the run's cache key (roleKey for a top-N run, the selection key for
   // a selection run — selection-rerun-cache). Same workspace scoping either way.
-  saveGroupEval(cacheKey, roleTitle, payload, workspaceId);
+  // …under the CAS precondition read before the first spawn. A run over a cohort
+  // that has since been re-evaluated (or invalidated by a pipeline write) is the
+  // STALE one by construction — it is dropped rather than winning as last writer.
+  // The caller still gets its result; only the shared row is protected.
+  const persisted = saveGroupEval(cacheKey, roleTitle, payload, workspaceId, { cohortHash, expected: expectedCohortState });
+  if (!persisted) {
+    console.warn(
+      `[group-eval] dropped a stale result for "${cacheKey}": the stored eval moved while this run was computing ` +
+        `(expected cohort ${expectedCohortState.exists ? expectedCohortState.cohortHash ?? "<legacy>" : "<none>"}, ranked ${cohortHash}).`
+    );
+  }
   return payload;
 }

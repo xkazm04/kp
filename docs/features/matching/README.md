@@ -506,6 +506,32 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### A group evaluation persists against the cohort it actually ranked
+`saveGroupEval` was an unconditional upsert at the end of a run that spends up to
+eight Python processes and can take minutes, so two runs over one role — a
+recruiter reopening the modal while a background `group_eval` task is still
+working, or two recruiters on the same role — both wrote, and the last to finish
+won regardless of which cohort it had ranked. The dedupe key
+(`group-eval-dedupe.ts`) narrows that window to genuinely different requests; it
+cannot close it, because a run that started before a pipeline write still finishes
+after it.
+
+The compute cannot sit inside a transaction (it spawns subprocesses, and an
+`await` inside `db.transaction()` silently forfeits atomicity), so the write
+re-asserts what the read saw — the `actOnPipelineEntry` `expectedStage` shape,
+keyed here on the cohort. `group_evals` carries a `cohort_hash` column
+(`candidateSetFingerprint` of the cohort the run ranked);
+`readGroupEvalCohortState` gives a run its precondition **before its first await**,
+and `saveGroupEval(…, { cohortHash, expected })` lands only if the row is still in
+that state — no row then and none now, or the same hash. Otherwise the stored eval
+is newer and ours is the stale one: the write is dropped, `false` comes back, and
+`runGroupEval` logs which result it discarded and against which cohort. The
+caller still receives its payload; only the shared row is protected. A legacy row
+(`cohort_hash` NULL) is adopted by a run that read null — `IS`, not `=`, so
+three-valued logic cannot make pre-column rows permanently unwritable. Callers
+with no prior observation (tests, scripts) omit `cas` and get the historical
+upsert.
+
 ### Every AI stage of a group evaluation has a deadline, and says when it fell back
 One evaluation fans out to up to **eight** Python processes: the recruiter ranker
 (`--weights-llm` **and** `--embeddings`, so two provider round-trips inside one
