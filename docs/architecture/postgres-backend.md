@@ -76,12 +76,49 @@ translations — and they now run through a `rebuildTable` helper that drops the
 table and wraps the swap in a transaction, since the unguarded version could wedge boot
 after an interrupted migration.
 
+A third: the boot DDL is deliberately loud. Every `ALTER`/`CREATE` runs through
+`migrateExec`, which tolerates ONLY the benign "already applied" error and re-throws the
+rest — and, since wave 40, so do the nine per-tenant scan indexes (previously one bare
+`catch` wrapped all nine, so a single unexpected failure silently skipped the remaining
+eight) and the four UNIQUE indexes, which now go through `migrateUniqueIndex`: it tolerates
+`SQLITE_CONSTRAINT_UNIQUE` — a legacy DB whose existing rows block the constraint, where
+the app-level read-then-insert coalescing stays the guarantee — logs which index was
+skipped and why, and re-throws everything else. A port keeps that split: the "duplicate
+rows already exist" case is real on Postgres too (`CREATE UNIQUE INDEX` raises
+`unique_violation`), a locked or broken database is not something to boot past.
+
+And a fourth, at the other end of boot: `runBootMaintenance()` (exported from `db/core.ts`,
+pinned by `app/_lib/db/core-boot-tail.test.ts`) prunes expired prompt-cache rows and runs
+`wal_checkpoint(TRUNCATE)`. Both reclaim SPACE, not correctness, so both are best-effort —
+a failure is logged and survived, never allowed to wedge a boot that would otherwise serve.
+On Postgres the checkpoint half disappears entirely (no WAL sidecar to fold back; autovacuum
+owns the equivalent), while the prune must stay: nothing else bounds `gemini_cache`, because
+`lookupPromptCache` skips expired rows without deleting them. Fixture seeding runs BEFORE
+the PK rebuilds and the `workspace_id`/`org_id` backfills, and that order is load-bearing —
+the backfills are written as heals over "whatever rows exist", which is what makes them
+order-independent; the same test pins it. `KP_EMPTY=1` (`npm run dev:empty`) skips every
+fixture seeder while still creating the schema, the default workspace and the default org,
+and leaves `onboarding_state` NULL so the first-run wizard fires
+(`app/_lib/db/core-empty-boot.test.ts`).
+
 **The SQL itself is largely portable** (run `npm run db:pg-audit` for the live list):
-no `strftime` / `json_extract` / `rowid` / `PRAGMA`-in-queries. The whole dialect
-surface is ~11 `AUTOINCREMENT`, ~26 `ON CONFLICT`, ~13 `INSERT OR IGNORE/REPLACE` —
-mechanical tweaks (`AUTOINCREMENT` → `IDENTITY`, `INSERT OR IGNORE` → `ON CONFLICT DO
-NOTHING`). The audit test (`app/_lib/db/pg-portability.ts` + its test) fails if a NEW
-un-portable construct creeps in, so this surface stays small and known.
+no `strftime` / `json_extract`, and `PRAGMA` appears in connection setup rather than in
+queries. The whole dialect surface is ~11 `AUTOINCREMENT`, ~26 `ON CONFLICT`, ~13
+`INSERT OR IGNORE/REPLACE` — mechanical tweaks (`AUTOINCREMENT` → `IDENTITY`,
+`INSERT OR IGNORE` → `ON CONFLICT DO NOTHING`) — plus two constructs with no mechanical
+equivalent: `prunePromptCache`'s `WHERE rowid IN (…)` (Postgres has no implicit rowid) and
+`scripts/db-dump.mjs`'s `pragma_table_info()` schema introspection (Postgres answers that
+from `information_schema` / `pg_catalog`).
+
+**What the audit scans** is `auditRoots()` in `app/_lib/db/pg-portability.ts`: `app/_lib`
+**plus** `scripts/db-dump.mjs` and `scripts/db-load.mjs`. Those two were outside the audit
+until wave 40, which understated the surface: they are the operator's backup/restore path
+(`releases.md` §Going back), they hold their own SQL and pragmas, and `db-load` wraps the
+entire restore in a synchronous `db.transaction()` — the sync→async blocker again, outside
+the app. A port that migrated every app store but left the dump/load tooling speaking
+SQLite is discovered on the day someone tries to restore a backup. The audit test
+(`app/_lib/db/pg-portability.test.ts`) fails if a NEW un-portable construct creeps in, and
+pins the roots so the scripts cannot silently fall out of scope again.
 
 ## 2. Do we even need Postgres? (the honest question)
 
