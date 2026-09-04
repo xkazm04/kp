@@ -20,6 +20,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { kindLabel, parseEventActor } from "@/app/_lib/decision-attribution";
+import { localizedFailureMessage } from "../analyticsFetchError";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
@@ -132,8 +133,11 @@ export function DecisionRecordsTable({
     setDossierError(null);
     try {
       await onExportDossier(candidateRef);
-    } catch {
-      setDossierError(t("dossierFailed"));
+    } catch (err) {
+      // The panel resolved the server's code in the reader's language before
+      // throwing; anything else that lands here (a network drop, a parse) is an
+      // unlocalized accident and gets the generic sentence.
+      setDossierError(localizedFailureMessage(err, t("dossierFailed")));
     } finally {
       setDossierBusy(null);
     }

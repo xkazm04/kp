@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ShieldCheck, ShieldAlert, Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { apiErrorPayload, LocalizedFailure } from "./analyticsFetchError";
 import { downloadFile } from "@/app/_lib/export-utils";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
@@ -29,6 +31,12 @@ type Payload = { records: DecisionRecord[]; chain: ChainVerdict; resolved?: Reco
 export function DecisionRecordsPanel() {
   const t = useTranslations("analytics.decisionRecords");
   const tReasons = useTranslations("decisions.wave");
+  // The server answers a failure with a CODE, never with prose the UI may paint
+  // (api-contracts.md §1.1). This export threw the raw HTTP status and, failing that,
+  // the server's English `error` string — neither of which ever reached a reader,
+  // because the catch downstream painted one flat sentence for both. Resolve the code
+  // in the reader's language and throw THAT, so the row can say what actually happened.
+  const errMsg = useErrorMessage();
   const locale = useLocale();
   const zone = useMemo(() => resolveAuditTimeZone(), []);
   const search = useSearchParams();
@@ -99,9 +107,11 @@ export function DecisionRecordsPanel() {
   // subject's records — operator-gated like the full read (G5).
   async function exportDossier(candidateRef: string) {
     const res = await fetch(`/api/decisions/records?candidate=${encodeURIComponent(candidateRef)}`);
-    if (!res.ok) throw new Error(`records ${res.status}`);
-    const payload = (await res.json()) as Payload & { error?: string };
-    if (payload.error) throw new Error(payload.error);
+    if (!res.ok) throw new LocalizedFailure(errMsg(await apiErrorPayload(res), t("dossierFailed")));
+    const payload = (await res.json()) as Payload & { error?: string; code?: string };
+    // A 200 carrying an `error` is the route's degraded shape; it is a failure like
+    // any other and folds through the same resolver.
+    if (payload.error) throw new LocalizedFailure(errMsg(payload, t("dossierFailed")));
     const safeRef = candidateRef.replace(/[^a-zA-Z0-9_-]+/g, "-");
     downloadFile(
       `decision-dossier-${safeRef}.json`,

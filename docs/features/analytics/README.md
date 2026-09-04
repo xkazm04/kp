@@ -677,6 +677,18 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**The two export buttons report a code, not a status.** The dossier export
+(`AnalyticsDecisionRecordsPanel`) and the whole-trail export (`sections/DecisionLogTable`) used to
+`throw new Error(String(res.status))` — and the number never reached a reader, because the catch
+downstream painted one flat sentence for every failure. `GET /api/analytics/decisions` answers
+`TOO_MANY_REQUESTS` (429, wait and retry) and `DECISION_LOG_LOAD_FAILED` (500, the read fell
+over) with codes, and those two were indistinguishable. Both paths now resolve the body's code
+through `useErrorMessage()` and throw a `LocalizedFailure`
+(`app/features/insights/analytics/analyticsFetchError.ts`), which the renderer unwraps with its
+own localized fallback; a caught Error's raw `.message` is never painted. `GET
+/api/decisions/records` still answers with `jsonError` (message, no code), so the dossier export
+resolves to its fallback sentence until that route is coded — the client is ready for it.
+
 **One answer to "we have no data" per page.** The Economics board's three taxonomies
 (`byChannel`, `bySource`, `byVariant`) are normalized onto one row model by
 `app/features/insights/analytics/sections/economicsRows.ts`, and `hireRate(hired, total)`

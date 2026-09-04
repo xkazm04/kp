@@ -22,6 +22,8 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { apiErrorPayload, LocalizedFailure, localizedFailureMessage } from "../analyticsFetchError";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel, waveReasonText, type CohortProvenance } from "@/app/_lib/decision-attribution";
@@ -66,6 +68,8 @@ export function DecisionLogTable({
   boardHref: (q: string) => string;
 }) {
   const t = useTranslations("analytics.log");
+  // §1.1 — a failure is shown from its machine code, in the reader's language.
+  const errMsg = useErrorMessage();
   const tWave = useTranslations("decisions.wave");
   const locale = useLocale();
   const enumLabel = useEnumLabel();
@@ -220,19 +224,24 @@ export function DecisionLogTable({
       let reported = 0;
       for (let i = 0; i < TRAIL_MAX_PAGES; i++) {
         const res = await fetch(queryUrl(offset, TRAIL_FETCH_LIMIT));
-        if (!res.ok) throw new Error(String(res.status));
-        const body = (await res.json()) as DecisionPage;
-        if (body.error) throw new Error(body.error);
+        // The route answers TOO_MANY_REQUESTS (429, wait and retry) and
+        // DECISION_LOG_LOAD_FAILED (500, the read fell over) with codes; the raw
+        // status this used to throw collapsed both into one red line, and the number
+        // itself never reached a reader.
+        if (!res.ok) throw new LocalizedFailure(errMsg(await apiErrorPayload(res), t("exportTrailFailed")));
+        const body = (await res.json()) as DecisionPage & { code?: string };
+        if (body.error) throw new LocalizedFailure(errMsg(body, t("exportTrailFailed")));
         all.push(...body.decisions);
         reported = body.total;
         if (!body.hasMore || body.decisions.length === 0) break;
         offset = body.nextOffset;
       }
       downloadFile("kp-decision-log-trail.csv", csvFor(all, t("scopeTrail", { rows: all.length, total: reported })), "text/csv");
-    } catch {
+    } catch (err) {
       // Truthful failure: a partial file silently named "whole trail" is exactly
-      // the artifact an auditor must never be handed.
-      setTrailError(t("exportTrailFailed"));
+      // the artifact an auditor must never be handed. WHY it failed now survives the
+      // catch — resolved from the code above, generic for anything unlocalized.
+      setTrailError(localizedFailureMessage(err, t("exportTrailFailed")));
     } finally {
       setTrailBusy(false);
     }
