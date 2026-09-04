@@ -19,6 +19,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Columns3, Rows3 } from "lucide-react";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { MATRIX_GLYPH } from "@/app/_components/glyph/glyphs/matrixGlyph";
 import { PANEL, PANEL_SUNKEN, EYEBROW, TITLE_DISPLAY, INTRO, CARD_PAD } from "@/app/_components/ui/recipes";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
@@ -121,7 +122,7 @@ export function MatrixEmptyState(props: MatrixEmptyStateProps) {
       <MotionizedGlyph
         data={MATRIX_GLYPH.data}
         viewBox={MATRIX_GLYPH.viewBox}
-        className="mx-auto h-36 w-36"
+        className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
         ambient="float"
       />

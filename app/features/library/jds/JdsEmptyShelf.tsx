@@ -27,6 +27,7 @@ import { ArrowRight, Copy, PenLine, Sparkles, type LucideIcon } from "lucide-rea
 import { useTranslations } from "next-intl";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE, GLYPH_SIZE_SM } from "@/app/_components/glyph/glyphSizes";
 import { LIBRARY_GLYPH } from "@/app/_components/glyph/glyphs/libraryGlyph";
 import { BTN_PRIMARY, CHIP, EYEBROW, META_LABEL, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 
@@ -61,7 +62,7 @@ export function LibraryEmptyShelf({ onStartGenerate }: { onStartGenerate: () => 
         <MotionizedGlyph
           data={LIBRARY_GLYPH.data}
           viewBox={LIBRARY_GLYPH.viewBox}
-          className="h-24 w-24 shrink-0 sm:h-28 sm:w-28"
+          className={`${GLYPH_SIZE.md} shrink-0 ${GLYPH_SIZE_SM.lg}`}
         />
         <div>
           <p className={EYEBROW}>{t("shelfEyebrow")}</p>

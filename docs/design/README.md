@@ -703,6 +703,23 @@ owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
 a `Select` is now a tsc error rather than a second name for the same thing.
 
+### One size vocabulary for traced glyphs (2026-09-04)
+
+The 14 `MotionizedGlyph` render sites had hand-typed **five** sizes between them
+(80 / 96 / 112 / 128 / 144px) with nothing saying which surface earned which — a
+centred empty-state hero at 128 next to another at 144 is two guesses, not a
+decision. [`GLYPH_SIZE`](../../app/_components/glyph/glyphSizes.ts) is four steps
+named for the surface rather than the pixels: `sm` (`h-20`) an inline aside beside
+a paragraph, `md` (`h-24`) a row-leading illustration, `lg` (`h-28`) a boxed or
+column-leading one, `xl` (`h-36`) a centred hero in a `text-center` panel.
+`GLYPH_SIZE_SM` holds the same steps at the `sm:` breakpoint, for the two shelf
+empty states that grow once there is room.
+
+The one visible change: the three 128px centred heroes (`DecisionsEmptyHandoff`
+and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — every
+centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
+just the record, so a fifteenth site cannot quietly invent a sixth size.
+
 ### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
 
 Two contracts the glyph renderer declared and did not keep:

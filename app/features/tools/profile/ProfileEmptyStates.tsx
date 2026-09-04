@@ -33,6 +33,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Plus } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { PROFILE_ROSTER_GLYPH } from "@/app/_components/glyph/glyphs/profileRosterGlyph";
 import { PROFILE_MATRIX_GLYPH } from "@/app/_components/glyph/glyphs/profileMatrixGlyph";
 import {
@@ -118,7 +119,7 @@ function DossierList({ onNewProfile }: ProfileEmptyProps) {
       <MotionizedGlyph
         data={PROFILE_ROSTER_GLYPH.data}
         viewBox={PROFILE_ROSTER_GLYPH.viewBox}
-        className="mx-auto h-32 w-32"
+        className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
       />
       <p className={`${EYEBROW} mt-4`}>{t("roster.eyebrow")}</p>
@@ -156,7 +157,7 @@ function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
       <MotionizedGlyph
         data={PROFILE_MATRIX_GLYPH.data}
         viewBox={PROFILE_MATRIX_GLYPH.viewBox}
-        className="mx-auto h-32 w-32"
+        className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
       />
       <p className={`${EYEBROW} mt-4`}>{t("matrix.title")}</p>

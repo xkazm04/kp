@@ -33,6 +33,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, X } from "lucide-react";
 import { PANEL, EYEBROW, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
+import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
 import { STEP_GLYPHS } from "./setupStepGlyphs";
 import {
   STEPS,
@@ -97,7 +98,7 @@ export function GettingStartedNextMove({ data, dismiss }: GettingStartedViewProp
             entrance="staggered-draw"
             ambient={note === "analyzing" ? "pulse" : undefined}
             spread={0.9}
-            className="hidden h-20 w-20 sm:block"
+            className={`hidden ${GLYPH_SIZE.sm} sm:block`}
           />
           <div className="min-w-0">
             <p className={EYEBROW}>{t("title")}</p>
