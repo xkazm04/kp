@@ -155,7 +155,7 @@ function withRegistryFile(contents: string): void {
 /** A registry that is structurally fine but carries ONE broken archetype. */
 function registryWith(overrides: Record<string, unknown>): string {
   return JSON.stringify({
-    archetypes: [{ id: "bau", label: "BAU", badge: "BAU", fairnessProtected: false, checklist: [], ...valid, ...overrides }],
+    archetypes: [{ id: "bau", badge: "BAU", fairnessProtected: false, checklist: [], ...valid, ...overrides }],
   });
 }
 
