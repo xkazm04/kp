@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { Check, FileText, Link2, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { copyText, downloadFile } from "@/app/_lib/export-utils";
 import { buildProvenanceDossier } from "@/app/_lib/provenance-dossier";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 import type { AnalysisResult } from "@/app/_lib/schemas.generated";
 
 // Share/export affordances for a saved candidate report (Theme C, RES1). The
@@ -26,12 +26,10 @@ export function ReportActions({
   savedAt?: string | null;
 } = {}) {
   const t = useTranslations("report");
-  const [copied, setCopied] = useState(false);
+  const { copied, mark } = useCopyFeedback();
 
   const copyLink = async () => {
-    const ok = await copyText(typeof window !== "undefined" ? window.location.href : "");
-    setCopied(ok);
-    if (ok) window.setTimeout(() => setCopied(false), 2000);
+    mark(await copyText(typeof window !== "undefined" ? window.location.href : ""));
   };
 
   const exportDossier = () => {

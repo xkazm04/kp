@@ -9,6 +9,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { copyText } from "@/app/_lib/export-utils";
 import type { InterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { isPrepFallback } from "@/app/_components/Badge";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
@@ -32,7 +33,7 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [notes, setNotes] = useState("");
   const [interviewer, setInterviewer] = useState(""); // assigned human owner (PREP5)
-  const [copied, setCopied] = useState(false);
+  const { copied, mark } = useCopyFeedback();
   // Direction 3 — the imported questions the modal shows. Seeded from the payload,
   // overridden locally after a weave/unweave PATCH (so the block/imported split
   // updates without a full refetch); reset to null on a completed (re)generation,
@@ -245,9 +246,7 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
       lines.push("", t("importedQuestions"));
       for (const q of unassigned) lines.push(`- "${q.question}"`);
     }
-    const ok = await copyText(lines.join("\n"));
-    setCopied(ok);
-    if (ok) window.setTimeout(() => setCopied(false), 2000);
+    mark(await copyText(lines.join("\n")));
   };
 
   // The chronology blocks plus the flat "Signals to confirm" list are the checkable

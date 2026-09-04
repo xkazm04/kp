@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { AlertOctagon, Check, ClipboardCopy, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { copyText } from "@/app/_lib/export-utils";
 import { PANEL } from "@/app/_components/ui/recipes";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 
 // The engine's soft-signal panel (SCOR1): antipattern / hidden-strength
 // HYPOTHESES — overclaim risk, tenure instability, transferable strengths —
@@ -34,15 +34,11 @@ function checklistLines(panel: Panel): string[] {
 
 export function SoftSignalsSection({ panel }: { panel: Analysis["softSignals"] }) {
   const t = useTranslations("results.softSignals");
-  const [copied, setCopied] = useState(false);
+  const { copied, mark } = useCopyFeedback();
   if (!panel || (panel.antipatterns.length === 0 && panel.strengths.length === 0)) return null;
 
   const copy = async () => {
-    const ok = await copyText(checklistLines(panel).join("\n"));
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    mark(await copyText(checklistLines(panel).join("\n")));
   };
 
   const copyable = checklistLines(panel).length > 0;

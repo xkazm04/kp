@@ -7,6 +7,7 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
 import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 
 /**
  * The empty-state vignettes below paint through `var(--color-…)`, NOT the JS
@@ -223,12 +224,12 @@ export function ListBlock({
   copyable?: boolean;
 }) {
   const t = useTranslations("report");
-  const [copied, setCopied] = useState(false);
+  // One shared confirmation timer, cleared on unmount — this tab can close
+  // inside the two-second window.
+  const { copied, mark } = useCopyFeedback();
   const unique = dedupe(items);
   const copy = async () => {
-    const ok = await copyText(unique.map((i) => `- ${i}`).join("\n"));
-    setCopied(ok);
-    if (ok) window.setTimeout(() => setCopied(false), 2000);
+    mark(await copyText(unique.map((i) => `- ${i}`).join("\n")));
   };
   return (
     <div className={`${PANEL} p-5`}>
