@@ -1711,7 +1711,13 @@
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Tento akcent nemá čitelnou variantu pro Spark Dark. Je příliš tmavý na to, aby se dal zesvětlit bez změny barvy, zvolte proto jasnější nebo sytější odstín.",
     "BRAND_LOGO_INVALID": "Odkaz na logo musí být URL začínající https:// a dostatečně krátká na uložení.",
     "BRAND_LOAD_FAILED": "Branding se nepodařilo načíst. Zkuste to prosím znovu.",
-    "BRAND_SAVE_FAILED": "Branding se nepodařilo uložit. Zkuste to prosím znovu."
+    "BRAND_SAVE_FAILED": "Branding se nepodařilo uložit. Zkuste to prosím znovu.",
+    "AUTOMATION_TASK_FAILED": "Tento AI krok se u kandidáta nepodařilo spustit. Zkuste to prosím znovu.",
+    "AUTOMATION_PASS_FAILED": "Automatický průchod se nepodařilo spustit. Zkuste to prosím znovu.",
+    "AUTOMATION_TASK_UNKNOWN": "Takový krok automatizace neexistuje.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Tento kandidát není na této nástěnce.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
+    "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit."
   },
   "resilience": {
     "notFoundEyebrow": "404",

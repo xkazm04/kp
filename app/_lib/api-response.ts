@@ -88,6 +88,13 @@ export const STORE_ERRORS = {
   // can surface better-sqlite3 constraint text, the db path, and the spawned pass's
   // Python traceback.
   SCHEDULE_UPDATE_FAILED: "Could not update the automation clock. Please try again.",
+  // The two automation DOORS beside that clock (/perfect wave 39, lib-automation).
+  // Both spawn the Python engine, so their catch surfaces parseStderrError's message —
+  // a traceback, argparse usage text, the absolute workdir path, provider stderr — and
+  // both were forwarding it whole. Off the error-response-contract ceiling now rather
+  // than lowered on it.
+  AUTOMATION_TASK_FAILED: "Could not run that AI step for this candidate. Please try again.",
+  AUTOMATION_PASS_FAILED: "Could not run the automation pass. Please try again.",
   // POST /api/comms/relay (/perfect 2026-09-03, channels-1). The write encrypts a
   // signing secret and upserts through better-sqlite3, so its catch can surface
   // SQLITE_* text, the absolute db path and the crypto helper's key detail — all of
@@ -376,6 +383,18 @@ export type StoreErrorCode = keyof typeof STORE_ERRORS;
 // The English here stays canonical for the server log and for API consumers;
 // the client renders the localized message from the code.
 export const REFUSAL_ERRORS = {
+  /** The automation task in the URL is not one the engine knows (404). The board only
+   *  ever names a real one, so reaching this means a hand-rolled call. */
+  AUTOMATION_TASK_UNKNOWN: "That automation step does not exist.",
+  /** The task named an entry that is not on this team's board (404). */
+  AUTOMATION_ENTRY_NOT_FOUND: "That candidate is not on this board.",
+  /** …or one with no usable candidate profile behind it (400): the entry carries no
+   *  profile id, or the profile it points at is gone. Deliberately ONE refusal for
+   *  both — the recruiter's next step (re-run the analysis for this person) is the
+   *  same either way, and which of the two broke is operator detail for the log. */
+  AUTOMATION_ENTRY_NO_PROFILE: "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
+  /** The POST arrived without an entry to act on (400). */
+  AUTOMATION_ENTRY_REQUIRED: "Name the candidate this step should run for.",
   /** A non-numeric automation interval (400). The dock's own field clamps to
    *  [1, 1440], so reaching this means a hand-rolled call or a broken client —
    *  and the operator still deserves the reason in their own language. */

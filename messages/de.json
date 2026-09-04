@@ -1711,7 +1711,13 @@
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Dieser Akzent hat keine lesbare Spark-Dark-Variante. Er ist zu dunkel, um ihn ohne Farbwechsel aufzuhellen, wählen Sie deshalb einen helleren oder kräftigeren Ton.",
     "BRAND_LOGO_INVALID": "Der Logo-Link muss eine https://-URL sein und kurz genug zum Speichern.",
     "BRAND_LOAD_FAILED": "Branding konnte nicht geladen werden. Bitte erneut versuchen.",
-    "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen."
+    "BRAND_SAVE_FAILED": "Branding konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "AUTOMATION_TASK_FAILED": "Dieser KI-Schritt konnte für diese Person nicht ausgeführt werden. Bitte erneut versuchen.",
+    "AUTOMATION_PASS_FAILED": "Der Automatisierungslauf konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "AUTOMATION_TASK_UNKNOWN": "Diesen Automatisierungsschritt gibt es nicht.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
+    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll."
   },
   "resilience": {
     "notFoundEyebrow": "404",

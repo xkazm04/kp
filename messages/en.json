@@ -1711,7 +1711,13 @@
     "BRAND_ACCENT_ILLEGIBLE_DARK": "That accent has no readable Spark Dark version. It is too dark to lift without becoming a different color, so pick a brighter or more saturated one.",
     "BRAND_LOGO_INVALID": "That logo link must be an https:// URL, short enough to store.",
     "BRAND_LOAD_FAILED": "Couldn’t load branding. Please try again.",
-    "BRAND_SAVE_FAILED": "Couldn’t save branding. Please try again."
+    "BRAND_SAVE_FAILED": "Couldn’t save branding. Please try again.",
+    "AUTOMATION_TASK_FAILED": "Could not run that AI step for this candidate. Please try again.",
+    "AUTOMATION_PASS_FAILED": "Could not run the automation pass. Please try again.",
+    "AUTOMATION_TASK_UNKNOWN": "That automation step does not exist.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "That candidate is not on this board.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
+    "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for."
   },
   "resilience": {
     "notFoundEyebrow": "404",

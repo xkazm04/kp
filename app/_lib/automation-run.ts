@@ -101,11 +101,26 @@ const TTL_HOURS = 168;
 // so an in-process guard suffices; on send failure the entry is released so a retry works.
 const outreachInFlight = new Set<string>();
 
+// The refusals THIS module decides, as machine tokens. A route answers each with
+// its own `jsonRefusal` code, in the reader's language; everything else that
+// reaches the catch is a spawned-engine failure whose message carries internal
+// detail (Python tracebacks, the workdir path, provider stderr) and must be
+// answered with a STORE code instead. Without this split the two were
+// indistinguishable at the boundary — both arrived as `AutomationError` and both
+// had their raw `.message` forwarded.
+export const AUTOMATION_REFUSALS = ["unknown_task", "entry_not_found", "entry_has_no_profile"] as const;
+export type AutomationRefusal = (typeof AUTOMATION_REFUSALS)[number];
+
 export class AutomationError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Present ONLY on this module's own refusals (see AUTOMATION_REFUSALS). An
+   *  engine failure carries none — that is how a route tells "you asked for
+   *  something that isn't there" from "the pipeline broke". */
+  refusal?: AutomationRefusal;
+  constructor(message: string, status: number, refusal?: AutomationRefusal) {
     super(message);
     this.status = status;
+    this.refusal = refusal;
   }
 }
 
@@ -212,16 +227,16 @@ export async function runAutomationTask(
   lang?: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
 ): Promise<AutomationResult> {
-  if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
+  if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404, "unknown_task");
   // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
   // (passed by the batch sweep as entry.workspaceId, or by the route as currentWorkspace()).
   // The recordAutomationEvent calls' EVENTS auto-derive their tenant from the entry, so they
   // stay correct regardless; threading workspaceId keeps their label/title enrichment right.
   const entry = getPipelineEntry(entryId, workspaceId);
-  if (!entry) throw new AutomationError("entry not found", 404);
-  if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400);
+  if (!entry) throw new AutomationError("entry not found", 404, "entry_not_found");
+  if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400, "entry_has_no_profile");
   const rec = getProfileRecord(entry.candidateId, workspaceId);
-  if (!rec) throw new AutomationError("candidate profile not found", 400);
+  if (!rec) throw new AutomationError("candidate profile not found", 400, "entry_has_no_profile");
 
   // Rematch REDIRECTS a candidate to a better-fit role and closes out their current
   // entry (idea-9ad8a777). A Hired candidate is placed — never redirect them, and

@@ -1711,7 +1711,13 @@
     "BRAND_ACCENT_ILLEGIBLE_DARK": "Cet accent n’a pas de version lisible en Spark Dark. Il est trop sombre pour être éclairci sans changer de couleur, choisissez donc une teinte plus vive ou plus saturée.",
     "BRAND_LOGO_INVALID": "Le lien du logo doit être une URL https:// assez courte pour être enregistrée.",
     "BRAND_LOAD_FAILED": "Impossible de charger l’image de marque. Veuillez réessayer.",
-    "BRAND_SAVE_FAILED": "Impossible d’enregistrer l’image de marque. Veuillez réessayer."
+    "BRAND_SAVE_FAILED": "Impossible d’enregistrer l’image de marque. Veuillez réessayer.",
+    "AUTOMATION_TASK_FAILED": "Impossible d'exécuter cette étape IA pour ce candidat. Veuillez réessayer.",
+    "AUTOMATION_PASS_FAILED": "Impossible de lancer le passage automatique. Veuillez réessayer.",
+    "AUTOMATION_TASK_UNKNOWN": "Cette étape d'automatisation n'existe pas.",
+    "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
+    "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
+    "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape."
   },
   "resilience": {
     "notFoundEyebrow": "404",
