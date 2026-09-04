@@ -6,6 +6,7 @@
 
 import { useTranslations } from "next-intl";
 import { AlertTriangle, Check, Copy } from "lucide-react";
+import { META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { useCopyState } from "./useCopyState";
 
 export function CopyLink({ url }: { url: string }) {
@@ -32,8 +33,12 @@ export function CopyLink({ url }: { url: string }) {
 
 export function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 shadow-pop">
-      <div className="text-meta uppercase text-steel">{label}</div>
+    // PANEL + META_LABEL, not the re-typed strings this file carried as recipe debt:
+    // the literal panel missed the recipe's dual-theme shape and the meta label was a
+    // third copy of a string that has one definition. `shadow-pop` stays — the stat
+    // cluster deliberately floats above the stage band.
+    <div className={`${PANEL} px-3 py-1.5 shadow-pop`}>
+      <div className={META_LABEL}>{label}</div>
       <div className="font-serif text-h3 leading-tight text-ink nums">{value}</div>
     </div>
   );

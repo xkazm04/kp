@@ -9,7 +9,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { type BadgeTone } from "@/app/_components/Badge";
-import { EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, EYEBROW, NOTICE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CHANNEL_SECTIONS, type ChannelSectionId } from "./channelsSections";
 import { useChannelData, simulateInbound } from "./useChannelsData";
 import { isReceiverLive } from "./useChannelsReceivers";
@@ -141,13 +141,14 @@ export function ChannelsTab() {
       {/* A source didn't load. Say so and offer the retry, rather than letting the
           panes below narrate an empty workspace nobody has verified. */}
       {loadFailed ? (
-        <p role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        // NOTICE("critical") + BTN_SECONDARY, not a hand-rolled red box: the literal
+        // version sat one shade off the recipe (red-200/red-700 vs the recipe's
+        // red-800 text) and carried none of Spark Dark's structure — no sticker
+        // radius on the block, a flat retry button beside every other one that
+        // presses down.
+        <p role="alert" className={`${NOTICE("critical")} flex flex-wrap items-center gap-3 p-3 text-sm`}>
           {tError("errorTitle")}
-          <button
-            type="button"
-            onClick={() => reload()}
-            className="focus-ring rounded-md border border-red-300 px-2 py-0.5 font-semibold text-red-700 hover:bg-red-100"
-          >
+          <button type="button" onClick={() => reload()} className={`${BTN_SECONDARY} h-7 px-2 font-semibold`}>
             {tError("retry")}
           </button>
         </p>

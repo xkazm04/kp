@@ -6,10 +6,18 @@ import { useLocale, useTranslations } from "next-intl";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { ChannelEmpty } from "./ChannelsEmpty";
-import { commsStatusLabels, isActionable, statusTone, type Message, type RefInfo, commsReceiptLabels, displayRecipient, displaySubject } from "./channelsCommsHelpers";
+import { commsStatusLabels, isActionable, statusTone, type Message, commsReceiptLabels, displayRecipient, displaySubject } from "./channelsCommsHelpers";
 import { ChannelsCommsMessageModal } from "./ChannelsCommsMessageModal";
 import { ChannelsCommsRows } from "./ChannelsCommsRows";
+import { EMPTY_COMMS_PAGE, mergeCommsPage, type CommsPageState } from "./channelsCommsPaging";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
+
+/** Rows per read. The ledger pages CLIENT-side inside what it has loaded, and asks
+ *  the route for one cursor page at a time: `?limit=500` (the whole derivation window)
+ *  made `hasMore` structurally unreachable, so the "older rows exist" fact the route
+ *  answers had no way to be true and the ledger could only ever end silently. */
+const COMMS_PAGE_SIZE = 200;
 
 // Communications, redesigned as a compact, column-filterable register (the JD
 // Ledger pattern) instead of the old expand-in-place card list: one row per
@@ -30,9 +38,13 @@ import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TableP
 export function CommsTable() {
   const t = useTranslations("channels.comms");
   const locale = useLocale();
-  const [messages, setMessages] = useState<Message[] | null>(null);
-  const [refs, setRefs] = useState<Record<string, RefInfo>>({});
+  // One state, folded by a pure reducer (channelsCommsPaging.ts): the rows, the refs
+  // and the two SEPARATE facts about size — `hasMore` (more rows a cursor reaches) and
+  // `truncated` (older rows past the derivation window that no cursor reaches).
+  const [feed, setFeed] = useState<CommsPageState>(EMPTY_COMMS_PAGE);
+  const { messages, refs } = feed;
   const [error, setError] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [relayConfigured, setRelayConfigured] = useState(true);
   const [nameQuery, setNameQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
@@ -52,28 +64,55 @@ export function CommsTable() {
       setPage(0);
     };
 
-  const load = useCallback(() => {
-    // The ledger pages CLIENT-side (TablePager below), so this asks for the whole
-    // derivation window in one read rather than the route's default page. Named
-    // explicitly: the route's default is a page, and inheriting it would silently have
-    // shrunk this table's reach the day paging was added.
-    fetch("/api/comms?limit=500")
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then((p) => {
-        setMessages((p.messages as Message[]) ?? []);
-        setRefs((p.entries as Record<string, RefInfo>) ?? {});
-        setRelayConfigured(p.relayConfigured !== false);
-        setError(false);
-      })
-      .catch(() => setError(true));
+  // One read of the feed. `cursor` null = the head of the ledger (first load and every
+  // live refresh, both of which re-read the newest page); a cursor = the next older
+  // page, folded onto what is already on screen.
+  const read = useCallback((cursor: string | null, signal?: AbortSignal) => {
+    const qs = new URLSearchParams({ limit: String(COMMS_PAGE_SIZE) });
+    if (cursor) qs.set("cursor", cursor);
+    return fetch(`/api/comms?${qs.toString()}`, { signal }).then((r) => {
+      if (!r.ok) throw new Error();
+      return r.json();
+    });
   }, []);
+
+  const load = useCallback(
+    (signal?: AbortSignal) => {
+      read(null, signal)
+        .then((p) => {
+          setRelayConfigured(p.relayConfigured !== false);
+          // A body with no `messages` array is a FAILURE, not an empty ledger — the
+          // reducer refuses to conjure one (channelsCommsPaging.ts). A head read
+          // carries no state forward, so it folds onto EMPTY.
+          const next = mergeCommsPage(EMPTY_COMMS_PAGE, p, "replace");
+          setError(next === null);
+          if (next) setFeed(next);
+        })
+        .catch(() => {
+          // An abort is this component unmounting, not a load failure: raising the
+          // error banner for it would paint a red ledger on the way out.
+          if (!signal?.aborted) setError(true);
+        });
+    },
+    [read]
+  );
   useEffect(() => {
-    load();
+    const ac = new AbortController();
+    load(ac.signal);
+    return () => ac.abort();
   }, [load]);
   useLiveRefresh(load);
+
+  const loadOlder = useCallback(() => {
+    if (loadingOlder || !feed.cursor) return;
+    setLoadingOlder(true);
+    read(feed.cursor)
+      .then((p) => {
+        setFeed((prev) => mergeCommsPage(prev, p, "append") ?? prev);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoadingOlder(false));
+  }, [read, feed.cursor, loadingOlder]);
 
   const roleOf = useCallback((m: Message) => (m.ref ? refs[m.ref]?.jobTitle ?? null : null), [refs]);
   // Receipt rows have no candidate and a CODE where a recipient goes — localized here
@@ -164,7 +203,12 @@ export function CommsTable() {
         {loading ? (
           <span className="reveal-quiet inline-block h-4 w-24 rounded bg-stone-100" aria-hidden />
         ) : (
-          <p className="text-sm text-steel">{t("count", { count: all.length })}</p>
+          // "N messages" is only true when N is the whole ledger. With older rows
+          // still out there — reachable by cursor, or past the derivation window
+          // entirely — the caption says what it is SHOWING and that more exists.
+          <p className="text-sm text-steel">
+            {feed.hasMore || feed.truncated ? t("olderExist", { count: all.length }) : t("count", { count: all.length })}
+          </p>
         )}
         {failedCount > 0 ? (
           <button
@@ -222,6 +266,21 @@ export function CommsTable() {
       )}
 
       <TablePager page={safePage} total={filtered.length} onPage={setPage} />
+
+      {/* Reaching further back. The button only appears while a CURSOR reaches more
+          rows; once it does not, the sentence is the whole affordance — the oldest
+          rows sit outside the derivation window and no amount of clicking gets them,
+          which is exactly the fact a "load older" button that did nothing would hide. */}
+      {!loading && (feed.hasMore || feed.truncated) ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {feed.hasMore ? (
+            <button type="button" onClick={loadOlder} disabled={loadingOlder} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+              {loadingOlder ? t("loadingOlder") : t("loadOlder")}
+            </button>
+          ) : null}
+          {!feed.hasMore && feed.truncated ? <p className="text-sm text-steel">{t("beyondWindow")}</p> : null}
+        </div>
+      ) : null}
 
       {open ? (
         <ChannelsCommsMessageModal
