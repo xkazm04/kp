@@ -358,7 +358,7 @@ export function finishTask(id: string, status: TaskStatus, opts: { result?: unkn
  * On server boot the volatile in-process queue is gone, so any 'running' row was
  * orphaned mid-flight — its handler partially executed and cannot resume, so mark
  * it 'interrupted'. 'queued' rows are deliberately left alone: they never started,
- * ran no side effects, and are re-enqueued by the task runner (see listQueuedTaskIds)
+ * ran no side effects, and are re-enqueued by the task runner (see listQueuedTaskEntries)
  * instead of being silently abandoned. Returns the number of rows interrupted.
  */
 export function interruptStaleTasks(): number {
@@ -370,14 +370,25 @@ export function interruptStaleTasks(): number {
 }
 
 /**
- * IDs of never-started ('queued') tasks, oldest first. After a restart these are
- * orphans of the volatile in-process queue but ran no handler, so the runner can
- * safely re-enqueue them in submission order rather than dropping the work.
+ * Never-started ('queued') tasks, oldest first, each with the tenant that enqueued
+ * it. After a restart these are orphans of the volatile in-process queue but ran no
+ * handler, so the runner can safely re-enqueue them in submission order rather than
+ * dropping the work.
+ *
+ * The WORKSPACE rides along because the runner's pump schedules round-robin across
+ * tenants (task-pump.ts): a recovered queue rebuilt from ids alone would have had no
+ * workspace to be fair by, and every recovered task would have looked like one
+ * tenant's. Reading it here rather than re-reading each row keeps recovery one query.
+ *
+ * `-- tenancy:global` by design: this is the process's own recovery sweep across
+ * every tenant, not a tenant's read of its own tray.
  */
-export function listQueuedTaskIds(): string[] {
+export function listQueuedTaskEntries(): { id: string; workspaceId: string }[] {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT id FROM tasks WHERE status='queued' ORDER BY created_at ASC -- tenancy:global`).all() as { id: string }[];
-  return rows.map((r) => r.id);
+  const rows = db
+    .prepare(`SELECT id, workspace_id FROM tasks WHERE status='queued' ORDER BY created_at ASC -- tenancy:global`)
+    .all() as { id: string; workspace_id: string | null }[];
+  return rows.map((r) => ({ id: r.id, workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID }));
 }
 
 /**

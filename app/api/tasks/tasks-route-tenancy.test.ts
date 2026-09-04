@@ -23,7 +23,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
-import { createTask, getTask, listRecentTasks, markTasksSeen } from "../../_lib/db/tasks.ts";
+import { createTask, getTask, listQueuedTaskEntries, listRecentTasks, markTasksSeen } from "../../_lib/db/tasks.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
 
 after(() => cleanupUnitDb());
@@ -100,4 +100,39 @@ test("DELETE proves ownership before aborting, not after", () => {
   const cancel = src.indexOf("cancelTask(id)");
   assert.ok(guard > 0 && cancel > 0, "both the guard and the cancel must be present");
   assert.ok(guard < cancel, "the ownership check must precede cancelTask");
+});
+
+test("boot recovery re-enqueues each orphan under its OWN team", () => {
+  // The runner's pump schedules round-robin across workspaces (task-pump.ts). Recovery
+  // rebuilt the queue from ids alone, so every task recovered after a restart looked
+  // like one tenant's and the fairness rule had nothing to be fair by — the starvation
+  // this whole seam exists to prevent, reintroduced by the crash path.
+  createTask("t-recover-b", "analyze", null, "B's orphan", {}, WS_B);
+  const entries = listQueuedTaskEntries();
+  const mine = entries.find((e) => e.id === "t-recover-b");
+  assert.ok(mine, "a queued row must be recoverable");
+  assert.equal(mine.workspaceId, WS_B, "recovery must carry the row's own workspace");
+  assert.ok(
+    entries.every((e) => typeof e.workspaceId === "string" && e.workspaceId.length > 0),
+    "no recovered entry may have an empty tenant"
+  );
+});
+
+test("the three public devcase doors resume a lifecycle in the posting's team", () => {
+  // Public token surfaces: no session, so nothing would have supplied a workspace and
+  // the resume was enqueued under the default tenant (the filed follow-up). Source-level
+  // because these handlers need a request scope the unit runner cannot give them.
+  const doors = [
+    ["inbound", "route.ts"],
+    ["submit", "route.ts"],
+    ["session", "[id]", "submit", "route.ts"],
+  ];
+  for (const door of doors) {
+    const src = readFileSync(path.join(HERE, "..", "devcase", ...door), "utf8");
+    assert.match(
+      src,
+      /resumeCollectingLifecycle\(posting(?:Id|\.id), posting\.workspaceId\)/,
+      `${door.join("/")}: the resume must carry the posting's workspace`
+    );
+  }
 });

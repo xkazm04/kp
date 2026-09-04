@@ -97,7 +97,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // lifecycle never resumed at all. The seal is the honest newness signal — and it
     // runs BEFORE the acknowledgement so a relay outage cannot permanently cost this
     // posting its evaluation pass (the ack itself stays retryable on its own marker).
-    if (!alreadyFinalized) resumeCollectingLifecycle(posting.id);
+    if (!alreadyFinalized) resumeCollectingLifecycle(posting.id, posting.workspaceId);
 
     // …then through the SHARED intake, exactly like the two sibling doors
     // (inbound/route.ts, submit/route.ts). This is the whole point of the change: the

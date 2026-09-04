@@ -1,6 +1,6 @@
 import { lifecycleByPosting } from "./db/devcase";
 import { getPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline";
-import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskIds, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
+import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskEntries, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { withLlmRequestId } from "./llm-request-context";
 import {
@@ -29,6 +29,7 @@ import { runCompanionDigestTask } from "./companion-digest-run";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
 import { encodeTaskLabel } from "./task-label";
+import { nextTaskToRun, type PumpEntry } from "./task-pump";
 
 // ---------------------------------------------------------------------------
 // In-process background-task runner. Works because `next dev` is one long-lived
@@ -38,7 +39,11 @@ import { encodeTaskLabel } from "./task-label";
 // page refresh and the dedupe_key prevents duplicate concurrent runs.
 // ---------------------------------------------------------------------------
 
-const MAX_CONCURRENT = 2; // respect the Claude CLI subscription rate ceiling
+// Process-wide slot ceiling — the Claude CLI subscription rate ceiling, not a
+// per-tenant quota. WHICH queued task fills a free slot is task-pump.ts's decision
+// (round-robin across the workspaces that have queued work), so this number bounds
+// spend while no single tenant can hold every slot against another that is waiting.
+const MAX_CONCURRENT = 2;
 
 // How far back the Background-tasks view shows finished tasks by default; older
 // runs are paged in on demand via the history endpoint. One knob shared by the
@@ -68,6 +73,17 @@ export type TaskCtx = {
 // whoever has the screen open, in their language. Copy lives in `tasks.kind.*`.
 type Spec = {
   run: (ctx: TaskCtx) => Promise<unknown>;
+  /** What this kind does with the enqueuing tenant, DECLARED rather than inferred:
+   *  `scoped` means run() reaches ctx.workspaceId — itself, or through the one
+   *  function it hands the whole ctx to; `tenant-free` means it touches no
+   *  tenant-scoped store or row, and the reason rides on the same line.
+   *
+   *  It exists because six kinds silently ignored the workspace the task row had
+   *  carried since P2 — nothing failed, they just ran against the default tenant.
+   *  `tasks-pump.test.ts` reads this table and fails on a kind with no declaration,
+   *  and on a `scoped` one whose handler never actually reads the workspace, so the
+   *  omission is caught at the moment a kind is added rather than a wave later. */
+  tenancy: "scoped" | "tenant-free";
   label: (p: Record<string, unknown>) => string;
   /** Called when a task is cancelled while it is STILL QUEUED — before `run` ever
    *  started, so the handler's own catch never sees it. A handler that owns a
@@ -169,18 +185,22 @@ async function batchOutreach(ctx: TaskCtx): Promise<unknown> {
 const HANDLERS: Record<string, Spec> = {
   automation: {
     run: (ctx) => runAutomationTask(String(ctx.params.entryId), String(ctx.params.task), String(ctx.params.notes ?? ""), ctx.signal, undefined, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("automation", { task: String(p.task ?? ""), entry: detail(p.entryLabel, p.entryId) ?? "" }),
   },
   reasoning: {
     run: (ctx) => runReasoning(ctx.params, ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("reasoning", { label: detail(p.label, p.jobId) ?? "" }),
   },
   batch_screen: {
     run: batchScreen,
+    tenancy: "scoped",
     label: () => encodeTaskLabel("batchScreen"),
   },
   batch_outreach: {
     run: batchOutreach,
+    tenancy: "scoped",
     label: (p) => {
       const n = Array.isArray(p.entryIds) ? (p.entryIds as unknown[]).length : 0;
       // The RAW number, never a formatted one: the message is an ICU plural and
@@ -193,7 +213,19 @@ const HANDLERS: Record<string, Spec> = {
     // The AI-candidate unit is debited INSIDE runAnalyze, only on a delivered non-cached
     // result — so a failed / canceled / duplicate run never charges. No upfront-debit +
     // refund dance is needed here (this supersedes that earlier approach).
-    run: (ctx) => runAnalyze(ctx.params as unknown as AnalyzeParams, ctx.progress, ctx.signal),
+    // `workspace` on the params is what /api/analyze stamps at request time and what
+    // persistAnalysis files the saved analysis under. It was the ONLY tenant this
+    // handler had: a producer that omitted it (the retry replay, any non-route caller)
+    // silently filed a non-default team's analysis under the default workspace, where
+    // the team that paid the AI-candidate unit could not see it. The task row's own
+    // workspace is the authoritative fallback — same tenant, always present.
+    run: (ctx) =>
+      runAnalyze(
+        { ...(ctx.params as unknown as AnalyzeParams), workspace: (ctx.params.workspace as string | undefined) || ctx.workspaceId },
+        ctx.progress,
+        ctx.signal
+      ),
+    tenancy: "scoped",
     label: (p) => {
       const variants = (p.variants as { label: string }[]) ?? [];
       // "CV" is a do-not-translate term (docs/i18n/glossary.md), so the unnamed
@@ -204,6 +236,7 @@ const HANDLERS: Record<string, Spec> = {
   },
   need_analysis: {
     run: (ctx) => runNeedAnalysis(ctx.params.need as DevNeed, ctx.signal),
+    tenancy: "tenant-free", // pure LLM over the need in params; reads and writes no tenant-scoped row
     label: (p) => {
       const title = detail((p.need as { title?: string })?.title);
       return title ? encodeTaskLabel("needAnalysis", { title }) : encodeTaskLabel("needAnalysisUntitled");
@@ -211,21 +244,32 @@ const HANDLERS: Record<string, Spec> = {
   },
   design_artifacts: {
     run: (ctx) => runDesignArtifacts(ctx.params.need as DevNeed, (ctx.params.analysis as Record<string, unknown>) ?? {}, ctx.signal),
+    tenancy: "tenant-free", // pure LLM over params; the caller files the returned artifacts under its own tenant
     label: (p) => {
       const title = detail((p.need as { title?: string })?.title);
       return title ? encodeTaskLabel("designArtifacts", { title }) : encodeTaskLabel("designArtifactsUntitled");
     },
   },
   evaluate_submission: {
-    run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal),
+    // The submission row carries its own workspace and the handler scopes every read
+    // to it — but it is fetched by an id that is not a secret, so the task's tenant is
+    // passed as the OWNERSHIP assertion: evaluating another team's submission (and
+    // spending this team's model budget on it) now throws instead of succeeding.
+    run: (ctx) => runEvaluateSubmission(String(ctx.params.submissionId), ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("evaluateSubmission", { ref: detail(p.candidateRef, p.submissionId) ?? "" }),
   },
   lifecycle: {
-    run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal),
+    // Same ownership assertion as evaluate_submission: the orchestrator drives every
+    // stage under `lc.workspaceId`, so a lifecycle id from another team would have run
+    // a full sourcing/evaluation/promotion walk against that team's board.
+    run: (ctx) => runLifecycle(String(ctx.params.lifecycleId), ctx.progress, ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("lifecycle", { title: detail(p.title, p.lifecycleId) ?? "" }),
   },
   group_eval: {
     run: (ctx) => runGroupEval(ctx.params, ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("groupEval", { role: detail(p.roleTitle, p.roleKey) ?? "" }),
   },
   jd_build: {
@@ -236,6 +280,7 @@ const HANDLERS: Record<string, Spec> = {
     // to the default one: the building team watched their JD flip to "ready" and then
     // never found it in Jobs, so "Source into Pipeline" dead-ended.
     run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => {
       const title = detail(p.title);
       return title ? encodeTaskLabel("jdBuild", { title }) : encodeTaskLabel("jdBuildUntitled");
@@ -243,11 +288,13 @@ const HANDLERS: Record<string, Spec> = {
   },
   interview_prep: {
     run: (ctx) => runInterviewPrep(ctx.params, ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("interviewPrep", { candidate: detail(p.candidateLabel, p.entryId) ?? "" }),
   },
   // Agent-candidate bridge: job → AgentFitSpec transform (agent-hire/transform-run.ts).
   agent_fit: {
     run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
   // App master (P2): read a codebase into a RepoDossier. Backgrounded because the
@@ -260,6 +307,7 @@ const HANDLERS: Record<string, Spec> = {
     // saving) instead of showing four undifferentiated minutes of "running".
     run: (ctx) =>
       runRepoScan(ctx.params, ctx.signal, ctx.workspaceId, String(ctx.params.lang ?? "en"), ctx.progress),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("repoScan", { repo: detail(p.repoUrl, p.rootPath, p.scanId) ?? "" }),
     // Cancelling before the runner picks the scan up: the task disappears from the
     // queue, so nothing else would ever move the repo_scans row off `queued` and
@@ -274,6 +322,7 @@ const HANDLERS: Record<string, Spec> = {
   // tab reloads the finished pack on the next visit.
   campaign: {
     run: (ctx) => runCampaign(ctx.params as unknown as CampaignParams, ctx.signal, ctx.workspaceId),
+    tenancy: "scoped",
     label: (p) => encodeTaskLabel("campaign", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
   // AI profile draft (background path of POST /api/profile/draft): the draft is
@@ -281,6 +330,7 @@ const HANDLERS: Record<string, Spec> = {
   // and it stays readable from the Background-tasks view otherwise.
   profile_draft: {
     run: (ctx) => runProfileDraft(ctx.params as unknown as ProfileDraftParams, ctx.signal),
+    tenancy: "tenant-free", // the draft IS the task result — never persisted, so there is no row to scope
     label: () => encodeTaskLabel("profileDraft"),
   },
   // The operator companion's digest (WP3): one metered `assistant` call that
@@ -290,13 +340,20 @@ const HANDLERS: Record<string, Spec> = {
   // is the turn row, so navigating away loses nothing. It never acts on the board.
   companion_digest: {
     run: runCompanionDigestTask,
+    tenancy: "scoped",
     label: () => encodeTaskLabel("companionDigest"),
   },
 };
 
 let booted = false;
-let running = 0;
-const queue: string[] = [];
+// The queue carries the WORKSPACE beside the id, because the pump's pick is a
+// fairness decision across tenants (task-pump.ts) and re-reading each row to learn
+// its tenant on every pump tick would put a SELECT in the hot path.
+const queue: PumpEntry[] = [];
+// In-flight tasks, id → the workspace running them. This replaced a bare `running`
+// counter: the counter answered "is a slot free?" but not "whose slots are taken?",
+// which is exactly the question fairness needs. `.size` is the old counter.
+const runningWorkspaceById = new Map<string, string>();
 const controllers = new Map<string, AbortController>();
 let lastMaintenanceMs = 0;
 
@@ -352,8 +409,8 @@ export function ensureRecovered(): void {
     // 'queued' orphans never ran a handler, so put them back on the queue in
     // submission order. The booted guard guarantees `queue` is empty here, but the
     // includes() check keeps this safe if recovery is ever wired to another caller.
-    for (const id of listQueuedTaskIds()) {
-      if (!queue.includes(id)) queue.push(id);
+    for (const entry of listQueuedTaskEntries()) {
+      if (!queue.some((q) => q.id === entry.id)) queue.push(entry);
     }
     pump();
   } catch {
@@ -392,7 +449,7 @@ export function startTask(
   const id = randomId("t");
   const dedupeKey = stableKey ?? `${kind}:nodedupe:${id}`; // guaranteed-unique; never merges
   const rec = createTask(id, kind, dedupeKey, spec.label(params), params, workspaceId);
-  queue.push(id);
+  queue.push({ id, workspaceId });
   pump();
   return rec;
 }
@@ -402,10 +459,22 @@ export function startTask(
 // posting, resume it (evaluate the new submission -> rank -> promote). startTask
 // dedups, so concurrent arrivals coalesce into one run. The single encoding so the
 // resume condition can't drift between the two intake paths.
-export function resumeCollectingLifecycle(postingId: string): void {
+//
+// `workspaceId` is REQUIRED, not defaulted. All three doors are PUBLIC candidate
+// surfaces reached by a capability token, so none of them has a session to fall back
+// on — and the default they used to get was the wrong answer twice over: the resume
+// task was filed in the default team's tray (invisible to the team that owns the
+// posting) and, once the runner started asserting ownership, would have refused to
+// drive that team's lifecycle at all. Callers pass the workspace off the posting /
+// submission row they already resolved.
+export function resumeCollectingLifecycle(postingId: string, workspaceId: string): void {
   const lc = lifecycleByPosting(postingId);
-  if (lc && lc.stage === "collecting") {
-    startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
+  // A posting and its lifecycle are the same tenant's by construction; assert it
+  // rather than assume it, so a mismatched caller is a dropped resume and not a
+  // cross-tenant run. (lifecycleByPosting is `-- tenancy:global` — the posting id is
+  // the scope, and this is the check that makes that safe.)
+  if (lc && lc.stage === "collecting" && lc.workspaceId === workspaceId) {
+    startTask("lifecycle", { lifecycleId: lc.id, title: lc.title }, workspaceId);
   }
 }
 
@@ -415,7 +484,7 @@ export function cancelTask(id: string): boolean {
     controller.abort();
     return true;
   }
-  const i = queue.indexOf(id);
+  const i = queue.findIndex((q) => q.id === id);
   if (i >= 0) {
     queue.splice(i, 1);
     // Let the handler close out whatever it owns OUTSIDE the queue first. A queued
@@ -439,14 +508,20 @@ export function cancelTask(id: string): boolean {
   return false;
 }
 
+// Fill every free slot, one fair pick at a time. `runOne` registers its slot
+// SYNCHRONOUSLY (before its first await), so each iteration sees the effect of the
+// previous one and the loop cannot over-subscribe — the same property the old
+// `running < MAX_CONCURRENT` loop relied on.
 function pump(): void {
-  while (running < MAX_CONCURRENT && queue.length > 0) {
-    const id = queue.shift()!;
-    void runOne(id);
+  for (;;) {
+    const i = nextTaskToRun(queue, [...runningWorkspaceById.values()], MAX_CONCURRENT);
+    if (i === null) return;
+    const [entry] = queue.splice(i, 1);
+    void runOne(entry.id, entry.workspaceId);
   }
 }
 
-async function runOne(id: string): Promise<void> {
+async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
   const task = getTask(id);
   if (!task) return;
   const spec = HANDLERS[task.kind];
@@ -456,10 +531,10 @@ async function runOne(id: string): Promise<void> {
   }
   // Construct the controller before the try (its constructor cannot throw) so it
   // stays in scope for catch/finally. Everything that mutates the slot accounting
-  // — `running += 1`, controller registration, markTaskRunning — goes INSIDE the
-  // try so the finally always runs and restores the slot. If markTaskRunning (or
+  // — the slot registration, controller registration, markTaskRunning — goes INSIDE
+  // the try so the finally always runs and restores the slot. If markTaskRunning (or
   // any of this bookkeeping) throws, e.g. SQLITE_BUSY under contention, the catch
-  // marks the row failed and the finally decrements `running`, keeping the runner
+  // marks the row failed and the finally releases the slot, keeping the runner
   // self-correcting instead of permanently leaking a MAX_CONCURRENT slot.
   const controller = new AbortController();
   // Wall-clock watchdog (Finding 2). A handler that HANGS (an LLM/HTTP call with
@@ -473,7 +548,9 @@ async function runOne(id: string): Promise<void> {
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   const TIMED_OUT = Symbol("timed-out");
   try {
-    running += 1;
+    // The ROW's workspace is the truth (the queue entry can only be stale after a
+    // recovery sweep); the queued one is the fallback for a row that predates the column.
+    runningWorkspaceById.set(id, task.workspaceId || queuedWorkspaceId);
     controllers.set(id, controller);
     markTaskRunning(id);
     // Open the ambient LLM-request scope around the handler: every spawnPython
@@ -526,7 +603,7 @@ async function runOne(id: string): Promise<void> {
   } finally {
     if (watchdog) clearTimeout(watchdog);
     controllers.delete(id);
-    running -= 1;
+    runningWorkspaceById.delete(id);
     pump();
   }
 }
