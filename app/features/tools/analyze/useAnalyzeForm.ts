@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { isLocale } from "@/i18n/locales";
 import {
@@ -59,6 +59,21 @@ export function useAnalyzeForm() {
   // resubmitted) must not last-write-win over the current one — its callbacks are
   // ignored unless their captured id is still the latest (idea-8367f051).
   const githubRunIdRef = useRef(0);
+  // …and the matching AbortController. The run id only made a superseded run's
+  // callbacks *ignored*; the request itself (the GitHub route plus its optional
+  // extract-text hop) kept running to completion, so a recruiter who reset the
+  // form or hit Retry twice still paid for every abandoned deep-dive. Bumping the
+  // id and aborting the controller are one action — supersedeGithubRun below.
+  const githubAbortRef = useRef<AbortController | null>(null);
+
+  // Supersede whatever GitHub deep-dive is in flight: its late callbacks are
+  // ignored (the id moved) AND its network work stops (the signal aborts).
+  const supersedeGithubRun = useCallback(() => {
+    githubRunIdRef.current += 1;
+    githubAbortRef.current?.abort();
+    githubAbortRef.current = null;
+  }, []);
+
   // Aborts the in-flight analyze poll when the user resets/cancels or the tab
   // unmounts — without this, watchAnalysis's loop + interval poll forever and
   // setState on an unmounted component (the segmented control unmounts the tab).
@@ -144,8 +159,9 @@ export function useAnalyzeForm() {
 
   function reset() {
     // Supersede any GitHub run still in flight so a late result can't clobber the
-    // cleared state (same guard as submit — see githubRunIdRef).
-    githubRunIdRef.current += 1;
+    // cleared state (same guard as submit — see githubRunIdRef) AND stop its
+    // network work, so a reset does not leave a deep-dive running for nobody.
+    supersedeGithubRun();
     // Stop the main analyze run too: abort the poll, cancel the server task, reset
     // the loading flags, and supersede its callbacks — otherwise the orphaned poll
     // resolves and writes the stale result back over the just-cleared form.
@@ -394,7 +410,17 @@ export function useAnalyzeForm() {
 
   // Abort an in-flight analyze run when the tab unmounts (e.g. switching the
   // workspace segmented control), so the poll loop + stage interval don't leak.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // The GitHub deep-dive is aborted here too: it outlives the main run by design,
+  // so an unmount mid-deep-dive used to leave a request (and its extract-text
+  // subprocess hop) running against a surface that no longer exists. Aborting also
+  // clears the 320 ms result-delivery timer on the main run (scheduleResultDelivery).
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      githubAbortRef.current?.abort();
+    },
+    []
+  );
 
   // One GitHub deep-dive launch — used by submit AND by the panel's "Retry
   // GitHub analysis" (GH5), so a transient rate-limit failure can be retried
@@ -407,8 +433,13 @@ export function useAnalyzeForm() {
     // anti-bias promise. The rule lives in one pure predicate (githubRunPolicy),
     // enforced at this single launch site (submit AND retry both route here).
     if (!shouldRunGithubDeepDive({ hasGithub, blind })) return;
-    const githubRunId = ++githubRunIdRef.current;
+    // Supersede + abort whatever is already in flight before minting this run's
+    // id, so a double-click on Retry does not leave the first request running.
+    supersedeGithubRun();
+    const githubRunId = githubRunIdRef.current;
     const isCurrentGithubRun = () => githubRunId === githubRunIdRef.current;
+    const controller = new AbortController();
+    githubAbortRef.current = controller;
     setGithubAnalysis(null);
     setGithubError(null);
     setGithubWarning(null);
@@ -433,7 +464,7 @@ export function useAnalyzeForm() {
         setGithubWarning(null);
         setGithubStatus("error");
       },
-    });
+    }, controller.signal);
   }
 
   async function submit() {
@@ -466,7 +497,7 @@ export function useAnalyzeForm() {
     // none (hasGithub false): a stale run's guarded terminal callbacks must not
     // land on the fresh form. Resetting the status to "idle" below also keeps a
     // superseded run from leaving the status stuck on "loading".
-    githubRunIdRef.current += 1;
+    supersedeGithubRun();
 
     setError(null);
     setAnalysis(null);
@@ -513,8 +544,9 @@ export function useAnalyzeForm() {
     // stopActiveRun only halts the MAIN poll; without this the orphaned GitHub run keeps
     // going, its guarded callbacks still fire on the cancelled form, and githubStatus stays
     // "loading" — which keeps the Analyze button disabled (githubLoading) until the
-    // abandoned call finally resolves.
-    githubRunIdRef.current += 1;
+    // abandoned call finally resolves. supersedeGithubRun also ABORTS it, so the
+    // cancel actually stops the spend instead of only ignoring the answer.
+    supersedeGithubRun();
     // …but ONLY a still-loading deep-dive needs that unsticking. The deep-dive runs in
     // parallel and usually finishes first, so at cancel time it may already hold a
     // delivered result ("done") or a retryable failure ("error"). Blanking those to
