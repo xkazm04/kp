@@ -303,6 +303,40 @@ enforced on bytes actually read off the wire (`readTextWithLimit`, the same cont
 event is one subscription or order object) is retried and stays visible in the dashboard
 rather than being silently swallowed. Pinned by `app/api/billing/billing-routes.test.ts`.
 
+### The displayed price is checked against the charged price DAILY
+
+Plan and pack prices live in two independent sources of truth: the TS catalog
+(`plans.ts`, what the UI shows) and the Polar product objects (what is actually
+settled). A dashboard edit or a currency mismatch silently drifts one from the other,
+and a money-trust break of that kind surfaces only after a real charge.
+
+`price-reconcile.ts` has always held the invariant, but its only caller was
+`scripts/polar-setup.mjs` — a preflight an operator runs when they FIRST configure the
+products, i.e. exactly once, before the edit that introduces the drift. It now also
+runs from the server clock, as a registered scheduler job (`price_reconcile`, daily,
+under the autonomy pause with the other discretionary passes because it is outbound
+provider egress on a timer):
+
+- `runPriceReconcile` (`sync.ts`) does the reads and the write. It answers `skipped`
+  and touches nothing when billing is unconfigured or `KP_OFFLINE` is set — a
+  self-hosted install does nothing at all.
+- The decision is pure (`priceTargets` + `reconcileFetchedProducts`): targets are
+  DERIVED from `plans.ts` plus the configured ids, so an unset product drops out and a
+  legacy tier stays in (BYOM cannot be bought but is still charged monthly).
+- **A product it could not read is unknown, never drift.** A blip, an expired token or
+  a deleted product must not raise "you are charging the wrong price" — an alarm that
+  lies gets muted.
+- **Only an `error` alerts.** A `warn` (the catalog shows a CZK price the product has
+  no CZK price for) is a note the preflight prints.
+- A drift lands in the SAME `billing_alerts` worklist as an unmapped product
+  (`kind: "price_drift"`), with a `providerRef` derived from the drifting product ids —
+  so a standing misconfiguration is ONE open alert rather than one a day, while a new
+  product drifting opens its own.
+
+`claimDueRun` gates the pass to one run per cadence across restarts, and a non-skipped
+run is recorded in `scheduler_runs`. The job has no UI toggle yet — `/api/automation/
+schedule` surfaces only the policy and reminder jobs.
+
 ### Settled money we cannot map is an ALERT, never a silent ignore
 
 A verified event whose `product_id` isn't in `productMap()` (almost always
@@ -530,7 +564,10 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   both idempotency layers, plan upgrade via webhook, revoke-to-free, the
   canceled-until-period-end rule.
 - `app/_lib/billing/price-reconcile.test.ts` — the price-drift check used by
-  `polar-setup.mjs`.
+  `polar-setup.mjs` AND by the clock's daily pass: target derivation, the
+  unreadable-product rule, the warn-does-not-alert rule, and the stable alert ref.
+- `app/_lib/billing-gate.test.ts` also drives `runPriceReconcile` end to end against a
+  fake provider and the real `billing_alerts` table.
 - `app/api/billing/billing-routes.test.ts` — the handlers themselves against real
   standard-webhooks signatures: the signature/idempotency/grant path, the bounded
   body read (413 on both the declared and the chunked oversize), and every checkout

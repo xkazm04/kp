@@ -73,7 +73,7 @@ const { jobPostGate, meterGate, QUOTA_CODE, QUOTA_MESSAGE } = await import("./bi
 // pulls next/server and is reachable from client components), so the sentence exists
 // twice on purpose and the test below is what keeps the two copies one answer.
 const { REFUSAL_ERRORS, jsonRefusal } = await import("./api-response.ts");
-const { ingestBillingWebhook } = await import("./billing/sync.ts");
+const { ingestBillingWebhook, runPriceReconcile } = await import("./billing/sync.ts");
 const { currentPeriod, PLANS } = await import("./billing/plans.ts");
 
 import type { BillingEvent, BillingGateway, ProductMap } from "./billing/gateway.ts";
@@ -416,4 +416,40 @@ test("a refund past already-spent minutes floors the shown balance at 0 (ledger 
   const minutes = billingOverview().meters.find((m) => m.meter === "interview_minutes");
   assert.equal(minutes?.credits, 0);
   assert.equal(minutes?.remaining, 0);
+});
+
+// ---- the daily price-drift pass, end to end (fake provider, real alert table) ------
+
+test("price reconcile: unconfigured or offline is a no-op, not a failure", async () => {
+  // polarGatewayFromEnv() answers null for BOTH (see its header), and the clock calls
+  // this unconditionally — a self-hosted install must record nothing at all.
+  assert.deepEqual(await runPriceReconcile(null), { skipped: true, checked: 0, drifts: 0, alerted: false });
+});
+
+test("price reconcile: drift opens ONE durable alert and stays one across runs", async () => {
+  const products = { starter: "p_s", growth: null, byom: null, minutePack: null };
+  // The provider charges 40 Kč more than the catalog displays — the exact money-trust
+  // break that used to surface only after a real charge.
+  const wrong = { prices: [{ price_currency: "CZK", price_amount: (PLANS.starter.priceCzk + 40) * 100 }] };
+  const source = { configuredProducts: () => products, fetchProduct: async () => wrong };
+  const before = listBillingAlerts().length;
+  const first = await runPriceReconcile(source);
+  assert.equal(first.skipped, false);
+  assert.equal(first.alerted, true);
+  const alert = listBillingAlerts().find((a) => a.kind === "price_drift");
+  assert.ok(alert, "a price drift must land in the same worklist as an unmapped product");
+  assert.equal(alert.providerRef, "price-drift:p_s");
+  // Tomorrow's run on the same misconfiguration must NOT pile up a second row.
+  assert.equal((await runPriceReconcile(source)).alerted, false);
+  assert.equal(listBillingAlerts().length, before + 1);
+});
+
+test("price reconcile: a provider it cannot read raises nothing", async () => {
+  const before = listBillingAlerts().length;
+  const r = await runPriceReconcile({
+    configuredProducts: () => ({ starter: "p_unreadable", growth: null, byom: null, minutePack: null }),
+    fetchProduct: async () => null,
+  });
+  assert.deepEqual(r, { skipped: false, checked: 0, drifts: 0, alerted: false });
+  assert.equal(listBillingAlerts().length, before, "an unreadable product must not alarm");
 });

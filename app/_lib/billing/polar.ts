@@ -196,6 +196,33 @@ export class PolarGateway implements BillingGateway {
     throw new Error(`Polar ${path} failed (${first.status}): ${first.text.slice(0, 300)}`);
   }
 
+  /** Read ONE product object (its `prices` are what the customer is actually charged).
+   *  A GET, bounded by the same budget as the POSTs, and never retried: its only
+   *  caller is the clock's daily reconcile, which would rather skip a product for a
+   *  day than double an already-throttled provider's load. Returns null on ANY
+   *  failure — an unreadable product is "unknown", and the pure decision treats
+   *  unknown as "no verdict" rather than as drift. */
+  async fetchProduct(productId: string): Promise<unknown | null> {
+    try {
+      const res = await fetch(`${SERVERS[this.cfg.server]}/v1/products/${encodeURIComponent(productId)}`, {
+        headers: { Authorization: `Bearer ${this.cfg.accessToken}` },
+        signal: AbortSignal.timeout(POLAR_REQUEST_TIMEOUT_MS),
+      });
+      if (!res.ok) return null;
+      return JSON.parse(await res.text()) as unknown;
+    } catch (error) {
+      // Best-effort by contract: this read informs a background alert, never a
+      // request. Logged so a persistently unreadable product is still visible.
+      console.warn(`[billing:reconcile] could not read Polar product ${productId}:`, error);
+      return null;
+    }
+  }
+
+  /** The product ids this deployment configured — the reconcile's input. */
+  configuredProducts(): PolarConfig["products"] {
+    return this.cfg.products;
+  }
+
   private productFor(req: CheckoutRequest): string {
     const id =
       req.kind === "plan"
