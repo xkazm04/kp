@@ -1,6 +1,6 @@
 "use client";
 
-/* eslint-disable */
+/* eslint-disable -- dev-only devtools chrome that is NEVER bundled for a user: DevInspector.tsx reaches this subtree through a NODE_ENV-guarded dynamic import, so nothing here reaches a production browser. The file is deliberately outside two app laws. (1) The design law: it is a FIXED devtools skin that must stay legible while you are debugging the theme itself, which is why eslint.config.mjs also exempts app/_dev-inspector/** from the raw-colour rules. (2) The i18n law: every string is an operator instruction ("press i to inspect", "npm run dev:inspect") read by the developer who launched dev:inspect — four locales of catalog keys behind a flag no user can reach. Kept BLANKET rather than rule-scoped on purpose: ts-debt.json holds eslint:* at max 1 precisely so a second blanket disable has to be somebody's decision, and scoping this one would trade that single guarded exception for a raised i18next ceiling. */
 
 /**
  * Presentational chrome for {@link DevInspector} — highlight boxes, the
