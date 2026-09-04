@@ -17,7 +17,10 @@ but 1.0 and this pins that refusal.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 from pipeline.jobfit.eval import thresholds
@@ -91,6 +94,118 @@ class ConsumersReadTheTableTest(unittest.TestCase):
         from pipeline.jobfit.eval import fault_eval
 
         self.assertIs(fault_eval.FAULT_THRESHOLD, thresholds.FAULT_THRESHOLD)
+
+
+class BarProvenanceTest(unittest.TestCase):
+    """A bare number is not a threshold. Every bar states what it protects and
+    what the pipeline actually measured — or that nothing was ever measured."""
+
+    def test_every_bar_carries_a_why_and_a_measured_at(self):
+        for name, bar in thresholds.all_bars().items():
+            with self.subTest(bar=name):
+                self.assertTrue(bar.why.strip(), f"{name} has no reason")
+                self.assertTrue(bar.measured_at.strip(), f"{name} has no measured_at")
+
+    def test_a_measured_bar_names_the_run_it_came_from(self):
+        for name, bar in thresholds.all_bars().items():
+            if bar.is_measured:
+                with self.subTest(bar=name):
+                    self.assertNotEqual(bar.measured_at, thresholds.UNMEASURED)
+                    self.assertTrue(bar.source.strip(), f"{name} names no source command")
+
+    def test_an_unmeasured_bar_declares_the_gap_in_its_own_why(self):
+        # "nobody has measured this" and "this was measured and it is fine" must
+        # not look the same in the table.
+        for name, bar in thresholds.all_bars().items():
+            if not bar.is_measured:
+                with self.subTest(bar=name):
+                    self.assertEqual(bar.measured_at, thresholds.UNMEASURED)
+                    self.assertIn(thresholds.UNMEASURED.upper(), bar.why.upper())
+
+    def test_the_float_tables_stay_derived_from_the_bars(self):
+        self.assertEqual(
+            thresholds.PASS_THRESHOLDS, {k: b.value for k, b in thresholds.PASS_BARS.items()}
+        )
+        self.assertEqual(
+            thresholds.MATCHING_THRESHOLDS, {k: b.value for k, b in thresholds.MATCHING_BARS.items()}
+        )
+        with mock.patch.object(thresholds, "PASS_THRESHOLDS", {**thresholds.PASS_THRESHOLDS, "role_family": 0.5}):
+            with self.assertRaises(ValueError) as ctx:
+                thresholds._validate()
+            self.assertIn("drifted from its Bar table", str(ctx.exception))
+
+    def test_a_bar_without_a_reason_is_refused(self):
+        blank = replace(thresholds.MATCHING_BARS["role_relevance_at5"], why="  ")
+        with mock.patch.dict(thresholds.MATCHING_BARS, {"role_relevance_at5": blank}):
+            with self.assertRaises(ValueError) as ctx:
+                thresholds._validate()
+            self.assertIn("bare number is not a threshold", str(ctx.exception))
+
+
+class SlackTest(unittest.TestCase):
+    """The bug this file exists to stop: a bar sitting so far under what the
+    engine measures that a real regression still ships green.
+    ``role_relevance_at5`` was 0.60 against a measured 0.857 — a quarter of the
+    ranking could rot without turning the gate red."""
+
+    def test_every_measured_bar_sits_within_its_stated_slack(self):
+        for name, bar in thresholds.all_bars().items():
+            if not bar.is_measured:
+                continue
+            with self.subTest(bar=name):
+                self.assertTrue(
+                    bar.within_slack,
+                    f"{name} is {bar.value} but the recorded measurement is {bar.measured} "
+                    f"({bar.measured_at}) with slack {bar.slack} — the bar may not sit below "
+                    f"{bar.floor}. Ratchet it to {bar.tightened()}, or widen the slack WITH a "
+                    f"reason (`python -m pipeline.jobfit.eval.thresholds --tighten`).",
+                )
+
+    def test_a_loosened_bar_is_caught_and_a_ratchet_proposed(self):
+        # The shape of the regression: someone drops the bar to make a red run green.
+        loosened = replace(thresholds.MATCHING_BARS["role_relevance_at5"], value=0.60)
+        with mock.patch.dict(thresholds.MATCHING_BARS, {"role_relevance_at5": loosened}):
+            loose = thresholds.loose_bars()
+            self.assertIn("MATCHING_THRESHOLDS.role_relevance_at5", loose)
+            self.assertEqual(loose["MATCHING_THRESHOLDS.role_relevance_at5"].tightened(), 0.84)
+
+    def test_slack_is_the_distance_below_the_measurement_not_a_free_pass(self):
+        bar = thresholds.Bar(value=0.80, why="w", slack=0.10, measured=0.95, measured_at="2026-01-01", source="cmd")
+        self.assertEqual(bar.floor, 0.85)
+        self.assertFalse(bar.within_slack)
+        self.assertEqual(bar.tightened(), 0.85)
+        self.assertTrue(replace(bar, value=0.85).within_slack)
+        self.assertIsNone(replace(bar, value=0.85).tightened())
+
+    def test_an_unmeasured_bar_is_never_reported_as_loose(self):
+        # No measurement means no claim either way — it must not fake a green tick
+        # nor a red one. The gap is declared in `why`, and the test above pins that.
+        unmeasured = thresholds.Bar(value=0.9, why="UNMEASURED: no keyed run recorded", slack=0.1)
+        self.assertTrue(unmeasured.within_slack)
+        self.assertIsNone(unmeasured.tightened())
+
+
+class TightenCliTest(unittest.TestCase):
+    def test_tighten_exits_zero_when_every_bar_is_tight(self):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(thresholds.main(["--tighten"]), 0)
+        self.assertIn("Nothing to tighten", out.getvalue())
+
+    def test_tighten_exits_one_and_names_the_proposal_while_a_bar_is_loose(self):
+        loosened = replace(thresholds.MATCHING_BARS["role_relevance_at5"], value=0.60)
+        with mock.patch.dict(thresholds.MATCHING_BARS, {"role_relevance_at5": loosened}):
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(thresholds.main(["--tighten"]), 1)
+        text = out.getvalue()
+        self.assertIn("role_relevance_at5", text)
+        self.assertIn("0.84", text)
+
+    def test_the_plain_listing_never_fails_the_run(self):
+        loosened = replace(thresholds.MATCHING_BARS["role_relevance_at5"], value=0.60)
+        with mock.patch.dict(thresholds.MATCHING_BARS, {"role_relevance_at5": loosened}):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(thresholds.main([]), 0)
+                self.assertEqual(thresholds.main(["--json"]), 0)
 
 
 if __name__ == "__main__":
