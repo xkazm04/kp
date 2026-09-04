@@ -18,6 +18,13 @@ replicaCount: 1
 # --- Required secrets --------------------------------------------------------------
 # KP_OPERATOR_PASSWORD: UNSET ⇒ the app runs OPEN (no login). KP_SECRET: encrypts
 # stored provider keys. Both are required unless you point at an existing Secret.
+#
+# "Required" here is enforced, not advisory: templates/secret.yaml wraps both in
+# Helm's `required`, so `helm install` FAILS with the message rather than
+# rendering an empty password and starting an app with no login. The chart policy
+# (scripts/deploy/check-chart.mjs, `npm run deploy:check`) asserts that both
+# `required` calls are still there — deleting one is a two-word edit that no
+# other check would notice.
 auth:
   operatorPassword: ""     # required (or set existingSecret)
   secret: ""               # required (or set existingSecret)
@@ -34,6 +41,13 @@ env:
   NEXT_PUBLIC_APP_BASE_URL: ""   # your public origin — candidate links resolve to it
   NEXT_PUBLIC_SITE_URL: ""       # OG/metadata origin
   # KP_OFFLINE: "1"              # hard no-egress mode (docs/architecture/self-hosting.md §7)
+  # KP_ALLOW_OPEN: "1"           # DEFAULT OFF, and it should stay off. The image is a
+  #                              # production build, so it REFUSES to boot with no
+  #                              # KP_OPERATOR_PASSWORD; this flag is the only way to make
+  #                              # it serve open anyway. It is downstream of the `required`
+  #                              # on auth.operatorPassword above — setting it here undoes
+  #                              # that guard for the whole release. deploy:check fails if
+  #                              # the chart ever ships it ON.
   # OPENAI_BASE_URL: "http://ollama.default.svc.cluster.local:11434/v1"  # self-hosted model
 extraEnv: {}                     # any additional non-secret env, merged in
 

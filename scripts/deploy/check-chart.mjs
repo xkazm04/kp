@@ -136,6 +136,50 @@ export const ENV_CONTRACT_EXEMPT = new Map([
   ['NODE_ENV', 'a Node runtime convention, not a kp setting — the app never reads it as configuration'],
 ]);
 
+/**
+ * The OTHER direction of the env contract: keys the chart must GO ON setting.
+ *
+ * The forward rule ("a key the chart sets must be documented") only catches a
+ * key being added. A key being REMOVED is the more expensive half and was
+ * unchecked: dropping `KP_DB_PATH` from the ConfigMap does not fail a deploy, it
+ * silently moves the database to a path derived from the launch directory —
+ * inside the container's writable layer rather than on the mounted volume — and
+ * the install comes up empty on its next restart. Nothing about that surfaces as
+ * an error, which is exactly why it needs a gate rather than a review.
+ */
+export const ENV_CONTRACT_REQUIRED = new Map([
+  [
+    'KP_DB_PATH',
+    'the database file. It must be the absolute path on the mounted volume: unset, app/_lib/db-path.ts ' +
+      'derives one from the launch directory, so the pod opens a DIFFERENT, empty database inside its own ' +
+      'container layer and loses every write on restart.',
+  ],
+  [
+    'KP_OPERATOR_PASSWORD',
+    'the login. Unset, kp runs OPEN — every operator route reachable with no session — and the chart would ' +
+      'be deploying an unauthenticated recruiting database to a cluster.',
+  ],
+  [
+    'KP_SECRET',
+    'the key that encrypts stored provider keys at rest and signs sessions. Unset, saving a provider key is ' +
+      'refused and every existing session is invalid.',
+  ],
+]);
+
+/**
+ * The secret keys whose absence must fail the INSTALL rather than render empty.
+ *
+ * `required` in the template is the whole guard: without it, `helm install` with
+ * no `auth.operatorPassword` renders `KP_OPERATOR_PASSWORD: ""` and Kubernetes
+ * happily starts an app with no login, green in every dashboard. Deleting one
+ * `required` is a two-word edit that no other policy here notices — the key is
+ * still set, still documented, still in the Secret.
+ */
+export const SECRET_REQUIRED_KEYS = new Map([
+  ['KP_OPERATOR_PASSWORD', 'an empty operator password runs kp OPEN, with no login, on a cluster'],
+  ['KP_SECRET', 'an empty secret means stored provider keys are not encrypted and sessions are not signed'],
+]);
+
 /** Literals that are a live credential rather than a placeholder. */
 const CREDENTIAL_SHAPES = [
   [/\bsk-[A-Za-z0-9_-]{16,}/, 'an OpenAI-style key'],
@@ -249,6 +293,44 @@ export const POLICIES = [
     },
   },
   {
+    rule: 'secret-renders-empty-instead-of-failing',
+    why: 'A `required` deleted from the Secret template turns a failed install into an app with no login.',
+    check: ({ secret }) => {
+      const bad = [];
+      for (const [key, consequence] of SECRET_REQUIRED_KEYS) {
+        const line = new RegExp(`^\\s*${key}:\\s*(.*)$`, 'm').exec(secret)?.[1] ?? null;
+        if (line === null) {
+          bad.push(`${key} is no longer in the Secret template`);
+        } else if (!/\brequired\s+"/.test(line)) {
+          bad.push(`${key} is rendered without \`required\` — ${consequence}`);
+        }
+      }
+      return bad.length === 0
+        ? null
+        : `${bad.join('; ')}. Wrap the value in \`required "<message a person can act on>"\` so the install ` +
+          'fails loudly instead of deploying the open app.';
+    },
+  },
+  {
+    rule: 'open-mode-shipped-on',
+    why: 'KP_ALLOW_OPEN is the one flag that turns the Secret template’s `required` guard into a formality.',
+    check: ({ values, configmap, envExample }) => {
+      // Truthy anywhere the chart sets env: a production build REFUSES to start
+      // without an operator password unless this says the operator meant it, so
+      // a chart that shipped it on would restore the exact state `required`
+      // exists to prevent, one layer further down.
+      const set = /^\s*(?:#\s*)?KP_ALLOW_OPEN:\s*["']?([^"'\s#]+)/m.exec(`${blockOf(values, 'env')}\n${configmap}`);
+      const on = set && !/^\s*#/.test(set[0]) && !['0', 'false', '""', "''", ''].includes(set[1]);
+      if (on) return `the chart sets KP_ALLOW_OPEN=${set[1]}, which lets a production build start with no login.`;
+      // …and it has to be DOCUMENTED, because an operator who never learns the
+      // flag exists reads the fail-closed refusal as a broken image.
+      return documentedEnvKeys(envExample).has('KP_ALLOW_OPEN')
+        ? null
+        : `${ENV_EXAMPLE} does not document KP_ALLOW_OPEN. It is the escape hatch from the fail-closed ` +
+          'production check, so it belongs next to KP_OPERATOR_PASSWORD with its default (off) stated.';
+    },
+  },
+  {
     rule: 'no-memory-limit',
     why: 'The Python pipeline spawns subprocesses per request; an unbounded pod takes the node with it.',
     check: ({ values, deployment }) => {
@@ -278,9 +360,15 @@ export const POLICIES = [
 ];
 
 /**
- * The env-var contract: every variable the chart SETS must be one .env.example
- * documents. Separate from POLICIES because it reports per key rather than
- * per rule.
+ * The env-var contract, in BOTH directions. Forward: every variable the chart
+ * SETS must be one .env.example documents. Reverse: every variable in
+ * ENV_CONTRACT_REQUIRED must still be one the chart sets.
+ *
+ * One direction was never a contract. A key added to the chart and not to
+ * .env.example is undocumented configuration, which costs an operator an hour;
+ * a key DROPPED from the chart is a setting that silently stopped applying,
+ * which costs them the database. Separate from POLICIES because it reports per
+ * key rather than per rule.
  */
 export function checkEnvContract({ values, configmap, secret, envExample }) {
   const documented = documentedEnvKeys(envExample);
@@ -300,6 +388,19 @@ export function checkEnvContract({ values, configmap, secret, envExample }) {
         `Add ${key} to ${ENV_EXAMPLE} with what it does, or stop setting it. A release is defined partly by its ` +
           'environment contract (docs/architecture/releases.md); a key that exists on only one side of it is an ' +
           'upgrade break that surfaces as a setting that quietly stopped applying.',
+      ),
+    );
+  }
+
+  for (const [key, why] of ENV_CONTRACT_REQUIRED) {
+    if (set.has(key)) continue;
+    out.push(
+      finding(
+        'env-contract-dropped',
+        `the chart no longer sets ${key}, which every install depends on.`,
+        `Restore ${key} in the ConfigMap or the Secret template. ${why} If it genuinely moved elsewhere, ` +
+          'move its entry out of ENV_CONTRACT_REQUIRED in the same change and say where it went — a ' +
+          'required key with no enforcer is the half of this contract that was missing.',
       ),
     );
   }
