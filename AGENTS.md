@@ -62,6 +62,7 @@ rather than a snapshot.
 | `npm run test:release` | fixtures for the release scripts — prepare, commit-msg, sbom, provenance |
 | `npm run sbom` | the bill of materials cannot be built from the lockfile + the pip environment |
 | `npm run test:docs` | fixtures for the doc-sync hook, the ADR gate, the guidance check and the schemas-gen wrapper |
+| `npm run test:skills` | fixtures for the project-owned motionize skill tools (glyph core, contact sheet, fetch budget) |
 | `npm run test:review` | fixtures for the review lenses (constitution, gate-check, the shared workflow reader, the agent lens's pure half) |
 | `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written (the protected set is DERIVED from the gates CI runs), and the spend meter that stops a lane at its declared token ceiling |
 | `npm run test:lint-ratchet` | fixtures for the ruff and ts ignore ratchets |

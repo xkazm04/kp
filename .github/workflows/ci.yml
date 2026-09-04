@@ -167,6 +167,13 @@ jobs:
       # be judged by something too.
       - run: npm run test:review
 
+      # Fixtures for the project-owned /motionize skill tools (.claude/skills/
+      # motionize/tools). Pure node:test over the SVG->glyph core, the contact
+      # sheet renderer and the fetch budget - no skill node_modules needed. The
+      # sheet renderer crashed on the committed glyph folder for weeks because
+      # nothing ran it; a documented step has to run somewhere.
+      - run: npm run test:skills
+
       # Fixtures for the DISPATCH path (scripts/agent/). This is the one piece of
       # the review machinery that writes rather than reads, from text a stranger
       # can put in an issue — so its guard (who may dispatch, what may never be

@@ -64,6 +64,7 @@
     "test:security": "node scripts/security/__tests__/secret-scan.test.mjs && node scripts/security/__tests__/check-actions.test.mjs",
     "deploy:check": "node scripts/deploy/check-chart.mjs",
     "test:deploy": "node scripts/deploy/__tests__/check-chart.test.mjs",
+    "test:skills": "node --test \".claude/skills/motionize/tools/__tests__/*.test.mjs\"",
     "test:review": "node scripts/review/__tests__/constitution-check.test.mjs && node scripts/review/__tests__/gate-check.test.mjs && node scripts/review/__tests__/workflow-yaml.test.mjs && node scripts/review/__tests__/agent-review.test.mjs",
     "test:agent": "node scripts/agent/__tests__/dispatch.test.mjs && node scripts/agent/__tests__/provenance.test.mjs && node scripts/agent/__tests__/budget.test.mjs",
     "test:lint-ratchet": "node scripts/lint/__tests__/ruff-ratchet.test.mjs && node scripts/lint/__tests__/ts-ratchet.test.mjs",
