@@ -261,6 +261,22 @@ test("a NULL-locale candidate's letter is drafted in THEIR team's language", asy
   assert.equal((out.result as { subject?: string }).subject, "Absage", "the German draft was served — the key resolved 'de'");
 });
 
+test("a background pass narrates in the ENTRY'S team language, not the default team's", async () => {
+  // The recruiter-narrative sibling of the letter-locale fix: with no caller UI locale
+  // (a background/task-runner pass), `uiLang` falls back to a workspace default, and a
+  // bare read took the DEFAULT team's. Observed the same way — the resolved locale is a
+  // cache-key axis, so a run that resolved the wrong team misses and reaches the
+  // (deliberately broken) spawn.
+  const team = createWorkspace("Team FR narrative");
+  setWorkspaceDefaultLocale("fr", team.id);
+  setWorkspaceDefaultLocale("en", DEFAULT_WORKSPACE_ID); // the WRONG answer, made distinguishable
+  const f = fixture(team.id, null, screeningStage(team.id));
+
+  seedVerdict(f, "screen", { route: "hold", recommendation: "hold", rationale: "Motif en français" }, "llm", "fr");
+  await runAutomationTask(f.entry.id, "screen", "", undefined, undefined, team.id);
+  assert.equal(parseApproval(f.entry.id, team.id).rationale, "Motif en français", "the key resolved 'fr' — the entry's own team");
+});
+
 test("an EXPLICIT entry locale still wins over the team default", async () => {
   const team = createWorkspace("Team DE 2");
   setWorkspaceDefaultLocale("de", team.id);

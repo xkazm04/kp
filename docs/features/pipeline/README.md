@@ -264,7 +264,12 @@ strands nobody, and moving them would rewrite closed history.
    read the DEFAULT team's `default_locale`, so a NULL-locale candidate filed into
    a team with its own language had the letter *body* drafted in one language and
    wrapped by `comms-dispatch` in another. The resolved locale is a cache-key axis,
-   so the fix self-invalidates the wrongly-keyed entries.
+   so the fix self-invalidates the wrongly-keyed entries. The recruiter-narrative
+   locale (`uiLang`, for screen / prep / scorecard) has the same scope: with no caller
+   UI locale, a background pass falls back to `getWorkspaceDefaultLocale(entry.workspaceId)`,
+   the entry's OWN team, not the default tenant's. Both are cache-key axes, so a
+   non-default team re-keys once and its wrongly-shared entries self-invalidate; the
+   default team's keys are byte-identical.
 
    **Three hard-coded English sentences became codes.** The `offer_auto_extended`
    event detail is now `reason:offerAutoExtended` (rendered through

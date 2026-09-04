@@ -307,7 +307,14 @@ export async function runAutomationTask(
   const uiLang: Locale | undefined = UI_LANG_TASKS.has(task)
     ? isLocale(lang)
       ? lang
-      : getWorkspaceDefaultLocale()
+      // …the ENTRY'S OWN team's default, not a fixed tenant's. A bare
+      // getWorkspaceDefaultLocale() read the DEFAULT workspace, so a background pass
+      // over a team that set its own language wrote that team's screening rationale,
+      // interview prep and scorecard summary in the default team's language — the same
+      // untenanted defect the letter locale had one line below. The resolved locale is
+      // a cache-key axis, so non-default teams re-key and their wrongly-shared entries
+      // self-invalidate; the default team's keys are byte-identical.
+      : getWorkspaceDefaultLocale(entry.workspaceId)
     : undefined;
   // Billing degrade, resolved BEFORE the key (not at spawn time): past the
   // ai_candidates allowance the run spends the deterministic templates
