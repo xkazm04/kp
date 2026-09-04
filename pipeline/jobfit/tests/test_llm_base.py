@@ -153,6 +153,30 @@ class OverallDeadlineTest(unittest.TestCase):
         self.assertTrue(monitor.emit_error.called)
 
 
+class _SlowJsonProvider(TextProvider):
+    """Advances a fake clock by ``first_call_s`` on the FIRST call and answers with
+    unparseable prose; any later call is instant and returns valid JSON. Lets the
+    shared complete_json deadline be asserted without real sleeps."""
+
+    name = "slowjson"
+
+    def __init__(self, clock: dict, first_call_s: float) -> None:
+        super().__init__(model="slowjson-1", timeout=100)
+        self.clock = clock
+        self.first_call_s = first_call_s
+        self.timeouts: list[float] = []
+
+    def available(self) -> bool:
+        return True
+
+    def _call(self, prompt, *, system, timeout):
+        self.timeouts.append(timeout)
+        if len(self.timeouts) == 1:
+            self.clock["t"] += self.first_call_s
+            return _result("Sure! but this is not json")
+        return _result('{"verdict": "ok"}')
+
+
 class CompleteJsonTest(unittest.TestCase):
     def test_appends_guard_and_parses_fenced_json(self) -> None:
         fake = FakeProvider([_result('Sure!\n```json\n{"a": 1}\n```')])
@@ -183,6 +207,41 @@ class CompleteJsonTest(unittest.TestCase):
         with self.assertRaises(LLMError):
             fake.complete_json("x")
         self.assertEqual(len(fake.calls), 2)
+
+    def test_the_repair_reprompt_shares_the_deadline_it_does_not_restart_it(self) -> None:
+        """The deadline spans BOTH calls, so a JSON call cannot cost 2× its budget.
+
+        ``complete()`` treats the timeout as a total wall-clock ceiling exactly so
+        the Python side stays inside the TS spawn's SIGKILL window; the repair used
+        to get a FRESH full budget, which put every call site past its ceiling
+        (role_intake pins 120s against a 120_000ms spawn timeout). Assert the
+        repair is handed only the REMAINING time."""
+        clock = {"t": 5000.0}
+        # First call burns 60 of a 100s budget, then answers unparseably.
+        fake = _SlowJsonProvider(clock, first_call_s=60.0)
+        with mock.patch("pipeline.jobfit.llm.base.time.monotonic", lambda: clock["t"]):
+            self.assertEqual(fake.complete_json("x", timeout=100), {"verdict": "ok"})
+        self.assertEqual(len(fake.timeouts), 2)
+        # The repair got what was LEFT (~40s), not another 100.
+        self.assertLess(fake.timeouts[1], 100)
+        self.assertLessEqual(fake.timeouts[1], 40)
+
+    def test_a_deadline_with_no_room_left_refuses_the_repair_instead_of_overrunning(self) -> None:
+        """When the first call consumed the whole budget, starting the repair would
+        be killed by the host's wall clock mid-flight — losing both the answer and
+        the ledger line. Refuse with the reason instead of overrunning."""
+        clock = {"t": 5000.0}
+        fake = _SlowJsonProvider(clock, first_call_s=100.0)
+        with mock.patch("pipeline.jobfit.llm.base.time.monotonic", lambda: clock["t"]), \
+                mock.patch("pipeline.jobfit.llm.base.monitor") as monitor:
+            with self.assertRaises(LLMError) as ctx:
+                fake.complete_json("x", timeout=100)
+        # Exactly ONE model call — the repair was never issued.
+        self.assertEqual(len(fake.timeouts), 1)
+        self.assertEqual(ctx.exception.subtype, "unparseable_json")
+        self.assertIn("no room for a repair", str(ctx.exception))
+        # …and the failure still reaches the ledger, as every other descent does.
+        self.assertTrue(monitor.emit_error.called)
 
 
 class MapTest(unittest.TestCase):

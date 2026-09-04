@@ -531,12 +531,24 @@ class TextProvider:
         Mirrors ClaudeCliProvider.complete_json: terse 'JSON only' guard, then
         extract the last complete JSON value, ``expected_keys`` pinning the
         answer object even if the model echoes an example alongside it.
+
+        The deadline spans BOTH calls. ``complete()`` treats its timeout as a total
+        wall-clock ceiling precisely so a call cannot outrun the TS spawn's kill —
+        but the repair re-prompt below is a second ``complete()``, and passing it
+        the same ``timeout`` gave it a FRESH full budget, so a JSON call's real
+        worst case was 2× what the caller configured. That is past the ceiling for
+        every call site: ``role_intake`` pins 120s against intake-run.ts's
+        120_000ms, ``group_compare`` 120s against 150_000ms. The SIGKILL that
+        follows is the exact failure ``complete()``'s deadline machinery exists to
+        avoid, and it takes the metering line for spend that DID occur with it.
         """
+        budget = timeout or self.timeout
+        deadline = time.monotonic() + budget
         guarded = (
             f"{prompt}\n\n"
             "Respond with ONLY valid JSON — no markdown fences, no commentary."
         )
-        result = self.complete(guarded, system=system, timeout=timeout)
+        result = self.complete(guarded, system=system, timeout=budget)
         try:
             return _extract_json(result.text, expected_keys=expected_keys)
         except ValueError:
@@ -547,14 +559,32 @@ class TextProvider:
         # prose, a markdown fence, a trailing comma) would otherwise discard an
         # already-paid completion and silently drop the call site to its
         # deterministic fallback. Bounded to exactly ONE extra call; it goes
-        # through complete() so it is retried/metered like any other request.
+        # through complete() so it is retried/metered like any other request, and
+        # it gets only the time LEFT on the shared deadline (see the docstring).
+        remaining = deadline - time.monotonic()
+        if remaining <= _MIN_ATTEMPT_S:
+            # No room to repair inside the caller's ceiling. Starting the call
+            # anyway is strictly worse than saying so: it would be killed by the
+            # host's wall clock mid-flight, losing both the answer and the ledger
+            # line, and the repair was never guaranteed to help.
+            err = LLMError(
+                f"{self.name} returned unparseable JSON and its {budget}s deadline "
+                f"left no room for a repair re-prompt: {result.text[:300]!r}",
+                provider=self.name,
+                subtype="unparseable_json",
+            )
+            monitor.emit_error(
+                provider=self.name, model=self.model, use_case=self.use_case,
+                error=err, duration_ms=int((time.monotonic() - (deadline - budget)) * 1000),
+            )
+            raise err
         repair = (
             "Your previous response could not be parsed as JSON. Return the SAME "
             "answer as a single valid JSON value ONLY — no markdown fences, no "
             "commentary, no leading or trailing text.\n\n"
             f"Previous response:\n{result.text[:4000]}"
         )
-        repaired = self.complete(repair, system=system, timeout=timeout)
+        repaired = self.complete(repair, system=system, timeout=max(_MIN_ATTEMPT_S, int(remaining)))
         try:
             return _extract_json(repaired.text, expected_keys=expected_keys)
         except ValueError as exc:
