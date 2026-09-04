@@ -174,6 +174,7 @@ export function finishJdAnalysis(slug: string, input: { body: string; analysisJs
         new Date().toISOString(),
         row.workspace_id
       );
+      pruneJdRevisions(db, slug, row.workspace_id);
     }
     db.prepare(
       `UPDATE jds SET body = CASE WHEN body = '' AND analysis_status = 'analyzing' THEN ? ELSE body END,
@@ -213,8 +214,27 @@ export function hasJdCaseArtifact(workspaceId: string = DEFAULT_WORKSPACE_ID): b
   return row !== undefined;
 }
 
-export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): JdListItem[] {
+// The JD library read's page bounds, stated the way listJobsPage states its own.
+// A caller that omits `limit` still gets a PAGE, not the corpus — see the
+// `truncated` flag on JdsPage, and jdLibraryStats for a real count.
+export const JDS_PAGE_DEFAULT_LIMIT = 100;
+export const JDS_PAGE_MAX_LIMIT = 200;
+
+/** One page of the JD library plus an HONEST truncation flag — the same contract
+ *  JobsPage holds for the jobs list beside it. `listJds` used to answer a bare
+ *  array cut at a silent LIMIT, so no caller could tell "these are all your JDs"
+ *  from "these are the first N of more", and two of the three rendered `.length`
+ *  as a library total. */
+export type JdsPage = { jds: JdListItem[]; truncated: boolean; limit: number };
+
+export function listJdsPage(limit?: number, workspaceId: string = DEFAULT_WORKSPACE_ID): JdsPage {
   const db = ensureDb();
+  // Defensive clamp, identical in spirit to listJobsPage's: SQLite reads LIMIT -1
+  // as UNBOUNDED, so a negative/NaN/fractional value must never reach the bind.
+  const bound =
+    Number.isInteger(limit) && (limit as number) > 0
+      ? Math.min(limit as number, JDS_PAGE_MAX_LIMIT)
+      : JDS_PAGE_DEFAULT_LIMIT;
   // Pull only one char past the preview window to detect truncation, so the
   // full body is never read into memory for the list view.
   const rows = db
@@ -222,9 +242,9 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
       `SELECT slug, title, created_at, analysis_status, analysis_task_id,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
-       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`
     )
-    .all(workspaceId, limit) as Array<{
+    .all(workspaceId, bound + 1) as Array<{
     slug: string;
     title: string;
     created_at: string;
@@ -233,7 +253,10 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
     body_head: string;
     body_len: number;
   }>;
-  return rows.map((r) => ({
+  // Read ONE row past the page — cheap, exact, and it needs no second COUNT
+  // round-trip to know whether the slice was cut (listJobsPage's shape).
+  const truncated = rows.length > bound;
+  const jds = (truncated ? rows.slice(0, bound) : rows).map((r) => ({
     slug: r.slug,
     title: r.title,
     created_at: r.created_at,
@@ -241,6 +264,43 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
     analysis_task_id: r.analysis_task_id,
     preview: r.body_len > JD_PREVIEW_CHARS ? `${r.body_head.slice(0, JD_PREVIEW_CHARS)}…` : r.body_head,
   }));
+  return { jds, truncated, limit: bound };
+}
+
+/** The library's UNBOUNDED shape: how many active JDs this team has, how many are
+ *  mid-build or failed, and the newest one's title. The palette preview used to
+ *  derive all four from `listJds(200)` — a page's size presented as a library
+ *  total, the same class of claim listJobs' header warns about. A count is not a
+ *  page, so it gets its own query. */
+export type JdLibraryStats = {
+  total: number;
+  analyzing: number;
+  failed: number;
+  newest: { title: string; createdAt: string } | null;
+};
+
+export function jdLibraryStats(workspaceId: string = DEFAULT_WORKSPACE_ID): JdLibraryStats {
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN analysis_status = 'analyzing' THEN 1 ELSE 0 END) AS analyzing,
+              SUM(CASE WHEN analysis_status = 'failed' THEN 1 ELSE 0 END) AS failed
+       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ?`
+    )
+    .get(workspaceId) as { total: number; analyzing: number | null; failed: number | null };
+  const newest = db
+    .prepare(
+      `SELECT title, created_at FROM jds
+       WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`
+    )
+    .get(workspaceId) as { title: string; created_at: string } | undefined;
+  return {
+    total: row.total,
+    analyzing: row.analyzing ?? 0,
+    failed: row.failed ?? 0,
+    newest: newest ? { title: newest.title, createdAt: newest.created_at } : null,
+  };
 }
 
 export function loadJd(slug: string, workspaceId: string = DEFAULT_WORKSPACE_ID): JdRow | null {
@@ -305,10 +365,49 @@ export function updateJd(
       new Date().toISOString(),
       workspaceId
     );
+    pruneJdRevisions(db, slug, workspaceId);
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(input.title, input.body, slug, workspaceId);
     return { ok: true };
   });
   return tx.immediate();
+}
+
+/** How many pre-edit snapshots a single JD keeps. Every edit, revert and finished
+ *  analysis INSERTs a FULL body copy into jd_revisions; listJdRevisions capped the
+ *  READ at 100 but nothing capped the TABLE, so a JD edited in a loop (or rebuilt
+ *  by the analysis pipeline repeatedly) grew the row store without bound for the
+ *  life of the install — invisible, because the UI only ever reads the head of it.
+ *  50 is well past any recruiter's real undo depth and keeps the worst case per
+ *  slug bounded at 50 bodies. */
+export const JD_REVISIONS_MAX = 50;
+
+/** Drop everything past the newest JD_REVISIONS_MAX snapshots for one slug.
+ *
+ *  `keepId` is never pruned: revertJd restores FROM a revision, and pruning the row
+ *  the restore is based on in the same transaction would delete the only copy of the
+ *  text a recruiter just chose to come back to. Called INSIDE the callers' existing
+ *  IMMEDIATE transactions, so the insert and its prune are one step (a separate
+ *  statement afterwards would let a reader see an over-cap history, and a crash
+ *  between them would leave it that way forever).
+ *
+ *  Workspace-scoped like every other jd_revisions statement — a churned JD in one
+ *  team must never prune a same-slug row belonging to another. */
+function pruneJdRevisions(
+  db: ReturnType<typeof ensureDb>,
+  slug: string,
+  workspaceId: string,
+  keepId: number | null = null
+): void {
+  db.prepare(
+    `DELETE FROM jd_revisions
+     WHERE slug = @slug AND workspace_id = @ws
+       AND id IS NOT @keep
+       AND id NOT IN (
+         SELECT id FROM jd_revisions
+         WHERE slug = @slug AND workspace_id = @ws
+         ORDER BY id DESC LIMIT @max
+       )`
+  ).run({ slug, ws: workspaceId, keep: keepId, max: JD_REVISIONS_MAX });
 }
 
 export type JdRevision = { id: number; slug: string; title: string; body: string; created_at: string };
@@ -369,6 +468,7 @@ export function revertJd(
       new Date().toISOString(),
       workspaceId
     );
+    pruneJdRevisions(db, slug, workspaceId, revisionId);
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(rev.title, rev.body, slug, workspaceId);
     return { ok: true, title: rev.title, body: rev.body };
   });

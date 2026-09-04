@@ -24,7 +24,16 @@ const runnerSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "python-runne
 const responsesSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
 
 test("the profile_cli spawn is bounded by an explicit 60s-class timeout, not the 600s backstop", () => {
-  const declared = src.match(/const PROFILE_ROUTE_TIMEOUT_MS = ([\d_]+)/);
+  // Lot PR made the route share the lib's bound instead of declaring a twin: the
+  // route aliases PROFILE_BUILD_TIMEOUT_MS, and the numeric lives ONCE in
+  // applicant-profile.ts (applicant-profile-timeout.test.ts bounds it there too).
+  assert.match(
+    src,
+    /const PROFILE_ROUTE_TIMEOUT_MS = PROFILE_BUILD_TIMEOUT_MS;/,
+    "the route's bound must be the lib's constant, not a second literal that can drift"
+  );
+  const libSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "applicant-profile.ts"), "utf8");
+  const declared = libSrc.match(/export const PROFILE_BUILD_TIMEOUT_MS = ([\d_]+)/);
   assert.ok(declared, "the bound must be a named constant, not an inline literal");
   const ms = Number(declared[1].replace(/_/g, ""));
   assert.ok(ms >= 30_000 && ms <= 120_000, `expected a 60s-class bound, got ${ms}ms`);

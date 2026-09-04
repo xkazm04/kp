@@ -47,11 +47,22 @@ export async function sendDueInterviewReminders(
     try {
       await dispatch(
         { id: inv.entryId, candidateLabel: inv.candidateLabel, jobTitle: inv.jobTitle, locale: inv.locale },
-        inv.slot ?? "your scheduled time",
+        inv.slot,
         // The invite's own team is the fallback tenant for the outbox row: when the
         // linked entry has been deleted, `ref` degrades to the slot string and the
         // entry-derived tenant is unavailable (comms-tenancy-pair).
-        { durationMin: inv.durationMin, workspaceId: inv.workspaceId }
+        //
+        // slotAtIso + candidateTz are the LETTER's authority for the time: the
+        // dispatcher formats the absolute instant in the zone the candidate's browser
+        // reported at confirm, in their language. The stored English label (inv.slot)
+        // is only the fallback, and the bare English "your scheduled time" it used to
+        // substitute for a label-less row is a catalog key now.
+        {
+          durationMin: inv.durationMin,
+          workspaceId: inv.workspaceId,
+          slotAtIso: inv.slotAt,
+          candidateTz: inv.candidateTz,
+        }
       );
     } catch (err) {
       // Delivery did not complete. The claim already recorded this attempt and its

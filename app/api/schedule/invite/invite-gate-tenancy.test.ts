@@ -141,9 +141,9 @@ test("workspace B cannot invite workspace A's entry (single or bulk)", async () 
 
   const bulk = await bulkPost(req({ entryIds: [foreign.id] }));
   assert.equal(bulk.status, 200, "the bulk route reports per-entry outcomes rather than failing the batch");
-  const body = (await bulk.json()) as { sent: number; results: { entryId: string; ok: boolean; error?: string }[] };
+  const body = (await bulk.json()) as { sent: number; results: { entryId: string; ok: boolean; code?: string }[] };
   assert.equal(body.sent, 0, "no invite may be sent for another team's entry");
-  assert.equal(body.results[0].error, "not found");
+  assert.equal(body.results[0].code, "SCHEDULE_BULK_ENTRY_NOT_FOUND");
 
   assert.equal(invitesFor(foreign.id), 0, "no link may exist for a cross-tenant invite attempt");
 });
@@ -199,9 +199,9 @@ test("a closed-out candidate is never invited — single and bulk agree", async 
   const single = await invitePost(req({ entryId: entry.id }));
   assert.equal(single.status, 409, "a rejected candidate must not be sent an interview invite");
   const bulk = await bulkPost(req({ entryIds: [entry.id] }));
-  const body = (await bulk.json()) as { sent: number; results: { error?: string }[] };
+  const body = (await bulk.json()) as { sent: number; results: { code?: string }[] };
   assert.equal(body.sent, 0);
-  assert.equal(body.results[0].error, "not active", "the two routes refuse the same input");
+  assert.equal(body.results[0].code, "SCHEDULE_BULK_ENTRY_INACTIVE", "the two routes refuse the same input");
 
   assert.equal(invitesFor(entry.id), 0, "no link may exist for a closed-out candidate");
 });
@@ -226,7 +226,7 @@ test("a cohort larger than the bulk cap reports the overflow instead of dropping
     sent: number;
     capped: number;
     total: number;
-    results: { entryId: string; ok: boolean; error?: string }[];
+    results: { entryId: string; ok: boolean; code?: string; max?: number }[];
   };
 
   assert.equal(body.capped, beyond.length, "the request says how many entries it could not take");
@@ -235,7 +235,8 @@ test("a cohort larger than the bulk cap reports the overflow instead of dropping
     const row = body.results.find((r) => r.entryId === e.id);
     assert.ok(row, `entry ${e.id} was dropped silently — it must come back as an explicit refusal`);
     assert.equal(row.ok, false, "an entry past the cap was NOT invited and must not read as one");
-    assert.match(String(row.error), /cap/i, "and it must say why, so the caller can retry the remainder");
+    assert.equal(row.code, "SCHEDULE_BULK_OVER_CAP", "and it must say why, so the caller can retry the remainder");
+    assert.equal(row.max, BULK_INVITE_CAP, "the bound rides along so the message can name it");
     assert.equal(invitesFor(e.id), 0, "no link is minted past the cap");
   }
 });
@@ -259,4 +260,68 @@ test("the recruiter week-grid book refuses a closed-out candidate too", async ()
   assert.equal(res.status, 409, "a rejected candidate must not be bookable from the grid");
   assert.match((await res.json()).error, /no longer active/);
   assert.equal(invitesFor(entry.id), 0, "no slot may be consumed for a closed-out candidate");
+});
+
+// --- every refusal this door answers is a CODE, never an English sentence --------
+//
+// The bulk bar (usePipelineBulk.bulkInvite) already folded a per-item `code` through
+// the same `errors.<CODE>` resolution it uses for /api/pipeline/batch — it just never
+// received one. So a Czech recruiter whose cohort was half-refused read one generic
+// "some couldn't be invited" line with no reason, and the route's own whole-request
+// 400 ("entryIds must be a non-empty array (max 100).") was raw English on the wire.
+
+test("the bulk door answers CODES: the whole-request refusal and every per-entry verdict", async () => {
+  signedInAs(WS_A);
+
+  // (1) The whole-request refusal.
+  const empty = await bulkPost(req({ entryIds: [] }));
+  assert.equal(empty.status, 400);
+  const emptyBody = (await empty.json()) as { code?: string; error?: string; max?: number };
+  assert.equal(emptyBody.code, "SCHEDULE_BULK_NO_ENTRIES", "an empty selection is refused by code");
+  assert.equal(emptyBody.max, BULK_INVITE_CAP, "the cap rides along");
+
+  // (2) Every per-entry code the loop can emit, in one call, so the shape is pinned
+  //     together rather than one branch at a time.
+  const active = entryIn(WS_A);
+  const closed = entryIn(WS_A);
+  actOnPipelineEntry(closed.id, "reject", undefined, undefined, WS_A);
+  const res = await bulkPost(req({ entryIds: [active.id, closed.id, "no-such-entry"] }));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { results: { entryId: string; ok: boolean; code?: string }[] };
+  const codeFor = (id: string) => body.results.find((r) => r.entryId === id)?.code;
+  assert.equal(codeFor(closed.id), "SCHEDULE_BULK_ENTRY_INACTIVE");
+  assert.equal(codeFor("no-such-entry"), "SCHEDULE_BULK_ENTRY_NOT_FOUND");
+  assert.equal(body.results.find((r) => r.entryId === active.id)?.ok, true, "the live candidate is still invited");
+
+  // (3) NOTHING on this wire is prose. `error` is gone from the per-entry shape, so a
+  //     store message can no longer ride out of the catch (that leak is the reason
+  //     app/api/error-response-contract.test.ts is a repo-wide scan rather than a
+  //     hand-listed array — both hygiene guards' regexes structurally could not see a
+  //     `results.push({ error: err.message })`).
+  for (const row of body.results) {
+    assert.equal("error" in row, false, `a per-entry row still carries prose: ${JSON.stringify(row)}`);
+    if (!row.ok) assert.match(String(row.code), /^SCHEDULE_BULK_/, "every refusal names a resolvable code");
+  }
+});
+
+test("every SCHEDULE_BULK_* code this route emits is a declared refusal with four catalog entries", async () => {
+  const { REFUSAL_ERRORS } = await import("../../../_lib/api-response.ts");
+  const { readFileSync } = await import("node:fs");
+  const path = await import("node:path");
+  // Normalized: this checkout is CRLF while the worktree may be LF.
+  const src = readFileSync(path.join(process.cwd(), "app", "api", "schedule", "invite", "bulk", "route.ts"), "utf-8").replace(
+    /\r\n/g,
+    "\n"
+  );
+  const used = [...new Set([...src.matchAll(/"(SCHEDULE_BULK_[A-Z_]+)"/g)].map((m) => m[1]))];
+  assert.equal(used.length >= 5, true, `expected the route to emit its refusal codes, found ${used.join(", ")}`);
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const catalog = JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8")) as {
+      errors: Record<string, string>;
+    };
+    for (const code of used) {
+      assert.ok(code in REFUSAL_ERRORS, `${code} is emitted but not declared in REFUSAL_ERRORS`);
+      assert.ok(catalog.errors[code], `${code} has no ${locale} entry — the board would render nothing`);
+    }
+  }
 });

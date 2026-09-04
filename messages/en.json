@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Reminder: your interview {slot}",
       "length": " Plan for about {minutes} minutes.",
-      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}"
+      "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}",
+      "slotFallback": "your scheduled time"
     },
     "offerReminder": {
       "subject": "Reminder: your offer for {role} is still open",
@@ -1731,7 +1732,17 @@
     "COMPLIANCE_LOOKUP_FAILED": "Couldn’t load the compliance information. Please try again.",
     "OFFER_SALARY_INVALID": "That offer amount isn’t a salary we can send. Check the figure before extending.",
     "OFFER_CURRENCY_UNSUPPORTED": "That currency isn’t one an offer can be made in here.",
-    "OFFER_NOTES_TOO_LONG": "That offer note is too long to send. Shorten it and extend again."
+    "OFFER_NOTES_TOO_LONG": "That offer note is too long to send. Shorten it and extend again.",
+    "PROFILE_LIST_FAILED": "Couldn’t load your saved profiles. Please try again.",
+    "PROFILE_BUILD_FAILED": "Couldn’t build that profile. Please try again.",
+    "PROFILE_UPDATE_FAILED": "Couldn’t save your changes to that profile. Please try again.",
+    "PROFILE_DELETE_FAILED": "Couldn’t delete that profile. Please try again.",
+    "PROFILE_CANDIDATES_FAILED": "Couldn’t load the candidate matrix. Please try again.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Select at least one candidate before sending scheduling links.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "That candidate is no longer on this board. Reload and try again.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "That candidate is no longer active, so no scheduling link was sent.",
+    "SCHEDULE_BULK_MINT_FAILED": "Couldn't create a scheduling link for this candidate. The rest of the batch was unaffected.",
+    "SCHEDULE_BULK_OVER_CAP": "Too many candidates for one send, so this one was not invited. Send the rest in a second batch."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4454,7 +4465,8 @@
       "unsavedTitle": "Discard your unsaved changes?",
       "unsavedBody": "This JD has edits you haven't saved yet. Leaving the editor discards them.",
       "unsavedDiscard": "Discard changes",
-      "unsavedKeep": "Keep editing"
+      "unsavedKeep": "Keep editing",
+      "entryCountOfTotal": "{count, plural, one {# entry} other {# entries}} of {total} saved"
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -5428,7 +5440,12 @@
         "id_exists": "An archetype with id ‘{id}’ already exists.",
         "not_found": "Archetype not found.",
         "archive_builtin": "‘{id}’ is a built-in archetype and can’t be retired.",
-        "archived_invalid": "The archived flag must be true or false."
+        "archived_invalid": "The archived flag must be true or false.",
+        "registry_invalid": "The archetype registry file is invalid, so it can’t be edited. Check pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "The archetype registry file could not be read.",
+        "weight_out_of_range": "Weight for {slot} must be between 0 and 100%.",
+        "id_reserved": "‘{id}’ is reserved for candidates that could not be routed; choose another id.",
+        "edit_builtin_shield": "‘{id}’ is a built-in archetype; its fairness protection and scoring model can’t be changed."
       },
       "fairnessProtectedAria": "Fairness-protected",
       "weightsSumError": "Weights must total 100% (currently {pct}%).",
@@ -7354,7 +7371,8 @@
     "selectCvFirst": "Select a CV or LinkedIn PDF export first.",
     "jdLibraryLoading": "Loading your JD library…",
     "jdLibraryFailed": "Couldn’t load your JD library.",
-    "jdLibraryRetry": "Retry"
+    "jdLibraryRetry": "Retry",
+    "jdLibraryTruncated": "Showing the newest {count, plural, one {# saved JD} other {# saved JDs}}. Older ones live in the Library."
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",

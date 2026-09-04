@@ -371,6 +371,15 @@ export const STORE_ERRORS = {
    *  rendered verbatim in every locale. */
   BRAND_LOAD_FAILED: "Could not load branding. Please try again.",
   BRAND_SAVE_FAILED: "Could not save branding. Please try again.",
+  /** The profile SAVE door and the matrix read behind it. Both sit on better-sqlite3
+   *  (SQLITE_* text + the absolute db path) and the save additionally spawns
+   *  profile_cli, whose failures carry the temp workdir path and PYTHON_CMD — all of
+   *  which the five handlers used to answer with, verbatim, in every locale. */
+  PROFILE_LIST_FAILED: "Could not load your saved profiles. Please try again.",
+  PROFILE_BUILD_FAILED: "Could not build that profile. Please try again.",
+  PROFILE_UPDATE_FAILED: "Could not save your changes to that profile. Please try again.",
+  PROFILE_DELETE_FAILED: "Could not delete that profile. Please try again.",
+  PROFILE_CANDIDATES_FAILED: "Could not load the candidate matrix. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -795,6 +804,30 @@ export const REFUSAL_ERRORS = {
   /** Resolve arrived on an invite with no reconcile flag set (409) — already resolved,
    *  usually by another operator or by a re-book that cleared it. */
   SCHEDULE_NOTHING_TO_RECONCILE: "There's nothing left to reconcile on this interview.",
+  // ---- The BULK invite door (/perfect wave 40, lib-scheduling). This route answered
+  // English sentences to a localized board: one whole-request 400 built by hand, and
+  // four PER-ENTRY prose strings ("not found", "not active", "mint failed", "over the
+  // 100-candidate cap") pushed into `results[]`. The bulk bar already reads a per-item
+  // CODE the same way it reads the batch route's — it just never received one, so every
+  // refused row collapsed into a single generic "some couldn't be invited" line with no
+  // reason a recruiter could act on.
+  /** The bulk POST carried no usable entry ids at all — an empty selection, or a body
+   *  that was not an array of ids (400). Nothing was minted or sent. */
+  SCHEDULE_BULK_NO_ENTRIES: "Select at least one candidate before sending scheduling links.",
+  /** A per-entry row naming a candidate this team's board does not hold (404-ish, per
+   *  entry): deleted, or filed under another workspace. The row stays selected. */
+  SCHEDULE_BULK_ENTRY_NOT_FOUND: "That candidate is no longer on this board. Reload and try again.",
+  /** A per-entry row for a candidate who is hired, rejected or withdrawn. Never invite a
+   *  terminal candidate — the same stale-token doctrine the single flows enforce. */
+  SCHEDULE_BULK_ENTRY_INACTIVE: "That candidate is no longer active, so no scheduling link was sent.",
+  /** A per-entry row whose invite could not be minted (the store threw). One entry's
+   *  fault never aborts the batch, and the reason it carries back must be a code, not a
+   *  better-sqlite3 message. */
+  SCHEDULE_BULK_MINT_FAILED: "Couldn't create a scheduling link for this candidate. The rest of the batch was unaffected.",
+  /** A per-entry row past the per-request cap. It is reported rather than silently
+   *  dropped so it stays selected and the recruiter can send the next batch; the cap
+   *  rides alongside in `max`. */
+  SCHEDULE_BULK_OVER_CAP: "Too many candidates for one send, so this one was not invited. Send the rest in a second batch.",
   /** The submitted meeting link is not http(s), or does not parse (400). The link is
    *  rendered as a trusted "Join" anchor and baked into calendar events, so anything
    *  else is refused rather than sanitized. */

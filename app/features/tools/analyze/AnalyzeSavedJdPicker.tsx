@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import type { JdSummary } from "./AnalyzeTypes";
 import type { JdLibraryState } from "./analyzeJdLibraryState";
 
 export function AnalyzeSavedJdPicker({
   jds,
   libraryState,
+  libraryTruncated = false,
   onRetryLibrary,
   selectedSlug,
   loading = false,
@@ -23,6 +24,10 @@ export function AnalyzeSavedJdPicker({
    *  is about one picked JD's body. An empty `jds` used to mean all three of
    *  loading / genuinely empty / failed, and this surface showed the middle one. */
   libraryState: JdLibraryState;
+  /** GET /api/jds cut the page it answered (JDS_PAGE_MAX_LIMIT). The dropdown is
+   *  then the NEWEST N saved JDs, not the library — a recruiter who cannot find an
+   *  older role here would otherwise conclude it was deleted. */
+  libraryTruncated?: boolean;
   onRetryLibrary: () => void;
   selectedSlug: string | null;
   loading?: boolean;
@@ -116,6 +121,11 @@ export function AnalyzeSavedJdPicker({
           <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
         ) : null}
       </div>
+      {libraryTruncated ? (
+        <p role="status" className={`mt-1 ${META_LABEL}`}>
+          {t("jdLibraryTruncated", { count: jds.length })}
+        </p>
+      ) : null}
       <Select
         id="saved-jd-picker"
         ariaLabel={t("fromLibrary")}

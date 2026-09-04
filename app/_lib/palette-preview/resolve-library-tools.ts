@@ -7,7 +7,7 @@ import { listArchetypes } from "@/app/_lib/archetype-registry";
 import { listAnalyses } from "@/app/_lib/db/analyses";
 import { countSubmissions, listDevCases, listPostings } from "@/app/_lib/db/devcase";
 import { isInterviewSessionLive, listRecentInterviewSessions } from "@/app/_lib/db/interviews";
-import { jobStats, listJds } from "@/app/_lib/db/jobs";
+import { jdLibraryStats, jobStats } from "@/app/_lib/db/jobs";
 import { countMatrixProfiles, listProfiles } from "@/app/_lib/db/profiles";
 import { listTemplates } from "@/app/_lib/templates-store";
 import type { PalettePreview } from "./types";
@@ -26,16 +26,14 @@ export function resolveJobs(ws: string, attention: AttentionCounts): PalettePrev
 }
 
 export function resolveLibrary(ws: string): PalettePreview {
-  const jds = listJds(200, ws);
-  let analyzing = 0;
-  let failed = 0;
-  let newest: { title: string; createdAt: string } | null = null;
-  for (const jd of jds) {
-    if (jd.analysis_status === "analyzing") analyzing += 1;
-    if (jd.analysis_status === "failed") failed += 1;
-    if (!newest || jd.created_at > newest.createdAt) newest = { title: jd.title, createdAt: jd.created_at };
-  }
-  return { view: "library", total: jds.length, analyzing, failed, templates: listTemplates(ws).length, newest };
+  // Every figure here is a claim about the WHOLE library, so it comes from the
+  // unbounded count, not from a page. This read used to fold `listJds(200, ws)` in
+  // JS and report `jds.length` as `total`: a team with 240 saved JDs was shown
+  // "200", and its analyzing/failed tallies stopped at whatever fell inside the
+  // slice — a page's size presented as a library total, in the one surface whose
+  // entire job is to preview how big things are.
+  const { total, analyzing, failed, newest } = jdLibraryStats(ws);
+  return { view: "library", total, analyzing, failed, templates: listTemplates(ws).length, newest };
 }
 
 export async function resolveArchetypes(ws: string): Promise<PalettePreview> {

@@ -280,9 +280,14 @@ const LEAK_CEILING = new Map<string, number>([
   // safeJsonError(error, "api:ops", "OPS_STATUS_FAILED"). The entry is DELETED so the
   // win is locked and a regression reads as `undeclared` rather than as budget
   // already granted; app/api/ops/ops-route.test.ts pins the code itself.
-  ["profile/candidates/route.ts", 1],
+  // profile/route.ts stood here at 4 and profile/candidates/route.ts at 1; both are
+  // FIXED, not ceilinged (/perfect wave 40, the-profile-door-is-throttled). All five
+  // catches now answer safeJsonError(error, "api:profile:*", "PROFILE_*_FAILED") against
+  // the codes added to STORE_ERRORS in the same change — the leaks were the spawn temp
+  // workdir path and PYTHON_CMD as well as SQLITE_* text, on a door any signed-in user
+  // reaches. The rows are DELETED so the win is locked and a regression reads as
+  // `undeclared` rather than as budget already granted.
   ["profile/draft/route.ts", 1],
-  ["profile/route.ts", 4],
   // schedule/invite/bulk/route.ts was here at 1 and is FIXED, not ceilinged — the
   // entry is deleted so the win is locked and a regression reads as `undeclared`.
   // It is worth naming because it is the reason this file is a scan rather than a

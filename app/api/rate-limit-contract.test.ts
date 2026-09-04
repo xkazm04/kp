@@ -430,6 +430,26 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runProfileDraft(",
   },
+  {
+    // ADDED /perfect wave 40 (the-profile-door-is-throttled) WITH the limiter. Every
+    // accepted POST/PUT here SPAWNS pipeline.jobfit.profile_cli and writes a row, and it
+    // was the last subprocess door in the app with no budget at all: not operator-gated
+    // (the editor is an ordinary workspace surface), so in open mode or through the
+    // anonymous session /api/demo mints, anyone who could open the app could hold the box
+    // spawning children. Its own AI-draft sibling next door has carried a budget since it
+    // shipped. 60/10min per IP is far above the "save -> fill a completeness gap -> save"
+    // loop the editor is designed around, and a scripted loop meets it at once.
+    rel: "./profile/route.ts",
+    key: "`profile-save:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "PROFILE_RATE_LIMIT",
+    optsDef: "const PROFILE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE inside POST, not the bare `routeAndScore(`: that substring is also the
+    // shared helper's own declaration, which necessarily precedes both handlers, so the
+    // generic marker would pass on the definition rather than pin the spawn.
+    expensive: "routeAndScore(body.profile ?? {}",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (model-keys-need-the-org-key), WITH the limiters.
   // The Models tab has TWO Test buttons and neither door was throttled: each click

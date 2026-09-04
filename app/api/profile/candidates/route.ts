@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { listAnalysisRecords } from "@/app/_lib/db/analyses";
 import { cachedProfileRecords } from "@/app/_lib/db/profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -56,7 +57,7 @@ export async function GET() {
 
     return NextResponse.json({ candidates: [...profileRows, ...analysisRows] });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to list candidates.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Two store reads; better-sqlite3's thrown text carries the absolute db path.
+    return safeJsonError(error, "api:profile:candidates", "PROFILE_CANDIDATES_FAILED");
   }
 }

@@ -552,6 +552,23 @@ a 20/10min per-IP `rateLimit()` (pinned by `rate-limit-contract.test.ts`) — it
 spawns a paid model child, and until then it was the one door to that spend with
 neither guard.
 
+The pasted notes reach the model behind the **shared untrusted fence**
+(`devcase.provenance.fenced_untrusted`, the same one `match_reasoning`,
+`group_compare` and `automation` use). The prompt used to end with a bare `Notes:`
+followed by the raw text, appended directly under the recruiter-authored `Rules:`
+list — so a pasted CV blurb ending in its own rule list read as a continuation of
+ours, on the one profile path whose input is unbounded prose someone else wrote.
+The rule list now also states explicitly that the block is data and never
+instructions. `pipeline/jobfit/tests/test_profile_draft.py::NotesFenceTest` pins
+the fence, the clause and the spoofed-close-marker case.
+
+The `POST`/`PUT /api/profile` save door itself carries a 60/10min per-IP
+`rateLimit()` and a 128 KB body cap (`PAYLOAD_TOO_LARGE` with the cap as data):
+every accepted save spawns `profile_cli` and writes a row, and the route is not
+operator-gated, so open mode left it an unbounded process-spawn endpoint. All five
+handlers across `route.ts` + `candidates/route.ts` answer `PROFILE_*_FAILED` codes
+rather than the thrown message (the temp workdir path, `PYTHON_CMD`, `SQLITE_*`).
+
 **A save carries a version.** `GET /api/profile?id=` returns `updatedAt` (the
 row's content-write stamp) beside the payload; the editor sends it back as
 `expectedUpdatedAt` and `updateProfile` re-asserts it in the UPDATE's `WHERE`
@@ -656,6 +673,29 @@ deployment):
   unrouted candidate on the deployment.
 - built-ins (`bau`, `student`, `career_switcher`) additionally refuse edits to
   `fairnessProtected` / `scoringModel` and refuse archival.
+
+**Reading validates too, through the same validator.** `readRegistry` used to be a bare
+`JSON.parse(raw) as Registry` — a cast, which asserts nothing at runtime — so the write
+boundary above was the *only* check on a file that is deliberately hand-editable (it is
+checked in, and the whole taxonomy is data). A hand-edited `archetypes.json` therefore
+passed silently on the TS side and raised `RuntimeError` at import on the Python side, on
+every spawn. Every read now runs each entry through `validateArchetype`, so what this
+module serves is exactly what Python will import. A broken file answers a structured
+`ArchetypeRegistryError`:
+
+- `registry_invalid` — not JSON, no `archetypes` array, an entry with no id, or an entry
+  the write validator would have refused. The message names the file and the archetype,
+  never the parser's own text.
+- `registry_unreadable` — the file is missing or unreadable. The `fs` error is replaced,
+  not rethrown, because it carries the deployment's absolute path.
+
+The three write doors convert it to the same `{ error, code }` shape as a validation
+refusal (so a broken file never looks like a validation failure of the operator's own
+edit); `listArchetypes` keeps its array return type and throws, and its message is
+client-safe by construction. `app/_lib/archetype-registry-lockstep.test.ts` reads
+`registry.py` (and its contract test) and pins the two constants that are *mirrored*
+rather than shared — the `1e-6` tolerance and the `experienced` / `early_career`
+vocabulary — so a drift on either side is a red test rather than a broken deployment.
 
 Errors come back as `{ error (English), code, params }`; the client localizes by
 `code` through the `errors.validation.*` catalog. **Known gap:** `weight_out_of_range`

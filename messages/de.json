@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Erinnerung: Ihr Interview {slot}",
       "length": " Planen Sie etwa {minutes} Minuten ein.",
-      "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}"
+      "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}",
+      "slotFallback": "Ihr vereinbarter Termin"
     },
     "offerReminder": {
       "subject": "Erinnerung: Ihr Angebot für {role} ist noch offen",
@@ -1731,7 +1732,17 @@
     "COMPLIANCE_LOOKUP_FAILED": "Die Compliance-Informationen konnten nicht geladen werden. Bitte erneut versuchen.",
     "OFFER_SALARY_INVALID": "Dieser Betrag kann kein Gehalt sein. Prüfen Sie die Zahl, bevor Sie das Angebot senden.",
     "OFFER_CURRENCY_UNSUPPORTED": "In dieser Währung kann hier kein Angebot gemacht werden.",
-    "OFFER_NOTES_TOO_LONG": "Diese Angebotsnotiz ist zu lang. Kürzen Sie sie und senden Sie das Angebot erneut."
+    "OFFER_NOTES_TOO_LONG": "Diese Angebotsnotiz ist zu lang. Kürzen Sie sie und senden Sie das Angebot erneut.",
+    "PROFILE_LIST_FAILED": "Die gespeicherten Profile konnten nicht geladen werden. Bitte erneut versuchen.",
+    "PROFILE_BUILD_FAILED": "Das Profil konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "PROFILE_UPDATE_FAILED": "Die Änderungen am Profil konnten nicht gespeichert werden. Bitte erneut versuchen.",
+    "PROFILE_DELETE_FAILED": "Das Profil konnte nicht gelöscht werden. Bitte erneut versuchen.",
+    "PROFILE_CANDIDATES_FAILED": "Die Kandidatenmatrix konnte nicht geladen werden. Bitte erneut versuchen.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Wählen Sie mindestens eine Person aus, bevor Sie Terminlinks senden.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Diese Person steht nicht mehr auf diesem Board. Laden Sie neu und versuchen Sie es erneut.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde kein Terminlink gesendet.",
+    "SCHEDULE_BULK_MINT_FAILED": "Für diese Person konnte kein Terminlink erstellt werden. Die übrigen sind davon nicht betroffen.",
+    "SCHEDULE_BULK_OVER_CAP": "Zu viele Personen für einen Versand, diese wurde nicht eingeladen. Senden Sie den Rest in einem zweiten Durchgang."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4454,7 +4465,8 @@
       "unsavedTitle": "Nicht gespeicherte Änderungen verwerfen?",
       "unsavedBody": "Diese Stellenbeschreibung enthält Änderungen, die Sie noch nicht gespeichert haben. Wenn Sie den Editor verlassen, gehen sie verloren.",
       "unsavedDiscard": "Änderungen verwerfen",
-      "unsavedKeep": "Weiter bearbeiten"
+      "unsavedKeep": "Weiter bearbeiten",
+      "entryCountOfTotal": "{count, plural, one {# Eintrag} other {# Einträge}} von {total} gespeicherten"
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",
@@ -5428,7 +5440,12 @@
         "id_exists": "Ein Archetyp mit der ID ‚{id}‘ existiert bereits.",
         "not_found": "Archetyp nicht gefunden.",
         "archive_builtin": "‚{id}‘ ist ein integrierter Archetyp und kann nicht stillgelegt werden.",
-        "archived_invalid": "Das Archiv-Kennzeichen muss true oder false sein."
+        "archived_invalid": "Das Archiv-Kennzeichen muss true oder false sein.",
+        "registry_invalid": "Die Archetyp-Registrierungsdatei ist ungültig und kann nicht bearbeitet werden. Bitte pipeline/jobfit/archetypes.json prüfen.",
+        "registry_unreadable": "Die Archetyp-Registrierungsdatei konnte nicht gelesen werden.",
+        "weight_out_of_range": "Die Gewichtung für {slot} muss zwischen 0 und 100 % liegen.",
+        "id_reserved": "„{id}“ ist für nicht zuordenbare Kandidaten reserviert; bitte eine andere ID wählen.",
+        "edit_builtin_shield": "„{id}“ ist ein integrierter Archetyp; sein Fairness-Schutz und sein Bewertungsmodell lassen sich nicht ändern."
       },
       "fairnessProtectedAria": "Fairness-geschützt",
       "weightsSumError": "Die Gewichtungen müssen zusammen 100 % ergeben (aktuell {pct} %).",
@@ -7354,7 +7371,8 @@
     "selectCvFirst": "Wählen Sie zuerst einen CV oder LinkedIn-PDF-Export aus.",
     "jdLibraryLoading": "Bibliothek der Stellenbeschreibungen wird geladen…",
     "jdLibraryFailed": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden.",
-    "jdLibraryRetry": "Erneut versuchen"
+    "jdLibraryRetry": "Erneut versuchen",
+    "jdLibraryTruncated": "Angezeigt werden die neuesten {count, plural, one {# gespeicherte Stellenbeschreibung} other {# gespeicherten Stellenbeschreibungen}}. Ältere finden Sie in der Bibliothek."
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden. Die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",

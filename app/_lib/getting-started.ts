@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { DEFAULT_ORG_NAME, ORG_NAME_COOKIE, sanitizeOrgName } from "./org-settings";
 import { getBrand } from "./brand-store";
-import { hasJdCaseArtifact, listJds } from "./db/jobs";
+import { hasJdCaseArtifact, listJdsPage } from "./db/jobs";
 import { listDevCases } from "./db/devcase";
 import { listChannelWebhooks } from "./db/channels";
 import { listUsersByOrg } from "./db/users";
@@ -89,7 +89,12 @@ export async function computeGettingStarted(workspaceId: string, orgId: string |
   // of a caller who is not in it.
   const { company, companySignal } = companyStep(rawName, brand, orgId ? getOrganization(orgId) : null);
 
-  const jds = listJds(100, workspaceId);
+  // A PAGE, deliberately: this step asks "does a first role exist and how is it
+  // doing", which the newest 100 answer — `truncated` would change no branch below
+  // (a truncated page is never empty, so `firstRole` can only be "none" when the
+  // library really is). Named as a page so the next reader does not mistake
+  // `.jds.length` for a library total.
+  const { jds } = listJdsPage(100, workspaceId);
   // A NULL analysis_status is a plain saved draft — usable, so it counts as done.
   const firstRole: FirstRoleState =
     jds.length === 0

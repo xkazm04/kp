@@ -34,7 +34,7 @@ import { readBuildIntent } from "./jdsLedgerArtifacts";
 export function useLedgerLogic() {
   const t = useTranslations("library.tab");
   const enumLabel = useEnumLabel();
-  const { rows, error, reload, refresh } = useJdLibrary();
+  const { rows, total, truncated, error, reload, refresh } = useJdLibrary();
   // Poll while any JD is mid-build: the analyzing→ready flip happens server-side
   // (the detached jd_build handler), so there's no client event to react to — a
   // silent in-place refresh picks it up without flickering the table. The shared
@@ -238,6 +238,8 @@ export function useLedgerLogic() {
   return {
     t,
     rows,
+    total,
+    truncated,
     error,
     reload,
     nav,

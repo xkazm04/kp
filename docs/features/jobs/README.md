@@ -496,6 +496,22 @@ Behavioral coverage: `app/_lib/db/campaign-tenancy.test.ts`. The real fix is a
 `(job_id, lang, workspace_id)` key — a `campaign_packs` rebuild in `core.ts`,
 listed under Known gaps.
 
+**The read is validated; the write is not, on purpose.** `getCampaignPack` decoded
+its JSON column with `safeRowParse<unknown>(…)` and no validator, while `intakes.ts`
+beside it passes a schema for every column it reads — so the type assertion in
+`JobsCampaignTab` was the only thing between the column and the screen, and a
+truncated write, a hand-edited row or a pack from an older `campaign_cli` painted
+`undefined` into ad copy a recruiter was about to publish. The read now parses
+against `campaignPackSchema` (`app/_lib/schemas.ts`): a pack that does not clear the
+floor the tab dereferences — `hookType` / `hook` / `adCopy` / a complete
+`videoScript` per variant, warning **codes** as strings — reads as ABSENT ("no pack
+yet, generate one") instead. The schema is a floor, not a filter: `z.looseObject`,
+so unknown keys `campaign.py` adds (`defaulted_fields` is queued) survive the round
+trip. `saveCampaignPack` stays unvalidated, deliberately — refusing at write time
+would throw away the only copy of a paid LLM run, and a pack that cannot be read
+back is a decode failure the read reports (and books in the decode ledger), not a
+lost artifact. Pinned by `app/_lib/db/campaign-store.test.ts`.
+
 Generation is a background task, so the tab hands `jobTitle` to `startTask` purely
 to name the run — `tasks.kind.campaign` is `"Campaign pack · {job}"` and
 `detail(p.jobTitle, p.jobId)` otherwise falls through to the raw `jd-<slug>` id in
@@ -993,6 +1009,53 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### The JD library answers its own size
+
+`GET /api/jds` took no `Request` and called `listJds(200, ws)`, so the `?limit=`
+the analyze picker had been sending since `JD_LIBRARY_LIMIT` landed was unreadable
+by construction, and the answer was a bare `{ jds }` — a slice cut at a server-side
+constant, presented as the library. The jobs list beside it has answered
+`{ truncated, limit }` since `listJobsPage`.
+
+The store now holds the same contract:
+
+| Read | Answers | Use it for |
+| --- | --- | --- |
+| `listJdsPage(limit?, ws)` | `{ jds, truncated, limit }` | the list surfaces — one page, and whether it was cut |
+| `jdLibraryStats(ws)` | `{ total, analyzing, failed, newest }` | any COUNT claim about the library |
+
+`listJdsPage` clamps like `listJobsPage` does: a missing/NaN/zero/negative/
+fractional `limit` falls back to `JDS_PAGE_DEFAULT_LIMIT` (100) and anything larger
+is capped at `JDS_PAGE_MAX_LIMIT` (200) — SQLite reads `LIMIT -1` as *unbounded*, so
+the clamp is the guard, not a nicety. It reads one row past the page to set
+`truncated` without a second COUNT round-trip, and orders `created_at DESC, rowid
+DESC` so same-millisecond saves cannot make the page head and `jdLibraryStats.newest`
+disagree.
+
+Callers: the route (reads `?limit=`, forwards `{ jds, truncated, limit }`),
+`computeGettingStarted` (deliberately a page — a truncated page is never empty, so
+no branch of `firstRole` can change), and the command palette's `resolveLibrary`,
+which now reads `jdLibraryStats` instead of folding `listJds(200).length` into
+`total` — a team with 240 saved JDs was shown "200", with analyzing/failed tallies
+that stopped at the slice edge. Pinned by `app/api/jds/jds-list-route.test.ts` and
+`app/_lib/db/jds-store.test.ts`.
+
+### The revision history has a table cap, not just a read cap
+
+Every `updateJd`, `revertJd` and `finishJdAnalysis` INSERTs a FULL body copy into
+`jd_revisions`. `listJdRevisions` capped the READ at 100 rows, but nothing capped the
+TABLE — a JD edited in a loop, or rebuilt by the analysis pipeline repeatedly, grew
+the row store without bound for the life of the install, invisibly, because the UI
+only ever reads the head of it.
+
+`pruneJdRevisions` keeps the newest `JD_REVISIONS_MAX` (50) snapshots per
+`(slug, workspace_id)` and runs INSIDE each caller's existing IMMEDIATE transaction,
+so the insert and its prune are one step. `revertJd` passes the revision it is
+restoring from as `keepId`: pruning the row a recruiter just chose to come back to,
+in the same transaction that restores it, would delete the only copy of that text.
+Pinned by `app/_lib/db/jds-store.test.ts` ("the revision history is capped per slug"
+and "a revert never prunes the revision it is restoring from").
+
 ### The builder's own contract, now under test
 
 `app/_lib/jd-build-run.ts` is the largest and most expensive file in the JD area and
@@ -1115,6 +1178,21 @@ to prevent. It now carries `{ truncated, matching, limit }` through to
 and keeps the ordinary `jobs.tab.showing` line otherwise. Truncated and filtered
 read differently on screen because they are different facts.
 
+**And it really cancels now.** The hook's header has claimed since it was written
+that "the in-flight request is cancelled on the next change/unmount". It was not: a
+`cancelled` boolean was flipped and the socket stayed open, so typing eight
+characters into the search box left eight live requests racing to the browser's
+per-host limit, each decoding a full page of jobs nobody would read — and the last
+one to *arrive* was not necessarily the last one *sent*. The effect now owns an
+`AbortController`, hands its signal to `fetch`, and aborts in the cleanup before
+clearing the debounce timer; `controller.signal.aborted` doubles as the "does this
+attempt still own the state?" flag, so there is one cancellation mechanism rather
+than a boolean beside a comment. The query and payload mapping are exported as
+`jobsListQuery` / `readJobsListPayload` and driven by
+`app/features/library/jobs/useJobsList.test.ts`, which also source-guards the abort
+wiring. The Pipeline deep link and the ingest latch beside it are pinned by
+`app/features/library/jobs/jobsTabDeepLink.test.ts`.
+
 The same hook was the one jobs read that bypassed `useJsonFetch`: it threw
 `Load failed (500).` in hardcoded English and the tab rendered it raw. It now keeps
 the failure as `{ code, status }` and resolves it through `useErrorMessage()`, and
@@ -1191,16 +1269,19 @@ include `workspace_id`).
   server's latest body beside the draft (or at minimum offering the draft for
   copy) — new copy in all four locales, and it belongs in the shared hook so the
   public page's `JdActions` gets it too.
-- **The JD Ledger is a 200-row page presented as the library.** `GET /api/jds`
-  calls `listJds(200, ws)` and returns a bare `{ jds }` — no `truncated`, no
-  count — and the client has no pagination: `useJdLibrary` stores the array,
-  `filterAndSortJds` filters it in memory, and `JdsSavedLedgerPanel`'s footer
-  prints `entryCount` over `visible.length`. A workspace holding 240 non-archived
-  JDs therefore sees the 200 newest, a footer reading "200 entries", a Role search
-  that silently cannot find the 40 oldest, and Field/Seniority facet counts
-  computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
-  and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
-  "showing N of M" line (new `library.tab.*` copy across all four locales).
+- **The JD Ledger states its size honestly, but still has no pager.** `GET /api/jds`
+  answers `{ jds, truncated, limit, total }` (`total` from `jdLibraryStats`), and
+  both surfaces now read it: `JdsSavedLedgerPanel`'s footer resolves through
+  `jdLibraryFooter(visible, total, truncated)` (`jdsLibrary.ts`) and prints
+  `library.tab.entryCountOfTotal` — *"200 entries of 240 saved"* — whenever an M is
+  bigger than the N beside it or the route said the page was cut, falling back to
+  the bare `entryCount` when there is no total to state. The analyze picker prints
+  `analyze.jdLibraryTruncated` above the dropdown. Both folds are pinned by
+  `app/features/library/jds/jdsLibrary.test.ts`.
+  What is still open is REACHABILITY, not honesty: `filterAndSortJds` filters the
+  page in memory and there is no pager, so a workspace holding 240 non-archived JDs
+  is now correctly told it is seeing 200 of them but still cannot search the other
+  40 from this screen. That needs server-side search or a load-more, not more copy.
 - The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
   rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
   `campaign.py` spends them internally to suppress unstated facts but the pack it

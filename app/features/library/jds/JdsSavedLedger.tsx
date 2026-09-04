@@ -50,6 +50,8 @@ export function LibrarySavedJdsLedger() {
   const {
     t,
     rows,
+    total,
+    truncated,
     error,
     reload,
     nav,
@@ -141,6 +143,8 @@ export function LibrarySavedJdsLedger() {
         ingested={ingested}
         setIngested={setIngested}
         visible={visible}
+        total={total}
+        truncated={truncated}
         query={query}
         setQuery={setQuery}
         searchOpen={searchOpen}

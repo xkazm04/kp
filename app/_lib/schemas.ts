@@ -295,3 +295,46 @@ export const githubAnalysisSchema = z.object({
 
 export type GithubAnalysis = z.infer<typeof githubAnalysisSchema>;
 export type CodeReview = z.infer<typeof codeReviewSchema>;
+// ---- Campaign packs ---------------------------------------------------------
+// The stored artifact behind the job posting modal's Campaign tab, written by
+// pipeline/jobfit/campaign.py and read back by getCampaignPack (app/_lib/db/campaign.ts).
+//
+// That read used `safeRowParse<unknown>(…)` with NO validator while intakes.ts beside
+// it passes one for every column it decodes, so the TYPE ASSERTION in JobsCampaignTab
+// was the only thing standing between the column and the screen: a truncated write, a
+// hand-edited row or a pack from an older campaign_cli decoded happily and painted
+// `undefined` into ad copy a recruiter was about to publish.
+//
+// LOOSE on purpose (`z.looseObject`): campaign.py owns this shape and adds to it
+// (defaulted_fields is queued), so the schema is a FLOOR — the fields the tab actually
+// dereferences — not a filter. Unknown keys survive the round trip.
+const campaignVideoScriptSchema = z.looseObject({
+  hook: z.string(),
+  offer: z.string(),
+  proof: z.string(),
+  cta: z.string()
+});
+
+export const campaignVariantSchema = z.looseObject({
+  hookType: z.string(),
+  hook: z.string(),
+  adCopy: z.string(),
+  videoScript: campaignVideoScriptSchema,
+  // Written by campaign.py's per-variant &v= attribution. Optional so packs generated
+  // BEFORE tracked links existed still decode and render (no row, no broken URL).
+  variantId: z.string().optional(),
+  applyUrl: z.string().optional()
+});
+
+export const campaignPackSchema = z.looseObject({
+  // All optional: campaign.py can legitimately answer warnings and no variants (a job
+  // too thin to write copy for), and an empty pack is a real, renderable state.
+  variants: z.array(campaignVariantSchema).optional(),
+  // Canonical warning CODES (no_salary, no_location, no_skills) — the tab maps them to
+  // catalog keys, so a warning object here would render nothing.
+  warnings: z.array(z.string()).optional(),
+  applyUrl: z.string().optional(),
+  language: z.string().optional()
+});
+
+export type CampaignPack = z.infer<typeof campaignPackSchema>;

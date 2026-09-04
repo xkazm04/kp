@@ -358,3 +358,50 @@ test("hourBucketKey buckets an instant by its interview-zone day+hour (off-hour 
   assert.equal(hourBucketKey(null, TZ), null);
   assert.equal(hourBucketKey("garbage", TZ), null);
 });
+
+// --- the offered hour survives a DST transition inside the horizon ---------------
+//
+// SLOT_HORIZON_DAYS is 21, so twice a year the proposal window STRADDLES a clock
+// change: the same offered wall-clock hour is a different absolute instant on each
+// side of it. A naive "add 24h per day" proposer (or a validator that assumed one
+// fixed UTC offset for the zone) offers 10:00 before the change and 09:00 or 11:00
+// after it, and refuses the candidate's perfectly sensible pick as "not an offered
+// slot". zonedInstant re-resolves the zone's offset AT each instant; these pin that
+// on the real Europe/Prague transitions, both directions.
+const PRAGUE = "Europe/Prague";
+
+test("an offered hour keeps its wall-clock time across a DST transition in the horizon", () => {
+  // Spring forward: CET (UTC+1) -> CEST (UTC+2) on Sun 2027-03-28.
+  const beforeNow = Date.UTC(2027, 2, 20, 9, 0, 0, 0); // Sat 20 Mar, inside the horizon of both
+  const friBefore = offeredSlotFor("2027-03-26T09:00:00.000Z", beforeNow, PRAGUE); // 10:00 CET
+  const monAfter = offeredSlotFor("2027-03-29T08:00:00.000Z", beforeNow, PRAGUE); // 10:00 CEST
+  assert.ok(friBefore, "Friday 10:00 (CET) must validate");
+  assert.ok(monAfter, "Monday 10:00 (CEST) must validate — the SAME offered hour, a new offset");
+  assert.ok(friBefore.label.endsWith("10:00"), `expected a 10:00 label, got ${friBefore.label}`);
+  assert.ok(monAfter.label.endsWith("10:00"), `expected a 10:00 label, got ${monAfter.label}`);
+  // The tell that the offset really moved: keeping Friday's UTC hour lands on 11:00
+  // Prague after the change, which is NOT an offered time and must be refused.
+  assert.equal(offeredSlotFor("2027-03-29T09:00:00.000Z", beforeNow, PRAGUE), null, "the pre-change offset is not reusable");
+
+  // Fall back: CEST -> CET on Sun 2027-10-31, the same story in reverse.
+  const autumnNow = Date.UTC(2027, 9, 25, 9, 0, 0, 0);
+  const friCest = offeredSlotFor("2027-10-29T08:00:00.000Z", autumnNow, PRAGUE); // 10:00 CEST
+  const monCet = offeredSlotFor("2027-11-01T09:00:00.000Z", autumnNow, PRAGUE); // 10:00 CET
+  assert.ok(friCest && friCest.label.endsWith("10:00"), "Friday 10:00 (CEST) validates");
+  assert.ok(monCet && monCet.label.endsWith("10:00"), "Monday 10:00 (CET) validates");
+  assert.equal(offeredSlotFor("2027-11-01T08:00:00.000Z", autumnNow, PRAGUE), null, "the pre-change offset is not reusable");
+});
+
+test("proposeSlots offers only instants its own validator accepts, in a DST zone", () => {
+  // The proposal/validation pair is the invariant that a clock change breaks first:
+  // proposeSlots walks CALENDAR days in the zone while offeredSlotFor re-derives the
+  // instant, so any drift between them shows up as an offered slot the confirm route
+  // then refuses. Run over the whole horizon in a zone that actually changes clocks.
+  const slots = proposeSlots([], 40, PRAGUE);
+  assert.ok(slots.length > 0, "the horizon offers something");
+  for (const s of slots) {
+    const back = offeredSlotFor(s.value, Date.now(), PRAGUE);
+    assert.ok(back, `proposeSlots offered ${s.value} (${s.label}) but its own validator refuses it`);
+    assert.equal(back.label, s.label, "the label is minted once, by the same function");
+  }
+});

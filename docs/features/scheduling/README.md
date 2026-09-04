@@ -440,6 +440,35 @@ The only consumers of these two handlers are `useScheduleInviteLifecycle.runActi
 (POST) and `ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third,
 on the `book` action. All three already resolve by code.
 
+### The BULK invite door
+
+`POST /api/schedule/invite/bulk` fans one recruiter action out to up to
+`BULK_INVITE_CAP` (100) candidates and reports each outcome separately — one bad
+entry never aborts the batch. Every refusal it answers is now a **code**, at both
+levels. It used to answer English sentences to a localized board: a hand-built
+whole-request 400 (`"entryIds must be a non-empty array (max 100)."`) and four
+per-entry prose strings in `results[]`. `usePipelineBulk.bulkInvite` already folded
+a per-item `code` through the same `errors.<CODE>` resolution it uses for
+`/api/pipeline/batch` — it simply never received one, so a half-refused cohort
+collapsed into a single generic "some couldn't be invited" line.
+
+| Code | Level | Fires when |
+| --- | --- | --- |
+| `SCHEDULE_BULK_NO_ENTRIES` | request (400) | no usable entry ids at all; `max` carries the cap |
+| `SCHEDULE_BULK_ENTRY_NOT_FOUND` | per entry | the id is not on **this team's** board (deleted, or another workspace) |
+| `SCHEDULE_BULK_ENTRY_INACTIVE` | per entry | hired / rejected / withdrawn — never invite a terminal candidate |
+| `SCHEDULE_BULK_MINT_FAILED` | per entry | `createScheduleInvite` threw; the raw store message stays in the server log |
+| `SCHEDULE_BULK_OVER_CAP` | per entry | past the cap, reported (not dropped) so the row stays selected; `max` carries the cap |
+
+The per-entry `error` field is **gone** from the response shape, so a
+better-sqlite3 message can no longer ride out of the mint catch — the leak that
+made `app/api/error-response-contract.test.ts` a repo-wide scan rather than a
+hand-listed array, because `results.push({ error: err.message })` is invisible to
+a regex looking for `NextResponse.json({ error: … })`. Pinned by
+`app/api/schedule/invite/invite-gate-tenancy.test.ts`, which also asserts every
+`SCHEDULE_BULK_*` the route emits is declared in `REFUSAL_ERRORS` and present in
+all four catalogs.
+
 ## What the CANDIDATE is told when their door refuses
 
 The public token route (`/api/schedule/[token]`) answers through the same
@@ -493,6 +522,40 @@ interviewer's connected calendar for free/busy. `SCHEDULE_READ_RATE_LIMIT` is
 of magnitude below it while one scraped link cannot throttle another candidate
 behind the same NAT. Over the limit answers `jsonRefusal("TOO_MANY_REQUESTS", 429)`.
 The spec lives in `app/api/rate-limit-contract.test.ts`.
+
+**The letter states the time in the candidate's own zone.** The stored `slot`
+column is minted by `schedule-slots.slotLabel` from hardcoded English `DOW`/`MON`
+arrays in the **interviewer's** zone, with no zone marker — right for the picker
+chips, the recruiter agenda and the audit ledger, and wrong for mail. It was the
+only thing the localized `comms.interviewConfirmation.*` and
+`comms.interviewReminder.*` templates interpolated, so a Czech candidate in New
+York received a Czech letter whose one load-bearing fact read `Tue 9 Jun · 10:00`
+— English inside Czech prose, on a clock they are not on — while
+`schedule_invites.candidate_tz`, captured at confirm, was never used outbound.
+
+`comms-dispatch.formatSlotForLetter(slotAtIso, locale, tz)` now formats the
+absolute `slot_at` through `Intl.DateTimeFormat` in the reader's language, in the
+candidate's captured zone, **with `timeZoneName: "short"`** so the hour names its
+clock (same component spelling as `formatOfferDeadline` — `dateStyle`/`timeStyle`
+may not be mixed with a zone name). The fallbacks are ordered and none of them
+throws: an absent or malformed `candidate_tz` falls back to `INTERVIEW_TZ`
+(candidate-supplied zones make `Intl` throw), and no usable instant at all falls
+back to the stored English label. `slot` stays a **legacy display/audit column** —
+the store still writes it, the recruiter surfaces still read it, and the ledger
+event (`interview_reminder_sent`) keeps it rather than the per-reader letter text.
+The reminder sweep's old bare-English `"your scheduled time"` substitution is the
+catalog key `comms.interviewReminder.slotFallback` in all four locales. Pinned
+across cs/de/fr by `app/_lib/comms-dispatch-locale.test.ts`.
+
+**The interviewer's calendar hold is the length of the interview.**
+`dispatchInterviewerBrief`'s inline `.ics` inlined `30` minutes while the
+candidate's own `.ics`, the free/busy window and the slot proposer all used
+`calendar/constants.DEFAULT_INTERVIEW_MINUTES` (45) — the hold was quietly 15
+minutes shorter than the call. It reads the shared constant now; a behavioural
+test measures `DTEND − DTSTART` and a source guard keeps the literal from coming
+back. The brief itself (org-side staff) states the slot in the **interview** zone,
+but names that zone in the recruiter's language rather than shipping the bare
+English label.
 
 ## Keyboard and focus on the candidate's page
 

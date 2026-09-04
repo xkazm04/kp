@@ -167,3 +167,60 @@ test("no refusal on the public door is bare prose any more", () => {
     "an English sentence on the wire is a sentence the candidate's client cannot localize"
   );
 });
+
+// --- the confirmation letter this door SENDS states the candidate's own clock ------
+//
+// The dispatcher formats slot_at in the candidate's captured zone (comms-dispatch.
+// formatSlotForLetter, pinned across cs/de/fr in comms-dispatch-locale.test.ts), but
+// only if this route hands it the instant and the zone. It did not: it passed the
+// stored English label alone, so the whole fix stopped at the one call site that
+// matters most - the letter a booking actually produces. Driven through the REAL
+// handler, so a future refactor of the options object breaks here.
+
+test("the confirmation the booking sends carries the slot in the candidate's captured zone", async () => {
+  const { listOutboxFiltered } = await import("../../../_lib/db/devcase.ts");
+  const { token, entryId } = inviteFixture();
+  // A future offered slot, booked from a New York browser: Prague business hours are
+  // the small hours there, so a zone mix-up is unmistakable rather than cosmetic.
+  const target = SLOTS[3].value;
+  const res = (await POST(
+    new Request(`http://localhost/api/schedule/${token}`, {
+      method: "POST",
+      body: JSON.stringify({ slotAt: target, tz: "America/New_York" }),
+      headers: { "content-type": "application/json", "x-forwarded-for": ip() },
+    }) as never,
+    ctx(token)
+  )) as unknown as Response;
+  assert.equal(res.status, 200, "the booking itself must succeed");
+
+  const row = listOutboxFiltered({ ref: entryId, kind: "interview_confirmation" })[0];
+  assert.ok(row, "booking sends a confirmation");
+  // Rendered in the SAME language the dispatcher resolves for this entry (a NULL-locale
+  // fixture falls back to its workspace default, cs here), so this pins the ZONE and the
+  // marker rather than a language the letter never claimed to be in.
+  const { resolveCommsLocale } = await import("../../../_lib/comms-locale.ts");
+  const want = new Intl.DateTimeFormat(resolveCommsLocale(null), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+    timeZone: "America/New_York",
+  }).format(new Date(target));
+  assert.ok(
+    (row.body ?? "").includes(want),
+    `the letter must state the slot as "${want}" (the zone the candidate booked from) - got:\n${row.body}`
+  );
+  // The zone is NAMED: an hour with no clock attached is not an appointment.
+  assert.ok((row.body ?? "").includes(want.split(" ").pop()!), "the stated time names its zone");
+});
+
+test("source guard: the confirmation dispatch is handed the instant AND the captured zone", () => {
+  // Normalized first - this checkout is CRLF while the worktree may be LF.
+  const src = readFileSync(new URL("./route.ts", import.meta.url), "utf-8").replace(/\r\n/g, "\n");
+  const call = /dispatchInterviewConfirmation\(entry, slot, \{[\s\S]*?\n        \}\)/.exec(src);
+  assert.ok(call, "expected the confirmation dispatch call in route.ts");
+  assert.match(call[0], /slotAtIso:\s*booked\.slotAt/, "the absolute instant must reach the letter");
+  assert.match(call[0], /candidateTz:\s*booked\.candidateTz/, "so must the zone the candidate booked from");
+});

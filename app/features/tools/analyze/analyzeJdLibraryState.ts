@@ -20,7 +20,8 @@ export function isJdLibraryState(value: unknown): value is JdLibraryState {
 
 /**
  * How many saved JDs the picker will hold. The list route caps its own query at
- * 200 rows (`listJds(200, ws)`), and this is the client's matching, STATED bound:
+ * 200 rows (JDS_PAGE_MAX_LIMIT, the ceiling listJdsPage clamps to), and this is
+ * the client's matching, STATED bound:
  * the previous `fetch("/api/jds")` took whatever arrived and rendered all of it
  * into one `<select>`, so the surface's size was a server-side constant nothing
  * on this side named. Applied by `boundJdLibrary` below, so an over-long payload

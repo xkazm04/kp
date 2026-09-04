@@ -36,21 +36,29 @@ test("every campaign_packs query is workspace-scoped", () => {
 // response, and the Campaign tab read null forever after (campaign-run.ts's
 // wait-or-leave contract explicitly promises the pack "persists in campaign_packs").
 // A silent write loss under a green success is exactly the "never a green lie" rule.
+// Fixtures are REAL packs: getCampaignPack validates the column against
+// campaignPackSchema (app/_lib/schemas.ts), so a bare string where a variant belongs
+// no longer decodes — which is the point of that schema, and is covered in
+// campaign-store.test.ts.
+const pack = (hook: string) => ({
+  variants: [{ hookType: "number", hook, adCopy: `${hook} copy`, videoScript: { hook, offer: "o", proof: "p", cta: "c" } }],
+});
+
 test("a second team's pack for the same (job, lang) is refused loudly, not silently dropped", () => {
-  saveCampaignPack("job-shared-corpus", "en", { variants: ["alpha"] }, "llm", "ws-a");
-  assert.deepEqual(getCampaignPack("job-shared-corpus", "en", "ws-a")?.payload, { variants: ["alpha"] });
+  saveCampaignPack("job-shared-corpus", "en", pack("alpha"), "llm", "ws-a");
+  assert.deepEqual(getCampaignPack("job-shared-corpus", "en", "ws-a")?.payload, pack("alpha"));
 
   assert.throws(
-    () => saveCampaignPack("job-shared-corpus", "en", { variants: ["beta"] }, "llm", "ws-b"),
+    () => saveCampaignPack("job-shared-corpus", "en", pack("beta"), "llm", "ws-b"),
     /could not be saved/,
     "the blocked write must surface, not return a record as if it landed"
   );
   assert.equal(getCampaignPack("job-shared-corpus", "en", "ws-b"), null, "…and nothing was stored for ws-b");
 
   // The guard's original purpose still holds: team A's pack was never touched.
-  assert.deepEqual(getCampaignPack("job-shared-corpus", "en", "ws-a")?.payload, { variants: ["alpha"] });
+  assert.deepEqual(getCampaignPack("job-shared-corpus", "en", "ws-a")?.payload, pack("alpha"));
 
   // A same-team regenerate still overwrites in place (changes = 1, no throw).
-  saveCampaignPack("job-shared-corpus", "en", { variants: ["alpha-v2"] }, "llm", "ws-a");
-  assert.deepEqual(getCampaignPack("job-shared-corpus", "en", "ws-a")?.payload, { variants: ["alpha-v2"] });
+  saveCampaignPack("job-shared-corpus", "en", pack("alpha-v2"), "llm", "ws-a");
+  assert.deepEqual(getCampaignPack("job-shared-corpus", "en", "ws-a")?.payload, pack("alpha-v2"));
 });

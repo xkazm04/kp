@@ -114,6 +114,7 @@ export function useAnalyzeForm() {
   const {
     jdLibrary,
     jdLibraryState,
+    jdLibraryTruncated,
     reloadJdLibrary,
     selectedJdSlug,
     setSelectedJdSlug,
@@ -617,7 +618,7 @@ export function useAnalyzeForm() {
     // full fan-out (idea-8367f051).
     flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, jdLibraryState, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
+    library: { jdLibrary, jdLibraryState, jdLibraryTruncated, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress },
   };
 }

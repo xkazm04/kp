@@ -569,7 +569,8 @@
     "interviewReminder": {
       "subject": "Připomínka: váš pohovor {slot}",
       "length": " Počítejte přibližně s {minutes, plural, one {# minutou} few {# minutami} other {# minutami}}.",
-      "body": "Dobrý den, {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi. Na viděnou!\n\n{team}"
+      "body": "Dobrý den, {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi. Na viděnou!\n\n{team}",
+      "slotFallback": "váš domluvený termín"
     },
     "offerReminder": {
       "subject": "Připomínka: vaše nabídka na pozici {role} stále platí",
@@ -1731,7 +1732,17 @@
     "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu.",
     "OFFER_SALARY_INVALID": "Tato částka nemůže být mzdou. Před odesláním nabídky zkontrolujte číslo.",
     "OFFER_CURRENCY_UNSUPPORTED": "V této měně zde nabídku vytvořit nelze.",
-    "OFFER_NOTES_TOO_LONG": "Poznámka k nabídce je příliš dlouhá. Zkraťte ji a nabídku odešlete znovu."
+    "OFFER_NOTES_TOO_LONG": "Poznámka k nabídce je příliš dlouhá. Zkraťte ji a nabídku odešlete znovu.",
+    "PROFILE_LIST_FAILED": "Uložené profily se nepodařilo načíst. Zkuste to prosím znovu.",
+    "PROFILE_BUILD_FAILED": "Profil se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "PROFILE_UPDATE_FAILED": "Změny v profilu se nepodařilo uložit. Zkuste to prosím znovu.",
+    "PROFILE_DELETE_FAILED": "Profil se nepodařilo smazat. Zkuste to prosím znovu.",
+    "PROFILE_CANDIDATES_FAILED": "Matici kandidátů se nepodařilo načíst. Zkuste to prosím znovu.",
+    "SCHEDULE_BULK_NO_ENTRIES": "Nejprve vyberte alespoň jednoho kandidáta, kterému se má odkaz poslat.",
+    "SCHEDULE_BULK_ENTRY_NOT_FOUND": "Tento kandidát už na nástěnce není. Načtěte stránku znovu a zkuste to znovu.",
+    "SCHEDULE_BULK_ENTRY_INACTIVE": "Tento kandidát už není aktivní, odkaz pro plánování se neodeslal.",
+    "SCHEDULE_BULK_MINT_FAILED": "Pro tohoto kandidáta se nepodařilo vytvořit odkaz pro plánování. Ostatních se to nedotklo.",
+    "SCHEDULE_BULK_OVER_CAP": "Na jedno odeslání je to příliš mnoho kandidátů, tento pozvánku nedostal. Zbytek pošlete v druhé dávce."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4454,7 +4465,8 @@
       "unsavedTitle": "Zahodit neuložené změny?",
       "unsavedBody": "Tato nabídka má úpravy, které jste zatím neuložili. Opuštěním editoru o ně přijdete.",
       "unsavedDiscard": "Zahodit změny",
-      "unsavedKeep": "Pokračovat v úpravách"
+      "unsavedKeep": "Pokračovat v úpravách",
+      "entryCountOfTotal": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}} z {total} uložených"
     },
     "form": {
       "saveAjd": "Uložit popis pozice",
@@ -5428,7 +5440,12 @@
         "id_exists": "Archetyp s ID „{id}“ už existuje.",
         "not_found": "Archetyp nebyl nalezen.",
         "archive_builtin": "„{id}“ je vestavěný archetyp a nejde ho vyřadit.",
-        "archived_invalid": "Příznak archivace musí být true nebo false."
+        "archived_invalid": "Příznak archivace musí být true nebo false.",
+        "registry_invalid": "Soubor registru archetypů je neplatný, nelze jej upravit. Zkontrolujte pipeline/jobfit/archetypes.json.",
+        "registry_unreadable": "Soubor registru archetypů se nepodařilo načíst.",
+        "weight_out_of_range": "Váha pro {slot} musí být mezi 0 a 100 %.",
+        "id_reserved": "„{id}“ je vyhrazeno pro kandidáty, které nebylo možné zařadit; zvolte jiné id.",
+        "edit_builtin_shield": "„{id}“ je vestavěný archetyp; jeho ochranu spravedlnosti ani model hodnocení nelze změnit."
       },
       "fairnessProtectedAria": "Chráněno spravedlností",
       "weightsSumError": "Váhy musí dávat dohromady 100 % (aktuálně {pct} %).",
@@ -7354,7 +7371,8 @@
     "selectCvFirst": "Nejdřív vyberte CV nebo PDF export z LinkedInu.",
     "jdLibraryLoading": "Načítá se knihovna popisů pozic…",
     "jdLibraryFailed": "Knihovnu popisů pozic se nepodařilo načíst.",
-    "jdLibraryRetry": "Zkusit znovu"
+    "jdLibraryRetry": "Zkusit znovu",
+    "jdLibraryTruncated": "Zobrazujeme {count, plural, one {# nejnovější uložený popis pozice} few {# nejnovější uložené popisy pozic} many {# nejnovějšího uloženého popisu pozic} other {# nejnovějších uložených popisů pozic}}. Starší najdete v Knihovně."
   },
   "integrations": {
     "configLoadFailed": "Nepodařilo se načíst uložené nastavení webhooku. Zobrazené hodnoty nemusí odpovídat tomu, co je uloženo.",

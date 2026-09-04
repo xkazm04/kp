@@ -55,10 +55,13 @@ test("the library is bounded by a stated limit", () => {
   const many = Array.from({ length: JD_LIBRARY_LIMIT + 25 }, (_, i) => ({ slug: `jd-${i}` }));
   assert.equal(boundJdLibrary(many).length, JD_LIBRARY_LIMIT);
   assert.equal(readJdLibraryPayload<{ slug: string }>({ jds: many }).jds.length, JD_LIBRARY_LIMIT);
-  // The bound matches the route's own listJds(200) cap — if one moves, so must
-  // the other, and this is where that pairing is written down.
+  // The bound matches the store's own ceiling — if one moves, so must the other,
+  // and this is where that pairing is written down. The route no longer hardcodes a
+  // number at all: it READS this limit off the request (wave 40) and listJdsPage
+  // clamps it to JDS_PAGE_MAX_LIMIT, so the pairing is pinned at the clamp.
   assert.equal(JD_LIBRARY_LIMIT, 200);
-  assert.match(read("../../../api/jds/route.ts"), /listJds\(200,/);
+  assert.match(read("../../../_lib/db/jobs.ts"), /JDS_PAGE_MAX_LIMIT = 200;/);
+  assert.match(read("../../../api/jds/route.ts"), /searchParams\.get\("limit"\)/);
 });
 
 test("boundJdLibrary copies rather than aliasing the payload's array", () => {

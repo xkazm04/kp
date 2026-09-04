@@ -11,7 +11,7 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
-import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError, requireCapabilityCoded, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
 
@@ -31,7 +31,13 @@ type InviteResult = {
   // returns: `sent` only for a relayed 2xx, `queued` when the local outbox is the
   // terminal target, `failed` on a dead-letter/throw.
   delivery?: DeliveryClaim;
-  error?: string;
+  // A per-entry refusal CODE, never prose. The bulk bar already folds these through
+  // the same `errors.<CODE>` resolution it uses for /api/pipeline/batch's per-id
+  // verdicts, so a recruiter reads "no longer active" in their own language instead of
+  // one generic "some couldn't be invited" line — and an English sentence can never be
+  // painted onto a localized board. `max` rides along where a bound explains the row.
+  code?: RefusalErrorCode;
+  max?: number;
 };
 
 // AUTH + TENANCY (invite-gate parity with /api/pipeline/batch): this route fans a
@@ -85,7 +91,7 @@ export async function POST(request: NextRequest) {
     const ids = unique.slice(0, BULK_INVITE_CAP);
     const overflow = unique.slice(BULK_INVITE_CAP);
     if (ids.length === 0) {
-      return NextResponse.json({ error: `entryIds must be a non-empty array (max ${BULK_INVITE_CAP}).` }, { status: 400 });
+      return jsonRefusal("SCHEDULE_BULK_NO_ENTRIES", 400, { max: BULK_INVITE_CAP });
     }
 
     const origin = new URL(request.url).origin;
@@ -96,13 +102,13 @@ export async function POST(request: NextRequest) {
     for (const entryId of ids) {
       const entry = entriesById.get(entryId);
       if (!entry) {
-        results.push({ entryId, ok: false, error: "not found" });
+        results.push({ entryId, ok: false, code: "SCHEDULE_BULK_ENTRY_NOT_FOUND" });
         continue;
       }
       // Never invite a hired/rejected/declined candidate (terminal) — the same
       // stale-token doctrine the single flows enforce.
       if (entry.status !== "active") {
-        results.push({ entryId, ok: false, error: "not active" });
+        results.push({ entryId, ok: false, code: "SCHEDULE_BULK_ENTRY_INACTIVE" });
         continue;
       }
       try {
@@ -143,22 +149,22 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         // The throw here is `createScheduleInvite` — a better-sqlite3 write — so its
         // `.message` is SQLITE_* codes, `UNIQUE constraint failed: …` and the absolute
-        // db path. Every OTHER `error` string this loop pushes is a generic operator
-        // sentence ("not active", "over the … cap"); this one forwarded the raw store
-        // error into the same field. Both hand-listed hygiene guards
+        // db path. It once forwarded that straight into the per-entry `error` field;
+        // that field is gone now and every row carries a CODE instead, so the raw
+        // message can only reach the server log. Both hand-listed hygiene guards
         // (app/api/jds/error-message-hygiene.test.ts, app/api/apply/apply-error-hygiene.test.ts)
         // key on `NextResponse.json({ error: … })`, so neither could see a leak pushed
         // into the results array — which is why the repo-wide scan in
         // app/api/error-response-contract.test.ts exists.
         console.error(`[schedule:invite:bulk] mint failed for entry ${entryId}:`, err);
-        results.push({ entryId, ok: false, error: "mint failed" });
+        results.push({ entryId, ok: false, code: "SCHEDULE_BULK_MINT_FAILED" });
       }
     }
 
     // Everything past the cap comes back as an explicit refusal rather than vanishing,
     // so the caller's per-entry grammar keeps them selected for the next batch.
     for (const entryId of overflow) {
-      results.push({ entryId, ok: false, error: `over the ${BULK_INVITE_CAP}-candidate cap for one request` });
+      results.push({ entryId, ok: false, code: "SCHEDULE_BULK_OVER_CAP", max: BULK_INVITE_CAP });
     }
 
     // `sent` is the count of links MINTED (kept under that name for existing callers);
