@@ -323,6 +323,7 @@
         "pipeline/jobfit/llm/test_cli.py"
       ],
       "file_paths": [
+        "pipeline/jobfit/json_values.py",
         "pipeline/jobfit/llm/__init__.py",
         "pipeline/jobfit/llm/adapters/__init__.py",
         "pipeline/jobfit/llm/adapters/anthropic_api.py",
@@ -492,7 +493,6 @@
         "pipeline/jobfit/tests/test_devcase_cli.py"
       ],
       "file_paths": [
-        "pipeline/jobfit/json_values.py",
         "pipeline/jobfit/tests/__init__.py",
         "pipeline/jobfit/tests/_helpers.py",
         "pipeline/jobfit/tests/run_gated.py",
