@@ -11,6 +11,7 @@ import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { can } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { invalidateAnalyticsWorkspace } from "@/app/_lib/analytics-cache";
 
 
 // 82c2b8e8 / b39992b1 — recruiter-set analytics settings (mirrors
@@ -72,7 +73,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Value out of range." }, { status: 400 });
       }
     }
-    setAnalyticsTarget(metric, value, await currentWorkspace());
+    const ws = await currentWorkspace();
+    setAnalyticsTarget(metric, value, ws);
+    // The goal line is IN the /api/analytics payload (`targets`), and the inline
+    // editor reloads that payload the instant this returns — inside the read memo's
+    // TTL. Without this the recruiter watches the panel refresh and reads back the
+    // goal they just replaced, with nothing on screen saying the number is stale.
+    invalidateAnalyticsWorkspace(ws);
     return NextResponse.json({ ok: true });
   } catch (error) {
     // setAnalyticsTarget writes straight through better-sqlite3 — the thrown message

@@ -677,6 +677,16 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**A write door retires its workspace's memo.** The TTL reasoning ("a write lands on the next
+read past the TTL") holds for a pipeline write nobody is watching; it does not hold for
+`POST /api/analytics/targets` and `POST /api/analytics/spend`, which are inline editors that
+`reload()` the payload the instant they succeed — inside the TTL. Both now call
+`invalidateAnalyticsWorkspace(ws)` (`app/_lib/analytics-cache.ts`) after the store write. It
+bumps a per-workspace WRITE VERSION that rides in the memo key rather than calling `clear()`, so
+every window of the written workspace is retired at once and no sibling tenant's fresh payload is
+collateral. Pinned end-to-end by `app/api/analytics/analytics-write-invalidates-read.test.ts`,
+which drives the real handlers: write, then read, and the read must carry the new figure.
+
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
 `analytics-cache.ts`, `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,

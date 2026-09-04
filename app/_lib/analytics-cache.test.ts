@@ -7,6 +7,7 @@ import {
   calibrationCacheKey,
   calibrationBandCacheKey,
   decisionRecordsCacheKey,
+  invalidateAnalyticsWorkspace,
 } from "./analytics-cache.ts";
 
 test("analyticsCacheKey isolates workspaces and windows", () => {
@@ -189,4 +190,26 @@ test("decisionRecordsCacheKey isolates workspace and candidate subject", () => {
   assert.notEqual(decisionRecordsCacheKey("ws-a", null), decisionRecordsCacheKey("ws-a", "cand-1")); // full-list vs dossier
   assert.notEqual(decisionRecordsCacheKey("ws-a", "cand-1"), decisionRecordsCacheKey("ws-a", "cand-2")); // two subjects
   assert.equal(decisionRecordsCacheKey("ws-a", "cand-1"), decisionRecordsCacheKey("ws-a", "cand-1")); // identical → hit
+});
+
+test("invalidateAnalyticsWorkspace retires every window of ONE workspace", () => {
+  // The scenario the analytics write doors live in: a warm memo, a write, and the
+  // reload the editor fires milliseconds later. Frozen clock on purpose — the point
+  // is that the write is visible WITHOUT waiting out the TTL.
+  const cache = createAnalyticsCache<string>({ now: () => 0 });
+  let stored = "before";
+  const compute = () => stored;
+
+  assert.equal(cache.get("ws-a", 30, compute), "before");
+  assert.equal(cache.get("ws-a", null, compute), "before");
+  assert.equal(cache.get("ws-b", 30, compute), "before");
+
+  stored = "after";
+  // Still memoized: no write happened, so nothing may re-aggregate.
+  assert.equal(cache.get("ws-a", 30, compute), "before");
+
+  invalidateAnalyticsWorkspace("ws-a");
+  assert.equal(cache.get("ws-a", 30, compute), "after", "the written workspace's windowed view must re-aggregate");
+  assert.equal(cache.get("ws-a", null, compute), "after", "every window of that workspace, not just the one read last");
+  assert.equal(cache.get("ws-b", 30, compute), "before", "a sibling tenant's fresh payload is not collateral");
 });
