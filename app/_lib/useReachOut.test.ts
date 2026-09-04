@@ -30,12 +30,22 @@ const INPUT = { candidateId: "c1", candidateLabel: "Ada", archetype: "builder", 
 test("reachOutVerdict only claims a send when the server actually dispatched one", () => {
   assert.deepEqual(reachOutVerdict("sent"), { ok: true, note: "sent" });
   assert.deepEqual(reachOutVerdict("already_sent"), { ok: true, note: "already_sent" });
-  const anonymized = reachOutVerdict("suppressed_anonymized");
-  assert.equal(anonymized.ok, false);
-  assert.match((anonymized as { message: string }).message, /No message was sent/);
-  const consent = reachOutVerdict("suppressed_consent_expired");
-  assert.equal(consent.ok, false);
-  assert.match((consent as { message: string }).message, /No message was sent/);
+  // The verdict is DATA now, not an English sentence: the two suppressions are
+  // told apart by a token the hook localizes (88013253's fix, applied here).
+  assert.deepEqual(reachOutVerdict("suppressed_anonymized"), {
+    ok: false,
+    suppression: "anonymized",
+    code: null,
+    capability: null,
+    status: 200,
+  });
+  assert.deepEqual(reachOutVerdict("suppressed_consent_expired"), {
+    ok: false,
+    suppression: "suppressed",
+    code: null,
+    capability: null,
+    status: 200,
+  });
   // An absent/unknown verdict keeps the optimistic reading — only the verdicts we
   // can name change behaviour.
   assert.deepEqual(reachOutVerdict(undefined), { ok: true, note: "sent" });
@@ -81,17 +91,83 @@ test("a per-candidate source wins over the surface default; neither sends no key
   assert.equal("source" in JSON.parse(calls[1].init.body as string), false);
 });
 
-test("non-OK statuses and thrown network errors surface without throwing", async () => {
-  stubFetch({ ok: false, status: 409, json: () => ({ error: "This candidate has been anonymized and can no longer be contacted." }) });
+test("a refusal is carried as a CODE — the server's English never crosses", async () => {
+  // The defect: `payload?.error ?? ...` painted this canonical English sentence
+  // onto a Czech, German or French surface, while the coded half sat unread
+  // beside it. Post-fix the prose is dropped at the boundary.
+  stubFetch({
+    ok: false,
+    status: 409,
+    json: () => ({
+      error: "This candidate has been anonymized and can no longer be contacted.",
+      code: "OUTREACH_ANONYMIZED",
+    }),
+  });
   assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), {
     ok: false,
-    message: "This candidate has been anonymized and can no longer be contacted.",
+    suppression: null,
+    code: "OUTREACH_ANONYMIZED",
+    capability: null,
+    status: 409,
   });
 
-  // e.g. an HTML 500: .json() throws, our catch yields null, no payload.error.
-  stubFetch({ ok: false, status: 500, json: () => { throw new Error("not json"); } });
-  assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), { ok: false, message: "Couldn't reach out (500)." });
+  // A capability refusal carries the permission it wanted as DATA, so the
+  // localized sentence can name it (capabilityAwareReason).
+  stubFetch({ ok: false, status: 403, json: () => ({ error: "Not permitted.", code: "FORBIDDEN_CAPABILITY", capability: "comms.send" }) });
+  assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), {
+    ok: false,
+    suppression: null,
+    code: "FORBIDDEN_CAPABILITY",
+    capability: "comms.send",
+    status: 403,
+  });
 
+  // e.g. an HTML 500: .json() throws, our catch yields null, so there is no code
+  // to resolve — only the status, which is still the honest half.
+  stubFetch({ ok: false, status: 500, json: () => { throw new Error("not json"); } });
+  assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), {
+    ok: false,
+    suppression: null,
+    code: null,
+    capability: null,
+    status: 500,
+  });
+
+  // A thrown fetch never reached the server: no code, no status.
   stubFetch(() => { throw new Error("network down"); });
-  assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), { ok: false, message: "network down" });
+  assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), {
+    ok: false,
+    suppression: null,
+    code: null,
+    capability: null,
+    status: null,
+  });
+});
+
+test("the route's GDPR 409 keeps WHICH suppression, without its prose", async () => {
+  // The route names the suppression in a `suppressed` field beside two English
+  // sentences. Carrying the token means a 409 and a 200-with-suppression render
+  // the same localized line instead of one of them shipping English.
+  stubFetch({
+    ok: false,
+    status: 409,
+    json: () => ({ error: "This candidate has been anonymized and can no longer be contacted.", suppressed: "anonymized" }),
+  });
+  assert.deepEqual(await postReachOut("job1", INPUT, "sourcing"), {
+    ok: false,
+    suppression: "anonymized",
+    code: null,
+    capability: null,
+    status: 200,
+  });
+  stubFetch({ ok: false, status: 409, json: () => ({ error: "consent expired", suppressed: "consent_expired" }) });
+  assert.equal((await postReachOut("job1", INPUT, "sourcing") as { suppression: string }).suppression, "suppressed");
+});
+
+test("no failure path leaks a server sentence any more", async () => {
+  const leaky = "This candidate has been anonymized and can no longer be contacted.";
+  stubFetch({ ok: false, status: 409, json: () => ({ error: leaky, code: "OUTREACH_ANONYMIZED" }) });
+  const failure = await postReachOut("job1", INPUT, "sourcing");
+  assert.equal(JSON.stringify(failure).includes(leaky), false, "the English prose stays in the server log");
+  assert.equal("message" in failure, false, "there is deliberately no `message` field to reach for");
 });

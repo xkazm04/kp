@@ -621,22 +621,10 @@
       "title": "Der tschechische Arbeitsmarkt, <emph>offen einsehbar</emph>.",
       "subtitle": "Referenzgehälter, Einstellungsbedarf in allen 14 Regionen und die Positionen im Auf- und Abschwung. Alles vollständig aus öffentlichen Arbeitsmarktdaten.",
       "updated": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date} · {pct} % in den letzten 90 Tagen ausgeschrieben",
-      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Kartenbasiert, als Geschichte erzählt",
-      "board": "Dashboard",
-      "boardDesc": "Alles auf einen Blick"
-    },
-    "stats": {
-      "vacancies": "Offene Stellen",
-      "median": "Landesmedian",
-      "regions": "Regionen",
-      "occupations": "Erfasste Berufe"
+      "updatedNoPct": "{n, plural, one {# aktuelle offene Stelle} other {# aktuelle offene Stellen}} zum {date}",
+      "stale": "Diese Momentaufnahme ist {days, plural, one {# Tag} other {# Tage}} alt. Das laufende Register hat sich seitdem weiterentwickelt."
     },
     "map": {
-      "title": "Wo die Stellen sind",
       "metricVolume": "Stellen",
       "metricSalary": "Verdienst",
       "legendVolume": "nach offenen Stellen",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "Der Wegweiser",
       "title": "Referenzgehälter nach Position",
-      "subtitle": "Gesamtwirtschaftliche Monatsverdienste aus der offiziellen ISPV-Verdiensterhebung: von Junior bis Lead, je Berufsfamilie.",
+      "subtitle": "Gesamtwirtschaftliche monatliche Bruttoverdienste aus der amtlichen ISPV-Verdiensterhebung: vom Junior bis zum Lead, je Rollenfamilie.",
       "median": "Median {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Gesamtwirtschaftliche monatliche Bruttoverdienste aus der amtlichen ISPV-Verdiensterhebung, Daten {period}: vom Junior bis zum Lead, je Rollenfamilie.",
+      "basedOn": "Auf Basis von {v} befragten Beschäftigten"
     },
     "demand": {
       "eyebrow": "Was gerade gesucht wird",
@@ -670,7 +659,6 @@
       "byFamily": "Nach Berufsfamilie",
       "byRole": "Top-Berufe",
       "openings": "{n, plural, one {# Stelle} other {# Stellen}}",
-      "momentumNew": "Basiswert",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },
@@ -1687,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen.",
+    "INTAKE_TURN_TIMEOUT": "Dieser Beitrag hat zu lange gedauert und wurde abgebrochen. Senden Sie ihn erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3161,6 +3150,16 @@
       "added": "{name} wurde zur Pipeline hinzugefügt.",
       "failed": "{name} konnte nicht zur Pipeline hinzugefügt werden.",
       "failedAnnounce": "{name} konnte nicht zur Pipeline hinzugefügt werden. {reason}"
+    },
+    "reachOut": {
+      "sent": "{name} wurde angeschrieben. Die Person ist in der Pipeline und eine erste Nachricht ist unterwegs.",
+      "alreadySent": "{name} ist in der Pipeline und wurde für diese Rolle bereits kontaktiert, deshalb ging keine neue Nachricht raus.",
+      "failed": "{name} konnte nicht angeschrieben werden.",
+      "failedAnnounce": "{name} konnte nicht angeschrieben werden. {reason}",
+      "suppressed": {
+        "anonymized": "Es wurde keine Nachricht gesendet. Diese Person wurde anonymisiert.",
+        "suppressed": "Es wurde keine Nachricht gesendet. Die Ansprache dieser Person ist gesperrt (Einwilligung abgelaufen oder die Sequenz wurde gestoppt)."
+      }
     }
   },
   "decisions": {
@@ -4335,7 +4334,11 @@
           "dispatchError": "Das Senden ist fehlgeschlagen. Es wurde nichts eingestellt.",
           "dispatchHuman": "Diese Spezifikation ist für einen menschlichen Rolleninhaber verfasst. Überführen Sie sie stattdessen in eine Stellenbeschreibung.",
           "dispatchNeedsPairing": "Koppeln Sie Kandi unter Einstellungen → Integrationen mit Personas, um zu entsenden."
-        }
+        },
+        "degradedNoProvider": "Es ist kein AI-Modell konfiguriert, deshalb läuft die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
+        "degradedProviderFailed": "Das Modell hat nicht geantwortet, deshalb hat die geführte Checkliste übernommen. Ihre Antworten werden erfasst. Versuchen Sie es gleich noch einmal.",
+        "standInLanguage": "Die Checkliste gibt es noch nicht in der Sprache dieser Sitzung, deshalb antwortet sie auf {language}.",
+        "compactedNote": "{count} ältere Beiträge sind aus diesem Verlauf herausgefallen. Was darin gesagt wurde, hält das Briefing fest."
       },
       "buildHeldChip": "Ergebnis als Revision abgelegt",
       "buildHeldBody": "Sie haben diese Stellenbeschreibung während der Erstellung bearbeitet. Ihr eigener Text bleibt erhalten, der generierte Entwurf wurde im Bearbeitungsverlauf abgelegt.",
@@ -9361,6 +9364,18 @@
       "contact": {
         "title": "Kontakt",
         "body": "Für Anfragen zu Ihren Daten als Kandidat nutzen Sie den Token-Link aus einer beliebigen Nachricht, die das Produkt Ihnen geschickt hat; das ist der schnellste, verifizierte Weg. Für alles andere wenden Sie sich an den Betreiber dieser Installation oder schreiben Sie an {email}."
+      },
+      "cookies": {
+        "title": "Cookies, Speicher und Analyse",
+        "intro": "Das Produkt setzt keine Werbe-Cookies und keine seitenübergreifenden Tracker. Im Browser bleibt nur, was die App zum Funktionieren braucht. Jeder Eintrag steht hier unter dem Namen, den auch Ihr Browser anzeigt:",
+        "items": [
+          "__Host-kp_session: das signierte Sitzungs-Cookie einer angemeldeten Bedienperson. Es trägt die Sitzung selbst, nichts über Sie, und wird erst nach der Anmeldung gesetzt.",
+          "kp_entered: hält fest, dass Sie von der öffentlichen Startseite in den Arbeitsbereich gewechselt sind, damit die App Ihnen die Eingangsseite nicht erneut zeigt.",
+          "NEXT_LOCALE: die von Ihnen gewählte Sprache. Ein Jahr lang gespeichert, damit die App beim nächsten Mal darin öffnet.",
+          "kp-theme: ein localStorage-Eintrag des Browsers, kein Cookie. Er hält das gewählte Erscheinungsbild (hell oder dunkel)."
+        ],
+        "analytics": "Wo der Betreiber eine Analyse eingerichtet hat, ist es Plausible, und zwar cookiefrei: auf Ihrem Gerät wird kein Kennzeichen gespeichert und niemand wird zwischen Websites verfolgt. Ohne konfigurierte Domain wird überhaupt kein Analysecode geladen. Die Linkseiten für Kandidatinnen und Kandidaten sind vollständig ausgenommen, sodass die Adresse einer an Sie gerichteten Seite nie übermittelt wird.",
+        "noConsentBanner": "Keiner der genannten Einträge dient Werbung oder Profilbildung, weshalb das Produkt keine Cookie-Einwilligung einholt. Die Einwilligung in die KI-Verarbeitung von Bewerberdaten ist davon getrennt und oben beschrieben."
       }
     },
     "terms": {

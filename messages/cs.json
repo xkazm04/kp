@@ -621,22 +621,10 @@
       "title": "Český trh práce, <emph>bez příkras</emph>.",
       "subtitle": "Referenční mzdy, poptávka po náboru ve všech 14 krajích a pozice, které rostou i slábnou. Všechno postavené výhradně na veřejných datech trhu práce.",
       "updated": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date} · {pct} % zveřejněno za posledních 90 dní",
-      "updatedNoPct": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Vedeno mapou, jako příběh",
-      "board": "Přehled",
-      "boardDesc": "Vše na jednom místě"
-    },
-    "stats": {
-      "vacancies": "Volná místa",
-      "median": "Medián v ČR",
-      "regions": "Kraje",
-      "occupations": "Sledované profese"
+      "updatedNoPct": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date}",
+      "stale": "Tento snímek je starý {days, plural, one {# den} few {# dny} other {# dní}}. Živý registr se od jeho pořízení posunul."
     },
     "map": {
-      "title": "Kde jsou volná místa",
       "metricVolume": "Volná místa",
       "metricSalary": "Výdělek",
       "legendVolume": "podle počtu míst",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "Průvodce",
       "title": "Referenční mzdy podle pozice",
-      "subtitle": "Celoekonomické měsíční výdělky z oficiálního mzdového šetření ISPV: od juniora po vedoucího, podle rodiny rolí.",
+      "subtitle": "Celorepublikové hrubé měsíční výdělky z oficiálního mzdového šetření ISPV: od juniora po lead, podle rodiny rolí.",
       "median": "medián {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Celorepublikové hrubé měsíční výdělky z oficiálního mzdového šetření ISPV, data za rok {period}: od juniora po lead, podle rodiny rolí.",
+      "basedOn": "Na základě {v} zaměstnanců v šetření"
     },
     "demand": {
       "eyebrow": "Co se nabírá",
@@ -670,7 +659,6 @@
       "byFamily": "Podle rodiny rolí",
       "byRole": "Top profese",
       "openings": "{n, plural, one {# místo} few {# místa} other {# míst}}",
-      "momentumNew": "výchozí",
       "share": "{pct} %",
       "shareTiny": "< 1 %"
     },
@@ -1687,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "Tato adresa pro stahování není povolená. Použijte veřejnou adresu https://.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav.",
+    "INTAKE_TURN_TIMEOUT": "Tato replika trvala příliš dlouho a byla zastavena. Odešlete ji prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3161,6 +3150,16 @@
       "added": "{name} přidán(a) do pipeline.",
       "failed": "{name} se nepodařilo přidat do pipeline.",
       "failedAnnounce": "{name} se nepodařilo přidat do pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "Oslovili jsme kandidáta {name}. Je v pipeline a první zpráva je na cestě.",
+      "alreadySent": "{name} je v pipeline a pro tuto roli už byl osloven, takže se nová zpráva neposílala.",
+      "failed": "Kandidáta {name} se nepodařilo oslovit.",
+      "failedAnnounce": "Kandidáta {name} se nepodařilo oslovit. {reason}",
+      "suppressed": {
+        "anonymized": "Žádná zpráva se neodeslala. Tento kandidát byl anonymizován.",
+        "suppressed": "Žádná zpráva se neodeslala. Oslovení tohoto kandidáta je pozastaveno (vypršel souhlas, nebo byla sekvence zastavena)."
+      }
     }
   },
   "decisions": {
@@ -4335,7 +4334,11 @@
           "dispatchError": "Odeslání selhalo. Nikdo nebyl najat.",
           "dispatchHuman": "Tato specifikace je složena pro lidského držitele role. Povyšte ji místo toho na JD.",
           "dispatchNeedsPairing": "Před vysláním spárujte Kandi s Personas v Nastavení → Integrace."
-        }
+        },
+        "degradedNoProvider": "Není nastavený žádný AI model, takže pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
+        "degradedProviderFailed": "Model neodpověděl, takže se ujal vedený dotazník. Vaše odpovědi se ukládají. Za chvíli to zkuste znovu.",
+        "standInLanguage": "Dotazník zatím není v jazyce této konzultace, proto odpovídá v jazyce {language}.",
+        "compactedNote": "Starších replik ({count}) z přepisu odpadlo. Co v nich zaznělo, drží brief."
       },
       "buildHeldChip": "Výstup uložen jako revize",
       "buildHeldBody": "Během generování jste tuto nabídku upravili, takže váš text zůstal zachován a vygenerovaný návrh se uložil do historie úprav.",
@@ -9361,6 +9364,18 @@
       "contact": {
         "title": "Kontakt",
         "body": "S žádostmi o své údaje jako kandidát použijte odkaz s tokenem z libovolné zprávy, kterou vám produkt poslal; je to nejrychlejší ověřená cesta. S čímkoli dalším se obraťte na provozovatele tohoto nasazení nebo napište na {email}."
+      },
+      "cookies": {
+        "title": "Cookies, úložiště a analytika",
+        "intro": "Produkt nenastavuje žádné reklamní cookies ani nástroje sledující napříč weby. V prohlížeči si ukládá jen to, co je potřeba k chodu aplikace, a každou položku zde uvádíme pod názvem, který uvidíte i v prohlížeči:",
+        "items": [
+          "__Host-kp_session: podepsaná cookie relace přihlášeného operátora. Nese samotnou relaci, nikoli údaje o vás, a nastavuje se až po přihlášení.",
+          "kp_entered: poznamenává, že jste z veřejné úvodní stránky přešli do pracovního prostoru, aby vám aplikace znovu nezobrazovala vstupní stránku.",
+          "NEXT_LOCALE: jazyk, který jste zvolili. Uchováváme jej rok, aby se aplikace příště otevřela ve stejném jazyce.",
+          "kp-theme: položka v localStorage prohlížeče, nikoli cookie. Drží zvolený vzhled (světlý, nebo tmavý)."
+        ],
+        "analytics": "Pokud provozovatel analytiku zapne, jde o Plausible, které pracuje bez cookies: na vašem zařízení se neukládá žádný identifikátor a nikdo není sledován mezi weby. Bez nastavené domény se analytický kód vůbec nenačte. Stránky s odkazem pro kandidáta jsou zcela vyloučeny, takže adresa stránky určené vám se nikam neodesílá.",
+        "noConsentBanner": "Žádná z uvedených položek neslouží k reklamě ani profilování, a proto produkt nežádá o souhlas s cookies. Souhlas se zpracováním údajů kandidáta pomocí AI je samostatný a popisujeme jej výše."
       }
     },
     "terms": {

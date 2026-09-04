@@ -7,6 +7,9 @@ import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, P
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+// The SAME classifier the companion dock uses on the same raw diagnostic - the
+// two surfaces read one Python fallback vocabulary, so they get one parser.
+import { companionFallbackClass } from "@/app/_lib/companion-turn";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
 import { JdsIntakeAppMasterCard } from "./JdsIntakeAppMasterCard";
 import { JdsIntakeAppMasterStart } from "./JdsIntakeAppMasterStart";
@@ -48,6 +51,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     creating,
     promoting,
     degraded,
+    degradation,
     error,
     startNew,
     startAppMaster,
@@ -156,6 +160,28 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const objectiveCount = (active.brief?.facets ?? []).filter((f) => f.key?.startsWith("objective:")).length;
   const promoteHint = ready ? undefined : blockers.map((b) => t(`promoteMissing.${b}`)).join(" ");
 
+  // The degraded line says WHICH degradation. "No model configured" is a
+  // settings trip; "the model did not answer" is worth one retry; an
+  // unrecognised diagnostic keeps the generic sentence rather than being
+  // guessed at. Pre-fix all three read "AI is offline, so the guided checklist
+  // runs instead" and an operator on a keyless install retried forever.
+  const fallbackClass = degradation ? companionFallbackClass(degradation.reason) : null;
+  const degradedText =
+    fallbackClass === "noProvider"
+      ? t("degradedNoProvider")
+      : fallbackClass === "providerFailed"
+        ? t("degradedProviderFailed")
+        : t("degradedNote");
+  // The scripted path is written in four locales; a session opened in a fifth is
+  // SERVED one of them. Intl.DisplayNames names it in the reader's own language,
+  // so no catalog carries a list of language names.
+  const standInLanguage =
+    degradation?.lang && degradation.lang !== locale
+      ? t("standInLanguage", {
+          language: new Intl.DisplayNames([locale], { type: "language" }).of(degradation.lang) ?? degradation.lang,
+        })
+      : null;
+
   return (
     <div className={`${PANEL} p-5`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -225,7 +251,11 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
       {/* Status/error lines fade in and out (reduced motion: instant). */}
       <AnimatePresence initial={false}>
         {[
-          degraded ? { key: "degraded", cls: "text-meta text-steel", text: t("degradedNote") } : null,
+          degraded ? { key: "degraded", cls: "text-meta text-steel", text: degradedText } : null,
+          // The stand-in language is its own fact, not a flavour of the one
+          // above: the checklist DID answer, just not in the language this
+          // session was opened in, and only the reader can decide that matters.
+          standInLanguage ? { key: "standIn", cls: "text-meta text-steel", text: standInLanguage } : null,
           voiceNote === "stored" ? { key: "voiceStored", cls: "text-meta text-steel", text: t("voice.storedNote") } : null,
           // The server's refusal CODE decides the sentence; the per-affordance
           // string below is only the fallback for a failure that carries none (an

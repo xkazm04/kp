@@ -1146,6 +1146,12 @@ export const REFUSAL_ERRORS = {
   /** The pull URL failed the stored-URL validator (400). The validator's own English
    *  sentence — which host, which field — rides beside the code as `detail` data. */
   CHANNEL_PULL_URL_INVALID: "That pull URL isn't allowed.",
+  /** An intake dialog or voice turn overran its per-thread budget in
+   *  app/_lib/intake-run.ts and was stopped (504). A DECISION, not a store fault:
+   *  the spawn used to inherit python-runner's ten-minute hang backstop, so a stalled
+   *  provider held the requestor on a spinner for nine minutes past the point the
+   *  answer was useful. Named so the composer can offer a retry. */
+  INTAKE_TURN_TIMEOUT: "That turn took too long and was stopped. Send it again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
-import { runIntakeVoiceTurn } from "@/app/_lib/intake-run";
+import { IntakeTimeoutError, runIntakeVoiceTurn } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -90,11 +90,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       done: turn.done,
       source: turn.source,
       ...(turn.brief ? { brief: turn.brief } : {}),
+      // Same two degradation facts the text plane forwards - the pane renders
+      // one degraded note for both planes, so both must put them on the wire.
       ...(turn.fallbackReason ? { fallbackReason: turn.fallbackReason } : {}),
+      ...(turn.fallbackLang ? { fallbackLang: turn.fallbackLang } : {}),
     });
   } catch (error) {
     // A hang-up mid-turn is a decision, not a fault.
     if (request.signal.aborted) return new NextResponse(null, { status: 499 });
+    // Overran INTAKE_VOICE_TURN_TIMEOUT_MS: at speech pace a late utterance is
+    // worse than none, so the caller is told the turn was dropped by name.
+    if (error instanceof IntakeTimeoutError) return jsonRefusal("INTAKE_TURN_TIMEOUT", 504);
     return safeJsonError(error, "api:intake/voice-turn", "INTAKE_VOICE_TURN_FAILED");
   }
 }

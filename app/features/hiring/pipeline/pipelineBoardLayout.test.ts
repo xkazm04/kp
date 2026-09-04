@@ -5,7 +5,8 @@
 // per-cell `lane.filter(...)` and the editable-axis work that followed it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { boardVisibleOrder, bucketLaneEntries, offAxisEntries } from "./pipelineBoardLayout.ts";
+import { boardVisibleOrder, bucketLaneEntries, cappedWithOverflow, offAxisEntries } from "./pipelineBoardLayout.ts";
+import { CELL_LIMIT } from "./pipelineBoardGrid.ts";
 import { STAGES, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
 
 const pos = (id: string): Position => ({ id, title: id, family: "", count: 0 });
@@ -125,4 +126,53 @@ test("boardVisibleOrder drops an off-axis entry whose LANE isn't rendered either
   const positions = [pos("job-a")];
   const order = boardVisibleOrder(positions, [entry("other", "job-b", "LegacyStage"), entry("acc", "job-a", "Accepted")]);
   assert.deepEqual(order.map((e) => e.id), ["acc"], "lane filtering still wins over the strip");
+});
+
+// The shared cap behind both "+N more" affordances (stage cell and off-axis strip).
+test("cappedWithOverflow: caps at the shared CELL_LIMIT and reports the remainder", () => {
+  const items = Array.from({ length: 10 }, (_, i) => i);
+  const capped = cappedWithOverflow(items, false);
+  assert.equal(capped.visible.length, CELL_LIMIT);
+  assert.equal(capped.overflow, 10 - CELL_LIMIT);
+  assert.deepEqual(capped.visible, items.slice(0, CELL_LIMIT));
+});
+
+test("cappedWithOverflow: expanded shows everything with nothing left over", () => {
+  const items = Array.from({ length: 40 }, (_, i) => i);
+  assert.deepEqual(cappedWithOverflow(items, true), { visible: items, overflow: 0 });
+});
+
+test("cappedWithOverflow: a list at or under the cap never offers an expand", () => {
+  for (const n of [0, 1, CELL_LIMIT]) {
+    const items = Array.from({ length: n }, (_, i) => i);
+    const capped = cappedWithOverflow(items, false);
+    assert.equal(capped.overflow, 0, `${n} items must not overflow`);
+    assert.equal(capped.visible.length, n);
+  }
+});
+
+test("cappedWithOverflow: never returns a negative overflow, and never mutates the input", () => {
+  const items = [1, 2, 3];
+  const capped = cappedWithOverflow(items, false, 2);
+  assert.equal(capped.overflow, 1);
+  capped.visible.push(99);
+  assert.deepEqual(items, [1, 2, 3], "the caller's array is untouched");
+  assert.equal(cappedWithOverflow([], false, 5).overflow, 0);
+});
+
+test("cappedWithOverflow: a non-positive limit means UNCAPPED, not empty", () => {
+  const items = [1, 2, 3];
+  assert.deepEqual(cappedWithOverflow(items, false, 0), { visible: items, overflow: 0 });
+  assert.deepEqual(cappedWithOverflow(items, false, -1), { visible: items, overflow: 0 });
+});
+
+// The strip's own shape: one capped group per retired stage, each expandable on
+// its own — retiring two columns must not make one group's "show more" reveal the
+// other's cards.
+test("cappedWithOverflow: groups cap independently of each other", () => {
+  const groupA = Array.from({ length: 9 }, (_, i) => `a${i}`);
+  const groupB = Array.from({ length: 2 }, (_, i) => `b${i}`);
+  const expanded = new Set(["b"]);
+  assert.equal(cappedWithOverflow(groupA, expanded.has("a")).overflow, 9 - CELL_LIMIT);
+  assert.equal(cappedWithOverflow(groupB, expanded.has("b")).overflow, 0);
 });

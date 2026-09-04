@@ -130,22 +130,45 @@ export type Subprocessor = {
   purpose: string;
   /** True when the customer can run kp without this processor ever being engaged. */
   optional: boolean;
+  /** The `LLM_PROVIDERS` ids (llm-config.ts) this row discloses — empty for a row
+   *  that is not a model route (billing, voice, mail). The trust page never renders
+   *  these; they exist so a TEST can hold the table against the product's own
+   *  provider list, which is how a `qwen` adapter shipped with no disclosure. Plain
+   *  strings, not the imported union: this module is pure data with no server
+   *  imports, and llm-config.ts pulls the DB slice. */
+  providers: readonly string[];
 };
 
 // Honest scope note: kp routes to whichever engines the CUSTOMER configures, so this is
 // the set kp can engage, not a set it always does. Self-hosted installs can reduce it to
 // nothing external (KP_OFFLINE blocks egress in both the TS and Python halves).
 export const SUBPROCESSORS: readonly Subprocessor[] = [
-  { name: "Anthropic", purpose: "Text model for analysis, reasoning and evaluation", optional: true },
-  { name: "OpenAI", purpose: "Text model; realtime voice interviews", optional: true },
-  { name: "Google (Gemini)", purpose: "Document/CV analysis and web-grounded salary lookups", optional: true },
-  { name: "Azure OpenAI", purpose: "Text model on the customer's own Azure deployment", optional: true },
-  { name: "OpenRouter", purpose: "Model proxy when the customer routes through it", optional: true },
-  { name: "ElevenLabs", purpose: "Voice interview speech", optional: true },
-  { name: "Polar", purpose: "Subscription billing and checkout", optional: true },
-  { name: "Customer-configured mail relay", purpose: "Candidate email delivery; with none configured, messages stay in a local outbox and are never sent", optional: true },
-  { name: "Self-hosted model server", purpose: "On-box or in-VPC model (Ollama, vLLM, an OpenAI-compatible proxy)", optional: true },
+  { name: "Anthropic", purpose: "Text model for analysis, reasoning and evaluation", optional: true, providers: ["anthropic", "claude_cli"] },
+  { name: "OpenAI", purpose: "Text model; realtime voice interviews", optional: true, providers: ["openai"] },
+  { name: "Google (Gemini)", purpose: "Document/CV analysis and web-grounded salary lookups", optional: true, providers: ["gemini"] },
+  { name: "Azure OpenAI", purpose: "Text model on the customer's own Azure deployment", optional: true, providers: ["azure_openai"] },
+  { name: "OpenRouter", purpose: "Model proxy when the customer routes through it", optional: true, providers: ["openrouter"] },
+  // The disclosure gap the coverage test below this list was written for: a `qwen`
+  // adapter shipped with a configurable remote endpoint and never reached the table.
+  {
+    name: "Qwen Cloud (Alibaba Cloud)",
+    purpose:
+      "Text model on the OpenAI-compatible endpoint the customer configures; pointed at a self-hosted Qwen endpoint it engages no third party",
+    optional: true,
+    providers: ["qwen"],
+  },
+  { name: "ElevenLabs", purpose: "Voice interview speech", optional: true, providers: [] },
+  { name: "Polar", purpose: "Subscription billing and checkout", optional: true, providers: [] },
+  { name: "Customer-configured mail relay", purpose: "Candidate email delivery; with none configured, messages stay in a local outbox and are never sent", optional: true, providers: [] },
+  { name: "Self-hosted model server", purpose: "On-box or in-VPC model (Ollama, vLLM, an OpenAI-compatible proxy)", optional: true, providers: ["ollama"] },
 ];
+
+/** The day a human last read this page against the code. A compliance posture with
+ *  no date is a claim about an unknown moment: the reader cannot tell a page
+ *  reviewed this month from one abandoned two years ago, and "2 August 2026" on the
+ *  page is the AI Act's application date, not ours. Bump it when the posture rows,
+ *  the classification or the subprocessor table are re-checked — not on a refactor. */
+export const LAST_REVIEWED = "2026-09-04";
 
 export const DATA_RIGHTS = [
   "Candidate data is never sold or shared, and is never used to train models.",

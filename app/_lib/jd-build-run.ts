@@ -330,7 +330,9 @@ export async function runJdBuild(
     // unchanged newline split.
     const brief: RoleBrief | undefined =
       input.brief && typeof input.brief === "object" ? (input.brief as RoleBrief) : undefined;
-    if (brief) needText = needTextFromBrief(brief) || needText;
+    // Same language the rest of the chain is generated in, so a regenerated need
+    // text does not staple English headings onto a Czech brief.
+    if (brief) needText = needTextFromBrief(brief, input.lang) || needText;
     const need: DevNeed = {
       title,
       stack: brief ? briefMustSkills(brief).slice(0, 10) : [],

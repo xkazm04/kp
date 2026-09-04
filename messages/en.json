@@ -621,22 +621,10 @@
       "title": "The Czech job market, <emph>in the open</emph>.",
       "subtitle": "Reference salaries, hiring demand across all 14 regions, and the roles rising and fading. All of it built entirely on public labour-market data.",
       "updated": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date} · {pct}% posted in the last 90 days",
-      "updatedNoPct": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date}"
-    },
-    "variants": {
-      "atlas": "Atlas",
-      "atlasDesc": "Map-led, read as a story",
-      "board": "Dashboard",
-      "boardDesc": "Everything at a glance"
-    },
-    "stats": {
-      "vacancies": "Open vacancies",
-      "median": "National median",
-      "regions": "Regions",
-      "occupations": "Occupations tracked"
+      "updatedNoPct": "{n, plural, one {# live vacancy} other {# live vacancies}} as of {date}",
+      "stale": "This snapshot is {days, plural, one {# day} other {# days}} old. The live register has moved on since it was taken."
     },
     "map": {
-      "title": "Where the jobs are",
       "metricVolume": "Vacancies",
       "metricSalary": "Earnings",
       "legendVolume": "by open vacancies",
@@ -656,12 +644,13 @@
     "salary": {
       "eyebrow": "The field guide",
       "title": "Reference salaries by role",
-      "subtitle": "Economy-wide monthly earnings from the official ISPV wage survey: junior to lead, per role family.",
+      "subtitle": "Economy-wide gross monthly earnings from the official ISPV wage survey: junior to lead, per role family.",
       "median": "median {v}",
       "junior": "Junior",
-      "medior": "Medior",
       "senior": "Senior",
-      "lead": "Lead"
+      "lead": "Lead",
+      "subtitleDated": "Economy-wide gross monthly earnings from the official ISPV wage survey, {period} data: junior to lead, per role family.",
+      "basedOn": "Based on {v} employees surveyed"
     },
     "demand": {
       "eyebrow": "What's hiring",
@@ -670,7 +659,6 @@
       "byFamily": "By role family",
       "byRole": "Top occupations",
       "openings": "{n, plural, one {# opening} other {# openings}}",
-      "momentumNew": "baseline",
       "share": "{pct}%",
       "shareTiny": "<1%"
     },
@@ -1687,7 +1675,8 @@
     "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
     "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
-    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state."
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state.",
+    "INTAKE_TURN_TIMEOUT": "That turn took too long and was stopped. Send it again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3161,6 +3150,16 @@
       "added": "{name} added to the pipeline.",
       "failed": "Couldn't add {name} to the pipeline.",
       "failedAnnounce": "Couldn't add {name} to the pipeline. {reason}"
+    },
+    "reachOut": {
+      "sent": "Reached out to {name}. They are in the pipeline and a first-touch message is on its way.",
+      "alreadySent": "{name} is in the pipeline and was already contacted for this role, so no new message was sent.",
+      "failed": "Couldn't reach out to {name}.",
+      "failedAnnounce": "Couldn't reach out to {name}. {reason}",
+      "suppressed": {
+        "anonymized": "No message was sent. This candidate has been anonymized.",
+        "suppressed": "No message was sent. Outreach to this candidate is suppressed (consent lapsed, or the sequence was stopped)."
+      }
     }
   },
   "decisions": {
@@ -4335,7 +4334,11 @@
           "dispatchError": "The dispatch failed. Nothing was hired.",
           "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
           "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
-        }
+        },
+        "degradedNoProvider": "No AI model is configured, so the guided checklist runs instead. Your answers are captured all the same.",
+        "degradedProviderFailed": "The model didn't answer, so the guided checklist took over. Your answers are captured. Try again in a moment.",
+        "standInLanguage": "The checklist isn't written in this session's language yet, so it is answering in {language}.",
+        "compactedNote": "{count} earlier turns rolled off this transcript. What was said in them is kept in the brief."
       },
       "buildHeldChip": "Build held as a revision",
       "buildHeldBody": "You edited this JD while the build was running, so your own text was kept and the generated draft was filed in the edit history.",
@@ -9361,6 +9364,18 @@
       "contact": {
         "title": "Contact",
         "body": "For requests about your data as a candidate, use the token link from any message the product sent you; it is the fastest, verified path. For anything else, contact the operator of this deployment or write to {email}."
+      },
+      "cookies": {
+        "title": "Cookies, storage and analytics",
+        "intro": "The product sets no advertising cookies and no cross-site trackers. What it keeps in your browser is only what makes the app work, and each item is listed here by the name your browser shows:",
+        "items": [
+          "__Host-kp_session: the signed session cookie for a signed-in operator. It carries the session itself, nothing about you, and is set only after you sign in.",
+          "kp_entered: records that you have gone past the public landing page into the workspace, so the app does not show you the front door again.",
+          "NEXT_LOCALE: the language you chose. Kept for a year so the app opens in it next time.",
+          "kp-theme: a browser localStorage entry rather than a cookie, holding the appearance (light or dark) you picked."
+        ],
+        "analytics": "Where the operator has configured analytics, it is Plausible, which is cookieless: no identifier is stored on your device and no visitor is followed between sites. With no domain configured, no analytics code is loaded at all. Candidate link pages are excluded outright, so the address of a page addressed to you is never sent.",
+        "noConsentBanner": "None of the items above is used for advertising or profiling, which is why the product asks for no cookie consent. Consent for AI processing of candidate data is separate and is described above."
       }
     },
     "terms": {

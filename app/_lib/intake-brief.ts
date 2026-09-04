@@ -33,15 +33,44 @@ export function briefStatedRequirements(brief: RoleBrief): StatedRequirement[] {
 // narrative, outcomes, graded requirements, then the situational facets. This
 // is what makes a promoted intake a RICHER need than the old free-text
 // textarea, while staying replayable through the existing pipeline.
-export function needTextFromBrief(brief: RoleBrief): string {
+// The four structural labels this projection adds around the requestor's OWN
+// words. They were English constants, so a Czech, German or French session
+// persisted "Done in 90 days: Zvládne onboarding sám" as its build input — four
+// English headings stapled to prose in another language, then handed to the
+// design chain and replayed on every task re-run as THE need. A literal table
+// with a same-shape guard, like every other closed vocabulary here; a language
+// the table does not carry falls to `en`, which is also the JD default.
+//
+// Deliberately NOT next-intl: this string is a SERVER artifact persisted as
+// build input, composed where no request locale is in scope and read back by a
+// task replay months later — it must not depend on who is looking.
+const NEED_TEXT_LABELS = {
+  en: { success: "Done in 90 days", must: "Must have", nice: "Nice to have", context: "Context" },
+  cs: { success: "Hotovo do 90 dnů", must: "Nutné", nice: "Výhodou", context: "Kontext" },
+  de: { success: "In 90 Tagen erreicht", must: "Muss mitbringen", nice: "Von Vorteil", context: "Kontext" },
+  fr: { success: "Atteint en 90 jours", must: "Indispensable", nice: "Un plus", context: "Contexte" },
+} as const;
+
+/** One shape for all four tables — a per-locale literal type would make the
+ *  return a union of four incompatible objects. */
+export type NeedTextLabels = { success: string; must: string; nice: string; context: string };
+
+/** The labels for `lang`, or English for a language the table does not carry.
+ *  Exported so the test can assert the four tables stay the same shape. */
+export function needTextLabels(lang?: string | null): NeedTextLabels {
+  return NEED_TEXT_LABELS[(lang ?? "") as keyof typeof NEED_TEXT_LABELS] ?? NEED_TEXT_LABELS.en;
+}
+
+export function needTextFromBrief(brief: RoleBrief, lang?: string | null): string {
+  const L = needTextLabels(lang);
   const lines: string[] = [];
   if (brief.summary) lines.push(brief.summary);
-  for (const s of brief.successCriteria ?? []) lines.push(`Done in 90 days: ${s}`);
+  for (const s of brief.successCriteria ?? []) lines.push(`${L.success}: ${s}`);
   for (const r of brief.responsibilities ?? []) lines.push(r);
-  for (const skill of briefMustSkills(brief)) lines.push(`Must have: ${skill}`);
-  for (const skill of briefNiceSkills(brief)) lines.push(`Nice to have: ${skill}`);
+  for (const skill of briefMustSkills(brief)) lines.push(`${L.must}: ${skill}`);
+  for (const skill of briefNiceSkills(brief)) lines.push(`${L.nice}: ${skill}`);
   for (const f of brief.facets ?? []) {
-    if (f.value) lines.push(`${f.label || f.key || "Context"}: ${f.value}`);
+    if (f.value) lines.push(`${f.label || f.key || L.context}: ${f.value}`);
   }
   return lines.join("\n").trim();
 }

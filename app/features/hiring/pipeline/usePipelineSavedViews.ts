@@ -18,8 +18,8 @@ import {
   type SavedView,
 } from "./pipelineBoardFilters";
 import {
-  defaultViewId,
   defaultViewToApply,
+  toggleDefault,
   withDefault,
   upsertViewByName,
   renameStoredView,
@@ -149,8 +149,7 @@ export function usePipelineSavedViews({ filters }: { filters: PipelineFilters })
   };
   // Toggle the DEFAULT marking on a view — the one that opens on a bare visit. Clicking
   // the current default clears it (so a board can have no default again).
-  const toggleDefaultView = (v: SavedView) =>
-    persistViews(withDefault(views, defaultViewId(views) === v.id ? null : v.id));
+  const toggleDefaultView = (v: SavedView) => persistViews(toggleDefault(views, v.id));
   const applyView = (v: SavedView) => {
     const nv = normalizeView(v);
     filters.setAllFilters({

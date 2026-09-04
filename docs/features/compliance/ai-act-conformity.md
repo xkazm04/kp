@@ -160,6 +160,13 @@ Each heading lists what fills it. Items marked ⏳ depend on a gap above.
    self-host Docker/Helm — `docs/architecture/self-hosting.md`); interaction with external
    systems (Gemini/Claude/OpenAI/ElevenLabs engines, relay webhook, Polar —
    see `SUBPROCESSORS` in `app/_lib/trust-posture.ts` for the current list).
+   **That list is now held against the product's own provider catalog**: each row
+   carries the `LLM_PROVIDERS` ids it discloses, and `trust-posture.test.ts` fails
+   when a provider the app can route to has no row (which is how the `qwen`
+   adapter — a configurable remote endpoint — shipped undisclosed) or when a row
+   claims a provider that does not exist. `/trust` also states `LAST_REVIEWED`, the
+   day the posture was last read against the code; the AI Act's application date is
+   a fact about the regulation, not about the page.
 2. **Detailed description of elements & development** —
    - design spec: `docs/_archive/AUTOMATION_SPEC.md`, `docs/product/enterprise-readiness.md`;
    - system architecture: Next.js app + Python jobfit pipeline; scoring

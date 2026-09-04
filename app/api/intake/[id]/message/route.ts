@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
-import { runIntakeExchange } from "@/app/_lib/intake-run";
+import { IntakeTimeoutError, runIntakeExchange } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -112,12 +112,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       shape: exchange.shape,
       done: exchange.done,
       source: exchange.source,
+      // WHY it degraded, and (for the scripted keyless path) in WHICH language.
+      // Both facts were produced by the engine and thrown away at this boundary:
+      // the pane could only say "AI is offline", so an operator on a keyless
+      // install and one whose provider had just fallen over read the same
+      // sentence and took the same useless action. `fallbackLang` is the honest
+      // half of a stand-in: the scripted script exists in four locales and a
+      // session asking for a fifth is SERVED one of them, silently, until now.
       ...(exchange.fallbackReason ? { fallbackReason: exchange.fallbackReason } : {}),
+      ...(exchange.fallbackLang ? { fallbackLang: exchange.fallbackLang } : {}),
     });
   } catch (error) {
     // An aborted request is not a fault: the client is gone, and logging it as a
     // store error would file a deliberate cancel as an incident.
     if (request.signal.aborted) return new NextResponse(null, { status: 499 });
+    // The turn overran its stated budget (INTAKE_DIALOG_TIMEOUT_MS). That is a
+    // decision we made, not a store fault: name it so the composer can offer a
+    // retry instead of the generic "could not process that message".
+    if (error instanceof IntakeTimeoutError) return jsonRefusal("INTAKE_TURN_TIMEOUT", 504);
     return safeJsonError(error, "api:intake/message", "INTAKE_MESSAGE_FAILED");
   }
 }

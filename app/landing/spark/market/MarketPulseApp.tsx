@@ -11,16 +11,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Wordmark from "../Wordmark";
 import { LandingLangSwitch } from "../LandingLangSwitch";
+import LegalRow from "../sections/LegalRow";
 import { DISPLAY, HAND } from "../tokens";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
-import { snapshot, fmtDate } from "./data";
+import { snapshot, fmtDate, snapshotAgeDays, STALE_AFTER_DAYS } from "./data";
 import MarketPulseAtlas from "./MarketPulseAtlas";
 
 export default function MarketPulseApp() {
   const t = useTranslations("jobMarket");
+  const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const onSignIn = () => {
     setMenuOpen(false);
@@ -29,6 +31,13 @@ export default function MarketPulseApp() {
   const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
   const asOf = snapshot.meta.vacancies_date ?? snapshot.meta.generated_at.slice(0, 10);
   const fresh90 = snapshot.meta.posted_within_90d_pct;
+  // The snapshot is COMMITTED, not fetched: nothing refreshes it but a rebuild, so
+  // a reader can arrive months after it was cut and read a stale register as "the
+  // market right now". Past STALE_AFTER_DAYS the page says so in its own words
+  // rather than leaving the date to be noticed. Age is measured at render; both
+  // the server and the browser render on the same day, so the boolean agrees.
+  const ageDays = snapshotAgeDays(asOf);
+  const stale = ageDays != null && ageDays > STALE_AFTER_DAYS;
 
   return (
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
@@ -109,9 +118,14 @@ export default function MarketPulseApp() {
             word "NaN". ICU formats the number itself, per locale. */}
         <p className={`${HAND} mt-4 text-sm text-[#526b4f]`}>
           {fresh90 == null
-            ? t("hero.updatedNoPct", { date: fmtDate(asOf), n: snapshot.meta.total_vacancies })
-            : t("hero.updated", { date: fmtDate(asOf), n: snapshot.meta.total_vacancies, pct: fresh90 })}
+            ? t("hero.updatedNoPct", { date: fmtDate(asOf, locale), n: snapshot.meta.total_vacancies })
+            : t("hero.updated", { date: fmtDate(asOf, locale), n: snapshot.meta.total_vacancies, pct: fresh90 })}
         </p>
+        {stale ? (
+          <p className="mx-auto mt-3 max-w-xl rounded-xl border-[3px] border-[#17202a] bg-[#dce7d0] px-4 py-2 text-[17px] font-bold text-[#17202a]">
+            {t("hero.stale", { days: ageDays })}
+          </p>
+        ) : null}
       </section>
 
       {/* ── Body (Atlas) ───────────────────────────────────────── */}
@@ -129,11 +143,18 @@ export default function MarketPulseApp() {
             </a>
           </p>
         </div>
-        <div className="mt-6 flex items-center justify-between">
+        {/* Every public front door owes the same legal row — /market is in the
+            sitemap and captures no PII itself, but a visitor who lands here from a
+            search result must be able to reach the policies without going home
+            first. Shared component, shared copy (landing.footer.*). */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
           <Link href="/" className="text-[17px] font-bold hover:text-[#d65a4a]">
             ← {t("nav.home")}
           </Link>
-          <LandingLangSwitch />
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <LegalRow />
+            <LandingLangSwitch />
+          </div>
         </div>
       </footer>
     </main>

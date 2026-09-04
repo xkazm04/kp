@@ -13,9 +13,10 @@
  * stays on the page-level TYPE_SCALE. See app/globals.css for the two scales.
  */
 import { motion, useReducedMotion } from "framer-motion";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ART_TYPE_SCALE, DISPLAY, HAND, STICKER, INK } from "../tokens";
 import {
+  fmtCompact,
   fmtCzk,
   fmtCzkShort,
   fmtInt,
@@ -116,6 +117,9 @@ export function MapLegend({ metric, lo, mid, hi }: { metric: MapMetric; lo: stri
 // only swaps text — it never remounts or reflows the surrounding layout.
 export function RegionDetail({ region }: { region: Region | null }) {
   const t = useTranslations("jobMarket");
+  // Money is formatted in the READER's locale (Intl, currency named) — see the
+  // formatting block in ./data.ts for why that is not the data's locale.
+  const locale = useLocale();
   return (
     // A polite live region: because activating a map region only swaps this
     // card's text (no remount), a screen reader would otherwise never hear the
@@ -141,19 +145,19 @@ export function RegionDetail({ region }: { region: Region | null }) {
               em-dash under a "Median salary" label. */}
           <div className={`mt-4 grid gap-4 ${isFigure(region.medianSalary) ? "grid-cols-2" : "grid-cols-1"}`}>
             <div>
-              <div className={`${DISPLAY} text-2xl font-extrabold text-[#d65a4a]`}>{fmtInt(region.vacancies)}</div>
+              <div className={`${DISPLAY} text-2xl font-extrabold text-[#d65a4a]`}>{fmtInt(region.vacancies, locale)}</div>
               <div className="text-[16px] font-bold uppercase tracking-wide text-[#42606f]">{t("map.vacancies")}</div>
             </div>
             {isFigure(region.medianSalary) ? (
               <div>
-                <div className={`${DISPLAY} text-2xl font-extrabold text-[#526b4f]`}>{fmtCzk(region.medianSalary)}</div>
+                <div className={`${DISPLAY} text-2xl font-extrabold text-[#526b4f]`}>{fmtCzk(region.medianSalary, locale)}</div>
                 <div className="text-[16px] font-bold uppercase tracking-wide text-[#42606f]">{t("map.median")}</div>
               </div>
             ) : null}
           </div>
           {isFigure(region.p25) && isFigure(region.p75) ? (
             <p className={`${HAND} mt-3 text-sm text-[#526b4f]`}>
-              {t("map.range", { lo: fmtCzkShort(region.p25), hi: fmtCzkShort(region.p75) })}
+              {t("map.range", { lo: fmtCzkShort(region.p25, locale), hi: fmtCzkShort(region.p75, locale) })}
             </p>
           ) : null}
         </>
@@ -165,6 +169,7 @@ export function RegionDetail({ region }: { region: Region | null }) {
 // ── salary bands (families × seniority as range bars off ISPV deciles) ────────
 export function SalaryBands({ families }: { families: RefSalary[] }) {
   const t = useTranslations("jobMarket");
+  const locale = useLocale();
   // A family with no median has no band to draw — and `pos(null) → 0` would
   // have drawn one starting at 0 Kč. Drop the row instead.
   const rows = families.filter((f) => isFigure(f.median));
@@ -176,8 +181,17 @@ export function SalaryBands({ families }: { families: RefSalary[] }) {
         <div key={f.family} className={`${STICKER} px-4 py-3`}>
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[19px] font-bold text-[#17202a]">{t(`families.${f.family}`)}</span>
-            <span className={`${HAND} text-sm text-[#526b4f]`}>{t("salary.median", { v: fmtCzkShort(f.median) })}</span>
+            <span className={`${HAND} text-sm text-[#526b4f]`}>{t("salary.median", { v: fmtCzkShort(f.median, locale) })}</span>
           </div>
+          {/* The sample size was in the snapshot and never on the page. A band drawn
+              from 117 000 surveyed employees and one drawn from 4 000 are not the
+              same claim, and a reader deciding what to pay deserves the difference.
+              `employees_k` is in thousands. */}
+          {isFigure(f.employees_k) && f.employees_k > 0 ? (
+            <p className="mt-0.5 text-[16px] font-medium text-[#42606f]">
+              {t("salary.basedOn", { v: fmtCompact(f.employees_k * 1000, locale) })}
+            </p>
+          ) : null}
           <div className="relative mt-2 h-6">
             <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded bg-[#dce7d0]" />
             {/* junior → lead band — only when both ends are real figures. */}
@@ -191,13 +205,13 @@ export function SalaryBands({ families }: { families: RefSalary[] }) {
             <div
               className="absolute top-1/2 h-4 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded bg-[#17202a]"
               style={{ left: `${pos(f.median)}%` }}
-              title={fmtCzk(f.median)}
+              title={fmtCzk(f.median, locale)}
             />
           </div>
           {isFigure(f.junior) || isFigure(f.lead) ? (
             <div className="mt-1 flex justify-between text-[16px] font-medium text-[#42606f]">
-              <span>{isFigure(f.junior) ? `${t("salary.junior")} ${fmtCzkShort(f.junior)}` : ""}</span>
-              <span>{isFigure(f.lead) ? `${t("salary.lead")} ${fmtCzkShort(f.lead)}` : ""}</span>
+              <span>{isFigure(f.junior) ? `${t("salary.junior")} ${fmtCzkShort(f.junior, locale)}` : ""}</span>
+              <span>{isFigure(f.lead) ? `${t("salary.lead")} ${fmtCzkShort(f.lead, locale)}` : ""}</span>
             </div>
           ) : null}
         </div>
@@ -246,19 +260,25 @@ export function FamilyDemandList({ families }: { families: FamilyDemand[] }) {
 }
 
 export function OccupationList({ occupations }: { occupations: Occupation[] }) {
+  const locale = useLocale();
   return (
     <ol className={`${ART_TYPE_SCALE} divide-y-[2px] divide-[#dce7d0]`}>
       {occupations.map((o, i) => (
         <li key={o.czIsco} className="flex items-center gap-3 py-2.5">
-          <span className={`${DISPLAY} w-6 shrink-0 text-base font-extrabold text-[#caa54c]`}>{i + 1}</span>
+          {/* Spark's AMBER (#caa54c) sits at 2.3:1 on white — axe recorded all
+              eleven of these rank ticks as a serious contrast failure on /market
+              (e2e/public-pages.spec.ts). The gold reading is kept, deepened to a
+              shade that passes 4.5:1 as small text; the ramp colours elsewhere on
+              the page are non-text and unaffected. */}
+          <span className={`${DISPLAY} w-6 shrink-0 text-base font-extrabold text-[#7a5f14]`}>{i + 1}</span>
           <span className="min-w-0 flex-1 truncate text-[19px] font-medium text-[#17202a]" title={o.name}>
             {o.name}
           </span>
-          <span className="shrink-0 text-[17px] font-bold text-[#42606f]">{fmtInt(o.vacancies)}</span>
+          <span className="shrink-0 text-[17px] font-bold text-[#42606f]">{fmtInt(o.vacancies, locale)}</span>
           {/* Keep the column width so the list stays aligned, but leave the cell
               blank rather than parking an em-dash in a money column. */}
           <span className="w-28 shrink-0 text-right text-[17px] font-bold text-[#526b4f]">
-            {isFigure(o.medianSalary) ? fmtCzk(o.medianSalary) : ""}
+            {isFigure(o.medianSalary) ? fmtCzk(o.medianSalary, locale) : ""}
           </span>
         </li>
       ))}
@@ -269,6 +289,7 @@ export function OccupationList({ occupations }: { occupations: Occupation[] }) {
 // ── org-type split ────────────────────────────────────────────────────────────
 export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
   const t = useTranslations("jobMarket");
+  const locale = useLocale();
   const max = Math.max(...orgTypes.map((o) => (isFigure(o.medianSalary) ? o.medianSalary : 0)), 0);
   return (
     <div className={`${ART_TYPE_SCALE} grid gap-3 sm:grid-cols-3`}>
@@ -280,12 +301,20 @@ export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
         const pay = isFigure(o.medianSalary) ? o.medianSalary : null;
         return (
           <div key={o.orgType} className={`${STICKER} px-4 py-4`}>
-            <div className={`${HAND} text-sm`} style={{ color: orgColor(o.orgType) }}>
+            {/* The org colour used to BE the label text: 18px hand-font in coral
+                (3.87:1) and amber (2.33:1) on white, which axe records as a serious
+                contrast failure and a reader with low vision simply cannot read. The
+                colour carries nothing the words do not — it only ties the tile to its
+                bar — so it moves to a swatch (decorative, aria-hidden) and the label
+                takes a readable ink-blue. The encoding survives; the text becomes
+                legible. Same change on the JD cards below. */}
+            <div className={`${HAND} flex items-center gap-2 text-sm text-[#42606f]`}>
+              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full border-[2px] border-[#17202a]" style={{ background: orgColor(o.orgType) }} />
               {t(`orgTypes.${o.orgType}`)}
             </div>
             {pay != null ? (
               <>
-                <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtCzk(pay)}</div>
+                <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtCzk(pay, locale)}</div>
                 <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border-[2px] border-[#17202a] bg-white">
                   <div
                     className="h-full rounded-full"
@@ -294,7 +323,7 @@ export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
                 </div>
               </>
             ) : (
-              <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtInt(o.vacancies)}</div>
+              <div className={`${DISPLAY} mt-1 text-2xl font-extrabold`}>{fmtInt(o.vacancies, locale)}</div>
             )}
             <div className="mt-2 text-[17px] font-medium text-[#42606f]">
               {pay != null ? t("demand.openings", { n: o.vacancies }) : t("orgTypes.openingsOnly")}
@@ -309,6 +338,7 @@ export function OrgSplit({ orgTypes }: { orgTypes: OrgType[] }) {
 // ── JD reference gallery (family filter + cards) ──────────────────────────────
 export function JdCard({ item }: { item: JdGroup["items"][number] }) {
   const t = useTranslations("jobMarket");
+  const locale = useLocale();
   // Most ÚP postings advertise a floor and no ceiling. Printing that floor bare
   // reads as "the salary" when it is the bottom of an open band — say "from".
   const lo = isFigure(item.salaryMin) ? item.salaryMin : null;
@@ -317,10 +347,10 @@ export function JdCard({ item }: { item: JdGroup["items"][number] }) {
     lo == null && hi == null
       ? t("jd.salaryHidden")
       : lo != null && hi != null && hi !== lo
-      ? `${fmtCzkShort(lo)} – ${fmtCzkShort(hi)}`
+      ? `${fmtCzkShort(lo, locale)} – ${fmtCzkShort(hi, locale)}`
       : lo != null && hi == null
-      ? t("jd.salaryFrom", { v: fmtCzk(lo) })
-      : fmtCzk(hi ?? lo);
+      ? t("jd.salaryFrom", { v: fmtCzk(lo, locale) })
+      : fmtCzk(hi ?? lo, locale);
   return (
     <div className={`${ART_TYPE_SCALE} ${STICKER} flex flex-col gap-2 px-4 py-4`}>
       <h4 className={`${DISPLAY} text-[21px] font-extrabold leading-tight`}>{item.title}</h4>
@@ -333,7 +363,7 @@ export function JdCard({ item }: { item: JdGroup["items"][number] }) {
         <p className="text-[19px] font-bold text-[#526b4f]">{salary}</p>
         {item.posted ? (
           <span className="shrink-0 rounded-md bg-[#dce7d0] px-2 py-0.5 text-[15px] font-bold text-[#42606f]">
-            {t("jd.posted", { date: fmtDate(item.posted) })}
+            {t("jd.posted", { date: fmtDate(item.posted, locale) })}
           </span>
         ) : null}
       </div>
@@ -346,7 +376,8 @@ export function JdCard({ item }: { item: JdGroup["items"][number] }) {
           ))}
         </div>
       )}
-      <span className={`${HAND} mt-auto pt-1 text-sm`} style={{ color: orgColor(item.orgType) }}>
+      <span className={`${HAND} mt-auto flex items-center gap-2 pt-1 text-sm text-[#42606f]`}>
+        <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full border-[2px] border-[#17202a]" style={{ background: orgColor(item.orgType) }} />
         {t(`orgTypes.${item.orgType}`)}
       </span>
     </div>

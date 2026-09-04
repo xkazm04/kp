@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useErrorMessage } from "./use-error-message";
+// The body-failure rule is single-sourced in the React-free load-state module —
+// this hook, useLoader and useInfiniteScroll all read the SAME definition of
+// "this response is not a usable result".
+import { asRecord, isLoadFailure } from "./load-state";
 
 /** What a failed read is: the machine `code` the route answered with (null when
  *  it answered none) plus the HTTP status. Deliberately NOT the server's English
@@ -17,9 +21,8 @@ export type JsonFetchFailure = { code: string | null; status: number };
  *  (data === null && error === null) with no retry. These read-only dashboard
  *  endpoints always answer a JSON object, so an empty body is a server fault. */
 export function jsonFetchFailure(ok: boolean, status: number, body: unknown): JsonFetchFailure | null {
-  const rec = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
-  const carriesError = rec !== null && "error" in rec && Boolean(rec.error);
-  if (ok && rec !== null && !carriesError) return null;
+  const rec = asRecord(body);
+  if (!isLoadFailure(ok, rec)) return null;
   const rawCode = rec?.code;
   return { code: typeof rawCode === "string" && rawCode ? rawCode : null, status };
 }

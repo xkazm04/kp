@@ -9,6 +9,7 @@ import {
   defaultViewId,
   defaultViewToApply,
   withDefault,
+  toggleDefault,
   upsertViewByName,
   renameStoredView,
   nameCollides,
@@ -124,4 +125,34 @@ test("nameCollides: detects an existing name, excluding the edited view itself",
   assert.equal(nameCollides(views, "  Aging  "), true, "trimmed comparison");
   assert.equal(nameCollides(views, "Aging", "a"), false, "the view being renamed doesn't collide with itself");
   assert.equal(nameCollides(views, "Fresh"), false);
+});
+
+test("toggleDefault: marking a non-default view makes it THE default", () => {
+  const views = [view({ id: "a", name: "A", isDefault: true }), view({ id: "b", name: "B" })];
+  const out = toggleDefault(views, "b");
+  assert.equal(defaultViewId(out), "b", "the marking moves — never two defaults");
+  assert.equal(out.find((v) => v.id === "a")?.isDefault, false);
+});
+
+test("toggleDefault: clicking the CURRENT default clears it (a board may have none)", () => {
+  const views = [view({ id: "a", name: "A", isDefault: true }), view({ id: "b", name: "B" })];
+  assert.equal(defaultViewId(toggleDefault(views, "a")), null);
+});
+
+test("toggleDefault: marking from a board with no default at all", () => {
+  const views = [view({ id: "a", name: "A" }), view({ id: "b", name: "B" })];
+  assert.equal(defaultViewId(toggleDefault(views, "a")), "a");
+});
+
+test("toggleDefault: an unknown id clears the marking rather than inventing one", () => {
+  const views = [view({ id: "a", name: "A", isDefault: true })];
+  const out = toggleDefault(views, "gone");
+  assert.equal(defaultViewId(out), null);
+  assert.equal(out.length, 1, "no view is added or dropped");
+});
+
+test("toggleDefault: inputs are untouched (the rule is a transform, not a mutation)", () => {
+  const views = [view({ id: "a", name: "A", isDefault: true })];
+  toggleDefault(views, "a");
+  assert.equal(views[0].isDefault, true);
 });
