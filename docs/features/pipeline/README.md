@@ -985,6 +985,33 @@ Routing a specific candidate through the gate of the specific column they stand
 on needs a per-entry stage read the automation path does not thread yet.
 Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
 
+### Offer terms are validated before a link is minted
+
+`extendDraftedOffer` runs `validateOfferTerms` (`app/_lib/offer-policy.ts`, pure
+and unit-tested) over the draft's figure, currency and optional terms note
+**before** `getOrCreateOpenOffer`, so an invalid draft mints no token, dispatches
+no letter and seals no decision. The rule:
+
+| Field | Accepted | Refused with |
+| --- | --- | --- |
+| `recommended` | absent / 0 / unparseable → **unpriced** (null, legal — `draft_offer` refuses to invent a figure and the auto gate parks it); otherwise `0 < n ≤ OFFER_SALARY_MAX` (100 000 000), floored to a whole unit | `OFFER_SALARY_INVALID` (400, `max`) |
+| `currency` | absent/empty → null (unit-less, P2-1); otherwise trimmed + upper-cased and required to be in `OFFER_CURRENCIES` (`APP_CURRENCY`, EUR, USD, GBP, PLN) | `OFFER_CURRENCY_UNSUPPORTED` (400) |
+| `notes` | trimmed; empty → null; `≤ OFFER_NOTES_MAX_CHARS` (2 000) | `OFFER_NOTES_TOO_LONG` (400, `max`) |
+
+A market added to `pipeline/jobfit/market_config.py` whose currency is not on that
+closed list makes offers in it *refuse*, not mislabel — add the code to
+`OFFER_CURRENCIES` in the same change. The normalization also means `" czk "` and
+`"CZK"` are the same terms, so a re-extend cannot read whitespace as a corrected
+offer.
+
+**Deadlines are elapsed time, not wall clock.** `ttlDays` is multiplied out to
+whole 24-hour days, so a 7-day offer crossing a DST boundary lapses an hour off the
+local time it was minted at (`offerExpiresAtMs` states why: the row carries no
+timezone, and "seven days" is a promise about duration). The candidate is never left
+to infer it — the letter states the deadline **with its timezone**
+(`formatOfferDeadline`, `comms-dispatch.ts`) and the accept page counts down from
+the same server-side instant.
+
 ## Known gaps
 
 - The route layer diverged from the original one-route-per-task design in

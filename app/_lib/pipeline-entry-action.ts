@@ -11,6 +11,7 @@ import { REFUSAL_ERRORS, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
+import { validateOfferTerms } from "@/app/_lib/offer-policy";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-schema";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
@@ -132,12 +133,35 @@ export async function extendDraftedOffer(
   bodyTtlDays: unknown,
   sealActor = "human:recruiter"
 ): Promise<EntryActionResult> {
-  let draft: { subject?: unknown; body?: unknown; recommended?: unknown; currency?: unknown; ttlDays?: unknown; startDate?: unknown } = {};
+  let draft: {
+    subject?: unknown;
+    body?: unknown;
+    recommended?: unknown;
+    currency?: unknown;
+    ttlDays?: unknown;
+    startDate?: unknown;
+    /** Optional free-text terms note (a bonus, a notice period) the draft may carry
+     *  alongside the letter. Length-capped by validateOfferTerms so an unbounded
+     *  string can't ride into the sealed decision record. */
+    notes?: unknown;
+  } = {};
   try {
     draft = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : {};
   } catch {
     draft = {};
   }
+
+  // VALIDATE THE TERMS BEFORE ANY OF THEM CAN BE MINTED (perfect:
+  // an-offer-carries-validated-terms). The figure and the currency go straight onto a
+  // PUBLIC accept page and into a sealed decision record, and the only checks here
+  // used to be `Number(draft.recommended) || null` and `typeof === "string"` — so a
+  // negative figure rendered verbatim as the salary someone was asked to accept and
+  // any sentence rode along as the unit label. offer-policy owns the rule (pure,
+  // unit-tested); the refusal is a CODE the recruiter's card localizes, and `max`
+  // carries the bound a localized sentence needs. Refusing BEFORE getOrCreateOpenOffer
+  // means an invalid draft mints no token, sends no letter and seals no decision.
+  const terms = validateOfferTerms({ salary: draft.recommended, currency: draft.currency, notes: draft.notes });
+  if (!terms.ok) return err(400, terms.code, { max: terms.max });
 
   // Reuse an already-open offer for this entry (idempotent re-extends). Atomic
   // (idea-00987b3c): the old getOpenOfferForEntry() ?? createOffer() was a TOCTOU
@@ -150,8 +174,10 @@ export async function extendDraftedOffer(
     jobTitle: entry.jobTitle,
     // P2-1 — store the offer draft's OWN currency; do NOT fabricate "CZK" when the
     // draft carried none. A null currency renders unit-less rather than mislabeling.
-    currency: typeof draft.currency === "string" ? draft.currency : null,
-    salary: Number(draft.recommended) || null,
+    // Normalized by validateOfferTerms, so " czk " persists as "CZK" and a re-extend's
+    // termsChanged comparison can't see a whitespace difference as a terms correction.
+    currency: terms.currency,
+    salary: terms.salary,
     payload: draft,
     // The recruiter's deadline lever: prefer the value chosen at approval time
     // (bodyTtlDays) over any stored on the draft; out-of-range/omitted falls back

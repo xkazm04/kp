@@ -1728,7 +1728,10 @@
     "ANALYSIS_NOT_FOUND": "Diese Analyse liegt nicht in diesem Arbeitsbereich.",
     "ANALYSIS_GITHUB_INVALID": "Diese GitHub-Analyse war nicht lesbar und wurde nicht angehängt.",
     "ANALYSIS_GITHUB_TOO_LARGE": "Diese GitHub-Analyse ist zu groß zum Anhängen.",
-    "COMPLIANCE_LOOKUP_FAILED": "Die Compliance-Informationen konnten nicht geladen werden. Bitte erneut versuchen."
+    "COMPLIANCE_LOOKUP_FAILED": "Die Compliance-Informationen konnten nicht geladen werden. Bitte erneut versuchen.",
+    "OFFER_SALARY_INVALID": "Dieser Betrag kann kein Gehalt sein. Prüfen Sie die Zahl, bevor Sie das Angebot senden.",
+    "OFFER_CURRENCY_UNSUPPORTED": "In dieser Währung kann hier kein Angebot gemacht werden.",
+    "OFFER_NOTES_TOO_LONG": "Diese Angebotsnotiz ist zu lang. Kürzen Sie sie und senden Sie das Angebot erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",

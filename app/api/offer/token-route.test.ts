@@ -127,3 +127,76 @@ test("POST on a lapsed offer → 410 Gone with the expired flag", async () => {
   assert.match((await res.json()).error, /expired/i);
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer", "an expired link must not move the entry");
 });
+
+// --- The PUBLIC projection, pinned ------------------------------------------
+
+test("GET pins the EXACT field set that reaches the candidate — no silent leak", async () => {
+  const { offer } = offerFixture();
+  const res = await GET(new NextRequest(`http://localhost/api/offer/${offer.token}`), params(offer.token));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  // A public token door carries a PROJECTION, not the row (.claude/CLAUDE.md).
+  // offerView is hand-written, so a field appended to OfferRow — or to the view —
+  // reaches an unauthenticated page unless something here says no. Exactly these,
+  // and nothing else: no id, no entryId, no workspaceId, no payload, no
+  // respondedAt/remindedAt, no ttlDays.
+  assert.deepEqual(Object.keys(body).sort(), ["offer"]);
+  assert.deepEqual(Object.keys(body.offer).sort(), [
+    "candidateLabel",
+    "company",
+    "currency",
+    "expiresAt",
+    "hoursRemaining",
+    "jobTitle",
+    "salary",
+    "status",
+    "token",
+  ]);
+  // The countdown is SERVER-computed (offers-onboarding #5) and rides the same
+  // instant as the deadline the letter states.
+  assert.equal(typeof body.offer.hoursRemaining, "number");
+  assert.ok(body.offer.hoursRemaining > 0 && body.offer.hoursRemaining <= 7 * 24);
+});
+
+test("POST pins the EXACT success field set", async () => {
+  const { offer } = offerFixture();
+  const res = await post(offer.token, { response: "accept" });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(Object.keys(body).sort(), ["alreadyResponded", "candidateLabel", "jobTitle", "ok", "status"]);
+});
+
+// --- The throttle, driven live ----------------------------------------------
+//
+// Both verbs on this door are limited (rate-limit-contract.test.ts pins the call
+// sites; these drive the limiter for real, so a budget that is wired but never
+// reached — or reached one request early — is caught here). Unknown tokens are
+// used deliberately: every request is a 404 that mutates nothing, and the limiter
+// still counts it, which is the containment property that matters on a public door.
+
+test("GET over its per-token budget answers a coded 429", async () => {
+  const token = "tk-view-throttle";
+  const req = () => GET(new NextRequest(`http://localhost/api/offer/${token}`), params(token));
+  for (let i = 0; i < 60; i += 1) {
+    assert.equal((await req()).status, 404, `request ${i + 1} of 60 must still be served`);
+  }
+  const over = await req();
+  assert.equal(over.status, 429);
+  const body = await over.json();
+  assert.deepEqual(Object.keys(body).sort(), ["code", "error"]);
+  assert.equal(body.code, "TOO_MANY_REQUESTS");
+});
+
+test("POST over its per-token budget answers a coded 429", async () => {
+  const token = "tk-respond-throttle";
+  for (let i = 0; i < 10; i += 1) {
+    assert.equal((await post(token, { response: "accept" })).status, 404, `request ${i + 1} of 10 must still be served`);
+  }
+  const over = await post(token, { response: "accept" });
+  assert.equal(over.status, 429);
+  const body = await over.json();
+  assert.equal(body.code, "TOO_MANY_REQUESTS");
+  // The throttle sits BEFORE the body read and the store hop, so a throttled
+  // request cannot respond to an offer.
+  assert.deepEqual(Object.keys(body).sort(), ["code", "error"]);
+});

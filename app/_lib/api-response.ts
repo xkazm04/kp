@@ -700,6 +700,17 @@ export const REFUSAL_ERRORS = {
    *  (502). Deliberately NOT a fault code: the approval is left open on purpose and
    *  approving again re-sends the SAME link, which is what the reader must know. */
   OFFER_NOT_DISPATCHED: "The offer was drafted but couldn't be sent. Nothing was lost — approve again to re-send the same link.",
+  /** An offer draft whose figure is present but cannot be a salary — negative, or
+   *  past the stated ceiling (400). Refused BEFORE a token is minted, so no letter
+   *  goes out and no decision is sealed. The bound rides along as `max`.
+   *  (offer-policy.validateOfferTerms) */
+  OFFER_SALARY_INVALID: "That offer amount isn't a salary we can send — check the figure before extending.",
+  /** An offer draft denominated in a currency outside the closed list
+   *  (offer-policy.OFFER_CURRENCIES) (400). `max` carries the size of that list. */
+  OFFER_CURRENCY_UNSUPPORTED: "That currency isn't one an offer can be made in here.",
+  /** The offer draft's free-text terms note is over OFFER_NOTES_MAX_CHARS (400).
+   *  The cap rides along as `max`. */
+  OFFER_NOTES_TOO_LONG: "That offer note is too long to send — shorten it and extend again.",
   /** The offer DID go out, but the approval could not be cleared because the card
    *  moved while it was sending (409). The candidate holds a live link. */
   OFFER_SENT_APPROVAL_CHANGED: "The offer was sent, but this candidate's approval changed while it went out. Refresh before deciding again.",

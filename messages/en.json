@@ -1728,7 +1728,10 @@
     "ANALYSIS_NOT_FOUND": "That analysis is not in this workspace.",
     "ANALYSIS_GITHUB_INVALID": "That GitHub analysis could not be read and was not attached.",
     "ANALYSIS_GITHUB_TOO_LARGE": "That GitHub analysis is too large to attach.",
-    "COMPLIANCE_LOOKUP_FAILED": "Couldn’t load the compliance information. Please try again."
+    "COMPLIANCE_LOOKUP_FAILED": "Couldn’t load the compliance information. Please try again.",
+    "OFFER_SALARY_INVALID": "That offer amount isn’t a salary we can send. Check the figure before extending.",
+    "OFFER_CURRENCY_UNSUPPORTED": "That currency isn’t one an offer can be made in here.",
+    "OFFER_NOTES_TOO_LONG": "That offer note is too long to send. Shorten it and extend again."
   },
   "resilience": {
     "notFoundEyebrow": "404",

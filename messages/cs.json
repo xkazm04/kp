@@ -1728,7 +1728,10 @@
     "ANALYSIS_NOT_FOUND": "Tato analýza v tomto pracovním prostoru není.",
     "ANALYSIS_GITHUB_INVALID": "Analýzu GitHubu se nepodařilo přečíst a nebyla připojena.",
     "ANALYSIS_GITHUB_TOO_LARGE": "Analýza GitHubu je příliš velká na připojení.",
-    "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu."
+    "COMPLIANCE_LOOKUP_FAILED": "Informace o compliance se nepodařilo načíst. Zkuste to prosím znovu.",
+    "OFFER_SALARY_INVALID": "Tato částka nemůže být mzdou. Před odesláním nabídky zkontrolujte číslo.",
+    "OFFER_CURRENCY_UNSUPPORTED": "V této měně zde nabídku vytvořit nelze.",
+    "OFFER_NOTES_TOO_LONG": "Poznámka k nabídce je příliš dlouhá. Zkraťte ji a nabídku odešlete znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",

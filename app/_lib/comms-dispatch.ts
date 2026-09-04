@@ -667,7 +667,23 @@ function formatOfferDeadline(iso: string | null, locale: string | null | undefin
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
   const loc = candidateLocale(locale, workspaceId);
-  return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
+  // The deadline NAMES ITS TIMEZONE. Offer expiry is elapsed time, not wall clock
+  // (offer-policy.offerExpiresAtMs states why), so a window crossing a DST boundary
+  // lands an hour off the local time it was minted at — and a bare "29 Mar, 15:00"
+  // in a letter read in another country is ambiguous besides. `timeStyle: "short"`
+  // cannot carry a zone, so the parts are spelled out: same date + time as before,
+  // plus the short zone name of whatever clock the server is on, in the candidate's
+  // own language.
+  // (dateStyle/timeStyle may not be combined with individual component options —
+  // Intl THROWS on the mix — so every part is spelled out explicitly.)
+  return new Intl.DateTimeFormat(loc, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(ms));
 }
 
 /** The proactive expiry nudge (idea-29361408 follow-up): a single heads-up fired by
