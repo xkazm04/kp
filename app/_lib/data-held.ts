@@ -24,3 +24,28 @@ export function heldDataCategories(s: HeldSignals): string[] {
   if (s.hasScore) out.push("scores");
   return out;
 }
+
+/** The categories the /data page may RENDER, given whatever the API actually
+ *  returned and the labels the page can render.
+ *
+ *  The render side used to fall back to `Object.keys(labels)` when `held` was
+ *  missing — i.e. it re-armed the exact hardcoded five-item over-claim that
+ *  {@link heldDataCategories} exists to kill, on the one surface where a false
+ *  "we hold your interview records" is a transparency failure rather than a
+ *  cosmetic bug. A missing field is not evidence that we hold everything; it is
+ *  no evidence at all, so the honest render is NOTHING. Anything the page cannot
+ *  label is dropped (an older client against a newer API), and a repeated key is
+ *  collapsed so the list can never show a category twice.
+ *
+ *  Pure and dependency-free like the rest of this module, so the client component
+ *  and its node --test both load it. */
+export function renderableHeldCategories(held: unknown, labelled: readonly string[]): string[] {
+  if (!Array.isArray(held)) return [];
+  const canRender = new Set(labelled);
+  const out: string[] = [];
+  for (const h of held) {
+    if (typeof h !== "string" || !canRender.has(h) || out.includes(h)) continue;
+    out.push(h);
+  }
+  return out;
+}

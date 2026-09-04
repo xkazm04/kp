@@ -137,6 +137,15 @@ every content write, and `anonymizeProfile` goes through `updateProfile`), and
 workspace rule — to a `pipeline_entries` row carrying `anonymized_at`. Untouched seed
 rows still refresh. `seed-analyses-preserve.test.ts` pins both directions.
 
+**The “what we hold” list never over-claims, on either side.** `heldDataCategories`
+(`app/_lib/data-held.ts`) projects the categories from what the entry ACTUALLY has, and
+the route sends them. The client (`app/data/[token]/DataClient.tsx`) used to fall back to
+`Object.keys(heldLabel)` when the field was absent, which re-armed the same hardcoded
+five-item claim it removed — on a response that simply said nothing. `renderableHeldCategories`
+replaces it: a missing or malformed field renders NOTHING, unlabelled and repeated keys are
+dropped, and the “What we hold” heading is hidden with the list rather than left over an
+empty box. Pinned in `app/_lib/data-held.test.ts`.
+
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET
