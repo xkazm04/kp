@@ -6356,7 +6356,9 @@
       "ahead": "ahead",
       "behind": "behind",
       "footnote": "Anonymized aggregate across {teams} teams. No candidate or team data is shared.",
-      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window."
+      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window.",
+      "pctValue": "{value}%",
+      "dayValue": "{value}d"
     },
     "loadFailed": "Couldn't load analytics.",
     "retry": "Retry",

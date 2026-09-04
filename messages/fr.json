@@ -6356,7 +6356,9 @@
       "ahead": "en avance",
       "behind": "en retard",
       "footnote": "Agrégat anonymisé sur {teams} équipes. Aucune donnée de candidat ou d’équipe n’est partagée.",
-      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie."
+      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} j"
     },
     "loadFailed": "Impossible de charger les analyses.",
     "retry": "Réessayer",

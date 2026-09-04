@@ -6356,7 +6356,9 @@
       "ahead": "napřed",
       "behind": "pozadu",
       "footnote": "Anonymizovaný souhrn z {teams, plural, one {# týmu} other {# týmů}}. Žádná data kandidátů ani týmů se nesdílejí.",
-      "scopeAllTime": "Za celou dobu. Firemní srovnání se zvoleným obdobím nezužuje."
+      "scopeAllTime": "Za celou dobu. Firemní srovnání se zvoleným obdobím nezužuje.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} d"
     },
     "loadFailed": "Analytiku se nepodařilo načíst.",
     "retry": "Zkusit znovu",

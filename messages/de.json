@@ -6356,7 +6356,9 @@
       "ahead": "voraus",
       "behind": "zurück",
       "footnote": "Anonymisierte Aggregation über {teams} Teams. Es werden keine Kandidaten- oder Teamdaten geteilt.",
-      "scopeAllTime": "Gesamter Zeitraum: Der Unternehmensvergleich wird durch das gewählte Zeitfenster nicht eingegrenzt."
+      "scopeAllTime": "Gesamter Zeitraum: Der Unternehmensvergleich wird durch das gewählte Zeitfenster nicht eingegrenzt.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} T"
     },
     "loadFailed": "Analyse konnte nicht geladen werden.",
     "retry": "Erneut versuchen",

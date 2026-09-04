@@ -117,6 +117,11 @@ as the `/calibration` reads beside it. That is precisely why it needed a budget.
   below the k-anonymity floor (`BENCHMARK_MIN_ENTRIES = 20` / `BENCHMARK_MIN_TEAMS = 2`,
   `app/_lib/db/org-benchmarks.ts`) and biases `medianTimeToHireDays` low by structurally
   excluding slow hires. `analyticsWindowScope.test.ts` fails if either half drifts.
+- **Every benchmark figure is localized.** `interviewRatePct` / `hireRatePct` /
+  `medianTimeToHireDays` run through `useNumberFormat().grouped` and the
+  `orgBenchmark.pctValue` / `orgBenchmark.dayValue` catalog units, so the day suffix is
+  `d` / `d` / `T` / `j` per locale rather than a hard-coded English `d`. The team figure
+  uses the shared `STAT_VALUE` recipe.
 - **Below the floor, `totalEntries` is withheld too when one team is the only contributor.**
   The aggregate excludes the caller's own workspace, so in a 2-team org exactly one team feeds
   it — and the whole payload crosses the wire even though the locked panel prints only
