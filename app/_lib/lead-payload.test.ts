@@ -7,7 +7,13 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { extractLead, flattenLeadFields } from "./lead-payload.ts";
+import fs from "node:fs";
+import {
+  extractLead,
+  flattenLeadFields,
+  MAX_ATTRIBUTION_LENGTH,
+  ATTRIBUTION_TRUNCATION_MARKER,
+} from "./lead-payload.ts";
 
 const KO = ["ko_auth", "ko_mode", "ko_lang"];
 
@@ -171,4 +177,65 @@ test("attribution is empty when the payload carries none", () => {
   const lead = extractLead({ name: "J", email: "j@x.cz" }, []);
   assert.equal(lead.campaign, "");
   assert.equal(lead.variant, "");
+});
+
+// ── The attribution length cap ───────────────────────────────────────────────
+//
+// campaign/variant are free text from an UNTRUSTED third party that become a
+// recruiter-visible label AND a funnel-analytics group-by key (variantRowKey).
+// Uncapped at intake, one integration forwarding a tracking blob writes an
+// unbounded string into a column, a group key and a table cell at once.
+
+/** A campaign name of exactly `n` characters, distinguishable at both ends. */
+const longName = (n: number) => "spring-" + "x".repeat(n - 8) + "!";
+
+test("attribution: a value at the cap is kept whole, with no marker", () => {
+  const exact = longName(MAX_ATTRIBUTION_LENGTH);
+  assert.equal(exact.length, MAX_ATTRIBUTION_LENGTH); // the fixture itself is on the boundary
+  const lead = extractLead({ utm_campaign: exact, utm_content: exact }, []);
+  assert.equal(lead.campaign, exact, "a legitimate long name is not touched");
+  assert.equal(lead.variant, exact);
+  assert.ok(!lead.campaign.endsWith(ATTRIBUTION_TRUNCATION_MARKER), "nothing to mark");
+});
+
+test("attribution: an over-long value is TRUNCATED WITH A MARKER, never refused", () => {
+  // NON-VACUITY: pre-cap, extractLead returned the 4000-char blob verbatim — both
+  // the length assertion and the marker assertion fail against that.
+  const blob = longName(4000);
+  const lead = extractLead({ utm_campaign: blob, utm_content: blob, email: "j@x.cz" }, []);
+  assert.equal(Array.from(lead.campaign).length, MAX_ATTRIBUTION_LENGTH, "capped, marker included");
+  assert.ok(lead.campaign.endsWith(ATTRIBUTION_TRUNCATION_MARKER), "the reader can see it was cut");
+  assert.ok(lead.campaign.startsWith("spring-"), "the informative prefix survives");
+  assert.equal(Array.from(lead.variant).length, MAX_ATTRIBUTION_LENGTH);
+  // NEVER REFUSED: the lead itself is intact — a cosmetic field cannot cost a candidate.
+  assert.equal(lead.email, "j@x.cz");
+});
+
+test("attribution: the cap counts CODE POINTS, so an emoji name is never split", () => {
+  // "🎯" is one code point, two UTF-16 units: a blind .slice(0, 120) can leave a
+  // lone surrogate — an unpaired half that renders as U+FFFD and is not the string
+  // anyone typed. Array.from cuts on code-point boundaries instead.
+  const emoji = "🎯".repeat(400);
+  const lead = extractLead({ utm_campaign: emoji }, []);
+  assert.equal(Array.from(lead.campaign).length, MAX_ATTRIBUTION_LENGTH);
+  assert.ok(!/[\uD800-\uDFFF]/.test(lead.campaign.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "")),
+    "no unpaired surrogate survived the cut");
+});
+
+test("attribution: the downstream slice in inbound-lead.ts cannot re-truncate a capped value", () => {
+  // The webhook consumer applies its own MAX_LEAD_ATTRIBUTION_LENGTH slice. It is a
+  // no-op only while the two agree; if that constant ever drops BELOW the intake cap
+  // it would silently cut the marker off and re-introduce the invisible truncation
+  // this cap exists to make visible. Read from source (a value import would pull the
+  // DB layer into this pure test). CRLF-normalized: this checkout is CRLF, the
+  // worktree may be LF.
+  const src = fs
+    .readFileSync(new URL("./inbound-lead.ts", import.meta.url), "utf8")
+    .replace(/\r\n/g, "\n");
+  const m = /export const MAX_LEAD_ATTRIBUTION_LENGTH = (\d+);/.exec(src);
+  assert.ok(m, "inbound-lead.ts still declares MAX_LEAD_ATTRIBUTION_LENGTH");
+  assert.ok(
+    Number(m[1]) >= MAX_ATTRIBUTION_LENGTH,
+    `inbound-lead's cap (${m?.[1]}) must not be below the intake cap (${MAX_ATTRIBUTION_LENGTH})`
+  );
 });

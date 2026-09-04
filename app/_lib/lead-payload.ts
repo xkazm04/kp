@@ -19,9 +19,12 @@ export type ExtractedLead = {
    *  not silently discard a real candidate. Recorded for recruiter visibility;
    *  the enrichment apply re-runs the full gate. */
   ungatedKoIds: string[];
-  /** E5 — campaign attribution (utm_campaign-style; "" when none carried). */
+  /** E5 — campaign attribution (utm_campaign-style; "" when none carried).
+   *  Capped at MAX_ATTRIBUTION_LENGTH code points, truncated with a visible
+   *  marker rather than refused — see that constant for why. */
   campaign: string;
-  /** E5 — creative/variant attribution (utm_content / ad-id-style; "" when none). */
+  /** E5 — creative/variant attribution (utm_content / ad-id-style; "" when none).
+   *  Same cap and marker as `campaign`. */
   variant: string;
 };
 
@@ -52,6 +55,50 @@ const VARIANT_KEYS = ["utm_content", "variant", "ad_id", "ad_name", "creative"];
 
 // Same shape the apply surfaces validate against.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * The cap on campaign/variant attribution, in CODE POINTS.
+ *
+ * These two values are the least trustworthy strings in the payload and the ones
+ * with the longest reach: they are recruiter-visible LABELS (the drawer's origin
+ * line) and, worse, GROUP-BY KEYS — `variantRowKey(jobId, campaign, variant)` in
+ * source-analytics.ts builds the funnel-economics row identity out of them. A
+ * third-party integration that forwards a whole tracking blob (or a form field
+ * mis-mapped onto `utm_content`) therefore writes an unbounded string into a
+ * column, a group key and a table cell at once.
+ *
+ * 120 matches the cap `inbound-lead.ts` already applied downstream — deliberately,
+ * so the two agree and that `.slice` is a no-op on anything this function returns
+ * (lead-payload.test.ts pins that agreement). The difference is WHERE and HOW:
+ *
+ *   • WHERE — at intake, so EVERY consumer of `extractLead` inherits it rather than
+ *     each remembering to slice. The webhook path remembered; it is the only one.
+ *   • HOW — TRUNCATED WITH A MARKER, never refused. Refusing would drop a real
+ *     candidate over a cosmetic field, and silently slicing produces a label that
+ *     is indistinguishable from a genuine 120-character campaign name — the
+ *     recruiter reading the drawer, and anyone reading the variant table, has no
+ *     way to know the value was cut. The ellipsis says so.
+ *
+ * Code points, not UTF-16 units: ad-platform campaign names carry emoji, and a
+ * blind `.slice` can split a surrogate pair and store a lone half.
+ *
+ * Truncation can COLLIDE two campaigns that share a 119-character prefix into one
+ * analytics row. That is inherent to any cap; the marker at least makes the row
+ * visibly truncated rather than silently wrong.
+ */
+export const MAX_ATTRIBUTION_LENGTH = 120;
+
+/** The marker that says "this value was cut", counted INSIDE the cap so the
+ *  result is never longer than {@link MAX_ATTRIBUTION_LENGTH}. */
+export const ATTRIBUTION_TRUNCATION_MARKER = "…";
+
+/** Cap one attribution value under the policy above (empty stays empty). */
+function capAttribution(value: string): string {
+  const points = Array.from(value);
+  if (points.length <= MAX_ATTRIBUTION_LENGTH) return value;
+  const keep = MAX_ATTRIBUTION_LENGTH - Array.from(ATTRIBUTION_TRUNCATION_MARKER).length;
+  return points.slice(0, keep).join("") + ATTRIBUTION_TRUNCATION_MARKER;
+}
 
 // KO answer vocabulary across the form ecosystems we ingest from (EN + CS).
 const AFFIRMATIVE = new Set(["true", "yes", "y", "1", "on", "ano"]);
@@ -177,7 +224,7 @@ export function extractLead(payload: unknown, expectedKoIds: readonly string[]):
     email,
     failedKoIds,
     ungatedKoIds,
-    campaign: firstHit(fields, CAMPAIGN_KEYS),
-    variant: firstHit(fields, VARIANT_KEYS),
+    campaign: capAttribution(firstHit(fields, CAMPAIGN_KEYS)),
+    variant: capAttribution(firstHit(fields, VARIANT_KEYS)),
   };
 }
