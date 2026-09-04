@@ -641,6 +641,28 @@ pins the region's attributes, the catalog's ICU shapes, and — the half that
 actually rots — the list of surfaces that must MOUNT it: a shared region nobody
 renders announces nothing, and the table still looks correct in review.
 
+### Every `<th>` declares a scope (2026-09-04)
+
+A header cell with no `scope` is one assistive tech has to guess the direction
+of, and the guess is only reliable for the plain single-header-row table — not
+the comparison grids with a frozen first column, not the matrix with headers on
+both axes, not a header row carrying a filter control. Guessing wrong is worse
+than saying nothing: the numbers still get announced, attached to the wrong
+candidate.
+
+`ColumnHead` renders the `<th>` itself for exactly this reason (`scope` and
+`aria-sort` cannot then be omitted) but only reaches the tables that adopted it:
+**70 of the tree's 124 header cells declared nothing**, including six surfaces
+that imported the shared `ColumnFilter` and hand-rolled the headers around it.
+
+[`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
+ratchet — `scope` has no legitimate residual population: it is one attribute
+whose value follows from where the cell sits (`col` in a `<thead>` row, `row`
+for a cell that heads its row), and no table shape here wants neither. It scans
+`app/**/*.tsx` at the source level, blanking comments first so the table kit's
+own prose about `<th>` is not read as markup, and tracking JSX brace depth so an
+attribute holding an arrow function does not end the tag early.
+
 ### One size vocabulary across the field primitives (2026-09-04)
 
 `TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`

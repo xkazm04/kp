@@ -82,8 +82,8 @@ export function ActivityTab() {
             <table className="w-full min-w-[56rem] text-base">
               <thead>
                 <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
-                  <th className="pb-2 pr-3 font-semibold">{t("colWhen")}</th>
-                  <th className="pb-2 pr-3 font-semibold">
+                  <th scope="col" className="pb-2 pr-3 font-semibold">{t("colWhen")}</th>
+                  <th scope="col" className="pb-2 pr-3 font-semibold">
                     <ColumnFilter
                       title={t("colUseCase")}
                       value={useCaseFilter}
@@ -94,7 +94,7 @@ export function ActivityTab() {
                       options={caseOptions}
                     />
                   </th>
-                  <th className="pb-2 pr-3 font-semibold">
+                  <th scope="col" className="pb-2 pr-3 font-semibold">
                     <ColumnFilter
                       title={t("colProvider")}
                       value={providerFilter}
@@ -105,10 +105,10 @@ export function ActivityTab() {
                       options={providerOptions}
                     />
                   </th>
-                  <th className="pb-2 pr-3 font-semibold">{t("colModel")}</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">{t("colTokens")}</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">{t("colCost")}</th>
-                  <th className="pb-2 font-semibold">{t("colSource")}</th>
+                  <th scope="col" className="pb-2 pr-3 font-semibold">{t("colModel")}</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-semibold">{t("colTokens")}</th>
+                  <th scope="col" className="pb-2 pr-3 text-right font-semibold">{t("colCost")}</th>
+                  <th scope="col" className="pb-2 font-semibold">{t("colSource")}</th>
                 </tr>
               </thead>
               <tbody>

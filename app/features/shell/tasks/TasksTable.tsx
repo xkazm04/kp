@@ -36,7 +36,7 @@ export function TasksTable({ filters, children }: { filters?: TasksTableFilters;
       <table className="w-full min-w-[52rem] text-base">
         <thead>
           <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
-            <th className={th}>
+            <th scope="col" className={th}>
               {filters ? (
                 <ColumnFilter
                   title={t("table.colStatus")}
@@ -48,7 +48,7 @@ export function TasksTable({ filters, children }: { filters?: TasksTableFilters;
                 t("table.colStatus")
               )}
             </th>
-            <th className={th}>
+            <th scope="col" className={th}>
               {filters ? (
                 // Free text matches what the reader can SEE, so it runs over the
                 // resolved (localized) label — the stored one is an encoded
@@ -58,7 +58,7 @@ export function TasksTable({ filters, children }: { filters?: TasksTableFilters;
                 t("table.colTask")
               )}
             </th>
-            <th className={th}>
+            <th scope="col" className={th}>
               {filters ? (
                 // Kind values are canonical wire slugs, not copy: listed verbatim.
                 <ColumnFilter
@@ -71,9 +71,9 @@ export function TasksTable({ filters, children }: { filters?: TasksTableFilters;
                 t("table.colKind")
               )}
             </th>
-            <th className={th}>{t("table.colWhen")}</th>
-            <th className={th}>{t("table.colTook")}</th>
-            <th className="pb-2 text-right font-semibold">{t("table.colActions")}</th>
+            <th scope="col" className={th}>{t("table.colWhen")}</th>
+            <th scope="col" className={th}>{t("table.colTook")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("table.colActions")}</th>
           </tr>
         </thead>
         <tbody>{children}</tbody>

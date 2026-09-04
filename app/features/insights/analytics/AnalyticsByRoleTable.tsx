@@ -75,14 +75,14 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
           <tr className={`border-b border-stone-200 text-left ${META_LABEL}`}>
             {/* The header IS the search box — the repo's ColumnFilter idiom
                 (comms ledger, tasks, outbox, roster), not a new one. */}
-            <th className="pb-2 font-semibold">
+            <th scope="col" className="pb-2 font-semibold">
               <ColumnFilter title={t("colJob")} mode="search" value={query} onChange={setQuery} />
             </th>
-            <th className="pb-2 text-right font-semibold">{t("colKoDeclined")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colInPipeline")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colHired")}</th>
-            <th className="pb-2 text-right font-semibold">{t("colHireRate")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colKoDeclined")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colInPipeline")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colReachedInterview")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colHired")}</th>
+            <th scope="col" className="pb-2 text-right font-semibold">{t("colHireRate")}</th>
           </tr>
         </thead>
         <tbody>

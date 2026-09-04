@@ -59,11 +59,11 @@ export function WorkspaceMembersTable({
           <table className="w-full min-w-[38rem] text-left">
             <thead>
               <tr className="border-b border-stone-200 text-meta uppercase text-steel">
-                <th className="px-5 py-2 font-medium">{t("colMember")}</th>
-                <th className="px-2 py-2 font-medium">{t("colRole")}</th>
-                <th className="px-2 py-2 font-medium">{t("colStatus")}</th>
-                <th className="px-2 py-2 font-medium">{t("colPermissions")}</th>
-                <th className="px-5 py-2" />
+                <th scope="col" className="px-5 py-2 font-medium">{t("colMember")}</th>
+                <th scope="col" className="px-2 py-2 font-medium">{t("colRole")}</th>
+                <th scope="col" className="px-2 py-2 font-medium">{t("colStatus")}</th>
+                <th scope="col" className="px-2 py-2 font-medium">{t("colPermissions")}</th>
+                <th scope="col" className="px-5 py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">

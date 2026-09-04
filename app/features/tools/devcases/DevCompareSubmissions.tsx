@@ -49,9 +49,9 @@ export function CompareSubmissions({
         <table className="w-full text-micro">
           <thead>
             <tr className="border-b border-stone-200 text-steel">
-              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide">{t("axis")}</th>
+              <th scope="col" className="px-3 py-2 text-left font-semibold uppercase tracking-wide">{t("axis")}</th>
               {columns.map((col, i) => (
-                <th key={col.id} className="px-3 py-2 text-right font-semibold text-ink">
+                <th key={col.id} scope="col" className="px-3 py-2 text-right font-semibold text-ink">
                   <span className="block truncate">{shortRef(col.candidateRef, i)}</span>
                   <span className="text-micro font-normal text-steel">
                     {t("fit", { score: col.transferScore != null ? col.transferScore : "—" })}

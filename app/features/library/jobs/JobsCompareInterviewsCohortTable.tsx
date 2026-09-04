@@ -72,9 +72,9 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
       <table className="w-full border-collapse text-base">
         <thead>
           <tr>
-            <th className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("competency")}</th>
+            <th scope="col" className="sticky left-0 bg-white p-2 text-left text-meta uppercase text-steel">{t("competency")}</th>
             {candidates.map((c, i) => (
-              <th key={i} className="min-w-[140px] p-2 text-left align-bottom">
+              <th key={i} scope="col" className="min-w-[140px] p-2 text-left align-bottom">
                 <p className="font-medium text-ink">{c.candidateLabel}</p>
                 <span className="mt-1 flex flex-wrap items-center gap-1.5">
                   {c.recommendation ? (

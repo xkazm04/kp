@@ -146,8 +146,8 @@ export function TrustContent() {
           <table className="w-full min-w-[32rem] text-left">
             <thead>
               <tr className="border-b border-stone-200">
-                <th className="px-4 py-3 text-meta uppercase text-steel">Processor</th>
-                <th className="px-4 py-3 text-meta uppercase text-steel">Purpose</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Processor</th>
+                <th scope="col" className="px-4 py-3 text-meta uppercase text-steel">Purpose</th>
               </tr>
             </thead>
             <tbody>
