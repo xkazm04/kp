@@ -835,6 +835,7 @@ def run_scenarios_voice(
     gain: float = 1.0,
     noise_snr_db: float | None = None,
     barge_in: bool = False,
+    max_minutes: float = 0.0,
     provider: ClaudeCliProvider | None = None,
 ) -> list[Row]:
     """VOICE backend (plane 2): actually SPEAK each scenario into a real ElevenLabs realtime
@@ -844,7 +845,9 @@ def run_scenarios_voice(
     Sessions are candidate-mode, so the agent runs OUR brief. ``sim_mode=None`` (the default) mints
     each scenario at the brief it is scored against; pass one explicitly to force every scenario
     onto the same brief. Real-time pacing means each scenario costs its own wall-clock minutes —
-    concurrency defaults to 1, and EL plans cap parallel sessions."""
+    concurrency defaults to 1, and EL plans cap parallel sessions. ``max_minutes`` is the PER
+    SCENARIO wall ceiling (``--voice-max-minutes``; 0 = unlimited): a sweep multiplies whatever
+    one scenario can spend, so the ceiling belongs on each of them, not on the sweep."""
     import asyncio
 
     from .voice.session_runner import run_voice_scenario, voice_checks
@@ -862,6 +865,7 @@ def run_scenarios_voice(
                         s, base_url=base_url, kind=kind, sim_mode=mode, entry_id=entry_id,
                         turns=turns, timeout=timeout, provider=provider,
                         gain=gain, noise_snr_db=noise_snr_db, barge_in=barge_in,
+                        max_minutes=max_minutes,
                     )
                 except Exception as exc:  # noqa: BLE001 — one bad session can't sink the sweep
                     return Row(**base, turns=[], ended=False, errored=True,
@@ -1392,6 +1396,11 @@ def main(argv: list[str] | None = None) -> int:
     voice.add_argument("--voice-entry", default=None, help="Pipeline entry id (with --voice-kind entry).")
     voice.add_argument("--voice-turns", type=int, default=2, help="Candidate turns spoken per scenario.")
     voice.add_argument("--voice-timeout", type=float, default=90.0)
+    voice.add_argument("--voice-max-minutes", type=float, default=0.0,
+                       help="Wall-clock ceiling per spoken scenario, in PAID minutes (0 = unlimited; "
+                            "the clock runs either way, so every run reports its cost). A spent budget "
+                            "stops that conversation cleanly — the transcript so far is still persisted "
+                            "and scored, and the stop is recorded in the row's voice metrics.")
     voice.add_argument("--voice-concurrency", type=int, default=1,
                        help="Parallel spoken sessions (EL plans cap concurrency; each runs in real time).")
     voice.add_argument("--wer-budget", type=float, default=0.35, help="Max corpus WER before a session fails.")
@@ -1442,17 +1451,6 @@ def main(argv: list[str] | None = None) -> int:
         if not ok:
             sys.stderr.write(f"interview_eval: --backend voice refused — {why}\n")
             return 2
-        ok, why = tts.available("en")
-        if not ok:
-            sys.stderr.write(f"interview_eval: --backend voice needs local TTS — {why}\n")
-            return 2
-        try:
-            if not app_client.get_availability(args.voice_base_url).get("elevenlabs"):
-                sys.stderr.write("interview_eval: --backend voice needs the app to report ElevenLabs available\n")
-                return 2
-        except app_client.AppError as exc:
-            sys.stderr.write(f"interview_eval: {exc}\n")
-            return 2
         # A sim session can only mint the briefs in BRIEF_SIM_MODE. Speaking a `grounded` scenario
         # at the default brief would still pass `agent_prompt_used` and score grounded expectations
         # against the wrong agent — so drop those, loudly, rather than buy a misleading result.
@@ -1467,6 +1465,31 @@ def main(argv: list[str] | None = None) -> int:
             if not scenarios:
                 sys.stderr.write("interview_eval: nothing left to speak\n")
                 return 2
+        # Preflight the voice each surviving scenario will ACTUALLY speak, not a fixed "en".
+        # The plane has Piper voices for en + cs only, so a de/fr scenario passed an en-only
+        # gate, minted a REAL (paid) session, and raised inside speak() on the first utterance:
+        # minutes spent, no report. This runs BEFORE the app is probed — the cheap local check
+        # decides first, and the refusal names every language that cannot be spoken.
+        unspeakable = [
+            f"{lang}: {why}"
+            for lang, (ok, why) in (
+                (lg, tts.available(lg)) for lg in sorted({(s.language or "en") for s in scenarios})
+            )
+            if not ok
+        ]
+        if unspeakable:
+            sys.stderr.write(
+                "interview_eval: --backend voice cannot speak the selected scenario(s) —\n  "
+                + "\n  ".join(unspeakable) + "\n"
+            )
+            return 2
+        try:
+            if not app_client.get_availability(args.voice_base_url).get("elevenlabs"):
+                sys.stderr.write("interview_eval: --backend voice needs the app to report ElevenLabs available\n")
+                return 2
+        except app_client.AppError as exc:
+            sys.stderr.write(f"interview_eval: {exc}\n")
+            return 2
         provider = ClaudeCliProvider(timeout=90)
         if not provider.available():
             sys.stderr.write("interview_eval: Claude CLI unavailable — voice personas use a canned reply\n")
@@ -1480,6 +1503,7 @@ def main(argv: list[str] | None = None) -> int:
             wer_budget=args.wer_budget, latency_budget=args.latency_budget,
             concurrency=args.voice_concurrency, provider=provider,
             gain=args.voice_gain, noise_snr_db=args.voice_noise_snr, barge_in=args.voice_barge_in,
+            max_minutes=args.voice_max_minutes,
         )
     else:
         provider = ClaudeCliProvider(timeout=120)
