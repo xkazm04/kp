@@ -46,7 +46,16 @@ for (const key of ["NODE_TEST_CONTEXT", "DATABASE_URL", "KP_DB_BACKEND", "KP_OFF
 
 // edge/** is the Cloudflare Worker: its tests run on node:test with D1/fetch doubles
 // and no wrangler, so the same runner gates them (they were green-but-ungated once).
-const DEFAULT_PATTERNS = ["app/**/*.test.ts", "packages/**/*.test.ts", "edge/**/*.test.ts"];
+// i18n/** is the locale universe + the ONE server-side resolution path (cookie >
+// Accept-Language > en). It sits outside app/, which is why proxy.ts's header says
+// public-routes.ts "sits outside the app/**/*.test.ts runner glob" — and why
+// i18n/locales.test.ts would have been a test nothing ran.
+const DEFAULT_PATTERNS = [
+  "app/**/*.test.ts",
+  "packages/**/*.test.ts",
+  "edge/**/*.test.ts",
+  "i18n/**/*.test.ts",
+];
 const patterns = process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_PATTERNS;
 
 // Per-test ceiling. 120 s is far above the slowest real test here (the exit-code

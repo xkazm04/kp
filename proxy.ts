@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { localeCookieOptions } from "./i18n/cookie";
 import { isLocale, LOCALE_COOKIE } from "./i18n/locales";
 import { SESSION_COOKIE, verifySessionEdge } from "./app/_lib/auth/edge-verify";
 import { isPublicPath } from "./app/_lib/auth/public-routes";
-
-const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 // Auth foundation (P2) — the recruiter-surface gate (Next 16 `proxy` convention,
 // the renamed successor to `middleware`). FAIL-CLOSED: every path is gated EXCEPT
@@ -175,11 +174,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // headers AFTER it (inside forward()) carries the override into the render.
   req.cookies.set(LOCALE_COOKIE, lang);
   const res = forward();
-  res.cookies.set(LOCALE_COOKIE, lang, {
-    path: "/",
-    maxAge: ONE_YEAR_SECONDS,
-    sameSite: "lax",
-  });
+  res.cookies.set(LOCALE_COOKIE, lang, localeCookieOptions());
   return res;
 }
 
