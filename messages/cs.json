@@ -3792,7 +3792,8 @@
       "declineProposals": "Zamítnout vše",
       "declineProposalsPrompt": "Zamítnout navržené termíny?",
       "cancelling": "Ruším…",
-      "markingNoShow": "Označuji…"
+      "markingNoShow": "Označuji…",
+      "truncated": "Zobrazujeme jen nejnovější pozvánky. Starší zde nejsou uvedené."
     },
     "eyebrow": "Rozhodnutí · Plánování",
     "title": "Kalendář pohovorů",
@@ -4018,7 +4019,8 @@
       "noteNext": "Další"
     },
     "liveStale": "Živý stav pohovorů je zastaralý.",
-    "liveRetry": "Zkusit znovu"
+    "liveRetry": "Zkusit znovu",
+    "invitesTruncated": "Zobrazujeme jen nejnovější pohovory. Starší pozvánky v tomto seznamu nejsou."
   },
   "library": {
     "tab": {

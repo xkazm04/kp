@@ -3792,7 +3792,8 @@
       "declineProposals": "Tout refuser",
       "declineProposalsPrompt": "Refuser les créneaux proposés ?",
       "cancelling": "Annulation…",
-      "markingNoShow": "Marquage…"
+      "markingNoShow": "Marquage…",
+      "truncated": "Seules les invitations les plus récentes sont affichées. Les plus anciennes ne sont pas listées ici."
     },
     "eyebrow": "Décisions · Planification",
     "title": "Calendrier des entretiens",
@@ -4018,7 +4019,8 @@
       "noteNext": "Ensuite"
     },
     "liveStale": "Le statut des entretiens en direct n'est plus à jour.",
-    "liveRetry": "Réessayer"
+    "liveRetry": "Réessayer",
+    "invitesTruncated": "Seuls les entretiens les plus récents sont affichés. Les invitations plus anciennes ne figurent pas dans cette liste."
   },
   "library": {
     "tab": {

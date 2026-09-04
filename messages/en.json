@@ -3792,7 +3792,8 @@
       "declineProposals": "Decline all",
       "declineProposalsPrompt": "Decline the proposed times?",
       "cancelling": "Cancelling…",
-      "markingNoShow": "Marking…"
+      "markingNoShow": "Marking…",
+      "truncated": "Showing the most recent invites only. Older ones are not listed here."
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
@@ -4018,7 +4019,8 @@
       "noteNext": "Next"
     },
     "liveStale": "Live interview status is out of date.",
-    "liveRetry": "Retry"
+    "liveRetry": "Retry",
+    "invitesTruncated": "Showing the most recent interviews only. Older invites are not on this list."
   },
   "library": {
     "tab": {

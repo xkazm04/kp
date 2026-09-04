@@ -28,6 +28,23 @@ import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/ap
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
+// The recruiter agenda read. Not free: it is the ONE list two live surfaces hydrate
+// from (the Schedule tab and the invite lifecycle panel, both of which reload after
+// every mutation and on focus), and the `?slots=1` branch fans out to the connected
+// Google calendar per hit. It was the only verb on this route with no budget while
+// both write verbs carried one. 120/min per IP leaves two operators reloading hard
+// far behind, and pins a scripted loop at 2/s.
+const SCHEDULE_LIST_RATE_LIMIT = { limit: 120, windowMs: 60_000 };
+
+// How many invites one read returns. It was a hard-coded 200 with no cursor and no
+// signal: a team past 200 live invites silently lost the oldest of them from the
+// agenda, the lifecycle buckets and the grid’s booked markers - so a slot that WAS
+// taken stopped being drawn as taken. The bound stays (an unbounded list over a
+// growing table is the worse failure) but it is now a clamped `?limit=` the caller
+// can raise to the ceiling, and a read that hit it says so via `truncated`.
+const SCHEDULE_LIST_DEFAULT = 200;
+const SCHEDULE_LIST_MAX = 1000;
+
 // W6-3 (SCH1) — the recruiter's read over the invite lifecycle. The store
 // deliberately persists operator flags ("recruiter must open more times",
 // "booked but the pipeline didn't advance") that previously terminated in a
@@ -39,6 +56,11 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // offered-slot mechanism the candidate picker uses.
 export async function GET(request: Request) {
   try {
+    // Ahead of everything, including the workspace resolve: both branches read the
+    // store and one of them calls Google, so a refused caller must spend neither.
+    if (!rateLimit(`sched-list:${clientIpFrom(request.headers)}`, SCHEDULE_LIST_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     const ws = await currentWorkspace();
     const params = new URL(request.url).searchParams;
     if (params.has("slots")) {
@@ -70,7 +92,24 @@ export async function GET(request: Request) {
     // SERVER env var (KP_INTERVIEW_TZ) — a client bundle reading it would silently
     // report the "Europe/Prague" default on an install that configured something
     // else, which is worse than saying nothing. So the server states it.
-    return NextResponse.json({ invites: listScheduleInvites(200, ws), interviewTz: INTERVIEW_TZ });
+    // Clamp rather than trust: a non-numeric, negative or absurd `?limit=` folds to the
+    // default, and the ceiling is the real bound. One row past the limit is fetched so
+    // the answer can state truthfully that there IS more, instead of handing the two
+    // hydrating surfaces a silently short list they render as the whole agenda.
+    const asked = Number(params.get("limit"));
+    const limit =
+      Number.isFinite(asked) && asked >= 1 ? Math.min(Math.trunc(asked), SCHEDULE_LIST_MAX) : SCHEDULE_LIST_DEFAULT;
+    const page = listScheduleInvites(limit + 1, ws);
+    const truncated = page.length > limit;
+    return NextResponse.json({
+      invites: truncated ? page.slice(0, limit) : page,
+      limit,
+      // A TRUTHFUL claim, in the idiom the bulk invite door uses for its cap: the
+      // surface renders "showing the most recent N" instead of presenting a clipped
+      // agenda as complete.
+      truncated,
+      interviewTz: INTERVIEW_TZ,
+    });
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }

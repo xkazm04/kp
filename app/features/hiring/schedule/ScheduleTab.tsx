@@ -48,6 +48,7 @@ export function ScheduleTab() {
     pickSources,
     candidateZones,
     interviewTz,
+    invitesTruncated,
     selectedId,
     setSelectedId,
     busy,
@@ -139,6 +140,15 @@ export function ScheduleTab() {
           <button type="button" onClick={retryLive} className={`${BTN_SECONDARY} h-6 px-2 text-meta normal-case`}>
             <RefreshCw size={12} aria-hidden /> {t("liveRetry")}
           </button>
+        </p>
+      ) : null}
+
+      {/* The agenda read is bounded and says so. The grid's booked markers come from
+          that same list, so past the bound an hour that IS taken stops being drawn as
+          taken — the recruiter has to know the picture is partial. */}
+      {invitesTruncated ? (
+        <p role="status" className={`${CHIP} w-fit text-amber-800`}>
+          <span className="text-meta normal-case">{t("invitesTruncated")}</span>
         </p>
       ) : null}
 

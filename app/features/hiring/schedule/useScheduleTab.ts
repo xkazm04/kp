@@ -68,6 +68,12 @@ export function useScheduleTab() {
   // (recruiter- or candidate-self-booked) seed where each candidate sits and appear as
   // read-only booked markers, so the grid and the invite store can't diverge.
   const [invites, setInvites] = useState<ScheduleInvite[]>([]);
+  // GET /api/schedule is bounded (a clamped `?limit=`, 200 by default) and says when
+  // it hit the bound. It matters MORE here than on the lifecycle panel: the grid draws
+  // its booked markers from this list, so an invite past the bound is an hour that IS
+  // taken and is not drawn as taken. Say the list is partial rather than imply it is
+  // whole.
+  const [invitesTruncated, setInvitesTruncated] = useState(false);
   // Where each seeded cell came from (booked invite / legacy detail / flat guess),
   // so a guess can be drawn as a guess. See scheduleGridSeeds.ts.
   const [pickSources, setPickSources] = useState<Record<string, SlotSource>>({});
@@ -102,8 +108,13 @@ export function useScheduleTab() {
       sharedGetJson<{ entries?: SchedEntry[]; error?: string }>("/api/pipeline", opts),
       // The invite store — the engine the grid now renders from. Best-effort: if it
       // fails, the grid still works off the legacy approvalDetail strings.
-      sharedGetJson<{ invites?: ScheduleInvite[]; interviewTz?: string }>("/api/schedule", opts).catch(
-        () => ({ invites: [] as ScheduleInvite[], interviewTz: undefined }) as { invites?: ScheduleInvite[]; interviewTz?: string }
+      sharedGetJson<{ invites?: ScheduleInvite[]; interviewTz?: string; truncated?: boolean }>("/api/schedule", opts).catch(
+        () =>
+          ({ invites: [] as ScheduleInvite[], interviewTz: undefined, truncated: false }) as {
+            invites?: ScheduleInvite[];
+            interviewTz?: string;
+            truncated?: boolean;
+          }
       ),
     ])
       .then(([p, s]) => {
@@ -116,6 +127,7 @@ export function useScheduleTab() {
         );
         const invs = (s.invites as ScheduleInvite[]) ?? [];
         setInvites(invs);
+        setInvitesTruncated(s.truncated === true);
         setEntries(sched);
         // Seed each candidate's grid cell from the ENGINE first: an invite's canonical
         // slot_at (converted to the grid's wall-clock cell) wins over the legacy
@@ -388,6 +400,7 @@ export function useScheduleTab() {
     pickSources,
     candidateZones,
     interviewTz,
+    invitesTruncated,
     selectedId,
     setSelectedId,
     busy,

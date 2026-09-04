@@ -28,6 +28,7 @@ export function InviteLifecyclePanel() {
     invites,
     loadedAt,
     failed,
+    truncated,
     armed,
     setArmed,
     busy,
@@ -82,6 +83,16 @@ export function InviteLifecyclePanel() {
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
         <CalendarClock size={16} className="text-coral" aria-hidden /> {t("title")}
       </h3>
+
+      {/* The bound, stated. The agenda read returns at most `limit` invites (200 by
+          default) and reports `truncated` when there were more, so a team past the
+          bound is told its oldest invites are off this panel instead of quietly
+          losing them. */}
+      {truncated ? (
+        <p role="status" className="mt-1 text-meta normal-case text-steel">
+          {t("truncated")}
+        </p>
+      ) : null}
 
       <AttentionSection attention={attention} t={t} slotLabel={slotLabel} armed={armed} setArmed={setArmed} busy={busy} runAction={runAction} />
 

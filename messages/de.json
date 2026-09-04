@@ -3792,7 +3792,8 @@
       "declineProposals": "Alle ablehnen",
       "declineProposalsPrompt": "Vorgeschlagene Termine ablehnen?",
       "cancelling": "Wird storniert…",
-      "markingNoShow": "Wird markiert…"
+      "markingNoShow": "Wird markiert…",
+      "truncated": "Es werden nur die neuesten Einladungen angezeigt. Ältere sind hier nicht aufgeführt."
     },
     "eyebrow": "Entscheidungen · Planung",
     "title": "Interview-Kalender",
@@ -4018,7 +4019,8 @@
       "noteNext": "Als Nächstes"
     },
     "liveStale": "Der Live-Status der Interviews ist veraltet.",
-    "liveRetry": "Erneut versuchen"
+    "liveRetry": "Erneut versuchen",
+    "invitesTruncated": "Es werden nur die neuesten Gespräche angezeigt. Ältere Einladungen fehlen in dieser Liste."
   },
   "library": {
     "tab": {
