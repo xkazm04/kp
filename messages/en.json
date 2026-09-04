@@ -592,6 +592,13 @@
       "noSpecifics": "We appreciated your effort on the exercise and wish you the very best in your search.",
       "signoff": "Thanks again for your time and interest.",
       "engineNote": "A note on this letter: the findings above were written by our review engine in {language}, not in the language of this message."
+    },
+    "devcaseAdvance": {
+      "subject": "Next step: {role}",
+      "greeting": "Hi {name},",
+      "body": "Your submission for {role} stood out and we would like to take it forward. We will be in touch with next steps shortly.",
+      "bodyScore": "Your submission for {role} stood out (fit {score}/100) and we would like to take it forward. We will be in touch with next steps shortly.",
+      "signoff": "Best,\nThe hiring team"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "That receiver can’t be found.",
     "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6356,7 +6364,9 @@
       "ahead": "ahead",
       "behind": "behind",
       "footnote": "Anonymized aggregate across {teams} teams. No candidate or team data is shared.",
-      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window."
+      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window.",
+      "pctValue": "{value}%",
+      "dayValue": "{value}d"
     },
     "loadFailed": "Couldn't load analytics.",
     "retry": "Retry",
@@ -6539,7 +6549,11 @@
       "uncalibratedBodyHired": "Calibration needs at least {min} candidates who were hired or rejected. So far: {n}.",
       "leakageLevelHighRejects": "Rejections caused by the score",
       "leakageScoreCausedHiredNote": "Reaching the hire takes interviews, an offer and an acceptance, none of which this score decides, so the successes here were not produced by the score. The rejections partly were: automatic screening rejects on the match score, and each of those counts here as not hired. This axis is less circular than the screening one, not clean.",
-      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed."
+      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed.",
+      "floorNotEnforced": "Automatic screening is off, so these floors are recorded policy rather than a live gate: no candidate is rejected by them.",
+      "familyFloorsNoneOff": "No role family carries its own floor, so the global {global} is the only one on record.",
+      "thresholdLegendOff": "Auto-reject floor ({threshold}), recorded but not enforced",
+      "srThresholdOff": "Auto-reject floor {threshold} is recorded but not enforced, so it is not marked on the plot."
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",

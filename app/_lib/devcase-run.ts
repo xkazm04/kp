@@ -3,7 +3,8 @@ import path from "node:path";
 import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
 import { candidateIdByContact, createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
 import { getJob } from "./db/jobs";
-import { getProfileRecord, listMatrixProfiles, listProfileRecords, saveProfile, updateProfile } from "./db/profiles";
+import { ensureDb } from "./db/core";
+import { getProfileRecord, listMatrixProfiles, listProfileRecords, profileDivergence, saveProfile, updateProfile } from "./db/profiles";
 import { FALLBACK_ARCHETYPE } from "./apply";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { inferProfileLocale } from "./comms-locale";
@@ -481,6 +482,19 @@ export async function mintObservedFromSubmission(
   // entries whose candidate id was never a profile.
   const rec = profileForEntry(entryId, sub) ?? profileForSubmission(sub);
   if (!rec) return { credited: [], applied: false };
+  // OPTIMISTIC-CONCURRENCY PRECONDITION. What follows is a read→compute→write whose
+  // middle is a Python spawn: the profile is read HERE, `devcase_cli observed-skills`
+  // runs for seconds to minutes, and then the WHOLE enriched payload is written back.
+  // The write was unconditional, so anything that touched the profile in between — a
+  // recruiter's edit in the builder, a rebuild-from-analysis, the GDPR anonymize pass,
+  // a second submission's mint for the same person — was silently overwritten by a
+  // payload derived from the pre-edit row. Capture the row's content stamp now and
+  // re-assert it in the UPDATE's WHERE (updateProfile's `expectedUpdatedAt`); on a
+  // mismatch the update matches no row and the mint is DROPPED rather than clobbering.
+  // A legacy row with a NULL updated_at keeps the historical unconditional write —
+  // there is no stamp to compare, and refusing every such mint would lose evidence
+  // for a reason that is not a conflict.
+  const expectedUpdatedAt = profileDivergence(rec.row.id, sub.workspaceId)?.editedAt ?? null;
 
   const payload = await runDevcaseCli<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
     async (workdir) => {
@@ -510,7 +524,7 @@ export async function mintObservedFromSubmission(
   // The profile was resolved in the submission's team (profileForSubmission), so
   // the write must target the same one — otherwise the update silently matches no
   // row and the demonstrated skills are never credited.
-  updateProfile(
+  const wrote = updateProfile(
     rec.row.id,
     {
       label: (profile.displayName as string) || rec.row.label,
@@ -519,8 +533,13 @@ export async function mintObservedFromSubmission(
       completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
       payload: profile,
     },
-    sub.workspaceId
+    sub.workspaceId,
+    expectedUpdatedAt
   );
+  // The profile moved under the spawn — report the mint as NOT applied rather than
+  // claiming credit for skills that were never written. The caller treats this the
+  // same as any other unmet precondition (enrichment, never a gate).
+  if (!wrote) return { credited: [], applied: false };
   if (entryId) recordAutomationEvent(entryId, "observed_minted", credited.join(", "), sub.workspaceId);
   return { credited, applied: true };
 }
@@ -1065,6 +1084,17 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   // a candidate the board has already moved to Interview must not be dragged back to
   // Screened by a work sample arriving late; the screening_review card below is what
   // surfaces the assignment's verdict either way.
+  // ONE TRANSACTION for the three writes below. They are one decision — the board
+  // row, the reviewer's screening card and the automation-trail entry — and they ran
+  // as three independent statements. A failure between them (a constraint, a crash, a
+  // busy timeout) left a promoted candidate on the board with NO card telling a
+  // reviewer what the assignment said and no trail row saying where they came from:
+  // an unexplained stranger in Screened that the Decisions tab could not act on.
+  // IMMEDIATE takes the write lock at BEGIN rather than on the first write, so a
+  // concurrent promote of the same submission cannot interleave. Every slow input
+  // (the evaluation, the Python spawn behind it) was computed ABOVE — there is no
+  // `await` inside, which is what makes this atomic at all.
+  return ensureDb().transaction((): PromoteResult => {
   const { entry } = createPipelineEntry({
     candidateId: candidate.candidateId,
     candidateLabel: sub.candidateRef ?? "Candidate",
@@ -1137,4 +1167,5 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   );
   recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")} | ${promoteProvenance(identity, candidate)}`, workspaceId);
   return { entryId: entry.id, recommendation, reasons };
+  }).immediate();
 }

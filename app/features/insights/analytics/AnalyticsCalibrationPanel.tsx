@@ -63,6 +63,13 @@ type CalibrationPayload = CalibrationResult & {
   cohorts?: CalibrationCohort[];
   recommendation?: ThresholdRecommendation | null;
   currentThreshold?: number | null;
+  /** Whether the floor beside it is ENFORCED — `screening.autoRejectEnabled`,
+   *  shipped by the route since the floor was first surfaced and read by nothing.
+   *  Its shipped default is FALSE (screen-wave returns `autoRejectOff`), so the
+   *  stock workspace drew a coral floor marker and said „every family is screened
+   *  at the global 45" over a gate that rejects nobody. `null` = the arm carries no
+   *  screening rule at all, exactly like `currentThreshold`. */
+  autoRejectEnabled?: boolean | null;
   familyFloors?: Record<string, number>; // family-floors: role_family → override value
   // Where this source's outcome label comes from. Shipped on EVERY request since
   // the KAT-L1-001 fix; undeclared (and therefore unrenderable) until now.
@@ -179,6 +186,7 @@ export function CalibrationPanel() {
                     perfect: t("perfect"),
                   }}
                   threshold={source === "pipeline" ? data.currentThreshold ?? null : null}
+                  thresholdEnforced={data.autoRejectEnabled ?? null}
                   baseRate={baseRate}
                 />
                 <div className="space-y-3 text-sm">
@@ -226,8 +234,14 @@ export function CalibrationPanel() {
                     ) : null}
                     {source === "pipeline" && data.currentThreshold ? (
                       <li className="flex items-center gap-2">
-                        <span className="inline-block h-4 w-0 shrink-0 border-l-2 border-dashed border-coral align-middle" />
-                        {t("thresholdLegend", { threshold: data.currentThreshold })}
+                        {/* No swatch on the off branch: a legend entry is a key to a
+                            mark on the plot, and with the wave off there is no mark. */}
+                        {data.autoRejectEnabled === false ? null : (
+                          <span className="inline-block h-4 w-0 shrink-0 border-l-2 border-dashed border-coral align-middle" />
+                        )}
+                        {data.autoRejectEnabled === false
+                          ? t("thresholdLegendOff", { threshold: data.currentThreshold })
+                          : t("thresholdLegend", { threshold: data.currentThreshold })}
                       </li>
                     ) : null}
                     <li className="text-stone-400">{t("samples", { n: data.n })}</li>
@@ -301,6 +315,7 @@ export function CalibrationPanel() {
               <AnalyticsFamilyFloorChips
                 familyFloors={data.familyFloors ?? {}}
                 currentThreshold={data.currentThreshold ?? null}
+                autoRejectEnabled={data.autoRejectEnabled ?? null}
                 family={family}
                 setFamily={setFamily}
               />

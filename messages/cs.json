@@ -592,6 +592,13 @@
       "noSpecifics": "Vážíme si úsilí, které jste do úkolu vložili, a přejeme vám hodně štěstí při hledání.",
       "signoff": "Ještě jednou děkujeme za váš čas a zájem.",
       "engineNote": "Poznámka k tomuto dopisu: zjištění výše sepsal náš hodnoticí systém v jazyce {language}, nikoli v jazyce této zprávy."
+    },
+    "devcaseAdvance": {
+      "subject": "Další krok: {role}",
+      "greeting": "Dobrý den, {name},",
+      "body": "vaše řešení na pozici {role} nás zaujalo a rádi bychom pokračovali dál. Brzy se vám ozveme s dalšími kroky.",
+      "bodyScore": "vaše řešení na pozici {role} nás zaujalo (shoda {score}/100) a rádi bychom pokračovali dál. Brzy se vám ozveme s dalšími kroky.",
+      "signoff": "S pozdravem\nnáborový tým"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "Tento přijímač se nepodařilo najít.",
     "CHANNEL_PULL_URL_INVALID": "Tato adresa pro stahování není povolená. Použijte veřejnou adresu https://.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6356,7 +6364,9 @@
       "ahead": "napřed",
       "behind": "pozadu",
       "footnote": "Anonymizovaný souhrn z {teams, plural, one {# týmu} other {# týmů}}. Žádná data kandidátů ani týmů se nesdílejí.",
-      "scopeAllTime": "Za celou dobu. Firemní srovnání se zvoleným obdobím nezužuje."
+      "scopeAllTime": "Za celou dobu. Firemní srovnání se zvoleným obdobím nezužuje.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} d"
     },
     "loadFailed": "Analytiku se nepodařilo načíst.",
     "retry": "Zkusit znovu",
@@ -6539,7 +6549,11 @@
       "uncalibratedBodyHired": "Kalibrace potřebuje alespoň {min} kandidátů, kteří byli přijati, nebo zamítnuti. Zatím: {n}.",
       "leakageLevelHighRejects": "Zamítnutí způsobilo skóre",
       "leakageScoreCausedHiredNote": "K přijetí vede cesta přes pohovory, nabídku a její přijetí, o nichž toto skóre nerozhoduje, takže úspěchy zde skóre nevytvořilo. Zamítnutí zčásti ano: automatický screening zamítá podle skóre shody a každé takové zamítnutí se zde počítá jako nepřijetí. Tato osa je méně kruhová než screeningová, ne však čistá.",
-      "leakageScoreCausedHiredCeiling": "Všichni, kdo jsou stále v procesu, se nezapočítávají, dokud nejsou přijati nebo zamítnuti, takže se tato osa plní pomalu a opírá se o ty, kdo odešli dřív. Neříká také nic o tom, jak si přijatý člověk následně vedl."
+      "leakageScoreCausedHiredCeiling": "Všichni, kdo jsou stále v procesu, se nezapočítávají, dokud nejsou přijati nebo zamítnuti, takže se tato osa plní pomalu a opírá se o ty, kdo odešli dřív. Neříká také nic o tom, jak si přijatý člověk následně vedl.",
+      "floorNotEnforced": "Automatické předvýběry jsou vypnuté, takže tyto prahy jsou jen zaznamenaná pravidla, ne živá branka: žádný kandidát podle nich není odmítán.",
+      "familyFloorsNoneOff": "Žádná rodina rolí nemá vlastní práh, takže jediný zaznamenaný je globální {global}.",
+      "thresholdLegendOff": "Práh automatického odmítnutí ({threshold}), zaznamenaný, ale nevynucovaný",
+      "srThresholdOff": "Práh automatického odmítnutí {threshold} je zaznamenaný, ale nevynucovaný, proto není v grafu vyznačen."
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",

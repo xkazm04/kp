@@ -3,7 +3,8 @@
 import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
+import { PANEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // Phase 2 (cross-company reference tier) — "how your team compares to the whole company".
@@ -16,8 +17,16 @@ type OrgBench = Stats & { available: boolean; contributingTeams: number };
 
 // Null is "not measured" for BOTH of these, and it renders as the same em-dash the
 // median already used — never as a zero (see the denominator note in the panel body).
-const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
-const days = (n: number | null) => (n == null ? "—" : `${n}d`);
+//
+// Both used to be template literals: `${n}%` and `${n}d`. The percent skipped the
+// locale's number formatter (harmless at two digits, wrong the moment a figure
+// grows), and the `d` was a hard-coded ENGLISH day suffix on a surface that ships in
+// four languages — the one abbreviation on this panel a `cs`/`de`/`fr` reader had to
+// decode. Both now run through the shared formatter + catalog, built as a factory so
+// the hook is called once in the component rather than per figure.
+type Fmt = { grouped: (n: number) => string; unit: (key: "pctValue" | "dayValue", value: string) => string };
+const pct = (f: Fmt) => (n: number | null) => (n == null ? "—" : f.unit("pctValue", f.grouped(n)));
+const days = (f: Fmt) => (n: number | null) => (n == null ? "—" : f.unit("dayValue", f.grouped(n)));
 
 // `orgVal` used to ride alongside `orgLabel` here: destructured, typed, and never
 // rendered, while each of the three call sites computed a second formatted copy of
@@ -47,7 +56,7 @@ function Metric({
   return (
     <div className="rounded-md border border-stone-200 bg-paper p-3">
       <p className="text-micro font-semibold uppercase tracking-wide text-steel">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{teamVal}</p>
+      <p className={`mt-1 ${STAT_VALUE} text-ink`}>{teamVal}</p>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-micro">
         <span className="text-steel">{orgLabel}</span>
         {better === null ? null : (
@@ -60,6 +69,10 @@ function Metric({
 
 export function OrgBenchmarkPanel() {
   const t = useTranslations("analytics.orgBenchmark");
+  const { grouped } = useNumberFormat();
+  const fmt: Fmt = { grouped, unit: (key, value) => t(key, { value }) };
+  const pctOf = pct(fmt);
+  const daysOf = days(fmt);
   const { data, error, reload } = useJsonFetch<{ team: Stats; org: OrgBench }>("/api/benchmarks", t("loadFailed"));
   // bug-ui-scan-2026-07-09 (analytics-calibration-dashboards #5): a fetch FAILURE used to
   // be indistinguishable from "still loading" and from the by-design locked state — the
@@ -128,28 +141,28 @@ export function OrgBenchmarkPanel() {
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <Metric
               label={t("interviewRate")}
-              teamVal={pct(teamInterviewPct)}
+              teamVal={pctOf(teamInterviewPct)}
               diff={teamInterviewPct == null ? null : teamInterviewPct - org.interviewRatePct}
               higherBetter
-              orgLabel={t("orgLabel", { value: pct(org.interviewRatePct) })}
+              orgLabel={t("orgLabel", { value: pctOf(org.interviewRatePct) })}
               aheadLabel={t("ahead")}
               behindLabel={t("behind")}
             />
             <Metric
               label={t("hireRate")}
-              teamVal={pct(teamHirePct)}
+              teamVal={pctOf(teamHirePct)}
               diff={teamHirePct == null ? null : teamHirePct - org.hireRatePct}
               higherBetter
-              orgLabel={t("orgLabel", { value: pct(org.hireRatePct) })}
+              orgLabel={t("orgLabel", { value: pctOf(org.hireRatePct) })}
               aheadLabel={t("ahead")}
               behindLabel={t("behind")}
             />
             <Metric
               label={t("timeToHire")}
-              teamVal={days(team.medianTimeToHireDays)}
+              teamVal={daysOf(team.medianTimeToHireDays)}
               diff={tth}
               higherBetter={false}
-              orgLabel={t("orgLabel", { value: days(org.medianTimeToHireDays) })}
+              orgLabel={t("orgLabel", { value: daysOf(org.medianTimeToHireDays) })}
               aheadLabel={t("ahead")}
               behindLabel={t("behind")}
             />

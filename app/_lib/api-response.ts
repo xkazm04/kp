@@ -805,6 +805,11 @@ export const REFUSAL_ERRORS = {
    *  tab, a retried fetch, or a reviewer who left the panel open. The stage rides beside
    *  the code as DATA so the panel can say where the case actually is. */
   DEVCASE_LIFECYCLE_NOT_AT_GATE: "This assignment is no longer awaiting review. Reload to see where it is now.",
+  /** A stage move the dev-case lifecycle machine does not allow (409) — e.g. an
+   *  advance computed during a minutes-long LLM step arriving after a human closed
+   *  the lifecycle. The legal edges live in app/_lib/devcase-transitions.ts, whose
+   *  IllegalLifecycleTransition carries this exact spelling as its `code`. */
+  DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL: "That step is not possible from this assignment’s current stage.",
   /** A write to this team's analytics settings or screening floor by a caller without
    *  `pipeline:write` (403). Spend, targets and the auto-reject floor are recruiter
    *  operations: they move the cost-per-hire denominator, the goal lines every board

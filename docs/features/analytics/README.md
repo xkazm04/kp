@@ -117,6 +117,11 @@ as the `/calibration` reads beside it. That is precisely why it needed a budget.
   below the k-anonymity floor (`BENCHMARK_MIN_ENTRIES = 20` / `BENCHMARK_MIN_TEAMS = 2`,
   `app/_lib/db/org-benchmarks.ts`) and biases `medianTimeToHireDays` low by structurally
   excluding slow hires. `analyticsWindowScope.test.ts` fails if either half drifts.
+- **Every benchmark figure is localized.** `interviewRatePct` / `hireRatePct` /
+  `medianTimeToHireDays` run through `useNumberFormat().grouped` and the
+  `orgBenchmark.pctValue` / `orgBenchmark.dayValue` catalog units, so the day suffix is
+  `d` / `d` / `T` / `j` per locale rather than a hard-coded English `d`. The team figure
+  uses the shared `STAT_VALUE` recipe.
 - **Below the floor, `totalEntries` is withheld too when one team is the only contributor.**
   The aggregate excludes the caller's own workspace, so in a 2-team org exactly one team feeds
   it — and the whole payload crosses the wire even though the locked panel prints only
@@ -206,12 +211,27 @@ call a stage weak.
 columns, **grouped and labelled, never merged**. A dash under Spend means "not measured for
 this kind of surface", not "free", and the rule says so.
 
+- **The tab holds no recipe debt.** Every `app/features/insights/analytics/**` row is
+  gone from `app/_components/ui/recipe-debt.json`: the last one, the role-only actor badge
+  in `sections/DecisionRecordsTable.tsx`, composes `NOTICE("amber")` like its siblings.
+  The header's copy-link confirmation timer is also cleared on unmount, so a copy followed
+  by a tab switch no longer wakes a setState on an unmounted component.
 - **The spend write path is back.** Spend is an editable field on every channel row
   (`AnalyticsChannelSpendInput.tsx` → `POST /api/analytics/spend` → `setChannelSpend`), lifted
   into the board rather than restoring the deleted channel panel. A channel with recorded
   spend but **no attributed candidates still gets a row** (volume 0, per-unit figures `—`) —
   otherwise a stored figure divides into the blended cost-per-hire while being unreachable by
   any editor. `spend-write-path.test.ts` pins the chain.
+- **A failed spend write says which failure it was, out loud.** The editor resolves the
+  route's code (`ANALYTICS_POLICY_FORBIDDEN` 403 / `ANALYTICS_SPEND_SAVE_FAILED` 500) through
+  `useErrorMessage()` and throws a `LocalizedFailure`; `AnalyticsInlineNumberSave` renders it
+  in a `role="alert"` line beside the field (`announceFailure`, opt-in — the goals editor
+  keeps the border-only report in its tight label/input/suffix row). Previously a bare
+  `new Error()` made a policy refusal and a store outage the same coral outline plus a
+  keyboard-unreachable `title` tooltip.
+- **The save decision is a pure module.** `inlineNumberSavePlan.ts` owns the locale-aware
+  parse, the zero-is-no-value rule, the unchanged short-circuit and the canonical re-seed,
+  so `inlineNumberSavePlan.test.ts` EXECUTES them instead of reading the `.tsx` for them.
 - **A typed `0` is a clear, and the field now says so immediately.** `setChannelSpend` and
   `setAnalyticsTarget` both DELETE the row when `!(v > 0)` and the routes still answer 200, so
   zero is never a stored value. `AnalyticsInlineNumberSave` mirrors that rule before it posts:
@@ -360,8 +380,17 @@ it: should this score be allowed to decide at all.
   pipeline arm leads with the `circular` verdict beside the holdout's accrual horizon. A null
   threshold recommendation renders `ThresholdSuggestionAbsent`, naming the gate it failed and
   stating this is absence of evidence, not endorsement of the current floor; an empty
-  `familyFloors` map says every family screens at the global floor; a suggestion off a
+  `familyFloors` map says so explicitly rather than rendering a blank region; a suggestion off a
   high-leakage arm carries its contamination caveat beside the Apply button.
+- **The floor is never shown without its switch.** The route ships
+  `autoRejectEnabled` (`screening.autoRejectEnabled`) beside `currentThreshold`, and the
+  shipped default is **false** — `screen-wave.ts` returns `autoRejectOff` and rejects
+  nobody. With the wave off, `AnalyticsReliabilityDiagram` draws **no** coral floor marker
+  (its screen-reader line says the floor is recorded but not enforced, `srThresholdOff`),
+  the panel legend reads `thresholdLegendOff`, and `AnalyticsFamilyFloorChips` swaps the
+  "every family is screened at the global N" sentence for `familyFloorsNoneOff` plus a
+  `role="status"` notice (`floorNotEnforced`). Both branches are pinned by
+  `analyticsCalibrationFloorGate.test.ts`.
 - **A score band is `[lo, hi)` — except at the top of the scale, where it closes.**
   `recommendScreeningThreshold` builds its above-floor band as `[T, min(100, T + bandWidth))`,
   so any floor at 90+ produced a band that could not see a perfect 100. With a floor at 95,

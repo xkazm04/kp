@@ -592,6 +592,13 @@
       "noSpecifics": "Wir haben Ihren Einsatz bei der Aufgabe geschätzt und wünschen Ihnen alles Gute für Ihre Suche.",
       "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse.",
       "engineNote": "Hinweis zu diesem Schreiben: Die obigen Feststellungen hat unser Bewertungssystem in {language} verfasst, nicht in der Sprache dieser Nachricht."
+    },
+    "devcaseAdvance": {
+      "subject": "Nächster Schritt: {role}",
+      "greeting": "Hallo {name},",
+      "body": "Ihre Einreichung für {role} hat uns überzeugt, und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
+      "bodyScore": "Ihre Einreichung für {role} hat uns überzeugt (Passung {score}/100), und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
+      "signoff": "Beste Grüße\nIhr Recruiting-Team"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "Dieser Empfänger wurde nicht gefunden.",
     "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6356,7 +6364,9 @@
       "ahead": "voraus",
       "behind": "zurück",
       "footnote": "Anonymisierte Aggregation über {teams} Teams. Es werden keine Kandidaten- oder Teamdaten geteilt.",
-      "scopeAllTime": "Gesamter Zeitraum: Der Unternehmensvergleich wird durch das gewählte Zeitfenster nicht eingegrenzt."
+      "scopeAllTime": "Gesamter Zeitraum: Der Unternehmensvergleich wird durch das gewählte Zeitfenster nicht eingegrenzt.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} T"
     },
     "loadFailed": "Analyse konnte nicht geladen werden.",
     "retry": "Erneut versuchen",
@@ -6539,7 +6549,11 @@
       "uncalibratedBodyHired": "Die Kalibrierung benötigt mindestens {min} Kandidaten, die eingestellt oder abgelehnt wurden. Bisher: {n}.",
       "leakageLevelHighRejects": "Vom Score erzeugte Ablehnungen",
       "leakageScoreCausedHiredNote": "Bis zur Einstellung braucht es Interviews, ein Angebot und dessen Annahme. Über nichts davon entscheidet dieser Score, die Erfolge hier hat er also nicht erzeugt. Die Ablehnungen zum Teil schon: Das automatische Screening lehnt anhand des Match-Scores ab, und jede dieser Ablehnungen zählt hier als nicht eingestellt. Diese Achse ist weniger zirkulär als die Screening-Achse, aber nicht sauber.",
-      "leakageScoreCausedHiredCeiling": "Alle, die noch im Prozess sind, bleiben unberücksichtigt, bis sie eingestellt oder abgelehnt werden. Diese Achse füllt sich deshalb langsam und stützt sich auf die früh Ausgeschiedenen. Sie sagt außerdem nichts darüber, wie sich eine Einstellung dann bewährt hat."
+      "leakageScoreCausedHiredCeiling": "Alle, die noch im Prozess sind, bleiben unberücksichtigt, bis sie eingestellt oder abgelehnt werden. Diese Achse füllt sich deshalb langsam und stützt sich auf die früh Ausgeschiedenen. Sie sagt außerdem nichts darüber, wie sich eine Einstellung dann bewährt hat.",
+      "floorNotEnforced": "Die automatische Vorauswahl ist aus, diese Schwellen sind also festgehaltene Regeln und kein aktives Tor: es wird niemand danach abgelehnt.",
+      "familyFloorsNoneOff": "Keine Rollenfamilie hat eine eigene Schwelle, erfasst ist damit nur die globale {global}.",
+      "thresholdLegendOff": "Auto-Ablehnungsschwelle ({threshold}), erfasst, aber nicht aktiv",
+      "srThresholdOff": "Die Auto-Ablehnungsschwelle {threshold} ist erfasst, aber nicht aktiv und deshalb nicht im Diagramm markiert."
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",

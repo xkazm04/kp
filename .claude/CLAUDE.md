@@ -77,6 +77,11 @@ e2e/                          # Playwright; deterministic keyless subset =
                               # + public-pages (the OTHER indexed surfaces: axe on
                               #   /about /trust /privacy /terms /market, plus
                               #   /about's legal row and phone nav)
+                              # + shell (the root document's response contract:
+                              #   security headers, ONE nonce'd report-only CSP,
+                              #   <html lang> per ?lang= and cookie, hreflang
+                              #   alternates, no theme flash — filtered as
+                              #   `shell.spec`, not `shell`)
                               # + app-master-hire (the App-master battle test —
                               # mock Personas bridge, needs KP_OFFLINE=1 and
                               # KP_APP_MASTER_REPO_ROOTS on the SERVER process)

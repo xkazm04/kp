@@ -1028,6 +1028,45 @@ before the first `sendComm`, and `[id]/redesign` re-reads the lifecycle after it
 design call and **409**s rather than overwriting a case another reviewer already approved
 and published.
 
+### The stage machine, the stop signals and the advance letter
+
+Three properties of `runLifecycle` (`app/_lib/devcase-orchestrator.ts`) that used to rest
+on prose, pinned by `devcase-orchestrator.test.ts` and `devcase-transitions.test.ts`:
+
+- **Legal transitions are written down.** `app/_lib/devcase-transitions.ts` holds the ten
+  stages and the edges between them (literal array → derived union → runtime guard, the
+  `tabs.ts` shape). `updateLifecycle(id, patch, { expectedStage })` re-asserts the stage
+  the caller READ in the UPDATE's `WHERE` and returns whether a row moved, so an advance
+  computed across a minutes-long LLM step is **dropped** when a human approved, redesigned
+  or closed the lifecycle meanwhile (the run then records an `advance_discarded` audit row
+  and reports where the lifecycle actually is). Declaring `expectedStage` also turns on the
+  table: an impossible move throws `IllegalLifecycleTransition`, whose `code`
+  (`DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL`, in `REFUSAL_ERRORS` + all four catalogs) a route
+  answers with. A caller that declares no expected stage keeps the historical unconditional
+  write — tests and maintenance paths place a lifecycle at an arbitrary stage on purpose.
+- **Stop means stop, per item.** The kill switch and the `AbortSignal` are re-read before
+  **every** submission in the collecting drain (up to 50 passes × the batch) and before
+  every candidate in the promote loop, and the signal is now forwarded into
+  `runEvaluateSubmission` so a cancel reaches its Python child. Both were previously read
+  once per outer step, so pausing during a drain stopped the *next* batch, not this one; a
+  mid-drain pause records a `halted` row saying where it stopped.
+- **The advance letter speaks the candidate's language and is filed under its team.** The
+  promote stage's "we'd like to take it forward" note composes from `comms.devcaseAdvance.*`
+  in the locale `resolveCommsLocale(lc.lang, lc.workspaceId)` returns — the same comms
+  locale authority every dispatcher in `comms-dispatch.ts` uses — and carries
+  `workspaceId: lc.workspaceId` onto the outbox row. It was the last hardcoded-English
+  candidate letter in the product, and it landed in the default team's Outbox, so the team
+  that sent it could neither see nor resend it. Adverse actions stay human-gated; this one
+  is non-adverse and therefore automated.
+
+Two write paths in `devcase-run.ts` moved with them: `promoteSubmission`'s three writes
+(pipeline entry, screening card, automation-trail row) now run in ONE
+`db.transaction(...).immediate()` — every slow input is computed above it, so no `await`
+enters the block — and `mintObservedFromSubmission` captures the profile's `updated_at`
+before its `devcase_cli observed-skills` spawn and re-asserts it via `updateProfile`'s
+`expectedUpdatedAt`, dropping the mint (`applied: false`) rather than overwriting an edit
+made during the spawn.
+
 ### The three doors that enqueue a lifecycle run carry the agent budget
 
 `POST /api/devcase/lifecycle` (start), `POST /api/devcase/lifecycle/[id]/approve`
@@ -1089,11 +1128,18 @@ studio's audit panel listed another studio's candidates. `recordAudit` now takes
 (`app/_lib/dev-control.ts`, pinned by `dev-control.test.ts`). The **kill-switch rows stay
 global** (`GLOBAL_AUDIT_ACTIONS` = `paused`/`resumed`, stored with a NULL workspace):
 autonomy is one global key, so every operator must see that it was pulled, and those rows
-carry no candidate data. A writer that records without a tenant in hand (the orchestrator,
-`db/pipeline.ts`, `offer-finalize.ts`) falls back to the **default** workspace, which is
-where a single-tenant install's rows have always effectively lived — so that deployment's
-panel is unchanged and a newly minted tenant starts from an empty log rather than
-inheriting the deployment's history. Stamping those remaining writers is open work.
+carry no candidate data. A writer that records without a tenant in hand (`db/pipeline.ts`,
+`offer-finalize.ts`) falls back to the **default** workspace, which is where a
+single-tenant install's rows have always effectively lived — so that deployment's panel is
+unchanged and a newly minted tenant starts from an empty log rather than inheriting the
+deployment's history. **The orchestrator is no longer one of them**: all twenty-two of its
+`recordAudit` calls stamp `lc.workspaceId`, so a non-default studio's autonomous decisions
+appear in its OWN control room instead of the default team's. The tenancy test that covers
+this is a count (`recordAudit` calls == calls carrying a workspace) rather than a string
+match — the previous needle was satisfied by one unrelated line while eighteen audit calls
+beside it were unstamped (`devcase-source-promote-tenancy.test.ts`), and
+`devcase-orchestrator.test.ts` proves the behaviour over a seeded lifecycle. Stamping
+`db/pipeline.ts` and `offer-finalize.ts` is open work.
 
 **The poll is visibility-gated and backs off.** The room ran a flat 3 s
 `setInterval` over both reads, in a hidden tab and against a dead server alike — 40

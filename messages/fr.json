@@ -592,6 +592,13 @@
       "noSpecifics": "Nous avons apprécié l’effort fourni sur cet exercice et vous souhaitons pleine réussite dans vos recherches.",
       "signoff": "Merci encore pour votre temps et votre intérêt.",
       "engineNote": "Remarque sur cette lettre : les constats ci-dessus ont été rédigés par notre moteur d'évaluation en {language}, et non dans la langue de ce message."
+    },
+    "devcaseAdvance": {
+      "subject": "Prochaine étape : {role}",
+      "greeting": "Bonjour {name},",
+      "body": "Votre travail pour le poste de {role} nous a marqués et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
+      "bodyScore": "Votre travail pour le poste de {role} nous a marqués (adéquation {score}/100) et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
+      "signoff": "Cordialement,\nL’équipe de recrutement"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "Ce récepteur est introuvable.",
     "CHANNEL_PULL_URL_INVALID": "Cette URL de récupération n’est pas autorisée. Utilisez une URL https:// publique.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6356,7 +6364,9 @@
       "ahead": "en avance",
       "behind": "en retard",
       "footnote": "Agrégat anonymisé sur {teams} équipes. Aucune donnée de candidat ou d’équipe n’est partagée.",
-      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie."
+      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie.",
+      "pctValue": "{value} %",
+      "dayValue": "{value} j"
     },
     "loadFailed": "Impossible de charger les analyses.",
     "retry": "Réessayer",
@@ -6539,7 +6549,11 @@
       "uncalibratedBodyHired": "Le calibrage demande au moins {min} candidats recrutés ou rejetés. Pour l’instant : {n}.",
       "leakageLevelHighRejects": "Rejets causés par le score",
       "leakageScoreCausedHiredNote": "Le recrutement passe par des entretiens, une offre et son acceptation, dont ce score ne décide pas : les succès affichés ici n’ont donc pas été produits par le score. Les rejets, en partie, si : la présélection automatique rejette sur le score de correspondance, et chacun de ces rejets compte ici comme un non-recrutement. Cet axe est moins circulaire que celui de la présélection, sans être propre.",
-      "leakageScoreCausedHiredCeiling": "Tous ceux encore en cours de processus sont exclus jusqu’à leur recrutement ou leur rejet : cet axe se remplit donc lentement et s’appuie sur ceux qui sont sortis tôt. Il ne dit rien non plus de la façon dont un recrutement s’est ensuite comporté."
+      "leakageScoreCausedHiredCeiling": "Tous ceux encore en cours de processus sont exclus jusqu’à leur recrutement ou leur rejet : cet axe se remplit donc lentement et s’appuie sur ceux qui sont sortis tôt. Il ne dit rien non plus de la façon dont un recrutement s’est ensuite comporté.",
+      "floorNotEnforced": "La présélection automatique est désactivée : ces seuils sont une règle enregistrée, pas un filtre actif, et aucune candidature n’est rejetée sur cette base.",
+      "familyFloorsNoneOff": "Aucune famille de postes n’a son propre seuil ; seul le seuil global {global} est enregistré.",
+      "thresholdLegendOff": "Seuil de rejet automatique ({threshold}), enregistré mais non appliqué",
+      "srThresholdOff": "Le seuil de rejet automatique {threshold} est enregistré mais non appliqué : il n’est donc pas tracé sur le graphique."
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",
