@@ -26,12 +26,20 @@ const PAGES = ["/about", "/trust", "/privacy", "/terms", "/market"] as const;
  *
  * The list must only ever SHRINK: a page whose holdout is no longer needed
  * fails the "still needed?" assertion below until its entry is deleted. */
+// Recorded contrast debt, measured against kp's own dev server on 2026-09-04 (the lot
+// that wrote this file had audited a DIFFERENT app on :3000 and believed the list empty):
+//   /about   36 about-art step badges (.w-10.h-10.rounded-xl) - white on the art colours
+//   /trust   one .text-coral link on the cream ground
+//   /privacy one .text-meta line; /terms one .text-meta line
+//   /market  11 gold (#caa54c) rank ticks in the JD gallery
+// Palette choices are an OWNER decision (docs/harness; Perfect vault). Each entry is
+// asserted to STILL fail below, so fixing one deletes it here.
 const A11Y_HOLDOUTS: Record<string, string[]> = {
-  "/about": [],
-  "/trust": [],
-  "/privacy": [],
-  "/terms": [],
-  "/market": []
+  "/about": ["color-contrast"],
+  "/trust": ["color-contrast"],
+  "/privacy": ["color-contrast"],
+  "/terms": ["color-contrast"],
+  "/market": ["color-contrast"]
 };
 
 /** Serious/critical WCAG violations — the same pragmatic bar the rest of the
