@@ -216,6 +216,31 @@ and the caller falls back to the keyword heuristic") could never fire, because
 nothing ever raised. A whole pool's ranking sat on one hung socket. Both clients
 now read the same function.
 
+## Retries, and who decides how long to wait
+
+Python's `TextProvider.complete` retries only *transient* failures
+(`base.is_transient_error`: 408/429/5xx/529 or a timeout marker), 3 attempts,
+`0.5s * 2^attempt` + jitter, capped by the call's deadline. `app/_lib/gemini-retry.ts`
+is the TS mirror of that policy for the one Gemini call site that never reaches
+Python (`app/_lib/github/code-review.ts`), and the two classification lists are now
+pinned to `base.py` by `app/_lib/llm-capabilities-lockstep.test.ts` — a code or
+marker added on one side and not the other fails a unit test instead of quietly
+changing what gets retried.
+
+The TS side adds one thing Python does not have: it honours a **`Retry-After`**
+response header (both RFC 9110 forms — delta-seconds and HTTP-date), because a
+server stating when its bucket refills is better information than our schedule and
+retrying earlier is a guaranteed second 429. Rules, in `geminiRetryDelayMs`:
+
+- header absent or unparseable → the local backoff, unchanged;
+- header shorter than the backoff → the backoff still wins (the schedule spreads
+  load, it is not a minimum to satisfy);
+- header longer, up to `GEMINI_RETRY_AFTER_CAP_MS` (5 s) → we wait exactly that long;
+- header longer than the cap → **we stop retrying** and rethrow the SDK error.
+  Holding a request handler open for a 30-second rate-limit window is worse for the
+  caller than an honest failure now, and `maxDuration` does not save a self-hosted
+  deploy (`next start` never kills a long handler).
+
 ## Prompt artifacts are PII, and their retention is explicit
 
 `KP_LOG_PROMPTS=1` captures the full prompt and response for each analysis to
