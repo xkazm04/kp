@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   CLASSIFICATION,
   DISCLAIMER,
+  LAST_REVIEWED,
   OBLIGATIONS,
   SUBPROCESSORS,
   byWeakestFirst,
@@ -227,6 +228,38 @@ test("every subprocessor is optional — the self-host path must stay real", () 
     assert.equal(s.optional, true, `${s.name} is listed as mandatory`);
     assert.ok(s.purpose.length > 10, `${s.name} has no stated purpose`);
   }
+});
+
+test("every LLM provider the product can route to is disclosed as a subprocessor", () => {
+  // The subprocessor table is the page's most checkable claim: a reviewer can hold it
+  // against the product's own provider list. That list is LLM_PROVIDERS in
+  // llm-config.ts, and it had grown a `qwen` adapter the table never named — a
+  // remote endpoint a customer can route candidate data to, absent from the
+  // disclosure. Read from the source text rather than importing llm-config, which
+  // pulls the DB slice; the coupling is what matters, not the module graph.
+  const config = source("llm-config.ts");
+  const declared = config.match(/export const LLM_PROVIDERS = \[([^\]]*)\]/);
+  assert.ok(declared, "LLM_PROVIDERS is no longer a literal array in llm-config.ts — this test has gone blind");
+  const providers = [...declared[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+  assert.ok(providers.length >= 5, `parsed only ${providers.length} providers — the regex has drifted`);
+
+  const covered = new Set(SUBPROCESSORS.flatMap((s) => s.providers));
+  for (const p of providers) {
+    assert.ok(covered.has(p), `LLM provider "${p}" can be routed to but no subprocessor row discloses it`);
+  }
+  // And the reverse: a row that claims a provider the product cannot route to is a
+  // disclosure of something that does not exist.
+  for (const p of covered) {
+    assert.ok(providers.includes(p), `subprocessor row claims provider "${p}", which is not in LLM_PROVIDERS`);
+  }
+});
+
+test("the trust page states when it was last reviewed", () => {
+  // A compliance posture with no date is a claim about an unknown moment. The legal
+  // pages carry `Last updated`; this one carried nothing but the AI Act's own
+  // application date, which is not the same fact.
+  assert.match(LAST_REVIEWED, /^\d{4}-\d{2}-\d{2}$/, "the review date must be an ISO day, rendered from a constant");
+  assert.ok(Number.isFinite(Date.parse(LAST_REVIEWED)), "the review date must parse");
 });
 
 test("the disclaimer refuses to claim certified conformance", () => {

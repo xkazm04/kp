@@ -4,6 +4,8 @@ import { consentRetentionMonths } from "@/app/_lib/consent";
 import { SALES_EMAIL } from "@/app/_lib/sales-contact";
 import { SUBPROCESSORS } from "@/app/_lib/trust-posture";
 import { CARD_PAD, EYEBROW, INTRO, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import LegalRow from "@/app/landing/spark/sections/LegalRow";
 
 /*
  * /privacy — the public privacy policy, in all four locales (the /about
@@ -24,7 +26,7 @@ import { CARD_PAD, EYEBROW, INTRO, PANEL, PANEL_SUNKEN, TITLE_DISPLAY } from "@/
 
 // The date of the last substantive copy change. Bump when the policy text
 // changes meaning, not on refactors.
-const UPDATED = "2026-08-05";
+const UPDATED = "2026-09-04";
 
 // Brand name, not copy — never localized (the Wordmark rule in
 // docs/features/marketing/README.md), held as a constant so the i18n lint can
@@ -141,12 +143,41 @@ export default async function PrivacyPage() {
         </ul>
       </Section>
 
+      {/* What the app puts in the reader's browser, and the analytics this very
+          page's site fires. Neither was named anywhere: the policy described what
+          the product does with candidate data and said nothing about the four
+          storage items it sets, nor about Plausible, which the root layout mounts
+          on every public page including this one. The items are described here in
+          prose; the names they carry are in the catalog copy so a reader can match
+          them against what their browser shows. */}
+      <Section title={t("privacy.cookies.title")}>
+        <p className="mt-2 text-body text-steel">{t("privacy.cookies.intro")}</p>
+        <ul className={`mt-4 ${PANEL} ${CARD_PAD} list-disc space-y-2 pl-8`}>
+          {(t.raw("privacy.cookies.items") as string[]).map((line) => (
+            <li key={line} className="text-body text-steel">
+              {line}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-body text-steel">{t("privacy.cookies.analytics")}</p>
+        <p className="mt-2 text-body text-steel">{t("privacy.cookies.noConsentBanner")}</p>
+      </Section>
+
       <Section title={t("privacy.contact.title")}>
         <p className="mt-2 text-body text-steel">{t("privacy.contact.body", { email: SALES_EMAIL })}</p>
       </Section>
 
-      <footer className={`mt-10 ${PANEL_SUNKEN} ${CARD_PAD}`}>
+      {/* The same legal row and language control every other public front door
+          carries. These three pages had exactly one link between them (privacy to
+          trust) and no way to change language at all, so a reader who arrived on
+          /terms from a search result in German had no route to the policy beside it
+          and no way to read either one in their own language. */}
+      <footer className={`mt-10 ${PANEL_SUNKEN} ${CARD_PAD} space-y-4`}>
         <p className="text-body text-steel">{t("disclaimer")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-stone-200 pt-4">
+          <LegalRow tone="studio" />
+          <LanguageSwitcher />
+        </div>
       </footer>
     </main>
   );

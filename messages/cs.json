@@ -9354,6 +9354,18 @@
       "contact": {
         "title": "Kontakt",
         "body": "S žádostmi o své údaje jako kandidát použijte odkaz s tokenem z libovolné zprávy, kterou vám produkt poslal; je to nejrychlejší ověřená cesta. S čímkoli dalším se obraťte na provozovatele tohoto nasazení nebo napište na {email}."
+      },
+      "cookies": {
+        "title": "Cookies, úložiště a analytika",
+        "intro": "Produkt nenastavuje žádné reklamní cookies ani nástroje sledující napříč weby. V prohlížeči si ukládá jen to, co je potřeba k chodu aplikace, a každou položku zde uvádíme pod názvem, který uvidíte i v prohlížeči:",
+        "items": [
+          "__Host-kp_session: podepsaná cookie relace přihlášeného operátora. Nese samotnou relaci, nikoli údaje o vás, a nastavuje se až po přihlášení.",
+          "kp_entered: poznamenává, že jste z veřejné úvodní stránky přešli do pracovního prostoru, aby vám aplikace znovu nezobrazovala vstupní stránku.",
+          "NEXT_LOCALE: jazyk, který jste zvolili. Uchováváme jej rok, aby se aplikace příště otevřela ve stejném jazyce.",
+          "kp-theme: položka v localStorage prohlížeče, nikoli cookie. Drží zvolený vzhled (světlý, nebo tmavý)."
+        ],
+        "analytics": "Pokud provozovatel analytiku zapne, jde o Plausible, které pracuje bez cookies: na vašem zařízení se neukládá žádný identifikátor a nikdo není sledován mezi weby. Bez nastavené domény se analytický kód vůbec nenačte. Stránky s odkazem pro kandidáta jsou zcela vyloučeny, takže adresa stránky určené vám se nikam neodesílá.",
+        "noConsentBanner": "Žádná z uvedených položek neslouží k reklamě ani profilování, a proto produkt nežádá o souhlas s cookies. Souhlas se zpracováním údajů kandidáta pomocí AI je samostatný a popisujeme jej výše."
       }
     },
     "terms": {

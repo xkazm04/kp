@@ -9354,6 +9354,18 @@
       "contact": {
         "title": "Kontakt",
         "body": "Für Anfragen zu Ihren Daten als Kandidat nutzen Sie den Token-Link aus einer beliebigen Nachricht, die das Produkt Ihnen geschickt hat; das ist der schnellste, verifizierte Weg. Für alles andere wenden Sie sich an den Betreiber dieser Installation oder schreiben Sie an {email}."
+      },
+      "cookies": {
+        "title": "Cookies, Speicher und Analyse",
+        "intro": "Das Produkt setzt keine Werbe-Cookies und keine seitenübergreifenden Tracker. Im Browser bleibt nur, was die App zum Funktionieren braucht. Jeder Eintrag steht hier unter dem Namen, den auch Ihr Browser anzeigt:",
+        "items": [
+          "__Host-kp_session: das signierte Sitzungs-Cookie einer angemeldeten Bedienperson. Es trägt die Sitzung selbst, nichts über Sie, und wird erst nach der Anmeldung gesetzt.",
+          "kp_entered: hält fest, dass Sie von der öffentlichen Startseite in den Arbeitsbereich gewechselt sind, damit die App Ihnen die Eingangsseite nicht erneut zeigt.",
+          "NEXT_LOCALE: die von Ihnen gewählte Sprache. Ein Jahr lang gespeichert, damit die App beim nächsten Mal darin öffnet.",
+          "kp-theme: ein localStorage-Eintrag des Browsers, kein Cookie. Er hält das gewählte Erscheinungsbild (hell oder dunkel)."
+        ],
+        "analytics": "Wo der Betreiber eine Analyse eingerichtet hat, ist es Plausible, und zwar cookiefrei: auf Ihrem Gerät wird kein Kennzeichen gespeichert und niemand wird zwischen Websites verfolgt. Ohne konfigurierte Domain wird überhaupt kein Analysecode geladen. Die Linkseiten für Kandidatinnen und Kandidaten sind vollständig ausgenommen, sodass die Adresse einer an Sie gerichteten Seite nie übermittelt wird.",
+        "noConsentBanner": "Keiner der genannten Einträge dient Werbung oder Profilbildung, weshalb das Produkt keine Cookie-Einwilligung einholt. Die Einwilligung in die KI-Verarbeitung von Bewerberdaten ist davon getrennt und oben beschrieben."
       }
     },
     "terms": {

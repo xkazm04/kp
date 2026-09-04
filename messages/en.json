@@ -9354,6 +9354,18 @@
       "contact": {
         "title": "Contact",
         "body": "For requests about your data as a candidate, use the token link from any message the product sent you; it is the fastest, verified path. For anything else, contact the operator of this deployment or write to {email}."
+      },
+      "cookies": {
+        "title": "Cookies, storage and analytics",
+        "intro": "The product sets no advertising cookies and no cross-site trackers. What it keeps in your browser is only what makes the app work, and each item is listed here by the name your browser shows:",
+        "items": [
+          "__Host-kp_session: the signed session cookie for a signed-in operator. It carries the session itself, nothing about you, and is set only after you sign in.",
+          "kp_entered: records that you have gone past the public landing page into the workspace, so the app does not show you the front door again.",
+          "NEXT_LOCALE: the language you chose. Kept for a year so the app opens in it next time.",
+          "kp-theme: a browser localStorage entry rather than a cookie, holding the appearance (light or dark) you picked."
+        ],
+        "analytics": "Where the operator has configured analytics, it is Plausible, which is cookieless: no identifier is stored on your device and no visitor is followed between sites. With no domain configured, no analytics code is loaded at all. Candidate link pages are excluded outright, so the address of a page addressed to you is never sent.",
+        "noConsentBanner": "None of the items above is used for advertising or profiling, which is why the product asks for no cookie consent. Consent for AI processing of candidate data is separate and is described above."
       }
     },
     "terms": {

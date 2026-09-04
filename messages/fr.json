@@ -9448,6 +9448,18 @@
       "contact": {
         "title": "Contact",
         "body": "Pour toute demande concernant vos données en tant que candidat, utilisez le lien à jeton présent dans tout message que le produit vous a envoyé ; c’est la voie vérifiée la plus rapide. Pour le reste, adressez-vous à l’exploitant de ce déploiement ou écrivez à {email}."
+      },
+      "cookies": {
+        "title": "Cookies, stockage et analyse d’audience",
+        "intro": "Le produit ne dépose aucun cookie publicitaire ni traceur intersites. Le navigateur ne conserve que ce qui est nécessaire au fonctionnement de l’application, et chaque élément figure ici sous le nom que votre navigateur affiche :",
+        "items": [
+          "__Host-kp_session : le cookie de session signé d’un opérateur connecté. Il porte la session elle-même, rien qui vous concerne, et n’est déposé qu’après connexion.",
+          "kp_entered : indique que vous êtes passé de la page d’accueil publique à l’espace de travail, afin que l’application ne vous représente pas la porte d’entrée.",
+          "NEXT_LOCALE : la langue que vous avez choisie. Conservée un an pour que l’application s’ouvre dans cette langue la fois suivante.",
+          "kp-theme : une entrée de localStorage du navigateur, et non un cookie, qui retient l’apparence choisie (claire ou sombre)."
+        ],
+        "analytics": "Lorsque l’exploitant active une mesure d’audience, il s’agit de Plausible, sans cookie : aucun identifiant n’est stocké sur votre appareil et personne n’est suivi d’un site à l’autre. Sans domaine configuré, aucun code de mesure n’est chargé. Les pages de lien destinées aux candidats sont entièrement exclues, si bien que l’adresse d’une page qui vous est destinée n’est jamais transmise.",
+        "noConsentBanner": "Aucun de ces éléments ne sert à la publicité ni au profilage, ce qui explique que le produit ne demande pas de consentement aux cookies. Le consentement au traitement des données des candidats par l’IA est distinct et décrit plus haut."
       }
     },
     "terms": {
