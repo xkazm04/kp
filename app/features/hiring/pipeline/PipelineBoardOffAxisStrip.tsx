@@ -124,7 +124,7 @@ export function PipelineBoardOffAxisStrip({
                   for (const e of stranded) onMove(e, toStage);
                 }}
                 ariaLabel={t("moveAria", { stage: stageLabel(stageId) })}
-                size="sm"
+                sizeVariant="sm"
                 options={[{ value: "", label: t("moveAll") }, ...targets.map((id) => ({ value: id, label: targetLabel(id) }))]}
               />
             ) : null}

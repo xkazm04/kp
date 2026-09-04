@@ -37,7 +37,7 @@ export function ComplianceSection() {
             ariaLabel={t("jurisdictionLabel")}
             value={jurisdiction}
             onChange={(v) => pick(v as RegimeId)}
-            size="sm"
+            sizeVariant="sm"
             className="w-full"
             disabled={saving}
             options={Object.values(COMPLIANCE_REGIMES).map((r) => ({ value: r.id, label: t(`jur.${r.id}` as Parameters<typeof t>[0]) }))}

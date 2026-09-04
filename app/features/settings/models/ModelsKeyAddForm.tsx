@@ -73,7 +73,7 @@ export function ModelsKeyAddForm({
             id="key-provider"
             value={provider}
             onChange={onProviderChange}
-            size="sm"
+            sizeVariant="sm"
             className="mt-1 w-full"
             options={formProviders.map((p) => ({ value: p, label: providerName(p) }))}
           />
@@ -86,7 +86,7 @@ export function ModelsKeyAddForm({
             id="key-scope"
             value={scope}
             onChange={(v) => onScopeChange(v === "platform" ? "platform" : "byom")}
-            size="sm"
+            sizeVariant="sm"
             className="mt-1 w-full"
             options={[
               { value: "byom", label: t("scopeByom") },

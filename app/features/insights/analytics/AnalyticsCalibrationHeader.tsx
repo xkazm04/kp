@@ -97,7 +97,7 @@ export function AnalyticsCalibrationHeader({
             if (next === "analysis") setOutcome("advance");
           }}
           ariaLabel={t("sourceLabel")}
-          size="sm"
+          sizeVariant="sm"
           className="shrink-0"
           options={[
             { value: "pipeline", label: t(SOURCE_KEY.pipeline) },
@@ -116,7 +116,7 @@ export function AnalyticsCalibrationHeader({
             value={outcome}
             onChange={(v) => setOutcome(v === "hired" ? "hired" : "advance")}
             ariaLabel={t("outcomeLabel")}
-            size="sm"
+            sizeVariant="sm"
             className="shrink-0"
             options={[
               { value: "advance", label: t(OUTCOME_KEY.advance) },
@@ -129,7 +129,7 @@ export function AnalyticsCalibrationHeader({
             value={family}
             onChange={setFamily}
             ariaLabel={t("familyLabel")}
-            size="sm"
+            sizeVariant="sm"
             className="shrink-0"
             options={[{ value: "", label: t("familyAll") }, ...families.map((f) => ({ value: f, label: labelize(f) }))]}
           />

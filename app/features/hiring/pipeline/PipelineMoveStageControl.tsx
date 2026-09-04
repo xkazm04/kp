@@ -35,7 +35,7 @@ export function PipelineMoveStageControl({
         value={stage}
         disabled={movingStage}
         onChange={onMoveStage}
-        size="sm"
+        sizeVariant="sm"
         className="mt-2 w-full"
         options={moveStageSelectValues(stage).map((s) => ({
           value: s,

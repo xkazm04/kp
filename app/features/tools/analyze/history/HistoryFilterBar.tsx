@@ -63,7 +63,7 @@ export function HistoryFilterBar({
         ariaLabel={t("filterFamily")}
         value={roleFamily}
         onChange={setRoleFamily}
-        size="sm"
+        sizeVariant="sm"
         options={[
           { value: "", label: t("allFamilies") },
           ...sortOptionsByLabel(families.map((f) => ({ value: f, label: enumLabel("family", f) })), locale),
@@ -73,7 +73,7 @@ export function HistoryFilterBar({
         ariaLabel={t("filterSeniority")}
         value={seniority}
         onChange={setSeniority}
-        size="sm"
+        sizeVariant="sm"
         options={[
           { value: "", label: t("allSeniority") },
           ...sortOptionsByLabel(seniorities.map((s) => ({ value: s, label: enumLabel("seniority", s) })), locale),
@@ -83,7 +83,7 @@ export function HistoryFilterBar({
         ariaLabel={t("filterDisposition")}
         value={disposition}
         onChange={setDisposition}
-        size="sm"
+        sizeVariant="sm"
         options={[
           { value: "", label: t("allDispositions") },
           ...Object.keys(DISPOSITION_STYLE).map((d) => ({ value: d, label: dispLabel(d) })),

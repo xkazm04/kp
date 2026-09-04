@@ -9921,6 +9921,10 @@
   },
   "select": {
     "filterFor": "Filter {label}",
-    "filterOptions": "Filter options"
+    "filterOptions": "Filter options",
+    "placeholder": "Select…",
+    "clear": "Clear",
+    "searchPlaceholder": "Search…",
+    "noMatches": "No matches"
   }
 }

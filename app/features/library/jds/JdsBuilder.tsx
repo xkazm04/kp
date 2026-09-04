@@ -85,7 +85,7 @@ export function JdBuilder({ onSaved, prefill }: { onSaved: () => void; prefill?:
             ariaLabel={t("templateLabel")}
             value={templateId}
             onChange={setTemplateId}
-            size="sm"
+            sizeVariant="sm"
             className="w-full"
             options={[
               { value: "", label: t("aiDefaultFormat") },

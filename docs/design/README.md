@@ -578,6 +578,33 @@ the bare `aria-hidden` form — fix-as-you-touch, not a migration.
   JSX expression (measured: 159 false positives on the already-graduated file
   set), so extending it is not viable. `npm run i18n:check` greps
   `app/_components/**/*.tsx` for literal `aria-label="…"` and fails instead.
+- **No shared primitive may ship English as a PROP DEFAULT** (2026-09-04). The
+  third face of the same blind spot, and the widest: `Select` carried
+  `placeholder = "Select…"`, `clearLabel = "Clear"`, `searchPlaceholder =
+  "Search…"` and `noMatchesLabel = "No matches"` in its destructure. A default is
+  what every caller that passes nothing renders — and *no* caller passed
+  `searchPlaceholder` or `noMatchesLabel`, so cs/de/fr read English on every
+  searchable select in the product. No gate could see it: the eslint rule reads
+  JSX text nodes, both `i18n-check` greps read JSX attributes, and next-intl's
+  typed keys only bind what reaches `t()`. All four now resolve through the
+  `select.*` namespace inside the component, with the props kept as overrides.
+  [`scripts/i18n/primitive-copy-defaults.mjs`](../../scripts/i18n/primitive-copy-defaults.mjs)
+  is the rule, run from `npm run i18n:check` over `app/_components/**`: **a
+  props-destructure default whose string starts with a capital letter is copy.**
+  Narrow on purpose — a prop default here is otherwise a variant token
+  (`tone = "amber"`), a length (`minHeight = "10rem"`) or a class string, none of
+  which is capitalized. Fixtures:
+  [`app/_components/primitive-copy-defaults.test.ts`](../../app/_components/primitive-copy-defaults.test.ts),
+  in the unit gate rather than under `scripts/` so it runs without a new alias.
+
+### One size vocabulary across the field primitives (2026-09-04)
+
+`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`
+also accepted `size` as a back-compat alias and 30 of its 31 call sites had taken
+*that* spelling, so the primitive that owns the app's field sizing was the one
+disagreeing with its siblings about the prop's name. The alias is removed and the
+call sites migrated; `size` on a `Select` is now a tsc error rather than a second
+name for the same thing.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

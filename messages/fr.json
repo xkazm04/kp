@@ -9921,6 +9921,10 @@
   },
   "select": {
     "filterFor": "Filtrer {label}",
-    "filterOptions": "Filtrer les options"
+    "filterOptions": "Filtrer les options",
+    "placeholder": "Sélectionner…",
+    "clear": "Effacer la sélection",
+    "searchPlaceholder": "Rechercher…",
+    "noMatches": "Aucun résultat"
   }
 }

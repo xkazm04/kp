@@ -96,7 +96,7 @@ export function InterviewAttachToCandidate({ token }: { token: string }) {
                     ariaLabel={t("selectAria")}
                     value={sel}
                     onChange={setSel}
-                    size="sm"
+                    sizeVariant="sm"
                     className="h-8"
                     options={entries.map((e) => ({ value: e.id, label: `${e.candidateLabel}${e.jobTitle ? ` — ${e.jobTitle}` : ""}` }))}
                   />

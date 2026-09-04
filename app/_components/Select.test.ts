@@ -44,6 +44,45 @@ test("the active option is exposed via aria-activedescendant on the focused elem
   assert.match(src, /open && active >= 0 && active < rows\.length \? optionId\(active\) : undefined/);
 });
 
+test("every piece of menu microcopy falls back to the catalog, not to English", () => {
+  // The four props (placeholder, clearLabel, searchPlaceholder, noMatchesLabel) used to
+  // carry ENGLISH DEFAULTS in the destructure. `searchPlaceholder` and `noMatchesLabel`
+  // had zero overriding callers and `placeholder` had none of the 50 either, so cs/de/fr
+  // read "Search…" / "No matches" / "Select…" on every searchable select in the product.
+  // A default is not a caller's problem to localize — it is the component's.
+  for (const [prop, key] of [
+    ["placeholder", "placeholder"],
+    ["clearLabel", "clear"],
+    ["searchPlaceholder", "searchPlaceholder"],
+    ["noMatchesLabel", "noMatches"],
+  ]) {
+    assert.match(
+      src,
+      new RegExp(`${prop} \\?\\? t\\("${key}"\\)`),
+      `${prop} must fall back to select.${key}, not to an English literal`
+    );
+  }
+  // …and no prop may reintroduce one. `scripts/i18n/primitive-copy-defaults.mjs` is the
+  // repo-wide gate; this is the local statement of the same rule.
+  assert.doesNotMatch(src, /^\s{2}\w+ = "[A-Z]/m, "no prop default may be English copy");
+});
+
+test("there is ONE size vocabulary: sizeVariant", () => {
+  // `size` was a back-compat alias for the same two values, and 30 of 31 call sites had
+  // taken it — so the primitive that owns the app's field sizing disagreed with TextInput
+  // and TextArea about what the prop is called. The alias is gone; `size` on a Select is
+  // now a tsc error rather than a prop that quietly does the same thing under two names.
+  assert.doesNotMatch(src, /\n\s*size\?: "sm" \| "md";/, "the size alias must not come back");
+  assert.match(src, /sizeVariant = "md",/, "sizeVariant carries the default");
+  assert.match(src, /const sizeCls = sizeVariant === "sm"/);
+});
+
+test("the typeahead timer is cleared on unmount", () => {
+  // A 600ms buffer-reset timer opened by the last keystroke before a tab switch or a
+  // modal close outlived the component — one live timer per Select on a page full of them.
+  assert.match(src, /if \(typeahead\.current\.timer\) window\.clearTimeout\(typeahead\.current\.timer\);/);
+});
+
 test("commit refuses a disabled row, and the row announces that it is disabled", () => {
   // Load-bearing honesty claim: a disabled option (e.g. a JD output language the
   // configured model cannot produce) must not be silently selectable.

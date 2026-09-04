@@ -9921,6 +9921,10 @@
   },
   "select": {
     "filterFor": "Filtrovat {label}",
-    "filterOptions": "Filtrovat možnosti"
+    "filterOptions": "Filtrovat možnosti",
+    "placeholder": "Vyberte…",
+    "clear": "Zrušit výběr",
+    "searchPlaceholder": "Hledat…",
+    "noMatches": "Žádné výsledky"
   }
 }
