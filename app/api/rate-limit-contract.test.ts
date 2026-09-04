@@ -1180,6 +1180,41 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "await requireOperator()",
   },
   // ------------------------------------------------------------------
+  // ADDED /perfect wave 31 (api-devcase-2), with the limiters themselves. The last two
+  // unthrottled STUDIO doors. Both are now operator- and `pipeline:write`-gated, and
+  // open mode (KP_OPERATOR_PASSWORD unset) makes both of those a documented no-op for
+  // the ENTIRE API - so in each case the limiter is the real bound.
+  {
+    // The single most expensive door in the studio: every call SPAWNS the Python
+    // matcher over the whole candidate pool and then WRITES pipeline entries at the
+    // Accepted stage. 30/10min per IP is far above a recruiter re-sourcing by hand.
+    rel: "./devcase/source/route.ts",
+    key: "`devcase-source:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "SOURCE_RATE_LIMIT",
+    optsDef: "const SOURCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await runSourceForRole(",
+    // A case that is not this team's answers the same 404 a nonexistent one does,
+    // before the throttle: a probe must not be able to spend an honest caller's budget.
+    servedBefore: "if (!devCase || devCase.workspaceId !== ws)",
+  },
+  {
+    // The MANUAL half of the Art. 22 human gate. It spawns nothing, but each call
+    // writes a dev_cases row plus an immutable audit row, so an unbounded loop fills
+    // the library and the audit trail. 60/10min per IP.
+    rel: "./devcase/route.ts",
+    key: "`devcase-approve:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "APPROVE_RATE_LIMIT",
+    optsDef: "const APPROVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "const saved = saveDevCase(",
+    // The probe-strength gate's 422 is cheap and must keep its semantics ahead of the
+    // throttle - a design that was never going to be approved costs no budget.
+    servedBefore: "const gate = enforceProbeGate(",
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect wave 27 (api-comms), with the limiters themselves. The three
   // Channels-tab doors that write INSTALLATION wiring or reach the network carried no
   // throttle at all. All are operator- and `org:manage`-gated, and open mode

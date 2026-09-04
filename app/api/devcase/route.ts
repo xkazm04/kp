@@ -3,10 +3,17 @@ import { listDevCases, saveDevCase } from "@/app/_lib/db/devcase";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { requireCapabilityCoded } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 
+
+// The manual approve writes a dev_cases row and an immutable audit row per call, and
+// it carried no throttle at all - a scripted loop could fill the library (and the
+// studio's Cases table) unbounded. It spawns nothing, so the budget is generous:
+// 60/10min per IP is far above a reviewer signing off designs by hand.
+const APPROVE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
 // GET: approved case scenarios. POST: the human gate — approve a designed role+case.
 export async function GET() {
@@ -59,6 +66,11 @@ export async function POST(request: NextRequest) {
     const gate = enforceProbeGate(probes as Parameters<typeof enforceProbeGate>[0], body.overrideProbeAudit === true);
     if (!gate.ok) {
       return NextResponse.json({ error: gate.error, code: gate.code, verdict: gate.verdict }, { status: gate.status });
+    }
+    // After every cheap refusal (missing fields, the probe-strength gate) so a request
+    // that was never going to write costs no budget, and before the two writes it guards.
+    if (!rateLimit(`devcase-approve:${clientIpFrom(request.headers)}`, APPROVE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
     const saved = saveDevCase(
       {

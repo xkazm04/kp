@@ -1116,6 +1116,8 @@ recruiter and owner not refused, on all four) and by the removal of these four r
 from `route-capability-coverage.test.ts`'s allowlist. **Open mode is unchanged**:
 `KP_OPERATOR_PASSWORD` unset folds every caller to owner.
 
+**And the last two unthrottled studio doors are throttled.** `/source` SPAWNS the Python matcher over the whole candidate pool and writes pipeline entries — the most expensive door in the studio — and carried no limiter at all; `POST /api/devcase` writes a `dev_cases` row plus an immutable audit row per call. Both gates above are a documented no-op in open mode, so the limiter is the real bound: `devcase-source` 30/10min per IP, `devcase-approve` 60/10min, both keyed on the caller IP, both answering `jsonRefusal("TOO_MANY_REQUESTS", 429)` after every cheap refusal (the 404 for a case that is not this team's, the probe-strength 422) so a request that was never going to spend anything costs no budget. Pinned in `app/api/rate-limit-contract.test.ts`.
+
 ### The control room asks authority, and reports its writes
 
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
