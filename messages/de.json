@@ -4968,7 +4968,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "regelbasiert",
       "cachedSuffix": " · zwischengespeichert",
-      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt. Die AI verfasst sie nur auf Englisch und Tschechisch.",
+      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt.",
       "strengths": "Stärken",
       "gaps": "Lücken",
       "interviewProbes": "Interview-Nachfragen",

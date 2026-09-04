@@ -4968,7 +4968,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "basé sur des règles",
       "cachedSuffix": " · en cache",
-      "narrativeInLanguage": "Ce raisonnement est affiché en {language}. L’AI ne le rédige qu’en anglais et en tchèque.",
+      "narrativeInLanguage": "Ce raisonnement est affiché en {language}.",
       "strengths": "Points forts",
       "gaps": "Lacunes",
       "interviewProbes": "Points à creuser en entretien",

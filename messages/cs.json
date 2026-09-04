@@ -4968,7 +4968,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "pravidlové",
       "cachedSuffix": " · z mezipaměti",
-      "narrativeInLanguage": "Toto zdůvodnění se zobrazuje v jazyce {language}. AI ho píše jen anglicky a česky.",
+      "narrativeInLanguage": "Toto zdůvodnění se zobrazuje v jazyce {language}.",
       "strengths": "Silné stránky",
       "gaps": "Mezery",
       "interviewProbes": "Otázky k pohovoru",

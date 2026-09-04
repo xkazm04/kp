@@ -4968,7 +4968,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "rule-based",
       "cachedSuffix": " · cached",
-      "narrativeInLanguage": "This rationale is shown in {language}. The AI writes it only in English and Czech.",
+      "narrativeInLanguage": "This rationale is shown in {language}.",
       "strengths": "Strengths",
       "gaps": "Gaps",
       "interviewProbes": "Interview probes",
