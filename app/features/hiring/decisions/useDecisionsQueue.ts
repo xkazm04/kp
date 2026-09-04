@@ -233,14 +233,21 @@ export function useDecisionsQueue() {
            already surfaced as a coded alert above. */
       });
   };
+  // `load`/`loadReconsider` are re-created every render; the mount read must call
+  // the LATEST pair once without listing them as deps (that would refetch the queue
+  // on every keystroke). A ref updated after each render is the lint-clean shape:
+  // the mount effect depends on nothing but two stable refs.
+  const latestLoaders = useRef({ load, loadReconsider });
+  useEffect(() => {
+    latestLoaders.current = { load, loadReconsider };
+  });
   useEffect(() => {
     // The gate object is created once and never replaced, so capturing it here is
     // the identity the cleanup needs (and keeps the ref out of the cleanup body).
     const gate = reconsiderGate.current;
-    load({ shared: true }); // mount read may ride a sibling's in-flight request
-    loadReconsider();
+    latestLoaders.current.load({ shared: true }); // mount read may ride a sibling's in-flight request
+    latestLoaders.current.loadReconsider();
     return () => gate.invalidate(); // an unmounted tab writes nothing
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only read; `load`/`loadReconsider` are re-created every render and listing them would refetch the queue on every keystroke
   }, []);
   useLiveRefresh(() => {
     load();
