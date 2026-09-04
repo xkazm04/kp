@@ -856,6 +856,25 @@ data inside the fence and does not change the schema-validated output shape.
 - `analyses` table — one row per CV analysis (~21 KB JSON payload: `jobFit`
   overlay of matching/missing skills, salary assessment, role/seniority
   alignment). Read via `/api/analyses` and the History tab.
+  - **`engine` / `engine_provider` — which producer made this row.** The table holds
+    output from TWO producers: the LLM pipeline (`analyze_cv`) and the deterministic
+    seed builders (`pipeline/jobfit/seed_analyses.py`), whose demo corpus `seedAnalyses`
+    upserts into the same table on every boot. Until these columns landed nothing on the
+    row said which, so a fresh install's History was full of rule-built rows a recruiter
+    would read as AI assessments, and the only signal that ever existed was the
+    *transient* `servedFromCache` flag on the live result — gone the moment the report is
+    re-opened. `engine` is `'llm' | 'deterministic'` (`ANALYSIS_ENGINES` in
+    `db/analyses.ts`, mirroring `AnalysisMetadata.engine_kind` in `models.py`);
+    `engine_provider` is the registry provider name that served it and is NULL for a
+    deterministic row, because there is no provider to name. Both are NULL on rows saved
+    before the columns existed: that is **unknown**, never read as `'llm'`. The value
+    travels on the payload (`metadata.engineKind`) and `saveAnalysis` derives it, except
+    for the seeder, which stamps `'deterministic'` literally — true by construction, and
+    the committed JSON is refreshed on its own schedule, so deriving would leave a stale
+    corpus unmarked. The saved report renders `EngineNote variant="deterministic"` above
+    the engine panel when no model ran; an LLM row says nothing extra, because that is
+    the assumed case and a marker on every report is chrome nobody reads. Pinned by
+    `analyze-run.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
 - `pipeline_entries` — the per-job application record; carries the *snapshot*

@@ -387,6 +387,12 @@ def analyze_cv(
                 analysis_engine="gemini",
                 text_extractor="gemini",
                 model=cv_model,
+                # This path always calls a model — analyze_cv has no deterministic branch
+                # to fall through to (registry.resolve_provider says so at the cv_analysis
+                # door: "there is no deterministic CV fallback to degrade to"). The marker
+                # is emitted anyway so the consumer never has to infer it from absence.
+                engine_kind="llm",
+                engine_provider=getattr(cv_provider, "name", None),
                 parsing_notes=parsing_notes,
                 grounding_sources=sources,
                 deterministic_evidence=evidence,

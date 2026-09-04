@@ -5888,7 +5888,9 @@
       "trustMedium": "Authentizität: mittel",
       "trustLow": "Authentizität: niedrig",
       "engineNote": "Engine-Hinweise (Englisch, wörtlich)",
-      "engineNoteTitle": "Diese Zeilen stammen unverändert aus der Analyse-Engine und werden nicht übersetzt."
+      "engineNoteTitle": "Diese Zeilen stammen unverändert aus der Analyse-Engine und werden nicht übersetzt.",
+      "deterministicNote": "Kein Modell lief: dieses Ergebnis wurde aus Regeln berechnet",
+      "deterministicNoteTitle": "Diese Analyse stammt aus den deterministischen Bewertungsbausteinen, nicht aus einem KI-Modell. Die Zahlen sind vollständig, aber kein Sprachmodell hat diesen Lebenslauf gelesen."
     },
     "softSignals": {
       "title": "Im Interview bestätigen",

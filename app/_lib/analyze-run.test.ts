@@ -84,7 +84,7 @@ registerHooks({
 const { runAnalyze, AnalyzeError, ANALYZE_TIMEOUT_CODE, ANALYZE_TIMEOUT_MESSAGE, ANALYZE_TIMEOUT_MS, settleVariants } =
   await import("./analyze-run.ts");
 const { isSpawnTimeoutMessage } = await import("./intake-run.ts");
-const { listAnalyses } = await import("./db/analyses.ts");
+const { listAnalyses, loadAnalysis } = await import("./db/analyses.ts");
 const { billingUsageFor } = await import("./db/billing.ts");
 const { currentPeriod } = await import("./billing/plans.ts");
 const { ensureDb } = await import("./db/core.ts");
@@ -234,6 +234,67 @@ test("a DELIVERED, persisted analysis debits exactly one ai_candidates unit", as
   const out = (await runAnalyze(params("charged.pdf", baseDir, cvPath))) as { persistence: unknown };
   assert.ok(out.persistence, "the happy path still persists");
   assert.equal(usage(), before + 1, "a delivered, non-cached analysis is billable");
+});
+
+// ---- 3. the engine marker ---------------------------------------------------
+//
+// `analyses` holds rows from TWO producers: the LLM pipeline, and the deterministic seed
+// builders (seed_analyses.py), whose demo corpus core.ts upserts into this same table on
+// every boot. Until the `engine` column landed nothing on the row said which — a fresh
+// install's History was full of rule-built rows a recruiter would read as AI assessments,
+// and the only signal that existed at all was the TRANSIENT servedFromCache flag on the
+// live result, which is gone the moment the report is re-opened from History.
+
+const rowFor = (slug: string) => loadAnalysis(slug)?.row;
+
+async function persistWith(marker: string, metadata: Record<string, unknown>) {
+  const { baseDir, cvPath } = tempCv(marker);
+  nextSpawn = { kind: "ok", payload: { ...PAYLOAD, metadata: { ...PAYLOAD.metadata, ...metadata } } };
+  const out = (await runAnalyze(params(marker, baseDir, cvPath))) as { persistence: { slug: string } | null };
+  assert.ok(out.persistence, "the fixture must persist for its stored columns to be readable");
+  return rowFor(out.persistence.slug);
+}
+
+test("an LLM analysis stores engine 'llm' and the provider that served it", async () => {
+  const row = await persistWith("engine-llm.pdf", { engineKind: "llm", engineProvider: "gemini" });
+  assert.equal(row?.engine, "llm");
+  assert.equal(row?.engine_provider, "gemini");
+});
+
+test("a DETERMINISTIC result stores 'deterministic' and names NO provider", async () => {
+  // The live case is the seeded demo corpus (seed_analyses.py sets engine_kind
+  // "deterministic"); the same marker is what any future keyless CV fallback would carry.
+  // A provider on the payload is DROPPED rather than stored: naming one for a run where
+  // no model was called would be a claim, not a record.
+  const row = await persistWith("engine-det.pdf", { engineKind: "deterministic", engineProvider: "gemini" });
+  assert.equal(row?.engine, "deterministic");
+  assert.equal(row?.engine_provider, null, "a deterministic row has no provider to name");
+});
+
+test("a payload with NO marker stores NULL - unknown provenance is never read as 'llm'", async () => {
+  const { engineKind: _k, engineProvider: _p, ...legacy } = { engineKind: undefined, engineProvider: undefined };
+  void _k;
+  void _p;
+  const row = await persistWith("engine-legacy.pdf", legacy);
+  assert.equal(row?.engine, null, "every analysis saved before the column existed is UNKNOWN, not assumed AI");
+  assert.equal(row?.engine_provider, null);
+});
+
+test("an unrecognised marker is UNKNOWN, not stored verbatim", async () => {
+  // The column is a closed vocabulary (ANALYSIS_ENGINES). A payload claiming
+  // engineKind "magic" must not widen it by writing itself in.
+  const row = await persistWith("engine-bogus.pdf", { engineKind: "magic" });
+  assert.equal(row?.engine, null);
+});
+
+test("the seeded demo corpus is stamped deterministic by the seeder, not left blank", () => {
+  // seedAnalyses (core.ts) stamps the column literally rather than deriving it: it is true
+  // by construction of the seeder, and the committed JSON is refreshed on its own
+  // schedule, so deriving would leave a stale corpus unmarked.
+  const seeded = listAnalyses(500).filter((r) => r.slug.startsWith("seed-"));
+  assert.ok(seeded.length > 0, "non-vacuity: the throwaway DB really did self-seed the demo corpus");
+  const unmarked = seeded.filter((r) => r.engine !== "deterministic");
+  assert.deepEqual(unmarked.map((r) => r.slug), [], "every seeded row must say no model produced it");
 });
 
 // LAST: it drops the table the earlier tests write to.

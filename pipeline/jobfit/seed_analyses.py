@@ -497,6 +497,12 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
         analysis_engine="seed-deterministic",
         text_extractor="seed",
         model=None,
+        # No model ran: every number below comes from the pipeline's rule-based builders.
+        # The demo corpus this writes is seeded into `analyses` on first boot, so without
+        # this marker a fresh install's History is full of rows a recruiter would read as
+        # AI assessments.
+        engine_kind="deterministic",
+        engine_provider=None,
         parsing_notes=[
             "Seeded analysis (no LLM): scored against a drafted JD + organization description; "
             "insight sections reuse the live pipeline's deterministic builders."

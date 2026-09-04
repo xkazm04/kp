@@ -5888,7 +5888,9 @@
       "trustMedium": "Authenticity: medium",
       "trustLow": "Authenticity: low",
       "engineNote": "Engine notes (English, as written)",
-      "engineNoteTitle": "These lines come from the analysis engine exactly as it produced them, and are not translated."
+      "engineNoteTitle": "These lines come from the analysis engine exactly as it produced them, and are not translated.",
+      "deterministicNote": "No model ran: this result was computed by rules",
+      "deterministicNoteTitle": "This analysis was produced by the deterministic scoring builders, not by an AI model. The numbers are complete, but no language model read this CV."
     },
     "softSignals": {
       "title": "Confirm in interview",

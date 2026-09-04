@@ -5888,7 +5888,9 @@
       "trustMedium": "Authenticité : moyenne",
       "trustLow": "Authenticité : faible",
       "engineNote": "Notes du moteur (en anglais, telles quelles)",
-      "engineNoteTitle": "Ces lignes proviennent telles quelles du moteur d’analyse et ne sont pas traduites."
+      "engineNoteTitle": "Ces lignes proviennent telles quelles du moteur d’analyse et ne sont pas traduites.",
+      "deterministicNote": "Aucun modèle exécuté : ce résultat provient de règles",
+      "deterministicNoteTitle": "Cette analyse a été produite par les modules de scoring déterministes, non par un modèle d’IA. Les chiffres sont complets, mais aucun modèle de langage n’a lu ce CV."
     },
     "softSignals": {
       "title": "À confirmer en entretien",

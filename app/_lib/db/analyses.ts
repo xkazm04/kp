@@ -29,7 +29,44 @@ export type AnalysisRow = {
   // cv_hash migration in core.ts). Present on SELECTs that fetch it; NULL on rows
   // saved before the column existed. Fetched by the summary + detail reads below.
   cv_hash?: string | null;
+  // WHICH ENGINE produced this row: 'llm' | 'deterministic', plus the registry provider
+  // name that served it. NULL on a row saved before the columns existed — read as
+  // UNKNOWN by every consumer, never assumed to be an AI assessment.
+  engine?: string | null;
+  engine_provider?: string | null;
 };
+
+/** The closed vocabulary for `analyses.engine` — the literal-array + derived-union +
+ *  runtime-guard shape this repo uses for every closed vocabulary (tabs.ts,
+ *  i18n/locales.ts). Mirrors AnalysisMetadata.engine_kind in pipeline/jobfit/models.py. */
+export const ANALYSIS_ENGINES = ["llm", "deterministic"] as const;
+export type AnalysisEngine = (typeof ANALYSIS_ENGINES)[number];
+
+export function isAnalysisEngine(v: unknown): v is AnalysisEngine {
+  return typeof v === "string" && (ANALYSIS_ENGINES as readonly string[]).includes(v);
+}
+
+/** Read the engine marker off an analysis PAYLOAD (`metadata.engineKind`), the field the
+ *  Python envelope now carries. Returns null for a payload that predates the field or
+ *  carries an unrecognised value — UNKNOWN, never a guess. Callers store this beside the
+ *  row so the History list can distinguish the two producers without parsing every blob.
+ *
+ *  Deliberately defensive rather than schema-validated: this column legitimately holds
+ *  thinner payloads than the producer's contract (see listAnalysisRecords), so a shape
+ *  check here would refuse to read rows the rest of the module happily serves. */
+export function analysisEngineFromPayload(payload: unknown): AnalysisEngine | null {
+  const metadata = (payload as { metadata?: unknown } | null | undefined)?.metadata;
+  const kind = (metadata as { engineKind?: unknown } | null | undefined)?.engineKind;
+  return isAnalysisEngine(kind) ? kind : null;
+}
+
+/** The provider that served it, off the same payload. Null for a deterministic result
+ *  (nothing served it) and for a legacy payload. */
+export function analysisProviderFromPayload(payload: unknown): string | null {
+  const metadata = (payload as { metadata?: unknown } | null | undefined)?.metadata;
+  const provider = (metadata as { engineProvider?: unknown } | null | undefined)?.engineProvider;
+  return typeof provider === "string" && provider.trim() ? provider.trim() : null;
+}
 
 // The recruiter dispositions a saved analysis can carry (RES5). advance/hold/pass
 // mirror the language of the decision queue; "" clears the disposition.
@@ -59,6 +96,12 @@ export type SaveAnalysisInput = {
   // computed by the analyze intake (cvVariantHash). Threaded, not re-hashed.
   // Absent ⇒ NULL (the identity features degrade to per-row, never grouping).
   cvHash?: string | null;
+  // Which engine produced `payload`. Absent ⇒ derived from the payload's own
+  // metadata.engineKind, so a caller that just forwards the envelope gets it right by
+  // default; an explicit value wins for a producer that knows better than its payload
+  // does. Unresolvable ⇒ NULL (unknown), never assumed.
+  engine?: AnalysisEngine | null;
+  engineProvider?: string | null;
 };
 
 // Tenant scope (P2): `workspaceId` defaults to the single workspace, so existing
@@ -68,10 +111,14 @@ export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEF
   const db = ensureDb();
   const createdAt = new Date().toISOString();
   const payloadJson = JSON.stringify(input.payload);
+  // The engine marker travels WITH the payload, so an unstated one is derived from it
+  // rather than left null — every current caller forwards the Python envelope whole.
+  const engine = input.engine ?? analysisEngineFromPayload(input.payload);
+  const engineProvider = input.engineProvider ?? analysisProviderFromPayload(input.payload);
   const stmt = db.prepare(
     `INSERT INTO analyses
-      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags, workspace_id, cv_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, review_flags, workspace_id, cv_hash, engine, engine_provider)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const slug = insertWithUniqueSlug((s) =>
     stmt.run(
@@ -85,7 +132,10 @@ export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEF
       createdAt,
       input.reviewFlags ?? null,
       workspaceId,
-      input.cvHash ?? null
+      input.cvHash ?? null,
+      engine,
+      // A deterministic result has no provider to name; storing one would be a claim.
+      engine === "deterministic" ? null : engineProvider
     )
   );
   return { slug, createdAt };
@@ -111,6 +161,7 @@ export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
     .prepare(
       `SELECT a.slug, a.candidate_label, a.jd_slug, a.score, a.role_family, a.seniority,
               a.created_at, a.disposition, a.decision_note, a.review_flags, a.cv_hash,
+              a.engine, a.engine_provider,
               (SELECT COUNT(*) FROM analyses p
                  WHERE p.workspace_id = a.workspace_id
                    AND a.cv_hash IS NOT NULL AND p.cv_hash = a.cv_hash
@@ -407,7 +458,7 @@ export function loadAnalysis(slug: string, workspaceId: string = DEFAULT_WORKSPA
   const db = ensureDb();
   const row = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json, cv_hash
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json, cv_hash, engine, engine_provider
        FROM analyses WHERE slug = ? AND workspace_id = ?`
     )
     .get(slug, workspaceId) as AnalysisRow | undefined;

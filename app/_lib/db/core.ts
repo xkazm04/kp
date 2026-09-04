@@ -1449,6 +1449,17 @@ export function ensureDb(): Database.Database {
     // same person's other-job analyses, and a filename-derived label shared by two
     // different hashes surfaces a collision caution. NULL on legacy rows (never grouped).
     "ALTER TABLE analyses ADD COLUMN cv_hash TEXT",
+    // WHICH ENGINE PRODUCED THIS ROW. `analyses` holds output from two producers — the
+    // LLM pipeline (analyze_cv) and the deterministic seed builders (seed_analyses.py,
+    // upserted into this same table on every boot) — and nothing on the row said which.
+    // A recruiter opening History could not tell an AI assessment from a demo row built
+    // by rules, and "degrades gracefully keyless" is precisely the property that makes
+    // the difference matter. `engine` is 'llm' | 'deterministic'; `engine_provider` is
+    // the registry provider name that served it ('gemini', 'claude_cli', …) and is NULL
+    // for a deterministic row because there is no provider to name. Both NULL on rows
+    // saved before the columns existed — read as UNKNOWN, never assumed to be 'llm'.
+    "ALTER TABLE analyses ADD COLUMN engine TEXT",
+    "ALTER TABLE analyses ADD COLUMN engine_provider TEXT",
     // Tenant scope (P2): the profiles domain (2nd scoped table). Same backfill below.
     "ALTER TABLE profiles ADD COLUMN workspace_id TEXT",
     // Source lineage (profile ↔ CV): the saved analysis a profile was built from,
@@ -2370,8 +2381,13 @@ function seedAnalyses(db: Database.Database): void {
   const records = loadSeedArray<Record<string, unknown>>("analyses", SEED_ANALYSES_PATH);
   if (!records) return;
   const insert = db.prepare(
-    `INSERT INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at)
-     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at)
+    // `engine` is stamped 'deterministic' HERE rather than read out of the payload: it is
+    // true by construction of this seeder (seed_analyses.py runs the rule-based builders
+    // and never calls a model), and the committed JSON is refreshed on its own schedule,
+    // so deriving it would leave a stale corpus unmarked. It IS one of the seed-owned
+    // columns, so the upsert refreshes it like the rest.
+    `INSERT INTO analyses (slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, engine)
+     VALUES (@slug, @candidate_label, @jd_slug, @score, @role_family, @seniority, @payload_json, @created_at, 'deterministic')
      ON CONFLICT(slug) DO UPDATE SET
        candidate_label = excluded.candidate_label,
        jd_slug = excluded.jd_slug,
@@ -2379,7 +2395,8 @@ function seedAnalyses(db: Database.Database): void {
        role_family = excluded.role_family,
        seniority = excluded.seniority,
        payload_json = excluded.payload_json,
-       created_at = excluded.created_at
+       created_at = excluded.created_at,
+       engine = excluded.engine
      -- …but NEVER over an ERASED candidate. The columns this upsert refreshes are
      -- exactly the two anonymizeEntry scrubs (candidate_label → "First L.",
      -- payload_json → PII stripped of name / rawText / contact / evidence quotes), so

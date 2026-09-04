@@ -5888,7 +5888,9 @@
       "trustMedium": "Pravost: střední",
       "trustLow": "Pravost: nízká",
       "engineNote": "Poznámky enginu (anglicky, doslovně)",
-      "engineNoteTitle": "Tyto řádky pocházejí přímo z analytického enginu v podobě, v jaké je vytvořil, a nejsou přeložené."
+      "engineNoteTitle": "Tyto řádky pocházejí přímo z analytického enginu v podobě, v jaké je vytvořil, a nejsou přeložené.",
+      "deterministicNote": "Žádný model neběžel: tento výsledek spočítala pravidla",
+      "deterministicNoteTitle": "Tuto analýzu vytvořily deterministické výpočetní moduly, nikoli model AI. Čísla jsou úplná, ale žádný jazykový model tento životopis nečetl."
     },
     "softSignals": {
       "title": "Ověřit na pohovoru",

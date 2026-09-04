@@ -76,6 +76,8 @@ export const analysisResultSchema = z.object({
     analysisEngine: z.string(),
     textExtractor: z.string(),
     model: z.string().nullish(),
+    engineKind: z.string().nullish(),
+    engineProvider: z.string().nullish(),
     parsingNotes: z.array(z.string()),
     groundingSources: z.array(z.string()),
     deterministicEvidence: z.object({
