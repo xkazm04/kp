@@ -73,3 +73,50 @@ test("pipelineAnalytics ignores (SIM) rows in every aggregate; the board still s
   assert.ok(boardIds.has(sim.id), "the board still surfaces sim rows for the running demo");
   assert.ok(boardIds.has(real.id) && boardIds.has(untitled.id));
 });
+
+// The exclusion above is right; its SILENCE was the defect. The board shows the demo
+// rows, every figure on the Insights tab drops them, and nothing on screen said so —
+// so after a guided run the funnel and the board disagreed and the reader had to guess
+// which one was lying. `excludedSim` is the size of that gap, and the tab renders a
+// footnote from it (AnalyticsHeader). A COUNT, never the rows.
+test("pipelineAnalytics reports how many sim rows it excluded", () => {
+  const before = pipelineAnalytics();
+  const windowedBefore = pipelineAnalytics(7);
+  const simTitle = `Data Analyst ${SIM_MARKER}`;
+
+  createPipelineEntry({
+    candidateId: "ana-count-real",
+    candidateLabel: "Real Applicant",
+    jobId: "ana-job-count-real",
+    jobTitle: "Data Analyst",
+    stage: "Screened",
+  });
+  const untitled = createPipelineEntry({
+    candidateId: "ana-count-untitled",
+    candidateLabel: "No Job Title Either",
+    jobId: "ana-job-count-untitled",
+    jobTitle: "placeholder",
+    stage: "Screened",
+  }).entry;
+  ensureDb().prepare(`UPDATE pipeline_entries SET job_title = NULL WHERE id = ?`).run(untitled.id);
+  for (let i = 0; i < 3; i += 1) {
+    createPipelineEntry({
+      candidateId: `ana-count-sim-${i}`,
+      candidateLabel: `Demo Resident ${i}`,
+      jobId: `ana-job-count-sim-${i}`,
+      jobTitle: simTitle,
+      stage: "Screened",
+    });
+  }
+
+  const a = pipelineAnalytics();
+  assert.equal(a.excludedSim, before.excludedSim + 3, "the three demo rows the aggregates dropped are counted");
+  assert.equal(a.total, before.total + 2, "and they are still dropped from every figure");
+  // The inverse predicate must be NULL-safe the same way `notSim` is: a title-less
+  // real entry belongs to NEITHER side, or the footnote would accuse real data.
+  assert.equal(
+    pipelineAnalytics(7).excludedSim,
+    windowedBefore.excludedSim + 3,
+    "the count is windowed exactly like the figures it explains",
+  );
+});

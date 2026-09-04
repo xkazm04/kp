@@ -88,6 +88,16 @@ export function AnalyticsHeader({
         <p id={scopeNoteId} className="mt-2 max-w-3xl text-meta text-steel">
           {scopeNote}
         </p>
+        {/* THE SILENCE, NAMED. Every figure on this page excludes guided-demo rows
+            (db/analytics.ts `notSim`) — correctly, since a demo must never move a
+            leadership metric. But the board shows those same people, so after a
+            guided run the funnel and the board disagreed with nothing on screen to
+            explain it. The server counts what it dropped; this says so, and only
+            when there is something to say. A count, never a link to the rows: they
+            are demo residue, and `resetSim` is where they go. */}
+        {data && (data.excludedSim ?? 0) > 0 ? (
+          <p className="mt-1 max-w-3xl text-meta text-steel">{t("simExcludedNote", { count: data.excludedSim ?? 0 })}</p>
+        ) : null}
         {/* The two ways to take this view somewhere else. UAT TOM-ANA-8 put the
             second one here: the reader who came to settle an argument needs the file
             OR the link, and both belong above the section they describe rather than

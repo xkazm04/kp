@@ -163,6 +163,13 @@ export type PipelineAnalytics = {
   // stage name) + a single time-to-hire target in days. Goal lines on the funnel
   // and the goal-aware miss flagging read from here; empty when nothing is set.
   targets: { conversion: Record<string, number>; timeToHireDays: number | null };
+  /** How many board entries in this window were LEFT OUT of every figure above
+   *  because they are guided-demo residue (see `notSim`). Zero on a real install and
+   *  after `resetSim`; non-zero only while a simulation run's rows are still on the
+   *  board. The exclusion has always been correct — it was silent, so after a guided
+   *  demo the funnel and the board disagreed with nothing on screen to say why. The
+   *  page renders a footnote from this; it is a COUNT, never a set of rows. */
+  excludedSim: number;
 };
 
 // 82c2b8e8 — the reserved analytics_targets row whose value is a time-to-hire
@@ -263,6 +270,27 @@ export function pipelineAnalytics(
     source_campaign: string | null;
     source_variant: string | null;
   }[];
+
+  // The size of the silence. `notSim()` drops guided-demo entries from every figure
+  // on this page; counting what it dropped (over the SAME window and workspace, with
+  // the predicate inverted) is what lets the page say so out loud instead of quietly
+  // disagreeing with the board. NOT NULL-safe by accident: the inverse of
+  // `(title IS NULL OR title NOT LIKE ?)` is `title IS NOT NULL AND title LIKE ?`,
+  // so a title-less real entry is counted by neither side.
+  const SIM_PREDICATE = "job_title IS NOT NULL AND job_title LIKE ?";
+  const excludedSim = (
+    cutoffIso
+      ? upperIso
+        ? db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${SIM_PREDICATE} AND workspace_id = ?`
+            )
+            .get(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId)
+        : db
+            .prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE created_at >= ? AND ${SIM_PREDICATE} AND workspace_id = ?`)
+            .get(cutoffIso, SIM_TITLE_LIKE, workspaceId)
+      : db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE ${SIM_PREDICATE} AND workspace_id = ?`).get(SIM_TITLE_LIKE, workspaceId)
+  ) as { n: number };
 
   // Index against THIS WORKSPACE's axis, not the shipped list. A team that
   // renamed or added a column must get a funnel of ITS columns — indexing the
@@ -741,6 +769,7 @@ export function pipelineAnalytics(
     byVariantTotal: variantStats.length,
     variantRecommendations,
     targets: analyticsTargets(targetValues),
+    excludedSim: excludedSim.n,
     costPerHireCzk,
     costPerHireAsOf,
     hiresClosedInWindow,

@@ -6973,7 +6973,8 @@
     "copyViewLinkTitle": "Ein Link, der diesen Abschnitt mit dem gerade gewählten Zeitraum öffnet",
     "viewLinkManual": "Ihr Browser hat das Kopieren blockiert. Markieren Sie den Link unten und kopieren Sie ihn selbst.",
     "briefMomentumNoDataClaim": "In diesen Wochen hat sich noch nichts bewegt.",
-    "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline."
+    "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline.",
+    "simExcludedNote": "{count, plural, one {# Eintrag aus der geführten Demo ist} other {# Einträge aus der geführten Demo sind}} von allen Zahlen auf dieser Seite ausgenommen. Auf dem Board bleiben sie, bis Sie die Simulation zurücksetzen."
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",

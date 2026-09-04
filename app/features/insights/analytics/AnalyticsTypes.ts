@@ -62,6 +62,12 @@ export type Analytics = {
   deltas: PeriodDeltas | null;
   // 82c2b8e8 — recruiter-set goals: per-stage conversion %% targets + a TTH goal.
   targets: { conversion: Record<string, number>; timeToHireDays: number | null };
+  /** Board entries in this window that every figure on the page LEFT OUT because
+   *  they are guided-demo residue (db/analytics.ts `notSim`). The exclusion is
+   *  right; its silence was not — after a demo run the funnel disagreed with the
+   *  board and nothing on screen said why. Optional so an older cached payload (or a
+   *  fixture) still type-checks; absent and 0 both mean "nothing to say". */
+  excludedSim?: number;
 };
 
 // ANA2 — the selectable windows. null = all time (the server default).
