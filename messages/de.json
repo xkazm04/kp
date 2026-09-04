@@ -2740,7 +2740,8 @@
       "agent_dispatched": "wurde als Persona-Anfrage an Personas übermittelt",
       "agent_activated": "ging als Personas-Persona live",
       "onboarding_started": "startete das Onboarding (eingestelltes Modul)",
-      "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)"
+      "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)",
+      "screen_wave_holdout_unsealed": "wurde von der Screening-Welle verschont, aber der Kalibrierungs-Kontrollgruppen-Eintrag konnte nicht versiegelt werden"
     },
     "relTime": {
       "today": "heute",
@@ -3516,7 +3517,10 @@
         "holdout": "als Kalibrierungs-Kontrollgruppe behalten: {pct} % der eigentlich automatisch abgelehnten Kandidaten werden bewusst behalten, damit ihre tatsächlichen Ergebnisse die Richtigkeit des Scores prüfen können (Match {score}, Schwelle {threshold})",
         "approvedByNote": "Genehmigt von {who}.",
         "approverUnidentified": "Genehmigende Person nicht identifiziert.",
-        "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch)."
+        "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch).",
+        "sealFailed": "beibehalten: Der manipulationssichere Entscheidungssatz konnte nicht versiegelt werden, die automatische Absage wurde daher nicht ausgeführt",
+        "reinstated": "beibehalten: Eine frühere automatische Absage wurde von einer Recruiterin aufgehoben, die Automatik wiederholt sie nicht",
+        "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm"
       }
     },
     "summary": {
@@ -5616,7 +5620,9 @@
       "saveFailed": "Relay konnte nicht gespeichert werden",
       "test": "Test-Ping senden",
       "testOk": "Zugestellt (HTTP {status})",
-      "testFailed": "Test fehlgeschlagen: {reason}"
+      "testFailed": "Test fehlgeschlagen: {reason}",
+      "statusUnreadable": "Signaturschlüssel nicht lesbar",
+      "unreadableNote": "Ein Relay-Endpunkt ist gespeichert, aber sein Signaturschlüssel lässt sich mit dem Schlüssel dieser Installation nicht entschlüsseln, sodass Nachrichten im lokalen Postausgang bleiben. Geben Sie den Signaturschlüssel unten neu ein oder stellen Sie den Schlüssel wieder her, unter dem er gespeichert wurde."
     },
     "edge": {
       "title": "Dauerhaft erreichbarer Rand",
@@ -7018,7 +7024,8 @@
         "agent_dispatched": "Persona-Anfrage übermittelt",
         "agent_activated": "Persona live geschaltet",
         "onboarding_started": "Onboarding gestartet (eingestelltes Modul)",
-        "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)"
+        "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)",
+        "screen_wave_holdout_unsealed": "Von der Welle verschont, Kontrollgruppen-Eintrag unversiegelt"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",
@@ -7162,7 +7169,9 @@
     "viewLinkManual": "Ihr Browser hat das Kopieren blockiert. Markieren Sie den Link unten und kopieren Sie ihn selbst.",
     "briefMomentumNoDataClaim": "In diesen Wochen hat sich noch nichts bewegt.",
     "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline.",
-    "simExcludedNote": "{count, plural, one {# Eintrag aus der geführten Demo ist} other {# Einträge aus der geführten Demo sind}} von allen Zahlen auf dieser Seite ausgenommen. Auf dem Board bleiben sie, bis Sie die Simulation zurücksetzen."
+    "simExcludedNote": "{count, plural, one {# Eintrag aus der geführten Demo ist} other {# Einträge aus der geführten Demo sind}} von allen Zahlen auf dieser Seite ausgenommen. Auf dem Board bleiben sie, bis Sie die Simulation zurücksetzen.",
+    "daysAvgOver": "Tage Ø aus {count, plural, one {# Einstellung} other {# Einstellungen}}",
+    "closedInWindowSub": "{count} im Zeitraum beendet"
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",

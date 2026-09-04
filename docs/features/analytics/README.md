@@ -183,6 +183,25 @@ call a stage weak.
   `avgTimeToHireDays != null && avg > goal`, which collapsed "no hires in this window" onto
   `false`, i.e. onto the **met** colour: a green "goal 30 d" beside a `—` and „no hires yet".
   A goal is not met by a cohort that produced no measurement.
+  The rule is a pure module now — `timeToHireGoalChip()` (`statGoalChip.ts`, executed by
+  `statGoalChip.test.ts`) — because a verdict expressed only as a colour cannot be asserted by
+  reading JSX. Same move for the dwell band's whole-band gate and bar scale
+  (`stageDwellGate.ts` / `stageDwellGate.test.ts`).
+- **The headline average names its sample.** The time-to-hire tile prints
+  `daysAvgOver` — "days avg over N hires" — from `timeToHireSamples`, NOT from `hired`: a hire
+  whose entry lacks one of the two timestamps is a real hire the mean cannot see (4 of 9 on the
+  shipped corpus). In a windowed view the hired tile adds `closedInWindowSub` when
+  `hiresClosedInWindow` differs from `hired` — the event-time basis every per-hire figure on
+  the tab divides by, so the two counts no longer disagree silently. Every figure in the
+  cluster is grouped in the reader's locale (`useNumberFormat`), and the tile composes the
+  `STAT_VALUE` recipe instead of re-typing it (the hand-typed copy had already lost `nums`).
+- **A failed goal save says which failure it was.** `AnalyticsTargetInput` threw a bare
+  `new Error()`, so a seat refused by policy (`ANALYTICS_POLICY_FORBIDDEN`) and a write that
+  fell over (`ANALYTICS_TARGET_SAVE_FAILED`) were one coral border and one keyboard-unreachable
+  tooltip — on the surface that sets the goal lines every figure here is judged against. It now
+  resolves the route's code through `useErrorMessage` and announces the failure
+  (`announceFailure`), exactly like the spend input; the fold both share is
+  `localizedSaveFailure()` (`analyticsSaveFailure.ts`).
 - **The zero-transition guard is on the render path** — `hasNoStageTransitions()` and
   `AnalyticsFunnelEmptyGuide` were correct, translated and reachable from nowhere. The review
   hatch `?funnelEmpty=1`, threaded through three files and destructured by no one, is
@@ -689,6 +708,15 @@ is coming" band, or the board's `source` / `channel` row groups with the spend e
 `AnalyticsOfferLegPanel` and `AnalyticsArchetypePanel` were **restored** into the Performance
 brief.
 
+`analyticsPayloadMirror.test.ts` guards the other end of the same seam. `AnalyticsTypes.Analytics`
+is a HAND-WRITTEN mirror of `PipelineAnalytics` (the client cannot import the server type — that
+module opens better-sqlite3), and nothing compared the two: `timeToHireSamples`, `costPerHireAsOf`
+and `hiresClosedInWindow` were sent on every request and declared nowhere, so the Economics
+surface carried its own OPTIONAL intersection of two of them (`sections/economicsTypes.ts`) with a
+comment asking a later change to delete it. The three fields are in the mirror, the intersection is
+gone, and the test now fails in both directions — a server field with no client declaration, and a
+client declaration the route never sends (only `deltas`, which the route adds, is exempt).
+
 ## Vocabulary: "confidence" was four quantities
 
 One word covered four unrelated numbers on scales **inverted against each other** (for a salary
@@ -879,7 +907,7 @@ them. **That substitution requires a funnel of at least three rows.** The offer 
 reads as if every arrival reached an offer (a measured 60 % accept and 10 leads/week projected
 72 hires at 12 weeks where the real 10 % conversion gives 12). Entry + terminal is a legal saved
 axis — `validatePipelineStages` requires that much and no more — so such a board falls back to
-the funnel-derived conversion and echoes `offerAcceptRate: null` · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
+the funnel-derived conversion and echoes `offerAcceptRate: null` · an unknown floor in the threshold-history strip renders `—`, never `0` — `0` is a legal floor (accept everything), so the fix is `floorLabel()` in `thresholdHistoryRows.ts`, not a falsy test; the strip's plot already skipped nulls while the sentence and the sr-only list beside it printed a prior floor no seal ever recorded · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
 capped tables say what they dropped and where to reach it · the first-run empty state previews
 the metrics with literal em-dashes and never fabricates sample figures
 (`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.

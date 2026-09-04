@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ThresholdEffect } from "@/app/_lib/calibration";
 import { thresholdEffectClaim } from "./calibrationVerdict";
+import {
+  chronological,
+  historyRowValues,
+  stripDate,
+  type ThresholdHistoryPoint,
+} from "./thresholdHistoryRows";
 
 // threshold-story — the floor-over-time strip. Turns recommend→apply→HOPE into a
 // visible loop: every sealed apply of the auto-reject floor is plotted over time
@@ -14,19 +20,6 @@ import { thresholdEffectClaim } from "./calibrationVerdict";
 // DriftStrip SVG pattern. Split out of CalibrationPanel.tsx (now
 // AnalyticsCalibrationPanel.tsx) to keep that file under the 200-line cap.
 
-type ThresholdHistoryPoint = {
-  seq: number;
-  contentHash: string;
-  at: string;
-  approvedBy: string | null;
-  direction: "lower" | "raise" | null;
-  previous: number | null;
-  next: number | null;
-  band: { lo: number; hi: number } | null;
-  n: number | null;
-  advanceRatePct: number | null;
-  roleFamily: string | null;
-};
 type ThresholdHistoryPayload = { history: ThresholdHistoryPoint[]; effect: ThresholdEffect | null };
 
 const STRIP_W = 320;
@@ -35,9 +28,6 @@ const STRIP_PADX = 10;
 const STRIP_PADY = 12;
 function floorY(v: number): number {
   return STRIP_PADY + (1 - Math.max(0, Math.min(100, v)) / 100) * (STRIP_H - 2 * STRIP_PADY);
-}
-function stripDate(iso: string): string {
-  return iso.length >= 10 ? iso.slice(0, 10) : iso;
 }
 
 export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family: string }) {
@@ -49,12 +39,16 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
   // in the effect body — mirrors ScoreBands): a fresh fetch that succeeds clears any
   // prior failure, so a transient error self-heals on the next nonce/family change.
   useEffect(() => {
-    let alive = true;
+    // An AbortController, not only an `alive` flag: a reader who switches role family
+    // three times leaves three in-flight reads of the sealed decision records running
+    // to completion with nowhere to land. The flag stopped the setState; it never
+    // stopped the request.
+    const controller = new AbortController();
     const url = `/api/analytics/calibration/threshold-history${family ? `?roleFamily=${encodeURIComponent(family)}` : ""}`;
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then(async (r) => {
         const body = (await r.json().catch(() => null)) as ThresholdHistoryPayload | null;
-        if (!alive) return;
+        if (controller.signal.aborted) return;
         if (!r.ok || body == null) {
           setFailed(true);
           return;
@@ -63,11 +57,11 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
         setData(body);
       })
       .catch(() => {
-        if (alive) setFailed(true);
+        // An abort is this component unmounting or re-keying, not a failure a reader
+        // should be told about — only a real fault sets the failed flag.
+        if (!controller.signal.aborted) setFailed(true);
       });
-    return () => {
-      alive = false;
-    };
+    return () => controller.abort();
   }, [nonce, family]);
 
   // Supplementary panel: on failure or before any apply exists, render nothing
@@ -76,7 +70,7 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
 
   // Chronological (oldest → newest, left → right) for the plot; the record list keeps
   // the store's newest-first order.
-  const asc = [...data.history].reverse();
+  const asc = chronological(data.history);
   const n = asc.length;
   const stepX = n > 1 ? (STRIP_W - 2 * STRIP_PADX) / (n - 1) : 0;
   const pointX = (i: number) => STRIP_PADX + (n > 1 ? i * stepX : (STRIP_W - 2 * STRIP_PADX) / 2);
@@ -98,7 +92,7 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
       <ul className="sr-only">
         {asc.map((p) => (
           <li key={p.seq}>
-            {t("historyPoint", { previous: p.previous ?? 0, next: p.next ?? 0, at: stripDate(p.at) })}
+            {t("historyPoint", historyRowValues(p))}
           </li>
         ))}
       </ul>
@@ -144,7 +138,7 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
                   >
                     {p.direction === "raise" ? t("historyDirectionRaise") : t("historyDirectionLower")}
                   </span>
-                  <span className="font-medium text-ink">{t("historyApply", { previous: p.previous ?? 0, next: p.next ?? 0 })}</span>
+                  <span className="font-medium text-ink">{t("historyApply", historyRowValues(p))}</span>
                 </span>
                 <span className="shrink-0 text-meta text-steel">{stripDate(p.at)}</span>
               </button>

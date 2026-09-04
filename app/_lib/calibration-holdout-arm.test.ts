@@ -146,7 +146,11 @@ test("both recommender call sites feed it the clean arm, derived the same way", 
     );
     assert.match(
       src,
-      /pipelineCalibrationPairs\(ws, \{ onlyEntryIds: heldOutEntryIds\(ws\), outcome: "advance" \}\)/,
+      // The display route reads the arm ONCE per request behind a `heldOut()` memo (it
+      // needs the same set twice); apply-threshold calls the store directly. Either
+      // spelling satisfies the guard — what it pins is that both build the below-floor
+      // band from the SPARED entries on the ADVANCE axis, not how the set is obtained.
+      /pipelineCalibrationPairs\(ws, \{ onlyEntryIds: (heldOutEntryIds\(ws\)|heldOut\(\)), outcome: "advance" \}\)/,
       `the ${name} route must build that arm from the spared entries on the advance axis`
     );
   }
@@ -160,4 +164,54 @@ test("the threshold-apply seal names the real approver, not a role or an env con
   assert.match(src, /const actor = await humanActor\(\)/, "the chain actor must name the person when there is one");
   assert.doesNotMatch(src, /operatorApprover\(\)/, "operatorApprover is the fallback INSIDE resolveApprover, not the call site");
   assert.doesNotMatch(src, /"human:operator"/, "the seal must not hardcode a role token");
+});
+
+// --- The clean-arm read is BOUNDED, and scopable to one role --------------------
+//
+// heldOutEntryIds ran TWO unbounded `SELECT DISTINCT ... FROM decision_records` scans —
+// one for the spared refs, one for the whole auto-reject history — and /api/analytics/
+// calibration called it twice per request, while the sibling record list beside it capped
+// at 1000 rows. Both scans grew with every wave a customer had ever run.
+//
+// It is now: one capped, newest-first scan of the spared side, plus a lookup of the
+// rejected side FOR THOSE REFS ONLY. These tests pin the cap, the recency order the cap
+// depends on to be meaningful, and the per-role scope.
+
+test("the clean-arm scan is capped, and the cap keeps the MOST RECENT sparings", () => {
+  const entries = [addEntry(31), addEntry(32), addEntry(33)];
+  for (const e of entries) sealHoldout(e.id);
+
+  // A cap of 1 must return the newest sparing, not an arbitrary one: the arm measures
+  // recent selection quality, so "oldest first" would make the bound change the answer.
+  const capped = heldOutEntryIds(undefined, { limit: 1 });
+  assert.equal(capped.size, 1, "the scan honours its cap");
+  assert.ok(capped.has(entries[2].id), `the newest sparing survives the cap; got ${[...capped].join(",")}`);
+
+  // Unbounded-by-default behaviour is unchanged for a normal-sized arm.
+  const all = heldOutEntryIds();
+  for (const e of entries) assert.ok(all.has(e.id), "every spared entry is still in the default arm");
+});
+
+test("the arm can be scoped to ONE role, and a later auto-reject still removes a member", () => {
+  const mine = addEntry(28);
+  const other = addEntry(29);
+  sealHoldout(mine.id);
+  sealHoldout(other.id);
+
+  const scoped = heldOutEntryIds(undefined, { jobId: mine.jobId ?? undefined });
+  assert.ok(scoped.has(mine.id), "the role's own spared candidate is in its arm");
+  assert.ok(!scoped.has(other.id), "another role's spared candidate is not");
+
+  // The subtraction that keeps the arm honest survives the scoping: a spared candidate a
+  // LATER wave auto-rejected is score-caused again and leaves the arm.
+  sealDecisionRecord({
+    kind: AUTO_REJECTED_KIND,
+    actor: "auto:screen-wave",
+    policyVersion: "screen-wave/test/holdout5",
+    candidateRef: mine.id,
+    rationale: "a later wave rejected them after all",
+    reasonCode: "reject",
+    inputs: { score: 28 },
+  });
+  assert.ok(!heldOutEntryIds(undefined, { jobId: mine.jobId ?? undefined }).has(mine.id), "auto-rejected -> out of the clean arm, scoped read included");
 });

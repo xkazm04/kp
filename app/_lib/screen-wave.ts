@@ -5,7 +5,7 @@ import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "
 import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
-import { screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
+import { consumeScreenWaveApprovalToken, screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
 import { isNamedApprover, NAMED_APPROVER_REQUIRED, operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
@@ -14,7 +14,8 @@ import { jdSlugOfJobId } from "./jd-limits";
 import { jdLastEditedAt } from "./db/jobs";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 
-export { ScreenWaveApprovalError } from "./screen-wave-approval";
+export { ScreenWaveApprovalError, SCREEN_WAVE_REFUSAL_REASONS, isScreenWaveRefusalReason } from "./screen-wave-approval";
+export type { ScreenWaveRefusalReason } from "./screen-wave-approval";
 
 // Phase 3 — the screening "first wave" of automated decisions. For a role's
 // matched cohort, auto-reject the bottom `rejectBottomPercent` that are ALSO
@@ -79,7 +80,10 @@ export type ScreenReasonCode =
   // NOT applied. See the seal-first ordering on the adverse path below.
   | "sealFailed"
   // Spared from a would-be auto-reject to form the calibration clean arm.
-  | "holdout";
+  | "holdout"
+  // Spared from the auto-reject like a holdout, but the clean-arm SEAL failed, so the
+  // candidate is NOT in the calibration arm and the row must not claim to be.
+  | "holdoutSealFailed";
 
 // The keep rationale for a candidate with NO match score (audit-string register,
 // mirrored by `decisions.wave.reasons.unscored` for localized rendering). Exported
@@ -320,7 +324,8 @@ export async function runScreenWave(
   if (!dryRun) {
     if (!opts?.approval) {
       throw new ScreenWaveApprovalError(
-        "Human review and approval are required before committing an automated rejection wave. Preview it, then approve the reviewed set."
+        "Human review and approval are required before committing an automated rejection wave. Preview it, then approve the reviewed set.",
+        "required"
       );
     }
     const check = verifyScreenWaveApprovalToken(opts.approval.token, jobId, policyVersion, [...wouldReject]);
@@ -328,7 +333,8 @@ export async function runScreenWave(
       throw new ScreenWaveApprovalError(
         check.reason === "expired"
           ? "This approval has expired — a review has to be recent to stand. Re-preview and approve the current set before committing."
-          : "The candidate set changed since it was previewed — re-preview and approve the current set before committing."
+          : "The candidate set changed since it was previewed — re-preview and approve the current set before committing.",
+        check.reason === "expired" ? "expired" : "mismatch"
       );
     }
   }
@@ -350,7 +356,25 @@ export async function runScreenWave(
   // because refusing that would take away the one-at-a-time human review this page
   // exists to require. The bulk adverse wave is the decision whose accountability
   // is load-bearing, and it is the one gated. The audit table marks the rest.
-  if (!dryRun && !isNamedApprover(approvedBy)) throw new ScreenWaveApprovalError(NAMED_APPROVER_REQUIRED);
+  if (!dryRun && !isNamedApprover(approvedBy)) throw new ScreenWaveApprovalError(NAMED_APPROVER_REQUIRED, "unattributed");
+
+  // SPEND THE APPROVAL (see screen-wave-approval.ts). Everything above proves the token
+  // covers THIS set, is recent, and is somebody's — none of it proves it has not been
+  // committed already. The token is a pure function of (job, policy, set, issuedAt), so a
+  // re-POST inside the 15-minute window re-derives the same signature and passes every
+  // check a second time; the only thing that stopped it was the first commit having
+  // emptied the cohort, which nothing asserted and which a wave that skips or fails on
+  // part of its set does not do. One review authorizes ONE commit.
+  //
+  // LAST, on purpose: a commit refused for a missing approver (or a stale token, or a
+  // changed set) must leave the review unspent, or a fixable refusal would cost the
+  // recruiter a re-preview. Consumed here, the next statement is the mutation loop.
+  if (!dryRun && opts?.approval && !consumeScreenWaveApprovalToken(opts.approval.token)) {
+    throw new ScreenWaveApprovalError(
+      "This approval has already been committed — an approved review authorizes one wave, not a window of them. Re-preview to see what is left and approve that set.",
+      "spent"
+    );
+  }
 
   const decisions: ScreenDecision[] = [];
   let rejected = 0;
@@ -385,8 +409,20 @@ export async function runScreenWave(
     if (heldOut.has(e.id)) {
       const holdoutRationale = `Kept — calibration holdout (${holdoutPct}% of would-be auto-rejects are spared so their outcomes can measure whether the score was right). Match ${score} was below the ${effectiveFloor(cfg, e.roleFamily)} threshold.`;
       if (!dryRun) {
-        recordAutomationEvent(e.id, "screen_wave_holdout", holdoutRationale, workspaceId);
-        sealDecisionSafe({
+        // MEMBERSHIP IS THE SEAL, so the seal is checked. heldOutEntryIds() derives the
+        // clean arm from these sealed rows and from nothing else — no seal, no arm. The
+        // failure branch used to be absent: sealDecisionSafe swallowed a locked/unwritable
+        // chain into a console.warn, the candidate was dropped from the clean arm, and the
+        // wave still handed the recruiter a row reading "kept as a calibration holdout".
+        // Worse than a miscount: it is silent contamination of the ONE arm whose whole
+        // purpose is to be uncontaminated, reported as if it had worked. So a failed
+        // holdout seal is counted in sealFailures exactly like a failed reject seal, and
+        // the row says the sparing stands but the measurement does not.
+        //
+        // The candidate is still SPARED either way — they were removed from `wouldReject`
+        // before the token was signed, so re-adding them here would reject someone outside
+        // the approved set. A failed holdout costs a calibration data point, never a person.
+        const holdoutSealed = sealDecisionSafe({
           kind: SCREEN_WAVE_HOLDOUT_KIND,
           actor: "auto:screen-wave",
           policyVersion,
@@ -395,6 +431,29 @@ export async function runScreenWave(
           reasonCode: "holdout",
           inputs: { score, threshold: effectiveFloor(cfg, e.roleFamily), rank: rank + 1, holdoutPercent: holdoutPct, approvedBy },
         });
+        if (!holdoutSealed) {
+          sealFailures += 1;
+          const unrecorded = `Kept — spared from auto-rejection, but the calibration holdout record could not be sealed, so this candidate is NOT in the clean arm. Retry once the decision chain is writable.`;
+          console.warn(`[screen-wave] holdout seal failed for ${e.candidateLabel} (${e.id}) — spared, but NOT enrolled in the calibration clean arm`);
+          // The audit event names the failure rather than the arm — the recorded event is
+          // what an operator reads back, and "screen_wave_holdout" would assert exactly the
+          // membership that does not exist.
+          recordAutomationEvent(e.id, "screen_wave_holdout_unsealed", unrecorded, workspaceId);
+          decisions.push({
+            entryId: e.id,
+            label: e.candidateLabel,
+            archetype: e.archetype,
+            matchScore: score,
+            action: "keep",
+            rationale: unrecorded,
+            reasonCode: "holdoutSealFailed",
+            reasonParams: {},
+            ...staleFields(e.id),
+          });
+          continue;
+        }
+        // Recorded only once the arm is real (the seal above succeeded).
+        recordAutomationEvent(e.id, "screen_wave_holdout", holdoutRationale, workspaceId);
       }
       decisions.push({
         entryId: e.id,
@@ -499,7 +558,18 @@ export async function runScreenWave(
         actor: "auto:screen-wave",
         // Per-record policyVersion carries the EFFECTIVE floor this candidate was
         // judged against (family override or global) — byte-identical when none.
-        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${floor}`,
+        // THE POLICY THE TOKEN BOUND — the same string the approval signed and the
+        // holdout seal already carried, family-floor suffix and holdout rate included.
+        // It used to be rebuilt here as `bottom<pct>/maxMatch<effective floor>`, a
+        // SHORTER string that dropped both suffixes and substituted a per-candidate
+        // number for the global one. So an auto_rejected record could not be joined
+        // back to the approval that authorized it, nor to the holdout seals of the very
+        // same wave — the audit trail's two arms attested to two different policies, and
+        // "the holdout rate rides the policyVersion so the record attests the rate in
+        // force" was true of one arm only. The candidate's EFFECTIVE floor is not lost:
+        // it rides the sealed inputs as `threshold` (below), which is where a per-record
+        // number belongs — policyVersion identifies the POLICY, inputs identify the run.
+        policyVersion,
         candidateRef: e.id,
         rationale: committedRationale,
         reasonCode: "reject",

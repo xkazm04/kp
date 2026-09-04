@@ -29,8 +29,28 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 Env keeps precedence so an existing `COMMS_WEBHOOK_URL` deployment behaves
 exactly as before. `isRelayConfigured()` is the one capability bit every
 "sent" claim, the channel selection, and the Comms Center banner key off — a
-misconfigured stored relay (e.g. an undecryptable secret) is treated as
-unconfigured rather than taking the whole capability check down.
+misconfigured stored relay (e.g. an undecryptable secret) still resolves to *no
+relay* rather than taking the whole capability check down, so messages queue
+honestly instead of being POSTed unsigned to an endpoint that verifies
+signatures.
+
+**But it is no longer silent.** `relayHealth()` (same resolver, same read) names
+the state in four words — `env`, `configured`, `unconfigured`, `unreadable` — and
+`unreadable` is the one that used to hide: the endpoint IS stored, but its signing
+secret does not decrypt under the current `KP_ATS_SECRET_KEY` / `KP_SECRET`
+(a rotation, or a restore onto a host with a rebuilt env). That state now:
+
+- logs **once per boot per reason** with the remedy — restore the key, or set
+  `KP_SECRET_PREVIOUS` and run `npm run secrets:rotate` (which covers
+  `comms_relay_config.relay_secret`), or re-enter the secret on the Channels tab;
+- rides on `GET /api/comms/relay` as `relay: "unreadable"`;
+- paints the Channels card with its own critical badge and an explanation, and
+  disables the Test ping — instead of the "Not configured" pill an install with
+  no relay at all shows.
+
+`getRelaySecret()` raises `CommsRelaySecretError` (deliberately not a
+`CommsRelayError`, so the config route never answers it as a validation 400).
+Pinned by `app/_lib/comms-relay.test.ts` and `app/api/comms/relay/relay-health.test.ts`.
 
 Every message is recorded in `dev_outbox` either way, so the table doubles as
 the permanent audit log.

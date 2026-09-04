@@ -2740,7 +2740,8 @@
       "agent_dispatched": "byl/a odeslán/a do Personas jako požadavek na personu",
       "agent_activated": "byl/a spuštěn/a jako persona v Personas",
       "onboarding_started": "zahájil/a onboarding (zrušený modul)",
-      "onboarding_intake_submitted": "odeslal/a onboardingový dotazník (zrušený modul)"
+      "onboarding_intake_submitted": "odeslal/a onboardingový dotazník (zrušený modul)",
+      "screen_wave_holdout_unsealed": "byl/a vlnou screeningu ušetřen/a, ale záznam kalibračního vzorku se nepodařilo zapečetit"
     },
     "relTime": {
       "today": "dnes",
@@ -3516,7 +3517,10 @@
         "holdout": "ponecháno jako kalibrační kontrolní vzorek: {pct} % kandidátů určených k automatickému zamítnutí se záměrně ponechává, aby jejich skutečné výsledky ověřily správnost skóre (shoda {score}, práh {threshold})",
         "approvedByNote": "Schválil/a {who}.",
         "approverUnidentified": "Schvalovatel nebyl identifikován.",
-        "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická)."
+        "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická).",
+        "sealFailed": "ponechán(a): záznam rozhodnutí odolný proti manipulaci se nepodařilo zapečetit, automatické zamítnutí se proto neprovedlo",
+        "reinstated": "ponechán(a): personálista dřívější automatické zamítnutí zrušil, stroj ho tedy nezopakuje",
+        "holdoutSealFailed": "ponechán(a), ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi"
       }
     },
     "summary": {
@@ -5616,7 +5620,9 @@
       "saveFailed": "Relé se nepodařilo uložit",
       "test": "Odeslat testovací ping",
       "testOk": "Doručeno (HTTP {status})",
-      "testFailed": "Test selhal: {reason}"
+      "testFailed": "Test selhal: {reason}",
+      "statusUnreadable": "Podpisový klíč nelze přečíst",
+      "unreadableNote": "Koncový bod relay je uložený, ale jeho podpisový klíč se klíčem tohoto nasazení nepodařilo dešifrovat, takže zprávy zůstávají v místní frontě. Zadejte podpisový klíč znovu níže, nebo obnovte klíč, pod kterým byl uložen."
     },
     "edge": {
       "title": "Trvale dostupný okraj",
@@ -7018,7 +7024,8 @@
         "agent_dispatched": "Požadavek na personu odeslán",
         "agent_activated": "Persona spuštěna",
         "onboarding_started": "Onboarding zahájen (zrušený modul)",
-        "onboarding_intake_submitted": "Onboardingový dotazník odeslán (zrušený modul)"
+        "onboarding_intake_submitted": "Onboardingový dotazník odeslán (zrušený modul)",
+        "screen_wave_holdout_unsealed": "Ušetřeno vlnou, záznam vzorku nezapečetěn"
       },
       "kindsQueued": {
         "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",
@@ -7162,7 +7169,9 @@
     "viewLinkManual": "Prohlížeč kopírování zablokoval. Označte odkaz níže a zkopírujte ho ručně.",
     "briefMomentumNoDataClaim": "V těchto týdnech se zatím nic nepohnulo.",
     "briefRolesNoDataClaim": "Zatím žádná role pipeline netáhne.",
-    "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete."
+    "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete.",
+    "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
+    "closedInWindowSub": "{count} uzavřeno v období"
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",

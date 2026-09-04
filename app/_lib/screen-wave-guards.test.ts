@@ -16,8 +16,14 @@ import { createPipelineEntry, getPipelineEntry, reinstatePipelineEntry } from ".
 import { saveJd, updateJd } from "./db/jobs.ts";
 import { saveAnalysis } from "./db/analyses.ts";
 import { runScreenWave, ScreenWaveApprovalError } from "./screen-wave.ts";
-import { screenWaveApprovalToken, SCREEN_WAVE_APPROVAL_MAX_AGE_MS } from "./screen-wave-approval.ts";
-import { listDecisionRecords } from "./decision-record-store.ts";
+import {
+  screenWaveApprovalToken,
+  verifyScreenWaveApprovalToken,
+  isScreenWaveApprovalSpent,
+  resetScreenWaveApprovalSpendForTests,
+  SCREEN_WAVE_APPROVAL_MAX_AGE_MS,
+} from "./screen-wave-approval.ts";
+import { listDecisionRecords, heldOutEntryIds } from "./decision-record-store.ts";
 import { PLACEHOLDER_APPROVER } from "./auth/operator-approver.ts";
 
 after(() => cleanupUnitDb());
@@ -25,7 +31,7 @@ after(() => cleanupUnitDb());
 let seq = 0;
 /** One Screened entry. archetype "bau" is known AND not fairness-protected, so only
  *  the guard under test can save the candidate. */
-function seed(jobId: string, label: string, matchScore: number | null, archetype = "bau") {
+function seed(jobId: string, label: string, matchScore: number | null, archetype = "bau", roleFamily?: string) {
   seq += 1;
   const { entry } = createPipelineEntry({
     candidateId: `swg-c${seq}`,
@@ -35,6 +41,7 @@ function seed(jobId: string, label: string, matchScore: number | null, archetype
     stage: "Screened",
     matchScore,
     archetype,
+    roleFamily,
     contact: `swg-c${seq}@example.com`,
   });
   return entry;
@@ -256,4 +263,164 @@ test("a PREVIEW still runs for an operator who cannot be named", async () => {
   const preview = await runScreenWave(jobId, RULE, { dryRun: true });
   assert.equal(preview.decisions.find((d) => d.entryId === low.id)!.action, "reject");
   assert.equal(getPipelineEntry(low.id)!.status, "active");
+});
+
+// --- 6. THE SEAL ATTESTS THE POLICY THE APPROVAL BOUND ------------------------
+//
+// The wave signs its approval token over a policyVersion that carries the family-floor
+// map and the holdout rate — "the holdout rate rides the policyVersion so the sealed
+// record attests to the rate in force" is the wave's own comment. But the auto-reject
+// seal REBUILT a shorter string, bottom<pct>/maxMatch<this candidate's floor>, dropping
+// both suffixes and substituting a per-candidate number for the global one. So a reject
+// record could not be joined back to the approval that authorized it, nor to the holdout
+// seals of the same wave — the two arms of one audit trail attested to two policies.
+//
+// The join is the assertion: the record's own policyVersion, fed back to the approval
+// verifier with the record's own subject, must re-derive the token the recruiter approved.
+
+test("an auto-reject record joins back to its approval — the sealed policyVersion IS the one the token bound", async () => {
+  resetScreenWaveApprovalSpendForTests();
+  const jobId = "swg-job-policy-join";
+  const low = seed(jobId, "Policy Join Low", 12, "bau", "software_engineering");
+  // A family floor makes the wave policy carry a suffix the old seal dropped, so the two
+  // strings are genuinely different and the join is a real test rather than a tautology.
+  const rule = {
+    autoRejectEnabled: true,
+    rejectBottomPercent: 100,
+    maxMatchToReject: 50,
+    holdoutPercent: 0,
+    familyFloors: { software_engineering: 70 },
+  };
+  const preview = await runScreenWave(jobId, rule, { dryRun: true });
+  assert.equal(preview.rejected, 1, "precondition: the wave would reject exactly this candidate");
+
+  const committed = await runScreenWave(jobId, rule, {
+    dryRun: false,
+    approval: { approvedBy: "Unit Test Approver", token: preview.approvalToken },
+  });
+  assert.equal(committed.rejected, 1);
+
+  const sealed = listDecisionRecords({ candidateRef: low.id }).find((r) => r.kind === "auto_rejected")!;
+  assert.ok(sealed, "the rejection is sealed");
+  // THE JOIN: re-derive the approval signature from the RECORD's policy string. Pre-fix
+  // this failed with reason "mismatch" — the record named a policy no token ever signed.
+  const check = verifyScreenWaveApprovalToken(preview.approvalToken, jobId, sealed.policyVersion, [low.id]);
+  assert.deepEqual(
+    check,
+    { ok: true },
+    `the sealed policyVersion must re-derive the approval; got ${JSON.stringify(check)} for "${sealed.policyVersion}"`
+  );
+  assert.match(sealed.policyVersion, /\/fam:software_engineering=70/, "the family-floor map the approval covered is attested, not dropped");
+
+  // The per-candidate EFFECTIVE floor is not lost — it moved to where a per-record number
+  // belongs. policyVersion identifies the POLICY; inputs identify this run of it.
+  const inputs = (JSON.parse(sealed.payloadJson) as { inputs: { threshold?: unknown } }).inputs;
+  assert.equal(inputs.threshold, 70, "the floor this candidate was actually judged against rides the sealed inputs");
+});
+
+// --- 7. AN APPROVAL IS SPENT ONCE --------------------------------------------
+//
+// The token is a pure function of (job, policy, set, issuedAt), so re-POSTing a commit
+// inside the 15-minute window re-derives the same signature and passes verify, freshness
+// and attribution a second time. The only thing that stopped a replay was the first commit
+// having emptied the cohort — an accident of the wave's own side effect, asserted by
+// nothing, and absent from every wave that leaves part of its set standing.
+
+test("a re-posted commit is refused with reason 'spent' - one review authorizes one wave", async () => {
+  resetScreenWaveApprovalSpendForTests();
+  const jobId = "swg-job-replay";
+  // A wave whose set SURVIVES its own commit is what exposes the hole. holdoutPercent 100
+  // spares every would-be reject for the calibration arm: the commit seals a holdout record
+  // each and leaves the cohort exactly as the preview found it (active, Screened), so the
+  // re-derived reject set - and therefore the token - still matches on a re-post. This is
+  // not a contrived shape: a seal failure and a mid-wave stage drift leave part of a
+  // reviewed set standing the same way. The reason the old double-commit "failed" was that
+  // the ordinary wave happened to empty its own cohort; nothing asserted it, and here it
+  // does not happen.
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 100 };
+  const low = seed(jobId, "Replay Low", 10);
+  const preview = await runScreenWave(jobId, rule, { dryRun: true });
+  assert.equal(preview.decisions.find((d) => d.entryId === low.id)!.reasonCode, "holdout", "precondition: spared, not rejected");
+
+  const commitOnce = (token: string) =>
+    runScreenWave(jobId, rule, { dryRun: false, approval: { approvedBy: "Unit Test Approver", token } });
+  await commitOnce(preview.approvalToken);
+  assert.equal(listDecisionRecords({ candidateRef: low.id }).length, 1, "the reviewed wave sealed once");
+
+  // Re-post the SAME body. Nothing about the token has changed and it is still inside its
+  // window - only the fact that it has already been committed stands in the way.
+  await assert.rejects(
+    () => commitOnce(preview.approvalToken),
+    (err: unknown) => {
+      assert.ok(err instanceof ScreenWaveApprovalError, `expected the 409 path, got ${String(err)}`);
+      assert.equal(err.reason, "spent", "the refusal names WHICH refusal it is, so a client can branch on it");
+      assert.match(err.message, /already been committed/i);
+      return true;
+    }
+  );
+  // NON-VACUITY: pre-fix the replay ran the whole wave a second time and sealed a duplicate
+  // record for the same decision - one human review, two entries in an append-only chain.
+  assert.equal(listDecisionRecords({ candidateRef: low.id }).length, 1, "the replay sealed nothing further");
+  assert.equal(getPipelineEntry(low.id)!.status, "active");
+});
+
+test("a commit refused for an unnamed approver leaves the review UNSPENT (a fixable refusal costs no re-preview)", async () => {
+  resetScreenWaveApprovalSpendForTests();
+  delete process.env.KP_OPERATOR_NAME;
+  const jobId = "swg-job-unspent";
+  const low = seed(jobId, "Unspent Low", 9);
+  const preview = await runScreenWave(jobId, RULE, { dryRun: true });
+
+  await assert.rejects(() =>
+    runScreenWave(jobId, RULE, { dryRun: false, approval: { approvedBy: PLACEHOLDER_APPROVER, token: preview.approvalToken } })
+  );
+  assert.equal(isScreenWaveApprovalSpent(preview.approvalToken), false, "the token was never burned by a refusal");
+
+  const named = await commit(jobId, preview.approvalToken);
+  assert.equal(named.rejected, 1, "the same review commits once the approver has a name");
+  assert.equal(getPipelineEntry(low.id)!.status, "rejected");
+  assert.equal(isScreenWaveApprovalSpent(preview.approvalToken), true, "and is spent by the commit that used it");
+});
+
+// --- 8. A FAILED HOLDOUT SEAL DOES NOT CLAIM THE ARM -------------------------
+//
+// heldOutEntryIds derives the calibration clean arm from the sealed holdout rows and from
+// nothing else. The holdout seal ran through sealDecisionSafe with NO failure branch, so an
+// unwritable chain dropped the candidate from the arm while the wave still handed the
+// recruiter a row reading "kept as a calibration holdout" — silent contamination of the one
+// arm whose entire purpose is to be uncontaminated, reported as if it had worked.
+
+test("a holdout whose record cannot be sealed is counted in sealFailures and the row does not claim the arm", async () => {
+  resetScreenWaveApprovalSpendForTests();
+  const jobId = "swg-job-holdout-sealfail";
+  // holdoutPercent 100 spares the whole would-be reject set (selectHoldout is a pure
+  // function of (jobId, entryId), so this is the one rate with a deterministic membership).
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 100 };
+  const spared = seed(jobId, "Holdout Seal Fail", 11);
+  const preview = await runScreenWave(jobId, rule, { dryRun: true });
+  const previewRow = preview.decisions.find((d) => d.entryId === spared.id)!;
+  assert.equal(previewRow.reasonCode, "holdout", "precondition: this candidate is a calibration holdout");
+  assert.equal(preview.rejected, 0, "precondition: sparing removed them from the reject set");
+
+  // Same unwritable-chain simulation the reject-seal guard uses (test 3).
+  const side = openStore();
+  side.exec(`ALTER TABLE decision_records RENAME TO decision_records_offline`);
+  let committed;
+  try {
+    committed = await runScreenWave(jobId, rule, {
+      dryRun: false,
+      approval: { approvedBy: "Unit Test Approver", token: preview.approvalToken },
+    });
+  } finally {
+    side.exec(`ALTER TABLE decision_records_offline RENAME TO decision_records`);
+    side.close();
+  }
+
+  assert.equal(committed.sealFailures, 1, "the unsealed holdout is counted, not swallowed into a console.warn");
+  const row = committed.decisions.find((d) => d.entryId === spared.id)!;
+  assert.equal(row.action, "keep", "the sparing itself still stands — they were outside the approved reject set");
+  assert.equal(row.reasonCode, "holdoutSealFailed", "and the row must NOT claim an arm the candidate is not in");
+  assert.doesNotMatch(row.rationale, /kept as a calibration holdout/i);
+  assert.equal(getPipelineEntry(spared.id)!.status, "active", "a failed holdout costs a data point, never a person");
+  assert.equal(heldOutEntryIds().has(spared.id), false, "the clean arm and the row agree: this candidate is not in it");
 });

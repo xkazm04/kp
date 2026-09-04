@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Radio, Send, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Radio, Send, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { TextInput } from "@/app/_components/TextInput";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
@@ -27,7 +27,18 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // rather than merging it. The POST is a full replace, so two operators — or one in two
 // tabs — used to overwrite each other's endpoint with no sign anything had happened,
 // and the loser's outbound mail went to the wrong relay.
-type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean; version: number };
+// `relay` is the server's health word (comms-relay.ts RelayHealth). "unreadable"
+// is the one the card could never work out for itself: an endpoint IS stored, but
+// its signing secret does not decrypt under this deployment's key, so nothing is
+// delivered — and painting that as "Not configured" is how a rotated KP_SECRET
+// stayed invisible while every letter quietly queued.
+type RelayHealthWord = "env" | "configured" | "unconfigured" | "unreadable";
+type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean; version: number; relay: RelayHealthWord };
+
+const HEALTH_WORDS = ["env", "configured", "unconfigured", "unreadable"] as const;
+function isHealthWord(v: unknown): v is RelayHealthWord {
+  return typeof v === "string" && (HEALTH_WORDS as readonly string[]).includes(v);
+}
 
 export function RelayConfigCard() {
   const t = useTranslations("channels.relay");
@@ -51,7 +62,7 @@ export function RelayConfigCard() {
       const r = await fetch("/api/comms/relay");
       if (!r.ok) return null;
       const d = (await r.json()) as
-        | { config?: { url: string | null; hasSecret: boolean; version?: number }; envConfigured?: boolean }
+        | { config?: { url: string | null; hasSecret: boolean; version?: number }; envConfigured?: boolean; relay?: string }
         | null;
       if (!d?.config) return null;
       return {
@@ -59,6 +70,9 @@ export function RelayConfigCard() {
         hasSecret: d.config.hasSecret,
         envConfigured: Boolean(d.envConfigured),
         version: d.config.version ?? 0,
+        // An older server (or a shape we do not recognise) is not evidence of a
+        // fault: fall back to the two states the url alone can justify.
+        relay: isHealthWord(d.relay) ? d.relay : d.config.url ? "configured" : "unconfigured",
       };
     } catch {
       return null;
@@ -150,6 +164,9 @@ export function RelayConfigCard() {
   // to a demo session — either way the editor renders, and only what the response
   // would have told us is held back.
   const active = state ? state.envConfigured || state.url.trim() !== "" : false;
+  // A stored endpoint we cannot sign for is NOT "on": the Test button would probe a
+  // relay the send path refuses to use, and the badge would claim delivery.
+  const unreadable = state?.relay === "unreadable";
   // The POST is a full REPLACE: setRelayConfig treats an absent/empty `url` as "disable
   // the relay" (comms-relay-store.ts validateUrl), and there is no "keep the stored
   // one" shape. So an empty field is only a legitimate save once we KNOW the field
@@ -171,13 +188,23 @@ export function RelayConfigCard() {
             (ChannelsTabStage): on/off is a FACT about the deployment, so it waits
             for the read rather than guessing a default. */}
         {state ? (
-          <Badge tone={active ? "positive" : "neutral"} label={active ? t("statusOn") : t("statusOff")} />
+          <Badge
+            tone={unreadable ? "critical" : active ? "positive" : "neutral"}
+            icon={unreadable ? AlertTriangle : undefined}
+            label={unreadable ? t("statusUnreadable") : active ? t("statusOn") : t("statusOff")}
+          />
         ) : (
           <span className="reveal-quiet inline-block h-5 w-16 rounded-full bg-stone-100" aria-hidden />
         )}
         {state?.hasSecret ? <Badge tone="info" icon={ShieldCheck} label={t("secretSet")} /> : null}
       </div>
       <p className="mt-1.5 max-w-2xl text-sm text-steel">{t("intro")}</p>
+
+      {unreadable ? (
+        <p role="status" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-ink">
+          {t("unreadableNote")}
+        </p>
+      ) : null}
 
       {state?.envConfigured ? (
         <p className="mt-3 rounded-md border border-dashed border-stone-300 bg-white px-3 py-2 text-sm text-steel">{t("envNote")}</p>
@@ -223,7 +250,7 @@ export function RelayConfigCard() {
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={testPing} disabled={busy || !active} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+        <button type="button" onClick={testPing} disabled={busy || !active || unreadable} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
           <Send size={14} aria-hidden /> {t("test")}
         </button>
         {note ? (

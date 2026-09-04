@@ -2740,7 +2740,8 @@
       "agent_dispatched": "was sent to Personas as a persona request",
       "agent_activated": "went live as a Personas persona",
       "onboarding_started": "started onboarding (retired module)",
-      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)"
+      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)",
+      "screen_wave_holdout_unsealed": "was spared by the screening wave, but its calibration holdout record could not be sealed"
     },
     "relTime": {
       "today": "today",
@@ -3516,7 +3517,10 @@
         "holdout": "kept as a calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})",
         "approvedByNote": "Approved by {who}.",
         "approverUnidentified": "Approver not identified.",
-        "autoRatifiedScreening": "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto)."
+        "autoRatifiedScreening": "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
+        "sealFailed": "kept: the tamper-evident decision record could not be sealed, so the auto-rejection was not applied",
+        "reinstated": "kept: a recruiter reversed an earlier auto-rejection, so the machine will not re-reject them",
+        "holdoutSealFailed": "kept, but the calibration holdout record could not be sealed, so this candidate is not in the clean arm"
       }
     },
     "summary": {
@@ -5616,7 +5620,9 @@
       "saveFailed": "Couldn't save the relay",
       "test": "Send test ping",
       "testOk": "Delivered (HTTP {status})",
-      "testFailed": "Test failed: {reason}"
+      "testFailed": "Test failed: {reason}",
+      "statusUnreadable": "Signing secret unreadable",
+      "unreadableNote": "A relay endpoint is saved, but its signing secret can't be decrypted with this deployment's key, so messages stay in the local outbox. Re-enter the signing secret below, or restore the key it was saved under."
     },
     "edge": {
       "title": "Always-on edge",
@@ -7018,7 +7024,8 @@
         "agent_dispatched": "Persona request dispatched",
         "agent_activated": "Persona went live",
         "onboarding_started": "Onboarding started (retired module)",
-        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)"
+        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)",
+        "screen_wave_holdout_unsealed": "Spared by the wave, holdout record unsealed"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",
@@ -7162,7 +7169,9 @@
     "viewLinkManual": "Your browser blocked the copy. Select the link below and copy it yourself.",
     "briefMomentumNoDataClaim": "Nothing has moved in these weeks yet.",
     "briefRolesNoDataClaim": "No role is carrying the pipeline yet.",
-    "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation."
+    "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation.",
+    "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
+    "closedInWindowSub": "{count} closed in window"
   },
   "matrix": {
     "loadFailed": "Load failed.",

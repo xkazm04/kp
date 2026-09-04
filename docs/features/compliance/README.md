@@ -274,7 +274,15 @@ candidate's optimistic CAS refuse *after* their record was already sealed. The c
 is append-only, and an `auto_rejected` record is not inert: `status-decisions.ts`
 renders it to the candidate on `/status/[token]` with the score and threshold,
 `ats-egress.ts` ships the latest record to the customer's ATS as their decision, and
-`heldOutEntryIds` drops them from the calibration clean arm. The wave now re-reads the
+`heldOutEntryIds` drops them from the calibration clean arm. A failed **holdout** seal is now handled the same
+way: `heldOutEntryIds` derives the calibration clean arm from the sealed holdout rows and
+from nothing else, so an unwritable chain silently dropped the candidate from the arm
+while the wave still reported a row reading "kept as a calibration holdout". The failure
+is counted into `sealFailures`, the row carries `reasonCode: "holdoutSealFailed"`, and
+the audit event says the record was not written instead of asserting a membership that
+does not exist. The candidate stays spared either way — they left the reject set before
+the approval was signed, so a failed holdout costs a calibration data point, never a
+person. The wave now re-reads the
 live row and skips (`reasonCode: "staleSkipped"`) **without sealing** when the stage or
 status has drifted; what remains is the single synchronous statement between that read
 and the CAS. The status half also stops a second rejection email to a candidate a
@@ -283,6 +291,36 @@ the stage CAS alone would have waved it through). Pinned by the mid-wave-drift t
 `app/_lib/screen-wave.test.ts`, which drives the interleaving through a loopback relay.
 
 Two consequences worth stating to an auditor:
+
+**Verification is incremental, with a scheduled full re-hash.** `verifyDecisionChain`
+re-hashed every row of a workspace's chain on every call, and `/api/decisions/records`
+calls it on every panel mount — so reading the decisions panel cost the customer's whole
+decision history, which only grows, while the record list beside it capped at 1000 rows.
+A verified prefix now anchors the next run: the process remembers the highest good
+`(seq, content_hash, key ids)` per workspace and re-hashes only the rows above it. The
+checkpoint is **in-process, never persisted** — a checkpoint row in the DB would be
+written by exactly the party the chain defends against — and it is void the moment its
+anchor row's stored hash or key id moves, or any key its prefix was sealed under stops
+resolving (so the rotation fail-closed rule still bites on the next read, not on the
+next full pass). It is honoured for at most `CHAIN_FULL_VERIFY_INTERVAL_MS` (15 min);
+past that the chain is re-hashed whole, which is what catches the one tamper a
+checkpoint is blind to — a payload rewritten *without* re-hashing, inside the verified
+prefix. That accepted lag sits beside the route's existing ~20s verdict memo. The
+verdict now reports `verifiedFromSeq` and `fullyVerified` so a surface can never present
+a partial re-hash as the full proof, and `verifyDecisionChain(ws, { full: true })` is
+the caller saying the full proof is the point. Census fields (`count`, `keylessCount`,
+`keyed`, `firstKeyedSeq`) are computed by SQL aggregate and always describe the WHOLE
+chain, not the re-hashed slice. Pinned by `decision-record-store.test.ts` §9.
+
+**The clean-arm read is bounded.** `heldOutEntryIds` ran two unbounded
+`SELECT DISTINCT` scans of `decision_records` (spared refs, then the entire
+auto-rejected history) and `/api/analytics/calibration` called it **twice** per request.
+It is now one capped, newest-first scan (`HELD_OUT_SCAN_LIMIT`, default 2000 — the arm
+measures recent selection quality) plus a lookup of the rejected side for those refs
+only, chunked under the SQLite variable floor; it also takes an optional `jobId` to
+scope the arm to one role through `pipeline_entries`, falling back to the workspace arm
+rather than an empty one where that table is not on the connection. The calibration
+route reads it once behind a lazy memo instead of twice.
 
 - **A key added later cannot retro-seal earlier records.** They keep
   `key_id = ''` permanently. What the key does buy retroactively is the
@@ -348,6 +386,36 @@ sealed record, never freshly generated** (see the module header comment,
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
 (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`).
+
+**One review authorizes ONE commit.** The token is a pure function of
+`(jobId, policyVersion, reject set, issuedAt)`, so re-POSTing the same commit body
+inside the 15-minute freshness window re-derived the same signature and passed every
+check again; the only thing that stopped a replay was the first commit having emptied
+its own cohort, which nothing asserted and which does not happen when part of the
+reviewed set survives (a seal failure, a mid-wave stage drift). The token is now
+**spent** on commit — `consumeScreenWaveApprovalToken` in `screen-wave-approval.ts`,
+an in-process ledger holding each token's own expiry — and a re-post is refused with
+the existing 409 carrying `reason: "spent"`. The 409 body now always carries a
+machine-readable `reason` from `SCREEN_WAVE_REFUSAL_REASONS`
+(`required` / `expired` / `mismatch` / `spent` / `unattributed`), because the five
+refusals ask the recruiter for five different things. Consumption runs **after** every
+other refusal, so a fixable one (an unnamed approver) never burns the review. Honest
+limit: the ledger is per process, so a multi-worker deployment does not catch a replay
+routed to a second worker — a `consumed_at` column beside the seal would, and is the
+recorded next step. Pinned by `screen-wave-guards.test.ts` (§7) and
+`screen-wave-approval.test.ts`.
+
+**The sealed record names the policy the approval bound.** The wave signs its token
+over a `policyVersion` carrying the family-floor map and the holdout rate, and the
+holdout seal stored that string — but the auto-reject seal rebuilt a shorter
+`bottom<pct>/maxMatch<the candidate's effective floor>`, dropping both suffixes. A
+reject record therefore could not be joined back to the approval that authorized it,
+nor to the holdout seals of the same wave: two arms of one audit trail attesting to
+two different policies. Both arms now seal the token-bound string; the per-candidate
+effective floor rides the sealed `inputs.threshold`, where a per-record number belongs.
+The join is the test: `screen-wave-guards.test.ts` §6 feeds the RECORD's
+`policyVersion` back to `verifyScreenWaveApprovalToken` and requires it to re-derive
+the approved token.
 Unattended automation (`app/_lib/automation-pass.ts`) never executes a
 reject itself — "AUTO1 RETIRED" (`automation-pass.ts:302-308`): every
 fairness-cleared reject is queued as `rejection_review` for a human.

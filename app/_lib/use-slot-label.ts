@@ -2,6 +2,7 @@
 
 import { useLocale } from "next-intl";
 import { useCallback } from "react";
+import { slotFormatters } from "./date-format.ts";
 
 // SCH4 — format a slot's ISO datetime in the candidate's ACTIVE locale for
 // display, instead of the server-minted English label ("Tue 10 Jun · 10:00")
@@ -24,20 +25,12 @@ import { useCallback } from "react";
  * The one that actually matters: keying the cache by locale makes the collation
  * locale a PARAMETER rather than the ambient default, so it cannot silently
  * become the server's during SSR and the browser's after hydration.
+ *
+ * The registry itself now lives in `date-format.ts` — this module is "use client",
+ * and the letter writers that need the same memoization run on the server. It is
+ * re-exported here because that is where every existing caller imports it from.
  */
-const SLOT_FORMATTERS = new Map<string, { date: Intl.DateTimeFormat; time: Intl.DateTimeFormat }>();
-
-export function slotFormatters(locale: string): { date: Intl.DateTimeFormat; time: Intl.DateTimeFormat } {
-  let f = SLOT_FORMATTERS.get(locale);
-  if (!f) {
-    f = {
-      date: new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short" }),
-      time: new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hour12: false }),
-    };
-    SLOT_FORMATTERS.set(locale, f);
-  }
-  return f;
-}
+export { slotFormatters } from "./date-format.ts";
 
 /** The pure formatter behind the hook — `locale` explicit, no React. */
 export function formatSlotLabel(iso: string | null | undefined, locale: string, fallback?: string | null): string {

@@ -4,6 +4,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { relayHealth } from "@/app/_lib/comms-relay";
 
 // The outbound comms relay config (RelayConfigCard on the Channels tab) — the
 // UI-backed twin of COMMS_WEBHOOK_URL. GET never returns the signing secret
@@ -25,7 +26,15 @@ const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 export async function GET() {
   const denied = await requireOperator();
   if (denied) return denied;
-  return NextResponse.json({ config: getRelayConfig(), envConfigured: Boolean(process.env.COMMS_WEBHOOK_URL) });
+  // `relay` is the resolver's own word for what actually delivers (comms-relay.ts).
+  // The editor cannot derive it: a stored url with an UNDECRYPTABLE signing secret
+  // looks identical here to a healthy one, and used to be painted "Not configured" —
+  // the same pill an install with no relay at all shows.
+  return NextResponse.json({
+    config: getRelayConfig(),
+    envConfigured: Boolean(process.env.COMMS_WEBHOOK_URL),
+    relay: relayHealth(),
+  });
 }
 
 export async function POST(request: NextRequest) {

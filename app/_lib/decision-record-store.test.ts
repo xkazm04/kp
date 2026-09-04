@@ -18,7 +18,12 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { UNIT_DB_PATH, cleanupUnitDb } from "./testing/unit-db.ts";
 import { decisionContentHash } from "./decision-hash.ts";
-import { sealDecisionRecord, verifyDecisionChain } from "./decision-record-store.ts";
+import {
+  sealDecisionRecord,
+  verifyDecisionChain,
+  resetDecisionChainCheckpointsForTests,
+  CHAIN_FULL_VERIFY_INTERVAL_MS,
+} from "./decision-record-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -215,7 +220,11 @@ test("a legacy-prefix + keyed-suffix chain verifies, and a cascaded prefix forge
     tamperRow(r1.seq, { payload_json: JSON.stringify(p1), content_hash: c1 });
     tamperRow(r2.seq, { prev_hash: c1, content_hash: c2 });
 
-    const bad = verifyDecisionChain(ws);
+    // The clean verify above left this process a checkpoint over the whole chain, and a
+    // cascaded PREFIX forge leaves every stored content_hash it re-wrote consistent with
+    // the anchor - the shape a checkpoint is blind to by construction. { full: true } is
+    // the caller saying the full proof is the point (see the scheduled re-hash below).
+    const bad = verifyDecisionChain(ws, { full: true });
     assert.equal(bad.ok, false, "a fully-cascaded keyless prefix forge is still caught");
     assert.equal(bad.brokenAtSeq, r3.seq, "detection lands at the first keyed link (its prev_hash no longer matches)");
   });
@@ -316,6 +325,7 @@ test("the census survives a BROKEN verdict (the claim can't quietly upgrade on f
   assert.equal(v.ok, false);
   assert.equal(v.brokenAtSeq, last.seq);
   assert.equal(v.count, 2, "the census still describes the whole chain");
+  assert.equal(v.fullyVerified, true, "a first read of this chain re-hashes it whole");
   assert.equal(v.keylessCount, 2);
   assert.equal(v.keyed, false);
 });
@@ -328,6 +338,8 @@ test("an empty chain is not 'keyed' (no records is not a security property)", ()
     keyed: false,
     keylessCount: 0,
     firstKeyedSeq: null,
+    verifiedFromSeq: 0,
+    fullyVerified: true,
   });
 });
 
@@ -342,4 +354,114 @@ test("appending onto a keyed chain with the key removed throws (no silent downgr
     assert.equal(verifyDecisionChain(ws).ok, true, "the keyed chain is left intact and verifiable");
     assert.equal(verifyDecisionChain(ws).count, 1);
   });
+});
+
+// --- 9. INCREMENTAL VERIFICATION (bounded per-load work) --------------------------
+//
+// verifyDecisionChain re-hashed every row of a workspace's chain on every call, and
+// /api/decisions/records calls it on every panel mount — so reading the decisions panel
+// cost the customer's whole decision history, forever growing, while the record list
+// beside it was capped at 1000 rows. A verified prefix now anchors the next run.
+//
+// These tests pin the four things that make that safe: the tail is still verified, the
+// anchor voids a checkpoint whose prefix moved, an unresolvable key voids it too, and the
+// schedule re-hashes in full.
+
+test("a second verify re-hashes only the NEW links, and still verifies them", () => {
+  const ws = "ws-incremental";
+  ["ic1", "ic2", "ic3"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  seal("ic1");
+  seal("ic2");
+  const first = verifyDecisionChain(ws);
+  assert.equal(first.ok, true);
+  assert.equal(first.fullyVerified, true, "the first read of a chain has no checkpoint to stand on");
+  assert.equal(first.verifiedFromSeq, 0);
+
+  const second = verifyDecisionChain(ws);
+  assert.equal(second.ok, true);
+  assert.equal(second.fullyVerified, false, "the second read stands on the checkpoint…");
+  assert.equal(second.verifiedFromSeq, rows(ws)[1].seq, "…and starts above the last verified link");
+  assert.equal(second.count, 2, "the census still describes the WHOLE chain, not the re-hashed slice");
+
+  // A newly appended link is still genuinely verified — the point of the checkpoint is to
+  // skip settled work, never to skip the tail. Seal a third row, tamper THAT row (above the
+  // checkpoint), and the very next incremental read must catch it: if the checkpoint were
+  // skipping the tail rather than the settled prefix, this would come back ok.
+  const checkpointSeq = rows(ws)[1].seq;
+  seal("ic3");
+  const last = rows(ws)[2];
+  tamperRow(last.seq, { payload_json: JSON.stringify({ rationale: "tail tamper" }) });
+  const third = verifyDecisionChain(ws);
+  assert.equal(third.verifiedFromSeq, checkpointSeq, "the checkpoint still stands — only the new link is re-hashed");
+  assert.equal(third.ok, false, "a tamper ABOVE the checkpoint is caught on the very next read");
+  assert.equal(third.brokenAtSeq, last.seq);
+  assert.equal(third.count, 3, "and the census still describes the whole chain");
+});
+
+test("a checkpoint is voided when the row it anchors on moves", () => {
+  const ws = "ws-anchor";
+  ["an1", "an2"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  seal("an1");
+  seal("an2");
+  assert.equal(verifyDecisionChain(ws).ok, true, "sanity: checkpointed clean");
+  // The insider rewrites the anchor row and re-hashes it (the keyless chain accepts the
+  // re-hash — test 4). The stored content_hash no longer matches the checkpoint, so the
+  // checkpoint is discarded and the run falls back to a full re-hash rather than
+  // reporting ok over a prefix it never saw.
+  const last = rows(ws)[1];
+  const forged = { ...(JSON.parse(last.payload_json) as Record<string, unknown>), rationale: "anchor moved" };
+  tamperRow(last.seq, { payload_json: JSON.stringify(forged), content_hash: decisionContentHash(last.prev_hash, forged) });
+  const v = verifyDecisionChain(ws);
+  assert.equal(v.fullyVerified, true, "a moved anchor forces the full re-hash");
+  assert.equal(v.verifiedFromSeq, 0);
+});
+
+test("the scheduled full re-hash catches a tamper the checkpoint was blind to", () => {
+  const ws = "ws-scheduled";
+  ["sc1", "sc2"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  seal("sc1");
+  seal("sc2");
+  const t0 = Date.now();
+  assert.equal(verifyDecisionChain(ws, { now: t0 }).ok, true, "sanity: checkpointed clean at t0");
+
+  // The clumsy tamper: a payload rewritten WITHOUT re-hashing. Its content_hash is
+  // untouched, so the anchor check above cannot see it — this is exactly the window the
+  // checkpoint buys, and exactly why it expires.
+  const last = rows(ws)[1];
+  tamperRow(last.seq, { payload_json: JSON.stringify({ rationale: "quiet edit" }) });
+  const inWindow = verifyDecisionChain(ws, { now: t0 + 60_000 });
+  assert.equal(inWindow.ok, true, "PRE-CONDITION (the accepted lag): inside the window the checkpoint stands");
+  assert.equal(inWindow.fullyVerified, false);
+
+  const past = verifyDecisionChain(ws, { now: t0 + CHAIN_FULL_VERIFY_INTERVAL_MS + 1 });
+  assert.equal(past.fullyVerified, true, "past the interval the chain is re-hashed whole…");
+  assert.equal(past.ok, false, "…and the tamper is caught");
+  assert.equal(past.brokenAtSeq, last.seq);
+});
+
+test("a checkpoint whose key has been rotated away fails closed on the NEXT read", () => {
+  // The rotation guard (test 6) must not be deferred to the scheduled re-hash: a key that
+  // is no longer resolvable makes its rows unprovable NOW, and an "ok" carried over from a
+  // checkpoint sealed under it would be the strongest claim at the weakest moment.
+  const ws = "ws-checkpoint-rotation";
+  ["cr1", "cr2"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  process.env.KP_DECISION_HMAC_KEY_k9 = KEY_B;
+  try {
+    withKey("k9", KEY_B, () => {
+      seal("cr1");
+      seal("cr2");
+      assert.equal(verifyDecisionChain(ws).ok, true, "sanity: checkpointed clean under k9");
+    });
+    // k9 is now neither active nor kept available — no key material for those rows.
+    delete process.env.KP_DECISION_HMAC_KEY_k9;
+    const v = verifyDecisionChain(ws);
+    assert.equal(v.fullyVerified, true, "the unresolvable key voids the checkpoint");
+    assert.equal(v.ok, false, "and the rows fail closed rather than inheriting a stale ok");
+  } finally {
+    delete process.env.KP_DECISION_HMAC_KEY_k9;
+  }
 });
