@@ -609,11 +609,11 @@ the bare `aria-hidden` form — fix-as-you-touch, not a migration.
 ### One size vocabulary across the field primitives (2026-09-04)
 
 `TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`
-also accepted `size` as a back-compat alias and 30 of its 31 call sites had taken
-*that* spelling, so the primitive that owns the app's field sizing was the one
-disagreeing with its siblings about the prop's name. The alias is removed and the
-call sites migrated; `size` on a `Select` is now a tsc error rather than a second
-name for the same thing.
+also accepted `size` as a back-compat alias, and all 34 of its call sites that set
+a size had taken *that* spelling — zero used `sizeVariant` — so the primitive that
+owns the app's field sizing was the one disagreeing with its siblings about the
+prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on
+a `Select` is now a tsc error rather than a second name for the same thing.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 

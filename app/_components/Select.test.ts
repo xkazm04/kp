@@ -68,10 +68,11 @@ test("every piece of menu microcopy falls back to the catalog, not to English", 
 });
 
 test("there is ONE size vocabulary: sizeVariant", () => {
-  // `size` was a back-compat alias for the same two values, and 30 of 31 call sites had
-  // taken it — so the primitive that owns the app's field sizing disagreed with TextInput
-  // and TextArea about what the prop is called. The alias is gone; `size` on a Select is
-  // now a tsc error rather than a prop that quietly does the same thing under two names.
+  // `size` was a back-compat alias for the same two values, and all 34 call sites that
+  // set a size had taken it (zero used `sizeVariant`) — so the primitive that owns the
+  // app's field sizing was the one disagreeing with TextInput and TextArea about what
+  // the prop is called. The alias is gone; `size` on a Select is now a tsc error rather
+  // than a prop that quietly does the same thing under two names.
   assert.doesNotMatch(src, /\n\s*size\?: "sm" \| "md";/, "the size alias must not come back");
   assert.match(src, /sizeVariant = "md",/, "sizeVariant carries the default");
   assert.match(src, /const sizeCls = sizeVariant === "sm"/);

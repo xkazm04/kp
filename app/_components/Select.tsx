@@ -61,10 +61,10 @@ export function Select({
   name?: string;
   className?: string;
   /** Compact/standard height — the family-wide name, matching TextInput/TextArea.
-   *  (A `size` alias existed alongside it and was the spelling 30 of the 31 call
-   *  sites reached for, so the primitive read as having two size vocabularies.
-   *  One name now, and `size` on a Select is a tsc error rather than a silent
-   *  no-op if it ever comes back.) */
+   *  A `size` alias existed alongside it and was the spelling ALL 34 call sites
+   *  that set a size reached for, so the primitive that owns the app's field
+   *  sizing was the one disagreeing with its siblings about the prop's name.
+   *  One name now: `size` on a Select is a tsc error, not a second spelling. */
   sizeVariant?: "sm" | "md";
   disabled?: boolean;
   /** Show a filter box above the list. Defaults to auto (on when > 8 options). */
