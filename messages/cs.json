@@ -1683,7 +1683,9 @@
     "DEVCASE_SUBMISSION_ID_REQUIRED": "Je potřeba odkaz na odevzdání.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Trvalý profil dovedností lze vydat jen z vyhodnoceného odevzdání.",
-    "INTERVIEW_ALREADY_LIVE": "Tento pohovor už běží v jiném okně. Než začnete znovu, dokončete ho nebo okno zavřete."
+    "INTERVIEW_ALREADY_LIVE": "Tento pohovor už běží v jiném okně. Než začnete znovu, dokončete ho nebo okno zavřete.",
+    "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
+    "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",

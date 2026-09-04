@@ -1683,7 +1683,9 @@
     "DEVCASE_SUBMISSION_ID_REQUIRED": "Une référence de soumission est requise.",
     "DEVCASE_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile.",
-    "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer."
+    "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer.",
+    "PROFILE_BUILD_TIMEOUT": "Le traitement du profil a pris trop de temps et a été interrompu. Essayez d’enregistrer à nouveau.",
+    "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez."
   },
   "resilience": {
     "notFoundEyebrow": "404",

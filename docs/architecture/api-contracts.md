@@ -358,6 +358,17 @@ hint) from a 500 engine failure (retry / escalate) instead of collapsing both
 into one message. **Exit code 2 means 400** — that is how argparse usage errors
 and validation failures arrive without a JSON line.
 
+The `code` is a CLOSED vocabulary with one home per side:
+[`_cli.ERROR_CODES`](../../pipeline/jobfit/_cli.py) (`invalid_input`,
+`not_found`, `engine_error`, `timeout`) and `PYTHON_ERROR_CODES` in
+[`python-runner.ts`](../../app/_lib/python-runner.ts), pinned to each other by
+`pipeline/jobfit/tests/test_cli_error_envelope.py`. It is chosen at the RAISE
+site (`_cli.not_found(...)` / `invalid_input(...)` / `CliError`) and printed by
+`_cli.emit_error`, so “that job is not in the corpus” and a real engine fault
+stop reaching the browser as the same anonymous 500 — a code the runner had to
+GUESS back out of the status. A CLI that re-spells the words as local `ERR_*`
+literals is a shrinking holdout list in that test, never a new entry.
+
 ### 2.2 The caps
 
 Both are backstops, not deadlines, and both **kill the child and reject**:
@@ -368,7 +379,21 @@ Both are backstops, not deadlines, and both **kill the child and reject**:
   heap and can OOM the server process, taking down every route rather than the
   one that spawned it.
 
-A caller may also pass an `AbortSignal` to cancel early.
+A caller may also pass an `AbortSignal` to cancel early — and it is not a
+substitute for a budget: the signal fires when the *caller* gives up, the
+deadline when nobody does.
+
+**A route that spawns states its own budget.** Ten minutes is the right bound for
+a repo scan and the wrong one for a Save button: a wedged sub-second CLI
+inheriting the default holds the operator on a spinner for nine minutes past the
+point the answer was useful. Name the value (`const PROFILE_ROUTE_TIMEOUT_MS =
+60_000`), pass it as `timeoutMs`, and answer the overrun **by name** — the runner
+delivers a deadline as a rejected `result` whose message
+[`isSpawnTimeoutMessage`](../../app/_lib/intake-run.ts) is the one place that
+reads, and the route turns it into its own `jsonRefusal("<AREA>_TIMEOUT", 504)`.
+A deadline WE set is a DECISION the reader can act on (retry), not a store fault
+to hide behind a generic 500. Live examples: `INTAKE_TURN_TIMEOUT`,
+`PROFILE_BUILD_TIMEOUT`, `JOB_WINNABILITY_TIMEOUT`.
 
 ### 2.3 Types are generated, not written twice
 
@@ -390,6 +415,13 @@ one follows §2.1. Today: `cli`, `extract_cli`, `match_cli`, `profile_cli`,
 `market_salary_cli`, `recruiter_cli`, `repo_scan_cli`, `devcase.devcase_cli`,
 `llm.test_cli`. A new one is a new module with the same protocol — the runner
 needs no change.
+
+All of them build that protocol from the shared scaffold in
+[`pipeline/jobfit/_cli.py`](../../pipeline/jobfit/_cli.py) rather than
+re-implementing it: `configure_stdio()` (UTF-8 on both streams, each guarded
+separately so a harness that replaces one does not crash the CLI before line
+one) and `emit_error()` (the envelope above, plus the exit code — **2 for a 400**,
+1 otherwise).
 
 ### 2.5 Keyless is a supported state
 
