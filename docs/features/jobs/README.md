@@ -993,6 +993,53 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### The JD library answers its own size
+
+`GET /api/jds` took no `Request` and called `listJds(200, ws)`, so the `?limit=`
+the analyze picker had been sending since `JD_LIBRARY_LIMIT` landed was unreadable
+by construction, and the answer was a bare `{ jds }` — a slice cut at a server-side
+constant, presented as the library. The jobs list beside it has answered
+`{ truncated, limit }` since `listJobsPage`.
+
+The store now holds the same contract:
+
+| Read | Answers | Use it for |
+| --- | --- | --- |
+| `listJdsPage(limit?, ws)` | `{ jds, truncated, limit }` | the list surfaces — one page, and whether it was cut |
+| `jdLibraryStats(ws)` | `{ total, analyzing, failed, newest }` | any COUNT claim about the library |
+
+`listJdsPage` clamps like `listJobsPage` does: a missing/NaN/zero/negative/
+fractional `limit` falls back to `JDS_PAGE_DEFAULT_LIMIT` (100) and anything larger
+is capped at `JDS_PAGE_MAX_LIMIT` (200) — SQLite reads `LIMIT -1` as *unbounded*, so
+the clamp is the guard, not a nicety. It reads one row past the page to set
+`truncated` without a second COUNT round-trip, and orders `created_at DESC, rowid
+DESC` so same-millisecond saves cannot make the page head and `jdLibraryStats.newest`
+disagree.
+
+Callers: the route (reads `?limit=`, forwards `{ jds, truncated, limit }`),
+`computeGettingStarted` (deliberately a page — a truncated page is never empty, so
+no branch of `firstRole` can change), and the command palette's `resolveLibrary`,
+which now reads `jdLibraryStats` instead of folding `listJds(200).length` into
+`total` — a team with 240 saved JDs was shown "200", with analyzing/failed tallies
+that stopped at the slice edge. Pinned by `app/api/jds/jds-list-route.test.ts` and
+`app/_lib/db/jds-store.test.ts`.
+
+### The revision history has a table cap, not just a read cap
+
+Every `updateJd`, `revertJd` and `finishJdAnalysis` INSERTs a FULL body copy into
+`jd_revisions`. `listJdRevisions` capped the READ at 100 rows, but nothing capped the
+TABLE — a JD edited in a loop, or rebuilt by the analysis pipeline repeatedly, grew
+the row store without bound for the life of the install, invisibly, because the UI
+only ever reads the head of it.
+
+`pruneJdRevisions` keeps the newest `JD_REVISIONS_MAX` (50) snapshots per
+`(slug, workspace_id)` and runs INSIDE each caller's existing IMMEDIATE transaction,
+so the insert and its prune are one step. `revertJd` passes the revision it is
+restoring from as `keepId`: pruning the row a recruiter just chose to come back to,
+in the same transaction that restores it, would delete the only copy of that text.
+Pinned by `app/_lib/db/jds-store.test.ts` ("the revision history is capped per slug"
+and "a revert never prunes the revision it is restoring from").
+
 ### The builder's own contract, now under test
 
 `app/_lib/jd-build-run.ts` is the largest and most expensive file in the JD area and
@@ -1191,16 +1238,17 @@ include `workspace_id`).
   server's latest body beside the draft (or at minimum offering the draft for
   copy) — new copy in all four locales, and it belongs in the shared hook so the
   public page's `JdActions` gets it too.
-- **The JD Ledger is a 200-row page presented as the library.** `GET /api/jds`
-  calls `listJds(200, ws)` and returns a bare `{ jds }` — no `truncated`, no
-  count — and the client has no pagination: `useJdLibrary` stores the array,
-  `filterAndSortJds` filters it in memory, and `JdsSavedLedgerPanel`'s footer
-  prints `entryCount` over `visible.length`. A workspace holding 240 non-archived
-  JDs therefore sees the 200 newest, a footer reading "200 entries", a Role search
-  that silently cannot find the 40 oldest, and Field/Seniority facet counts
-  computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
-  and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
-  "showing N of M" line (new `library.tab.*` copy across all four locales).
+- **The JD Ledger still renders the page as the library.** The SERVER half of this
+  is closed (see "The JD library answers its own size" above): `GET /api/jds` reads
+  `?limit=`, `listJdsPage` clamps it and the response carries `{ jds, truncated,
+  limit }`. What remains is client-side: `useJdLibrary` stores the array,
+  `filterAndSortJds` filters it in memory, and `JdsSavedLedgerPanel`'s footer prints
+  `entryCount` over `visible.length` — none of them read `truncated` yet, so a
+  workspace holding 240 non-archived JDs still sees a footer reading "200 entries"
+  and a Role search that silently cannot find the 40 oldest. `useAnalyzeJdLibrary`
+  exposes `jdLibraryTruncated` for the analyze picker and nothing renders it either.
+  Closing it is a "showing N of M" line in the ledger footer and the picker (new
+  `library.tab.*` copy across all four locales), or real paging.
 - The campaign pack's `defaulted_fields` — the facts `normalize_job` *assumed*
   rather than read (`pipeline/jobfit/jobs.py`) — never reach the wire:
   `campaign.py` spends them internally to suppress unstated facts but the pack it

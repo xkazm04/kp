@@ -17,6 +17,11 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   // Refetch nonce: bumping it re-runs the load effect, which is how the picker's
   // Retry works without duplicating the fetch or leaking an AbortController.
   const [libraryAttempt, setLibraryAttempt] = useState(0);
+  // Whether the route CUT the library it answered. `/api/jds` reads the `limit`
+  // below and answers `{ jds, truncated, limit }` (wave 40) — before that it took no
+  // Request at all, so this bound was sent and ignored and a 201st JD simply did not
+  // exist as far as the picker was concerned, with nothing saying so.
+  const [jdLibraryTruncated, setJdLibraryTruncated] = useState(false);
   // Which attempt `jdLibraryState` describes. Paired with the render-time
   // adjustment below — React's "adjust state when a prop changes" shape — so a
   // Retry shows "loading" from that very render. Flipping it in the effect
@@ -45,7 +50,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   const jdPickSeqRef = useRef(0);
 
   // Load the saved-JD library. Bounded (JD_LIBRARY_LIMIT, matching the route's own
-  // listJds(200) cap) and aborted on unmount, and — the part that changed — a
+  // listJdsPage cap, JDS_PAGE_MAX_LIMIT) and aborted on unmount, and — the part that changed — a
   // failure is REPORTED. The old `.catch(() => {})` swallowed a 500, a network
   // drop and an offline tab alike into the initial empty array, which the picker
   // rendered as "No JDs saved": a claim about the recruiter's own library that the
@@ -59,6 +64,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
         const result = readJdLibraryPayload<JdSummary>(payload);
         setJdLibrary(result.jds);
         setJdLibraryState(result.state);
+        setJdLibraryTruncated((payload as { truncated?: unknown } | null)?.truncated === true);
       })
       .catch(() => {
         // An unmount/refetch abort is not a failure — the surface is gone or a
@@ -67,6 +73,9 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
         if (controller.signal.aborted) return;
         setJdLibrary([]);
         setJdLibraryState("failed");
+        // A failed load knows nothing about the library's size — claiming "not
+        // truncated" there would be the same inference the empty array used to make.
+        setJdLibraryTruncated(false);
       });
     return () => controller.abort();
   }, [libraryAttempt]);
@@ -144,6 +153,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   return {
     jdLibrary,
     jdLibraryState,
+    jdLibraryTruncated,
     reloadJdLibrary,
     selectedJdSlug,
     setSelectedJdSlug: setSelectedJdSlugExternal,

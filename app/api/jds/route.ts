@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { countAnalysesByJd } from "@/app/_lib/db/analyses";
 import { listJobPipelineStats } from "@/app/_lib/db/pipeline";
-import { listJds, saveJd } from "@/app/_lib/db/jobs";
+import { listJdsPage, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -9,10 +9,17 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const ws = await currentWorkspace();
-    const rows = listJds(200, ws);
+    // The picker has been sending `?limit=JD_LIBRARY_LIMIT` since the library got a
+    // stated bound, and this handler took no Request at all — the parameter was
+    // unreadable by construction and the answer was always a 200-row slice. Read it
+    // now; `listJdsPage` owns the clamp (a NaN/negative/over-large value falls back
+    // to the default rather than binding, because SQLite reads LIMIT -1 as unbounded).
+    const requested = Number(new URL(request.url).searchParams.get("limit") ?? "");
+    const page = listJdsPage(Number.isFinite(requested) ? requested : undefined, ws);
+    const rows = page.jds;
     // W8-3 (JDL3) — each row's linked-job status (one query for all rows): the
     // library can show which JDs are matchable and offer "Ingest as job" on the
     // rest. null = no jd-<slug> job exists yet (analysis-only JD).
@@ -52,7 +59,10 @@ export async function GET() {
         pipeline: p ? { ...p, hireRatePct: p.total ? Math.round((p.hired / p.total) * 100) : 0 } : null,
       };
     });
-    return NextResponse.json({ jds });
+    // `truncated` + `limit` beside the rows, the same honest page contract
+    // /api/jobs has answered since listJobsPage: a caller can say "first N of more"
+    // instead of presenting a cut slice as the whole library.
+    return NextResponse.json({ jds, truncated: page.truncated, limit: page.limit });
   } catch (error) {
     return safeJsonError(error, "api:jds", "JD_LIST_FAILED");
   }
