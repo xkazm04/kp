@@ -2034,7 +2034,13 @@ function appSources(): string[] {
 test("no source file hand-rolls the 429 envelope — every throttle goes through jsonRefusal", () => {
   const offenders: string[] = [];
   for (const file of appSources()) {
-    const src = readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+    // COMMENTS STRIPPED FIRST. rate-limit.ts's own doc comment quotes the banned shape
+    // verbatim (it is the thing the comment tells you not to write), and a guard that
+    // cannot tell code from prose would make writing that warning down impossible.
+    const src = readFileSync(file, "utf8")
+      .replace(/\r\n/g, "\n")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
     // The hand-rolled shape: the bare message in a NextResponse.json at 429, with no
     // machine code beside it. The github-analysis exception is NOT this shape — it
     // reads the message off REFUSAL_ERRORS and carries its namespace's own code.
