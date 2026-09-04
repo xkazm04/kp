@@ -15,6 +15,7 @@
 //   calendar.events   — create/update the interview event we book. Required to write.
 // Widening these is a trust-surface change, not a convenience: see docs + /trust.
 
+import { createHash, randomBytes } from "node:crypto";
 import { CALENDAR_TIMEOUT_MS } from "./constants";
 import { calendarFetch, CalendarOfflineError } from "./edge-fetch";
 
@@ -49,6 +50,51 @@ export function googleOAuthConfig(baseUrl: string, env: NodeJS.ProcessEnv = proc
   return { clientId, clientSecret, redirectUri: `${baseUrl.replace(/\/+$/, "")}${GOOGLE_OAUTH_CALLBACK_PATH}` };
 }
 
+// PKCE (RFC 7636), which Google now recommends for every OAuth client including
+// confidential ones.
+//
+// WHAT IT BUYS US HERE. The `state` cookie already stops a FORGED callback binding an
+// attacker's calendar to this workspace. PKCE covers the other direction: an authorization
+// code that leaks in transit — a referrer, a proxy log, a browser extension, an operator
+// pasting a URL into a chat — is useless to whoever holds it, because redeeming it also
+// requires the verifier, which never leaves this deployment. The code is a bearer token
+// for a person's calendar for the seconds it lives, and it travels through a browser.
+//
+// The verifier rides in the SAME httpOnly state cookie rather than a second one: they have
+// exactly the same lifetime, the same path and the same one-shot deletion, and two cookies
+// that must be expired together are two chances to expire only one.
+
+/** A fresh code verifier: 32 random bytes, base64url — inside RFC 7636's 43..128 chars. */
+export function createPkceVerifier(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/** The S256 challenge for a verifier: base64url(SHA-256(verifier)). Never `plain` — a
+ *  plain challenge is the verifier, so an intercepted authorization request hands over
+ *  everything needed to redeem the code. */
+export function pkceChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
+/** What the state cookie holds: the CSRF state and the PKCE verifier, in one value.
+ *  `.` is safe as the separator — both halves are base64url, which excludes it. */
+export function encodeOAuthState(state: string, verifier: string): string {
+  return `${state}.${verifier}`;
+}
+
+/** Read the cookie back. A cookie minted before PKCE existed (no separator) still decodes,
+ *  with an empty verifier, so a consent round trip already in flight across the deploy
+ *  completes instead of failing with a state mismatch the operator cannot explain — its
+ *  authorization request carried no challenge either, so Google demands no verifier. */
+export function decodeOAuthState(cookieValue: string | null | undefined): { state: string; verifier: string } | null {
+  const raw = (cookieValue ?? "").trim();
+  if (!raw) return null;
+  const dot = raw.indexOf(".");
+  if (dot < 0) return { state: raw, verifier: "" };
+  const state = raw.slice(0, dot);
+  return state ? { state, verifier: raw.slice(dot + 1) } : null;
+}
+
 /**
  * The consent URL to send an operator to.
  *
@@ -61,7 +107,7 @@ export function googleOAuthConfig(baseUrl: string, env: NodeJS.ProcessEnv = proc
  * `include_granted_scopes=false`: we ask for exactly our two scopes and do not inherit
  * whatever else this Google account has previously granted to this client.
  */
-export function googleConsentUrl(config: GoogleOAuthConfig, state: string): string {
+export function googleConsentUrl(config: GoogleOAuthConfig, state: string, codeChallenge?: string): string {
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
@@ -72,6 +118,10 @@ export function googleConsentUrl(config: GoogleOAuthConfig, state: string): stri
     include_granted_scopes: "false",
     state,
   });
+  if (codeChallenge) {
+    params.set("code_challenge", codeChallenge);
+    params.set("code_challenge_method", "S256");
+  }
   return `${AUTH_ENDPOINT}?${params.toString()}`;
 }
 
@@ -155,25 +205,23 @@ async function postForm(url: string, body: URLSearchParams, timeoutMs: number = 
   }
 }
 
-/** Exchange the one-time authorization code for tokens. */
+/** Exchange the one-time authorization code for tokens. `codeVerifier` is the PKCE proof
+ *  the callback read out of the state cookie; omitted only for a round trip that began
+ *  before PKCE (see decodeOAuthState), where no challenge was sent either. */
 export async function exchangeCode(
   config: GoogleOAuthConfig,
   code: string,
-  timeoutMs: number = CALENDAR_TIMEOUT_MS
+  opts: { codeVerifier?: string; timeoutMs?: number } = {}
 ): Promise<GoogleTokens> {
-  return parseTokenResponse(
-    await postForm(
-      TOKEN_ENDPOINT,
-      new URLSearchParams({
-        code,
-        client_id: config.clientId,
-        client_secret: config.clientSecret,
-        redirect_uri: config.redirectUri,
-        grant_type: "authorization_code",
-      }),
-      timeoutMs
-    )
-  );
+  const params = new URLSearchParams({
+    code,
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    redirect_uri: config.redirectUri,
+    grant_type: "authorization_code",
+  });
+  if (opts.codeVerifier) params.set("code_verifier", opts.codeVerifier);
+  return parseTokenResponse(await postForm(TOKEN_ENDPOINT, params, opts.timeoutMs ?? CALENDAR_TIMEOUT_MS));
 }
 
 /** Trade the stored refresh token for a fresh access token. Google does NOT return a new

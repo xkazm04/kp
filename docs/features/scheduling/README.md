@@ -154,6 +154,32 @@ because every instant kp writes happens to be UTC.
 Pinned by `app/_lib/calendar/edge-fetch.test.ts` (offline makes no request; 429
 then 200 answers; a second throttle stops; the cap; the time zone on the wire).
 
+### Connecting a calendar — the OAuth door
+
+`GET /api/calendar/google/start` (operator-only, 30/10min per IP) mints a CSRF
+state **and a PKCE verifier**, stores both in one httpOnly `kp_gcal_state` cookie
+(`<state>.<verifier>`, `SameSite=Lax`, `Secure` on https, `Path=/api/calendar/google`,
+10-minute `maxAge`) and redirects to Google with `code_challenge` =
+base64url(SHA-256(verifier)) and `code_challenge_method=S256`. The callback
+decodes the cookie, deletes it **at that path** (a cookie's identity is name +
+path), constant-time-compares the state, and redeems the code **with the
+verifier**.
+
+The state cookie alone stopped a *forged callback* binding someone else's
+calendar to this workspace. PKCE covers the other direction: an authorization
+code that leaks in transit — a referrer, a proxy log, a pasted URL — is a bearer
+token for a real person's calendar, and is now useless without the verifier,
+which never leaves the deployment. One cookie for both halves, because two
+cookies that must expire together are two chances to expire only one; a round
+trip that began before PKCE still completes (its cookie has no verifier, and its
+authorization request carried no challenge either).
+
+Pinned by `app/api/calendar/google/start/route.test.ts` (cookie flags, the
+challenge derivation, a fresh state per authorization, the 503 for an
+unconfigured deployment, and the limiter — which mints no cookie when it
+refuses), `app/_lib/calendar/google-oauth.test.ts` (RFC 7636's own S256 vector)
+and `app/api/calendar/google/callback/route.test.ts` (the one-shot delete).
+
 **The degradation contract:** `fetchBusy` returns `null` for *"we do not know"*
 and `[]` for *"checked, nothing in the way"*. They are never conflated —
 treating an outage as an empty calendar would confidently offer busy times.
