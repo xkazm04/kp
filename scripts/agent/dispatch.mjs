@@ -168,6 +168,7 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/run-unit-tests.mjs', why: 'the runner every unit gate goes through' },
   { prefix: 'package.json', why: 'every gate command is a line in it' },
   { prefix: 'ci-budget.json', why: 'the pipeline wall-clock ceilings a gate compares against' },
+  { prefix: 'perf-budget.json', why: 'the import-graph ceilings a gate compares against' },
   { prefix: 'ts-debt.json', why: 'the suppression ratchet a gate compares against' },
   { prefix: 'agent-budget.json', why: 'what an agent lane may spend — an agent may not raise its own ceiling' },
   { prefix: 'deploy/helm/', why: 'the deployed shape, judged by the chart policy' },

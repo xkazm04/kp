@@ -1,0 +1,63 @@
+{
+  "$comment": [
+    "Ceilings on the STATIC IMPORT GRAPH, checked by scripts/perf/check-budget.mjs",
+    "(`npm run perf:budget`) and held on every push by the last two cases of",
+    "scripts/perf/__tests__/check-budget.test.mjs, which CI already runs as test:perf.",
+    "",
+    "What it measures is cost per REQUEST rather than bundle size: Next compiles a",
+    "route s entire module graph on first hit with no tree-shaking, so the number of",
+    "first-party modules on a path tracks what an operator waits for almost linearly.",
+    "",
+    "THESE NUMBERS WERE MEASURED, not chosen — `--record` walked this tree and wrote",
+    "each ceiling as the measurement plus slackPercent (15). Ordinary growth does not",
+    "trip them; a doubling does. `--tighten` lowers them to what the tree costs today",
+    "and can never raise one.",
+    "",
+    "The group ceiling is the p95 route, not the worst: one fat route must not buy",
+    "headroom for all 200. A route above the p95 gets a named override with its own",
+    "measured ceiling, so it is visible in the diff instead of hidden under a",
+    "generous number. `overrides` being empty means no route was an outlier.",
+    "",
+    "THE BARREL RULE HAS NO SLACK, on purpose. `maxValueImporters` is the exact count",
+    "at the time of recording: importing app/_lib/db.ts FOR VALUE drags all 17 store",
+    "modules into the importer and everything downstream of it, so the 28th importer",
+    "is meant to stop and import the slice instead (`import type` is erased before",
+    "bundling and is not counted). Raising this number is a decision, not a fix.",
+    "",
+    "Raising any ceiling is an edit to this file with a why a reviewer can disagree",
+    "with. `npm run perf:budget -- --explain <path>` shows what is on a path."
+  ],
+  "version": 1,
+  "slackPercent": 15,
+  "entries": {
+    "app/page.tsx": {
+      "maxModules": 1307,
+      "maxKb": 8082,
+      "why": "the whole ?tab= workspace behind one URL — 983 first-party modules when app-structure.md measured it, and the single page every operator waits on"
+    },
+    "app/_lib/llm-config.ts": {
+      "maxModules": 19,
+      "maxKb": 294,
+      "why": "a hub module: its graph is multiplied across every importer, which is how a barrel import in ONE file inflated a hundred routes (57 modules -> 13 after the sweep)"
+    },
+    "app/_lib/job-ingest.ts": {
+      "maxModules": 28,
+      "maxKb": 351,
+      "why": "the other hub the barrel sweep shrank (60 modules -> 20); it is on the path of most job routes"
+    }
+  },
+  "groups": {
+    "app/api/**/route.ts": {
+      "maxModules": 225,
+      "maxKb": 2663,
+      "why": "cost per request: next compiles a route entire module graph on first hit with no tree-shaking, and the measured cost tracks graph size almost linearly",
+      "overrides": {}
+    }
+  },
+  "barrels": {
+    "app/_lib/db.ts": {
+      "maxValueImporters": 27,
+      "why": "the export * barrel over 17 store modules. Importing it for value drags the whole data layer into the importer and everything downstream of it — import the slice instead"
+    }
+  }
+}

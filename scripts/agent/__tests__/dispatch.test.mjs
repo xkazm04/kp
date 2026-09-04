@@ -371,6 +371,7 @@ check('the ceiling and manifest files the gates read are refused too', () => {
   const ceilings = [
     'package.json',        // every gate command is a line in it
     'ci-budget.json',      // the pipeline wall-clock ceilings
+    'perf-budget.json',    // the import-graph ceilings
     'ts-debt.json',        // the suppression ratchet
     'agent-budget.json',   // what an agent lane may spend
     '.github/dependabot.yml',

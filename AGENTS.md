@@ -63,9 +63,9 @@ rather than a snapshot.
 | `npm run sbom` | the bill of materials cannot be built from the lockfile + the pip environment |
 | `npm run test:docs` | fixtures for the doc-sync hook, the ADR gate and the guidance check |
 | `npm run test:review` | fixtures for the review lenses (constitution, gate-check, the shared workflow reader, the agent lens's pure half) |
-| `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written |
+| `npm run test:agent` | fixtures for the dispatch guard — who may dispatch, what may never be written (the protected set is DERIVED from the gates CI runs), and the spend meter that stops a lane at its declared token ceiling |
 | `npm run test:lint-ratchet` | fixtures for the ruff and ts ignore ratchets |
-| `npm run test:perf` | fixtures for the CI wall-clock budget, including "every job has a ceiling" |
+| `npm run test:perf` | fixtures for the CI wall-clock budget ("every job in ci.yml AND review.yml has a ceiling, under its own timeout"), plus the static import-graph budget measured against this tree — `perf-budget.json` is enforced here rather than by a CI step of its own |
 | `npm run test:deploy` | fixtures for the chart policy |
 | `npm run review:gate` | a required check in `.github/rulesets/main.json` no longer matches a job name |
 | `npm run security:actions` | a workflow does not scope `GITHUB_TOKEN`, or a NEW action rides a mutable tag |
