@@ -1118,6 +1118,25 @@ Now (`DecisionsModals.tsx`, `DecisionsGroupEvalRejectModal.tsx`):
 Advance is untouched and still one click — this is a bulk-review surface, and
 friction that buys nothing is its own defect.
 
+### A board write expires the role's cached group evaluation
+Every successful action in `runPipelineEntryAction` — `set_stage`, accept/reject,
+the human-round routing, the offer extension — now calls
+`invalidateGroupEvalSelection(roleKey, workspaceId)` (`app/_lib/group-eval.ts`)
+before returning, where `roleKey` mirrors `roleKeyOf`: `jobId ?? jobTitle ??
+"unassigned"`.
+
+The Decisions group-evaluation cache had no TTL and no invalidation, and its
+SELECTION keys (`<role>#sel:<n>-<hash>`) are stable across board writes by
+construction — the same entry ids hash the same however far those candidates have
+moved. So rejecting two of a compared four and reopening the identical selection
+served the cached comparison, crowning a lead over a field that no longer existed.
+The hook lives here rather than in `db/pipeline.ts` because the store module must
+not reach into another store's cache, and this layer is where both pipeline routes
+and the automation pass already meet. It is best-effort inside a `try`: expiring a
+cache must never turn a completed decision into a failed request. Pinned by
+`app/_lib/group-eval-invalidation.test.ts`; the cache side is documented in
+`docs/features/matching/README.md`.
+
 ### The comparison tells the same truth in both of its views
 
 Built /perfect 2026-09-03 (`group-eval-ui`). The modal renders one of two views:

@@ -506,6 +506,29 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
 
+### A pipeline write expires that role's cached evaluations
+The eval cache had no TTL and no invalidation of any kind, and a SELECTION key is
+stable across pipeline writes **by construction**: `<role>#sel:<n>-<hash>` over the
+same entry ids hashes identically however far those candidates have since moved.
+A recruiter who rejected two of a compared four and reopened the identical
+selection was served the cached comparison — a lead crowned over a field that no
+longer existed. The modal's pool-drift diff (`evaluatedLabels` against the live
+pending entries) only *discloses* that; a disclosure the reader has to notice is
+not a cache policy.
+
+`invalidateGroupEvalSelection(roleKey, workspaceId)`
+(`app/_lib/group-eval.ts`) drops the role's top-N row **and** every `#sel:` row for
+it, scoped to one tenant, with the LIKE pattern `ESCAPE`d because `roleKeyOf` falls
+back to the free-text job title (`Data % Analyst` is a legal role key).
+`pipeline-entry-action.ts` calls it on every successful entry action —
+`set_stage`, accept/reject, the human-round routing and the offer extension —
+because that layer is where both routes and the automation pass already meet, and
+`db/pipeline.ts` must not reach into another store's cache. Deleting rather than
+TTL-ing is deliberate: a cohort that moved makes the stored comparison wrong
+immediately, and the next open simply re-runs. The call is best-effort inside a
+`try` — expiring a cache must never turn a completed decision into a failed
+request.
+
 ### A group evaluation persists against the cohort it actually ranked
 `saveGroupEval` was an unconditional upsert at the end of a run that spends up to
 eight Python processes and can take minutes, so two runs over one role — a

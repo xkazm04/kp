@@ -217,3 +217,41 @@ export function listEvaluatedRoles(roleKeys: string[], workspaceId: string = DEF
     .all(...roleKeys, workspaceId) as { role_key: string; created_at: string }[];
   return Object.fromEntries(rows.map((r) => [r.role_key, r.created_at]));
 }
+
+/**
+ * Expire every cached evaluation for one role in one workspace — the role's top-N
+ * row and every `<roleKey>#sel:<n>-<hash>` selection row — and return how many rows
+ * were dropped.
+ *
+ * The eval cache had no TTL and no invalidation of any kind, and a SELECTION key is
+ * stable across pipeline writes BY CONSTRUCTION: the same four entry ids hash to the
+ * same key however far those candidates have since moved. So a recruiter who
+ * rejected two of the four and reopened the identical selection was served the
+ * cached comparison — a lead crowned over a field that no longer existed. The
+ * modal's pool-drift diff (`evaluatedLabels` against the live pending entries) only
+ * DISCLOSES that; it never expires the row, and a disclosure the reader has to
+ * notice is not a cache policy.
+ *
+ * Deleting rather than TTL-ing is deliberate: a cohort that moved makes the stored
+ * comparison wrong immediately, not in an hour, and the next open simply re-runs.
+ * Governance stickiness reads the role-level row too (resolveGovernanceMode), so an
+ * invalidated role falls back to the REQUESTED mode — the same state a role that has
+ * never been evaluated is in, and the mode is re-persisted by the re-run.
+ *
+ * The LIKE pattern is ESCAPEd: `roleKeyOf` falls back to the job TITLE, which is free
+ * text, so "Data % Analyst" or "senior_dev" are legal role keys and an unescaped
+ * pattern built from one would match half the table.
+ */
+export function invalidateGroupEvalSelection(roleKey: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const key = (roleKey ?? "").trim();
+  if (!key) return 0;
+  const prefix = `${key.replace(/[\\%_]/g, (c) => `\\${c}`)}#sel:`;
+  const res = db()
+    .prepare(
+      `DELETE FROM group_evals
+        WHERE workspace_id = ?
+          AND (role_key = ? OR role_key LIKE ? ESCAPE '\\')`
+    )
+    .run(workspaceId, key, `${prefix}%`);
+  return res.changes;
+}
