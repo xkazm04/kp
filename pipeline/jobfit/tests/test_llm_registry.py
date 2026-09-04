@@ -352,6 +352,20 @@ class LoadConfigTest(unittest.TestCase):
         self.assertEqual(entry.max_tokens, 2048)
         self.assertIsNone(entry.timeout_s)
 
+    def test_a_malformed_key_block_fails_loud_like_every_other_section(self) -> None:
+        """The module's declared policy is fail-loud, and `keys` was the one
+        exception. A silently dropped key block reaches the operator as the
+        adapter's `missing_key` descent — so the repair they reach for is
+        re-entering a credential that was already saved, while the actual fault
+        (a string where an object belongs) is never named anywhere."""
+        with self.assertRaises(LLMError) as ctx:
+            load_config({ENV_VAR: json.dumps({"keys": {"openai": "sk-not-an-object"}})})
+        self.assertIn("openai", str(ctx.exception))
+        self.assertIn("must be an object", str(ctx.exception))
+        # Non-vacuity: the well-formed shape still parses.
+        cfg = load_config({ENV_VAR: json.dumps({"keys": {"openai": {"apiKey": "sk-x"}}})})
+        self.assertEqual(cfg.keys["openai"].api_key, "sk-x")
+
 
 class ProbeProviderTest(unittest.TestCase):
     """``probe_provider`` — what the Models keys panel's Test button runs.

@@ -107,7 +107,16 @@ def load_config(env: Mapping[str, str] | None = None) -> LLMConfig | None:
         raise LLMError(f"{ENV_VAR}.keys must be an object")
     for provider, entry in raw_keys.items():
         if not isinstance(entry, dict):
-            continue
+            # Fail loud, like every useCases branch above and like the `keys must
+            # be an object` check two lines up. A silent `continue` here was the
+            # one drop in a module whose docstring bans exactly this: the operator
+            # sees the key saved in the Models panel, the adapter reports
+            # `missing_key`, and the config that produced it looks fine — so the
+            # repair they reach for is re-entering a key that was already there.
+            raise LLMError(
+                f"{ENV_VAR}.keys[{provider!r}] must be an object, got "
+                f"{type(entry).__name__}"
+            )
         keys[str(provider)] = ProviderKeys(
             api_key=str(entry["apiKey"]) if entry.get("apiKey") else None,
             endpoint=str(entry["endpoint"]) if entry.get("endpoint") else None,
