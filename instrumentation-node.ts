@@ -271,6 +271,24 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] price reconcile bookkeeping failed:", e);
     }
+    // Apply-funnel retention (apply-session-store.ts) — independent, best-effort,
+    // idempotent. `apply_sessions` is written from a PUBLIC door on every form open
+    // and had no delete anywhere in the tree, so the abandoned attempts (the
+    // majority, by construction) accrued forever. This drops the orphans past the
+    // store's stated window; rows that reached a filed entry are provenance and are
+    // never touched.
+    //
+    // Sits UNDER the autonomy pause, unlike the consent sweep below it: this is
+    // storage hygiene on our own bookkeeping, not a statutory duty about a
+    // candidate's identifiable data, so nothing goes unlawful while an operator has
+    // the machine halted and a paused clock should do as little as it can.
+    try {
+      const { sweepAbandonedApplySessions } = await import("./app/_lib/apply-session-store");
+      const swept = sweepAbandonedApplySessions();
+      if (swept) console.log("[clock] abandoned apply attempts swept:", swept);
+    } catch (e) {
+      console.error("[clock] apply-session retention sweep failed:", e);
+    }
     // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
     await sweepExpiredConsents();
   };

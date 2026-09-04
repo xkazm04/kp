@@ -298,7 +298,26 @@ hash on the survivor's report and send History grouping (`listAnalyses` keys on
 `cv_hash`), the cross-job "also analyzed for" list (`listAnalysesByCvHash`) and
 profile CV lineage (`analysisLineageSource`) to the wrong CV. One AI-candidate
 meter unit is debited per delivered, non-cached run — variants of the same person
-count once, and a fully-cached re-run debits nothing.
+count once, and a fully-cached re-run debits nothing. That debit fires **after** the
+row is persisted, never before: `persistAnalysis` can fail (it catches, logs
+"Failed to persist analysis" and hands back `persistence: null`), and the meter
+ledger is append-only with no refund path, so charging first spent a prepaid unit on
+a result the recruiter could not re-open. Pinned by `analyze-run.test.ts`.
+
+**The engine spawn has a five-minute deadline.** `runAnalyze` passes
+`ANALYZE_TIMEOUT_MS` (300 000) rather than inheriting `python-runner`'s 600 000 ms
+hang backstop. That backstop bounds a leak, not a wait — and since spawns now run
+under a process-wide admission ceiling (`KP_PYTHON_MAX_CONCURRENT`, default 4), one
+wedged run held a quarter of the box's engine concurrency for ten minutes and
+answered everyone else `ENGINE_BUSY`. Overrunning it is a **decision**, so it is
+answered by name: 504 + `ANALYZE_TIMEOUT`, which `useErrorMessage()` resolves in the
+reader's language, instead of the child's own command line
+("Python process timed out after 300s: -m pipeline.jobfit.cli …") reaching a
+recruiter. The deadline is recognised through the one shared predicate
+`isSpawnTimeoutMessage` (`intake-run.ts`); any other rejection is still a fault and
+escapes verbatim. Residual: `tasks` rows carry no error CODE column, so the
+background-task surface currently shows the canonical English sentence rather than
+the localized one.
 
 **One cohort, one ranking axis.** The compare winner (`resolveWinnerIndex` in
 `app/_lib/comparison.ts` — the single rule `buildComparison`'s `bestLabel`, the
@@ -430,6 +449,55 @@ created the row. The `duplicate` flag itself stays; a returning candidate is
 still told honestly that they already applied, and their links reach them
 through the address on file. `leadToken` on the quick-apply duplicate branch was
 already unread — `QuickApplyForm` renders the enrichment CTA only when `fresh`.
+
+**And a duplicate no longer *writes* without that proof either** (pinned by
+`app/api/apply/[id]/reapply-capability-gate.test.ts`, which drives the real
+handler). The read side above was closed while the write side stayed open: the
+same name-only match authorized the whole merge — contact backfill (the address
+every future comm is sent to), GitHub-handle backfill, a full profile rebuild
+over the matched candidate id from the POST's own CV text, a `re_applied` line on
+that person's timeline and a consent refresh that re-extends their retention
+clock. Knowing that someone applied was enough to become their contact of record.
+The mutating half now runs only when `leadEntry !== null` — the `?lead=`
+capability token resolving to this entry. Without it the response is the same
+tokenless "you already applied" acknowledgement and **no column of the original
+entry moves**; the funnel back-link (`linkApplySession`) still runs because it
+writes to `apply_sessions` under the caller's own attempt id, never to the entry.
+A returning applicant who lost their link is not stranded — the enrichment link
+is re-sent to the address on file, the one channel that can be authenticated.
+
+**Every refusal on all four apply doors carries a code.** The two submissions were
+moved onto `REFUSAL_ERRORS` earlier; the last bodied message on them was the
+closed-role 410, which answered the `apply` catalog's `roleClosed` sentence
+localized *server*-side — correct-looking and wrong, because the client resolves
+what it renders from the CODE (`applySubmitFailure` -> `useErrorMessage`), so a
+bodied sentence with no code fell through to the generic "something went wrong" in
+all four languages. It is now `APPLY_ROLE_CLOSED`. The two secondary doors joined
+them: `POST /api/apply/[id]/session` answers `APPLY_SESSION_INVALID` /
+`APPLY_ROLE_NOT_FOUND` / `APPLY_ROLE_CLOSED`, and `POST /api/apply/[id]/followup`
+answers one `FOLLOWUP_LINK_NOT_FOUND` on all three of its 404 paths (no such
+token, token for another job, entry with no profile row — deliberately
+indistinguishable) with its 500 going through `safeJsonError(..., "FOLLOWUP_FAILED")`
+so profile_cli's reason reaches the log and never the candidate. The *page*-level
+closed-role gate still renders `t("roleClosed")`; that is a different surface.
+Pinned by `app/api/apply/apply-error-hygiene.test.ts`.
+
+**Abandoned apply attempts are swept.** `apply_sessions` (the funnel denominator,
+`app/_lib/apply-session-store.ts`) is written from a public door on every form
+open and nothing in the tree ever deleted from it, so the abandonment rows — the
+majority by construction — accrued forever on a long-lived install.
+`sweepAbandonedApplySessions(olderThanDays = 180, workspaceId?)` runs from the
+server clock (`instrumentation-node.ts`) beside the other sweeps, deleting only
+rows with **no `entry_id`** past the window; an attempt that reached a filed entry
+is provenance for a real pipeline row and is never touched. The clock calls it
+unscoped, so it covers every tenant — storage hygiene is deployment-wide — but it
+sits *under* the autonomy pause, unlike the statutory consent sweep beside it.
+The dead `applyToPipelineRate` reader (no callers anywhere) was deleted rather
+than wired; the rows it read are still kept for 180 days, well outside its own
+30-day window, so a future analytics surface can reintroduce a reader over them.
+Both stores now have behavioural tests: `apply-session-store.test.ts` (idempotent
+start, write-once back-link, the sweep's scope) and `application-status-store.test.ts`
+(one token per entry, the UNIQUE backstop under an interleaved insert, resolve).
 
 Consequently the **"newly reachable" re-acknowledgement carries the status
 link** too (`app/api/apply/[id]/route.ts`, pinned by
@@ -788,6 +856,25 @@ data inside the fence and does not change the schema-validated output shape.
 - `analyses` table — one row per CV analysis (~21 KB JSON payload: `jobFit`
   overlay of matching/missing skills, salary assessment, role/seniority
   alignment). Read via `/api/analyses` and the History tab.
+  - **`engine` / `engine_provider` — which producer made this row.** The table holds
+    output from TWO producers: the LLM pipeline (`analyze_cv`) and the deterministic
+    seed builders (`pipeline/jobfit/seed_analyses.py`), whose demo corpus `seedAnalyses`
+    upserts into the same table on every boot. Until these columns landed nothing on the
+    row said which, so a fresh install's History was full of rule-built rows a recruiter
+    would read as AI assessments, and the only signal that ever existed was the
+    *transient* `servedFromCache` flag on the live result — gone the moment the report is
+    re-opened. `engine` is `'llm' | 'deterministic'` (`ANALYSIS_ENGINES` in
+    `db/analyses.ts`, mirroring `AnalysisMetadata.engine_kind` in `models.py`);
+    `engine_provider` is the registry provider name that served it and is NULL for a
+    deterministic row, because there is no provider to name. Both are NULL on rows saved
+    before the columns existed: that is **unknown**, never read as `'llm'`. The value
+    travels on the payload (`metadata.engineKind`) and `saveAnalysis` derives it, except
+    for the seeder, which stamps `'deterministic'` literally — true by construction, and
+    the committed JSON is refreshed on its own schedule, so deriving would leave a stale
+    corpus unmarked. The saved report renders `EngineNote variant="deterministic"` above
+    the engine panel when no model ran; an LLM row says nothing extra, because that is
+    the assumed case and a marker on every report is chrome nobody reads. Pinned by
+    `analyze-run.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).
 - `pipeline_entries` — the per-job application record; carries the *snapshot*

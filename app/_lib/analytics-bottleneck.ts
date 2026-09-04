@@ -16,7 +16,8 @@ export type Bottleneck = { stage: string; avgDaysInStage: number; entryCount: nu
 
 /** The stage with the highest average days-in-stage, considering only stages
  *  with at least `minSample` active entries. Returns null when no stage clears
- *  the bar — so the UI shows nothing rather than a confident n=1 claim. */
+ *  the bar — so the UI shows nothing rather than a confident n=1 claim.
+ *  DETERMINISTIC on ties: equal averages resolve to the lowest stage name. */
 export function pickBottleneck(
   perStageDays: Record<string, number[]>,
   minSample: number = BOTTLENECK_MIN_SAMPLE
@@ -26,7 +27,12 @@ export function pickBottleneck(
   for (const [stage, days] of Object.entries(perStageDays)) {
     if (days.length < minSample) continue; // too few to be systemic
     const avg = days.reduce((a, b) => a + b, 0) / days.length;
-    if (avg > bestAvg) {
+    // Ties break on the stage NAME, not on the order `Object.entries` yields — which
+    // is insertion order, which is whatever order the DB's GROUP BY returned. The
+    // banner names one stage and sends a recruiter there; two genuinely tied stages
+    // must not swap the accusation between renders. Byte order (not localeCompare):
+    // the rule has to be the same in every locale the dashboard runs in.
+    if (avg > bestAvg || (avg === bestAvg && best !== null && stage < best.stage)) {
       bestAvg = avg;
       best = { stage, avgDaysInStage: Math.round(avg), entryCount: days.length };
     }

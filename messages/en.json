@@ -1717,7 +1717,17 @@
     "AUTOMATION_TASK_UNKNOWN": "That automation step does not exist.",
     "AUTOMATION_ENTRY_NOT_FOUND": "That candidate is not on this board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "This candidate has no analyzed profile yet, so there is nothing for the AI to read.",
-    "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for."
+    "AUTOMATION_ENTRY_REQUIRED": "Name the candidate this step should run for.",
+    "APPLY_ROLE_CLOSED": "This role is no longer accepting applications.",
+    "APPLY_SESSION_INVALID": "That application attempt could not be started. Reload the page and try again.",
+    "FOLLOWUP_LINK_NOT_FOUND": "This profile link isn't valid. Your application is safely filed. Ask the recruiter for a fresh one.",
+    "ANALYZE_TIMEOUT": "The analysis took too long and was stopped. Try again, or with fewer CVs at once.",
+    "ANALYSES_LIST_FAILED": "Could not load the analysis history. Please try again.",
+    "ANALYSIS_LOAD_FAILED": "Could not load this analysis. Please try again.",
+    "ANALYSIS_SAVE_FAILED": "Could not save that change to the analysis. Please try again.",
+    "ANALYSIS_NOT_FOUND": "That analysis is not in this workspace.",
+    "ANALYSIS_GITHUB_INVALID": "That GitHub analysis could not be read and was not attached.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "That GitHub analysis is too large to attach."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5884,7 +5894,9 @@
       "trustMedium": "Authenticity: medium",
       "trustLow": "Authenticity: low",
       "engineNote": "Engine notes (English, as written)",
-      "engineNoteTitle": "These lines come from the analysis engine exactly as it produced them, and are not translated."
+      "engineNoteTitle": "These lines come from the analysis engine exactly as it produced them, and are not translated.",
+      "deterministicNote": "No model ran: this result was computed by rules",
+      "deterministicNoteTitle": "This analysis was produced by the deterministic scoring builders, not by an AI model. The numbers are complete, but no language model read this CV."
     },
     "softSignals": {
       "title": "Confirm in interview",
@@ -6403,10 +6415,9 @@
     "briefNoDataClaim": "Nothing has come through the funnel yet.",
     "briefNoDataContext": "Add a role and start collecting candidates; this brief fills in as they move.",
     "briefBandForecast": "What is coming",
-    "briefForecastClaim": "About {hires} hires are already in flight.",
+    "briefForecastClaim": "An estimated {hires} hires are already in flight.",
     "briefForecastContext": "Based on {velocity} new candidates a week and {conv}% overall conversion.",
     "briefForecastNoSignalClaim": "There is not enough history to project yet.",
-    "briefForecastNoSignalContext": "A projection needs at least one completed hire to calibrate against. Until then, guessing would be worse than saying nothing.",
     "briefEtaLabel": "Expected lag",
     "briefEtaValue": "{days}d",
     "briefBandMomentum": "Momentum",
@@ -6739,9 +6750,12 @@
       "basis": "Based on {velocity} new/week and a {conv}% overall conversion.",
       "acceptBasis": "Assuming the observed {pct}% offer acceptance (n={n}).",
       "inFlight": "Expected from in-flight",
-      "horizon": "Next {weeks} weeks",
       "plusHires": "+{hires}",
-      "eta": "Average time to hire: {days} days."
+      "eta": "Average time to hire: {days} days.",
+      "horizonEstimate": "Next {weeks} weeks (estimate)",
+      "range": "range {low}–{high}",
+      "method": "Method: {velocity} new candidates a week × {conv}% overall conversion, projected forward. The range is one standard deviation of weekly inflow (±{sd}) either side.",
+      "floorNote": "A projection needs at least {minHires} hires and {minWeeks} weeks with new candidates behind it. So far: {hires} hires across {weeks} such weeks. Until then, guessing would be worse than saying nothing."
     },
     "offers": {
       "title": "Offer leg",

@@ -141,7 +141,19 @@ could see a raw message pushed into a results array on its way to the client;
 
 The scan cannot see a message that reaches the wire through a helper in another
 module, and it does not judge whether a `jsonError` call site's message is
-genuinely client-safe. Those stay review's job. §1.2 and §1.4 of this contract
+genuinely client-safe. Those stay review's job.
+
+**And it cannot see the other half of the same defect: a handler that invents its
+own English.** The ratchet keys on a THROWN error's `.message` reaching the body,
+so a handler answering a hand-written literal — `{ error: "Analysis not found." }`,
+`{ error: "Failed to load analyses." }` — was invisible to it while being just as
+wrong at the reader's end, because the client renders `body.error` and there is no
+code for `useErrorMessage()` to resolve. Both `/api/analyses` doors were shaped that
+way until wave 39 and are now on `ANALYSES_LIST_FAILED` / `ANALYSIS_LOAD_FAILED` /
+`ANALYSIS_SAVE_FAILED` (store faults) and `ANALYSIS_NOT_FOUND` /
+`ANALYSIS_GITHUB_INVALID` / `ANALYSIS_GITHUB_TOO_LARGE` (refusals). When you find a
+handler like that, migrating it does not move any ratchet number — there was never a
+row to lower. §1.2 and §1.4 of this contract
 already had repo-wide guards
 ([`route-tenancy-coverage.test.ts`](../../app/api/route-tenancy-coverage.test.ts),
 [`rate-limit-contract.test.ts`](../../app/api/rate-limit-contract.test.ts));

@@ -1717,7 +1717,17 @@
     "AUTOMATION_TASK_UNKNOWN": "Cette étape d'automatisation n'existe pas.",
     "AUTOMATION_ENTRY_NOT_FOUND": "Ce candidat n'est pas sur ce tableau.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Ce candidat n'a pas encore de profil analysé : l'IA n'a rien à lire.",
-    "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape."
+    "AUTOMATION_ENTRY_REQUIRED": "Indiquez le candidat pour lequel lancer cette étape.",
+    "APPLY_ROLE_CLOSED": "Ce poste n’accepte plus de candidatures.",
+    "APPLY_SESSION_INVALID": "Cette tentative de candidature n’a pas pu être ouverte. Rechargez la page et réessayez.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Ce lien de profil n’est pas valide. Votre candidature est bien conservée. Demandez-en un nouveau au recruteur.",
+    "ANALYZE_TIMEOUT": "L’analyse a pris trop de temps et a été interrompue. Réessayez, ou avec moins de CV à la fois.",
+    "ANALYSES_LIST_FAILED": "L’historique des analyses n’a pas pu être chargé. Réessayez.",
+    "ANALYSIS_LOAD_FAILED": "Cette analyse n’a pas pu être chargée. Réessayez.",
+    "ANALYSIS_SAVE_FAILED": "Cette modification de l’analyse n’a pas pu être enregistrée. Réessayez.",
+    "ANALYSIS_NOT_FOUND": "Cette analyse ne se trouve pas dans cet espace de travail.",
+    "ANALYSIS_GITHUB_INVALID": "Cette analyse GitHub était illisible et n’a pas été jointe.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Cette analyse GitHub est trop volumineuse pour être jointe."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5884,7 +5894,9 @@
       "trustMedium": "Authenticité : moyenne",
       "trustLow": "Authenticité : faible",
       "engineNote": "Notes du moteur (en anglais, telles quelles)",
-      "engineNoteTitle": "Ces lignes proviennent telles quelles du moteur d’analyse et ne sont pas traduites."
+      "engineNoteTitle": "Ces lignes proviennent telles quelles du moteur d’analyse et ne sont pas traduites.",
+      "deterministicNote": "Aucun modèle exécuté : ce résultat provient de règles",
+      "deterministicNoteTitle": "Cette analyse a été produite par les modules de scoring déterministes, non par un modèle d’IA. Les chiffres sont complets, mais aucun modèle de langage n’a lu ce CV."
     },
     "softSignals": {
       "title": "À confirmer en entretien",
@@ -6403,10 +6415,9 @@
     "briefNoDataClaim": "Personne n’a encore traversé l’entonnoir.",
     "briefNoDataContext": "Ajoutez un poste et commencez à recueillir des candidats ; ce point se remplit à mesure qu’ils avancent.",
     "briefBandForecast": "Ce qui arrive",
-    "briefForecastClaim": "Environ {hires} recrutements sont déjà engagés.",
+    "briefForecastClaim": "Environ {hires} recrutements sont déjà en cours (estimation).",
     "briefForecastContext": "D’après {velocity} nouveaux candidats par semaine et {conv} % de conversion globale.",
     "briefForecastNoSignalClaim": "L’historique ne suffit pas encore pour une projection.",
-    "briefForecastNoSignalContext": "Une projection a besoin d’au moins un recrutement abouti pour se calibrer. En attendant, deviner serait pire que se taire.",
     "briefEtaLabel": "Délai attendu",
     "briefEtaValue": "{days} j",
     "briefBandMomentum": "Dynamique",
@@ -6739,9 +6750,12 @@
       "basis": "Sur la base de {velocity} nouveaux/semaine et d’une conversion globale de {conv} %.",
       "acceptBasis": "En supposant le taux d’acceptation observé de {pct} % (n={n}).",
       "inFlight": "Attendus des dossiers en cours",
-      "horizon": "{weeks} prochaines semaines",
       "plusHires": "+{hires}",
-      "eta": "Délai moyen de recrutement : {days} jours."
+      "eta": "Délai moyen de recrutement : {days} jours.",
+      "horizonEstimate": "{weeks} prochaines semaines (estimation)",
+      "range": "fourchette {low}–{high}",
+      "method": "Méthode : {velocity} nouveaux candidats par semaine × {conv}% de conversion globale, projeté dans le temps. La fourchette vaut un écart type du flux hebdomadaire (±{sd}) de part et d'autre.",
+      "floorNote": "Une projection exige au moins {minHires} recrutements et {minWeeks} semaines avec de nouveaux candidats. À ce jour : {hires} recrutements sur {weeks} semaines de ce type. D'ici là, deviner serait pire que se taire."
     },
     "offers": {
       "title": "Phase d’offre",

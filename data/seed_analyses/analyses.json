@@ -119,6 +119,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -580,6 +581,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -1052,6 +1054,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -1529,6 +1532,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -2003,6 +2007,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -2442,6 +2447,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -2894,6 +2900,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -3356,6 +3363,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -3823,6 +3831,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -4293,6 +4302,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -4777,6 +4787,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -5282,6 +5293,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -5764,6 +5776,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -6201,6 +6214,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -6622,6 +6636,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -7051,6 +7066,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -7508,6 +7524,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -7964,6 +7981,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -8442,6 +8460,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -8901,6 +8920,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -9318,6 +9338,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -9754,6 +9775,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -10184,6 +10206,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -10652,6 +10675,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -11113,6 +11137,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -11573,6 +11598,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -12055,6 +12081,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -12476,6 +12503,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -12949,6 +12977,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -13411,6 +13440,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -13848,6 +13878,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -14315,6 +14346,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -14740,6 +14772,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -15200,6 +15233,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -15644,6 +15678,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -16064,6 +16099,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -16532,6 +16568,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -16999,6 +17036,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -17457,6 +17495,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -17924,6 +17963,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -18384,6 +18424,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -18833,6 +18874,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -19259,6 +19301,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -19724,6 +19767,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -20181,6 +20225,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -20615,6 +20660,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -21061,6 +21107,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -21541,6 +21588,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -22005,6 +22053,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -22480,6 +22529,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -22980,6 +23030,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -23448,6 +23499,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -23917,6 +23969,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -24385,6 +24438,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -24847,16 +24901,17 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
         "groundingSources": [],
         "deterministicEvidence": {
           "detectedRoleFamily": "operations_logistics",
-          "detectedSeniority": "junior",
+          "detectedSeniority": "senior",
           "anchorBand": [
-            26000,
-            39000
+            51000,
+            81500
           ],
           "detectedSignals": [
             "leadership",
@@ -25300,6 +25355,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -25771,6 +25827,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -26263,6 +26320,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -26732,6 +26790,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -27204,6 +27263,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -27680,6 +27740,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -28160,6 +28221,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -28629,6 +28691,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -29096,6 +29159,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -29574,6 +29638,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],
@@ -30059,6 +30124,7 @@
       "metadata": {
         "analysisEngine": "seed-deterministic",
         "textExtractor": "seed",
+        "engineKind": "deterministic",
         "parsingNotes": [
           "Seeded analysis (no LLM): scored against a drafted JD + organization description; insight sections reuse the live pipeline's deterministic builders."
         ],

@@ -166,9 +166,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "application_status_links", // public status link (application-status-tenancy.test.ts)
   // The apply funnel's start rows (apply-session-store.ts). Minted from the public
   // apply surface, so workspace_id is derived from the OPENING (getJobWorkspace) —
-  // the same rule the submit routes file the resulting entry under. The rate read
-  // filters workspace_id; the back-link write is by the session's own
-  // client-generated PK, which carries no tenant meaning and grants nothing.
+  // the same rule the submit routes file the resulting entry under. The only
+  // reader is the abandonment sweep, which filters workspace_id when given one
+  // (and is a declared global sweep otherwise); the back-link write is by the
+  // session's own client-generated PK, which carries no tenant meaning and
+  // grants nothing. (The funnel-rate reader that used to be cited here was
+  // deleted with lot CA - it had no callers.)
   "apply_sessions",
   "skill_profiles", // durable skill credentials (skill-profiles-tenancy.test.ts)
   // Phase 1 — interview_sessions (voice AI interviews): the by-job enumeration

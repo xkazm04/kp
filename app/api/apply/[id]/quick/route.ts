@@ -75,7 +75,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // A closed/draft role refuses the submission too (same W8-1 gate as the
     // conversational POST — the page gate alone is the documented anti-pattern).
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
+      // Coded, exactly like the conversational door's twin (see the note there):
+      // the client renders errors.<CODE>, so a server-localized sentence with no
+      // code was invisible to it.
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
 
     // Enforced on the BYTES READ, not on content-length: that header is advisory, so

@@ -10,24 +10,18 @@
 // so a payload can NEVER cross tenants OR windows (the two isolation invariants the
 // dashboard depends on). Pure + injectable clock so the keying + expiry are unit-testable.
 
-const DEFAULT_TTL_MS = 20_000;
+import { createTtlCache, KEY_SEP, optionalKeyField, type TtlCache } from "./ttl-cache";
 
-// A hard ceiling on retained entries. The TTL alone is NOT a bound: expiry was
-// only ever checked on READ, so an entry whose key is never requested again sat
-// in the Map for the life of the process. Three call sites key this cache on raw
-// query params -- ?candidate on /api/decisions/records, ?roleFamily on both
-// calibration routes -- none of which is a closed vocabulary, so distinct values
-// accumulated one retained payload each (for the records route, a whole verified
-// chain plus its resolver map). `maxDuration` is serverless-only here, so a
-// self-hosted `next start` process is long-lived by design and nothing ever
-// reclaimed them. 256 is far above the working set of any real read cadence:
-// only entries created inside one TTL window can still be live, and the sweep
-// below reclaims the rest before evicting anything fresh.
-const DEFAULT_MAX_ENTRIES = 256;
+// The generic TTL core now lives in ttl-cache.ts (see its header for why: a memo
+// built on THIS module inherited the analytics write version and was retired by an
+// analytics settings write it had nothing to do with). Re-exported here so the
+// analytics + calibration + decision-records routes keep importing their cache from
+// the module whose keys they use.
+export { createTtlCache };
+export type { TtlCache };
 
-// A NUL joiner: workspace ids and the window token are both NUL-free, so the key is
-// unambiguous (no "a" + "bc" vs "ab" + "c" collision across the two fields).
-const SEP = "\u0000";
+// The joiner for this module’s composite keys — the shared NUL separator.
+const SEP = KEY_SEP;
 
 /** The memo key: workspace first, then the window (null = all-time). Two workspaces —
  *  or two windows within one workspace — never collide. Exposed for the keying test. */
@@ -35,97 +29,12 @@ export function analyticsCacheKey(workspaceId: string, windowDays: number | null
   return `${workspaceId}${SEP}${windowDays == null ? "all" : windowDays}`;
 }
 
-type Entry<T> = { value: T; expiresAt: number };
-
-// ── Generic keyed TTL core ────────────────────────────────────────────────
-// The same short-TTL memo, but keyed by a caller-built string so sibling
-// dashboards (calibration, its per-bin drilldown, the sealed decision records)
-// can reuse ONE caching philosophy with their own key axes instead of forking a
-// new one each. The isolation invariant is identical: two distinct keys never
-// share an entry, so no payload crosses tenants OR any other keyed axis. Every
-// consumer keys workspace-first (see the *CacheKey builders below), so tenant
-// isolation is structural, not incidental.
-//
-// SAME TTL, SAME REASONING as the (workspace, window) memo above: the window is
-// seconds, so staleness is immaterial and NO write-path invalidation is needed —
-// a write lands on the next read past the TTL, well inside a recruiter's read
-// cadence. For the decision-records chain-verification result this means a tamper
-// introduced mid-TTL surfaces within `ttlMs` (~20s) of the next read rather than
-// instantly; that bounded lag is an accepted trade-off (the sealed chain itself
-// is immutable — only the freshness of the verdict is capped).
-
-export type TtlCache<T> = {
-  /** Return the memoized value for `key` if still fresh, else compute, store,
-   *  and return it. */
-  get(key: string, compute: () => T): T;
-  /** Drop all entries (test hook / manual flush). */
-  clear(): void;
-};
-
-/** Build a string-keyed TTL memo, bounded at `maxEntries` (default
- *  {@link DEFAULT_MAX_ENTRIES}) so a caller-built key axis cannot grow it without
- *  limit. `ttlMs`/`now`/`maxEntries` are injectable so a test can drive expiry and
- *  eviction deterministically without wall-clock sleeps. Module-scope one per route
- *  so it persists across requests. */
-export function createTtlCache<T>(opts?: { ttlMs?: number; now?: () => number; maxEntries?: number }): TtlCache<T> {
-  const ttlMs = opts?.ttlMs ?? DEFAULT_TTL_MS;
-  const now = opts?.now ?? Date.now;
-  const maxEntries = Math.max(1, opts?.maxEntries ?? DEFAULT_MAX_ENTRIES);
-  const store = new Map<string, Entry<T>>();
-  return {
-    get(key, compute) {
-      const t = now();
-      const hit = store.get(key);
-      if (hit && hit.expiresAt > t) return hit.value;
-      // Drop a stale hit before recomputing: the re-insert below then moves the key
-      // to the END of the Map's insertion order, which is what makes that order a
-      // usable recency proxy for the eviction pass.
-      if (hit) store.delete(key);
-      const value = compute();
-      if (store.size >= maxEntries) {
-        // Reclaim what the TTL already invalidated first -- an expired entry is
-        // free to drop, a fresh one is a recompute someone will pay for.
-        for (const [k, e] of store) if (e.expiresAt <= t) store.delete(k);
-        // Still full: evict oldest-first. Map iterates in insertion order and every
-        // live entry was inserted when it was computed, so the head is the least
-        // recently computed key.
-        while (store.size >= maxEntries) {
-          const oldest = store.keys().next();
-          if (oldest.done) break;
-          store.delete(oldest.value);
-        }
-      }
-      store.set(key, { value, expiresAt: t + ttlMs });
-      return value;
-    },
-    clear() {
-      store.clear();
-    },
-  };
-}
-
-// ── Per-route key builders ────────────────────────────────────────────────
+// ── Per-route key builders ───────────────────────────────────────
 // All NUL-joined for the same reason as analyticsCacheKey: workspace ids, the
 // source token, role-family names and candidate refs are NUL-free, so the
-// concatenation is collision-free.
-//
-// An ABSENT optional field ("no family filter", "the full records list") is
-// marked with `NONE` — a second, doubled separator, which no real value can
-// forge precisely because values are NUL-free. The previous marker was a
-// printable "*", and every one of these fields arrives as a raw query param:
-// `?roleFamily=*` and `?candidate=*` keyed to the SAME entry as the unfiltered
-// load, so whichever request landed first had its payload served to the other
-// for the rest of the TTL (a `?candidate=*` probe returns an empty list, and
-// that empty list then WAS the full decision-records view). "In practice nobody
-// names a family `*`" is not a property of a URL.
-
-// The "no value here" marker: SEP again, so the key carries two adjacent NULs.
-const NONE = SEP;
-
-/** An optional key field: its own value, or the unforgeable absent-marker. Empty
- *  string collapses to absent — every caller's filtered/unfiltered branch already
- *  treats "" as "no filter", so the key must agree with the payload it stores. */
-const field = (value: string | null | undefined): string => (value ? value : NONE);
+// concatenation is collision-free. An ABSENT optional field is marked by
+// `optionalKeyField` (ttl-cache.ts), whose marker no real value can forge.
+const field = optionalKeyField;
 
 /** Calibration payload key: (workspace, source, family). The families list is
  *  computed from the UNFILTERED set so it's identical across family keys — that

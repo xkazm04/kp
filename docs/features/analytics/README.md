@@ -695,8 +695,32 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
 | `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
+**No stage name is spelled on this page.** Two English literals outlived the role layer that
+closed the rest: the offer panel's "who is sitting on an offer" link filtered the board on
+`"Offer"`, and `weeklyMomentum` *defaulted* its terminal stage to `"Hired"`. Both are answers
+that look like fallbacks and are simply wrong on a renamed board — an empty board view, and a
+hire series flat at zero forever. The payload now carries `offerStage` (`db/analytics.ts`,
+`stageWithRole("offer", axis)`; `null` when the axis declares no offer role, and the panel then
+renders the pending count as plain text rather than a link that cannot resolve), and
+`weeklyMomentum`'s `terminalStage` is a REQUIRED argument — there is no correct default, so the
+type asks for it. Pinned by `app/_lib/db/analytics-custom-axis.test.ts` (a board whose offer
+column is "Package") and by the hire-series test in `app/_lib/analytics-momentum.test.ts`.
+
+**The TTL core is not an analytics module.** `createTtlCache` lives in
+`app/_lib/ttl-cache.ts` — dependency-free, TTL + entry bound and *no invalidation policy of its
+own*. It used to be an export of `analytics-cache.ts`, and every consumer that reached for "the
+TTL idiom" reached for the analytics module with it: `pipeline-score-cache.ts` was built on
+`createAnalyticsCache`, whose key carries the per-workspace analytics write version, so saving a
+conversion goal or a channel spend figure retired the canonical-score fit map too and the next
+board poll paid a full `buildFreshestFits()` for a write about neither scores nor analyses.
+`analytics-cache.ts` now *composes* the core (and re-exports it, so the analytics, calibration and
+decision-records routes import their cache from the module whose keys they use); the score memo
+and `db/profiles.ts` take the core directly and are coupled to nobody. Pinned by
+`app/_lib/ttl-cache.test.ts` and by "an analytics settings write leaves the score memo intact"
+in `app/_lib/pipeline-score-cache.test.ts`.
+
 **The short-TTL memos are bounded, not just expiring.** `createTtlCache`
-(`app/_lib/analytics-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
+(`app/_lib/ttl-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
 whose key was not requested again. Three routes key it on raw query params — `?candidate` on
 `/api/decisions/records`, `?roleFamily` on both calibration routes — none of them a closed
 vocabulary, and `maxDuration` is serverless-only here, so a self-hosted process retained one
@@ -759,7 +783,7 @@ which drives the real handlers: write, then read, and the read must carry the ne
 
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
-`analytics-cache.ts`, `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
+`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
 `decision-attribution.ts` — each with a colocated `.test.ts`. On the client,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
 to become executable values. Tables compose `app/_components/table/` (`TablePager`,
@@ -796,7 +820,15 @@ calibration payload types.
 
 Load-bearing, not stylistic: an unknown cost renders as `—`, never `$0` ("free" and "unpriced"
 are different facts) · no verdict colour without a goal the org set · a ratio over 100 % is shown,
-not capped · the forecast refuses to project below its signal floor (`forecastHires().hasSignal`)
+not capped · the forecast **names its method and its floor**: `MIN_FORECAST_HIRES = 3` completed
+hires AND `MIN_FORECAST_INFLOW_WEEKS = 4` weeks that actually received candidates before it will
+project at all (both inputs are gated because both are multiplied — one hire in one burst week
+used to license a twelve-week projection to one decimal place, beside siblings gating at 3, 5 and
+20), the refusal states how far this workspace is from each (`forecast.signal`, rendered as
+`forecast.floorNote`), every horizon is labelled an *estimate* and carries the band at velocity ∓
+one standard deviation of the weekly buckets (floored at zero), and `forecast.method` prints the
+arithmetic — velocity × conversion, projected forward — under the figures · the forecast refuses
+to project below that floor (`forecastHires().hasSignal`)
 and **names the acceptance basis it substituted**: when an observed offer-accept rate applies,
 `forecastHires` rebuilds the offer→hire leg as `(offerReached / firstReached) × acceptRate`, so
 the horizons are NOT `overallConversionPct` — the figure the band's context sentence names — and

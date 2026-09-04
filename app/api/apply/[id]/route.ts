@@ -121,7 +121,12 @@ function acknowledgeReapply(
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
-  recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
+  // The event is part of the MUTATING half, so it rides the same proof the merge
+  // does. An unproven repeat is a caller who typed a name we cannot authenticate:
+  // letting it write a line into the recruiter's activity feed on the victim's
+  // timeline is both a nuisance channel and a false provenance record ("this
+  // candidate re-applied") for something the candidate never did.
+  if (proven) recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // CAPABILITY GATE — the reason this response is thinner than the first-apply one.
   //
   // A duplicate is detected from the submitted NAME/EMAIL alone
@@ -191,7 +196,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // gate alone is the documented anti-pattern: the API used to accept
     // applications for any existing job forever, drafts included).
     if (!isJobOpenForApplications(getJobStatus(id))) {
-      return NextResponse.json({ error: t("roleClosed") }, { status: 410 });
+      // Coded like every other refusal on this door. It used to answer the `apply`
+      // catalog's own `roleClosed` sentence, localized SERVER-side from the request
+      // — which reads correct and was not: the client resolves what it renders from
+      // the CODE (applySubmitFailure -> useErrorMessage), so a bodied message with
+      // no code fell straight through to the generic "something went wrong" in all
+      // four languages. The page-level gate keeps using t("roleClosed"); this is the
+      // API's half of the same fact.
+      return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
 
     // Reject an oversized body BEFORE buffering it into the heap. Content-Length used
@@ -369,6 +381,36 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (leadEntry || providedName || email) {
       const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email, workspaceId);
       if (existing) {
+        // CAPABILITY GATE, WRITE SIDE — the twin of the one in acknowledgeReapply.
+        //
+        // The read side stopped handing a name-guesser the matched entry's tokens.
+        // The WRITE side stayed open, and everything below this line mutates the
+        // matched person's record: it sets the address every future comm is sent
+        // to, backfills their GitHub handle, rebuilds their stored profile from
+        // whatever CV text the POST carried, writes a `re_applied` line onto their
+        // timeline and refreshes the consent that extends their retention clock.
+        // The match that authorizes all of it is `findApplicationByApplicant` on a
+        // NAME (an email is optional and a bare name matches), so knowing that a
+        // person applied — a LinkedIn post is enough — was enough to make yourself
+        // their contact of record and to overwrite the profile a recruiter scores.
+        //
+        // So the merge needs the same proof the tokens do: a valid ?lead= token
+        // resolving to THIS entry, which is the emailed enrichment walk — the path
+        // the merge was designed for and the only re-apply that is authenticated.
+        // Without it the honest answer is unchanged and unchanging: the candidate
+        // is told they already applied (they must be — silently dropping a repeat
+        // is how the "update my info" path became invisible), and not one column of
+        // the original entry moves. A genuine returning applicant who lost their
+        // link is not stranded: the enrichment link is re-sent to the address on
+        // file, which is the one channel we can authenticate.
+        if (!leadEntry) {
+          // The funnel back-link still runs: it writes to apply_sessions (keyed by
+          // the caller's OWN client-minted attempt id), never to the entry, and the
+          // attempt genuinely did reach a filed application — which is the only
+          // thing the apply-to-pipeline rate measures.
+          linkApplySession(applySessionId, existing.id);
+          return acknowledgeReapply(existing.id, t("alreadyMessage"), [], false, workspaceId, {}, false);
+        }
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
         let profileRebuilt = false;
@@ -448,10 +490,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           profileRebuilt,
           workspaceId,
           followup,
-          // Proof of ownership is the ?lead= capability token resolving to THIS
-          // entry — the emailed enrichment walk. A name/email match is not proof
-          // (see the capability gate in acknowledgeReapply).
-          leadEntry !== null
+          // Unconditionally proven: the write gate above already returned for every
+          // caller without a lead token, so reaching here means `leadEntry !== null`.
+          true
         );
       }
     }

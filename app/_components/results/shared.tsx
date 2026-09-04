@@ -270,20 +270,37 @@ export function ListBlock({
 }
 
 /**
- * The marker that says "the lines under this are the engine's own English".
+ * The one-line marker that names WHAT the reader is looking at, in the same voice and
+ * the same place, for the two things a report has to disclose about its own engine.
  *
- * The quality strip beside this panel has carried it since 21a; the engine
- * panel painted free-form model prose (`parsingNotes`) straight into a Czech,
- * German or French report with nothing telling the reader which half of the
- * surface was translated and which was machine text quoted verbatim. Same
- * label, one component, so the two can never drift apart or say it twice in
- * two different ways.
+ * `variant="verbatim"` (default) — "the lines under this are the engine's own English".
+ * The quality strip beside this panel has carried it since 21a; the engine panel painted
+ * free-form model prose (`parsingNotes`) straight into a Czech, German or French report
+ * with nothing telling the reader which half of the surface was translated and which was
+ * machine text quoted verbatim.
+ *
+ * `variant="deterministic"` — "NO MODEL RAN". `analyses` holds output from two producers
+ * (the LLM pipeline, and the rule-based seed builders whose demo corpus is upserted into
+ * the same table on every boot), and until the `engine` column landed a saved report gave
+ * the recruiter nothing to tell them apart. This is not a caveat about language, it is a
+ * caveat about provenance — and it is the ONE case where "no model ran" is the honest
+ * headline rather than a degradation notice, because the numbers are fully computed, just
+ * computed by rules. Same component so the two disclosures cannot drift into two
+ * different visual languages.
  */
-export function EngineNote({ className }: { className?: string }) {
+export function EngineNote({
+  className,
+  variant = "verbatim",
+}: {
+  className?: string;
+  variant?: "verbatim" | "deterministic";
+}) {
   const t = useTranslations("results.quality");
+  const body = variant === "deterministic" ? "deterministicNote" : "engineNote";
+  const title = variant === "deterministic" ? "deterministicNoteTitle" : "engineNoteTitle";
   return (
-    <p className={className ? `${className} ${META_LABEL}` : META_LABEL} title={t("engineNoteTitle")}>
-      {t("engineNote")}
+    <p className={className ? `${className} ${META_LABEL}` : META_LABEL} title={t(title)}>
+      {t(body)}
     </p>
   );
 }
@@ -305,6 +322,13 @@ export function EnginePanel({ analysis }: { analysis: Analysis }) {
     <div className={`${PANEL} p-5`}>
       <h3 className="font-serif text-h3 text-ink">{t("engineTitle")}</h3>
       <div className="mt-3 space-y-2 text-base leading-6 text-ink">
+        {/* Provenance first: whether a model ran at all outranks which one, and a reader
+            who stops after one line should have read the load-bearing fact. Rendered only
+            for a deterministic result — "an LLM produced this" is the assumed case and
+            saying it on every report would turn the marker into chrome nobody reads.
+            Absent on a legacy payload (engineKind undefined), which is UNKNOWN, and an
+            unknown provenance is not a licence to claim either one. */}
+        {analysis.metadata.engineKind === "deterministic" ? <EngineNote variant="deterministic" /> : null}
         <p>{t("engine", { engine: analysis.metadata.analysisEngine })}</p>
         <p>{t("extractor", { extractor: analysis.metadata.textExtractor })}</p>
         {analysis.metadata.model ? <p>{t("model", { model: analysis.metadata.model })}</p> : null}

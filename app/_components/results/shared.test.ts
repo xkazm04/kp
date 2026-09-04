@@ -138,6 +138,11 @@ test("the engine note reuses the quality strip's already-localized label", () =>
   // Same key in all four catalogs, one component — the two surfaces cannot drift
   // into saying the same thing two ways.
   assert.match(src, /useTranslations\("results\.quality"\)/);
-  assert.match(src, /t\("engineNote"\)/);
-  assert.match(src, /title=\{t\("engineNoteTitle"\)\}/);
+  // Lot AN gave the note a `deterministic` variant (no model ran, the seeded
+  // corpus). Both bodies and both titles still come from the ONE quality
+  // namespace - pin the variant table, not one literal call.
+  assert.match(src, /variant === "deterministic" \? "deterministicNote" : "engineNote"/);
+  assert.match(src, /variant === "deterministic" \? "deterministicNoteTitle" : "engineNoteTitle"/);
+  assert.match(src, /t\(body\)/);
+  assert.match(src, /title=\{t\(title\)\}/);
 });

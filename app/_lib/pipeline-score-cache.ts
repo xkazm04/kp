@@ -5,7 +5,7 @@
 // analyses didn't change.
 //
 // This memoizes ONLY that fit map (the DB-dependent input), per workspace, behind a
-// small TTL — the SAME analytics-cache.ts idiom (injectable clock, TTL-only
+// small TTL — the SAME ttl-cache.ts idiom (injectable clock, TTL-only
 // invalidation, workspace-keyed so a map can never cross tenants). The entries
 // themselves are NOT cached, so a pipeline write still reflects on the very next
 // poll; only the fit lookup is served from the memo within the TTL. The payload
@@ -15,7 +15,13 @@
 // canonical score within one TTL, well inside a recruiter's read cadence, so no
 // write-path invalidation is needed.
 
-import { createAnalyticsCache, type AnalyticsCache } from "./analytics-cache";
+// The GENERIC core, not `createAnalyticsCache`. This memo was built on the analytics
+// wrapper for its shape, and inherited its key: `invalidateAnalyticsWorkspace` bumps a
+// per-workspace write version that rides in that key, so saving a conversion goal or a
+// channel spend figure on the Insights tab retired the canonical-score map for the whole
+// workspace and the next board poll paid a full buildFreshestFits() it had no reason to.
+// Analytics settings and canonical scores share no data; they no longer share a key.
+import { createTtlCache, KEY_SEP, type TtlCache } from "./ttl-cache";
 import { buildFreshestFits, withCanonicalScores, type CanonicalScoreFields } from "./match-score-resolve";
 import type { AnalysisFit } from "./match-score";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
@@ -32,18 +38,24 @@ export type CachedScoreResolver = {
   clear(): void;
 };
 
+/** The memo key: the workspace, and nothing else — scores have no window, source or
+ *  filter axis. Workspace-first (the only field), so two tenants' fit maps are strictly
+ *  separate. The trailing marker keeps the key namespaced if this cache ever gains a
+ *  second axis. Exported for the keying test. */
+export function scoreCacheKey(workspaceId: string): string {
+  return `${workspaceId}${KEY_SEP}fits`;
+}
+
 /** Build a resolver over an injectable clock/TTL, so a test can drive expiry
- *  deterministically (mirrors createAnalyticsCache's seam). */
+ *  deterministically (mirrors the analytics memo's seam). */
 export function createCachedScoreResolver(opts?: { ttlMs?: number; now?: () => number }): CachedScoreResolver {
-  const cache: AnalyticsCache<Map<string, AnalysisFit>> = createAnalyticsCache<Map<string, AnalysisFit>>({
+  const cache: TtlCache<Map<string, AnalysisFit>> = createTtlCache<Map<string, AnalysisFit>>({
     ttlMs: opts?.ttlMs ?? DEFAULT_TTL_MS,
     now: opts?.now,
   });
   return {
     withCanonicalScores<T extends Entryish>(entries: T[], workspaceId: string = DEFAULT_WORKSPACE_ID) {
-      // windowDays is `null` here — scores have no window axis, only a workspace one;
-      // the (workspace, null) key keeps two tenants' fit maps strictly separate.
-      const freshest = cache.get(workspaceId, null, () => buildFreshestFits(workspaceId));
+      const freshest = cache.get(scoreCacheKey(workspaceId), () => buildFreshestFits(workspaceId));
       return withCanonicalScores(entries, workspaceId, freshest);
     },
     clear() {

@@ -46,6 +46,13 @@ export type PipelineAnalytics = {
   rejected: number;
   declined: number;
   funnel: { stage: string; reached: number; current: number; conversionPct: number | null }[];
+  /** THIS workspace's offer column, by role — the stage a "who is sitting on an offer"
+   *  deep link must filter on. The offer panel used to spell it `"Offer"`, so on a board
+   *  whose offer column is called "Package" the one link out of that panel filtered the
+   *  board to a column that does not exist and landed the recruiter on an empty list.
+   *  `null` when the axis declares no offer role (a legal two-column board) — the count
+   *  is then rendered as plain text rather than a link that cannot resolve. */
+  offerStage: string | null;
   avgTimeToHireDays: number | null;
   // The MEDIAN of the same time-to-hire samples (avgTimeToHireDays is the mean). The
   // ROI ledger tile is labeled "median" and reads this, so an audit-grade leadership
@@ -448,15 +455,16 @@ export function pipelineAnalytics(
         WHERE created_at >= ? AND kind IN ${momentumKindList} AND ${notSim()} AND workspace_id = ?`
     )
     .all(momentumCutoff, SIM_TITLE_LIKE, workspaceId) as { kind: string; to_stage: string | null; created_at: string }[];
-  // `terminalStage` is what splits the `hired` series out of `advanced`, and
-  // weeklyMomentum defaults it to the literal "Hired" for callers that cannot
-  // resolve an axis. This one can, and must: left unpassed, a workspace whose
-  // final column is named anything else saw every completed hire land in the
-  // `advanced` bars and a hire series flat at zero forever — the same rename
-  // failure the funnel/terminal-role work closed everywhere else on this page.
+  // `terminalStage` is what splits the `hired` series out of `advanced`, and it is a
+  // REQUIRED argument (analytics-momentum.ts): left to a literal default, a workspace
+  // whose final column is named anything else saw every completed hire land in the
+  // `advanced` bars and a hire series flat at zero forever — the same rename failure
+  // the funnel/terminal-role work closed everywhere else on this page. An axis with no
+  // declared terminal role falls back to its OWN last column (the board's final one by
+  // construction), never to the shipped name.
   const momentum = weeklyMomentum(
     momentumRows.map((r) => ({ kind: r.kind, toStage: r.to_stage, createdAt: r.created_at })),
-    { weeks: momentumWeeks, terminalStage: stageWithRole("terminal", axis) ?? undefined }
+    { weeks: momentumWeeks, terminalStage: stageWithRole("terminal", axis) ?? axis[axis.length - 1]?.id ?? "" }
   );
 
   // Automation impact (ANA3): one GROUP BY kind over the window (the fold
@@ -747,6 +755,8 @@ export function pipelineAnalytics(
     rejected,
     declined,
     funnel,
+    // By ROLE, never by the name "Offer" — same rule as `isTerminal` above.
+    offerStage: stageWithRole("offer", axis),
     avgTimeToHireDays,
     medianTimeToHireDays,
     // The population the two statistics above actually cover — see the field note.

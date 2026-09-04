@@ -1717,7 +1717,17 @@
     "AUTOMATION_TASK_UNKNOWN": "Diesen Automatisierungsschritt gibt es nicht.",
     "AUTOMATION_ENTRY_NOT_FOUND": "Diese Person steht nicht auf diesem Board.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Für diese Person liegt noch kein analysiertes Profil vor, die KI hat also keine Grundlage.",
-    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll."
+    "AUTOMATION_ENTRY_REQUIRED": "Geben Sie an, für wen dieser Schritt laufen soll.",
+    "APPLY_ROLE_CLOSED": "Diese Stelle nimmt keine Bewerbungen mehr an.",
+    "APPLY_SESSION_INVALID": "Dieser Bewerbungsversuch konnte nicht gestartet werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Dieser Profil-Link ist ungültig. Ihre Bewerbung ist sicher hinterlegt. Bitten Sie um einen neuen Link.",
+    "ANALYZE_TIMEOUT": "Die Analyse hat zu lange gedauert und wurde abgebrochen. Versuchen Sie es erneut oder mit weniger Lebensläufen auf einmal.",
+    "ANALYSES_LIST_FAILED": "Der Analyseverlauf konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYSIS_LOAD_FAILED": "Diese Analyse konnte nicht geladen werden. Bitte erneut versuchen.",
+    "ANALYSIS_SAVE_FAILED": "Diese Änderung an der Analyse konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "ANALYSIS_NOT_FOUND": "Diese Analyse liegt nicht in diesem Arbeitsbereich.",
+    "ANALYSIS_GITHUB_INVALID": "Diese GitHub-Analyse war nicht lesbar und wurde nicht angehängt.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Diese GitHub-Analyse ist zu groß zum Anhängen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5884,7 +5894,9 @@
       "trustMedium": "Authentizität: mittel",
       "trustLow": "Authentizität: niedrig",
       "engineNote": "Engine-Hinweise (Englisch, wörtlich)",
-      "engineNoteTitle": "Diese Zeilen stammen unverändert aus der Analyse-Engine und werden nicht übersetzt."
+      "engineNoteTitle": "Diese Zeilen stammen unverändert aus der Analyse-Engine und werden nicht übersetzt.",
+      "deterministicNote": "Kein Modell lief: dieses Ergebnis wurde aus Regeln berechnet",
+      "deterministicNoteTitle": "Diese Analyse stammt aus den deterministischen Bewertungsbausteinen, nicht aus einem KI-Modell. Die Zahlen sind vollständig, aber kein Sprachmodell hat diesen Lebenslauf gelesen."
     },
     "softSignals": {
       "title": "Im Interview bestätigen",
@@ -6403,10 +6415,9 @@
     "briefNoDataClaim": "Bisher ist noch niemand durch den Funnel gelaufen.",
     "briefNoDataContext": "Legen Sie eine Rolle an und sammeln Sie Kandidaten; dieser Bericht füllt sich, sobald sie sich bewegen.",
     "briefBandForecast": "Was ansteht",
-    "briefForecastClaim": "Rund {hires} Einstellungen sind bereits unterwegs.",
+    "briefForecastClaim": "Geschätzt {hires} Einstellungen sind bereits unterwegs.",
     "briefForecastContext": "Basierend auf {velocity} neuen Kandidaten pro Woche und {conv} % Gesamtkonversion.",
     "briefForecastNoSignalClaim": "Für eine Prognose fehlt noch die Historie.",
-    "briefForecastNoSignalContext": "Eine Prognose braucht mindestens eine abgeschlossene Einstellung als Kalibrierung. Bis dahin wäre Raten schlechter als Schweigen.",
     "briefEtaLabel": "Erwarteter Verzug",
     "briefEtaValue": "{days} T",
     "briefBandMomentum": "Momentum",
@@ -6739,9 +6750,12 @@
       "basis": "Basierend auf {velocity} neu/Woche und {conv} % Gesamtkonversion.",
       "acceptBasis": "Unter Annahme der beobachteten {pct} % Angebotsannahme (n={n}).",
       "inFlight": "Erwartet aus laufendem Bestand",
-      "horizon": "Nächste {weeks} Wochen",
       "plusHires": "+{hires}",
-      "eta": "Durchschnittliche Time-to-Hire: {days} Tage."
+      "eta": "Durchschnittliche Time-to-Hire: {days} Tage.",
+      "horizonEstimate": "Nächste {weeks} Wochen (Schätzung)",
+      "range": "Spanne {low}–{high}",
+      "method": "Methode: {velocity} neue Kandidaten pro Woche × {conv}% Gesamtkonversion, fortgeschrieben. Die Spanne ist eine Standardabweichung des wöchentlichen Zulaufs (±{sd}) nach beiden Seiten.",
+      "floorNote": "Eine Prognose braucht mindestens {minHires} Einstellungen und {minWeeks} Wochen mit neuen Kandidaten. Bisher: {hires} Einstellungen in {weeks} solchen Wochen. Bis dahin wäre Raten schlechter als Schweigen."
     },
     "offers": {
       "title": "Angebotsphase",

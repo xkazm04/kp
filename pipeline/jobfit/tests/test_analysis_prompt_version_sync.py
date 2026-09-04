@@ -154,8 +154,8 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # the rules block or the CV fence changed, verified by diffing the function
 # before/after: only the exception TYPE at the raise sites. No cached analysis
 # output differs, so PROMPT_VERSION is intentionally NOT bumped.
-EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "ed2f1e4b3e9a69e38d06f86f6a8907d86cfbf8371de086d01960a14da4acb3aa"
+EXPECTED_PROMPT_VERSION = "v6-2026-09-04-engine-kind"
+EXPECTED_ANALYSIS_FINGERPRINT = "d9e501943d3b60514b2b6f494c1cc006b89b5b4d7e16c294abeeba955d7d0048"
 
 
 def _strip_ts_comments(text: str) -> str:

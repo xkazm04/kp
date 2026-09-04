@@ -1717,7 +1717,17 @@
     "AUTOMATION_TASK_UNKNOWN": "Takový krok automatizace neexistuje.",
     "AUTOMATION_ENTRY_NOT_FOUND": "Tento kandidát není na této nástěnce.",
     "AUTOMATION_ENTRY_NO_PROFILE": "Tento kandidát zatím nemá analyzovaný profil, takže AI nemá z čeho vycházet.",
-    "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit."
+    "AUTOMATION_ENTRY_REQUIRED": "Uveďte kandidáta, pro kterého se má krok spustit.",
+    "APPLY_ROLE_CLOSED": "Tato pozice už nepřijímá přihlášky.",
+    "APPLY_SESSION_INVALID": "Tento pokus o přihlášku se nepodařilo zahájit. Načtěte stránku znovu a zkuste to prosím ještě jednou.",
+    "FOLLOWUP_LINK_NOT_FOUND": "Tento odkaz na profil není platný. Vaše přihláška je v bezpečí uložená. Požádejte náboráře o nový.",
+    "ANALYZE_TIMEOUT": "Analýza trvala příliš dlouho a byla zastavena. Zkuste to znovu, nebo s méně životopisy najednou.",
+    "ANALYSES_LIST_FAILED": "Historii analýz se nepodařilo načíst. Zkuste to prosím znovu.",
+    "ANALYSIS_LOAD_FAILED": "Tuto analýzu se nepodařilo načíst. Zkuste to prosím znovu.",
+    "ANALYSIS_SAVE_FAILED": "Změnu v analýze se nepodařilo uložit. Zkuste to prosím znovu.",
+    "ANALYSIS_NOT_FOUND": "Tato analýza v tomto pracovním prostoru není.",
+    "ANALYSIS_GITHUB_INVALID": "Analýzu GitHubu se nepodařilo přečíst a nebyla připojena.",
+    "ANALYSIS_GITHUB_TOO_LARGE": "Analýza GitHubu je příliš velká na připojení."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5884,7 +5894,9 @@
       "trustMedium": "Pravost: střední",
       "trustLow": "Pravost: nízká",
       "engineNote": "Poznámky enginu (anglicky, doslovně)",
-      "engineNoteTitle": "Tyto řádky pocházejí přímo z analytického enginu v podobě, v jaké je vytvořil, a nejsou přeložené."
+      "engineNoteTitle": "Tyto řádky pocházejí přímo z analytického enginu v podobě, v jaké je vytvořil, a nejsou přeložené.",
+      "deterministicNote": "Žádný model neběžel: tento výsledek spočítala pravidla",
+      "deterministicNoteTitle": "Tuto analýzu vytvořily deterministické výpočetní moduly, nikoli model AI. Čísla jsou úplná, ale žádný jazykový model tento životopis nečetl."
     },
     "softSignals": {
       "title": "Ověřit na pohovoru",
@@ -6403,10 +6415,9 @@
     "briefNoDataClaim": "Trychtýřem zatím nikdo neprošel.",
     "briefNoDataContext": "Přidejte roli a začněte sbírat kandidáty; tento souhrn se doplní, jak se budou posouvat.",
     "briefBandForecast": "Co přichází",
-    "briefForecastClaim": "Přibližně {hires} náborů je už rozjednáno.",
+    "briefForecastClaim": "Odhadem {hires} náborů už je rozjetých.",
     "briefForecastContext": "Vychází z {velocity} nových kandidátů týdně a celkové konverze {conv} %.",
     "briefForecastNoSignalClaim": "Zatím není dost historie na předpověď.",
-    "briefForecastNoSignalContext": "Předpověď potřebuje aspoň jeden dokončený nábor, podle kterého se dá kalibrovat. Do té doby by odhad byl horší než mlčení.",
     "briefEtaLabel": "Očekávané zpoždění",
     "briefEtaValue": "{days} d",
     "briefBandMomentum": "Dynamika",
@@ -6739,9 +6750,12 @@
       "basis": "Na základě {velocity} nových/týden a celkové konverze {conv} %.",
       "acceptBasis": "Za předpokladu pozorované {pct}% akceptace nabídek (n={n}).",
       "inFlight": "Očekáváno z aktuální pipeline",
-      "horizon": "{weeks, plural, one {Příští # týden} few {Příští # týdny} other {Příštích # týdnů}}",
       "plusHires": "+{hires}",
-      "eta": "Průměrná doba do přijetí: {days, plural, one {# den} few {# dny} other {# dní}}."
+      "eta": "Průměrná doba do přijetí: {days, plural, one {# den} few {# dny} other {# dní}}.",
+      "horizonEstimate": "Následujících {weeks} týdnů (odhad)",
+      "range": "rozpětí {low}–{high}",
+      "method": "Metoda: {velocity} nových kandidátů týdně × {conv}% celkové konverze, promítnuto dopředu. Rozpětí je jedna směrodatná odchylka týdenního přílivu (±{sd}) na obě strany.",
+      "floorNote": "Projekce potřebuje aspoň {minHires} nábory a {minWeeks} týdny s novými kandidáty. Zatím: {hires} náborů za {weeks} takových týdnů. Do té doby by hádání bylo horší než mlčet."
     },
     "offers": {
       "title": "Fáze nabídky",

@@ -19,6 +19,12 @@ export type Analytics = {
   rejected: number;
   declined: number;
   funnel: Funnel[];
+  /** This workspace's offer column, resolved server-side by ROLE (db/analytics.ts).
+   *  The offer panel's "who is sitting on an offer" deep link filters the board on it
+   *  instead of the literal "Offer", which resolved to nothing on a renamed board.
+   *  Optional so an older cached payload (or a fixture) still type-checks; absent and
+   *  null both mean "no offer column to link to" and the count renders as plain text. */
+  offerStage?: string | null;
   avgTimeToHireDays: number | null;
   // Median of the same time-to-hire samples — the ROI ledger's "median"-labeled tile
   // reads this (analytics-calibration-dashboards #1).

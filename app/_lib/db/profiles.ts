@@ -1,7 +1,7 @@
 import { ensureDb, insertWithUniqueSlug, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { maskCandidateName, scrubPiiFromPayload } from "../consent";
-import { createTtlCache } from "../analytics-cache";
+import { createTtlCache } from "../ttl-cache";
 
 // ---- Candidate profiles (v2 archetype-aware intake) -----------------------
 
@@ -116,7 +116,7 @@ export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WO
 // /api/profile/candidates (matrix, needs the payload) each read the profiles table
 // on the SAME tab load — so within the TTL the second read is served from memory,
 // making the tab's double profile-fetch a single DB read. Same idiom + reasoning as
-// analytics-cache; keyed workspace-first, so no set ever crosses tenants.
+// ttl-cache; keyed workspace-first, so no set ever crosses tenants.
 //
 // UNLIKE the analytics memo, this one IS write-invalidated: a create/edit/delete
 // must reflect on the very next read (the roster's optimistic prune + the matrix's
