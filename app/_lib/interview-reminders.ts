@@ -22,7 +22,17 @@ import { REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS, reminderRetryDelayMs } from ".
 // dispatch throw now means "delivery did not complete" (post-send bookkeeping is
 // swallowed inside dispatchInterviewReminder), so a failed attempt is simply left
 // to age past its backoff — never released for an immediate re-send.
-export async function sendDueInterviewReminders(windowMs: number = REMINDER_LEAD_MS): Promise<number> {
+/** The delivery half of the sweep, injectable so the claim/retry/give-up loop is
+ *  unit-testable without a comms provider. The default IS the real dispatcher, so
+ *  the production call site (instrumentation-node.ts) is unchanged and cannot
+ *  accidentally pass a stub. Kept to the exact shape of dispatchInterviewReminder
+ *  rather than a narrower one so the seam cannot drift from what it stands in for. */
+export type ReminderDispatch = typeof dispatchInterviewReminder;
+
+export async function sendDueInterviewReminders(
+  windowMs: number = REMINDER_LEAD_MS,
+  dispatch: ReminderDispatch = dispatchInterviewReminder
+): Promise<number> {
   const due = dueReminders(windowMs);
   const nowMs = Date.now();
   let sent = 0;
@@ -35,7 +45,7 @@ export async function sendDueInterviewReminders(windowMs: number = REMINDER_LEAD
     if (!claimReminderAttempt(inv.id, priorAttempts, cutoffIso, REMINDER_MAX_ATTEMPTS)) continue;
     const attemptNo = priorAttempts + 1;
     try {
-      await dispatchInterviewReminder(
+      await dispatch(
         { id: inv.entryId, candidateLabel: inv.candidateLabel, jobTitle: inv.jobTitle, locale: inv.locale },
         inv.slot ?? "your scheduled time",
         // The invite's own team is the fallback tenant for the outbox row: when the
