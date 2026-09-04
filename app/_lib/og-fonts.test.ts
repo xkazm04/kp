@@ -7,7 +7,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pickFontUrl } from "./og-fonts.ts";
+import { loadOgFonts, pickFontUrl } from "./og-fonts.ts";
 
 // Trimmed but faithful shape of fonts.googleapis.com/css2 — cyrillic first, latin
 // last, each block tagged with its unicode-range.
@@ -57,4 +57,71 @@ test("falls back to the last src when no block is unicode-range tagged", () => {
 
 test("returns null when no @font-face carries a src url", () => {
   assert.equal(pickFontUrl("/* nothing here */"), null);
+});
+
+// --- KP_OFFLINE --------------------------------------------------------------
+// `grep KP_OFFLINE app/_lib/og-fonts.ts` came back EMPTY on a module whose entire
+// job is outbound HTTP to fonts.googleapis.com. The global fetch guard would have
+// rejected those calls anyway, so this is not a leak — but "the backstop catches
+// it" is how an egress hole hides, and the route still paid for two doomed fetches
+// per OG render. These pin the decision being made up front, where a reader (and a
+// grep) can see it.
+//
+// `loadOgFonts` is driven with a fetch that FAILS THE TEST if it is called: the
+// assertion is not "the result is empty" (a timeout produces that too) but "no
+// network was touched at all".
+
+test("KP_OFFLINE: loadOgFonts returns no descriptors WITHOUT touching the network", async () => {
+  const realFetch = globalThis.fetch;
+  const before = process.env.KP_OFFLINE;
+  process.env.KP_OFFLINE = "1";
+  let calls = 0;
+  globalThis.fetch = (() => {
+    calls += 1;
+    throw new Error("og-fonts must not fetch under KP_OFFLINE");
+  }) as typeof fetch;
+  try {
+    const fonts = await loadOgFonts([
+      { family: "Fraunces", weight: 700 },
+      { family: "Inter", weight: 500 },
+    ]);
+    // Empty, not null and not a descriptor with `data: null` — ImageResponse takes
+    // this array verbatim and renders in its default face.
+    assert.deepEqual(fonts, []);
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+    if (before === undefined) delete process.env.KP_OFFLINE;
+    else process.env.KP_OFFLINE = before;
+  }
+});
+
+test("KP_OFFLINE honours the same truthy vocabulary as the rest of the app", async () => {
+  const realFetch = globalThis.fetch;
+  const before = process.env.KP_OFFLINE;
+  let calls = 0;
+  globalThis.fetch = (() => {
+    calls += 1;
+    return Promise.reject(new Error("blocked"));
+  }) as unknown as typeof fetch;
+  try {
+    // isOffline() accepts 1/true/yes/on, case- and space-insensitively.
+    for (const flag of ["1", "true", "YES", " on "]) {
+      process.env.KP_OFFLINE = flag;
+      assert.deepEqual(await loadOgFonts([{ family: "Inter", weight: 500 }]), [], flag);
+    }
+    assert.equal(calls, 0);
+
+    // …and an ONLINE deployment still goes to the network. A short-circuit that
+    // fired for everyone would silently drop the OG typography in production.
+    for (const flag of ["0", "false", ""]) {
+      process.env.KP_OFFLINE = flag;
+      assert.deepEqual(await loadOgFonts([{ family: "Inter", weight: 500 }]), [], flag);
+    }
+    assert.equal(calls, 3, "an online deployment must still attempt the font fetch");
+  } finally {
+    globalThis.fetch = realFetch;
+    if (before === undefined) delete process.env.KP_OFFLINE;
+    else process.env.KP_OFFLINE = before;
+  }
 });
