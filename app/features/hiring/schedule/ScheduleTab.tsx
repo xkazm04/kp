@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
@@ -81,7 +81,7 @@ export function ScheduleTab() {
   // only if they haven't switched yet.
   const [round, setRound] = useState<"human" | "ai">("human");
   const [plan, setPlan] = useState<InterviewPlanRule | null>(null);
-  const userSwitched = useRef(false);
+  const [userSwitched, setUserSwitched] = useState(false);
   useEffect(() => {
     let alive = true;
     fetch("/api/decisions/config")
@@ -94,18 +94,27 @@ export function ScheduleTab() {
   }, []);
   const hasAiRound = plan ? planHasRound(plan, "ai") : true;
   const hasHumanRound = plan ? planHasRound(plan, "human") : true;
-  useEffect(() => {
-    if (!plan || userSwitched.current) return;
-    // Reconciling the default view to the loaded plan — the legitimate effect
-    // use; a plan whose first round matches the current view is a no-op.
-    const first = planRounds(plan)[0]?.kind;
-    const target: "human" | "ai" = first === "ai" && hasAiRound ? "ai" : hasHumanRound ? "human" : "ai";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRound((cur) => (cur === target ? cur : target));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan]);
+  // React's "adjust state when the thing it derives from changes", DURING render —
+  // not an effect. This was a `useEffect` on [plan] carrying two eslint suppressions
+  // (set-state-in-effect and exhaustive-deps), which is the shape that makes a
+  // reconciliation cost an extra committed render: the tab painted the "human" default
+  // once, then re-rendered into the plan's real first round. Re-rendering from the
+  // render body is the supported way to do this — React discards the in-progress
+  // output and re-runs before anything reaches the screen, so there is no flash and no
+  // suppression to justify. `planApplied` makes it fire ONCE per plan identity, and the
+  // recruiter's own switch still wins forever after (userSwitched is now state rather
+  // than a ref, because a ref read during render is not a pure read).
+  const [planApplied, setPlanApplied] = useState<InterviewPlanRule | null>(null);
+  if (plan && planApplied !== plan) {
+    setPlanApplied(plan);
+    if (!userSwitched) {
+      const first = planRounds(plan)[0]?.kind;
+      const target: "human" | "ai" = first === "ai" && hasAiRound ? "ai" : hasHumanRound ? "human" : "ai";
+      if (round !== target) setRound(target);
+    }
+  }
   const pickRound = (r: "human" | "ai") => {
-    userSwitched.current = true;
+    setUserSwitched(true);
     setRound(r);
   };
 
