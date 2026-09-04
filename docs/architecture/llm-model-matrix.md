@@ -69,6 +69,9 @@ recalibration step found the ceiling in OUR stack, not the models:
 | **mean** | 8.4 | 8.5 | 8.7 | **8.9** |
 | **reliability** | 98% | 98% | 97% | **100%** |
 | **median p50** | **13s** | 18s | 30s | 19s |
+
+The median is `app/_lib/stats.ts`'s: non-finite samples dropped, an empty sample answers
+`null` (rendered as n/a, never 0), an even count is the mean of the two middles.
 | **$/task (measured)** | ~$0.004–0.06 | **~$0.0004–0.006** | ~$0.12–0.41 (CLI) | ~$0.23–0.59 (CLI) |
 
 Bold = op winner. n=4/cell (~±0.3–0.5 noise); ties within 0.3 are noise.

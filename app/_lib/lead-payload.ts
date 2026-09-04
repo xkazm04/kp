@@ -93,7 +93,7 @@ export const MAX_ATTRIBUTION_LENGTH = 120;
 export const ATTRIBUTION_TRUNCATION_MARKER = "…";
 
 /** Cap one attribution value under the policy above (empty stays empty). */
-function capAttribution(value: string): string {
+export function capAttribution(value: string): string {
   const points = Array.from(value);
   if (points.length <= MAX_ATTRIBUTION_LENGTH) return value;
   const keep = MAX_ATTRIBUTION_LENGTH - Array.from(ATTRIBUTION_TRUNCATION_MARKER).length;
