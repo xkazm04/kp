@@ -115,12 +115,14 @@ async function runGithub(opts: {
   const seenInits: FetchInit[] = [];
   const original = globalThis.fetch;
   const events: string[] = [];
-  // @ts-expect-error -- test double for the browser fetch this module calls
-  globalThis.fetch = async (_url: string, init: FetchInit) => {
+  // A test double for the browser fetch this module calls: it only ever needs to
+  // record the init and answer with `ok` + `json()`, so it is cast in rather than
+  // implementing the full Response surface.
+  globalThis.fetch = (async (_url: string, init: FetchInit) => {
     seenInits.push(init);
     const payload = await opts.respond(init);
     return { ok: true, json: async () => payload } as unknown as Response;
-  };
+  }) as unknown as typeof globalThis.fetch;
   try {
     const { executeGithubAnalysis } = await import("./analyzeGithubRun.ts");
     await executeGithubAnalysis(
