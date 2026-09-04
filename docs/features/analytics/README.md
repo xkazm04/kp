@@ -677,6 +677,16 @@ a doubled NUL separator rather than a printable `*`: those fields arrive from th
 `?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
 as the full decision-records list for the rest of the TTL.
 
+**The window queries seek, they do not scan.** `pipeline_entries` and `pipeline_events` carry
+`idx_pipeline_entries_ws_created` / `idx_pipeline_events_ws_created` — `(workspace_id,
+created_at)`, workspace first because it is the equality predicate. Every windowed query in
+`pipelineAnalytics` is `created_at >= ? AND <notSim> AND workspace_id = ?`, and SQLite uses at
+most one index per table: with only the workspace-only and `created_at DESC` indexes the planner
+seeked by tenant and then date-filtered every row that tenant had ever written (it actually
+reached for `idx_pipeline_dev_case`). `app/_lib/db/analytics-window-index.test.ts` asserts the
+plan itself with EXPLAIN QUERY PLAN — an existence check on the index would only prove a CREATE
+ran, and a timing test on a throwaway DB proves nothing.
+
 **A write door retires its workspace's memo.** The TTL reasoning ("a write lands on the next
 read past the TTL") holds for a pipeline write nobody is watching; it does not hold for
 `POST /api/analytics/targets` and `POST /api/analytics/spend`, which are inline editors that
