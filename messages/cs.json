@@ -1685,7 +1685,8 @@
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Trvalý profil dovedností lze vydat jen z vyhodnoceného odevzdání.",
     "INTERVIEW_ALREADY_LIVE": "Tento pohovor už běží v jiném okně. Než začnete znovu, dokončete ho nebo okno zavřete.",
     "PROFILE_BUILD_TIMEOUT": "Zpracování profilu trvalo příliš dlouho a bylo zastaveno. Zkuste uložit znovu.",
-    "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu."
+    "JOB_WINNABILITY_TIMEOUT": "Vyhodnocení této pozice trvalo příliš dlouho a bylo zastaveno. Zkuste to znovu.",
+    "COMMS_SUPPRESSED": "Tohoto kandidáta již nelze kontaktovat."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5460,7 +5461,9 @@
       "statusFailed": "Selhalo",
       "statusRecovered": "Napraveno",
       "statusBounced": "Nedoručeno",
-      "resendRecovered": "Už se doručuje. Tato zpráva je na cestě."
+      "resendRecovered": "Už se doručuje. Tato zpráva je na cestě.",
+      "receiptSubject": "Potvrzení o doručení",
+      "receiptRecipient": "Hlášení od relay"
     },
     "eyebrow": "Studio příjmu",
     "title": "Kudy kandidáti přicházejí",

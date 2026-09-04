@@ -24,6 +24,7 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
+import { fetchWithTimeout } from "./http.mjs";
 
 const API_KEY = process.env.QWEN_API_KEY;
 const BASE = (process.env.QWEN_IMAGE_BASE_URL || "https://dashscope-intl.aliyuncs.com").replace(/\/+$/, "");
@@ -60,11 +61,12 @@ async function generate(args) {
     },
   };
 
-  const res = await fetch(SUBMIT, {
+  // Submit is a small JSON POST — a minute is already generous.
+  const res = await fetchWithTimeout(SUBMIT, {
     method: "POST",
     headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json", "X-DashScope-Async": "enable" },
     body: JSON.stringify(body),
-  });
+  }, 60_000);
   const submitted = await res.json().catch(() => ({}));
   const taskId = submitted?.output?.task_id;
   if (!res.ok || !taskId) die({ error: `DashScope submit HTTP ${res.status}`, body: submitted });
@@ -72,14 +74,15 @@ async function generate(args) {
 
   for (let i = 1; i <= MAX_POLLS; i++) {
     await sleep(POLL_INTERVAL_MS);
-    const p = await fetch(`${BASE}/api/v1/tasks/${taskId}`, { headers: { Authorization: `Bearer ${API_KEY}` } });
+    // A poll that outlives its own interval budget is a dead poll, not a slow one.
+    const p = await fetchWithTimeout(`${BASE}/api/v1/tasks/${taskId}`, { headers: { Authorization: `Bearer ${API_KEY}` } }, 30_000);
     const j = await p.json().catch(() => ({}));
     const status = j?.output?.task_status;
     process.stderr.write(`[${model}] poll ${i}/${MAX_POLLS} status=${status}\n`);
     if (status === "SUCCEEDED") {
       const url = j.output.results?.[0]?.url;
       if (!url) die({ error: "SUCCEEDED but no image url", body: j });
-      const img = await fetch(url);
+      const img = await fetchWithTimeout(url, {}, 120_000);
       if (!img.ok) die({ error: `download HTTP ${img.status}` });
       const buf = Buffer.from(await img.arrayBuffer());
       const abs = resolve(args.output);

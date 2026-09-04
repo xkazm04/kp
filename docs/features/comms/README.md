@@ -188,6 +188,31 @@ back, keyed by the message's `ref` + `kind`:
   `{ recorded: false, reason: "no_matching_send", stored: true }`, still
   stored append-only, surfaced in the Comms Center as an actionable unmatched
   receipt.
+- **A receipt is filed in the team its `ref` names — or in none.** Neither door
+  carries a tenant: `COMMS_CALLBACK_SECRET` is one process-wide env secret and the
+  relay config is a single global row (`comms_relay_config`, `id = 1`), so there is
+  no "the workspace this callback authenticated for". The `ref` is the only tenant
+  signal a receipt has, and `receiptWorkspace` (`comms-receipt.ts`) resolves it the
+  way the outbox files rows: a **pipeline entry** with that id → its team; else a
+  **dev-case submission** with that id → its team; else **nothing**, and the receipt
+  is refused (`reason: "unknown_ref"`, `stored: false`) rather than written into the
+  DEFAULT team's Comms Center. An integrator posting a foreign ref scheme used to
+  fill one arbitrary tenant's centre with red receipts about candidates that team had
+  never heard of. The relay still learns on the FIRST call that the pair landed
+  nowhere, which is the whole point of answering an orphan. Locked by
+  `comms-receipt.test.ts`.
+- **The receipt row stores CODES, not English.** It is written by a relay callback
+  with no reader and no request locale, and the outbox is append-only — so the two
+  literals it used to store (`"Delivery receipt"`, `"(relay callback)"`) were English
+  in a Czech team's ledger forever. The row now carries `RECEIPT_SUBJECT_CODE` /
+  `RECEIPT_RECIPIENT_CODE` (`comms-view.ts`) and the ledger renders
+  `channels.comms.receiptSubject` / `receiptRecipient` in the reader's language
+  (`channelsCommsHelpers.displaySubject` / `displayRecipient`, which also recognise
+  the pre-code literals so existing rows localize too). BOTH ledgers render them — the
+  Comms Center and the Assignments outbox (`features/tools/devcases/OutboxRows.tsx`),
+  which reaches across for the same two catalog entries rather than keeping a second
+  wording. The helpers are typed on the one field each reads, not on a whole row, so
+  the two tables' different row types share one definition.
 - **Bounce-class outcomes** (`isBounceOutcome`) record an append-only
   `bounced` outbox receipt row. Positive/soft outcomes are accepted with
   `{ recorded: false }` (stops relay retries) but not yet surfaced.
@@ -205,6 +230,55 @@ back, keyed by the message's `ref` + `kind`:
   without ever marking its send and the undeliverable first offer kept a
   green `sent` on every surface. Two receipts landing on the *same* send keep
   the newest detail. Locked by `comms-view.bounce.test.ts`.
+- **`orphaned` is only claimed over the WHOLE ledger.** `deriveCommsView` takes
+  `{ windowTruncated }`, and when the caller says "there are older rows I did not hand
+  you" a receipt that folds onto nothing is still surfaced but makes no accusation
+  (`orphaned: false`). The feed read a fixed 200-row window, so a bounce whose send
+  had merely scrolled out of it was reported as an integration fault.
+
+**Paging the feed.** `GET /api/comms` derives over a window of 500 (the store's own
+ceiling) and answers a page from it: `?limit=` (default 100, clamped to the window)
+and `?cursor=` — the id of the last row of the page just read, never an offset, because
+the ledger is append-only and newest-first and an offset re-shows or skips rows as
+messages arrive between two reads. The response carries `hasMore` + `nextCursor` (more
+rows inside this read), `cursorExpired` (the cursor named a row no longer in the
+window — answered from the top, said out loud so a client resets instead of appending
+a duplicate page) and `truncated` (older rows exist BEYOND the derivation window and no
+cursor reaches them — a separate fact from `hasMore`, and the one that suppresses the
+orphan claim above). The rule is pure and lives in `comms-view.pageCommsFeed`; locked by
+`comms-view.test.ts`.
+
+## 7a. The send precondition (one gate, every door)
+
+The compliance gate — never write to a candidate who was **anonymized** or whose
+processing consent **expired** — used to live in `dispatchOutreach`
+(`comms-dispatch.ts`) alone. Every other way into the channel skipped it: the resend
+door (`POST /api/comms/[id]/resend`), the dev-case lifecycle close, the orchestrator's
+promotion batch and the intake acknowledgement all call `sendComm` directly.
+
+It is now re-asserted at the channel handoff, in `comms.ts`:
+
+- `commsSendSuppression(msg)` is the ONE predicate. It resolves `msg.ref` to a pipeline
+  entry and asks `candidateOutreachSuppression` — the same question, the same way,
+  `dispatchOutreach` asks — then, **for `kind: "outreach"` only**, the sequence halt
+  (`outreachHaltFor`). The sequence halt is deliberately not applied to the rest: a
+  rejection or an offer letter is owed to a candidate who replied, not withheld.
+- An **entry-less** comm (a KO decline, a dev-case ack whose `ref` is a submission id)
+  carries no candidate identity to consult and passes through.
+- An unreadable pipeline store fails **closed** (`consent_expired`, logged) — this gate
+  is the last thing between an erased candidate and a letter.
+- A refusal throws `CommsSuppressedError`, whose `code` is `COMMS_SUPPRESSED`
+  (`REFUSAL_ERRORS`, four catalogs). Throwing keeps the existing contract that a throw
+  means the message did **not** go out. `dispatchOutreach` still gates first — it has to
+  report the reason to its caller and record the suppression event — and re-asserting is
+  idempotent.
+
+The recovery door answers the refusal as one: `POST /api/comms/[id]/resend` maps
+`CommsSuppressedError` to `jsonRefusal("COMMS_SUPPRESSED", 409)` rather than letting it
+fall into `safeJsonError` and paint a correct decision as a retryable 500. (Erasure
+also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earlier, by
+the route's own 422 missing-fields check; expired consent is the case the gate answers.)
+Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
 ## 8. One delivery truth, on every surface
 
@@ -280,6 +354,17 @@ dispatchers thread their caller's `opts.workspaceId`). Omitting it read the
 *default* team's `default_locale`, so once a second team sets its own language a
 NULL-locale candidate filed into it was written to in the default team's language.
 Locked by `comms-dispatch-locale.test.ts` ("falls back to ITS OWN team's default").
+
+**The signature enforces it now.** `commsTranslator` used to take the locale alone,
+so any caller holding a raw (possibly NULL) `locale` and no workspace silently
+resolved against the *default* team — which is exactly how the dev-case feedback
+brief and the intake acknowledgement kept the defect after the dispatchers were
+fixed. It is now overloaded: one argument is accepted only for an ALREADY-RESOLVED
+`Locale` (what `candidateLocale` / `resolveCommsLocale` return — re-resolving one is
+idempotent), and a raw `string | null | undefined` must be paired with the workspace
+it belongs to. `buildFeedbackBrief` takes `workspaceId` on its input for that reason;
+`distribution.intakeSubmission` passes the SUBMISSION's team, the same tenant the
+acknowledgement row is filed under. Locked by `comms-translator-tenant.test.ts`.
 
 **Catalog composition.** The deterministic bodies live in the `comms.*` namespace
 and render through a locale-pinned translator (`comms-translator.ts` →

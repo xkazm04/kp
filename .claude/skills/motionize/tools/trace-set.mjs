@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
 import { dirname, resolve, join, basename } from "path";
 import { vectorize, ColorMode, Hierarchical, PathSimplifyMode } from "@neplex/vectorizer";
 import { optimize } from "svgo";
-import { svgToGlyphData } from "./emit-glyph.mjs";
+import { svgToGlyphData, glyphOptionsFromArgs } from "./emit-glyph.mjs";
 
 function parseArgs(argv) {
   const a = {};
@@ -73,13 +73,10 @@ async function main() {
     const key = basename(f).replace(/\.(png|jpg|jpeg|webp)$/i, "").replace(/-flat$/, "");
     const svg = await traceOne(readFileSync(join(dir, f)), args);
     // Reuse the same core → { viewBox, data }; strip the module wrapper, keep the array.
+    // Shared option mapping; only `surfaceFill` is resolved per glyph key here.
     const { ts, elements } = svgToGlyphData(svg, {
       name: "_TMP",
-      order: args.order,
-      whiteKeep: args["white-keep"] ? Number(args["white-keep"]) : undefined,
-      surfaceFill: surfaceFills[key] ?? null,
-      surfaceTolerance: args["surface-tolerance"] ? Number(args["surface-tolerance"]) : undefined,
-      slabMinArea: args["slab-min-area"] ? Number(args["slab-min-area"]) : null,
+      ...glyphOptionsFromArgs(args, { surfaceFill: surfaceFills[key] ?? null }),
     });
     // Parse the CURRENT emit-glyph shape: one `export const _TMP: TracedGlyph =
     // { viewBox: "…", data: […] };`. It used to emit a separate `_TMP_VIEWBOX`

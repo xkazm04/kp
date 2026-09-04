@@ -1,3 +1,7 @@
 node_modules/
 out/
-package-lock.json
+
+# package-lock.json is COMMITTED: a traced glyph is only reproducible if the
+# tracer is. VTracer output shifts between vectorizer releases, so a floating
+# caret meant re-running the pipeline on the same PNG could return different
+# geometry than the committed module.

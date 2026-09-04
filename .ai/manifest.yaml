@@ -89,6 +89,7 @@ guidance:
     - test:release
     - sbom
     - test:docs
+    - test:skills
     - test:review
     - test:agent
     - test:lint-ratchet

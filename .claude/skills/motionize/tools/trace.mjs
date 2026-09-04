@@ -9,7 +9,8 @@
  *   node trace.mjs --input flat.png --output icon.svg \
  *     [--mode spline|polygon|pixel] [--color-precision 6] [--filter-speckle 4] \
  *     [--corner-threshold 60] [--path-precision 5] [--no-optimize] \
- *     [--emit data.ts --name GLYPH_NAME [--order radial|angular]]   # one-pass component data
+ *     [--emit data.ts --name GLYPH_NAME [--order radial|angular] [--white-keep 0.1]
+ *      [--slab-min-area 0.25] [--surface-fill "#F4B214>#7C3AED"] [--surface-tolerance 40]]   # one-pass component data
  * Prefer a FLAT source (solid fills, hard edges, no glow/gradients) — glow is a
  * later SVG/CSS filter, not something to trace.
  */
@@ -17,18 +18,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
 import { vectorize, ColorMode, Hierarchical, PathSimplifyMode } from "@neplex/vectorizer";
 import { optimize } from "svgo";
-import { svgToGlyphData } from "./emit-glyph.mjs";
-
-function parseArgs(argv) {
-  const a = {};
-  for (let i = 2; i < argv.length; i++) {
-    if (argv[i].startsWith("--")) {
-      const k = argv[i].slice(2), n = argv[i + 1];
-      if (n && !n.startsWith("--")) { a[k] = n; i++; } else a[k] = true;
-    }
-  }
-  return a;
-}
+import { svgToGlyphData, parseArgs, glyphOptionsFromArgs } from "./emit-glyph.mjs";
 const MODE = { spline: PathSimplifyMode.Spline, polygon: PathSimplifyMode.Polygon, pixel: PathSimplifyMode.None };
 
 async function main() {
@@ -72,13 +62,9 @@ async function main() {
 
   // One-pass component data: trace → animatable {d,fill,delay}[] TS module.
   if (args.emit && args.name) {
-    const { ts, elements, dropped } = svgToGlyphData(svg, {
-      name: args.name,
-      order: args.order,
-      whiteKeep: args["white-keep"] ? Number(args["white-keep"]) : undefined,
-      surfaceFill: args["surface-fill"] || null,
-      surfaceTolerance: args["surface-tolerance"] ? Number(args["surface-tolerance"]) : undefined,
-    });
+    // Every emit option in one place (emit-glyph.mjs) — hand-built copies here
+    // are how `--slab-min-area` went missing from this path for a whole release.
+    const { ts, elements, dropped } = svgToGlyphData(svg, { name: args.name, ...glyphOptionsFromArgs(args) });
     const emitAbs = resolve(args.emit);
     mkdirSync(dirname(emitAbs), { recursive: true });
     writeFileSync(emitAbs, ts);

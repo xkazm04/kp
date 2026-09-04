@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { ChannelEmpty } from "./ChannelsEmpty";
-import { commsStatusLabels, isActionable, statusTone, type Message, type RefInfo } from "./channelsCommsHelpers";
+import { commsStatusLabels, isActionable, statusTone, type Message, type RefInfo, commsReceiptLabels, displayRecipient, displaySubject } from "./channelsCommsHelpers";
 import { ChannelsCommsMessageModal } from "./ChannelsCommsMessageModal";
 import { ChannelsCommsRows } from "./ChannelsCommsRows";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
@@ -53,7 +53,11 @@ export function CommsTable() {
     };
 
   const load = useCallback(() => {
-    fetch("/api/comms")
+    // The ledger pages CLIENT-side (TablePager below), so this asks for the whole
+    // derivation window in one read rather than the route's default page. Named
+    // explicitly: the route's default is a page, and inheriting it would silently have
+    // shrunk this table's reach the day paging was added.
+    fetch("/api/comms?limit=500")
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
@@ -72,7 +76,13 @@ export function CommsTable() {
   useLiveRefresh(load);
 
   const roleOf = useCallback((m: Message) => (m.ref ? refs[m.ref]?.jobTitle ?? null : null), [refs]);
-  const nameOf = useCallback((m: Message) => (m.ref ? refs[m.ref]?.label : null) ?? m.recipient ?? "—", [refs]);
+  // Receipt rows have no candidate and a CODE where a recipient goes — localized here
+  // rather than stored in English (see channelsCommsHelpers).
+  const receiptLabels = useMemo(() => commsReceiptLabels(t), [t]);
+  const nameOf = useCallback(
+    (m: Message) => (m.ref ? refs[m.ref]?.label : null) ?? displayRecipient(m, receiptLabels) ?? "—",
+    [refs, receiptLabels]
+  );
 
   // Distinct column values drive the dropdowns — only what's actually present.
   // Czech-aware ordering: a plain .sort() compares UTF-16 code points, which puts
@@ -110,8 +120,8 @@ export function CommsTable() {
   const matchesQuery = (m: Message) =>
     !needle ||
     nameOf(m).toLowerCase().includes(needle) ||
-    (m.subject ?? "").toLowerCase().includes(needle) ||
-    (m.recipient ?? "").toLowerCase().includes(needle);
+    (displaySubject(m, receiptLabels) ?? "").toLowerCase().includes(needle) ||
+    (displayRecipient(m, receiptLabels) ?? "").toLowerCase().includes(needle);
 
   const failedCount = all.filter(isActionable).length;
   // Dead letters first, then newest-first within each group.
@@ -219,6 +229,7 @@ export function CommsTable() {
           name={nameOf(open)}
           roleLabel={roleOf(open)}
           statusLabels={statusLabels}
+          receiptLabels={receiptLabels}
           onClose={() => setOpenId(null)}
           onResent={load}
         />

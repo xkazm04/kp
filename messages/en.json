@@ -1685,7 +1685,8 @@
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Only an evaluated submission can mint a Durable Skill Profile.",
     "INTERVIEW_ALREADY_LIVE": "This interview is already running in another window. Finish or close it before starting again.",
     "PROFILE_BUILD_TIMEOUT": "Routing that profile took too long and was stopped. Try saving again.",
-    "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again."
+    "JOB_WINNABILITY_TIMEOUT": "Grading this role took too long and was stopped. Try again.",
+    "COMMS_SUPPRESSED": "This candidate can no longer be contacted."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5460,7 +5461,9 @@
       "statusFailed": "Failed",
       "statusRecovered": "Recovered",
       "statusBounced": "Bounced",
-      "resendRecovered": "Already being delivered. This message is on its way."
+      "resendRecovered": "Already being delivered. This message is on its way.",
+      "receiptSubject": "Delivery receipt",
+      "receiptRecipient": "Relay callback"
     },
     "eyebrow": "Inbound studio",
     "title": "Where candidates come in",

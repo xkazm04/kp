@@ -25,12 +25,12 @@ export function JobsAgentFitCoverage({ record }: { record: AgentFitSpecRecord })
       ) : null}
 
       <div
-        className={`rounded-lg border border-stone-200 border-l-4 ${skin.bar} bg-white p-4 shadow-panel`}
+        className={`${PANEL} border-l-4 ${skin.bar} p-4`}
         role="img"
         aria-label={t("verdict.aria", { verdict: t(`verdict.${skin.key}` as Parameters<typeof t>[0]) })}
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span aria-hidden className={`text-2xl font-bold leading-none ${skin.text}`}>
+          <span aria-hidden className={`text-display font-bold leading-none ${skin.text}`}>
             {skin.glyph}
           </span>
           <p className="text-meta uppercase tracking-wide text-steel">{t("verdict.heading")}</p>

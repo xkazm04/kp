@@ -6,6 +6,8 @@ import { buildCommEnvelope, IDEMPOTENCY_HEADER, type CommEnvelope } from "./comm
 import { randomId } from "./random-id";
 import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webhook";
 import { logComms } from "./logger";
+import { candidateOutreachSuppression } from "./rediscovery-alert-store";
+import { outreachHaltFor } from "./outreach-state-store";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
 // fallback pattern: a durable local OUTBOX by default (always works, also serves as the
@@ -213,7 +215,71 @@ export function getCommsChannel(): CommsChannel {
   return relay ? new WebhookChannel(relay.url, relay.secret) : new OutboxChannel();
 }
 
-/** Convenience: dispatch one message through the active channel. */
+// ---- THE SEND PRECONDITION -----------------------------------------------------
+//
+// The compliance gate (CAN-SPAM/GDPR: never write to a candidate who was ANONYMIZED
+// or whose processing consent EXPIRED) lived in ONE dispatcher — `dispatchOutreach`
+// in comms-dispatch.ts. Every other way into this channel skipped it: the resend door
+// (`POST /api/comms/[id]/resend`), the dev-case lifecycle close, the orchestrator's
+// promotion batch and the intake acknowledgement all call `sendComm` directly, so the
+// gate was a property of one call path rather than of sending. That is the shape a
+// gate must never have — a door that enforces it and three that do not is a gate
+// nobody can reason about.
+//
+// It is re-asserted HERE, at the channel handoff, so the three direct callers cannot
+// skip it. Re-asserting is cheap and idempotent: `dispatchOutreach` still gates first
+// (it must, because it has to REPORT the reason to its caller and record the
+// suppression event), and this asks the same predicate the same way.
+//
+// Scope, deliberately:
+//   • consent + anonymization apply to EVERY candidate-facing send, because they are
+//     about whether we may write to this person at all;
+//   • the outreach SEQUENCE halt (they answered / a recruiter stopped it) applies only
+//     to `kind: "outreach"` — it is a fact about that sequence, and a rejection or an
+//     offer letter is owed to a candidate who replied, not withheld from them.
+// An entry-less comm (a KO decline, a dev-case ack — `ref` names no pipeline entry)
+// carries no candidate identity to consult and passes through.
+
+/** Why this message may not be sent, or null. The ONE predicate every door shares. */
+export function commsSendSuppression(msg: OutboundMessage): string | null {
+  const ref = msg.ref?.trim();
+  if (!ref) return null;
+  let entry: ReturnType<typeof getPipelineEntry> = null;
+  try {
+    entry = getPipelineEntry(ref, getEntryWorkspace(ref));
+  } catch (err) {
+    // An unreadable pipeline store is not a licence to send: this gate is the last
+    // thing standing between an erased candidate and a letter, so it fails CLOSED,
+    // loudly, exactly as candidateOutreachSuppression does on its own store.
+    console.error(`[comms] could not read entry "${ref}" for the send gate — refusing the send:`, err);
+    return "consent_expired";
+  }
+  if (!entry) return null;
+  const suppressed = candidateOutreachSuppression(entry.candidateId, {
+    givenAt: entry.consentGivenAt,
+    expiresAt: entry.consentExpiresAt,
+    anonymizedAt: entry.anonymizedAt,
+  });
+  if (suppressed) return suppressed;
+  return msg.kind === "outreach" ? outreachHaltFor(entry.id, entry.workspaceId) : null;
+}
+
+/** A send REFUSED by the precondition above — a decision, not a fault. Thrown rather
+ *  than returned so the existing contract holds ("a throw means the message did NOT go
+ *  out") for the callers that already treat a throw that way; `code` is the one the
+ *  client renders through `useErrorMessage()`. */
+export class CommsSuppressedError extends Error {
+  readonly code = "COMMS_SUPPRESSED" as const;
+  constructor(readonly reason: string) {
+    super(`This candidate cannot be contacted (${reason}).`);
+    this.name = "CommsSuppressedError";
+  }
+}
+
+/** Convenience: dispatch one message through the active channel — after the ONE
+ *  precondition above, which no door into this channel can skip. */
 export async function sendComm(msg: OutboundMessage): Promise<OutboxEntry> {
+  const suppressed = commsSendSuppression(msg);
+  if (suppressed) throw new CommsSuppressedError(suppressed);
   return getCommsChannel().send(msg);
 }

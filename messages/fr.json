@@ -1685,7 +1685,8 @@
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Seule une soumission évaluée peut générer un Durable Skill Profile.",
     "INTERVIEW_ALREADY_LIVE": "Cet entretien est déjà en cours dans une autre fenêtre. Terminez-le ou fermez-la avant de recommencer.",
     "PROFILE_BUILD_TIMEOUT": "Le traitement du profil a pris trop de temps et a été interrompu. Essayez d’enregistrer à nouveau.",
-    "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez."
+    "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez.",
+    "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -5460,7 +5461,9 @@
       "statusFailed": "Échec",
       "statusRecovered": "Rattrapé",
       "statusBounced": "Non distribué",
-      "resendRecovered": "Déjà en cours de remise. Ce message est en route."
+      "resendRecovered": "Déjà en cours de remise. Ce message est en route.",
+      "receiptSubject": "Accusé de livraison",
+      "receiptRecipient": "Retour du relais"
     },
     "eyebrow": "Studio des entrées",
     "title": "Par où les candidats arrivent",

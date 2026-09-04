@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getOutboxEntry, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { sendComm } from "@/app/_lib/comms";
+import { CommsSuppressedError, sendComm } from "@/app/_lib/comms";
 import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -105,6 +105,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     return NextResponse.json({ ok: true, entry: resent });
   } catch (error) {
+    // A REFUSAL, not a fault: sendComm's shared precondition (comms.ts
+    // commsSendSuppression) stopped the send because this candidate may no longer be
+    // contacted — anonymized, consent expired, or the outreach sequence stopped. It
+    // reaches here as a throw because that is how the channel says "the message did
+    // NOT go out"; answering it through safeJsonError painted an intended, correct
+    // decision as a 500 the recruiter would retry. 409: the door works, the state
+    // forbids it.
+    if (error instanceof CommsSuppressedError) return jsonRefusal("COMMS_SUPPRESSED", 409);
     return safeJsonError(error, "api:comms:resend", "OUTREACH_FAILED");
   } finally {
     resendInFlight.delete(id);
