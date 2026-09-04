@@ -1484,6 +1484,7 @@
     "INTAKE_NOTHING_TO_EXTRACT": "There is nothing to extract yet.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Voice is not configured on this install.",
     "COMPANION_THREAD_NOT_FOUND": "That conversation no longer exists.",
+    "DEVCASE_CHAT_CEILING": "This work session has used all of its messages. Your work is saved, and this budget does not reset.",
     "TOO_MANY_REQUESTS": "Too many requests. Please try again shortly.",
     "UPLOAD_UNSUPPORTED_TYPE": "Use a PDF, DOCX, TXT or MD file.",
     "UPLOAD_TOO_LARGE": "That file is over the 8 MB upload limit.",

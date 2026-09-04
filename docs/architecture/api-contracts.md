@@ -68,12 +68,17 @@ sentence, no `code`, so `useErrorMessage()` had nothing to resolve and a Czech,
 German or French reader got English on exactly the routes a burst hits — the
 public apply forms, the candidate status page, the data-erasure door, the login
 and invite doors, the dev-case session. All of them now answer through the
-chokepoint. Two codes are legitimate at 429 and they mean different things:
+chokepoint. A 429 is not one refusal, and the split is **does waiting fix it**. Only the
+fixed-window limiter may claim `TOO_MANY_REQUESTS`, whose sentence promises a
+retry will clear it; a *spent allowance* a slower caller cannot recover carries
+its own code, or the copy is a green lie about what to do next:
 
 | Code | Refuses | Raised by |
 | --- | --- | --- |
-| `TOO_MANY_REQUESTS` | the fixed-window limiter (§1.4) said this caller is going too fast | every `rateLimit()` / `isThrottled()` call site |
-| `TASK_BUDGET_EXHAUSTED` | this workspace's allowance for an AI-run CLASS is spent, which a slower caller does not fix | [`enforceTaskBudget`](../../app/_lib/task-budget.ts) consumers |
+| `TOO_MANY_REQUESTS` | the fixed-window limiter (§1.4) said this caller is going too fast — waiting clears it | every `rateLimit()` / `isThrottled()` call site |
+| `TASK_BUDGET_EXHAUSTED` | this workspace's allowance for an AI-run CLASS is spent | [`enforceTaskBudget`](../../app/_lib/task-budget.ts) consumers |
+| `DEVCASE_SESSION_QUOTA` | this apply link has minted its day's worth of work sessions | `POST /api/devcase/session` |
+| `DEVCASE_CHAT_CEILING` | this work session spent its 400-message ceiling — it never resets, and the candidate's work is already saved | `POST /api/devcase/session/[id]/chat` |
 
 `REFUSAL_ERRORS.TOO_MANY_REQUESTS` **is** `RATE_LIMITED_ERROR` — the same
 constant, imported from `rate-limit.ts`, so the limiter's message and the
@@ -497,14 +502,6 @@ needs a key" is never an acceptable reason for a 500.
   follows; finding *which* routes exist is still a walk of `app/api/**`.
 - Request **body** schemas are validated per handler rather than declared, so
   the accepted fields of a given endpoint still come from reading it.
-- One 429 is still raw English prose: `POST /api/devcase/session/[id]/chat`
-  answers `{ error: "chat limit reached for this session" }` when
-  `appendDevSessionChat` refuses past the session's 400-message ceiling. It is a
-  *budget*, not the limiter — "try again shortly" would be a green lie, since the
-  ceiling never resets — so it needs its own `REFUSAL_ERRORS` entry and four
-  catalog keys rather than `TOO_MANY_REQUESTS`. The source guard in
-  `rate-limit-contract.test.ts` does not catch it (it pins the shared *message*,
-  and this site never used it).
 - No route sends `Retry-After`. `rateLimit()` returns a boolean and keeps its
   window's `resetAt` private, so no call site knows what to promise; the client
   reads a `Retry-After` when a fronting proxy sends one

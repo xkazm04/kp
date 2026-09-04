@@ -90,7 +90,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // context; the stored copy is the evaluation evidence.
     const transcript = getDevSessionChat(id, channel).map((m) => ({ channel: m.channel, role: m.role, text: m.text }));
     const stored = appendDevSessionChat(id, channel, "user", message);
-    if (stored === 0) return NextResponse.json({ error: "chat limit reached for this session" }, { status: 429 });
+    // The session's own ceiling, not the limiter: its own code, so the candidate reads
+    // "your work is saved, this budget does not reset" in their language (§1.1).
+    if (stored === 0) return jsonRefusal("DEVCASE_CHAT_CEILING", 429);
     // Server-recorded, chained process event: one captured exchange on this channel.
     appendDevSessionEvents(id, [{ t: Date.now(), kind: "prompt", path: channel, size: message.length }]);
 

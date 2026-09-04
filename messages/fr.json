@@ -1484,6 +1484,7 @@
     "INTAKE_NOTHING_TO_EXTRACT": "Il n'y a encore rien à extraire.",
     "INTAKE_VOICE_NOT_CONFIGURED": "La voix n'est pas configurée sur cette installation.",
     "COMPANION_THREAD_NOT_FOUND": "Cette conversation n'existe plus.",
+    "DEVCASE_CHAT_CEILING": "Cette session de travail a utilisé tous ses messages. Votre travail est enregistré. Ce quota n'est pas réinitialisé.",
     "TOO_MANY_REQUESTS": "Trop de requêtes. Réessayez dans un instant.",
     "UPLOAD_UNSUPPORTED_TYPE": "Utilisez un fichier PDF, DOCX, TXT ou MD.",
     "UPLOAD_TOO_LARGE": "Ce fichier dépasse la limite de téléversement de 8 Mo.",

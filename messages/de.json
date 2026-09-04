@@ -1484,6 +1484,7 @@
     "INTAKE_NOTHING_TO_EXTRACT": "Es gibt noch nichts auszuwerten.",
     "INTAKE_VOICE_NOT_CONFIGURED": "Die Sprachfunktion ist in dieser Installation nicht konfiguriert.",
     "COMPANION_THREAD_NOT_FOUND": "Diese Unterhaltung gibt es nicht mehr.",
+    "DEVCASE_CHAT_CEILING": "Diese Arbeitssitzung hat alle Nachrichten aufgebraucht. Ihre Arbeit ist gespeichert. Dieses Kontingent wird nicht zurückgesetzt.",
     "TOO_MANY_REQUESTS": "Zu viele Anfragen. Bitte versuchen Sie es gleich noch einmal.",
     "UPLOAD_UNSUPPORTED_TYPE": "Verwenden Sie eine PDF-, DOCX-, TXT- oder MD-Datei.",
     "UPLOAD_TOO_LARGE": "Diese Datei überschreitet das Upload-Limit von 8 MB.",
