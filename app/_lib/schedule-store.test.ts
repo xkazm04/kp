@@ -58,6 +58,11 @@ const {
   bookedSlots,
   isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
+  countFutureConfirmedInvites,
+  recordCalendarEvent,
+  flagScheduleInviteNeedsMoreSlots,
+  claimReminderAttempt,
+  markReminderSent,
 } = await import("./schedule-store.ts");
 const { INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, isScheduleInviteExpired } = await import("./schedule-slots.ts");
 
@@ -415,4 +420,112 @@ test("booking (confirm) clears a pending proposal — the booking is the record"
   const reread = getScheduleInviteByToken(inv.token)!;
   assert.equal(reread.proposalStatus, null, "confirm clears proposal_status");
   assert.equal(reread.proposals, null, "confirm clears proposals");
+});
+
+// --- Direction: the invite store LOCKS its writes (wave 40, lib-scheduling) ------
+//
+// Every transaction here was DEFERRED and the confirm/reschedule UPDATEs re-asserted
+// nothing their SELECT had read. Two consequences, both of which these pin:
+//   (1) across connections a deferred read-to-write upgrade is answered with
+//       SQLITE_BUSY_SNAPSHOT, which busy_timeout does NOT wait out - a thrown 500
+//       where the honest answer is "that time is no longer yours"; and
+//   (2) with no precondition on the UPDATE, a row that moved between the SELECT and
+//       the write was overwritten anyway - a declined or no-showed link could be
+//       resurrected into a confirmed booking by a tab that was open when it closed.
+// The refusal is `taken` (not a third reason): every ConfirmResult consumer already
+// renders it and the remedy is the same - this link no longer holds that time.
+
+test("a confirm that races the row's own closure is refused as taken, never a store throw", () => {
+  const inv = createScheduleInvite({ entryId: "e-cas-1", candidateLabel: "Race", jobTitle: "Role" });
+  // The row moves to a terminal state after the candidate's picker was rendered -
+  // exactly the state a concurrent decline (or another process's write) leaves behind.
+  assert.ok(declineScheduleInvite(inv.token), "setup: the invite is closed out");
+  const r = confirmScheduleInvite(inv.token, "Tue 9 Jun 10:00", "2026-06-09T10:00:00.000Z");
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.reason, "taken", "a moved row answers taken, not ok");
+  const reread = getScheduleInviteByToken(inv.token)!;
+  assert.equal(reread.status, "declined", "the terminal status survives - no resurrection");
+  assert.equal(reread.slotAt, null, "and no slot was written onto a closed invite");
+});
+
+test("a reschedule that races another move is refused, and the recorded time is untouched", () => {
+  const token = makeConfirmed("2026-06-16T10:00:00.000Z");
+  // First move lands and spends generation 0.
+  const first = rescheduleScheduleInvite(token, "Wed 17 Jun 10:00", "2026-06-17T10:00:00.000Z");
+  assert.ok(first.ok);
+  // A no-show closes the booking under a tab that still holds the old view.
+  assert.ok(markScheduleInviteNoShow(token), "setup: the booking is closed");
+  const stale = rescheduleScheduleInvite(token, "Thu 18 Jun 10:00", "2026-06-18T10:00:00.000Z");
+  assert.equal(stale.ok, false);
+  assert.equal(stale.ok === false && stale.reason, "not_confirmed", "a closed booking is not movable");
+  assert.equal(getScheduleInviteByToken(token)!.slotAt, "2026-06-17T10:00:00.000Z", "the recorded time is untouched");
+});
+
+// --- reads and one-shot writes that had no coverage at all ----------------------
+
+test("countFutureConfirmedInvites counts only future confirmed bookings", () => {
+  const now = Date.parse("2026-06-20T09:00:00.000Z");
+  const before = countFutureConfirmedInvites(undefined, now);
+  makeConfirmed("2026-06-19T10:00:00.000Z"); // in the past relative to `now`
+  assert.equal(countFutureConfirmedInvites(undefined, now), before, "a past booking is not upcoming");
+  createScheduleInvite({ entryId: "e-count-p", candidateLabel: "P", jobTitle: "R" }); // pending, never counted
+  assert.equal(countFutureConfirmedInvites(undefined, now), before, "an unbooked invite is not upcoming");
+  const closed = makeConfirmed("2026-06-22T10:00:00.000Z");
+  assert.equal(countFutureConfirmedInvites(undefined, now), before + 1, "a future booking is counted");
+  markScheduleInviteNoShow(closed);
+  assert.equal(countFutureConfirmedInvites(undefined, now), before, "a no-show drops out of the badge");
+});
+
+test("recordCalendarEvent KEEPS the handle on a live state and CLEARS it on 'removed'", () => {
+  const token = makeConfirmed("2026-06-23T10:00:00.000Z");
+  recordCalendarEvent(token, { state: "created", eventId: "gcal-1", eventLink: "https://cal.example/1" });
+  let inv = getScheduleInviteByToken(token)!;
+  assert.equal(inv.calendarEventState, "created");
+  assert.equal(inv.calendarEventId, "gcal-1");
+  // A later write that carries no id must not null the handle out (COALESCE).
+  recordCalendarEvent(token, { state: "updated" });
+  inv = getScheduleInviteByToken(token)!;
+  assert.equal(inv.calendarEventState, "updated");
+  assert.equal(inv.calendarEventId, "gcal-1", "a live state keeps the handle it already had");
+  // 'orphaned' deliberately keeps it - the event is still on someone's calendar.
+  recordCalendarEvent(token, { state: "orphaned" });
+  assert.equal(getScheduleInviteByToken(token)!.calendarEventId, "gcal-1");
+  // 'removed' is the ONE state that clears both, so the id always answers
+  // "is there an event out there?".
+  recordCalendarEvent(token, { state: "removed" });
+  inv = getScheduleInviteByToken(token)!;
+  assert.equal(inv.calendarEventState, "removed");
+  assert.equal(inv.calendarEventId, null);
+  assert.equal(inv.calendarEventLink, null);
+  // An unknown token is bookkeeping, never a throw - the booking is the truth.
+  assert.doesNotThrow(() => recordCalendarEvent("no-such-token", { state: "removed" }));
+});
+
+test("flagScheduleInviteNeedsMoreSlots reports the 0-to-1 transition ONCE", () => {
+  const inv = createScheduleInvite({ entryId: "e-flag-1", candidateLabel: "F", jobTitle: "R" });
+  assert.equal(flagScheduleInviteNeedsMoreSlots(inv.token), true, "the first fully-booked open flags");
+  assert.equal(flagScheduleInviteNeedsMoreSlots(inv.token), false, "a refresh must not re-alert");
+  assert.equal(getScheduleInviteByToken(inv.token)!.needsMoreSlots, true);
+  // Booking clears the flag - "currently stalled", not "ever stalled".
+  assert.ok(confirmScheduleInvite(inv.token, "Fri 26 Jun 10:00", "2026-06-26T10:00:00.000Z").ok);
+  assert.equal(getScheduleInviteByToken(inv.token)!.needsMoreSlots, false);
+  assert.equal(flagScheduleInviteNeedsMoreSlots("no-such-token"), false, "an unknown token never claims a flag");
+});
+
+test("claimReminderAttempt is a generation CAS: one winner per generation, capped, backoff-gated", () => {
+  const token = makeConfirmed("2026-06-27T10:00:00.000Z");
+  const id = getScheduleInviteByToken(token)!.id;
+  const aged = new Date(Date.now() + 60_000).toISOString(); // cutoff in the future = backoff satisfied
+  assert.equal(claimReminderAttempt(id, 0, aged, 3), true, "the holder of generation 0 wins");
+  assert.equal(claimReminderAttempt(id, 0, aged, 3), false, "a racing claimer on the SAME generation loses");
+  assert.equal(getScheduleInviteByToken(token)!.reminderAttempts, 1, "exactly one attempt was recorded");
+  // The backoff gate: a cutoff BEFORE the stamped attempt refuses the next generation.
+  const tooSoon = new Date(Date.now() - 60_000).toISOString();
+  assert.equal(claimReminderAttempt(id, 1, tooSoon, 3), false, "an attempt inside its backoff is not re-claimable");
+  assert.equal(claimReminderAttempt(id, 1, aged, 3), true, "...and is claimable once it has aged past it");
+  // The cap is enforced by the claim itself, not only by the sweep's filter.
+  assert.equal(claimReminderAttempt(id, 2, aged, 2), false, "no claim past maxAttempts");
+  // Terminal success drops it out for good - even a correct generation can't re-claim.
+  markReminderSent(id);
+  assert.equal(claimReminderAttempt(id, 2, aged, 5), false, "a delivered reminder is never re-attempted");
 });

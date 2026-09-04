@@ -401,7 +401,10 @@ export type ConfirmResult =
  *  better-sqlite3 runs synchronously, so the read-then-write below executes as a
  *  single uninterrupted transaction — two concurrent confirms can't both claim
  *  the same slot_at, which is what `bookedSlots()`/`proposeSlots()` only guard at
- *  read time. Collision identity is the ISO `slot_at`, not the display label. */
+ *  read time. Collision identity is the ISO `slot_at`, not the display label.
+ *  IMMEDIATE (write lock at BEGIN) plus a compensating precondition on the UPDATE:
+ *  see the note beside it — a DEFERRED read→write upgrade across connections is the
+ *  one busy state SQLite's busy_timeout will not wait out. */
 export function confirmScheduleInvite(token: string, slot: string, slotAt?: string | null, candidateTz?: string | null): ConfirmResult {
   const d = db();
   const tx = d.transaction((): ConfirmResult => {
@@ -429,12 +432,28 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
                 attendance_status = NULL, attendance_at = NULL,
                 needs_more_slots = 0, more_slots_flagged_at = NULL,
                 proposals = NULL, proposals_at = NULL, proposal_status = NULL
-          WHERE token = ? RETURNING *`
+          WHERE token = ? AND status = 'pending' RETURNING *`
       )
-      .get(slot, slotAt ?? null, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
+      .get(slot, slotAt ?? null, new Date().toISOString(), candidateTz ?? null, token) as
+      | Record<string, unknown>
+      | undefined;
+    // COMPENSATING PRECONDITION (a-read-compute-write-either-locks-or-re-checks). The
+    // `.immediate()` below takes the write lock at BEGIN inside THIS process, but the
+    // store runs on its own connection beside db.ts's and beside any other process on
+    // the same file: a deferred read that later upgrades to a write is the shape SQLite
+    // answers with SQLITE_BUSY_SNAPSHOT, which the busy timeout does NOT retry — a 500
+    // where the honest answer is "taken". So the UPDATE re-asserts the status the SELECT
+    // above read ('pending' — a re-confirm of an already-confirmed invite returned
+    // idempotently above, so 'pending' is the only status that reaches here). Zero rows
+    // changed means the row moved under us — a concurrent decline, no-show or confirm —
+    // and the caller gets the same `taken` refusal a slot collision produces, never a
+    // thrown store error and never a resurrected terminal link. `taken` rather than a
+    // third reason because every consumer of ConfirmResult already renders it and the
+    // remedy is identical: this link no longer holds that time, pick again.
+    if (!updated) return { ok: false, reason: "taken", invite: inv };
     return { ok: true, invite: rowTo(updated) };
   });
-  return tx();
+  return tx.immediate();
 }
 
 /** Attach (or clear, with null) the interview join link on an invite. The caller
@@ -535,12 +554,20 @@ export function rescheduleScheduleInvite(
                 reminder_sent_at = NULL, reminder_attempts = 0, reminder_last_attempt_at = NULL,
                 needs_more_slots = 0, more_slots_flagged_at = NULL,
                 proposals = NULL, proposals_at = NULL, proposal_status = NULL
-          WHERE token = ? RETURNING *`
+          WHERE token = ? AND status = 'confirmed' AND reschedule_count = ? RETURNING *`
       )
-      .get(slot, slotAt, new Date().toISOString(), candidateTz ?? null, token) as Record<string, unknown>;
+      .get(slot, slotAt, new Date().toISOString(), candidateTz ?? null, token, inv.rescheduleCount) as
+      | Record<string, unknown>
+      | undefined;
+    // Same compensating precondition as confirm: re-assert BOTH facts this decision was
+    // computed from — the status ('confirmed') and the reschedule generation the cap was
+    // checked against — so a concurrent move that already spent the budget cannot be
+    // overwritten by a stale one. Zero rows changed reads as `taken`, the refusal the
+    // candidate page already renders, rather than a busy-snapshot 500.
+    if (!updated) return { ok: false, reason: "taken", invite: inv };
     return { ok: true, invite: rowTo(updated) };
   });
-  return tx();
+  return tx.immediate();
 }
 
 /** RSVP "I'll be there" on a confirmed booking (idea-87af39c5) — records an early
@@ -600,7 +627,7 @@ export function declineScheduleInvite(token: string): ScheduleInvite | null {
       .get(token) as Record<string, unknown> | undefined;
     return updated ? rowTo(updated) : null;
   });
-  return tx();
+  return tx.immediate();
 }
 
 /** Terminal NO-SHOW (Direction 1): the recruiter marks a CONFIRMED interview whose
@@ -622,7 +649,7 @@ export function markScheduleInviteNoShow(token: string): ScheduleInvite | null {
       .get(token) as Record<string, unknown> | undefined;
     return updated ? rowTo(updated) : null;
   });
-  return tx();
+  return tx.immediate();
 }
 
 /** Flag an invite as needing manual reconciliation: the candidate's slot was
