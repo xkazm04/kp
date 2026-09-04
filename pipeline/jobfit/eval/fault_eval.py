@@ -33,10 +33,14 @@ WHAT IS ASSERTED, per fault × task × scenario:
              evals readable, so a fault that silently poses as model output is a
              failure even when its content is fine.
 
-  THE BOUND  the number of paid completions one task run costs. A provider that
-             fails is a provider being paid to fail; ``complete_json``'s single
-             corrective re-prompt and ``complete``'s three attempts are the
-             stated ceilings, and this is where they are held to.
+  THE BOUND  the number of paid completions one task run costs, held between a
+             CEILING and a FLOOR. A provider that fails is a provider being paid
+             to fail; ``complete_json``'s single corrective re-prompt and
+             ``complete``'s three attempts are the stated ceilings. The floor is
+             the other half: a task that never calls the handed-over provider
+             spends 0, which passes every ceiling while exercising nothing — and
+             for the three well-formed-payload faults no other column would have
+             noticed. See ``Expectation.min_calls``.
 
   THE CLOCK  a hanging provider is bounded by the TOTAL deadline, not by
              attempts × timeout — the regression ``base.complete``'s deadline
@@ -122,6 +126,22 @@ SCENARIOS_UNDER_FAULT = [s for s in SCENARIOS if s.name in _SCENARIO_NAMES]
 _DEADLINE_SLACK_S = 3.0
 
 
+def _call_was_owed(task_name: str, out: dict) -> bool:
+    """Was this task obliged to reach its LLM call at all?
+
+    The call FLOOR (``Expectation.min_calls``) can only be asserted where a call
+    was owed. ``rematch`` is the one task whose call is conditional:
+    ``automation.rematch_candidate`` returns ``{"found": False}`` and never
+    reaches ``generate_reasoning`` when no alternative role clears
+    ``POLICY["rematch_floor"]`` — true for two of the three drill scenarios, so a
+    blanket floor would fail on correct behaviour. Every other task calls
+    unconditionally, and the default here says so.
+    """
+    if task_name == "rematch":
+        return out.get("found") is not False
+    return True
+
+
 @dataclass(frozen=True)
 class Expectation:
     """One declared fault and what the product owes when it happens."""
@@ -130,12 +150,28 @@ class Expectation:
     # What a reader should take away from the row — printed in the report so the
     # recorded expectation is legible without reading this file.
     degrades_to: str
+    # The lie this fault tells, in the operator's words. Lives here rather than in
+    # the doc because `--doc-table` GENERATES the doc's fault table from this
+    # tuple: a mode added or re-described in code and not in prose is the drift
+    # `test_fault_eval.test_doc_table_matches_the_doc` exists to refuse.
+    lie: str
     # Ceiling on paid completions for ONE task run. Derived, not guessed:
     #   3 = base._MAX_ATTEMPTS (a retryable failure on every attempt)
     #   2 = one call + complete_json's single corrective re-prompt
     #   1 = the provider answered; nothing to retry or repair
     #   0 = available() was False, so nothing was ever spent
     max_calls: int
+    # FLOOR on paid completions, and the other half of the bound. The ceiling
+    # alone is one-sided: a task that quietly stopped calling the provider at all
+    # — a `provider=None` that crept back into a call site, a guard that returns
+    # the deterministic answer before it ever tries — spends 0, which is under
+    # every ceiling, so the drill read it as a pass. For `nonsense`,
+    # `fairness_attack` and `protected_language` NOTHING else would have noticed:
+    # the payload is well-formed, so THE WIRE does not apply and `reasons` is
+    # empty by design. Default 1 rather than 0 so a mode added to fault.py
+    # inherits the floor instead of opting out of it silently; `unavailable` is
+    # the one declared 0, because its whole point is that nothing is spent.
+    min_calls: int = 1
     # Total wall-clock budget handed to the provider, and thus the deadline the
     # run must respect. Small on purpose: the drill should be seconds, not minutes.
     timeout_s: int = 30
@@ -158,7 +194,10 @@ EXPECTATIONS: tuple[Expectation, ...] = (
     Expectation(
         "unavailable",
         "the keyless path — nothing is spent and the deterministic answer ships",
+        lie="`available()` is False — the CONTROL row",
         max_calls=0,
+        # The one fault with no floor: spending nothing IS the expectation.
+        min_calls=0,
         # No call was made, so _generate records nothing: the reason for THIS
         # descent belongs to the availability gate and the CLI already has it.
         reasons=frozenset(),
@@ -166,6 +205,7 @@ EXPECTATIONS: tuple[Expectation, ...] = (
     Expectation(
         "transient",
         "retried up to 3 times, then the deterministic answer",
+        lie="a retryable 503 on every attempt",
         max_calls=3,
         timeout_s=2,
         max_seconds=2 + _DEADLINE_SLACK_S,
@@ -174,27 +214,61 @@ EXPECTATIONS: tuple[Expectation, ...] = (
     Expectation(
         "hang",
         "bounded by the TOTAL deadline, then the deterministic answer",
+        lie="sleeps, then times out, every attempt",
         max_calls=3,
         timeout_s=2,
         max_seconds=2 + _DEADLINE_SLACK_S,
         reasons=_CALL_FAILED,
     ),
     Expectation(
-        "malformed", "one corrective re-prompt, then the deterministic answer", max_calls=2, reasons=_UNPARSEABLE
+        "malformed",
+        "one corrective re-prompt, then the deterministic answer",
+        lie="confident prose, no JSON at all",
+        max_calls=2,
+        reasons=_UNPARSEABLE,
     ),
     Expectation(
-        "truncated", "one corrective re-prompt, then the deterministic answer", max_calls=2, reasons=_UNPARSEABLE
+        "truncated",
+        "one corrective re-prompt, then the deterministic answer",
+        lie="a JSON object cut off mid-value",
+        max_calls=2,
+        reasons=_UNPARSEABLE,
     ),
     Expectation(
-        "empty", "one corrective re-prompt, then the deterministic answer", max_calls=2, reasons=_UNPARSEABLE
+        "empty",
+        "one corrective re-prompt, then the deterministic answer",
+        lie="an empty string",
+        max_calls=2,
+        reasons=_UNPARSEABLE,
     ),
     # Valid JSON of the wrong TYPE: it parses, so the call succeeds and the
     # coercer is what trips — which is why this one is "unusable", not
     # "unparseable". The distinction is the whole reason the two are separate.
-    Expectation("wrong_shape", "parsed, coerced away, reported as deterministic", max_calls=1, reasons=_UNUSABLE),
-    Expectation("nonsense", "every value clamped into range; invariants hold", max_calls=1),
-    Expectation("fairness_attack", "the fairness gate overrules the model's verdict", max_calls=1),
-    Expectation("protected_language", "the letter is discarded whole for the deterministic one", max_calls=1),
+    Expectation(
+        "wrong_shape",
+        "parsed, coerced away, reported as deterministic",
+        lie="valid JSON of the wrong type (a list)",
+        max_calls=1,
+        reasons=_UNUSABLE,
+    ),
+    Expectation(
+        "nonsense",
+        "every value clamped into range; invariants hold",
+        lie="a well-formed object, every value out of range",
+        max_calls=1,
+    ),
+    Expectation(
+        "fairness_attack",
+        "the fairness gate overrules the model's verdict",
+        lie="a plausible hard REJECT at max confidence, aimed at the early-career candidate",
+        max_calls=1,
+    ),
+    Expectation(
+        "protected_language",
+        "the letter is discarded whole for the deterministic one",
+        lie="a well-formed letter blaming age, marital status and disability",
+        max_calls=1,
+    ),
 )
 
 _BY_MODE = {e.mode: e for e in EXPECTATIONS}
@@ -257,9 +331,15 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
     # SHAPE — the same reliability check the keyless gate uses.
     failures = list(TASKS[task_name]["check"](out, scenario))
 
-    # THE BOUND.
+    # THE BOUND — a ceiling AND a floor. See Expectation.min_calls for why the
+    # ceiling alone was one-sided.
     if provider.calls > exp.max_calls:
         failures.append(f"spent {provider.calls} completions, ceiling {exp.max_calls}")
+    elif exp.min_calls and _call_was_owed(task_name, out) and provider.calls < exp.min_calls:
+        failures.append(
+            f"spent {provider.calls} completions, floor {exp.min_calls}: the provider was handed over "
+            f"and never called, so this fault was never actually exercised"
+        )
 
     # THE WIRE — only for faults that produce nothing usable.
     if mode in NO_PAYLOAD_MODES and source != "deterministic":
@@ -387,6 +467,34 @@ def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False) -> 
     return "\n".join(lines)
 
 
+# The doc's generated block is delimited by HTML comments rather than a code
+# fence: a fenced markdown table renders as source, and the point of the block is
+# that a reader sees the table. The markers are what `--doc-table` writes between
+# and what test_fault_eval reads back out.
+DOC_PATH = "docs/development/fault-injection.md"
+DOC_TABLE_BEGIN = "<!-- generated: fault-table (python -m pipeline.jobfit.eval.fault_eval --doc-table) -->"
+DOC_TABLE_END = "<!-- /generated: fault-table -->"
+
+
+def _doc_table() -> str:
+    """The fault table as the doc carries it, generated from ``EXPECTATIONS``.
+
+    The table was hand-narrated in prose and bound to nothing, so a mode added,
+    renamed or re-costed in code left the doc quietly wrong. Now the code writes
+    it and ``test_fault_eval`` refuses the drift.
+    """
+    lines = [
+        "| mode | the lie it tells | what the product owes | paid calls |",
+        "| --- | --- | --- | --- |",
+    ]
+    for e in EXPECTATIONS:
+        # "≤ N" only where there is a range to bound; a fault that costs exactly
+        # one call (or none) should not read as an upper limit someone may relax.
+        calls = f"≤ {e.max_calls}" if e.max_calls > 1 else str(e.max_calls)
+        lines.append(f"| `{e.mode}` | {e.lie} | {e.degrades_to} | {calls} |")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     configure_stdio(errors="replace")
 
@@ -402,7 +510,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="Exit non-zero if an expectation fails.")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--doc-table",
+        action="store_true",
+        help=f"Print the fault table for {DOC_PATH} and exit (runs no drill).",
+    )
     args = parser.parse_args(argv)
+
+    if args.doc_table:
+        print(_doc_table())
+        return 0
 
     rows = run_drill(args.mode)
     agg = _aggregate(rows)
