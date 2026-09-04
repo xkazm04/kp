@@ -152,6 +152,14 @@ grouped by the column they were stranded on, with one "Move all to…" control p
 group. `boardVisibleOrder` appends them after the grid so the drawer's prev/next
 can still reach them (a card you can see but cannot step to reads as broken).
 
+Each group is **capped like a stage cell** — the first `CELL_LIMIT` (6) chips,
+then the same `+N more` / `Show fewer` toggle, expandable per group so revealing
+one retired column's overflow leaves the others capped. Both caps share one
+arithmetic (`cappedWithOverflow` in `pipelineBoardLayout.ts`, over `CELL_LIMIT`
+from `pipelineBoardGrid.ts`), so the board cannot grow a third, differently
+behaved ceiling. Retiring a busy column is precisely when the list is longest,
+and it used to render every stranded card at once.
+
 In normal operation the strip should stay empty: Settings → Hiring refuses to
 remove an occupied column without a destination, and applies the moves in the
 same request as the removal (`POST /api/pipeline/stage-migration` — see

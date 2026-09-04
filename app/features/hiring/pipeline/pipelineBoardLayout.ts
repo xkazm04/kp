@@ -1,4 +1,5 @@
 import { entryLaneKey, STAGES, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
+import { CELL_LIMIT } from "./pipelineBoardGrid";
 
 /** The column ids a board is rendering. Defaults to the shipped axis so the
  *  many existing call sites (and the tests) keep working unchanged; the board
@@ -87,4 +88,26 @@ export function groupPositions(entries: Entry[]): Position[] {
     map.get(key)!.count += 1;
   }
   return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/** The visible slice of a capped list plus how many it is hiding — the arithmetic
+ *  behind every "+N more" affordance on the board.
+ *
+ *  It exists because the OFF-AXIS STRIP was the one list on the board with no
+ *  ceiling: a stage cell caps at CELL_LIMIT and offers an expand toggle, but
+ *  retiring a busy column dumped every stranded card into the strip at once —
+ *  precisely the moment the list is longest (a column is usually retired because
+ *  it held people). The two now share one constant and one rule, so the board
+ *  cannot grow a third, differently-behaved cap.
+ *
+ *  `limit` is the cap; passing a non-positive limit means "no cap" (everything
+ *  visible, overflow 0) rather than an empty list. `overflow` is never negative,
+ *  so the caller can use `overflow > 0` as its render condition. */
+export function cappedWithOverflow<T>(
+  items: readonly T[],
+  expanded: boolean,
+  limit: number = CELL_LIMIT
+): { visible: T[]; overflow: number } {
+  if (limit <= 0 || expanded || items.length <= limit) return { visible: items.slice(), overflow: 0 };
+  return { visible: items.slice(0, limit), overflow: items.length - limit };
 }
