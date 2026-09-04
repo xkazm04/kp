@@ -1196,6 +1196,14 @@ export const REFUSAL_ERRORS = {
    *  the honest answer is “we stopped waiting, try again”, which the coach panel’s
    *  existing retry affordance already offers. */
   JOB_WINNABILITY_TIMEOUT: "Grading this role took too long and was stopped. Try again.",
+  /** The comms channel refused a send because the candidate may not be contacted —
+   *  they were ANONYMIZED, their processing consent EXPIRED, or (for an outreach
+   *  message only) the sequence was stopped. A DECISION, not a fault: `sendComm`
+   *  re-asserts the gate that used to live in `dispatchOutreach` alone, so the resend
+   *  door and the dev-case doors can no longer skip it (comms.ts
+   *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
+   *  stop trying, not to retry, so the sentence says so. */
+  COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

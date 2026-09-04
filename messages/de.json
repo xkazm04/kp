@@ -1685,7 +1685,8 @@
     "DEVCASE_SUBMISSION_NOT_EVALUATED": "Nur eine bewertete Einreichung kann ein Durable Skill Profile erzeugen.",
     "INTERVIEW_ALREADY_LIVE": "Dieses Interview läuft bereits in einem anderen Fenster. Beenden oder schließen Sie es, bevor Sie erneut starten.",
     "PROFILE_BUILD_TIMEOUT": "Die Verarbeitung des Profils hat zu lange gedauert und wurde abgebrochen. Versuchen Sie erneut zu speichern.",
-    "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut."
+    "JOB_WINNABILITY_TIMEOUT": "Die Bewertung dieser Stelle hat zu lange gedauert und wurde abgebrochen. Bitte versuchen Sie es erneut.",
+    "COMMS_SUPPRESSED": "Diese Kandidatin bzw. dieser Kandidat darf nicht mehr kontaktiert werden."
   },
   "resilience": {
     "notFoundEyebrow": "404",

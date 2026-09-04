@@ -244,6 +244,33 @@ cursor reaches them — a separate fact from `hasMore`, and the one that suppres
 orphan claim above). The rule is pure and lives in `comms-view.pageCommsFeed`; locked by
 `comms-view.test.ts`.
 
+## 7a. The send precondition (one gate, every door)
+
+The compliance gate — never write to a candidate who was **anonymized** or whose
+processing consent **expired** — used to live in `dispatchOutreach`
+(`comms-dispatch.ts`) alone. Every other way into the channel skipped it: the resend
+door (`POST /api/comms/[id]/resend`), the dev-case lifecycle close, the orchestrator's
+promotion batch and the intake acknowledgement all call `sendComm` directly.
+
+It is now re-asserted at the channel handoff, in `comms.ts`:
+
+- `commsSendSuppression(msg)` is the ONE predicate. It resolves `msg.ref` to a pipeline
+  entry and asks `candidateOutreachSuppression` — the same question, the same way,
+  `dispatchOutreach` asks — then, **for `kind: "outreach"` only**, the sequence halt
+  (`outreachHaltFor`). The sequence halt is deliberately not applied to the rest: a
+  rejection or an offer letter is owed to a candidate who replied, not withheld.
+- An **entry-less** comm (a KO decline, a dev-case ack whose `ref` is a submission id)
+  carries no candidate identity to consult and passes through.
+- An unreadable pipeline store fails **closed** (`consent_expired`, logged) — this gate
+  is the last thing between an erased candidate and a letter.
+- A refusal throws `CommsSuppressedError`, whose `code` is `COMMS_SUPPRESSED`
+  (`REFUSAL_ERRORS`, four catalogs). Throwing keeps the existing contract that a throw
+  means the message did **not** go out. `dispatchOutreach` still gates first — it has to
+  report the reason to its caller and record the suppression event — and re-asserting is
+  idempotent.
+
+Locked by `comms-send-gate.test.ts`.
+
 ## 8. One delivery truth, on every surface
 
 - **Failure reason persisted.** `dev_outbox.failure_detail` (additive,
