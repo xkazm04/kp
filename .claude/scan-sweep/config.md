@@ -121,3 +121,27 @@ claim and an untrue one.
   controls); 500–700 are the muted text greys and are documented as intentionally
   non-monotone across the ramp. `text-stone-500` in a component is correct, not a
   missing dark token — do not file it.
+
+- **2026-09-04 — Check `.git/MERGE_HEAD` before starting a round.** This checkout
+  was found 15 minutes into another session's `merge origin/main` (738 commits,
+  1876 files staged, "all conflicts fixed but you are still merging"). In that
+  state git refuses EVERY partial commit — `git commit -- <pathspec>` returns
+  `fatal: cannot do a partial commit during a merge` — so the round's atomic-commit
+  discipline is simply unavailable, and the only way to land anything is to
+  conclude someone else's merge under your own message. Do not. Build one fix,
+  verify it, leave it in the tree (it rides the merge commit, which is this
+  checkout's declared norm), declare the round degraded, and backlog the rest with
+  their measurements instead of stacking several findings' edits into one working
+  state you cannot separate later.
+
+  **Outcome, same day:** the other session concluded its merge (`4a6670ec`) about
+  fifteen minutes later, the untouched worktree change survived it intact, and the
+  round resumed and landed six commits. So the wait is short and the leave-it-in-
+  the-tree move is safe — but only for ONE fix. Do not keep building while blocked.
+
+- **2026-09-04 — `.personas/memory-outbox.jsonl` was at 585 lines before this
+  round appended.** The ingest cap is 200 lines / 30 finding lines per pass, so
+  everything in the tail is unread. Check `wc -l` on it at the start of a round;
+  if it is over the cap and the app has not drained it, say in the report that the
+  round's findings are very likely unrecorded rather than reporting them as
+  emitted.
