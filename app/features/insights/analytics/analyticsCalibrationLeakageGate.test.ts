@@ -313,7 +313,10 @@ test("the sample-dependent claims stay INSIDE the gate", () => {
 
 test("the history strip and the chips read their own data, so they can stand alone", () => {
   const strip = read("./AnalyticsThresholdHistoryStrip.tsx");
-  assert.match(strip, /fetch\(url\)/, "the strip must own its fetch, not ride the calibration payload");
+  // `fetch(url` rather than `fetch(url)`: the strip now passes an AbortController
+  // signal (it used to leak an in-flight read on every family switch). The rule this
+  // pins is unchanged — the strip OWNS its fetch and does not ride the calibration payload.
+  assert.match(strip, /fetch\(url[,)]/, "the strip must own its fetch, not ride the calibration payload");
   assert.match(
     strip,
     /if \(failed \|\| !data \|\| data\.history\.length === 0\) return null/,
