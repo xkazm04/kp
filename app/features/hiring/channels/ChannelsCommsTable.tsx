@@ -53,7 +53,11 @@ export function CommsTable() {
     };
 
   const load = useCallback(() => {
-    fetch("/api/comms")
+    // The ledger pages CLIENT-side (TablePager below), so this asks for the whole
+    // derivation window in one read rather than the route's default page. Named
+    // explicitly: the route's default is a page, and inheriting it would silently have
+    // shrunk this table's reach the day paging was added.
+    fetch("/api/comms?limit=500")
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
