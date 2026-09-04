@@ -63,25 +63,27 @@
     "defaultConfidence": 0.4,
     "lowConfidenceThreshold": 0.55,
     "defaultReason": "no strong signal; defaulting to experienced",
+    "defaultReasonKind": "default",
+    "selfDeclaredReasonKind": "self_declared",
     "signals": [
-      { "id": "enrolled", "when": { "signal": "is_enrolled", "truthy": true }, "scores": { "student": 2.0 }, "reason": "currently enrolled" },
-      { "id": "expected_graduation", "when": { "signal": "expected_graduation", "truthy": true }, "scores": { "student": 1.0 }, "reason": "expected graduation: {expected_graduation}" },
-      { "id": "yre_low", "when": { "signal": "years_relevant_experience", "lt": 1 }, "scores": { "student": 1.5 }, "reason": "<1 year of relevant experience" },
-      { "id": "yre_high", "when": { "signal": "years_relevant_experience", "gte": 3 }, "scores": { "bau": 1.5 }, "reason": "{years_relevant_experience:g} years of relevant experience" },
-      { "id": "education_dominant", "when": { "signal": "education_is_dominant", "truthy": true }, "scores": { "student": 1.0 }, "reason": "education is the dominant CV block" },
-      { "id": "switch_strong", "when": { "all": [ { "signal": "wants_domain_change", "truthy": true }, { "signal": "has_substantial_experience", "truthy": true } ] }, "scores": { "career_switcher": 3.0 }, "reason": "wants a domain change and has substantial experience" },
-      { "id": "switch_weak", "when": { "all": [ { "signal": "wants_domain_change", "truthy": true }, { "signal": "has_substantial_experience", "not": true } ] }, "scores": { "career_switcher": 1.0 }, "reason": "wants a domain change" },
+      { "id": "enrolled", "when": { "signal": "is_enrolled", "truthy": true }, "scores": { "student": 2.0 }, "reasonKind": "signal_enrolled", "reason": "currently enrolled" },
+      { "id": "expected_graduation", "when": { "signal": "expected_graduation", "truthy": true }, "scores": { "student": 1.0 }, "reasonKind": "signal_expected_graduation", "reason": "expected graduation: {expected_graduation}" },
+      { "id": "yre_low", "when": { "signal": "years_relevant_experience", "lt": 1 }, "scores": { "student": 1.5 }, "reasonKind": "signal_yre_low", "reason": "<1 year of relevant experience" },
+      { "id": "yre_high", "when": { "signal": "years_relevant_experience", "gte": 3 }, "scores": { "bau": 1.5 }, "reasonKind": "signal_yre_high", "reason": "{years_relevant_experience:g} years of relevant experience" },
+      { "id": "education_dominant", "when": { "signal": "education_is_dominant", "truthy": true }, "scores": { "student": 1.0 }, "reasonKind": "signal_education_dominant", "reason": "education is the dominant CV block" },
+      { "id": "switch_strong", "when": { "all": [ { "signal": "wants_domain_change", "truthy": true }, { "signal": "has_substantial_experience", "truthy": true } ] }, "scores": { "career_switcher": 3.0 }, "reasonKind": "signal_switch_strong", "reason": "wants a domain change and has substantial experience" },
+      { "id": "switch_weak", "when": { "all": [ { "signal": "wants_domain_change", "truthy": true }, { "signal": "has_substantial_experience", "not": true } ] }, "scores": { "career_switcher": 1.0 }, "reasonKind": "signal_switch_weak", "reason": "wants a domain change" },
       { "id": "substantial", "when": { "signal": "has_substantial_experience", "truthy": true }, "scores": { "bau": 1.0, "career_switcher": 0.5 } }
     ],
     "contradictions": {
       "student": [
-        { "when": { "all": [ { "signal": "years_relevant_experience", "gte": 3 }, { "signal": "is_enrolled", "not": true } ] }, "confidence": 0.65, "reason": "contradiction: 3+ years of relevant experience for a 'student'" }
+        { "when": { "all": [ { "signal": "years_relevant_experience", "gte": 3 }, { "signal": "is_enrolled", "not": true } ] }, "confidence": 0.65, "reasonKind": "contradiction_student_experienced", "reason": "contradiction: 3+ years of relevant experience for a 'student'" }
       ],
       "bau": [
-        { "when": { "any": [ { "signal": "is_enrolled", "truthy": true }, { "signal": "years_relevant_experience", "lt": 1 } ] }, "confidence": 0.65, "reason": "contradiction: enrollment / <1y experience suggests early-career" }
+        { "when": { "any": [ { "signal": "is_enrolled", "truthy": true }, { "signal": "years_relevant_experience", "lt": 1 } ] }, "confidence": 0.65, "reasonKind": "contradiction_bau_early_career", "reason": "contradiction: enrollment / <1y experience suggests early-career" }
       ],
       "career_switcher": [
-        { "when": { "signal": "has_substantial_experience", "not": true }, "confidence": 0.7, "reason": "note: 'switcher' usually implies prior professional experience" }
+        { "when": { "signal": "has_substantial_experience", "not": true }, "confidence": 0.7, "reasonKind": "contradiction_switcher_no_experience", "reason": "note: 'switcher' usually implies prior professional experience" }
       ]
     }
   }

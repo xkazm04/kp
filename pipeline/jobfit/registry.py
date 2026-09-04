@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from string import Formatter
 from typing import Any
 
 _DATA: dict[str, Any] = json.loads(Path(__file__).with_name("archetypes.json").read_text(encoding="utf-8"))
@@ -55,6 +56,43 @@ def _validate_archetype_weights(archetypes: list[dict[str, Any]]) -> None:
 
 
 _validate_archetype_weights(_ARCHETYPES)
+
+
+# Every routing reason is also emitted as a {kind, params} CODE (see detect_detailed):
+# the rendered sentence is English, and the profile result panel used to join those
+# sentences into its "Routing: …" line, so a cs/de/fr recruiter read the router's
+# whole explanation in a language they had not chosen. A kind is one catalog entry in
+# four locales; a reason with no kind would silently fall back to the English string,
+# which is exactly the defect this closes — so declare it in the data or fail at import.
+def _validate_reason_kinds(detection: dict[str, Any]) -> None:
+    kinds: list[str] = []
+    for field in ("defaultReasonKind", "selfDeclaredReasonKind"):
+        kind = detection.get(field)
+        if not kind:
+            raise RuntimeError(f"detection.{field} must name a reason kind (a catalog code)")
+        kinds.append(str(kind))
+    for rule in detection.get("signals", []):
+        if rule.get("reason") and not rule.get("reasonKind"):
+            raise RuntimeError(
+                f"detection signal '{rule.get('id', '?')}' renders a reason but declares no "
+                f"reasonKind — its sentence could only ever be shown in English"
+            )
+        if rule.get("reasonKind"):
+            kinds.append(str(rule["reasonKind"]))
+    for declared, rules in detection.get("contradictions", {}).items():
+        for rule in rules:
+            if not rule.get("reasonKind"):
+                raise RuntimeError(
+                    f"a contradiction of '{declared}' declares no reasonKind — its sentence "
+                    f"could only ever be shown in English"
+                )
+            kinds.append(str(rule["reasonKind"]))
+    duplicates = sorted({k for k in kinds if kinds.count(k) > 1})
+    if duplicates:
+        raise RuntimeError(f"reason kinds must be unique (one code, one meaning); repeated: {duplicates}")
+
+
+_validate_reason_kinds(_DETECTION)
 
 
 # ---- Accessors -------------------------------------------------------------
@@ -151,6 +189,31 @@ def _render(reason: str, ctx: dict[str, Any]) -> str:
     return reason.format(**ctx) if "{" in reason else reason
 
 
+def _params(reason: str, ctx: dict[str, Any]) -> dict[str, Any]:
+    """The ctx values the reason's own template interpolates, keyed by placeholder.
+
+    Derived FROM the template rather than declared beside it, so the params a code
+    carries can never drift from the sentence the four catalogs translate: add
+    `{expected_graduation}` to a reason and the code starts carrying it.
+    """
+    names = {field for _, field, _, _ in Formatter().parse(reason) if field}
+    return {name: ctx.get(name) for name in sorted(names)}
+
+
+def reason_kinds() -> tuple[str, ...]:
+    """Every routing-reason code this registry can emit, in declaration order.
+
+    The catalogs owe one entry per kind (`profile.result.reasons.<kind>`); a test
+    on the TS side reads this list, so a kind added here is a visible gap there
+    rather than a silent English fallback in three locales.
+    """
+    kinds = [str(_DETECTION["defaultReasonKind"]), str(_DETECTION["selfDeclaredReasonKind"])]
+    kinds += [str(r["reasonKind"]) for r in _DETECTION["signals"] if r.get("reasonKind")]
+    for rules in _DETECTION["contradictions"].values():
+        kinds += [str(r["reasonKind"]) for r in rules]
+    return tuple(kinds)
+
+
 def detect(
     *,
     self_declared: str | None = None,
@@ -167,6 +230,40 @@ def detect(
     auto-signals still run as *contradictions* that lower confidence and append a
     reason. With no declaration, weighted signals decide and fall back to the
     registry default when nothing is conclusive.
+
+    The back-compatible face of :func:`detect_detailed` — same computation, the
+    rendered English sentences only. Every existing consumer (soft_signals' prefix
+    scan, :func:`signals_absent`, stored analyses) keeps reading exactly these.
+    """
+    archetype, confidence, reasons, _codes = detect_detailed(
+        self_declared=self_declared,
+        years_relevant_experience=years_relevant_experience,
+        is_enrolled=is_enrolled,
+        expected_graduation=expected_graduation,
+        education_is_dominant=education_is_dominant,
+        wants_domain_change=wants_domain_change,
+        has_substantial_experience=has_substantial_experience,
+    )
+    return archetype, confidence, reasons
+
+
+def detect_detailed(
+    *,
+    self_declared: str | None = None,
+    years_relevant_experience: float | None = None,
+    is_enrolled: bool | None = None,
+    expected_graduation: str | None = None,
+    education_is_dominant: bool | None = None,
+    wants_domain_change: bool | None = None,
+    has_substantial_experience: bool | None = None,
+) -> tuple[str, float, list[str], list[dict[str, Any]]]:
+    """:func:`detect` plus the LOCALIZABLE twin of its reasons.
+
+    The 4th element is one ``{"kind", "params"}`` code per rendered reason, in the
+    same order — the sentence a catalog can translate instead of the English one the
+    router happens to render. Additive, exactly like profile_cli's ``missingGaps``
+    beside ``missing``: nothing that reads the strings has to change, and a result
+    built before this existed still renders through the string fallback.
     """
     ids = archetype_ids()
     labels = python_labels()
@@ -179,15 +276,21 @@ def detect(
         "has_substantial_experience": has_substantial_experience,
     }
     reasons: list[str] = []
+    codes: list[dict[str, Any]] = []
 
     if self_declared in ids:
         reasons.append(f"self-declared: {labels[self_declared]}")
+        # The declared archetype travels as a PARAM, not baked into the sentence:
+        # the reader's side already localizes an archetype id (useEnumLabel), so the
+        # catalog entry stays one sentence for all three (and any custom) archetypes.
+        codes.append({"kind": _DETECTION["selfDeclaredReasonKind"], "params": {"archetype": self_declared}})
         confidence = _DETECTION["selfDeclaredConfidence"]
         for contradiction in _DETECTION["contradictions"].get(self_declared, []):
             if _eval(contradiction["when"], ctx):
                 reasons.append(_render(contradiction["reason"], ctx))
+                codes.append({"kind": contradiction["reasonKind"], "params": _params(contradiction["reason"], ctx)})
                 confidence = contradiction["confidence"]
-        return self_declared, confidence, reasons
+        return self_declared, confidence, reasons, codes
 
     scores = {a: 0.0 for a in ids}
     for rule in _DETECTION["signals"]:
@@ -196,11 +299,13 @@ def detect(
                 scores[archetype] += delta
             if rule.get("reason"):
                 reasons.append(_render(rule["reason"], ctx))
+                codes.append({"kind": rule["reasonKind"], "params": _params(rule["reason"], ctx)})
 
     total = sum(scores.values())
     if total <= 0:
         reasons.append(_DETECTION["defaultReason"])
-        return _DETECTION["defaultArchetype"], _DETECTION["defaultConfidence"], reasons
+        codes.append({"kind": _DETECTION["defaultReasonKind"], "params": {}})
+        return _DETECTION["defaultArchetype"], _DETECTION["defaultConfidence"], reasons, codes
 
     best = max(ids, key=lambda a: scores[a])
-    return best, round(scores[best] / total, 2), reasons
+    return best, round(scores[best] / total, 2), reasons, codes
