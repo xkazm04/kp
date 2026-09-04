@@ -552,6 +552,23 @@ a 20/10min per-IP `rateLimit()` (pinned by `rate-limit-contract.test.ts`) — it
 spawns a paid model child, and until then it was the one door to that spend with
 neither guard.
 
+The pasted notes reach the model behind the **shared untrusted fence**
+(`devcase.provenance.fenced_untrusted`, the same one `match_reasoning`,
+`group_compare` and `automation` use). The prompt used to end with a bare `Notes:`
+followed by the raw text, appended directly under the recruiter-authored `Rules:`
+list — so a pasted CV blurb ending in its own rule list read as a continuation of
+ours, on the one profile path whose input is unbounded prose someone else wrote.
+The rule list now also states explicitly that the block is data and never
+instructions. `pipeline/jobfit/tests/test_profile_draft.py::NotesFenceTest` pins
+the fence, the clause and the spoofed-close-marker case.
+
+The `POST`/`PUT /api/profile` save door itself carries a 60/10min per-IP
+`rateLimit()` and a 128 KB body cap (`PAYLOAD_TOO_LARGE` with the cap as data):
+every accepted save spawns `profile_cli` and writes a row, and the route is not
+operator-gated, so open mode left it an unbounded process-spawn endpoint. All five
+handlers across `route.ts` + `candidates/route.ts` answer `PROFILE_*_FAILED` codes
+rather than the thrown message (the temp workdir path, `PYTHON_CMD`, `SQLITE_*`).
+
 **A save carries a version.** `GET /api/profile?id=` returns `updatedAt` (the
 row's content-write stamp) beside the payload; the editor sends it back as
 `expectedUpdatedAt` and `updateProfile` re-asserts it in the UPDATE's `WHERE`
