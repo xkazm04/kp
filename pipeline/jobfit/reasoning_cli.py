@@ -66,7 +66,17 @@ def main(argv: list[str] | None = None) -> int:
             ok, descent = provider_availability(provider)
             if not ok:
                 provider = None
-        reasoning, source = generate(candidate, job, m, lang=lang, provider=provider)
+        # A provider that PASSED the availability gate can still fail mid-flight
+        # (timeout, unparseable JSON, a 429). `descent` then stayed None and the ledger
+        # recorded a deterministic serve with no reason at all — the one descent an
+        # operator can actually act on, unnamed. The engine hands the cause back.
+        def note_descent(reason: str) -> None:
+            nonlocal descent
+            descent = reason
+
+        reasoning, source = generate(
+            candidate, job, m, lang=lang, provider=provider, on_fallback=note_descent
+        )
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
             # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG),

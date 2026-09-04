@@ -590,7 +590,8 @@
       "strengthsHeading": "Das ist aufgefallen:",
       "growthHeading": "Hier lässt sich weiter wachsen:",
       "noSpecifics": "Wir haben Ihren Einsatz bei der Aufgabe geschätzt und wünschen Ihnen alles Gute für Ihre Suche.",
-      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse."
+      "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse.",
+      "engineNote": "Hinweis zu diesem Schreiben: Die obigen Feststellungen hat unser Bewertungssystem in {language} verfasst, nicht in der Sprache dieser Nachricht."
     }
   },
   "language": {
@@ -1669,7 +1670,14 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "Dieser Bewerbungslink ist ungültig. Bitten Sie die Recruiterin oder den Recruiter um einen neuen.",
     "DEVCASE_SESSION_NOT_FOUND": "Diese Arbeitssitzung wurde nicht gefunden. Öffnen Sie Ihren Bewerbungslink erneut, um eine neue zu starten.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Name und Link zu Ihrer Lösung sind beide erforderlich.",
-    "DEVCASE_SESSION_START_FAILED": "Die Arbeitssitzung konnte nicht geöffnet werden. Bitte versuchen Sie es erneut."
+    "DEVCASE_SESSION_START_FAILED": "Die Arbeitssitzung konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
+    "CHANNEL_UNKNOWN": "Über diesen Kanal kann kp nichts empfangen.",
+    "CHANNEL_JOB_NOT_FOUND": "Diese Stelle ist nicht verfügbar.",
+    "CHANNEL_TOKEN_REQUIRED": "Ein Empfänger-Token ist erforderlich.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "Dieser Empfänger wurde nicht gefunden.",
+    "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3577,7 +3585,8 @@
       "schemeSkillsShort": "F",
       "schemeCareerShort": "K",
       "schemePersonalShort": "P",
-      "schemeWeightsTitle": "Gewichtung: Fähigkeiten / Karriere / Persönliches"
+      "schemeWeightsTitle": "Gewichtung: Fähigkeiten / Karriere / Persönliches",
+      "narrativeInLanguage": "Dieser Vergleich wird auf {language} angezeigt."
     },
     "empty": {
       "batonEyebrow": "Staffelstab übergeben",
@@ -4960,7 +4969,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "regelbasiert",
       "cachedSuffix": " · zwischengespeichert",
-      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt. Die AI verfasst sie nur auf Englisch und Tschechisch.",
+      "narrativeInLanguage": "Diese Begründung wird auf {language} angezeigt.",
       "strengths": "Stärken",
       "gaps": "Lücken",
       "interviewProbes": "Interview-Nachfragen",

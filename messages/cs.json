@@ -590,7 +590,8 @@
       "strengthsHeading": "Co nás zaujalo:",
       "growthHeading": "Kde je prostor růst:",
       "noSpecifics": "Vážíme si úsilí, které jste do úkolu vložili, a přejeme vám hodně štěstí při hledání.",
-      "signoff": "Ještě jednou děkujeme za váš čas a zájem."
+      "signoff": "Ještě jednou děkujeme za váš čas a zájem.",
+      "engineNote": "Poznámka k tomuto dopisu: zjištění výše sepsal náš hodnoticí systém v jazyce {language}, nikoli v jazyce této zprávy."
     }
   },
   "language": {
@@ -1669,7 +1670,14 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "Tento odkaz pro přihlášení není platný. Požádejte náboráře o nový.",
     "DEVCASE_SESSION_NOT_FOUND": "Toto pracovní sezení se nepodařilo najít. Otevřete znovu svůj odkaz a začněte nové.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "Jméno i odkaz na vaše řešení jsou povinné.",
-    "DEVCASE_SESSION_START_FAILED": "Pracovní sezení se nepodařilo otevřít. Zkuste to prosím znovu."
+    "DEVCASE_SESSION_START_FAILED": "Pracovní sezení se nepodařilo otevřít. Zkuste to prosím znovu.",
+    "CHANNEL_UNKNOWN": "Na tomto kanálu kp přijímat neumí.",
+    "CHANNEL_JOB_NOT_FOUND": "Tato pozice není dostupná.",
+    "CHANNEL_TOKEN_REQUIRED": "Je potřeba token přijímače.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "Tento přijímač se nepodařilo najít.",
+    "CHANNEL_PULL_URL_INVALID": "Tato adresa pro stahování není povolená. Použijte veřejnou adresu https://.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3577,7 +3585,8 @@
       "schemeSkillsShort": "D",
       "schemeCareerShort": "K",
       "schemePersonalShort": "O",
-      "schemeWeightsTitle": "Váhy: dovednosti / kariéra / osobnostní"
+      "schemeWeightsTitle": "Váhy: dovednosti / kariéra / osobnostní",
+      "narrativeInLanguage": "Toto srovnání je zobrazeno v jazyce {language}."
     },
     "empty": {
       "batonEyebrow": "Štafeta předána",
@@ -4960,7 +4969,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "pravidlové",
       "cachedSuffix": " · z mezipaměti",
-      "narrativeInLanguage": "Toto zdůvodnění se zobrazuje v jazyce {language}. AI ho píše jen anglicky a česky.",
+      "narrativeInLanguage": "Toto zdůvodnění se zobrazuje v jazyce {language}.",
       "strengths": "Silné stránky",
       "gaps": "Mezery",
       "interviewProbes": "Otázky k pohovoru",

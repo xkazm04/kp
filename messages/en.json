@@ -590,7 +590,8 @@
       "strengthsHeading": "What stood out:",
       "growthHeading": "Areas to keep growing:",
       "noSpecifics": "We appreciated your effort on the exercise and wish you the very best in your search.",
-      "signoff": "Thanks again for your time and interest."
+      "signoff": "Thanks again for your time and interest.",
+      "engineNote": "A note on this letter: the findings above were written by our review engine in {language}, not in the language of this message."
     }
   },
   "language": {
@@ -1669,7 +1670,14 @@
     "DEVCASE_APPLY_TOKEN_REQUIRED": "This apply link isn't valid. Ask the recruiter for a fresh one.",
     "DEVCASE_SESSION_NOT_FOUND": "This work session can't be found. Open your apply link again to start a new one.",
     "DEVCASE_SUBMISSION_FIELDS_REQUIRED": "A name and a link to your solution are both required.",
-    "DEVCASE_SESSION_START_FAILED": "Could not open the work session. Please try again."
+    "DEVCASE_SESSION_START_FAILED": "Could not open the work session. Please try again.",
+    "CHANNEL_UNKNOWN": "That channel isn’t one kp can receive on.",
+    "CHANNEL_JOB_NOT_FOUND": "That role isn’t available.",
+    "CHANNEL_TOKEN_REQUIRED": "A receiver token is required.",
+    "CHANNEL_WEBHOOK_NOT_FOUND": "That receiver can’t be found.",
+    "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
+    "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3577,7 +3585,8 @@
       "schemeSkillsShort": "S",
       "schemeCareerShort": "C",
       "schemePersonalShort": "P",
-      "schemeWeightsTitle": "Weighting: skills / career / personal"
+      "schemeWeightsTitle": "Weighting: skills / career / personal",
+      "narrativeInLanguage": "This comparison is shown in {language}."
     },
     "empty": {
       "batonEyebrow": "Baton passed",
@@ -4960,7 +4969,7 @@
       "sourceLlm": "LLM",
       "sourceRuleBased": "rule-based",
       "cachedSuffix": " · cached",
-      "narrativeInLanguage": "This rationale is shown in {language}. The AI writes it only in English and Czech.",
+      "narrativeInLanguage": "This rationale is shown in {language}.",
       "strengths": "Strengths",
       "gaps": "Gaps",
       "interviewProbes": "Interview probes",

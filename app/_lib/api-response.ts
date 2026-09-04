@@ -320,6 +320,12 @@ export const STORE_ERRORS = {
    *  absolute db path, painted at an applicant in whatever language the server
    *  happened to speak. */
   DEVCASE_SESSION_START_FAILED: "Could not open the work session. Please try again.",
+  /** The two inbound-receiver writes on the Channels tab (/perfect wave 27, api-comms).
+   *  Both sat straight on better-sqlite3 + the pull-config encryptor and forwarded the
+   *  thrown message, so a UNIQUE-constraint string and the absolute db path were what
+   *  the Add-receiver modal painted, in every locale. */
+  CHANNEL_WEBHOOK_CREATE_FAILED: "Could not create the receiver. Please try again.",
+  CHANNEL_WEBHOOK_UPDATE_FAILED: "Could not update the receiver. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1116,6 +1122,25 @@ export const REFUSAL_ERRORS = {
    *  The public form validates both client-side, so this is a hand-rolled or
    *  external-channel call — which is exactly the caller who needs a code. */
   DEVCASE_SUBMISSION_FIELDS_REQUIRED: "A name and a link to your solution are both required.",
+  // ---- Inbound channel receivers (/perfect wave 27, api-comms). The Channels-tab
+  // receiver doors answered bare English prose for every refusal, and they are now
+  // capability-gated and throttled, so the modal and the receiver list have two more
+  // refusals to paint on top of those.
+  /** The requested channel is not one kp can receive on (400). Carries the rejected
+   *  value as data, never in the message. */
+  CHANNEL_UNKNOWN: "That channel isn't one kp can receive on.",
+  /** The role a receiver would bind to is not visible to the caller's team (404).
+   *  Deliberately the same answer as "no such role": a caller must not be able to
+   *  discover another team's confidential openings by id. */
+  CHANNEL_JOB_NOT_FOUND: "That role isn't available.",
+  /** A receiver token was required and absent (400). */
+  CHANNEL_TOKEN_REQUIRED: "A receiver token is required.",
+  /** The token names no receiver in the caller's team (404) — the same answer the
+   *  public receiver gives, so this door is not a probe for which tokens exist. */
+  CHANNEL_WEBHOOK_NOT_FOUND: "That receiver can't be found.",
+  /** The pull URL failed the stored-URL validator (400). The validator's own English
+   *  sentence — which host, which field — rides beside the code as `detail` data. */
+  CHANNEL_PULL_URL_INVALID: "That pull URL isn't allowed.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -2,7 +2,8 @@ import { recordOutbox, type OutboxEntry } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
 import { resolveRelay } from "./comms-relay";
-import { buildCommEnvelope, type CommEnvelope } from "./comms-envelope";
+import { buildCommEnvelope, IDEMPOTENCY_HEADER, type CommEnvelope } from "./comms-envelope";
+import { randomId } from "./random-id";
 import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webhook";
 import { logComms } from "./logger";
 
@@ -33,7 +34,13 @@ import { logComms } from "./logger";
 // invisible to the team that actually owns the lead. It NEVER overrides an entry-derived
 // tenant — it is consulted only when `ref` resolves to no entry. Not part of the wire
 // envelope: it's kp-internal bookkeeping, not something a relay should see.
-export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null };
+// `messageId` is the DELIVERY IDENTITY (comms-envelope.ts): one id per logical
+// message, stable across the retry ladder and mirrored in the Idempotency-Key
+// header. Callers normally omit it and the channel mints one per send; a caller
+// that RE-SENDS an already-recorded message (the dead-letter recovery door) can
+// pass the original id so the receiver recognises the repeat instead of
+// delivering the offer a second time.
+export type OutboundMessage = { to: string; subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null; messageId?: string };
 
 export interface CommsChannel {
   readonly name: string;
@@ -41,6 +48,28 @@ export interface CommsChannel {
 }
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Per-ATTEMPT wall clock on a relay fetch. Node's fetch has NO default timeout, so a
+// receiver that accepts the connection and then never answers held the handler open
+// for as long as it liked — three times over, once per attempt of the retry ladder —
+// while the recruiter's click sat spinning. 10s is generous for "accept this JSON and
+// answer 202" and still bounds the worst case (3 × 10s + 0.6s of backoff) well inside
+// what a self-hosted `next start` will tolerate (maxDuration is serverless-only).
+// Overridable for tests and for a deliberately slow receiver.
+export const COMMS_RELAY_TIMEOUT_MS = 10_000;
+/** The probe (POST /api/comms/relay/test) answers a human waiting on a button, so it
+ *  gets a tighter bound than a background delivery: a relay that cannot answer a ping
+ *  in 8s has failed the thing the probe is asking about. */
+export const COMMS_PROBE_TIMEOUT_MS = 8_000;
+
+/** The effective per-attempt timeout, read at CALL time so a test (and an operator
+ *  with an unusually slow relay) can override it without a rebuild. A non-positive or
+ *  unparseable value falls back to the constant rather than disabling the bound —
+ *  "no timeout" is the bug this closes, so it must not be reachable by a typo. */
+export function relayTimeoutMs(fallback: number = COMMS_RELAY_TIMEOUT_MS): number {
+  const raw = Number(process.env.KP_COMMS_RELAY_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
 
 // Local outbox: records the message as "queued". This is terminal — offline there is no
 // relay to deliver to, so the row in dev_outbox is both the delivered artifact and the
@@ -90,10 +119,15 @@ class WebhookChannel implements CommsChannel {
     // for every ordinary candidate comm, so on any other workspace the lookup missed
     // and EVERY relayed message shipped an envelope with no candidate, role or stage —
     // leaving the receiving ATS unable to map it back to a person.
+    // Minted ONCE per logical message, before the first attempt, so every attempt of
+    // the ladder below carries the same identity. A caller re-sending an already
+    // recorded message passes its id in and the receiver sees the repeat.
+    const messageId = msg.messageId?.trim() || randomId("msg");
     const envelope = buildCommEnvelope(
       msg,
       msg.ref ? getPipelineEntry(msg.ref, getEntryWorkspace(msg.ref)) : null,
-      new Date().toISOString()
+      new Date().toISOString(),
+      messageId
     );
     const { status, attempts, detail } = await this.deliver(envelope);
     if (status === "failed") await this.alertDeadLetter(msg, attempts, detail);
@@ -124,18 +158,36 @@ class WebhookChannel implements CommsChannel {
     // so a captured relay delivery cannot be replayed later under its own signature.
     // The retry loop below reuses this instant deliberately: it is the same delivery,
     // and the bounded ladder finishes far inside the receiver's tolerance window.
+    //
+    // The Idempotency-Key rides beside them and is likewise CONSTANT across the ladder:
+    // an attempt that timed out or died mid-flight may already have been accepted, so
+    // without it attempt 2 delivered the same offer a second time. It is not signed
+    // separately — it is a verbatim copy of the envelope's `messageId`, which IS inside
+    // the signed body, so a receiver can verify it rather than trust the header.
     const headers: Record<string, string> = { "Content-Type": "application/json", [TIMESTAMP_HEADER]: envelope.sentAt };
+    if (envelope.messageId) headers[IDEMPOTENCY_HEADER] = envelope.messageId;
     if (this.secret) headers[SIGNATURE_HEADER] = signWebhookBody(this.secret, body, envelope.sentAt);
+    const timeoutMs = relayTimeoutMs();
     for (let attempt = 1; attempt <= COMMS_RELAY_RETRY.maxAttempts; attempt++) {
       try {
-        const r = await fetch(this.url, { method: "POST", headers, body });
+        // A FRESH signal per attempt: AbortSignal.timeout starts counting when it is
+        // created, so one hoisted signal would give attempt 3 no budget at all.
+        const r = await fetch(this.url, { method: "POST", headers, body, signal: AbortSignal.timeout(timeoutMs) });
         if (r.ok) return { status: "sent", attempts: attempt, detail: "" };
         detail = `http ${r.status}`;
         // Permanent (caller/config) error — retrying changes nothing, dead-letter now.
         if (!isRetryableHttpStatus(r.status)) return { status: "failed", attempts: attempt, detail };
       } catch (err) {
-        // Network / DNS / abort — transient, fall through to backoff + retry.
-        detail = err instanceof Error ? err.message : "network error";
+        // Network / DNS / abort — transient, fall through to backoff + retry. A timeout
+        // gets its own sentence because the platform's is unhelpfully generic ("The
+        // operation was aborted due to timeout") and the recruiter reading the
+        // dead-letter row needs to know the receiver went quiet, not that kp gave up.
+        detail =
+          err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
+            ? `timeout after ${timeoutMs}ms`
+            : err instanceof Error
+              ? err.message
+              : "network error";
       }
       if (attempt < COMMS_RELAY_RETRY.maxAttempts) {
         await delay(COMMS_RELAY_RETRY.baseDelayMs * 2 ** (attempt - 1));

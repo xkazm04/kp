@@ -36,7 +36,14 @@ export type CaseProbeAudit = {
 };
 
 // Minimum distinct, defensible options a decisionSpace needs to force a choice.
-const MIN_OPTIONS = 2;
+//
+// EXPORTED because this doctrine is enforced in TWO languages: this module blocks an
+// approval on it, and pipeline/jobfit/devcase/lifecycle_eval.py validates designed cases
+// against it (MIN_PROBE_DECISION_OPTIONS in devcase/design.py). Until this pass the
+// Python half did not read decisionSpace at ALL, so the health eval passed cases the
+// approve gate would refuse. The two numbers are pinned to each other by
+// pipeline/jobfit/tests/test_devcase_probe_constant_sync.py — move BOTH or neither.
+export const MIN_PROBE_DECISION_OPTIONS = 2;
 
 function distinctOptions(decisionSpace: string[] | undefined): number {
   const seen = new Set<string>();
@@ -49,7 +56,7 @@ function distinctOptions(decisionSpace: string[] | undefined): number {
 
 export function auditProbe(probe: ProbeLike): ProbeAudit {
   const issues: string[] = [];
-  if (distinctOptions(probe.decisionSpace) < MIN_OPTIONS) {
+  if (distinctOptions(probe.decisionSpace) < MIN_PROBE_DECISION_OPTIONS) {
     issues.push("No forced choice — needs at least two distinct defensible options.");
   }
   if (!String(probe.where ?? "").trim()) {

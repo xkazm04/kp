@@ -608,6 +608,13 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     signals = await fetchRepoSignals(sub.repoRef);
   }
   const caseBaseline = devCase ? getDevCaseBaseline(devCase.id) : null;
+  // The language the CANDIDATE was given this case in — captured at intake on the
+  // lifecycle record and already threaded into analyze / design / seed / interview.
+  // The evaluator was the one step it never reached, so the strengths, concerns and
+  // transfer gaps that BECOME the feedback letter's bullets came back English while
+  // the letter around them was Czech (buildFeedbackBrief localizes the frame). Same
+  // "en" default as every other run* here when the lifecycle carries no language.
+  const evaluationLang = (sub.postingId ? lifecycleByPosting(sub.postingId)?.lang : null) || "en";
   const commits = signals?.commits ?? [];
   const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
 
@@ -650,6 +657,10 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
         casePath,
         "--role-json",
         rolePath,
+        // The evaluation/transfer/followup narrative is written in this language, on the
+        // LLM and the deterministic path alike; each artifact stamps back `narrativeLang`.
+        "--lang",
+        evaluationLang,
       ];
       if (repo) args.push("--repo-json", await write("repo.json", repo));
       if (events) args.push("--events-json", await write("events.json", events));

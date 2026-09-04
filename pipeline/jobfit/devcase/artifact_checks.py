@@ -18,7 +18,6 @@ Pure + import-light so both are unit-testable without an LLM.
 """
 from __future__ import annotations
 
-import difflib
 import re
 
 # A canary's `flaw` quotes the flawed fragment; we accept '…', "…" or `…` quoting.

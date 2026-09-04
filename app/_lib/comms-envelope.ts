@@ -13,11 +13,23 @@
 //     message references (`ref`); a message whose ref is not a pipeline entry
 //     (dev-case comms, slot refs) carries them as null — the flat fields are
 //     always sufficient to deliver.
+//   - `messageId` (additive, still v1) is the DELIVERY IDENTITY: one id per
+//     logical message, stable across every retry attempt of that message. It
+//     also rides as the `Idempotency-Key` request header, so a receiver can
+//     dedupe on either. `ref` is NOT that identity — it names the pipeline entry
+//     and repeats across every message about the same candidate.
 //
 // Pure and DB-free: the channel does the entry lookup, this module only shapes
 // the payload — so the contract is pinned by comms-envelope.test.ts.
 
 export const COMM_SCHEMA = "kp.comm.v1" as const;
+
+/** The request header carrying `messageId` on every relay POST. The de-facto
+ *  standard spelling (IETF draft-ietf-httpapi-idempotency-key-header), so a
+ *  receiver built on an off-the-shelf idempotency middleware needs no mapping.
+ *  Lives here, beside the field it mirrors, so the delivery path and the
+ *  contract test cannot drift apart. */
+export const IDEMPOTENCY_HEADER = "Idempotency-Key";
 
 // The kind vocabulary the pipeline dispatchers emit today (comms-dispatch.ts).
 // Documentation-adjacent, not enforcement: unknown kinds (e.g. dev-case comms)
@@ -65,6 +77,12 @@ export type CommEnvelope = {
   body: string;
   kind: string;
   ref: string | null;
+  /** Stable per-message delivery identity — see the stability rules above. Sent
+   *  again verbatim on every retry of the SAME message, and mirrored in the
+   *  `Idempotency-Key` header, so a receiver that already accepted attempt 1
+   *  can drop attempt 2 instead of delivering the offer twice. Null only for a
+   *  caller that built an envelope without one (the probe pings). */
+  messageId: string | null;
   sentAt: string;
   // Entry-derived context (null when ref doesn't resolve to a pipeline entry).
   candidate: {
@@ -84,7 +102,8 @@ export type CommEnvelope = {
 export function buildCommEnvelope(
   msg: { to: string; subject: string; body: string; kind: string; ref?: string },
   entry: CommEnvelopeContext | null,
-  sentAt: string
+  sentAt: string,
+  messageId: string | null = null
 ): CommEnvelope {
   return {
     schema: COMM_SCHEMA,
@@ -93,6 +112,7 @@ export function buildCommEnvelope(
     body: msg.body,
     kind: msg.kind,
     ref: msg.ref ?? null,
+    messageId,
     sentAt,
     candidate: entry
       ? {

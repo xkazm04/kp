@@ -6,16 +6,16 @@
   "root": "C:\\Users\\kazda\\kiro\\kp"
  },
  "generator": "claude-code /perfect local rescan (incremental, 2026-09-02)",
- "generated_at": "2026-09-04T04:30:38.990Z",
+ "generated_at": "2026-09-04T04:59:37.523Z",
  "provenance": {
-  "git_commit": "e408bb4006cc2164f712078fc96d2f14be32fb02",
-  "git_commit_count": 2441,
+  "git_commit": "c3f8a002c03aac45614d75127cfe686cf090a970",
+  "git_commit_count": 2454,
   "regenerated_by": "claude-code /perfect rescan (incremental: stale paths dropped, new files placed by sibling/dir/keyword affinity, 17 contexts seeded)",
   "prior_contexts": 143,
   "prior_avg_files_per_context": 6.7,
   "prior_generated_at": "2026-08-20T22:16:31.027Z",
   "prior_unmapped_files": 326,
-  "generated_at": "2026-09-04T04:30:38.990Z"
+  "generated_at": "2026-09-04T04:59:37.523Z"
  },
  "taxonomy": {
   "context_categories": [
@@ -36,7 +36,7 @@
  },
  "stats": {
   "contexts": 161,
-  "files": 3006,
+  "files": 3010,
   "groups": 17,
   "use_cases": 12
  },
@@ -511,8 +511,10 @@
     "pipeline/jobfit/tests/test_devcase_judge_independence.py",
     "pipeline/jobfit/tests/test_devcase_lifecycle.py",
     "pipeline/jobfit/tests/test_devcase_models.py",
+    "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py",
     "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py",
     "pipeline/jobfit/tests/test_fit_threshold_sync.py",
+    "pipeline/jobfit/tests/test_group_compare_cli.py",
     "pipeline/jobfit/tests/test_market_salary_cli.py",
     "pipeline/jobfit/tests/test_reasoning_narrative_lang.py",
     "pipeline/jobfit/tests/test_score_boundaries.py"
@@ -2891,6 +2893,7 @@
     "app/api/comms/relay/test/route.ts"
    ],
    "file_paths": [
+    "app/api/channels/channels-doors-gate.test.ts",
     "app/api/channels/channels-receiver-contract.test.ts",
     "app/api/channels/inbound/[token]/route.ts",
     "app/api/channels/webhooks/[token]/route.ts",
@@ -4937,6 +4940,7 @@
     "app/_lib/attention-tenancy.test.ts",
     "app/_lib/attention.ts",
     "app/_lib/comms-dispatch-sim.test.ts",
+    "app/_lib/comms-relay-delivery.test.ts",
     "app/_lib/comms-resend-outcome.test.ts",
     "app/_lib/comms-resend-outcome.ts",
     "app/_lib/decision-config-version.test.ts",

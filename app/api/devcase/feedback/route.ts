@@ -28,7 +28,12 @@ export async function POST(request: NextRequest) {
     if (!sub.evaluation) return NextResponse.json({ error: "evaluate the submission first." }, { status: 400 });
 
     const bundle = sub.evaluation as {
-      evaluation?: { strengths?: string[]; concerns?: string[] };
+      // `narrativeLang` is stamped by the Python evaluator (evaluate.py) and says which
+      // language these bullets are IN. buildFeedbackBrief compares it to the language the
+      // letter is written in and adds a one-line engine note when they disagree, instead
+      // of presenting foreign-language findings under a localized heading. Absent on a
+      // bundle scored before the evaluator took a --lang: treated as "no claim", no note.
+      evaluation?: { strengths?: string[]; concerns?: string[]; narrativeLang?: string };
       transfer?: { gaps?: string[] };
     };
     const posting = sub.postingId ? getPosting(sub.postingId) : null;
@@ -38,6 +43,7 @@ export async function POST(request: NextRequest) {
       strengths: bundle.evaluation?.strengths ?? [],
       concerns: bundle.evaluation?.concerns ?? [],
       gaps: bundle.transfer?.gaps ?? [],
+      narrativeLang: bundle.evaluation?.narrativeLang ?? null,
     });
 
     const entry = recordOutbox({

@@ -28,7 +28,7 @@ from typing import Any
 from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .analyze import analyze_need
-from .design import design_case, design_role
+from .design import MIN_PROBE_DECISION_OPTIONS, design_case, design_role
 from .llm_judge import judge_independence, resolve_judge_provider
 from .models import RUBRIC_DIMENSIONS, NeedAnalysis
 from .provenance import collect_fallback_reasons, combine_source
@@ -82,6 +82,23 @@ def _check_role(r: dict, scn: Scenario) -> list[str]:
     return issues
 
 
+def _load_bearing(probe: dict) -> bool:
+    """Can this probe DISCRIMINATE? The Python mirror of ``auditProbe`` in
+    app/_lib/devcase-probe-audit.ts: a probe discriminates only when it forces a real
+    choice (>= MIN_PROBE_DECISION_OPTIONS distinct defensible options), plants it at a
+    concrete seam (``where``) and says what good-vs-naive handling reveals.
+
+    The option count uses the TS normalisation — trim, casefold, dedupe — so "Ship it"
+    and "  ship IT  " count once on BOTH sides of the language boundary.
+    """
+    options = {str(o or "").strip().lower() for o in (probe.get("decisionSpace") or []) if str(o or "").strip()}
+    return (
+        len(options) >= MIN_PROBE_DECISION_OPTIONS
+        and bool(str(probe.get("where") or "").strip())
+        and bool(str(probe.get("reveals") or "").strip())
+    )
+
+
 def _check_case(c: dict, scn: Scenario) -> list[str]:
     issues = []
     probes = c.get("coverProbes") or []
@@ -91,6 +108,17 @@ def _check_case(c: dict, scn: Scenario) -> list[str]:
         issues.append("case: invalid probe kind")
     if any(not p.get("reveals") for p in probes):
         issues.append("case: probe missing 'reveals'")
+    # Probe STRENGTH, not just probe presence — and at EXACTLY the TS blocking threshold.
+    # `enforceProbeGate` (app/_lib/devcase-probe-audit.ts) refuses to publish a case with no
+    # load-bearing probe at all: one that can't tell a strong submission from a naive one is
+    # an evening of a candidate's unpaid time measuring nothing. This validator never read
+    # `decisionSpace` AT ALL, so the design-health eval reported a clean landscape for
+    # exactly the cases the product blocks — the doctrine was measured on one side of the
+    # language boundary only. Mirrored at the blocking rule (NO load-bearing probe), not
+    # stricter: a case where some probes are weak is a quality signal, not a reliability
+    # failure, and that is the line the approve gate itself draws.
+    if probes and not any(_load_bearing(p) for p in probes):
+        issues.append("case: no load-bearing probe (decisionSpace forces no choice)")
     rub = c.get("rubricDimensions") or []
     if {d.get("name") for d in rub} != RUBRIC_NAMES:
         issues.append("case: rubric dimensions off")

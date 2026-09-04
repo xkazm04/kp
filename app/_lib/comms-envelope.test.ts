@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildCommEnvelope, COMM_SCHEMA, KNOWN_COMM_KINDS, type CommEnvelopeContext } from "./comms-envelope.ts";
+import { IDEMPOTENCY_HEADER } from "./comms-envelope.ts";
 
 const MSG = { to: "jana@example.cz", subject: "Offer — Backend Engineer", body: "Hi Jana,…", kind: "offer", ref: "m-appl-jana-job-1" };
 
@@ -96,4 +97,16 @@ test("every kind the dispatchers emit is in the documented vocabulary (and vice 
 
 test("the documented vocabulary has no duplicates", () => {
   assert.equal(new Set(KNOWN_COMM_KINDS).size, KNOWN_COMM_KINDS.length);
+});
+
+test("messageId is the delivery identity: carried when given, explicitly null when not", () => {
+  // Stability rule: a receiver dedupes on this, so it must survive JSON as an explicit
+  // null rather than vanish from the object when a caller (the relay probe) has none.
+  const withId = buildCommEnvelope(MSG, ENTRY, "2026-06-11T12:00:00.000Z", "msg-abc");
+  assert.equal(withId.messageId, "msg-abc");
+  const without = buildCommEnvelope(MSG, ENTRY, "2026-06-11T12:00:00.000Z");
+  assert.equal(without.messageId, null);
+  assert.ok("messageId" in JSON.parse(JSON.stringify(without)));
+  // The header spelling is part of the published contract (outbound-export.md).
+  assert.equal(IDEMPOTENCY_HEADER, "Idempotency-Key");
 });

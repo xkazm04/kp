@@ -1179,6 +1179,54 @@ const ROUTES: RouteSpec[] = [
     expensive: "calibrate(activeFloor(), ws)",
     servedBefore: "await requireOperator()",
   },
+  // ------------------------------------------------------------------
+  // ADDED /perfect wave 27 (api-comms), with the limiters themselves. The three
+  // Channels-tab doors that write INSTALLATION wiring or reach the network carried no
+  // throttle at all. All are operator- and `org:manage`-gated, and open mode
+  // (KP_OPERATOR_PASSWORD unset) makes the operator gate a documented no-op for the
+  // ENTIRE API - so in each case the limiter is the real bound.
+  {
+    // POST mints a permanent PUBLIC ingress token bound to a role, and its 404-vs-200
+    // was a free probe for which role ids exist. PATCH (same file, same budget key)
+    // stores a URL the clock later fetches, so it was also an unmetered oracle for the
+    // stored-URL SSRF guard. 60/10min sits far above a recruiter wiring receivers up.
+    rel: "./channels/webhooks/route.ts",
+    key: "`channel-receiver:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RECEIVER_WRITE_RATE_LIMIT",
+    optsDef: "const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createChannelWebhook(",
+    // Identity first: a demo cookie is refused before it can spend budget.
+    servedBefore: "await requireOperator()",
+  },
+  {
+    // Revoke kills a live lead intake. It shares the POST/PATCH budget KEY deliberately
+    // - one caller must not win a second 60-call allowance by switching verbs.
+    rel: "./channels/webhooks/[token]/route.ts",
+    key: "`channel-receiver:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RECEIVER_WRITE_RATE_LIMIT",
+    optsDef: "const RECEIVER_WRITE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "revokeChannelWebhook(token",
+    servedBefore: "await requireOperator()",
+  },
+  {
+    // Every accepted call POSTs a signed ping to a URL the caller can re-point through
+    // POST /api/comms/relay, from this deployment's address, and hands back the
+    // outcome: an amplifier and a reachability oracle in one, exactly the hole
+    // /api/ats/test had. The limiter also precedes resolveRelay(), which DECRYPTS the
+    // stored signing secret. 20/10min matches the ats/test twin.
+    rel: "./comms/relay/test/route.ts",
+    key: "`comms-relay-test:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "PROBE_RATE_LIMIT",
+    optsDef: "const PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "resolveRelay()",
+    servedBefore: "await requireOperator()",
+  },
   {
     // ADDED /perfect 2026-09-03 (channels-1), with the limiter itself. The one
     // SECRET-WRITE door on the Channels tab: an accepted call replaces the endpoint
@@ -1814,4 +1862,19 @@ test(`${SKILL_PAGE}: hit ${SKILL_PAGE_LIMIT.limit + 1} inside one window is refu
     true,
     "a fresh window admits again — the cap is a rate, not a ban"
   );
+});
+
+// The receiver-write budget is ONE bucket across three verbs in two files (POST and
+// PATCH in channels/webhooks/route.ts, DELETE in its [token] child). The specs above
+// pin the first limiter call in each FILE, which cannot see a second verb in the same
+// file - so PATCH is pinned here explicitly. Without it, dropping PATCH's limiter would
+// leave the file's contract spec green on POST's call alone.
+test("./channels/webhooks/route.ts throttles PATCH on the SAME budget key as POST", () => {
+  const src = read("./channels/webhooks/route.ts");
+  const call = "rateLimit(`channel-receiver:${clientIpFrom(request.headers)}`, RECEIVER_WRITE_RATE_LIMIT)";
+  const first = src.indexOf(call);
+  const second = src.indexOf(call, first + 1);
+  assert.ok(first >= 0 && second > first, "both POST and PATCH must spend the same bucket");
+  // …and PATCH's call must precede its own expensive work, the encrypted pull-config write.
+  assert.ok(src.indexOf("setChannelPull(token") > second, "the limiter must precede setChannelPull");
 });

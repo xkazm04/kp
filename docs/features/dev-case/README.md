@@ -721,6 +721,38 @@ The behaviours with no DOM to test against are pinned as source shape in
 `devcase-studio-robustness.test.ts` — the same idiom as `DevTab.approve-error.test.ts`,
 and it says in the file that shape assertions are what they are.
 
+### The evaluator writes in the candidate's language
+
+`evaluate-submission` was the one step of the chain that took no `--lang`. Everything
+around it did — the analysis, the role and case design, the seed, the interview
+scenario, the two chat personas — so a candidate given a Czech case received a feedback
+letter whose FRAME was Czech (`buildFeedbackBrief` renders it through the locale-pinned
+`comms` translator) and whose BULLETS were English, on the LLM path and the keyless
+deterministic path alike. A localized greeting wrapped around English findings reads as
+a broken template, not as an honest limit.
+
+- `evaluate_submission`, `score_transfer` and `mint_followups`
+  (`pipeline/jobfit/devcase/evaluate.py`) take `lang`. The LLM path appends the shared
+  `pipeline/jobfit/i18n.py` `language_directive`; the deterministic templates — the
+  keyless default here — carry real cs/de/fr. The five capability CODE names
+  (`framing`/`tooling`/`judgment`/`architecture`/`transfer`) stay verbatim in every
+  language: they are schema values the rest of the system branches on.
+- `app/_lib/devcase-run.ts` resolves the language from the lifecycle record captured at
+  intake (`dev_lifecycle.lang`, the same value the case brief was written in) and passes
+  `--lang`; `en` when the lifecycle carries none.
+- Each artifact stamps back **`narrativeLang`** — which language its `strengths`,
+  `concerns`, `summary` and `gaps` are actually in. Without it a bundle scored before
+  this existed is indistinguishable from a correctly localized one.
+- `buildFeedbackBrief` (`app/_lib/devcase-feedback.ts`) compares `narrativeLang` to the
+  locale the letter is written in and, when they disagree, adds ONE footnote
+  (`comms.devcaseFeedback.engineNote`) naming the language the findings are in. It does
+  **not** translate the bullets: they are scored findings, and re-translating one here
+  would put words in the assessment's mouth. An ABSENT stamp is "no claim", never
+  "English" — no note is printed for a bundle that recorded no language.
+- Pinned by `TestNarrativeLanguage` in `pipeline/jobfit/tests/test_devcase_evaluate.py`
+  (four locales, distinct sentences per locale, the prompt directive, the unsupported-`lang`
+  fallback) and by the locale tests in `app/_lib/devcase-feedback.test.ts`.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:
