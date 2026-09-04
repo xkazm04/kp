@@ -592,6 +592,13 @@
       "noSpecifics": "Nous avons apprécié l’effort fourni sur cet exercice et vous souhaitons pleine réussite dans vos recherches.",
       "signoff": "Merci encore pour votre temps et votre intérêt.",
       "engineNote": "Remarque sur cette lettre : les constats ci-dessus ont été rédigés par notre moteur d'évaluation en {language}, et non dans la langue de ce message."
+    },
+    "devcaseAdvance": {
+      "subject": "Prochaine étape : {role}",
+      "greeting": "Bonjour {name},",
+      "body": "Votre travail pour le poste de {role} nous a marqués et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
+      "bodyScore": "Votre travail pour le poste de {role} nous a marqués (adéquation {score}/100) et nous aimerions poursuivre avec vous. Nous reviendrons vers vous très prochainement avec les prochaines étapes.",
+      "signoff": "Cordialement,\nL’équipe de recrutement"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "Ce récepteur est introuvable.",
     "CHANNEL_PULL_URL_INVALID": "Cette URL de récupération n’est pas autorisée. Utilisez une URL https:// publique.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Impossible de créer le récepteur. Réessayez.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Impossible de mettre à jour le récepteur. Réessayez.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Cette étape est impossible depuis l’état actuel de cet exercice. Rechargez la page pour voir où il en est."
   },
   "resilience": {
     "notFoundEyebrow": "404",

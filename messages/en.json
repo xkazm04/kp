@@ -592,6 +592,13 @@
       "noSpecifics": "We appreciated your effort on the exercise and wish you the very best in your search.",
       "signoff": "Thanks again for your time and interest.",
       "engineNote": "A note on this letter: the findings above were written by our review engine in {language}, not in the language of this message."
+    },
+    "devcaseAdvance": {
+      "subject": "Next step: {role}",
+      "greeting": "Hi {name},",
+      "body": "Your submission for {role} stood out and we would like to take it forward. We will be in touch with next steps shortly.",
+      "bodyScore": "Your submission for {role} stood out (fit {score}/100) and we would like to take it forward. We will be in touch with next steps shortly.",
+      "signoff": "Best,\nThe hiring team"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "That receiver can’t be found.",
     "CHANNEL_PULL_URL_INVALID": "That pull URL isn’t allowed. Use a public https:// URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Couldn’t create the receiver. Please try again.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Couldn’t update the receiver. Please try again.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "That step is not possible from where this assignment currently is. Reload to see its current state."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -592,6 +592,13 @@
       "noSpecifics": "Wir haben Ihren Einsatz bei der Aufgabe geschätzt und wünschen Ihnen alles Gute für Ihre Suche.",
       "signoff": "Nochmals vielen Dank für Ihre Zeit und Ihr Interesse.",
       "engineNote": "Hinweis zu diesem Schreiben: Die obigen Feststellungen hat unser Bewertungssystem in {language} verfasst, nicht in der Sprache dieser Nachricht."
+    },
+    "devcaseAdvance": {
+      "subject": "Nächster Schritt: {role}",
+      "greeting": "Hallo {name},",
+      "body": "Ihre Einreichung für {role} hat uns überzeugt, und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
+      "bodyScore": "Ihre Einreichung für {role} hat uns überzeugt (Passung {score}/100), und wir möchten den nächsten Schritt mit Ihnen gehen. Wir melden uns in Kürze mit den weiteren Schritten.",
+      "signoff": "Beste Grüße\nIhr Recruiting-Team"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "Dieser Empfänger wurde nicht gefunden.",
     "CHANNEL_PULL_URL_INVALID": "Diese Abruf-URL ist nicht zulässig. Verwenden Sie eine öffentliche https://-URL.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Der Empfänger konnte nicht erstellt werden. Bitte erneut versuchen.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Der Empfänger konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Dieser Schritt ist vom aktuellen Stand dieser Aufgabe aus nicht möglich. Laden Sie neu, um den aktuellen Stand zu sehen."
   },
   "resilience": {
     "notFoundEyebrow": "404",

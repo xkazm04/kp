@@ -592,6 +592,13 @@
       "noSpecifics": "Vážíme si úsilí, které jste do úkolu vložili, a přejeme vám hodně štěstí při hledání.",
       "signoff": "Ještě jednou děkujeme za váš čas a zájem.",
       "engineNote": "Poznámka k tomuto dopisu: zjištění výše sepsal náš hodnoticí systém v jazyce {language}, nikoli v jazyce této zprávy."
+    },
+    "devcaseAdvance": {
+      "subject": "Další krok: {role}",
+      "greeting": "Dobrý den, {name},",
+      "body": "vaše řešení na pozici {role} nás zaujalo a rádi bychom pokračovali dál. Brzy se vám ozveme s dalšími kroky.",
+      "bodyScore": "vaše řešení na pozici {role} nás zaujalo (shoda {score}/100) a rádi bychom pokračovali dál. Brzy se vám ozveme s dalšími kroky.",
+      "signoff": "S pozdravem\nnáborový tým"
     }
   },
   "language": {
@@ -1679,7 +1686,8 @@
     "CHANNEL_WEBHOOK_NOT_FOUND": "Tento přijímač se nepodařilo najít.",
     "CHANNEL_PULL_URL_INVALID": "Tato adresa pro stahování není povolená. Použijte veřejnou adresu https://.",
     "CHANNEL_WEBHOOK_CREATE_FAILED": "Přijímač se nepodařilo vytvořit. Zkuste to prosím znovu.",
-    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu."
+    "CHANNEL_WEBHOOK_UPDATE_FAILED": "Přijímač se nepodařilo upravit. Zkuste to prosím znovu.",
+    "DEVCASE_LIFECYCLE_TRANSITION_ILLEGAL": "Tento krok není z aktuálního stavu tohoto úkolu možný. Načtěte stránku znovu a uvidíte aktuální stav."
   },
   "resilience": {
     "notFoundEyebrow": "404",
