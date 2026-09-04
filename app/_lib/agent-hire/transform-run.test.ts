@@ -17,7 +17,7 @@
 // runner is imported, hence the dynamic imports.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
@@ -50,7 +50,11 @@ const privateTmp = mkdtempSync(path.join(os.tmpdir(), "agentfit-test-"));
 process.env.TMPDIR = privateTmp;
 process.env.TMP = privateTmp;
 process.env.TEMP = privateTmp;
-after(() => rmSync(privateTmp, { recursive: true, force: true }));
+// The private root is NOT removed in an `after` hook: the runner's usage sidecar
+// and the failed-spawn cleanup settle asynchronously, and a write into a directory
+// that a hook just deleted surfaces as an unhandled rejection that fails the whole
+// file with no subtest output (main's wave-38d run did exactly that). An empty
+// `agentfit-test-*` directory under %TEMP% per run is the cheaper trade.
 
 function workdirCount(): number {
   return readdirSync(privateTmp, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name.startsWith("jobfit-")).length;
