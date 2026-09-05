@@ -15,6 +15,7 @@ import { POST as webhookPost } from "./webhook/route.ts";
 import { POST as checkoutPost } from "./checkout/route.ts";
 import { POST as portalPost } from "./portal/route.ts";
 import { creditBalance, getBillingState, upsertBillingState } from "../../_lib/db/billing.ts";
+import { rateLimit } from "../../_lib/rate-limit.ts";
 
 after(() => cleanupUnitDb());
 
@@ -35,8 +36,11 @@ function clearPolarEnv(): void {
 }
 afterEach(() => clearPolarEnv());
 
-/** A correctly signed webhook request for `payload`, delivered as event `id`. */
-function signedWebhook(id: string, payload: unknown, opts?: { corruptSignature?: boolean }): NextRequest {
+/** A correctly signed webhook request for `payload`, delivered as event `id`.
+ *  `clientIp` rides as an `X-Forwarded-For` so the rate-limit test can address a
+ *  SPECIFIC limiter bucket (only meaningful with KP_TRUSTED_PROXY set — see
+ *  resolveClientIp's trust model). */
+function signedWebhook(id: string, payload: unknown, opts?: { corruptSignature?: boolean; clientIp?: string }): NextRequest {
   const body = JSON.stringify(payload);
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const mac = crypto.createHmac("sha256", SECRET_KEY).update(`${id}.${timestamp}.${body}`).digest("base64");
@@ -45,6 +49,7 @@ function signedWebhook(id: string, payload: unknown, opts?: { corruptSignature?:
     body,
     headers: {
       "content-type": "application/json",
+      ...(opts?.clientIp ? { "x-forwarded-for": opts.clientIp } : {}),
       "webhook-id": id,
       "webhook-timestamp": timestamp,
       // Corrupt by flipping the first char to a DIFFERENT one: `replace(/^./, "A")` was a
@@ -139,6 +144,48 @@ test("webhook: an oversized body is refused 413 — never buffered whole before 
 
   // A normal-sized delivery is untouched by the cap (it still fails on its signature).
   assert.equal((await webhookPost(signedWebhook("evt_sized_ok", subscriptionActive, { corruptSignature: true }))).status, 400);
+});
+
+// ---- the delivery RATE is bounded too ---------------------------------------------
+//
+// The 256 KB cap above bounds ONE request; WEBHOOK_RATE_LIMIT bounds how many of them
+// an anonymous caller may push through an HMAC verify and a SQLite transaction. The
+// limiter landed with no test at all, so nothing pinned that it precedes the body read
+// or that a full bucket answers the CODED 429 the client can localize.
+
+test("webhook: a spent bucket is refused 429 with a code — and the bucket is PER CLIENT under KP_TRUSTED_PROXY", async () => {
+  configurePolarEnv();
+  // With KP_TRUSTED_PROXY unset every caller collapses into one shared bucket
+  // (clientIpFrom's documented trap), which would make this test throttle the rest of
+  // the file. Declaring one trusted hop is also the deployment shape the assertion is
+  // about: a real per-client ceiling rather than a global one.
+  process.env.KP_TRUSTED_PROXY = "1";
+  try {
+    const flooder = "203.0.113.77";
+    // Spend the flooder's window through the SAME key the route builds. 600 calls into
+    // the pure limiter, not 600 HTTP round-trips: the ceiling is what is being pinned,
+    // not the cost of reaching it.
+    for (let i = 0; i < 600; i += 1) {
+      assert.equal(rateLimit(`billing-webhook:${flooder}`, { limit: 600, windowMs: 10 * 60_000 }), true, `hit ${i} must be allowed`);
+    }
+    // The 601st delivery is refused. Signature deliberately CORRUPT: the point is that
+    // the limiter answers BEFORE the body is read and verified, so a request that would
+    // otherwise be a 400 comes back 429.
+    const refused = await webhookPost(signedWebhook("evt_flood", subscriptionActive, { clientIp: flooder, corruptSignature: true }));
+    assert.equal(refused.status, 429);
+    // A code, not English prose — a throttled Polar retry is machine-read, and the
+    // client resolves `errors.TOO_MANY_REQUESTS` in the reader's language.
+    assert.equal(((await refused.json()) as { code: string }).code, "TOO_MANY_REQUESTS");
+
+    // A DIFFERENT client is untouched: one caller filling their bucket must not lock
+    // every other customer's money events out of the door.
+    const other = await webhookPost(
+      signedWebhook("evt_other_client", subscriptionActive, { clientIp: "198.51.100.9", corruptSignature: true })
+    );
+    assert.equal(other.status, 400, "a fresh bucket falls through to the signature gate");
+  } finally {
+    delete process.env.KP_TRUSTED_PROXY;
+  }
 });
 
 test("webhook with a bad signature → 400 and NO money state written", async () => {
