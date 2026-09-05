@@ -18,18 +18,23 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { TableStatus } from "@/app/_components/table/TableStatus";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { labelize } from "@/app/_lib/format";
 import { ActivityDetailModal } from "./ActivityDetailModal";
 import type { LlmActivityRow } from "@/app/_lib/db/llm";
 
 type Payload = { rows: LlmActivityRow[]; window: number };
 
-const num = (v: number | null) => (v == null ? "—" : v.toLocaleString("en-US"));
-
 export function ActivityTab() {
   const t = useTranslations("activity");
   const tModels = useTranslations("models");
   const format = useFormatter();
+  // The token counts read in the READER's locale (format.ts number-locale
+  // contract), not a hardcoded en-US: this table's own detail modal already
+  // grouped them the reader's way, so the two disagreed on the same number —
+  // "1 234" in the drawer over "1,234" in the row that opened it.
+  const { grouped } = useNumberFormat();
+  const num = (v: number | null) => (v == null ? "—" : grouped(v));
   const { data, error } = useJsonFetch<Payload>("/api/llm/activity");
 
   const [useCaseFilter, setUseCaseFilter] = useState("");
@@ -63,6 +68,13 @@ export function ActivityTab() {
         <p className={EYEBROW}>{t("eyebrow")}</p>
         <SectionTitle className="mt-1">{t("title")}</SectionTitle>
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro", { window: data?.window ?? 500 })}</p>
+        {/* WHICH CLOCK. The times in the table render in the reader's own zone
+            (format.dateTime), while the ledger stores UTC and the Models tab's
+            daily cost rollup cuts its buckets on UTC midnights — so a late-evening
+            call in Prague sits in "today" here and in tomorrow's cost column
+            there. Two true statements that look like a contradiction until the
+            page says which clock each one keeps. */}
+        <p className={`mt-1 max-w-2xl text-meta text-steel`}>{t("tzNote")}</p>
       </header>
 
       {error ? (

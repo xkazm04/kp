@@ -184,6 +184,17 @@ export type PipelineAnalytics = {
    *  the two bugs the cap fixes: an unbounded scan is slow, a silent slice is
    *  WRONG — the same `{ …, truncated }` contract `listJobsPage` states. */
   truncated: boolean;
+  /** The IANA zone the DATE arithmetic on this payload was done in — always
+   *  `"UTC"`, and stated rather than assumed. Every cutoff here is ISO-string
+   *  comparison against `Date` millisecond arithmetic, and the weekly momentum
+   *  buckets are cut the same way, so "the last 30 days" and every bucket edge
+   *  are UTC midnights. A Prague operator's day starts one or two hours before
+   *  that, which is enough to move a candidate created late in the evening into
+   *  the neighbouring bucket — small, real, and invisible while nothing on the
+   *  wire said which zone the page was counting in. Declared so a reader (and the
+   *  header note beside the window switcher) can say so out loud; converting the
+   *  arithmetic to the operator's zone is a separate, larger decision. */
+  bucketTz: "UTC";
 };
 
 /** How many pipeline_entries rows one analytics aggregation will pull into memory.
@@ -197,6 +208,23 @@ export type PipelineAnalytics = {
  *  buys a worst-case guarantee rather than changing any answer; when it IS reached,
  *  `truncated` says so instead of quietly reshaping the funnel. */
 export const ANALYTICS_COHORT_CAP = 20_000;
+
+/** The zone every date bound and bucket edge in this module is computed in — see
+ *  `PipelineAnalytics.bucketTz`. A constant so the payload's claim and the
+ *  arithmetic cannot drift apart. */
+const BUCKET_TZ = "UTC" as const;
+
+/** The four ORIGIN buckets `bySource` reports, from an entry's EARLIEST pipeline
+ *  event kind. Declared once: this mapping was typed out byte-identically inside
+ *  both `pipelineAnalytics` and `pipelineAnalyticsPrior`, whose whole contract is
+ *  that they bucket the same rows the same way — two copies of the rule the delta
+ *  depends on being identical is the one shape that rule must not have. */
+function originOf(kind: string): string {
+  if (kind === "applied") return "applied";
+  if (kind === "matched") return "matched";
+  if (kind === "added" || kind === "intake_degraded") return "added";
+  return "other";
+}
 
 /** Resolve a caller's `rowCap` against the module cap. A non-positive or
  *  non-integer override would bind `LIMIT 0` (reads nothing) or `LIMIT -1`
@@ -594,8 +622,6 @@ export function pipelineAnalytics(
           )
           .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
   ) as { stage: string; kind: string }[];
-  const originOf = (kind: string): string =>
-    kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
   const sourceMap = new Map<string, { total: number; reachedInterview: number; hired: number }>();
   for (const r of sourceRows) {
     const key = originOf(r.kind);
@@ -831,6 +857,7 @@ export function pipelineAnalytics(
     targets: analyticsTargets(targetValues),
     excludedSim: excludedSim.n,
     truncated,
+    bucketTz: BUCKET_TZ,
     costPerHireCzk,
     costPerHireAsOf,
     hiresClosedInWindow,
@@ -970,8 +997,6 @@ export function pipelineAnalyticsPrior(
         WHERE p.created_at >= ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
     )
     .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, SIM_TITLE_LIKE, workspaceId) as { stage: string; kind: string }[];
-  const originOf = (kind: string): string =>
-    kind === "applied" ? "applied" : kind === "matched" ? "matched" : kind === "added" || kind === "intake_degraded" ? "added" : "other";
   const sourceMap = new Map<string, { total: number; hired: number }>();
   for (const r of sourceRows) {
     const key = originOf(r.kind);

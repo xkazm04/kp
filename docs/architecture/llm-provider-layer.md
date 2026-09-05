@@ -409,6 +409,17 @@ paginated table built from the shared primitives (`ColumnFilter` headers +
 `TablePager` over the bounded `LLM_ACTIVITY_WINDOW` of 500 rows; older spend
 stays in the Models tab's daily rollup).
 
+**Two clocks, both stated.** The table's timestamps render in the READER's zone
+(`format.dateTime`) and its token counts in the reader's locale
+(`useNumberFormat().grouped`, matching the detail modal that used to disagree with
+the row that opened it). The daily rollup does NOT follow the reader: `substr(ts,
+1, 10)` cuts `aggregateLlmUsage`'s buckets on UTC midnights, so a late-evening call
+in Prague sits in "today" on Activity and in tomorrow's cost column on Models.
+Every rollup bucket now carries `tz: "UTC"` (`LLM_USAGE_DAY_TZ`) and the Activity
+header says which clock it keeps (`activity.tzNote`, 4 locales). Re-cutting the
+buckets in an operator's zone is a separate decision — it needs an operator zone to
+exist first.
+
 The tab **states its scope**: `llm_usage` has no org or workspace column, so the
 ledger is deployment-wide, and the intro sentence says so in the same words the
 billing panel uses for the same ledger (`activity.intro` ↔

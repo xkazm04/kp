@@ -88,6 +88,13 @@ export function AnalyticsHeader({
         <p id={scopeNoteId} className="mt-2 max-w-3xl text-meta text-steel">
           {scopeNote}
         </p>
+        {/* WHICH CLOCK the window and the trend buckets are cut on. Every cutoff
+            in db/analytics.ts is ISO/millisecond arithmetic, so "the last 30 days"
+            and every weekly momentum bar end at a UTC midnight — one or two hours
+            before a Prague operator's own day does. Small, real, and invisible
+            while nothing said which zone the page counts in. The payload declares
+            it (`bucketTz`); this states it where the control that uses it lives. */}
+        <p className="mt-1 max-w-3xl text-meta text-steel">{t("bucketTzNote")}</p>
         {/* THE SILENCE, NAMED. Every figure on this page excludes guided-demo rows
             (db/analytics.ts `notSim`) — correctly, since a demo must never move a
             leadership metric. But the board shows those same people, so after a

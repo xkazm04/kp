@@ -901,7 +901,27 @@ tests only. Pinned by `analytics-cohort-cap.test.ts` and `org-benchmarks-cap.tes
 `analytics-prior-slice.test.ts` additionally pins that the two cohort reads cut identically,
 so a delta can never compare a whole window against a slice of another.
 
-Payload additions this round: `truncated` (above), `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
+### The page counts in UTC, and now says so
+
+Every date bound in `db/analytics.ts` is ISO-string comparison against `Date`
+millisecond arithmetic, and the weekly momentum buckets are cut the same way — so
+"the last 30 days" and every trend bar end at a **UTC midnight**, one or two hours
+before a Central European operator's own day does. That is enough to move an entry
+created late in the evening into the neighbouring bucket: small, real, and
+invisible while nothing on the wire named the zone. `PipelineAnalytics.bucketTz`
+declares it (`"UTC"`, from the module's single `BUCKET_TZ` constant so the claim and
+the arithmetic cannot drift), and `AnalyticsHeader` states it under the window
+switcher (`analytics.bucketTzNote`, 4 locales). The LLM ledger's daily cost rollup
+cuts the same way and declares `tz` per bucket (`LLM_USAGE_DAY_TZ`, see the
+provider-layer doc). Re-cutting the arithmetic in an operator's zone is a separate,
+larger decision — it needs an operator zone to exist first.
+
+Also single-sourced this round: `originOf`, the earliest-event → origin bucket map
+`bySource` reports, was typed out byte-identically inside `pipelineAnalytics` and
+`pipelineAnalyticsPrior`, whose entire contract is that they bucket the same rows
+the same way. One module-level function now.
+
+Payload additions this round: `truncated` (above), `bucketTz`, `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
 `hiresClosedInWindow`, `computeCost.windowDays` / `.hires`, and the `leakage` descriptor on both
 calibration payload types.
 

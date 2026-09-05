@@ -364,8 +364,19 @@ export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
   }));
 }
 
+/** The zone `aggregateLlmUsage` cuts its DAYS in. `substr(ts, 1, 10)` takes the
+ *  date part of an ISO-8601 UTC timestamp, so every bucket edge is a UTC midnight
+ *  — for a Prague operator that is 01:00 or 02:00 local, and an LLM call made late
+ *  in the evening lands in the NEXT day's cost column. Small, real, and invisible
+ *  while nothing on the wire said which zone the rollup counted in. Stated on every
+ *  bucket rather than assumed; re-cutting the buckets in the operator's zone is a
+ *  separate decision (it needs an operator zone to exist first). */
+export const LLM_USAGE_DAY_TZ = "UTC" as const;
+
 export type LlmUsageAggregateRow = {
   day: string;
+  /** {@link LLM_USAGE_DAY_TZ} — the zone `day`'s boundaries were cut in. */
+  tz: typeof LLM_USAGE_DAY_TZ;
   useCase: string;
   provider: string;
   model: string | null;
@@ -406,6 +417,7 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     .all(since) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     day: r.day as string,
+    tz: LLM_USAGE_DAY_TZ,
     useCase: r.use_case as string,
     provider: r.provider as string,
     model: (r.model as string) ?? null,

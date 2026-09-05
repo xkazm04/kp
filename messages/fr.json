@@ -3262,7 +3262,13 @@
       "intakeCapturedManually": "Informations saisies manuellement.",
       "githubDeepDiveFromDrawer": "Analyse GitHub approfondie lancée depuis la fiche candidat.",
       "manualStageMove": "Déplacé manuellement par un recruteur.",
-      "addedToPipeline": "Ajouté au pipeline."
+      "addedToPipeline": "Ajouté au pipeline.",
+      "repeatApplication": "Nouvelle candidature via {channel}.",
+      "repeatApplicationContact": "Nouvelle candidature via {channel}. E-mail de contact enregistré."
+    },
+    "intakeReasons": {
+      "leadPending": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception.",
+      "leadPendingUngated": "Lead via {channel} : profil en attente d'enrichissement. Le lien vers la candidature complète a été envoyé dans l'accusé de réception. Éligibilité non vérifiée par le formulaire source : {ungated}"
     }
   },
   "decisions": {
@@ -7191,7 +7197,8 @@
     "briefRolesNoDataClaim": "Aucun poste ne porte encore le pipeline.",
     "simExcludedNote": "{count, plural, one {# entrée de la démo guidée est exclue} other {# entrées de la démo guidée sont exclues}} de tous les chiffres de cette page. Elles restent sur le tableau jusqu’à la réinitialisation de la simulation.",
     "daysAvgOver": "jours en moy. sur {count, plural, one {# recrutement} other {# recrutements}}",
-    "closedInWindowSub": "{count} clôturés sur la période"
+    "closedInWindowSub": "{count} clôturés sur la période",
+    "bucketTzNote": "La période et les tranches hebdomadaires de tendance sont découpées sur des journées UTC."
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",
@@ -9794,7 +9801,8 @@
     "detailCached": "Jetons en cache",
     "runUnlinked": "Cette action s’est exécutée hors d’un traitement en arrière-plan suivi ; aucun résultat n’a donc été conservé.",
     "runGone": "Le traitement à l’origine de ce résultat est sorti de l’historique des tâches.",
-    "runNoOutput": "Ce traitement s’est terminé sans conserver de résultat."
+    "runNoOutput": "Ce traitement s’est terminé sans conserver de résultat.",
+    "tzNote": "Les heures s’affichent dans votre propre fuseau horaire. Le journal enregistre en UTC, et le récapitulatif quotidien des coûts de l’onglet Modèles découpe les jours en UTC."
   },
   "readout": {
     "empty": "Rien d’enregistré",

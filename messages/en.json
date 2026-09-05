@@ -3262,7 +3262,13 @@
       "intakeCapturedManually": "Intake captured manually.",
       "githubDeepDiveFromDrawer": "GitHub deep-dive run from the candidate drawer.",
       "manualStageMove": "Moved manually by a recruiter.",
-      "addedToPipeline": "Added to the pipeline."
+      "addedToPipeline": "Added to the pipeline.",
+      "repeatApplication": "Repeat application via {channel}.",
+      "repeatApplicationContact": "Repeat application via {channel}. Contact email captured."
+    },
+    "intakeReasons": {
+      "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",
+      "leadPendingUngated": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement. Eligibility not verified by the source form: {ungated}"
     }
   },
   "decisions": {
@@ -7191,7 +7197,8 @@
     "briefRolesNoDataClaim": "No role is carrying the pipeline yet.",
     "simExcludedNote": "{count, plural, one {# guided-demo entry is} other {# guided-demo entries are}} excluded from every figure on this page. They stay on the board until you reset the simulation.",
     "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
-    "closedInWindowSub": "{count} closed in window"
+    "closedInWindowSub": "{count} closed in window",
+    "bucketTzNote": "The window and the weekly trend buckets are cut on UTC days."
   },
   "matrix": {
     "loadFailed": "Load failed.",
@@ -9794,7 +9801,8 @@
     "detailCached": "Cached tokens",
     "runUnlinked": "This action ran outside a tracked background run, so no output was stored for it.",
     "runGone": "The run that produced this has aged out of the task history.",
-    "runNoOutput": "This run finished without storing any output."
+    "runNoOutput": "This run finished without storing any output.",
+    "tzNote": "Times are shown in your own time zone. The ledger stores UTC, and the daily cost rollup on the Models tab buckets by UTC day."
   },
   "readout": {
     "empty": "Nothing recorded",

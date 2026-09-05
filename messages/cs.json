@@ -3262,7 +3262,13 @@
       "intakeCapturedManually": "Údaje doplněny ručně.",
       "githubDeepDiveFromDrawer": "Hloubková analýza GitHubu spuštěna z detailu kandidáta.",
       "manualStageMove": "Přesunuto ručně náborářem.",
-      "addedToPipeline": "Přidáno do náboru."
+      "addedToPipeline": "Přidáno do náboru.",
+      "repeatApplication": "Opakovaná přihláška přes {channel}.",
+      "repeatApplicationContact": "Opakovaná přihláška přes {channel}. Zachycen kontaktní e-mail."
+    },
+    "intakeReasons": {
+      "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",
+      "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}"
     }
   },
   "decisions": {
@@ -7191,7 +7197,8 @@
     "briefRolesNoDataClaim": "Zatím žádná role pipeline netáhne.",
     "simExcludedNote": "{count, plural, one {# záznam z ukázkové simulace je vyloučen} few {# záznamy z ukázkové simulace jsou vyloučeny} other {# záznamů z ukázkové simulace je vyloučeno}} ze všech čísel na této stránce. Na nástěnce zůstávají, dokud simulaci nevynulujete.",
     "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
-    "closedInWindowSub": "{count} uzavřeno v období"
+    "closedInWindowSub": "{count} uzavřeno v období",
+    "bucketTzNote": "Období i týdenní intervaly trendu se počítají podle dnů v UTC."
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
@@ -9794,7 +9801,8 @@
     "detailCached": "Tokeny z cache",
     "runUnlinked": "Tato akce proběhla mimo sledovaný běh na pozadí, takže se pro ni neuložil žádný výstup.",
     "runGone": "Běh, který to vytvořil, už vypadl z historie úloh.",
-    "runNoOutput": "Tento běh skončil, aniž by uložil jakýkoli výstup."
+    "runNoOutput": "Tento běh skončil, aniž by uložil jakýkoli výstup.",
+    "tzNote": "Časy se zobrazují ve vašem časovém pásmu. Záznamy se ukládají v UTC a denní přehled nákladů na kartě Modely se dělí podle dnů v UTC."
   },
   "readout": {
     "empty": "Nic zaznamenáno",

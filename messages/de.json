@@ -3262,7 +3262,13 @@
       "intakeCapturedManually": "Daten manuell erfasst.",
       "githubDeepDiveFromDrawer": "GitHub-Tiefenanalyse aus der Kandidatenansicht gestartet.",
       "manualStageMove": "Manuell von einer recruitenden Person verschoben.",
-      "addedToPipeline": "Zur Pipeline hinzugefügt."
+      "addedToPipeline": "Zur Pipeline hinzugefügt.",
+      "repeatApplication": "Erneute Bewerbung über {channel}.",
+      "repeatApplicationContact": "Erneute Bewerbung über {channel}. Kontakt-E-Mail erfasst."
+    },
+    "intakeReasons": {
+      "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",
+      "leadPendingUngated": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt. Eignung vom Quellformular nicht geprüft: {ungated}"
     }
   },
   "decisions": {
@@ -7191,7 +7197,8 @@
     "briefRolesNoDataClaim": "Noch trägt keine Rolle die Pipeline.",
     "simExcludedNote": "{count, plural, one {# Eintrag aus der geführten Demo ist} other {# Einträge aus der geführten Demo sind}} von allen Zahlen auf dieser Seite ausgenommen. Auf dem Board bleiben sie, bis Sie die Simulation zurücksetzen.",
     "daysAvgOver": "Tage Ø aus {count, plural, one {# Einstellung} other {# Einstellungen}}",
-    "closedInWindowSub": "{count} im Zeitraum beendet"
+    "closedInWindowSub": "{count} im Zeitraum beendet",
+    "bucketTzNote": "Der Zeitraum und die wöchentlichen Trendabschnitte richten sich nach UTC-Tagen."
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",
@@ -9794,7 +9801,8 @@
     "detailCached": "Tokens aus dem Cache",
     "runUnlinked": "Diese Aktion lief außerhalb eines erfassten Hintergrundlaufs, daher wurde kein Ergebnis gespeichert.",
     "runGone": "Der Lauf, der dies erzeugt hat, ist aus der Aufgabenhistorie herausgefallen.",
-    "runNoOutput": "Dieser Lauf endete, ohne ein Ergebnis zu speichern."
+    "runNoOutput": "Dieser Lauf endete, ohne ein Ergebnis zu speichern.",
+    "tzNote": "Zeiten erscheinen in Ihrer eigenen Zeitzone. Das Protokoll speichert UTC, und die tägliche Kostenübersicht im Tab „Modelle“ bildet Tage nach UTC."
   },
   "readout": {
     "empty": "Nichts erfasst",
