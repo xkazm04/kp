@@ -139,9 +139,23 @@ ratchet is). Those two key on `NextResponse.json({ error: … })`, so neither
 could see a raw message pushed into a results array on its way to the client;
 `/api/schedule/invite/bulk` was leaking that way past both of them.
 
+**The file carries two detectors, because there are two ways to put the same
+message on the wire.** The first (`LEAK_CEILING`, above) keys on a catch block
+that *shapes* the message itself. The second (`FORWARD_CEILING`) keys on a catch
+block that hands the caught value to `jsonError(err, fallback)` and lets
+`api-response.ts` do the shaping: such a body contains no `.message` text at all,
+so the first detector is structurally blind to it, and nine call sites across
+eight route files sat unwatched until 2026-09-05. It fires on the first argument
+being a *binding* rather than on the call, so the correct uses stay clean —
+`jsonError(null, "Unauthorized.", 401)` and its four siblings in
+`/api/comms/callback` pass a literal, and nothing thrown can reach the client
+through them. The `fallback` string beside a forwarded error reads like the
+answer but is only reached when the throw was not an `Error`. Both ceilings move
+in one direction: down.
+
 The scan cannot see a message that reaches the wire through a helper in another
-module, and it does not judge whether a `jsonError` call site's message is
-genuinely client-safe. Those stay review's job.
+module, and it does not judge whether a *literal* `jsonError` message is
+genuinely client-safe (or localizable). Those stay review's job.
 
 **And it cannot see the other half of the same defect: a handler that invents its
 own English.** The ratchet keys on a THROWN error's `.message` reaching the body,
