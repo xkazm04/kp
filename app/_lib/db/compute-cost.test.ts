@@ -26,12 +26,12 @@ test("computeCostWindow sums priced ledger rows, flags unpriced, and honors the 
   const basePrior = computeCostWindow(30, Date.now() - 40 * DAY);
 
   // Two priced calls + one unpriced (NULL cost) — all stamped at 'now' (in window).
-  insertLlmUsage({ useCase: "campaign_pack", provider: "claude_cli", costUsd: 0.01, source: "llm" });
-  insertLlmUsage({ useCase: "campaign_pack", provider: "claude_cli", costUsd: 0.02, source: "llm" });
-  insertLlmUsage({ useCase: "campaign_pack", provider: "azure", costUsd: null, source: "llm" });
+  insertLlmUsage({ useCase: "campaign_pack", provider: "claude_cli", costUsd: 0.01, source: "llm", outcome: "ok" });
+  insertLlmUsage({ useCase: "campaign_pack", provider: "claude_cli", costUsd: 0.02, source: "llm", outcome: "ok" });
+  insertLlmUsage({ useCase: "campaign_pack", provider: "azure", costUsd: null, source: "llm", outcome: "ok" });
 
   // A pricey call OUTSIDE a 30-day window (backdate the just-inserted row to 90d ago).
-  insertLlmUsage({ useCase: "analyze", provider: "claude_cli", costUsd: 5, source: "llm" });
+  insertLlmUsage({ useCase: "analyze", provider: "claude_cli", costUsd: 5, source: "llm", outcome: "ok" });
   ensureDb()
     .prepare(`UPDATE llm_usage SET ts = ? WHERE id = (SELECT MAX(id) FROM llm_usage)`)
     .run(new Date(Date.now() - 90 * DAY).toISOString());

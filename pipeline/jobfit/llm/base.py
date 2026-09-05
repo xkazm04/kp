@@ -569,12 +569,19 @@ class TextProvider:
             # LightTrack. Otherwise a corrupted/truncated response reads as a healthy
             # success and the monitoring can't see the call site drop to its
             # deterministic fallback (the provider "responded", just not usably).
+            #
+            # ledger=False: this is the ONE emit_error that sits on top of an attempt
+            # already in the usage ledger as a paid success. A `failed` row here would
+            # make one logical call two events in the Activity tab and double its entry
+            # in the per-use-case counts; the descent is instead named on the CLI's
+            # deterministic line ("unparseable_output"), where it belongs.
             monitor.emit_error(
                 provider=self.name,
                 model=self.model,
                 use_case=self.use_case,
                 error=err,
                 duration_ms=0,
+                ledger=False,
             )
             raise err from exc
 

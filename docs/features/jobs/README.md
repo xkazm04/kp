@@ -568,6 +568,20 @@ fields (salary band, location, work mode, shift). `defaulted_fields`
 missing facts surface as localized warning codes. One pack per job × language,
 persisted in `campaign_packs`.
 
+**`source` says whose words are on the wire, not whether a call was made.**
+`campaign.py`'s coercion has two routes back to the template — a payload of the
+wrong shape, and one whose variants are all empty — and both hand back the
+deterministic pack. Those runs answer `"deterministic"`, which is what
+`campaign-run.ts` persists and what `JobsCampaignTab` labels, so a pack the model
+contributed nothing to is never painted as AI-generated copy (same honesty rule
+`automation.py`'s `_generate` carries). When a provider that PASSED the
+availability gate fails mid-flight, the cause is handed back to `campaign_cli`
+through an `on_fallback` callback — the shape `reasoning_cli` already uses — and
+lands in the usage ledger's `reason` (`emit_deterministic`): a one-line
+`"<ExceptionType>: <message>"` for a raise, `unusable_output` for a reply
+coercion emptied. A keyless or `--no-llm` run records no reason: that descent is
+not a failure and the availability gate already named it.
+
 | Route | Method | Purpose |
 |---|---|---|
 | `GET /api/jobs/[id]/campaign` | GET | Return the stored pack. |

@@ -140,6 +140,86 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # 6 objectives in one object — past the base 2048 cap, at which point the JSON
     # truncates and the identical heuristic dossier ships instead.
     "repo_scan": 6144,
+    # agent_fit re-emits the WHOLE judgement in one object: up to
+    # _MAX_COVERAGE_ITEMS=12 {item, coverage, rationale} rows, then a spec whose
+    # `systemPromptDraft` is asked for at <=1200 chars and ACCEPTED by the coercer
+    # up to 4000 (agentfit.py) — a ready-to-use system prompt is the single
+    # largest field this app asks a model to write — plus 2-4 metric objects.
+    # Structurally the same 12-rationales-plus-prose shape as `repo_scan` one
+    # size down, and it fails the same way: generate_with_fallback coerces the
+    # truncated JSON away and ships the keyword-matched deterministic() spec whose
+    # verdict is a permanent "unassessed".
+    "agent_fit": 4096,
+    # profile_draft re-emits DRAFT_SCHEMA whole: 17 keys including UNCAPPED
+    # `skill_claims` (3 fields each — a real CV yields 15-30) and `experiences`
+    # (5 fields each, one of them prose plus a nested skills list).
+    # This row is not an estimate so much as a correction: the DIRECT Gemini path
+    # this use case still defaults to already passes max_output_tokens=4000
+    # (profile_draft_cli._extract), so before this row a KP_LLM_CONFIG row for
+    # profile_draft silently HALVED the budget its own default path had chosen,
+    # and the truncated payload raises "AI returned no structured draft" — the
+    # operator reads it as "add more detail to the notes", which makes it worse.
+    "profile_draft": 4096,
+    # Every intake turn returns the reply (capped 1600 chars) AND the ENTIRE
+    # updated RoleBrief — summary, responsibilities, success_criteria, plus
+    # requirements (8 fields each, incl. a rationale) and facets (7 fields each,
+    # incl. a prose value), neither list capped (rolebrief.py). The brief is at
+    # its LARGEST on the last turns, so the base cap truncates exactly when the
+    # session has the most to lose, and merge_brief then merges a half-object;
+    # `extract_transcript` rides the same use case and re-emits that whole brief
+    # in ONE shot from a finished voice call. Same "re-emit the whole structured
+    # artifact each call" shape as `jd_ingest`, and sized with it.
+    "role_intake": 6144,
+}
+
+# Use cases DELIBERATELY left on the base cap. A row here is a decision with a
+# reason, not an omission — the seven use cases below had no row and no record,
+# which is indistinguishable from "nobody looked". ``test_llm_capabilities`` pins
+# every use case ``resolve_provider`` is called with to one of these two maps, so
+# a NEW call site cannot reach production on an unexamined 2048 cap.
+#
+# Raising a cap is not free: it is the ceiling a runaway or reasoning-heavy model
+# is allowed to bill to, so "just make them all 8192" trades a truncation bug for
+# a spend bug. These four earn the base cap on their output contract.
+BASE_CAP_BY_DECISION: dict[str, str] = {
+    "match_reasoning": (
+        "One verdict sentence, 2-4 strengths, 1-4 gaps, 2-3 probes — 11 short "
+        "strings at the structural maximum (match_reasoning._coerce), ~600 output "
+        "tokens. NOTE the asymmetry worth knowing about: automation.py reaches this "
+        "same generator through a provider resolved for `automation` (4096), so the "
+        "identical code runs under two caps decided by the CALLER. Both clear the "
+        "payload, so this is a curiosity rather than a bug — but a future change "
+        "that grows this payload has to move BOTH."
+    ),
+    "cv_analysis": (
+        "This use case does not read this map at all, and a row here would be a "
+        "lie a future reader would act on. The analysis rides `complete_document` "
+        "(the file_input verb), and gemini.analyze_profile_with_gemini passes "
+        "max_output_tokens=16000 explicitly at the call site; GeminiProvider."
+        "complete_document forwards that parameter and never consults "
+        "self.max_tokens. The cap for the largest payload in the app is therefore "
+        "owned by gemini.py, which also raises a named `output_truncated` error "
+        "when it is hit — the visibility the base cap lacks. Move that constant, "
+        "not this map."
+    ),
+    "role_intake_voice": (
+        "A SPOKEN turn, coerced to MAX_VOICE_REPLY_CHARS=700 (~3 sentences, ~200 "
+        "tokens) and resolved with timeout=30 because a slow answer must fall to "
+        "the scripted thread rather than stall a live call. The base cap is already "
+        "~10x the contract; more room buys nothing and only widens what a model "
+        "that reasons aloud may spend before the timeout fires. Judged on the task, "
+        "not on symmetry with `role_intake` — the two threads differ precisely in "
+        "that this one carries no JSON contract and no brief."
+    ),
+    "devcase_judge": (
+        "A judging seat, and the verdicts are small by construction: "
+        "{score, levers<=3, note<=200 chars} (lifecycle_audits), "
+        "{score, fairToAiUse, note<=200} (submission_eval), {matchesRole, "
+        "note<=160} (role fit), and the bench judge's score + 3 dims + a short "
+        "verdict. Every one is capped by its own coercer well under 2048. The seat "
+        "also runs FAN-OUT (run_judge maps one call per item), so it is the worst "
+        "place in the app to widen a ceiling on speculation."
+    ),
 }
 
 

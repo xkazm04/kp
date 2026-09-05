@@ -120,6 +120,32 @@ class AnalyzeHonestyFieldsTest(unittest.TestCase):
         self.assertIsNotNone(result.job_fit)
         self.assertTrue(any("Structured job context" in c for c in result.sanity_checks))
 
+    def test_gap_the_cv_contradicts_is_dropped_and_noted(self) -> None:
+        # M4 — the symmetric trust gate. The CV plainly writes SEO, yet the model
+        # also lists SEO as a gap: that gap would have become a stated rejection
+        # reason and an interview-kit / keyword-panel input. It is dropped, the
+        # genuine gap survives, and the drop is recorded in the trust ledger with
+        # its count rather than happening silently.
+        payload = _payload(missing=["SEO", "PPC"], skills=["SEO"])
+        result = _run(payload, jd="We need a specialist in PPC campaigns and paid search.")
+        job_fit = result.job_fit
+        assert job_fit is not None
+        self.assertNotIn("SEO", job_fit.missing_skills)
+        self.assertIn("PPC", job_fit.missing_skills)
+        note = next(c for c in result.sanity_checks if "AI-suggested gap" in c)
+        self.assertIn("Dropped 1", note)
+        self.assertIn("SEO", note)
+        # The positive path is untouched: SEO is evidenced, so it stays a match.
+        self.assertIn("SEO", job_fit.matching_skills)
+
+    def test_gap_the_cv_does_not_evidence_is_left_alone(self) -> None:
+        # No contradiction → no drop and no note; the ledger stays quiet.
+        payload = _payload(missing=["PPC"], skills=["SEO"])
+        result = _run(payload, jd="We need a specialist in PPC campaigns.")
+        assert result.job_fit is not None
+        self.assertEqual(result.job_fit.missing_skills, ["PPC"])
+        self.assertFalse(any("AI-suggested gap" in c for c in result.sanity_checks))
+
     def test_jd_less_analysis_has_no_unproven_bucket(self) -> None:
         # No JD → no job_fit at all → the fields never populate (stay None).
         payload = _payload(missing=[], skills=["SEO"])

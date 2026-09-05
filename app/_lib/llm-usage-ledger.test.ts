@@ -28,6 +28,11 @@ test("maps a full valid line to the insertLlmUsage shape", () => {
     cachedTokens: 5,
     costUsd: 0.0002,
     source: "llm",
+    // A line written before the outcome/reason columns existed omits both keys, and
+    // it recorded a call that SUCCEEDED — "ok" with nothing to explain is what it
+    // meant, so that is what it maps to.
+    outcome: "ok",
+    reason: null,
     requestId: null,
   });
 });
@@ -120,4 +125,77 @@ test("fractional token counts are rounded to the integer columns that hold them"
   assert.equal(row?.outputTokens, 0);
   // Cost is a REAL column and genuinely fractional — it must NOT be rounded.
   assert.equal(row?.costUsd, 0.0125);
+});
+
+// ---- outcome / reason (tiger X2 + X14, 2026-09-05) --------------------------
+// The degradation reason was computed by automation._generate and thrown away at
+// this boundary (extra keys were ignored), and a failed attempt was never written
+// at all. Both now ride the sidecar; see the visible-but-not-billable note in
+// llm-usage-ledger.ts for why the failure gets its own column instead of a row in
+// the sums.
+
+test("a degraded serve's reason survives the line", () => {
+  const row = parseLedgerLine(
+    JSON.stringify({
+      use_case: "campaign_pack",
+      provider: "deterministic",
+      input_tokens: 0,
+      output_tokens: 0,
+      cost_usd: 0,
+      source: "deterministic",
+      outcome: "ok",
+      reason: "unusable_output",
+    })
+  );
+  assert.equal(row?.reason, "unusable_output", "the WHY is the whole point of the row");
+  assert.equal(row?.outcome, "ok", "a template serve is a meterable, truthful zero — not a failure");
+});
+
+test("a failed attempt parses as outcome 'failed' with no tokens to bill", () => {
+  const row = parseLedgerLine(
+    JSON.stringify({
+      use_case: "cv_analysis",
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      input_tokens: null,
+      output_tokens: null,
+      cost_usd: null,
+      source: "llm",
+      outcome: "failed",
+      reason: "provider_timeout",
+    })
+  );
+  assert.equal(row?.outcome, "failed");
+  assert.equal(row?.reason, "provider_timeout");
+  assert.equal(row?.costUsd, null, "the provider reported no usage; a guess here would be billed");
+});
+
+test("a line with no outcome key is 'ok' — every row written before the column existed was one", () => {
+  const row = parseLedgerLine(JSON.stringify({ use_case: "x", provider: "p", cost_usd: 0.5 }));
+  assert.equal(row?.outcome, "ok");
+  assert.equal(row?.reason, null);
+});
+
+// The inverse of the `source` coercion above, and deliberately so: `source` names
+// whose words are on the wire and a garbled value can safely fall back to "llm",
+// but `outcome` decides whether the row's money joins a total. An unclassifiable
+// value there has no safe default in either direction, so the LINE goes.
+test("an unrecognized outcome drops the whole line rather than guessing it into a total", () => {
+  assert.equal(parseLedgerLine(JSON.stringify({ use_case: "x", provider: "p", outcome: "maybe" })), null);
+  assert.equal(parseLedgerLine(JSON.stringify({ use_case: "x", provider: "p", outcome: 7 })), null);
+});
+
+// `reason` is a durable, operator-facing column and a provider's message can echo
+// the prompt back. Python reduces prose to a code before writing (monitor._reason_code);
+// this is the boundary re-asserting it, so one forgetful producer cannot land prose.
+test("reason accepts only a snake_case code — prose is dropped to null", () => {
+  const codeOf = (reason: unknown) =>
+    parseLedgerLine(JSON.stringify({ use_case: "x", provider: "p", reason }))?.reason;
+  assert.equal(codeOf("provider_timeout"), "provider_timeout");
+  assert.equal(codeOf("offline_policy"), "offline_policy");
+  assert.equal(codeOf("LLMError: gemini call failed: the prompt was ..."), null);
+  assert.equal(codeOf("Provider Timeout"), null, "spaces and capitals are prose, not a code");
+  assert.equal(codeOf("a".repeat(65)), null, "bounded — a column is not a log line");
+  assert.equal(codeOf(42), null);
+  assert.equal(codeOf(undefined), null);
 });

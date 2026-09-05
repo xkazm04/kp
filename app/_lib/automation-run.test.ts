@@ -25,13 +25,14 @@ const { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, recordAutomat
   await import("./db/pipeline.ts");
 const { createWorkspace, setWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } = await import("./db/workspaces.ts");
 const { setDecisionConfig } = await import("./decision-config-store.ts");
+const { createInterviewSession, attachInterviewScorecard } = await import("./db/interviews.ts");
 const { getPipelineAxis } = await import("./pipeline-axis-server.ts");
 const { stagesWithRole } = await import("./pipeline-stages.ts");
 const { meterAllows } = await import("./billing/enforce.ts");
 const { resolveCommsLocale } = await import("./comms-locale.ts");
 const { LETTER_LANG_TASKS } = await import("./automation-cache-key.ts");
 const { computeAutomationCacheKey } = await import("./automation-cache-key.ts");
-const { AUTOMATION_VERSION, runAutomationTask, verdictSourceOf, automationReasonDetail, AUTOMATION_REASON_PREFIX } =
+const { AUTOMATION_VERSION, runAutomationTask, verdictSourceOf, automationReasonDetail, AUTOMATION_REASON_PREFIX, offerAutoExtendRefusal } =
   await import("./automation-run.ts");
 
 after(() => cleanupUnitDb());
@@ -67,7 +68,11 @@ function seedVerdict(
   task: string,
   result: Record<string, unknown>,
   source: string,
-  lang?: string
+  lang?: string,
+  /** The stored interview scorecard, when the entry has one: the letter tasks fold
+   *  it into the key's own scorecard axis (automation-cache-key.ts), so a test that
+   *  attaches a scorecard must reconstruct the key the same way. */
+  scorecardJson?: string
 ): void {
   const version = AUTOMATION_VERSION[task];
   const key = computeAutomationCacheKey({
@@ -78,6 +83,7 @@ function seedVerdict(
     jobId: f.jobId,
     stage: f.entry.stage,
     notes: "",
+    scorecardJson,
     // The letter tasks key on the RESOLVED comms locale, the recruiter-narrative ones on
     // the caller's UI locale. Reconstructed through the same resolver the module uses, so
     // a test asserting the locale fix cannot accidentally pass by hard-coding the answer.
@@ -255,6 +261,60 @@ test("the offer gate 'human' drafts and parks, extending nothing", async () => {
   assert.equal(out.applied, "offer_ready");
   const payload = parseApproval(f.entry.id, f.ws);
   assert.equal(payload.verdictSource, "llm", "the offer approval carries provenance too");
+});
+
+// ---- 3b. the interview the offer/rejection follows from ----------------------
+//
+// RED FIRST (before this change): the two letters drafted AFTER an interview never
+// received the scorecard sitting on the same entry, and `offerGate="auto"` had one
+// evidential precondition — that a figure existed. Live, a draft was auto-sent on an
+// entry whose OWN scorecard said `hold` with 2 of 5 on the technical axis.
+
+test("offerAutoExtendRefusal is silent for the cases the gate was configured for", () => {
+  assert.equal(offerAutoExtendRefusal(null), null, "no interview on the entry — unchanged behaviour");
+  assert.equal(offerAutoExtendRefusal({}), null, "a scorecard with no verdict records no objection");
+  assert.equal(offerAutoExtendRefusal({ recommendation: "advance" }), null);
+  assert.equal(offerAutoExtendRefusal("not an object"), null);
+});
+
+test("offerAutoExtendRefusal refuses a recorded verdict that contradicts the send", () => {
+  assert.equal(offerAutoExtendRefusal({ recommendation: "hold" }), "scorecard_hold");
+  assert.equal(offerAutoExtendRefusal({ recommendation: "reject" }), "scorecard_reject");
+  // Present but unreadable fails CLOSED (coerced to hold) — never to the send.
+  assert.equal(offerAutoExtendRefusal({ recommendation: "definitely-hire" }), "scorecard_hold");
+});
+
+test("a HOLD scorecard parks a priced offer draft even with the gate on 'auto'", async () => {
+  const f = fixture();
+  const scorecard = {
+    recommendation: "hold",
+    ratings: [{ competency: "Technical depth", rating: 2, evidence: "I have not used it in anger." }],
+  };
+  const session = createInterviewSession({ provider: "openai", entryId: f.entry.id, jobId: f.jobId });
+  attachInterviewScorecard(session.id, scorecard);
+  setGate(f.ws, "offer", "auto");
+  seedVerdict(f, "offer", { recommended: 90000, currency: "CZK" }, "llm", undefined, JSON.stringify(scorecard));
+
+  const out = await runAutomationTask(f.entry.id, "offer", "", undefined, undefined);
+  assert.equal(out.applied, "offer_ready", "the entry's own interview verdict does not support an unattended offer");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "offer_review", "the draft parks for a human");
+  const kinds = listPipelineEventsForEntry(f.entry.id, 50, f.ws).map((e) => e.kind);
+  assert.ok(!kinds.includes("offer_auto_extended"), "nothing went out");
+  setGate(f.ws, "offer", "human");
+});
+
+test("the scorecard is a cache-key axis, so a later synthesis cannot serve the ungrounded letter", async () => {
+  // Seeded at the NO-scorecard key, then a scorecard is attached: the run must MISS
+  // (and fail on the deliberately broken spawn) rather than hand back the letter
+  // drafted blind to the interview.
+  const f = fixture();
+  seedVerdict(f, "rejection", { subject: "s", body: "drafted before the interview existed" }, "llm");
+  const session = createInterviewSession({ provider: "openai", entryId: f.entry.id, jobId: f.jobId });
+  attachInterviewScorecard(session.id, { recommendation: "reject", ratings: [] });
+  await assert.rejects(
+    () => runAutomationTask(f.entry.id, "rejection", "", undefined, undefined),
+    "a stale, ungrounded letter must not be served — the key moved with the evidence"
+  );
 });
 
 // ---- 4. the outreach single-flight -------------------------------------------

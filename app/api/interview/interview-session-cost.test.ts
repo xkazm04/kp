@@ -48,6 +48,7 @@ test("a completed session carries the ledger's cost", () => {
     cachedTokens: null,
     costUsd: 2.7,
     source: "llm",
+    outcome: "ok",
     requestId: s.id,
   });
   assert.equal(summaryFor(s.id).costUsd, 2.7);
@@ -65,6 +66,7 @@ test("a REAL zero survives - a self-hosted call cost nothing, and says so", () =
     // voiceMinuteCostUsd returns exactly this for a self-hosted provider.
     costUsd: 0,
     source: "llm",
+    outcome: "ok",
     requestId: s.id,
   });
   assert.equal(summaryFor(s.id).costUsd, 0, "0 is an assertion about a free call, not a missing number");
@@ -83,6 +85,7 @@ test("an UNPRICED provider's row still reads as unknown", () => {
     // in money. A NULL cost is not a zero cost.
     costUsd: null,
     source: "llm",
+    outcome: "ok",
     requestId: s.id,
   });
   assert.equal(summaryFor(s.id).costUsd, null);
@@ -100,6 +103,7 @@ test("a reconnect that bills twice reports the TOTAL, not one attempt", () => {
       cachedTokens: null,
       costUsd: cost,
       source: "llm",
+      outcome: "ok",
       requestId: s.id,
     });
   }
@@ -117,6 +121,7 @@ test("another use case's row on the same id is not this interview's cost", () =>
     cachedTokens: null,
     costUsd: 99,
     source: "llm",
+    outcome: "ok",
     requestId: s.id,
   });
   assert.equal(summaryFor(s.id).costUsd, null, "the join is keyed by use case as well as by request id");

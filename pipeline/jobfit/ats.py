@@ -206,3 +206,156 @@ def _occurrences(haystack: str, needle: str) -> int:
 def _normalize(text: str) -> str:
     # The one normalization primitive, owned by the taxonomy (NFC + casefold).
     return normalize_text(text)
+
+
+# --- Gap verification (the symmetric trust gate) ----------------------------
+# ``verify_skills_in_cv`` above gates the POSITIVE claim; ``missing_skills`` had no
+# gate at all, so the model could assert a gap the CV contradicts — and that gap is
+# a stated reason a person is rejected, as well as an input to the interview kit and
+# the keyword panel's "missing" list. Absence, though, is not provable the way
+# presence is: a term the CV names only aspirationally ("familiar with Kubernetes",
+# "currently learning Rust") is a mention, not evidence, and calling it a gap is
+# defensible. So a claimed gap is contradicted only when the CV carries the term in
+# a NON-hedged context; a hedged-only mention leaves the gap standing.
+#
+# English-first by design — the marker below is a prefix phrase, matched with the
+# same whole-token primitive as everything else in this module. A hedge phrased in a
+# way this list does not know simply falls back to "the CV evidences the term", i.e.
+# the gap is treated as contradicted.
+HEDGE_MARKERS: tuple[str, ...] = (
+    "familiar with",
+    "familiarity with",
+    "exposure to",
+    "learning",
+    "studying",
+    "self-study",
+    "coursework in",
+    "introduction to",
+    "intro to",
+    "basic",
+    "basics of",
+    "beginner",
+    "novice",
+    "aspiring",
+    "interested in",
+    "keen to learn",
+    "eager to learn",
+    "want to learn",
+    "wants to learn",
+    "would like to learn",
+    "planning to learn",
+    "no experience with",
+    "no hands-on",
+    # cs / de equivalents for the other catalog locales — same prefix shape.
+    "zaklady",
+    "základy",
+    "ucim se",
+    "učím se",
+    "grundkenntnisse in",
+    "grundlagen",
+)
+
+
+def verify_gaps_against_cv(
+    missing_skills: list[str], candidate_text: str
+) -> tuple[list[str], list[str]]:
+    """Split LLM-claimed gaps into ``(gaps, contradicted)`` vs the CV.
+
+    The mirror of :func:`verify_skills_in_cv`, and deliberately built ON it rather
+    than beside it: the presence test is the SAME alias-aware, whole-token,
+    taxonomy-backed matcher, so the two directions can never disagree about whether
+    a CV evidences a skill.
+
+    A claimed gap is *contradicted* when that matcher confirms the skill in the CV
+    AND at least one mention of it sits outside a hedge (see ``HEDGE_MARKERS``).
+    Everything else stays a *gap*: a term the CV never names, and a term it names
+    only aspirationally. Input order and casing are preserved; duplicates (by
+    normalized form) collapse to their first occurrence.
+    """
+    evidenced, _unevidenced = verify_skills_in_cv(missing_skills, candidate_text)
+    if not evidenced:
+        gaps: list[str] = []
+        seen_only: set[str] = set()
+        for skill in missing_skills:
+            key = _normalize(skill)
+            if not key or key in seen_only:
+                continue
+            seen_only.add(key)
+            gaps.append(skill)
+        return gaps, []
+
+    # Whitespace-collapsed so a line-wrapped "familiar with\n  Kubernetes" is still
+    # read as a hedge: the occurrence counter matches literal spacing.
+    cv_norm = " ".join(_normalize(candidate_text or "").split())
+    forms_by_term = _cv_forms_by_term(candidate_text or "")
+
+    contradicted_keys = {
+        _normalize(skill)
+        for skill in evidenced
+        if not _only_hedged_mentions(cv_norm, _cv_forms_for(skill, cv_norm, forms_by_term))
+    }
+
+    gaps = []
+    contradicted: list[str] = []
+    seen: set[str] = set()
+    for skill in missing_skills:
+        key = _normalize(skill)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        (contradicted if key in contradicted_keys else gaps).append(skill)
+    return gaps, contradicted
+
+
+def _cv_forms_by_term(candidate_text: str) -> dict[str, list[str]]:
+    """Canonical taxonomy term → the normalized surface forms the CV actually writes.
+
+    Built once per call so the hedge scan can look at the words on the page ("k8s")
+    rather than the word the model claimed ("Kubernetes"). Same detection pass
+    :func:`verify_skills_in_cv` uses, same high cap.
+    """
+    forms: dict[str, list[str]] = {}
+    for surface in detected_skills(candidate_text, limit=1000):
+        term = resolve_term(surface)
+        if term is None:
+            continue
+        normalized = _normalize(surface)
+        bucket = forms.setdefault(term, [])
+        if normalized and normalized not in bucket:
+            bucket.append(normalized)
+    return forms
+
+
+def _cv_forms_for(
+    skill: str, cv_norm: str, forms_by_term: dict[str, list[str]]
+) -> list[str]:
+    """Every normalized form under which ``skill`` is present in the CV."""
+    forms: list[str] = []
+    key = _normalize(skill)
+    if key and _skill_in_text(cv_norm, key):
+        forms.append(key)
+    term = resolve_term(skill)
+    if term is not None:
+        for form in forms_by_term.get(term, []):
+            if form not in forms:
+                forms.append(form)
+    return forms
+
+
+def _only_hedged_mentions(cv_norm: str, forms: list[str]) -> bool:
+    """True when every mention of these forms is governed by a hedge marker.
+
+    Counted, not merely detected: a CV that says "basics of SQL" once and "SQL in
+    production" twice has un-hedged evidence, so the claimed gap is contradicted.
+    """
+    total = 0
+    hedged = 0
+    for form in forms:
+        occurrences = _occurrences(cv_norm, form)
+        if occurrences <= 0:
+            continue
+        total += occurrences
+        hedged += sum(
+            _occurrences(cv_norm, f"{marker} {form}") for marker in HEDGE_MARKERS
+        )
+    return total > 0 and hedged >= total

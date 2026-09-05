@@ -134,14 +134,28 @@ class GroundedAnswerLedgerTest(unittest.TestCase):
         self.assertEqual(answer.payload, {"fallback": True})
         self.assertEqual(len(env.rows()), 1)
 
-    def test_failed_generate_writes_no_spend_line(self) -> None:
+    def test_failed_generate_is_recorded_but_bills_nothing(self) -> None:
+        """This used to assert that a failed generate wrote NO ledger line at all,
+        and the intent behind it — a dead call must not bill — is kept exactly. What
+        changed is the other half (tiger X2): writing nothing meant a multimodal CV
+        analysis that timed out after uploading a whole resume was invisible on any
+        deployment without LightTrack, which is the default one, and the spend panel
+        under-reported precisely the most expensive traffic there is. The attempt is
+        now a row — outcome "failed", NULL tokens, NULL cost — which every billable
+        aggregate on the TS side excludes by naming outcome = 'ok'."""
         env = _LedgerEnv(self)
         fake = _FakeClient(RuntimeError("boom"))
         fallback = G.GroundedAnswer(text="", payload={})
         with mock.patch.object(G, "get_client", lambda: fake):
             answer = G.grounded_answer(prompt="analyze", fallback=fallback, use_case="grounded_salary")
         self.assertEqual(answer.payload, {})
-        self.assertFalse(os.path.exists(env.path), "a failed generate must not bill spend")
+        rows = env.rows()
+        self.assertEqual(len(rows), 1, "the attempt happened and must be visible")
+        self.assertEqual(rows[0]["outcome"], "failed")
+        self.assertEqual(rows[0]["use_case"], "grounded_salary")
+        self.assertEqual(rows[0]["reason"], "provider_error")
+        self.assertIsNone(rows[0]["cost_usd"], "visible, and billed for nothing")
+        self.assertIsNone(rows[0]["input_tokens"], "the provider reported none; a guess would be billed")
 
     def test_no_env_no_file_and_call_unaffected(self) -> None:
         # Keyless/offline guarantee: without KP_LLM_USAGE_LOG the call behaves

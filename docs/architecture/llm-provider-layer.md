@@ -105,7 +105,41 @@ reserved for multi-tenancy, see the organization doc):
 
 - `llm_config(use_case, provider, model, params_json, updated_at)`
 - `provider_keys(provider, scope['platform'|'byom'], key_ciphertext, meta_json, updated_at)`
-- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id, ingest_key)`
+- `llm_usage(id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)`
+
+**A failed attempt is visible without being billable** (2026-09-05). `outcome` is
+`'ok'` (a meterable attempt — a real completion, or a deterministic template serve
+at a truthful zero) or `'failed'` (the call raised). Until this column existed,
+`monitor.emit_error` returned early whenever LightTrack was absent — the default
+deployment — so a call that timed out or 429'd *after* sending a large prompt, the
+most expensive attempt the app makes, was recorded nowhere and the spend panel
+under-reported exactly that traffic. Writing failures in as ordinary usage was not an
+option either: a dead call reports no usage block, so it would have put unsourceable
+numbers into `SUM(cost_usd)` / `SUM(input_tokens)`, the figures the Models panel and
+the pricing meters read.
+
+The resolution follows the precedent `unpriced_calls` already set — when the ledger
+cannot price a row it does not guess and does not drop it, it puts the row in a named
+bucket *beside* the sum. A failed row lands with NULL tokens and NULL cost, appears in
+Activity, and is counted as `failedCalls`; every money-shaped read names
+`outcome = 'ok'` explicitly:
+
+| Reader | Where |
+| --- | --- |
+| `aggregateLlmUsage` (Models panel, `/api/llm/usage`, spend fold) | conditioned per aggregate, so a failure stays countable in its own bucket |
+| `computeCostWindow` (cost-per-hire numerator) | `WHERE outcome = 'ok'` |
+| the interview cost joins (`interviewedForJob`, the candidate docket) | `AND u.outcome = 'ok'` |
+| `listLlmActivity` (Activity tab) | **unfiltered** — this is the surface that has to show the failure |
+
+`reason` is a closed-vocabulary **code**, never a provider message (a message can echo
+the prompt, and this is a durable column): `monitor.FAILURE_REASONS`
+(`provider_timeout` / `unparseable_output` / `provider_error`),
+`automation.DEGRADATION_REASONS`, or the availability-gate words below. Python reduces
+a `describe_fallback` prose line to `provider_error` before writing
+(`monitor._reason_code`) and `parseLedgerLine` re-asserts the token shape at the trust
+boundary. A line whose `outcome` is neither literal is dropped whole rather than
+guessed into a money column; an absent `outcome` key reads `'ok'`, which is what every
+pre-2026-09-05 line meant.
 
 **The ledger fold is replay-safe.** `ingestLlmUsageLog` (and
 `ingestLlmUsageResult`, which additionally reports the skip count) writes
@@ -345,6 +379,24 @@ default per use case (4–8k); an explicit `params.maxTokens` on the config row
 still wins, and both the production registry and the bench runner apply the same
 table so the bench measures what production runs.
 
+**An absent row is now a decision, not a gap.** Until 2026-09-05 seven resolved use
+cases (`agent_fit`, `match_reasoning`, `cv_analysis`, `profile_draft`, `role_intake`,
+`role_intake_voice`, `devcase_judge`) had no row and no record, so "2048 fits" and
+"nobody sized this" read identically in the source. Three earned a row —
+`agent_fit` 4096 (12 coverage rationales plus a system-prompt draft the coercer
+accepts to 4000 chars), `profile_draft` 4096 (matching the budget its own direct
+Gemini path already passes), `role_intake` 6144 (every turn re-emits the whole
+RoleBrief, `jd_ingest`'s shape). The other four are recorded in
+`capabilities.BASE_CAP_BY_DECISION` with the reason they stay on the base cap —
+notably `cv_analysis`, whose ceiling this table does **not** own: it rides
+`complete_document`, and `gemini.analyze_profile_with_gemini` passes
+`max_output_tokens=16000` at the call site, which the Gemini adapter forwards without
+consulting `self.max_tokens`.
+
+`pipeline/jobfit/tests/test_llm_capabilities.py` scans the tree for
+`resolve_provider("…")` and fails when a use case appears in neither map, so a new
+call site cannot reach production on an unexamined ceiling.
+
 ## Benchmarks (`pipeline/jobfit/llm/bench/`)
 
 Drives the real production functions (same prompts, coercion, fallbacks) over the
@@ -461,10 +513,14 @@ metered adapters through `TextProvider.availability()` (Azure adds
 bool — a test fake, an in-process drill. Before that, an air-gapped install
 recorded its DELIBERATE `KP_OFFLINE` seal in the ledger as "missing key/SDK" — a
 diagnosis whose only repair is the one thing that cannot help. The key is omitted when the cause
-is unknown (an LLM call that failed mid-flight), and `parseLedgerLine` ignores
-it, so ingestion into `llm_usage` is unchanged — the diagnosis lives in the
-NDJSON sidecar. The Python CLI seats (`reasoning`, `automation`, `campaign`,
-`agentfit`, `group_compare`, `devcase`, `repo_scan`) all thread it.
+is unknown. Since 2026-09-05 `parseLedgerLine` no longer ignores it: the reason lands
+in the `llm_usage.reason` column (see "A failed attempt is visible without being
+billable" above), so an operator can ask why a call degraded *later* and not only in
+the request that degraded. The Python CLI seats (`reasoning`, `automation`,
+`campaign`, `agentfit`, `group_compare`, `devcase`, `repo_scan`) all thread it, and
+`automation_cli` / `campaign_cli` additionally thread the MID-CALL descent their
+engine classified (`provider_timeout`, `unparseable_output`, `unusable_output`,
+`provider_error`) — the descents that happen after the availability gate said yes.
 
 Clicking a row opens `ActivityDetailModal.tsx` — the ledger facts (including
 cached tokens, which the table has no room for), then the linked run's output
@@ -695,7 +751,12 @@ locales.
 
 - `cv_analysis` is folded in (2026-08-30): it routes through
   `resolve_provider` and the Gemini adapter's `complete_document`, so a config
-  row's model pin and BYOM key now take effect — but Gemini stays the only
+  row's model pin and BYOM key take effect — **but only since 2026-09-05.** From
+  the fold-in until then this paragraph was false: `analyze-run.ts` spawned the
+  child without `env: buildLlmConfigEnv()`, so `KP_LLM_CONFIG` never reached it
+  and the pin was silently inert while the Models tab went on offering the row.
+  The spawn now carries the env and `llm-spawn-contract.test.ts` pins it. Gemini
+  stays the only
   `file_input`-capable adapter (openai/anthropic/azure rows are still honestly
   text-only). `profile_extract` still calls the dedicated `gemini.py` path; a
   config row for it has no effect today.
@@ -706,6 +767,18 @@ locales.
   `app/_lib/voice/minute-prices.ts`; its OpenAI key does not use
   `resolveProviderKey`.
 - Per-tenant `llm_usage` attribution not built (global ledger today).
+- `devcase_cli` records the availability-gate reason on its deterministic ledger
+  lines but **not** the per-STEP mid-call reason: those are free-form
+  `describe_fallback` strings kept for the envelope's `fallbackReason` block, and
+  `monitor._reason_code` collapses any prose to `provider_error` rather than storing
+  a provider message in a durable column. A devcase step that timed out is therefore
+  ledger-visible as `provider_error`, not as `provider_timeout`. Classifying per step
+  needs `provenance.generate_with_fallback` to carry a subtype alongside its prose,
+  which is a change to that module's contract, not to the ledger.
+- Neither `outcome` nor `reason` is RENDERED yet. The Activity tab and the Models
+  usage panel read them (`LlmActivityRow.outcome`/`.reason`,
+  `UseCaseTotals.failedCalls`) but show no column for either; surfacing them is new
+  operator-facing copy in four locale catalogs.
 - Per-tenant provider KEYS are not built either, deliberately (owner decision):
   `provider_keys` and `llm_config` are one deployment-wide store. The Models panel
   states the scope rather than implying a boundary that does not exist.
