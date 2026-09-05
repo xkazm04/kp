@@ -345,6 +345,24 @@ default per use case (4–8k); an explicit `params.maxTokens` on the config row
 still wins, and both the production registry and the bench runner apply the same
 table so the bench measures what production runs.
 
+**An absent row is now a decision, not a gap.** Until 2026-09-05 seven resolved use
+cases (`agent_fit`, `match_reasoning`, `cv_analysis`, `profile_draft`, `role_intake`,
+`role_intake_voice`, `devcase_judge`) had no row and no record, so "2048 fits" and
+"nobody sized this" read identically in the source. Three earned a row —
+`agent_fit` 4096 (12 coverage rationales plus a system-prompt draft the coercer
+accepts to 4000 chars), `profile_draft` 4096 (matching the budget its own direct
+Gemini path already passes), `role_intake` 6144 (every turn re-emits the whole
+RoleBrief, `jd_ingest`'s shape). The other four are recorded in
+`capabilities.BASE_CAP_BY_DECISION` with the reason they stay on the base cap —
+notably `cv_analysis`, whose ceiling this table does **not** own: it rides
+`complete_document`, and `gemini.analyze_profile_with_gemini` passes
+`max_output_tokens=16000` at the call site, which the Gemini adapter forwards without
+consulting `self.max_tokens`.
+
+`pipeline/jobfit/tests/test_llm_capabilities.py` scans the tree for
+`resolve_provider("…")` and fails when a use case appears in neither map, so a new
+call site cannot reach production on an unexamined ceiling.
+
 ## Benchmarks (`pipeline/jobfit/llm/bench/`)
 
 Drives the real production functions (same prompts, coercion, fallbacks) over the
