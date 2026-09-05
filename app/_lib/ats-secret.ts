@@ -14,12 +14,38 @@
 //
 // Ciphertext format: "v1:<iv b64>:<auth tag b64>:<data b64>" (same as llm-secret).
 // Dependency-free on purpose — unit-testable without the db.ts import chain.
+//
+// ROTATION. Changing the key used to brick every value sealed under it at once: the auth
+// tag fails and the only recovery was to re-enter every ATS token, webhook secret, edge
+// key and calendar refresh token by hand. llm-secret.ts closed exactly that hole for
+// provider keys with KP_SECRET_PREVIOUS; this file did not have it, so a rotated
+// deployment stayed unreadable until `npm run secrets:rotate` had run. It reads the
+// PREVIOUS key from KP_ATS_SECRET_KEY_PREVIOUS, falling back to KP_SECRET_PREVIOUS on
+// the same single-secret deployments the current key already falls back for. Encryption
+// ALWAYS uses the current key, so no new ciphertext is ever written under the old one,
+// and `reencryptAtsSecret` lets a store heal a row on its next write.
 
 import crypto from "node:crypto";
 
 /** True when a key is available to encrypt/decrypt the webhook secret at rest. */
 export function atsSecretKeyConfigured(): boolean {
   return !!(process.env.KP_ATS_SECRET_KEY?.trim() || process.env.KP_SECRET?.trim());
+}
+
+/** The retired key a rotation is still reading from, or null. Never used to ENCRYPT.
+ *  Mirrors the current key's own fallback chain: a deployment that set only KP_SECRET
+ *  rotates through KP_SECRET_PREVIOUS, one that decoupled with KP_ATS_SECRET_KEY
+ *  rotates through KP_ATS_SECRET_KEY_PREVIOUS. */
+function previousKey(): Buffer | null {
+  const secret = process.env.KP_ATS_SECRET_KEY_PREVIOUS?.trim() || process.env.KP_SECRET_PREVIOUS?.trim();
+  if (!secret) return null;
+  return crypto.createHash("sha256").update(secret).digest();
+}
+
+function decryptWith(key: Buffer, ivB64: string, tagB64: string, dataB64: string): string {
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
+  decipher.setAuthTag(Buffer.from(tagB64, "base64"));
+  return Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]).toString("utf-8");
 }
 
 function masterKey(): Buffer {
@@ -50,11 +76,42 @@ export function encryptAtsSecret(plaintext: string): string {
 }
 
 export function decryptAtsSecret(ciphertext: string): string {
+  return decryptAtsSecretDetailed(ciphertext).plaintext;
+}
+
+/** Decrypt, and say WHICH key opened it. `under: "previous"` is the signal a store acts
+ *  on (that row still needs re-encrypting) and the reason the plain reader above stays a
+ *  one-liner for every other caller. */
+export function decryptAtsSecretDetailed(ciphertext: string): { plaintext: string; under: "current" | "previous" } {
   const [version, ivB64, tagB64, dataB64] = ciphertext.split(":");
   if (version !== "v1" || !ivB64 || !tagB64 || !dataB64) {
     throw new Error("Unrecognized ATS secret ciphertext format.");
   }
-  const decipher = crypto.createDecipheriv("aes-256-gcm", masterKey(), Buffer.from(ivB64, "base64"));
-  decipher.setAuthTag(Buffer.from(tagB64, "base64"));
-  return Buffer.concat([decipher.update(Buffer.from(dataB64, "base64")), decipher.final()]).toString("utf-8");
+  try {
+    return { plaintext: decryptWith(masterKey(), ivB64, tagB64, dataB64), under: "current" };
+  } catch (err) {
+    const fallback = previousKey();
+    // No retired key configured, so the current-key failure IS the answer: rethrow it
+    // unchanged rather than inventing a rotation-flavoured message.
+    if (!fallback) throw err;
+    try {
+      return { plaintext: decryptWith(fallback, ivB64, tagB64, dataB64), under: "previous" };
+    } catch {
+      // Neither key opens it: report the CURRENT key's failure, which is the one an
+      // operator who has finished rotating needs to see.
+      throw err;
+    }
+  }
+}
+
+/**
+ * Re-encrypt one stored value under the CURRENT key. `changed` is false when the row was
+ * already current, so a caller can skip the write and a re-run is a no-op. Throws when
+ * neither key opens the value: rewriting a row we cannot read would destroy the only copy
+ * of the credential.
+ */
+export function reencryptAtsSecret(ciphertext: string): { ciphertext: string; changed: boolean } {
+  const { plaintext, under } = decryptAtsSecretDetailed(ciphertext);
+  if (under === "current") return { ciphertext, changed: false };
+  return { ciphertext: encryptAtsSecret(plaintext), changed: true };
 }

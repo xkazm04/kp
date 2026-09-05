@@ -12,7 +12,7 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { encryptAtsSecret, decryptAtsSecret } from "./ats-secret.ts";
+import { encryptAtsSecret, decryptAtsSecret, decryptAtsSecretDetailed, reencryptAtsSecret } from "./ats-secret.ts";
 import { setAtsConfig, getAtsSecret, getAtsConfig } from "./ats-config-store.ts";
 import { dumpWorkspace } from "./db-portability.ts";
 
@@ -21,6 +21,8 @@ const SECRET = "whsec-super-secret-hmac-value-123";
 beforeEach(() => {
   process.env.KP_ATS_SECRET_KEY = "unit-test-ats-key";
   delete process.env.KP_SECRET;
+  delete process.env.KP_ATS_SECRET_KEY_PREVIOUS;
+  delete process.env.KP_SECRET_PREVIOUS;
 });
 after(() => cleanupUnitDb());
 
@@ -86,4 +88,55 @@ test("clearing (webhookSecret: '') removes the secret", () => {
   setAtsConfig({ webhookUrl: "https://hooks.example.com/kp", webhookSecret: "", events: [] });
   assert.equal(getAtsSecret(), null);
   assert.equal(getAtsConfig().hasSecret, false);
+});
+
+// ROTATION (/perfect wave 41, api-ats-integration). llm-secret.ts has read through a
+// retired KP_SECRET_PREVIOUS since provider-key rotation shipped; this file did not, so
+// rotating the key left every ATS token, webhook secret, edge key and calendar refresh
+// token unreadable until `npm run secrets:rotate` had run — on a self-hosted install
+// where the operator has just restarted with a new env, that is the whole integration
+// surface dark with no recovery but re-entering the credentials by hand.
+//
+// NON-VACUITY: against pre-fix ats-secret.ts every assertion below throws
+// "Unsupported state or unable to authenticate data" from the GCM tag — the retired key
+// was never consulted, and decryptAtsSecretDetailed/reencryptAtsSecret did not exist.
+test("rotation: a value sealed under the PREVIOUS key still decrypts, and re-encrypts under the current one", () => {
+  process.env.KP_ATS_SECRET_KEY = "the-old-ats-key";
+  const sealedUnderOld = encryptAtsSecret(SECRET);
+
+  // The rotation: a new current key, the retired one declared alongside it.
+  process.env.KP_ATS_SECRET_KEY = "the-new-ats-key";
+  process.env.KP_ATS_SECRET_KEY_PREVIOUS = "the-old-ats-key";
+
+  assert.equal(decryptAtsSecret(sealedUnderOld), SECRET, "a rotated deployment stays readable");
+  assert.equal(decryptAtsSecretDetailed(sealedUnderOld).under, "previous", "and it says WHICH key opened it");
+
+  const healed = reencryptAtsSecret(sealedUnderOld);
+  assert.equal(healed.changed, true, "the row is rewritten under the current key");
+  assert.notEqual(healed.ciphertext, sealedUnderOld);
+
+  // Re-sealed: the current key alone now opens it, so KP_ATS_SECRET_KEY_PREVIOUS can go.
+  delete process.env.KP_ATS_SECRET_KEY_PREVIOUS;
+  assert.equal(decryptAtsSecret(healed.ciphertext), SECRET);
+  assert.equal(reencryptAtsSecret(healed.ciphertext).changed, false, "re-running the heal is a no-op");
+});
+
+test("rotation: the single-secret deployment rotates through KP_SECRET_PREVIOUS", () => {
+  // No dedicated key set — the same fallback chain the CURRENT key already uses.
+  delete process.env.KP_ATS_SECRET_KEY;
+  process.env.KP_SECRET = "old-master-secret";
+  const sealed = encryptAtsSecret(SECRET);
+  process.env.KP_SECRET = "new-master-secret";
+  process.env.KP_SECRET_PREVIOUS = "old-master-secret";
+  assert.equal(decryptAtsSecret(sealed), SECRET);
+});
+
+test("rotation: a value NEITHER key opens reports the current key's failure, never a wrong plaintext", () => {
+  process.env.KP_ATS_SECRET_KEY = "the-real-key";
+  const sealed = encryptAtsSecret(SECRET);
+  process.env.KP_ATS_SECRET_KEY = "a-third-key";
+  process.env.KP_ATS_SECRET_KEY_PREVIOUS = "another-wrong-key";
+  assert.throws(() => decryptAtsSecret(sealed));
+  // reencrypt must NOT rewrite a row it cannot read — that would destroy the only copy.
+  assert.throws(() => reencryptAtsSecret(sealed));
 });
