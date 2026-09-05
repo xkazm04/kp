@@ -713,7 +713,12 @@ locales.
 
 - `cv_analysis` is folded in (2026-08-30): it routes through
   `resolve_provider` and the Gemini adapter's `complete_document`, so a config
-  row's model pin and BYOM key now take effect — but Gemini stays the only
+  row's model pin and BYOM key take effect — **but only since 2026-09-05.** From
+  the fold-in until then this paragraph was false: `analyze-run.ts` spawned the
+  child without `env: buildLlmConfigEnv()`, so `KP_LLM_CONFIG` never reached it
+  and the pin was silently inert while the Models tab went on offering the row.
+  The spawn now carries the env and `llm-spawn-contract.test.ts` pins it. Gemini
+  stays the only
   `file_input`-capable adapter (openai/anthropic/azure rows are still honestly
   text-only). `profile_extract` still calls the dedicated `gemini.py` path; a
   config row for it has no effect today.
