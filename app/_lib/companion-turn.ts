@@ -24,10 +24,11 @@ export const COMPANION_THREAD_TURNS = 200;
 
 /** How far back the route reads when it is building the model's window.
  *
- *  Larger than COMPANION_TRANSCRIPT_TURNS because the window is a tail that can
- *  SHRINK — `transcriptWindow` may drop turns from the page it is given — so
- *  reading exactly twelve rows could hand the model a window of one. Small
- *  enough that the prompt read stays a cheap indexed page, never the thread. */
+ *  Larger than COMPANION_TRANSCRIPT_TURNS because the window is a tail that
+ *  SHRINKS — `promptEligibleTurns` drops the outage replies out of the page it
+ *  is given — so reading exactly twelve rows could hand the model a window of
+ *  one. Small enough that the prompt read stays a cheap indexed page, never the
+ *  whole thread. */
 export const COMPANION_PROMPT_SCAN_TURNS = 40;
 
 /** Bound + trim an untrusted message body. Empty (or non-string) → "" so the
@@ -81,14 +82,47 @@ export function coerceVoiceReply(raw: unknown): CompanionVoiceReply | null {
   return { text, source: entry.source === "model" ? "model" : "derived" };
 }
 
-export type CompanionWireTurn = { role: string; content: string };
+export type CompanionWireTurn = {
+  role: string;
+  content: string;
+  /** Where the turn came from, as the store recorded it (`meta.source`). Optional
+   *  because a user turn has none and a reply stored before the field existed
+   *  carries none either. */
+  source?: "llm" | "deterministic" | null;
+};
 
-/** The last N turns, oldest-first, in the shape companion_cli.py reads. */
+/** Turns the NEXT prompt may stand on — everything except an outage reply.
+ *
+ *  A deterministic assistant turn is the "I could not reach a model" answer. It
+ *  is a real turn: she said it, the dock keeps showing it, and the record of a
+ *  degraded exchange is exactly the kind of thing this product does not hide.
+ *  But it is not HISTORY. Replayed as transcript, the first answer after a key is
+ *  finally configured reads as if she were still broken, because the last thing
+ *  in her context is her own apology. The brain already refuses to remember these
+ *  as episodes (`companion_cli.py::_worth_remembering`); this is the same rule on
+ *  the other half of her memory, and it is the ONE predicate that decides it.
+ *
+ *  Only the turn's own `source` decides. A user turn never carries one, and a
+ *  reply stored before the field existed carries none either — an absent source
+ *  is not evidence of an outage, and dropping it would silently shorten every
+ *  conversation older than this rule. */
+export function promptEligibleTurns<T extends { role: string; source?: string | null }>(
+  turns: readonly T[]
+): T[] {
+  return turns.filter((turn) => !(turn.role === "assistant" && turn.source === "deterministic"));
+}
+
+/** The last N turns the model may read, oldest-first, in the shape
+ *  companion_cli.py reads. The drop happens FIRST: windowing before filtering
+ *  would spend the window on turns that are then thrown away, and a stretch of
+ *  outage replies would hand the model an almost-empty context. */
 export function transcriptWindow(
   turns: readonly CompanionWireTurn[],
   limit = COMPANION_TRANSCRIPT_TURNS
 ): CompanionWireTurn[] {
-  return turns.slice(-limit).map((turn) => ({ role: turn.role, content: turn.content }));
+  return promptEligibleTurns(turns)
+    .slice(-limit)
+    .map((turn) => ({ role: turn.role, content: turn.content }));
 }
 
 // ---- grounding ------------------------------------------------------------

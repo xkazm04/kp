@@ -69,3 +69,36 @@ test("the model's window sits on the TAIL of a long conversation", () => {
   assert.equal(window.at(-1)?.content, "turn 250");
   assert.ok(window.length > 0 && window.length <= scanned.length);
 });
+
+test("stored outage replies are shown but never reach the model's window", () => {
+  // The route's exact chain, through the store: read the page, map it onto the
+  // wire shape (meta.source included), window it.
+  const WS_OUT = "ws-outage";
+  const thread = createThread("", WS_OUT);
+  for (let i = 1; i <= 3; i += 1) {
+    appendTurn({ threadId: thread.id, role: "user", content: `ask ${i}` }, WS_OUT);
+    appendTurn(
+      { threadId: thread.id, role: "assistant", content: "I could not reach a model.", meta: { source: "deterministic" } },
+      WS_OUT
+    );
+  }
+  appendTurn({ threadId: thread.id, role: "user", content: "and now?" }, WS_OUT);
+  appendTurn(
+    { threadId: thread.id, role: "assistant", content: "Two candidates are waiting.", meta: { source: "llm" } },
+    WS_OUT
+  );
+
+  const page = listTurns(thread.id, WS_OUT, COMPANION_PROMPT_SCAN_TURNS);
+  // The dock renders all of it — the degraded exchanges are part of the record.
+  assert.equal(page.length, 8);
+  const window = transcriptWindow(
+    page.map((t) => ({ role: t.role, content: t.content, source: t.meta?.source ?? null }))
+  );
+  assert.equal(
+    window.filter((t) => t.content.startsWith("I could not reach")).length,
+    0,
+    "an outage reply must not be replayed as history"
+  );
+  assert.equal(window.at(-1)?.content, "Two candidates are waiting.");
+  assert.equal(window.length, 5);
+});

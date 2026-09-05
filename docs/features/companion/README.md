@@ -221,6 +221,18 @@ says so in the operator's language rather than inventing an answer.
   same rule with only one half to apply it to: a degraded digest has no operator
   message either, so it writes no episode at all and `episodePaths` is empty.
 
+- **…and it is not replayed either.** The episode rule covers the brain; the
+  TRANSCRIPT is the other half of her memory, and until this round the route fed
+  every stored turn back into the next prompt. So the first answer after a key
+  was finally configured had her own apology as the last thing in her context and
+  read as if she were still broken. `promptEligibleTurns` in
+  `app/_lib/companion-turn.ts` is the one predicate that decides it: an assistant
+  turn whose `meta.source` is `deterministic` is dropped from the window,
+  everything else stays. The drop runs BEFORE the 12-turn slice, so a stretch of
+  outage replies does not eat the window. Only the turn's own `source` decides,
+  so a reply stored before the field existed is kept. It stays on SCREEN either
+  way: the dock renders the whole page, degraded exchanges included.
+
 ## What she is allowed to remember at you
 
 **Storage is never filtered. Surfacing is.** Every exchange is written and

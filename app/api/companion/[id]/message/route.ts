@@ -93,7 +93,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         workspaceId: ws,
         threadId: id,
         message,
-        transcript: history.map((t) => ({ role: t.role, content: t.content })),
+        // `source` rides along because the window FILTERS on it: an outage
+        // reply is kept on screen and kept out of the next prompt
+        // (promptEligibleTurns). Dropping the field here would silently
+        // reinstate the replay this fixed.
+        transcript: history.map((t) => ({ role: t.role, content: t.content, source: t.meta?.source ?? null })),
         locale: await getServerLocale(),
       },
       // A closed tab must not leave a 120s Python child and a paid model call

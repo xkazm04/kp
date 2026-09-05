@@ -11,6 +11,7 @@ import {
   MAX_COMPANION_MESSAGE_CHARS,
   MAX_COMPANION_VOICE_CHARS,
   pipelineSummary,
+  promptEligibleTurns,
   transcriptWindow,
 } from "./companion-turn.ts";
 
@@ -111,4 +112,50 @@ test("an empty board summarises to nothing rather than to zeros that read as fac
   assert.deepEqual(summary.byStage, {});
   assert.deepEqual(summary.topRoles, []);
   assert.equal(summary.meanMatchScore, null);
+});
+
+// ---- what the model is allowed to READ BACK -------------------------------
+//
+// An outage reply ("I could not reach a model") is a real turn: it is what she
+// said, so the dock keeps showing it. It is NOT history the next prompt should
+// stand on — replayed as transcript, the first answer after a key is finally
+// configured reads as if she is still broken, because the last thing in her
+// context is her own apology. The brain already refuses to remember these as
+// episodes (companion_cli.py::_worth_remembering); the window is the other half.
+
+test("an outage reply is kept on screen but never replayed into the prompt", () => {
+  const turns = [
+    { role: "user", content: "who is waiting on me?" },
+    { role: "assistant", content: "I could not reach a model.", source: "deterministic" as const },
+    { role: "user", content: "try again" },
+    { role: "assistant", content: "Two candidates are waiting.", source: "llm" as const },
+  ];
+  assert.deepEqual(promptEligibleTurns(turns), [turns[0], turns[2], turns[3]]);
+  assert.deepEqual(transcriptWindow(turns), [
+    { role: "user", content: "who is waiting on me?" },
+    { role: "user", content: "try again" },
+    { role: "assistant", content: "Two candidates are waiting." },
+  ]);
+});
+
+test("only an assistant's deterministic turn is dropped, and only on its own say-so", () => {
+  // A USER turn has no `source` and is never a candidate for the drop; an
+  // assistant turn stored before the field existed (undefined) is history we
+  // cannot prove is an outage, so it stays — dropping it would silently shorten
+  // every old conversation.
+  const kept = [
+    { role: "user", content: "u" },
+    { role: "assistant", content: "old reply" },
+    { role: "assistant", content: "llm reply", source: "llm" as const },
+  ];
+  assert.deepEqual(promptEligibleTurns(kept), kept);
+});
+
+test("the window is taken AFTER the drop, so a purged tail still fills it", () => {
+  const turns = [
+    ...Array.from({ length: 20 }, (_, i) => ({ role: "assistant", content: `outage ${i}`, source: "deterministic" as const })),
+    { role: "user", content: "real" },
+  ];
+  const win = transcriptWindow(turns, 12);
+  assert.deepEqual(win, [{ role: "user", content: "real" }]);
 });

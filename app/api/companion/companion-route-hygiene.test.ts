@@ -129,3 +129,23 @@ test("every listTurns caller states the bound it is reading", () => {
     }
   }
 });
+
+test("the prompt transcript carries each turn's source, and every reply stores one", () => {
+  const src = read("./[id]/message/route.ts").replace(/\r\n/g, "\n");
+  // Without the field, promptEligibleTurns has nothing to filter on and the
+  // outage replay comes straight back — silently, since the shape still fits.
+  assert.match(
+    src,
+    /transcript: history\.map\(\(t\) => \(\{ role: t\.role, content: t\.content, source: t\.meta\?\.source \?\? null \}\)\)/,
+    "the transcript handed to the engine must carry meta.source per turn",
+  );
+  // …and the source has to have been WRITTEN, or every stored reply looks like
+  // a pre-field turn and none of them can ever be filtered.
+  const at = src.indexOf("const stored = appendTurnWithProposals(");
+  assert.ok(at >= 0, "expected the reply's append");
+  assert.match(
+    src.slice(at, src.indexOf("\n      ws,", at)),
+    /meta: \{\n\s*source: turn\.source,/,
+    "the assistant turn's meta must record which side answered",
+  );
+});
