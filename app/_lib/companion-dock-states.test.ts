@@ -2,6 +2,8 @@
 // `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   companionRetryTarget,
   readProposalAnswer,
@@ -36,4 +38,25 @@ test("the error line offers a boot retry before the thread exists, a message ret
   assert.equal(companionRetryTarget({ ready: false, error: null, lastFailed: null }), null);
   assert.equal(companionRetryTarget({ ready: true, error: "TOO_MANY_REQUESTS", lastFailed: "hi" }), "message");
   assert.equal(companionRetryTarget({ ready: true, error: null, lastFailed: null }), null);
+});
+
+test("a failed send is drawn ONCE: the bubble stays and the composer does not restore it", () => {
+  const body = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/CompanionDockBody.tsx", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  // Both halves fired before: the optimistic bubble stayed AND the composer put
+  // the same text back, so one refused message was on screen twice and Enter
+  // re-asked the question the failed bubble was already showing.
+  assert.match(body, /restoreDraftOnFailure=\{false\}/, "the dock's composer must not restore the refused draft");
+
+  const hook = readFileSync(
+    fileURLToPath(new URL("../features/shell/companion/useCompanionThread.ts", import.meta.url)),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  assert.match(
+    hook,
+    /setTurns\(withoutOptimisticTurns\)/,
+    "retry must drop the unsent bubbles before send pushes a fresh one, or the message is drawn twice",
+  );
 });

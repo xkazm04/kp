@@ -771,13 +771,24 @@ reads what it is handed:
 **Retry, and the duplicate it fixed.** A refused message is no longer put back
 into the shared orchestration machine's queue. That requeue is right for the voice
 caller the machine was written for (a dropped utterance exists nowhere), and wrong
-here: `ChatComposer` already RESTORES the draft on a false resolve, so the queued
+here: the composer used to RESTORE the draft on a false resolve, so the queued
 copy made the operator's next send coalesce their restored draft WITH it and ask
 Candi the same question twice, in one message. It also stranded anything typed
 while the failed turn was in flight, because `completeTurn` dispatches nothing on
 the tick that carries a `failed`. The refused message is held in `lastFailed`
 instead, and Retry re-sends it through the ordinary `send` path — so it still
 queues behind an in-flight turn and is still never re-dispatched on its own.
+
+**One representation per failed send.** The dock passes
+`restoreDraftOnFailure={false}` to `ChatTranscript` (intake keeps the restore,
+where the refusal is drawn nowhere else): the refused message stays as its
+optimistic bubble with the error line's **Send it again** above it, instead of
+being both a bubble and a restored draft — sent and unsent at once, with Enter
+re-asking a question already on screen. Retry REPLACES that bubble:
+`withoutOptimisticTurns` drops the unsent turns before `send` pushes a fresh one,
+so a retried message is drawn once and a second failure does not stack a third
+bubble. A successful retry therefore leaves an empty composer and the server's
+own turns.
 
 **Late arm, no new poller.** `useAttention` already polls `/api/attention` every
 60 s for the sidebar badges, and `attention.companion` is the open-proposal count

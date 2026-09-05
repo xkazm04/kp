@@ -21,6 +21,7 @@ export function ChatComposer({
   slot,
   dense = false,
   tall = false,
+  restoreOnFailure = true,
 }: {
   labels: ChatLabels;
   busy: boolean;
@@ -30,6 +31,15 @@ export function ChatComposer({
   dense?: boolean;
   /** Doubled input area for surfaces where the operator writes longer prompts (companion dock). */
   tall?: boolean;
+  /** Whether a refused send hands the typed message back as a draft.
+   *
+   *  TRUE (intake) is the right answer where the refusal is drawn nowhere else:
+   *  the paragraph would otherwise exist in no place at all. FALSE is for a
+   *  surface that KEEPS the refused message on screen itself — the companion
+   *  dock leaves the bubble up with a Retry beside the error — where restoring
+   *  it as well drew one message twice, and let Enter re-ask a question that is
+   *  still sitting in the transcript. */
+  restoreOnFailure?: boolean;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -38,7 +48,7 @@ export function ChatComposer({
     if (!message || busy || closed) return;
     setDraft("");
     const ok = await onSend(message);
-    if (ok === false) setDraft((d) => (d.trim() ? d : message));
+    if (ok === false && restoreOnFailure) setDraft((d) => (d.trim() ? d : message));
   }
 
   return (

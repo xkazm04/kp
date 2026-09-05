@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CompanionProposal, CompanionTurn } from "@/app/_lib/db/companion";
-import { readProposalAnswer } from "@/app/_lib/companion-dock-states";
+import {
+  OPTIMISTIC_PREFIX,
+  readProposalAnswer,
+  withoutOptimisticTurns,
+} from "@/app/_lib/companion-dock-states";
 import {
   completeTurn,
   enqueueUtterance,
@@ -258,7 +262,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       setTurns((prev) => [
         ...prev,
         {
-          id: `optimistic-${(optimisticSeq += 1)}`,
+          id: `${OPTIMISTIC_PREFIX}${(optimisticSeq += 1)}`,
           threadId,
           workspaceId: "",
           role: "user" as const,
@@ -312,6 +316,12 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
    *  racing it, and a second failure simply re-arms the button. */
   const retry = useCallback((): Promise<boolean> => {
     if (!lastFailed) return Promise.resolve(false);
+    // REPLACES the failed bubble rather than adding one: `send` pushes a fresh
+    // optimistic turn, so without this a retried message was drawn twice and a
+    // second failure three times. All of them go rather than one id, because
+    // sends coalesce — several bubbles can share the one dispatch that failed —
+    // and a success replaces the whole list with the server's turns anyway.
+    setTurns(withoutOptimisticTurns);
     return send(lastFailed);
   }, [lastFailed, send]);
 

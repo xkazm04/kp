@@ -237,6 +237,11 @@ export function CompanionBody({
       <ChatTranscript
         className="min-h-0 flex-1"
         tall
+        // ONE representation of a refused message. The bubble stays up with the
+        // error line's Retry beside it, so the composer must not ALSO hand the
+        // text back: it did both, and the operator saw the same sentence twice
+        // while Enter re-asked what was already on screen.
+        restoreDraftOnFailure={false}
         turns={chatTurns}
         side={companionSide}
         labels={labels}
