@@ -5,6 +5,10 @@
 // Every case is a real unified diff fragment, because the failure mode this
 // suite exists to prevent is a rule that reads well and never fires.
 import assert from 'node:assert/strict';
+// The masker's own fixtures, run FIRST (an ESM import is hoisted). `test:review`
+// names this file, so importing the mask suite here is how the new module's checks
+// reach CI without editing a package.json line another lot owns this wave.
+import './source-mask.test.mjs';
 import { parseDiff } from '../diff.mjs';
 import {
   EXEMPTION_RE,
@@ -15,6 +19,7 @@ import {
   render,
   runRules,
   skipBaselineChange,
+  skipReason,
 } from '../constitution-check.mjs';
 import { budgetDiff, buildPrompt, extractJson, renderMarkdown, verdictFor } from '../agent-review.mjs';
 import { adrSummaries, buildRubric, section } from '../rubric.mjs';
@@ -114,6 +119,91 @@ check('a markdown file DESCRIBING a suppression does not note', () => {
 check('a real skip in code still blocks after the prose carve-out', () => {
   const f = rules(diff({ path: 'pipeline/jobfit/tests/test_y.py', added: ['@unittest.skip("flaky")'] }));
   assert.equal(sev(f, 'test-skip'), 'blocking');
+});
+
+// A CONDITIONAL skip that states its reason is a precondition, not lost coverage.
+// e2e/activity-detail.spec.ts declares `test.skip(count === 0, "the llm_usage ledger
+// is empty on this database")` across three lines — blocking it produced a
+// `Gate-exemption:` trailer that then downgraded every other finding in the range.
+check('a conditional skip WITH a reason is a note, and quotes the reason', () => {
+  const f = rules(
+    diff({
+      path: 'e2e/activity-detail.spec.ts',
+      added: ['  test.skip(', '    (await trigger.count()) === 0,', '    "the llm_usage ledger is empty on this database"', '  );'],
+    }),
+  );
+  assert.equal(sev(f, 'test-skip'), 'warn');
+  assert.match(f.find((x) => x.rule === 'test-skip').message, /llm_usage ledger is empty/);
+});
+
+check('a conditional skip on ONE line is a note too', () => {
+  const f = rules(diff({ path: 'app/_lib/a.test.ts', added: ['  test.skip(!process.env.KP_LIVE, "live-only smoke");'] }));
+  assert.equal(sev(f, 'test-skip'), 'warn');
+});
+
+check('@pytest.mark.skipif with a reason= is a note; a bare @pytest.mark.skip blocks', () => {
+  const noted = rules(
+    diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@pytest.mark.skipif(not HAS_PYPDF, reason="pypdf is not installed in this environment")'] }),
+  );
+  assert.equal(sev(noted, 'test-skip'), 'warn');
+  const bare = rules(diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@pytest.mark.skip("later")'] }));
+  assert.equal(sev(bare, 'test-skip'), 'blocking');
+});
+
+check('a skip whose first argument is a TITLE is still a bare skip', () => {
+  const f = rules(diff({ path: 'app/_lib/a.test.ts', added: ['test.describe.skip("the whole suite", () => {});'] }));
+  assert.equal(sev(f, 'test-skip'), 'blocking');
+  const py = rules(diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['@unittest.skip("flaky")'] }));
+  assert.equal(sev(py, 'test-skip'), 'blocking');
+});
+
+check('skipReason reads the shape, not the framework', () => {
+  assert.equal(skipReason('test.skip(cond, "why")'), 'why');
+  assert.equal(skipReason('skipif(a and b, reason="why not")'), 'why not');
+  assert.equal(skipReason('test.skip("a title", () => {})'), null);
+  assert.equal(skipReason('test.skip()'), null);
+  assert.equal(skipReason('@unittest.skip("flaky")'), null);
+  assert.equal(skipReason('test.skip(count(x, y) === 0, "nested commas are one argument")'), 'nested commas are one argument');
+});
+
+// --- prose vs. the thing it describes (the masker) ---------------------------
+// The real regression: this comment in app/_lib/ats/connections-store.ts fired the
+// tenancy rule in a commit that creates no table, and the push was waived rather
+// than fixed. Masking is scripts/review/source-mask.mjs, a copy of the masker in
+// app/api/error-response-contract.test.ts.
+check('a COMMENT mentioning CREATE TABLE does not fire the tenancy rule', () => {
+  const f = rules(
+    diff({
+      path: 'app/_lib/ats/connections-store.ts',
+      added: ['    // Already present (the CREATE TABLE above just made it, or an earlier boot did) —'],
+    }),
+  );
+  assert.ok(!has(f, 'tenancy-manifest'));
+});
+
+check('a block-comment continuation mentioning CREATE TABLE is prose too', () => {
+  const f = rules(diff({ path: 'app/_lib/db/core.ts', added: [' * the CREATE TABLE below is the one the manifest governs'] }));
+  assert.ok(!has(f, 'tenancy-manifest'));
+});
+
+check('a REAL CREATE TABLE inside a template literal still blocks', () => {
+  const f = rules(diff({ path: 'app/_lib/db/core.ts', added: ['  d.exec(`CREATE TABLE IF NOT EXISTS widgets (id TEXT)`);'] }));
+  assert.equal(sev(f, 'tenancy-manifest'), 'blocking');
+});
+
+check('a COMMENT mentioning it.skip or .only does not fire', () => {
+  const skip = rules(diff({ path: 'app/_lib/a.test.ts', added: ['  // do not leave an it.skip( in here'] }));
+  assert.ok(!has(skip, 'test-skip'));
+  const only = rules(diff({ path: 'app/_lib/a.test.ts', added: ['  /* never land an it.only( here */'] }));
+  assert.ok(!has(only, 'test-only'));
+  // …and `#` is a comment in Python, where the marker would otherwise read as code.
+  const py = rules(diff({ path: 'pipeline/jobfit/tests/test_x.py', added: ['x = 1  # @unittest.skip is what this replaces'] }));
+  assert.ok(!has(py, 'test-skip'));
+});
+
+check('a suppression is STILL read from the raw line — it is itself a comment', () => {
+  const f = rules(diff({ path: 'app/_lib/a.ts', added: ['// eslint-disable-next-line no-console -- boot diagnostics'] }));
+  assert.equal(sev(f, 'suppression'), 'warn');
 });
 
 check('deleting a test file blocks', () => {

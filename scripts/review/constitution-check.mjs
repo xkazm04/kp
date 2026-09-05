@@ -16,7 +16,9 @@
 //   node scripts/review/constitution-check.mjs --base origin/main --head HEAD
 //   npm run review:constitution                       # HEAD~1..HEAD
 //
-// EXIT CODES: 0 clean or warnings only · 1 at least one blocking finding.
+// EXIT CODES: 0 clean or warnings only · 1 at least one blocking finding ·
+//             2 the check could not run (no comparable base) — deliberately not
+//             0, because the pre-push hook reads a 0 as "this change was read".
 //
 // THE ESCAPE HATCH IS A SENTENCE, NOT A FLAG. A blocking finding is downgraded
 // when any commit in the range carries:
@@ -37,6 +39,7 @@ import {
   revExists,
 } from './diff.mjs';
 import { SECRET_PATTERNS, isExempt as isSecretExempt } from '../security/secret-scan.mjs';
+import { codeOnlyLine, withoutCommentsLine } from './source-mask.mjs';
 
 export const EXEMPTION_RE = /^\s*Gate-exemption:\s*(.+)$/im;
 
@@ -113,9 +116,80 @@ const SKIP_MARKERS = [
   { re: /\b(?:xit|xdescribe|xtest)\s*\(/, what: 'a skipped JS test' },
   { re: /\btest\.describe\.skip\s*\(/, what: 'a skipped Playwright block' },
   { re: /@unittest\.skip\b/, what: 'a skipped Python test' },
+  { re: /@unittest\.skip(?:If|Unless)\s*\(/, what: 'a conditionally skipped Python test' },
+  { re: /@pytest\.mark\.skipif\s*\(/, what: 'a conditionally skipped Python test' },
+  { re: /@pytest\.mark\.skip\b(?!if)/, what: 'a skipped Python test' },
   { re: /\bself\.skipTest\s*\(/, what: 'a Python test that skips itself' },
 ];
 const ONLY_RE = /\b(?:it|test|describe)\.only\s*\(/;
+
+/**
+ * A CONDITIONAL skip that states its reason is a different animal from a bare one.
+ *
+ * `test.skip("later", …)` removes coverage. `test.skip(cond, "the llm_usage ledger
+ * is empty on this database")` is a test declaring the precondition it needs — it
+ * runs whenever the precondition holds, and the sentence in the second argument is
+ * exactly what a `Gate-exemption:` trailer would have said, except it lives beside
+ * the code instead of in one commit message. Blocking those taught the only lesson
+ * a false positive can teach: waive the range and move on.
+ *
+ * The shape, uniformly across both languages: the FIRST argument is not a string
+ * literal (so it is a condition), and a string argument follows it (the reason).
+ * `@unittest.skip("flaky")` and `describe.skip("later", …)` open with a string and
+ * are therefore still bare skips, which is the whole point.
+ *
+ * @param blob  the call text, starting at the marker match, with later added lines
+ *              appended — a Playwright `test.skip(` is routinely three lines.
+ * @returns the reason string, or null when this is a bare skip.
+ */
+export function skipReason(blob) {
+  const open = blob.indexOf('(');
+  if (open === -1) return null;
+  let depth = 0;
+  let end = -1;
+  for (let i = open; i < blob.length; i += 1) {
+    if (blob[i] === '(') depth += 1;
+    else if (blob[i] === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  const args = blob.slice(open + 1, end === -1 ? blob.length : end);
+
+  // Split on top-level commas only: a condition may itself be a call.
+  const parts = [];
+  let depth2 = 0;
+  let start = 0;
+  for (let i = 0; i < args.length; i += 1) {
+    const c = args[i];
+    if (c === '(' || c === '[' || c === '{') depth2 += 1;
+    else if (c === ')' || c === ']' || c === '}') depth2 -= 1;
+    else if (c === ',' && depth2 === 0) {
+      parts.push(args.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(args.slice(start));
+
+  const trimmed = parts.map((p) => p.trim()).filter((p) => p.length);
+  if (trimmed.length < 2) return null;
+  if (/^["'`]/.test(trimmed[0])) return null; // opens with a title/description: a bare skip
+  for (const part of trimmed.slice(1)) {
+    const m = /^(?:reason\s*=\s*)?(["'`])([\s\S]*?)\1/.exec(part);
+    if (m && m[2].trim()) return m[2].trim();
+  }
+  return null;
+}
+
+/** The marker's line plus the few added lines after it — enough to close the call. */
+function skipCallBlob(added, index, matchIndex) {
+  const parts = [added[index].text.slice(matchIndex)];
+  for (let k = index + 1; k < Math.min(index + 8, added.length); k += 1) parts.push(added[k].text);
+  return parts.join('\n');
+}
 
 // Credential shapes with enough structure that a match is worth stopping for.
 // Loose prefixes (a bare `sk-`) are deliberately absent: a rule that cries wolf
@@ -190,9 +264,22 @@ export function runRules(files, context = {}) {
 
     if (SELF_RE.test(p)) continue; // see SELF_RE
 
-    for (const { line, text } of file.added) {
+    for (let ai = 0; ai < file.added.length; ai += 1) {
+      const { line, text } = file.added[ai];
+      // The three CONTENT rules below read a MASKED line, not the raw one: a
+      // comment that mentions `CREATE TABLE` or `it.skip(` is a description, and
+      // a rule that cannot tell a description from the thing described gets
+      // waived rather than fixed (that is how commit 83852794 happened). Which
+      // mask matters: `codeOnly` for the rules that look for a CALL, and
+      // `withoutComments` for the tenancy rule, whose subject nearly always
+      // lives INSIDE a string. The `suppression` rule below deliberately keeps
+      // the raw text — an `eslint-disable` IS a comment, so masking comments
+      // there would delete the rule instead of sharpening it.
+      const code = codeOnlyLine(text, p);
+      const uncommented = withoutCommentsLine(text, p);
+
       // --- 2. `.only` — silently disables every other test in the file -----
-      if (ONLY_RE.test(text) && TEST_FILE_RE.test(p)) {
+      if (ONLY_RE.test(code) && TEST_FILE_RE.test(p)) {
         out.push(
           finding(
             'blocking',
@@ -207,7 +294,23 @@ export function runRules(files, context = {}) {
 
       // --- 3. Skipped tests --------------------------------------------------
       for (const marker of PROSE_RE.test(p) ? [] : SKIP_MARKERS) {
-        if (marker.re.test(text)) {
+        const m = marker.re.exec(code);
+        if (!m) continue;
+        const reason = skipReason(skipCallBlob(file.added, ai, m.index));
+        if (reason) {
+          out.push(
+            finding(
+              'warn',
+              'test-skip',
+              p,
+              line,
+              `A conditional skip that states its reason: "${reason}".`,
+              'Noted, not blocked: the test still runs whenever the condition is false, and the reason ' +
+                'is beside the code rather than in one commit message. Check the condition can actually ' +
+                'become false in CI — a condition that is always true is a bare skip with extra words.',
+            ),
+          );
+        } else {
           out.push(
             finding(
               'blocking',
@@ -216,11 +319,13 @@ export function runRules(files, context = {}) {
               line,
               `This change adds ${marker.what}.`,
               'Fix the test or fix the code. If the skip is genuinely correct (an unavailable ' +
-                'fixture, a live-only smoke), state why in the commit body with `Gate-exemption:`.',
+                'fixture, a live-only smoke), make it a CONDITIONAL skip with a reason — ' +
+                '`test.skip(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")` — or state why in ' +
+                'the commit body with `Gate-exemption:`.',
             ),
           );
-          break;
         }
+        break;
       }
 
       // --- 4. Suppression directives ----------------------------------------
@@ -265,7 +370,7 @@ export function runRules(files, context = {}) {
 
       // --- 6. A new persistent table that never reached the manifest --------
       if (
-        /CREATE\s+TABLE/i.test(text) &&
+        /CREATE\s+TABLE/i.test(uncommented) &&
         APP_SOURCE_RE.test(p) &&
         !TEST_FILE_RE.test(p) &&
         !changed.has('app/_lib/tenancy.ts')
@@ -440,9 +545,29 @@ export function render(findings, exemption) {
 function main(argv) {
   const args = parseArgs(argv);
   const range = resolveRange(args, revExists);
+
+  // A CHECK THAT DID NOT RUN IS NOT A GREEN CHECK. This printed "check skipped"
+  // and returned 0, and `.githooks/pre-push` reads that exit code as "clean" —
+  // so a clone whose `origin/main` was never fetched pushed to main with the
+  // deterministic lens silently doing nothing. Two behaviours, both loud:
+  //
+  //   base requested but absent, parent commit available -> run the NARROW range
+  //     (HEAD~1..HEAD, resolveRange's fallback) and SAY the range narrowed.
+  //     Shallow CI checkouts land here and a narrow review beats none.
+  //   no comparable base at all (a root commit) -> exit 2. Nothing was read;
+  //     the caller must not be told it was.
+  if (args.base && !revExists(args.base)) {
+    process.stdout.write(
+      `constitution: ${args.base} is not in this clone — reviewing ${range.base}..${range.head} instead.\n` +
+        '              This is a NARROWER range than the one you asked for; `git fetch origin main` widens it.\n',
+    );
+  }
   if (!revExists(range.base)) {
-    process.stdout.write(`constitution: no comparable base (${range.base}) — check skipped.\n`);
-    return 0;
+    process.stdout.write(
+      `constitution: no comparable base (${range.base}) — NOTHING was reviewed.\n` +
+        '              This exits non-zero on purpose: a check that did not run must not read as a pass.\n',
+    );
+    return 2;
   }
 
   const files = parseDiff(diffForRange(range));

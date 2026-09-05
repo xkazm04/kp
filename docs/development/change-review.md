@@ -29,13 +29,26 @@ node scripts/review/constitution-check.mjs --base origin/main --head HEAD
 node scripts/review/constitution-check.mjs --json             # machine-readable
 ```
 
+Exit codes: **0** clean or notes only, **1** a blocking finding, **2** the check
+could not run because there is no comparable base. The 2 is the point: this used
+to print *"no comparable base — check skipped"* and exit **0**, and
+`.githooks/pre-push` read that as a pass, so a clone whose `origin/main` was
+never fetched pushed to `main` with the deterministic lens doing nothing. The
+hook now runs `git fetch --quiet origin main` before both lenses; a fetch that
+fails (offline) is reported and the push continues against the base this clone
+already has, because refusing to push on a plane is not a security property —
+what must never happen is a range nobody read reporting itself as clean. When the
+requested base is missing but a parent commit exists, the lens says so and
+reviews the narrower `HEAD~1..HEAD`.
+
 It looks for the moves that make a gate stop meaning anything — the same set the
 App-master programme calls forbidden change classes:
 
 | Rule | Severity | Fires when |
 | --- | --- | --- |
 | `test-only` | blocking | `.only(` lands in a test file — it silently disables every *other* test there |
-| `test-skip` | blocking | a new `describe.skip` / `xit` / `@unittest.skip` / `self.skipTest` |
+| `test-skip` | blocking | a new **bare** `describe.skip` / `xit` / `@unittest.skip` / `@pytest.mark.skip` / `self.skipTest` |
+| `test-skip` | note | a **conditional** skip that states its reason — `test.skip(cond, "why")`, `@pytest.mark.skipif(cond, reason="why")`, `@unittest.skipIf(cond, "why")`. The note quotes the reason |
 | `test-deletion` | blocking | a test file is deleted |
 | `secret` | blocking, **un-waivable** | a structurally-valid API key or token is committed outside `.env.example` |
 | `tenancy-manifest` | blocking | `CREATE TABLE` in `app/**` without touching `app/_lib/tenancy.ts` |
@@ -47,6 +60,41 @@ App-master programme calls forbidden change classes:
 
 Notes never block. They exist so a reviewer sees a category rather than 40 more
 lines of diff.
+
+### What the rules read, and what they refuse to read
+
+A rule that cannot tell a *description* of a forbidden move from the move itself
+does not get fixed — it gets waived, and the waiver takes every other finding in
+the range with it. That happened on 2026-09-05: a comment in
+`app/_lib/ats/connections-store.ts` reading *"Already present (the CREATE TABLE
+above just made it…)"* fired `tenancy-manifest` in a commit that creates no
+table.
+
+So the content rules read a **masked** line
+([`scripts/review/source-mask.mjs`](../../scripts/review/source-mask.mjs), a copy
+of the masker in `app/api/error-response-contract.test.ts` — `scripts/review/` is
+dependency-free `.mjs` and cannot import a TypeScript test):
+
+| Rule | Reads |
+| --- | --- |
+| `test-only`, `test-skip` | `codeOnly` — comments **and** string contents blanked. The marker must be a real call |
+| `tenancy-manifest` | `withoutComments` — comments blanked, strings **kept**: `CREATE TABLE` nearly always lives inside a template literal |
+| `suppression` | the raw line. An `eslint-disable` *is* a comment; masking would delete the rule rather than sharpen it |
+| `secret` | the raw line. A key pasted into a comment is still a leaked key |
+
+`#` is a comment in `.py`/`.yml`/`.toml`/`.sh` and **not** in TypeScript; `--`
+only in `.sql`; a line whose first non-space character is `*` is a block-comment
+continuation. Fixtures: `scripts/review/__tests__/source-mask.test.mjs`.
+
+### A skip that names its precondition
+
+`test.skip(cond, "the llm_usage ledger is empty on this database")` is not lost
+coverage: the test runs whenever the condition is false, and the sentence beside
+it is exactly what the commit trailer would have said, except it stays with the
+code. The lens tells the two apart by shape — the first argument is not a string
+literal (so it is a condition) and a string argument follows it. A skip that
+opens with a title (`describe.skip("later", …)`, `@unittest.skip("flaky")`) is a
+bare skip and still blocks.
 
 ### Waiving a finding
 
