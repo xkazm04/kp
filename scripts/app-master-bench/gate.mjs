@@ -31,6 +31,9 @@
 //     the one reader that never asked, so a full sweep against canned Personas
 //     exited 0 while the report beside it printed "EVERYTHING IT REPORTS IS
 //     CANNED". A verdict that green means nothing is worse than no verdict.
+//   - a baselined NUMBER regressed past its tolerance, or was not measured at
+//     all. `mustPass` + `requiredExpectations` cannot see this: a tenure that
+//     fell from five opened proposals to one met every check it declared.
 //   - the run's repo scan was REUSED (`scan.reused: true`). kp coalesces a
 //     second scan of one target for 30 minutes and four scenarios share one
 //     root, so a sweep could measure the scan engine ONCE and hand the other
@@ -63,6 +66,80 @@ const BASELINE_PATH = path.join(HERE, "baseline.json");
 export const DEFAULT_MAX_AGE_DAYS = 14;
 
 const MS_PER_DAY = 86_400_000;
+
+/**
+ * Where each baselined NUMBER is read out of a run record.
+ *
+ * The same paths REPORT.md prints, and the same reduction: the BUSIEST night,
+ * not the last one. A tenure whose second night is quiet did not regress, and a
+ * bar that says otherwise gets ignored within a week.
+ *
+ * A metric name the baseline uses but this table does not know is a problem
+ * rather than a silent skip — a bar nothing reads is a bar that never fails.
+ */
+export const METRIC_READERS = {
+  proposalsOpened: (n) => n?.reading?.proposalsOpened,
+  proposalsMerged: (n) => n?.reading?.proposalsMerged,
+  proposalsReverted: (n) => n?.reading?.proposalsReverted,
+  gatePassRate: (n) => n?.reading?.gatePassRate,
+  forbiddenClassViolations: (n) => n?.reading?.forbiddenClassViolations,
+  backboneScore: (n) => n?.backbone?.score,
+  backboneCoverage: (n) => n?.backbone?.coverage,
+};
+
+/** The busiest night's value for one metric, or null when no night measured it. */
+function measuredMetric(record, name) {
+  const read = METRIC_READERS[name];
+  if (!read) return undefined; // unknown metric — the caller reports it
+  const values = (record?.nights ?? []).map(read).filter((v) => typeof v === "number" && Number.isFinite(v));
+  return values.length ? Math.max(...values) : null;
+}
+
+/**
+ * Compare one run's numbers against a scenario's baselined bars.
+ *
+ * `mustPass` + `requiredExpectations` cannot see this class of regression at
+ * all: a tenure that fell from five opened proposals to one measured every
+ * required check and met every one of its own floors, and nothing compared it to
+ * the run before. The bars are absolute, the tolerance is a FRACTION of the bar
+ * (so a metric that wobbles run to run does not cry wolf), and an absent number
+ * is a problem — unmeasured is not zero, here as everywhere else in this file.
+ */
+export function compareMetrics(record, spec) {
+  const problems = [];
+  const metrics = spec?.metrics;
+  if (!metrics || Object.keys(metrics).length === 0) return { metered: false, problems };
+  const tolerance = Number.isFinite(spec.tolerance) ? Math.abs(spec.tolerance) : 0;
+  for (const [name, bar] of Object.entries(metrics)) {
+    const actual = measuredMetric(record, name);
+    if (actual === undefined) {
+      problems.push(`metric "${name}" is baselined but nothing in gate.mjs reads it (METRIC_READERS)`);
+      continue;
+    }
+    if (actual === null) {
+      problems.push(`metric "${name}" was not measured in this run (baselined ${JSON.stringify(bar)})`);
+      continue;
+    }
+    if (typeof bar?.atLeast === "number") {
+      const floor = bar.atLeast - Math.abs(bar.atLeast) * tolerance;
+      if (actual < floor) {
+        problems.push(
+          `${name} fell to ${actual} — the baseline says at least ${bar.atLeast} (tolerance ${tolerance}, so ${floor})`,
+        );
+      }
+    } else if (typeof bar?.atMost === "number") {
+      const ceiling = bar.atMost + Math.abs(bar.atMost) * tolerance;
+      if (actual > ceiling) {
+        problems.push(
+          `${name} rose to ${actual} — the baseline says at most ${bar.atMost} (tolerance ${tolerance}, so ${ceiling})`,
+        );
+      }
+    } else {
+      problems.push(`metric "${name}" declares neither atLeast nor atMost — a bar with no direction cannot fail`);
+    }
+  }
+  return { metered: true, problems };
+}
 
 /** `2026-08-26` (a baseline stamp) or a full ISO instant → epoch ms, or null. */
 function instant(value) {
@@ -126,6 +203,13 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
         problems.push(`expectation "${required}" was not measured in this run`);
       }
     }
+    // The NUMBERS. A scenario with `metrics: null` is UNMETERED — nobody has
+    // committed a measurement for it — which is reported rather than counted as
+    // covered, exactly like an unbaselined scenario. It is a gap to fill, not a
+    // failure to invent.
+    const metrics = compareMetrics(record, spec);
+    problems.push(...metrics.problems);
+
     const failed = expectations.filter((e) => e.ok === false);
     for (const f of failed) {
       problems.push(`${f.name}: expected ${f.expected}, got ${f.actual}`);
@@ -197,6 +281,7 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
       ok: all.length === 0,
       stub,
       reusedScan,
+      metered: metrics.metered,
       reason: all.join("; ") || "every required expectation measured and met, on a fresh live run",
       expectations: expectations.map((e) => ({ name: e.name, ok: e.ok === true })),
       finishedAt: record.finishedAt ?? null,
@@ -211,6 +296,7 @@ export function evaluateSweep(baseline, runs, { now = new Date(), maxAgeDays = D
     missing: rows.filter((r) => r.verdict === "missing").length,
     stub: rows.filter((r) => r.verdict === "stub").length,
     reusedScan: rows.filter((r) => r.reusedScan).length,
+    unmetered: rows.filter((r) => r.verdict !== "missing" && !r.metered).length,
     stale: rows.filter((r) => r.verdict === "stale").length,
     unbaselined: unbaselined.length,
   };
@@ -230,6 +316,7 @@ export function renderGate(gate, baseline) {
       counts.stub ? `${counts.stub} CANNED (stub Personas)` : null,
       counts.reusedScan ? `${counts.reusedScan} COPIED scan (reused dossier)` : null,
       counts.stale ? `${counts.stale} stale` : null,
+      counts.unmetered ? `${counts.unmetered} unmetered` : null,
       counts.unbaselined ? `${counts.unbaselined} unbaselined` : null,
       `baseline ${baseline.recordedAt ?? "?"}`,
     ]),
@@ -253,6 +340,15 @@ export function renderGate(gate, baseline) {
       `  ${glyph(false)} ${counts.stub} scenario(s) were only run against the in-process STUB Personas.` +
         `\n      A stub run proves the driver's plumbing, not the App master's performance.` +
         `\n      Re-run those scenarios without --stub-personas before asking for a verdict.`,
+    );
+  }
+  if (counts.unmetered) {
+    lines.push("");
+    lines.push(
+      `  ${GLYPH_NA} ${counts.unmetered} scenario(s) are UNMETERED: baseline.json carries no numbers for` +
+        `\n      them, so pass/fail is all the gate can say. A tenure can fall from five` +
+        `\n      opened proposals to one without any of this going red. Record the numbers` +
+        `\n      from a committed run and name the source in \`metricsFrom\`.`,
     );
   }
   if (counts.reusedScan) {

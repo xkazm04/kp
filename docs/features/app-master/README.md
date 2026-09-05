@@ -1568,7 +1568,7 @@ npm run bench:gate -- --max-age-days 30   # a wider freshness window, on purpose
 `result.json` per scenario, compares it against the committed baseline
 [`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
 writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
-counts seven things as a regression:
+counts eight things as a regression:
 
 | | |
 | --- | --- |
@@ -1577,6 +1577,7 @@ counts seven things as a regression:
 | expectation failed | any `expectations[].ok === false`, with its delta |
 | expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
 | `stub` | the run carries `personas.stub: true` — it ran against the in-process stub, so every number it holds is canned (see *Honesty properties* below). The gate was the one reader in the bench that never asked: a whole sweep against canned Personas used to exit 0 while the report beside it printed **EVERYTHING IT REPORTS IS CANNED**. |
+| number regressed | a baselined **number** fell past its tolerance, or was not measured. `mustPass` + `requiredExpectations` cannot see this class at all: a tenure that fell from five opened proposals to one measured every required check and met every one of its own floors. |
 | `reused-scan` | the run carries `scan.reused: true` — kp coalesced its repo scan onto a reading another run had already taken, so the dossier it graded is a copy. Four scenarios share one root and the window is 30 minutes, which is how a sweep could measure the scan engine once and grade three copies. Re-run those without `--reuse-scan`. |
 | `stale` | the newest run for that scenario finished *before* the baseline it is compared to was recorded (it cannot certify a bar raised after it), or it is older than `--max-age-days` (default **14**). A run whose `finishedAt` will not parse is undatable, and undatable is not fresh. |
 
@@ -1590,11 +1591,45 @@ A scenario in the sweep but not in the baseline is reported as `unbaselined` and
 does **not** fail: a new scenario lands before its number is trusted. It is
 printed loudly so nobody reads silence as coverage.
 
+#### The baseline carries numbers (schemaVersion 2)
+
+`mustPass` + `requiredExpectations` are structural: they say a check ran and met
+its own floor. They let the App master get **worse** silently. `baseline.json`
+now also carries per-scenario `metrics` — `atLeast` (higher is better) or
+`atMost` (lower is better) — read out of the run at the same paths REPORT.md
+prints, reduced over the **busiest night** (`METRIC_READERS` in `gate.mjs`), with
+a per-scenario `tolerance` as a fraction of the bar so a metric that wobbles does
+not cry wolf. An absent number is a problem, never a zero.
+
+`metricsFrom` is required beside any `metrics` block: a bar with no stated origin
+is a number somebody made up. Today exactly one scenario has one —
+**`kp-default`, from
+[`__fixtures__/result-stub.json`](../../../scripts/app-master-bench/__fixtures__/result-stub.json)**,
+the committed recorded run `report.test.mjs` is built on (3 proposals opened, 2
+merged, gate pass rate 0.944, 0 violations, backbone score 0.9056, coverage 1).
+That run used `--stub-personas`, so those figures are **canned by construction**
+and the gate refuses a stub run outright: treat them as the SHAPE a real sweep
+must clear, and re-record them from the first live sweep with `metricsFrom`
+naming its run. The other five scenarios stay honestly at `metrics: null` and are
+reported as **`unmetered`** — nobody has measured them, which is a gap to fill
+rather than a failure to invent, and the gate says so in its own line.
+
 `baseline.json` is pinned to the committed scenarios by `gate.test.mjs` (in
-`npm run test:bench-driver`, now a CI step) in both directions: every baselined
+`npm run test:bench-driver`, a CI step) in both directions: every baselined
 scenario must have a scenario file, and every `requiredExpectations` name must
-actually be declared in that scenario's `expect` block. Moving a number is
-allowed — edit the baseline in the same change and say which number moved.
+actually be declared in that scenario's `expect` block. It is also a **ratchet**:
+`FLOOR` in `gate.test.mjs` freezes what the baseline has already promised, so
+deleting a scenario, dropping a required expectation, lowering a bar or widening
+a tolerance is red — and the numbers are checked back against the fixture they
+claim to come from. Raising a bar is expected; lowering one is a deliberate edit
+to `FLOOR` with the reason in the commit body.
+
+**What CI actually runs.** `npm run bench:gate` is **not** a CI gate and never
+could be: it reads `bench/app-master/runs/`, `bench/` is gitignored, and with no
+runs it exits 1 by design. It is a local ritual after a sweep. CI holds the
+committed half — `npm run test:bench-driver` runs `gate.test.mjs`, so the
+baseline's structure, its ratchet and its stated sources are gated even though
+the sweep itself never runs there.
 
 ### Honesty properties, and what stays unmeasured
 

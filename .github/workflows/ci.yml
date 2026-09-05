@@ -478,8 +478,16 @@ jobs:
       #
       # Deliberately NOT gated: `test:eval:strict` (the Gemini golden set) and
       # `bench:app-master` (needs a live server + Personas). Those stay
-      # on-demand; the bench's verdict is kept honest by `npm run bench:gate`
-      # against scripts/app-master-bench/baseline.json instead.
+      # on-demand.
+      #
+      # `npm run bench:gate` is NOT a CI gate either, and this comment used to
+      # say it was. It reads bench/app-master/runs/, `bench/` is gitignored, and
+      # with no runs it exits 1 by design — so it cannot run here at all. It is a
+      # LOCAL ritual after a sweep. What CI holds is the committed half:
+      # `npm run test:bench-driver` (a step of its own, above) runs gate.test.mjs,
+      # which pins scripts/app-master-bench/baseline.json to the committed
+      # scenarios AND ratchets it — a required expectation deleted or a number
+      # loosened is red here, even though the sweep itself never runs.
       #
       # Cost: both are pure-Python over committed fixtures, in the job that has
       # already paid for the dependency install.

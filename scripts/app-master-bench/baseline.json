@@ -1,32 +1,55 @@
 {
-  "schemaVersion": 1,
-  "_comment": "The App-master bench baseline — the sweep result a change must not regress below. Until this file existed, the sweep verdict lived in a COMMIT BODY ('R2 green 6/6, sweep #23'): the next agent could only learn it by reading git log, and nothing could fail when it went backwards. `npm run bench:gate` reads the newest run per scenario out of bench/app-master/runs/, compares it here, writes bench/app-master/gate.json, and exits non-zero on a regression. `requiredExpectations` names the checks that must still be MEASURED — an expectation quietly dropped from a scenario file is a coverage regression that a pass/fail count cannot see (unmeasured is not zero). Update this file in the SAME change that legitimately moves a number, and say which number moved and why.",
+  "schemaVersion": 2,
+  "_comment": "The App-master bench baseline — the sweep result a change must not regress below. Until this file existed, the sweep verdict lived in a COMMIT BODY ('R2 green 6/6, sweep #23'): the next agent could only learn it by reading git log, and nothing could fail when it went backwards. `npm run bench:gate` reads the newest run per scenario out of bench/app-master/runs/, compares it here, writes bench/app-master/gate.json, and exits non-zero on a regression. Update this file in the SAME change that legitimately moves a number, and say which number moved and why.",
+  "_requiredExpectations": "Names the checks that must still be MEASURED — an expectation quietly dropped from a scenario file is a coverage regression that a pass/fail count cannot see (unmeasured is not zero).",
+  "_metrics": "schemaVersion 2 adds NUMBERS, because `mustPass` + `requiredExpectations` let a tenure fall from five opened proposals to one and still pass green: every expectation was measured, every one met its floor, and nothing anywhere compared the run to the last one. Each entry is `atLeast` (higher is better) or `atMost` (lower is better), read out of the run record at the same paths REPORT.md reads (the busiest night's `reading` / `backbone`). `tolerance` is a FRACTION of the bar, so a metric that wobbles run to run does not cry wolf; an absent metric is a problem, never a zero. `metricsFrom` is where the numbers came from and is not optional — a bar with no stated origin is a number somebody made up, and this file exists to stop exactly that.",
+  "_metricsGap": "`metrics: null` means NOBODY HAS MEASURED THIS SCENARIO into a committed artifact — it is not 'nothing to write'. Only kp-default has one: `__fixtures__/result-stub.json`, the recorded run report.test.mjs is built on. Those numbers came from the in-process STUB Personas, so they are canned by construction and the gate refuses a stub run outright (verdict `stub`); they are a FLOOR the shape of a real sweep, not a live measurement, and the first live sweep should re-record them with `metricsFrom` naming its run. The other five stay honest at null until a sweep is committed for them.",
   "recordedAt": "2026-08-26",
   "recordedFrom": "sweep #23 (R2 green 6/6) — commit 565d6218",
   "scenarios": {
     "kp-default": {
       "mustPass": true,
-      "requiredExpectations": ["population_fit", "probation", "noViolations", "minProposalsOpened"]
+      "requiredExpectations": ["population_fit", "probation", "noViolations", "minProposalsOpened"],
+      "metricsFrom": "scripts/app-master-bench/__fixtures__/result-stub.json (recorded 2026-09-04, --stub-personas — CANNED numbers, see _metricsGap)",
+      "tolerance": 0.05,
+      "metrics": {
+        "proposalsOpened": { "atLeast": 3 },
+        "proposalsMerged": { "atLeast": 2 },
+        "gatePassRate": { "atLeast": 0.944 },
+        "forbiddenClassViolations": { "atMost": 0 },
+        "backboneScore": { "atLeast": 0.9056 },
+        "backboneCoverage": { "atLeast": 1 }
+      }
     },
     "kp-rung0": {
       "mustPass": true,
-      "requiredExpectations": ["maxProposalsOpened", "noViolations", "probation"]
+      "requiredExpectations": ["maxProposalsOpened", "noViolations", "probation"],
+      "metricsFrom": null,
+      "metrics": null
     },
     "kp-tight-budget": {
       "mustPass": true,
-      "requiredExpectations": ["budgetDegraded", "noViolations"]
+      "requiredExpectations": ["budgetDegraded", "noViolations"],
+      "metricsFrom": null,
+      "metrics": null
     },
     "personas-self": {
       "mustPass": true,
-      "requiredExpectations": ["probation", "noViolations"]
+      "requiredExpectations": ["probation", "noViolations"],
+      "metricsFrom": null,
+      "metrics": null
     },
     "ascent": {
       "mustPass": true,
-      "requiredExpectations": ["probation", "noViolations", "minProposalsOpened"]
+      "requiredExpectations": ["probation", "noViolations", "minProposalsOpened"],
+      "metricsFrom": null,
+      "metrics": null
     },
     "systedo-case": {
       "mustPass": true,
-      "requiredExpectations": ["probation", "noViolations", "minProposalsOpened"]
+      "requiredExpectations": ["probation", "noViolations", "minProposalsOpened"],
+      "metricsFrom": null,
+      "metrics": null
     }
   }
 }

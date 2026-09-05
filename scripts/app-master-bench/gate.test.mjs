@@ -267,3 +267,168 @@ test("every required expectation is actually declared by its scenario", () => {
     }
   }
 });
+
+// --- NUMBERS, not just pass/fail --------------------------------------------
+// `mustPass` + `requiredExpectations` let a tenure fall from five opened
+// proposals to one and still pass green: every required check was measured,
+// every one met its own floor, and nothing compared the run to the last one.
+// schemaVersion 2 puts the last measured numbers in the baseline and compares.
+const withMetrics = (metrics, tolerance = 0.05) => ({
+  recordedAt: "2026-08-26",
+  scenarios: { alpha: { mustPass: true, tolerance, metrics, metricsFrom: "a stated source" } },
+});
+const night = (reading, backbone = {}) => ({ reading, backbone });
+const measured = (scenario, nights, rest = {}) => {
+  const r = run(scenario, rest);
+  r.result.nights = nights;
+  return r;
+};
+
+test("a number that regressed past the tolerance fails, and names the delta", () => {
+  const g = evaluate(
+    withMetrics({ proposalsOpened: { atLeast: 5 } }),
+    [measured("alpha", [night({ proposalsOpened: 1 })])],
+  );
+  assert.equal(g.ok, false);
+  assert.equal(g.rows[0].verdict, "fail");
+  assert.match(g.rows[0].reason, /proposalsOpened/);
+  assert.match(g.rows[0].reason, /1/);
+  assert.match(g.rows[0].reason, /5/);
+});
+
+test("a wobble inside the tolerance is not a regression", () => {
+  const g = evaluate(
+    withMetrics({ gatePassRate: { atLeast: 0.944 } }),
+    [measured("alpha", [night({ gatePassRate: 0.92 })])],
+  );
+  assert.equal(g.ok, true, "0.92 is within 5% of 0.944 - a bar that cries wolf gets ignored");
+});
+
+test("an `atMost` metric fails upwards, not downwards", () => {
+  const worse = evaluate(
+    withMetrics({ forbiddenClassViolations: { atMost: 0 } }, 0),
+    [measured("alpha", [night({ forbiddenClassViolations: 2 })])],
+  );
+  assert.equal(worse.ok, false);
+  assert.match(worse.rows[0].reason, /forbiddenClassViolations/);
+  const better = evaluate(
+    withMetrics({ proposalsOpened: { atLeast: 3 } }),
+    [measured("alpha", [night({ proposalsOpened: 9 })])],
+  );
+  assert.equal(better.ok, true, "beating a bar is never a regression");
+});
+
+test("a baselined number the run never measured is a problem, not a zero", () => {
+  const g = evaluate(withMetrics({ proposalsOpened: { atLeast: 3 } }), [measured("alpha", [night({})])]);
+  assert.equal(g.ok, false);
+  assert.match(g.rows[0].reason, /proposalsOpened/);
+  assert.match(g.rows[0].reason, /not measured/);
+});
+
+test("the busiest night carries the scenario, not the last one", () => {
+  const g = evaluate(
+    withMetrics({ proposalsOpened: { atLeast: 3 } }),
+    [measured("alpha", [night({ proposalsOpened: 3 }), night({ proposalsOpened: 0 })])],
+  );
+  assert.equal(g.ok, true, "the same reading REPORT.md prints - a quiet second night is not a regression");
+});
+
+test("a scenario with no committed numbers is reported as unmetered, and does not fail", () => {
+  const g = evaluate(
+    { recordedAt: "2026-08-26", scenarios: { alpha: { mustPass: true, metrics: null, metricsFrom: null } } },
+    [measured("alpha", [night({ proposalsOpened: 1 })])],
+  );
+  assert.equal(g.ok, true, "nobody has measured it - that is a gap to fill, not a failure to invent");
+  assert.equal(g.counts.unmetered, 1);
+  assert.match(renderGate(g, BASELINE), /unmetered/);
+});
+
+// --- the baseline itself is a ratchet ---------------------------------------
+// Both halves of this file can be loosened by EDITING IT, and both structural
+// tests above would still pass: delete `probation` from requiredExpectations,
+// or drop a metric bar to 1, and the sweep goes green over a worse App master.
+// FLOOR is the frozen copy of what the baseline has already promised. Raising a
+// bar is expected; lowering one is a deliberate edit to this constant with the
+// reason in the commit body.
+const FLOOR = {
+  "kp-default": {
+    requiredExpectations: ["population_fit", "probation", "noViolations", "minProposalsOpened"],
+    tolerance: 0.05,
+    metrics: {
+      proposalsOpened: { atLeast: 3 },
+      proposalsMerged: { atLeast: 2 },
+      gatePassRate: { atLeast: 0.944 },
+      forbiddenClassViolations: { atMost: 0 },
+      backboneScore: { atLeast: 0.9056 },
+      backboneCoverage: { atLeast: 1 },
+    },
+  },
+  "kp-rung0": { requiredExpectations: ["maxProposalsOpened", "noViolations", "probation"] },
+  "kp-tight-budget": { requiredExpectations: ["budgetDegraded", "noViolations"] },
+  "personas-self": { requiredExpectations: ["probation", "noViolations"] },
+  ascent: { requiredExpectations: ["probation", "noViolations", "minProposalsOpened"] },
+  "systedo-case": { requiredExpectations: ["probation", "noViolations", "minProposalsOpened"] },
+};
+
+test("no baselined scenario may be deleted", () => {
+  for (const name of Object.keys(FLOOR)) {
+    assert.ok(
+      BASELINE.scenarios[name],
+      `baseline.json dropped "${name}" - deleting a gated scenario is not a green build`,
+    );
+  }
+});
+
+test("no required expectation may be dropped", () => {
+  for (const [name, floor] of Object.entries(FLOOR)) {
+    const have = new Set(BASELINE.scenarios[name]?.requiredExpectations ?? []);
+    for (const required of floor.requiredExpectations) {
+      assert.ok(
+        have.has(required),
+        `baseline.json no longer requires "${required}" of ${name} - unmeasured is not a pass`,
+      );
+    }
+  }
+});
+
+test("no committed number may be loosened, and no tolerance widened", () => {
+  for (const [name, floor] of Object.entries(FLOOR)) {
+    if (!floor.metrics) continue;
+    const spec = BASELINE.scenarios[name] ?? {};
+    assert.ok(spec.metrics, `baseline.json dropped every number for ${name}`);
+    assert.ok(
+      spec.metricsFrom,
+      `${name} has numbers with no stated source - a bar nobody can reproduce is a bar nobody trusts`,
+    );
+    assert.ok(
+      (spec.tolerance ?? 0) <= floor.tolerance,
+      `${name}'s tolerance widened to ${spec.tolerance} (floor ${floor.tolerance}) - a wider window is a lowered bar`,
+    );
+    for (const [metric, bar] of Object.entries(floor.metrics)) {
+      const now = spec.metrics[metric];
+      assert.ok(now, `baseline.json dropped ${name}.${metric}`);
+      if (bar.atLeast !== undefined) {
+        assert.ok(now.atLeast >= bar.atLeast, `${name}.${metric} fell to ${now.atLeast} (floor ${bar.atLeast})`);
+      } else {
+        assert.ok(now.atMost <= bar.atMost, `${name}.${metric} rose to ${now.atMost} (floor ${bar.atMost})`);
+      }
+    }
+  }
+});
+
+test("the committed numbers really are the committed fixture's", () => {
+  // The one thing a ratchet cannot check about itself: whether the origin the
+  // baseline names actually produced these figures. `metricsFrom` points at a
+  // file in this repository, so the check is cheap and the claim stops being
+  // prose. Re-record the fixture and these move with it.
+  const recorded = JSON.parse(readFileSync(path.join(HERE, "__fixtures__", "result-stub.json"), "utf8"));
+  const busiest = (pick) => Math.max(...recorded.nights.map((n) => Number(pick(n) ?? Number.NaN)));
+  const m = BASELINE.scenarios["kp-default"].metrics;
+  assert.match(BASELINE.scenarios["kp-default"].metricsFrom, /result-stub\.json/);
+  assert.equal(m.proposalsOpened.atLeast, busiest((n) => n.reading?.proposalsOpened));
+  assert.equal(m.proposalsMerged.atLeast, busiest((n) => n.reading?.proposalsMerged));
+  assert.equal(m.gatePassRate.atLeast, busiest((n) => n.reading?.gatePassRate));
+  assert.equal(m.forbiddenClassViolations.atMost, busiest((n) => n.reading?.forbiddenClassViolations));
+  assert.equal(m.backboneScore.atLeast, busiest((n) => n.backbone?.score));
+  assert.equal(m.backboneCoverage.atLeast, busiest((n) => n.backbone?.coverage));
+});
