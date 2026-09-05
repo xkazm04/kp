@@ -63,7 +63,16 @@ export function applyBillingAction(action: BillingAction, provider: string, orgI
           `[billing:webhook] CANCELED subscription ${action.subscriptionId ?? "?"} has no parseable currentPeriodEnd (${action.periodEnd ?? "null"}) — grace cutoff is unknown; keeping the plan. Check the Polar payload.`
         );
       }
-      upsertBillingState({
+      // COMPARE-AND-SWAP on the row the three guards above were computed from. Those
+      // guards are a read→compute→write, and the write used to re-assert nothing: a
+      // second writer landing between the SELECT and the UPDATE was blind-overwritten,
+      // so a concurrent delivery could regress a paying customer to an older snapshot
+      // that every guard here had already looked at and approved. Passing the prior
+      // `updatedAt` makes the store's `DO UPDATE … WHERE updated_at IS ?` drop the
+      // write instead (`res.changes === 0`), and the provider re-delivers only if we
+      // answer non-2xx — which we deliberately do not: the event was CORRECTLY not
+      // applied, because a newer decision won.
+      const applied = upsertBillingState({
         orgId,
         plan: action.plan,
         status: action.status,
@@ -72,7 +81,9 @@ export function applyBillingAction(action: BillingAction, provider: string, orgI
         providerSubscriptionId: action.subscriptionId,
         currentPeriodStart: action.periodStart,
         currentPeriodEnd: action.periodEnd,
+        expectedUpdatedAt: prior?.updatedAt ?? null,
       });
+      if (!applied) return `concurrent write won — subscription event dropped (state moved since it was read)`;
       return `plan=${action.plan} status=${action.status}`;
     }
     case "clear_subscription": {
@@ -86,7 +97,7 @@ export function applyBillingAction(action: BillingAction, provider: string, orgI
       if (clearSubscriptionIsStale(prior?.providerSubscriptionId ?? null, action.subscriptionId)) {
         return `stale revoke ignored (a newer subscription ${prior?.providerSubscriptionId} is active)`;
       }
-      upsertBillingState({
+      const cleared = upsertBillingState({
         orgId,
         plan: "free",
         status: "none",
@@ -100,7 +111,13 @@ export function applyBillingAction(action: BillingAction, provider: string, orgI
         providerSubscriptionId: action.subscriptionId ?? prior?.providerSubscriptionId ?? null,
         currentPeriodStart: null,
         currentPeriodEnd: null,
+        // Same CAS as the set path: the staleness guard above read `prior`, so the
+        // clear only lands on the row it reasoned about. A revoke dropped this way is
+        // a revoke that raced a newer write — re-applying it blind is how a
+        // re-subscribed customer loses their plan.
+        expectedUpdatedAt: prior?.updatedAt ?? null,
       });
+      if (!cleared) return `concurrent write won — revoke dropped (state moved since it was read)`;
       return "plan=free";
     }
     case "grant_credits": {

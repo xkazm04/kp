@@ -116,10 +116,30 @@ test("the exempt cross-org resolver is named and still exists", () => {
 });
 
 test("the documented global exceptions stay the ONLY unscoped reads", () => {
-  // billing_events: insert stamps org_id (attribution), dedupe stays the global PK.
-  const events = sqlBlocks.filter((s) => /\bbilling_events\b/i.test(s));
-  assert.ok(events.length >= 1);
-  for (const sql of events) assert.ok(/org_id/.test(sql), "billing_events insert must stamp org_id attribution");
+  // billing_events: the INSERT stamps org_id (attribution), dedupe stays the global PK.
+  // Scoped to INSERTs deliberately — the retention sweep below is the one deployment-wide
+  // statement on this table and it is exempted BY OWNER, not by letting the assertion
+  // weaken for every future statement.
+  const eventWrites = sqlBlocks.filter((s) => /insert\s+into\s+billing_events/i.test(s));
+  assert.ok(eventWrites.length >= 1);
+  for (const sql of eventWrites) assert.ok(/org_id/.test(sql), "billing_events insert must stamp org_id attribution");
+  // The retention sweep blanks aged payloads deployment-wide: retention is a property of
+  // the deployment's disk, not of one org's subscription, and the rows themselves (the
+  // idempotency gate) are never deleted. Named so it cannot widen silently.
+  // A backticked span is only a STATEMENT if it opens with a SQL verb — the prose in
+  // these docstrings cites `billing_events.id` in backticks too, and attributing that to
+  // whichever function precedes it would make this assertion fail on a comment.
+  const eventSweeps = sqlByOwner(src).filter(
+    ({ sql }) => /^\s*(select|update|delete)\b/i.test(sql) && /\bbilling_events\b/i.test(sql)
+  );
+  assert.deepEqual(
+    eventSweeps.map((s) => s.owner),
+    ["pruneBillingEventPayloads"],
+    "a non-INSERT statement on billing_events that is not the retention sweep needs its own documented rationale"
+  );
+  for (const { sql } of eventSweeps) {
+    assert.match(sql, /SET payload_json = ''/, "the sweep blanks the payload — it must never DELETE the idempotency row");
+  }
   // billing_alerts: the dedupe probe + worklist SELECT are deployment-global by
   // design, but the INSERT must stamp org_id and the SELECT must return it.
   const alertWrites = sqlBlocks.filter((s) => /insert\s+into\s+billing_alerts/i.test(s));

@@ -271,6 +271,24 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] price reconcile bookkeeping failed:", e);
     }
+    // Provider-event payload retention (db/billing.ts) — independent, best-effort,
+    // idempotent, and placed beside the reconcile job because it is the other standing
+    // duty on the billing tables. `billing_events` had no retention anywhere in the
+    // tree: the ROW is the idempotency gate and must be kept forever, but the verbatim
+    // provider body stored beside it — a customer id, an email on some Polar shapes,
+    // the whole product/price object — was kept forever too, in a table whose size an
+    // external system decides. This blanks payloads past the store's stated window and
+    // leaves every row (and therefore every dedupe) intact.
+    //
+    // Sits UNDER the autonomy pause with the sweeps below it: storage hygiene on our
+    // own bookkeeping, not a statutory duty, so a halted machine does as little as it can.
+    try {
+      const { pruneBillingEventPayloads } = await import("./app/_lib/db/billing");
+      const blanked = pruneBillingEventPayloads();
+      if (blanked) console.log("[clock] billing event payloads aged out:", blanked);
+    } catch (e) {
+      console.error("[clock] billing payload retention sweep failed:", e);
+    }
     // Apply-funnel retention (apply-session-store.ts) — independent, best-effort,
     // idempotent. `apply_sessions` is written from a PUBLIC door on every form open
     // and had no delete anywhere in the tree, so the abandoned attempts (the
