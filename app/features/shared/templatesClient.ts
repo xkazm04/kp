@@ -22,7 +22,10 @@ import type { Template } from "./renderTemplate";
  *  `failed` carries an `ApiErrorPayload`, not a message, because the client never
  *  renders the server's English (app/_lib/use-error-message.ts): each caller
  *  resolves it through `useErrorMessage()` in the reader's language. */
-export type TemplateListResult = { templates: Template[]; failed: ApiErrorPayload | null };
+/** `truncated` is the server telling us the library is longer than this page
+ *  (GET /api/templates is bounded — see TEMPLATE_LIST_DEFAULT_LIMIT). The picker does
+ *  not act on it; the MANAGER does, because "these are your templates" is a claim. */
+export type TemplateListResult = { templates: Template[]; truncated: boolean; failed: ApiErrorPayload | null };
 
 /** Load the company JD templates. One shared contract — the endpoint shape AND
  *  the failure shape — for every caller, so a change to either lives in one
@@ -39,11 +42,11 @@ export type TemplateListResult = { templates: Template[]; failed: ApiErrorPayloa
  *  invents nothing. */
 export async function fetchTemplates(): Promise<TemplateListResult> {
   try {
-    const payload = await sharedGetJson<{ templates?: Template[] }>("/api/templates");
-    return { templates: payload.templates ?? [], failed: null };
+    const payload = await sharedGetJson<{ templates?: Template[]; truncated?: boolean }>("/api/templates");
+    return { templates: payload.templates ?? [], truncated: payload.truncated === true, failed: null };
   } catch {
     // Not an empty catch: the reason IS the return value. Nothing is logged —
     // both surfaces show the failure, and a console line would only duplicate it.
-    return { templates: [], failed: { code: "TEMPLATE_LIST_FAILED" } };
+    return { templates: [], truncated: false, failed: { code: "TEMPLATE_LIST_FAILED" } };
   }
 }

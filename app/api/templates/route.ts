@@ -9,7 +9,10 @@ import { findUnknownPlaceholders, unknownPlaceholderMessage, validateTemplateFie
 export async function GET() {
   try {
     // The team's view: the org-shared library + this team's own private templates.
-    return NextResponse.json({ templates: listTemplates(await currentWorkspace()) });
+    // Bounded (templates-store) — `truncated` rides along so the manager can SAY the
+    // list is partial instead of quietly under-reporting the library.
+    const { templates, truncated } = listTemplates(await currentWorkspace());
+    return NextResponse.json({ templates, truncated });
   } catch (error) {
     return safeJsonError(error, "api:templates", "TEMPLATE_LIST_FAILED");
   }

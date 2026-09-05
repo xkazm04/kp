@@ -23,7 +23,7 @@ export function resolvePipeline(ws: string, attention: AttentionCounts): Palette
 }
 
 export function resolveChannels(ws: string, attention: AttentionCounts): PalettePreview {
-  const hooks = listChannelWebhooks(ws);
+  const { webhooks: hooks } = listChannelWebhooks(ws);
   let accepted = 0;
   let last: string | null = null;
   for (const h of hooks) {

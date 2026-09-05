@@ -80,18 +80,43 @@ function rowTo(r: Record<string, unknown>): JdTemplate {
   };
 }
 
+/** How many templates one read returns, and the ceiling a caller may ask for.
+ *
+ *  The list had no bound at all: every row a team can see, each carrying a FULL markdown
+ *  BODY, serialized into one response on every JD-builder mount and every open of the
+ *  manager. A workspace that has been authoring for a year is not a hypothetical, and the
+ *  cost is paid on a hot path by everyone. 200 is far above any real library and still a
+ *  bound; a caller may raise it to {@link TEMPLATE_LIST_MAX_LIMIT} and no further, because
+ *  an unclamped caller-supplied limit is just the missing bound with extra steps. */
+export const TEMPLATE_LIST_DEFAULT_LIMIT = 200;
+export const TEMPLATE_LIST_MAX_LIMIT = 500;
+
+/** A bounded read. `truncated` is the honest half: a silently cut list tells the reader
+ *  their library is smaller than it is, which is worse than a long one. */
+export type TemplateList = { templates: JdTemplate[]; truncated: boolean };
+
+/** Clamp a caller's limit into [1, MAX]; a missing or unusable value takes the default. */
+function templateLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return TEMPLATE_LIST_DEFAULT_LIMIT;
+  return Math.min(Math.max(1, Math.floor(limit)), TEMPLATE_LIST_MAX_LIMIT);
+}
+
 /** The templates a team sees: the ORG-SHARED library (workspace_id NULL) plus its OWN
- *  private templates. Default leads, then org templates before team drafts, then name. */
-export function listTemplates(workspaceId: string = DEFAULT_WORKSPACE_ID): JdTemplate[] {
-  return (
-    db()
-      .prepare(
-        `SELECT * FROM jd_templates
-         WHERE workspace_id IS NULL OR workspace_id = ?
-         ORDER BY is_default DESC, (workspace_id IS NOT NULL) ASC, name ASC`
-      )
-      .all(workspaceId) as Record<string, unknown>[]
-  ).map(rowTo);
+ *  private templates. Default leads, then org templates before team drafts, then name.
+ *  Bounded — see TEMPLATE_LIST_DEFAULT_LIMIT. */
+export function listTemplates(workspaceId: string = DEFAULT_WORKSPACE_ID, limit?: number): TemplateList {
+  const n = templateLimit(limit);
+  // One row past the bound, so "there are more" is ANSWERED rather than guessed from a
+  // full page — a library holding exactly `n` templates is not truncated.
+  const rows = db()
+    .prepare(
+      `SELECT * FROM jd_templates
+       WHERE workspace_id IS NULL OR workspace_id = ?
+       ORDER BY is_default DESC, (workspace_id IS NOT NULL) ASC, name ASC
+       LIMIT ?`
+    )
+    .all(workspaceId, n + 1) as Record<string, unknown>[];
+  return { templates: rows.slice(0, n).map(rowTo), truncated: rows.length > n };
 }
 
 /** One template by id — but only if it's ORG-SHARED or belongs to THIS team, so a

@@ -1,7 +1,16 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { createTemplate, deleteTemplate, editTemplate, getTemplate, listTemplates, setDefaultTemplate } from "./templates-store.ts";
+import {
+  createTemplate,
+  deleteTemplate,
+  editTemplate,
+  getTemplate,
+  listTemplates,
+  setDefaultTemplate,
+  TEMPLATE_LIST_DEFAULT_LIMIT,
+  TEMPLATE_LIST_MAX_LIMIT,
+} from "./templates-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -40,7 +49,7 @@ test("an edit with no expected stamp stays unconditional (the pre-CAS callers)",
 
 test("editing a template this team cannot see is notFound, never a silent no-op success", () => {
   createTemplate({ name: "B private", body: "{{role}}", scope: "team" }, "ws-nf-b");
-  const other = listTemplates("ws-nf-b").find((t) => t.scope === "team")!;
+  const other = listTemplates("ws-nf-b").templates.find((t) => t.scope === "team")!;
   const r = editTemplate(other.id, { name: "hacked" }, "ws-nf-a");
   assert.equal(r.ok, false);
   assert.equal(r.ok === false && r.reason, "notFound");
@@ -50,7 +59,7 @@ test("editing a template this team cannot see is notFound, never a silent no-op 
 test("delete refuses with a REASON: notFound, the last visible template, and the org default", () => {
   const ws = "ws-del";
   // The seeded org baseline ("Company standard") is the only visible template here.
-  const visible = listTemplates(ws);
+  const visible = listTemplates(ws).templates;
   assert.equal(visible.length, 1, "fixture assumption: only the seeded org default is visible");
 
   const missing = deleteTemplate("tpl-nope", ws);
@@ -71,4 +80,34 @@ test("promoting a team-private draft to the org default is refused (org baseline
   const ws = "ws-def";
   const priv = createTemplate({ name: "Mine", body: "{{role}}", scope: "team" }, ws);
   assert.equal(setDefaultTemplate(priv.id, ws), null, "a private draft cannot become THE company default");
+});
+
+// The list had no bound at all — every visible row, each carrying a full markdown BODY,
+// on every JD-builder mount and every open of the manager. These pin the bound AND the
+// honesty flag: a silently cut list tells a team its library is smaller than it is.
+test("the template list is bounded, clamps a caller's limit, and says when it cut", () => {
+  const ws = "ws-tpl-bound";
+  for (let i = 0; i < 6; i++) createTemplate({ name: `Bounded ${i}`, body: "# body" }, ws);
+
+  const page = listTemplates(ws, 3);
+  assert.equal(page.templates.length, 3, "the limit is honoured");
+  assert.equal(page.truncated, true, "and the caller is told there is more");
+
+  // A page that exactly fits is NOT truncated — the read looks one row past the bound
+  // rather than inferring "there is more" from a full page.
+  const all = listTemplates(ws, TEMPLATE_LIST_MAX_LIMIT);
+  assert.equal(all.truncated, false);
+  const exact = listTemplates(ws, all.templates.length);
+  assert.equal(exact.truncated, false, "a full page is not evidence of a next one");
+
+  // The caller's number is clamped at both ends: an unclamped caller-supplied limit is
+  // the missing bound with extra steps.
+  assert.equal(listTemplates(ws, 0).templates.length, 1, "below 1 clamps up to 1");
+  assert.equal(listTemplates(ws, -5).templates.length, 1);
+  assert.equal(listTemplates(ws, 10_000).templates.length, all.templates.length, "above MAX clamps down");
+  assert.equal(listTemplates(ws, Number.NaN).templates.length, all.templates.length, "an unusable limit takes the default");
+  assert.ok(TEMPLATE_LIST_DEFAULT_LIMIT <= TEMPLATE_LIST_MAX_LIMIT);
+
+  // The bound does not change WHICH templates lead: the default still comes first.
+  assert.equal(listTemplates(ws, 1).templates[0].isDefault, true);
 });

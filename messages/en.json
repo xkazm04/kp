@@ -4669,7 +4669,8 @@
       "unsavedTitle": "Discard your unsaved template?",
       "unsavedBody": "This template has edits you haven't saved yet. Leaving the editor discards them.",
       "unsavedDiscard": "Discard changes",
-      "unsavedKeep": "Keep editing"
+      "unsavedKeep": "Keep editing",
+      "truncated": "Showing part of the library. Some templates are not listed here."
     },
     "intakeTab": {
       "eyebrow": "Workspace",
@@ -5874,7 +5875,8 @@
         "waiting": "The receiver is armed and no leads have arrived yet. The first one files itself into the pipeline."
       }
     },
-    "copyFailed": "Copy failed. Select the text."
+    "copyFailed": "Copy failed. Select the text.",
+    "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is."
   },
   "interviewSim": {
     "eyebrow": "Interview simulator",

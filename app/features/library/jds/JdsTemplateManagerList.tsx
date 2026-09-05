@@ -12,6 +12,7 @@ import type { Editing } from "./jdsTemplateManagerLogic";
 // JdsTemplateManager.tsx so that file stays under the 200-line split threshold.
 export function JdsTemplateManagerList({
   templates,
+  truncated,
   loading,
   loadFailed,
   reload,
@@ -23,6 +24,8 @@ export function JdsTemplateManagerList({
   t,
 }: {
   templates: ManagedTemplate[] | null;
+  /** The server sent a BOUNDED page and says there is more. */
+  truncated: boolean;
   loading: boolean;
   loadFailed: boolean;
   reload: () => void;
@@ -39,6 +42,12 @@ export function JdsTemplateManagerList({
   const onlyOne = (templates?.length ?? 0) <= 1;
   return (
     <div className="space-y-2">
+      {/* This panel is the one surface that claims to show a team its WHOLE library,
+          so a bounded read it did not mention would be a quiet lie about what exists.
+          Informational, not an error: everything shown is real and editable. */}
+      {truncated && !loadFailed ? (
+        <p className={`${NOTICE("info")} px-3 py-2 text-sm`}>{t("truncated")}</p>
+      ) : null}
       {loadFailed ? (
         // The state that had no rendering at all: the load's promise had no
         // rejection path, so a failure left the skeleton below pulsing forever.

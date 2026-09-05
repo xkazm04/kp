@@ -4669,7 +4669,8 @@
       "unsavedTitle": "Abandonner le modèle non enregistré ?",
       "unsavedBody": "Ce modèle contient des modifications non enregistrées. Quitter l'éditeur les supprime.",
       "unsavedDiscard": "Abandonner les modifications",
-      "unsavedKeep": "Continuer la modification"
+      "unsavedKeep": "Continuer la modification",
+      "truncated": "Une partie seulement de la bibliothèque est affichée. Certains modèles ne figurent pas ici."
     },
     "intakeTab": {
       "eyebrow": "Espace de travail",
@@ -5874,7 +5875,8 @@
         "waiting": "Le récepteur est prêt et aucun lead n’est encore arrivé. Le premier se déposera tout seul dans le pipeline."
       }
     },
-    "copyFailed": "Échec de la copie. Sélectionnez le texte."
+    "copyFailed": "Échec de la copie. Sélectionnez le texte.",
+    "receiversTruncated": "Seuls les récepteurs les plus récents sont affichés. Certains ne figurent pas dans la liste : un canal ci-dessous peut donc sembler plus vide qu'il ne l'est."
   },
   "interviewSim": {
     "eyebrow": "Simulateur d’entretien",

@@ -44,6 +44,9 @@ export function useTemplateManagerLogic({ onChanged, onClose }: { onChanged: () 
   // only state a failure could reach: the promise had no rejection path at all, so
   // the skeleton pulsed forever and the rejection escaped unhandled.
   const [loadFailed, setLoadFailed] = useState(false);
+  // The server said the library is longer than the page it sent (bounded read). Shown
+  // as a note above the list: this panel claims to be the whole library.
+  const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Editing | null>(null);
   // The draft as it was OPENED. Dirtiness is a comparison, not a flag, so an edit
@@ -62,7 +65,9 @@ export function useTemplateManagerLogic({ onChanged, onClose }: { onChanged: () 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setTemplates(await loadManagedTemplates());
+      const page = await loadManagedTemplates();
+      setTemplates(page.templates);
+      setTruncated(page.truncated);
       setLoadFailed(false);
     } catch {
       // Say it, and offer the retry. `templates` keeps whatever it held (null on a
@@ -236,6 +241,7 @@ export function useTemplateManagerLogic({ onChanged, onClose }: { onChanged: () 
   return {
     t,
     templates,
+    truncated,
     loading,
     loadFailed,
     reload: load,

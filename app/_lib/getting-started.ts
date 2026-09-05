@@ -107,7 +107,7 @@ export async function computeGettingStarted(workspaceId: string, orgId: string |
 
   const caseDesigned = listDevCases(1, workspaceId).length > 0 || hasJdCaseArtifact(workspaceId);
 
-  const webhooks = listChannelWebhooks(workspaceId);
+  const { webhooks } = listChannelWebhooks(workspaceId);
   const channels: ChannelsState = webhooks.some((w) => w.receivedCount > 0)
     ? "verified"
     : webhooks.length > 0 || isRelayConfigured()

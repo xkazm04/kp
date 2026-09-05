@@ -42,6 +42,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
       ) : (
         <JdsTemplateManagerList
           templates={m.templates}
+          truncated={m.truncated}
           loading={m.loading}
           loadFailed={m.loadFailed}
           reload={() => void m.reload()}

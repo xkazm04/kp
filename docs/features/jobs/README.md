@@ -183,6 +183,24 @@ Both resolve the message from the machine code (`TEMPLATE_LIST_FAILED`) through
 request. `app/features/shared/templatesClient.test.ts` pins the distinction — an
 empty list is a success, a 500 and a transport failure are not.
 
+### …and a template list that is only PART of the library says that too
+
+`listTemplates` (`app/_lib/templates-store.ts`) had no bound: every row a team could
+see, each carrying a full markdown BODY, serialized on every JD-builder mount and every
+open of the manager. It is now bounded — `TEMPLATE_LIST_DEFAULT_LIMIT` (200), raisable by
+a caller to `TEMPLATE_LIST_MAX_LIMIT` (500) and clamped there, because an unclamped
+caller-supplied limit is the missing bound with extra steps. The read looks ONE row past
+the bound, so `truncated` is answered rather than guessed from a full page.
+
+`GET /api/templates` returns `{ templates, truncated }`; `fetchTemplates` and
+`loadManagedTemplates` both carry the flag through. Only the MANAGER acts on it
+(`JdsTemplateManagerList` renders an info notice, `library.templates.truncated`): the
+builder's picker choosing among 200 templates is not a claim about what exists, while a
+panel titled "your templates" is. Pinned by `app/_lib/templates-store.test.ts` (bound,
+clamp at both ends, exact-fit page not truncated, default still leads) and
+`jdsTemplateManagerLogic.test.ts` (the flag survives the client; a non-`true` value is
+false, never inferred).
+
 ## Save vs. ingest — a draft can exist without a matchable Job
 
 `POST /api/jds/save` does two things, and only the first is authoritative:

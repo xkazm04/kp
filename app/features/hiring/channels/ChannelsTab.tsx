@@ -40,7 +40,7 @@ export function ChannelsTab() {
   const router = useRouter();
   const search = useSearchParams();
   const reduced = useReducedMotion();
-  const { webhooks, jobs, accepted, loadFailed, reload } = useChannelData();
+  const { webhooks, webhooksTruncated, jobs, accepted, loadFailed, reload } = useChannelData();
   const [section, setSection] = useState<ChannelSectionId>("comms");
   // Round-2 prototype switcher: which directional initial-state system every pane
   // on this page uses. Baseline default — nothing changes on load.
@@ -152,6 +152,12 @@ export function ChannelsTab() {
             {tError("retry")}
           </button>
         </p>
+      ) : null}
+
+      {/* The receivers list came back bounded. Said ONCE at the tab, because every pane
+          below filters the same partial list and would each have to guess. */}
+      {webhooksTruncated && !loadFailed ? (
+        <p role="status" className={`${NOTICE("info")} p-3 text-sm`}>{t("receiversTruncated")}</p>
       ) : null}
 
       {/* Icon-pill section switcher — each channel carries its own accent */}

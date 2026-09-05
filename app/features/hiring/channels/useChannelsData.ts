@@ -62,6 +62,10 @@ type ChannelSource = "webhooks" | "jobs" | "pipeline";
 // error affordance — the fourth branch loading-choreography.md asks for.
 export function useChannelData() {
   const [webhooks, setWebhooks] = useState<ChannelWebhookRecord[] | null>(null);
+  // The receivers read is BOUNDED (db/channels.ts). The panes filter this list BY
+  // CHANNEL, so a cut the tab never mentioned would empty one pane and read as
+  // "nothing is wired here" — the one wrong thing a Channels tab can say.
+  const [webhooksTruncated, setWebhooksTruncated] = useState(false);
   const [jobs, setJobs] = useState<ChannelJob[] | null>(null);
   const [accepted, setAccepted] = useState<number | null>(null);
   // Per SOURCE, so a recovered fetch clears only its own failure — and so nothing has
@@ -89,7 +93,10 @@ export function useChannelData() {
       .then((p) => {
         const list = listFromPayload<ChannelWebhookRecord>(p, "webhooks");
         mark("webhooks", list === "failed");
-        if (list !== "failed" && !signal?.aborted) setWebhooks(list);
+        if (list !== "failed" && !signal?.aborted) {
+          setWebhooks(list);
+          setWebhooksTruncated((p as { truncated?: boolean } | null)?.truncated === true);
+        }
       })
       .catch(() => mark("webhooks", true));
     // openOnly — the roles a candidate can actually apply to right now (NULL/'published';
@@ -130,6 +137,7 @@ export function useChannelData() {
 
   return {
     webhooks,
+    webhooksTruncated,
     jobs,
     accepted,
     loadFailed: failed.webhooks || failed.jobs || failed.pipeline,

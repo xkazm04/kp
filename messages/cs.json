@@ -4669,7 +4669,8 @@
       "unsavedTitle": "Zahodit neuloženou šablonu?",
       "unsavedBody": "V této šabloně máte neuložené úpravy. Odchodem z editoru je zahodíte.",
       "unsavedDiscard": "Zahodit změny",
-      "unsavedKeep": "Pokračovat v úpravách"
+      "unsavedKeep": "Pokračovat v úpravách",
+      "truncated": "Zobrazujeme jen část knihovny. Některé šablony zde nejsou uvedeny."
     },
     "intakeTab": {
       "eyebrow": "Pracovní prostor",
@@ -5874,7 +5875,8 @@
         "waiting": "Přijímač je připravený a zatím nedorazily žádné leady. První se do pipeline založí sám."
       }
     },
-    "copyFailed": "Kopírování selhalo. Označte text."
+    "copyFailed": "Kopírování selhalo. Označte text.",
+    "receiversTruncated": "Zobrazujeme nejnovější příjemce. Některé v seznamu nejsou, takže některý kanál níže může působit prázdněji, než ve skutečnosti je."
   },
   "interviewSim": {
     "eyebrow": "Simulátor pohovoru",

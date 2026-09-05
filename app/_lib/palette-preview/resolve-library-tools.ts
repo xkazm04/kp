@@ -33,7 +33,7 @@ export function resolveLibrary(ws: string): PalettePreview {
   // slice — a page's size presented as a library total, in the one surface whose
   // entire job is to preview how big things are.
   const { total, analyzing, failed, newest } = jdLibraryStats(ws);
-  return { view: "library", total, analyzing, failed, templates: listTemplates(ws).length, newest };
+  return { view: "library", total, analyzing, failed, templates: listTemplates(ws).templates.length, newest };
 }
 
 export async function resolveArchetypes(ws: string): Promise<PalettePreview> {

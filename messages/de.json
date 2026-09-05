@@ -4669,7 +4669,8 @@
       "unsavedTitle": "Nicht gespeicherte Vorlage verwerfen?",
       "unsavedBody": "Diese Vorlage enthält noch nicht gespeicherte Änderungen. Wenn Sie den Editor verlassen, gehen sie verloren.",
       "unsavedDiscard": "Änderungen verwerfen",
-      "unsavedKeep": "Weiter bearbeiten"
+      "unsavedKeep": "Weiter bearbeiten",
+      "truncated": "Angezeigt wird ein Teil der Bibliothek. Einige Vorlagen fehlen hier."
     },
     "intakeTab": {
       "eyebrow": "Arbeitsbereich",
@@ -5874,7 +5875,8 @@
         "waiting": "Der Empfänger ist bereit und es sind noch keine Leads eingegangen. Der erste legt sich selbst in der Pipeline ab."
       }
     },
-    "copyFailed": "Kopieren fehlgeschlagen. Text markieren."
+    "copyFailed": "Kopieren fehlgeschlagen. Text markieren.",
+    "receiversTruncated": "Angezeigt werden die neuesten Empfänger. Einige fehlen in der Liste, daher kann ein Kanal unten leerer wirken, als er ist."
   },
   "interviewSim": {
     "eyebrow": "Interview-Simulator",
