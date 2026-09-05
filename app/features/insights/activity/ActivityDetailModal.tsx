@@ -20,6 +20,7 @@
 //   • id, no task    → the run existed but has aged out of task retention.
 //   • task, no result→ the run stored no output (it failed, or produced none).
 import { useFormatter, useTranslations } from "next-intl";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { Modal } from "@/app/_components/Modal";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { StructuredReadout } from "@/app/_components/ui/StructuredReadout";
@@ -99,7 +100,10 @@ export function ActivityDetailModal({
 }) {
   const t = useTranslations("activity");
   const format = useFormatter();
-  const num = (v: number | null) => (v == null ? "—" : v.toLocaleString());
+  // Same formatter as the table row that opened this modal (ActivityTab): the
+  // reader's number locale, never the runtime's default.
+  const { grouped } = useNumberFormat();
+  const num = (v: number | null) => (v == null ? "—" : grouped(v));
 
   return (
     <Modal

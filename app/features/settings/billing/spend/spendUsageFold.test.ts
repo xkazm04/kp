@@ -13,6 +13,7 @@ import { foldByUseCase, sumTotals } from "./spendUsageFold.ts";
 // LlmUsageAggregateRow-shaped rows (day×provider×model rollups the route returns).
 const row = (over: Partial<LlmUsageAggregateRow>): LlmUsageAggregateRow => ({
   day: "2026-07-09",
+  tz: "UTC",
   useCase: "match_reasoning",
   provider: "anthropic",
   model: "claude-haiku-4-5",
