@@ -1320,7 +1320,11 @@ now reads the roster instead, structured fields first:
 The two count pairs have no structured carrier — the delivery rule's `value` is
 the merged/opened *ratio* — so they are parsed out of the reason string, which
 is written character-for-character by both `app/_lib/app-master/backbone.ts` and
-`pipeline/jobfit/appmaster.py` and pinned by fixtures on both sides. A reason
+`pipeline/jobfit/appmaster.py` and pinned by fixtures on both sides. The bench's
+own copy of those strings is pinned by a third check: `expectations.test.mjs`
+imports the real `backboneScore` and drives its output through the regexes, so a
+copy-edit to a `reason:` fails in the run that makes it instead of turning a
+delivered night into "unmeasured". A reason
 that does **not** match leaves the field absent rather than guessing, and a rule
 the roster never carried stays absent too. The tick summary is still deep-scanned
 and folded in underneath (`mergeReadings()`, roster wins), and `result.json`

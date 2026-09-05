@@ -24,6 +24,10 @@ import {
   reconcileCounts,
   sinceHirePlan,
 } from "./expectations.mjs";
+// The PRODUCER of every reason string `readingFromRoster` parses. TypeScript,
+// loaded by node's type stripping (see personas-contract.test.mjs's header) —
+// backbone.ts's only import is `import type`, so nothing else comes with it.
+import { backboneScore } from "../../app/_lib/app-master/backbone.ts";
 
 const scenario = (expect, budgetUsd = 120) => ({
   name: "t",
@@ -313,87 +317,64 @@ test("budgetDegraded still refuses a night with no overnight counts at all", () 
 // The 2026-08-25 sweep read `{}` out of every tick summary and reported
 // "no night reported a proposal count" on a night that opened three — because
 // the counts never travel in the tick summary at all. They come back on the
-// ROSTER, in the SCORED shape. `ROSTER_ROW` below is copied verbatim from that
-// run's `result.json` (night 1's `backbone` + `appMaster` + `kpiDeltas`), so
-// these tests are pinned to the shape the server actually served.
+// ROSTER, in the SCORED shape.
+//
+// The rows below are not transcribed from that run's `result.json` any more:
+// they are produced by `backboneScore` ITSELF (app/_lib/app-master/backbone.ts,
+// loaded through node's type stripping, same as personas-contract.test.mjs loads
+// the e2e mock). `readingFromRoster` has to parse three of the scorer's reason
+// strings because the counts behind them have no structured carrier, and a
+// hand-typed copy of those strings here would have been a THIRD copy: a
+// copy-edit to a `reason:` in backbone.ts would leave both the fixture and the
+// parser matching each other while the server served something else, and the
+// bench would report "unmeasured" on a night that delivered. Driving the real
+// producer means such an edit fails HERE, in the run that makes it.
+//
+// The INPUT is still the sweep's own night 1 (its reported rollup), and the
+// score it produces is asserted below against the numbers that run recorded.
 
-const ROSTER_ROW = {
-  backbone: {
-    rules: [
-      {
-        rule: "delivery",
-        label: "Proposals merged out of proposals opened",
-        weight: 25,
-        measured: true,
-        value: 0,
-        contribution: 0,
-        reason: "0 of 3 proposals merged",
-      },
-      {
-        rule: "durability",
-        label: "Merged proposals that stayed merged",
-        weight: 15,
-        measured: false,
-        value: null,
-        contribution: null,
-        reason: "no proposals merged in the window — nothing could revert",
-      },
-      {
-        rule: "gates",
-        label: "Gate pass rate on proposals",
-        weight: 20,
-        measured: false,
-        value: null,
-        contribution: null,
-        reason: "gate outcomes were not recorded for the window",
-      },
-      {
-        rule: "objectives",
-        label: "Objectives moved toward target in window",
-        weight: 25,
-        measured: false,
-        value: null,
-        contribution: null,
-        reason: "no objective had a reading in the window",
-      },
-      {
-        rule: "budget",
-        label: "Spend settled within the reservation",
-        weight: 10,
-        measured: true,
-        value: 0,
-        contribution: 10,
-        reason: "$0.00 settled against $4.50 reserved",
-      },
-      {
-        rule: "ledger",
-        label: "Activity ledger consistent with the proposal record",
-        weight: 5,
-        measured: true,
-        value: true,
-        contribution: 5,
-        reason: "activity ledger matches the proposal record",
-      },
-    ],
-    gates: [
-      { gate: "forbidden_classes", passed: true, value: 0, reason: "no proposal touched a forbidden-change class" },
-      { gate: "mandate_rung", passed: true, value: 2, reason: "rungs 3 (deploy/merge) and 4 (change gates) are never granted in v1" },
-    ],
-    scoredWeight: 40,
-    totalWeight: 100,
-    coverage: 0.4,
-    score: 0.375,
-    unmeasured: ["durability", "gates", "objectives"],
-    verdict: "incomplete",
-    rubricVersion: "app-master-rubric-v1",
-  },
-  appMaster: { population: "agent", scopeRung: 2, probationDays: 30, autopilotMode: "full" },
-  agentStatus: "active",
+/** Night 1 of the 2026-08-25 sweep, as the rollup it reported. */
+const SWEEP_NIGHT_1 = {
+  windowDays: 30,
+  proposalsOpened: 3,
+  proposalsMerged: 0,
+  proposalsReverted: 0,
+  gatePassRate: null,
+  forbiddenClassViolations: 0,
   kpiDeltas: [
     { kpiKey: "gate_pass_rate", baseline: null, current: null, target: 95, direction: "gte", windowDays: 60, measured: false },
     { kpiKey: "proposal_merge_rate", baseline: null, current: null, target: 80, direction: "gte", windowDays: 60, measured: false },
   ],
+  budgetReservedUsd: 4.5,
+  budgetSettledUsd: 0,
+  budgetUnmeasured: false,
+  ledgerConsistent: true,
 };
+
+/** A roster row exactly as `GET /api/agents` assembles one: the SCORED backbone
+ *  the production scorer writes, beside the App-master block. `over` perturbs
+ *  the night's rollup — never the scored output — so every reason string under
+ *  test is the producer's. */
+const rosterRow = (over = {}) => ({
+  backbone: backboneScore({ ...SWEEP_NIGHT_1, ...over }),
+  appMaster: { population: "agent", scopeRung: 2, probationDays: 30, autopilotMode: "full" },
+  agentStatus: "active",
+  kpiDeltas: SWEEP_NIGHT_1.kpiDeltas,
+});
+
+const ROSTER_ROW = rosterRow();
+
+test("the scored row under test is the sweep's own night, as the PRODUCER scores it", () => {
+  // The pin on the input side: these are the figures the 2026-08-25 run
+  // recorded. If backbone.ts re-weights a rule, this says so before the reading
+  // tests below start explaining a changed number as a parser bug.
+  assert.equal(ROSTER_ROW.backbone.scoredWeight, 40);
+  assert.equal(ROSTER_ROW.backbone.totalWeight, 100);
+  assert.equal(ROSTER_ROW.backbone.coverage, 0.4);
+  assert.equal(ROSTER_ROW.backbone.score, 0.375);
+  assert.equal(ROSTER_ROW.backbone.verdict, "incomplete");
+  assert.deepEqual(ROSTER_ROW.backbone.unmeasured, ["durability", "gates", "objectives"]);
+});
 
 test("readingFromRoster reads the LIVE roster shape the 2026-08-25 sweep served", () => {
   const reading = readingFromRoster(ROSTER_ROW);
@@ -426,20 +407,31 @@ test("the sweep's own night now PASSES minProposalsOpened instead of reading nul
 });
 
 test("readingFromRoster: a measured gates rule gives the rate STRUCTURALLY", () => {
-  const row = structuredClone(ROSTER_ROW);
-  const gates = row.backbone.rules.find((r) => r.rule === "gates");
-  gates.measured = true;
-  gates.value = 0.944;
-  gates.reason = "gate pass rate 94% on proposals";
+  const row = rosterRow({ gatePassRate: 0.944 });
   assert.equal(readingFromRoster(row).gatePassRate, 0.944);
 });
 
+test("readingFromRoster: the durability and no-reservation arms parse the producer's own prose", () => {
+  // Both remaining regexes, driven by the scorer rather than by a copy of it.
+  const reverted = readingFromRoster(rosterRow({ proposalsOpened: 4, proposalsMerged: 4, proposalsReverted: 1 }));
+  assert.equal(reverted.proposalsMerged, 4);
+  assert.equal(reverted.proposalsOpened, 4);
+  assert.equal(reverted.proposalsReverted, 1);
+
+  const unreserved = readingFromRoster(rosterRow({ budgetReservedUsd: 0, budgetSettledUsd: 1.85 }));
+  assert.equal(unreserved.budgetUnmeasured, false);
+  assert.equal(unreserved.budgetSettledUsd, 1.85);
+  assert.equal(unreserved.budgetReservedUsd, 0);
+
+  // Nothing reserved and nothing spent is a METERED pair of zeroes, not a gap.
+  const idle = readingFromRoster(rosterRow({ budgetReservedUsd: 0, budgetSettledUsd: 0 }));
+  assert.equal(idle.budgetUnmeasured, false);
+  assert.equal(idle.budgetSettledUsd, 0);
+  assert.equal(idle.budgetReservedUsd, 0);
+});
+
 test("readingFromRoster: 'no proposals were opened' is a reported ZERO, and fails a minimum", () => {
-  const row = structuredClone(ROSTER_ROW);
-  const delivery = row.backbone.rules.find((r) => r.rule === "delivery");
-  delivery.measured = false;
-  delivery.value = null;
-  delivery.reason = "no proposals were opened in the window — nothing to rate";
+  const row = rosterRow({ proposalsOpened: 0 });
   const reading = readingFromRoster(row);
   assert.equal(reading.proposalsOpened, 0);
   assert.equal(reading.proposalsMerged, 0);
@@ -462,11 +454,7 @@ test("readingFromRoster: an unscored roster row reads nothing at all, never zero
 });
 
 test("readingFromRoster: an unmetered window stays unmeasured, not $0", () => {
-  const row = structuredClone(ROSTER_ROW);
-  const budget = row.backbone.rules.find((r) => r.rule === "budget");
-  budget.measured = false;
-  budget.value = null;
-  budget.reason = "spend was not metered for this window — unmeasured is not zero spend";
+  const row = rosterRow({ budgetUnmeasured: true, budgetSettledUsd: 2.1 });
   const reading = readingFromRoster(row);
   assert.equal(reading.budgetUnmeasured, true);
   assert.equal(reading.budgetSettledUsd, undefined);

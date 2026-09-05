@@ -426,11 +426,22 @@ export function reconcileCounts(summary) {
 //
 // The two count pairs are the only fields with no structured carrier: the
 // delivery rule's `value` is the merged/opened RATIO, and the counts behind it
-// survive only in the reason string the scorer writes. That string is pinned on
-// both sides (`backbone.ts` and `pipeline/jobfit/appmaster.py` write it
-// character-for-character, fixture-tested against each other), so parsing it is
-// a narrow, checked read rather than prose mining — and a reason that does NOT
-// match leaves the field ABSENT rather than guessing a zero.
+// survive only in the reason string the scorer writes.
+//
+// THREE pins make parsing that string a checked read rather than prose mining,
+// and the third is the one that protects THIS file:
+//
+//   1. `backbone.ts` and `pipeline/jobfit/appmaster.py` write the string
+//      character-for-character, fixture-tested against each other.
+//   2. A reason that does NOT match leaves the field ABSENT — never a zero.
+//   3. `expectations.test.mjs` drives the REAL `backboneScore` (imported from
+//      `app/_lib/app-master/backbone.ts`) through the regexes below, so a
+//      copy-edit to a `reason:` fails in the run that makes it. Until it did,
+//      such an edit turned a delivered night into "unmeasured" in silence and
+//      the bench kept reporting under its own "unmeasured is not zero" rule.
+//
+// Every regex here therefore has an arm exercised from the producer; if you add
+// one, add its producer-driven case beside the others.
 
 /** `"0 of 3 proposals merged"` — backbone.ts delivery, measured arm. */
 const DELIVERY_REASON = /^(\d+) of (\d+) proposals merged$/;
