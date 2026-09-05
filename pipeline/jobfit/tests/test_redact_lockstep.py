@@ -25,12 +25,10 @@ WHAT THIS PINS
   3. `_UNCOVERED` is a RATCHET: a shape listed there that Python has since learned
      fails, so the list can only shrink. It is not a permanent exemption.
 
-THE STANDING GAP (measured 2026-09-05, five shapes)
-  elevenlabs, google, gcp-service-account, github-fine-grained and npm reach the wire
-  from `repo_scan` unredacted, while the same bytes would block the commit that leaked
-  them. Closing it is five patterns in `_SECRET_VALUE_PATTERNS` — production code
-  outside this change's scope, so it is recorded here rather than silently fixed. When
-  it is fixed, delete the entry and this test goes green on its own.
+THE GAP, measured 2026-09-05: five shapes reached the wire from `repo_scan` unredacted
+  while the same bytes would block the commit that leaked them. Four were closed the same
+  day (`_SECRET_VALUE_PATTERNS` learned them); `gcp-service-account` stays listed because
+  it is a JSON marker, not a keyspace, and the narrow-shapes rule excludes it by design.
 
 Samples are ASSEMBLED AT RUNTIME, never written as literals: a key-shaped literal in
 a tracked file under `pipeline/` IS a leaked key to `npm run security:secrets` (which
@@ -84,11 +82,7 @@ SAMPLES: dict[str, str] = {
 # Scan rows `redact_secret_values` does NOT know, each with the reason it slips past
 # the Python patterns. A ratchet, not an exemption — see the module docstring.
 _UNCOVERED: dict[str, str] = {
-    "elevenlabs": "the provider-key pattern is `sk-`; the ElevenLabs shape is `sk_` (underscore)",
-    "google": "no AIza pattern at all — a Google API key reaches the wire verbatim",
     "gcp-service-account": "a JSON marker, not a keyspace; the narrow-shapes rule excludes it by design",
-    "github-fine-grained": "the pattern is `gh[pousr]_`, which does not match `github_pat_`",
-    "npm": "no npm_ pattern at all",
 }
 
 

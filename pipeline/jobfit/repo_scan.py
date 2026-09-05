@@ -326,6 +326,15 @@ _SECRET_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b(?:sk|rk)-[A-Za-z0-9_-]{20,}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}\b"),
+    # The four vendor shapes scripts/security/secret-scan.mjs blocks at commit time that
+    # this list did not know (test_redact_lockstep.py measured the gap 2026-09-05): an
+    # ElevenLabs key (sk_ + hex), a Google API key (AIza...), a fine-grained GitHub PAT
+    # (github_pat_...) and an npm publish token (npm_...). Same bytes, same answer on
+    # both sides of the wire.
+    re.compile(r"\bsk_[a-f0-9]{40,}\b"),
+    re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{60,}\b"),
+    re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),
     # KEY=<20+ non-space chars> — an assignment with a keyspace on the right.
     re.compile(r"\b[A-Z][A-Z0-9_]{2,}(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS)\s*[=:]\s*\S{20,}"),
 )
