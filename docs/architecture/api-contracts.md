@@ -347,7 +347,25 @@ A new line on that ratchet is a hole waiting to be closed, never an exemption.
   They are different limits and neither substitutes for the other.
 - **`export const maxDuration`** is serverless-only. A self-hosted `next start`
   will not kill a long handler, so the real bound is whatever timeout the route
-  passes to its own child process or fetch.
+  passes to its own child process or fetch. Derive that bound from `maxDuration`
+  rather than typing a second number beside it — `POST /api/extract-text` spawns
+  its extractor with `(maxDuration - 5) * 1000`, so the child is killed inside the
+  function's own budget and the `finally { cleanupWorkdir }` still runs.
+- **A spawned CLI's failure is answered through the registries, never by
+  forwarding its message.** `parseStderrError`
+  ([`app/_lib/python-runner.ts`](../../app/_lib/python-runner.ts)) already returns
+  a machine `code` (`invalid_input`, `not_found`, `timeout`, `engine_error`)
+  beside the message and the status; the route maps that onto its own vocabulary
+  with a DECIDED table — never `REFUSAL_ERRORS[err.code]`, since the code is an
+  untrusted string from a subprocess and an unmapped one resolves to the generic
+  fallback in all four languages. A 4xx is the caller's input (`jsonRefusal`); the
+  rest is a fault (`safeJsonError`), because the engine's message carries the
+  traceback, the temp workdir path and `PYTHON_CMD`. A spawn refused at the
+  admission door keeps `ENGINE_BUSY` at 503 — the child never ran, so "we could
+  not read your file" would be a lie. The shapes to copy are
+  [`app/api/matrix/matrix-error-code.ts`](../../app/api/matrix/matrix-error-code.ts)
+  (shared by three routes) and the local `extractAnswer` in
+  [`app/api/extract-text/route.ts`](../../app/api/extract-text/route.ts).
 - **Tenancy**: any query behind a route must be workspace-scoped, and the
   allowlist in [`app/_lib/tenancy.ts`](../../app/_lib/tenancy.ts) is fail-closed
   — a new persistent table is a reported gap until it is scoped and listed.

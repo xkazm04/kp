@@ -246,7 +246,15 @@ const LEAK_CEILING = new Map<string, number>([
   // its lifecycle sibling uses for the same human decision. The row is deleted so the
   // win is locked and a regression reads as `undeclared` rather than as budget already
   // granted - devcase/** now carries no ceiling at all.
-  ["extract-text/route.ts", 1],
+  // extract-text/route.ts stood here at 1 and is FIXED, not ceilinged (/perfect wave
+  // 41, db-profiles). Its catch-all forwarded the thrown message on a PUBLIC door that
+  // spawns Python — the traceback, the temp workdir path, PYTHON_CMD — and the
+  // non-zero-exit path forwarded parseStderrError's message while THROWING AWAY the
+  // code the same call already returned. Both now answer through the vocabulary:
+  // jsonRefusal(EXTRACT_TEXT_UNREADABLE / EXTRACT_TEXT_TIMEOUT / ENGINE_BUSY) for a
+  // decision, safeJsonError(..., "EXTRACT_TEXT_FAILED") for a fault. The row is deleted
+  // so the win is locked and a regression reads as `undeclared` rather than as budget
+  // already granted; app/api/extract-text/route.test.ts drives all four answers.
   // The ten jobs/** rows that stood here were FIXED, not ceilinged (/perfect
   // 2026-09-02, api-jobs): every one now answers `safeJsonError(error,
   // "api:jobs/<route>", "JOB_*_FAILED")` against the JOB_* codes added to

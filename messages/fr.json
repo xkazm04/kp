@@ -1754,7 +1754,11 @@
     "ATS_CONNECTION_TOKEN_INVALID": "Ce jeton d'API n'a pas pu être enregistré. Vérifiez qu'une clé de chiffrement est configurée sur le serveur.",
     "ATS_FIELD_MAP_INVALID": "Ce mappage de champs est inutilisable. Chaque champ mappé a besoin d'un chemin, et le chemin vers l'identifiant externe est obligatoire.",
     "ATS_CONNECTION_NOT_FOUND": "Aucune connexion n'est enregistrée pour cet ATS.",
-    "ATS_CONNECTION_STALE": "Quelqu'un a enregistré une version plus récente de cette connexion ATS. Rechargez-la et refaites votre modification."
+    "ATS_CONNECTION_STALE": "Quelqu'un a enregistré une version plus récente de cette connexion ATS. Rechargez-la et refaites votre modification.",
+    "EXTRACT_FILE_REQUIRED": "Joignez un fichier dont le texte doit être extrait.",
+    "EXTRACT_TEXT_UNREADABLE": "Ce fichier n'a pas pu être lu. Essayez un fichier PDF, DOCX, TXT ou MD dont le texte est sélectionnable.",
+    "EXTRACT_TEXT_TIMEOUT": "La lecture de ce fichier a pris trop de temps et a été interrompue. Essayez un fichier plus petit.",
+    "EXTRACT_TEXT_FAILED": "Impossible d'extraire le texte de ce fichier. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",

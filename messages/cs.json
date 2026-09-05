@@ -1754,7 +1754,11 @@
     "ATS_CONNECTION_TOKEN_INVALID": "Tento API token se nepodařilo uložit. Zkontrolujte, že má server nastavený šifrovací klíč.",
     "ATS_FIELD_MAP_INVALID": "Toto mapování polí není použitelné. Každé mapované pole potřebuje cestu a cesta k externímu ID je povinná.",
     "ATS_CONNECTION_NOT_FOUND": "Pro toto ATS není uložené žádné připojení.",
-    "ATS_CONNECTION_STALE": "Někdo mezitím uložil novější verzi tohoto připojení k ATS. Načtěte je znovu a proveďte změnu ještě jednou."
+    "ATS_CONNECTION_STALE": "Někdo mezitím uložil novější verzi tohoto připojení k ATS. Načtěte je znovu a proveďte změnu ještě jednou.",
+    "EXTRACT_FILE_REQUIRED": "Přiložte soubor, ze kterého se má text načíst.",
+    "EXTRACT_TEXT_UNREADABLE": "Tento soubor se nepodařilo přečíst. Zkuste PDF, DOCX, TXT nebo MD s vybíratelným textem.",
+    "EXTRACT_TEXT_TIMEOUT": "Čtení souboru trvalo příliš dlouho a bylo zastaveno. Zkuste menší soubor.",
+    "EXTRACT_TEXT_FAILED": "Text z tohoto souboru se nepodařilo načíst. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",

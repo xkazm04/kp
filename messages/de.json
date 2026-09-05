@@ -1754,7 +1754,11 @@
     "ATS_CONNECTION_TOKEN_INVALID": "Dieses API-Token konnte nicht gespeichert werden. Prüfen Sie, ob auf dem Server ein Verschlüsselungsschlüssel konfiguriert ist.",
     "ATS_FIELD_MAP_INVALID": "Diese Feldzuordnung ist nicht verwendbar. Jedes zugeordnete Feld braucht einen Pfad, und der Pfad zur externen ID ist Pflicht.",
     "ATS_CONNECTION_NOT_FOUND": "Für dieses ATS ist keine Verbindung gespeichert.",
-    "ATS_CONNECTION_STALE": "Jemand hat eine neuere Version dieser ATS-Verbindung gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor."
+    "ATS_CONNECTION_STALE": "Jemand hat eine neuere Version dieser ATS-Verbindung gespeichert. Laden Sie sie neu und nehmen Sie Ihre Änderung erneut vor.",
+    "EXTRACT_FILE_REQUIRED": "Hängen Sie eine Datei an, aus der Text gelesen werden soll.",
+    "EXTRACT_TEXT_UNREADABLE": "Diese Datei konnte nicht gelesen werden. Versuchen Sie eine PDF-, DOCX-, TXT- oder MD-Datei mit auswählbarem Text.",
+    "EXTRACT_TEXT_TIMEOUT": "Das Lesen der Datei hat zu lange gedauert und wurde abgebrochen. Versuchen Sie eine kleinere Datei.",
+    "EXTRACT_TEXT_FAILED": "Der Text aus dieser Datei konnte nicht gelesen werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",

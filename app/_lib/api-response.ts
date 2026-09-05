@@ -387,6 +387,10 @@ export const STORE_ERRORS = {
   PROFILE_UPDATE_FAILED: "Could not save your changes to that profile. Please try again.",
   PROFILE_DELETE_FAILED: "Could not delete that profile. Please try again.",
   PROFILE_CANDIDATES_FAILED: "Could not load the candidate matrix. Please try again.",
+  /** The text extractor faulted (500): a non-zero exit with no client-fixable code, a
+   *  wedged workdir, an ENOENT on PYTHON_CMD, or non-JSON stdout — whose diagnostic
+   *  dump embeds stdout, stderr and the temp workdir path by construction. */
+  EXTRACT_TEXT_FAILED: "Could not read text from that file. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1486,6 +1490,21 @@ export const REFUSAL_ERRORS = {
    *  Both used to store as null behind a green "Saved": a truncated signed CDN URL is
    *  still a valid https URL, so it round-tripped happily and 403'd forever. */
   BRAND_LOGO_INVALID: "That logo link must be an https:// URL, short enough to store.",
+  // ---- The public text-extraction door (/perfect wave 41, db-profiles). POST
+  // /api/extract-text spawns pipeline.jobfit.extract_cli per request and is reachable
+  // with no session, yet it answered every failure with the ENGINE's own prose —
+  // parseStderrError's message on a non-zero exit, the thrown `.message` on the
+  // catch-all. It had the code all along and dropped it.
+  /** The POST carried no file (400). The apply form and the analyze form both send
+   *  one, so reaching this is a hand-rolled call or a dropped multipart part. */
+  EXTRACT_FILE_REQUIRED: "Attach a file to read text from.",
+  /** The extractor refused the document (400): a scanned PDF with no text layer, an
+   *  encrypted DOCX, a renamed binary. ONE code for all of them — the reader's next
+   *  move is the same, and which one it was is operator detail for the log. */
+  EXTRACT_TEXT_UNREADABLE: "That file could not be read. Try a PDF, DOCX, TXT or MD file with selectable text.",
+  /** The extractor overran EXTRACT_TIMEOUT_MS (504) — 5s inside the route's own
+   *  maxDuration budget, so cleanup still runs. A decision, not a fault. */
+  EXTRACT_TEXT_TIMEOUT: "Reading that file took too long and was stopped. Try a smaller file.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
