@@ -4393,6 +4393,7 @@
             "failedCloneFailed": "Das Repository konnte nicht geklont werden. Prüfen Sie die URL und die nötigen Zugriffsrechte.",
             "failedCloneTimeout": "Das Klonen des Repositorys hat zu lange gedauert und wurde gestoppt.",
             "failedCancelled": "Der Scan wurde gestoppt.",
+            "failedTimeout": "Der Scan hat sein Zeitbudget überschritten und wurde gestoppt. Ein unveränderter neuer Versuch läuft in dasselbe Limit.",
             "failedEngineFailed": "Die Scan-Engine ist ausgefallen, es wurde nichts gelesen.",
             "fellBackAgentNotInstalled": "Der KI-Agent ist nicht installiert, dies ist nur die Lesung aus dem Dateidurchlauf.",
             "fellBackAgentTimeout": "Beim KI-Agenten ist die Zeit abgelaufen, dies ist nur die Lesung aus dem Dateidurchlauf.",
@@ -10103,7 +10104,8 @@
       "working": "Arbeite",
       "accepted": "Angenommen",
       "declined": "Abgelehnt",
-      "dropped": "{count, plural, one {# Vorschlag wurde verworfen} other {# Vorschläge wurden verworfen}}"
+      "dropped": "{count, plural, one {# Vorschlag wurde verworfen} other {# Vorschläge wurden verworfen}}",
+      "failed": "Die Antwort kam nicht an. Es wurde nichts geändert, bitte erneut versuchen."
     },
     "outcome": {
       "analysisQueued": "Screening für {candidate} läuft im Hintergrund",

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CompanionProposal, CompanionTurn } from "@/app/_lib/db/companion";
+import { readProposalAnswer } from "@/app/_lib/companion-dock-states";
 import {
   completeTurn,
   enqueueUtterance,
@@ -66,6 +67,11 @@ export type CompanionThreadState = {
   /** Answer one proposal. Resolves false when the answer did not land, so the
    *  card re-arms rather than sitting disabled on a request that failed. */
   resolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The proposal whose answer did not land, and why. It belongs BESIDE that
+   *  card, not in the dock's error line: the operator pressed a button on one
+   *  row and the sentence about it has to be readable from there. Cleared by any
+   *  later answer or send, so there is only ever one current failure. */
+  proposalError: { id: string; code: string } | null;
   /** Whether this workspace has consented to Candi keeping a memory on this
    *  machine (WP4). Read from the SAME boot request that hydrates the thread,
    *  because the state line has to say "memory off" before a single message is
@@ -92,6 +98,7 @@ type ExchangeCtx = {
   setBusy: (busy: boolean) => void;
   setError: (code: string | null) => void;
   setLastFailed: (message: string | null) => void;
+  setProposalError: (failure: { id: string; code: string } | null) => void;
 };
 
 let optimisticSeq = 0;
@@ -121,6 +128,7 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
       ctx.setTurns(body.turns);
       ctx.setProposals(body.proposals ?? []);
       ctx.setError(null);
+      ctx.setProposalError(null);
       ok = true;
       ctx.setLastFailed(null);
       // An answer arrived at a dock nobody is looking at: that is the ONLY
@@ -129,10 +137,12 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
     } else {
       ctx.setError(body.code ?? "COMPANION_MESSAGE_FAILED");
       ctx.setLastFailed(message);
+      ctx.setProposalError(null);
     }
   } catch {
     ctx.setError("COMPANION_MESSAGE_FAILED");
     ctx.setLastFailed(message);
+    ctx.setProposalError(null);
   }
   for (const pending of carried) pending.resolve(ok);
   // A refused message is NOT put back into the machine's queue here, and this is
@@ -162,6 +172,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFailed, setLastFailed] = useState<string | null>(null);
+  const [proposalError, setProposalError] = useState<{ id: string; code: string } | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   // Optimistic yes: the honest failure of this flag is a missing warning, not a
   // false one, and "Candi has forgotten everything" is a bad thing to say to an
@@ -230,6 +241,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       setBusy,
       setError,
       setLastFailed,
+      setProposalError,
     }),
     []
   );
@@ -242,6 +254,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       // A new attempt supersedes the last failure whatever its outcome: the error
       // line must never offer to retry a message that is already on its way.
       setLastFailed(null);
+      setProposalError(null);
       setTurns((prev) => [
         ...prev,
         {
@@ -286,6 +299,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       setBusy(false);
       setError(null);
       setLastFailed(null);
+      setProposalError(null);
       return true;
     } catch {
       setError("COMPANION_THREAD_CREATE_FAILED");
@@ -348,7 +362,10 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
    *
    *  A 409 (a sibling dock already answered it) is NOT surfaced as an error — the
    *  server's row is authoritative and the card simply repaints as resolved, so
-   *  the response's proposal is taken whatever the status was. */
+   *  the response's proposal is taken whatever the status was. That only became
+   *  TRUE when the route started sending the row with the 409; until then the
+   *  card re-armed on a closed proposal and every further click bought another
+   *  409. `readProposalAnswer` is where the rule now lives, with a test. */
   const resolveProposalById = useCallback(
     async (id: string, decision: "accept" | "decline"): Promise<boolean> => {
       try {
@@ -358,16 +375,22 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
           body: JSON.stringify({ decision }),
         });
         const body = (await res.json()) as { proposal?: CompanionProposal; code?: string };
-        if (body.proposal) {
-          const updated = body.proposal;
+        const answer = readProposalAnswer(body);
+        if (answer.proposal) {
+          const updated = answer.proposal;
           setProposals((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
           setError(null);
+          setProposalError(null);
           return true;
         }
-        setError(body.code ?? "COMPANION_PROPOSAL_FAILED");
+        // Both, and on purpose: the card reads `proposalError` and voice mode —
+        // which draws no card of its own — reads the thread's error line.
+        setError(answer.code);
+        setProposalError({ id, code: answer.code ?? "COMPANION_PROPOSAL_FAILED" });
         return false;
       } catch {
         setError("COMPANION_PROPOSAL_FAILED");
+        setProposalError({ id, code: "COMPANION_PROPOSAL_FAILED" });
         return false;
       }
     },
@@ -386,6 +409,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     refresh,
     newThread,
     resolveProposal: resolveProposalById,
+    proposalError,
     memoryEnabled,
   };
 }

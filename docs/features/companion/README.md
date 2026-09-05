@@ -517,6 +517,17 @@ which is what makes the dock re-open safe: `status` comes from the live row, not
 from the turn that produced it, so a reloaded conversation paints an outcome chip
 and no buttons.
 
+**Every 409 carries the answered row.** All three already-answered paths (the
+pre-check, a lost decline, a lost claim) answer through `alreadyResolved()`, which
+puts the store's current proposal beside the code. The dock takes the response's
+proposal whatever the status (`readProposalAnswer` in
+`app/_lib/companion-dock-states.ts`), so the card that lost the race repaints as
+answered instead of re-arming Accept on a closed proposal and buying another 409
+on every click until the next 60 s attention read. A code with NO row is a genuine
+failure (a 429, a 500, a dropped connection): the card re-arms and prints that
+code through `useErrorMessage()` on the card itself, beside the button that was
+pressed, rather than in the dock-wide error line above the transcript.
+
 **The outcome lives in `payload_json`, not in a column.** `companion_proposals` has
 `status` and `resolved_at` and no free field, and adding one means a DDL migration
 in `db/core.ts` — a file this work package does not own and that concurrent

@@ -179,6 +179,7 @@ export function CompanionDock() {
           speech={dock.speech}
           onSend={dock.thread.send}
           onResolveProposal={dock.thread.resolveProposal}
+          proposalError={dock.thread.proposalError}
           lastFailed={dock.thread.lastFailed}
           onRetry={dock.thread.retry}
         />

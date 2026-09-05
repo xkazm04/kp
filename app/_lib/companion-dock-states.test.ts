@@ -1,53 +1,39 @@
-// The two pure decisions behind the dock's honest states (Direction 2).
-//
-// Both are classifications the dock makes on every render and neither can be
-// reached through React in this runner, so they live in companion-turn.ts (the
-// dependency-free half) and are driven directly here — the same split the
-// existing companion-turn tests use.
-//
-// Runner: node:test with type stripping — `npm run test:unit`.
+// The dock's pure decisions. Runner: node:test with type stripping —
+// `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { companionFallbackClass, shouldRefetchCompanionThread } from "./companion-turn.ts";
+import {
+  companionRetryTarget,
+  readProposalAnswer,
+  withoutOptimisticTurns,
+} from "./companion-dock-states.ts";
+import type { CompanionProposal } from "./db/companion.ts";
 
-test("companionFallbackClass separates a missing provider from a provider that failed", () => {
-  // The literal companion_cli.py emits when resolve_provider returns nothing or
-  // reports itself unavailable. A keyless install is the ordinary case here.
-  assert.equal(companionFallbackClass("no provider available"), "noProvider");
-  assert.equal(companionFallbackClass("  No Provider Available  "), "noProvider");
+const ROW = { id: "p1", status: "accepted" } as unknown as CompanionProposal;
 
-  // `f"{type(exc).__name__}: {exc}"[:200]` — the other arm of the same function.
-  assert.equal(companionFallbackClass("TimeoutError: read timed out"), "providerFailed");
-  assert.equal(companionFallbackClass("httpx.ReadTimeout: timed out after 90s"), "providerFailed");
-  assert.equal(companionFallbackClass("ValueError: companion turn returned no text"), "providerFailed");
+test("a refused proposal answer that carries the server's row closes the card", () => {
+  const answer = readProposalAnswer({ proposal: ROW, code: "COMPANION_PROPOSAL_RESOLVED" });
+  assert.equal(answer.proposal, ROW, "the row wins over the status");
+  assert.equal(answer.code, null, "…and it is not also reported as a failure");
 });
 
-test("companionFallbackClass refuses to guess at a reason it does not know", () => {
-  // A CLI older or newer than this dock: the generic chip is the truth we have.
-  for (const unknown of [null, undefined, "", "   ", "something else entirely", "no provider available yet"]) {
-    assert.equal(companionFallbackClass(unknown), null, `must not classify ${JSON.stringify(unknown)}`);
-  }
-  // Not an exception shape: a colon alone is not provenance.
-  assert.equal(companionFallbackClass(": nope"), null);
-  assert.equal(companionFallbackClass("lower case sentence: with a colon"), null);
+test("a code with no row is a real failure the card must say", () => {
+  assert.deepEqual(readProposalAnswer({ code: "TOO_MANY_REQUESTS" }), {
+    proposal: null,
+    code: "TOO_MANY_REQUESTS",
+  });
+  assert.deepEqual(readProposalAnswer({}), { proposal: null, code: "COMPANION_PROPOSAL_FAILED" });
+  assert.deepEqual(readProposalAnswer(null), { proposal: null, code: "COMPANION_PROPOSAL_FAILED" });
 });
 
-test("the dock re-reads its thread only when an OPEN dock sees the count actually move", () => {
-  // The digest landed / a sibling tab answered a proposal: the count moved.
-  assert.equal(shouldRefetchCompanionThread(0, 1, true), true);
-  assert.equal(shouldRefetchCompanionThread(3, 2, true), true);
+test("retry drops the unsent bubbles and keeps the stored ones", () => {
+  const turns = [{ id: "t1" }, { id: "optimistic-1" }, { id: "optimistic-2" }];
+  assert.deepEqual(withoutOptimisticTurns(turns), [{ id: "t1" }]);
+});
 
-  // Nothing moved.
-  assert.equal(shouldRefetchCompanionThread(2, 2, true), false);
-
-  // Closed: the rest pill's dot is already the honest signal, and repainting a
-  // surface nobody is looking at buys nothing.
-  assert.equal(shouldRefetchCompanionThread(0, 1, false), false);
-
-  // The FIRST observation is not a change — the boot fetch just read this very
-  // thread, so refetching on it would be a wasted round trip on every open.
-  assert.equal(shouldRefetchCompanionThread(null, 1, true), false);
-  // …and a poll that failed (counts unknown) is not evidence of anything.
-  assert.equal(shouldRefetchCompanionThread(1, null, true), false);
-  assert.equal(shouldRefetchCompanionThread(null, null, true), false);
+test("the error line offers a boot retry before the thread exists, a message retry after", () => {
+  assert.equal(companionRetryTarget({ ready: false, error: "COMPANION_THREADS_FAILED", lastFailed: null }), "boot");
+  assert.equal(companionRetryTarget({ ready: false, error: null, lastFailed: null }), null);
+  assert.equal(companionRetryTarget({ ready: true, error: "TOO_MANY_REQUESTS", lastFailed: "hi" }), "message");
+  assert.equal(companionRetryTarget({ ready: true, error: null, lastFailed: null }), null);
 });

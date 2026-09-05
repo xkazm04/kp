@@ -4393,6 +4393,7 @@
             "failedCloneFailed": "Repozitář se nepodařilo naklonovat. Zkontrolujte URL a potřebný přístup.",
             "failedCloneTimeout": "Klonování repozitáře trvalo příliš dlouho a bylo zastaveno.",
             "failedCancelled": "Sken byl zastaven.",
+            "failedTimeout": "Čtení kódu překročilo časový limit a bylo zastaveno. Opakované spuštění beze změny narazí na stejný limit.",
             "failedEngineFailed": "Skenovací engine selhal, takže se nic nenačetlo.",
             "fellBackAgentNotInstalled": "AI agent není nainstalovaný, takže jde jen o čtení průchodem souborů.",
             "fellBackAgentTimeout": "AI agentovi vypršel čas, takže jde jen o čtení průchodem souborů.",
@@ -10103,7 +10104,8 @@
       "working": "Pracuji",
       "accepted": "Přijato",
       "declined": "Odmítnuto",
-      "dropped": "{count, plural, one {# návrh byl zahozen} few {# návrhy byly zahozeny} other {# návrhů bylo zahozeno}}"
+      "dropped": "{count, plural, one {# návrh byl zahozen} few {# návrhy byly zahozeny} other {# návrhů bylo zahozeno}}",
+      "failed": "Odpověď se nepodařilo odeslat. Nic se nezměnilo, zkuste to prosím znovu."
     },
     "outcome": {
       "analysisQueued": "Screening pro: {candidate} běží na pozadí",

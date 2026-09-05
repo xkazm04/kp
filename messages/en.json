@@ -4393,6 +4393,7 @@
             "failedCloneFailed": "The repository could not be cloned. Check the URL and the access it needs.",
             "failedCloneTimeout": "Cloning the repository took too long and was stopped.",
             "failedCancelled": "The scan was stopped.",
+            "failedTimeout": "The scan ran past its time budget and was stopped. Re-running it unchanged will hit the same limit.",
             "failedEngineFailed": "The scan engine failed, so nothing was read.",
             "fellBackAgentNotInstalled": "The AI agent is not installed, so this is the file-walk reading only.",
             "fellBackAgentTimeout": "The AI agent timed out, so this is the file-walk reading only.",
@@ -10103,7 +10104,8 @@
       "working": "Working",
       "accepted": "Accepted",
       "declined": "Declined",
-      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}"
+      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}",
+      "failed": "That answer did not go through. Nothing was changed, so try again."
     },
     "outcome": {
       "analysisQueued": "Screening {candidate} in the background",

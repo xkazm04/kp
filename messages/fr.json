@@ -4393,6 +4393,7 @@
             "failedCloneFailed": "Le dépôt n'a pas pu être cloné. Vérifiez l'URL et les accès nécessaires.",
             "failedCloneTimeout": "Le clonage du dépôt a pris trop de temps et a été arrêté.",
             "failedCancelled": "L'analyse a été arrêtée.",
+            "failedTimeout": "L'analyse a dépassé son budget de temps et a été arrêtée. La relancer sans changement atteindra la même limite.",
             "failedEngineFailed": "Le moteur d'analyse a échoué, rien n'a été lu.",
             "fellBackAgentNotInstalled": "L'agent IA n'est pas installé : ceci est uniquement la lecture par parcours de fichiers.",
             "fellBackAgentTimeout": "L'agent IA a dépassé le délai : ceci est uniquement la lecture par parcours de fichiers.",
@@ -10103,7 +10104,8 @@
       "working": "Je m'en occupe",
       "accepted": "Acceptée",
       "declined": "Refusée",
-      "dropped": "{count, plural, one {# proposition a été écartée} other {# propositions ont été écartées}}"
+      "dropped": "{count, plural, one {# proposition a été écartée} other {# propositions ont été écartées}}",
+      "failed": "La réponse n’est pas passée. Rien n’a été modifié, réessayez."
     },
     "outcome": {
       "analysisQueued": "Screening de {candidate} en cours en arrière-plan",
